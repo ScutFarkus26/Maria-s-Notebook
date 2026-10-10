@@ -5,12 +5,14 @@ import SwiftUI
 import CoreData
 
 extension TodoMainView {
+    /// Completes the selected open todos through `TodoCompletionService`, so
+    /// each repeating one gets its next occurrence. Ones already done stay as
+    /// they are.
     func batchComplete() {
         adaptiveWithAnimation(.snappy(duration: 0.2)) {
             let todosToComplete = allTodos.filter { $0.id.map { selectedTodoIDs.contains($0) } ?? false }
-            for todo in todosToComplete {
-                todo.isCompleted = true
-                todo.completedAt = Date()
+            for todo in todosToComplete where !todo.isCompleted {
+                TodoCompletionService.complete(todo)
             }
             dependencies.saveCoordinator.save(viewContext, reason: "Complete todos")
             selectedTodoIDs.removeAll()
@@ -30,14 +32,13 @@ extension TodoMainView {
         }
     }
 
-    func batchSetDueToday() {
+    /// Plans the selected todos for today, as the row's Today swipe does;
+    /// their deadlines stay as they are.
+    func batchMoveToToday() {
         adaptiveWithAnimation(.snappy(duration: 0.2)) {
             let todos = allTodos.filter { $0.id.map { selectedTodoIDs.contains($0) } ?? false }
-            let today = AppCalendar.shared.startOfDay(for: Date())
-            for todo in todos {
-                todo.dueDate = today
-            }
-            dependencies.saveCoordinator.save(viewContext, reason: "Set todos due today")
+            TodoScheduling.moveToToday(todos)
+            dependencies.saveCoordinator.save(viewContext, reason: "Move todos to today")
             selectedTodoIDs.removeAll()
             isSelectMode = false
         }

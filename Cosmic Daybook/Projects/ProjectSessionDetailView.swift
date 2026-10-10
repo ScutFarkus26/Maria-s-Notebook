@@ -20,6 +20,9 @@ struct ProjectSessionDetailView: View {
     @State var showAddWorkSheet: Bool = false
     @State var stepEditorTarget: StepEditorTarget?
     @State private var sessionNotesText: String
+    /// A typed edit's save, waiting for the typing to pause.
+    @State private var pendingSave: Task<Void, Never>?
+    @Environment(\.scenePhase) private var scenePhase
 
     init(session: CDProjectSession) {
         self.session = session
@@ -192,6 +195,13 @@ struct ProjectSessionDetailView: View {
             saveSessionNotes()
             saveProjectSession(reason: "Save Project Check-In")
         }
+        // These two fields write straight to the session; save once typing pauses
+        // rather than only on leaving the screen (2026-10-10 sweep and review).
+        .onChange(of: session.chapterOrPages) { _, _ in scheduleProjectSave(reason: "Edit Project Focus") }
+        .onChange(of: session.agendaItems) { _, _ in scheduleProjectSave(reason: "Edit Project Next Step") }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { flushPendingProjectSave() }
+        }
     }
 
     private var agendaItemsEditor: some View {
@@ -268,8 +278,27 @@ struct ProjectSessionDetailView: View {
     }
 
     func saveProjectSession(reason: String) {
+        pendingSave?.cancel()
+        pendingSave = nil
         session.project?.modifiedAt = Date()
         saveCoordinator.save(modelContext, reason: reason)
+    }
+
+    /// Saves after typing pauses for 0.8 s, so a word is one save and one
+    /// CloudKit push rather than one per keystroke.
+    func scheduleProjectSave(reason: String) {
+        pendingSave?.cancel()
+        pendingSave = Task {
+            try? await Task.sleep(for: .milliseconds(800))
+            guard !Task.isCancelled else { return }
+            saveProjectSession(reason: reason)
+        }
+    }
+
+    /// Saves a typed edit still waiting, when leaving the app.
+    func flushPendingProjectSave() {
+        guard pendingSave != nil else { return }
+        saveProjectSession(reason: "Save Project Check-In")
     }
 
     private func saveSessionNotes() {

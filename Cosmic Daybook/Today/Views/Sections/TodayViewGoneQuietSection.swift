@@ -65,7 +65,7 @@ extension TodayView {
             quietWorkRow(followUp, checkInDay: checkInDay)
         case .groupedFollowUp(let items):
             groupedQuietWorkRow(items, checkInDay: checkInDay)
-        case .lesson, .scheduledWork, .groupedScheduledWork:
+        case .lesson, .scheduledWork:
             EmptyView()
         }
     }

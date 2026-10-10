@@ -39,7 +39,7 @@ extension AppleIntelligenceSheet {
             )
             // Animate the text in (simple replacement for now)
             adaptiveWithAnimation {
-                editorText = text
+                show(text)
             }
         } catch let error as LanguageModelError {
             // The note text stays as it was; the banner says what went wrong.

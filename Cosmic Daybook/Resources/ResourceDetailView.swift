@@ -445,6 +445,8 @@ struct ResourceDetailView: View {
 
     private func markViewed() {
         resource.lastViewedAt = Date()
+        // Recently Viewed reads this stamp; unsaved, it was lost on quit and never synced.
+        dependencies.saveCoordinator.save(viewContext, reason: "Resource viewed")
     }
 
     private func toggleFavorite() {
@@ -484,8 +486,9 @@ struct ResourceDetailView: View {
     }
 
     private func deleteResource() {
-        viewContext.delete(resource)
-        dependencies.saveCoordinator.save(viewContext, reason: "Delete resource")
+        guard ResourceDeletion.delete(
+            [resource], context: viewContext, saveCoordinator: dependencies.saveCoordinator
+        ) else { return }
         dismiss()
     }
 }

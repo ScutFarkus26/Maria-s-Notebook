@@ -11,6 +11,7 @@ import CoreData
 
 struct LessonRepository: SavingRepository {
     typealias Model = CDLesson
+    private static let logger = Logger.lessons
 
     let context: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator?
@@ -158,12 +159,57 @@ struct LessonRepository: SavingRepository {
         return lesson
     }
 
+    // MARK: - Order
+
+    /// The `orderInSequence` a new lesson takes to land after every lesson
+    /// already in its sequence. Area and sequence match trimmed and in any
+    /// case, as the Lessons screen groups them: a new lesson used to take 0,
+    /// tying the sequence's first lesson, which drives the key-lesson rule
+    /// and blocking.
+    func nextOrderInSequence(area: String, sequence: String) -> Int {
+        let key = BulkLessonInsertion.orderKey(area: area, sequence: sequence)
+        let request = CDFetchRequest(CDLesson.self)
+        let trimmedArea = area.trimmed()
+        if !trimmedArea.isEmpty {
+            // A superset in SQL, narrowed to the exact key below.
+            request.predicate = NSPredicate(format: "area CONTAINS[c] %@", trimmedArea)
+        }
+        let highest = context.safeFetch(request)
+            .filter { !$0.isDeleted && BulkLessonInsertion.orderKey(area: $0.area, sequence: $0.sequence) == key }
+            .map { Int($0.orderInSequence) }
+            .max()
+        return (highest ?? -1) + 1
+    }
+
     // MARK: - Delete
 
-    /// Delete a CDLesson by ID
-    func deleteLesson(id: UUID) throws {
-        guard let lesson = fetchLesson(id: id) else { return }
-        context.delete(lesson)
-        try context.save()
+    /// Deletes the lesson with `id` and what goes with it (`LessonDeletion`):
+    /// its planned presentations, open work and year-plan entries; given
+    /// presentations and history stay. Edits already pending are saved first,
+    /// so a failed save rolls back exactly the deletion. Only after the save
+    /// succeeds are the lesson's files that nothing else uses handed to
+    /// `trashFiles`; pass nil (the Sample Class) to leave every file alone.
+    @discardableResult
+    func deleteLesson(
+        id: UUID,
+        trashFiles: (([URL]) -> Void)? = { LessonFileStorage.moveToTrash($0) },
+        save: (NSManagedObjectContext) throws -> Void = { try $0.save() }
+    ) throws -> LessonDeletionSummary {
+        if context.hasChanges { try save(context) }
+        let plan = LessonDeletion.plan(for: id, in: context)
+        guard !plan.lessons.isEmpty else { return LessonDeletionSummary() }
+        LessonDeletion.apply(plan, in: context)
+        do {
+            try save(context)
+        } catch {
+            context.rollback()
+            throw error
+        }
+        if let trashFiles {
+            let unused = LessonFileStorage.unreferencedFiles(plan.filePaths, in: context)
+            if !unused.isEmpty { trashFiles(unused) }
+        }
+        Self.logger.notice("Deleted a lesson: \(String(describing: plan.summary), privacy: .public)")
+        return plan.summary
     }
 }

@@ -75,6 +75,7 @@ struct AssistantWeNeedSheet: View {
         }
         .presentationDetents([.large])
         .onAppear { nameFocused = true }
+        .onDisappear { model.weNeedClosed() }
         .onChange(of: isLink) { _, link in
             // A pasted product link is something to order.
             if link { source = .order }
@@ -185,8 +186,9 @@ struct AssistantWeNeedSheet: View {
         case .alreadyListed:
             notice = "That's already on the list."
         case .notSaved:
-            // Kept open, so tapping again tries the save again.
-            notice = model.errorMessage ?? "Couldn't save that change. Try again."
+            // Kept open: tapping again saves what the sheet says then (a
+            // changed name or count replaces the add that didn't save).
+            notice = "Couldn't save that. Tap “\(goLabel)” to try again."
         case .nothing:
             break
         }

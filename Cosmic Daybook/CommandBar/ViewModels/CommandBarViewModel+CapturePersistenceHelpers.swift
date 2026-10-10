@@ -5,7 +5,10 @@ extension CommandBarViewModel {
     /// The chosen children in the order they were chosen, one row per id.
     func fetchStudents(ids: [UUID], context: NSManagedObjectContext) throws -> [CDStudent] {
         let fetched = try StudentRepository(context: context).fetchStudents(ids: ids).uniqueByID
-        let order = Dictionary(uniqueKeysWithValues: ids.enumerated().map { ($0.element, $0.offset) })
+        let order = Dictionary(
+            ids.enumerated().map { ($0.element, $0.offset) },
+            uniquingKeysWith: { first, _ in first }
+        )
         return fetched.sorted { (order[$0.id ?? UUID()] ?? .max) < (order[$1.id ?? UUID()] ?? .max) }
     }
 

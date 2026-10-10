@@ -296,9 +296,9 @@ extension MCPNotebookTools {
             + "to \(who) on \(dayString(filing.presentedAt)) — \(notes)\(filed.repeatNote)."
 
         if !filing.outcomes.isEmpty {
-            let names = Dictionary(uniqueKeysWithValues: filing.students.compactMap { student in
+            let names = Dictionary(filing.students.compactMap { student in
                 student.id.map { ($0, student.fullName) }
-            })
+            }, uniquingKeysWith: { first, _ in first })
             let decisions = filing.outcomes.map { entry in
                 "\(names[entry.studentID] ?? "?") — \(entry.followUp.displayName.lowercased())"
             }

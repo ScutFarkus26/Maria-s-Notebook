@@ -106,26 +106,57 @@ public enum LessonFileStorage {
         return orgDir
     }
 
-    /// Returns all attachments for a lesson, including inherited ones from sequence and area scope.
-    /// - Parameter lesson: The lesson to get attachments for
-    /// - Parameter includeInherited: Whether to include sequence and area-scoped attachments
-    /// - Returns: Array of attachments, with lesson-specific first, then sequence, then area
+    /// Returns a lesson's attachments: its own, then (with `includeInherited`)
+    /// every sequence-scoped attachment filed on any lesson in its sequence and
+    /// every area-scoped one filed on any lesson in its area, its own included.
+    /// A shared attachment is held by the one lesson it was added to; the
+    /// others read it from there (they used to read only their own, so a
+    /// "whole sequence" file never showed anywhere else). Most recent first.
     static func getAttachments(forLesson lesson: CDLesson, includeInherited: Bool = true) -> [CDLessonAttachment] {
-        let allLessonAttachments = (lesson.attachments?.allObjects as? [CDLessonAttachment]) ?? []
-
-        // Always include lesson-specific attachments
-        var result = allLessonAttachments.filter { $0.scope == .lesson }
-
+        let own = ((lesson.attachments?.allObjects as? [CDLessonAttachment]) ?? []).filter { !$0.isDeleted }
+        var result = own.filter { $0.scope == .lesson }
         if includeInherited {
-            // Add sequence-scoped attachments
-            result.append(contentsOf: allLessonAttachments.filter { $0.scope == .sequence })
-
-            // Add area-scoped attachments
-            result.append(contentsOf: allLessonAttachments.filter { $0.scope == .area })
+            result.append(contentsOf: sharedAttachments(for: lesson, fallback: own))
         }
-
-        // Sort by attachment date, most recent first
         return result.sorted { ($0.attachedAt ?? .distantPast) > ($1.attachedAt ?? .distantPast) }
+    }
+
+    /// Whether two lessons are filed in the same area (trimmed, any case).
+    static func sameArea(_ lhs: CDLesson, _ rhs: CDLesson) -> Bool {
+        lhs.area.trimmed().caseInsensitiveCompare(rhs.area.trimmed()) == .orderedSame
+    }
+
+    /// Whether two lessons are filed in the same area and sequence.
+    static func sameSequence(_ lhs: CDLesson, _ rhs: CDLesson) -> Bool {
+        sameArea(lhs, rhs) && lhs.sequence.trimmed().caseInsensitiveCompare(rhs.sequence.trimmed()) == .orderedSame
+    }
+
+    /// Sequence- and area-scoped attachments that reach `lesson`, from whichever
+    /// lesson holds them. `fallback` (the lesson's own) is used when the lesson
+    /// has no context to fetch from.
+    private static func sharedAttachments(
+        for lesson: CDLesson, fallback: [CDLessonAttachment]
+    ) -> [CDLessonAttachment] {
+        guard let context = lesson.managedObjectContext else {
+            return fallback.filter { $0.scope != .lesson }
+        }
+        let request = CDFetchRequest(CDLessonAttachment.self)
+        request.predicate = NSPredicate(
+            format: "scopeRaw IN %@", [AttachmentScope.sequence.rawValue, AttachmentScope.area.rawValue]
+        )
+        request.relationshipKeyPathsForPrefetching = ["lesson"]
+        var seen = Set<NSManagedObjectID>()
+        let reaching = context.safeFetch(request).filter { attachment in
+            guard !attachment.isDeleted, let holder = attachment.lesson, !holder.isDeleted else { return false }
+            switch attachment.scope {
+            case .lesson: return false
+            case .sequence: return sameSequence(holder, lesson)
+            case .area: return sameArea(holder, lesson)
+            }
+        }
+        // Sequence-wide first, then area-wide, as the section lists them.
+        return (reaching.filter { $0.scope == .sequence } + reaching.filter { $0.scope == .area })
+            .filter { seen.insert($0.objectID).inserted }
     }
 
     // MARK: - Attachment Import

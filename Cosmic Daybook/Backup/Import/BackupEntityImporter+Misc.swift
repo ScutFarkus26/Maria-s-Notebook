@@ -201,7 +201,9 @@ extension BackupEntityImporter {
             attachment.id = dto.id
             attachment.filename = dto.filename
             attachment.kind = CommunityAttachmentKind(rawValue: dto.kind) ?? .file
-            attachment.data = nil
+            // `data` is left alone: backups carry no attachment bytes, so a new
+            // attachment has none and a merge keeps the ones already here (it
+            // used to set them to nil).
             attachment.createdAt = dto.createdAt
 
             if let topicID = dto.topicID {

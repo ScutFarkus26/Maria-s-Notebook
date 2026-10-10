@@ -52,86 +52,37 @@ extension LessonsRootView {
 
     // MARK: - Move Lessons in Area
 
-    func moveLessonsInArea(from source: IndexSet, to destination: Int, in groupLessons: [CDLesson]) {
+    /// A lesson dragged onto another in the sequence thread. Moves within the
+    /// whole sequence, chips or not (`LessonSequenceOrdering`).
+    func moveLessonsInArea(moving movedID: UUID, onto targetID: UUID, sequence: String) {
         guard canReorder else { return }
-        guard let area = selectedArea, !area.trimmed().isEmpty else { return }
-        guard let sourceIndex = source.first else { return }
-        guard sourceIndex < groupLessons.count else { return }
-
-        var reorderedSequence: [CDLesson] = groupLessons
-        reorderedSequence.move(fromOffsets: source, toOffset: destination)
-
-        for (idx, lesson) in reorderedSequence.enumerated() {
-            lesson.orderInSequence = Int64(idx)
-        }
-
-        let ungroupedLabel: String = "Ungrouped"
-        let displaySequences: [String] = reorderableSequences.isEmpty
-            ? helper.groups(for: area, lessons: lessons)
-            : reorderableSequences
-        let allLessonsInOrder: [CDLesson] = collectOrderedLessons(
-            displaySequences: displaySequences,
-            ungroupedLabel: ungroupedLabel
-        )
-
-        for (idx, lesson) in allLessonsInOrder.enumerated() {
-            lesson.sortIndex = Int64(idx)
-        }
-
-        saveCoordinator.save(viewContext, reason: "Reorder lessons")
-    }
-
-    private func collectOrderedLessons(displaySequences: [String], ungroupedLabel: String) -> [CDLesson] {
-        var result: [CDLesson] = []
-        let areaLessons = computeLessonsForArea()
-        for sequence in displaySequences {
-            let trimmedSequence: String = sequence.trimmed()
-            let lessonsInSequence: [CDLesson] = areaLessons.filter { (lesson: CDLesson) -> Bool in
-                let lessonSequenceTrimmed: String = lesson.sequence.trimmed()
-                if sequence == ungroupedLabel {
-                    return lessonSequenceTrimmed.isEmpty
-                } else {
-                    return lessonSequenceTrimmed.caseInsensitiveCompare(trimmedSequence) == .orderedSame
-                }
-            }.sorted { (lhs: CDLesson, rhs: CDLesson) -> Bool in
-                if lhs.orderInSequence != rhs.orderInSequence {
-                    return lhs.orderInSequence < rhs.orderInSequence
-                }
-                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-            }
-            result.append(contentsOf: lessonsInSequence)
-        }
-        return result
+        let sequenceLessons = lessonsForSequence(sequence, ungroupedLabel: "Ungrouped")
+        guard LessonSequenceOrdering.move(movedID, onto: targetID, in: sequenceLessons) else { return }
+        rebuildSortIndexForArea()
     }
 
     // MARK: - Move Single CDLesson Up/Down in Group
 
+    /// Move Earlier / Move Later, renumbering the whole sequence so a tie can't swallow it.
     func moveLessonInSequence(lesson: CDLesson, direction: Int, sequence: String, ungroupedLabel: String) {
-        guard canReorder else { return }
-
-        let groupLessons = lessonsForSequence(sequence, ungroupedLabel: ungroupedLabel)
-        guard let index = groupLessons.firstIndex(where: { $0.id == lesson.id }) else { return }
-
-        let target = index + direction
-        guard target >= 0, target < groupLessons.count else { return }
-
-        // Swap orderInSequence between the two lessons
-        let neighbor = groupLessons[target]
-        let tempOrder = lesson.orderInSequence
-        lesson.orderInSequence = neighbor.orderInSequence
-        neighbor.orderInSequence = tempOrder
-
-        // Rebuild sortIndex across the entire area
+        guard canReorder, let lessonID = lesson.id else { return }
+        let sequenceLessons = lessonsForSequence(sequence, ungroupedLabel: ungroupedLabel)
+        guard LessonSequenceOrdering.step(lessonID, by: direction, in: sequenceLessons) else { return }
         rebuildSortIndexForArea()
     }
 
-    /// Rebuilds `sortIndex` for all lessons in the selected area based on sequence order and `orderInSequence`.
+    /// Rebuilds `sortIndex` for every lesson in the selected area (the filter chips
+    /// don't apply; they used to leave hidden lessons with stale numbers) from the
+    /// sequence order and `orderInSequence`, and saves.
     private func rebuildSortIndexForArea() {
         let ungroupedLabel = "Ungrouped"
-        let displaySequences = reorderableSequences
+        let areaLessons = allLessonsInSelectedArea()
+        let displaySequences = reorderableSequences.isEmpty
+            ? helper.groups(for: selectedArea ?? "", lessons: lessons)
+            : reorderableSequences
 
         var allLessonsInOrder: [CDLesson] = []
-        let areaLessons = computeLessonsForArea()
+        var placed = Set<NSManagedObjectID>()
         for sequence in displaySequences {
             let lessonsInSequence = areaLessons.filter { lesson in
                 let lessonSequenceTrimmed = lesson.sequence.trimmed()
@@ -140,16 +91,23 @@ extension LessonsRootView {
                 } else {
                     return lessonSequenceTrimmed.caseInsensitiveCompare(sequence.trimmed()) == .orderedSame
                 }
-            }.sorted { lhs, rhs in
-                if lhs.orderInSequence != rhs.orderInSequence {
-                    return lhs.orderInSequence < rhs.orderInSequence
-                }
-                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
             }
-            allLessonsInOrder.append(contentsOf: lessonsInSequence)
+            let ordered = LessonSequenceOrdering.sorted(lessonsInSequence)
+            for lesson in ordered where placed.insert(lesson.objectID).inserted {
+                allLessonsInOrder.append(lesson)
+            }
         }
+        // Any lesson in a sequence the list above doesn't name keeps its place at the end,
+        // rather than a number another lesson now has.
+        allLessonsInOrder += areaLessons
+            .filter { !placed.contains($0.objectID) }
+            .sorted { lhs, rhs in
+                lhs.sortIndex != rhs.sortIndex
+                    ? lhs.sortIndex < rhs.sortIndex
+                    : ThreadRowData.lessonSortOrder(lhs, rhs)
+            }
 
-        for (idx, lesson) in allLessonsInOrder.enumerated() {
+        for (idx, lesson) in allLessonsInOrder.enumerated() where lesson.sortIndex != Int64(idx) {
             lesson.sortIndex = Int64(idx)
         }
 

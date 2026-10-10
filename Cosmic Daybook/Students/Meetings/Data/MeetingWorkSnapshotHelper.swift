@@ -65,23 +65,31 @@ enum MeetingWorkSnapshotHelper {
         let studentIDString = studentID.uuidString
         // The cutoff is clamped to the school-year counter epoch, so "since the last meeting"
         // never reaches back past the first day of school (see `SchoolYearCounters`).
-        let cutoffDate = SchoolYearCounters.countFrom(lastMeetingDate ?? Date.distantPast)
+        let cutoffDay = sinceDay(SchoolYearCounters.countFrom(lastMeetingDate ?? Date.distantPast))
 
         return allLessonAssignments.filter { la in
             // Check if this student is in the lesson
             guard la.studentIDs.contains(studentIDString) else { return false }
 
-            // Check if lesson was given after the last meeting
+            // Check if lesson was given on or after the last meeting's day
             if let presentedAt = la.presentedAt {
-                return presentedAt > cutoffDate
+                return presentedAt >= cutoffDay
             }
-            // Also check if it was marked as presented after the last meeting
+            // Also check if it was marked as presented on or after that day
             if la.isPresented {
-                return (la.createdAt ?? .distantPast) > cutoffDate
+                return (la.createdAt ?? .distantPast) >= cutoffDay
             }
 
             return false
         }
+    }
+
+    /// Lessons since a meeting count by day: a given lesson is often stored
+    /// at the start of its day, so one given later on the meeting's day read
+    /// as before the meeting and was left out (bug hunt 2026-10-10, Part 2
+    /// #71). A lesson given earlier that day counts too.
+    private static func sinceDay(_ cutoff: Date) -> Date {
+        AppCalendar.startOfDay(cutoff)
     }
 
     // MARK: - One child's meeting (Meetings workflow)
@@ -116,13 +124,14 @@ enum MeetingWorkSnapshotHelper {
         )
     }
 
-    /// The fetch for presentations given after `cutoff`, the same rule as
-    /// `lessonsSinceLastMeeting`; who was in them is checked in memory
+    /// The fetch for presentations given on or after `cutoff`'s day, the same
+    /// rule as `lessonsSinceLastMeeting`; who was in them is checked in memory
     /// (`studentIDs` is an encoded list a predicate can't read).
     static func lessonsSincePredicate(cutoff: Date) -> NSPredicate {
-        NSPredicate(
-            format: "presentedAt > %@ OR (presentedAt == nil AND stateRaw == %@ AND createdAt > %@)",
-            cutoff as NSDate, LessonAssignmentState.presented.rawValue, cutoff as NSDate
+        let day = sinceDay(cutoff) as NSDate
+        return NSPredicate(
+            format: "presentedAt >= %@ OR (presentedAt == nil AND stateRaw == %@ AND createdAt >= %@)",
+            day, LessonAssignmentState.presented.rawValue, day
         )
     }
 }

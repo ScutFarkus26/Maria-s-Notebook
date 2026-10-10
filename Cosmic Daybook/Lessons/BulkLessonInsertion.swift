@@ -28,9 +28,27 @@ enum BulkLessonInsertion {
         var skipped: [String] = []
     }
 
+    /// The key a sub-area's numbering is kept under: area and sequence trimmed
+    /// and lowercased, so "Math " and "math" are one sequence, as the Lessons
+    /// screen shows them. Raw keys numbered new lessons from 0 whenever the
+    /// stored spelling differed from the typed one.
+    nonisolated static func orderKey(area: String, sequence: String) -> String {
+        "\(area.trimmed().lowercased())|\(sequence.trimmed().lowercased())"
+    }
+
+    /// The highest `orderInSequence` on file in each sub-area, by `orderKey`.
+    static func maxOrders(of lessons: [CDLesson]) -> [String: Int] {
+        var result: [String: Int] = [:]
+        for lesson in lessons where !lesson.isDeleted {
+            let key = orderKey(area: lesson.area, sequence: lesson.sequence)
+            result[key] = max(result[key] ?? -1, Int(lesson.orderInSequence))
+        }
+        return result
+    }
+
     /// Creates a lesson per draft through `repository`, numbering each after
-    /// the last lesson in its sub-area. `maxOrderBySequence` is keyed
-    /// `"area|sequence"` and holds the highest `orderInSequence` on file.
+    /// the last lesson in its sub-area. `maxOrderBySequence` is keyed by
+    /// `orderKey` and holds the highest `orderInSequence` on file.
     static func insert(
         _ drafts: [BulkLessonDraft],
         using repository: LessonRepository,
@@ -47,8 +65,8 @@ enum BulkLessonInsertion {
                 outcome.skipped.append(draft.name)
                 continue
             }
-            let orderKey = "\(draft.area)|\(draft.sequence)"
-            let nextOrder = (maxOrder[orderKey] ?? -1) + 1
+            let sequenceKey = orderKey(area: draft.area, sequence: draft.sequence)
+            let nextOrder = (maxOrder[sequenceKey] ?? -1) + 1
             do {
                 let lesson = try repository.createLesson(
                     name: draft.name,
@@ -60,7 +78,7 @@ enum BulkLessonInsertion {
                     source: source,
                     personalKind: personalKind
                 )
-                maxOrder[orderKey] = nextOrder
+                maxOrder[sequenceKey] = nextOrder
                 outcome.inserted.append(lesson)
             } catch {
                 outcome.skipped.append(draft.name)

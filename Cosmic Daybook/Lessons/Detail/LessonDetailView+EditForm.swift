@@ -7,36 +7,36 @@ import os
 extension LessonDetailView {
     var editForm: some View {
         VStack(spacing: AppTheme.Spacing.compact + 2) {
-            TextField("Lesson Name", text: $draftName)
+            TextField("Lesson Name", text: $draft.name)
                 .textFieldStyle(.roundedBorder)
             HStack(alignment: .top) {
-                ComboBoxField(title: "Area", text: $draftArea, options: existingAreas)
-                ComboBoxField(title: "Sequence", text: $draftSequence, options: existingSequences)
+                ComboBoxField(title: "Area", text: $draft.area, options: existingAreas)
+                ComboBoxField(title: "Sequence", text: $draft.sequence, options: existingSequences)
             }
-            ComboBoxField(title: "Section", text: $draftSection, options: existingSections)
+            ComboBoxField(title: "Section", text: $draft.section, options: existingSections)
 
-            Picker("Source", selection: $draftSource) {
+            Picker("Source", selection: $draft.source) {
                 ForEach(LessonSource.allCases) { s in
                     Text(s.label).tag(s)
                 }
             }
-            if draftSource == .personal {
-                Picker("Personal Type", selection: $draftPersonalKind) {
+            if draft.source == .personal {
+                Picker("Personal Type", selection: $draft.personalKind) {
                     ForEach(PersonalLessonKind.allCases) { k in
                         Text(k.label).tag(k)
                     }
                 }
             }
 
-            Picker("Format", selection: $draftLessonFormat) {
+            Picker("Format", selection: $draft.lessonFormat) {
                 ForEach(LessonFormat.allCases) { f in
                     Label(f.label, systemImage: f.icon).tag(f)
                 }
             }
 
-            if draftLessonFormat == .story {
+            if draft.lessonFormat == .story {
                 let storyLessons = allLessons.filter { $0.isStory && $0.id != lesson.id }
-                Picker("Parent Story", selection: $draftParentStoryID) {
+                Picker("Parent Story", selection: $draft.parentStoryID) {
                     Text("None (this is a main story)").tag(nil as UUID?)
                     ForEach(storyLessons) { story in
                         Text(story.name).tag(story.id as UUID?)
@@ -49,12 +49,12 @@ extension LessonDetailView {
                 Text("Progression Rules")
                     .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
-                Picker("Requires Practice", selection: $draftPracticeOverride) {
+                Picker("Requires Practice", selection: $draft.practiceOverride) {
                     ForEach(ProgressionOverride.allCases) { o in
                         Text(o.label).tag(o)
                     }
                 }
-                Picker("Requires Confirmation", selection: $draftConfirmationOverride) {
+                Picker("Requires Confirmation", selection: $draft.confirmationOverride) {
                     ForEach(ProgressionOverride.allCases) { o in
                         Text(o.label).tag(o)
                     }
@@ -66,21 +66,21 @@ extension LessonDetailView {
 
             // Three-Year View milestone flag
             VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
-                Toggle("Key lesson", isOn: $draftIsKeyLesson)
+                Toggle("Key lesson", isOn: $draft.isKeyLesson)
                 Text("Key lessons are the milestones a child's Three-Year View shows by default. "
                      + "The first lesson of every sequence counts as one without being marked.")
                     .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.tertiary)
             }
 
-            TextField("Age Range (e.g., 6+, 3-6)", text: $draftAgeRange)
+            TextField("Age Range (e.g., 6+, 3-6)", text: $draft.ageRange)
                 .textFieldStyle(.roundedBorder)
 
             VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
                 Text("Purpose / Learning Objective")
                     .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
-                TextEditor(text: $draftPurpose)
+                TextEditor(text: $draft.purpose)
                     .frame(minHeight: 60)
                     .overlay(
                         RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
@@ -95,7 +95,7 @@ extension LessonDetailView {
                 Text("Enter one material per line")
                     .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.tertiary)
-                TextEditor(text: $draftMaterials)
+                TextEditor(text: $draft.materials)
                     .frame(minHeight: 80)
                     .overlay(
                         RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
@@ -110,22 +110,9 @@ extension LessonDetailView {
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
                     HStack(spacing: AppTheme.Spacing.small) {
                         if resolvedPagesURL != nil {
-                            Button("Remove") {
-                                if let url = resolvedPagesURL {
-                                    do {
-                                        try LessonFileStorage.deleteIfManaged(url)
-                                    } catch {
-                                        Self.logger.warning("Failed to delete managed file: \(error)")
-                                    }
-                                }
-                                lesson.pagesFileBookmark = nil
-                                lesson.pagesFileRelativePath = nil
-                                resolvedPagesURL = nil
-                                previousManagedURL = nil
-                                saveCoordinator.save(viewContext, reason: "Remove lesson Pages file")
-                            }
+                            Button("Remove") { removePagesFile() }
                         }
-                        Button("Import\u{2026}") { showingPagesImporter = true }
+                        Button("Import\u{2026}") { beginPagesImport() }
                     }
                     if let url = resolvedPagesURL {
                         OpenInPagesButton(title: "Open in Pages") { openInPages(url) }
@@ -141,7 +128,7 @@ extension LessonDetailView {
                 Text("Notes")
                     .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
-                TextEditor(text: $draftWriteUp)
+                TextEditor(text: $draft.writeUp)
                     .frame(minHeight: 160)
                     .overlay(
                         RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
@@ -153,7 +140,7 @@ extension LessonDetailView {
                 Text("Teacher Notes")
                     .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
-                TextEditor(text: $draftTeacherNotes)
+                TextEditor(text: $draft.teacherNotes)
                     .frame(minHeight: 100)
                     .overlay(
                         RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
@@ -179,7 +166,7 @@ extension LessonDetailView {
                 Text("Enter one suggestion per line")
                     .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.tertiary)
-                TextEditor(text: $draftSuggestedFollowUpWork)
+                TextEditor(text: $draft.suggestedFollowUpWork)
                     .frame(minHeight: 80)
                     .overlay(
                         RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)

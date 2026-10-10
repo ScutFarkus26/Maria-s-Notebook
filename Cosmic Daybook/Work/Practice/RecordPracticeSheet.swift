@@ -9,6 +9,7 @@ import CoreData
 struct RecordPracticeSheet: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.managedObjectContext) var viewContext
+    @Environment(SaveCoordinator.self) var saveCoordinator
 
     @Environment(\.dependencies) private var dependencies
 

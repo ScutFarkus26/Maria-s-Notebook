@@ -88,22 +88,33 @@ final class CloudKitSyncStatusService {
     /// `clearMirroringStopped` and `resetForNewAccount`.
     var stoppedSince: [SyncedStore: Date] = [:]
 
+    /// Which of those an attach found, and which `receive` marked before
+    /// `configure` (`StopSources`, in `+StoreHealth`).
+    @ObservationIgnored var stopSources = StopSources()
+
     /// True once a CloudKit setup failed with no iCloud account signed in at
-    /// all (the account status says `noAccount`): nothing is filed into the
-    /// classroom share until the app is reopened (Danny's call, bug hunt
-    /// 2026-10-09, #2; `shareFilingHold`). Kept for the life of the process:
-    /// another account signing in or a store's later success doesn't clear it.
+    /// all (the account status says `noAccount`, asked twice a minute apart):
+    /// nothing is filed into the classroom share until the app is reopened
+    /// (Danny's call, bug hunt 2026-10-09, #2; `shareFilingHold`), whatever
+    /// account signs in or store succeeds later.
     var shareFilingPausedUntilReopen = false
 
-    /// Stores whose setup failed for want of a ready iCloud account, by store
+    /// Stores whose setup failed for want of a ready iCloud account, or for
+    /// the network or a busy server (bug hunt 2026-10-10, #2), by store
     /// identifier, and how far each has come back (`followAccountReadiness`).
     var accountNotReadyStores: [String: AccountReadiness] = [:]
+
+    /// When each store in `accountNotReadyStores` last failed its setup.
+    @ObservationIgnored var setupFailedAt: [String: Date] = [:]
 
     /// CloudKit's account status, asked after a setup failed for want of an
     /// account; a test sets its own.
     @ObservationIgnored var accountStatus: @MainActor () async throws -> CKAccountStatus = {
         try await CloudKitConfigurationService.container.accountStatus()
     }
+
+    /// The account re-check's wait and the orphan guard's hooks (`ShareFilingHooks`); a test sets its own.
+    @ObservationIgnored var filingHooks = ShareFilingHooks()
 
     /// Failed setup/import/export events per store (notebook, classroom share)
     /// that no later success of the same kind on the same store has cleared.

@@ -14,7 +14,7 @@ struct MCPToolRegistryTests {
         let tools = MCPNotebookTools.makeTools(context: { context })
 
         let names: [String] = tools.map(\.name)
-        #expect(names.count == 90)
+        #expect(names.count == 91)
         #expect(Set(names).count == names.count)
 
         let encoder = JSONEncoder()
@@ -29,7 +29,7 @@ struct MCPToolRegistryTests {
             "list_lessons_by_area", "create_lesson", "update_lesson", "reorder_lessons",
             "discard_presentation", "update_presentation_roster", "clear_year_plan",
             "student_curriculum_map", "class_curriculum_map", "students_pending",
-            "students_ready", "mastery_candidates"
+            "students_ready", "mastery_candidates", "data_checks"
         ]
         #expect(added.isSubset(of: Set(names)))
     }

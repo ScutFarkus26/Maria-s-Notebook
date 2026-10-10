@@ -64,32 +64,7 @@ enum SpecialShabbatService {
             return nil
         }
 
-        // Hebrew landmark dates for the Hebrew year containing `shabbat`.
-        let rcAdarFinal = hebrewDate(year: hebYear, month: 7, day: 1, hebrew: hebrew, gregorian: gregorian)
-        let purim = hebrewDate(year: hebYear, month: 7, day: 14, hebrew: hebrew, gregorian: gregorian)
-        let rcNisan = hebrewDate(year: hebYear, month: 8, day: 1, hebrew: hebrew, gregorian: gregorian)
-        let pesach = hebrewDate(year: hebYear, month: 8, day: 15, hebrew: hebrew, gregorian: gregorian)
-
-        let weekEnd = gregorian.date(byAdding: .day, value: 7, to: shabbat) ?? shabbat
-        // Target on or after `shabbat`, strictly before the next Shabbat.
-        let onOrAfterShabbat: (Date?) -> Bool = { target in
-            guard let t = target else { return false }
-            return t >= shabbat && t < weekEnd
-        }
-        // Target after `shabbat`, on or before the next Shabbat.
-        let strictlyAfter: (Date?) -> Bool = { target in
-            guard let t = target else { return false }
-            return t > shabbat && t <= weekEnd
-        }
-
-        // Precedence: more-specific date-based Shabbatot first.
-        if strictlyAfter(pesach) { return .hagadol }
-        if onOrAfterShabbat(rcNisan) { return .hachodesh }
-        if let p = purim, let n = rcNisan, p < shabbat, shabbat < n {
-            return .parah
-        }
-        if strictlyAfter(purim) { return .zachor }
-        if onOrAfterShabbat(rcAdarFinal) { return .shekalim }
+        if let seasonal = seasonalShabbat(shabbat, hebYear: hebYear) { return seasonal }
 
         // Parsha-tied special Shabbatot.
         let parshaKey = HebrewParshaService.parshaKey(forShabbat: shabbat)
@@ -103,22 +78,59 @@ enum SpecialShabbatService {
 
         if parshaKey == "beshalach" { return .shirah }
 
+        return newMoonShabbat(shabbat, hebMonth: hebMonth, hebDay: hebDay)
+    }
+
+    /// The four Shabbatot before Pesach (Shekalim, Zachor, Parah, HaChodesh) and
+    /// HaGadol, from the year's Hebrew landmark dates.
+    private static func seasonalShabbat(_ shabbat: Date, hebYear: Int) -> SpecialShabbat? {
+        let gregorian = HebrewParshaService.gregorian
+        let hebrew = HebrewParshaService.hebrew
+        let rcAdarFinal = hebrewDate(year: hebYear, month: 7, day: 1, hebrew: hebrew, gregorian: gregorian)
+        let purim = hebrewDate(year: hebYear, month: 7, day: 14, hebrew: hebrew, gregorian: gregorian)
+        let rcNisan = hebrewDate(year: hebYear, month: 8, day: 1, hebrew: hebrew, gregorian: gregorian)
+        let pesach = hebrewDate(year: hebYear, month: 8, day: 15, hebrew: hebrew, gregorian: gregorian)
+
+        // `target` falls `from`...`until` days after `shabbat` (`from` included).
+        let within: (Date?, Int, Int) -> Bool = { target, from, until in
+            guard let target,
+                  let lower = gregorian.date(byAdding: .day, value: from, to: shabbat),
+                  let upper = gregorian.date(byAdding: .day, value: until, to: shabbat) else { return false }
+            return target >= lower && target < upper
+        }
+
+        // Precedence: more-specific date-based Shabbatot first.
+        if within(pesach, 1, 8) { return .hagadol }
+        if within(rcNisan, 0, 7) { return .hachodesh }
+        // Parah is the Shabbat right before HaChodesh's. "Any Shabbat between Purim
+        // and Rosh Chodesh Nisan" also caught the Shabbat after a Friday Purim (and
+        // after a Thursday Purim, when Pesach falls on Shabbat), which is ordinary.
+        if within(rcNisan, 7, 14) { return .parah }
+        if within(purim, 1, 8) { return .zachor }
+        if within(rcAdarFinal, 0, 7) { return .shekalim }
+        return nil
+    }
+
+    /// Shabbat Rosh Chodesh and Shabbat Machar Chodesh.
+    private static func newMoonShabbat(_ shabbat: Date, hebMonth: Int, hebDay: Int) -> SpecialShabbat? {
         // Rosh Chodesh: day 1 (always RC), or day 30 of the prior month (first day
         // of a two-day RC). Foundation's Hebrew calendar yields day == 1 on the
         // first day of a month and day == 30 only when the month length is 30.
-        if hebDay == 1 || hebDay == 30 {
+        // 1 Tishri is Rosh Hashanah, a festival of its own, not a Rosh Chodesh Shabbat.
+        let isRoshHashanah = hebMonth == 1 && hebDay == 1
+        if (hebDay == 1 || hebDay == 30) && !isRoshHashanah {
             return .roshChodesh
         }
 
-        // Machar Chodesh: Shabbat is the day before Rosh Chodesh.
-        if hebDay == 29 {
-            let nextDay = gregorian.date(byAdding: .day, value: 1, to: shabbat) ?? shabbat
-            let nextDayComps = hebrew.dateComponents([.day], from: nextDay)
-            if nextDayComps.day == 1 || nextDayComps.day == 30 {
-                return .macharChodesh
-            }
+        // Machar Chodesh: Shabbat is the day before Rosh Chodesh. (Rosh Hashanah
+        // never falls on a Sunday, so 29 Elul is never a Shabbat.)
+        guard hebDay == 29 else { return nil }
+        let gregorian = HebrewParshaService.gregorian
+        let nextDay = gregorian.date(byAdding: .day, value: 1, to: shabbat) ?? shabbat
+        let nextDayComps = HebrewParshaService.hebrew.dateComponents([.day], from: nextDay)
+        if nextDayComps.day == 1 || nextDayComps.day == 30 {
+            return .macharChodesh
         }
-
         return nil
     }
 

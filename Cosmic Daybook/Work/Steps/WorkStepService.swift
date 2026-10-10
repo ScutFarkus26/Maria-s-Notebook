@@ -56,11 +56,16 @@ struct WorkStepService {
 
     // MARK: - Deletion
 
-    /// Delete a step from its context.
+    /// Delete a step from its context, and close the gap it leaves in the
+    /// numbering: the rows show `orderIndex + 1`, so deleting step 2 of 4 used
+    /// to leave 1, 3, 4.
     func delete(_ step: CDWorkStep, from work: CDWorkModel? = nil) throws {
-        if let work {
-            work.removeFromSteps(step)
-        }
+        let owner = work ?? step.work
+        owner?.removeFromSteps(step)
         context.delete(step)
+        guard let owner else { return }
+        for (index, remaining) in owner.orderedSteps.enumerated() where remaining.orderIndex != Int64(index) {
+            remaining.orderIndex = Int64(index)
+        }
     }
 }

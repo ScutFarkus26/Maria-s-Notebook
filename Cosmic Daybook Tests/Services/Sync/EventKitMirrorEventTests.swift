@@ -20,9 +20,9 @@ struct EventKitMirrorEventTests {
         defer { store.cleanUp() }
         let context = store.stack.viewContext
         let events = [
-            Fixture.event("e1"),
-            Fixture.event("e2", title: "Field trip", day: 3, location: nil, notes: "Bring lunch"),
-            Fixture.event("e3", day: 10, allDay: true)
+            Fixture.occurrence("e1"),
+            Fixture.occurrence("e2", title: "Field trip", day: 3, location: nil, notes: "Bring lunch"),
+            Fixture.occurrence("e3", day: 10, allDay: true)
         ]
 
         let first = EventKitMirror.reconcileEvents(
@@ -47,20 +47,21 @@ struct EventKitMirrorEventTests {
     func changedEventRewritesOnlyItsRow() throws {
         let context = try CoreDataTestHelpers.makeContext()
         EventKitMirror.reconcileEvents(
-            [Fixture.event("e1"), Fixture.event("e2")], from: Fixture.schoolFetch, in: context, now: Fixture.firstSync
+            [Fixture.occurrence("e1"), Fixture.occurrence("e2")],
+            from: Fixture.schoolFetch, in: context, now: Fixture.firstSync
         )
         #expect(context.safeSave())
 
-        let moved = Fixture.event("e2", title: "Assembly (moved)", day: 1)
+        let moved = Fixture.occurrence("e2", title: "Assembly (moved)", day: 1, occurrenceDay: 0)
         let outcome = EventKitMirror.reconcileEvents(
-            [Fixture.event("e1"), moved, Fixture.event("e3", day: 2)],
+            [Fixture.occurrence("e1"), moved, Fixture.occurrence("e3", day: 2)],
             from: Fixture.schoolFetch, in: context, now: Fixture.secondSync
         )
         #expect(outcome == EventKitMirror.Outcome(inserted: 1, updated: 1))
         let rows = Fixture.eventRows(in: context)
-        let changed = try #require(rows["e2"])
-        let unchanged = try #require(rows["e1"])
-        let added = try #require(rows["e3"])
+        let changed = try #require(rows[Fixture.key("e2")])
+        let unchanged = try #require(rows[Fixture.key("e1")])
+        let added = try #require(rows[Fixture.key("e3", day: 2)])
         #expect(context.updatedObjects.count == 1)
         #expect(context.updatedObjects.contains(changed))
         #expect(changed.title == "Assembly (moved)")
@@ -71,23 +72,24 @@ struct EventKitMirrorEventTests {
         #expect(added.eventKitCalendarID == "cal-school")
     }
 
-    @Test("A stored recurring event ends on its last occurrence, as the old loop left it")
-    func storedRecurringEventTakesLastOccurrence() throws {
+    // Until 2026-10-10 a stored recurring event kept one row, which ended on
+    // its last occurrence (bug hunt 2026-10-10, P2 #19).
+    @Test("A stored recurring event gains a row for each new occurrence and keeps the first")
+    func storedRecurringEventKeepsEveryOccurrence() throws {
         let context = try CoreDataTestHelpers.makeContext()
         EventKitMirror.reconcileEvents(
-            [Fixture.event("weekly")], from: Fixture.schoolFetch, in: context, now: Fixture.firstSync
+            [Fixture.occurrence("weekly")], from: Fixture.schoolFetch, in: context, now: Fixture.firstSync
         )
         #expect(context.safeSave())
-        let occurrences = [Fixture.event("weekly"), Fixture.event("weekly", day: 7), Fixture.event("weekly", day: 14)]
+        let occurrences = [0, 7, 14].map { Fixture.occurrence("weekly", day: $0) }
 
         let second = EventKitMirror.reconcileEvents(
             occurrences, from: Fixture.schoolFetch, in: context, now: Fixture.secondSync
         )
-        #expect(second == EventKitMirror.Outcome(updated: 1))
-        let row = try #require(Fixture.eventRows(in: context)["weekly"])
-        #expect(row.startDate == occurrences[2].startDate)
-        #expect(row.endDate == occurrences[2].endDate)
-        #expect(row.lastSyncedAt == Fixture.secondSync)
+        #expect(second == EventKitMirror.Outcome(inserted: 2))
+        let first = try #require(Fixture.eventRows(in: context)[Fixture.key("weekly")])
+        #expect(first.startDate == occurrences[0].startDate)
+        #expect(first.lastSyncedAt == Fixture.firstSync)
         #expect(context.safeSave())
 
         let third = EventKitMirror.reconcileEvents(
@@ -97,13 +99,13 @@ struct EventKitMirrorEventTests {
         #expect(!context.hasChanges)
     }
 
-    @Test("A new recurring event inserts a row per occurrence, on its first occurrence's calendar")
+    @Test("A new recurring event inserts a row per occurrence, each on its own calendar")
     func newRecurringEventInsertsPerOccurrence() throws {
         let context = try CoreDataTestHelpers.makeContext()
         let occurrences = [
-            Fixture.event("weekly", calendar: "cal-home"),
-            Fixture.event("weekly", day: 7, calendar: "cal-other"),
-            Fixture.event("unfiled", day: 1, calendar: nil)
+            Fixture.occurrence("weekly", calendar: "cal-home"),
+            Fixture.occurrence("weekly", day: 7, calendar: "cal-other"),
+            Fixture.occurrence("unfiled", day: 1, calendar: nil)
         ]
 
         let outcome = EventKitMirror.reconcileEvents(
@@ -111,10 +113,10 @@ struct EventKitMirrorEventTests {
         )
         #expect(outcome == EventKitMirror.Outcome(inserted: 3))
         let rows = context.safeFetch(CDFetchRequest(CDCalendarEvent.self))
-        let weekly = rows.filter { $0.eventKitEventID == "weekly" }
-        let unfiled = try #require(rows.first { $0.eventKitEventID == "unfiled" })
+        let weekly = rows.filter { [Fixture.key("weekly"), Fixture.key("weekly", day: 7)].contains($0.eventKitEventID) }
+        let unfiled = try #require(rows.first { $0.eventKitEventID == Fixture.key("unfiled", day: 1) })
         #expect(weekly.count == 2)
-        #expect(weekly.allSatisfy { $0.eventKitCalendarID == "cal-home" })
+        #expect(Set(weekly.compactMap(\.eventKitCalendarID)) == ["cal-home", "cal-other"])
         #expect(unfiled.eventKitCalendarID == "cal-school")
     }
 
@@ -122,32 +124,33 @@ struct EventKitMirrorEventTests {
     func deletionKeepsItsScope() throws {
         let context = try CoreDataTestHelpers.makeContext()
         EventKitMirror.reconcileEvents(
-            [Fixture.event("kept"), Fixture.event("gone", day: 1), Fixture.event("history", day: -20)],
+            [Fixture.occurrence("kept"), Fixture.occurrence("gone", day: 1), Fixture.occurrence("history", day: -20)],
             from: Fixture.schoolFetch, in: context, now: Fixture.firstSync
         )
         EventKitMirror.insertEvent(
-            Fixture.event("elsewhere", day: 2), calendarID: "cal-other", in: context, now: Fixture.firstSync
+            Fixture.occurrence("elsewhere", day: 2), calendarID: "cal-other", in: context, now: Fixture.firstSync
         )
         #expect(context.safeSave())
 
         let outcome = EventKitMirror.reconcileEvents(
-            [Fixture.event("kept")], from: Fixture.schoolFetch, in: context, now: Fixture.secondSync
+            [Fixture.occurrence("kept")], from: Fixture.schoolFetch, in: context, now: Fixture.secondSync
         )
         #expect(outcome == EventKitMirror.Outcome(deleted: 1))
-        #expect(Set(Fixture.eventRows(in: context).keys) == ["kept", "history", "elsewhere"])
+        let expected = [Fixture.key("kept"), Fixture.key("history", day: -20), Fixture.key("elsewhere", day: 2)]
+        #expect(Set(Fixture.eventRows(in: context).keys) == Set(expected))
     }
 
     @Test("Each copied field ends exactly as the old copy wrote it")
     func updateMatchesOldCopy() throws {
         let context = try CoreDataTestHelpers.makeContext()
-        let stored = Fixture.event("e1", title: "Caf\u{E9} meeting", location: nil, notes: "Agenda")
+        let stored = Fixture.occurrence("e1", title: "Caf\u{E9} meeting", location: nil, notes: "Agenda")
         let incoming = [
             stored,
-            Fixture.event("e1", title: "Cafe\u{301} meeting", location: nil, notes: "Agenda"),
-            Fixture.event("e1", title: "Caf\u{E9} meeting", location: "", notes: "Agenda"),
-            Fixture.event("e1", title: "Caf\u{E9} meeting", location: nil, notes: nil),
-            Fixture.event("e1", title: "Caf\u{E9} meeting", day: 1, location: nil, notes: "Agenda"),
-            Fixture.event("e1", title: "Caf\u{E9} meeting", location: nil, notes: "Agenda", allDay: true),
+            Fixture.occurrence("e1", title: "Cafe\u{301} meeting", location: nil, notes: "Agenda"),
+            Fixture.occurrence("e1", title: "Caf\u{E9} meeting", location: "", notes: "Agenda"),
+            Fixture.occurrence("e1", title: "Caf\u{E9} meeting", location: nil, notes: nil),
+            Fixture.occurrence("e1", title: "Caf\u{E9} meeting", day: 1, location: nil, notes: "Agenda"),
+            Fixture.occurrence("e1", title: "Caf\u{E9} meeting", location: nil, notes: "Agenda", allDay: true),
             Fixture.shifted(stored, by: 0.001)
         ]
         for (index, data) in incoming.enumerated() {
@@ -170,7 +173,7 @@ struct EventKitMirrorEventTests {
 
     @Test("Rows an idle sync rewrites: every returned row with the old copy, none now")
     func idleSyncRowCounts() throws {
-        let events = (0..<40).map { Fixture.event("e\($0)", day: $0 % 30) }
+        let events = (0..<40).map { Fixture.occurrence("e\($0)", day: $0 % 30) }
         let reminders = (0..<25).map { Fixture.reminder("r\($0)", modified: Fixture.firstSync) }
 
         let legacyContext = try CoreDataTestHelpers.makeContext()

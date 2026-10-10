@@ -55,7 +55,7 @@ struct BookClubSessionRowView: View {
 
     private var rosterSummary: String {
         guard !roster.isEmpty else { return "" }
-        let names = roster.prefix(3).map { StudentFormatter.firstName(for: $0) }
+        let names = roster.prefix(3).map(\.shortName)
         let extra = roster.count - names.count
         var summary = names.joined(separator: ", ")
         if extra > 0 {
@@ -77,11 +77,28 @@ struct BookClubSessionRowView: View {
     private static let relativeFormatter: RelativeDateTimeFormatter = {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .full
+        formatter.dateTimeStyle = .named
         return formatter
     }()
 
     private var nextMeetingText: String? {
         guard let meeting = nextMeeting, let date = meeting.date else { return nil }
-        return "Next: \(Self.relativeFormatter.localizedString(for: date, relativeTo: Date()))"
+        return Self.nextMeetingText(for: date, now: Date(), calendar: .current)
+    }
+
+    /// "Next: today", "Next: tomorrow", "Next: in 3 days", "Next: 2 days ago".
+    /// A meeting is a day, not a time: counted from the time of day it read
+    /// "Next: 9 hours ago" on the morning of the meeting.
+    static func nextMeetingText(for date: Date, now: Date, calendar: Calendar) -> String {
+        let days = calendar.dateComponents(
+            [.day], from: calendar.startOfDay(for: now), to: calendar.startOfDay(for: date)
+        ).day ?? 0
+        let phrase: String
+        switch days {
+        case 0: phrase = "today"
+        case 1: phrase = "tomorrow"
+        default: phrase = relativeFormatter.localizedString(from: DateComponents(day: days))
+        }
+        return "Next: \(phrase)"
     }
 }

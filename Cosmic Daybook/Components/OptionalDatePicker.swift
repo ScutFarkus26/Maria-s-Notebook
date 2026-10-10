@@ -31,12 +31,7 @@ public struct OptionalDatePicker: View {
                 set: { newValue in
                     if newValue {
                         if date == nil {
-                            if let hour = defaultHour {
-                                let base = DateCalculations.startOfDay(Date(), calendar: calendar)
-                                date = DateCalculations.addingHours(hour, to: base, calendar: calendar)
-                            } else {
-                                date = DateCalculations.startOfDay(Date(), calendar: calendar)
-                            }
+                            date = Self.defaultDate(on: Date(), hour: defaultHour, calendar: calendar)
                         }
                     } else {
                         date = nil
@@ -59,5 +54,17 @@ public struct OptionalDatePicker: View {
                 #endif
             }
         }
+    }
+
+    /// The date the toggle turns on to: `day` at `hour` o'clock, or the start
+    /// of `day` with no hour. The hour is set on the clock, not added to
+    /// midnight, so 9 stays 9 AM on the Sundays the clocks change (adding nine
+    /// hours lands at 8 or 10 then).
+    nonisolated static func defaultDate(on day: Date, hour: Int?, calendar: Calendar) -> Date {
+        let start = calendar.startOfDay(for: day)
+        guard let hour else { return start }
+        return calendar.date(bySettingHour: hour, minute: 0, second: 0, of: start)
+            ?? calendar.date(byAdding: .hour, value: hour, to: start)
+            ?? start
     }
 }

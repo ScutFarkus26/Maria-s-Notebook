@@ -292,6 +292,12 @@ extension CloudKitSyncStatusService {
             // if anything, it sweeps (see the coordinator).
             DeduplicationCoordinator.shared.requestDeduplicationAfterImport()
             finishFirstDownloadIfNeeded(importedStoreIdentifier: storeIdentifier)
+            // The orphan guard waits, after a pin from another device, for an
+            // import into the notebook like this one, now on record. The
+            // remote change this import posted came before its end, and the
+            // pass it set off still found the wait, so nothing filed until
+            // the next save (bug hunt 2026-10-10, #5).
+            if store == .notebook, filingHooks.waitsForImportAfterPin() { filingHooks.wakeFiling() }
         }
 
         let now = Date()

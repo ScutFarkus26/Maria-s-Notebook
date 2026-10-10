@@ -285,7 +285,7 @@ extension StudentInsightsView {
                 .font(.headline)
 
             ForEach(Array(snapshots.dropFirst()), id: \.objectID) { snapshot in
-                Button(action: { /* Navigate to detail view */ }, label: {
+                Button(action: { openedSnapshot = OpenedSnapshot(snapshot: snapshot) }, label: {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(snapshot.generatedAt ?? Date(), style: .date)
@@ -311,7 +311,28 @@ extension StudentInsightsView {
                     .cornerRadius(8)
                 })
                 .buttonStyle(.plain)
+                .accessibilityHint("Opens this analysis")
             }
         }
+    }
+
+    /// An earlier analysis, read in full (the rows used to do nothing when tapped).
+    func pastAnalysisSheet(_ snapshot: CDDevelopmentSnapshotEntity) -> some View {
+        NavigationStack {
+            ScrollView {
+                latestInsightsCard(snapshot)
+                    .padding()
+            }
+            .navigationTitle((snapshot.generatedAt ?? Date()).formatted(date: .abbreviated, time: .omitted))
+            .inlineNavigationTitle()
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { openedSnapshot = nil }
+                }
+            }
+        }
+        #if os(macOS)
+        .frame(minWidth: 520, minHeight: 600)
+        #endif
     }
 }

@@ -3,19 +3,6 @@ import CoreData
 import EventKit
 import OSLog
 
-/// Sendable DTO carrying one EventKit event out of `EKEvent` into the mirror.
-nonisolated struct CalendarEventSyncData: Sendable, Equatable {
-    let title: String
-    let startDate: Date
-    let endDate: Date
-    let location: String?
-    let notes: String?
-    let isAllDay: Bool
-    let eventIdentifier: String
-    /// The event's calendar. A new row takes its first occurrence's.
-    let calendarIdentifier: String?
-}
-
 /// Service that syncs calendar events with Apple's Calendar app via EventKit.
 /// Only syncs events from a specific calendar configured by the user.
 @Observable
@@ -58,6 +45,22 @@ final class CalendarSyncService {
         }
     }
 
+    /// Where this device keeps the keys (`EventKitMirror.calendarKey`) each
+    /// chosen calendar has had, by its local identifier, newest last. A key
+    /// is the calendar's title, so a rename changes it; the old key lets this
+    /// device keep moving and deleting the rows it filed under it, and remove
+    /// them when the calendar is turned off. Kept on this device only, like
+    /// the choice of calendars.
+    static let calendarKeysDefaultsKey = "CalendarSync.calendarKeysByIdentifier"
+
+    /// How many keys are kept per calendar.
+    private static let rememberedKeysPerCalendar = 5
+
+    private var rememberedCalendarKeys: [String: [String]] {
+        get { defaults.dictionary(forKey: Self.calendarKeysDefaultsKey) as? [String: [String]] ?? [:] }
+        set { defaults.set(newValue, forKey: Self.calendarKeysDefaultsKey) }
+    }
+
     /// Whether EventKit access has been authorized
     var authorizationStatus: EKAuthorizationStatus = .notDetermined
 
@@ -68,7 +71,8 @@ final class CalendarSyncService {
         self.managedObjectContext = context
         self.defaults = defaults
 
-        self.syncCalendarIdentifiers = defaults.array(forKey: UserDefaultsKeys.calendarSyncIdentifiers) as? [String] ?? []
+        self.syncCalendarIdentifiers =
+            defaults.array(forKey: UserDefaultsKeys.calendarSyncIdentifiers) as? [String] ?? []
         self.syncCalendarNames = defaults.array(forKey: UserDefaultsKeys.calendarSyncNames) as? [String] ?? []
 
         self.authorizationStatus = EKEventStore.authorizationStatus(for: .event)
@@ -85,58 +89,31 @@ final class CalendarSyncService {
 
     /// Request access to Calendar
     func requestAuthorization() async throws -> Bool {
-        if #available(macOS 14.0, iOS 17.0, *) {
-            // swiftlint:disable closure_parameter_position
-            let granted = try await withCheckedThrowingContinuation {
-                (continuation: CheckedContinuation<Bool, Error>) in
-                // swiftlint:enable closure_parameter_position
-                self.eventStore.requestFullAccessToEvents { granted, error in
-                    if let error {
-                        continuation.resume(throwing: error)
-                    } else {
-                        continuation.resume(returning: granted)
-                    }
+        // swiftlint:disable closure_parameter_position
+        let granted = try await withCheckedThrowingContinuation {
+            (continuation: CheckedContinuation<Bool, Error>) in
+            // swiftlint:enable closure_parameter_position
+            self.eventStore.requestFullAccessToEvents { granted, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume(returning: granted)
                 }
             }
-            
-            // Update status and start observing on main actor
-            authorizationStatus = EKEventStore.authorizationStatus(for: .event)
-            if granted && !syncCalendarIdentifiers.isEmpty {
-                startObservingChanges()
-            }
-            
-            return granted
-        } else {
-            // swiftlint:disable closure_parameter_position
-            let granted = try await withCheckedThrowingContinuation {
-                (continuation: CheckedContinuation<Bool, Error>) in
-                // swiftlint:enable closure_parameter_position
-                self.eventStore.requestAccess(to: .event) { granted, error in
-                    if let error {
-                        continuation.resume(throwing: error)
-                    } else {
-                        continuation.resume(returning: granted)
-                    }
-                }
-            }
-            
-            // Update status and start observing on main actor
-            authorizationStatus = EKEventStore.authorizationStatus(for: .event)
-            if granted && !syncCalendarIdentifiers.isEmpty {
-                startObservingChanges()
-            }
-            
-            return granted
         }
+
+        // Update status and start observing on main actor
+        authorizationStatus = EKEventStore.authorizationStatus(for: .event)
+        if granted && !syncCalendarIdentifiers.isEmpty {
+            startObservingChanges()
+        }
+
+        return granted
     }
 
     /// Check if we have full access to calendars
     private var hasFullAccess: Bool {
-        if #available(macOS 14.0, iOS 17.0, *) {
-            return authorizationStatus == .fullAccess
-        } else {
-            return authorizationStatus == .authorized
-        }
+        authorizationStatus == .fullAccess
     }
 
     /// Sync calendar events from the configured calendar
@@ -204,33 +181,85 @@ final class CalendarSyncService {
         let predicate = eventStore.predicateForEvents(withStart: startDate, end: endDate, calendars: targetCalendars)
         let ekEvents = eventStore.events(matching: predicate)
 
-        // Convert to safe data
-        let syncData = ekEvents.map { event in
-            CalendarEventSyncData(
-                title: event.title ?? "Untitled",
-                startDate: event.startDate,
-                endDate: event.endDate,
-                location: event.location,
-                notes: event.notes,
-                isAllDay: event.isAllDay,
-                eventIdentifier: event.eventIdentifier,
-                calendarIdentifier: event.calendar?.calendarIdentifier
-            )
-        }
+        let syncData = ekEvents.map(Self.syncData(for:))
 
-        // Insert new events, rewrite only the rows whose values changed, and
-        // delete the ones gone from the fetched window. An unchanged calendar
-        // leaves the context clean, so the save below writes nothing.
+        // Insert new occurrences, rewrite only the rows whose values changed,
+        // and delete the ones gone from this device's calendars inside the
+        // fetched window. An unchanged calendar leaves the context clean, so
+        // the save below writes nothing.
+        var keysByIdentifier: [String: String] = [:]
+        for calendar in targetCalendars {
+            keysByIdentifier[calendar.calendarIdentifier] = Self.calendarKey(for: calendar)
+        }
+        let currentKeys = Set(keysByIdentifier.values)
+        let remembered = rememberedCalendarKeys
         let fetch = EventKitMirror.CalendarFetch(
-            calendarIDs: Set(targetCalendars.map(\.calendarIdentifier)),
-            fallbackCalendarID: targetCalendars.first?.calendarIdentifier ?? "",
+            calendarKeys: currentKeys,
+            formerCalendarKeys: Set(keysByIdentifier.keys.flatMap { remembered[$0] ?? [] }).subtracting(currentKeys),
+            unsyncedCalendarKeys: Set(calendars.map(Self.calendarKey(for:))).subtracting(currentKeys),
+            localCalendarIDs: Set(keysByIdentifier.keys),
+            fallbackCalendarKey: targetCalendars.first.map(Self.calendarKey(for:)) ?? "",
             windowStart: startDate,
             windowEnd: endDate
         )
         EventKitMirror.reconcileEvents(syncData, from: fetch, in: context, now: Date())
 
-        context.safeSave()
+        if context.safeSave() {
+            remember(keysByIdentifier)
+        }
         lastSyncTime = Date()
+    }
+
+    /// Notes the key each synced calendar had this time, after older ones.
+    private func remember(_ keysByIdentifier: [String: String]) {
+        var remembered = rememberedCalendarKeys
+        for (identifier, key) in keysByIdentifier where remembered[identifier]?.last != key {
+            let keys = (remembered[identifier] ?? []).filter { $0 != key } + [key]
+            remembered[identifier] = Array(keys.suffix(Self.rememberedKeysPerCalendar))
+        }
+        if remembered != rememberedCalendarKeys {
+            rememberedCalendarKeys = remembered
+        }
+    }
+
+    // MARK: - Choosing calendars
+
+    /// Changes which calendars this device syncs. A calendar turned off has
+    /// its rows removed from the notebook at once, whatever their dates; if
+    /// another device still syncs it, that device's next sync brings its
+    /// window back. The choice itself stays on this device.
+    func updateSelection(identifiers: [String], names: [String]) {
+        let dropped = Set(syncCalendarIdentifiers).subtracting(identifiers)
+        syncCalendarIdentifiers = identifiers
+        syncCalendarNames = names
+        guard !dropped.isEmpty, let context = managedObjectContext else { return }
+
+        let remembered = rememberedCalendarKeys
+        let live = hasFullAccess ? liveCalendarKeys() : [:]
+        func keys(of identifiers: some Sequence<String>) -> Set<String> {
+            identifiers.reduce(into: Set<String>()) { keys, identifier in
+                keys.formUnion(remembered[identifier] ?? [])
+                if let key = live[identifier] { keys.insert(key) }
+            }
+        }
+        // A key a calendar still chosen also has stays (two calendars can
+        // share an account and a title).
+        let removedKeys = keys(of: dropped).subtracting(keys(of: identifiers))
+        rememberedCalendarKeys = remembered.filter { !dropped.contains($0.key) }
+
+        let removed = EventKitMirror.removeEvents(inCalendars: removedKeys, in: context)
+        if removed > 0 {
+            context.safeSave()
+        }
+    }
+
+    /// Every calendar's key on this device, by local identifier.
+    private func liveCalendarKeys() -> [String: String] {
+        var keys: [String: String] = [:]
+        for calendar in eventStore.calendars(for: .event) {
+            keys[calendar.calendarIdentifier] = Self.calendarKey(for: calendar)
+        }
+        return keys
     }
 
     /// Represents a calendar with both identifier and display name

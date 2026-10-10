@@ -22,12 +22,15 @@ enum MirrorFixture {
 
     /// The one calendar the tests sync, over the service's window around `firstSync`.
     static let schoolFetch = EventKitMirror.CalendarFetch(
-        calendarIDs: ["cal-school"],
-        fallbackCalendarID: "cal-school",
+        calendarKeys: ["cal-school"],
+        fallbackCalendarKey: "cal-school",
         windowStart: firstSync.addingTimeInterval(-7 * 86_400),
         windowEnd: firstSync.addingTimeInterval(30 * 86_400)
     )
 
+    /// An event stored under `id` exactly as given, starting `day` days after
+    /// `firstSync`: for tests that store rows without syncing them. A row a
+    /// sync keeps is keyed the cross-device way; use `occurrence` for those.
     static func event(
         _ id: String,
         title: String = "Assembly",
@@ -45,8 +48,48 @@ enum MirrorFixture {
             location: location,
             notes: notes,
             isAllDay: allDay,
-            eventIdentifier: id,
-            calendarIdentifier: calendar
+            eventKey: id,
+            calendarKey: calendar
+        )
+    }
+
+    /// One occurrence of the event `id` (its external identifier) as a sync
+    /// hands it over, starting `day` days after `firstSync`. `occurrenceDay`
+    /// is the day it was scheduled for, when it has since moved; `localID` is
+    /// the syncing device's own identifier for the event.
+    static func occurrence(
+        _ id: String,
+        title: String = "Assembly",
+        day: Int = 0,
+        occurrenceDay: Int? = nil,
+        localID: String? = nil,
+        calendar: String? = "cal-school",
+        location: String? = "Hall",
+        notes: String? = nil,
+        allDay: Bool = false
+    ) -> CalendarEventSyncData {
+        let data = event(
+            id, title: title, day: day, calendar: calendar, location: location, notes: notes, allDay: allDay
+        )
+        return CalendarEventSyncData(
+            title: data.title,
+            startDate: data.startDate,
+            endDate: data.endDate,
+            location: data.location,
+            notes: data.notes,
+            isAllDay: data.isAllDay,
+            eventKey: key(id, day: occurrenceDay ?? day, allDay: allDay),
+            calendarKey: data.calendarKey,
+            localEventIdentifier: localID
+        )
+    }
+
+    /// The row key of the occurrence of `id` scheduled `day` days after `firstSync`.
+    static func key(_ id: String, day: Int = 0, allDay: Bool = false) -> String {
+        EventKitMirror.eventKey(
+            externalIdentifier: id,
+            occurrenceDate: firstSync.addingTimeInterval(TimeInterval(day * 86_400)),
+            isAllDay: allDay
         )
     }
 
@@ -59,8 +102,8 @@ enum MirrorFixture {
             location: data.location,
             notes: data.notes,
             isAllDay: data.isAllDay,
-            eventIdentifier: data.eventIdentifier,
-            calendarIdentifier: data.calendarIdentifier
+            eventKey: data.eventKey,
+            calendarKey: data.calendarKey
         )
     }
 
@@ -134,7 +177,7 @@ enum MirrorFixture {
     ) {
         let storedEvents = eventRows(in: context)
         for data in events {
-            if let row = storedEvents[data.eventIdentifier] {
+            if let row = storedEvents[data.eventKey] {
                 legacyUpdate(row, from: data, now: now)
             } else {
                 EventKitMirror.insertEvent(data, calendarID: "cal-school", in: context, now: now)

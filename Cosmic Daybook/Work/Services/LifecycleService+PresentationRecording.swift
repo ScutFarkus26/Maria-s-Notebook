@@ -23,6 +23,15 @@ extension LifecycleService {
         let lessonIDStr = lessonAssignment.lessonID
         let studentIDStrs = try knownStudentIDs(namedBy: lessonAssignment, context: modelContext)
 
+        // A given presentation whose lesson was changed: its history rows move
+        // with it, and the track and step it carried named the old lesson.
+        if relinkHistoryRows(of: lessonAssignment, in: modelContext) > 0 {
+            lessonAssignment.trackID = nil
+            lessonAssignment.trackStepID = nil
+        }
+        // Entries promoted into it for the lesson it used to be on go back to planned.
+        PresentationRecordCleanup.returnEntriesForOtherLessons(promotedInto: lessonAssignment, in: modelContext)
+
         // Apply the supplied occurrence date even when this assignment was
         // previously stored as an undated or older presentation. The operation is
         // still idempotent because the per-student rows are upserted below.
@@ -155,13 +164,17 @@ extension LifecycleService {
 
                 let repository = WorkRepository(context: modelContext)
                 do {
+                    // The caller saves once, after the whole presentation is
+                    // recorded: a save per child left a half-recorded lesson
+                    // behind when a later step failed.
                     _ = try repository.createWork(
                         studentID: studentUUID,
                         lessonID: lessonUUID,
                         title: nil,
                         kind: WorkKind.practiceLesson,
                         presentationID: la.id,
-                        scheduledDate: nil as Date?
+                        scheduledDate: nil as Date?,
+                        saveImmediately: false
                     )
 
                     // Link CDWorkModel to CDTrackEntity if lesson belongs to a track

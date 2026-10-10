@@ -6,6 +6,14 @@ import CoreData
 
 extension AssistantRestockModel {
 
+    // MARK: - A save that failed
+
+    /// What `errorMessage` says on the shelf and the office run, which both
+    /// offer Try Again. Not just "Try again": on the office run a second tap
+    /// on the row takes the check-off back (bug hunt 2026-10-10 #25).
+    static let saveFailedMessage = "Couldn't save that change. It's kept on this phone, "
+        + "and Restock tries again when you tap Try Again or leave this tab."
+
     // MARK: - What she typed
 
     /// What she typed, without the period (or comma, or other mark) that

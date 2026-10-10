@@ -18,8 +18,9 @@ struct PresentationGroupNoteSection: View {
 
     var body: some View {
         content
+            // Dictated words go after what was typed before the mic was tapped.
             .onChange(of: organizer.speechService.transcript) { _, transcript in
-                if !transcript.isEmpty { session.groupNote = transcript }
+                if !transcript.isEmpty { session.groupNote = organizer.speechService.dictatedText }
             }
             .onDisappear {
                 if organizer.speechService.isRecording { organizer.speechService.stopRecording() }
@@ -41,7 +42,11 @@ struct PresentationGroupNoteSection: View {
                 .textFieldStyle(.roundedBorder)
 
                 Button {
-                    organizer.speechService.toggleRecording(requiresOnDeviceRecognition: true)
+                    // Clears the last split's line so a dictation problem shows below.
+                    splitMessage = nil
+                    organizer.speechService.toggleRecording(
+                        requiresOnDeviceRecognition: true, appendingTo: session.groupNote
+                    )
                 } label: {
                     Image(systemName: organizer.speechService.isRecording ? "stop.circle.fill" : "mic.fill")
                         .font(.title3)

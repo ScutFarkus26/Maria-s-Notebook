@@ -78,6 +78,12 @@ final class AutoBackupManager {
 
     private let coordinator: BackupCoordinator
     private let changeTracker = BackupChangeTracker()
+    /// Where this device keeps the name of its own folder in `Auto/`
+    /// (`AutoBackupFolders.deviceFolderName`).
+    private let deviceDefaults: UserDefaults
+    /// The `Auto/` folder to write into instead of the backup folder's: for
+    /// tests, which must never write into the real one. Nil in the app.
+    private let autoFolderOverride: URL?
     #if os(macOS)
     /// The Mac's interval backup: one system-scheduled activity per backup.
     private let scheduledActivity = ScheduledBackupActivity()
@@ -90,9 +96,13 @@ final class AutoBackupManager {
     // MARK: - Initialization
 
     init(
-        coordinator: BackupCoordinator
+        coordinator: BackupCoordinator,
+        deviceDefaults: UserDefaults = .standard,
+        autoFolder: URL? = nil
     ) {
         self.coordinator = coordinator
+        self.deviceDefaults = deviceDefaults
+        self.autoFolderOverride = autoFolder
 
         // Load last scheduled backup date from UserDefaults
         let timestamp = UserDefaults.standard.double(forKey: UserDefaultsKeys.autoBackupLastScheduledDate)
@@ -350,25 +360,28 @@ final class AutoBackupManager {
         // 1) If the user picked a default folder (Settings > Backup > Storage), put auto-backups
         //    in an `Auto/` subdirectory of that folder so iCloud Drive / Files-app users see them.
         // 2) Otherwise fall back to `Documents/Backups/Auto`.
-        let (backupDir, securityScopedRoot) = resolveAutoBackupDirectory()
+        // Inside it, this device writes to a folder of its own (`AutoBackupFolders`).
+        let (autoFolder, securityScopedRoot) = resolveAutoBackupDirectory()
         if let root = securityScopedRoot, root.startAccessingSecurityScopedResource() {
             defer { root.stopAccessingSecurityScopedResource() }
             return await runExport(
-                in: backupDir, trigger: trigger, prefix: prefix,
+                in: autoFolder, trigger: trigger, prefix: prefix,
                 viewContext: viewContext, stopsWhenCancelled: stopsWhenCancelled
             )
         }
         return await runExport(
-            in: backupDir, trigger: trigger, prefix: prefix,
+            in: autoFolder, trigger: trigger, prefix: prefix,
             viewContext: viewContext, stopsWhenCancelled: stopsWhenCancelled
         )
     }
 
-    /// Returns the directory auto-backups should be written into, plus the security-scoped
-    /// root URL that must be accessed (when the destination is a user-bookmarked folder).
+    /// Returns the `Auto/` directory auto-backups go in (each device in its own folder
+    /// inside it), plus the security-scoped root URL that must be accessed (when the
+    /// destination is a user-bookmarked folder).
     private func resolveAutoBackupDirectory() -> (URL, securityScopedRoot: URL?) {
+        if let autoFolderOverride { return (autoFolderOverride, nil) }
         if let userFolder = BackupDestination.resolveDefaultFolder() {
-            let auto = userFolder.appendingPathComponent("Auto", isDirectory: true)
+            let auto = userFolder.appendingPathComponent(AutoBackupFolders.autoFolderName, isDirectory: true)
             let needsScope = BackupDestination.resolveBookmarkedFolder() != nil
             return (auto, needsScope ? userFolder : nil)
         }
@@ -377,13 +390,23 @@ final class AutoBackupManager {
         return (fallback, nil)
     }
 
+    /// This device's own folder inside `autoFolder`.
+    private func deviceFolder(in autoFolder: URL) -> URL {
+        let name = AutoBackupFolders.deviceFolderName(
+            defaults: deviceDefaults,
+            kind: AutoBackupFolders.currentDeviceKind()
+        )
+        return AutoBackupFolders.deviceFolder(in: autoFolder, named: name)
+    }
+
     private func runExport(
-        in backupDir: URL,
+        in autoFolder: URL,
         trigger: BackupTrigger,
         prefix: String,
         viewContext: NSManagedObjectContext,
         stopsWhenCancelled: Bool
     ) async -> BackupResult {
+        let backupDir = deviceFolder(in: autoFolder)
         // Ensure directory exists
         do {
             try FileManager.default.createDirectory(at: backupDir, withIntermediateDirectories: true)
@@ -414,8 +437,9 @@ final class AutoBackupManager {
             // New change-detection baseline: the data just backed up.
             changeTracker.recordBackupPoint(baseline)
 
-            // Cleanup old backups (Retention Policy)
-            cleanupOldBackups(in: backupDir, keeping: retentionCount)
+            // Retention: this device's own folder, and the files older builds
+            // left at the top of `Auto/`; never another device's folder.
+            AutoBackupFolders.trimAfterBackup(autoFolder: autoFolder, deviceFolder: backupDir, keeping: retentionCount)
 
             let result = BackupResult.success(Date(), url)
             lastBackupResult = result
@@ -462,62 +486,6 @@ final class AutoBackupManager {
             Date().timeIntervalSinceReferenceDate,
             forKey: UserDefaultsKeys.autoBackupLastScheduledDate
         )
-    }
-
-    private func cleanupOldBackups(in dir: URL, keeping count: Int) {
-        let files: [URL]
-        do {
-            files = try FileManager.default.contentsOfDirectory(
-                at: dir,
-                includingPropertiesForKeys: [.creationDateKey],
-                options: [.skipsHiddenFiles]
-            )
-        } catch {
-            Self.logger.warning("Failed to list directory contents: \(error)")
-            return
-        }
-
-        // Filter to auto-backup files only (matches AutoBackup-, ScheduledBackup-, PreOp-)
-        let autoBackups = files.filter { url in
-            let name = url.lastPathComponent
-            return name.hasPrefix("AutoBackup-") ||
-                   name.hasPrefix("ScheduledBackup-") ||
-                   name.hasPrefix("PreOp-")
-        }
-
-        // Sort by creation date (oldest first)
-        let sorted = autoBackups.sorted { url1, url2 in
-            let date1: Date
-            do {
-                date1 = try url1.resourceValues(forKeys: [.creationDateKey]).creationDate ?? Date.distantPast
-            } catch {
-                Self.logger.warning("Failed to get creation date for \(url1.lastPathComponent): \(error)")
-                date1 = Date.distantPast
-            }
-            
-            let date2: Date
-            do {
-                date2 = try url2.resourceValues(forKeys: [.creationDateKey]).creationDate ?? Date.distantPast
-            } catch {
-                Self.logger.warning("Failed to get creation date for \(url2.lastPathComponent): \(error)")
-                date2 = Date.distantPast
-            }
-            
-            return date1 < date2
-        }
-
-        // Delete oldest if we exceed retention count
-        if sorted.count > count {
-            let toDelete = sorted.prefix(sorted.count - count)
-            for url in toDelete {
-                do {
-                    // Coordinated: the folder is usually in iCloud Drive.
-                    try UbiquitousFile.coordinatedDelete(url)
-                } catch {
-                    Self.logger.warning("Failed to delete old backup \(url.lastPathComponent): \(error)")
-                }
-            }
-        }
     }
 
     // MARK: - Settings Access

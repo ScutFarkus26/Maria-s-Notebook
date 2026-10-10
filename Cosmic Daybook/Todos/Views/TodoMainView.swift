@@ -53,7 +53,11 @@ struct TodoMainView: View {
                 newFolderSheet
             }
             .onAppear { refreshTagCaches() }
-            .onChange(of: allTodos.count) { _, _ in refreshTagCaches() }
+            .onReceive(
+                NotificationCenter.default.publisher(for: .NSManagedObjectContextObjectsDidChange, object: viewContext)
+            ) { note in
+                if Self.changesTodoCounts(note) { refreshTagCaches() }
+            }
             .onChange(of: hideCompleted) { _, _ in refreshTagCaches() }
     }
 
@@ -221,47 +225,6 @@ struct TodoMainView: View {
             Label("New Todo", systemImage: "plus")
         }
         .keyboardShortcut("n", modifiers: .command)
-    }
-
-    // PERF: Compute tag data and filter/tag counts in a single pass over allTodos.
-    // Previously each was a separate computed property scanning allTodos independently.
-    func refreshTagCaches() {
-        // Build allUsedTags
-        var tagSet = Set<String>()
-        // Build filter counts and tag counts in the same pass
-        var filterCounts: [TodoListFilter: Int] = [:]
-        var tagCounts: [String: Int] = [:]
-
-        for todo in allTodos {
-            // Count filters
-            for filter in TodoListFilter.allCases where filter != .all {
-                if filter.matches(todo) {
-                    filterCounts[filter, default: 0] += 1
-                }
-            }
-            // Collect tags and count per-tag
-            for tag in todo.tagsArray {
-                tagSet.insert(tag)
-                if !hideCompleted || !todo.isCompleted {
-                    tagCounts[tag, default: 0] += 1
-                }
-            }
-        }
-
-        // When hiding completed in tags, omit tags that have zero visible todos
-        let visibleTags = hideCompleted ? tagSet.filter { (tagCounts[$0] ?? 0) > 0 } : tagSet
-        cachedAllUsedTags = visibleTags.sorted {
-            TodoTagHelper.tagName($0)
-                .localizedCaseInsensitiveCompare(TodoTagHelper.tagName($1)) == .orderedAscending
-        }
-        cachedFilterCounts = filterCounts
-        cachedTagCounts = tagCounts
-
-        // If the selected tag was hidden, deselect it
-        if let selected = selectedTag, !visibleTags.contains(selected) {
-            selectedTag = nil
-            selectedFilter = .inbox
-        }
     }
 
     // MARK: - Helper Functions

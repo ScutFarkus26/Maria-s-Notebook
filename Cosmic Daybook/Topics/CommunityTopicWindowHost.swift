@@ -5,9 +5,6 @@ import SwiftUI
 struct CommunityTopicWindowHost: View {
     let topicID: UUID
 
-    @Environment(\.managedObjectContext) private var viewContext
-    @Environment(SaveCoordinator.self) private var saveCoordinator
-
     var body: some View {
         EntityWindowHost(
             id: topicID,
@@ -19,9 +16,7 @@ struct CommunityTopicWindowHost: View {
                 minSize: CGSize(width: 500, height: 360)
             )
         ) { (topic: CDCommunityTopicEntity) in
-            TopicDetailView(topic: topic) { _ in
-                saveCoordinator.save(viewContext, reason: "Update community topic")
-            }
+            TopicDetailView(topic: topic)
             .navigationTitle(topic.title.isEmpty ? "Community Topic" : topic.title)
         }
     }

@@ -1,12 +1,10 @@
-import OSLog
 import SwiftUI
 import CoreData
 
 struct WorkStepEditorSheet: View {
-    private static let logger = Logger.work
-
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var modelContext
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     let work: CDWorkModel
     var existingStep: CDWorkStep?
@@ -61,30 +59,35 @@ struct WorkStepEditorSheet: View {
         }
     }
 
+    /// Saves the step on its own Save, through `SaveCoordinator`. It used to
+    /// only change the context, so the step waited for some other screen's
+    /// save, and Cancel on the work page didn't take it back either. A failed
+    /// save takes back just this sheet's change and keeps the sheet open.
     private func save() {
         let service = CDWorkStepServiceImpl(context: modelContext)
-
-        do {
+        persist(reason: "Save work step", failure: "Couldn't save this step. Try again.") {
             if let step = existingStep {
                 try service.update(step, title: title, instructions: instructions, notes: notes)
             } else {
                 _ = try service.createStep(for: work, title: title, instructions: instructions, notes: notes)
             }
-        } catch {
-            Self.logger.warning("Failed to save work step: \(error)")
         }
-
-        onSave()
-        dismiss()
     }
 
     private func deleteStep() {
         guard let step = existingStep else { return }
         let service = CDWorkStepServiceImpl(context: modelContext)
-        do {
+        persist(reason: "Delete work step", failure: "Couldn't delete this step. Try again.") {
             try service.delete(step, from: work)
-        } catch {
-            Self.logger.warning("Failed to delete work step: \(error)")
+        }
+    }
+
+    /// Runs one edit and saves it; on success tells the caller and closes,
+    /// on failure undoes only this edit, says so, and stays open.
+    private func persist(reason: String, failure message: String, _ edit: () throws -> Void) {
+        guard saveCoordinator.saveEdit(in: modelContext, reason: reason, edit) else {
+            ToastService.shared.showError(message)
+            return
         }
         onSave()
         dismiss()

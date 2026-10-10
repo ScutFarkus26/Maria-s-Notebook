@@ -62,7 +62,7 @@ struct ThisWeeksParshaView: View {
     private var noParshaState: some View {
         let festival = HebrewParshaService.displacingFestivalName(forShabbat: shabbat)
         return ContentUnavailableView {
-            Label(festival.map { "Shabbat \($0)" } ?? "No weekly parsha", systemImage: "book.closed")
+            Label(festival.map { "Shabbat \($0)" } ?? "Weekly reading not shown", systemImage: "book.closed")
         } description: {
             if let festival {
                 Text(
@@ -70,7 +70,7 @@ struct ThisWeeksParshaView: View {
                     "so a festival reading replaces the weekly parsha."
                 )
             } else {
-                Text("No weekly parsha is read on \(shabbat.formatted(date: .long, time: .omitted)).")
+                Text("The weekly reading for \(shabbat.formatted(date: .long, time: .omitted)) isn't shown here.")
             }
         }
     }
@@ -99,7 +99,7 @@ private struct ParshaContentList: View {
         self.isCurrentWeek = isCurrentWeek
         _lessons = FetchRequest(
             sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)],
-            predicate: NSPredicate(format: "parshaKey == %@", parshaKey)
+            predicate: HebrewParshaService.lessonsPredicate(forParshaKey: parshaKey)
         )
     }
 
@@ -176,7 +176,8 @@ private struct ParshaContentList: View {
             }
         }
         .onAppear {
-            cachedSuggestions = ParshaSuggestionService.allCachedSuggestions()[parshaKey]
+            cachedSuggestions = ParshaSuggestionService(mcpClient: dependencies.mcpClient, context: viewContext)
+                .cachedSuggestions(forParshaKey: parshaKey)
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {

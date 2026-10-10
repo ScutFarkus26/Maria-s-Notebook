@@ -135,7 +135,8 @@ final class MonthlyReportDraftService {
             sentences.append("This month \(firstName) received \(lessonList)\(more).")
         }
 
-        let completions = context.workEvidence.filter { $0.ref.hasPrefix("work:") }
+        // Finished work only: Keep Practicing and Incomplete carry a "#" suffix.
+        let completions = context.workEvidence.filter { $0.ref.hasPrefix("work:") && !$0.ref.contains("#") }
         if !completions.isEmpty {
             let count = completions.count
             let workWord = count == 1 ? "a piece of follow-up work" : "\(count) pieces of follow-up work"

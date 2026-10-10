@@ -296,8 +296,15 @@ private struct ConsolidateLessonCard: View {
         presentation.updateDenormalizedKeys()
         presentation.modifiedAt = Date()
         let didEmpty = ids.isEmpty
-        if didEmpty, let ctx = presentation.managedObjectContext {
-            ctx.delete(presentation)
+        if let ctx = presentation.managedObjectContext {
+            // Her entry promoted into this plan goes back to planned rather
+            // than pointing at a plan that no longer holds her (or no longer
+            // exists).
+            PresentationRecordCleanup.removeStudents([idString], from: presentation, in: ctx)
+            if didEmpty {
+                PresentationRecordCleanup.prepareToDelete(presentation, in: ctx)
+                ctx.delete(presentation)
+            }
         }
         saveCoordinator.save(viewContext, reason: "Remove student from presentation")
         if didEmpty {

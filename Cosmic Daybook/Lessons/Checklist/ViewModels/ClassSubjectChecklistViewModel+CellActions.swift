@@ -11,6 +11,11 @@ extension ClassAreaChecklistViewModel {
     /// The grid's one way in for a cell: finds the cell's student and lesson and runs the action.
     /// The actions that open a sheet or another screen belong to the grid and do nothing here.
     func perform(_ action: ChecklistCellAction, on cell: CellIdentifier, context: NSManagedObjectContext) {
+        // Clear asks first when the cell holds history (+Clearing).
+        if action == .clearStatus {
+            requestClear(cell, context: context)
+            return
+        }
         guard !performWithoutRecords(action, on: cell, context: context),
               let change = recordChange(for: action),
               let student = rosterStudents.first(where: { $0.id == cell.studentID }),
@@ -170,7 +175,7 @@ extension ClassAreaChecklistViewModel {
             )
         }
 
-        findOrCreateWorkAndMarkComplete(student: student, lesson: lesson, context: context)
+        ChecklistCellRecords.closeWorkForMastery(studentID: studentUUID, lessonID: lessonUUID, in: context)
 
         upsertLessonPresentation(
             studentID: studentIDString, lessonID: lessonIDString,
@@ -327,37 +332,9 @@ extension ClassAreaChecklistViewModel {
         }
     }
 
+    /// Clear All Status: the same rule as the selection bar's Clear (`ChecklistCellRecords.clear`).
     func clearStatusNoRecompute(student: CDStudent, lesson: CDLesson, context: NSManagedObjectContext) {
         guard let lid = lesson.id, let sid = student.id else { return }
-        let sidString = sid.uuidString
-        let lidString = lid.uuidString
-
-        let request = CDFetchRequest(CDLessonAssignment.self)
-        request.predicate = NSPredicate(format: "lessonID == %@", lidString)
-        let las = context.safeFetch(request)
-        for la in las where la.studentIDs.contains(sidString) {
-            var newIDs = la.studentIDs
-            newIDs.removeAll { $0 == sidString }
-            if newIDs.isEmpty {
-                PresentationRecordCleanup.prepareToDelete(la, in: context)
-                context.delete(la)
-            } else {
-                PresentationRecordCleanup.removeStudents([sidString], from: la, in: context)
-                la.studentIDs = newIDs
-            }
-        }
-
-        // PERF: Filter by lessonID in predicate to avoid loading all non-complete work.
-        // Take her off the rows rather than deleting every row that names her:
-        // a shared row also carries the other children on it.
-        let workRequest = CDFetchRequest(CDWorkModel.self)
-        workRequest.predicate = NSPredicate(
-            format: "statusRaw IN %@ AND lessonID == %@", WorkStatus.openRawValues, lidString
-        )
-        WorkDeletionService.removeWithoutSaving(
-            studentID: sid, from: context.safeFetch(workRequest), in: context
-        )
-
-        deleteLessonPresentation(studentID: sidString, lessonID: lidString, context: context)
+        ChecklistCellRecords.clear(studentID: sid, lessonID: lid, in: context)
     }
 }

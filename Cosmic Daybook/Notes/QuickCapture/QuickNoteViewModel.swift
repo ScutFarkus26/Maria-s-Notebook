@@ -22,6 +22,8 @@ class QuickNoteViewModel {
 
     // Content
     var bodyText: String = ""
+    /// Her cursor in the editor, kept in place when auto-tidy rewrites the text.
+    var textSelection: TextSelection?
     var tags: [String] = []
     var needsFollowUp: Bool = false
     var selectedStudentIDs: Set<UUID> = []
@@ -38,6 +40,16 @@ class QuickNoteViewModel {
     var detectedCandidateIDs: Set<UUID> = []
     var isProcessingAI: Bool = false
     var aiError: String?
+    /// Children she took off this note. The name finder never puts them back:
+    /// it used to re-add a removed chip on the next keystroke. Changed only
+    /// through `setSelectedStudents` (QuickNoteViewModel+Saving.swift).
+    var removedStudentIDs: Set<UUID> = []
+
+    // Saving (QuickNoteViewModel+Saving.swift)
+    /// Shown when Save fails; the sheet stays open with her text.
+    var saveErrorMessage: String?
+    /// Set once the note is saved, so closing the sheet keeps its photo.
+    var didSave = false
 
     // UI State
     var isShowingStudentPicker: Bool = false
@@ -81,7 +93,6 @@ class QuickNoteViewModel {
         }
     }
     
-    // swiftlint:disable:next cyclomatic_complexity function_body_length
     func analyzeText(_ text: String, students: [CDStudent]) {
         // Don't analyze if we're currently applying replacements to avoid infinite loops
         guard !isApplyingReplacements else { return }
@@ -116,88 +127,33 @@ class QuickNoteViewModel {
             
             let studentData = getStudentData(from: students)
             let result = await tagger.findStudentMatches(in: text, studentData: studentData)
-            
-            // Auto-add exact matches that are not already selected
-            let newExacts = result.exact.subtracting(self.selectedStudentIDs)
-            if !newExacts.isEmpty {
-                adaptiveWithAnimation {
-                    self.selectedStudentIDs.formUnion(newExacts)
-                }
-            }
 
-            // Auto-select unique matches (autoSelect set from enhanced detection)
-            let newAutoSelects = result.autoSelect.subtracting(self.selectedStudentIDs)
-            if !newAutoSelects.isEmpty {
+            // Auto-add exact and unique matches not already chosen or taken off
+            let matches = self.newMatches(from: result)
+            if !matches.add.isEmpty {
                 adaptiveWithAnimation {
-                    self.selectedStudentIDs.formUnion(newAutoSelects)
+                    self.selectedStudentIDs.formUnion(matches.add)
                 }
             }
+            self.detectedCandidateIDs = matches.suggest
             
-            // Only suggest fuzzy matches that are not already selected
-            self.detectedCandidateIDs = result.fuzzy.subtracting(self.selectedStudentIDs)
-            
-            // Apply text replacements for exact matches
+            // Apply text replacements for exact matches (QuickNoteAutoTidy),
+            // keeping her cursor where she was typing
             if !result.replacements.isEmpty {
                 // Set flag to prevent re-analysis during replacement
                 self.isApplyingReplacements = true
-                
-                var updatedText = self.bodyText
-                var hasChanges = false
-                
-                // Apply replacements from end to start to preserve positions
-                // Process in reverse order to maintain string indices
-                for replacement in result.replacements.reversed() {
-                    // Skip if replacement text is already the same as original (case-insensitive)
-                    let originalTrimmed = replacement.originalText.trimmed()
-                    let replacementTrimmed = replacement.replacement.trimmed()
-                    
-                    if originalTrimmed.lowercased() == replacementTrimmed.lowercased() {
-                        continue
-                    }
-                    
-                    // Only replace if the original text still exists in the current text
-                    // (case-insensitive, whole word match)
-                    let escaped = NSRegularExpression.escapedPattern(for: replacement.originalText)
-                    let pattern = "\\b\(escaped)\\b"
 
-                    do {
-                        let regex = try NSRegularExpression(pattern: pattern, options: .caseInsensitive)
-                        let range = NSRange(updatedText.startIndex..., in: updatedText)
-                        let matches = regex.matches(in: updatedText, options: [], range: range)
-
-                        if !matches.isEmpty {
-                            // Replace from end to start to preserve indices
-                            for match in matches.reversed() {
-                                if let matchRange = Range(match.range, in: updatedText) {
-                                    let matchedText = String(updatedText[matchRange])
-                                    let matchedTrimmed = matchedText.trimmed()
-
-                                    // CRITICAL: Only replace if it's not already the replacement
-                                    // text (case-insensitive). This prevents replacing "Sarah Z."
-                                    // with "Sarah Z." which would cause period repetition
-                                    if matchedTrimmed.lowercased()
-                                        != replacementTrimmed.lowercased() {
-                                        updatedText.replaceSubrange(matchRange, with: replacement.replacement)
-                                        hasChanges = true
-                                    }
-                                }
-                            }
-                        }
-                    } catch {
-                        Self.logger.warning("Invalid regex pattern '\(pattern)': \(error)")
-                        // Continue to next replacement
-                        continue
-                    }
-                }
-                
+                let cursor = QuickNoteAutoTidy.cursorOffset(of: self.textSelection, in: self.bodyText)
                 // Only update if text actually changed
-                if hasChanges {
+                if let tidied = QuickNoteAutoTidy.apply(result.replacements, to: self.bodyText, cursor: cursor) {
                     // Store the updated text to check against in next analysis
-                    // REMOVED: unused previousText
-                    self.lastReplacementText = updatedText
-                    
+                    self.lastReplacementText = tidied.text
+
                     adaptiveWithAnimation {
-                        self.bodyText = updatedText
+                        self.bodyText = tidied.text
+                    }
+                    if let offset = tidied.cursor {
+                        self.textSelection = QuickNoteAutoTidy.selection(at: offset, in: tidied.text)
                     }
 
                     // Reset flag after a delay to allow onChange to complete
@@ -233,47 +189,12 @@ class QuickNoteViewModel {
                 self.bodyText = newText
                 self.isProcessingAI = false
             }
+            // A whole new text: the cursor goes to its end, never left
+            // pointing into the old one.
+            self.textSelection = QuickNoteAutoTidy.selection(at: newText.utf16.count, in: newText)
         }
     }
     
-    func saveNote(viewContext: NSManagedObjectContext) {
-        let trimmed = bodyText.trimmed()
-        guard !trimmed.isEmpty else { return }
-        
-        let scope: NoteScope
-        if selectedStudentIDs.count == 1, let firstID = selectedStudentIDs.first {
-            scope = .student(firstID)
-        } else if selectedStudentIDs.count > 1 {
-            scope = .students(selectedStudentIDs.sorted { $0.uuidString < $1.uuidString })
-        } else {
-            scope = .all
-        }
-        
-        // Fetch CDStudentTrackEnrollmentEntity if selectedEnrollmentID is set
-        var studentTrackEnrollment: CDStudentTrackEnrollmentEntity?
-        if let enrollmentID = selectedEnrollmentID {
-            studentTrackEnrollment = viewContext.object(CDStudentTrackEnrollmentEntity.self, id: enrollmentID)
-        }
-
-        // Fetch CDLesson if selectedLessonID is set
-        var lesson: CDLesson?
-        if let lessonID = selectedLessonID {
-            lesson = viewContext.object(CDLesson.self, id: lessonID)
-        }
-
-        let newNote = CDNote(context: viewContext)
-        newNote.createdAt = noteDate
-        newNote.body = trimmed
-        newNote.scope = scope
-        newNote.tags = tags as NSArray
-        newNote.includeInReport = includeInReport
-        newNote.needsFollowUp = needsFollowUp
-        newNote.lesson = lesson
-        newNote.studentTrackEnrollment = studentTrackEnrollment
-        newNote.imagePath = attachedImagePath
-        ToastService.shared.show("Note saved", type: .success, duration: 1.5)
-    }
-
     func getDisplayName(for student: CDStudent, students: [CDStudent]) -> String {
         // If there are other students in the full roster with the same first name, use Last Initial
         let duplicateCount = students.filter { $0.firstName.lowercased() == student.firstName.lowercased() }.count
@@ -337,6 +258,9 @@ class QuickNoteViewModel {
                     self.bodyText = response.content
                     self.isProcessingAI = false
                 }
+                self.textSelection = QuickNoteAutoTidy.selection(
+                    at: response.content.utf16.count, in: response.content
+                )
             } catch let error as LanguageModelError {
                 self.aiError = Self.userMessage(for: error)
                 self.isProcessingAI = false

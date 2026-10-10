@@ -44,7 +44,20 @@ struct EditTodoForm: View {
             }
 
             Section {
-                Toggle("Completed", isOn: $todo.isCompleted)
+                // Through `TodoCompletionService`, like every other tick: the
+                // completion date, a repeat's next occurrence, and taking it
+                // back when the switch is turned off again.
+                Toggle("Completed", isOn: Binding(
+                    get: { todo.isCompleted },
+                    set: { isOn in
+                        guard isOn != todo.isCompleted else { return }
+                        if isOn {
+                            TodoCompletionService.complete(todo)
+                        } else {
+                            TodoCompletionService.reopen(todo)
+                        }
+                    }
+                ))
 
                 if todo.isCompleted, let completedAt = todo.completedAt {
                     HStack {
@@ -63,6 +76,13 @@ struct EditTodoForm: View {
         .onChange(of: todo.priority) { _, _ in saveTodoChanges() }
         .onChange(of: todo.tags) { _, _ in saveTodoChanges() }
         .onChange(of: todo.isCompleted) { _, _ in saveTodoChanges() }
+        .onChange(of: todo.recurrenceRaw) { _, _ in saveTodoChanges() }
+        // The When popover and the repeat settings write straight to the todo too;
+        // without these they waited for the editor to close (2026-10-10 sweep).
+        .onChange(of: todo.scheduledDate) { _, _ in saveTodoChanges() }
+        .onChange(of: todo.isSomeday) { _, _ in saveTodoChanges() }
+        .onChange(of: todo.repeatAfterCompletion) { _, _ in saveTodoChanges() }
+        .onChange(of: todo.customIntervalDays) { _, _ in saveTodoChanges() }
         .onDisappear {
             saveTodoChanges()
         }
@@ -80,7 +100,10 @@ struct EditTodoForm: View {
                 )
             }
 
-            Picker("Repeats", selection: $todo.recurrence) {
+            Picker("Repeats", selection: Binding(
+                get: { todo.recurrence },
+                set: { todo.setRecurrence($0) }
+            )) {
                 ForEach(RecurrencePattern.allCases, id: \.self) { pattern in
                     Text(pattern.rawValue).tag(pattern)
                 }
@@ -90,9 +113,9 @@ struct EditTodoForm: View {
                 Toggle("Repeat after completion", isOn: $todo.repeatAfterCompletion)
                 if todo.recurrence == .custom {
                     Stepper(
-                        "Every \(todo.customIntervalDays == 0 ? 7 : todo.customIntervalDays) days",
+                        "Every \(customInterval) days",
                         value: Binding<Int>(
-                            get: { Int(todo.customIntervalDays == 0 ? 7 : todo.customIntervalDays) },
+                            get: { customInterval },
                             set: { todo.customIntervalDays = Int64($0) }
                         ),
                         in: 1...365
@@ -100,6 +123,11 @@ struct EditTodoForm: View {
                 }
             }
         }
+    }
+
+    /// The custom interval as it repeats (`TodoRepeatRule.intervalDays`).
+    private var customInterval: Int {
+        todo.customIntervalDays > 0 ? Int(todo.customIntervalDays) : TodoRepeatRule.defaultCustomIntervalDays
     }
 
     private func priorityColorForPicker(_ priority: TodoPriority) -> Color {

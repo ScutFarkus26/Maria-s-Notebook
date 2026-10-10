@@ -6,28 +6,19 @@ import CoreData
 
 struct StudentNotesTab: View {
     let student: CDStudent
-    
-    // 1. Efficient Hybrid Fetch: Get notes for this student OR global notes
-    @FetchRequest(sortDescriptors: []) private var notes: FetchedResults<CDNote>
+
+    @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
     @State private var showingSmartAssistant = false
     @State private var showingReportGenerator = false
+    /// The notes Writing Help drafts from, gathered when it opens.
+    @State private var writingHelpNotes: [CDNote] = []
     #if os(macOS)
     @Environment(\.openWindow) private var openWindow
     #endif
 
     init(student: CDStudent) {
         self.student = student
-
-        let predicate: NSPredicate
-        if let studentID = student.id {
-            predicate = NSPredicate(format: "searchIndexStudentID == %@ OR scopeIsAll == YES", studentID as CVarArg)
-        } else {
-            predicate = NSPredicate(format: "scopeIsAll == YES")
-        }
-        _notes = FetchRequest(
-            sortDescriptors: [NSSortDescriptor(keyPath: \CDNote.updatedAt, ascending: false)],
-            predicate: predicate
-        )
     }
 
     var body: some View {
@@ -51,15 +42,14 @@ struct StudentNotesTab: View {
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
-                        showingSmartAssistant = true
+                        openWritingHelp()
                     } label: {
                         Label("AI Assistant", systemImage: "sparkles")
                     }
-                    .disabled(notes.isEmpty)
                 }
             }
             .sheet(isPresented: $showingSmartAssistant) {
-                AppleIntelligenceSheet(notes: Array(notes))
+                AppleIntelligenceSheet(notes: writingHelpNotes)
                     #if os(iOS)
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
@@ -68,5 +58,16 @@ struct StudentNotesTab: View {
             .sheet(isPresented: $showingReportGenerator) {
                 ReportGeneratorView(student: student)
             }
+    }
+
+    /// Writing Help drafts from the notes this tab shows — group notes
+    /// included — from this school year. It used to read only her own notes
+    /// and every year's whole-class notes.
+    private func openWritingHelp() {
+        let notesTab = StudentNotesViewModel(
+            student: student, viewContext: viewContext, saveCoordinator: dependencies.saveCoordinator
+        )
+        writingHelpNotes = notesTab.writingHelpNotes(in: dependencies.schoolYearStore.current.range)
+        showingSmartAssistant = true
     }
 }

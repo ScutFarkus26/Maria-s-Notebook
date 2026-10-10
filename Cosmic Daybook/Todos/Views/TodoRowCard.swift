@@ -83,12 +83,17 @@ struct TodoRowCard: View {
         .contentShape(Rectangle())
     }
 
-    /// Flips the to-do and stamps its completion date. Runs inside
-    /// `TodoCheckboxButton`'s animation, and backs the accessibility action.
+    /// Completes or reopens the to-do through `TodoCompletionService`, so a
+    /// repeating one gets its next occurrence (and unticking takes it back),
+    /// as on Today. Runs inside `TodoCheckboxButton`'s animation, and backs
+    /// the accessibility action.
     private func toggleCompletion() {
-        todo.isCompleted.toggle()
-        todo.completedAt = todo.isCompleted ? Date() : nil
-        viewContext.safeSave()
+        if todo.isCompleted {
+            TodoCompletionService.reopen(todo)
+        } else {
+            TodoCompletionService.complete(todo)
+        }
+        saveCoordinator.save(viewContext, reason: "Toggle to-do")
     }
 
     @ViewBuilder
@@ -110,8 +115,7 @@ struct TodoRowCard: View {
     @ViewBuilder
     private var leadingSwipeActions: some View {
         Button {
-            todo.scheduledDate = AppCalendar.startOfDay(Date())
-            todo.isSomeday = false
+            TodoScheduling.moveToToday([todo])
             persist()
         } label: {
             Label("Today", systemImage: "star.fill")
@@ -119,8 +123,7 @@ struct TodoRowCard: View {
         .tint(.orange)
 
         Button {
-            todo.scheduledDate = AppCalendar.addingDays(1, to: AppCalendar.startOfDay(Date()))
-            todo.isSomeday = false
+            TodoScheduling.moveToTomorrow(todo)
             persist()
         } label: {
             Label("Tomorrow", systemImage: "sunrise")
@@ -128,11 +131,10 @@ struct TodoRowCard: View {
         .tint(.orange.opacity(UIConstants.OpacityConstants.heavy))
 
         Button {
-            todo.scheduledDate = nextMonday()
-            todo.isSomeday = false
+            TodoScheduling.moveToNextWeek(todo)
             persist()
         } label: {
-            Label("+1 Week", systemImage: "calendar.badge.plus")
+            Label("Next Week", systemImage: "calendar.badge.plus")
         }
         .tint(.purple)
     }
@@ -155,38 +157,32 @@ struct TodoRowCard: View {
 
         Menu("Move to...") {
             Button {
-                todo.scheduledDate = AppCalendar.startOfDay(Date())
-                todo.isSomeday = false
+                TodoScheduling.moveToToday([todo])
                 persist()
             } label: {
                 Label("Today", systemImage: "star.fill")
             }
             Button {
-                todo.scheduledDate = AppCalendar.addingDays(1, to: AppCalendar.startOfDay(Date()))
-                todo.isSomeday = false
+                TodoScheduling.moveToTomorrow(todo)
                 persist()
             } label: {
                 Label("Tomorrow", systemImage: "sunrise")
             }
             Button {
-                todo.scheduledDate = nextMonday()
-                todo.isSomeday = false
+                TodoScheduling.moveToNextWeek(todo)
                 persist()
             } label: {
                 Label("Next Week", systemImage: "calendar.badge.plus")
             }
             Button {
-                todo.scheduledDate = nil
-                todo.isSomeday = true
+                TodoScheduling.moveToSomeday(todo)
                 persist()
             } label: {
                 Label("Someday", systemImage: "moon.zzz")
             }
             Divider()
             Button {
-                todo.scheduledDate = nil
-                todo.dueDate = nil
-                todo.isSomeday = false
+                TodoScheduling.removeDates(todo)
                 persist()
             } label: {
                 Label("Remove Date", systemImage: "xmark.circle")
@@ -210,16 +206,6 @@ struct TodoRowCard: View {
         case .high: todo.priority = .none
         }
         viewContext.safeSave()
-    }
-
-    private func nextMonday() -> Date {
-        let today = AppCalendar.startOfDay(Date())
-        let cal = AppCalendar.shared
-        var d = cal.date(byAdding: .day, value: 1, to: today) ?? today
-        while cal.component(.weekday, from: d) != 2 {
-            d = cal.date(byAdding: .day, value: 1, to: d) ?? d
-        }
-        return d
     }
 
     @ViewBuilder

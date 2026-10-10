@@ -124,9 +124,21 @@ nonisolated enum NotebookJunkCleanup {
         let presentations = fetch(CDLessonPresentation.self, nil, in: context)
         remove(presentations.filter { $0.studentID.trimmed().isEmpty && $0.lessonID.trimmed().isEmpty },
                into: &counts.blankPresentations)
+        // A history row whose lesson was deleted is junk only when nothing keeps
+        // it: deleting a lesson keeps the presentations already given (and their
+        // rows) as history under the lesson's remembered title, and keeps a
+        // mastery mark as a mark of its own (`LessonDeletion`, 2026-10-10 hunt).
+        // What's left is a plain "given" row with no presentation behind it.
+        let assignmentIDs = idSet(CDLessonAssignment.self, in: context)
         remove(presentations.filter { record in
             guard !record.lessonID.trimmed().isEmpty else { return false }
-            return !lessonIDs.contains(normalized(record.lessonID))
+            guard !lessonIDs.contains(normalized(record.lessonID)) else { return false }
+            if let presentationID = record.presentationID, !presentationID.trimmed().isEmpty,
+               assignmentIDs.contains(normalized(presentationID)) {
+                return false
+            }
+            if record.masteredAt != nil || record.state == .proficient { return false }
+            return true
         }, into: &counts.presentationsOfDeletedLessons)
 
         remove(blankAttendance(in: context, today: today), into: &counts.blankAttendance)

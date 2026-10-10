@@ -115,7 +115,6 @@ struct LessonsRootView: View {
 
     // MARK: - Presentation History State
     @State var statusCounts: [UUID: Int]?
-    @State var lastPresentedDates: [UUID: Date]?
 
     // MARK: - Lessons For Area
     /// The filtered, ordered lessons the map shows. Held in state and
@@ -373,16 +372,8 @@ struct LessonsRootView: View {
         let lessonIDs = lessonsForArea.compactMap(\.id)
         guard !lessonIDs.isEmpty else {
             statusCounts = nil
-            lastPresentedDates = nil
             return
         }
-
-        // Fetch last presented dates
-        let history = LessonsPresentationHistoryProvider.fetchPresentationHistory(
-            lessonIDs: lessonIDs,
-            context: viewContext
-        )
-        lastPresentedDates = history.lastPresented
 
         // Compute status counts (students needing each lesson)
         // This uses the existing helper method if available, or we compute it here

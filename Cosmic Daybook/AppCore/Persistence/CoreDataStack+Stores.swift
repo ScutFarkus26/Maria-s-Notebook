@@ -313,6 +313,8 @@ extension CoreDataStack {
         defaults.removeObject(forKey: UserDefaultsKeys.orphanCheckInGrace)
         // A fresh download is checked again for notes saved with no scope.
         defaults.removeObject(forKey: UserDefaultsKeys.noteScopeIndexRepairDone)
+        // ...and for multi-child notes missing their student links.
+        defaults.removeObject(forKey: UserDefaultsKeys.noteStudentLinkRepairDone)
         #endif
         clearLocalCacheResetRequest(in: defaults)
     }

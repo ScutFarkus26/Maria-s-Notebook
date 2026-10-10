@@ -50,8 +50,9 @@ final class DataQueryService {
         } else if let cached = studentsCache {
             students = cached
         } else {
+            // No row limit: a capped read dropped whoever came past it in
+            // store order, with nothing to say so.
             let request = CDFetchRequest(CDStudent.self)
-            request.fetchLimit = 1000 // Safety limit for cache population
             students = context.safeFetch(request)
             studentsCache = students
         }
@@ -79,16 +80,10 @@ final class DataQueryService {
             return ids.compactMap { cache[$0] }
         }
 
-        // PERFORMANCE: Fetch all students and filter with Set lookup (O(1) per check)
-        // NSPredicate doesn't efficiently support IN with large local Set variables
+        // Just these students, by id (a UUID attribute, so UUID arguments).
         let request = CDFetchRequest(CDStudent.self)
-        request.fetchLimit = 1000 // Safety limit
-        let allStudents = context.safeFetch(request)
-        // ids is already a Set, so .contains() is O(1)
-        return allStudents.filter { id in
-            guard let studentID = id.id else { return false }
-            return ids.contains(studentID)
-        }
+        request.predicate = NSPredicate(format: "id IN %@", Array(ids))
+        return context.safeFetch(request)
     }
 
     /// Get students as a dictionary keyed by ID.
@@ -123,9 +118,10 @@ final class DataQueryService {
     ///
     /// `sortBy` asks the store for that order (`[]` is store order) and `batchSize`
     /// is passed through as the request's `fetchBatchSize`. A sorted read goes
-    /// straight to the store — not through the cache and without its safety limit
-    /// — so it returns exactly the rows a whole-table `CDFetchRequest` would;
-    /// callers that only need membership leave it nil and share the cache.
+    /// straight to the store, not through the cache; callers that only need
+    /// membership leave it nil and share the cache. Neither path has a row
+    /// limit: the cache used to stop at 2,000 lessons, and a library past that
+    /// lost lessons from every reader of it without a word.
     func fetchAllLessons(sortBy: [NSSortDescriptor]? = nil, batchSize: Int = 0) -> [CDLesson] {
         if let sortBy {
             let request = CDFetchRequest(CDLesson.self)
@@ -138,7 +134,6 @@ final class DataQueryService {
         }
 
         let request = CDFetchRequest(CDLesson.self)
-        request.fetchLimit = 2000 // Safety limit for lesson library cache
         let lessons = context.safeFetch(request)
         // Use uniquingKeysWith to handle CloudKit sync duplicates
         lessonsCache = Dictionary(
@@ -153,7 +148,7 @@ final class DataQueryService {
 
     /// The distinct non-empty lesson areas, sorted: exactly
     /// `Set(fetchAllLessons().map(\.area)).filter { !$0.isEmpty }.sorted()`,
-    /// read as the one `area` column of the same (at most 2000) rows instead
+    /// read as the one `area` column of the same rows instead
     /// of whole lesson rows and their long text. A dictionary fetch reads the
     /// store, not the context, so while this context holds unsaved lesson
     /// changes — or once the lesson cache is loaded, which `fetchAllLessons`
@@ -165,7 +160,6 @@ final class DataQueryService {
         let request = NSFetchRequest<NSDictionary>(entityName: CDFetchRequest(CDLesson.self).entityName ?? "Lesson")
         request.resultType = .dictionaryResultType
         request.propertiesToFetch = ["area"]
-        request.fetchLimit = 2000 // the rows fetchAllLessons() reads (its cache's safety limit)
         let rows: [NSDictionary]
         do {
             rows = try context.fetch(request)

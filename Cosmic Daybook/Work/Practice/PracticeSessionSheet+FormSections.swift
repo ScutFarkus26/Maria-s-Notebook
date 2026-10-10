@@ -52,14 +52,6 @@ extension PracticeSessionSheet {
                     Stepper("\(durationMinutes) min", value: $durationMinutes, in: 5...300, step: 5)
                         .font(AppTheme.ScaledFont.bodySemibold)
                 }
-                .onChange(of: durationMinutes) { _, newValue in
-                    duration = TimeInterval(newValue * 60)
-                }
-            }
-            .onChange(of: hasDuration) { _, newValue in
-                if !newValue {
-                    duration = nil
-                }
             }
 
             OptionalFieldToggle(title: "Add Location", isEnabled: $hasLocation) {

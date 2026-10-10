@@ -1,5 +1,6 @@
-import Foundation
 import CoreData
+import CryptoKit
+import Foundation
 
 // MARK: - CDNote Legacy Field Upsert
 
@@ -40,6 +41,9 @@ nonisolated extension CDNote {
             if note.body == trimmed { return false }
             note.body = trimmed
             note.updatedAt = Date()
+            // A group check-in's note written before its links were kept gets
+            // them here (2026-10-10).
+            note.syncStudentLinks(in: context)
             return true
         }
 
@@ -50,6 +54,9 @@ nonisolated extension CDNote {
         note.reportedBy = LegacyNoteFieldConstants.reporter
         note.reporterName = LegacyNoteFieldConstants.reporterName
         attach(note)
+        // A note about several children shows on their Notes tabs only through
+        // its links; without them a group check-in's note showed on none.
+        note.syncStudentLinks(in: context)
         return true
     }
 }
@@ -73,11 +80,14 @@ nonisolated extension CDProjectSession {
         CDNote.legacyFieldBody(in: (noteItems?.allObjects as? [CDNote]) ?? [])
     }
 
+    /// A session's note is about the project's members. It was scoped to the
+    /// whole class until 2026-10-10, so it showed on every child's Notes tab;
+    /// `.all` remains only for a project with no members.
     @discardableResult
     func setLegacyNoteText(_ text: String?, in context: NSManagedObjectContext) -> Bool {
         return CDNote.upsertLegacyFieldNote(
             text: text,
-            scope: .all,
+            scope: NoteScope.forSelection(Set(project?.memberStudentUUIDs ?? [])),
             existingNotes: noteItems,
             context: context
         ) { note in
@@ -217,24 +227,95 @@ nonisolated extension CDNote {
 // MARK: - syncStudentLinks
 
 nonisolated extension CDNote {
-    /// Syncs the studentLinks relationship to match the current scope.
-    /// Creates NoteStudentLink entries for `.students([UUID])` scope.
-    func syncStudentLinks(in context: NSManagedObjectContext) {
-        // Clear existing links
-        if let existingLinks = studentLinks?.allObjects as? [CDNoteStudentLink] {
-            for link in existingLinks {
-                context.delete(link)
-            }
+    /// Makes the note's student links match its scope: one link per child a
+    /// multi-child scope names, none for any other scope.
+    ///
+    /// **A diff, never delete-and-recreate.** Each link is a synced row. Until
+    /// 2026-10-10 every call deleted all the links and made new ones, so two
+    /// devices saving (or repairing) the same note each made their own set,
+    /// both sets synced, and the note had every child linked twice. Now a link
+    /// that's already right stays; a child with no link gets one, and a child
+    /// the scope no longer names loses hers.
+    ///
+    /// A new link's id comes from the note and the child
+    /// (`CDNoteStudentLink.stableID`), so two devices adding the same link make
+    /// two rows with one id, which the deduplication folds into one. Where a
+    /// child already has links with different ids (doubles from older builds),
+    /// one is kept — the stable id if it is among them, otherwise the smallest
+    /// id, which every device picks alike — and the rest go. Copies sharing the
+    /// keeper's id are left to the deduplication, which agrees across devices
+    /// on the record name.
+    ///
+    /// Writes nothing when the links already match. Returns whether it changed any.
+    @discardableResult
+    func syncStudentLinks(in context: NSManagedObjectContext) -> Bool {
+        let named: [UUID]
+        if case .students(let studentUUIDs) = scope {
+            named = studentUUIDs
+        } else {
+            named = []
         }
 
-        // Create new links for multi-student scope
-        if case .students(let studentUUIDs) = scope {
-            for uuid in studentUUIDs {
+        var linksByStudent: [String: [CDNoteStudentLink]] = [:]
+        for link in (studentLinks?.allObjects as? [CDNoteStudentLink]) ?? [] where !link.isDeleted {
+            linksByStudent[link.studentID.uppercased(), default: []].append(link)
+        }
+
+        var changed = false
+        var kept = Set<String>()
+        for student in named {
+            let key = student.uuidString.uppercased()
+            guard kept.insert(key).inserted else { continue }
+            let stableID = id.map { CDNoteStudentLink.stableID(noteID: $0, studentID: student) }
+            guard let links = linksByStudent[key], !links.isEmpty else {
                 let link = CDNoteStudentLink(context: context)
+                if let stableID { link.id = stableID }
                 link.noteID = id?.uuidString ?? ""
-                link.studentID = uuid.uuidString
+                link.studentID = student.uuidString
                 link.note = self
+                changed = true
+                continue
+            }
+            let keeperID = CDNoteStudentLink.keeper(of: links, stableID: stableID)?.id
+            for link in links where link.id != keeperID {
+                context.delete(link)
+                changed = true
             }
         }
+        for (key, links) in linksByStudent where !kept.contains(key) {
+            for link in links {
+                context.delete(link)
+            }
+            changed = true
+        }
+        return changed
+    }
+}
+
+nonisolated extension CDNoteStudentLink {
+    /// The id every device gives the link between one note and one child: the
+    /// first 16 bytes of a SHA-256 of the two ids, marked as an RFC 9562
+    /// version 8 (custom) UUID. The same note and child give the same id on
+    /// every device and every launch.
+    static func stableID(noteID: UUID, studentID: UUID) -> UUID {
+        let seed = "NoteStudentLink|\(noteID.uuidString)|\(studentID.uuidString)"
+        var bytes = Array(SHA256.hash(data: Data(seed.utf8)).prefix(16))
+        bytes[6] = (bytes[6] & 0x0F) | 0x80
+        bytes[8] = (bytes[8] & 0x3F) | 0x80
+        return UUID(uuid: (
+            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+            bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]
+        ))
+    }
+
+    /// Which of one child's links on a note to keep: the one with the stable
+    /// id if it is there, otherwise the smallest id, a link with no id last.
+    /// Every device orders the same links the same way.
+    static func keeper(of links: [CDNoteStudentLink], stableID: UUID?) -> CDNoteStudentLink? {
+        func rank(_ link: CDNoteStudentLink) -> String {
+            guard let id = link.id else { return "2" }
+            return (stableID == id ? "0" : "1") + id.uuidString
+        }
+        return links.min { rank($0) < rank($1) }
     }
 }

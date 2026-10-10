@@ -252,7 +252,9 @@ struct NewProjectSessionSheet: View {
     private func createUniformWorks(session: CDProjectSession, scheduledDay: Date) {
         let lessonUUID = resolveGenericProjectLessonID(context: managedObjectContext)
 
-        for sid in club.memberStudentIDsArray {
+        // The member list keeps every child ever added; only those still in the
+        // class get check-in work.
+        for sid in SessionWorkAssignmentService.enrolledMemberIDs(of: club, in: managedObjectContext) {
             createWork(
                 studentID: sid,
                 lessonID: lessonUUID,

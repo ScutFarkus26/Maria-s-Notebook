@@ -16,6 +16,13 @@ enum AssistantStack {
     /// What the sync line goes by, recorded from launch: Siri's saves too,
     /// with no window open.
     private(set) static var syncRecord: AssistantSyncRecord?
+    /// Whether the classroom share's store may be filed into, from its own
+    /// CloudKit events since this stack began opening.
+    private(set) static var filingHold: AssistantFilingHold?
+
+    /// Why her marks mustn't go into the share now, or nil: asked by the
+    /// attacher before each pass and before each chunk.
+    static var filingStopReason: String? { filingHold?.stopReason }
 
     /// The open stack, if any, without opening one.
     static var current: CoreDataStack? { stack }
@@ -24,11 +31,16 @@ enum AssistantStack {
         if let stack { return stack }
         // The launch-argument sample only (Debug). The join screen's sample
         // sits beside this stack instead; see AssistantBootstrapper.
-        let made = AssistantSampleClass.isRequested
-            ? try AssistantSampleClass.makeStack()
-            : try CoreDataStack()
+        let isSample = AssistantSampleClass.isRequested
+        // Listening before the stores open, so a setup that fails at once is
+        // heard. A failed open drops it with the stack.
+        let hold = AssistantFilingHold()
+        if !isSample { hold.listen() }
+        let made = isSample ? try AssistantSampleClass.makeStack() : try CoreDataStack()
         stack = made
-        if !AssistantSampleClass.isRequested {
+        if !isSample {
+            hold.onLift = { AssistantShareAttacher.shared.retryWaiting() }
+            filingHold = hold
             // A mark tapped just before the phone locks still goes out. One
             // at a time, as `install` keeps it: a rebuilt stack's replaces
             // the old one's.

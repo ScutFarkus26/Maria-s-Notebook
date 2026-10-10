@@ -28,11 +28,11 @@ struct ParshaCalendarView: View {
         var id: Date { date }
     }
 
-    /// The reading cycle to list. A cycle's list runs from Bereishit to Rosh
-    /// Hashana, so from Rosh Hashana until Simchat Torah the current cycle is
-    /// already over and listing it showed a year of past readings; the calendar
-    /// shows the coming cycle then. (Simchat Torah is at most 22 days after
-    /// Rosh Hashana, so a month on always lands in the coming cycle.)
+    /// The reading cycle to list. A cycle's list runs from Bereishit to the last
+    /// Shabbat before the next Simchat Torah (Ha'azinu and Sukkot included), so
+    /// in the few days after that Shabbat the cycle is already over and listing
+    /// it showed a year of past readings; the calendar shows the coming cycle
+    /// then. (A month on always lands in the coming cycle.)
     private var entries: [CalendarEntry] {
         let now = Date()
         var shabbatot = HebrewParshaService.shabbatotForHebrewYear(containing: now)
@@ -112,7 +112,9 @@ struct ParshaCalendarView: View {
                                         date: entry.date,
                                         parshaKey: entry.parshaKey,
                                         festivalName: entry.festivalName,
-                                        lessonCount: entry.parshaKey.flatMap { counts[$0] } ?? 0,
+                                        lessonCount: entry.parshaKey.map {
+                                            HebrewParshaService.lessonCount(forParshaKey: $0, countsByTag: counts)
+                                        } ?? 0,
                                         isCurrentWeek: calendar.isDate(entry.date, inSameDayAs: today)
                                     )
                                 }

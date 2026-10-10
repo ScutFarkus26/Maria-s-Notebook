@@ -94,7 +94,7 @@ extension TodoMainView {
             Divider().frame(height: 30)
 
             batchButton(title: "Today", icon: "calendar", color: .blue) {
-                batchSetDueToday()
+                batchMoveToToday()
             }
 
             Divider().frame(height: 30)
@@ -221,9 +221,10 @@ extension TodoMainView {
             sorted.append(key)
         }
         // Add day-timeline keys sorted by date
+        let today = AppCalendar.startOfDay(Date())
         let dayKeys = keys.filter { $0.contains(",") }.sorted { a, b in
-            // Parse "EEE, MMM d" format for sorting
-            dayTimelineDate(a) ?? .distantFuture < dayTimelineDate(b) ?? .distantFuture
+            Self.upcomingDayDate(a, today: today) ?? .distantFuture
+                < Self.upcomingDayDate(b, today: today) ?? .distantFuture
         }
         sorted.append(contentsOf: dayKeys)
         // Add remaining keys
@@ -232,23 +233,6 @@ extension TodoMainView {
             sorted.append(key)
         }
         return sorted
-    }
-
-    // PERF: Static cached DateFormatter to avoid allocating per call.
-    // DateFormatter is expensive to create; called once per todo during grouping.
-    private static let dayTimelineFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "EEE, MMM d"
-        return f
-    }()
-
-    func dayTimelineKey(_ date: Date) -> String {
-        Self.dayTimelineFormatter.string(from: date)
-    }
-
-    func dayTimelineDate(_ key: String) -> Date? {
-        Self.dayTimelineFormatter.defaultDate = AppCalendar.startOfDay(Date())
-        return Self.dayTimelineFormatter.date(from: key)
     }
 
     // swiftlint:disable:next function_body_length

@@ -11,7 +11,8 @@ import Testing
 
 // swiftlint:disable file_length line_length function_parameter_count
 /// `ChatContextAssembler` as it stood before its reads were scoped, kept
-/// verbatim (renamed) as the reference the new one must match.
+/// verbatim (renamed) as the reference the new one must match. Since the
+/// 2026-10-10 fix it names children by short name ("Dalia R"), as the app does.
 /// Uses a two-tier strategy:
 /// - Tier 1: Classroom snapshot (student roster, areas, weekly summary, todos) — built once per session
 /// - Tier 2: Selective student detail — loaded per-question when student names are detected
@@ -159,7 +160,7 @@ private final class LegacyChatContextAssembler { // swiftlint:disable:this type_
                 lines.append("    Observation: \(note.body.prefix(120))")
             }
             let otherStudents = pres.resolvedStudentIDs.filter { $0 != studentID }
-                .compactMap { studentsDict[$0]?.firstName }
+                .compactMap { studentsDict[$0]?.shortName }
             if !otherStudents.isEmpty { lines.append("    Also with: \(otherStudents.joined(separator: ", "))") }
         }
     }
@@ -236,7 +237,7 @@ private final class LegacyChatContextAssembler { // swiftlint:disable:this type_
         guard let studentID = student.id else { return }
         let studentTodos = fetchTodosForStudent(studentID: studentID)
         guard !studentTodos.isEmpty else { return }
-        lines.append("Todos for \(student.firstName):")
+        lines.append("Todos for \(student.shortName):")
         for todo in studentTodos.prefix(5) {
             let status = todo.isCompleted ? "[done]" : "[open]"
             var line = "  • \(todo.title) \(status)"
@@ -524,7 +525,7 @@ struct ChatContextAssemblerScopedReadsTests {
         let full = current.buildQuestionContext(question: questions[1], existingMentionedIDs: []).context
         #expect(full.contains("Recent presentations (last 10):"))
         #expect(full.contains("Active work (10):"))
-        #expect(full.contains("Also with: Dalia"))
+        #expect(full.contains("Also with: Dalia R"))
         #expect(full.contains("Attendance (30 days): 2 present, 1 absent, 1 tardy out of 4 days"))
         let pair = current.buildQuestionContext(question: questions[2], existingMentionedIDs: []).context
         #expect(pair.contains("--- Dalia Roth ---"))

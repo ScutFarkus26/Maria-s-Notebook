@@ -6,7 +6,7 @@
 // draft assignment, or an active (non-complete) work item. Within each sequence, every lesson
 // becomes a pill with its progression status by the Checklist's rule (`LessonNodeStatus.resolve`),
 // as StudentAreaProgressionViewModel does: only a mastery mark is Mastered, closed work without
-// one is Reviewing.
+// one is Reviewing; a plan waiting undated in the inbox is Planned.
 
 import Foundation
 import CoreData
@@ -138,12 +138,14 @@ final class ProgressDashboardViewModel {
                     let presentation = assignmentsForStudent.first {
                         $0.lessonID == lessonIDStr && ($0.isPresented || $0.presentedAt != nil)
                     }
-                    let scheduledPresentation = assignmentsForStudent.first {
-                        $0.lessonID == lessonIDStr && $0.isScheduled
+                    // Planned and not yet given: on a day, or a draft in the inbox.
+                    let planned = assignmentsForStudent.filter {
+                        $0.lessonID == lessonIDStr && !$0.isPresented && $0.presentedAt == nil
                     }
                     let status = LessonNodeStatus.resolve(
                         isPresented: presentation != nil,
-                        scheduledFor: scheduledPresentation?.scheduledFor,
+                        scheduledFor: planned.compactMap(\.scheduledFor).min(),
+                        isPlanned: !planned.isEmpty,
                         isMastered: masteryMarks[lessonIDStr]?.contains(studentIDStr) ?? false,
                         workStatuses: (workByLesson[lessonIDStr] ?? []).map(\.status)
                     )

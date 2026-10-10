@@ -41,14 +41,42 @@ extension CloudKitSyncStatusService {
     /// open, before `configure`. Events wait until `configure` runs with the
     /// same stack, then go to the handlers in the order they came.
     func beginEarlyEventCapture(for stack: CoreDataStack) {
-        if !handlesCloudKitEvents { earlyCaptureStack = stack }
+        if !handlesCloudKitEvents {
+            earlyCaptureStack = stack
+            refollowStopsSetWithoutAStack()
+        }
         startCloudKitEventStream()
     }
 
+    /// A stop `receive` set before any stack was known named no store
+    /// (`.other`), and nothing later clears one of those, so filing stayed
+    /// stopped all session (2026-10-10 review, #4). Once the stack is known,
+    /// those go and the buffered events are followed again, naming their
+    /// stores. (An attach's stops stay.)
+    private func refollowStopsSetWithoutAStack() {
+        guard !stopSources.withoutStack.isEmpty else { return }
+        for store in stopSources.withoutStack.subtracting(stopSources.byAttach) {
+            stoppedSince[store] = nil
+            stopSources.beforeConfigure.remove(store)
+        }
+        stopSources.withoutStack = []
+        for event in bufferedEvents { followStoppedFlagBeforeConfigure(event) }
+    }
+
     /// `configure`'s call: handles from now on, after the events buffered for
-    /// this stack. Another stack's buffered events say nothing about this one.
+    /// this stack. Another stack's buffered events say nothing about this one,
+    /// nor do the stops they set as they arrived (unless an attach found the
+    /// same store dead).
     func startHandlingCloudKitEvents(for stack: CoreDataStack) {
-        let buffered = earlyCaptureStack === stack ? bufferedEvents : []
+        let sameStack = earlyCaptureStack === stack
+        let buffered = sameStack ? bufferedEvents : []
+        if !sameStack {
+            for store in stopSources.beforeConfigure.subtracting(stopSources.byAttach) {
+                stoppedSince[store] = nil
+            }
+        }
+        stopSources.beforeConfigure = []
+        stopSources.withoutStack = []
         bufferedEvents = []
         earlyCaptureStack = nil
         handlesCloudKitEvents = true
@@ -81,16 +109,41 @@ extension CloudKitSyncStatusService {
     /// Whether the iCloud account holds filing into the classroom share is
     /// followed here, as each event arrives, before `configure` too (a launch
     /// with no window never configures, and Siri's marks are filed all the
-    /// same), and only here, so a buffered event isn't counted twice.
+    /// same), and only here, so a buffered event isn't counted twice. So is
+    /// the stopped flag before `configure` (`followStoppedFlagBeforeConfigure`).
     func receive(_ event: CloudKitEventValues) {
         followAccountReadiness(event)
         guard handlesCloudKitEvents else {
             guard event.isFinished else { return }
+            followStoppedFlagBeforeConfigure(event)
             bufferedEvents.append(event)
             if bufferedEvents.count > Self.earlyEventLimit { bufferedEvents.removeFirst() }
             return
         }
         handleCloudKitEvent(event)
+    }
+
+    /// Before `configure`, the stopped flag follows each finished event as it
+    /// arrives, by its store, by `handleCloudKitEvent`'s rules: a failure that
+    /// marks the delegate dead stops the store as of the event's start, and
+    /// a later-started import or export clears it. Until 2026-10-10 only the
+    /// handlers set the flag, and a launch with no window (a Siri intent)
+    /// never configures, so after a failed setup Siri's marks still went to
+    /// `share(_:to:)` on a store whose setup had failed (bug hunt 2026-10-10,
+    /// #1). `configure` hands the same events to the handlers; the marks are
+    /// dated, so following them again there changes nothing.
+    private func followStoppedFlagBeforeConfigure(_ event: CloudKitEventValues) {
+        let store = syncedStore(forIdentifier: event.storeIdentifier)
+        if event.succeeded {
+            guard event.type == .import || event.type == .export else { return }
+            clearMirroringStopped(by: store, eventStartedAt: event.startDate)
+        } else if let error = event.error, Self.marksMirroringDead(type: event.type, error: error) {
+            markMirroringStopped(by: store, at: event.startDate)
+            stopSources.beforeConfigure.insert(store)
+            if syncedStoreResolver == nil, coreDataStack == nil, earlyCaptureStack == nil {
+                stopSources.withoutStack.insert(store)
+            }
+        }
     }
 
     func handleCloudKitEvent(_ event: CloudKitEventValues) {

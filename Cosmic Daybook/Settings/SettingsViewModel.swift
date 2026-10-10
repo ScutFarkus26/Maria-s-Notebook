@@ -42,7 +42,9 @@ final class SettingsViewModel {
     private let dependencies: AppDependencies
     private var coordinator: BackupCoordinator { dependencies.backupCoordinator }
     private var pendingImportURL: URL?
-    private var exportURL: URL?
+    /// Restore Now was pressed on the preview: the restore starts once the
+    /// sheet has gone (`restorePreviewDismissed`).
+    private var restoreConfirmed = false
     
     // MARK: - Initialization
     
@@ -58,6 +60,15 @@ final class SettingsViewModel {
     }
     func setLastBackupNow() {
         UserDefaults.standard.set(Date().timeIntervalSinceReferenceDate, forKey: Self.lastBackupKey)
+    }
+
+    /// After a restore: the later of this device's last backup and the one
+    /// the restored settings carried. A restore isn't a backup, so it never
+    /// says "Last backup just now" (that hid the "backup is N days old"
+    /// warning), and an older backup's settings don't turn the clock back.
+    private func keepLastBackupDate(atLeast earlier: Date?) {
+        guard let earlier, (lastBackupDate ?? .distantPast) < earlier else { return }
+        UserDefaults.standard.set(earlier.timeIntervalSinceReferenceDate, forKey: Self.lastBackupKey)
     }
 
     // MARK: - Helpers
@@ -93,13 +104,15 @@ final class SettingsViewModel {
     // MARK: - Export
     // swiftlint:disable:next function_body_length
     func performExport(viewContext: NSManagedObjectContext) async {
+        // However it ends: a backup that failed part-way left the card's
+        // progress bar up, and Back up now and Import off, until a relaunch.
+        defer { backupProgress = 0; backupMessage = "" }
         do {
             backupProgress = 0; backupMessage = "Preparing…"; resultSummary = nil
             let tmpName = defaultBackupFilename()
             let tmp = FileManager.default.temporaryDirectory
                 .appendingPathComponent(tmpName)
                 .appendingPathExtension(BackupFile.fileExtension)
-            exportURL = tmp
             safeRemoveItem(at: tmp, context: "performExport-cleanup")
             // Export through the archive implementation — produces the current AEA-framed format.
             // At-rest protection comes from FileVault / iOS Data Protection / iCloud Drive.
@@ -175,10 +188,10 @@ final class SettingsViewModel {
 
     // MARK: - Restore Quick Action
 
-    /// Locates the most recent auto-backup file (across user-chosen folder
-    /// and the legacy Documents/Backups/Auto path) and runs it through the
-    /// preview pipeline. The user still has to confirm in the preview sheet
-    /// before the restore actually happens.
+    /// Locates the most recent auto-backup file (any device's, across the
+    /// user-chosen folder and the legacy Documents/Backups/Auto path) and runs
+    /// it through the preview pipeline. The user still has to confirm in the
+    /// preview sheet before the restore actually happens.
     /// Returns `true` if a candidate was found and presented; `false` if no
     /// auto-backup files exist.
     @discardableResult
@@ -211,6 +224,8 @@ final class SettingsViewModel {
         }
         let needsAccess = url.startAccessingSecurityScopedResource()
         defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
+        // A preview that failed part-way left the card's progress bar up.
+        defer { importProgress = 0; importMessage = "" }
         do {
             importProgress = 0
             importMessage = "Reading file…"
@@ -224,9 +239,7 @@ final class SettingsViewModel {
                 self?.importProgress = p
                 self?.importMessage = m
             }
-            // Reset progress and present preview
-            importProgress = 0
-            importMessage = ""
+            restoreConfirmed = false
             restorePreviewData = preview
             pendingImportURL = url
         } catch {
@@ -234,10 +247,33 @@ final class SettingsViewModel {
         }
     }
 
+    /// Restore Now on the preview: closes the sheet. The restore starts once
+    /// it has gone, so its progress shows on the Backups card and a failure's
+    /// alert isn't hidden behind the sheet.
+    func confirmRestore() {
+        restoreConfirmed = true
+        restorePreviewData = nil
+    }
+
+    /// The preview sheet has gone: runs the restore Restore Now asked for.
+    /// Closed any other way (Cancel, a swipe), nothing is restored.
+    func restorePreviewDismissed(viewContext: NSManagedObjectContext) async {
+        guard restoreConfirmed else {
+            pendingImportURL = nil
+            return
+        }
+        restoreConfirmed = false
+        await performImportConfirmed(viewContext: viewContext)
+    }
+
     func performImportConfirmed(viewContext: NSManagedObjectContext) async {
         guard let url = pendingImportURL else { return }
         let needsAccess = url.startAccessingSecurityScopedResource()
         defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
+        // However it ends: a restore that failed part-way left the card's
+        // progress bar up, and Import and Restore off, until a relaunch.
+        defer { importProgress = 0; importMessage = "" }
+        let lastBackupBeforeRestore = lastBackupDate
         do {
             importProgress = 0
             importMessage = "Starting…"
@@ -253,7 +289,7 @@ final class SettingsViewModel {
             restorePreviewData = nil
             pendingImportURL = nil
             importError = nil
-            setLastBackupNow()
+            keepLastBackupDate(atLeast: lastBackupBeforeRestore)
             resultSummary = BackupResultNote(text: "Restore complete.", tone: .success)
             operationSummary = BackupOperationSummary(
                 kind: .import,

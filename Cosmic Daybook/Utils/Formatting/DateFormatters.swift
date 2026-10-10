@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 /// Centralized DateFormatter instances for consistent date formatting across the app.
 /// Each formatter is created once and reused.
@@ -128,15 +129,32 @@ nonisolated enum DateFormatters {
         return formatter
     }
 
-    /// Local ISO date string for internal keys, e.g. "2024-01-15" in the device timezone
-    static let isoDateLocal: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.calendar = .current
-        formatter.locale = .current
-        formatter.timeZone = .current
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter
-    }()
+    /// Local ISO date string for internal keys, e.g. "2024-01-15" in the device timezone.
+    /// A `DateFormatter` keeps the zone it was made with, so a stored one would keep
+    /// the zone of first use until a relaunch; this one is remade when the device's
+    /// time zone changes.
+    static var isoDateLocal: DateFormatter {
+        isoDateLocal(in: .current)
+    }
+
+    /// `isoDateLocal` for a given time zone. The last one made is kept, so the usual
+    /// case (the zone hasn't changed) reuses one formatter.
+    static func isoDateLocal(in timeZone: TimeZone) -> DateFormatter {
+        isoDateLocalCache.withLock { cached in
+            if let current = cached, current.timeZone.identifier == timeZone.identifier {
+                return current
+            }
+            let formatter = DateFormatter()
+            formatter.calendar = .current
+            formatter.locale = .current
+            formatter.timeZone = timeZone
+            formatter.dateFormat = "yyyy-MM-dd"
+            cached = formatter
+            return formatter
+        }
+    }
+
+    private static let isoDateLocalCache = Mutex<DateFormatter?>(nil)
 
     /// Backup filename timestamp (e.g., "2024-01-15_14-30-00")
     static let backupFilename: DateFormatter = {

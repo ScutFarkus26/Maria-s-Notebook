@@ -1,6 +1,7 @@
 // ParshaBrowseView.swift
 // Column-2 view when the "Parshas" sentinel is selected in the areas column.
-// Shows the 54 parshas in annual-cycle order; tapping one pushes to the lessons list.
+// Shows the 54 parshas and the 7 combined weeks in annual-cycle order; tapping one
+// pushes to the lessons list.
 
 import SwiftUI
 import CoreData
@@ -31,12 +32,16 @@ struct ParshaBrowseView: View {
     var body: some View {
         NavigationStack {
             List(selection: $selectedParshaKey) {
+                // Combined weeks are listed after their second half, and each row
+                // counts the lessons that week shows (tagged on either half or on
+                // the combined week).
+                let counts = lessonCounts
                 Section {
-                    ForEach(HebrewParshaService.allParshaKeys, id: \.self) { key in
+                    ForEach(HebrewParshaService.pickerKeys, id: \.self) { key in
                         NavigationLink(value: key) {
                             ParshaBrowseRow(
                                 parshaKey: key,
-                                lessonCount: lessonCounts[key] ?? 0,
+                                lessonCount: HebrewParshaService.lessonCount(forParshaKey: key, countsByTag: counts),
                                 isCurrentWeek: key == currentWeekParshaKey
                             )
                         }

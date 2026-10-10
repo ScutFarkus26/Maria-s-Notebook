@@ -134,48 +134,96 @@ public enum CSVParser {
     }
 
     public static func parse(data: Data) -> CSVData? {
-        // Try UTF8
-        if let string = String(data: data, encoding: .utf8) {
-            return parse(string: string)
+        text(of: data).flatMap { parse(string: $0) }
+    }
+
+    /// Like `parse(data:)`, except that the first record is the header row
+    /// whenever `isHeaderRow` recognizes it, even with a blank or repeated
+    /// cell. `table(from:)` reads either as "this file has no header", which
+    /// turned a real header row into a row of data (a student named "First
+    /// Name Last Name"). Blank cells are named "Column N" and a repeated name
+    /// gets " 2", " 3", so every column can still be picked.
+    static func parse(data: Data, headerRow isHeaderRow: ([String]) -> Bool) -> CSVData? {
+        guard let string = text(of: data) else { return nil }
+        let content = normalized(string)
+        let rows = CSVRecordScanner.records(in: content) ?? characterRecords(in: content)
+        guard let first = rows.first, isHeaderRow(first) else { return table(from: rows) }
+        let headers = uniqueHeaders(first)
+        return CSVData(headers: headers, rows: rows.dropFirst().map { row in
+            row + Array(repeating: "", count: max(0, headers.count - row.count))
+        })
+    }
+
+    /// The header cells trimmed, blanks named by position, repeats numbered.
+    static func uniqueHeaders(_ cells: [String]) -> [String] {
+        var seen = Set<String>()
+        return cells.enumerated().map { index, cell in
+            let trimmed = cell.trimmed()
+            let base = trimmed.isEmpty ? "Column \(index + 1)" : trimmed
+            var name = base
+            var copy = 2
+            while !seen.insert(name).inserted {
+                name = "\(base) \(copy)"
+                copy += 1
+            }
+            return name
         }
-        // Fallback to ISO Latin 1
-        if let string = String(data: data, encoding: .isoLatin1) {
-            return parse(string: string)
-        }
-        return nil
+    }
+
+    /// The file's text: UTF-8, else ISO Latin 1.
+    private static func text(of data: Data) -> String? {
+        String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1)
     }
 }
 
+/// Dates in a spreadsheet: birthdays and start dates.
+///
+/// Each shape is read strictly, by its parts. `DateFormatter` read "3/5/15"
+/// with its `yyyy-MM-dd` pattern as the year 3, and those birthdays synced to
+/// every device. Here a year written with two digits is always a two-digit
+/// year, the parts must name a real day, and a year before 1900 is refused
+/// rather than stored.
 public enum DateParser {
-    static let formats = [
-        "yyyy-MM-dd",
-        "MM/dd/yyyy",
-        "dd/MM/yyyy",
-        "MMM d, yyyy",
-        "MMMM d, yyyy",
-        "M/d/yy",
-        "d/M/yy",
-        "yyyy/MM/dd",
-        "yyyy-MM-dd'T'HH:mm:ssZ"
-    ]
-    
+    /// What one cell held.
+    enum Outcome: Equatable {
+        /// Nothing in the cell.
+        case empty
+        case date(Date)
+        /// A real day, but before `earliestYear`: almost certainly a typo or
+        /// a two-digit year read the old way.
+        case tooEarly(year: Int)
+        /// Not a date in any shape the importer reads.
+        case unreadable
+    }
+
+    /// The earliest year a date is taken in.
+    static let earliestYear = 1900
+
+    /// Two-digit years below this are 20xx, the rest 19xx — the split
+    /// `DateFormatter` makes by default (`twoDigitStartDate`, 1950).
+    static let twoDigitPivot = 50
+
     nonisolated(unsafe) private static let iso: ISO8601DateFormatter = DateFormatters.iso8601DateTime
 
-    private static let cachedFormatters: [String: DateFormatter] = {
-        var dict: [String: DateFormatter] = [:]
-        for fmt in formats {
-            let df = DateFormatter()
-            df.locale = Locale(identifier: "en_US_POSIX")
-            df.timeZone = TimeZone(secondsFromGMT: 0)
-            df.dateFormat = fmt
-            dict[fmt] = df
-        }
-        return dict
+    /// The one shape with a time and zone, read as an absolute instant.
+    private static let dateTimeFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.timeZone = TimeZone(secondsFromGMT: 0)
+        df.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
+        df.isLenient = false
+        return df
     }()
 
-    /// The only format that carries an explicit time and zone — parsed as an
-    /// absolute instant. Every other format is a calendar date.
-    private static let dateTimeFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
+    /// Month names ("Mar 5, 2015", "March 5, 2015"), English, as before.
+    private static let monthNameFormatters: [DateFormatter] = ["MMM d, yyyy", "MMMM d, yyyy"].map { format in
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.timeZone = TimeZone(secondsFromGMT: 0)
+        df.dateFormat = format
+        df.isLenient = false
+        return df
+    }
 
     private static let gmtCalendar: Calendar = {
         var cal = Calendar(identifier: .gregorian)
@@ -184,26 +232,87 @@ public enum DateParser {
     }()
 
     public static func parse(_ value: String) -> Date? {
-        let trimmed = value.trimmed()
-        if trimmed.isEmpty { return nil }
-
-        if let date = iso.date(from: trimmed) {
-            return date
-        }
-        for fmt in formats {
-            if let df = cachedFormatters[fmt], let date = df.date(from: trimmed) {
-                return fmt == dateTimeFormat ? date : rebasedToLocalMidnight(date)
-            }
-        }
+        if case .date(let date) = outcome(value) { return date }
         return nil
     }
 
-    /// Date-only strings parse at GMT midnight (the cached formatters are pinned to
-    /// GMT for stability), which displays as the previous day in western time zones
-    /// and never compares equal to locally-entered dates. Rebase the calendar day to
-    /// local midnight so the value stores, displays, and dedupes as the day the CSV named.
-    private static func rebasedToLocalMidnight(_ gmtMidnight: Date) -> Date {
-        let comps = gmtCalendar.dateComponents([.year, .month, .day], from: gmtMidnight)
-        return AppCalendar.shared.date(from: comps) ?? gmtMidnight
+    /// Reads one cell. Date-only shapes land at local midnight of the day
+    /// they name; the date-time shape keeps its instant.
+    static func outcome(_ value: String) -> Outcome {
+        let trimmed = value.trimmed()
+        if trimmed.isEmpty { return .empty }
+
+        if trimmed.contains("T") {
+            guard let instant = iso.date(from: trimmed) ?? dateTimeFormatter.date(from: trimmed) else {
+                return .unreadable
+            }
+            let year = AppCalendar.shared.component(.year, from: instant)
+            return year < earliestYear ? .tooEarly(year: year) : .date(instant)
+        }
+        if let numeric = numericDay(trimmed) {
+            return localDay(numeric)
+        }
+        if trimmed.range(of: #"^[A-Za-z]{3,9} \d{1,2}, \d{4}$"#, options: .regularExpression) != nil {
+            for formatter in monthNameFormatters {
+                if let gmtMidnight = formatter.date(from: trimmed) {
+                    return localDay(gmtCalendar.dateComponents([.year, .month, .day], from: gmtMidnight))
+                }
+            }
+        }
+        return .unreadable
+    }
+
+    /// Year, month and day from an all-number date: `yyyy-MM-dd` or
+    /// `yyyy/MM/dd`, or month and day then a two- or four-digit year
+    /// (`M/d/yy`, `MM/dd/yyyy`), read month first and day first only when
+    /// the first number can't be a month. Nil when the text isn't one of
+    /// these shapes or names no real day.
+    static func numericDay(_ text: String) -> DateComponents? {
+        let separators = text.filter { $0 == "-" || $0 == "/" }
+        guard separators.count == 2, Set(separators).count == 1, let separator = separators.first else {
+            return nil
+        }
+        let parts = text.split(separator: separator, omittingEmptySubsequences: false).map(String.init)
+        guard parts.count == 3, parts.allSatisfy({ part in
+            !part.isEmpty && part.allSatisfy { ("0"..."9").contains($0) }
+        }) else { return nil }
+        let numbers = parts.compactMap { Int($0) }
+
+        let candidates: [DateComponents]
+        if parts[0].count == 4 {
+            guard (1...2).contains(parts[1].count), (1...2).contains(parts[2].count) else { return nil }
+            candidates = [DateComponents(year: numbers[0], month: numbers[1], day: numbers[2])]
+        } else {
+            guard (1...2).contains(parts[0].count), (1...2).contains(parts[1].count) else { return nil }
+            let year: Int
+            switch parts[2].count {
+            case 2: year = numbers[2] < twoDigitPivot ? 2000 + numbers[2] : 1900 + numbers[2]
+            case 4: year = numbers[2]
+            default: return nil
+            }
+            candidates = [
+                DateComponents(year: year, month: numbers[0], day: numbers[1]),
+                DateComponents(year: year, month: numbers[1], day: numbers[0])
+            ]
+        }
+        return candidates.first(where: isRealDay)
+    }
+
+    private static func isRealDay(_ ymd: DateComponents) -> Bool {
+        guard let year = ymd.year, let month = ymd.month, let day = ymd.day,
+              year >= 1, (1...12).contains(month), day >= 1,
+              let first = gmtCalendar.date(from: DateComponents(year: year, month: month, day: 1)),
+              let days = gmtCalendar.range(of: .day, in: .month, for: first) else { return false }
+        return days.contains(day)
+    }
+
+    /// Local midnight of the day `comps` names (the importer keys and
+    /// compares children by local day), or why it was refused.
+    private static func localDay(_ comps: DateComponents) -> Outcome {
+        guard let year = comps.year else { return .unreadable }
+        if year < earliestYear { return .tooEarly(year: year) }
+        let day = DateComponents(year: year, month: comps.month, day: comps.day)
+        guard let date = AppCalendar.shared.date(from: day) else { return .unreadable }
+        return .date(date)
     }
 }

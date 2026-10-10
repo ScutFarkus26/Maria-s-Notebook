@@ -230,7 +230,7 @@ struct TrackFilteredListView: View, Identifiable {
                 .foregroundStyle(.primary)
             
             HStack(spacing: 8) {
-                Text(work.status.rawValue.capitalized)
+                Text(work.status.displayName)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 6)

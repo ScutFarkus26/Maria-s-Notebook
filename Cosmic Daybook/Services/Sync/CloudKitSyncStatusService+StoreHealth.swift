@@ -30,6 +30,21 @@ extension CloudKitSyncStatusService {
 
     // MARK: - The stopped flag
 
+    /// Where some of the stops in `stoppedSince` came from.
+    struct StopSources {
+        /// Stores an attach to the classroom share found dead. Another Apple
+        /// Account signing in keeps these: the attach found this process's own
+        /// container dead, whoever is signed in (bug hunt 2026-10-10, #8).
+        var byAttach: Set<SyncedStore> = []
+        /// Stores `receive` marked stopped before `configure`, as the events
+        /// arrived (bug hunt 2026-10-10, #1): dropped again if `configure`
+        /// brings another stack, whose stores those events said nothing about.
+        var beforeConfigure: Set<SyncedStore> = []
+        /// Of those, the ones marked while no stack was known (so named
+        /// `.other`): `beginEarlyEventCapture` follows their events again.
+        var withoutStack: Set<SyncedStore> = []
+    }
+
     /// Whether a failed event means the store's mirroring delegate is dead:
     ///   1. A setup failure: the delegate threw while starting. Not one for
     ///      want of an iCloud account (134400) or a network, which is account
@@ -73,15 +88,20 @@ extension CloudKitSyncStatusService {
     /// session. Dated now: an attach before `configure` (Siri in the
     /// background) is followed by the launch's own events, handed over late,
     /// and a success among them that started before now proves nothing.
+    /// Kept across another Apple Account signing in (`resetForNewAccount`).
     func markMirroringStopped(byAttachToStoreWithIdentifier identifier: String) {
-        markMirroringStopped(by: syncedStore(forIdentifier: identifier))
+        let store = syncedStore(forIdentifier: identifier)
+        markMirroringStopped(by: store)
+        stopSources.byAttach.insert(store)
     }
 
     /// `store` imported or exported successfully in an event that began at
     /// `start`, so its delegate works: it no longer holds the stopped flag,
     /// which clears once no store does. Only an event that began after the
     /// store was found dead counts. A setup event alone never clears it
-    /// (Apple documents no such recovery).
+    /// (Apple documents no such recovery). Once nothing stops or holds
+    /// filing, what waits for the classroom share goes in now, rather than at
+    /// the next save or remote change (bug hunt 2026-10-10, #5).
     func clearMirroringStopped(by store: SyncedStore, eventStartedAt start: Date) {
         // Checked first: this runs on every successful import and export.
         guard let since = stoppedSince[store] else { return }
@@ -90,9 +110,11 @@ extension CloudKitSyncStatusService {
             return
         }
         stoppedSince[store] = nil
+        stopSources.byAttach.remove(store)
         guard stoppedSince.isEmpty else { return }
         Self.logger.notice("CloudKit sync is running again: \(store.displayName, privacy: .public) synced")
         SyncEventLogger.shared.log("cloudkit", status: "success", message: "iCloud sync is running again")
+        if shareFilingHold == nil { filingHooks.wakeFiling() }
     }
 
     // MARK: - Another Apple Account
@@ -102,7 +124,10 @@ extension CloudKitSyncStatusService {
     /// shown error, the waiting count) was the old account's. What holds
     /// filing into the classroom share (`shareFilingHold`) stays: the pause
     /// until reopening is for the life of the process, and a store waiting for
-    /// its account clears on its own once it has set up and synced.
+    /// its account clears on its own once it has set up and synced. So does a
+    /// stop an attach found (`StopSources.byAttach`): `share(_:to:)` found
+    /// this process's container dead, and the new account doesn't revive it
+    /// (bug hunt 2026-10-10, #8). It clears as any stop does.
     func resetForNewAccount() {
         Self.logger.notice("The iCloud account changed: sync status starts over for the new account")
         syncDatePersistTask?.cancel()
@@ -117,7 +142,10 @@ extension CloudKitSyncStatusService {
         UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSuccessfulExportStartByStore)
         lastSuccessfulSync = nil
         storeHealth = CloudKitStoreHealth()
-        if !stoppedSince.isEmpty { stoppedSince = [:] }
+        let foundByAttach = stoppedSince.filter { stopSources.byAttach.contains($0.key) }
+        if stoppedSince != foundByAttach { stoppedSince = foundByAttach }
+        stopSources.beforeConfigure = []
+        stopSources.withoutStack = []
         if pendingSyncCount != 0 { pendingSyncCount = 0 }
         clearError()
     }

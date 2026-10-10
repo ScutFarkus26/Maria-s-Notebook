@@ -344,7 +344,9 @@ private extension PresentationHowItWentView {
 
 private extension PresentationHowItWentView {
     var summaryLines: [String] {
-        let decisions = Dictionary(uniqueKeysWithValues: studentIDs.map { ($0, session.decision(for: $0)) })
+        let decisions = Dictionary(
+            studentIDs.map { ($0, session.decision(for: $0)) }, uniquingKeysWith: { first, _ in first }
+        )
         let noteCount = (session.groupNote.trimmed().isEmpty ? 0 : 1)
             + studentIDs.filter { !(session.childNotes[$0]?.trimmed().isEmpty ?? true) }.count
         return PresentationSessionSummary.lines(.init(

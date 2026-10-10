@@ -58,6 +58,13 @@ extension PresentationDetailViewModel {
     /// to `state`. Otherwise existing records keep each child's own state and
     /// a missing one starts at `.presented`: the control shows the group's
     /// highest state, which is one child's, not everyone's.
+    ///
+    /// Every record a child has for the lesson changes together (a lesson
+    /// given twice has two): changing only the first in store order left the
+    /// latest one, which MCP and the record index read, saying otherwise. A
+    /// missing record is made for this presentation and on its day (none for
+    /// an undated one), so it follows the presentation when its lesson is
+    /// changed or it is deleted, rather than standing alone dated today.
     func updateProficiencyState(
         lessonID: String,
         studentIDs: [String],
@@ -72,24 +79,21 @@ extension PresentationDetailViewModel {
         )
 
         for studentID in studentIDs {
-            if let existing = allLessonPresentations.first(where: {
-                $0.lessonID == lessonID && $0.studentID == studentID
-            }) {
+            let existing = allLessonPresentations.filter {
+                $0.lessonID == lessonID && $0.studentID == studentID && !$0.isDeleted
+            }
+            if !existing.isEmpty {
                 guard guideChangedState else { continue }
-                existing.state = state
-                existing.lastObservedAt = Date()
-                if state == .proficient && existing.masteredAt == nil {
-                    existing.masteredAt = Date()
-                } else if state != .proficient {
-                    existing.masteredAt = nil
+                for row in existing {
+                    Self.apply(state, to: row)
                 }
             } else {
                 let lp = CDLessonPresentation(context: viewContext)
                 lp.studentID = studentID
                 lp.lessonID = lessonID
-                lp.presentationID = nil
+                lp.presentationID = lessonAssignment.id?.uuidString
                 lp.state = state
-                lp.presentedAt = Date()
+                lp.presentedAt = lessonAssignment.presentedAt
                 lp.lastObservedAt = Date()
                 lp.masteredAt = state == .proficient ? Date() : nil
             }
@@ -129,15 +133,14 @@ extension PresentationDetailViewModel {
             Self.presentationsRequest(lessonID: lessonID, studentIDs: [studentID])
         )
 
-        if let existing = allLessonPresentations.first(where: {
-            $0.lessonID == lessonID && $0.studentID == studentID
-        }) {
-            existing.state = state
-            existing.lastObservedAt = Date()
-            if state == .proficient && existing.masteredAt == nil {
-                existing.masteredAt = Date()
-            } else if state != .proficient {
-                existing.masteredAt = nil
+        // Every record she has for the lesson, as the detail view's control
+        // does: a lesson given twice has two.
+        let existing = allLessonPresentations.filter {
+            $0.lessonID == lessonID && $0.studentID == studentID && !$0.isDeleted
+        }
+        if !existing.isEmpty {
+            for row in existing {
+                Self.apply(state, to: row)
             }
         } else {
             let lp = CDLessonPresentation(context: viewContext)
@@ -165,5 +168,17 @@ extension PresentationDetailViewModel {
 
         _ = saveCoordinator.save(viewContext, reason: "Updating sibling lesson proficiency state")
         recomputeSequenceRecap(currentLesson: currentLesson, students: students)
+    }
+
+    /// The guide's mastery choice on one record: an existing mastered day is
+    /// kept, and anything short of mastered clears it.
+    static func apply(_ state: LessonPresentationState, to row: CDLessonPresentation) {
+        row.state = state
+        row.lastObservedAt = Date()
+        if state == .proficient && row.masteredAt == nil {
+            row.masteredAt = Date()
+        } else if state != .proficient {
+            row.masteredAt = nil
+        }
     }
 }

@@ -157,11 +157,11 @@ final class PresentationSession {
 
         if let draft = PresentationSessionDraftStore.load(presentationID: presentationID, defaults: defaults) {
             everyone = CaptureFollowUp(rawValue: draft.everyone) ?? defaultDecision
-            overrides = Dictionary(uniqueKeysWithValues: draft.overrides.compactMap { key, value in
+            overrides = Dictionary(draft.overrides.compactMap { key, value in
                 guard let id = UUID(uuidString: key),
                       let decision = CaptureFollowUp(rawValue: value) else { return nil }
                 return (id, decision)
-            })
+            }, uniquingKeysWith: { first, _ in first })
             checkIn = PresentationCheckIn(day: draft.checkInDay)
             return
         }

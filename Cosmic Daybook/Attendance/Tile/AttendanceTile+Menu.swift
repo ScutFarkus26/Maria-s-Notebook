@@ -66,12 +66,22 @@ extension AttendanceTile {
     var markSummary: String? { AttendanceRules.markSummary(row) }
 
     var voiceOverHint: String {
+        Self.voiceOverHint(tapTarget: tapTarget, reason: spokenTapHint ?? tapHint)
+    }
+
+    /// What VoiceOver says a double tap does, or, when it does nothing here,
+    /// why (`reason`, with one closing period however it was written) and
+    /// that holding changes the mark.
+    static func voiceOverHint(tapTarget: AttendanceStatus?, reason: String) -> String {
         switch tapTarget {
         case .present: return "Double tap to mark present"
         case .tardy: return "Double tap to mark tardy"
         case .absent: return "Double tap to mark absent again"
         case .unmarked: return "Double tap to clear the mark"
-        default: return "\(tapHint). Touch and hold to change the mark"
+        default:
+            var sentence = reason.trimmingCharacters(in: .whitespaces)
+            while sentence.hasSuffix(".") { sentence.removeLast() }
+            return "\(sentence). Touch and hold to change the mark"
         }
     }
 }

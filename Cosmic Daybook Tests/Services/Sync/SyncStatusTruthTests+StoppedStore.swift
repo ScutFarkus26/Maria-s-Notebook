@@ -71,6 +71,9 @@ private func makeService(
         asks.count += 1
         return status
     }
+    // The account is asked twice, a minute or an account change apart (bug
+    // hunt 2026-10-10, #4); here the second ask follows the first at once.
+    service.filingHooks.waitBeforeAccountRecheck = {}
     return service
 }
 
@@ -240,9 +243,13 @@ extension SyncStatusTruthTests {
         }
     }
 
-    @Test("Only a setup that wanted an account holds filing: not the network, not another failure, not an import")
-    func onlyAccountSetupFailuresHold() async {
-        await withSavedDefaults {
+    // Bug hunt 2026-10-10, #2: a setup that failed for the network held
+    // nothing (this test used to pin that), and the next save's pass filed
+    // into a store that never set up. It holds now, without asking about the
+    // account; a setup that killed the delegate stops the store instead.
+    @Test("A setup wanting an account or the network holds filing; a dead one stops; an import holds nothing")
+    func onlyAccountSetupFailuresHold() async throws {
+        try await withSavedDefaults {
             #expect(CloudKitStoreHealth.isAccountUnavailable(noAccount))
             #expect(CloudKitStoreHealth.isAccountUnavailable(ckError(.notAuthenticated)))
             #expect(CloudKitStoreHealth.isAccountUnavailable(ckError(.accountTemporarilyUnavailable)))
@@ -251,19 +258,29 @@ extension SyncStatusTruthTests {
             #expect(CloudKitStoreHealth.isAccountNotReadyYet(ckError(.accountTemporarilyUnavailable)))
             #expect(!CloudKitStoreHealth.isAccountNotReadyYet(noAccount))
 
-            let service = makeService()
-            arrive(service, .setup, store: "private-store", error: ckError(.networkUnavailable))
-            arrive(service, .setup, store: "shared-store", error: setupThrew)
+            let asks = AccountAsks()
+            let service = makeService(accountStatus: .noAccount, asks: asks)
             arrive(service, .import, store: "private-store", error: noAccount)
+            #expect(service.shareFilingHold == nil, "only a setup holds")
+
+            arrive(service, .setup, store: "shared-store", error: setupThrew)
             #expect(service.shareFilingHold == nil)
+            #expect(service.stoppedStores == [.classroomShare], "a dead setup is the stopped flag's")
+
+            arrive(service, .setup, store: "private-store", error: ckError(.networkUnavailable))
+            #expect(service.shareFilingHold == .untilICloudReady)
+            try await Task.sleep(for: .milliseconds(50))
+            #expect(asks.count == 0, "the network says nothing about the account")
             #expect(!service.shareFilingPausedUntilReopen)
         }
     }
 
     @Test("What the sync status says while filing is held is plain")
     func holdMessagesArePlain() {
+        // Shown only when no account was signed in (bug hunt 2026-10-10, #7).
         #expect(CloudKitSyncStatusService.ShareFilingHold.untilReopen.message
-            == "iCloud wasn't ready when the notebook opened. Quit and reopen it to finish sharing.")
+            == "You weren't signed in to iCloud when the notebook opened. "
+                + "Sign in to iCloud, then quit and reopen the notebook.")
         #expect(CloudKitSyncStatusService.ShareFilingHold.untilICloudReady.message
             == "iCloud isn't ready yet. Sharing will pick up once it is.")
         for hold in [CloudKitSyncStatusService.ShareFilingHold.untilReopen, .untilICloudReady] {

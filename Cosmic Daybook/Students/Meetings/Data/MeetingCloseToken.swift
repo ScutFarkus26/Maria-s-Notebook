@@ -42,6 +42,11 @@ nonisolated struct MeetingCloseToken: Codable, Equatable, Sendable {
     /// The work's last-touched time as the meeting left it; anything that
     /// logs or reviews the work afterwards moves it.
     var leftLastTouchedAt: Date?
+    /// The rest the card's choice ended (Re-present or Ready for Next on
+    /// resting work), put back when the choice is taken back (bug hunt
+    /// 2026-10-10, #15). Absent in receipts kept before then, and when the
+    /// work wasn't resting.
+    var endedRestUntil: Date?
 
     /// What happened when a card's earlier changes were asked back.
     enum TakeBack: Equatable {
@@ -86,8 +91,14 @@ nonisolated struct MeetingCloseToken: Codable, Equatable, Sendable {
 
 extension MeetingCloseToken {
     /// The receipt of a decision card's log, once the card has finished with
-    /// `work`. Nil when an object it names can't be given a lasting ID.
-    init?(_ token: WorkLogService.UndoToken, leaving work: CDWorkModel, in context: NSManagedObjectContext) {
+    /// `work`, with the rest the choice ended. Nil when an object it names
+    /// can't be given a lasting ID.
+    init?(
+        _ token: WorkLogService.UndoToken,
+        leaving work: CDWorkModel,
+        endingRestUntil endedRest: Date? = nil,
+        in context: NSManagedObjectContext
+    ) {
         func uri(_ objectID: NSManagedObjectID) -> URL? {
             guard objectID.isTemporaryID else { return objectID.uriRepresentation() }
             // Something the log touched was inserted but not yet saved: its
@@ -125,7 +136,8 @@ extension MeetingCloseToken {
         self.init(
             day: token.day, rows: rows, participants: participants, checkIns: checkIns,
             completedTodoURIs: todos, createdObjectURIs: created,
-            leftStatusRaw: work.statusRaw, leftLastTouchedAt: work.lastTouchedAt
+            leftStatusRaw: work.statusRaw, leftLastTouchedAt: work.lastTouchedAt,
+            endedRestUntil: endedRest
         )
     }
 
@@ -165,8 +177,8 @@ extension MeetingCloseToken {
     }
 
     /// Puts `work` back as it was before this meeting's changes, newest
-    /// first, through `WorkLogService`. In memory only: the caller saves.
-    /// Changes nothing unless every receipt can be taken back.
+    /// first, through `WorkLogService`, rest included. In memory only: the
+    /// caller saves. Changes nothing unless every receipt can be taken back.
     static func takeBack(
         _ tokens: [MeetingCloseToken], of work: CDWorkModel, in context: NSManagedObjectContext
     ) -> TakeBack {
@@ -176,6 +188,10 @@ extension MeetingCloseToken {
         guard canTakeBack(tokens, from: work) else { return .changedSince }
         for receipt in receipts.reversed() {
             WorkLogService.revert(receipt, in: context)
+        }
+        // The oldest rest ended is the one the work had before the meeting.
+        if let rest = tokens.lazy.compactMap(\.endedRestUntil).first {
+            work.restingUntil = rest
         }
         return .takenBack
     }

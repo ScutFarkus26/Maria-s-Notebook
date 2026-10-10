@@ -58,8 +58,9 @@ enum ChecklistRosterRemoval {
     }
 
     /// Mastery marks on the presentation's rows lose their link to it, so the cleanup that
-    /// follows (which deletes the presentation's rows) leaves them standing.
-    private static func keepMasteryMarks(
+    /// follows (which deletes the presentation's rows) leaves them standing. Also used by
+    /// `LessonDeletion` for the planned presentations a lesson delete removes.
+    static func keepMasteryMarks(
         on assignment: CDLessonAssignment, studentIDs: Set<String>?, in context: NSManagedObjectContext
     ) {
         guard let id = assignment.id?.uuidString else { return }

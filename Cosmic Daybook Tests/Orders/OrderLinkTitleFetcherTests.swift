@@ -55,20 +55,20 @@ struct OrderLinkTitleFetcherTests {
         var draftReads: [URL] = []
         await OrderLinkTitleFetcher.fillUntitled([pencils, silent], fetch: { url in
             draftReads.append(url)
-            return nil
+            return .noTitle
         }, save: {})
         #expect(draftReads.map(\.absoluteString) == ["https://www.example.com/no-title"])
         #expect(OrderLinkTitleFetcher.untitledNeeds([silent]).isEmpty, "answered with no title: tried")
 
         var laterReads = 0
-        gate.answer("Crayola Colored Pencils | Amazon")
+        gate.answer(.title("Crayola Colored Pencils | Amazon"))
         await restock.value
         #expect(pencils.title == "Crayola Colored Pencils")
         #expect(OrderLinkTitleFetcher.untitledNeeds([pencils]).isEmpty)
         // Once done, nothing is read again.
         await OrderLinkTitleFetcher.fillUntitled([pencils, silent], fetch: { _ in
             laterReads += 1
-            return "Again"
+            return .title("Again")
         }, save: {})
         #expect(laterReads == 0)
     }
@@ -77,10 +77,10 @@ struct OrderLinkTitleFetcherTests {
 /// A page that answers when the test says: `fetch` waits until `answer`.
 @MainActor
 private final class PageGate {
-    private var page: CheckedContinuation<String?, Never>?
+    private var page: CheckedContinuation<OrderLinkTitleFetcher.PageAnswer, Never>?
     private var asked: CheckedContinuation<Void, Never>?
 
-    func fetch(_ url: URL) async -> String? {
+    func fetch(_ url: URL) async -> OrderLinkTitleFetcher.PageAnswer {
         await withCheckedContinuation { continuation in
             page = continuation
             asked?.resume()
@@ -94,8 +94,8 @@ private final class PageGate {
         await withCheckedContinuation { asked = $0 }
     }
 
-    func answer(_ title: String?) {
-        page?.resume(returning: title)
+    func answer(_ answer: OrderLinkTitleFetcher.PageAnswer) {
+        page?.resume(returning: answer)
         page = nil
     }
 }

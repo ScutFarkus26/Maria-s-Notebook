@@ -16,9 +16,54 @@ final class TopicDetailViewModel {
     var addressedDate: Date = Date()
     var tagsDraft: String = ""
 
+    // A solution and a meeting note typed but not added yet. Save adds them,
+    // so nothing she typed is dropped.
+    var newSolutionTitle: String = ""
+    var newSolutionDetails: String = ""
+    var newSolutionProposedBy: String = ""
+    var newNoteSpeaker: String = ""
+    var newNoteContent: String = ""
+
     var proposedSolutions: [CDProposedSolutionEntity] = []
     var notes: [CDNote] = []
     var attachments: [CDCommunityAttachment] = []
+
+    /// The fields as they were last loaded or saved.
+    private var savedFields: Fields?
+
+    /// The editable fields, compared the way Save would write them.
+    private struct Fields: Equatable {
+        var title: String
+        var issue: String
+        var resolution: String
+        var raisedBy: String
+        var createdAt: Date
+        var addressedDate: Date?
+        var tags: [String]
+    }
+
+    private var currentFields: Fields {
+        Fields(
+            title: title,
+            issue: issue,
+            resolution: resolution,
+            raisedBy: raisedBy,
+            createdAt: createdAt,
+            addressedDate: addressed ? addressedDate : nil,
+            tags: Self.parseTags(from: tagsDraft)
+        )
+    }
+
+    /// Whether Save would change anything: an edited field, or a solution or
+    /// note typed but not added. The sheet asks before throwing these away.
+    var hasUnsavedChanges: Bool {
+        currentFields != savedFields || hasPendingInput
+    }
+
+    private var hasPendingInput: Bool {
+        !newSolutionTitle.trimmed().isEmpty || !newSolutionDetails.trimmed().isEmpty
+            || !newNoteContent.trimmed().isEmpty
+    }
 
     // MARK: - Mapping helpers
 
@@ -42,6 +87,7 @@ final class TopicDetailViewModel {
         self.addressed = topic.isResolved
         self.addressedDate = topic.addressedDate ?? Date()
         self.tagsDraft = Self.joinTags(topic.tags)
+        savedFields = currentFields
     }
 
     private func applyFields(to topic: CDCommunityTopicEntity) {
@@ -69,12 +115,41 @@ final class TopicDetailViewModel {
             .sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
     }
 
+    /// Writes the edited fields, and any solution or note typed but not
+    /// added, onto the topic. The caller saves, then calls `markSaved`.
     func persistChanges(context: NSManagedObjectContext) {
         guard let topic else { return }
+        addPendingSolution(context: context)
+        addPendingNote(context: context)
         applyFields(to: topic)
     }
 
+    /// After a successful save: the fields as they are now are the saved ones.
+    func markSaved() {
+        savedFields = currentFields
+    }
+
     // MARK: - Relationship mutations (in-memory; caller saves)
+
+    /// Adds the solution typed into the form, if any, and clears the form.
+    func addPendingSolution(context: NSManagedObjectContext) {
+        let title = newSolutionTitle.trimmed()
+        let details = newSolutionDetails.trimmed()
+        guard !title.isEmpty || !details.isEmpty else { return }
+        addSolution(context: context, title: title, details: details, proposedBy: newSolutionProposedBy.trimmed())
+        newSolutionTitle = ""
+        newSolutionDetails = ""
+        newSolutionProposedBy = ""
+    }
+
+    /// Adds the meeting note typed into the form, if any, and clears the form.
+    func addPendingNote(context: NSManagedObjectContext) {
+        let content = newNoteContent.trimmed()
+        guard !content.isEmpty else { return }
+        addNote(context: context, speaker: newNoteSpeaker.trimmed(), content: content)
+        newNoteSpeaker = ""
+        newNoteContent = ""
+    }
 
     func addSolution(context: NSManagedObjectContext, title: String, details: String, proposedBy: String) {
         guard let topic else { return }

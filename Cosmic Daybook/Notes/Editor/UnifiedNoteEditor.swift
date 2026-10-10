@@ -43,7 +43,7 @@ struct UnifiedNoteEditor: View {
     // MARK: - Environment
     @Environment(\.dismiss) var dismiss
     @Environment(\.managedObjectContext) var viewContext
-    @Environment(\.dependencies) private var dependencies
+    @Environment(\.dependencies) var dependencies
 
     // MARK: - Context Configuration
     enum NoteContext {
@@ -106,8 +106,21 @@ struct UnifiedNoteEditor: View {
 
     @State var aiTriggerCounter: Int = 0
 
+    /// The note's text when the editor opened ("" for a new note): what
+    /// counts as unsaved, and text the name finder leaves alone.
+    @State var openedBodyText: String?
+    /// Shown when Save fails; the editor stays open with her changes.
+    @State var saveErrorMessage: String?
+    @State var isConfirmingDiscard = false
+    /// Children she took off while editing; the name finder leaves them off
+    /// (`chooseStudents`, `NoteEditorChildChoice`).
+    @State var deselectedStudentIDs: Set<UUID> = []
+
     let tagger = StudentTagger()
     @State private var nameDetectionTask: Task<Void, Never>?
+    /// Children an opened note's own text names. Editing the note doesn't add
+    /// them: she chose its children when she wrote it.
+    @State private var openedTextNames: Set<UUID> = []
 
     // MARK: - Body
 
@@ -130,7 +143,8 @@ struct UnifiedNoteEditor: View {
                     for tag in appliedTags where !self.tags.contains(tag) {
                         self.tags.append(tag)
                     }
-                    if !proposedStudentIDs.isEmpty { self.selectedStudentIDs = Set(proposedStudentIDs) }
+                    // Adds the children it named to hers; it used to replace them.
+                    chooseStudents(selectedStudentIDs.union(proposedStudentIDs))
                     showingSuggestionSheet = false
                 },
                 onCancel: {
@@ -151,6 +165,31 @@ struct UnifiedNoteEditor: View {
 #endif
         .onAppear {
             setupInitialState()
+            openedBodyText = bodyText
+        }
+        .task {
+            guard let note = initialNote, shouldShowStudentSelection else { return }
+            openedTextNames = await namesMentioned(in: note.body)
+        }
+        // A swipe down or a tap outside used to throw her changes away.
+        .interactiveDismissDisabled(hasUnsavedChanges)
+        .confirmationDialog(
+            "Discard your changes?",
+            isPresented: $isConfirmingDiscard,
+            titleVisibility: .visible
+        ) {
+            Button("Discard Changes", role: .destructive) { discardAndClose() }
+            Button("Keep Editing", role: .cancel) {}
+        } message: {
+            Text("What you changed here hasn't been saved.")
+        }
+        .alert("Couldn't Save the Note", isPresented: Binding(
+            get: { saveErrorMessage != nil },
+            set: { if !$0 { saveErrorMessage = nil } }
+        )) {
+            Button("OK") { saveErrorMessage = nil }
+        } message: {
+            Text(saveErrorMessage ?? NoteEditorSave.notSavedMessage)
         }
         .onChange(of: bodyText) { _, newText in
             handleBodyTextChange(newText)
@@ -201,10 +240,7 @@ struct UnifiedNoteEditor: View {
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        onCancel()
-                        dismiss()
-                    }
+                    Button("Cancel") { requestCancel() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
@@ -222,13 +258,36 @@ struct UnifiedNoteEditor: View {
     // MARK: - Event Handlers
 
     private func handleBodyTextChange(_ newText: String) {
+        // Opening a note put its own text through the name finder, which
+        // added every child it mentions; only what she types now counts.
+        if initialNote != nil, newText == openedBodyText { return }
         if shouldShowStudentSelection {
             nameDetectionTask?.cancel()
             nameDetectionTask = Task {
                 try? await Task.sleep(for: .milliseconds(250))
                 if Task.isCancelled { return }
+                let before = selectedStudentIDs
                 await analyzeTextForNames(newText)
+                // A child she took off, or one the opened note already named,
+                // isn't put back by what she types.
+                let kept = NoteEditorChildChoice.afterNameFinder(
+                    before: before, after: selectedStudentIDs,
+                    deselected: deselectedStudentIDs, openedTextNames: openedTextNames
+                )
+                if kept != selectedStudentIDs { selectedStudentIDs = kept }
             }
         }
+    }
+
+    /// The children the name finder would add for `text`.
+    private func namesMentioned(in text: String) async -> Set<UUID> {
+        let studentData = students.compactMap { student -> StudentData? in
+            guard let id = student.id else { return nil }
+            return StudentData(
+                id: id, firstName: student.firstName, lastName: student.lastName, nickname: student.nickname
+            )
+        }
+        let result = await tagger.findStudentMatches(in: text, studentData: studentData)
+        return result.exact.union(result.autoSelect)
     }
 }

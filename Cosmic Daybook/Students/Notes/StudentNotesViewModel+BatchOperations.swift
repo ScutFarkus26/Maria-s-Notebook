@@ -13,14 +13,17 @@ extension StudentNotesViewModel {
         fetchNote(id: id)
     }
 
+    /// Deletes the chosen notes, and their photos once the delete has saved.
     func batchDelete(ids: Set<UUID>) {
+        var photos: [String?] = []
         for id in ids {
             if let note = fetchNote(id: id) {
-                note.deleteAssociatedImage()
+                photos.append(note.imagePath)
                 viewContext.delete(note)
             }
         }
         if saveCoordinator.save(viewContext, reason: "Batch deleting notes") {
+            Self.deletePhotos(photos)
             items.removeAll { ids.contains($0.id) }
         }
     }

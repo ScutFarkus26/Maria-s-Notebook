@@ -45,6 +45,30 @@ struct OrderRequestRecipient: Equatable, Sendable {
     var label: String { name.isEmpty ? email : name }
 }
 
+/// The draft's To section: the recipient as a summary with Change, or the
+/// address fields. Decided when the sheet opens and on Change or Done, never
+/// as she types: an address that reads as finished partway through
+/// ("frontdesk@school.co" on the way to ".com") would otherwise swap the
+/// field for the summary mid-word and keep the cut-off address.
+struct OrderRequestRecipientPanel: Equatable {
+    private(set) var showsSummary: Bool
+
+    /// A recipient already set shows as the summary; none yet, the fields.
+    init(opening recipient: OrderRequestRecipient) {
+        showsSummary = recipient.isConfigured
+    }
+
+    /// Change: the fields, until Done.
+    mutating func change() {
+        showsSummary = false
+    }
+
+    /// Done: back to the summary once there's an address to send to.
+    mutating func done(with recipient: OrderRequestRecipient) {
+        showsSummary = recipient.isConfigured
+    }
+}
+
 /// One item as the request email writes it.
 struct OrderRequestLine: Equatable, Sendable {
     var title: String

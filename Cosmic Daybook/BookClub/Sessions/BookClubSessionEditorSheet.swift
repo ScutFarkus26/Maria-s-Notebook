@@ -35,6 +35,7 @@ struct BookClubSessionEditorSheet: View {
     @State private var notes: String = ""
     @State private var readingItems: [BookClubReadingItem] = []
     @State private var didInitialize: Bool = false
+    @State private var saveFailed: Bool = false
 
     private var selectedPacket: CDBookClubPacket? {
         guard let id = selectedPacketID else { return nil }
@@ -51,6 +52,16 @@ struct BookClubSessionEditorSheet: View {
         }
     }
 
+    /// Members of the session being edited who have left the class. The roster
+    /// lists enrolled children only, so they can't be seen or chosen there; they
+    /// stay on the session (its history names them) but lead no new meeting.
+    private var departedMembers: [CDStudent] {
+        guard let editing = editingSession else { return [] }
+        let enrolledIDs = Set(dependencies.roster.enrolled.compactMap(\.id))
+        let departedIDs = editing.studentIDs.filter { !enrolledIDs.contains($0) }
+        return departedIDs.compactMap { dependencies.roster.student(id: $0) }
+    }
+
     private var canSave: Bool {
         selectedPacketID != nil && !readingItems.isEmpty
     }
@@ -62,7 +73,9 @@ struct BookClubSessionEditorSheet: View {
                 rosterSection
                 scheduleSection
                 readingItemsSection
-                preview
+                if editingSession == nil {
+                    BookClubSchedulePreview(meetings: generatePreview(), roster: rosterInOrder)
+                }
                 notesSection
             }
             .formStyle(.grouped)
@@ -81,6 +94,11 @@ struct BookClubSessionEditorSheet: View {
             }
         }
         .onAppear(perform: initializeIfNeeded)
+        .alert("Couldn't Save", isPresented: $saveFailed) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("The book club couldn't be saved. Try again.")
+        }
         .onChange(of: selectedPacketID) { _, _ in
             if editingSession == nil, let packet = selectedPacket {
                 readingItems = packet.readingItems
@@ -132,6 +150,12 @@ struct BookClubSessionEditorSheet: View {
                     .buttonStyle(.plain)
                 }
             }
+            if !departedMembers.isEmpty {
+                Text("Also in this book club: \(departedMembers.map(\.shortName).joined(separator: ", ")) "
+                     + "(left the class). They stay on the session but don't lead new meetings.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Toggle("Rotate discussion leader through roster", isOn: $rotateLeader)
         }
     }
@@ -151,33 +175,7 @@ struct BookClubSessionEditorSheet: View {
             }
 
             if cadenceKind == .custom {
-                weekdaySelector
-            }
-        }
-    }
-
-    private var weekdaySelector: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Meeting days")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            HStack(spacing: 6) {
-                ForEach(1...7, id: \.self) { day in
-                    let isOn = isWeekdaySet(day)
-                    Button {
-                        toggleWeekday(day)
-                    } label: {
-                        Text(weekdayShortLabel(day))
-                            .font(.caption)
-                            .frame(width: 32, height: 28)
-                            .surface(
-                                UIConstants.CornerRadius.small,
-                                fill: isOn ? Color.accentColor : Color.secondary.opacity(0.15)
-                            )
-                            .foregroundStyle(isOn ? Color.white : Color.primary)
-                    }
-                    .buttonStyle(.plain)
-                }
+                BookClubWeekdayPicker(weekdayMask: $customWeekdayMask)
             }
         }
     }
@@ -201,42 +199,6 @@ struct BookClubSessionEditorSheet: View {
                                 }
                             }
                         ))
-                    }
-                }
-            }
-        }
-    }
-
-    private var preview: some View {
-        Section("Preview") {
-            let generated = generatePreview()
-            if generated.isEmpty {
-                Text("Choose a packet with reading items to preview.")
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(Array(generated.enumerated()), id: \.offset) { _, meeting in
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 6) {
-                                Text("Meeting \(meeting.ordinal)")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.secondary)
-                                Text(meeting.date, style: .date)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Text(meeting.readingLabel)
-                                .font(.callout)
-                        }
-                        Spacer()
-                        if let leaderID = meeting.leaderStudentID,
-                           let leader = rosterInOrder.first(where: { $0.id == leaderID }) {
-                            Text(StudentFormatter.firstName(for: leader))
-                                .font(.caption)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .capsuleFill(Color.secondary.opacity(0.15))
-                        }
                     }
                 }
             }
@@ -269,10 +231,12 @@ struct BookClubSessionEditorSheet: View {
             if let editingDate = editing.startDate {
                 weekday = calendar.component(.weekday, from: editingDate)
             }
-            // Use the meetings' current reading labels for editing.
-            readingItems = editing.orderedMeetings.enumerated().map { offset, meeting in
-                BookClubReadingItem(ordinal: offset + 1, label: meeting.readingLabel)
-            }
+            // The session's readings, numbered as its meetings are, with the
+            // labels the meetings carry.
+            let packetItems = allPackets.first { $0.id == editing.packetUUID }?.readingItems ?? []
+            readingItems = BookClubSessionPlanner.readings(
+                packetItems: packetItems, meetings: editing.orderedMeetings
+            )
         } else if let prefilled = prefilledPacket {
             selectedPacketID = prefilled.objectID
             readingItems = prefilled.readingItems
@@ -306,16 +270,23 @@ struct BookClubSessionEditorSheet: View {
     }
 
     private func save() {
-        let session: CDBookClubSession
         if let editing = editingSession {
-            session = editing
-            for meeting in editing.orderedMeetings {
-                viewContext.delete(meeting)
-            }
+            saveEdits(to: editing)
         } else {
-            session = CDBookClubSession(context: viewContext)
+            createSession()
         }
+        guard dependencies.saveCoordinator.save(
+            viewContext, reason: editingSession == nil ? "Create book club session" : "Edit book club session",
+            alertOnFailure: false
+        ) else {
+            saveFailed = true
+            return
+        }
+        dismiss()
+    }
 
+    private func createSession() {
+        let session = CDBookClubSession(context: viewContext)
         session.packetID = selectedPacket?.id?.uuidString ?? ""
         session.displayName = displayName
         session.startDate = startDate
@@ -324,19 +295,15 @@ struct BookClubSessionEditorSheet: View {
         session.studentIDs = rosterInOrder.compactMap(\.id)
         session.rotateLeader = rotateLeader
         session.notes = notes
-        if editingSession == nil {
-            session.status = .planned
-        }
+        session.status = .planned
 
-        let cadence = resolveCadence()
         let generated = BookClubScheduleGenerator.generate(
             startDate: startDate,
-            cadence: cadence,
+            cadence: resolveCadence(),
             readingItems: readingItems,
             roster: rosterInOrder.compactMap(\.id),
             rotateLeader: rotateLeader
         )
-
         for gen in generated {
             let meeting = CDBookClubMeeting(context: viewContext)
             meeting.sessionID = session.id?.uuidString ?? ""
@@ -346,13 +313,28 @@ struct BookClubSessionEditorSheet: View {
             meeting.readingLabel = gen.readingLabel
             meeting.leaderStudentID = gen.leaderStudentID?.uuidString ?? ""
         }
-
         if let lastDate = generated.last?.date {
             session.endDate = lastDate
         }
         session.modifiedAt = Date()
-        viewContext.safeSave()
-        dismiss()
+    }
+
+    /// Updates the session in place (`BookClubSessionPlanner.applyEdits`): held
+    /// meetings stay as they are, and only the unheld ones follow a new schedule.
+    private func saveEdits(to session: CDBookClubSession) {
+        let draft = BookClubSessionPlanner.SessionEdits(
+            displayName: displayName,
+            startDate: startDate,
+            cadenceKind: cadenceKind,
+            weekdayMask: resolveStoredWeekdayMask(),
+            cadence: resolveCadence(),
+            roster: rosterInOrder.compactMap(\.id),
+            departedMembers: departedMembers.compactMap(\.id),
+            rotateLeader: rotateLeader,
+            notes: notes,
+            readings: readingItems
+        )
+        BookClubSessionPlanner.applyEdits(draft, to: session, today: Date(), calendar: calendar, context: viewContext)
     }
 
     private func resolveStoredWeekdayMask() -> Int64 {
@@ -370,27 +352,6 @@ struct BookClubSessionEditorSheet: View {
             selectedStudentIDs.remove(id)
         } else {
             selectedStudentIDs.insert(id)
-        }
-    }
-
-    private func isWeekdaySet(_ day: Int) -> Bool {
-        (customWeekdayMask & (Int64(1) << day)) != 0
-    }
-
-    private func toggleWeekday(_ day: Int) {
-        customWeekdayMask ^= (Int64(1) << day)
-    }
-
-    private func weekdayShortLabel(_ day: Int) -> String {
-        switch day {
-        case 1: return "Sun"
-        case 2: return "Mon"
-        case 3: return "Tue"
-        case 4: return "Wed"
-        case 5: return "Thu"
-        case 6: return "Fri"
-        case 7: return "Sat"
-        default: return ""
         }
     }
 

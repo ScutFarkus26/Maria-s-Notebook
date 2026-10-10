@@ -55,17 +55,10 @@ extension TodayView {
     // MARK: - Helpers
 
     func meetingStudentName(for meeting: CDScheduledMeeting) -> String {
-        let ids = meeting.allStudentIDs.compactMap { UUID(uuidString: $0) }
-        guard !ids.isEmpty else { return "Student removed" }
-
-        let names = ids.compactMap { viewModel.displayName(for: $0) }
-            .filter { !$0.isEmpty }
-        guard !names.isEmpty else { return "Student removed" }
-
-        if names.count <= 2 {
-            return names.joined(separator: ", ")
-        }
-        return "\(names[0]), \(names[1]) + \(names.count - 2) more"
+        TodayMeetingRows.names(
+            for: meeting.allStudentIDs.compactMap { UUID(uuidString: $0) },
+            knownStudents: viewModel.meetingStudentsByID
+        )
     }
 
     func startMeeting(_ meeting: CDScheduledMeeting) {

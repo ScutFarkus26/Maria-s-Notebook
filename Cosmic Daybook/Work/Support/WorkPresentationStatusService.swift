@@ -11,7 +11,6 @@ struct WorkPresentationStatusService {
     enum PresentationStatus {
         case scheduled(date: Date)
         case inInbox(students: [String])
-        case withOtherStudents(students: [String])
         case notFound
 
         var displayText: String {
@@ -24,12 +23,6 @@ struct WorkPresentationStatusService {
                 } else {
                     return "In inbox with \(students.count) students"
                 }
-            case .withOtherStudents(let students):
-                if students.count == 1 {
-                    return "Waiting with 1 other student"
-                } else {
-                    return "Waiting with \(students.count) other students"
-                }
             case .notFound:
                 return "No upcoming presentation"
             }
@@ -41,8 +34,6 @@ struct WorkPresentationStatusService {
                 return "calendar.badge.clock"
             case .inInbox:
                 return "tray.fill"
-            case .withOtherStudents:
-                return "person.2.fill"
             case .notFound:
                 return "questionmark.circle"
             }
@@ -54,8 +45,6 @@ struct WorkPresentationStatusService {
                 return .blue
             case .inInbox:
                 return .green
-            case .withOtherStudents:
-                return .orange
             case .notFound:
                 return .gray
             }

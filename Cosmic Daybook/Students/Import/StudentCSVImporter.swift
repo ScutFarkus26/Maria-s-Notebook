@@ -2,7 +2,6 @@ import Foundation
 import CoreData
 
 // A CSV importer for CDStudent records with parse-first, map-then-commit workflow.
-// swiftlint:disable:next type_body_length
 enum StudentCSVImporter {
     // MARK: - Row DTO
     struct Row: Identifiable, Hashable {
@@ -30,6 +29,10 @@ enum StudentCSVImporter {
         let updatedCount: Int
         let potentialDuplicates: [String]
         let warnings: [String]
+        /// Rows written nowhere: the class already has a student by that name
+        /// whose birthday differs, or more than one, so the row can't be told
+        /// apart from a duplicate. Display names.
+        var skippedDuplicates: [String] = []
     }
 
     // MARK: - Errors
@@ -68,27 +71,42 @@ enum StudentCSVImporter {
         var splitFullNameOn: String = " "
     }
 
+    /// The column names the importer recognizes, by field.
+    static let synonymMap: [String: [String]] = [
+        "firstName": ["first name", "firstname", "given name", "givenname", "first"],
+        "lastName": ["last name", "lastname", "family name", "surname", "last"],
+        "fullName": ["name", "full name", "fullname", "student", "student name"],
+        "birthday": ["birthday", "birth date", "birthdate", "dob", "date of birth"],
+        "startDate": ["start date", "date started", "start", "started"],
+        "level": ["level", "grade", "class"]
+    ]
+
+    /// Whether a file's first row is its header: it names at least one
+    /// column the importer knows. Such a row is the header even with a blank
+    /// or repeated cell.
+    static func looksLikeHeaderRow(_ cells: [String]) -> Bool {
+        let known = Set(synonymMap.values.joined())
+        return cells.contains { known.contains($0.normalizedForComparison()) }
+    }
+
+    /// The spreadsheet as a table, its first row read as the header whenever
+    /// it names a known column.
+    static func readTable(_ data: Data) -> CSVData? {
+        CSVParser.parse(data: data, headerRow: looksLikeHeaderRow)
+    }
+
     static func detectMapping(headers: [String]) -> Mapping {
         var map = Mapping()
-        
-        let synonymMap: [String: [String]] = [
-            "firstName": ["first name", "firstname", "given name", "givenname", "first"],
-            "lastName": ["last name", "lastname", "family name", "surname", "last"],
-            "fullName": ["name", "full name", "fullname", "student", "student name"],
-            "birthday": ["birthday", "birth date", "birthdate", "dob", "date of birth"],
-            "startDate": ["start date", "date started", "start", "started"],
-            "level": ["level", "grade", "class"]
-        ]
-        
+
         let headerMapping = CSVHeaderMapping.buildMapping(headers: headers, synonymMap: synonymMap)
-        
+
         map.firstName = headerMapping["firstName"]
         map.lastName = headerMapping["lastName"]
         map.fullName = headerMapping["fullName"]
         map.birthday = headerMapping["birthday"]
         map.startDate = headerMapping["startDate"]
         map.level = headerMapping["level"]
-        
+
         return map
     }
 
@@ -101,7 +119,7 @@ enum StudentCSVImporter {
         existingFullKeys: Set<String>,
         existingNameKeys: Set<String>
     ) throws -> Parsed {
-        guard let csv = CSVParser.parse(data: data) else {
+        guard let csv = readTable(data) else {
             throw ImportError.unreadableText
         }
         let headers = csv.headers
@@ -130,7 +148,7 @@ enum StudentCSVImporter {
                 hasFull: hasFull,
                 value: value
             )
-            
+
             guard !first.isEmpty && !last.isEmpty else {
                 warnings.append("Line \(i + 2) skipped: it's missing a first or last name.")
                 continue
@@ -141,8 +159,8 @@ enum StudentCSVImporter {
             let startStr = value(useMap.startDate)
             let levelStr = value(useMap.level)
 
-            let bday = DateParser.parse(bdayStr)
-            let start = DateParser.parse(startStr)
+            let bday = date(bdayStr, named: "birthday", line: i + 2, warnings: &warnings)
+            let start = date(startStr, named: "start date", line: i + 2, warnings: &warnings)
             let lvl = parseLevel(from: levelStr)
 
             let row = Row(firstName: first, lastName: last, birthday: bday, dateStarted: start, level: lvl)
@@ -163,9 +181,31 @@ enum StudentCSVImporter {
 
         return Parsed(rows: rows, totalRows: rows.count, potentialDuplicates: dedupedPotential, warnings: warnings)
     }
-    
+
     // MARK: - Private Helpers
-    
+
+    /// A date cell's value, or nil with a warning naming the line when the
+    /// cell held something that isn't a date the importer takes.
+    private static func date(_ text: String, named field: String, line: Int, warnings: inout [String]) -> Date? {
+        switch DateParser.outcome(text) {
+        case .empty:
+            return nil
+        case .date(let date):
+            return date
+        case .tooEarly:
+            warnings.append(
+                "Line \(line): the \(field) \u{201C}\(text)\u{201D} is before 1900, so it was left out. "
+                    + "Check it in the spreadsheet."
+            )
+            return nil
+        case .unreadable:
+            warnings.append(
+                "Line \(line): couldn\u{2019}t read the \(field) \u{201C}\(text)\u{201D}, so it was left out."
+            )
+            return nil
+        }
+    }
+
     /// Parses first and last name from CSV row based on mapping configuration.
     private static func parseNameFields(
         from rawRow: [String],
@@ -176,23 +216,29 @@ enum StudentCSVImporter {
     ) -> (first: String, last: String) {
         var first = ""
         var last = ""
-        
+
         if hasFirstLast {
             first = value(mapping.firstName)
             last = value(mapping.lastName)
         } else if hasFull {
             let full = value(mapping.fullName)
-            let parts = full.split(separator: Character(mapping.splitFullNameOn), omittingEmptySubsequences: true)
-            if !parts.isEmpty { first = String(parts[0]) }
-            if parts.count > 1 { last = parts.dropFirst().joined(separator: " ") }
+            if let comma = full.firstIndex(of: ",") {
+                // "Smith, Maya": family name first.
+                last = String(full[..<comma])
+                first = String(full[full.index(after: comma)...])
+            } else {
+                let parts = full.split(separator: Character(mapping.splitFullNameOn), omittingEmptySubsequences: true)
+                if !parts.isEmpty { first = String(parts[0]) }
+                if parts.count > 1 { last = parts.dropFirst().joined(separator: " ") }
+            }
         }
-        
+
         first = first.trimmed()
         last = last.trimmed()
-        
+
         return (first, last)
     }
-    
+
     /// Checks if a student row is a potential duplicate based on existing keys.
     private static func isDuplicate(
         first: String,
@@ -201,18 +247,24 @@ enum StudentCSVImporter {
         existingFullKeys: Set<String>,
         existingNameKeys: Set<String>
     ) -> Bool {
-        let fullKey = duplicateKey(first: first, last: last, birthday: birthday)
-        let nameKey = "\(first) \(last)".normalizedNameKey()
-        return CSVDuplicateDetection.isDuplicate(
-            fullKey: fullKey,
-            nameKey: nameKey,
+        CSVDuplicateDetection.isDuplicate(
+            fullKey: duplicateKey(first: first, last: last, birthday: birthday),
+            nameKey: nameKey(first, last),
             existingFullKeys: existingFullKeys,
-            existingNameKeys: existingNameKeys,
-            hasFullKey: birthday != nil
+            existingNameKeys: existingNameKeys
         )
     }
 
-    // swiftlint:disable:next cyclomatic_complexity function_body_length
+    /// Writes the rows: each one updates the child it matches, adds a new
+    /// child, or, when it can't be told apart from a child already in the
+    /// class, is left out and named in `skippedDuplicates`.
+    ///
+    /// A row matches by name and birthday (the local day). Without that, it
+    /// falls back to the name alone only when exactly one child already in
+    /// the class has that name and no birthday is in the way: the row has
+    /// none, or she has none (and the row's fills it in). A stored birthday
+    /// is never overwritten, and two children already in the class with the
+    /// same name are never treated as one.
     static func commit(
         parsed: Parsed,
         into context: NSManagedObjectContext,
@@ -220,73 +272,26 @@ enum StudentCSVImporter {
     ) throws -> Summary {
         var inserted = 0
         var updated = 0
-        // Index existing by duplicate key and by name-only key
-        var byFullKey: [String: CDStudent] = [:]
-        var byNameKey: [String: CDStudent] = [:]
-        for s in existingStudents {
-            let full = duplicateKey(for: s)
-            if byFullKey[full] == nil { byFullKey[full] = s }
-            let nameKey = "\(s.firstName) \(s.lastName)".normalizedNameKey()
-            if byNameKey[nameKey] == nil { byNameKey[nameKey] = s }
-        }
+        var skipped: [String] = []
+        var index = MatchIndex(existing: existingStudents)
 
         for r in parsed.rows {
-            let hasBirthday = (r.birthday != nil)
-
-            if hasBirthday {
-                let key = duplicateKey(first: r.firstName, last: r.lastName, birthday: r.birthday)
-                if let existing = byFullKey[key] {
-                    var didChange = false
-                    if let b = r.birthday, !existing.birthday.isSameCalendarDay(as: b) {
-                        existing.birthday = b; didChange = true
-                    }
-                    if existing.dateStarted == nil, let ds = r.dateStarted {
-                        existing.dateStarted = ds; didChange = true
-                    }
-                    if let lvl = r.level, existing.level != lvl {
-                        existing.level = lvl; didChange = true
-                    }
-                    if didChange {
-                        existing.modifiedAt = Date()
-                        updated += 1
-                    }
-                    continue
-                }
-            } else {
-                let nameKey = "\(r.firstName) \(r.lastName)".normalizedNameKey()
-                if let existing = byNameKey[nameKey] {
-                    var didChange = false
-                    if let b = r.birthday, !existing.birthday.isSameCalendarDay(as: b) {
-                        existing.birthday = b; didChange = true
-                    }
-                    if existing.dateStarted == nil, let ds = r.dateStarted {
-                        existing.dateStarted = ds; didChange = true
-                    }
-                    if let lvl = r.level, existing.level != lvl {
-                        existing.level = lvl; didChange = true
-                    }
-                    if didChange {
-                        existing.modifiedAt = Date()
-                        updated += 1
-                    }
-                    continue
-                }
+            switch index.match(for: r) {
+            case .existing(let existing):
+                if apply(r, to: existing) { updated += 1 }
+            case .possibleDuplicate:
+                skipped.append("\(r.firstName) \(r.lastName)")
+            case .new:
+                let student = CDStudent(context: context)
+                student.firstName = r.firstName
+                student.lastName = r.lastName
+                student.birthday = r.birthday
+                student.level = r.level ?? .lower
+                student.dateStarted = r.dateStarted
+                inserted += 1
+                // Later rows in the file can merge into this child.
+                index.add(student)
             }
-
-            // No match found; insert new student
-            let student = CDStudent(context: context)
-            student.firstName = r.firstName
-            student.lastName = r.lastName
-            student.birthday = r.birthday
-            student.level = r.level ?? .lower
-            student.dateStarted = r.dateStarted
-            inserted += 1
-
-            // Update indexes so subsequent rows can merge into this newly created student
-            let newFullKey = duplicateKey(first: r.firstName, last: r.lastName, birthday: r.birthday)
-            byFullKey[newFullKey] = student
-            let newNameKey = "\(r.firstName) \(r.lastName)".normalizedNameKey()
-            if byNameKey[newNameKey] == nil { byNameKey[newNameKey] = student }
         }
         try context.save()
         return Summary(
@@ -294,7 +299,8 @@ enum StudentCSVImporter {
             insertedCount: inserted,
             updatedCount: updated,
             potentialDuplicates: parsed.potentialDuplicates,
-            warnings: parsed.warnings
+            warnings: parsed.warnings,
+            skippedDuplicates: skipped
         )
     }
 
@@ -304,13 +310,20 @@ enum StudentCSVImporter {
         duplicateKey(first: student.firstName, last: student.lastName, birthday: student.birthday)
     }
 
+    /// Name plus birthday, the birthday as its local calendar day: keyed by
+    /// the GMT day, a birthday typed in after about 8 pm Eastern read as the
+    /// next day, so a re-import missed her and added her again.
     static func duplicateKey(first: String, last: String, birthday: Date?) -> String {
-        let nameKey = "\(first) \(last)".normalizedNameKey()
+        let name = nameKey(first, last)
         if let b = birthday {
-            let d = DateFormatters.isoDate.string(from: b)
-            return nameKey + "|" + d
+            let day = AppCalendar.shared.dateComponents([.year, .month, .day], from: b)
+            return name + "|" + String(format: "%04d-%02d-%02d", day.year ?? 0, day.month ?? 0, day.day ?? 0)
         }
-        return nameKey
+        return name
+    }
+
+    static func nameKey(_ first: String, _ last: String) -> String {
+        "\(first) \(last)".normalizedNameKey()
     }
 
     static func parseLevel(from string: String) -> CDStudent.Level? {
@@ -325,17 +338,5 @@ enum StudentCSVImporter {
         default:
             return nil
         }
-    }
-}
-
-// MARK: - Import Date Comparison
-
-private extension Optional where Wrapped == Date {
-    /// Day-level equality for imported dates: a stored birthday may carry a
-    /// time-of-day, while CSV parses land at local midnight. Comparing exact
-    /// instants would flag every re-import as a change.
-    func isSameCalendarDay(as other: Date) -> Bool {
-        guard let self else { return false }
-        return AppCalendar.isSameDay(self, other)
     }
 }

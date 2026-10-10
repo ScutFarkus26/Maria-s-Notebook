@@ -36,7 +36,11 @@ struct OrderRequestDraftSheet: View {
     /// they are left alone.
     @State private var lastGeneratedSubject = ""
     @State private var lastGeneratedBody = ""
-    @State private var editingRecipient = false
+    /// Whether the To section shows the recipient as a summary or as the
+    /// fields: decided when the sheet opens, on Change and on Done, never
+    /// while she types (bug hunt 2026-10-10 #20).
+    /// Nil until the sheet appears, and read as it would open meanwhile.
+    @State private var recipientPanel: OrderRequestRecipientPanel?
     @State private var showingMailComposer = false
     @State private var confirmingSent = false
     @State private var sendErrorMessage: String?
@@ -142,7 +146,7 @@ struct OrderRequestDraftSheet: View {
     @ViewBuilder
     private var recipientSection: some View {
         Section {
-            if recipient.isConfigured && !editingRecipient {
+            if (recipientPanel ?? OrderRequestRecipientPanel(opening: recipient)).showsSummary {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(recipient.name.isEmpty ? recipient.email : recipient.name)
@@ -159,10 +163,13 @@ struct OrderRequestDraftSheet: View {
                         }
                     }
                     Spacer()
-                    Button("Change") { editingRecipient = true }
+                    Button("Change") { recipientPanel?.change() }
                 }
             } else {
                 OrderRequestSettingsView(showsMessage: false)
+                if recipient.isConfigured {
+                    Button("Done") { recipientPanel?.done(with: recipient) }
+                }
             }
         } header: {
             Text("To")
@@ -269,6 +276,7 @@ struct OrderRequestDraftSheet: View {
     // MARK: - Drafting
 
     private func start() {
+        recipientPanel = OrderRequestRecipientPanel(opening: recipient)
         included = Set(items.map(\.objectID))
         subject = generatedSubject
         messageBody = generatedBody

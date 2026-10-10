@@ -262,7 +262,9 @@ struct AttendanceStudentHistorySheet: View {
         let request = CDFetchRequest(CDAttendanceRecord.self)
         request.predicate = NSPredicate(format: "studentID == %@", studentID.uuidString)
         do {
-            records = try viewContext.fetch(request)
+            // One record per day: two devices marking the same day before
+            // syncing each made one, and both used to count.
+            records = try viewContext.fetch(request).deduplicatedPerStudentDay()
             loadFailed = false
         } catch {
             Self.logger.warning("Load history failed: \(error.localizedDescription, privacy: .public)")
@@ -283,24 +285,45 @@ private struct AttendanceHistoryNoteEntry: Identifiable {
     let text: String
 }
 
-private struct YearTotals {
-    var present = 0
+/// One school year's figures for the sheet's header.
+struct AttendanceHistoryYearTotals: Equatable {
+    /// Days in the room: present, tardy, or left early.
+    var attended = 0
     var absent = 0
+    /// Late arrivals, counted by `cameLate`: a child who came late and then
+    /// left early was late that day too.
     var tardy = 0
     var leftEarly = 0
     var attendanceRate: Double? {
-        let totalAttended = present + tardy + leftEarly
-        let total = totalAttended + absent
+        let total = attended + absent
         guard total > 0 else { return nil }
-        return Double(totalAttended) / Double(total)
+        return Double(attended) / Double(total)
+    }
+
+    /// The figures from `records` dated inside `range`. Expects one record
+    /// per day (`deduplicatedPerStudentDay()`).
+    static func tally(_ records: [CDAttendanceRecord], in range: DateRange) -> Self {
+        var totals = Self()
+        for record in records {
+            guard let date = record.date, range.contains(date) else { continue }
+            switch record.status {
+            case .present, .tardy: totals.attended += 1
+            case .leftEarly:
+                totals.attended += 1
+                totals.leftEarly += 1
+            case .absent: totals.absent += 1
+            case .unmarked: break
+            }
+            if record.cameLate { totals.tardy += 1 }
+        }
+        return totals
     }
 }
 
 // MARK: - Year Totals & Calendar Helpers
 
 extension AttendanceStudentHistorySheet {
-    private func computeYearTotals() -> YearTotals {
-        var totals = YearTotals()
+    private func computeYearTotals() -> AttendanceHistoryYearTotals {
         // The current school year, not a trailing 365-day window: totals reset at the
         // configured year start instead of carrying last year's marks into the fall.
         let schoolYear = SchoolYear.containing(
@@ -309,17 +332,7 @@ extension AttendanceStudentHistorySheet {
             startDay: FloridaGradeCalculator.schoolStartDay,
             calendar: AppCalendar.shared
         )
-        for record in records {
-            guard let date = record.date, schoolYear.range.contains(date) else { continue }
-            switch record.status {
-            case .present: totals.present += 1
-            case .absent: totals.absent += 1
-            case .tardy: totals.tardy += 1
-            case .leftEarly: totals.leftEarly += 1
-            case .unmarked: break
-            }
-        }
-        return totals
+        return .tally(records, in: schoolYear.range)
     }
 
     private func lastThreeMonths() -> [Date] {

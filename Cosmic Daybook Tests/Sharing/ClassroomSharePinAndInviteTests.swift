@@ -194,8 +194,10 @@ struct ClassroomSharePinAndInviteTests {
 
         sync.shareFilingPausedUntilReopen = true
         #expect(ClassroomSharingService.setupBlocker(coreDataStack: stack, sync: sync) == .iCloudNotReadyAtLaunch)
+        // Shown only when no account was signed in (bug hunt 2026-10-10, #7).
         #expect(ClassroomShareError.iCloudNotReadyAtLaunch.errorDescription
-            == "iCloud wasn't ready when the notebook opened. Quit and reopen it to finish sharing.")
+            == "You weren't signed in to iCloud when the notebook opened. "
+                + "Sign in to iCloud, then quit and reopen the notebook.")
     }
 
     // MARK: - Invitations

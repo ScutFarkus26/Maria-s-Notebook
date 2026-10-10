@@ -48,6 +48,12 @@ final class GoingOutViewModel {
         filteredGoingOuts.filter { $0.status == .completed }
     }
 
+    /// Cancelled going-outs, listed last. Before, they fell out of both lists
+    /// and could not be seen or reopened anywhere.
+    var cancelledGoingOuts: [CDGoingOut] {
+        filteredGoingOuts.filter { $0.status == .cancelled }
+    }
+
     // MARK: - Load
 
     func loadData(context: NSManagedObjectContext) {

@@ -19,7 +19,7 @@ struct ParshaLessonListView: View {
         self.onSelectLesson = onSelectLesson
         _lessons = FetchRequest(
             sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)],
-            predicate: NSPredicate(format: "parshaKey == %@", parshaKey)
+            predicate: HebrewParshaService.lessonsPredicate(forParshaKey: parshaKey)
         )
     }
 

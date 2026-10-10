@@ -4,7 +4,9 @@
 // lastObservedAt bump on a retained outcome.
 //
 //   retained  → bump CDLessonPresentation.lastObservedAt (only) + stamp covered lower lessons
-//   shaky     → set needsPractice on the matching assignment(s)
+//   shaky     → set needsPractice on the matching assignment(s) she was given alone; when she
+//               had it with a group, practice work of her own on her latest giving instead,
+//               since the group's flag held every child in it back
 //   forgotten → set needsAnotherPresentation on the matching assignment(s)
 //
 // `masteredAt`/`stateRaw` on CDLessonPresentation are never touched — that's the "never
@@ -13,6 +15,7 @@
 
 import Foundation
 import CoreData
+import OSLog
 
 struct RecallService {
     let context: NSManagedObjectContext
@@ -97,16 +100,57 @@ struct RecallService {
 
     /// Sets the existing follow-up flags on any assignment for this lesson + student, so recall
     /// fallout shows up wherever those flags are already read.
+    ///
+    /// `needsPractice` is a whole presentation's flag, and the blocking check holds back every
+    /// child on it who has no work of her own. So it is set only where she was given the lesson
+    /// alone; when she had it with a group she gets practice work of her own on her latest
+    /// giving instead, which gates her and nobody else.
     private func setFollowUp(entry: RecallQueueEntry, needsPractice: Bool, needsAnotherPresentation: Bool) {
         let request = CDFetchRequest(CDLessonAssignment.self)
         // Predicate on lessonID (stored as String) to avoid a full-table scan.
         request.predicate = NSPredicate(format: "lessonID == %@", entry.frontierLessonID.uuidString)
         let sid = RecallFrontierEngine.normalize(entry.studentID)
-        for assignment in context.safeFetch(request)
-        where assignment.studentIDs.contains(where: { RecallFrontierEngine.normalize($0) == sid }) {
-            if needsPractice { assignment.needsPractice = true }
+        let hers = context.safeFetch(request).filter { assignment in
+            assignment.studentIDs.contains(where: { RecallFrontierEngine.normalize($0) == sid })
+        }
+        var flaggedHerOwn = false
+        for assignment in hers {
+            let alone = Set(assignment.studentIDs.map(RecallFrontierEngine.normalize)) == [sid]
             if needsAnotherPresentation { assignment.needsAnotherPresentation = true }
-            assignment.modifiedAt = Date()
+            if needsPractice && alone {
+                assignment.needsPractice = true
+                flaggedHerOwn = true
+            }
+            if needsAnotherPresentation || (needsPractice && alone) { assignment.modifiedAt = Date() }
+        }
+        if needsPractice, !flaggedHerOwn,
+           let latest = BlockingAlgorithmEngine.latestFirst(hers.filter(\.isGiven)).first {
+            addPracticeWork(studentID: sid, lessonID: entry.frontierLessonID, on: latest)
+        }
+    }
+
+    /// Practice work of her own on `presentation`, unless she already has open work there.
+    private func addPracticeWork(studentID: String, lessonID: UUID, on presentation: CDLessonAssignment) {
+        guard let studentUUID = UUID(uuidString: studentID), let presentationID = presentation.id else { return }
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            NSPredicate(format: "presentationID == %@", presentationID.uuidString),
+            WorkStatus.openPredicate
+        ])
+        let hasOpenWork = context.safeFetch(request).contains { work in
+            WorkGrouping.owner(of: work) == studentUUID
+        }
+        guard !hasOpenWork else { return }
+        do {
+            try WorkRepository(context: context).createWork(
+                studentID: studentUUID,
+                lessonID: lessonID,
+                kind: .practiceLesson,
+                presentationID: presentationID,
+                saveImmediately: false
+            )
+        } catch {
+            Logger.students.warning("Recall: no practice work added for a shaky check: \(error.localizedDescription)")
         }
     }
 }

@@ -8,6 +8,7 @@ struct PracticeSessionSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     @Environment(\.dependencies) private var dependencies
 
@@ -23,7 +24,6 @@ struct PracticeSessionSheet: View {
     @State var selectedStudentIDs: Set<UUID> = []
     @State var selectedWorkItemIDs: Set<UUID> = []
     @State var sharedNotes: String = ""
-    @State var duration: TimeInterval?
     @State var hasDuration: Bool = false
     @State var durationMinutes: Int = 30
     @State var location: String = ""
@@ -263,11 +263,29 @@ struct PracticeSessionSheet: View {
         }
     }
     
+    /// Saves through `SaveCoordinator` and closes only when the save worked;
+    /// a failed save takes back this session and its notes, says so, and
+    /// keeps the sheet open, so Save again doesn't record it twice.
     private func saveSession() {
-        // Create practice session
+        var saved: CDPracticeSession?
+        let didSave = saveCoordinator.saveEdit(in: viewContext, reason: "Save practice session") {
+            saved = insertSession()
+        }
+        guard didSave, let session = saved else {
+            ToastService.shared.showError("Couldn't save this practice session. Try again.")
+            return
+        }
+        onSave?(session)
+        dismiss()
+    }
+
+    private func insertSession() -> CDPracticeSession {
         let session = CDPracticeSession(context: viewContext)
         session.date = selectedDate
-        session.durationInterval = hasDuration ? duration : nil
+        // The minutes shown, as Record Practice saves them. The duration used
+        // to be copied only when the stepper moved, so the default 30 was
+        // saved as no duration at all.
+        session.durationInterval = hasDuration ? TimeInterval(durationMinutes * 60) : nil
         session.studentIDsArray = Array(selectedStudentIDs).map(\.uuidString)
         session.workItemIDsArray = Array(selectedWorkItemIDs).map(\.uuidString)
         session.sharedNotes = sharedNotes
@@ -306,10 +324,7 @@ struct PracticeSessionSheet: View {
             // CDStudent links managed by Core Data relationships
         }
 
-        viewContext.safeSave()
-
-        onSave?(session)
-        dismiss()
+        return session
     }
 }
 

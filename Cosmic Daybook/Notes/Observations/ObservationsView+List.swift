@@ -158,8 +158,6 @@ extension ObservationsView {
     func reloadAllNotes() {
         loadedItems = []
         usedTags = []
-        lastCursorDate = nil
-        hasMore = true
         Task { await loadAllNotes() }
     }
 
@@ -170,7 +168,6 @@ extension ObservationsView {
 
         loadedItems = ObservationsDataLoader.loadAllNotes(context: viewContext)
         usedTags = ObservationsFilterService.usedTags(in: loadedItems)
-        hasMore = false
         loadStudentsIfNeeded(for: filteredItems)
     }
 

@@ -72,11 +72,18 @@ struct DataManagementPanel: View {
                     viewModel.resultSummary = nil
                 }
             }
-            .sheet(item: $viewModel.restorePreviewData) { preview in
-                RestorePreviewView(preview: preview, onCancel: { viewModel.restorePreviewData = nil }, onConfirm: {
-                    Task { await viewModel.performImportConfirmed(viewContext: viewContext) }
-                })
-            }
+            // Restore Now closes the preview; the restore runs once the sheet
+            // has gone, so the card's progress bar shows it and a failure's
+            // alert isn't presented behind the sheet.
+            .sheet(item: $viewModel.restorePreviewData, onDismiss: {
+                Task { await viewModel.restorePreviewDismissed(viewContext: viewContext) }
+            }, content: { preview in
+                RestorePreviewView(
+                    preview: preview,
+                    onCancel: { viewModel.restorePreviewData = nil },
+                    onConfirm: { viewModel.confirmRestore() }
+                )
+            })
             .onAppear {
                 viewModel.loadDefaultFolderName()
                 viewModel.calculateEstimatedBackupSize(viewContext: viewContext)

@@ -8,14 +8,6 @@ enum WorkCardBadge: Equatable {
     case status(String)
 }
 
-/// Participant display data for compact mode
-struct WorkCardParticipant: Identifiable {
-    let id: UUID
-    let studentID: UUID
-    let name: String
-    let isCompleted: Bool
-}
-
 /// Work type visual attributes
 /// Uses WorkKind styling for consistency across the app
 enum WorkCardWorkType {
@@ -50,38 +42,5 @@ enum WorkCardWorkType {
 
     var color: Color {
         asWorkKind.color
-    }
-}
-
-/// Work kind visual attributes (for pill mode)
-/// Wrapper that uses WorkKind styling for consistency
-enum WorkCardWorkKind {
-    case practiceLesson
-    case followUpAssignment
-    case report
-    case other
-
-    init(from kind: WorkKind?) {
-        switch kind {
-        case .practiceLesson: self = .practiceLesson
-        case .followUpAssignment: self = .followUpAssignment
-        case .report: self = .report
-        case .research: self = .other
-        case nil: self = .other
-        }
-    }
-
-    /// Convert to WorkKind for consistent styling
-    private var asWorkKind: WorkKind? {
-        switch self {
-        case .practiceLesson: return .practiceLesson
-        case .followUpAssignment: return .followUpAssignment
-        case .report: return .report
-        case .other: return .research
-        }
-    }
-
-    var color: Color {
-        asWorkKind?.color ?? .secondary
     }
 }

@@ -148,28 +148,66 @@ enum MeetingPersistenceService {
         write(merged, studentID: studentID, defaults: defaults)
     }
 
+    /// The student record's Meetings tab's save: only its fields that differ
+    /// from `base` (what the tab last loaded or wrote) are written, and the
+    /// rest keep what is stored. A tab open beside the child's meeting in the
+    /// Meetings window then can't write back text the window changed since
+    /// (bug hunt 2026-10-10 review). The workflow's own fields are kept.
+    static func saveTabFields(
+        studentID: UUID, data: CurrentMeetingData, base: CurrentMeetingData, defaults: UserDefaults = .standard
+    ) {
+        var merged = loadCurrent(studentID: studentID, defaults: defaults)
+        if data.isCompleted != base.isCompleted { merged.isCompleted = data.isCompleted }
+        if data.reflectionText != base.reflectionText { merged.reflectionText = data.reflectionText }
+        if data.focusText != base.focusText { merged.focusText = data.focusText }
+        if data.requestsText != base.requestsText { merged.requestsText = data.requestsText }
+        if data.guideNotesText != base.guideNotesText { merged.guideNotesText = data.guideNotesText }
+        if data.nextMeetingDate != base.nextMeetingDate { merged.nextMeetingDate = data.nextMeetingDate }
+        write(merged, studentID: studentID, defaults: defaults)
+    }
+
     private static func write(_ draft: CurrentMeetingData, studentID: UUID, defaults: UserDefaults) {
         let key = draftKey(studentID)
-        let hadDraft = defaults.object(forKey: key) != nil
+        let before = defaults.data(forKey: key)
         if draft.isEmpty && draft.nextMeetingDate == nil && !draft.isCompleted {
             defaults.removeObject(forKey: key)
         } else if let data = try? JSONEncoder().encode(draft) {
             defaults.set(data, forKey: key)
         }
-        if hadDraft != (defaults.object(forKey: key) != nil) {
-            NotificationCenter.default.post(name: .meetingDraftsDidChange, object: nil)
-        }
+        postChanges(studentID: studentID, before: before, after: defaults.data(forKey: key))
     }
 
     // MARK: - Clear Current
 
     /// Removes the child's draft, old keys included.
     static func clearCurrent(studentID: UUID, defaults: UserDefaults = .standard) {
-        let hadDraft = defaults.object(forKey: draftKey(studentID)) != nil
+        let before = defaults.data(forKey: draftKey(studentID))
         defaults.removeObject(forKey: draftKey(studentID))
         removeLegacy(studentID: studentID, defaults: defaults)
-        if hadDraft {
+        postChanges(studentID: studentID, before: before, after: nil)
+    }
+
+    // MARK: - Change notices
+
+    /// The key in `meetingDraftDidChange`'s user info that holds the child's ID.
+    static let changedStudentIDKey = "studentID"
+
+    /// The child a `meetingDraftDidChange` notice is about.
+    static func studentID(of notice: Notification) -> UUID? {
+        notice.userInfo?[changedStudentIDKey] as? UUID
+    }
+
+    /// The queue's pencil hears when a draft appears or goes away; a meeting
+    /// open on the child hears every change to hers, so a second window on
+    /// her can take it up (bug hunt 2026-10-10, #11).
+    private static func postChanges(studentID: UUID, before: Data?, after: Data?) {
+        if (before == nil) != (after == nil) {
             NotificationCenter.default.post(name: .meetingDraftsDidChange, object: nil)
+        }
+        if before != after {
+            NotificationCenter.default.post(
+                name: .meetingDraftDidChange, object: nil, userInfo: [changedStudentIDKey: studentID]
+            )
         }
     }
 

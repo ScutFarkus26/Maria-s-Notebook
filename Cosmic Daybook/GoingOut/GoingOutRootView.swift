@@ -14,7 +14,16 @@ struct GoingOutRootView: View {
     // Change detection
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDGoingOut.createdAt, ascending: false)])
     private var goingOutsForChange: FetchedResults<CDGoingOut>
-    private var changeToken: Int { goingOutsForChange.count }
+    /// Moves on an add or delete, and on a status change, so a going-out
+    /// marked done or cancelled moves to its list when she comes back.
+    private var changeToken: Int {
+        var hasher = Hasher()
+        for goingOut in goingOutsForChange {
+            hasher.combine(goingOut.objectID)
+            hasher.combine(goingOut.statusRaw)
+        }
+        return hasher.finalize()
+    }
 
     var body: some View {
         content
@@ -65,52 +74,36 @@ struct GoingOutRootView: View {
                 summaryRow
                     .padding(.horizontal)
 
-                // Active going-outs
-                if !viewModel.activeGoingOuts.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Active")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .padding(.horizontal)
-
-                        LazyVStack(spacing: 8) {
-                            ForEach(viewModel.activeGoingOuts, id: \.objectID) { goingOut in
-                                NavigationLink {
-                                    GoingOutDetailView(goingOut: goingOut)
-                                } label: {
-                                    GoingOutSidebarRow(goingOut: goingOut)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-                }
-
-                // Completed going-outs
-                if !viewModel.completedGoingOuts.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Completed")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal)
-
-                        LazyVStack(spacing: 8) {
-                            ForEach(viewModel.completedGoingOuts, id: \.objectID) { goingOut in
-                                NavigationLink {
-                                    GoingOutDetailView(goingOut: goingOut)
-                                } label: {
-                                    GoingOutSidebarRow(goingOut: goingOut)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-                }
+                goingOutSection("Active", items: viewModel.activeGoingOuts, isSecondary: false)
+                goingOutSection("Completed", items: viewModel.completedGoingOuts, isSecondary: true)
+                goingOutSection("Cancelled", items: viewModel.cancelledGoingOuts, isSecondary: true)
             }
             .padding(.bottom, 24)
+        }
+    }
+
+    @ViewBuilder
+    private func goingOutSection(_ title: String, items: [CDGoingOut], isSecondary: Bool) -> some View {
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(isSecondary ? HierarchicalShapeStyle.secondary : HierarchicalShapeStyle.primary)
+                    .padding(.horizontal)
+
+                LazyVStack(spacing: 8) {
+                    ForEach(items, id: \.objectID) { goingOut in
+                        NavigationLink {
+                            GoingOutDetailView(goingOut: goingOut)
+                        } label: {
+                            GoingOutSidebarRow(goingOut: goingOut)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal)
+            }
         }
     }
 

@@ -5,7 +5,6 @@ struct AppSearchView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
     @State private var results: [SearchResult] = []
-    @State private var selectedTypes: Set<SearchableEntityType>?
     @FocusState private var isSearchFieldFocused: Bool
 
     private let searchIndex = SearchIndexService.shared
@@ -40,6 +39,11 @@ struct AppSearchView: View {
             // opening search always ends in a usable index rather than a
             // permanent "Getting search ready…" spinner.
             .task { await searchIndex.ensureReady() }
+            // Anything typed while the index was getting ready was searched
+            // against nothing; run it again now there is something to search.
+            .onChange(of: searchIndex.isReady) { _, isReady in
+                if isReady { performSearch(query: searchText) }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
@@ -122,7 +126,7 @@ struct AppSearchView: View {
             results = []
             return
         }
-        results = searchIndex.search(query: trimmed, entityTypes: selectedTypes, limit: 50)
+        results = searchIndex.search(query: trimmed, limit: 50)
     }
 }
 

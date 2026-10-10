@@ -86,12 +86,14 @@ final class MonthlyReportContextBuilderTests {
         inMonthWork.id = UUID()
         inMonthWork.studentID = studentID
         inMonthWork.title = "Checkerboard follow-up"
+        inMonthWork.status = .mastered
         inMonthWork.completedAt = date(2026, 9, 15)
 
         let outOfMonthWork = CDWorkModel(context: ctx)
         outOfMonthWork.id = UUID()
         outOfMonthWork.studentID = studentID
         outOfMonthWork.title = "October work"
+        outOfMonthWork.status = .mastered
         outOfMonthWork.completedAt = date(2026, 10, 1, hour: 0)
         #expect(CoreDataTestHelpers.save(ctx))
 

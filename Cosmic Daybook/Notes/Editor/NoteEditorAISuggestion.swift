@@ -4,6 +4,38 @@
 import SwiftUI
 import CoreData
 
+// MARK: - Suggested Names
+
+/// Which children the names Suggest Tags read in a note mean.
+enum SuggestedStudentMatcher {
+    /// A name counts only when exactly one child answers to it: a full name
+    /// first, then a short name ("Maya S"), then a first name or nickname.
+    /// "Sarah" with two Sarahs names nobody; it used to pick the first Sarah.
+    static func studentIDs(for names: [String], among students: [CDStudent]) -> [UUID] {
+        var found: [UUID] = []
+        for name in names {
+            let token = name.folded()
+            guard !token.isEmpty, let id = onlyMatch(for: token, among: students) else { continue }
+            if !found.contains(id) { found.append(id) }
+        }
+        return found
+    }
+
+    private static func onlyMatch(for token: String, among students: [CDStudent]) -> UUID? {
+        let tiers: [(CDStudent) -> Bool] = [
+            { ($0.firstName + " " + $0.lastName).folded() == token },
+            { $0.shortName.folded() == token },
+            { $0.firstName.folded() == token || (($0.nickname ?? "").folded() == token && !token.isEmpty) }
+        ]
+        for matches in tiers {
+            let hits = students.filter(matches)
+            if hits.count == 1 { return hits[0].id }
+            if hits.count > 1 { return nil }
+        }
+        return nil
+    }
+}
+
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
 import FoundationModels
 
@@ -38,7 +70,6 @@ extension UnifiedNoteEditor {
         }
     }
 
-    // swiftlint:disable:next function_body_length
     func suggestTagsAndScope() async {
         let noteImage = noteImageForAI
         guard !bodyText.trimmed().isEmpty || noteImage != nil else { return }
@@ -86,19 +117,10 @@ extension UnifiedNoteEditor {
                 return TagHelper.createTag(name: displayName, color: color)
             }
 
-            let ids: [UUID] = content.studentIdentifiers.compactMap { ident in
-                let token = ident.folded()
-                return students.first(where: { s in
-                    let first = s.firstName.folded()
-                    let last = s.lastName.folded()
-                    let nick = (s.nickname ?? "").folded()
-                    let full = (first + " " + last)
-                    return token == full || token == first || (!nick.isEmpty && token == nick)
-                })?.id
-            }
-
             self.proposedTags = suggestedTags
-            self.proposedStudentIDs = Array(Set(ids))
+            self.proposedStudentIDs = SuggestedStudentMatcher.studentIDs(
+                for: content.studentIdentifiers, among: students
+            )
             self.showingSuggestionSheet = true
         } catch let error as LanguageModelError {
             self.suggestionError = suggestionMessage(for: error)
@@ -214,7 +236,7 @@ struct SuggestionPreviewSheet: View {
                     }
                 }
             } else {
-                HStack { Text("Scope:").bold(); Text("All Students") }
+                HStack { Text("Children:").bold(); Text("No change") }
             }
             HStack {
                 Spacer()
@@ -258,13 +280,13 @@ struct SuggestionPreviewSheet: View {
                 }
                 if !proposedStudentIDs.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Scope:").bold()
+                        Text("Adds:").bold()
                         ForEach(proposedStudentIDs, id: \.self) { id in
                             Text(name(for: id))
                         }
                     }
                 } else {
-                    HStack { Text("Scope:").bold(); Text("All Students") }
+                    HStack { Text("Children:").bold(); Text("No change") }
                 }
                 Spacer()
             }

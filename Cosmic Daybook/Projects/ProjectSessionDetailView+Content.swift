@@ -136,7 +136,8 @@ extension ProjectSessionDetailView {
             lesson: UUID(uuidString: work.lessonID).flatMap { lessonsByID[$0] },
             onChangeLesson: { showLessonPickerForWork = work },
             onEditStep: { step in editStep(for: work, step: step) },
-            onSave: { reason in saveProjectSession(reason: reason) }
+            onSave: { reason in saveProjectSession(reason: reason) },
+            onEdited: { reason in scheduleProjectSave(reason: reason) }
         )
     }
 }
@@ -149,6 +150,8 @@ private struct ProjectWorkProgressRow: View {
     let onChangeLesson: () -> Void
     let onEditStep: (CDWorkStep?) -> Void
     let onSave: (String) -> Void
+    /// A typed edit: saved once typing pauses.
+    var onEdited: (String) -> Void = { _ in }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -227,6 +230,9 @@ private struct ProjectWorkProgressRow: View {
         }
         .padding(.vertical, 6)
         .onDisappear { persist(reason: "Save Project Follow-Up") }
+        // The title field writes straight to the work; save once typing pauses,
+        // without marking the work touched per keystroke (Return still does).
+        .onChange(of: work.title) { _, _ in onEdited("Rename Project Follow-Up") }
     }
 
     private func updateStatus(_ status: WorkStatus) {

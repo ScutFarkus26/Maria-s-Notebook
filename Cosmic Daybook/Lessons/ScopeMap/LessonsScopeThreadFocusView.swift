@@ -47,9 +47,10 @@ struct LessonsScopeThreadFocusView: View {
     /// Right-click → insert a new lesson directly after the source lesson, with area,
     /// sequence, and section pre-filled from the source.
     var onCreateLessonAfter: ((CDLesson) -> Void)?
-    /// Drag-reorder callback. Source IndexSet and destination index match SwiftUI's
-    /// `.onMove` convention so it can call `moveLessonsInArea` directly.
-    var onReorderLessons: ((IndexSet, Int) -> Void)?
+    /// Drag-reorder callback: the dragged lesson's id and the id of the lesson it was
+    /// dropped on. Ids, not list positions, so the receiver can't apply them to a
+    /// differently filtered list (`LessonSequenceOrdering.move`).
+    var onReorderLessons: ((UUID, UUID) -> Void)?
 
     @State private var dropTargetLessonID: UUID?
     @State private var dropTargetSection: String?
@@ -223,17 +224,11 @@ struct LessonsScopeThreadFocusView: View {
     private func handleDrop(items: [LessonTransfer], onto target: CDLesson) -> Bool {
         guard let item = items.first,
               let targetID = target.id,
-              item.lessonID != targetID
+              item.lessonID != targetID,
+              sortedLessons.contains(where: { $0.id == item.lessonID })
         else { return false }
 
-        let ids = sortedLessons.compactMap(\.id)
-        guard let srcIdx = ids.firstIndex(of: item.lessonID),
-              let dstIdx = ids.firstIndex(of: targetID)
-        else { return false }
-
-        // SwiftUI's onMove convention: when moving down, destination is one past the target index.
-        let adjustedDst = dstIdx > srcIdx ? dstIdx + 1 : dstIdx
-        onReorderLessons?(IndexSet(integer: srcIdx), adjustedDst)
+        onReorderLessons?(item.lessonID, targetID)
         return true
     }
 

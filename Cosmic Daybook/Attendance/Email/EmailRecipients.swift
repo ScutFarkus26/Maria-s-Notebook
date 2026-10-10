@@ -40,6 +40,16 @@ extension AttendanceEmail {
         return result
     }
 
+    /// The addresses in what was typed, written the way every build reads
+    /// them: "office@school.org, nurse@school.org". The classroom share
+    /// carries this rather than what was typed, since an Assistant from
+    /// before spaces counted as separators reads "a@x.org b@y.org" as one
+    /// broken address (bug hunt 2026-10-10 #23). Entries that aren't
+    /// addresses are left out; they get no email either way.
+    public static func sharedAddressLine(_ string: String?) -> String {
+        parseRecipients(from: string).joined(separator: ", ")
+    }
+
     /// The plain line Settings shows under an address field when some of
     /// what was typed isn't an address; nil when it all is.
     public static func leftOutNote(for string: String?) -> String? {

@@ -94,9 +94,12 @@ struct StudentNoteRowView: View {
     // MARK: - Reporter Info
     
     private var isReportedByGuide: Bool {
-        // If reportedBy is nil or "guide", consider it from the guide
+        // If reportedBy is nil or "guide", consider it from the guide. A note
+        // kept from an old note field is the guide's own too: its internal
+        // label used to show as "Legacyfield: system".
         guard let reportedBy = item.reportedBy else { return true }
         return reportedBy.lowercased() == "guide" || reportedBy.isEmpty
+            || reportedBy == LegacyNoteFieldConstants.reporter
     }
     
     @ViewBuilder

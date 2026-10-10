@@ -120,6 +120,15 @@ struct StudentProgressTab: View {
             }
             .padding(.vertical, AppTheme.Spacing.medium)
         }
+        // Edits elsewhere (a lesson given, work closed, a mark) used to leave
+        // this tab stale until it was opened again.
+        .onPresentationDataChangeWhenVisible(
+            of: ["LessonAssignment", "WorkModel", "LessonPresentation"],
+            in: viewContext,
+            catchUpOnAppear: false
+        ) {
+            viewModel.loadData(for: student, context: viewContext)
+        }
         .onAppear {
             viewModel.configure(for: student, context: viewContext)
         }

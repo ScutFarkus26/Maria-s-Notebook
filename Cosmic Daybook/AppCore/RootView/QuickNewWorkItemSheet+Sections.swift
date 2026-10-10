@@ -46,6 +46,7 @@ extension QuickNewWorkItemSheet {
                     Button {
                         selectedLessonID = nil
                         lessonSearchText = ""
+                        fillTitle(with: "")
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(.secondary)
@@ -84,10 +85,14 @@ extension QuickNewWorkItemSheet {
                     .pickerStyle(.menu)
                 }
                 .onChange(of: selectedSampleWorkID) { _, newID in
+                    guard let lesson = selectedLesson else { return }
+                    // Back to None: the title goes back to the lesson's.
                     guard let id = newID,
-                          let lesson = selectedLesson,
-                          let sw = lesson.orderedSampleWorks.first(where: { $0.id == id }) else { return }
-                    workTitle = sw.title
+                          let sw = lesson.orderedSampleWorks.first(where: { $0.id == id }) else {
+                        fillTitle(with: lesson.name)
+                        return
+                    }
+                    fillTitle(with: sw.title)
                     if let kind = sw.workKind { workKind = kind }
                 }
             }
@@ -139,11 +144,17 @@ extension QuickNewWorkItemSheet {
         showingLessonPopover = false
         lessonFieldFocused = false
         selectedSampleWorkID = nil
+        fillTitle(with: lesson.name)
+    }
 
-        // Auto-set work title if empty
-        if workTitle.isEmpty {
-            workTitle = lesson.name
-        }
+    /// Puts the lesson's or template's name in the title unless she has typed
+    /// her own.
+    func fillTitle(with suggested: String) {
+        guard let title = WorkTitleAutoFill.title(
+            current: workTitle, autoFilled: autoFilledTitle, suggested: suggested
+        ) else { return }
+        workTitle = title
+        autoFilledTitle = title
     }
 
     // MARK: - CDStudent Section

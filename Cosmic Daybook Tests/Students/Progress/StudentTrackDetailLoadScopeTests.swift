@@ -8,7 +8,8 @@ import Testing
 /// `StudentAreaProgressionViewModel`. Before 2026-09-21 the pair read every
 /// student, lesson, mark, assignment, work row and check-in; now each read is
 /// scoped to the track's area and sequence and to the child. The sheet's
-/// output, and the next lesson it schedules, must not change.
+/// output, and the lesson it plans, must not change. (Since 2026-10-10 the
+/// timeline reads mastery from the mark and plans the lesson tapped.)
 @Suite("Student Track Detail load scope")
 @MainActor
 struct StudentTrackDetailLoadScopeTests {
@@ -150,7 +151,7 @@ struct StudentTrackDetailLoadScopeTests {
         #expect(second.isNext)
     }
 
-    @Test("Scheduling the next lesson still drafts it once and then sees the draft")
+    @Test("Planning the next lesson drafts it once and then sees the draft")
     func scheduleNextLessonSeesTheDraftItMade() throws {
         let seeded = try seed(others: 12)
         defer { withExtendedLifetime(seeded.owner) {} }
@@ -159,9 +160,9 @@ struct StudentTrackDetailLoadScopeTests {
 
         let timeline = StudentAreaProgressionViewModel()
         timeline.configure(for: seeded.student, area: "Math", sequence: "Chains", context: seeded.context)
-        timeline.scheduleNextLesson(after: seeded.firstLesson, context: seeded.context)
+        timeline.planLesson(seeded.secondLesson, context: seeded.context)
         timeline.configure(for: seeded.student, area: "Math", sequence: "Chains", context: seeded.context)
-        timeline.scheduleNextLesson(after: seeded.firstLesson, context: seeded.context)
+        timeline.planLesson(seeded.secondLesson, context: seeded.context)
 
         let drafts = CDFetchRequest(CDLessonAssignment.self)
         drafts.predicate = NSPredicate(format: "lessonID == %@", secondID.uuidString)

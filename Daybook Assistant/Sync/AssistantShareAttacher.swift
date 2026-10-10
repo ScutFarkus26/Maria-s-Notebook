@@ -96,25 +96,24 @@ final class AssistantShareAttacher {
         _ context: NSManagedObjectContext
     ) async -> [NSManagedObjectID]
     private let zoneCheck: ZoneCheck
+    let filingStopReason: FilingStopReason
 
-    /// Tests pass `now`, `sleep`, `attempt` and `zoneCheck`: the real ones
-    /// need a classroom share.
+    /// Tests pass `now`, `sleep`, `attempt`, `zoneCheck` and `filingStopReason`
+    /// (`+Hold`): the real ones need a classroom share.
     init(
         defaults: UserDefaults = .standard,
         now: @escaping @MainActor () -> Date = Date.init,
         sleep: @escaping Sleep = { try await Task.sleep(for: .seconds($0)) },
-        attempt: @escaping Attempt = { ids, container, context in
-            await CDAttendanceStore.attachNewRecordsToClassroomShare(ids, container: container, pinContext: context)
-        },
-        zoneCheck: @escaping ZoneCheck = { ids, container, context in
-            await AssistantShareAttacher.outsidePinnedZone(ids, container: container, context: context)
-        }
+        attempt: @escaping Attempt = AssistantShareAttacher.liveAttempt,
+        zoneCheck: @escaping ZoneCheck = AssistantShareAttacher.liveZoneCheck,
+        filingStopReason: @escaping FilingStopReason = { AssistantStack.filingStopReason }
     ) {
         self.defaults = defaults
         self.now = now
         self.sleep = sleep
         self.attempt = attempt
         self.zoneCheck = zoneCheck
+        self.filingStopReason = filingStopReason
         pendingCount = defaults.stringArray(forKey: Self.listKey)?.count ?? 0
     }
 
@@ -206,7 +205,7 @@ final class AssistantShareAttacher {
             }
             guard let container = lastContainer, let context = lastContext else { return }
             // What's waiting stays in the list for a stack that can send it.
-            guard container !== stoppedContainer else { return }
+            guard container !== stoppedContainer, !filingWaits() else { return }
             let backlogDue = now() >= backlogWaitsUntil
             if backlogDue, !triedEarly { earlyTryFailed = false }
             let wasEarly = triedEarly

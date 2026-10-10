@@ -273,6 +273,9 @@ final class EntityIDIndexCache {
         let request = NSFetchRequest<NSDictionary>(entityName: entityName)
         request.resultType = .dictionaryResultType
         request.propertiesToFetch = ["id"]
+        // What the restore would update: a record only in the shared store (a
+        // classroom someone else shared) gets a private copy, so it's an add.
+        BackupRestoreScope.limitToNotebook(request, in: context)
         let rows = try context.fetch(request)
         return Set(rows.compactMap { $0["id"] as? UUID })
     }

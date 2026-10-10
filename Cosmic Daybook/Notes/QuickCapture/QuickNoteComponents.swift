@@ -11,7 +11,6 @@ import UIKit
 // MARK: - CDStudent Chip
 
 struct QuickNoteStudentChip: View {
-    let student: CDStudent
     let displayName: String
     let onRemove: () -> Void
     
@@ -36,6 +35,7 @@ struct QuickNoteStudentChip: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Remove \(displayName)")
         }
         .padding(.leading, 4)
         .padding(.trailing, 8)
@@ -48,22 +48,21 @@ struct QuickNoteStudentChip: View {
 // MARK: - Selected Students Bar
 
 struct SelectedStudentsBar: View {
+    /// Everyone a chip might name, withdrawn children included.
     let students: [CDStudent]
     let selectedStudentIDs: Set<UUID>
     let displayName: (CDStudent) -> String
     let onRemove: (UUID) -> Void
-    
+
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(selectedStudentIDs.sorted { $0.uuidString < $1.uuidString }, id: \.self) { id in
-                    if let student = students.first(where: { $0.id == id }) {
-                        QuickNoteStudentChip(
-                            student: student,
-                            displayName: displayName(student)
-                        ) {
-                            onRemove(id)
-                        }
+                    // A child no longer in the notebook still gets a chip, so
+                    // she can be taken off the note.
+                    let name = students.first(where: { $0.id == id }).map(displayName) ?? "Student removed"
+                    QuickNoteStudentChip(displayName: name) {
+                        onRemove(id)
                     }
                 }
             }
@@ -176,7 +175,7 @@ struct QuickNoteAIMenuButton: View {
                 // Logic-Based (Not AI) - Always Available and Deterministic
                 Button(action: onFormatNames) {
                     Label {
-                        Text("Format Names (Maria G.)")
+                        Text("Format Names (Maria G)")
                     } icon: {
                         Image(systemName: "person.text.rectangle")
                     }
@@ -220,6 +219,8 @@ struct QuickNoteAttachmentThumbnail: View {
 
 struct QuickNoteEditor: View {
     @Binding var bodyText: String
+    /// Her cursor, so auto-tidy can put it back where she was typing.
+    @Binding var selection: TextSelection?
     @FocusState.Binding var isFocused: Bool
     let isProcessingAI: Bool
     let onTextChange: (String) -> Void
@@ -239,7 +240,7 @@ struct QuickNoteEditor: View {
     #if os(macOS)
     private var macOSEditor: some View {
         ZStack(alignment: .topTrailing) {
-            TextEditor(text: $bodyText)
+            TextEditor(text: $bodyText, selection: $selection)
                 .font(AppTheme.ScaledFont.callout)
                 .lineSpacing(6)
                 .scrollContentBackground(.hidden)
@@ -266,7 +267,7 @@ struct QuickNoteEditor: View {
                     .padding(.vertical, 16)
             }
             
-            TextEditor(text: $bodyText)
+            TextEditor(text: $bodyText, selection: $selection)
                 .font(.system(.body, design: .rounded))
                 .scrollContentBackground(.hidden)
                 .padding(.horizontal, 16)

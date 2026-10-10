@@ -203,7 +203,10 @@ nonisolated final class AppleIntelligenceCommandParser: Sendable {
         }
 
         // Keep the roster order stable so the review does not visually jump.
-        let rosterOrder = Dictionary(uniqueKeysWithValues: students.enumerated().map { ($0.element.id, $0.offset) })
+        let rosterOrder = Dictionary(
+            students.enumerated().map { ($0.element.id, $0.offset) },
+            uniquingKeysWith: { first, _ in first }
+        )
         entries.sort { (rosterOrder[$0.studentID] ?? .max) < (rosterOrder[$1.studentID] ?? .max) }
 
         let lessonName = generated.lessonName.trimmed()

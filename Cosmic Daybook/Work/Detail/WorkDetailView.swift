@@ -227,7 +227,7 @@ struct WorkDetailView: View {
             Button("Not Yet", role: .cancel) { }
         } message: {
             if let nextLesson = viewModel.nextLessonToUnlock {
-                let studentName = viewModel.relatedStudent?.firstName
+                let studentName = viewModel.relatedStudent?.shortName
                     ?? "this student"
                 Text("Ready to unlock \(nextLesson.name) for \(studentName)?")
             }
@@ -239,7 +239,7 @@ struct WorkDetailView: View {
                     let trimmed = viewModel.editingNoteDraft.trimmed()
                     _ = checkIn.setLegacyNoteText(trimmed.isEmpty ? nil : trimmed, in: modelContext)
                     saveCoordinator.save(modelContext, reason: "Edit check-in note")
-                    viewModel.loadWork(modelContext: modelContext, saveCoordinator: saveCoordinator)
+                    viewModel.reloadNotes()
                 }
                 viewModel.editingNoteCheckIn = nil
             }
@@ -322,8 +322,8 @@ extension WorkDetailView {
             context: .work(work),
             initialNote: note,
             onSave: { _ in
-                // Reload notes after saving
-                viewModel.loadWork(modelContext: modelContext, saveCoordinator: saveCoordinator)
+                // The notes only: unsaved header edits stay as they are.
+                viewModel.reloadNotes()
                 activeSheet = nil
             },
             onCancel: {

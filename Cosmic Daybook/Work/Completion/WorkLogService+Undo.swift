@@ -99,6 +99,13 @@ extension WorkLogService {
     }
 
     /// The in-memory half of `undo`; also what a failed save falls back to.
+    ///
+    /// A receipt can be taken back long after the log (a meeting's Clear
+    /// reads it from the stored draft), so what the guide has changed since
+    /// is left as she left it: a check-in she has moved or marked keeps that,
+    /// and a repeating todo's next copy goes only through
+    /// `TodoCompletionService.reopen`, which removes it only while nobody has
+    /// changed it (bug hunt 2026-10-10 review).
     static func revert(_ token: UndoToken, in context: NSManagedObjectContext) {
         // Snapshots were appended as rows were touched; the first snapshot of
         // an object is its pre-log state, so restore in reverse order.
@@ -113,7 +120,8 @@ extension WorkLogService {
             }
         }
         for snapshot in token.checkIns.reversed() {
-            if let checkIn = context.existing(CDWorkCheckIn.self, snapshot.objectID) {
+            if let checkIn = context.existing(CDWorkCheckIn.self, snapshot.objectID),
+               isAsSettled(checkIn, from: snapshot, on: token.day) {
                 checkIn.statusRaw = snapshot.statusRaw
                 checkIn.date = snapshot.date
             }
@@ -124,10 +132,20 @@ extension WorkLogService {
             }
         }
         for objectID in token.createdObjectIDs {
-            if let object = context.existing(objectID), !object.isDeleted {
+            if let object = context.existing(objectID), !object.isDeleted, !(object is CDTodoItem) {
                 context.delete(object)
             }
         }
         context.processPendingChanges()
+    }
+
+    /// Whether a check-in is still as `log` settled it: on the day it was
+    /// planned for, completed if that day had come by the log's day and
+    /// skipped if not (`settleCheckIns`).
+    private static func isAsSettled(_ checkIn: CDWorkCheckIn, from snapshot: CheckInSnapshot, on day: Date) -> Bool {
+        guard let planned = snapshot.date else { return checkIn.date == nil }
+        guard let date = checkIn.date, abs(date.timeIntervalSince(planned)) < 0.001 else { return false }
+        let settled: WorkCheckInStatus = AppCalendar.startOfDay(planned) <= day ? .completed : .skipped
+        return checkIn.statusRaw == settled.rawValue
     }
 }

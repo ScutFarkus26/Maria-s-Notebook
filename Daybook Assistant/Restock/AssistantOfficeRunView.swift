@@ -13,11 +13,11 @@ struct AssistantOfficeRunView: View {
         _ = model.revision
         return List {
             if let error = model.errorMessage {
-                // A check-off that didn't save: said here, where it was made.
+                // A check-off that didn't save: said here, where it was made,
+                // with its own Try Again (a second tap on the row would take
+                // the check-off back).
                 Section {
-                    Label(error, systemImage: "exclamationmark.triangle.fill")
-                        .font(.footnote)
-                        .foregroundStyle(.red)
+                    AssistantRestockSaveProblem(message: error) { _ = model.flush() }
                 }
             }
             Section {
@@ -179,5 +179,26 @@ struct AssistantOfficeRunView: View {
     /// "Glue sticks ×12": the quantity when it's more than one.
     private func title(_ need: CDOrderItem) -> String {
         need.quantity > 1 ? "\(need.displayTitle) ×\(need.quantity)" : need.displayTitle
+    }
+}
+
+/// A Restock change that didn't save: what happened, and Try Again. On the
+/// shelf and the office run, where a second tap on the tile or row would
+/// change it again rather than save it.
+struct AssistantRestockSaveProblem: View {
+    let message: String
+    let retry: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(message, systemImage: "exclamationmark.triangle.fill")
+                .font(.footnote)
+                .foregroundStyle(.red)
+                .fixedSize(horizontal: false, vertical: true)
+            Button("Try Again", action: retry)
+                .font(.footnote.weight(.semibold))
+                .buttonStyle(.bordered)
+                .tint(AssistantRestockStyle.accent)
+        }
     }
 }

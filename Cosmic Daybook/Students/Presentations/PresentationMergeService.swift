@@ -37,7 +37,12 @@ enum PresentationMergeService {
         target.needsAnotherPresentation = target.needsAnotherPresentation || source.needsAnotherPresentation
         target.notes = mergeText(target.notes, source.notes)
         target.followUpWork = mergeText(target.followUpWork, source.followUpWork)
+        target.modifiedAt = Date()
 
+        // The source's observation notes cascade with it, and year-plan
+        // entries promoted into it would point at nothing: both move to the
+        // target first.
+        PresentationRecordCleanup.prepareToMerge(source, into: target, in: context)
         context.delete(source)
         context.safeSave()
         PresentationDetailUtilities.notifyInboxRefresh()

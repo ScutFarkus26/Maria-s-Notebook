@@ -63,9 +63,24 @@ public struct DebouncedSearchField: View {
 
     private func scheduleDebounce(with value: String) {
         task?.cancel()
-        task = Task {
-            try? await Task.sleep(for: debounceInterval)
-            onDebouncedChange(value)
+        task = Self.debounce(value, after: debounceInterval, then: onDebouncedChange)
+    }
+
+    /// Calls `action` with `value` once `interval` has passed, unless the task
+    /// is cancelled first (by the next keystroke). A cancelled wait returns
+    /// without calling it, so only the last value typed is reported.
+    static func debounce(
+        _ value: String,
+        after interval: Duration,
+        then action: @escaping (String) -> Void
+    ) -> Task<Void, Never> {
+        Task {
+            do {
+                try await Task.sleep(for: interval)
+            } catch {
+                return
+            }
+            action(value)
         }
     }
 

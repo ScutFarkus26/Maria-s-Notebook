@@ -179,6 +179,30 @@ extension SampleClassroomSeeder {
                 }
             }
         }
+
+        releaseFilesOfLessonsGone(from: lessons, existing: existingLessons, in: context)
+    }
+
+    /// A sample lesson whose lesson is no longer in My Class lets go of its
+    /// files (records only; nothing on disk is touched). Its copies of the real
+    /// notebook's files would otherwise still point at a file the delete moved
+    /// to the Trash. The lesson itself stays, so lessons made in the Sample
+    /// Class keep their place. Skipped when My Class has no lessons at all
+    /// (before its first download), and runs after the mirror above, so a
+    /// shared attachment handed to another lesson has already moved with it.
+    static func releaseFilesOfLessonsGone(
+        from lessons: [LessonSnapshot], existing: [CDLesson], in context: NSManagedObjectContext
+    ) {
+        guard !lessons.isEmpty else { return }
+        let current = Set(lessons.map(\.id))
+        for lesson in existing where !lesson.isDeleted {
+            guard let id = lesson.id, !current.contains(id) else { continue }
+            if lesson.pagesFileRelativePath != nil { lesson.pagesFileRelativePath = nil }
+            if lesson.pagesFileBookmark != nil { lesson.pagesFileBookmark = nil }
+            for attachment in (lesson.attachments as? Set<CDLessonAttachment>) ?? [] where !attachment.isDeleted {
+                context.delete(attachment)
+            }
+        }
     }
 
     private static func firstByID<Object: NSManagedObject>(

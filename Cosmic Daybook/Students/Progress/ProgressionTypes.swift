@@ -10,7 +10,8 @@ import SwiftUI
 /// it as `notStarted`. See `resolve`.
 enum LessonNodeStatus: Sendable, Equatable {
     case notStarted
-    case scheduled(Date)
+    /// Planned for the child: on a day, or waiting in the inbox with no date (nil).
+    case scheduled(Date?)
     case presented
     case practicing
     case reviewing
@@ -42,7 +43,7 @@ enum LessonNodeStatus: Sendable, Equatable {
     var label: String {
         switch self {
         case .notStarted:       return "Not Started"
-        case .scheduled:        return "Scheduled"
+        case .scheduled(let date): return date == nil ? "Planned" : "Scheduled"
         case .presented:        return "Presented"
         case .practicing:       return "Practicing"
         case .reviewing:        return "Reviewing"
@@ -55,12 +56,15 @@ enum LessonNodeStatus: Sendable, Equatable {
     ///   - isPresented: The child has a presented assignment for the lesson.
     ///   - scheduledFor: The date of the child's planned (not yet presented) assignment;
     ///     nil when there is none or it waits undated in the Inbox.
+    ///   - isPlanned: The child has a planned assignment, dated or waiting undated in the
+    ///     Inbox; an undated one reads "Planned" (bug hunt 2026-10-10, P2 #35).
     ///   - isMastered: The child has a mastery mark on the lesson
     ///     (`PresentationRecordIndex.masteryMarks`).
     ///   - workStatuses: The child's work on the lesson, open and closed.
     static func resolve(
         isPresented: Bool,
         scheduledFor: Date?,
+        isPlanned: Bool = false,
         isMastered: Bool,
         workStatuses: [WorkStatus]
     ) -> LessonNodeStatus {
@@ -68,14 +72,14 @@ enum LessonNodeStatus: Sendable, Equatable {
             isMastered: isMastered,
             workStatuses: workStatuses,
             isPresented: isPresented,
-            isPlanned: scheduledFor != nil
+            isPlanned: scheduledFor != nil || isPlanned
         )
         switch rung {
         case .mastered:   return .mastered
         case .reviewing:  return .reviewing
         case .practicing: return .practicing
         case .presented:  return .presented
-        case .planned:    return scheduledFor.map(LessonNodeStatus.scheduled) ?? .notStarted
+        case .planned:    return .scheduled(scheduledFor)
         case .ready, .notReady: return .notStarted
         }
     }

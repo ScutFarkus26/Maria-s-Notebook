@@ -23,7 +23,10 @@ final class LessonPlanningViewModel {
     private(set) var currentSession: PlanningSession?
     private var planningService: LessonPlanningService?
     private var managedObjectContext: NSManagedObjectContext?
-    
+    private var saveCoordinator: SaveCoordinator?
+    /// Recommendations already put into the plan, so Apply can't add them twice.
+    private(set) var appliedRecommendationIDs: Set<UUID> = []
+
     // MARK: - Computed
 
     var modeTitle: String {
@@ -31,13 +34,19 @@ final class LessonPlanningViewModel {
         case .singleStudent: return "Student Plan"
         }
     }
-    
+
+    /// Apply shows only while an accepted recommendation is still to go in.
     var canApplyPlan: Bool {
-        !recommendations.isEmpty && recommendations.contains { $0.decision == .accepted }
+        !recommendationsToApply.isEmpty
     }
-    
+
     var acceptedRecommendations: [LessonRecommendation] {
         recommendations.filter { $0.decision == .accepted }
+    }
+
+    /// Accepted and not yet in the plan: what Apply adds.
+    var recommendationsToApply: [LessonRecommendation] {
+        acceptedRecommendations.filter { !appliedRecommendationIDs.contains($0.id) }
     }
     
     // MARK: - Init
@@ -52,8 +61,9 @@ final class LessonPlanningViewModel {
     }
     
     /// Configure with dependencies (called from view's onAppear)
-    func configure(context: NSManagedObjectContext, mcpClient: MCPClientProtocol) {
+    func configure(context: NSManagedObjectContext, mcpClient: MCPClientProtocol, saveCoordinator: SaveCoordinator) {
         self.managedObjectContext = context
+        self.saveCoordinator = saveCoordinator
         self.planningService = LessonPlanningService(context: context, mcpClient: mcpClient)
     }
 
@@ -138,6 +148,7 @@ final class LessonPlanningViewModel {
                 session: session,
                 context: context
             )
+            saveFeedback(in: context)
         }
     }
 
@@ -153,36 +164,55 @@ final class LessonPlanningViewModel {
                 session: session,
                 context: context
             )
+            saveFeedback(in: context)
         }
     }
+
+    /// The decision record is only a calibration hint, so a failed save is
+    /// logged (by the coordinator) rather than shown.
+    private func saveFeedback(in context: NSManagedObjectContext) {
+        saveCoordinator?.save(context, reason: "Planning feedback", alertOnFailure: false)
+    }
     
-    /// Applies all accepted recommendations by creating CDLessonAssignment drafts.
+    /// Applies the accepted recommendations not yet in the plan by creating
+    /// CDLessonAssignment drafts, and saves them. A failed save takes the new
+    /// drafts back out, so trying again can't leave two of each.
     func applyPlan() {
-        guard let service = planningService else { return }
-        
-        let toApply = acceptedRecommendations
+        guard !isLoading,
+              let service = planningService,
+              let context = managedObjectContext,
+              let saveCoordinator else { return }
+
+        let toApply = recommendationsToApply
         guard !toApply.isEmpty else { return }
-        
+
         isLoading = true
         currentStep = .creatingAssignments
-        
+        defer { isLoading = false }
+
+        let insertedBefore = context.insertedObjects
         do {
             let created = try service.applyRecommendations(toApply)
-            
+            guard saveCoordinator.save(context, reason: "Apply AI lesson plan", alertOnFailure: false) else {
+                throw PlanningError.saveFailed
+            }
+            appliedRecommendationIDs.formUnion(toApply.map(\.id))
+
             messages.append(PlanningMessage(
                 role: .assistant,
                 content: "Added \(created.count) \(created.count == 1 ? "lesson" : "lessons") to the plan."
             ))
-            
+
             currentStep = .complete
         } catch {
             Self.logger.warning("Failed to apply plan: \(error)")
+            for object in context.insertedObjects.subtracting(insertedBefore) {
+                context.delete(object)
+            }
             // Not an Apple Intelligence failure: the lessons didn't go into the plan.
-            errorMessage = "Couldn't add these lessons to your plan. Try again."
+            errorMessage = "Couldn't add these lessons to your plan. Nothing was added. Try again."
             currentStep = .presentingPlan
         }
-        
-        isLoading = false
     }
     
     // MARK: - Private Pipeline Methods
@@ -229,10 +259,12 @@ final class LessonPlanningViewModel {
 
 enum PlanningError: Error, LocalizedError {
     case studentNotFound
-    
+    case saveFailed
+
     var errorDescription: String? {
         switch self {
         case .studentNotFound: return "Couldn't find this student. Close this and open it again."
+        case .saveFailed: return "Couldn't add these lessons to your plan. Nothing was added. Try again."
         }
     }
 }

@@ -56,8 +56,10 @@ final class TodayCacheManager {
 
     nonisolated static let missInputEntities: Set<String> = ["Student", "Lesson"]
 
-    /// Forgets the roster snapshot and the lesson misses when a student or
-    /// lesson changed since they were read.
+    /// Forgets the roster snapshot, the lesson misses and the cached students
+    /// and lessons when a student or lesson changed since they were read. The
+    /// cached students go too: a child who left (or was hidden) stayed on Today
+    /// until the screen was rebuilt, since a cached id was never looked up again.
     private func dropMissesIfInputsMoved(context: NSManagedObjectContext) {
         let flag: ManagedObjectChangeFlag
         if let existing = missInputs, existing.watches(context) {
@@ -71,6 +73,8 @@ final class TodayCacheManager {
         if flag.consume(pendingIn: context) {
             roster = nil
             missingLessonIDs.removeAll()
+            studentsByID.removeAll()
+            lessonsByID.removeAll()
         }
     }
 
@@ -109,6 +113,7 @@ final class TodayCacheManager {
     /// are cached; the rest resolve against the roster snapshot each time.
     func loadStudentsIfNeeded(ids: Set<UUID>, context: NSManagedObjectContext) {
         guard !ids.isEmpty else { return }
+        dropMissesIfInputsMoved(context: context)
 
         let missingIDSet = ids.filter { studentsByID[$0] == nil }
         guard !missingIDSet.isEmpty else { return }
@@ -130,9 +135,9 @@ final class TodayCacheManager {
     /// remembered, so it does not re-read the table until a lesson changes.
     func loadLessonsIfNeeded(ids: Set<UUID>, context: NSManagedObjectContext) {
         guard !ids.isEmpty else { return }
+        dropMissesIfInputsMoved(context: context)
 
         guard ids.contains(where: { lessonsByID[$0] == nil }) else { return }
-        dropMissesIfInputsMoved(context: context)
         let missingIDSet = ids.filter { lessonsByID[$0] == nil && !missingLessonIDs.contains($0) }
         guard !missingIDSet.isEmpty else { return }
 

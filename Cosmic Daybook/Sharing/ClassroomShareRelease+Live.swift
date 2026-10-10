@@ -69,7 +69,8 @@ extension ClassroomShareRelease {
     static func syncBlocker(sync: CloudKitSyncStatusService = .shared) -> String? {
         switch sync.shareFilingHold {
         case .untilReopen:
-            return "iCloud wasn't ready when the notebook opened. Quit and reopen it, then try again."
+            // Shown only when no account was signed in (bug hunt 2026-10-10, #7).
+            return CloudKitSyncStatusService.shareFilingPausedMessage
         case .untilICloudReady:
             return "iCloud isn't ready yet. Try again in a few minutes."
         case nil:

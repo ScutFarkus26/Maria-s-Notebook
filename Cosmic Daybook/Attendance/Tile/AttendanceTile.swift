@@ -27,8 +27,13 @@ struct AttendanceTile: View {
     let row: AttendanceRow
     /// What a tap would set, or nil when a tap does nothing here.
     let tapTarget: AttendanceStatus?
-    /// Why a tap does nothing, shown briefly on the tile.
+    /// Why a tap does nothing, shown briefly on the tile: short enough for
+    /// an SE's one-line tile ("Absences only").
     let tapHint: String
+    /// The same reason as a full sentence, without a closing period, for
+    /// VoiceOver ("You can only mark absences on a future day"); nil reads
+    /// `tapHint`.
+    var spokenTapHint: String?
     /// The statuses the long-press menu offers.
     let menuStatuses: [AttendanceStatus]
     let canMark: Bool
@@ -259,10 +264,6 @@ struct AttendanceTile: View {
     }
 
     // MARK: - Pieces
-
-    var shape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: 14, style: .continuous)
-    }
 
     /// Wider screens and roomy phone tiles: when the child arrived ("8:02 →
     /// 1:15" for Left Early), or for an absent child the reason, then a glyph

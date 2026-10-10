@@ -48,12 +48,14 @@ enum BlockingAlgorithmEngine {
         let managedObjectContext: NSManagedObjectContext?
 
         init(lessons: [CDLesson], lessonAssignments: [CDLessonAssignment], workModels: [CDWorkModel]) {
-            // Build lesson lookup
+            // Build lesson lookup. Sync can hand back two rows with one id;
+            // the first is kept rather than trapping.
             self.lessonsByID = Dictionary(
-                uniqueKeysWithValues: lessons.compactMap { lesson in
+                lessons.compactMap { lesson in
                     guard let id = lesson.id else { return nil }
                     return (id, lesson)
-                }
+                },
+                uniquingKeysWith: { first, _ in first }
             )
 
             // Pre-compute preceding lessons for all lessons in one grouped pass.
@@ -85,7 +87,10 @@ enum BlockingAlgorithmEngine {
     ///   - lessonAssignments: Array of LessonAssignments to check
     ///   - lessons: All lessons (needed for sequence structure)
     ///   - allLessonAssignments: All LessonAssignments (for presented lookup)
-    ///   - workModels: All WorkModels (preferably filtered to non-complete)
+    ///   - workModels: Open work, plus the closed work of the preceding
+    ///     presentations (`precedingPresentationIDs`): a child whose only
+    ///     practice is closed is ready, and without it she reads as having
+    ///     none and, when the lesson needs practice, as not ready.
     /// - Returns: Dictionary mapping CDLessonAssignment ID to BlockingCheckResult
     static func checkBlocking(
         forBatch lessonAssignments: [CDLessonAssignment],
@@ -147,7 +152,7 @@ enum BlockingAlgorithmEngine {
         // If neither gate is required, not blocked
         if !rules.requiresPractice && !rules.requiresTeacherConfirmation {
             let allReady = Dictionary(
-                uniqueKeysWithValues: la.resolvedStudentIDs.map { sid in
+                la.resolvedStudentIDs.map { sid in
                     (sid, StudentReadiness(
                         studentID: sid,
                         isReady: true,
@@ -156,7 +161,8 @@ enum BlockingAlgorithmEngine {
                         workRequired: false,
                         confirmationRequired: false
                     ))
-                }
+                },
+                uniquingKeysWith: { first, _ in first }
             )
             return BlockingCheckResult(isBlocked: false, prereqOpenCount: 0, perStudentReadiness: allReady)
         }
@@ -170,10 +176,14 @@ enum BlockingAlgorithmEngine {
         var totalPrereqOpen = 0
 
         for studentID in la.resolvedStudentIDs {
-            // Find the presented assignment that includes this student
-            let studentAssignment = precedingAssignments.first { assignment in
+            // Every giving of the preceding lesson she was on, latest first:
+            // the latest one's work gates her, and a confirmation on any of
+            // them counts. Taking the first in fetch order ignored a
+            // confirmation made on the other giving.
+            let studentAssignments = latestFirst(precedingAssignments.filter { assignment in
                 assignment.resolvedStudentIDs.contains(studentID)
-            }
+            })
+            let studentAssignment = studentAssignments.first
 
             // Gate 1: Work completion
             var workComplete = true
@@ -204,8 +214,8 @@ enum BlockingAlgorithmEngine {
             // Gate 2: Teacher confirmation
             var teacherConfirmed = true
             if rules.requiresTeacherConfirmation {
-                if let assignment = studentAssignment {
-                    teacherConfirmed = assignment.isStudentConfirmed(studentID)
+                if !studentAssignments.isEmpty {
+                    teacherConfirmed = studentAssignments.contains { $0.isStudentConfirmed(studentID) }
                 } else {
                     // Preceding lesson hasn't been presented
                     teacherConfirmed = false
@@ -231,6 +241,44 @@ enum BlockingAlgorithmEngine {
             prereqOpenCount: totalPrereqOpen,
             perStudentReadiness: perStudentReadiness
         )
+    }
+
+    /// Presentations newest first: by the day given (an undated one counts
+    /// as oldest), then by when the record was made, then by id so every
+    /// device orders a tie the same way.
+    nonisolated static func latestFirst(_ assignments: [CDLessonAssignment]) -> [CDLessonAssignment] {
+        assignments.sorted { lhs, rhs in
+            let lhsGiven = lhs.presentedAt ?? .distantPast
+            let rhsGiven = rhs.presentedAt ?? .distantPast
+            if lhsGiven != rhsGiven { return lhsGiven > rhsGiven }
+            let lhsMade = lhs.createdAt ?? .distantPast
+            let rhsMade = rhs.createdAt ?? .distantPast
+            if lhsMade != rhsMade { return lhsMade > rhsMade }
+            return (lhs.id?.uuidString ?? "") > (rhs.id?.uuidString ?? "")
+        }
+    }
+
+    /// The ids of the given presentations whose work can gate `unscheduled`:
+    /// every giving of each one's preceding lesson. The caller reads this
+    /// work whatever its status, since a child whose practice is done is
+    /// ready, and with only open work passed in she read as having none.
+    nonisolated static func precedingPresentationIDs(
+        for unscheduled: [CDLessonAssignment],
+        lessons: [CDLesson],
+        allLessonAssignments: [CDLessonAssignment]
+    ) -> Set<String> {
+        let preceding = buildPrecedingLessonCache(lessons)
+        let precedingLessonIDs = Set(unscheduled.compactMap { la -> String? in
+            guard let lessonID = UUID(uuidString: la.lessonID) else { return nil }
+            return preceding[lessonID]?.id?.uuidString
+        })
+        guard !precedingLessonIDs.isEmpty else { return [] }
+        return Set(allLessonAssignments.compactMap { assignment -> String? in
+            guard assignment.state == .presented else { return nil }
+            let lessonID = UUID(uuidString: assignment.lessonID)?.uuidString ?? assignment.lessonID
+            guard precedingLessonIDs.contains(lessonID) else { return nil }
+            return assignment.id?.uuidString
+        })
     }
 
     // MARK: - Find Preceding CDLesson

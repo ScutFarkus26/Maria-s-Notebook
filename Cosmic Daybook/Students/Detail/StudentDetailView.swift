@@ -42,6 +42,10 @@ struct StudentDetailView: View {
     /// edited child a start date of the edit day, which later hid them from
     /// earlier days' attendance.
     @State private var placeholderStartDate: Date?
+    /// The same stand-in for a child with no birthday. Saving it unchanged
+    /// gave her today as a birthday: age 0, and a birthday badge on the
+    /// wrong day every year.
+    @State private var placeholderBirthday: Date?
     // Not private: StudentDetailView+Departure reads it to decide whether this
     // edit is a departure, as it does with pendingDeparturePlans.
     @State var draftEnrollmentStatus: CDStudent.EnrollmentStatus = .enrolled
@@ -153,10 +157,10 @@ struct StudentDetailView: View {
             id: studentID,
             firstName: fn,
             lastName: ln,
-            birthday: draftBirthday,
+            birthday: Self.editedDate(draftBirthday, placeholder: placeholderBirthday),
             nickname: nick.isEmpty ? "" : nick,
             level: draftLevel,
-            dateStarted: draftStartDate == placeholderStartDate ? nil : draftStartDate,
+            dateStarted: Self.editedDate(draftStartDate, placeholder: placeholderStartDate),
             enrollmentStatus: draftEnrollmentStatus,
             dateWithdrawn: .some(draftDateWithdrawn)
         )
@@ -172,6 +176,7 @@ struct StudentDetailView: View {
         draftLastName = student.lastName
         draftNickname = student.nickname ?? ""
         draftBirthday = student.birthday ?? Date()
+        placeholderBirthday = student.birthday == nil ? draftBirthday : nil
         draftLevel = student.level
         draftStartDate = student.dateStarted ?? Date()
         placeholderStartDate = student.dateStarted == nil ? draftStartDate : nil

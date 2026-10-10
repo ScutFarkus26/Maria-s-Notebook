@@ -132,17 +132,18 @@ enum ObservationsDataLoader {
         guard !missing.isEmpty else { return existingCache }
 
         var updatedCache = existingCache
-        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
-        // so we fetch all and filter in memory
-        let allStudents: [CDStudent]
+        // Withdrawn children too: a note about a child who has left still
+        // names her (her chip was blank). Only the ids the notes name.
+        let request = CDFetchRequest(CDStudent.self)
+        request.predicate = NSPredicate(format: "id IN %@", Array(missing))
+        let fetched: [CDStudent]
         do {
-            allStudents = try context.fetch(CDFetchRequest(CDStudent.self)).filterEnrolled()
+            fetched = try context.fetch(request)
         } catch {
             logger.warning("Failed to fetch students: \(error)")
-            allStudents = []
+            fetched = []
         }
-        let fetched = allStudents.filter { guard let id = $0.id else { return false }; return missing.contains(id) }
-        for s in fetched { guard let id = s.id else { continue }; updatedCache[id] = s }
+        for s in fetched { guard let id = s.id, updatedCache[id] == nil else { continue }; updatedCache[id] = s }
 
         return updatedCache
     }

@@ -118,8 +118,13 @@ enum BackupPreviewAnalyzer {
             .first(where: { $0.value.managedObjectClassName == className })?.key else {
             return 0
         }
+        // The private store only: a replace restore clears only that one
+        // (`BackupRestoreScope`), so a classroom someone else shared with this
+        // notebook isn't counted as removed.
+        let request = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
+        BackupRestoreScope.limitToNotebook(request, in: viewContext)
         do {
-            return try viewContext.count(for: NSFetchRequest<NSFetchRequestResult>(entityName: entityName))
+            return try viewContext.count(for: request)
         } catch {
             logger.warning("Failed to count \(entityName): \(error)")
             return 0
@@ -188,7 +193,9 @@ enum BackupPreviewAnalyzer {
         // Build lesson lookup sets for presentation/assignment analysis
         let lessonsInStore: Set<UUID>
         do {
-            lessonsInStore = Set(try viewContext.fetch(CDFetchRequest(CDLesson.self)).compactMap(\.id))
+            let request = CDFetchRequest(CDLesson.self)
+            BackupRestoreScope.limitToNotebook(request, in: viewContext)
+            lessonsInStore = Set(try viewContext.fetch(request).compactMap(\.id))
         } catch {
             logger.warning("Failed to fetch lessons: \(error)")
             lessonsInStore = Set()

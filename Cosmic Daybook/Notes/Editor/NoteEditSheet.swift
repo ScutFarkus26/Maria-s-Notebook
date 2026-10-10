@@ -12,6 +12,7 @@ struct NoteEditSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
     @FocusState var isTextEditorFocused: Bool
 
     let note: CDNote
@@ -23,18 +24,65 @@ struct NoteEditSheet: View {
     @State var isPinned: Bool
     @State var needsFollowUp: Bool
     @State var showingTagPicker: Bool = false
+    /// Shown when Save fails; the sheet stays open with her changes.
+    @State private var saveErrorMessage: String?
+    @State private var isConfirmingDiscard = false
+
+    /// The note as the sheet opened it, to tell whether closing loses anything.
+    private let opened: Snapshot
+
+    private struct Snapshot: Equatable {
+        var body: String
+        var tags: [String]
+        var includeInReport: Bool
+        var isPinned: Bool
+        var needsFollowUp: Bool
+    }
 
     init(note: CDNote, onSaved: (() -> Void)? = nil) {
         self.note = note
         self.onSaved = onSaved
-        bodyText = note.body
-        tags = (note.tags as? [String]) ?? []
-        includeInReport = note.includeInReport
-        isPinned = note.isPinned
-        needsFollowUp = note.needsFollowUp
+        let opened = Snapshot(
+            body: note.body,
+            tags: (note.tags as? [String]) ?? [],
+            includeInReport: note.includeInReport,
+            isPinned: note.isPinned,
+            needsFollowUp: note.needsFollowUp
+        )
+        self.opened = opened
+        bodyText = opened.body
+        tags = opened.tags
+        includeInReport = opened.includeInReport
+        isPinned = opened.isPinned
+        needsFollowUp = opened.needsFollowUp
     }
 
     var body: some View {
+        content
+            // A swipe down or a tap outside used to throw her edits away.
+            .interactiveDismissDisabled(hasUnsavedChanges)
+            .confirmationDialog(
+                "Discard your changes?",
+                isPresented: $isConfirmingDiscard,
+                titleVisibility: .visible
+            ) {
+                Button("Discard Changes", role: .destructive) { dismiss() }
+                Button("Keep Editing", role: .cancel) {}
+            } message: {
+                Text("What you changed in this note hasn't been saved.")
+            }
+            .alert("Couldn't Save the Note", isPresented: Binding(
+                get: { saveErrorMessage != nil },
+                set: { if !$0 { saveErrorMessage = nil } }
+            )) {
+                Button("OK") { saveErrorMessage = nil }
+            } message: {
+                Text(saveErrorMessage ?? NoteEditorSave.notSavedMessage)
+            }
+    }
+
+    @ViewBuilder
+    private var content: some View {
         #if os(macOS)
         VStack(spacing: 0) {
             // Header
@@ -44,7 +92,7 @@ struct NoteEditSheet: View {
                     .foregroundStyle(.primary)
                 Spacer()
                 HStack(spacing: 12) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") { cancel() }
                         .keyboardShortcut(.cancelAction)
                         .buttonStyle(.plain)
                         .foregroundStyle(.secondary)
@@ -82,7 +130,7 @@ struct NoteEditSheet: View {
                 .inlineNavigationTitle()
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { dismiss() }
+                        Button("Cancel") { cancel() }
                     }
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Save") { save() }
@@ -109,20 +157,38 @@ struct NoteEditSheet: View {
         !bodyText.trimmed().isEmpty
     }
 
+    private var hasUnsavedChanges: Bool {
+        Snapshot(
+            body: bodyText, tags: tags, includeInReport: includeInReport,
+            isPinned: isPinned, needsFollowUp: needsFollowUp
+        ) != opened
+    }
+
+    private func cancel() {
+        if hasUnsavedChanges {
+            isConfirmingDiscard = true
+        } else {
+            dismiss()
+        }
+    }
+
+    /// Closes only once the edit is saved; a failed save used to close the
+    /// sheet as if it had worked. A failed save leaves the note as it was, so
+    /// Discard Changes discards and no later save carries the edit.
     private func save() {
         let trimmed = bodyText.trimmed()
         guard !trimmed.isEmpty else { return }
-        note.body = trimmed
-        note.tags = tags as NSObject
-        note.includeInReport = includeInReport
-        note.isPinned = isPinned
-        note.needsFollowUp = needsFollowUp
-        note.updatedAt = Date()
-        if viewContext.safeSave() {
-            NotificationCenter.default.post(name: .noteDidSave, object: note.id)
+        let edit = NoteEditorSave.SheetEdit(
+            body: trimmed, tags: tags, includeInReport: includeInReport,
+            isPinned: isPinned, needsFollowUp: needsFollowUp
+        )
+        switch NoteEditorSave.save(edit, to: note, in: viewContext, saveCoordinator: dependencies.saveCoordinator) {
+        case .saved:
+            onSaved?()
+            dismiss()
+        case .failed(let message):
+            saveErrorMessage = message
         }
-        onSaved?()
-        dismiss()
     }
 }
 

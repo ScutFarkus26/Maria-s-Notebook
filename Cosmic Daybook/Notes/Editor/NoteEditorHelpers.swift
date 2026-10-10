@@ -262,57 +262,50 @@ extension UnifiedNoteEditor {
     // MARK: - Initials Expansion
 
     func expandInitialsInBodyText() {
-        let text = bodyText
-        guard !text.isEmpty else { return }
-
-        var initialsMap: [String: [CDStudent]] = [:]
-        for s in students {
-            let first = s.firstName.trimmed()
-            let last = s.lastName.trimmed()
-            guard let fi = first.first, let li = last.first else { continue }
-            let key = String(fi).lowercased() + String(li).lowercased()
-            initialsMap[key, default: []].append(s)
+        let studentData = students.compactMap { student -> StudentData? in
+            guard let id = student.id else { return nil }
+            return StudentData(
+                id: id, firstName: student.firstName, lastName: student.lastName, nickname: student.nickname
+            )
         }
-
-        let pattern = "\\b([A-Z])\\.?\\s*([A-Z])\\.?\\b"
-        let regex: NSRegularExpression
-        do {
-            regex = try NSRegularExpression(pattern: pattern, options: [])
-        } catch {
-            Self.logger.error("[\(#function)] Failed to create regex for initials expansion: \(error)")
-            return
-        }
-
-        let nsrange = NSRange(text.startIndex..<text.endIndex, in: text)
-        var newText = text
-        var delta = 0
-
-        regex.enumerateMatches(in: text, options: [], range: nsrange) { match, _, _ in
-            guard let match, match.numberOfRanges >= 3,
-                  let r1 = Range(match.range(at: 1), in: text),
-                  let r2 = Range(match.range(at: 2), in: text) else { return }
-
-            let l1 = String(text[r1]).lowercased()
-            let l2 = String(text[r2]).lowercased()
-            let key = l1 + l2
-
-            guard let candidates = initialsMap[key],
-                  candidates.count == 1,
-                  let student = candidates.first else { return }
-
-            let replacement = student.shortName
-
-            let loc = match.range.location + delta
-            let len = match.range.length
-            let startIdx = newText.index(newText.startIndex, offsetBy: loc)
-            let endIdx = newText.index(startIdx, offsetBy: len)
-            newText.replaceSubrange(startIdx..<endIdx, with: replacement)
-            delta += replacement.count - len
-        }
-
-        bodyText = newText
+        bodyText = NoteInitialsExpander.expanding(bodyText, students: studentData)
     }
 
+}
+
+// MARK: - Initials Expansion
+
+/// Expand Initials: replaces clear initials that belong to exactly one child
+/// ("JD", "J.D.") with that child's short name ("Jonah D"). The rules for what
+/// counts as initials are the tagger's (`PatternMatchHelpers.initialsMatches`),
+/// so "OK", "PE", "TV", "a.m." and ordinary words stay as typed.
+enum NoteInitialsExpander {
+    nonisolated static func expanding(_ text: String, students: [StudentData]) -> String {
+        guard !text.isEmpty else { return text }
+
+        var studentsByInitials: [String: [StudentData]] = [:]
+        for student in students {
+            guard let key = PatternMatchHelpers.initialsKey(
+                first: student.firstName, last: student.lastName
+            ) else { continue }
+            studentsByInitials[key, default: []].append(student)
+        }
+
+        // Matches come in text order and never overlap; rebuild the text around them.
+        var newText = ""
+        var cursor = text.startIndex
+        let firstNames = Set(students.map { $0.firstName.folded() })
+        for match in PatternMatchHelpers.initialsMatches(in: FoldedText(text), firstNames: firstNames) {
+            guard let candidates = studentsByInitials[match.key],
+                  candidates.count == 1,
+                  let student = candidates.first else { continue }
+            newText += text[cursor..<match.range.lowerBound]
+            newText += StudentFormatter.displayName(firstName: student.firstName, lastName: student.lastName)
+            cursor = match.range.upperBound
+        }
+        newText += text[cursor...]
+        return newText
+    }
 }
 
 // MARK: - Photo Action Chip Style

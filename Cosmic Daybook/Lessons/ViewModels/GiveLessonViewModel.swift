@@ -1,7 +1,6 @@
 import SwiftUI
 import CoreData
 import Foundation
-import OSLog
 
 // NOTE: Renamed type: GiveLessonViewModel -> CDLessonPickerViewModel
 
@@ -15,11 +14,8 @@ enum GiveLessonMode: Hashable {
 // MARK: - View Model
 
 @Observable
-// swiftlint:disable:next type_body_length
 final class LessonPickerViewModel {
     // MARK: - Properties
-
-    private static let logger = Logger.lessons
 
     var selectedStudentIDs: Set<UUID> = []
     var scheduledFor: Date?
@@ -108,200 +104,6 @@ final class LessonPickerViewModel {
         }
     }
     
-    // MARK: - Save Logic
-    
-    enum SaveError: LocalizedError {
-        case missingLesson
-        case persistFailed(underlying: Error)
-        
-        var errorDescription: String? {
-            switch self {
-            case .missingLesson:
-                return "Choose a lesson before saving."
-            case .persistFailed:
-                // The underlying error is logged where it's caught.
-                return "Couldn't save the lesson. Try again."
-            }
-        }
-    }
-    
-    // swiftlint:disable:next function_body_length cyclomatic_complexity
-    func save(context: NSManagedObjectContext, resolvedLesson: CDLesson?) throws {
-        guard let finalLesson = resolvedLesson else {
-            throw SaveError.missingLesson
-        }
-
-        // Build selected IDs and search for an existing unscheduled/unpresented match
-        let selectedIDs = Array(selectedStudentIDs)
-        let selectedSet = Set(selectedIDs)
-        let targetLessonIDString = finalLesson.id?.uuidString ?? ""
-        let draftRaw = LessonAssignmentState.draft.rawValue
-        let scheduledRaw = LessonAssignmentState.scheduled.rawValue
-        let existingRequest = CDFetchRequest(CDLessonAssignment.self)
-        existingRequest.predicate = NSPredicate(
-            format: "lessonID == %@ AND (stateRaw == %@ OR stateRaw == %@)",
-            targetLessonIDString, draftRaw, scheduledRaw
-        )
-        let existingCandidates = context.safeFetch(existingRequest)
-        let existingMatch = existingCandidates.first(where: { la in
-            la.resolvedLessonID == finalLesson.id && Set(la.resolvedStudentIDs) == selectedSet
-        })
-
-        // Either reuse existing or create a new one
-        let la: CDLessonAssignment
-        if let match = existingMatch {
-            la = match
-        } else {
-            la = PresentationFactory.makeDraft(
-                lessonID: finalLesson.id ?? UUID(),
-                studentIDs: selectedIDs,
-                context: context
-            )
-        }
-
-        // Apply current state
-        la.lessonID = targetLessonIDString
-        la.studentIDs = selectedIDs.map(\.uuidString)
-        la.needsPractice = needsPractice
-        la.needsAnotherPresentation = needsAnotherPresentation
-        la.followUpWork = followUpWork
-        la.lesson = finalLesson
-        la.modifiedAt = Date()
-
-        if mode == .given {
-            la.markPresented(at: givenAt ?? Date())
-        } else if let date = scheduledFor {
-            la.schedule(for: date)
-        } else {
-            la.unschedule()
-        }
-
-        // Set snapshots for display
-        la.lessonTitleSnapshot = finalLesson.name
-        la.lessonSectionSnapshot = finalLesson.section
-
-        // CDLessonAssignment is already inserted into context by PresentationFactory.makeDraft
-
-        // CDWorkModel flow
-        // If marking as given and practice is requested, explode per-student practice work via LifecycleService.
-        // recordPresentationAndExplodeWork internally calls recordPresentation, which upserts
-        // CDLessonPresentation rows.
-        // When practice is NOT requested, we still call recordPresentation so per-student mastery rows exist —
-        // otherwise the lesson is invisible in Mastery Dashboard / Sequence Recap / Student Progress views.
-        if mode == .given {
-            let presentedDate = AppCalendar.startOfDay(givenAt ?? Date())
-            do {
-                if needsPractice {
-                    _ = try LifecycleService.recordPresentationAndExplodeWork(
-                        from: la,
-                        presentedAt: presentedDate,
-                        modelContext: context
-                    )
-                } else {
-                    _ = try LifecycleService.recordPresentation(
-                        from: la,
-                        presentedAt: presentedDate,
-                        modelContext: context
-                    )
-                }
-            } catch {
-                // Ignore errors for now; caller handles thrown save errors later
-            }
-        }
-
-        // Auto-enroll students in track if lesson belongs to a track
-        if mode == .given || (mode == .plan && scheduledFor != nil) {
-            SequenceTrackService.autoEnrollInTrackIfNeeded(
-                lessonArea: finalLesson.area,
-                lessonSequence: finalLesson.sequence,
-                studentIDs: selectedIDs.map(\.uuidString),
-                context: context
-            )
-        }
-
-        // If planning (not given) and practice is requested, create active practice work per student
-        if mode == .plan && needsPractice {
-            let lessonID = finalLesson.id ?? UUID()
-            let lessonIDString = lessonID.uuidString
-            let allWorkRequest = CDFetchRequest(CDWorkModel.self)
-            let allWorkModels = context.safeFetch(allWorkRequest)
-            let activeRaw = WorkStatus.active.rawValue
-            let reviewRaw = WorkStatus.review.rawValue
-            let practiceRaw = WorkKind.practiceLesson.rawValue
-
-            for studentID in selectedIDs {
-                let sidString = studentID.uuidString
-                let exists = allWorkModels.contains { work in
-                    let hasStudent = ((work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? [])
-                        .contains { $0.studentID == sidString }
-                    guard hasStudent else { return false }
-                    // Check if work is for this lesson via lessonID
-                    guard work.lessonID == lessonIDString else { return false }
-                    return (work.statusRaw == activeRaw || work.statusRaw == reviewRaw) &&
-                           (work.kindRaw ?? "") == practiceRaw
-                }
-
-                if !exists {
-                    let repository = WorkRepository(context: context)
-                    do {
-                        _ = try repository.createWork(
-                            studentID: studentID,
-                            lessonID: lessonID,
-                            title: nil,
-                            kind: .practiceLesson,
-                            presentationID: nil,
-                            scheduledDate: nil
-                        )
-                    } catch {
-                        Self.logger.warning("Failed to create practice work for student \(studentID): \(error)")
-                    }
-                }
-            }
-        }
-
-        // Create follow-up work if specified (both plan and given)
-        let trimmedFollowUp = followUpWork.trimmed()
-        if !trimmedFollowUp.isEmpty {
-            let sidStrings = selectedIDs.map(\.uuidString)
-            let lidString = finalLesson.id?.uuidString ?? ""
-            for sid in sidStrings {
-                let activeRaw = WorkStatus.active.rawValue
-                let reviewRaw = WorkStatus.review.rawValue
-                let followRaw = WorkKind.followUpAssignment.rawValue
-                let followUpRequest = CDFetchRequest(CDWorkModel.self)
-                followUpRequest.predicate = NSPredicate(
-                    format: "studentID == %@ AND lessonID == %@ AND " +
-                        "(statusRaw == %@ OR statusRaw == %@) AND kindRaw == %@",
-                    sid, lidString, activeRaw, reviewRaw, followRaw
-                )
-                followUpRequest.fetchLimit = 1
-                let exists = context.safeFetchFirst(followUpRequest) != nil
-                if !exists {
-                    guard let studentUUID = UUID(uuidString: sid),
-                          let lessonUUID = UUID(uuidString: lidString) else { continue }
-                    let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
-                    let repository = WorkRepository(context: cdContext)
-                    do {
-                        let workModel = try repository.createWork(
-                            studentID: studentUUID,
-                            lessonID: lessonUUID,
-                            title: trimmedFollowUp,
-                            kind: .followUpAssignment,
-                            presentationID: nil,
-                            scheduledDate: nil
-                        )
-                        workModel.setLegacyNoteText(trimmedFollowUp, in: cdContext)
-                    } catch {
-                        // swiftlint:disable:next line_length
-                        Self.logger.warning("Failed to create follow-up work for student \(sid, privacy: .public): \(error)")
-                    }
-                }
-            }
-        }
-
-        context.safeSave()
-    }
-
     // MARK: - Sorting
 
     private static func sortLessons(_ lessons: [CDLesson]) -> [CDLesson] {

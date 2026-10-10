@@ -80,7 +80,9 @@ enum PresentationQuickRecord {
         context: NSManagedObjectContext,
         saveCoordinator: SaveCoordinator
     ) throws -> [NSManagedObjectID] {
-        let decisions = Dictionary(uniqueKeysWithValues: studentIDs.map { ($0, CaptureFollowUp.practice) })
+        let decisions = Dictionary(
+            studentIDs.map { ($0, CaptureFollowUp.practice) }, uniquingKeysWith: { first, _ in first }
+        )
         let receipt = try PresentationSessionCommit.apply(
             PresentationSessionCommit.Input(
                 assignment: assignment,

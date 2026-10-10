@@ -74,6 +74,8 @@ private struct MeetingSessionContent: View {
     @State private var width: CGFloat = 1000
     @State private var compactSheet: MeetingCompactSheet.Kind?
     @State private var isConfirmingClear = false
+    /// Worked out when Clear is chosen: it names the work that goes back.
+    @State private var clearMessage = ""
     @State private var isPickingScheduleDate = false
 
     init(
@@ -131,14 +133,15 @@ private struct MeetingSessionContent: View {
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { draft.flush() }
         }
-        // Cleared or filed from the student record's tab or another window.
-        .onReceive(NotificationCenter.default.publisher(for: .meetingDraftsDidChange)) { _ in
+        // Written, cleared or filed from the student record's tab or another window.
+        .onReceive(NotificationCenter.default.publisher(for: .meetingDraftDidChange)) { notice in
+            guard MeetingPersistenceService.studentID(of: notice) == student.id else { return }
             draft.storedDraftsChanged()
         }
         .confirmationDialog("Clear this meeting?", isPresented: $isConfirmingClear, titleVisibility: .visible) {
             Button("Clear Meeting", role: .destructive) { draft.discard(context: viewContext) }
         } message: {
-            Text("Everything written for \(student.firstName)'s meeting so far will be erased.")
+            Text(clearMessage)
         }
         .sheet(isPresented: $isPickingScheduleDate) {
             MeetingDatePickerSheet(studentName: student.fullName) { date in
@@ -282,8 +285,16 @@ private struct MeetingSessionContent: View {
             onSchedule: actions.onSchedule,
             canClear: !draft.isEmpty,
             onPickDay: { isPickingScheduleDate = true },
-            onClear: { isConfirmingClear = true }
+            onClear: confirmClear
         )
+    }
+
+    private func confirmClear() {
+        draft.takeUpStored()
+        clearMessage = MeetingLessonDecisions.clearConfirmation(
+            studentName: student.shortName, draft: draft.data, context: viewContext
+        )
+        isConfirmingClear = true
     }
 
     private func complete() {

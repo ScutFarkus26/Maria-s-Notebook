@@ -15,7 +15,9 @@ extension ReadyToPresentSection {
         guard !selected.isEmpty else { return }
 
         let startOfDay = AppCalendar.startOfDay(Date())
-        let base = AppCalendar.shared.date(byAdding: .hour, value: 9, to: startOfDay) ?? startOfDay
+        let base = AppCalendar.shared.date(
+            bySettingHour: UIConstants.morningHour, minute: 0, second: 0, of: startOfDay
+        ) ?? startOfDay
         for (index, assignment) in selected.enumerated() {
             let offset = Double(index * UIConstants.scheduleSpacingSeconds)
             assignment.setScheduledFor(base.addingTimeInterval(offset), using: AppCalendar.shared)

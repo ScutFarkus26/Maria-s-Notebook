@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 import CoreData
 
@@ -28,6 +29,11 @@ struct OpenWorkGrid: View {
     @Environment(\.managedObjectContext) var viewContext
     
     @State private var cachedAgeSchoolDays: [UUID: Int] = [:]
+    /// Bumped when a work row, check-in or note changes, so the ages are
+    /// worked out again: logging a check, completing a check-in or writing a
+    /// note touches the work without changing which rows the grid holds,
+    /// and the ages used to stay as they were until a row came or went.
+    @State private var ageInputsVersion = 0
 
     /// Held here rather than on each card so one grid has one dialog: it keeps
     /// the right count, and it survives the card scrolling out from under it.
@@ -63,13 +69,17 @@ struct OpenWorkGrid: View {
                 message: deletionMessage,
                 onConfirm: performPendingDeletion
             )
-            .task {
+            .task(id: OpenWorkGridAgeInputs(workIDs: works.map(\.id), version: ageInputsVersion)) {
                 await precomputeAgeValues()
             }
-            .onChange(of: works.map(\.id)) { _, _ in
-                Task {
-                    await precomputeAgeValues()
-                }
+            .onReceive(
+                NotificationCenter.default.publisher(for: .NSManagedObjectContextObjectsDidChange, object: viewContext)
+                    .filter { @Sendable note in
+                        !ManagedObjectChangeScope.touched(OpenWorkGridAgeInputs.entities, in: note.userInfo).isEmpty
+                    }
+                    .receive(on: DispatchQueue.main)
+            ) { _ in
+                ageInputsVersion &+= 1
             }
     }
 
@@ -334,4 +344,14 @@ private struct OpenWorkGridPreview: View {
 
 #Preview {
     OpenWorkGridPreview()
+}
+
+/// The open-work grid's age `.task` key: the rows shown, and how many times
+/// their inputs changed. Several changes in one pass land as one recompute.
+private struct OpenWorkGridAgeInputs: Equatable {
+    let workIDs: [UUID?]
+    let version: Int
+
+    /// What a card's age is read from: the row, its check-ins and its notes.
+    nonisolated static let entities: Set<String> = ["WorkModel", "WorkCheckIn", "Note"]
 }

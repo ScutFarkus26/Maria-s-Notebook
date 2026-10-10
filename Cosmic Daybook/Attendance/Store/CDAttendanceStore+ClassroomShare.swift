@@ -46,11 +46,17 @@ extension CDAttendanceStore {
     /// records wait for the new stack. Reading that as "done" dropped them.
     /// (A stack open on one store, as in tests, has no share to put
     /// anything in.)
+    ///
+    /// `stopReason` is asked before each chunk (`ClassroomShareAttach`): the
+    /// Daybook Assistant's hold on a store whose setup failed or whose sync
+    /// stopped (`AssistantFilingHold`, 2026-10-10 review, #1). What it stops
+    /// is left to try again.
     @discardableResult
     static func attachNewRecordsToClassroomShare(
         _ ids: [NSManagedObjectID],
         container: NSPersistentCloudKitContainer,
-        pinContext: NSManagedObjectContext
+        pinContext: NSManagedObjectContext,
+        stopReason: @escaping @Sendable () async -> String? = { nil }
     ) async -> ShareAttachResult {
         let stores = container.persistentStoreCoordinator.persistentStores
         guard !stores.isEmpty else {
@@ -87,7 +93,9 @@ extension CDAttendanceStore {
                 shareLogger.info("New record(s) already in the classroom share")
                 return ShareAttachResult(left: [])
             }
-            let outcome = await ClassroomShareAttach.attach(waiting, to: share, container: container)
+            let outcome = await ClassroomShareAttach.attach(
+                waiting, to: share, container: container, stopReason: stopReason
+            )
             let summary = "attached \(outcome.attached), failed \(outcome.failed.count)" +
                 (outcome.stoppedBecause.map { ", stopped: \($0)" } ?? "")
             shareLogger.notice("Assistant records to classroom share: \(summary, privacy: .public)")

@@ -78,7 +78,7 @@ extension ClassroomSharingService {
         }
 
         Self.setupLogger.notice("Classroom setup: attaching \(waiting.count, privacy: .public) record(s)")
-        var outcome = await ClassroomShareAttach.attach(waiting, to: share, container: container)
+        var outcome = await attachUnlessSyncStops(waiting, to: share)
         // Records created while that ran — before the pin was saved the guard
         // had no share to put them in — get a second pass.
         if outcome.stoppedBecause == nil {
@@ -87,7 +87,7 @@ extension ClassroomSharingService {
             let stragglers = try await ClassroomShareAttach.unshared(again, container: container)
                 .filter { !Set(outcome.failed).contains($0) }
             if !stragglers.isEmpty {
-                let second = await ClassroomShareAttach.attach(stragglers, to: share, container: container)
+                let second = await attachUnlessSyncStops(stragglers, to: share)
                 outcome.attached += second.attached
                 outcome.failed += second.failed
                 outcome.stoppedBecause = second.stoppedBecause
@@ -121,6 +121,17 @@ extension ClassroomSharingService {
         return report
     }
 
+    /// `ClassroomShareAttach.attach`, stopping before the next chunk once sync
+    /// stops or a hold starts (bug hunt 2026-10-10, #6): setup checks sync
+    /// before it begins, but a pass of thousands of records takes minutes.
+    private func attachUnlessSyncStops(
+        _ ids: [NSManagedObjectID], to share: CKShare
+    ) async -> ClassroomShareAttach.Outcome {
+        await ClassroomShareAttach.attach(
+            ids, to: share, container: container, stopReason: CloudKitSyncStatusService.sharedFilingStopReason
+        )
+    }
+
     /// Why setup can't run on this device right now, before asking iCloud
     /// anything, or nil. First: a setup found no ready iCloud account
     /// (`shareFilingHold`), which only iCloud becoming ready, or with none
@@ -140,6 +151,16 @@ extension ClassroomSharingService {
         guard !FirstDownloadGate.isPending() else { return .firstDownloadPending }
         guard !sync.mirroringDelegateFailed else { return .mirroringStopped }
         return nil
+    }
+
+    /// Why the share mustn't be made now, asked again right before
+    /// `container.share([seed], to: nil)`: between `setupBlocker` and here,
+    /// setup reads the server's zones and every classroom record, seconds on
+    /// a big class, and sync can stop or a hold start meanwhile (2026-10-10
+    /// review, #2). Nil when sync lets it go ahead.
+    static func shareCreationBlocker(sync: CloudKitSyncStatusService = .shared) -> ClassroomShareError? {
+        if let hold = sync.shareFilingHold { return ClassroomShareError(hold) }
+        return sync.mirroringDelegateFailed ? .mirroringStopped : nil
     }
 
     /// Refuses unless setup is safe right now; returns the private store and
@@ -168,6 +189,7 @@ extension ClassroomSharingService {
     private func createPinnedShare(
         seed: NSManagedObjectID, in viewContext: NSManagedObjectContext
     ) async throws -> CKShare {
+        if let stop = Self.shareCreationBlocker() { throw stop }
         let share: CKShare
         do {
             share = try await ClassroomShareAttach.createShareOffMain(seedID: seed, container: container)

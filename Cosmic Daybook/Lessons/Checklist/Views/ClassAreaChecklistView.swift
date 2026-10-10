@@ -81,6 +81,9 @@ struct ClassAreaChecklistView: View {
                     .studentDetailSheetSizing()
                     .onDisappear { finishPresentation(target) }
             }
+            .modifier(ChecklistClearConfirmation(
+                viewModel: viewModel, context: viewContext, afterClosingCard: afterClosingCard
+            ))
             // A request that arrives while the checklist is already on screen never
             // reaches loadData, which only runs on first appearance.
             .onChange(of: appRouter.checklistLessonRequest) { _, request in
@@ -230,7 +233,7 @@ extension ClassAreaChecklistView {
             }
 
             Button {
-                viewModel.batchClearStatus(context: viewContext)
+                viewModel.requestBatchClear(context: viewContext)
             } label: {
                 Label("Clear", systemImage: "xmark.circle")
             }

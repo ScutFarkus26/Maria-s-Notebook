@@ -53,7 +53,8 @@ enum AttendanceEmailLog {
     /// What an email is written from.
     struct Settings: Equatable, Sendable {
         var isEnabled: Bool
-        /// The recipients as typed: commas or semicolons between.
+        /// The recipients, ", " between (`AttendanceEmail.sharedAddressLine`);
+        /// a row written before 2026-10-10 has them as typed.
         var toAddresses: String
         var nameOrder: AttendanceEmailNameOrder
         var groupByLevel: Bool

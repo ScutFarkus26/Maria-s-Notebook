@@ -58,9 +58,11 @@ enum StoryLessonMatcher {
         in context: NSManagedObjectContext,
         client: MCPClientProtocol
     ) async throws -> [LessonMatch] {
+        // A sync can leave two rows with one id; the candidates are keyed by id
+        // below, so they go in once.
         let lessons = DataQueryService(context: context).fetchAllLessons(
             sortBy: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]
-        )
+        ).uniqueByID
         guard !lessons.isEmpty else { throw MatcherError.noLessons }
 
         let storyText = storyEmbeddingText(for: story)
@@ -293,10 +295,10 @@ enum StoryLessonMatcher {
             throw MatcherError.rerankFailed(AppleIntelligenceMessages.unreadable)
         }
 
-        let lessonsByID = Dictionary(uniqueKeysWithValues: candidates.compactMap { candidate -> (String, Candidate)? in
+        let lessonsByID = Dictionary(candidates.compactMap { candidate -> (String, Candidate)? in
             guard let id = candidate.lesson.id?.uuidString else { return nil }
             return (id, candidate)
-        })
+        }, uniquingKeysWith: { first, _ in first })
 
         var matches: [LessonMatch] = []
         for entry in response.matches {

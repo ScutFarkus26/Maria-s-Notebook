@@ -79,6 +79,7 @@ public struct CalendarSyncSettingsView: View {
                     Text(
                         "Events from selected calendars will appear in your Today view."
                         + " Events sync automatically when changes are detected."
+                        + " Turning a calendar off removes its events from this notebook."
                     )
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -92,14 +93,15 @@ public struct CalendarSyncSettingsView: View {
         }
     }
 
+    /// Hands the choice to the service, which also takes a calendar turned
+    /// off out of the notebook straight away.
     private func updateSyncService() {
         let selectedIdentifiers = Array(selectedCalendarIdentifiers)
         let selectedNames = availableCalendars
             .filter { selectedCalendarIdentifiers.contains($0.identifier) }
             .map(\.name)
 
-        syncService.syncCalendarIdentifiers = selectedIdentifiers
-        syncService.syncCalendarNames = selectedNames
+        syncService.updateSelection(identifiers: selectedIdentifiers, names: selectedNames)
     }
 
     private func requestAccess() async {

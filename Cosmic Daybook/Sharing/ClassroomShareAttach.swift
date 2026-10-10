@@ -38,7 +38,7 @@ nonisolated enum ClassroomShareAttach {
         var failed: [NSManagedObjectID] = []
         /// Set when the pass stopped early and why, in plain words (it is
         /// shown): the mirroring delegate died (nothing more can succeed this
-        /// session) or CloudKit timed out.
+        /// session), CloudKit timed out, or `Steps.stopReason` said to stop.
         var stoppedBecause: String?
         var mirroringDelegateDied = false
     }
@@ -124,23 +124,35 @@ nonisolated enum ClassroomShareAttach {
         var unshared: @Sendable ([NSManagedObjectID]) async throws -> [NSManagedObjectID]
         /// Puts these records into the share (`container.share(_:to:)`).
         var share: @Sendable ([NSManagedObjectID]) async throws -> Void
+        /// Asked before each call to `share`: why the pass must stop now, as
+        /// a phrase that finishes "…couldn't be added because …", or nil to
+        /// go on. On the notebook, the sync status's: sync can stop, or a
+        /// hold start, while the chunks of one pass go out, and the check
+        /// once per pass let them all go (bug hunt 2026-10-10, #6).
+        var stopReason: @Sendable () async -> String? = { nil }
 
         /// CloudKit's, for `share` in `container`. Each call is handed the
         /// latest copy of the share (`current`), never the one passed in.
-        static func live(_ share: CKShare, container: NSPersistentCloudKitContainer) -> Steps {
+        static func live(
+            _ share: CKShare,
+            container: NSPersistentCloudKitContainer,
+            stopReason: @escaping @Sendable () async -> String? = { nil }
+        ) -> Steps {
             Steps(
                 unshared: { ids in try await ClassroomShareAttach.unshared(ids, container: container) },
                 share: { ids in
                     let latest = await ClassroomShareAttach.current(share, container: container)
                     try await ClassroomShareAttach.shareOffMain(ids, to: latest, container: container)
-                }
+                },
+                stopReason: stopReason
             )
         }
     }
 
     /// Attaches `ids` to `share` in chunks, retrying a failed chunk one record
     /// at a time so one bad record doesn't cost the rest. Stops early — with
-    /// the remainder in `failed` — when the delegate dies or CloudKit times out.
+    /// the remainder in `failed` — when the delegate dies, CloudKit times
+    /// out, or `stopReason`, asked before every call, gives one.
     ///
     /// A record goes into the share with everything related to it (a staple
     /// takes its history along), so one can already be in by the time its own
@@ -159,16 +171,23 @@ nonisolated enum ClassroomShareAttach {
     static func attach(
         _ ids: [NSManagedObjectID],
         to share: CKShare,
-        container: NSPersistentCloudKitContainer
+        container: NSPersistentCloudKitContainer,
+        stopReason: @escaping @Sendable () async -> String? = { nil }
     ) async -> Outcome {
-        await attach(ids, using: .live(share, container: container))
+        await attach(ids, using: .live(share, container: container, stopReason: stopReason))
     }
 
-    /// `attach(_:to:container:)` with CloudKit's part as `steps`.
+    /// `attach(_:to:container:stopReason:)` with CloudKit's part as `steps`.
     static func attach(_ ids: [NSManagedObjectID], using steps: Steps) async -> Outcome {
         var outcome = Outcome()
         var start = 0
         while start < ids.count {
+            if let reason = await steps.stopReason() {
+                logger.notice("Attach stopped before a chunk: \(reason, privacy: .public)")
+                outcome.stoppedBecause = reason
+                outcome.failed += ids[start...]
+                return outcome
+            }
             let end = min(start + chunkSize, ids.count)
             let taken = Array(ids[start..<end])
             guard let chunk = await stillOutside(taken, steps: steps, outcome: &outcome) else {
@@ -210,6 +229,11 @@ nonisolated enum ClassroomShareAttach {
         outcome: inout Outcome
     ) async -> Bool {
         for (index, id) in chunk.enumerated() {
+            if let reason = await steps.stopReason() {
+                outcome.stoppedBecause = reason
+                outcome.failed += chunk[index...]
+                return true
+            }
             guard let single = await stillOutside([id], steps: steps, outcome: &outcome) else {
                 outcome.failed.append(id)
                 continue

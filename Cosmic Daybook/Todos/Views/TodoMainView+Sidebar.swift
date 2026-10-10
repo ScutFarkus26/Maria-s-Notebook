@@ -37,7 +37,10 @@ extension TodoMainView {
         }
 
         // Sort by position in tagOrder; unknowns go to the end in their natural order
-        let orderMap: [String: Int] = Dictionary(uniqueKeysWithValues: tagOrder.enumerated().map { ($1, $0) })
+        let orderMap: [String: Int] = Dictionary(
+            tagOrder.enumerated().map { ($1, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         return items.sorted { lhs, rhs in
             let lhsIdx = orderMap[lhs] ?? Int.max
             let rhsIdx = orderMap[rhs] ?? Int.max
@@ -59,7 +62,10 @@ extension TodoMainView {
             TodoTagHelper.tagPathComponents($0).count > 1 && TodoTagHelper.rootTagName($0) == sequence
         }
         // Sort children by position in tagOrder, then alphabetically
-        let orderMap: [String: Int] = Dictionary(uniqueKeysWithValues: tagOrder.enumerated().map { ($1, $0) })
+        let orderMap: [String: Int] = Dictionary(
+            tagOrder.enumerated().map { ($1, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         return nested.sorted { lhs, rhs in
             let lhsIdx = orderMap[lhs] ?? Int.max
             let rhsIdx = orderMap[rhs] ?? Int.max
@@ -379,10 +385,14 @@ extension TodoMainView {
         guard !unusedTags.isEmpty else { return }
 
         for todo in allTodos where todo.isCompleted {
-            var current = todo.tagsArray
-            current.removeAll { unusedTags.contains($0) }
-            todo.tagsArray = current
+            let kept = todo.tagsArray.filter { !unusedTags.contains($0) }
+            if kept != todo.tagsArray {
+                todo.tagsArray = kept
+            }
         }
+        // The tags came off in memory only, and were back after a relaunch.
+        dependencies.saveCoordinator.save(viewContext, reason: "Remove unused tags")
+        refreshTagCaches()
 
         // Clear tag selection if the selected tag was removed
         if let selected = selectedTag, unusedTags.contains(selected) {

@@ -56,6 +56,12 @@ struct ClassroomYourNameCard: View {
         .onPresentationDataChangeWhenVisible(of: ["ClassroomPerson"], in: viewContext) {
             if !isEditing { load() }
         }
+        // Another Apple Account signed in and the name waiting here was
+        // dropped: it was never saved, so leaving the field must save it
+        // again (bug hunt 2026-10-10, #9).
+        .onReceive(NotificationCenter.default.publisher(for: ClassroomNames.waitingNameForgotten)) { _ in
+            waitingNameDropped()
+        }
     }
 
     @ViewBuilder
@@ -81,6 +87,24 @@ struct ClassroomYourNameCard: View {
         stored = ClassroomNames.myName(role: .leadGuide, in: viewContext)
         name = stored
         isWaiting = ClassroomIdentity.nameWaitingAs != nil
+    }
+
+    /// The name waiting on this device was dropped. The card loads again, so
+    /// it no longer says "saved on this device" for a name nothing will
+    /// write, and the next commit compares with the list's name. While he's
+    /// typing, or a save is still out (its own answer says what happened),
+    /// only what counts as stored changes, so the field keeps his text and
+    /// leaving it saves it. If the card was showing that name as waiting, it
+    /// says the save didn't take.
+    private func waitingNameDropped() {
+        let wasWaiting = isWaiting
+        if isEditing || saving != nil {
+            stored = ClassroomNames.myName(role: .leadGuide, in: viewContext)
+            isWaiting = ClassroomIdentity.nameWaitingAs != nil
+        } else {
+            load()
+        }
+        if wasWaiting { wasNotSaved = true }
     }
 
     private func commit() {

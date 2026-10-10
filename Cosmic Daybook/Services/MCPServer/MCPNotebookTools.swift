@@ -80,6 +80,7 @@ enum MCPNotebookTools {
             classroomSnapshotTool(context: context),
             syncStatusTool(),
             recentMCPWritesTool(journal: journal),
+            dataChecksTool(context: context),
             findLessonsTool(context: context),
             listLessonsByAreaTool(context: context),
             createLessonTool(context: context),

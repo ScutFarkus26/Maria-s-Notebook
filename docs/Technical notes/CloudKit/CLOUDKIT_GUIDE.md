@@ -247,6 +247,12 @@ compiles about 40 of the main app's files by path and builds the same
   pinned share, or the only share in its shared store. CloudKit accepts that
   from a participant: in the Production move's Assistant test (2026-09-28) a
   note logged `AttendanceShare: attached 1, failed 0` and reached the Mac.
+- **It waits while its share store can't take them** (`AssistantFilingHold`,
+  2026-10-10). A failed setup of the classroom share's store, or an import or
+  export that says its delegate died, holds filing until an import or export
+  of that store that began later succeeds; then what waits goes in at once.
+  The attacher asks before each pass and each chunk. One hold per stack, so a
+  rebuilt stack starts clear.
 - **What it skips.** It runs no history processor and no orphan guard (`#if !ASSISTANT_APP`).
 - **Which membership rows it reads.** Only assistant rows, so a lead-guide row
   synced from the same Apple Account can't make it file attendance as a guide.
@@ -306,15 +312,40 @@ notification, or on `.didSave` for main-queue contexts, as
 - Each store records when it stopped. Only a success whose event started after
   that clears it, so a launch import that finished earlier and is replayed by
   `configure` can't revive a dead delegate.
+- **Before `configure` too (2026-10-10).** `receive` follows the stopped flag
+  as each event arrives, by the same rules, so a launch with no window (a Siri
+  intent never configures) stops filing after a failed setup. `configure`
+  replays the same events; the marks are dated, so the result is the same.
+  If `configure` brings another stack, the stops those early events set go.
+  A stop set before any stack was known (named `.other`) is dropped once
+  `beginEarlyEventCapture` knows the stack, and the buffered events are
+  followed again with their stores named.
+- **Another Apple Account** (`resetForNewAccount`) clears the stops events set,
+  but keeps a stop an attach found: the container is still dead.
 - **No Apple Account at all** (CloudKit says `noAccount`): filing into the share
-  pauses until the app is reopened (`shareFilingPausedUntilReopen`).
-  `resetForNewAccount` leaves this pause alone.
+  pauses until the app is reopened (`shareFilingPausedUntilReopen`). CloudKit
+  is asked twice: at once, then after `CKAccountChanged` or a minute. The pause
+  latches only if both say no account and the store hasn't set up since; one
+  read at login used to latch it on an account still signing in.
+  `resetForNewAccount` leaves this pause alone. The message tells the guide to
+  sign in, then quit and reopen.
 - **An account signed in but not ready yet**: filing waits only until that
-  store's setup succeeds again and an import or export follows. Core Data's
-  134400 also comes in this case, so the app asks CloudKit which one it is
+  store's setup succeeds again and an import or export follows, or until an
+  import of that store that began after the failed setup succeeds (Core Data
+  may never post another setup). Core Data's 134400 also comes in this case,
+  so the app asks CloudKit which one it is
   (`CloudKitSyncStatusService+AccountReadiness.swift`).
+- **A setup of the notebook's private store that failed for the network, a
+  busy or throttled server, or with no error** is held the same way (it
+  doesn't mark the delegate dead). Only that store: the guide's filing goes
+  through it, and his empty classroom-share store may never set up again in
+  the session.
 - Every attach path checks both states: setup, the orphan guard, the attendance
-  catch-up and Remove Last Year.
+  catch-up and Remove Last Year. Setup, the guard and the catch-up check again
+  before each chunk of `share(_:to:)` (`ClassroomShareAttach.Steps.stopReason`),
+  and setup again right before it makes the share (`shareCreationBlocker`).
+- When a stop clears or a hold lifts, the orphan guard's pass is woken; so is it
+  after a notebook import while it waits for one after a pin.
 
 **A pin from another device waits for an import.**
 - `fetchShares` only knows what is already mirrored on this device, so a
@@ -322,8 +353,13 @@ notification, or on `.didSave` for main-queue contexts, as
 - A resumed setup, and the attendance catch-up, refuse until the notebook has
   imported since the pin was first seen here (`resumedSetupMustWait`).
 - Only `createPinnedShare` marks a pin as made here.
-- A device whose older build never recorded the pin waits for an import too,
-  and forgets nothing.
+- With no zone noted, a device decides by a marker: this build looked for a
+  pin here and found none (`noteNoPinFound`, at launch or in a pass). With the
+  marker, a first pin is from another device and forgets what was listed
+  before it. Without it (an older build ran here with the pin already
+  present), it forgets nothing. Never decided by comparing dates: `pinnedAt`
+  comes from another device's clock.
+- Either way it waits for an import too.
 
 **Where it shows up:**
 - **Settings → Data & Sync → iCloud**: status, a dead-delegate banner, and Sync Now.
@@ -360,7 +396,8 @@ setup action is the only thing that fixes it.
 
 **What stops an attach:** `FirstDownloadGate` (nothing until the first
 private-store import after a reset or on a new device), a dead mirroring
-delegate, and CloudKit's share-export timeout. What failed stays in the list.
+delegate or an account or setup hold (checked before each chunk), and
+CloudKit's share-export timeout. What failed or wasn't tried stays in the list.
 
 ## 7. iCloud Drive and key-value storage
 

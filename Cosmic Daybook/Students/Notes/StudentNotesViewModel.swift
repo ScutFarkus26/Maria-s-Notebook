@@ -1,13 +1,13 @@
 // StudentNotesViewModel.swift
 // Aggregates all notes for a specific CDStudent
 
-import SwiftUI
 import CoreData
+import SwiftUI
 
 // MARK: - View Model
 @Observable
 final class StudentNotesViewModel {
-    private let student: CDStudent
+    let student: CDStudent
     let viewContext: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator
 
@@ -54,9 +54,15 @@ final class StudentNotesViewModel {
     }
 
     // MARK: - Add
-    func addGeneralNote(body: String) {
+
+    /// Adds a note from the tab's quick bar. Returns whether it saved, so the
+    /// bar keeps her text when it didn't (it used to clear it either way). A
+    /// note that couldn't be saved is taken back out, so trying again makes
+    /// one note, not two.
+    @discardableResult
+    func addGeneralNote(body: String) -> Bool {
         let trimmed = body.trimmed()
-        guard !trimmed.isEmpty else { return }
+        guard !trimmed.isEmpty else { return false }
 
         let newNote = CDNote(context: viewContext)
         newNote.body = trimmed
@@ -64,22 +70,28 @@ final class StudentNotesViewModel {
             newNote.scope = .student(studentID)
         }
 
-        if saveCoordinator.save(viewContext, reason: "Adding note") {
-            fetchAllNotes()
+        guard saveCoordinator.save(viewContext, reason: "Adding note") else {
+            viewContext.delete(newNote)
+            return false
         }
+        NotificationCenter.default.post(name: .noteDidSave, object: newNote.id)
+        fetchAllNotes()
+        return true
     }
 
     // MARK: - Delete
+
+    /// Deletes the note, then its photo once the delete has saved: deleted
+    /// first, a failed save left the note pointing at a photo that was gone.
     func delete(item: UnifiedNoteItem) {
-        if let note = note(by: item.id) {
-            note.deleteAssociatedImage()
-            viewContext.delete(note)
-            if saveCoordinator.save(viewContext, reason: "Deleting note") {
-                items.removeAll { $0.id == item.id }
-            }
+        guard let note = note(by: item.id) else { return }
+        let imagePath = note.imagePath
+        viewContext.delete(note)
+        if saveCoordinator.save(viewContext, reason: "Deleting note") {
+            Self.deletePhotos([imagePath])
+            items.removeAll { $0.id == item.id }
         }
     }
-
 }
 
 // MARK: - CDNote Source Fetchers
@@ -102,10 +114,17 @@ extension StudentNotesViewModel {
         let primaryNotes: [CDNote] = viewContext.safeFetch(primaryFetch)
 
         let linkFetch: NSFetchRequest<CDNoteStudentLink> = NSFetchRequest(entityName: "NoteStudentLink")
-        linkFetch.predicate = NSPredicate(format: "studentID == %@", studentIDString as CVarArg)
+        linkFetch.predicate = NSPredicate(format: "studentID ==[c] %@", studentIDString as CVarArg)
         let links: [CDNoteStudentLink] = viewContext.safeFetch(linkFetch)
-        let linkedNotes = links.compactMap(\.note)
+        // A link counts only while the note's scope still names her: a link
+        // left by an older re-scope doesn't put the note on her tab.
+        let linkedNotes = links.compactMap(\.note).filter { note in
+            guard let studentID = student.id else { return false }
+            return note.scope.applies(to: studentID)
+        }
 
+        // One row per note, however many links name her (two devices could
+        // each link the same child).
         var seenIDs = Set(primaryNotes.compactMap(\.id))
         var visibleNotes = primaryNotes
         for note in linkedNotes {
@@ -120,18 +139,11 @@ extension StudentNotesViewModel {
             if note.lessonAssignment != nil { return nil }
             if note.studentMeeting != nil { return nil }
             if note.attendanceRecordID != nil { return nil }
-
-            let context: String = {
-                if let lesson = note.lesson {
-                    let name = lesson.name.trimmed()
-                    return name.isEmpty ? "Lesson" : name
-                }
-                return "General Note"
-            }()
+            if !isOnProject(note) { return nil }
 
             return UnifiedNoteItem(
-                id: noteID, date: note.updatedAt ?? Date(), body: note.body,
-                source: .general, contextText: context, color: .blue,
+                id: noteID, date: Self.noteDate(note), body: note.body,
+                source: .general, contextText: Self.generalContext(for: note), color: .blue,
                 associatedID: noteID, tags: note.tagsArray,
                 includeInReport: note.includeInReport, needsFollowUp: note.needsFollowUp,
                 imagePath: note.imagePath, reportedBy: note.reportedBy,
@@ -140,18 +152,22 @@ extension StudentNotesViewModel {
         }
     }
 
-    /// 2) Work-related notes.
+    /// 2) Work-related notes: on her own work rows and on shared rows she's a
+    /// participant in (those used to show only on the owner's tab).
     func fetchWorkRelatedNotes(
         noteSort: [NSSortDescriptor], studentIDString: String
     ) -> [UnifiedNoteItem] {
         let workFetch = CDFetchRequest(CDWorkModel.self)
-        workFetch.predicate = NSPredicate(format: "studentID == %@", studentIDString as CVarArg)
+        workFetch.predicate = NSPredicate(
+            format: "studentID ==[c] %@ OR ANY participants.studentID ==[c] %@",
+            studentIDString as CVarArg, studentIDString as CVarArg
+        )
         let workModels: [CDWorkModel] = viewContext.safeFetch(workFetch)
         let workIDs = Set(workModels.compactMap(\.id))
         guard !workIDs.isEmpty else { return [] }
 
         let workNoteFetch = CDFetchRequest(CDNote.self)
-        workNoteFetch.predicate = NSPredicate(format: "work != nil")
+        workNoteFetch.predicate = NSPredicate(format: "work IN %@", workModels)
         workNoteFetch.sortDescriptors = noteSort
         let workNotes: [CDNote] = viewContext.safeFetch(workNoteFetch)
         let lessonNameByWorkID = buildLessonNameLookup(forWorkModels: workModels)
@@ -160,13 +176,16 @@ extension StudentNotesViewModel {
             guard let noteID = note.id,
                   let work = note.work,
                   let workID = work.id,
-                  workIDs.contains(workID) else { return nil }
-            if !note.scopeIsAll && note.searchIndexStudentID == nil {
-                guard let studentID = student.id, note.scope.applies(to: studentID) else { return nil }
-            }
+                  workIDs.contains(workID),
+                  let studentID = student.id else { return nil }
+            // The owner sees a note unless it names other children only; a
+            // participant sees the row's whole-class notes and those naming her.
+            let isOwner = work.studentID.caseInsensitiveCompare(studentIDString) == .orderedSame
+            let isHers = note.scopeIsAll || note.scope.applies(to: studentID)
+            guard isHers || (isOwner && note.searchIndexStudentID != nil) else { return nil }
             let context = lessonNameByWorkID[workID.uuidString] ?? (work.title.isEmpty ? "Work" : work.title)
             return UnifiedNoteItem(
-                id: noteID, date: note.updatedAt ?? Date(), body: note.body,
+                id: noteID, date: Self.noteDate(note), body: note.body,
                 source: .work, contextText: context, color: .orange,
                 associatedID: workID, tags: note.tagsArray,
                 includeInReport: note.includeInReport, needsFollowUp: note.needsFollowUp,
@@ -209,7 +228,7 @@ extension StudentNotesViewModel {
             }()
 
             return UnifiedNoteItem(
-                id: noteID, date: note.updatedAt ?? Date(), body: note.body,
+                id: noteID, date: Self.noteDate(note), body: note.body,
                 source: .presentation, contextText: context, color: .purple,
                 associatedID: pres.id, tags: note.tagsArray,
                 includeInReport: note.includeInReport, needsFollowUp: note.needsFollowUp,

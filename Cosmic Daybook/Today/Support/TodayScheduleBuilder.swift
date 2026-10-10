@@ -11,8 +11,6 @@ enum TodayScheduleBuilder {
 
     /// Result of processing work items for schedule display.
     struct ScheduleResult {
-        let overdue: [ScheduledWorkItem]
-        let today: [ScheduledWorkItem]
         /// The most-stale `staleRowLimit` items, longest untouched first.
         let stale: [FollowUpWorkItem]
         /// Every stale item, kept or not, so the UI can name the real number.
@@ -45,8 +43,6 @@ enum TodayScheduleBuilder {
         referenceDate: Date,
         context: NSManagedObjectContext
     ) -> ScheduleResult {
-        var newOverdue: [ScheduledWorkItem] = []
-        var newToday: [ScheduledWorkItem] = []
         var newStale: [FollowUpWorkItem] = []
 
         // Tracks work already placed in the overdue list so the due-today
@@ -76,18 +72,14 @@ enum TodayScheduleBuilder {
             let lastTouch = WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: workNotes)
             let startLastTouch = lastTouch.startOfDay
 
-            // Sort scheduled check-ins to find earliest relevant
-            let sortedCheckIns = workCheckIns.sorted { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) }
-
             // --- Overdue Logic ---
             // An item is overdue if its date is < Today AND last touch is BEFORE that date.
             var isOverdueOrToday = false
 
-            if let overdueItem = sortedCheckIns.first(where: { item in
+            if workCheckIns.contains(where: { item in
                 let itemDate = (item.date ?? .distantPast).startOfDay
                 return itemDate < startToday && startLastTouch < itemDate
             }) {
-                newOverdue.append(ScheduledWorkItem(work: work, checkIn: overdueItem))
                 placedWorkIDs.insert(workID)
                 isOverdueOrToday = true
             }
@@ -96,8 +88,7 @@ enum TodayScheduleBuilder {
             // Skip if this work is already placed in the overdue list so it
             // appears only once (overdue takes precedence over due-today).
             if !placedWorkIDs.contains(workID),
-               let todayItem = sortedCheckIns.first(where: { ($0.date ?? .distantPast).isSameDay(as: referenceDate) }) {
-                newToday.append(ScheduledWorkItem(work: work, checkIn: todayItem))
+               workCheckIns.contains(where: { ($0.date ?? .distantPast).isSameDay(as: referenceDate) }) {
                 isOverdueOrToday = true
             }
 
@@ -114,8 +105,6 @@ enum TodayScheduleBuilder {
         }
 
         return ScheduleResult(
-            overdue: newOverdue.sorted { ($0.checkIn.date ?? .distantPast) < ($1.checkIn.date ?? .distantPast) },
-            today: newToday.sorted { ($0.checkIn.date ?? .distantPast) < ($1.checkIn.date ?? .distantPast) },
             stale: Array(newStale.sorted { $0.daysSinceTouch > $1.daysSinceTouch }.prefix(staleRowLimit)),
             staleTotalCount: newStale.count
         )

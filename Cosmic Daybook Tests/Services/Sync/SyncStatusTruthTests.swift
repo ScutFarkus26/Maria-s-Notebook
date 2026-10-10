@@ -239,7 +239,9 @@ struct SyncStatusTruthTests {
                 type: .setup, isFinished: true, succeeded: false, error: setupThrew,
                 startDate: Date(), storeIdentifier: "shared-store"
             ))
-            #expect(!service.mirroringDelegateFailed)
+            // The stopped flag follows it as it arrives (bug hunt 2026-10-10, #1);
+            // the per-store failure waits for configure.
+            #expect(service.mirroringDelegateFailed)
             #expect(service.storeHealth.mostSevereFailure == nil)
 
             service.startHandlingCloudKitEvents(for: stack)

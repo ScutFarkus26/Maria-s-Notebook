@@ -13,31 +13,22 @@ enum TodayAgendaBuilder {
     // Builds the unified agenda by merging items with persisted order.
     // Items with a saved position appear first (in position order).
     // New items (not in saved order) are appended at the end in default order.
-    // Work items with group/flexible check-in styles are merged into grouped rows.
     static func buildAgenda(
         lessons: [CDLessonAssignment],
-        overdueSchedule: [ScheduledWorkItem],
-        todaysSchedule: [ScheduledWorkItem],
         day: Date,
         context: NSManagedObjectContext
     ) -> [AgendaItem] {
-        // 1. Group scheduled work by checkInStyle + lessonID
-        let allScheduled = overdueSchedule + todaysSchedule
-        let groupedScheduledItems = groupScheduledWork(allScheduled)
+        // 1. Build the complete set in default order (exclude presented lessons — they appear in the left column)
+        let allItems: [AgendaItem] = lessons.filter { !$0.isPresented }.map { .lesson($0) }
 
-        // 2. Build the complete set in default order (exclude presented lessons — they appear in the left column)
-        var allItems: [AgendaItem] = []
-        allItems += lessons.filter { !$0.isPresented }.map { .lesson($0) }
-        allItems += groupedScheduledItems
-
-        // 3. Fetch saved order
+        // 2. Fetch saved order
         let savedOrder = fetchSavedOrder(for: day, context: context)
 
         if savedOrder.isEmpty {
             return allItems
         }
 
-        // 4. Build ordered result
+        // 3. Build ordered result
         let itemsByID = Dictionary(allItems.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         var ordered: [AgendaItem] = []
         var usedIDs = Set<UUID>()
@@ -50,47 +41,12 @@ enum TodayAgendaBuilder {
             ordered.append(item)
         }
 
-        // 5. Append any new items that weren't in the saved order
+        // 4. Append any new items that weren't in the saved order
         for item in allItems where !usedIDs.contains(item.id) {
             ordered.append(item)
         }
 
         return ordered
-    }
-
-    /// Groups scheduled work items by check-in style and lessonID.
-    /// - Individual style: each item stays as a separate row
-    /// - Group/Flexible style: items sharing the same lessonID merge into one grouped row
-    private static func groupScheduledWork(_ items: [ScheduledWorkItem]) -> [AgendaItem] {
-        var individualItems: [AgendaItem] = []
-        // Key: lessonID, Value: accumulated items to group
-        var groupBuckets: [String: [ScheduledWorkItem]] = [:]
-        var groupOrder: [String] = []
-
-        for item in items {
-            let style = item.work.checkInStyle
-            if style == .individual {
-                individualItems.append(.scheduledWork(item))
-            } else {
-                let key = item.work.lessonID
-                if groupBuckets[key] == nil { groupOrder.append(key) }
-                groupBuckets[key, default: []].append(item)
-            }
-        }
-
-        var result: [AgendaItem] = []
-        // Emit grouped items in first-appearance order
-        for key in groupOrder {
-            guard let bucket = groupBuckets[key] else { continue }
-            if bucket.count == 1 {
-                // Single item doesn't need grouping even if style is group/flexible
-                result.append(.scheduledWork(bucket[0]))
-            } else {
-                result.append(.groupedScheduledWork(bucket))
-            }
-        }
-        result += individualItems
-        return result
     }
 
     /// Groups quiet work by check-in style and lessonID, for Gone quiet: a
@@ -185,6 +141,10 @@ enum TodayAgendaBuilder {
     // MARK: - Private
 
     /// Rewrites the day's order rows of the kinds `replacing` picks out.
+    /// `entries` are the rows on screen, which under a level filter are only
+    /// some of the day's: the rows saved for items not on screen keep their
+    /// places (`mergedOrder`), so reordering under one level no longer erases
+    /// the order arranged under another.
     private static func replaceOrder(
         with entries: [(AgendaItemType, UUID)],
         replacing: (AgendaItemType) -> Bool,
@@ -193,13 +153,15 @@ enum TodayAgendaBuilder {
     ) {
         let dayStart = AppCalendar.startOfDay(day)
 
-        // Delete this kind's existing entries for the day
+        // Delete this kind's existing entries for the day, remembering their order
+        var saved: [(AgendaItemType, UUID)] = []
         for entry in fetchSavedOrder(for: day, context: context) where replacing(entry.itemType) {
+            if let itemID = entry.itemID { saved.append((entry.itemType, itemID)) }
             context.delete(entry)
         }
 
         // Write new entries
-        for (index, (type, id)) in entries.enumerated() {
+        for (index, (type, id)) in mergedOrder(saved: saved, shown: entries).enumerated() {
             let entry = CDTodayAgendaOrder(context: context)
             entry.day = dayStart
             entry.itemType = type
@@ -208,6 +170,28 @@ enum TodayAgendaBuilder {
         }
 
         context.safeSave()
+    }
+
+    /// The saved order with the shown items rearranged among themselves: each
+    /// slot a shown item held now takes the next shown item in its new order,
+    /// a hidden item keeps its slot, and shown items with no slot yet follow at
+    /// the end. Repeated ids keep their first slot.
+    static func mergedOrder(
+        saved: [(AgendaItemType, UUID)], shown: [(AgendaItemType, UUID)]
+    ) -> [(AgendaItemType, UUID)] {
+        let shownIDs = Set(shown.map(\.1))
+        var queue = shown[...]
+        var merged: [(AgendaItemType, UUID)] = []
+        var placed = Set<UUID>()
+        for entry in saved where placed.insert(entry.1).inserted {
+            if shownIDs.contains(entry.1) {
+                if let next = queue.popFirst() { merged.append(next) }
+            } else {
+                merged.append(entry)
+            }
+        }
+        merged.append(contentsOf: queue)
+        return merged
     }
 
     private static func fetchSavedOrder(for day: Date, context: NSManagedObjectContext) -> [CDTodayAgendaOrder] {

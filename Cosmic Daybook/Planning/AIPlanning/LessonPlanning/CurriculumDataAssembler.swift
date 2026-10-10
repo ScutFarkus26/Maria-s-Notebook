@@ -26,11 +26,11 @@ struct CurriculumDataAssembler {
 
         let studentIDs = Set(students.compactMap { $0.id?.uuidString })
         let studentNameMap = Dictionary(
-            uniqueKeysWithValues: students.compactMap { student -> (String, String)? in
+            students.compactMap { student -> (String, String)? in
                 guard let idString = student.id?.uuidString else { return nil }
                 return (idString, student.fullName)
-            }
-        )
+            },
+            uniquingKeysWith: { first, _ in first })
 
         // Group lessons by area → sequence
         let lessonsByArea = Dictionary(grouping: allLessons) { $0.area.trimmed() }

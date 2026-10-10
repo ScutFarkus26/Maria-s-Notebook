@@ -81,7 +81,21 @@ final class ToastService {
     /// Timer for auto-dismissing toasts
     private var dismissTask: Task<Void, Never>?
 
-    private init() {}
+    /// True between one toast leaving and the next queued one showing. A toast
+    /// shown in that gap would be pushed out by the queued one a moment later,
+    /// so new toasts wait in the queue until the hand-off is done.
+    private(set) var isHandingOff = false
+
+    /// The pause between one toast leaving and the next one showing.
+    private let handOffDelay: Duration
+
+    /// The app uses `shared`; tests make their own with a short hand-off.
+    init(handOffDelay: Duration = .milliseconds(200)) {
+        self.handOffDelay = handOffDelay
+    }
+
+    /// The toasts waiting their turn, oldest first.
+    var queuedToasts: [ToastMessage] { toastQueue }
 
     /// Show a toast message
     /// - Parameters:
@@ -117,8 +131,8 @@ final class ToastService {
         case .info: break
         }
 
-        // If no toast is currently showing, show immediately
-        if currentToast == nil {
+        // If no toast is showing and none is about to, show immediately
+        if currentToast == nil && !isHandingOff {
             showToast(toast)
         } else {
             // Queue the toast
@@ -152,6 +166,9 @@ final class ToastService {
 
     /// Dismiss the current toast immediately
     func dismiss() {
+        // A second dismiss (a tap as the timer fires) must not start a second
+        // hand-off, which would show one queued toast and push it straight out.
+        guard currentToast != nil else { return }
         dismissTask?.cancel()
         adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
             currentToast = nil
@@ -181,21 +198,16 @@ final class ToastService {
     }
 
     private func showNextToast() {
-        guard !toastQueue.isEmpty else { return }
+        guard !toastQueue.isEmpty, !isHandingOff else { return }
+        isHandingOff = true
 
         // Small delay before showing next toast
-        Task { [weak self] in
-            do {
-                try await Task.sleep(for: .milliseconds(200)) // 0.2 seconds
-                guard !Task.isCancelled else { return }
-
-                if let nextToast = self?.toastQueue.first {
-                    self?.toastQueue.removeFirst()
-                    self?.showToast(nextToast)
-                }
-            } catch {
-                Self.logger.warning("Task sleep interrupted: \(error, privacy: .public)")
-            }
+        Task { [weak self, handOffDelay] in
+            try? await Task.sleep(for: handOffDelay)
+            guard let self else { return }
+            self.isHandingOff = false
+            guard self.currentToast == nil, !self.toastQueue.isEmpty else { return }
+            self.showToast(self.toastQueue.removeFirst())
         }
     }
 }

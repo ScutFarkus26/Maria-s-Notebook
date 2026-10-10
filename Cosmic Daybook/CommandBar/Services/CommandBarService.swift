@@ -95,8 +95,9 @@ final class CommandBarService {
                 }
             }.value
             switch outcome {
-            case .success(let proposal):
+            case .success(var proposal):
                 Self.logger.info("Apple Intelligence organized an editable classroom capture")
+                proposal.presentedOn = CaptureDateParser.day(in: input, today: Date())
                 parseState = .capture(proposal)
                 return
             case .failure(let error):
@@ -152,7 +153,8 @@ final class CommandBarService {
             groupObservation: command.intent == .addNote && entries.count != 1 ? command.freeText : "",
             studentEntries: entries,
             unresolvedStudentNames: [],
-            source: .deterministic
+            source: .deterministic,
+            presentedOn: CaptureDateParser.day(in: input, today: Date())
         )
     }
 

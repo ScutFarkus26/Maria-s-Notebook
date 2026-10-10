@@ -29,16 +29,32 @@
 //
 //  Mutual naming alone can't tell one fan-out from the next, though. The same
 //  work given to the same children twice — an assign_work call weeks after
-//  the first — names the same owners both times, and neither sets a
-//  presentation, so the second assignment used to join the first: a check-in,
-//  a status or a delete on the new rows reached the old ones too. So copies
-//  must also have been made together: created within `fanOutWindow` of each
-//  other. A shared presentation isn't enough on its own — `createWork` links
-//  every copy to the children's latest record for the lesson, so the same
-//  work given again weeks later carries the same presentation as the first.
-//  Only Quick New Work and assign_work make copies that name each other, both
-//  in one pass, and backup restore and sync keep `createdAt`. A row with no
-//  creation date keeps the old rule, so older group work still groups.
+//  the first — names the same owners both times, so the second assignment
+//  used to join the first: a check-in, a status or a delete on the new rows
+//  reached the old ones too. So copies must also have been made together:
+//  created within `fanOutWindow` of each other. Only Quick New Work and
+//  assign_work make copies that name each other, both in one pass, and backup
+//  restore and sync keep `createdAt`.
+//
+//  When both rows have a creation date, the window decides, with the mutual
+//  naming, the lesson and the kind. The presentation and the title don't:
+//  `createWork` links each copy to *that child's* latest presentation of the
+//  lesson, so two children who had it on different days get copies with
+//  different presentations, and the work editor used to rename one copy
+//  without the others. Either way the copies stopped grouping, and each one
+//  read as a shared row for both children.
+//
+//  One fan-out never gives a child two copies, so a window that holds two
+//  rows for one child holds more than one assignment (two pieces of work for
+//  the same lesson given to the same children a few seconds apart). Only then
+//  do the title and the presentation come back in: each child's copy is her
+//  row with the same title, then the same presentation, then the closest
+//  creation time, which keeps "Label the parts" and "Write a definition"
+//  apart. A pair with no creation date keeps the old rule (the same title and
+//  the same presentation), so older group work still groups.
+//
+//  Project-session rows are shared rows by construction, never copies, even
+//  when two of them end up naming the same children.
 //
 
 import CoreData
@@ -167,24 +183,113 @@ enum WorkGrouping {
     /// Transitive rather than one hop: a group that has already lost a row is
     /// still connected through the rows that remain, and stopping at one hop
     /// would report a partial group as if it were the whole one.
+    ///
+    /// When the walk reaches two rows owned by one child, it has crossed from
+    /// one assignment into another made in the same minute (see the file
+    /// comment), and `sameMinuteGroup` picks this row's own copies out of it.
     private static func closure(
         from work: CDWorkModel, in context: NSManagedObjectContext
     ) -> [CDWorkModel] {
         let candidates = candidateRows(sharingLessonWith: work, in: context)
         guard !candidates.isEmpty else { return [work] }
 
+        let linked = walk(from: work, among: candidates, linkedBy: areLinkedCopies)
+        guard hasRepeatedOwner(linked) else { return linked }
+        return sameMinuteGroup(of: work, among: linked)
+    }
+
+    /// The anchor's group out of rows that hold more than one assignment.
+    /// For each other child, her row that best matches the anchor (the same
+    /// title, then the same presentation, then the closest creation time,
+    /// since one pass stamps its copies milliseconds apart), kept only when
+    /// the anchor is in turn the best match for her row among its owner's
+    /// rows. A tie keeps neither, so an unclear row reads as it did before:
+    /// on its own.
+    private static func sameMinuteGroup(of work: CDWorkModel, among linked: [CDWorkModel]) -> [CDWorkModel] {
+        guard let anchorOwner = owner(of: work) else { return [work] }
+        var rowsByOwner: [UUID: [CDWorkModel]] = [:]
+        for row in linked {
+            guard let rowOwner = owner(of: row) else { continue }
+            rowsByOwner[rowOwner, default: []].append(row)
+        }
+        let anchorOwnersRows = rowsByOwner[anchorOwner] ?? [work]
+        var members = [work]
+        for (rowOwner, rows) in rowsByOwner where rowOwner != anchorOwner {
+            guard let match = bestMatch(for: work, among: rows),
+                  bestMatch(for: match, among: anchorOwnersRows) === work else { continue }
+            members.append(match)
+        }
+        return members
+    }
+
+    /// The row among `rows` linked to `row` that matches it best, or nil when
+    /// none is linked or two match equally well.
+    private static func bestMatch(for row: CDWorkModel, among rows: [CDWorkModel]) -> CDWorkModel? {
+        let ranked = rows
+            .filter { areLinkedCopies(row, $0) }
+            .map { (row: $0, rank: matchRank(row, $0)) }
+            .sorted { $0.rank > $1.rank }
+        guard let best = ranked.first else { return nil }
+        if ranked.count > 1, !(ranked[1].rank < best.rank) { return nil }
+        return best.row
+    }
+
+    /// How alike two rows are, best first when compared with `>`: the same
+    /// title counts most, then the same presentation, then how close
+    /// together they were created.
+    private struct MatchRank: Comparable {
+        let sameTitle: Bool
+        let samePresentation: Bool
+        let secondsApart: TimeInterval
+
+        static func < (lhs: MatchRank, rhs: MatchRank) -> Bool {
+            if lhs.sameTitle != rhs.sameTitle { return !lhs.sameTitle }
+            if lhs.samePresentation != rhs.samePresentation { return !lhs.samePresentation }
+            return lhs.secondsApart > rhs.secondsApart
+        }
+    }
+
+    private static func matchRank(_ lhs: CDWorkModel, _ rhs: CDWorkModel) -> MatchRank {
+        let apart: TimeInterval
+        if let lhsCreated = lhs.createdAt, let rhsCreated = rhs.createdAt {
+            apart = abs(lhsCreated.timeIntervalSince(rhsCreated))
+        } else {
+            apart = .greatestFiniteMagnitude
+        }
+        return MatchRank(
+            sameTitle: lhs.title.foldedKey() == rhs.title.foldedKey(),
+            samePresentation: lhs.presentationID == rhs.presentationID,
+            secondsApart: apart
+        )
+    }
+
+    private static func walk(
+        from work: CDWorkModel, among candidates: [CDWorkModel],
+        linkedBy isLinked: (CDWorkModel, CDWorkModel) -> Bool
+    ) -> [CDWorkModel] {
         var found: [CDWorkModel] = [work]
         var frontier: [CDWorkModel] = [work]
 
         while let current = frontier.popLast() {
             for candidate in candidates
             where !found.contains(where: { $0 === candidate })
-                && areLinkedCopies(current, candidate) {
+                && isLinked(current, candidate) {
                 found.append(candidate)
                 frontier.append(candidate)
             }
         }
         return found
+    }
+
+    /// Whether some child owns more than one of `rows`, which one fan-out
+    /// never makes.
+    private static func hasRepeatedOwner(_ rows: [CDWorkModel]) -> Bool {
+        var owners = Set<UUID>()
+        for row in rows {
+            guard let owner = owner(of: row) else { continue }
+            if !owners.insert(owner).inserted { return true }
+        }
+        return false
     }
 
     /// Rows that could plausibly be siblings, narrowed in the fetch so grouping
@@ -197,24 +302,28 @@ enum WorkGrouping {
         return context.safeFetch(request).filter { $0 !== work }
     }
 
-    /// Whether two rows are copies of one another created by the same fan-out.
+    /// Whether two rows could be copies of one another created by the same
+    /// fan-out.
     ///
-    /// The mutual naming test carries the weight; the field comparisons and
+    /// The mutual naming test carries the weight; the lesson, the kind and
     /// `wereMadeTogether` keep two genuinely separate assignments of the same
     /// lesson — or the same assignment given twice — from being read as one
-    /// group.
+    /// group. A pair that passes can still belong to two assignments made in
+    /// the same minute; `group(containing:in:)` sorts that case out.
     static func areLinkedCopies(_ lhs: CDWorkModel, _ rhs: CDWorkModel) -> Bool {
         guard lhs !== rhs,
               let lhsOwner = owner(of: lhs),
               let rhsOwner = owner(of: rhs),
               lhsOwner != rhsOwner else { return false }
 
+        guard lhs.sourceContextType != .projectSession,
+              rhs.sourceContextType != .projectSession else { return false }
+
         guard studentIDs(of: lhs).contains(rhsOwner),
               studentIDs(of: rhs).contains(lhsOwner) else { return false }
 
         return lhs.lessonID == rhs.lessonID
             && lhs.kind == rhs.kind
-            && lhs.title.foldedKey() == rhs.title.foldedKey()
             && wereMadeTogether(lhs, rhs)
     }
 
@@ -223,14 +332,22 @@ enum WorkGrouping {
     /// stamps are milliseconds apart; a repeat assignment is days or weeks on.
     static let fanOutWindow: TimeInterval = 60
 
-    /// Whether two rows came from the same act of assigning: the same
-    /// presentation (or none on both), and created within `fanOutWindow`.
-    /// The window applies even when the presentation matches, since a repeat
-    /// assignment inherits the first one's. A missing creation date can't rule
-    /// a row out, so it passes, as every row did before the window existed.
+    /// Whether two rows came from the same act of assigning. With both
+    /// creation dates, being created within `fanOutWindow` is the test: the
+    /// presentation can differ (each child's own latest) and so can the
+    /// title (a copy renamed before edits carried to the others). A missing
+    /// creation date can't rule a row out, so the pair falls back to the old
+    /// test, the same title and the same presentation (or none on both).
     private static func wereMadeTogether(_ lhs: CDWorkModel, _ rhs: CDWorkModel) -> Bool {
-        guard lhs.presentationID == rhs.presentationID else { return false }
-        guard let lhsCreated = lhs.createdAt, let rhsCreated = rhs.createdAt else { return true }
+        guard let lhsCreated = lhs.createdAt, let rhsCreated = rhs.createdAt else {
+            return matchOnAssignment(lhs, rhs)
+        }
         return abs(lhsCreated.timeIntervalSince(rhsCreated)) <= fanOutWindow
+    }
+
+    /// The old test for "the same assignment": the same title, ignoring case,
+    /// spacing and accents, and the same presentation (or none on both).
+    private static func matchOnAssignment(_ lhs: CDWorkModel, _ rhs: CDWorkModel) -> Bool {
+        lhs.title.foldedKey() == rhs.title.foldedKey() && lhs.presentationID == rhs.presentationID
     }
 }

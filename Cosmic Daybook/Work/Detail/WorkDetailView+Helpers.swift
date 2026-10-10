@@ -296,12 +296,12 @@ extension WorkDetailView {
         modelContext.delete(note)
         saveCoordinator.save(modelContext, reason: "Deleting note")
 
-        // Reload the work to refresh the notes list
-        viewModel.loadWork(modelContext: modelContext, saveCoordinator: saveCoordinator)
+        // The notes only: unsaved header edits stay as they are.
+        viewModel.reloadNotes()
     }
 
     func studentName() -> String {
-        viewModel.relatedStudent?.firstName ?? "Student"
+        viewModel.relatedStudent?.shortName ?? "Student"
     }
 
     func lessonTitle() -> String {

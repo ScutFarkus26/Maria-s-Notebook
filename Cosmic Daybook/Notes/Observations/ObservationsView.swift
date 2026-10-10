@@ -88,8 +88,6 @@ struct ObservationsView: View {
     @State var showingAIScopeSheet: Bool = false
     @State var aiScopeDate: Date = Date()
 #endif
-    @State var hasMore: Bool = true
-    @State var lastCursorDate: Date? // fetch notes where createdAt < lastCursorDate
 
     // Filters (applied in-memory) - uses ObservationsFilterService.ScopeFilter
     @State var selectedFilterTags: Set<String> = []

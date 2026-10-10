@@ -3,27 +3,24 @@ import Foundation
 /// Shared duplicate detection utilities for CSV importers.
 /// Consolidates common duplicate detection patterns used across CDStudent and CDLesson importers.
 enum CSVDuplicateDetection {
-    /// Detects if a key exists in the provided sets.
+    /// Whether a row might already be in the class: its full key (name and
+    /// birthday) or its name alone matches a child on file. A name match
+    /// counts even when the row has a birthday, since the import then
+    /// updates her or, when the birthdays differ, leaves the row out; the
+    /// preview used to stay silent about that case.
     /// - Parameters:
-    ///   - key: The full key to check
-    ///   - nameKey: The name-only key to check (used as fallback)
+    ///   - fullKey: The row's full key
+    ///   - nameKey: The row's name-only key
     ///   - existingFullKeys: Set of existing full keys
     ///   - existingNameKeys: Set of existing name-only keys
-    ///   - hasFullKey: Whether the item has a full key (e.g., has birthday)
     /// - Returns: `true` if the item is a potential duplicate
     static func isDuplicate(
         fullKey: String,
         nameKey: String,
         existingFullKeys: Set<String>,
-        existingNameKeys: Set<String>,
-        hasFullKey: Bool
+        existingNameKeys: Set<String>
     ) -> Bool {
-        if existingFullKeys.contains(fullKey) {
-            return true
-        } else if !hasFullKey && existingNameKeys.contains(nameKey) {
-            return true
-        }
-        return false
+        existingFullKeys.contains(fullKey) || existingNameKeys.contains(nameKey)
     }
-    
+
 }

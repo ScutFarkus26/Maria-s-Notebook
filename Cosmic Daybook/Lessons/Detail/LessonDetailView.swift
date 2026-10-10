@@ -6,21 +6,32 @@ import AppKit
 import CoreData
 #endif
 
+/// A lesson's card: its details, files and journey, with Edit and Delete.
+///
+/// The card saves its own edits through `SaveCoordinator`, so every host (the
+/// Lessons pane, the Mac lesson window, the Parsha pages) gets the same Save;
+/// `onSave` is only told afterwards. The Mac window and the Parsha pages once
+/// passed an empty `onSave` and their edits were never saved (bug hunt
+/// 2026-10-10, #38).
 struct LessonDetailView: View {
     static let logger = Logger.lessons
     var lesson: CDLesson
     var allLessons: [CDLesson] = []
-    var onSave: (CDLesson) -> Void
+    /// Called after the card has saved an edit.
+    var onSave: ((CDLesson) -> Void)?
     var onDone: (() -> Void)?
     var onLocateInMap: ((CDLesson) -> Void)?
     var onSchedule: ((CDLesson) -> Void)?
 
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.dismiss) var dismiss
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.managedObjectContext) var managedObjectContext
     @Environment(SaveCoordinator.self) var saveCoordinator
+    /// The Sample Class's lessons point at the real notebook's files, so there
+    /// its file actions change records only.
+    @Environment(\.isSampleClassroom) var isSampleClassroom
 
-    private var repository: LessonRepository {
+    var repository: LessonRepository {
         LessonRepository(context: managedObjectContext, saveCoordinator: saveCoordinator)
     }
 
@@ -30,7 +41,7 @@ struct LessonDetailView: View {
     }
 
     var existingSequences: [String] {
-        let area = draftArea.trimmed()
+        let area = draft.area.trimmed()
         guard !area.isEmpty else { return [] }
         return Array(Set(
             allLessons
@@ -42,8 +53,8 @@ struct LessonDetailView: View {
     }
 
     var existingSections: [String] {
-        let area = draftArea.trimmed()
-        let sequence = draftSequence.trimmed()
+        let area = draft.area.trimmed()
+        let sequence = draft.sequence.trimmed()
         guard !area.isEmpty, !sequence.isEmpty else { return [] }
         return Array(Set(
             allLessons
@@ -57,25 +68,11 @@ struct LessonDetailView: View {
         .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
-    @State private var isEditing = false
-    @State var draftName: String = ""
-    @State var draftArea: String = ""
-    @State var draftSequence: String = ""
-    @State var draftSection: String = ""
-    @State var draftWriteUp: String = ""
-    @State var draftSuggestedFollowUpWork: String = ""
-    @State var draftSource: LessonSource = .album
-    @State var draftPersonalKind: PersonalLessonKind = .personal
-    @State var draftMaterials: String = ""
-    @State var draftPurpose: String = ""
-    @State var draftAgeRange: String = ""
-    @State var draftTeacherNotes: String = ""
-    @State var draftLessonFormat: LessonFormat = .standard
-    @State var draftParentStoryID: UUID?
-    @State var draftPracticeOverride: ProgressionOverride = .inherit
-    @State var draftConfirmationOverride: ProgressionOverride = .inherit
-    @State var draftIsKeyLesson: Bool = false
-    @State private var showDeleteAlert = false
+    @State var isEditing = false
+    /// The edit fields, tied to the lesson they were filled from.
+    @State var draft = LessonEditDraft()
+    /// Non-nil while the delete confirmation is up: what the delete takes with it.
+    @State var pendingDeletion: LessonDeletionSummary?
     @State private var showingGreatLessonTagEditor = false
     @State var showingSampleWorkEditor = false
     @State var editingSampleWork: CDSampleWork?
@@ -83,15 +80,16 @@ struct LessonDetailView: View {
     @State var showingPagesImporter = false
     @State var resolvedPagesURL: URL?
     @State var importError: String?
-    @State private var deleteError: String?
-    @State var previousManagedURL: URL?
+    @State var deleteError: String?
+    /// Shown when a file can't be added in the Sample Class.
+    @State var showingSampleClassFileNotice = false
 
     var body: some View {
         VStack(spacing: 0) {
             // Top toolbar: close, spacer, open-in-new-window
             HStack(spacing: 8) {
                 Button {
-                    if let onDone { onDone() } else { dismiss() }
+                    close()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 18, weight: .regular))
@@ -158,30 +156,18 @@ struct LessonDetailView: View {
         .safeAreaInset(edge: .bottom) {
             bottomBar
         }
-        .alert("Delete Lesson?", isPresented: $showDeleteAlert) {
-            Button("Delete", role: .destructive) {
-                // The lesson goes first, so a failed delete leaves its file in place.
-                let fileURL = resolveLessonFileURL()
-                do {
-                    guard let lessonID = lesson.id else { return }
-                    try repository.deleteLesson(id: lessonID)
-                } catch {
-                    Self.logger.warning("Failed to delete lesson: \(error)")
-                    deleteError = "Couldn't delete this lesson. Try again."
-                    return
-                }
-                if let fileURL {
-                    do {
-                        try LessonFileStorage.deleteIfManaged(fileURL)
-                    } catch {
-                        Self.logger.warning("Failed to delete managed file: \(error)")
-                    }
-                }
-                if let onDone { onDone() } else { dismiss() }
-            }
+        .alert(
+            "Delete Lesson?",
+            isPresented: Binding(
+                get: { pendingDeletion != nil },
+                set: { if !$0 { pendingDeletion = nil } }
+            ),
+            presenting: pendingDeletion
+        ) { _ in
+            Button("Delete", role: .destructive) { deleteLesson() }
             Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This can't be undone.")
+        } message: { summary in
+            Text(summary.message(trashesFiles: !isSampleClassroom))
         }
         .alert("Couldn't Delete the Lesson", isPresented: Binding(
             get: { deleteError != nil },
@@ -190,6 +176,11 @@ struct LessonDetailView: View {
             Button("OK", role: .cancel) { deleteError = nil }
         } message: {
             Text(deleteError ?? "")
+        }
+        .alert(LessonAttachmentsSection.sampleClassFilesTitle, isPresented: $showingSampleClassFileNotice) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(LessonAttachmentsSection.sampleClassFilesMessage)
         }
         .sheet(isPresented: $showingGreatLessonTagEditor) {
             NavigationStack {
@@ -211,9 +202,6 @@ struct LessonDetailView: View {
         .onAppear {
             seedDrafts()
             resolvedPagesURL = resolveLessonFileURL()
-            if let url = resolvedPagesURL, LessonFileStorage.isManagedURL(url) {
-                previousManagedURL = url
-            }
         }
         .fileImporter(
             isPresented: $showingPagesImporter,
@@ -221,35 +209,7 @@ struct LessonDetailView: View {
         ) { result in
             switch result {
             case .success(let pickedURL):
-                Task(priority: .userInitiated) {
-                    let needsAccess = pickedURL.startAccessingSecurityScopedResource()
-                    defer { if needsAccess { pickedURL.stopAccessingSecurityScopedResource() } }
-                    do {
-                        guard let lessonID = lesson.id else { return }
-                        let destURL = try LessonFileStorage.importFile(
-                            from: pickedURL,
-                            forLessonWithID: lessonID,
-                            lessonName: lesson.name
-                        )
-                        let bookmark = try LessonFileStorage.makeBookmark(for: destURL)
-                        let rel = try LessonFileStorage.relativePath(forManagedURL: destURL)
-                        if let oldURL = previousManagedURL {
-                            do {
-                                try LessonFileStorage.deleteIfManaged(oldURL)
-                            } catch {
-                                Self.logger.warning("Failed to delete old managed file: \(error)")
-                            }
-                        }
-                        lesson.pagesFileBookmark = bookmark
-                        lesson.pagesFileRelativePath = rel
-                        resolvedPagesURL = destURL
-                        previousManagedURL = destURL
-                        saveCoordinator.save(viewContext, reason: "Import lesson Pages file")
-                    } catch {
-                        Self.logger.warning("Pages file import failed: \(error)")
-                        importError = AppErrorMessages.importMessage(for: error, fileType: "Pages file")
-                    }
-                }
+                Task(priority: .userInitiated) { importPagesFile(from: pickedURL) }
             case .failure(let error):
                 Task {
                     importError = AppErrorMessages.importMessage(for: error, fileType: "Pages file")
@@ -270,7 +230,6 @@ struct LessonDetailView: View {
             Text(importError ?? "")
         }
     }
-
 }
 
 // MARK: - Subviews
@@ -344,35 +303,10 @@ extension LessonDetailView {
                 Spacer()
                 if isEditing {
                     Button("Cancel") { isEditing = false }
-                    Button("Save") {
-                        let updated = lesson
-                        updated.name = draftName.trimmed()
-                        updated.area = draftArea.trimmed()
-                        updated.sequence = draftSequence.trimmed()
-                        updated.section = draftSection.trimmed()
-                        updated.writeUp = draftWriteUp
-                        updated.suggestedFollowUpWork = draftSuggestedFollowUpWork
-                        updated.source = draftSource
-                        if draftSource == .personal {
-                            updated.personalKind = draftPersonalKind
-                        } else {
-                            updated.personalKind = nil
-                        }
-                        updated.materials = draftMaterials
-                        updated.purpose = draftPurpose.trimmed()
-                        updated.ageRange = draftAgeRange.trimmed()
-                        updated.teacherNotes = draftTeacherNotes
-                        updated.lessonFormat = draftLessonFormat
-                        updated.parentStoryUUID = draftLessonFormat == .story ? draftParentStoryID : nil
-                        updated.practiceOverride = draftPracticeOverride
-                        updated.confirmationOverride = draftConfirmationOverride
-                        updated.isKeyLesson = draftIsKeyLesson
-                        onSave(updated)
-                        isEditing = false
-                    }
-                    .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
-                    .disabled(draftName.trimmed().isEmpty)
+                    Button("Save") { saveEdits() }
+                        .keyboardShortcut(.defaultAction)
+                        .buttonStyle(.borderedProminent)
+                        .disabled(draft.name.trimmed().isEmpty)
                 } else {
                     if let onLocateInMap, !lesson.area.trimmed().isEmpty {
                         Button {
@@ -383,7 +317,7 @@ extension LessonDetailView {
                         .help("Show this lesson's thread in the scope-and-sequence map")
                     }
                     Button("Delete", role: .destructive) {
-                        showDeleteAlert = true
+                        confirmDelete()
                     }
                     Button("Edit") {
                         seedDrafts()
@@ -400,23 +334,7 @@ extension LessonDetailView {
     }
 
     func seedDrafts() {
-        draftName = lesson.name
-        draftArea = lesson.area
-        draftSequence = lesson.sequence
-        draftSection = lesson.section
-        draftWriteUp = lesson.writeUp
-        draftSuggestedFollowUpWork = lesson.suggestedFollowUpWork
-        draftSource = lesson.source
-        draftPersonalKind = lesson.personalKind ?? .personal
-        draftMaterials = lesson.materials
-        draftPurpose = lesson.purpose
-        draftAgeRange = lesson.ageRange
-        draftTeacherNotes = lesson.teacherNotes
-        draftLessonFormat = lesson.lessonFormat
-        draftParentStoryID = lesson.parentStoryUUID
-        draftPracticeOverride = lesson.practiceOverride
-        draftConfirmationOverride = lesson.confirmationOverride
-        draftIsKeyLesson = lesson.isKeyLesson
+        draft = LessonEditDraft(lesson: lesson)
     }
 }
 
@@ -432,7 +350,7 @@ private struct LessonDetailViewPreview: View {
         lesson.section = "Intro to base-10"
         lesson.writeUp = "Sample write up."
 
-        return LessonDetailView(lesson: lesson, onSave: { _ in })
+        return LessonDetailView(lesson: lesson)
             .previewEnvironment()
     }
 }

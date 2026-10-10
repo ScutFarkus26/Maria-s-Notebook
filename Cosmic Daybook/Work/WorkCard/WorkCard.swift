@@ -11,8 +11,6 @@ struct WorkCard: View {
     enum WorkCardConfig {
         case grid(GridConfig)
         case list(ListConfig)
-        case pill(PillConfig)
-        case compact(CompactConfig)
     }
 
     struct GridConfig {
@@ -90,34 +88,6 @@ struct WorkCard: View {
         }
     }
 
-    struct PillConfig {
-        let item: ScheduledItem
-        let nameForStudentID: (UUID) -> String
-        let absentTodayIDs: Set<UUID>
-    }
-
-    struct CompactConfig {
-        let work: CDWorkModel
-        let title: String
-        let workType: WorkCardWorkType
-        let participants: [WorkCardParticipant]
-        let onToggle: (CDWorkModel, UUID) -> Void
-
-        init(
-            work: CDWorkModel,
-            title: String,
-            workType: WorkCardWorkType,
-            participants: [WorkCardParticipant],
-            onToggle: @escaping (CDWorkModel, UUID) -> Void
-        ) {
-            self.work = work
-            self.title = title
-            self.workType = workType
-            self.participants = participants
-            self.onToggle = onToggle
-        }
-    }
-
     // MARK: - Initializer
 
     init(config: WorkCardConfig) {
@@ -132,10 +102,6 @@ struct WorkCard: View {
             WorkCardGridContent(config: gridConfig)
         case .list(let listConfig):
             WorkCardListContent(config: listConfig)
-        case .pill(let pillConfig):
-            WorkCardPillContent(config: pillConfig)
-        case .compact(let compactConfig):
-            WorkCardCompactContent(config: compactConfig)
         }
     }
 }
@@ -188,23 +154,6 @@ extension WorkCard {
             onOpen: onOpen
         )))
     }
-
-    /// Compact mode - replaces LinkedWorkSection items
-    static func compact(
-        work: CDWorkModel,
-        title: String,
-        workType: WorkCardWorkType,
-        participants: [WorkCardParticipant],
-        onToggle: @escaping (CDWorkModel, UUID) -> Void
-    ) -> WorkCard {
-        WorkCard(config: .compact(CompactConfig(
-            work: work,
-            title: title,
-            workType: workType,
-            participants: participants,
-            onToggle: onToggle
-        )))
-    }
 }
 
 // MARK: - Legacy Type Aliases (for backward compatibility)
@@ -212,6 +161,4 @@ extension WorkCard {
 extension WorkCard {
     typealias GridModeConfig = GridConfig
     typealias ListModeConfig = ListConfig
-    typealias PillModeConfig = PillConfig
-    typealias CompactModeConfig = CompactConfig
 }

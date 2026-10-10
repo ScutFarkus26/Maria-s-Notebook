@@ -70,7 +70,7 @@ struct AssistantRestockSaveTests {
         let tab = model(save: saver.save)
 
         #expect(tab.addNeed("Glue sticks", source: .office, quantity: 2) == .notSaved)
-        #expect(tab.errorMessage == "Couldn't save that change. Try again.")
+        #expect(tab.errorMessage == AssistantRestockModel.saveFailedMessage)
         #expect(context.hasChanges)
 
         // Tapped again, still failing: still not saved, not "already on the list".
@@ -108,7 +108,7 @@ struct AssistantRestockSaveTests {
         let tab = model(save: saver.save)
         tab.toggleCheckOff(try #require(tab.officeRun.first))
         #expect(!tab.flush())
-        #expect(tab.errorMessage == "Couldn't save that change. Try again.")
+        #expect(tab.errorMessage == AssistantRestockModel.saveFailedMessage)
         saver.fails = false
         #expect(tab.flush())
         #expect(tab.errorMessage == nil)

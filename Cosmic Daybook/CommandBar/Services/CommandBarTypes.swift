@@ -157,6 +157,11 @@ nonisolated struct CaptureProposal: Sendable {
     var studentEntries: [StudentCaptureProposal]
     var unresolvedStudentNames: [String]
     var source: CaptureProposalSource
+    /// The day it happened (start of day): the presentation and the notes are
+    /// saved on it. Taken from the guide's words when they name one
+    /// (`CaptureDateParser`), today otherwise; she can change it on the review
+    /// screen. (The name predates notes using it too.)
+    var presentedOn: Date = AppCalendar.startOfDay(Date())
 
     var studentIDs: [UUID] {
         studentEntries.map(\.studentID)

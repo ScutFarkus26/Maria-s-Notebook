@@ -46,9 +46,9 @@ extension UnifiedNoteEditor {
         let studentName: String = student.shortName
         return Button {
             if isSelected {
-                selectedStudentIDs.remove(studentID)
+                chooseStudents(selectedStudentIDs.subtracting([studentID]))
             } else {
-                selectedStudentIDs.insert(studentID)
+                chooseStudents(selectedStudentIDs.union([studentID]))
             }
         } label: {
             HStack(spacing: AppTheme.Spacing.xsmall) {
@@ -90,14 +90,36 @@ extension UnifiedNoteEditor {
         }
     }
 
+    /// Chips for every chosen child, a withdrawn one included: looked up among
+    /// enrolled children only, a child who had left got no chip and couldn't
+    /// be taken off the note. A child no longer in the notebook at all gets a
+    /// "Student removed" chip.
     private var selectedStudentsScroll: some View {
-        SelectedStudentChipsRow(
-            students: Array(selectedStudentIDs).compactMap { id in students.first { $0.id == id } },
-            label: { $0.shortName },
-            onRemove: { student in
-                if let id = student.id { selectedStudentIDs.remove(id) }
+        let roster = dependencies.roster
+        let known = selectedStudentIDs.compactMap { roster.student(id: $0) }
+            .sorted { $0.shortName.localizedStandardCompare($1.shortName) == .orderedAscending }
+        let unknown = selectedStudentIDs.filter { roster.student(id: $0) == nil }
+            .sorted { $0.uuidString < $1.uuidString }
+        return HStack(spacing: AppTheme.Spacing.small) {
+            SelectedStudentChipsRow(
+                students: known,
+                label: { $0.shortName },
+                onRemove: { student in
+                    if let id = student.id { chooseStudents(selectedStudentIDs.subtracting([id])) }
+                }
+            )
+            ForEach(unknown, id: \.self) { id in
+                Button {
+                    chooseStudents(selectedStudentIDs.subtracting([id]))
+                } label: {
+                    Label("Student removed", systemImage: "xmark.circle.fill")
+                        .font(AppTheme.ScaledFont.caption.weight(.medium))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .accessibilityLabel("Remove a student who is no longer in the notebook")
             }
-        )
+        }
     }
 
     private var addStudentButton: some View {
@@ -127,12 +149,51 @@ extension UnifiedNoteEditor {
     var studentPickerPopover: some View {
         StudentPickerPopover(
             students: students,
-            selectedIDs: $selectedStudentIDs,
+            selectedIDs: Binding(
+                get: { selectedStudentIDs },
+                set: { chooseStudents($0) }
+            ),
             onDone: {
                 showingStudentPicker = false
             }
         )
         .padding(AppTheme.Spacing.compact)
         .frame(minWidth: 320)
+    }
+
+    // MARK: - Choosing Children
+
+    /// Sets the chosen children from something she did (a chip, a detected
+    /// name, the picker, Suggest Tags), remembering whom she took off so the
+    /// name finder leaves them off while she keeps typing.
+    func chooseStudents(_ ids: Set<UUID>) {
+        selectedStudentIDs = NoteEditorChildChoice.choose(
+            ids, from: selectedStudentIDs, deselected: &deselectedStudentIDs
+        )
+    }
+}
+
+// MARK: - Child Choice
+
+/// Who stays chosen in the note editor, apart from the view so it can be
+/// tested. Until 2026-10-10 a child she deselected came back on the next
+/// keystroke that mentioned her.
+enum NoteEditorChildChoice {
+    /// The chosen set after a change she made: records whom she took off and
+    /// forgets that for anyone she put back.
+    static func choose(_ new: Set<UUID>, from old: Set<UUID>, deselected: inout Set<UUID>) -> Set<UUID> {
+        deselected.formUnion(old.subtracting(new))
+        deselected.subtract(new)
+        return new
+    }
+
+    /// The chosen set after the name finder ran (`before` → `after`): a child
+    /// it added comes off again if she took her off, or if she is named in
+    /// the opened note's own text. Others it added stay: typing "Sarah M"
+    /// still chooses Sarah M after she took Sarah K off.
+    static func afterNameFinder(
+        before: Set<UUID>, after: Set<UUID>, deselected: Set<UUID>, openedTextNames: Set<UUID>
+    ) -> Set<UUID> {
+        after.subtracting(after.subtracting(before).intersection(deselected.union(openedTextNames)))
     }
 }

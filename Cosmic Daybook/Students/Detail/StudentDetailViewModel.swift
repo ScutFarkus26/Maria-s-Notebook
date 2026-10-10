@@ -56,10 +56,11 @@ final class StudentDetailViewModel {
         let neededLessonIDs = Set(filteredLAs.map(\.resolvedLessonID))
         let fetchedLessons: [CDLesson]
         if !neededLessonIDs.isEmpty {
+            // Just her lessons, by id. A capped whole-library read (the first
+            // 1,000 rows in store order) silently left out lessons past it.
             let descriptor = CDFetchRequest(CDLesson.self)
-            descriptor.fetchLimit = 1000
-            let allLessons = viewContext.safeFetch(descriptor)
-            fetchedLessons = allLessons.filter { $0.id != nil && neededLessonIDs.contains($0.id!) }
+            descriptor.predicate = NSPredicate(format: "id IN %@", Array(neededLessonIDs))
+            fetchedLessons = viewContext.safeFetch(descriptor)
         } else {
             fetchedLessons = []
         }

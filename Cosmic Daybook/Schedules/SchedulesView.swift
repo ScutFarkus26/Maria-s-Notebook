@@ -152,10 +152,10 @@ struct ScheduleCard: View {
     let students: [CDStudent]
 
     private var studentLookup: [String: CDStudent] {
-        Dictionary(uniqueKeysWithValues: students.compactMap { student in
+        Dictionary(students.compactMap { student in
             guard let id = student.id else { return nil }
             return (id.uuidString.lowercased(), student)
-        })
+        }, uniquingKeysWith: { first, _ in first })
     }
 
     var body: some View {

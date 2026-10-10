@@ -267,7 +267,7 @@ struct StudentTrackDetailView: View {
                             node: node,
                             areaColor: areaColor,
                             onScheduleLesson: node.isNext ? {
-                                scheduleNextLesson(after: node)
+                                planLesson(node)
                             } : nil
                         )
                     }
@@ -292,8 +292,9 @@ struct StudentTrackDetailView: View {
 
     // MARK: - Actions
 
-    private func scheduleNextLesson(after node: LessonProgressionNode) {
-        progressionVM.scheduleNextLesson(after: node.lesson, context: viewContext)
+    /// Plans the lesson on the row tapped (the next one for the child), not the one after it.
+    private func planLesson(_ node: LessonProgressionNode) {
+        progressionVM.planLesson(node.lesson, context: viewContext)
         if let foundStudent = student {
             progressionVM.configure(
                 for: foundStudent, area: parsedArea, sequence: parsedSequence, context: viewContext

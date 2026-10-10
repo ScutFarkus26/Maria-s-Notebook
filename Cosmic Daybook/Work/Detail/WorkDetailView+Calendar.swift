@@ -64,7 +64,11 @@ extension WorkDetailView {
                             HStack(spacing: 6) {
                                 Image(systemName: "checkmark.circle")
                                     .font(.system(size: 12, weight: .medium))
-                                Text(viewModel.newPlanPurpose.isEmpty ? "Progress Check" : viewModel.newPlanPurpose)
+                                Text(
+                                    viewModel.newPlanPurpose.isEmpty
+                                        ? "Progress Check"
+                                        : CheckInReason.displayName(forStoredPurpose: viewModel.newPlanPurpose)
+                                )
                                     .font(AppTheme.ScaledFont.captionSemibold)
                                 Image(systemName: "chevron.down")
                                     .font(.system(size: 10, weight: .semibold))
@@ -116,14 +120,30 @@ extension WorkDetailView {
                 viewModel.showEditNoteAlert = true
             },
             onSetStatus: { id, status in
-                // Update the check-in status
                 if let checkIn = checkIns.first(where: { $0.id != nil && $0.id == id }) {
-                    checkIn.status = status
-                    saveCoordinator.save(modelContext, reason: "Update check-in status")
+                    setStatus(status, of: checkIn)
                 }
             },
             onDelete: { deleteCheckIn($0) }
         )
+    }
+
+    /// Done goes through `WorkCheckInService.markCompleted`, as Today's Done
+    /// does: it also completes the todos linked to this work and dates the
+    /// check-in to the day it was checked, which is what the card's age reads.
+    /// Setting the status alone skipped both.
+    func setStatus(_ status: WorkCheckInStatus, of checkIn: CDWorkCheckIn) {
+        if status == .completed {
+            do {
+                try WorkCheckInService(context: modelContext).markCompleted(checkIn, at: Date())
+            } catch {
+                ToastService.shared.showError("Couldn't mark that check-in done. Try again.")
+                return
+            }
+        } else {
+            checkIn.status = status
+        }
+        saveCoordinator.save(modelContext, reason: "Update check-in status")
     }
 
     func addPlan() {

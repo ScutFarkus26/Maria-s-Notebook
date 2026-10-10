@@ -41,58 +41,6 @@ public struct BackupVerification {
         }
     }
     
-    /// Finds the most recent backup file in a directory
-    public static func findMostRecentBackup(in directory: URL) -> URL? {
-        let files: [URL]
-        do {
-            files = try FileManager.default.contentsOfDirectory(
-                at: directory,
-                includingPropertiesForKeys: [.creationDateKey, .contentModificationDateKey],
-                options: [.skipsHiddenFiles]
-            )
-        } catch {
-            logger.warning("Failed to list directory contents: \(error.localizedDescription, privacy: .public)")
-            return nil
-        }
-        
-        let backupFiles = files.filter { $0.pathExtension == BackupFile.fileExtension }
-        
-        guard !backupFiles.isEmpty else {
-            return nil
-        }
-        
-        // Sort by modification date (most recent first)
-        let sorted = backupFiles.sorted { url1, url2 in
-            let date1: Date
-            do {
-                date1 = try url1.resourceValues(
-                    forKeys: [.contentModificationDateKey]
-                ).contentModificationDate ?? Date.distantPast
-            } catch {
-                let name = url1.lastPathComponent
-                let desc = error.localizedDescription
-                logger.warning("Failed to get mod date for \(name, privacy: .public): \(desc, privacy: .public)")
-                date1 = Date.distantPast
-            }
-            
-            let date2: Date
-            do {
-                date2 = try url2.resourceValues(
-                    forKeys: [.contentModificationDateKey]
-                ).contentModificationDate ?? Date.distantPast
-            } catch {
-                let name = url2.lastPathComponent
-                let desc = error.localizedDescription
-                logger.warning("Failed to get mod date for \(name, privacy: .public): \(desc, privacy: .public)")
-                date2 = Date.distantPast
-            }
-            
-            return date1 > date2
-        }
-        
-        return sorted.first
-    }
-    
     /// Gets backup status information including last backup date from UserDefaults
     public static func getBackupStatus() -> BackupStatus {
         let lastBackupKey = "LastBackupTimeInterval"
@@ -103,15 +51,9 @@ public struct BackupVerification {
         let autoBackupDirectoryExists = directories.contains {
             FileManager.default.fileExists(atPath: $0.path)
         }
-        let mostRecentAutoBackup = directories
-            .compactMap(findMostRecentBackup(in:))
-            .max { lhs, rhs in
-                let lhsDate = (try? lhs.resourceValues(forKeys: [.contentModificationDateKey])
-                    .contentModificationDate) ?? .distantPast
-                let rhsDate = (try? rhs.resourceValues(forKeys: [.contentModificationDateKey])
-                    .contentModificationDate) ?? .distantPast
-                return lhsDate < rhsDate
-            }
+        // Any device's: each writes to a folder of its own inside `Auto/`, and
+        // older builds wrote at its top (`AutoBackupFolders`).
+        let mostRecentAutoBackup = AutoBackupFolders.mostRecentBackup(in: directories)
 
         return BackupStatus(
             lastBackupDate: lastBackupDate,
@@ -167,7 +109,7 @@ public struct BackupVerification {
     private static func autoBackupDirectories() -> [URL] {
         var directories: [URL] = []
         if let userFolder = BackupDestination.resolveDefaultFolder() {
-            directories.append(userFolder.appendingPathComponent("Auto", isDirectory: true))
+            directories.append(userFolder.appendingPathComponent(AutoBackupFolders.autoFolderName, isDirectory: true))
         }
         let fallback = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Backups/Auto", isDirectory: true)

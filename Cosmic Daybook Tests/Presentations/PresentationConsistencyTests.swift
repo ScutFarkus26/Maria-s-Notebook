@@ -210,35 +210,4 @@ final class PresentationConsistencyTests {
         #expect(assignment.scheduledFor == nil)
         #expect(!assignment.isScheduled)
     }
-
-    // MARK: - Entry point: GiveLessonViewModel save with needsPractice=false
-
-    @Test("LessonPickerViewModel.save with mode=.given and needsPractice=false creates per-student rows")
-    func giveLessonVMNoPracticeCreatesRows() throws {
-        let ctx = try CoreDataTestHelpers.makeContext()
-        let lesson = makeLesson(in: ctx, name: "Pouring")
-        let s1 = makeStudent(in: ctx, firstName: "G1")
-        let s2 = makeStudent(in: ctx, firstName: "G2")
-
-        let vm = LessonPickerViewModel(
-            selectedStudentIDs: [s1.id!, s2.id!],
-            givenAt: Date(),
-            needsPractice: false,
-            selectedLessonID: lesson.id,
-            mode: .given
-        )
-        vm.configure(lessons: [lesson], students: [s1, s2])
-
-        try vm.save(context: ctx, resolvedLesson: lesson)
-
-        let rows = presentationsFor(lessonID: lesson.id!.uuidString, in: ctx)
-        let ids = Set(rows.map(\.studentID))
-        #expect(ids == Set([s1.id!.uuidString, s2.id!.uuidString]))
-        #expect(rows.allSatisfy { $0.state == .presented })
-
-        // No CDWorkModel should have been created (needsPractice=false).
-        let workReq = CDFetchRequest(CDWorkModel.self)
-        let work = ctx.safeFetch(workReq)
-        #expect(work.isEmpty)
-    }
 }

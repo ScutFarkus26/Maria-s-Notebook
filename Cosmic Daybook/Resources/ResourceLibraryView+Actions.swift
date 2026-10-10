@@ -11,8 +11,7 @@ extension ResourceLibraryView {
     // MARK: - Individual Actions
 
     func deleteResource(_ resource: CDResource) {
-        viewContext.delete(resource)
-        dependencies.saveCoordinator.save(viewContext, reason: "Delete resource")
+        ResourceDeletion.delete([resource], context: viewContext, saveCoordinator: dependencies.saveCoordinator)
     }
 
     func toggleFavorite(_ resource: CDResource) {
@@ -71,10 +70,7 @@ extension ResourceLibraryView {
     }
 
     func bulkDelete() {
-        for resource in selectedResources {
-            viewContext.delete(resource)
-        }
-        dependencies.saveCoordinator.save(viewContext, reason: "Delete resources")
+        ResourceDeletion.delete(selectedResources, context: viewContext, saveCoordinator: dependencies.saveCoordinator)
         exitSelectMode()
     }
 

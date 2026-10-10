@@ -201,11 +201,13 @@ struct MonthlyReportContextBuilder {
             studentID, interval.start as NSDate, interval.end as NSDate
         )
         for work in context.safeFetch(workRequest) {
-            guard let id = work.id?.uuidString, let completedAt = work.completedAt else { continue }
+            guard let id = work.id?.uuidString,
+                  let completedAt = work.completedAt,
+                  let worded = Self.closedWorkPhrase(title: work.title, status: work.status) else { continue }
             items.append(MonthlyReportEvidenceItem(
-                ref: "work:\(id)",
+                ref: "work:\(id)\(worded.refSuffix)",
                 date: completedAt,
-                phrase: "Completed “\(work.title)”"
+                phrase: worded.phrase
             ))
         }
 
@@ -336,5 +338,28 @@ struct MonthlyReportContextBuilder {
         }
         guard present + absent > 0 else { return nil }
         return MonthlyReportAttendanceSummary(daysPresent: present, daysAbsent: absent, tardies: tardy)
+    }
+}
+
+// MARK: - Work wording
+
+extension MonthlyReportContextBuilder {
+    /// What a family is told about a piece of work closed this month, by how the guide
+    /// closed it. Only Mastered and Done read "Completed"; work closed as Keep Practicing
+    /// or Incomplete used to say "Completed" too (bug hunt 2026-10-10, P2 #33). Those
+    /// carry a ref suffix, as a presentation's proficiency does, so the fallback draft
+    /// counts only finished work. Open work (reopened after closing, its old
+    /// `completedAt` left behind) isn't reported.
+    static func closedWorkPhrase(title: String, status: WorkStatus) -> (phrase: String, refSuffix: String)? {
+        switch status {
+        case .mastered, .done:
+            return ("Completed “\(title)”", "")
+        case .keepPracticing:
+            return ("Worked on “\(title)” and will keep practicing it", "#practicing")
+        case .incomplete:
+            return ("Worked on “\(title)”", "#unfinished")
+        case .active, .review:
+            return nil
+        }
     }
 }

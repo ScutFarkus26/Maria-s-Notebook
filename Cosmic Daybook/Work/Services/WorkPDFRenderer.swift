@@ -123,14 +123,18 @@ enum WorkPDFRenderer {
                 let itemText = buildItemText(item, sortMode: sortMode)
                 let detailsText = buildDetailsText(item, dateFormatter: DateFormatters.shortDate)
 
-                drawSingleLine(
-                    itemText, at: CGPoint(x: margin + 6, y: yPosition - 9),
-                    font: bodyFont, color: blackColor, in: context
-                )
-
                 // Right-align details
                 let detailsAttr: [NSAttributedString.Key: Any] = [.font: smallFont, .foregroundColor: grayColor]
                 let detailsSize = (detailsText as NSString).size(withAttributes: detailsAttr)
+
+                // The title gets the room left of the details and is cut short
+                // with an ellipsis; a long one used to run under them.
+                drawSingleLine(
+                    itemText, at: CGPoint(x: margin + 6, y: yPosition - 9),
+                    font: bodyFont, color: blackColor,
+                    maxWidth: max(0, contentWidth - 6 - detailsSize.width - 12), in: context
+                )
+
                 drawSingleLine(
                     detailsText,
                     at: CGPoint(
@@ -270,14 +274,21 @@ enum WorkPDFRenderer {
         return suggestedSize.height
     }
 
+    /// One line of text; with `maxWidth`, cut short at the end with an
+    /// ellipsis when it would run past it.
     private static func drawSingleLine(
         _ text: String, at point: CGPoint,
         font: NSFont, color: NSColor,
+        maxWidth: CGFloat? = nil,
         in context: CGContext
     ) {
         let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
         let attrString = NSAttributedString(string: text, attributes: attributes)
-        let line = CTLineCreateWithAttributedString(attrString)
+        var line = CTLineCreateWithAttributedString(attrString)
+        if let maxWidth, CTLineGetTypographicBounds(line, nil, nil, nil) > Double(maxWidth) {
+            let ellipsis = CTLineCreateWithAttributedString(NSAttributedString(string: "…", attributes: attributes))
+            line = CTLineCreateTruncatedLine(line, Double(maxWidth), .end, ellipsis) ?? line
+        }
         context.textPosition = point
         CTLineDraw(line, context)
     }

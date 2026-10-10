@@ -1,6 +1,11 @@
 import SwiftUI
 import CoreData
 
+/// One community topic, in a sheet on iPhone and iPad (inside a navigation
+/// stack, so its Cancel and Save show) and in its own window on the Mac.
+/// Field edits are written only by Save; Cancel, a swipe down and the
+/// window's close button ask before throwing them away (bug hunt 2026-10-10,
+/// P2 #18).
 struct TopicDetailView: View, Identifiable {
     let id = UUID()
 
@@ -9,23 +14,12 @@ struct TopicDetailView: View, Identifiable {
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     let topic: CDCommunityTopicEntity
-    var onSave: (CDCommunityTopicEntity) -> Void
 
     @State private var vm: TopicDetailViewModel
+    @State private var isConfirmingDiscard = false
 
-    // Ephemeral input state for adding content
-    @State private var newSolutionTitle: String = ""
-    @State private var newSolutionDetails: String = ""
-    @State private var newSolutionProposedBy: String = ""
-
-    @State private var newNoteSpeaker: String = ""
-    @State private var newNoteContent: String = ""
-
-    @State private var showingImagePicker = false
-
-    init(topic: CDCommunityTopicEntity, onSave: @escaping (CDCommunityTopicEntity) -> Void) {
+    init(topic: CDCommunityTopicEntity) {
         self.topic = topic
-        self.onSave = onSave
         let model = TopicDetailViewModel()
         model.bind(topic: topic)
         self.vm = model
@@ -47,9 +41,9 @@ struct TopicDetailView: View, Identifiable {
 
                 ProposedSolutionsSection(
                     solutions: vm.proposedSolutions,
-                    newSolutionTitle: $newSolutionTitle,
-                    newSolutionDetails: $newSolutionDetails,
-                    newSolutionProposedBy: $newSolutionProposedBy,
+                    newSolutionTitle: $vm.newSolutionTitle,
+                    newSolutionDetails: $vm.newSolutionDetails,
+                    newSolutionProposedBy: $vm.newSolutionProposedBy,
                     onToggleAdopted: { s in
                         vm.toggleSolutionAdopted(s)
                         saveCoordinator.save(viewContext, reason: "Toggle solution adopted")
@@ -59,58 +53,54 @@ struct TopicDetailView: View, Identifiable {
                         saveCoordinator.save(viewContext, reason: "Delete solution")
                     },
                     onAdd: {
-                        let title = newSolutionTitle.trimmed()
-                        let details = newSolutionDetails.trimmed()
-                        let proposedBy = newSolutionProposedBy.trimmed()
-                        vm.addSolution(
-                            context: viewContext,
-                            title: title,
-                            details: details,
-                            proposedBy: proposedBy
-                        )
+                        vm.addPendingSolution(context: viewContext)
                         saveCoordinator.save(viewContext, reason: "Add proposed solution")
-                        newSolutionTitle = ""; newSolutionDetails = ""; newSolutionProposedBy = ""
                     }
                 )
 
-                AttachmentsSection(
-                    attachments: vm.attachments,
-                    showingImagePicker: $showingImagePicker,
-                    onDelete: { a in
-                        vm.deleteAttachment(context: viewContext, a)
-                        saveCoordinator.save(viewContext, reason: "Delete attachment")
-                    }
-                )
+                // Attachments came only from old backups: Add Photo and Add
+                // File were never hooked up, so they are gone, and the
+                // section shows only when a topic has some.
+                if !vm.attachments.isEmpty {
+                    AttachmentsSection(
+                        attachments: vm.attachments,
+                        onDelete: { a in
+                            vm.deleteAttachment(context: viewContext, a)
+                            saveCoordinator.save(viewContext, reason: "Delete attachment")
+                        }
+                    )
+                }
 
                 TopicMeetingNotesSection(
                     notes: vm.notes,
-                    newNoteSpeaker: $newNoteSpeaker,
-                    newNoteContent: $newNoteContent,
+                    newNoteSpeaker: $vm.newNoteSpeaker,
+                    newNoteContent: $vm.newNoteContent,
                     onDelete: { n in
                         vm.deleteNote(context: viewContext, n)
                         saveCoordinator.save(viewContext, reason: "Delete note")
                     },
                     onAdd: {
-                        let speaker = newNoteSpeaker.trimmed()
-                        let content = newNoteContent.trimmed()
-                        guard !content.isEmpty else { return }
-                        vm.addNote(context: viewContext, speaker: speaker, content: content)
+                        vm.addPendingNote(context: viewContext)
                         saveCoordinator.save(viewContext, reason: "Add note")
-                        newNoteSpeaker = ""; newNoteContent = ""
                     }
                 )
             }
             .padding()
         }
         .navigationTitle("Topic Details")
+        .inlineNavigationTitle()
         .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Save") {
-                    guard let t = vm.topic else { return }
-                    vm.persistChanges(context: viewContext)
-                    onSave(t)
-                    dismiss()
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") {
+                    if vm.hasUnsavedChanges {
+                        isConfirmingDiscard = true
+                    } else {
+                        dismiss()
+                    }
                 }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save", action: save)
             }
             ToolbarItem(placement: .automatic) {
                 Menu {
@@ -124,6 +114,32 @@ struct TopicDetailView: View, Identifiable {
                 }
             }
         }
+        .confirmationDialog(
+            "Discard your changes to this topic?",
+            isPresented: $isConfirmingDiscard,
+            titleVisibility: .visible
+        ) {
+            Button("Discard Changes", role: .destructive) { dismiss() }
+            Button("Keep Editing", role: .cancel) {}
+        }
+        // A swipe down (iPhone, iPad) or the close button (Mac) would drop
+        // the edits without asking; with edits waiting, Cancel or Save it is.
+        .interactiveDismissDisabled(vm.hasUnsavedChanges)
+        #if os(macOS)
+        .windowDismissBehavior(vm.hasUnsavedChanges ? .disabled : .automatic)
+        #endif
+        .saveErrorAlert()
+    }
+
+    /// Writes the edits, and any solution or note typed but not added, and
+    /// closes. If the save fails, the coordinator's alert says so and the
+    /// topic stays open with the edits.
+    private func save() {
+        guard vm.topic != nil else { return }
+        vm.persistChanges(context: viewContext)
+        guard saveCoordinator.save(viewContext, reason: "Update community topic") else { return }
+        vm.markSaved()
+        dismiss()
     }
 }
 
@@ -290,45 +306,28 @@ private struct ProposedSolutionsSection: View {
 
 private struct AttachmentsSection: View {
     let attachments: [CDCommunityAttachment]
-    @Binding var showingImagePicker: Bool
     var onDelete: (CDCommunityAttachment) -> Void
 
     var body: some View {
         GroupBox("Attachments") {
             VStack(alignment: .leading, spacing: 10) {
-                if attachments.isEmpty {
-                    Text("No attachments yet.").foregroundStyle(.secondary)
-                } else {
-                    ForEach(attachments) { a in
-                        HStack(spacing: 8) {
-                            Image(systemName: a.kind == .photo ? "photo" : "paperclip")
-                            Text(a.filename.trimmed().isEmpty ? (a.kind == .photo ? "Photo" : "File") : a.filename)
-                                .font(.subheadline)
-                            Spacer()
-                            Menu {
-                                Button("Delete", systemImage: "trash", role: .destructive) {
-                                    onDelete(a)
-                                }
-                            } label: { Image(systemName: "ellipsis.circle").foregroundStyle(.secondary) }
-                        }
-                        .padding(8)
-                        .surface(
-                            UIConstants.CornerRadius.medium,
-                            fill: Color.primary.opacity(UIConstants.OpacityConstants.trace)
-                        )
+                ForEach(attachments) { a in
+                    HStack(spacing: 8) {
+                        Image(systemName: a.kind == .photo ? "photo" : "paperclip")
+                        Text(a.filename.trimmed().isEmpty ? (a.kind == .photo ? "Photo" : "File") : a.filename)
+                            .font(.subheadline)
+                        Spacer()
+                        Menu {
+                            Button("Delete", systemImage: "trash", role: .destructive) {
+                                onDelete(a)
+                            }
+                        } label: { Image(systemName: "ellipsis.circle").foregroundStyle(.secondary) }
                     }
-                }
-
-                HStack(spacing: 8) {
-                    Button {
-                        showingImagePicker = true
-                    } label: { Label("Add Photo", systemImage: "photo.on.rectangle") }
-                    .buttonStyle(.bordered)
-
-                    Button {
-                        // Placeholder for document picker integration
-                    } label: { Label("Add File", systemImage: "paperclip") }
-                    .buttonStyle(.bordered)
+                    .padding(8)
+                    .surface(
+                        UIConstants.CornerRadius.medium,
+                        fill: Color.primary.opacity(UIConstants.OpacityConstants.trace)
+                    )
                 }
             }
         }

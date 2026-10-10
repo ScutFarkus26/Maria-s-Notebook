@@ -71,7 +71,8 @@ struct BookClubSessionDetailView: View {
             Button("Regenerate", role: .destructive) { regenerateSchedule() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Completed meetings will be kept. Incomplete meetings will be replaced with newly generated dates.")
+            Text("Meetings already held stay as they are. The readings not yet met get new meetings, "
+                 + "starting today or the day after the last held meeting, whichever is later.")
         }
         .confirmationDialog(
             "Delete this session?",
@@ -246,7 +247,7 @@ struct BookClubSessionDetailView: View {
               let student = roster.first(where: { $0.id == id }) else {
             return nil
         }
-        return StudentFormatter.firstName(for: student)
+        return student.shortName
     }
 
     private func toggleCompleted(_ meeting: CDBookClubMeeting) {
@@ -258,50 +259,24 @@ struct BookClubSessionDetailView: View {
         dependencies.saveCoordinator.save(viewContext, reason: "Update session status")
     }
 
+    /// Rebuilds the meetings not yet held for the readings no held meeting
+    /// covered (`BookClubSessionPlanner`), from the later of today and the day
+    /// after the last held meeting. Leaders rotate through the members still in
+    /// the class.
     private func regenerateSchedule() {
-        guard let packet else { return }
-        let cadence: BookClubCadence = {
-            switch session.cadenceKind {
-            case .weekly:
-                let weekday = session.startDate.map { calendar.component(.weekday, from: $0) } ?? 2
-                return .weekly(weekday: weekday)
-            case .biweekly:
-                let weekday = session.startDate.map { calendar.component(.weekday, from: $0) } ?? 2
-                return .biweekly(weekday: weekday)
-            case .custom:
-                return .custom(weekdayMask: session.meetingWeekdayMask)
-            }
-        }()
-
-        let completedMeetings = orderedMeetings.filter(\.isCompleted)
-        let incompleteMeetings = orderedMeetings.filter { !$0.isCompleted }
-        for meeting in incompleteMeetings {
-            viewContext.delete(meeting)
-        }
-
-        let remainingReadingItems = Array(packet.readingItems.dropFirst(completedMeetings.count))
-        let generated = BookClubScheduleGenerator.generate(
-            startDate: session.startDate ?? Date(),
-            cadence: cadence,
-            readingItems: remainingReadingItems,
-            roster: session.studentIDs,
+        let meetings = orderedMeetings
+        let schedule = BookClubSessionPlanner.Schedule(
+            readings: BookClubSessionPlanner.readings(
+                packetItems: packet?.readingItems ?? [], meetings: meetings
+            ),
+            start: BookClubSessionPlanner.regenerationStart(today: Date(), meetings: meetings, calendar: calendar),
+            cadence: BookClubSessionPlanner.cadence(for: session, calendar: calendar),
+            roster: roster.filter(\.isEnrolled).compactMap(\.id),
             rotateLeader: session.rotateLeader
         )
-
-        let baseOrdinal = completedMeetings.count
-        for (offset, gen) in generated.enumerated() {
-            let meeting = CDBookClubMeeting(context: viewContext)
-            meeting.sessionID = session.id?.uuidString ?? ""
-            meeting.session = session
-            meeting.ordinal = Int32(baseOrdinal + offset + 1)
-            meeting.date = gen.date
-            meeting.readingLabel = gen.readingLabel
-            meeting.leaderStudentID = gen.leaderStudentID?.uuidString ?? ""
-        }
-
-        if let lastDate = generated.last?.date {
-            session.endDate = lastDate
-        }
+        BookClubSessionPlanner.regenerateUnheldMeetings(
+            of: session, schedule: schedule, calendar: calendar, context: viewContext
+        )
         session.modifiedAt = Date()
         dependencies.saveCoordinator.save(viewContext, reason: "Generate session meetings")
     }

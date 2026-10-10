@@ -77,9 +77,10 @@ struct CommandBarSheet: View {
             viewModel.isSampleClassroom = isSampleClassroom
             isTextFieldFocused = true
         }
+        // Dictated words go after what was typed before the mic was tapped.
         .onChange(of: viewModel.speechService.transcript) { _, newValue in
             if !newValue.isEmpty {
-                viewModel.inputText = newValue
+                viewModel.inputText = viewModel.speechService.dictatedText
             }
         }
         // Closing mid-dictation would otherwise leave the microphone tap and
@@ -102,6 +103,22 @@ struct CommandBarSheet: View {
     // MARK: - Input Section
 
     private var inputSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            inputRow
+            // Why dictation didn't start (permission off, not available) or
+            // why it stopped; without it a tap on the mic just did nothing.
+            if let speechError = viewModel.speechService.error {
+                Text(speechError)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+
+    private var inputRow: some View {
         HStack(spacing: 12) {
             TextField("What happened? Type or speak naturally…", text: $viewModel.inputText, axis: .vertical)
                 .lineLimit(1...3)
@@ -113,7 +130,7 @@ struct CommandBarSheet: View {
 
             // Mic button
             Button {
-                viewModel.speechService.toggleRecording()
+                viewModel.speechService.toggleRecording(appendingTo: viewModel.inputText)
             } label: {
                 Image(systemName: viewModel.speechService.isRecording ? "mic.fill" : "mic")
                     .font(.system(size: 20, weight: .medium))
@@ -142,8 +159,6 @@ struct CommandBarSheet: View {
                 .accessibilityLabel("Organize classroom capture")
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
     }
 
     // MARK: - Content Section

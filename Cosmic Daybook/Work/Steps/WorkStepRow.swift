@@ -1,11 +1,9 @@
-import OSLog
 import SwiftUI
 import CoreData
 
 struct WorkStepRow: View {
-    private static let logger = Logger.work
-
     @Environment(\.managedObjectContext) private var modelContext
+    @Environment(SaveCoordinator.self) private var saveCoordinator
     @ObservedObject var step: CDWorkStep
     var onEdit: () -> Void
 
@@ -72,12 +70,15 @@ struct WorkStepRow: View {
         .onTapGesture { onEdit() }
     }
 
+    /// Saved at once, like any other tick: it used to wait for some other
+    /// screen's save. A failed save puts the tick back and says so.
     private func toggleCompletion() {
         let service = CDWorkStepServiceImpl(context: modelContext)
-        do {
+        let saved = saveCoordinator.saveEdit(in: modelContext, reason: "Toggle work step") {
             try service.toggleCompletion(step)
-        } catch {
-            Self.logger.warning("Failed to toggle step completion: \(error)")
+        }
+        if !saved {
+            ToastService.shared.showError("Couldn't save that step. Try again.")
         }
     }
 }

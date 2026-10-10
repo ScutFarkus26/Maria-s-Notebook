@@ -61,16 +61,39 @@ struct SessionWorkAssignmentService {
     func removeSelection(work: CDWorkModel, studentID: UUID) {
         let idString = studentID.uuidString
 
-        // Find and remove the participant
+        // Find and remove her participant rows (a sync can leave two)
         let participants = (work.participants as? Set<CDWorkParticipantEntity>) ?? []
-        if let participant = participants.first(where: { $0.studentID == idString }) {
+        for participant in participants where participant.studentID == idString {
             context.delete(participant)
         }
 
-        // Update studentID if we removed the primary
+        // Update studentID if we removed the primary. A deleted participant
+        // stays in `participants` until the context processes the delete, so
+        // picking "the first remaining" could pick her again; the heir is chosen
+        // without her, by the rule work removal uses.
         if work.studentID == idString {
-            let remaining = (work.participants as? Set<CDWorkParticipantEntity>) ?? []
-            work.studentID = remaining.first?.studentID ?? ""
+            work.studentID = WorkDeletionService.heir(after: studentID, on: work)?.uuidString ?? ""
+        }
+    }
+
+    // MARK: - Members
+
+    /// The project's members who are still enrolled, in member-list order. The
+    /// member list keeps every child ever added, so a child who left would
+    /// otherwise get new check-in work.
+    static func enrolledMemberIDs(of project: CDProject, in context: NSManagedObjectContext) -> [String] {
+        let members = project.memberStudentIDsArray
+        guard !members.isEmpty else { return [] }
+        let request = CDFetchRequest(CDStudent.self)
+        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            CDStudent.enrolledPredicate,
+            NSPredicate(format: "id IN %@", members.compactMap(UUID.init(uuidString:)))
+        ])
+        let enrolled = Set(context.safeFetch(request).compactMap(\.id))
+        var seen = Set<UUID>()
+        return members.filter { member in
+            guard let id = UUID(uuidString: member) else { return false }
+            return enrolled.contains(id) && seen.insert(id).inserted
         }
     }
 

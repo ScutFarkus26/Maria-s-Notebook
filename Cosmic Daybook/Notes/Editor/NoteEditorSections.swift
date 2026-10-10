@@ -251,6 +251,9 @@ extension UnifiedNoteEditor {
             photoThumbnailView
 
             Button {
+                // A photo attached in this editor goes now (it used to stay on
+                // disk); the note's own photo goes once the note is saved.
+                NoteEditorSave.deleteUnsavedPhoto(imagePath, original: originalImagePath)
                 selectedPhoto = nil
                 selectedImage = nil
                 imagePath = nil
@@ -325,10 +328,7 @@ extension UnifiedNoteEditor {
         HStack {
             Spacer()
 
-            Button("Cancel") {
-                onCancel()
-                dismiss()
-            }
+            Button("Cancel") { requestCancel() }
             .keyboardShortcut(.cancelAction)
 
             Button("Save") {

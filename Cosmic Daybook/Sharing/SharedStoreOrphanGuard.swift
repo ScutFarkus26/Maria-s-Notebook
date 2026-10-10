@@ -76,6 +76,7 @@ final class SharedStoreOrphanGuard {
             stopObserving()
         }
         coreDataStack = stack
+        notePinLookup(in: stack)
 
         // The view context saves on the main queue, which is what the typed
         // `DidSaveMessage` requires; it arrives once per save, on the main
@@ -109,6 +110,17 @@ final class SharedStoreOrphanGuard {
         saveObservation = nil
         remoteChangeTask?.cancel()
         remoteChangeTask = nil
+    }
+
+    /// At launch, notes whether this build found no pin on this device
+    /// (`noteNoPinFound`), so a pin from another device that arrives later is
+    /// known for one (bug hunt 2026-10-10, #3). Only with iCloud sync on: the
+    /// stand-in stack a failed store load opens (in memory, sync off) holds
+    /// no pin whatever the real store holds.
+    private func notePinLookup(in stack: CoreDataStack) {
+        guard stack.isCloudKitActive, stack.privatePersistentStore != nil,
+              CDClassroomMembership.pinnedZoneName(in: stack.viewContext) == nil else { return }
+        noteNoPinFound()
     }
 
     // MARK: - Save handling
@@ -181,7 +193,10 @@ final class SharedStoreOrphanGuard {
         // No pin yet: not shared, or the setup hasn't reached this device.
         // Keep waiting; setup here, or the pin's arrival, settles it.
         guard let pin = CDClassroomMembership.current(in: stack.viewContext),
-              !pin.classroomZoneID.isEmpty else { return }
+              !pin.classroomZoneID.isEmpty else {
+            noteNoPinFound()
+            return
+        }
         forgetWhatSetupElsewhereTook(pinnedZone: pin.classroomZoneID, pinnedAt: pin.modifiedAt ?? pin.joinedAt)
         // A pin from another device: wait for an import that began after it
         // arrived, so what setup there shared reads as shared here. The next
@@ -240,8 +255,7 @@ final class SharedStoreOrphanGuard {
     /// account (`shareFilingHold`: until it is ready, or with none signed in,
     /// until the app is reopened). What is waiting stays listed.
     private var syncStopsFiling: Bool {
-        let sync = syncStatus()
-        return sync.mirroringDelegateFailed || sync.shareFilingHold != nil
+        syncStatus().shareFilingStopReason != nil
     }
 
     /// One pass, holding the attach lock: reads the pinned share and attaches
@@ -290,7 +304,11 @@ final class SharedStoreOrphanGuard {
             Self.logger.error("Couldn't check which records are shared: \(detail, privacy: .public)")
             return
         }
-        let outcome = await ClassroomShareAttach.attach(waiting, to: share, container: container)
+        // Sync can stop, or a hold start, while the chunks go out: asked before each.
+        let outcome = await ClassroomShareAttach.attach(
+            waiting, to: share, container: container,
+            stopReason: { @MainActor [weak self] in self?.syncStatus().shareFilingStopReason }
+        )
         if outcome.mirroringDelegateDied {
             // The store the attach ran against: the private store's delegate died.
             syncStatus().markMirroringStopped(byAttachToStoreWithIdentifier: storeID)

@@ -42,13 +42,21 @@ actor LocalCommandParser {
         "todo", "remind", "reminder", "task", "remember"
     ]
 
-    /// Multi-word keyword phrases checked before single-word tokenization
+    /// Multi-word intent phrases. Like the single words, the one that comes
+    /// first in the sentence decides, so "I gave Maya the cube, she'll keep
+    /// working on it" stays a presentation instead of opening New Work.
     private static let phrasePrefixes: [(phrase: String, intent: RecordIntent)] = [
         ("need to", .addTodo),
         ("don't forget", .addTodo),
         ("dont forget", .addTodo),
         ("working on", .assignWork),
         ("follow up", .assignWork)
+    ]
+
+    /// Words that may come before the intent word without changing what the
+    /// sentence leads with ("I need to…", "Please remind…").
+    private static let leadingFillers: Set<String> = [
+        "i", "we", "please", "today", "just", "also", "and", "so", "ok", "okay"
     ]
 
     // MARK: - Public API
@@ -114,32 +122,66 @@ actor LocalCommandParser {
 
     // MARK: - Intent Detection
 
+    /// What the sentence leads with decides. Otherwise the intent word or
+    /// phrase that comes first in it does: "I gave Maya the cube, she'll keep
+    /// working on it" is a presentation, while "Maya: need to show her the
+    /// cube" is a todo, not a lesson that wasn't given.
     private func detectIntent(in text: String) -> (RecordIntent?, Double) {
-        // Check multi-word phrases first
-        for entry in Self.phrasePrefixes where text.contains(entry.phrase) {
-            return (entry.intent, 0.4)
+        let words = Self.words(in: text).map(\.word)
+
+        if let lead = Self.leadingIntent(in: words) {
+            return (lead.intent, 0.4)
         }
 
-        // Tokenize and check single keywords
-        let words = Set(text.split(separator: " ").map { String($0) })
-
-        if !words.isDisjoint(with: Self.presentationKeywords) {
-            return (.recordPresentation, 0.4)
-        }
-        if !words.isDisjoint(with: Self.workKeywords) {
-            return (.assignWork, 0.4)
-        }
-        if !words.isDisjoint(with: Self.practiceKeywords) {
-            return (.recordPractice, 0.4)
-        }
-        if !words.isDisjoint(with: Self.noteKeywords) {
-            return (.addNote, 0.4)
-        }
-        if !words.isDisjoint(with: Self.todoKeywords) {
-            return (.addTodo, 0.4)
+        for index in words.indices {
+            if let intent = Self.intent(startingAt: index, in: words) {
+                return (intent, 0.4)
+            }
         }
 
         return (nil, 0.0)
+    }
+
+    /// The intent named by the phrase or word at `index`, phrases first.
+    private static func intent(startingAt index: Int, in words: [String]) -> RecordIntent? {
+        let rest = words[index...]
+        for entry in phrasePrefixes where rest.starts(with: entry.phrase.split(separator: " ").map(String.init)) {
+            return entry.intent
+        }
+        return intent(forKeyword: words[index])
+    }
+
+    /// The intent the sentence leads with, after any filler words, and how
+    /// many words (fillers included) that lead takes up.
+    private static func leadingIntent(in words: [String]) -> (intent: RecordIntent, wordCount: Int)? {
+        let start = words.firstIndex { !leadingFillers.contains($0) } ?? words.endIndex
+        let lead = words[start...]
+        for entry in phrasePrefixes {
+            let phraseWords = entry.phrase.split(separator: " ").map(String.init)
+            if lead.starts(with: phraseWords) {
+                return (entry.intent, start + phraseWords.count)
+            }
+        }
+        guard let first = lead.first, let intent = intent(forKeyword: first) else { return nil }
+        return (intent, start + 1)
+    }
+
+    private static func intent(forKeyword word: String) -> RecordIntent? {
+        if presentationKeywords.contains(word) { return .recordPresentation }
+        if workKeywords.contains(word) { return .assignWork }
+        if practiceKeywords.contains(word) { return .recordPractice }
+        if noteKeywords.contains(word) { return .addNote }
+        if todoKeywords.contains(word) { return .addTodo }
+        return nil
+    }
+
+    /// The input's words, lowercased, with their ranges in the input. Curly
+    /// apostrophes (the iPhone keyboard's) read as straight ones, so "don’t
+    /// forget" matches, and punctuation never sticks to a word ("gave," is "gave").
+    private static func words(in text: String) -> [(word: String, range: Range<String.Index>)] {
+        text.matches(of: /[\p{L}\p{N}'’]+/).map { match in
+            (String(match.output).lowercased().replacingOccurrences(of: "’", with: "'"), match.range)
+        }
     }
 
     // MARK: - CDLesson Matching
@@ -201,44 +243,21 @@ actor LocalCommandParser {
 
     // MARK: - Free Text Extraction
 
-    /// Light-touch extraction: only strips the intent trigger keyword/phrase from the
-    /// original input, preserving student names, filler words, and everything else.
+    /// Light-touch extraction: strips the intent word or phrase only where the
+    /// sentence leads with it ("Remind me to…", "I noticed…"), together with
+    /// any filler words before it. An intent word in the middle of the account
+    /// stays, so nothing is cut out of the middle of what the guide wrote.
     private func extractFreeText(from originalInput: String, intent: RecordIntent) -> String {
-        let keywords: Set<String> = switch intent {
-        case .recordPresentation: Self.presentationKeywords
-        case .assignWork: Self.workKeywords
-        case .recordPractice: Self.practiceKeywords
-        case .addNote: Self.noteKeywords
-        case .addTodo: Self.todoKeywords
+        let words = Self.words(in: originalInput)
+        var result = Substring(originalInput)
+        if let lead = Self.leadingIntent(in: words.map(\.word)),
+           lead.intent == intent,
+           lead.wordCount > 0, lead.wordCount <= words.count {
+            result = originalInput[words[lead.wordCount - 1].range.upperBound...]
         }
 
-        var result = originalInput
-
-        // Check multi-word phrases first
-        for entry in Self.phrasePrefixes where entry.intent == intent {
-            if let range = result.range(of: entry.phrase, options: .caseInsensitive) {
-                result.removeSubrange(range)
-                break
-            }
-        }
-
-        // Remove the first occurrence of the matched intent keyword
-        let lower = result.lowercased()
-        for keyword in keywords {
-            if let range = lower.range(of: "\\b\(NSRegularExpression.escapedPattern(for: keyword))\\b",
-                                       options: .regularExpression) {
-                // Map the range from the lowercased copy to the original
-                let startOffset = lower.distance(from: lower.startIndex, to: range.lowerBound)
-                let endOffset = lower.distance(from: lower.startIndex, to: range.upperBound)
-                let originalStart = result.index(result.startIndex, offsetBy: startOffset)
-                let originalEnd = result.index(result.startIndex, offsetBy: endOffset)
-                result.removeSubrange(originalStart..<originalEnd)
-                break
-            }
-        }
-
-        // Trim leading/trailing whitespace, colons, dashes
-        let trimChars = CharacterSet.whitespaces.union(CharacterSet(charactersIn: ":-–—"))
+        // Trim leading/trailing whitespace, colons, dashes, commas
+        let trimChars = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ":-–—,"))
         return result.trimmingCharacters(in: trimChars)
     }
 
@@ -277,13 +296,9 @@ actor LocalCommandParser {
              MontessoriObservationTags.culturalExploration)
         ]
 
-        var matched: [String] = []
-        for entry in tagKeywords {
-            if entry.keywords.contains(where: { normalizedText.contains($0) }) {
-                matched.append(entry.tag)
-            }
-        }
-        return matched
+        return tagKeywords
+            .filter { entry in entry.keywords.contains { normalizedText.contains($0) } }
+            .map(\.tag)
     }
 
     // MARK: - Levenshtein Distance

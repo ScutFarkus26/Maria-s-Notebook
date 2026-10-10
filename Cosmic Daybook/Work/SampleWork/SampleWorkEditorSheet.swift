@@ -6,6 +6,7 @@ import OSLog
 struct SampleWorkEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var modelContext
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     let lesson: CDLesson
     var existingSampleWork: CDSampleWork?
@@ -254,10 +255,23 @@ struct SampleWorkEditorSheet: View {
     private func moveSteps(from source: IndexSet, to destination: Int) {
         draftSteps.move(fromOffsets: source, toOffset: destination)
     }
+}
 
-    // MARK: - Save
+// MARK: - Save
 
+extension SampleWorkEditorSheet {
+
+    /// Saves the template and its steps on Save, through `SaveCoordinator`:
+    /// they used to sit unsaved in the context until some other screen saved
+    /// it. A failed save takes back just this sheet's edit, says so, and keeps
+    /// the sheet open, so a second Save doesn't make the new steps twice.
     private func save() {
+        persist(reason: "Save sample work", failure: "Couldn't save this sample work. Try again.") {
+            applyEdits()
+        }
+    }
+
+    private func applyEdits() {
         let service = SampleWorkService(context: modelContext)
 
         if let existing = existingSampleWork {
@@ -295,9 +309,6 @@ struct SampleWorkEditorSheet: View {
                 step.orderIndex = Int64(index)
             }
         }
-
-        onSave()
-        dismiss()
     }
 
     // MARK: - Delete
@@ -305,7 +316,18 @@ struct SampleWorkEditorSheet: View {
     private func deleteSampleWork() {
         guard let existing = existingSampleWork else { return }
         let service = SampleWorkService(context: modelContext)
-        service.delete(existing)
+        persist(reason: "Delete sample work", failure: "Couldn't delete this sample work. Try again.") {
+            service.delete(existing)
+        }
+    }
+
+    /// Runs one edit and saves it; on success tells the caller and closes,
+    /// on failure undoes only this edit, says so, and stays open.
+    private func persist(reason: String, failure message: String, _ edit: () -> Void) {
+        guard saveCoordinator.saveEdit(in: modelContext, reason: reason, edit) else {
+            ToastService.shared.showError(message)
+            return
+        }
         onSave()
         dismiss()
     }

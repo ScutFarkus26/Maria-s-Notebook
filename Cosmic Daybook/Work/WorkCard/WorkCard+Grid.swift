@@ -28,7 +28,12 @@ struct WorkCardGridContent: View {
     @SyncedAppStorage("WorkAge.overdueColorHex")
     private var ageOverdueColorHex: String = LessonAgeDefaults.overdueColorHex
 
+    /// A resting card reads fresh, as `WorkAgingPolicy.agingBucket` and the
+    /// Attention list treat it: the guide chose to leave it until then.
     private var ageStatus: LessonAgeStatus {
+        if let until = config.work.restingUntil, AppCalendar.startOfDay(until) > AppCalendar.startOfDay(Date()) {
+            return .fresh
+        }
         if config.ageSchoolDays >= max(0, ageOverdueDays) { return .overdue }
         if config.ageSchoolDays >= max(0, ageWarningDays) { return .warning }
         return .fresh

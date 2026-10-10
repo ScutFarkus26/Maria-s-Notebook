@@ -11,27 +11,29 @@ struct AppleIntelligenceSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dependencies) private var dependencies
 
-    // Test student filtering
-    @TestStudentVisibility private var testStudents
-
-    // Filter out test students when setting is disabled
-    private var students: [CDStudent] {
-        TestStudentsFilter.filterVisible(
-            dependencies.roster.enrolled,
-            show: testStudents.show,
-            namesRaw: testStudents.namesRaw
-        )
-    }
+    /// Every child the notes might name, withdrawn ones included, so their
+    /// names resolve in the text and Anonymize hides them too.
+    private var students: [CDStudent] { dependencies.roster.all }
 
     let notes: [CDNote]
-    
+
     // Editor State
     // editorText is internal so the FoundationModels generation extension
     // (AppleIntelligenceSheet+Generation.swift) can drive it.
     @State var editorText: String = ""
+    /// What the sheet itself last put in the editor. When the editor holds
+    /// anything else she has edited it, and replacing it asks first.
+    @State var generatedText: String = ""
     @State private var isAnonymized: Bool = false
     @State private var aiTriggerCounter: Int = 0
     @State private var pendingAITrigger: Bool = false
+    @State private var pendingReplacement: Replacement?
+
+    /// A change that rewrites the editor's text.
+    private enum Replacement: Equatable {
+        case anonymize(Bool)
+        case template(PromptTemplate)
+    }
 
     // AI State (internal: see AppleIntelligenceSheet+Generation.swift)
     @State var isGenerating: Bool = false
@@ -58,7 +60,13 @@ struct AppleIntelligenceSheet: View {
                 
                 // 2. Editor Area
                 ZStack(alignment: .bottomTrailing) {
-                    if editorText.isEmpty && !isGenerating {
+                    if notes.isEmpty {
+                        ContentUnavailableView(
+                            "No Notes This School Year",
+                            systemImage: "note.text",
+                            description: Text("Notes about this child from this school year show here to draft from.")
+                        )
+                    } else if editorText.isEmpty && !isGenerating {
                         ContentUnavailableView("Gathering notes…", systemImage: "arrow.triangle.2.circlepath")
                     } else {
                         // Main Editor
@@ -108,6 +116,22 @@ struct AppleIntelligenceSheet: View {
             .onAppear {
                 regenerateContent()
             }
+            .confirmationDialog(
+                "Replace your edits?",
+                isPresented: Binding(
+                    get: { pendingReplacement != nil },
+                    set: { if !$0 { pendingReplacement = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Replace", role: .destructive) {
+                    if let change = pendingReplacement { apply(change) }
+                    pendingReplacement = nil
+                }
+                Button("Keep My Text", role: .cancel) { pendingReplacement = nil }
+            } message: {
+                Text("You changed the text here. This writes it over with a new draft.")
+            }
             .onChange(of: editorText) { _, newText in
                 // Trigger AI tools after text is set and view is ready
                 if pendingAITrigger && !newText.isEmpty {
@@ -123,25 +147,28 @@ struct AppleIntelligenceSheet: View {
     
     private var controlBar: some View {
         HStack(spacing: 12) {
-            Toggle(isOn: $isAnonymized) {
+            Toggle(isOn: Binding(
+                get: { isAnonymized },
+                set: { request(.anonymize($0)) }
+            )) {
                 Label("Anonymize", systemImage: isAnonymized ? "eye.slash.fill" : "eye.fill")
                     .font(.caption)
                     .fontWeight(.medium)
             }
             .toggleStyle(.button)
             .tint(.secondary)
-            .onChange(of: isAnonymized) { _, _ in regenerateContent() }
-            
+            .disabled(notes.isEmpty)
+
             Spacer()
-            
+
             Menu {
                 Section("Start From") {
-                    Button { applyTemplate(.raw) } label: { Label("Notes Only", systemImage: "doc.text") }
+                    Button { request(.template(.raw)) } label: { Label("Notes Only", systemImage: "doc.text") }
                 }
                 Section("Drafts") {
                     ForEach(PromptTemplate.allCases.filter { $0 != .raw }, id: \.self) { template in
                         Button {
-                            applyTemplate(template)
+                            request(.template(template))
                         } label: {
                             Label(template.rawValue, systemImage: template.icon)
                         }
@@ -160,7 +187,7 @@ struct AppleIntelligenceSheet: View {
                 .clipShape(Capsule())
                 .foregroundStyle(Color.accentColor)
             }
-            .disabled(isGenerating)
+            .disabled(isGenerating || notes.isEmpty)
         }
         .padding(.horizontal)
         .padding(.vertical, 12)
@@ -190,14 +217,41 @@ struct AppleIntelligenceSheet: View {
     }
 
     // MARK: - Logic Helpers
-    
+
+    /// Runs a change that rewrites the text, asking first when she has edited
+    /// it: toggling Anonymize or picking a draft used to write over her edits.
+    private func request(_ change: Replacement) {
+        if editorText != generatedText {
+            pendingReplacement = change
+        } else {
+            apply(change)
+        }
+    }
+
+    private func apply(_ change: Replacement) {
+        switch change {
+        case .anonymize(let anonymize):
+            isAnonymized = anonymize
+            regenerateContent()
+        case .template(let template):
+            applyTemplate(template)
+        }
+    }
+
+    /// Puts text the sheet made into the editor.
+    func show(_ text: String) {
+        generatedText = text
+        editorText = text
+    }
+
     private func regenerateContent() {
+        guard !notes.isEmpty else { return }
         let formatter = SmartNoteFormatter(students: students, anonymize: isAnonymized)
         let rawContext = formatter.generateContext(from: notes)
-        
+
         // Reset to raw data if we aren't using a template or just toggled anonymization
         if currentTemplate == nil || currentTemplate == .raw {
-            editorText = rawContext
+            show(rawContext)
             currentTemplate = .raw
         } else {
             // If we have a template active, re-apply it (re-generate) with new settings
@@ -206,15 +260,15 @@ struct AppleIntelligenceSheet: View {
             }
         }
     }
-    
+
     private func applyTemplate(_ template: PromptTemplate) {
         currentTemplate = template
         generationError = nil
         let formatter = SmartNoteFormatter(students: students, anonymize: isAnonymized)
         let rawContext = formatter.generateContext(from: notes)
-        
+
         if template == .raw {
-            editorText = rawContext
+            show(rawContext)
             return
         }
 
@@ -226,7 +280,7 @@ struct AppleIntelligenceSheet: View {
         #else
         // Fallback: Prepend instructions and trigger system tools
         pendingAITrigger = true
-        editorText = template.instruction + "\n\n" + rawContext
+        show(template.instruction + "\n\n" + rawContext)
         #endif
     }
     
@@ -239,110 +293,4 @@ struct AppleIntelligenceSheet: View {
         return Color(uiColor: .systemBackground)
         #endif
     }
-}
-
-// MARK: - Smart Formatter
-struct SmartNoteFormatter {
-    let students: [CDStudent]
-    let anonymize: Bool
-    
-    /// The notes as plain text: a one-line header ("3 notes, Sep 2 – Sep 30")
-    /// and each note under plain labels. The guide reads and shares this, and
-    /// it is also what Apple Intelligence drafts from.
-    func generateContext(from notes: [CDNote]) -> String {
-        let sortedNotes = notes.sorted { ($0.updatedAt ?? .distantPast) < ($1.updatedAt ?? .distantPast) }
-        let body = sortedNotes.map { formatSingleNote($0) }.joined(separator: "\n\n")
-        return header(for: sortedNotes) + "\n\n" + body
-    }
-
-    func header(for sortedNotes: [CDNote]) -> String {
-        let count = sortedNotes.count
-        let counted = "\(count) \(count == 1 ? "note" : "notes")"
-        guard let dates = dateRangeString(notes: sortedNotes) else { return counted }
-        return counted + ", " + dates
-    }
-    
-    private func formatSingleNote(_ note: CDNote) -> String {
-        let studentName = resolveStudentName(for: note.scope)
-        let contextDetail = resolveContextDetail(for: note)
-        let dateStr = (note.updatedAt ?? Date()).formatted(date: .abbreviated, time: .shortened)
-        let tagNames = ((note.tags as? [String]) ?? []).map { TagHelper.tagName($0) }.joined(separator: ", ")
-        let about = tagNames.isEmpty ? contextDetail : "\(contextDetail) (\(tagNames))"
-
-        return """
-        Date: \(dateStr)
-        Student: \(studentName)
-        About: \(about)
-        Note: \(note.body)
-        """
-    }
-    
-    private func resolveStudentName(for scope: NoteScope) -> String {
-        switch scope {
-        case .all: return "Whole class"
-        case .student(let id):
-            guard let student = students.first(where: { $0.id == id }) else { return "Student removed" }
-            return anonymize ? "Student \(student.firstName.prefix(1))" : student.fullName
-        case .students(let ids):
-            if anonymize { return "Group of \(ids.count) \(ids.count == 1 ? "student" : "students")" }
-            let names = ids.compactMap { id in students.first(where: { $0.id == id })?.firstName }
-            return names.joined(separator: ", ")
-        }
-    }
-    
-    private func resolveContextDetail(for note: CDNote) -> String {
-        if let lesson = note.lesson { return "\(lesson.name) (lesson)" }
-        if let work = note.work { return "\(work.title) (work)" }
-        if let pres = note.lessonAssignment {
-            let title = (pres.lessonTitleSnapshot ?? "").trimmed()
-            return title.isEmpty ? "A presentation" : "\(title) (presentation)"
-        }
-        return "General observation"
-    }
-    
-    private func dateRangeString(notes: [CDNote]) -> String? {
-        guard let first = notes.first?.updatedAt ?? notes.first?.createdAt,
-              let last = notes.last?.updatedAt ?? notes.last?.createdAt else { return nil }
-        if AppCalendar.isSameDay(first, last) {
-            return first.formatted(date: .abbreviated, time: .omitted)
-        }
-        let from = first.formatted(date: .abbreviated, time: .omitted)
-        let through = last.formatted(date: .abbreviated, time: .omitted)
-        return "\(from) – \(through)"
-    }
-}
-
-// MARK: - Prompt Templates
-enum PromptTemplate: String, CaseIterable {
-    case raw = "Notes Only"
-    case parentEmail = "Parent Email"
-    case reportCard = "Report Card"
-    case actionPlan = "Action Plan"
-    case summary = "Weekly Summary"
-    
-    var icon: String {
-        switch self {
-        case .raw: return "doc.text"
-        case .parentEmail: return "envelope.fill"
-        case .reportCard: return "list.clipboard.fill"
-        case .actionPlan: return "checklist"
-        case .summary: return "text.alignleft"
-        }
-    }
-    
-    // swiftlint:disable line_length
-    var instruction: String {
-        switch self {
-        case .raw: return ""
-        case .parentEmail:
-            return "Task: Draft a supportive, professional email to the parents. Summarize the progress shown in the data. Highlight achievements and gently mention 1 area for growth if applicable."
-        case .reportCard:
-            return "Task: Summarize the observations into a formal paragraph suitable for a semester report card. Focus on observed behaviors and academic progress."
-        case .actionPlan:
-            return "Task: Analyze the observations and list 3 specific, actionable follow-up steps for the teacher. Format as a checklist."
-        case .summary:
-            return "Task: Provide a concise bulleted summary of the key themes found in these notes."
-        }
-    }
-    // swiftlint:enable line_length
 }

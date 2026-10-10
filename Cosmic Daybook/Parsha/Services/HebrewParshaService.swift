@@ -62,7 +62,9 @@ enum HebrewParshaService {
 
     /// Returns every Shabbat in the Hebrew year containing `date`, paired with its parsha
     /// key (nil on festival-displaced Shabbatot) and the festival name (when displaced).
-    /// Walks from the first sedra Shabbat after Simchat Torah through next Rosh Hashanah.
+    /// Walks from the first sedra Shabbat after Simchat Torah up to the next Simchat
+    /// Torah, so the cycle's last readings after Rosh Hashanah (Vayelech, Ha'azinu)
+    /// and the festivals around them are listed too.
     static func shabbatotForHebrewYear(containing date: Date) -> [ShabbatEntry] {
         guard let hebYear = hebrew.dateComponents([.year], from: date).year else { return [] }
         // Find the cycle year whose Simchat Torah is on or before `date`.
@@ -89,16 +91,16 @@ enum HebrewParshaService {
                 current = gregorian.date(byAdding: .day, value: 7, to: current) ?? current
             }
 
-            var nextRHComps = DateComponents()
-            nextRHComps.year = cycleYear + 1
-            nextRHComps.month = 1
-            nextRHComps.day = 1
-            guard let nextRH = hebrew.date(from: nextRHComps).map(gregorian.startOfDay) else {
+            // Simchat Torah is never a Shabbat, so stopping short of it ends the
+            // walk on the last Shabbat before the next cycle's Bereishit.
+            guard let nextSimchatTorah = simchatTorahDate(
+                hebYear: cycleYear + 1, hebrew: hebrew, gregorian: gregorian
+            ) else {
                 return []
             }
 
             var results: [ShabbatEntry] = []
-            while current < nextRH {
+            while current < nextSimchatTorah {
                 let key = parshaKey(forShabbat: current)
                 let festival = displacingFestivalName(forShabbat: current)
                 results.append(ShabbatEntry(date: current, parshaKey: key, festivalName: festival))
@@ -112,11 +114,14 @@ enum HebrewParshaService {
     }
 
     /// Returns the diaspora festival that displaces the weekly parsha on this Shabbat,
-    /// or `nil` if a normal weekly reading takes place. The three displacing windows are
-    /// Sukkot/Shemini Atzeret, Pesach (including Chol HaMoed Shabbatot), and Shavuot.
+    /// or `nil` if a normal weekly reading takes place. The displacing days are Rosh
+    /// Hashanah, Yom Kippur, Sukkot/Shemini Atzeret, Pesach (including Chol HaMoed
+    /// Shabbatot), and Shavuot.
     static func displacingFestivalName(forShabbat shabbat: Date) -> String? {
         let comps = hebrew.dateComponents([.month, .day], from: shabbat)
         guard let month = comps.month, let day = comps.day else { return nil }
+        if month == 1, day == 1 || day == 2 { return "Rosh Hashanah" }
+        if month == 1, day == 10 { return "Yom Kippur" }
         if month == 1, (15...22).contains(day) { return "Sukkot" }
         if month == 8, (15...22).contains(day) { return "Pesach" }
         if month == 10, day == 6 || day == 7 { return "Shavuot" }
@@ -159,12 +164,16 @@ enum HebrewParshaService {
             guard daysBetween >= 0, daysBetween % 7 == 0 else { return nil }
             let weekIndex = daysBetween / 7
 
-            // Use the year-type schedule to map weekIndex -> parsha key.
-            if let schedule = sedraSchedule(hebYear: cycleYear, hebrew: hebrew, gregorian: gregorian),
-               weekIndex >= 0, weekIndex < schedule.count {
+            // Use the year-type schedule to map weekIndex -> parsha key. Past its
+            // end, the Shabbat falls between Rosh Hashanah and Simchat Torah, where
+            // the cycle's leftover parshiot are read.
+            guard let schedule = sedraSchedule(hebYear: cycleYear, hebrew: hebrew, gregorian: gregorian) else {
+                return nil
+            }
+            if weekIndex < schedule.count {
                 return schedule[weekIndex]
             }
-            return nil
+            return leftoverReading(forShabbat: shabbat, after: schedule, cycleYear: cycleYear)
         }
         return nil
     }

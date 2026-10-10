@@ -56,8 +56,10 @@ nonisolated extension DataCleanupService {
             for d in duplicates {
                 // Re-parent the duplicate's notes onto the survivor first —
                 // unifiedNotes is a Cascade relationship, so a raw delete would
-                // destroy any observation notes attached to the duplicate draft.
-                mergeLessonAssignment(canonical: canonical, duplicate: d)
+                // destroy any observation notes attached to the duplicate draft —
+                // and point year-plan entries promoted into the duplicate at the
+                // survivor, which holds the same children.
+                PresentationRecordCleanup.prepareToMerge(d, into: canonical, in: context)
                 context.delete(d)
             }
             changed = true

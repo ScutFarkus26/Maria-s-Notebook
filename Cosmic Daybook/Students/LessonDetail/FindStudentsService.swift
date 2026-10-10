@@ -66,9 +66,12 @@ enum FindStudentsService {
             let hasPresented = studentAssignments.contains { $0.isPresented }
             let hasNonPresented = studentAssignments.contains { !$0.isPresented }
 
-            let birthday = student.birthday ?? Date()
-            let ageDiff = minAgeDifference(birthday: birthday, existingBirthdays: existingBirthdays)
-            let ageStr = AgeUtils.conciseAgeString(for: birthday)
+            // A child with no birthday on file has no age to show or compare:
+            // standing in today read as "0 mo" and sorted her first.
+            let ageDiff = student.birthday.map {
+                minAgeDifference(birthday: $0, existingBirthdays: existingBirthdays)
+            } ?? .greatestFiniteMagnitude
+            let ageStr = student.birthday.map { AgeUtils.conciseAgeString(for: $0) } ?? noBirthdayText
             let candidate = CandidateStudent(student: student, ageDifference: ageDiff, ageString: ageStr)
 
             if !hasPresented {
@@ -85,6 +88,9 @@ enum FindStudentsService {
 
         return CandidateResult(neverReceived: neverReceived, redundantlyScheduled: redundantlyScheduled)
     }
+
+    /// The age line for a child whose birthday isn't on file.
+    static let noBirthdayText = "No birthday on file"
 
     /// Returns the minimum absolute birthday difference between a candidate and any existing student.
     /// If there are no existing birthdays, returns `.greatestFiniteMagnitude`.

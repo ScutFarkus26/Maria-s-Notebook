@@ -78,10 +78,14 @@ enum StudentSequenceDetailLoader {
         let request = CDFetchRequest(CDLesson.self)
         request.predicate = NSPredicate(format: "id IN %@", lessonIDs)
         let lessons = context.safeFetch(request)
-        return Dictionary(uniqueKeysWithValues: lessons.compactMap { lesson in
-            guard let id = lesson.id else { return nil }
-            return (id, lesson)
-        })
+        // Sync can leave two rows with one id; keep the first rather than trap.
+        return Dictionary(
+            lessons.compactMap { lesson in
+                guard let id = lesson.id else { return nil }
+                return (id, lesson)
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
     }
 
     private static func fetchWork(

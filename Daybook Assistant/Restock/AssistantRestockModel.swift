@@ -47,6 +47,11 @@ final class AssistantRestockModel {
     @ObservationIgnored private var lastShown: Shown?
     /// The last failed save, until one works.
     private(set) var errorMessage: String?
+    /// The one-off need the last "We need…" made that didn't save, so the
+    /// same sheet's next tap replaces it with what the sheet says now (a new
+    /// quantity, name or source) instead of saving the old one or adding a
+    /// second.
+    @ObservationIgnored private var unsavedAdd: CDOrderItem?
 
     /// This phone's check-offs since she came to the tab, for Undo, by the
     /// need's `id`: the first save gives a new need another objectID, never
@@ -118,34 +123,6 @@ final class AssistantRestockModel {
         }
         self.importReloader = RemoteImportReloader { [weak self] in self?.load() }
     }
-
-    /// The tab's model on the app's stack: this phone's assistant, with the
-    /// classroom's owner and everyone's names, as they are at each change.
-    /// The guide's name is the one he set in the classroom's list, then
-    /// `guideName` (Apple's name for the share's owner, display only).
-    static func live(
-        context: NSManagedObjectContext,
-        container: NSPersistentCloudKitContainer?,
-        guideName: @escaping @MainActor () -> String? = { nil }
-    ) -> AssistantRestockModel {
-        AssistantRestockModel(context: context, container: container, author: {
-            RestockAuthor.assistant(in: context)
-                .reading(ClassroomNames.snapshot(in: context).fallingBack(toGuideName: guideName()))
-        })
-    }
-
-    /// The classroom share's store. On an Apple Account that also keeps a
-    /// Cosmic Daybook of its own, the private store holds that notebook's
-    /// supplies, which aren't this class's. Nil with one store (the sample
-    /// class, tests), which holds only the class.
-    var store: NSPersistentStore? {
-        context.persistentStoreCoordinator?.persistentStores.first {
-            $0.configurationName == CoreDataStack.sharedConfiguration
-        }
-    }
-
-    /// Every staple, for the "We need…" sheet's match.
-    var staples: [CDSupply] { shelf.flatMap(\.staples) }
 
     // MARK: - Loading
 
@@ -241,20 +218,6 @@ final class AssistantRestockModel {
         changed()
     }
 
-    /// The staple's history, newest first.
-    func history(for staple: CDSupply) -> [CDSupplyTransaction] {
-        RestockService.history(for: staple, in: context)
-    }
-
-    /// The staple whose name is exactly `text` (any case or accents, without
-    /// a closing period), for the "We need…" sheet: naming one marks it Out
-    /// instead of adding a second need for it.
-    func staple(named text: String) -> CDSupply? {
-        let key = Self.entry(text).foldedKey()
-        guard !key.isEmpty else { return nil }
-        return staples.first { $0.name.foldedKey() == key }
-    }
-
     // MARK: - The office run
 
     func isCheckedOff(_ need: CDOrderItem) -> Bool {
@@ -302,27 +265,13 @@ final class AssistantRestockModel {
 
     // MARK: - We need…
 
-    /// What "We need…" did.
-    enum AddResult: Equatable {
-        /// A new need on the office run or the order list.
-        case added
-        /// The same thing was already waiting; nothing was added.
-        case alreadyListed
-        /// It's a staple, which is now marked Out.
-        case markedStaple
-        /// Nothing to add: no name.
-        case nothing
-        /// The phone couldn't save it (`errorMessage` says so). The change
-        /// waits in the context, and the same add again tries the save again.
-        case notSaved
-    }
-
     /// Adds a one-off: from the office or to order, `quantity` of it. A pasted
     /// link becomes the need's link. A staple's name marks the staple Out,
     /// with the quantity she chose on its need. Saves at once: the sheet
     /// closes on anything but `.notSaved`.
     @discardableResult
     func addNeed(_ text: String, source: RestockSource, quantity: Int) -> AddResult {
+        discardUnsavedAdd()
         let entry = Self.entry(text)
         if let staple = staple(named: entry) {
             setLevel(staple, to: .out)
@@ -341,13 +290,36 @@ final class AssistantRestockModel {
             in: context
         ) else { return .nothing }
         guard added.isNew else {
-            // Her own add that didn't save: try the save again.
+            // A need made on this phone that didn't save: try the save again.
             if added.object.isInserted { return flush() ? .added : .notSaved }
             return .alreadyListed
         }
         changed()
         // The sheet closes on it: save now rather than after a burst.
-        return flush() ? .added : .notSaved
+        guard flush() else {
+            unsavedAdd = added.object
+            return .notSaved
+        }
+        return .added
+    }
+
+    /// Takes back the one-off the sheet's last add made that didn't save, so
+    /// the next add writes what the sheet says now: tapped again, a changed
+    /// quantity or name would otherwise save the old one, or add a second.
+    /// One that has saved since (leaving the app saves) stays.
+    private func discardUnsavedAdd() {
+        guard let need = unsavedAdd else { return }
+        unsavedAdd = nil
+        guard need.isInserted, !need.isDeleted else { return }
+        createdSinceSave.remove(need)
+        context.delete(need)
+        refreshNeeds()
+    }
+
+    /// The "We need…" sheet closed: an add of hers that didn't save stays,
+    /// for the next save to write, and a later sheet's add won't replace it.
+    func weNeedClosed() {
+        unsavedAdd = nil
     }
 
     /// The quantity she chose, on the staple's open need while the guide
@@ -382,7 +354,11 @@ final class AssistantRestockModel {
     func flush() -> Bool {
         pendingSave?.cancel()
         pendingSave = nil
-        guard context.hasChanges || !createdSinceSave.isEmpty else { return true }
+        guard context.hasChanges || !createdSinceSave.isEmpty else {
+            // Nothing waiting: another save of this context wrote it.
+            errorMessage = nil
+            return true
+        }
         return save()
     }
 
@@ -396,10 +372,11 @@ final class AssistantRestockModel {
         // the network. The change stays pending, so the next save tries again.
         guard saveChanges(context, Array(created)) else {
             Self.logger.error("Saving a Restock change failed")
-            errorMessage = "Couldn't save that change. Try again."
+            errorMessage = Self.saveFailedMessage
             return false
         }
         createdSinceSave.removeAll()
+        unsavedAdd = nil
         errorMessage = nil
         return true
     }

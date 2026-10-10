@@ -111,11 +111,6 @@ extension WorkDetailView {
                                 .font(AppTheme.ScaledFont.caption)
                                 .foregroundStyle(.secondary)
                         }
-                    case .withOtherStudents(let students):
-                        let label = students.count == 1 ? "student" : "students"
-                        Text("Waiting area with \(students.count) other \(label)")
-                            .font(AppTheme.ScaledFont.caption)
-                            .foregroundStyle(.secondary)
                     case .notFound:
                         EmptyView()
                     }

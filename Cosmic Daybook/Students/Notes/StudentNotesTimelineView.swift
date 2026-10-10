@@ -341,11 +341,13 @@ struct StudentNotesTimelineList: View {
         !newNoteText.trimmed().isEmpty
     }
     
+    /// Clears the bar only once the note is saved; a failed save keeps her text.
     private func addNote() {
         guard canAdd else { return }
         adaptiveWithAnimation {
-            viewModel.addGeneralNote(body: newNoteText)
-            newNoteText = ""
+            if viewModel.addGeneralNote(body: newNoteText) {
+                newNoteText = ""
+            }
         }
     }
     
@@ -371,27 +373,37 @@ struct StudentNotesTimelineList: View {
 
     // MARK: - CDNote Row
 
+    /// The selection checkbox, in selection mode. Meeting and attendance rows
+    /// aren't notes the batch actions change, so they can't be chosen:
+    /// counted in "Delete (n)", they were never deleted.
+    @ViewBuilder
+    private func selectionMark(for item: UnifiedNoteItem) -> some View {
+        if isSelecting && item.isNote {
+            Button {
+                toggleSelection(for: item.id)
+            } label: {
+                Image(systemName: selectedNoteIDs.contains(item.id)
+                      ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(selectedNoteIDs.contains(item.id)
+                                     ? Color.accentColor : Color.secondary)
+            }
+            .buttonStyle(.plain)
+        } else if isSelecting {
+            // Keeps the rows lined up with the checkboxes.
+            Image(systemName: "circle").font(.title3).hidden()
+        }
+    }
+
     @ViewBuilder
     private func noteRow(for item: UnifiedNoteItem) -> some View {
         HStack(spacing: 12) {
-            // Selection checkbox (only in selection mode)
-            if isSelecting {
-                Button {
-                    toggleSelection(for: item.id)
-                } label: {
-                    Image(systemName: selectedNoteIDs.contains(item.id)
-                          ? "checkmark.circle.fill" : "circle")
-                        .font(.title3)
-                        .foregroundStyle(selectedNoteIDs.contains(item.id)
-                                         ? Color.accentColor : Color.secondary)
-                }
-                .buttonStyle(.plain)
-            }
+            selectionMark(for: item)
 
             // CDNote content
             Button {
                 if isSelecting {
-                    toggleSelection(for: item.id)
+                    if item.isNote { toggleSelection(for: item.id) }
                 } else if let note = resolveEditableNote(from: item) {
                     noteBeingEdited = note
                 }

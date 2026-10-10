@@ -66,16 +66,38 @@ struct DocumentRepository: SavingRepository {
 
     // MARK: - Delete
 
-    /// Delete a CDDocument by ID. Also removes its on-disk file if managed.
+    /// Delete a CDDocument by ID, then its on-disk file if managed. The file
+    /// goes only once the delete has saved, and only when no other record
+    /// names it: it used to go first, so a failed save left the record
+    /// pointing at nothing. A failed save puts the record back and throws.
     func deleteDocument(id: UUID) throws {
         guard let document = fetchDocument(id: id) else { return }
-        if let url = StudentDocumentFileStorage.resolveURL(
+        let relativePath = document.pdfFileRelativePath
+        let fileURL = StudentDocumentFileStorage.resolveURL(
             bookmark: document.pdfFileBookmark,
-            relativePath: document.pdfFileRelativePath
-        ) {
-            try? StudentDocumentFileStorage.deleteIfManaged(url)
-        }
+            relativePath: relativePath
+        )
+        // Only this delete is taken back on failure; the view context can
+        // hold other screens' unsaved edits.
+        let transaction = ContextMutationTransaction(context: context)
         context.delete(document)
-        try context.save()
+        do {
+            try context.save()
+        } catch {
+            transaction.rollback()
+            throw error
+        }
+        transaction.commit()
+        guard let fileURL, !isFileStillNamed(relativePath: relativePath) else { return }
+        try? StudentDocumentFileStorage.deleteIfManaged(fileURL)
+    }
+
+    /// Whether another document (a copy sync made twice, say) still names
+    /// the file at `relativePath`.
+    private func isFileStillNamed(relativePath: String) -> Bool {
+        guard !relativePath.isEmpty else { return false }
+        let request = CDFetchRequest(CDDocument.self)
+        request.predicate = NSPredicate(format: "pdfFileRelativePath == %@", relativePath)
+        return ((try? context.count(for: request)) ?? 1) > 0
     }
 }

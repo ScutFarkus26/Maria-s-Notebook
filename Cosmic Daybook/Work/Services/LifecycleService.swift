@@ -30,7 +30,8 @@ struct LifecycleService {
 
     /// Upsert CDLessonPresentation idempotently by (presentationID, studentID).
     /// If exists: moves presentedAt and lastObservedAt to `presentedAt`, since the
-    /// row records this one presentation and a corrected date is its date.
+    /// row records this one presentation and a corrected date is its date, and
+    /// moves it to `lessonID` when the presentation's lesson was changed.
     /// If not exists: creates new with state .presented.
     @discardableResult
     static func upsertLessonPresentation(
@@ -51,6 +52,9 @@ struct LifecycleService {
                 existing.presentedAt = presentedAt
             }
             existing.lastObservedAt = presentedAt
+            if !lessonID.isEmpty, existing.lessonID != lessonID {
+                moveHistoryRow(existing, toLesson: lessonID)
+            }
             return existing
         } else {
             // Create new CDLessonPresentation with initial state .presented
@@ -63,5 +67,33 @@ struct LifecycleService {
             lessonPresentation.lastObservedAt = presentedAt
             return lessonPresentation
         }
+    }
+
+    /// Moves `assignment`'s per-child history rows (`presentationID` names it)
+    /// to its current lesson. Change Lesson on a given presentation used to
+    /// leave them on the old lesson, so the year plan, the regive guard and
+    /// the Three-Year View kept reading the lesson she wasn't given. Rows
+    /// already on the lesson are left alone. Doesn't save.
+    @discardableResult
+    static func relinkHistoryRows(of assignment: CDLessonAssignment, in context: NSManagedObjectContext) -> Int {
+        guard let presentationID = assignment.id?.uuidString, !assignment.lessonID.isEmpty else { return 0 }
+        let request = CDFetchRequest(CDLessonPresentation.self)
+        request.predicate = NSPredicate(
+            format: "presentationID == %@ AND lessonID != %@", presentationID, assignment.lessonID
+        )
+        let stale = context.safeFetch(request).filter { !$0.isDeleted }
+        for row in stale {
+            moveHistoryRow(row, toLesson: assignment.lessonID)
+        }
+        return stale.count
+    }
+
+    /// One history row onto another lesson. Its track and step named the old
+    /// lesson's place, so they are cleared; `TrackProgressResolver` then
+    /// places the row by its lesson, as it does every row recording makes.
+    private static func moveHistoryRow(_ row: CDLessonPresentation, toLesson lessonID: String) {
+        row.lessonID = lessonID
+        row.trackID = nil
+        row.trackStepID = nil
     }
 }

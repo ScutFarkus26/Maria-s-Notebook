@@ -24,8 +24,15 @@ final class PresentationDetailActions {
         let wasPresented = lessonAssignment.isPresented
         let removedStudentIDs = Set(lessonAssignment.studentIDs)
             .subtracting(selectedStudentIDs.map(\.uuidString))
+        let lessonChanged = lessonAssignment.lessonID != editingLessonID.uuidString
 
         lessonAssignment.lessonID = editingLessonID.uuidString
+        if lessonChanged {
+            // The track and step named the old lesson; recording works them
+            // out again for the new one.
+            lessonAssignment.trackID = nil
+            lessonAssignment.trackStepID = nil
+        }
         lessonAssignment.notes = notes
         lessonAssignment.needsAnotherPresentation = needsAnotherPresentation
         lessonAssignment.studentIDs = selectedStudentIDs.map(\.uuidString)
@@ -51,13 +58,27 @@ final class PresentationDetailActions {
         // id, so they follow the edit here or read as given for good.
         if let context = lessonAssignment.managedObjectContext {
             PresentationRecordCleanup.removeStudents(removedStudentIDs, from: lessonAssignment, in: context)
+            if lessonChanged {
+                PresentationRecordCleanup.returnEntriesForOtherLessons(promotedInto: lessonAssignment, in: context)
+            }
             if wasPresented && !lessonAssignment.isPresented {
                 PresentationRecordCleanup.unmarkPresented(lessonAssignment, in: context)
+            } else if lessonAssignment.isPresented {
+                // Change Lesson on a given presentation: the children's
+                // history rows move to the new lesson with it, so the year
+                // plan and the regive guard read the lesson she was given.
+                LifecycleService.relinkHistoryRows(of: lessonAssignment, in: context)
             }
         }
     }
 
+    // Puts `studentsToMove` on a plan of their own for `currentLesson` (an
+    // undated draft with exactly them, reused when one exists). Their
+    // year-plan entries promoted into `source` follow them to it; taking
+    // them off `source` is the caller's.
+    // swiftlint:disable:next function_parameter_count
     func moveStudentsToInbox(
+        from source: CDLessonAssignment,
         currentLesson: CDLesson,
         studentsToMove: Set<UUID>,
         studentsAll: [CDStudent],
@@ -73,15 +94,17 @@ final class PresentationDetailActions {
         let currentLessonID = currentLesson.id ?? UUID()
         let targetSet = studentsToMove
         let existing = lessonAssignmentsAll.first(where: { la in
-            la.resolvedLessonID == currentLessonID && la.scheduledFor == nil
+            la.objectID != source.objectID && la.resolvedLessonID == currentLessonID && la.scheduledFor == nil
                 && !la.isPresented && Set(la.resolvedStudentIDs) == targetSet
         })
 
+        let destination: CDLessonAssignment
         if let ex = existing {
             ex.studentIDs = studentsAll.compactMap(\.id).filter { targetSet.contains($0) }.map(\.uuidString)
             ex.lesson = currentLesson
+            destination = ex
         } else {
-            let newLA = PresentationFactory.makeDraft(
+            destination = PresentationFactory.makeDraft(
                 lesson: currentLesson,
                 students: studentsAll.filter {
                     guard let sid = $0.id else { return false }
@@ -89,8 +112,10 @@ final class PresentationDetailActions {
                 },
                 context: context
             )
-            _ = newLA // Core Data auto-inserts into context
         }
+        PresentationRecordCleanup.moveStudents(
+            Set(studentsToMove.map(\.uuidString)), from: source, to: destination, in: context
+        )
 
         context.safeSave()
         PresentationDetailUtilities.notifyInboxRefresh()

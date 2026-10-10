@@ -51,14 +51,16 @@ final class StudentAreaProgressionViewModel {
             studentID: studentIDStr, lessonIDs: groupLessons.map { $0.id?.uuidString ?? "" }, context: context
         )
         let studentCheckIns = fetchCheckIns(workIDs: studentWork.compactMap { $0.id?.uuidString }, context: context)
-        // lessonID → the children with a mastery mark on it: the Checklist's "Mastered".
-        let masteryMarks = PresentationRecordIndex.masteryMarks(
-            lessonIDs: Set(groupLessons.compactMap { $0.id?.uuidString }), in: context
+        // Mastery is the mark on the lesson, as on the class checklist — not closed work.
+        let masteredLessonIDs = Set(
+            PresentationRecordIndex.masteryMarks(
+                lessonIDs: Set(groupLessons.compactMap { $0.id?.uuidString }), in: context
+            )
+            .filter { $0.value.contains(studentIDStr) }
+            .keys
         )
 
-        // School day counting helper
-        let calendar = AppCalendar.shared
-        let today = calendar.startOfDay(for: Date())
+        let today = AppCalendar.startOfDay(Date())
 
         var completed = 0
         var foundNext = false
@@ -73,9 +75,11 @@ final class StudentAreaProgressionViewModel {
             let presentation = studentPresentations.first {
                 $0.lessonID == lessonIDStr && ($0.isPresented || $0.presentedAt != nil)
             }
-            let scheduledPresentation = studentPresentations.first {
-                $0.lessonID == lessonIDStr && $0.isScheduled
+            // Planned and not yet given: on a day, or a draft waiting in the inbox.
+            let plannedPresentations = studentPresentations.filter {
+                $0.lessonID == lessonIDStr && !$0.isPresented && $0.presentedAt == nil
             }
+            let isMastered = masteredLessonIDs.contains(lessonIDStr)
 
             // Find work items for this lesson
             let lessonWork = studentWork.filter { $0.lessonID == lessonIDStr }
@@ -90,16 +94,12 @@ final class StudentAreaProgressionViewModel {
                     .filter(\.isScheduled)
                     .min { ($0.date ?? .distantFuture) < ($1.date ?? .distantFuture) }
 
-                // Approximate school day age (weekdays only)
-                let createdDay = calendar.startOfDay(for: work.assignedAt ?? Date())
-                let weekdaysBetween = countWeekdays(from: createdDay, to: today, calendar: calendar)
-
                 return WorkProgressItem(
                     id: work.id ?? UUID(),
                     work: work,
                     status: work.status,
                     kind: work.kind,
-                    ageSchoolDays: weekdaysBetween,
+                    ageSchoolDays: Self.schoolDaysOpen(work, today: today, context: context),
                     lastCheckIn: lastCheckIn,
                     nextCheckIn: nextCheckIn
                 )
@@ -107,15 +107,16 @@ final class StudentAreaProgressionViewModel {
 
             let status = LessonNodeStatus.resolve(
                 isPresented: presentation != nil,
-                scheduledFor: scheduledPresentation?.scheduledFor,
-                isMastered: masteryMarks[lessonIDStr]?.contains(studentIDStr) ?? false,
+                scheduledFor: plannedPresentations.compactMap(\.scheduledFor).min(),
+                isPlanned: !plannedPresentations.isEmpty,
+                isMastered: isMastered,
                 workStatuses: lessonWork.map(\.status)
             )
             if status == .mastered { completed += 1 }
 
-            // The "next" lesson: the first one with nothing on it yet.
+            // The "next" lesson: the first not given, not planned and not mastered.
             let isNext: Bool
-            if !foundNext && status == .notStarted && scheduledPresentation == nil {
+            if !foundNext && status == .notStarted && plannedPresentations.isEmpty {
                 isNext = true
                 foundNext = true
             } else {
@@ -140,12 +141,13 @@ final class StudentAreaProgressionViewModel {
 
     // MARK: - Actions
 
-    func scheduleNextLesson(after lesson: CDLesson, context: NSManagedObjectContext) {
-        guard let student else { return }
-        guard let nextLesson = PlanNextLessonService.findNextLesson(after: lesson, in: allLessons) else { return }
-        guard let studentID = student.id else { return }
+    /// Plans `lesson` itself for the child, as an inbox draft. It used to plan the
+    /// lesson *after* the one tapped, and nothing on the last lesson (bug hunt
+    /// 2026-10-10, P2 #35). The draft then shows the row as Planned.
+    func planLesson(_ lesson: CDLesson, context: NSManagedObjectContext) {
+        guard let student, let studentID = student.id else { return }
         PlanNextLessonService.planLesson(
-            nextLesson,
+            lesson,
             forStudents: [studentID],
             allStudents: [student],
             allLessons: allLessons,
@@ -157,21 +159,13 @@ final class StudentAreaProgressionViewModel {
 
     // MARK: - Helpers
 
-    private func countWeekdays(from start: Date, to end: Date, calendar: Calendar) -> Int {
-        guard start < end else { return 0 }
-        let totalDays = calendar.dateComponents([.day], from: start, to: end).day ?? 0
-        guard totalDays > 0 else { return 0 }
-        let fullWeeks = totalDays / 7
-        let remainingDays = totalDays % 7
-        var weekdays = fullWeeks * 5
-        let startWeekday = calendar.component(.weekday, from: start) // 1=Sun, 7=Sat
-        for i in 0..<remainingDays {
-            let dayOfWeek = (startWeekday - 1 + i) % 7 + 1
-            if dayOfWeek != 1 && dayOfWeek != 7 {
-                weekdays += 1
-            }
-        }
-        return weekdays
+    /// School days the work has been open: from when it was assigned to today, or to
+    /// the day it closed. Holidays and days off don't count (the school calendar);
+    /// it used to count every weekday and keep counting after the work was closed.
+    static func schoolDaysOpen(_ work: CDWorkModel, today: Date, context: NSManagedObjectContext) -> Int {
+        let start = work.assignedAt ?? work.createdAt ?? today
+        let end = work.status.isClosed ? (work.completedAt ?? today) : today
+        return SchoolCalendarService.shared.schoolDaysBetween(start: start, end: min(end, today), using: context)
     }
 
     // MARK: - Fetching

@@ -25,7 +25,7 @@ struct CommunityMeetingsView: View {
     @State private var showingAdd = false
     @State private var selectedTopic: CDCommunityTopicEntity?
 
-    enum DateFilter { case today, thisWeek, thisMonth, last30, thisYear }
+    enum DateFilter { case today, thisWeek, thisMonth }
     @State private var filterDate: DateFilter?
     @State private var selectedTag: String?
     @State private var searchText: String = ""
@@ -52,10 +52,6 @@ struct CommunityMeetingsView: View {
             return cal.isDate(createdAt, equalTo: now, toGranularity: .weekOfYear)
         case .thisMonth:
             return cal.isDate(createdAt, equalTo: now, toGranularity: .month)
-        case .last30:
-            return createdAt >= cal.date(byAdding: .day, value: -30, to: now)!
-        case .thisYear:
-            return cal.isDate(createdAt, equalTo: now, toGranularity: .year)
         }
     }
 
@@ -165,8 +161,9 @@ struct CommunityMeetingsView: View {
         }
         #if os(iOS)
         .sheet(item: $selectedTopic) { topic in
-            TopicDetailView(topic: topic) { _ in
-                saveCoordinator.save(viewContext, reason: "Update community topic")
+            // The stack is what shows the topic's Cancel and Save.
+            NavigationStack {
+                TopicDetailView(topic: topic)
             }
         }
         #endif

@@ -141,7 +141,10 @@ enum ClassroomAttendanceCatchUp {
             guard let share else { throw ClassroomShareError.shareStillSyncing }
             let ids = try await waiting(storeID: store.identifier, container: container, scope: ClassroomShareScope())
             logger.notice("Adding this year's attendance to the share: \(ids.count, privacy: .public) mark(s)")
-            let outcome = await ClassroomShareAttach.attach(ids, to: share, container: container)
+            // Sync can stop, or a hold start, while the chunks go out: asked before each.
+            let outcome = await ClassroomShareAttach.attach(
+                ids, to: share, container: container, stopReason: CloudKitSyncStatusService.sharedFilingStopReason
+            )
             if outcome.mirroringDelegateDied {
                 // The store the attach ran against: the private store's delegate died.
                 CloudKitSyncStatusService.shared.markMirroringStopped(byAttachToStoreWithIdentifier: store.identifier)

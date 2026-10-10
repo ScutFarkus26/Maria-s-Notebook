@@ -5,7 +5,6 @@
 import Foundation
 import CoreData
 import SwiftUI
-import PDFKit
 import OSLog
 
 #if canImport(UIKit)
@@ -54,33 +53,99 @@ struct ReportGeneratorService {
         case lastWeek = "Last 7 Days"
         case lastMonth = "Last 30 Days"
         case lastQuarter = "Last 90 Days"
-        case thisSemester = "This Semester"
+        case thisSchoolYear = "This School Year"
         case custom = "Custom Range"
 
         var id: String { rawValue }
 
-        func dateRange(from today: Date = Date()) -> ClosedRange<Date> {
+        /// The whole days the report covers, from the start of the first day to the
+        /// end of the last, so a note written on either end day is never dropped by
+        /// the time of day the sheet happened to open (bug hunt 2026-10-10, P2 #36).
+        /// "This School Year" starts on the school year's first day as the class set
+        /// it (`YearPlanStaleness.currentYearStart`, the synced start the share and
+        /// the counters use), never a guessed month count. `.custom` covers
+        /// `customStart` through `customEnd`, in either order.
+        func dateRange(
+            from today: Date = Date(),
+            customStart: Date? = nil,
+            customEnd: Date? = nil,
+            schoolYearStart: (Date) -> Date = { YearPlanStaleness.currentYearStart(asOf: $0) }
+        ) -> ClosedRange<Date> {
             let calendar = AppCalendar.shared
+            func daysBack(_ days: Int) -> Date {
+                calendar.date(byAdding: .day, value: -days, to: today) ?? today
+            }
             switch self {
             case .lastWeek:
-                let start = calendar.date(byAdding: .day, value: -7, to: today) ?? today
-                return start...today
+                return ReportGeneratorService.wholeDays(from: daysBack(7), through: today)
             case .lastMonth:
-                let start = calendar.date(byAdding: .day, value: -30, to: today) ?? today
-                return start...today
+                return ReportGeneratorService.wholeDays(from: daysBack(30), through: today)
             case .lastQuarter:
-                let start = calendar.date(byAdding: .day, value: -90, to: today) ?? today
-                return start...today
-            case .thisSemester:
-                // Approximate semester: 4 months
-                let start = calendar.date(byAdding: .month, value: -4, to: today) ?? today
-                return start...today
+                return ReportGeneratorService.wholeDays(from: daysBack(90), through: today)
+            case .thisSchoolYear:
+                return ReportGeneratorService.wholeDays(from: schoolYearStart(today), through: today)
             case .custom:
-                // Default to last 30 days for custom; caller should provide actual range
-                let start = calendar.date(byAdding: .day, value: -30, to: today) ?? today
-                return start...today
+                let start = customStart ?? daysBack(30)
+                let end = customEnd ?? today
+                // Ordered defensively: a ClosedRange with lowerBound > upperBound traps.
+                return ReportGeneratorService.wholeDays(from: min(start, end), through: max(start, end))
             }
         }
+    }
+
+    /// Where "This School Year" starts, and whether that is known on this device.
+    struct SchoolYearStart: Equatable {
+        let date: Date
+        /// False when neither the class's school-year start nor any of this year's
+        /// records has reached this device, so `date` is only the September 1 fallback.
+        let isKnown: Bool
+    }
+
+    /// The first day "This School Year" covers. With the class's start set on (or
+    /// synced to) this device, that start. Without it, `currentYearStart` answers
+    /// September 1, which would drop a class that began in late August (2026 began
+    /// August 25), so the report starts no later than the class's first attendance
+    /// mark since August 1, or failing that its earliest note or given lesson since
+    /// then. With none of those either, the start is unknown and the sheet says so.
+    static func schoolYearStart(
+        asOf today: Date,
+        context: NSManagedObjectContext,
+        hasConfiguredStart: Bool = YearPlanStaleness.hasConfiguredStart
+    ) -> SchoolYearStart {
+        let fallback = YearPlanStaleness.currentYearStart(asOf: today)
+        guard !hasConfiguredStart else { return SchoolYearStart(date: fallback, isKnown: true) }
+
+        let calendar = AppCalendar.shared
+        let year = calendar.component(.year, from: fallback)
+        guard let augustFirst = calendar.date(from: DateComponents(year: year, month: 8, day: 1)) else {
+            return SchoolYearStart(date: fallback, isKnown: false)
+        }
+        let window = (augustFirst as NSDate, AppCalendar.dayRange(for: today).end as NSDate)
+
+        func earliest<T: NSManagedObject>(_ type: T.Type, _ key: String, extra: String = "") -> Date? {
+            let request = CDFetchRequest(T.self)
+            request.predicate = NSPredicate(format: "\(key) >= %@ AND \(key) < %@\(extra)", window.0, window.1)
+            request.sortDescriptors = [NSSortDescriptor(key: key, ascending: true)]
+            request.fetchLimit = 1
+            return context.safeFetch(request).first?.value(forKey: key) as? Date
+        }
+
+        let firstMark = earliest(
+            CDAttendanceRecord.self, "date", extra: " AND statusRaw != '\(AttendanceStatus.unmarked.rawValue)'"
+        )
+        let evidence = firstMark ?? [
+            earliest(CDNote.self, "createdAt"),
+            earliest(CDLessonAssignment.self, "presentedAt")
+        ].compactMap { $0 }.min()
+        guard let evidence else { return SchoolYearStart(date: fallback, isKnown: false) }
+        return SchoolYearStart(date: min(fallback, evidence), isKnown: true)
+    }
+
+    /// From the start of `first`'s day to the last instant of `last`'s day.
+    static func wholeDays(from first: Date, through last: Date) -> ClosedRange<Date> {
+        let start = AppCalendar.startOfDay(first)
+        let end = AppCalendar.dayRange(for: last).end.addingTimeInterval(-0.001)
+        return start...max(start, end)
     }
 
     enum ReportStyle: String, CaseIterable, Identifiable {
@@ -101,430 +166,107 @@ struct ReportGeneratorService {
 
     // MARK: - Generate PDF
 
-    // Enhanced PDF generation with optional AI narrative, attendance, and mastery data.
-    // swiftlint:disable:next function_body_length
+    /// The report as a US Letter PDF: the header, the overview figures, the optional
+    /// summary and the notes, flowed across as many pages as they need.
+    ///
+    /// Both platforms build one attributed text and lay it out with TextKit 1, one
+    /// `NSTextContainer` per page, so a long note carries on to the next page instead
+    /// of running off the bottom (bug hunt 2026-10-10, P2 #32: iOS used to break pages
+    /// only between notes). The text is set in fixed ink colors and drawn inside a
+    /// light appearance, so a report made in Dark Mode isn't white on white (P2 #31).
     func generatePDF(
         student: CDStudent,
         notes: [CDNote],
         style: ReportStyle,
         dateRange: ClosedRange<Date>,
-        aiNarrative: String? = nil,
-        attendanceRate: Double? = nil,
-        daysPresent: Int = 0,
-        totalSchoolDays: Int = 0,
-        masteryBreakdown: AIReportService.MasteryBreakdown? = nil,
-        lessonCount: Int = 0
+        aiNarrative: String? = nil
     ) -> Data {
-        let pageWidth: CGFloat = 612  // US Letter
-        let pageHeight: CGFloat = 792
-        let margin: CGFloat = 50
-        let contentWidth = pageWidth - (margin * 2)
-
-        var pdfData = Data()
-
-        #if canImport(UIKit)
-        let format = UIGraphicsPDFRendererFormat()
-        let renderer = UIGraphicsPDFRenderer(
-            bounds: CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight),
-            format: format
-        )
-
-        pdfData = renderer.pdfData { context in
-            context.beginPage()
-
-            var currentY: CGFloat = margin
-
-            // Header
-            currentY = drawHeader(
-                student: student,
-                style: style,
-                dateRange: dateRange,
-                pageWidth: pageWidth,
-                margin: margin,
-                currentY: currentY
-            )
-
-            currentY += 20
-
-            // Stats summary (attendance + mastery + lessons)
-            if attendanceRate != nil || masteryBreakdown != nil || lessonCount > 0 {
-                currentY = drawStatsSummary(
-                    attendanceRate: attendanceRate,
-                    daysPresent: daysPresent,
-                    totalSchoolDays: totalSchoolDays,
-                    mastery: masteryBreakdown,
-                    lessonCount: lessonCount,
-                    margin: margin,
-                    contentWidth: contentWidth,
-                    currentY: currentY,
-                    context: context
-                )
-                currentY += 16
-            }
-
-            // AI narrative summary
-            if let narrative = aiNarrative {
-                if currentY > pageHeight - margin - 200 {
-                    context.beginPage()
-                    currentY = margin
-                }
-                currentY = drawAINarrative(
-                    narrative: narrative,
-                    margin: margin,
-                    contentWidth: contentWidth,
-                    currentY: currentY
-                )
-                currentY += 20
-            }
-
-            // Notes content
-            let groupedNotes: [(String, [CDNote])]
-            if style.groupsByCategory {
-                groupedNotes = groupNotesByCategory(notes)
-            } else {
-                groupedNotes = [("Notes", notes)]
-            }
-
-            for (categoryName, categoryNotes) in groupedNotes {
-                // Category header
-                if style.groupsByCategory && !categoryNotes.isEmpty {
-                    let categoryAttrs: [NSAttributedString.Key: Any] = [
-                        .font: PlatformFont.boldSystemFont(ofSize: 14),
-                        .foregroundColor: PlatformColor.label
-                    ]
-                    let categoryString = NSAttributedString(string: categoryName, attributes: categoryAttrs)
-                    categoryString.draw(at: CGPoint(x: margin, y: currentY))
-                    currentY += 24
-                }
-
-                // Draw each note
-                for note in categoryNotes {
-                    // Check if we need a new page
-                    if currentY > pageHeight - margin - 100 {
-                        context.beginPage()
-                        currentY = margin
-                    }
-
-                    currentY = drawNote(
-                        note: note,
-                        margin: margin,
-                        contentWidth: contentWidth,
-                        currentY: currentY
-                    )
-
-                    currentY += 16
-                }
-
-                currentY += 8
-            }
-
-            // Footer
-            drawFooter(
-                pageWidth: pageWidth,
-                pageHeight: pageHeight,
-                margin: margin
-            )
-        }
-        #elseif canImport(AppKit)
-        // macOS: Use NSPrintOperation approach or simple text-based PDF
-        // For simplicity, use a basic approach with NSAttributedString
-        let printInfo = NSPrintInfo.shared
-        printInfo.paperSize = NSSize(width: pageWidth, height: pageHeight)
-        printInfo.leftMargin = margin
-        printInfo.rightMargin = margin
-        printInfo.topMargin = margin
-        printInfo.bottomMargin = margin
-
-        // Build a simple text document
         let reportText = buildReportText(
             student: student,
             notes: notes,
             style: style,
             dateRange: dateRange,
-            figures: ReportFigures(
-                aiNarrative: aiNarrative,
-                attendanceRate: attendanceRate,
-                daysPresent: daysPresent,
-                totalSchoolDays: totalSchoolDays,
-                masteryBreakdown: masteryBreakdown,
-                lessonCount: lessonCount
-            )
+            aiNarrative: aiNarrative
         )
-
-        // Create PDF using CGContext, flowing the text across as many pages as it needs
-        if let pdfDocument = createPDFDocument(
-            from: reportText,
-            pageSize: NSSize(width: pageWidth, height: pageHeight),
-            margin: margin
-        ) {
-            pdfData = pdfDocument.dataRepresentation() ?? Data()
-        }
-        #endif
-
-        return pdfData
+        return renderPDF(reportText, layout: PageLayout())
     }
-
 }
 
-// MARK: - Drawing Helpers (iOS)
+// MARK: - Report Text (both platforms)
 
 extension ReportGeneratorService {
-    #if canImport(UIKit)
-    // swiftlint:disable:next function_parameter_count
-    private func drawHeader(
-        student: CDStudent,
-        style: ReportStyle,
-        dateRange: ClosedRange<Date>,
-        pageWidth: CGFloat,
-        margin: CGFloat,
-        currentY: CGFloat
-    ) -> CGFloat {
-        var y = currentY
+    /// US Letter with 50 pt margins; the footer sits in the bottom margin.
+    struct PageLayout {
+        let pageSize = CGSize(width: 612, height: 792)
+        let margin: CGFloat = 50
 
-        // Title
-        let title = "\(student.firstName) - \(style.rawValue)"
-        let titleAttrs: [NSAttributedString.Key: Any] = [
-            .font: PlatformFont.boldSystemFont(ofSize: 18),
-            .foregroundColor: PlatformColor.label
-        ]
-        let titleString = NSAttributedString(string: title, attributes: titleAttrs)
-        titleString.draw(at: CGPoint(x: margin, y: y))
-        y += 28
-
-        // Date range
-        let startStr = DateFormatters.mediumDate.string(from: dateRange.lowerBound)
-        let endStr = DateFormatters.mediumDate.string(from: dateRange.upperBound)
-        let dateRangeText = "\(startStr) - \(endStr)"
-        let dateAttrs: [NSAttributedString.Key: Any] = [
-            .font: PlatformFont.systemFont(ofSize: 12),
-            .foregroundColor: PlatformColor.secondaryLabel
-        ]
-        let dateString = NSAttributedString(string: dateRangeText, attributes: dateAttrs)
-        dateString.draw(at: CGPoint(x: margin, y: y))
-        y += 20
-
-        // Divider line
-        let context = UIGraphicsGetCurrentContext()
-        context?.setStrokeColor(PlatformColor.separator.cgColor)
-        context?.setLineWidth(0.5)
-        context?.move(to: CGPoint(x: margin, y: y))
-        context?.addLine(to: CGPoint(x: pageWidth - margin, y: y))
-        context?.strokePath()
-        y += 4
-
-        return y
+        var pageRect: CGRect { CGRect(origin: .zero, size: pageSize) }
+        var contentSize: CGSize {
+            CGSize(width: pageSize.width - margin * 2, height: pageSize.height - margin * 2)
+        }
+        var textOrigin: CGPoint { CGPoint(x: margin, y: margin) }
     }
 
-    private func drawNote(
-        note: CDNote,
-        margin: CGFloat,
-        contentWidth: CGFloat,
-        currentY: CGFloat
-    ) -> CGFloat {
-        var y = currentY
-
-        // Date
-        let dateText = DateFormatters.shortDateTime.string(from: note.createdAt ?? Date())
-        let dateAttrs: [NSAttributedString.Key: Any] = [
-            .font: PlatformFont.systemFont(ofSize: 10),
-            .foregroundColor: PlatformColor.secondaryLabel
-        ]
-        let dateString = NSAttributedString(string: dateText, attributes: dateAttrs)
-        dateString.draw(at: CGPoint(x: margin, y: y))
-        y += 14
-
-        // CDNote body
-        let bodyAttrs: [NSAttributedString.Key: Any] = [
-            .font: PlatformFont.systemFont(ofSize: 11),
-            .foregroundColor: PlatformColor.label
-        ]
-        let bodyString = NSAttributedString(string: note.body, attributes: bodyAttrs)
-        let bodyRect = CGRect(x: margin, y: y, width: contentWidth, height: .greatestFiniteMagnitude)
-        let boundingRect = bodyString.boundingRect(
-            with: bodyRect.size,
-            options: [.usesLineFragmentOrigin, .usesFontLeading],
-            context: nil
-        )
-        bodyString.draw(in: CGRect(x: margin, y: y, width: contentWidth, height: boundingRect.height))
-        y += boundingRect.height + 4
-
-        // Tags badge
-        let tagNames = ((note.tags as? [String]) ?? []).map { TagHelper.tagName($0) }.joined(separator: ", ")
-        let categoryText = tagNames.isEmpty ? "[General]" : "[\(tagNames)]"
-        let categoryAttrs: [NSAttributedString.Key: Any] = [
-            .font: PlatformFont.systemFont(ofSize: 9),
-            .foregroundColor: PlatformColor.systemBlue
-        ]
-        let categoryString = NSAttributedString(string: categoryText, attributes: categoryAttrs)
-        categoryString.draw(at: CGPoint(x: margin, y: y))
-        y += 14
-
-        return y
-    }
-
-    // swiftlint:disable:next function_parameter_count
-    private func drawStatsSummary(
-        attendanceRate: Double?,
-        daysPresent: Int,
-        totalSchoolDays: Int,
-        mastery: AIReportService.MasteryBreakdown?,
-        lessonCount: Int,
-        margin: CGFloat,
-        contentWidth: CGFloat,
-        currentY: CGFloat,
-        context: UIGraphicsPDFRendererContext
-    ) -> CGFloat {
-        var y = currentY
-
-        let sectionAttrs: [NSAttributedString.Key: Any] = [
-            .font: PlatformFont.boldSystemFont(ofSize: 13),
-            .foregroundColor: PlatformColor.label
-        ]
-        let valueAttrs: [NSAttributedString.Key: Any] = [
-            .font: PlatformFont.systemFont(ofSize: 11),
-            .foregroundColor: PlatformColor.label
-        ]
-
-        NSAttributedString(string: "Overview", attributes: sectionAttrs)
-            .draw(at: CGPoint(x: margin, y: y))
-        y += 20
-
-        var statLines: [String] = []
-        if let rate = attendanceRate {
-            statLines.append("Attendance: \(daysPresent)/\(totalSchoolDays) days (\(Int(rate * 100))%)")
-        }
-        if lessonCount > 0 {
-            statLines.append("Lessons Presented: \(lessonCount)")
-        }
-        if let m = mastery, m.total > 0 {
-            statLines.append(
-                "Mastery: \(m.proficient) mastered, \(m.practicing) practicing, " +
-                "\(m.presented) presented, \(m.readyForAssessment) ready for assessment"
-            )
+    /// The colors a report is printed in. A report is paper for a family, so it never
+    /// follows the screen's appearance: the system label colors resolve to white in a
+    /// dark trait collection, and Apple documents nothing about how a PDF renderer
+    /// resolves them, so these are fixed.
+    enum ReportInk {
+        static var text: PlatformColor { gray(0.0) }
+        static var secondary: PlatformColor { gray(0.38) }
+        static var rule: PlatformColor { gray(0.7) }
+        static var tag: PlatformColor {
+            #if canImport(UIKit)
+            UIColor(red: 0.0, green: 0.36, blue: 0.75, alpha: 1)
+            #else
+            NSColor(srgbRed: 0.0, green: 0.36, blue: 0.75, alpha: 1)
+            #endif
         }
 
-        for line in statLines {
-            let attrStr = NSAttributedString(string: "• \(line)", attributes: valueAttrs)
-            attrStr.draw(at: CGPoint(x: margin + 8, y: y))
-            y += 16
+        private static func gray(_ white: CGFloat) -> PlatformColor {
+            #if canImport(UIKit)
+            UIColor(white: white, alpha: 1)
+            #else
+            NSColor(white: white, alpha: 1)
+            #endif
         }
-
-        // Divider
-        let ctx = UIGraphicsGetCurrentContext()
-        ctx?.setStrokeColor(PlatformColor.separator.cgColor)
-        ctx?.setLineWidth(0.5)
-        ctx?.move(to: CGPoint(x: margin, y: y + 4))
-        ctx?.addLine(to: CGPoint(x: margin + contentWidth, y: y + 4))
-        ctx?.strokePath()
-        y += 8
-
-        return y
     }
 
-    private func drawAINarrative(
-        narrative: String,
-        margin: CGFloat,
-        contentWidth: CGFloat,
-        currentY: CGFloat
-    ) -> CGFloat {
-        var y = currentY
-
-        let headingAttrs: [NSAttributedString.Key: Any] = [
-            .font: PlatformFont.boldSystemFont(ofSize: 13),
-            .foregroundColor: PlatformColor.label
+    private static func attributes(
+        size: CGFloat, bold: Bool = false, color: PlatformColor = ReportInk.text
+    ) -> [NSAttributedString.Key: Any] {
+        [
+            .font: bold ? PlatformFont.boldSystemFont(ofSize: size) : PlatformFont.systemFont(ofSize: size),
+            .foregroundColor: color
         ]
-        NSAttributedString(string: "Summary", attributes: headingAttrs)
-            .draw(at: CGPoint(x: margin, y: y))
-        y += 20
-
-        let bodyAttrs: [NSAttributedString.Key: Any] = [
-            .font: PlatformFont.systemFont(ofSize: 11),
-            .foregroundColor: PlatformColor.label
-        ]
-        let bodyString = NSAttributedString(string: narrative, attributes: bodyAttrs)
-        let rect = CGRect(x: margin, y: y, width: contentWidth, height: .greatestFiniteMagnitude)
-        let boundingRect = bodyString.boundingRect(
-            with: rect.size,
-            options: [.usesLineFragmentOrigin, .usesFontLeading],
-            context: nil
-        )
-        bodyString.draw(in: CGRect(x: margin, y: y, width: contentWidth, height: boundingRect.height))
-        y += boundingRect.height + 8
-
-        // Divider
-        let ctx = UIGraphicsGetCurrentContext()
-        ctx?.setStrokeColor(PlatformColor.separator.cgColor)
-        ctx?.setLineWidth(0.5)
-        ctx?.move(to: CGPoint(x: margin, y: y))
-        ctx?.addLine(to: CGPoint(x: margin + contentWidth, y: y))
-        ctx?.strokePath()
-        y += 4
-
-        return y
     }
 
-    private func drawFooter(
-        pageWidth: CGFloat,
-        pageHeight: CGFloat,
-        margin: CGFloat
-    ) {
-        let footerY = pageHeight - margin + 10
-        let generatedText = "Generated by Cosmic Daybook"
-        let footerAttrs: [NSAttributedString.Key: Any] = [
-            .font: PlatformFont.systemFont(ofSize: 8),
-            .foregroundColor: PlatformColor.secondaryLabel
-        ]
-        let footerString = NSAttributedString(string: generatedText, attributes: footerAttrs)
-        let footerSize = footerString.size()
-        footerString.draw(at: CGPoint(x: (pageWidth - footerSize.width) / 2, y: footerY))
-    }
-    #endif
+    private static let divider = "─────────────────────────────────────\n\n"
 
-}
-
-// MARK: - macOS Helpers
-
-extension ReportGeneratorService {
-    #if canImport(AppKit)
-    /// The computed figures a report prints above the notes: the optional AI
-    /// summary, the attendance tally, the mastery breakdown, and the lesson
-    /// count. Grouped so the text builder takes one value instead of six
-    /// numbers that always travel together.
-    struct ReportFigures {
-        let aiNarrative: String?
-        let attendanceRate: Double?
-        let daysPresent: Int
-        let totalSchoolDays: Int
-        let masteryBreakdown: AIReportService.MasteryBreakdown?
-        let lessonCount: Int
-    }
-
-    private func buildReportText(
+    func buildReportText(
         student: CDStudent,
         notes: [CDNote],
         style: ReportStyle,
         dateRange: ClosedRange<Date>,
-        figures: ReportFigures
+        aiNarrative: String?
     ) -> NSAttributedString {
         let result = NSMutableAttributedString()
-        // swiftlint:disable line_length
-        let titleAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.boldSystemFont(ofSize: 18), .foregroundColor: NSColor.labelColor]
-        result.append(NSAttributedString(string: "\(student.firstName) - \(style.rawValue)\n\n", attributes: titleAttrs))
-        // swiftlint:enable line_length
+        result.append(NSAttributedString(
+            string: "\(student.firstName) - \(style.rawValue)\n\n", attributes: Self.attributes(size: 18, bold: true)
+        ))
         let rangeStart = DateFormatters.mediumDate.string(from: dateRange.lowerBound)
         let rangeEnd = DateFormatters.mediumDate.string(from: dateRange.upperBound)
-        // swiftlint:disable:next line_length
-        let dateAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 12), .foregroundColor: NSColor.secondaryLabelColor]
-        result.append(NSAttributedString(string: "\(rangeStart) - \(rangeEnd)\n\n", attributes: dateAttrs))
-        result.append(NSAttributedString(string: "─────────────────────────────────────\n\n"))
-        appendStatsText(to: result, figures: figures)
-        if let narrative = figures.aiNarrative {
+        result.append(NSAttributedString(
+            string: "\(rangeStart) - \(rangeEnd)\n\n",
+            attributes: Self.attributes(size: 12, color: ReportInk.secondary)
+        ))
+        result.append(NSAttributedString(
+            string: Self.divider, attributes: Self.attributes(size: 12, color: ReportInk.rule)
+        ))
+        if let narrative = aiNarrative {
             appendNarrativeText(to: result, narrative: narrative)
         }
         appendGroupedNotesText(to: result, notes: notes, style: style)
-        // swiftlint:disable:next line_length
-        let footerAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 8), .foregroundColor: NSColor.secondaryLabelColor]
-        result.append(NSAttributedString(string: "\n\nGenerated by Cosmic Daybook", attributes: footerAttrs))
         return result
     }
 
@@ -534,129 +276,139 @@ extension ReportGeneratorService {
             : [("Notes", notes)]
         for (categoryName, categoryNotes) in groupedNotes {
             if style.groupsByCategory && !categoryNotes.isEmpty {
-                // swiftlint:disable:next line_length
-                let categoryAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.boldSystemFont(ofSize: 14), .foregroundColor: NSColor.labelColor]
-                result.append(NSAttributedString(string: "\(categoryName)\n", attributes: categoryAttrs))
+                result.append(NSAttributedString(
+                    string: "\(categoryName)\n", attributes: Self.attributes(size: 14, bold: true)
+                ))
             }
             for note in categoryNotes {
-                // swiftlint:disable line_length
-                let noteDateAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 10), .foregroundColor: NSColor.secondaryLabelColor]
-                result.append(NSAttributedString(string: "\(DateFormatters.shortDateTime.string(from: note.createdAt ?? Date()))\n", attributes: noteDateAttrs))
-                let bodyAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.labelColor]
-                result.append(NSAttributedString(string: "\(note.body)\n", attributes: bodyAttrs))
-                let tagAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 9), .foregroundColor: NSColor.systemBlue]
+                let dateText = DateFormatters.shortDateTime.string(from: note.createdAt ?? Date())
+                result.append(NSAttributedString(
+                    string: "\(dateText)\n", attributes: Self.attributes(size: 10, color: ReportInk.secondary)
+                ))
+                result.append(NSAttributedString(string: "\(note.body)\n", attributes: Self.attributes(size: 11)))
                 let tagLabel = note.tagsArray.map { TagHelper.tagName($0) }.joined(separator: ", ")
-                result.append(NSAttributedString(string: "[\(tagLabel.isEmpty ? "General" : tagLabel)]\n\n", attributes: tagAttrs))
-                // swiftlint:enable line_length
+                result.append(NSAttributedString(
+                    string: "[\(tagLabel.isEmpty ? "General" : tagLabel)]\n\n",
+                    attributes: Self.attributes(size: 9, color: ReportInk.tag)
+                ))
             }
         }
-    }
-
-    private func appendStatsText(to result: NSMutableAttributedString, figures: ReportFigures) {
-        let attendanceRate = figures.attendanceRate
-        let daysPresent = figures.daysPresent
-        let totalSchoolDays = figures.totalSchoolDays
-        let mastery = figures.masteryBreakdown
-        let lessonCount = figures.lessonCount
-        guard attendanceRate != nil || mastery != nil || lessonCount > 0 else { return }
-
-        let headingAttrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.boldSystemFont(ofSize: 13),
-            .foregroundColor: NSColor.labelColor
-        ]
-        let valueAttrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 11),
-            .foregroundColor: NSColor.labelColor
-        ]
-
-        result.append(NSAttributedString(string: "Overview\n", attributes: headingAttrs))
-
-        if let rate = attendanceRate {
-            let line = "• Attendance: \(daysPresent)/\(totalSchoolDays) days (\(Int(rate * 100))%)\n"
-            result.append(NSAttributedString(string: line, attributes: valueAttrs))
-        }
-        if lessonCount > 0 {
-            result.append(NSAttributedString(string: "• Lessons Presented: \(lessonCount)\n", attributes: valueAttrs))
-        }
-        if let m = mastery, m.total > 0 {
-            let line = "• Mastery: \(m.proficient) mastered, \(m.practicing) practicing, " +
-                "\(m.presented) presented, \(m.readyForAssessment) ready for assessment\n"
-            result.append(NSAttributedString(string: line, attributes: valueAttrs))
-        }
-        result.append(NSAttributedString(string: "\n"))
     }
 
     private func appendNarrativeText(to result: NSMutableAttributedString, narrative: String) {
-        let headingAttrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.boldSystemFont(ofSize: 13),
-            .foregroundColor: NSColor.labelColor
-        ]
-        let bodyAttrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 11),
-            .foregroundColor: NSColor.labelColor
-        ]
+        result.append(NSAttributedString(string: "Summary\n", attributes: Self.attributes(size: 13, bold: true)))
+        result.append(NSAttributedString(string: "\(narrative)\n\n", attributes: Self.attributes(size: 11)))
+        result.append(NSAttributedString(
+            string: Self.divider, attributes: Self.attributes(size: 12, color: ReportInk.rule)
+        ))
+    }
+}
 
-        result.append(NSAttributedString(string: "Summary\n", attributes: headingAttrs))
-        result.append(NSAttributedString(string: "\(narrative)\n\n", attributes: bodyAttrs))
-        result.append(NSAttributedString(string: "─────────────────────────────────────\n\n"))
+// MARK: - Pagination and Drawing
+
+extension ReportGeneratorService {
+    /// The report text laid out page by page: TextKit 1 with one `NSTextContainer`
+    /// per page (TextKit 2's layout manager has a single container). Holds the text
+    /// storage, which the layout manager references only weakly.
+    struct PaginatedText {
+        let storage: NSTextStorage
+        let layoutManager: NSLayoutManager
+        /// Each page's glyphs, in order. Always at least one page.
+        let pages: [NSRange]
+
+        init(_ text: NSAttributedString, contentSize: CGSize) {
+            storage = NSTextStorage(attributedString: text)
+            layoutManager = NSLayoutManager()
+            storage.addLayoutManager(layoutManager)
+
+            var pages: [NSRange] = []
+            var laidOut = 0
+            repeat {
+                let container = NSTextContainer(size: contentSize)
+                container.lineFragmentPadding = 0
+                layoutManager.addTextContainer(container)
+                let range = layoutManager.glyphRange(for: container)
+                pages.append(range)
+                // A page that took no glyphs can make no progress (an empty
+                // report, or a container too small for one line): stop.
+                guard range.length > 0 else { break }
+                laidOut = NSMaxRange(range)
+            } while laidOut < layoutManager.numberOfGlyphs
+            self.pages = pages
+        }
     }
 
-    private func createPDFDocument(
-        from attributedString: NSAttributedString, pageSize: NSSize, margin: CGFloat
-    ) -> PDFDocument? {
-        // TextKit 1 pagination: one NSTextContainer per page. The layout manager
-        // flows the text through the container chain, so each container holds
-        // exactly one page's worth of glyphs. (TextKit 2 still has no
-        // multi-container pagination story, so this remains the supported path.)
-        let textStorage = NSTextStorage(attributedString: attributedString)
-        let layoutManager = NSLayoutManager()
-        textStorage.addLayoutManager(layoutManager)
+    private func footerText(page: Int, of pageCount: Int) -> NSAttributedString {
+        let text = pageCount > 1
+            ? "Generated by Cosmic Daybook · Page \(page) of \(pageCount)"
+            : "Generated by Cosmic Daybook"
+        return NSAttributedString(string: text, attributes: Self.attributes(size: 8, color: ReportInk.secondary))
+    }
 
-        let contentSize = NSSize(width: pageSize.width - margin * 2, height: pageSize.height - margin * 2)
-        guard contentSize.width > 0, contentSize.height > 0 else { return nil }
+    /// Draws one page's text and footer into the current graphics context, which
+    /// is top-down (UIKit's, or a flipped AppKit context).
+    private func drawPage(_ index: Int, of text: PaginatedText, layout: PageLayout) {
+        let range = text.pages[index]
+        text.layoutManager.drawBackground(forGlyphRange: range, at: layout.textOrigin)
+        text.layoutManager.drawGlyphs(forGlyphRange: range, at: layout.textOrigin)
 
+        let footer = footerText(page: index + 1, of: text.pages.count)
+        let size = footer.size()
+        let footerY = layout.pageSize.height - layout.margin + (layout.margin - size.height) / 2
+        footer.draw(at: CGPoint(x: (layout.pageSize.width - size.width) / 2, y: footerY))
+    }
+
+    #if canImport(UIKit)
+    func renderPDF(_ reportText: NSAttributedString, layout: PageLayout) -> Data {
+        let paginated = PaginatedText(reportText, contentSize: layout.contentSize)
+        let renderer = UIGraphicsPDFRenderer(bounds: layout.pageRect, format: UIGraphicsPDFRendererFormat())
+        var data = Data()
+        // With the fixed ink this changes nothing today; it keeps anything drawn
+        // here later from picking up the screen's Dark Mode.
+        UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
+            data = renderer.pdfData { context in
+                for index in paginated.pages.indices {
+                    context.beginPage()
+                    drawPage(index, of: paginated, layout: layout)
+                }
+            }
+        }
+        return data
+    }
+    #elseif canImport(AppKit)
+    func renderPDF(_ reportText: NSAttributedString, layout: PageLayout) -> Data {
+        let paginated = PaginatedText(reportText, contentSize: layout.contentSize)
         let pdfData = NSMutableData()
-        var mediaBox = CGRect(x: 0, y: 0, width: pageSize.width, height: pageSize.height)
-
+        var mediaBox = layout.pageRect
         guard let consumer = CGDataConsumer(data: pdfData as CFMutableData),
               let context = CGContext(consumer: consumer, mediaBox: &mediaBox, nil) else {
-            return nil
+            return Data()
         }
-
-        var renderedGlyphs = 0
-        repeat {
-            let textContainer = NSTextContainer(size: contentSize)
-            layoutManager.addTextContainer(textContainer)
-            let glyphRange = layoutManager.glyphRange(for: textContainer)
-
-            context.beginPDFPage(nil)
-            context.saveGState()
-
-            // Flip coordinate system
-            context.translateBy(x: 0, y: pageSize.height)
-            context.scaleBy(x: 1.0, y: -1.0)
-
-            NSGraphicsContext.saveGraphicsState()
-            NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: true)
-            layoutManager.drawBackground(forGlyphRange: glyphRange, at: CGPoint(x: margin, y: margin))
-            layoutManager.drawGlyphs(forGlyphRange: glyphRange, at: CGPoint(x: margin, y: margin))
-            NSGraphicsContext.restoreGraphicsState()
-
-            context.restoreGState()
-            context.endPDFPage()
-
-            // A page that laid out no glyphs means no forward progress is
-            // possible (defensive: contentSize is validated above), so stop
-            // rather than spin.
-            guard glyphRange.length > 0 else { break }
-            renderedGlyphs = NSMaxRange(glyphRange)
-        } while renderedGlyphs < layoutManager.numberOfGlyphs
+        let drawPages = {
+            for index in paginated.pages.indices {
+                context.beginPDFPage(nil)
+                context.saveGState()
+                // Top-down, as TextKit lays out.
+                context.translateBy(x: 0, y: layout.pageSize.height)
+                context.scaleBy(x: 1.0, y: -1.0)
+                NSGraphicsContext.saveGraphicsState()
+                NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: true)
+                drawPage(index, of: paginated, layout: layout)
+                NSGraphicsContext.restoreGraphicsState()
+                context.restoreGState()
+                context.endPDFPage()
+            }
+        }
+        // As on iOS: whatever isn't fixed ink resolves light, not the window's appearance.
+        if let aqua = NSAppearance(named: .aqua) {
+            aqua.performAsCurrentDrawingAppearance(drawPages)
+        } else {
+            drawPages()
+        }
         context.closePDF()
-
-        return PDFDocument(data: pdfData as Data)
+        return pdfData as Data
     }
     #endif
-
 }
 
 // MARK: - Common Helpers

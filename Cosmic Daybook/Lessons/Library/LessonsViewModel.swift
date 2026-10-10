@@ -79,14 +79,15 @@ struct LessonsViewModel {
             ))
         }
 
-        // Area filter
+        // Area and sequence: a superset in SQL that `filteredLessons` narrows to the trimmed,
+        // case-insensitive match. An exact `==` dropped lessons stored as "Math " or "math"
+        // before that check ever saw them.
         if let trimmedArea = selectedArea?.trimmed(), !trimmedArea.isEmpty {
-            subpredicates.append(NSPredicate(format: "area == %@", trimmedArea))
+            subpredicates.append(NSPredicate(format: "area CONTAINS[c] %@", trimmedArea))
         }
 
-        // Group filter
         if let trimmedSequence = selectedSequence?.trimmed(), !trimmedSequence.isEmpty {
-            subpredicates.append(NSPredicate(format: "sequence == %@", trimmedSequence))
+            subpredicates.append(NSPredicate(format: "sequence CONTAINS[c] %@", trimmedSequence))
         }
 
         guard !subpredicates.isEmpty else { return nil }

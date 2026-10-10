@@ -248,11 +248,11 @@ extension ClassroomShareReleaseTests {
         #expect(ClassroomShareRelease.syncBlocker(sync: sync) == "iCloud isn't ready yet. Try again in a few minutes.")
         sync.shareFilingPausedUntilReopen = true
         #expect(ClassroomShareRelease.syncBlocker(sync: sync)
-            == "iCloud wasn't ready when the notebook opened. Quit and reopen it, then try again.")
+            == CloudKitSyncStatusService.shareFilingPausedMessage)
         // It comes before a dead delegate's message: reopening is the fix either way.
         sync.markMirroringStopped(by: .notebook)
         #expect(ClassroomShareRelease.syncBlocker(sync: sync)
-            == "iCloud wasn't ready when the notebook opened. Quit and reopen it, then try again.")
+            == CloudKitSyncStatusService.shareFilingPausedMessage)
 
         let stopped = CloudKitSyncStatusService()
         stopped.markMirroringStopped(by: .notebook)

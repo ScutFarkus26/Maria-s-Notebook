@@ -47,18 +47,4 @@ extension ChecklistBatchActionExecutor {
             }
         }
     }
-
-    static func deleteLessonPresentation(
-        studentID: String, lessonID: String,
-        from prefetchedLPs: [CDLessonPresentation],
-        context: NSManagedObjectContext
-    ) {
-        // Filter from pre-fetched data instead of re-fetching all LessonPresentations
-        let toDelete = prefetchedLPs.filter { lp in
-            lp.studentID == studentID && lp.lessonID == lessonID
-        }
-        for lp in toDelete {
-            context.delete(lp)
-        }
-    }
 }

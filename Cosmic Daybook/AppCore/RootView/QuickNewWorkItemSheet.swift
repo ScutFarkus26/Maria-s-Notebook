@@ -55,6 +55,11 @@ struct QuickNewWorkItemSheet: View {
     @State var selectedLessonID: UUID?
     @State var selectedStudentIDs: Set<UUID>
     @State var workTitle: String = ""
+    /// The title the sheet filled in from the lesson or template. While the
+    /// field still holds it, a new lesson or template replaces it; once she
+    /// types her own, it stays.
+    @State var autoFilledTitle: String?
+    @State var saveErrorMessage: String?
     @State var workKind: WorkKind = .practiceLesson
     @State var dueDate: Date?
     @State var hasDueDate: Bool = false
@@ -153,10 +158,16 @@ struct QuickNewWorkItemSheet: View {
             if let lessonID = preSelectedLessonID,
                let lesson = dependencies.lessonCatalog.lesson(id: lessonID) {
                 lessonSearchText = lesson.name
-                if workTitle.isEmpty {
-                    workTitle = lesson.name
-                }
+                fillTitle(with: lesson.name)
             }
+        }
+        .alert("Couldn't Create Work", isPresented: Binding(
+            get: { saveErrorMessage != nil },
+            set: { if !$0 { saveErrorMessage = nil } }
+        )) {
+            Button("OK") { saveErrorMessage = nil }
+        } message: {
+            Text(saveErrorMessage ?? "")
         }
     }
 }

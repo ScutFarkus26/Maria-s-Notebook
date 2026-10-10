@@ -274,7 +274,7 @@ extension MeetingDraftStoreTests {
         try expectAsBeforeTheMeeting(room)
     }
 
-    @Test("The Meetings tab's Save to History plans Re-present and Ready for Next, and files nothing else")
+    @Test("The Meetings tab's Save to History plans Re-present and Ready for Next, and files their reviews")
     @MainActor
     func tabSaveFilesDecisions() throws {
         let room = try makeDecisionRoom()
@@ -296,8 +296,10 @@ extension MeetingDraftStoreTests {
         #expect(openPlans(for: room.first, in: room.context).map(\.resolvedStudentIDs) == [[room.child]])
         #expect(openPlans(for: room.second, in: room.context).map(\.resolvedStudentIDs) == [[room.child]])
         #expect(room.given.needsAnotherPresentation)
-        // Reviews are Complete's; the tab files the two lists only.
-        #expect(room.context.safeFetch(CDFetchRequest(CDMeetingWorkReview.self)).isEmpty)
+        // The work the workflow decided is filed as reviewed in this meeting,
+        // as Complete files it (bug hunt 2026-10-10 review).
+        let reviewed = room.context.safeFetch(CDFetchRequest(CDMeetingWorkReview.self)).compactMap(\.workIDUUID)
+        #expect(Set(reviewed) == Set([room.work.id, other.id].compactMap(\.self)))
         #expect(!room.context.hasChanges)
     }
 }

@@ -19,6 +19,7 @@ extension PresentationDetailViewModel {
 
         // Perform move using helper
         self.movedStudentNames = actions.moveStudentsToInbox(
+            from: lessonAssignment,
             currentLesson: currentLesson,
             studentsToMove: studentsToMove,
             studentsAll: studentsAll,

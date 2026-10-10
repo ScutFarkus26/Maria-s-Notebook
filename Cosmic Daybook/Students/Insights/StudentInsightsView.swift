@@ -25,6 +25,14 @@ struct StudentInsightsView: View {
     @State var selectedLookbackDays = 30
     @State var showingParentSummary = false
     @State var parentSummary = ""
+    /// An earlier analysis opened from Previous Analyses.
+    @State var openedSnapshot: OpenedSnapshot?
+
+    /// A snapshot as a sheet item, identified by its object ID.
+    struct OpenedSnapshot: Identifiable {
+        let snapshot: CDDevelopmentSnapshotEntity
+        var id: NSManagedObjectID { snapshot.objectID }
+    }
 
     let lookbackOptions = [7, 14, 30, 60, 90]
 
@@ -60,6 +68,9 @@ struct StudentInsightsView: View {
         }
         .sheet(isPresented: $showingParentSummary) {
             ParentSummarySheet(summary: parentSummary, student: student)
+        }
+        .sheet(item: $openedSnapshot) { opened in
+            pastAnalysisSheet(opened.snapshot)
         }
     }
 

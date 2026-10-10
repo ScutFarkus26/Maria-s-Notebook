@@ -59,7 +59,7 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
         let queryService = DataQueryService(context: context)
         let allStudents = queryService.fetchAllStudents(excludeTest: true)
 
-        let matched = matchStudents(in: question, from: allStudents)
+        let matched = Self.matchStudents(in: question, from: allStudents)
         guard !matched.isEmpty else {
             return ("", existingMentionedIDs)
         }
@@ -179,7 +179,7 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
                 lines.append("    Observation: \(note.body.prefix(120))")
             }
             let otherStudents = pres.resolvedStudentIDs.filter { $0 != studentID }
-                .compactMap { studentsDict[$0]?.firstName }
+                .compactMap { studentsDict[$0]?.shortName }
             if !otherStudents.isEmpty { lines.append("    Also with: \(otherStudents.joined(separator: ", "))") }
         }
     }
@@ -255,7 +255,7 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
         guard let studentID = student.id else { return }
         let studentTodos = fetchTodosForStudent(studentID: studentID)
         guard !studentTodos.isEmpty else { return }
-        lines.append("Todos for \(student.firstName):")
+        lines.append("Todos for \(student.shortName):")
         for todo in studentTodos.prefix(5) {
             let status = todo.isCompleted ? "[done]" : "[open]"
             var line = "  • \(todo.title) \(status)"
@@ -266,48 +266,53 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
 
     // MARK: - Name Matching
 
-    /// Fuzzy-matches student names in the question text.
-    /// Supports: first name, nickname, "FirstName LastInitial" (e.g., "Etty D").
-    private func matchStudents(in question: String, from students: [CDStudent]) -> [CDStudent] {
+    /// The children a question names. A full name or "first name + last
+    /// initial" ("Etty D") names that child alone; a first name or nickname on
+    /// its own names every child who has it, except where the words are part of
+    /// a fuller name already matched, so "Etty D" no longer brings in the other
+    /// Etty. All matches are whole words: "Etty doing" is not "Etty D".
+    static func matchStudents(in question: String, from students: [CDStudent]) -> [CDStudent] {
         let lowered = question.lowercased()
         var matched: [CDStudent] = []
         var matchedIDs: Set<UUID> = []
+        var remainder = lowered
 
+        // 1. Full names and first name + last initial, longest first.
+        var specific: [(phrase: String, student: CDStudent)] = []
         for student in students {
-            guard let studentID = student.id, !matchedIDs.contains(studentID) else { continue }
-
-            // Check "firstName lastInitial" pattern (e.g., "Etty D")
-            let firstLast = "\(student.firstName.lowercased()) \(student.lastName.prefix(1).lowercased())"
-            if lowered.contains(firstLast) {
-                matched.append(student)
-                matchedIDs.insert(studentID)
-                continue
-            }
-
-            // Check full first name as whole word
-            let firstName = student.firstName.lowercased()
-            if matchesWholeWord(firstName, in: lowered) {
-                matched.append(student)
-                matchedIDs.insert(studentID)
-                continue
-            }
-
-            // Check nickname
-            if let nickname = student.nickname?.lowercased(), !nickname.isEmpty,
-               matchesWholeWord(nickname, in: lowered) {
-                matched.append(student)
-                matchedIDs.insert(studentID)
-            }
+            let first = student.firstName.lowercased().trimmed()
+            let last = student.lastName.lowercased().trimmed()
+            guard !first.isEmpty, !last.isEmpty else { continue }
+            specific.append(("\(first) \(last)", student))
+            specific.append(("\(first) \(last.prefix(1))", student))
+        }
+        for (phrase, student) in specific.sorted(by: { $0.phrase.count > $1.phrase.count }) {
+            guard let studentID = student.id,
+                  let range = wholeWordRange(of: phrase, in: remainder) else { continue }
+            if matchedIDs.insert(studentID).inserted { matched.append(student) }
+            // Blank the words out so they don't also count as a bare first name.
+            remainder.replaceSubrange(range, with: String(repeating: " ", count: remainder[range].count))
         }
 
+        // 2. First names and nicknames left in the question.
+        for student in students {
+            guard let studentID = student.id, !matchedIDs.contains(studentID) else { continue }
+            let first = student.firstName.lowercased().trimmed()
+            let nickname = student.nickname?.lowercased().trimmed() ?? ""
+            if wholeWordRange(of: first, in: remainder) != nil
+                || wholeWordRange(of: nickname, in: remainder) != nil {
+                matchedIDs.insert(studentID)
+                matched.append(student)
+            }
+        }
         return matched
     }
 
-    /// Checks if a word appears as a whole word in text (not as a substring of another word).
-    private func matchesWholeWord(_ word: String, in text: String) -> Bool {
-        guard !word.isEmpty else { return false }
-        let pattern = "\\b\(NSRegularExpression.escapedPattern(for: word))\\b"
-        return text.range(of: pattern, options: .regularExpression) != nil
+    /// Where a phrase appears as whole words in text (not inside another word).
+    private static func wholeWordRange(of phrase: String, in text: String) -> Range<String.Index>? {
+        guard !phrase.isEmpty else { return nil }
+        let pattern = "\\b\(NSRegularExpression.escapedPattern(for: phrase))\\b"
+        return text.range(of: pattern, options: .regularExpression)
     }
 
     // MARK: - Data Fetching Helpers
@@ -325,12 +330,26 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
         return context.safeFetch(request)
     }
 
-    private func fetchRecentNotes(for studentID: UUID, limit: Int) -> [CDNote] {
+    /// Her newest notes: those about her alone (`searchIndexStudentID`) and
+    /// those about several children that name her (`NoteStudentLink`), which the
+    /// single-child field leaves out.
+    func fetchRecentNotes(for studentID: UUID, limit: Int) -> [CDNote] {
         let request = CDFetchRequest(CDNote.self)
         request.predicate = NSPredicate(format: "searchIndexStudentID == %@", studentID as CVarArg)
         request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
         request.fetchLimit = limit
-        return context.safeFetch(request)
+        var notes = context.safeFetch(request)
+
+        let links = CDFetchRequest(CDNoteStudentLink.self)
+        links.predicate = NSPredicate(format: "studentID ==[c] %@", studentID.uuidString)
+        notes += context.safeFetch(links).compactMap(\.note)
+
+        var seen = Set<NSManagedObjectID>()
+        return notes
+            .filter { !$0.isDeleted && seen.insert($0.objectID).inserted }
+            .sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
+            .prefix(limit)
+            .map { $0 }
     }
 
     private func fetchCompletedWorkForStudent(studentID: String, since date: Date) -> [CDWorkModel] {

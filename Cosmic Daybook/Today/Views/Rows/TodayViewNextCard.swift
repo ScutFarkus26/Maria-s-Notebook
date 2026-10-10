@@ -41,8 +41,6 @@ extension TodayView {
             selectedWorkID = item.work.id
         case .followUp(let item):
             selectedWorkID = item.work.id
-        case .groupedScheduledWork(let items):
-            if let id = items.first?.work.id { selectedWorkID = id }
         case .groupedFollowUp(let items):
             if let id = items.first?.work.id { selectedWorkID = id }
         }
@@ -99,7 +97,7 @@ extension TodayView {
     func nextUpIcon(for item: AgendaItem) -> String {
         switch item {
         case .lesson: return "book.fill"
-        case .scheduledWork, .groupedScheduledWork: return "clock.fill"
+        case .scheduledWork: return "clock.fill"
         case .followUp, .groupedFollowUp: return "arrow.uturn.left.circle.fill"
         }
     }
@@ -107,7 +105,7 @@ extension TodayView {
     func nextUpColor(for item: AgendaItem) -> Color {
         switch item {
         case .lesson: return .blue
-        case .scheduledWork, .groupedScheduledWork: return .orange
+        case .scheduledWork: return .orange
         case .followUp, .groupedFollowUp: return .purple
         }
     }

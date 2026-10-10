@@ -44,33 +44,16 @@ nonisolated extension CDSchedule {
         (slots as? Set<CDScheduleSlot>).map(Array.init) ?? []
     }
 
-    /// Get slots for a specific weekday, sorted by time then sort order
+    /// Get slots for a specific weekday, sorted by time (`ScheduleTime`) then sort order
     func slots(for weekday: Weekday) -> [CDScheduleSlot] {
         safeSlots.filter { $0.weekday == weekday }
             .sorted { lhs, rhs in
-                let lhsTime = lhs.timeString ?? ""
-                let rhsTime = rhs.timeString ?? ""
-                if lhsTime.isEmpty && rhsTime.isEmpty { return lhs.sortOrder < rhs.sortOrder }
-                if !lhsTime.isEmpty && rhsTime.isEmpty { return true }
-                if lhsTime.isEmpty && !rhsTime.isEmpty { return false }
-
-                if lhsTime != rhsTime {
-                    if let lhsMinutes = timeToMinutes(lhsTime),
-                       let rhsMinutes = timeToMinutes(rhsTime) {
-                        return lhsMinutes < rhsMinutes
-                    }
-                    return lhsTime < rhsTime
+                switch ScheduleTime.order(lhs.timeString, rhs.timeString) {
+                case .orderedAscending: return true
+                case .orderedDescending: return false
+                case .orderedSame: return lhs.sortOrder < rhs.sortOrder
                 }
-
-                return lhs.sortOrder < rhs.sortOrder
             }
-    }
-
-    /// Converts time string (e.g., "9:30" or "10:15") to minutes since midnight for proper sorting
-    private func timeToMinutes(_ timeString: String) -> Int? {
-        let components = timeString.split(separator: ":").compactMap { Int($0) }
-        guard components.count == 2 else { return nil }
-        return components[0] * 60 + components[1]
     }
 
     /// Get all weekdays that have slots

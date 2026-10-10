@@ -17,11 +17,19 @@
 //  `discard_presentation` already made, for every other path. None of them
 //  saves; the caller owns the save.
 //
+//  Folding one plan into another (a merge, a consolidation, a child dragged
+//  between two plans, the draft dedup) is a fourth case: the plan that goes
+//  away hands its notes and its promoted entries to the one that stays,
+//  rather than cascading the notes away and stranding the entries.
+//
+//  Nonisolated: every helper only touches the context it is handed, so the
+//  launch-time dedup (off the main actor) can use them as the views do.
+//
 
 import CoreData
 import Foundation
 
-enum PresentationRecordCleanup {
+nonisolated enum PresentationRecordCleanup {
 
     /// Call before `context.delete(assignment)`: its history rows go, and
     /// entries promoted into it go back to planned so the intention survives
@@ -53,7 +61,76 @@ enum PresentationRecordCleanup {
         returnEntries(promotedInto: id, studentIDs: studentIDs, to: entryStatus, in: context)
     }
 
+    /// Call before `context.delete(source)` when `source` is folded into
+    /// `target` (two plans for the same lesson becoming one). The source's
+    /// notes move to the target, since `unifiedNotes` cascades; an entry
+    /// promoted into the source points at the target when the target now
+    /// holds its child, and goes back to planned otherwise; the source's
+    /// history rows go, as for any delete.
+    static func prepareToMerge(
+        _ source: CDLessonAssignment, into target: CDLessonAssignment, in context: NSManagedObjectContext
+    ) {
+        guard let sourceID = source.id?.uuidString, source.objectID != target.objectID else { return }
+        moveNotes(from: source, to: target)
+        let targetStudents = Set(target.studentIDs)
+        for entry in entries(promotedInto: sourceID, in: context) {
+            if targetStudents.contains(entry.studentID), let targetID = target.id?.uuidString {
+                entry.promotedAssignmentID = targetID
+            } else {
+                entry.status = .planned
+                entry.promotedAssignmentID = nil
+            }
+        }
+        deleteHistoryRows(presentationID: sourceID, in: context)
+    }
+
+    /// Children moved from one plan to another (dragged between two groups,
+    /// or moved to a new draft): their entries promoted into the source point
+    /// at the target, which holds them now, and their history rows on the
+    /// source go. Rosters are the caller's to change.
+    static func moveStudents(
+        _ studentIDs: Set<String>,
+        from source: CDLessonAssignment,
+        to target: CDLessonAssignment,
+        in context: NSManagedObjectContext
+    ) {
+        guard !studentIDs.isEmpty, let sourceID = source.id?.uuidString,
+              let targetID = target.id?.uuidString, sourceID != targetID else { return }
+        for entry in entries(promotedInto: sourceID, studentIDs: studentIDs, in: context) {
+            entry.promotedAssignmentID = targetID
+        }
+        deleteHistoryRows(presentationID: sourceID, studentIDs: studentIDs, in: context)
+    }
+
+    /// The presentation's lesson was changed (Change Lesson, or a recording
+    /// on another lesson): entries promoted into it for a different lesson go
+    /// back to planned. It no longer answers them, and while they pointed at
+    /// it the old lesson stayed promoted with nothing to give it and the year
+    /// plan hid the presentation of the new one.
+    static func returnEntriesForOtherLessons(
+        promotedInto assignment: CDLessonAssignment, in context: NSManagedObjectContext
+    ) {
+        guard let id = assignment.id?.uuidString, !assignment.lessonID.isEmpty else { return }
+        let lessonID = normalizedID(assignment.lessonID)
+        for entry in entries(promotedInto: id, in: context) where normalizedID(entry.lessonID) != lessonID {
+            entry.status = .planned
+            entry.promotedAssignmentID = nil
+        }
+    }
+
     // MARK: - Pieces
+
+    private static func normalizedID(_ id: String) -> String {
+        UUID(uuidString: id)?.uuidString ?? id
+    }
+
+    /// Re-parents every note on `source` onto `target`.
+    static func moveNotes(from source: CDLessonAssignment, to target: CDLessonAssignment) {
+        let notes = (source.unifiedNotes as? Set<CDNote>) ?? []
+        for note in notes where !note.isDeleted {
+            note.lessonAssignment = target
+        }
+    }
 
     static func deleteHistoryRows(
         presentationID: String, studentIDs: Set<String>? = nil, in context: NSManagedObjectContext

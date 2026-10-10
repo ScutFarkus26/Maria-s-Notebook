@@ -8,94 +8,103 @@ import Foundation
 ///
 /// The Meetings workflow's draft model and the student record's Meetings tab
 /// both come through here, so the tab's Clear and Save to History treat the
-/// two decisions the way the workflow does (bug hunt 2026-10-09, #8).
+/// two decisions the way the workflow does (bug hunt 2026-10-09, #8). Clear
+/// is in `+Clear`.
 enum MeetingLessonDecisions {
     typealias Draft = MeetingPersistenceService.CurrentMeetingData
 
-    // MARK: - Clear
-
-    /// Puts the Re-present and Ready for Next work in `draft` back as it was
-    /// before the meeting, through each card's `WorkLogService` receipt. Work
-    /// changed after the meeting is left alone and named in a toast; work
-    /// whose receipt can't be read (a draft saved before receipts were kept)
-    /// goes back to Working as it always has. One save; nothing is written
-    /// when it fails.
-    static func takeBack(_ draft: Draft, context: NSManagedObjectContext) {
-        let pending = workIDs(draft.representWorkIDs).union(workIDs(draft.readyWorkIDs))
-        guard !pending.isEmpty else { return }
-        let tokens = draft.closeTokens ?? [:]
-        let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(format: "id IN %@", Array(pending))
-        let works = context.safeFetch(request).filter { !$0.isDeleted }
-
-        let transaction = ContextMutationTransaction(context: context)
-        var reopen: [CDWorkModel] = []
-        var leftAlone: [CDWorkModel] = []
-        for work in works {
-            let receipts = work.id.flatMap { tokens[$0.uuidString] } ?? []
-            switch MeetingCloseToken.takeBack(receipts, of: work, in: context) {
-            case .takenBack:
-                break
-            case .changedSince:
-                leftAlone.append(work)
-            case .nothing, .unreadable:
-                if work.status.isClosed { reopen.append(work) }
-            }
-        }
-        do {
-            if !reopen.isEmpty {
-                try WorkLogService.log(
-                    reopen.map { .init(work: $0, status: .active) }, context: context, saveImmediately: false
-                )
-            }
-            guard context.safeSave() else { throw WorkLogService.LogError.saveFailed }
-            transaction.commit()
-        } catch {
-            transaction.rollback()
-            ToastService.shared.showError("Couldn't put the work back to Working. Open it to change it by hand.")
-            return
-        }
-        if let message = leftAloneMessage(leftAlone, context: context) {
-            ToastService.shared.showInfo(message, duration: 4)
-        }
-    }
-
-    /// "<Lesson> was changed after the meeting, so it was left as it is."
-    static func leftAloneMessage(_ works: [CDWorkModel], context: NSManagedObjectContext) -> String? {
-        let names = works.map { lessonName(of: $0, context: context) }
-        guard let first = names.first else { return nil }
-        guard names.count > 1 else { return "\(first) was changed after the meeting, so it was left as it is." }
-        let list = ListFormatter.localizedString(byJoining: names)
-        return "\(list) were changed after the meeting, so they were left as they are."
-    }
-
     // MARK: - File
 
+    /// What filing a meeting's Re-present and Ready for Next did.
+    struct Filed {
+        /// The lessons planned (or found already planned), so a lesson
+        /// request for one isn't filed twice.
+        var planned: Set<UUID> = []
+        /// Work changed after the meeting (marked Mastered, reopened, closed
+        /// another way): nothing was planned for it (bug hunt 2026-10-10, #13).
+        var changedSince: [CDWorkModel] = []
+    }
+
     /// Plans each re-presented work's lesson again as a second pass, and puts
-    /// each ready work's next lesson On Deck. Nothing here saves; the caller
-    /// files it with the meeting in one save. Returns the lessons planned (or
-    /// found already planned), so a lesson request for one isn't filed twice.
-    static func file(_ draft: Draft, studentID: UUID, context: NSManagedObjectContext) throws -> Set<UUID> {
-        try planRepresentations(workIDs(draft.representWorkIDs), studentID: studentID, context: context)
-            .union(planNextLessons(workIDs(draft.readyWorkIDs), studentID: studentID, context: context))
+    /// each ready work's next lesson On Deck, for work still as the meeting
+    /// left it. Nothing here saves; the caller files it with the meeting in
+    /// one save, then names `changedSince` (`changedSinceMessage`).
+    static func file(_ draft: Draft, studentID: UUID, context: NSManagedObjectContext) throws -> Filed {
+        let tokens = draft.closeTokens ?? [:]
+        var filed = Filed()
+        try planRepresentations(
+            uuids(draft.representWorkIDs), tokens: tokens, studentID: studentID, context: context, into: &filed
+        )
+        planNextLessons(
+            uuids(draft.readyWorkIDs), tokens: tokens, studentID: studentID, context: context, into: &filed
+        )
+        return filed
+    }
+
+    /// The catalog lessons asked for go to the inbox for her, apart from
+    /// those `file` planned already. Nothing here saves.
+    static func fileRequests(
+        _ lessonIDs: [UUID], skipping planned: Set<UUID>, studentID: UUID, context: NSManagedObjectContext
+    ) {
+        for lessonID in lessonIDs where !planned.contains(lessonID) {
+            _ = PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: [studentID], context: context)
+        }
+    }
+
+    /// "<Lesson> was changed after the meeting, so nothing was planned for it."
+    static func changedSinceMessage(_ works: [CDWorkModel], context: NSManagedObjectContext) -> String? {
+        let names = works.map { lessonName(of: $0, context: context) }
+        guard let first = names.first else { return nil }
+        guard names.count > 1 else { return "\(first) was changed after the meeting, so nothing was planned for it." }
+        let list = ListFormatter.localizedString(byJoining: names)
+        return "\(list) were changed after the meeting, so nothing was planned for them."
     }
 
     /// The student record's Meetings tab's Save to History: the tab's fields
-    /// as the history entry, with the workflow's Re-present and Ready for Next
-    /// decisions filed the way Complete files them. Unlike Complete it doesn't
-    /// save work reviews or clear today's booking. One save; false (nothing
-    /// written) when there was nothing to file or the save failed.
+    /// as the history entry, with what the workflow left in the draft filed
+    /// the way Complete files it: Re-present and Ready for Next, the lessons
+    /// asked for, the focus checklist's changes, and the work reviewed with
+    /// its notes (bug hunt 2026-10-09, #8; 2026-10-10, #10 and its review).
+    /// Unlike Complete it doesn't clear today's booking. One save; false
+    /// (nothing written) when there was nothing to file or the save failed.
     static func saveTabMeeting(studentID: UUID, tabData: Draft, context: NSManagedObjectContext) -> Bool {
         let stored = MeetingPersistenceService.loadCurrent(studentID: studentID)
+        let requested = (stored.requestLessonIDs ?? []).compactMap(UUID.init(uuidString:))
+        let checklist = FocusItemService.ChecklistChanges(
+            resolvedIDs: uuids(stored.resolvedFocusIDs),
+            droppedIDs: uuids(stored.droppedFocusIDs),
+            newTexts: stored.pendingFocusTexts ?? []
+        )
+        let active = FocusItemService.fetchActive(studentID: studentID, context: context)
+        var entry = tabData
+        if !checklist.isEmpty {
+            entry.focusText = checklist.historyText(active: active, typed: tabData.focusText.trimmed())
+        }
+        if !requested.isEmpty {
+            let typed = tabData.requestsText
+                .split(whereSeparator: \.isNewline)
+                .map { String($0).trimmed() }
+                .filter { !$0.isEmpty }
+            entry.requestsText = (lessonNames(requested, context: context) + typed).joined(separator: "; ")
+        }
+
         let transaction = ContextMutationTransaction(context: context)
-        guard MeetingPersistenceService.saveToHistory(
-            studentID: studentID, data: tabData, context: context, save: false
-        ) != nil else {
+        guard let meeting = MeetingPersistenceService.saveToHistory(
+            studentID: studentID, data: entry, context: context, save: false
+        ) else {
             transaction.rollback()
             return false
         }
+        let meetingID = meeting.id ?? UUID()
+        MeetingReviewService.persistReviews(
+            meetingID: meetingID, meeting: meeting, drafts: notes(in: stored),
+            reviewedIDs: uuids(stored.reviewedWorkIDs), context: context
+        )
+        let filed: Filed
         do {
-            _ = try file(stored, studentID: studentID, context: context)
+            filed = try file(stored, studentID: studentID, context: context)
+            fileRequests(requested, skipping: filed.planned, studentID: studentID, context: context)
+            checklist.file(active: active, studentID: studentID, meetingID: meetingID, context: context)
             guard context.safeSave() else { throw WorkLogService.LogError.saveFailed }
         } catch {
             transaction.rollback()
@@ -103,27 +112,47 @@ enum MeetingLessonDecisions {
             return false
         }
         transaction.commit()
+        if let message = changedSinceMessage(filed.changedSince, context: context) {
+            ToastService.shared.showInfo(message, duration: 4)
+        }
         return true
+    }
+
+    /// Whether `work` is still as the meeting's card left it, so filing its
+    /// decision plans what the guide meant (bug hunt 2026-10-10, #13): every
+    /// receipt can be taken back, or, with none to read (the work already
+    /// had that status, a draft saved before receipts were kept, a store
+    /// reset), it still has the status the decision gave it.
+    private static func isAsTheMeetingLeftIt(
+        _ work: CDWorkModel, decided status: WorkStatus, tokens: [String: [MeetingCloseToken]],
+        context: NSManagedObjectContext
+    ) -> Bool {
+        let workReceipts = receipts(of: work, in: tokens)
+        guard isReadable(workReceipts, in: context) else { return work.status == status }
+        return MeetingCloseToken.canTakeBack(workReceipts, from: work)
     }
 
     // MARK: - Re-present
 
     private static func planRepresentations(
-        _ workIDs: Set<UUID>, studentID: UUID, context: NSManagedObjectContext
-    ) throws -> Set<UUID> {
-        var lessonIDs: Set<UUID> = []
+        _ workIDs: Set<UUID>, tokens: [String: [MeetingCloseToken]], studentID: UUID,
+        context: NSManagedObjectContext, into filed: inout Filed
+    ) throws {
         for workID in workIDs {
             guard let (work, lesson) = workAndLesson(workID, context: context),
                   let lessonID = lesson.id else { continue }
+            guard isAsTheMeetingLeftIt(work, decided: .incomplete, tokens: tokens, context: context) else {
+                filed.changedSince.append(work)
+                continue
+            }
             if let presentation = presentation(of: work, context: context) {
                 try flagForAnotherPresentation(presentation, studentID: studentID, context: context)
             }
             try CaptureFollowUpPersistence.createRepresentationIfNeeded(
                 studentID: studentID, lesson: lesson, context: context
             )
-            lessonIDs.insert(lessonID)
+            filed.planned.insert(lessonID)
         }
-        return lessonIDs
     }
 
     /// Records that the presentation didn't take for her (bug hunt
@@ -187,21 +216,25 @@ enum MeetingLessonDecisions {
     /// the next lesson in its sequence On Deck, unless she already has it
     /// planned, or has had it or mastered it already (bug hunt 2026-10-09, #11).
     private static func planNextLessons(
-        _ workIDs: Set<UUID>, studentID: UUID, context: NSManagedObjectContext
-    ) -> Set<UUID> {
-        guard !workIDs.isEmpty else { return [] }
-        var lessonIDs: Set<UUID> = []
+        _ workIDs: Set<UUID>, tokens: [String: [MeetingCloseToken]], studentID: UUID,
+        context: NSManagedObjectContext, into filed: inout Filed
+    ) {
+        guard !workIDs.isEmpty else { return }
         let allLessons = context.safeFetch(CDFetchRequest(CDLesson.self))
         let child = studentID.uuidString
         for workID in workIDs {
             guard let (work, lesson) = workAndLesson(workID, context: context) else { continue }
+            guard isAsTheMeetingLeftIt(work, decided: .done, tokens: tokens, context: context) else {
+                filed.changedSince.append(work)
+                continue
+            }
             presentation(of: work, context: context)?.confirmStudent(studentID)
             resolveFollowUp(of: work, studentID: studentID, as: .readyForNextPresentation, context: context)
             guard let next = PlanNextLessonService.findNextLesson(after: lesson, in: allLessons),
                   let nextID = next.id else { continue }
             let record = PresentationRecordIndex(lessonIDs: [nextID.uuidString], students: [child], in: context)
             guard record.given(student: child, lesson: nextID.uuidString) == nil else { continue }
-            lessonIDs.insert(nextID)
+            filed.planned.insert(nextID)
             let request = CDFetchRequest(CDLessonAssignment.self)
             request.predicate = NSPredicate(format: "lessonID == %@", nextID.uuidString)
             let existing = context.safeFetch(request).filter { !$0.isPresented && !$0.isDeleted }
@@ -211,7 +244,6 @@ enum MeetingLessonDecisions {
                 existingLessonAssignments: existing, context: context
             )
         }
-        return lessonIDs
     }
 
     /// Closes her follow-up on the work's presentation the way the
@@ -229,8 +261,34 @@ enum MeetingLessonDecisions {
 
     // MARK: - Lookups
 
-    private static func workIDs(_ strings: [String]?) -> Set<UUID> {
+    private static func uuids(_ strings: [String]?) -> Set<UUID> {
         Set((strings ?? []).compactMap(UUID.init(uuidString:)))
+    }
+
+    /// The draft's notes on its work cards, by work.
+    private static func notes(in draft: Draft) -> [UUID: String] {
+        Dictionary(
+            (draft.workReviewDrafts ?? [:]).compactMap { key, value in UUID(uuidString: key).map { ($0, value) } },
+            uniquingKeysWith: { first, _ in first }
+        )
+    }
+
+    /// The work the draft's Re-present and Ready for Next decisions closed.
+    static func pendingWork(in draft: Draft, context: NSManagedObjectContext) -> [CDWorkModel] {
+        let ids = uuids(draft.representWorkIDs).union(uuids(draft.readyWorkIDs))
+        guard !ids.isEmpty else { return [] }
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(format: "id IN %@", Array(ids))
+        return context.safeFetch(request).filter { !$0.isDeleted }
+    }
+
+    static func receipts(of work: CDWorkModel, in tokens: [String: [MeetingCloseToken]]) -> [MeetingCloseToken] {
+        work.id.flatMap { tokens[$0.uuidString] } ?? []
+    }
+
+    /// Whether there are receipts and each one still names rows on this device.
+    static func isReadable(_ receipts: [MeetingCloseToken], in context: NSManagedObjectContext) -> Bool {
+        !receipts.isEmpty && receipts.allSatisfy { $0.undoToken(in: context) != nil }
     }
 
     private static func workAndLesson(_ workID: UUID, context: NSManagedObjectContext) -> (CDWorkModel, CDLesson)? {
@@ -243,11 +301,20 @@ enum MeetingLessonDecisions {
     }
 
     private static func lesson(of work: CDWorkModel, context: NSManagedObjectContext) -> CDLesson? {
-        guard let lessonID = UUID(uuidString: work.lessonID) else { return nil }
+        UUID(uuidString: work.lessonID).flatMap { lesson($0, context: context) }
+    }
+
+    private static func lesson(_ id: UUID, context: NSManagedObjectContext) -> CDLesson? {
         let request = CDFetchRequest(CDLesson.self)
-        request.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
         request.fetchLimit = 1
         return context.safeFetch(request).first
+    }
+
+    /// The names of the lessons asked for, in order; one no longer in the
+    /// catalog is left out.
+    private static func lessonNames(_ ids: [UUID], context: NSManagedObjectContext) -> [String] {
+        ids.compactMap { lesson($0, context: context)?.name.trimmed() }.filter { !$0.isEmpty }
     }
 
     /// The presentation the work came from, if it came from one.

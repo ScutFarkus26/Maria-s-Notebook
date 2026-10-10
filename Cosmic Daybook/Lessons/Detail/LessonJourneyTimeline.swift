@@ -25,7 +25,9 @@ struct LessonJourneyTimeline: View {
                     .padding(.vertical, 40)
             }
         }
-        .task {
+        // Keyed to the lesson, so a card reused for another lesson never shows
+        // the previous lesson's presentations.
+        .task(id: lesson.objectID) {
             await loadData()
         }
     }

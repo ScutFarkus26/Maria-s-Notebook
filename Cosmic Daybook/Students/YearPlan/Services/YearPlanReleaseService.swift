@@ -70,7 +70,10 @@ enum YearPlanReleaseService {
 
         var outcome = Outcome()
         for (planID, entries) in releases {
-            let result = release(Set(entries.map(\.studentID)), fromPlan: planID, in: context, dryRun: dryRun)
+            let result = release(
+                Set(entries.map(\.studentID)), fromPlan: planID, givenIn: assignment,
+                in: context, dryRun: dryRun
+            )
             outcome.rostersTrimmed += result.rostersTrimmed
             outcome.plansDiscarded += result.plansDiscarded
             // The intention each released entry stood for is answered by this
@@ -117,6 +120,7 @@ enum YearPlanReleaseService {
     private static func release(
         _ studentIDs: Set<String>,
         fromPlan planID: String,
+        givenIn given: CDLessonAssignment,
         in context: NSManagedObjectContext,
         dryRun: Bool
     ) -> Outcome {
@@ -148,6 +152,10 @@ enum YearPlanReleaseService {
             stranded.status = .planned
             stranded.promotedAssignmentID = nil
         }
+        // Notes written on the plan (about the children it was for) would go
+        // with it, since a presentation's notes are deleted along with it; they
+        // move to the presentation that gave those children the lesson instead.
+        PresentationRecordCleanup.moveNotes(from: other, to: given)
         context.delete(other)
         return Outcome(plansDiscarded: 1)
     }

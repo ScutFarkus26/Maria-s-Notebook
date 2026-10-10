@@ -329,8 +329,9 @@ struct PresentationDetailContentView: View {
             studentIDs: vm.selectedStudentIDs.map(\.uuidString),
             in: viewContext
         )
-        masteredOn = Dictionary(uniqueKeysWithValues: dates.compactMap { key, date in
-            UUID(uuidString: key).map { ($0, date) }
-        })
+        masteredOn = Dictionary(
+            dates.compactMap { key, date in UUID(uuidString: key).map { ($0, date) } },
+            uniquingKeysWith: { first, _ in first }
+        )
     }
 }

@@ -44,12 +44,37 @@ extension QuickNoteViewModel {
         case .notAnImage:
             return
         case .saved(let filename, let preview):
+            deleteAttachedPhotoFile()
             self.attachedImage = preview.map { NotePhotoPreview.image($0, scale: scale) }
             self.attachedImagePath = filename
         case .failed(let preview, let error):
-            // As before: the attachment still shows, with no file behind it.
+            // As before: the attachment still shows, with no file behind it
+            // (and not the file of a photo it replaced).
+            deleteAttachedPhotoFile()
+            self.attachedImagePath = nil
             self.attachedImage = preview.map { NotePhotoPreview.image($0, scale: scale) }
             Self.photoLogger.error("Failed to save image: \(error)")
+        }
+    }
+
+    /// Takes the photo off the note and deletes its file: nothing else points
+    /// at a photo attached to a note that isn't saved yet. Removing it used to
+    /// leave the file on disk (and in iCloud) for good.
+    func removeAttachedPhoto() {
+        deleteAttachedPhotoFile()
+        attachedImage = nil
+        attachedImagePath = nil
+    }
+
+    /// Deletes the file of the photo attached now, which a newer photo is
+    /// replacing or she removed. Never after the note is saved: the file is
+    /// the note's then.
+    private func deleteAttachedPhotoFile() {
+        guard !didSave, let filename = attachedImagePath, !filename.isEmpty else { return }
+        do {
+            try PhotoStorageService.deleteImage(filename: filename)
+        } catch {
+            Self.photoLogger.error("Failed to delete removed image: \(error)")
         }
     }
 
@@ -59,10 +84,13 @@ extension QuickNoteViewModel {
         self.attachedImage = image
         do {
             let filename = try PhotoStorageService.saveImage(image)
+            deleteAttachedPhotoFile()
             self.attachedImagePath = filename
             showPreview(ofSavedPhoto: filename)
         } catch {
             Self.photoLogger.error("Failed to save image: \(error)")
+            deleteAttachedPhotoFile()
+            self.attachedImagePath = nil
         }
     }
 

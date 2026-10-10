@@ -3,6 +3,8 @@ import SwiftUI
 /// A tappable capsule chip that displays a todo's scheduling state and opens the When popover.
 struct TodoDateChip: View {
     @ObservedObject var todo: CDTodoItem
+    @Environment(\.managedObjectContext) private var viewContext
+    @Environment(SaveCoordinator.self) private var saveCoordinator
     @State private var showWhenPopover = false
 
     var body: some View {
@@ -19,6 +21,14 @@ struct TodoDateChip: View {
                 isSomeday: $todo.isSomeday,
                 onDismiss: { showWhenPopover = false }
             )
+        }
+        // The popover changes the todo's dates in place; they are saved when
+        // it closes, however it closes (they used to wait for some other
+        // save, and were lost if the app quit first).
+        .onChange(of: showWhenPopover) { _, isShown in
+            if !isShown {
+                saveCoordinator.save(viewContext, reason: "Change to-do date")
+            }
         }
     }
 

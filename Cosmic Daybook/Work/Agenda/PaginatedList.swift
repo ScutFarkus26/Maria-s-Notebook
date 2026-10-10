@@ -68,8 +68,12 @@ final class PaginationState {
             reset()
         }
 
-        // Ensure displayedCount doesn't exceed total
+        // Never past the end, and never short of a full first page while there
+        // are items to fill it: a filter that left 12 of 200 used to leave the
+        // list showing 12 after the filter was cleared.
         if displayedCount > totalCount {
+            displayedCount = min(pageSize, totalCount)
+        } else if displayedCount < min(pageSize, totalCount) {
             displayedCount = min(pageSize, totalCount)
         }
     }

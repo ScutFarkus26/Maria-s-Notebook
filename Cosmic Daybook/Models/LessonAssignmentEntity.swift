@@ -200,12 +200,15 @@ nonisolated extension CDLessonAssignment {
     /// Schedules this presentation for a day without expressing a position
     /// within it — it lands at the start of the teaching morning, ahead of
     /// nothing in particular.
+    ///
+    /// The hour is set on the clock, not added to midnight: on the Sundays
+    /// daylight saving starts or ends, adding nine hours to midnight lands
+    /// at 10 or 8.
     func schedule(onDay day: Date, using calendar: Calendar = AppCalendar.shared) {
+        let startOfDay = calendar.startOfDay(for: day)
         let base = calendar.date(
-            byAdding: .hour,
-            value: UIConstants.morningHour,
-            to: calendar.startOfDay(for: day)
-        ) ?? calendar.startOfDay(for: day)
+            bySettingHour: UIConstants.morningHour, minute: 0, second: 0, of: startOfDay
+        ) ?? startOfDay
         schedule(for: base, using: calendar)
     }
 

@@ -141,7 +141,7 @@ AI-powered observation summarization using Foundation Models. Requires the `ENAB
 ### Backup
 
 - Auto-backup enabled by default (10 backup retention)
-- Location: `~/Documents/Backups/Auto/`
+- Location: `~/Documents/Backups/Auto/`, one subfolder per device since 2026-10-10
 - Format: `.mtbbackup` (v19 encrypted Apple Archive)
 - See the [Backup System](<../docs/Technical notes/BACKUP_SYSTEM.md>) for details
 

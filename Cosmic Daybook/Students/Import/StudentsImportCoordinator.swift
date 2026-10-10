@@ -17,7 +17,7 @@ struct StudentsImportCoordinator {
                 defer { url.stopAccessingSecurityScopedResource() }
 
                 let data = try Data(contentsOf: url, options: [.mappedIfSafe])
-                guard let csv = CSVParser.parse(data: data) else {
+                guard let csv = StudentCSVImporter.readTable(data) else {
                     throw StudentCSVImporter.ImportError.unreadableText
                 }
 

@@ -163,7 +163,7 @@ extension ClassAreaChecklistView {
             workTarget = ChecklistWorkTarget(
                 lessonID: lessonID, studentIDs: viewModel.selectedStudentIDs, fromSelection: true
             )
-        case .clear: viewModel.batchClearStatus(context: viewContext)
+        case .clear: viewModel.requestBatchClear(context: viewContext)
         case .dismiss: viewModel.clearSelection()
         }
     }

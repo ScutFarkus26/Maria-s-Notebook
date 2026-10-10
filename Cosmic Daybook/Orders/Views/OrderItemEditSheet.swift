@@ -12,6 +12,9 @@ struct OrderItemEditSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var title = ""
+    /// The name the item had when the editor opened (or last took one from
+    /// the item): while the Name field still holds it, she hasn't typed one.
+    @State private var loadedTitle = ""
     @State private var link = ""
     @State private var quantity = 1
     @State private var notes = ""
@@ -112,6 +115,13 @@ struct OrderItemEditSheet: View {
                 Button("Cancel", role: .cancel) {}
             }
             .onAppear(perform: load)
+            // Restock or the request draft read the page's title while this
+            // was open: an untouched Name field shows it, and Save keeps it.
+            .onChange(of: item.title) { _, newTitle in
+                guard title == loadedTitle else { return }
+                title = newTitle
+                loadedTitle = newTitle
+            }
         }
         #if os(macOS)
         .frame(minWidth: 460, minHeight: 480)
@@ -125,6 +135,7 @@ struct OrderItemEditSheet: View {
 
     private func load() {
         title = item.title
+        loadedTitle = item.title
         link = item.urlString
         quantity = max(1, Int(item.quantity))
         notes = item.notes
@@ -142,7 +153,9 @@ struct OrderItemEditSheet: View {
     }
 
     private func save() {
-        OrderService.update(item, title: title, urlString: link, quantity: quantity, notes: notes)
+        OrderService.update(
+            item, title: title, loadedTitle: loadedTitle, urlString: link, quantity: quantity, notes: notes
+        )
         saveCoordinator.save(viewContext, reason: "Edit a need")
         dismiss()
     }

@@ -155,17 +155,29 @@ still marked completed. `WorkLogTargets.resolve(work:students:in:)` turns a
 gesture into rows — everyone on a fan-out group, or the copies a set of
 children own; a `.shared` row refuses a subset rather than being split.
 
-**Linked copies (2026-10-10).** `WorkGrouping` treats two rows as copies of
-one assignment only when:
+**Linked copies (2026-10-10, revised the same day).** `WorkGrouping` treats
+two rows as copies of one assignment only when:
 - their owners name each other,
-- they match on lesson, kind and title,
-- they match on presentation, and
-- they were created within 60 seconds of each other.
+- they match on lesson and kind,
+- they were created within 60 seconds of each other, and
+- neither is a project-session row (those are shared rows by design).
 
-`createWork` gives every copy the children's latest presentation of the
-lesson, so a matching presentation alone used to join a repeat assignment
-weeks later to the first one. A row with no `createdAt` keeps the old rule.
-Status logs, removal, delete clean-up, the grid menu and MCP check-ins all go
+The presentation and the title don't count when both rows have a
+`createdAt`. `createWork` links each copy to *that child's* latest
+presentation of the lesson, so children who had the lesson on different days
+get copies with different presentations; and a copy renamed before renames
+carried to the others has a different title. Both used to split the group,
+leaving each copy reading as one shared row for every child on it.
+
+One fan-out never gives a child two copies. When the rows linked this way
+include two owned by one child, two assignments of the lesson were made in
+the same minute; then each child's copy is her row that best matches (the
+same title, then the same presentation, then the closest creation time), kept
+only when the match holds both ways. A pair with no `createdAt` keeps the old
+rule: the same title and the same presentation.
+
+The work editor carries a new title or kind to every linked copy. Status
+logs, removal, delete clean-up, the grid menu and MCP check-ins all go
 through this rule.
 
 **Undo from a meeting.** Re-present and Ready for Next close the work at

@@ -37,7 +37,20 @@ struct ParshaLessonEditorSheet: View {
             .filter { $0.id != existingLesson?.id }
             .sorted { $0.name.compare($1.name) == .orderedAscending }
         if showAllLessonsForDerivation { return base }
-        return base.filter { $0.lessonFormatRaw == "art" }
+        return base.filter { Self.isArtLesson(area: $0.area, sequence: $0.sequence) }
+    }
+
+    /// Whether a lesson belongs to the art library: its area or sequence is named
+    /// for art ("Art", "Arts & Crafts", "Visual Art"). There is no art lesson
+    /// format, so the old filter on one listed nothing. Whole words only, so
+    /// "Earth Science" and "Party Games" stay out.
+    static func isArtLesson(area: String, sequence: String) -> Bool {
+        let artWords: Set<String> = ["art", "arts", "artwork", "crafts"]
+        return [area, sequence].contains { field in
+            field.lowercased()
+                .components(separatedBy: CharacterSet.letters.inverted)
+                .contains { artWords.contains($0) }
+        }
     }
 
     private var derivedLessonName: String? {
@@ -52,7 +65,7 @@ struct ParshaLessonEditorSheet: View {
                     TextField("Name", text: $name)
 
                     Picker("Parsha", selection: $selectedParshaKey) {
-                        ForEach(HebrewParshaService.allParshaKeys, id: \.self) { key in
+                        ForEach(HebrewParshaService.pickerKeys, id: \.self) { key in
                             Text(HebrewParshaService.displayName(forKey: key)).tag(key)
                         }
                     }
@@ -185,7 +198,9 @@ private struct DerivedLessonPickerSheet: View {
                 }
                 Section {
                     if filtered.isEmpty {
-                        Text("No lessons available.")
+                        Text(showAll || !search.trimmed().isEmpty
+                             ? "No lessons match."
+                             : "No art lessons yet. Turn on Show all lessons to pick from every area.")
                             .foregroundStyle(.secondary)
                     } else {
                         ForEach(filtered, id: \.id) { lesson in

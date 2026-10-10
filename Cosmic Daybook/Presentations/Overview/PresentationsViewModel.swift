@@ -57,6 +57,8 @@ final class PresentationsViewModel {
     private var lastLessonsHash: Int?
     private var lastWorkModelHash: Int?
     private var lastStudentsHash: Int?
+    /// Order, miss window and test students (`settingsHash`).
+    private var lastSettingsHash: Int?
 
     /// Bumped on every `LessonAssignment` change the view context could see;
     /// the cached table and its hash stand in for a refetch only while stored
@@ -104,6 +106,7 @@ final class PresentationsViewModel {
         lastLessonsHash = nil
         lastWorkModelHash = nil
         lastStudentsHash = nil
+        lastSettingsHash = nil
     }
 
     // MARK: - Change Detection Helpers
@@ -125,6 +128,8 @@ final class PresentationsViewModel {
             hasher.combine(la.needsAnotherPresentation)
             hasher.combine(la.lessonID)
             hasher.combine(la.manuallyUnblocked)
+            // A confirmation readies a child for the next lesson.
+            hasher.combine(la._confirmedStudentIDsData)
         }
         return hasher.finalize()
     }
@@ -215,16 +220,19 @@ final class PresentationsViewModel {
         let workRequest = CDFetchRequest(CDWorkModel.self)
         workRequest.predicate = WorkStatus.openPredicate
         let workModels = viewContext.safeFetch(workRequest)
+        let closedPrecedingWork = fetchClosedPrecedingWork(lessonAssignments, lessons, in: viewContext)
         await Task.yield()
         if Task.isCancelled { return }
 
         let lHash = computeIDHash(lessons)
-        let sHash = computeIDHash(students)
-        let wHash = computeWorkModelHash(workModels)
+        let sHash = computeStudentsHash(students)
+        let wHash = computeWorkModelHash(workModels + closedPrecedingWork)
+        let settingsHash = Self.settingsHash(inboxOrderRaw, missWindow, showTestStudents, testStudentNamesRaw)
         let coreChanged = laHash != lastLessonAssignmentChangeHash
             || lHash != lastLessonsHash
             || sHash != lastStudentsHash
             || wHash != lastWorkModelHash
+            || settingsHash != lastSettingsHash
         if !coreChanged && lastUpdateDate != nil {
             // Same hash as the cached array: it still stands for the store.
             cachedAssignmentsGeneration = generation
@@ -235,6 +243,7 @@ final class PresentationsViewModel {
         lastLessonsHash = lHash
         lastWorkModelHash = wHash
         lastStudentsHash = sHash
+        lastSettingsHash = settingsHash
 
         #if DEBUG
         PerformanceLogger.logScreenLoad(
@@ -297,7 +306,7 @@ final class PresentationsViewModel {
         let partition = partitionIntoReadyAndBlocked(
             lessonAssignments: lessonAssignments,
             lessons: lessons,
-            workModels: workModels,
+            workModels: workModels + closedPrecedingWork,
             inboxOrderRaw: inboxOrderRaw,
             missWindow: missWindow
         )

@@ -29,9 +29,7 @@ struct AssistantRestockView: View {
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 4)
                     if let error = model.errorMessage {
-                        Label(error, systemImage: "exclamationmark.triangle.fill")
-                            .font(.footnote)
-                            .foregroundStyle(.red)
+                        AssistantRestockSaveProblem(message: error) { _ = model.flush() }
                             .padding(.top, 8)
                     }
                     officeRunBanner

@@ -174,11 +174,13 @@ final class WorkDetailViewModel {
             }
         }
 
-        // 3. Fetch all work items for the same lesson by other students
+        // 3. Fetch all work items for the same lesson by other students, each
+        // child's open row first and then her newest, so the cohort row and the
+        // tap target show the work she is on, not whichever row came back first.
         let allWorkRequest = CDFetchRequest(CDWorkModel.self)
         let allWork = modelContext.safeFetch(allWorkRequest)
-        let peerWorks = allWork
-            .filter { $0.lessonID == workModel.lessonID && $0.studentID != primaryStudentID }
+        let peerWorks = Self.preferredFirst(allWork
+            .filter { $0.lessonID == workModel.lessonID && $0.studentID != primaryStudentID })
         let peerWorkStudentIDs = Set(peerWorks.compactMap { UUID(uuidString: $0.studentID) })
 
         // 2b. Fallback for project work: if no project members found via sourceContextID,
@@ -216,6 +218,9 @@ final class WorkDetailViewModel {
             allStudents.compactMap { s in s.id.map { ($0, s) } },
             uniquingKeysWith: { first, _ in first }
         )
+        // Classmates lists name children still in the room; a child who has
+        // left keeps her rows, but isn't a classmate to compare with.
+        let classmatesByID = studentsByID.filter { $0.value.isEnrolled }
 
         // Build lesson lookup for progression context
         let lessonsByIDString: [String: CDLesson] = Dictionary(
@@ -257,7 +262,7 @@ final class WorkDetailViewModel {
         var cohortEntries: [LessonCohortEntry] = []
         for w in peerWorks {
             guard let studentUUID = UUID(uuidString: w.studentID),
-                  let student = studentsByID[studentUUID] else { continue }
+                  let student = classmatesByID[studentUUID] else { continue }
             guard seenStudentIDs.insert(studentUUID).inserted else { continue }
 
             var currentWorkTitle: String?
@@ -289,10 +294,27 @@ final class WorkDetailViewModel {
 
         // Resolve awaiting follow-up
         awaitingFollowUp = awaitingFollowUpIDs
-            .compactMap { studentsByID[$0] }
+            .compactMap { classmatesByID[$0] }
             .sorted { $0.firstName < $1.firstName }
     }
     
+    /// Re-reads the notes list only. Note actions call this rather than
+    /// `loadWork`, which also resets the title, kind, status and check-in
+    /// style fields to the stored row and threw away edits waiting for Save
+    /// (and then filed a pending status note as a plain note).
+    func reloadNotes() {
+        loadWorkNotes(for: work)
+    }
+
+    /// Open rows before closed ones, then newest first: the order the cohort
+    /// and the tap targets take each child's first row in.
+    static func preferredFirst(_ works: [CDWorkModel]) -> [CDWorkModel] {
+        works.sorted { lhs, rhs in
+            if lhs.status.isOpen != rhs.status.isOpen { return lhs.status.isOpen }
+            return (lhs.createdAt ?? .distantPast) > (rhs.createdAt ?? .distantPast)
+        }
+    }
+
     private func loadWorkNotes(for workModel: CDWorkModel?) {
         guard let workModel else { return }
         workModelNotes = ((workModel.unifiedNotes?.allObjects as? [CDNote]) ?? [])

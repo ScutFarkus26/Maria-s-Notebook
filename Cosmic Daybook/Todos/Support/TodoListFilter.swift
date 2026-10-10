@@ -64,15 +64,16 @@ enum TodoListFilter: String, CaseIterable, Identifiable {
         }
     }
 
-    func matches(_ todo: CDTodoItem) -> Bool {
+    /// Whether `todo` belongs in this list on the day `today` falls on.
+    func matches(_ todo: CDTodoItem, today: Date = Date()) -> Bool {
         switch self {
         case .inbox:
             return !todo.isCompleted && !todo.isSomeday && todo.tagsArray.isEmpty
         case .today:
-            return !todo.isCompleted && !todo.isSomeday && todo.isScheduledForToday
+            return !todo.isCompleted && !todo.isSomeday && Self.isDueOrPlanned(todo, by: today)
         case .upcoming:
             let hasDate = todo.scheduledDate != nil || todo.dueDate != nil
-            return !todo.isCompleted && !todo.isSomeday && hasDate && !todo.isScheduledForToday
+            return !todo.isCompleted && !todo.isSomeday && hasDate && !Self.isDueOrPlanned(todo, by: today)
         case .anytime:
             return !todo.isCompleted && !todo.isSomeday && todo.scheduledDate == nil && todo.dueDate == nil
         case .someday:
@@ -82,5 +83,16 @@ enum TodoListFilter: String, CaseIterable, Identifiable {
         case .all:
             return true
         }
+    }
+
+    /// Whether a todo's When date or its deadline falls on `today` or
+    /// earlier. Today showed only todos planned or due today, so an overdue
+    /// todo, or one due today but planned for later, dropped out of it
+    /// (bug hunt 2026-10-10, P2 #25).
+    static func isDueOrPlanned(_ todo: CDTodoItem, by today: Date) -> Bool {
+        let tomorrow = AppCalendar.addingDays(1, to: AppCalendar.startOfDay(today))
+        if let scheduled = todo.scheduledDate, scheduled < tomorrow { return true }
+        if let due = todo.dueDate, due < tomorrow { return true }
+        return false
     }
 }

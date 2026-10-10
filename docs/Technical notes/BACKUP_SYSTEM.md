@@ -167,6 +167,7 @@ writes those rows; the type is still asked for in order (and freed) like every o
 - **Triggers:** macOS quit, iOS background (scene phase + `BGProcessingTask`), the interval schedule (iOS loop; macOS `NSBackgroundActivityScheduler` with 10% tolerance at `.utility`), pre-destructive.
 - **Change-gated:** `BackupChangeTracker` records the persistent-history token after each auto-backup and skips the next one if no transactions occurred since. Fail-open — any uncertainty performs the backup.
 - **Retention:** keeps the newest N (default 10) of `AutoBackup-`/`ScheduledBackup-`/`PreOp-` files.
+- **One folder per device (since 2026-10-10):** each device writes to and trims only its own `Auto/<device>-<id>/` subfolder (`AutoBackupFolders`; the name lives in that device's own settings, never synced, backed up or carried by a settings transfer), so an iPad backing up every 15 minutes can't push the Mac's backups out. Files older builds left at the top of `Auto/` stay there and are trimmed under the same keep-N rule. "Restore last automatic backup" and the backup status look across every device's folder and the top level.
 
 ---
 

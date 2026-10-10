@@ -42,11 +42,13 @@ extension AttendanceEmail {
     }
 
     /// The guide's settings as the classroom share carries them. The switch
-    /// reads as on until turned off, as the settings screen shows it.
+    /// reads as on until turned off, as the settings screen shows it. The
+    /// recipients go as the addresses joined with ", " (`sharedAddressLine`),
+    /// which every Assistant build reads, however they were typed.
     static func storedSettings(from store: SyncedPreferencesStore = .shared) -> AttendanceEmailLog.Settings {
         AttendanceEmailLog.Settings(
             isEnabled: store.get(key: AttendanceEmailPrefs.enabledKey) as? Bool ?? true,
-            toAddresses: store.string(forKey: AttendanceEmailPrefs.toKey)?.trimmed() ?? "",
+            toAddresses: sharedAddressLine(store.string(forKey: AttendanceEmailPrefs.toKey)),
             nameOrder: store.string(forKey: AttendanceEmailPrefs.nameOrderKey)
                 .flatMap(AttendanceEmailNameOrder.init(rawValue:)) ?? .firstLast,
             groupByLevel: store.bool(forKey: AttendanceEmailPrefs.groupByLevelKey),

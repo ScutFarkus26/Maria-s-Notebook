@@ -210,17 +210,30 @@ extension RecordPracticeSheet {
         .padding(16)
     }
 
+    /// Saves through `SaveCoordinator` and closes only when the save worked.
+    /// A failed save takes back the session and its check-ins, says so, and
+    /// keeps the sheet open, so Save again doesn't record it twice.
     func saveSession() {
-        let workItemIDs: [String] = selectedStudentIDs.compactMap { studentID in
-            openPracticeWork.first { $0.studentID == studentID.uuidString }?.id?.uuidString
+        let works: [CDWorkModel] = selectedStudentIDs.compactMap { studentID in
+            openPracticeWork.first { $0.studentID == studentID.uuidString }
         }
 
-        // Create practice session via Core Data
+        let saved = saveCoordinator.saveEdit(in: viewContext, reason: "Record practice") {
+            insertSession(for: works)
+        }
+        guard saved else {
+            ToastService.shared.showError("Couldn't save this practice session. Try again.")
+            return
+        }
+        dismiss()
+    }
+
+    private func insertSession(for works: [CDWorkModel]) {
         let session = CDPracticeSession(context: viewContext)
         session.date = sessionDate
         session.durationInterval = hasDuration ? TimeInterval(durationMinutes * 60) : nil
         session.studentIDsArray = Array(selectedStudentIDs).map(\.uuidString)
-        session.workItemIDsArray = workItemIDs
+        session.workItemIDsArray = works.compactMap { $0.id?.uuidString }
         session.sharedNotes = sessionNotes
         session.location = nil
 
@@ -237,12 +250,11 @@ extension RecordPracticeSheet {
 
         if scheduleCheckIn {
             session.checkInScheduledFor = checkInDate
+            // A real check-in on each child's work, which the calendar and
+            // Today show; the session's own date alone scheduled nothing.
+            PracticeCheckInScheduler.schedule(on: checkInDate, for: works, in: viewContext)
         }
         session.followUpActions = followUpActions
         session.materialsUsed = materialsUsed
-
-        viewContext.safeSave()
-
-        dismiss()
     }
 }

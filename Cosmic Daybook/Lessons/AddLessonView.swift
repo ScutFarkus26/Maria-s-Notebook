@@ -210,6 +210,8 @@ struct AddLessonView: View {
                 sequence: sequence.trimmed(),
                 section: section.trimmed(),
                 writeUp: writeUp,
+                // After the sequence's last lesson, not tied with its first.
+                orderInSequence: repository.nextOrderInSequence(area: area, sequence: sequence),
                 source: source,
                 personalKind: source == .personal ? personalKind : nil,
                 materials: materials,

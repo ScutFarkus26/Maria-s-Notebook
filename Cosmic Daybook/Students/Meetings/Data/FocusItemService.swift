@@ -104,4 +104,58 @@ enum FocusItemService {
 
         return lines.joined(separator: "\n")
     }
+
+    // MARK: - A meeting's checklist
+
+    /// What a meeting changed on the focus checklist: items ticked off,
+    /// items dropped and new ones typed. The Meetings workflow keeps them in
+    /// its draft; Complete and the student record's Save to History both file
+    /// them through here (bug hunt 2026-10-10, #10).
+    struct ChecklistChanges {
+        var resolvedIDs: Set<UUID> = []
+        var droppedIDs: Set<UUID> = []
+        var newTexts: [String] = []
+
+        var isEmpty: Bool {
+            resolvedIDs.isEmpty && droppedIDs.isEmpty && newTexts.allSatisfy { $0.trimmed().isEmpty }
+        }
+
+        /// The history entry's focus: the checklist as the meeting leaves it
+        /// (`active` is the list it started from), then any focus typed on
+        /// the student record's Meetings tab.
+        func historyText(active: [CDStudentFocusItem], typed: String) -> String {
+            let resolved = active.filter { $0.id.map(resolvedIDs.contains) ?? false }
+            let carried = active.filter { item in
+                guard let id = item.id else { return false }
+                return !resolvedIDs.contains(id) && !droppedIDs.contains(id)
+            }
+            return [
+                FocusItemService.snapshotText(activeItems: carried, resolvedItems: resolved, newTexts: newTexts),
+                typed
+            ].filter { !$0.isEmpty }.joined(separator: "\n")
+        }
+
+        /// Resolves and drops the ticked items and creates the new ones, all
+        /// under `meetingID`. Nothing here saves.
+        func file(
+            active: [CDStudentFocusItem], studentID: UUID, meetingID: UUID, context: NSManagedObjectContext
+        ) {
+            for item in active {
+                guard let itemID = item.id else { continue }
+                if resolvedIDs.contains(itemID) {
+                    FocusItemService.resolve(item, inMeetingID: meetingID)
+                } else if droppedIDs.contains(itemID) {
+                    FocusItemService.drop(item, inMeetingID: meetingID)
+                }
+            }
+            for (index, text) in newTexts.enumerated() {
+                let trimmed = text.trimmed()
+                guard !trimmed.isEmpty else { continue }
+                FocusItemService.create(
+                    studentID: studentID, text: trimmed, meetingID: meetingID,
+                    sortOrder: active.count + index, context: context
+                )
+            }
+        }
+    }
 }

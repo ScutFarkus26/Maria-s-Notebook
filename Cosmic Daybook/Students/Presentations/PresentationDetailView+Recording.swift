@@ -358,7 +358,9 @@ extension PresentationDetailContentView {
                     groupNote: session.groupNote,
                     childNotes: session.childNotes,
                     decisions: session.pendingDecisions(for: ids),
-                    allDecisions: Dictionary(uniqueKeysWithValues: ids.map { ($0, session.decision(for: $0)) }),
+                    allDecisions: Dictionary(
+                        ids.map { ($0, session.decision(for: $0)) }, uniquingKeysWith: { first, _ in first }
+                    ),
                     checkIn: session.checkIn,
                     lessons: lessons
                 ),

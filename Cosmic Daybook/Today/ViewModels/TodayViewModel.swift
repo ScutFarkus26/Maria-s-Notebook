@@ -130,6 +130,9 @@ final class TodayViewModel {
     var followUpCheckIns: [WorkCheckInFollowUp] = []
     /// Former students named on those rows — the enrolled cache never holds them.
     var departedStudentsByID: [UUID: CDStudent] = [:]
+    /// Every child the day's meetings name who is still in the notebook,
+    /// enrolled or not, for the meeting rows' names.
+    var meetingStudentsByID: [UUID: CDStudent] = [:]
 
     // MARK: - Cache Accessors (delegate to cacheManager)
 
@@ -307,6 +310,9 @@ final class TodayViewModel {
             day: day, nextDay: nextDay, context: context
         )
         cacheManager.loadStudentsIfNeeded(ids: completedMeetingsResult.neededStudentIDs, context: context)
+        let meetingStudentIDs = meetingsResult.neededStudentIDs.union(completedMeetingsResult.neededStudentIDs)
+        let meetingStudents = cacheManager.enrolledStudents(ids: meetingStudentIDs, context: context)
+            .merging(departed.filter { meetingStudentIDs.contains($0.key) }) { enrolled, _ in enrolled }
 
         // 7. Fetch attendance
         let attendanceResult = TodayDataFetcher.fetchAttendance(
@@ -345,8 +351,14 @@ final class TodayViewModel {
         todaysReminders = remindersResult.today
         anytimeReminders = remindersResult.anytime
         todaysCalendarEvents = calendarEvents
-        scheduledMeetings = TodayAgendaBuilder.orderMeetings(meetingsResult.meetings, day: day, context: context)
-        completedMeetings = completedMeetingsResult.meetings
+        scheduledMeetings = TodayAgendaBuilder.orderMeetings(
+            TodayMeetingRows.filter(meetingsResult.meetings, studentsByID: studentsByID, levelFilter: levelFilter),
+            day: day, context: context
+        )
+        completedMeetings = TodayMeetingRows.filterCompleted(
+            completedMeetingsResult.meetings, studentsByID: studentsByID, levelFilter: levelFilter
+        )
+        meetingStudentsByID = meetingStudents
         attendanceSummary = processedAttendance.summary
         absentToday = processedAttendance.absentStudentIDs
         leftEarlyToday = processedAttendance.leftEarlyStudentIDs
@@ -365,8 +377,6 @@ final class TodayViewModel {
         // so the agenda is built without them.
         agendaItems = TodayAgendaBuilder.buildAgenda(
             lessons: filteredLessons,
-            overdueSchedule: [],
-            todaysSchedule: [],
             day: day,
             context: context
         )

@@ -43,6 +43,7 @@ struct TodoTemplatesView: View {
                 TodoTemplateEditSheet(template: template)
             }
         }
+        .saveErrorAlert()
     }
     
     private var emptyState: some View {
@@ -88,15 +89,14 @@ struct TodoTemplatesView: View {
     }
     
     private func createTodoFromTemplate(_ template: CDTodoTemplate) {
-        let todo = CDTodoItem(context: viewContext)
-        todo.title = template.title
-        todo.notes = template.notes
-        todo.priority = template.priority
-        if template.defaultEstimatedMinutes > 0 { todo.estimatedMinutes = template.defaultEstimatedMinutes }
-        todo.tagsArray = template.tagsArray
-        todo.studentIDsArray = template.defaultStudentIDsArray
-        template.useCount += 1
-        dependencies.saveCoordinator.save(viewContext, reason: "Create todo from template")
+        let todo = TodoTemplateUse.makeTodo(from: template, enrolled: dependencies.roster.enrolled, in: viewContext)
+        guard dependencies.saveCoordinator.save(viewContext, reason: "Create todo from template") else {
+            // The coordinator's alert says it didn't save; take the todo back
+            // so trying again doesn't make two.
+            viewContext.delete(todo)
+            template.useCount -= 1
+            return
+        }
         dismiss()
     }
     
@@ -228,7 +228,22 @@ private struct TodoTemplateEditSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
-    private var students: [CDStudent] { dependencies.roster.enrolled }
+
+    /// The children in the class, then any chosen child who has left, so she
+    /// can still take them off the template.
+    private var students: [CDStudent] {
+        let enrolledIDs = self.enrolledIDs
+        let departed = selectedStudentIDs
+            .compactMap(UUID.init(uuidString:))
+            .filter { !enrolledIDs.contains($0) }
+            .compactMap { dependencies.roster.student(id: $0) }
+            .sorted { $0.fullName.localizedStandardCompare($1.fullName) == .orderedAscending }
+        return dependencies.roster.enrolled + departed
+    }
+
+    private var enrolledIDs: Set<UUID> {
+        Set(dependencies.roster.enrolled.compactMap(\.id))
+    }
     
     let template: CDTodoTemplate?
     
@@ -342,6 +357,11 @@ private struct TodoTemplateEditSheet: View {
                     HStack {
                         Text(student.fullName)
                             .foregroundStyle(.primary)
+                        if let id = student.id, !enrolledIDs.contains(id) {
+                            Text("Left the class")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                         Spacer()
                         if selectedStudentIDs.contains(student.id?.uuidString ?? "") {
                             Image(systemName: "checkmark")

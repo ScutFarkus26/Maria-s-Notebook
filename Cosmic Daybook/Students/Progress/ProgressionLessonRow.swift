@@ -41,8 +41,12 @@ struct ProgressionLessonRow: View {
                         Text(date, style: .date)
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                    } else if case .scheduled(let date) = node.status {
+                    } else if case .scheduled(let date?) = node.status {
                         Text("Scheduled \(date, style: .date)")
+                            .font(.caption)
+                            .foregroundStyle(AppColors.warning)
+                    } else if case .scheduled(nil) = node.status {
+                        Text("In the inbox")
                             .font(.caption)
                             .foregroundStyle(AppColors.warning)
                     } else {
@@ -76,7 +80,7 @@ struct ProgressionLessonRow: View {
                     Button {
                         action()
                     } label: {
-                        Label("Schedule Lesson", systemImage: SFSymbol.Time.calendar)
+                        Label("Plan Lesson", systemImage: SFSymbol.Time.calendar)
                             .font(.caption)
                     }
                     .buttonStyle(.bordered)
@@ -102,8 +106,8 @@ struct ProgressionLessonRow: View {
                     .foregroundStyle(kind.color)
             }
 
-            // Age
-            Text("\(item.ageSchoolDays) school days")
+            // Age: school days open, or open until it closed
+            Text(item.ageSchoolDays == 1 ? "1 school day" : "\(item.ageSchoolDays) school days")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 

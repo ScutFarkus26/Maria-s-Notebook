@@ -166,10 +166,10 @@ enum DayHalfPlanner {
         for placement in placements {
             let rank = ranks[placement.period, default: 0]
             ranks[placement.period] = rank + 1
+            // Set on the clock rather than added to midnight, which is off
+            // by an hour on the daylight-saving Sundays.
             let base = calendar.date(
-                byAdding: .hour,
-                value: placement.period.baseHour,
-                to: startOfDay
+                bySettingHour: placement.period.baseHour, minute: 0, second: 0, of: startOfDay
             ) ?? startOfDay
             result[placement.id] = calendar.date(
                 byAdding: .second,

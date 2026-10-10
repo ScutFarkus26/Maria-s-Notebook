@@ -80,6 +80,13 @@ struct StudentMeetingsTab: View {
     @State private var requestsText: String = ""
     @State private var guideNotesText: String = ""
     @State private var nextMeetingDate: Date?
+    /// The fields as the tab last read or wrote them, so a save writes only
+    /// what was changed here (bug hunt 2026-10-10 review).
+    @State private var syncedData = MeetingPersistenceService.CurrentMeetingData()
+
+    /// Clear asks first, naming the work that goes back (bug hunt 2026-10-10, #14).
+    @State private var isConfirmingClear = false
+    @State private var clearMessage = ""
 
     @State var expandedHistoryIDs: Set<UUID> = []
     @State var meetingSummaries: [UUID: String] = [:]
@@ -182,6 +189,12 @@ struct StudentMeetingsTab: View {
             .onChange(of: requestsText) { _, _ in saveCurrentToDefaults() }
             .onChange(of: guideNotesText) { _, _ in saveCurrentToDefaults() }
             .onChange(of: nextMeetingDate) { _, _ in saveCurrentToDefaults() }
+            // Written from the Meetings window too: every edit here is saved
+            // as it is typed, so reading the stored draft back loses nothing.
+            .onReceive(NotificationCenter.default.publisher(for: .meetingDraftDidChange)) { notice in
+                guard MeetingPersistenceService.studentID(of: notice) == student.id else { return }
+                loadCurrentFromDefaults()
+            }
     }
 
     private var bodyWithModifiers: some View {
@@ -195,6 +208,11 @@ struct StudentMeetingsTab: View {
             .sheet(item: $editingMeeting) { meeting in editMeetingSheet(meeting) }
             .sheet(item: workSheetBinding) { wrapper in
                 WorkDetailView(workID: wrapper.id) { selectedWorkID = nil }
+            }
+            .confirmationDialog("Clear this meeting?", isPresented: $isConfirmingClear, titleVisibility: .visible) {
+                Button("Clear Meeting", role: .destructive) { discardCurrent() }
+            } message: {
+                Text(clearMessage)
             }
     }
 
@@ -300,7 +318,7 @@ struct StudentMeetingsTab: View {
                 HStack {
                     Spacer()
                     Button("Clear") {
-                        discardCurrent()
+                        confirmClear()
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
@@ -381,21 +399,44 @@ struct StudentMeetingsTab: View {
         requestsText = data.requestsText
         guideNotesText = data.guideNotesText
         nextMeetingDate = data.nextMeetingDate
+        syncedData = MeetingPersistenceService.CurrentMeetingData(
+            isCompleted: data.isCompleted,
+            reflectionText: data.reflectionText,
+            focusText: data.focusText,
+            requestsText: data.requestsText,
+            guideNotesText: data.guideNotesText,
+            nextMeetingDate: data.nextMeetingDate
+        )
     }
 
     private func saveCurrentToDefaults() {
         guard let studentID = student.id else { return }
-        MeetingPersistenceService.saveCurrent(studentID: studentID, data: currentMeetingData)
+        let current = currentMeetingData
+        guard current != syncedData else { return }
+        MeetingPersistenceService.saveTabFields(studentID: studentID, data: current, base: syncedData)
+        syncedData = current
+    }
+
+    /// Clear asks first, as the workflow's Clear Meeting does, naming the
+    /// work that goes back to how it was before the meeting.
+    private func confirmClear() {
+        let stored = student.id.map { MeetingPersistenceService.loadCurrent(studentID: $0) } ?? .init()
+        clearMessage = MeetingLessonDecisions.clearConfirmation(
+            studentName: student.shortName, draft: stored, context: viewContext
+        )
+        isConfirmingClear = true
     }
 
     /// Clear: work the Meetings workflow decided as Re-present or Ready for
     /// Next was closed on the tap and waits in the draft to be planned, so it
     /// goes back as it was before the meeting, the way the workflow's Clear
-    /// Meeting does, before the draft goes (bug hunt 2026-10-09, #8).
+    /// Meeting does, before the draft goes (bug hunt 2026-10-09, #8). When it
+    /// can't be put back, the meeting stays, receipts and all, for another
+    /// try (bug hunt 2026-10-10, #12).
     private func discardCurrent() {
         if let studentID = student.id {
             let stored = MeetingPersistenceService.loadCurrent(studentID: studentID)
-            MeetingLessonDecisions.takeBack(stored, context: viewContext)
+            guard MeetingLessonDecisions.takeBack(stored, context: viewContext) else { return }
         }
         clearCurrent()
     }
@@ -407,6 +448,7 @@ struct StudentMeetingsTab: View {
         requestsText = ""
         guideNotesText = ""
         nextMeetingDate = nil
+        syncedData = MeetingPersistenceService.CurrentMeetingData()
         guard let studentID = student.id else { return }
         MeetingPersistenceService.clearCurrent(studentID: studentID)
     }

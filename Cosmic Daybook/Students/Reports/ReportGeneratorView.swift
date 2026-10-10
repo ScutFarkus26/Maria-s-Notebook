@@ -3,8 +3,10 @@
 
 import SwiftUI
 import CoreData
+import OSLog
 
 struct ReportGeneratorView: View {
+    private static let logger = Logger.students
     let student: CDStudent
     private let isWindowWorkspace: Bool
     @Environment(\.managedObjectContext) private var viewContext
@@ -17,8 +19,9 @@ struct ReportGeneratorView: View {
 
     @State private var isGenerating: Bool = false
     @State private var generatedPDF: Data?
+    /// The generated report written out for Share, named for the child.
+    @State private var sharedPDFURL: URL?
     @State private var noteCount: Int = 0
-    @State private var showingShareSheet: Bool = false
     @State private var showingPreview: Bool = false
     @State private var errorMessage: String?
     
@@ -30,15 +33,21 @@ struct ReportGeneratorView: View {
         self.isWindowWorkspace = isWindowWorkspace
     }
 
+    /// Whole days: the pickers' dates carry the time the sheet opened, which used to
+    /// drop notes written earlier on the first day or later on the last.
     private var effectiveDateRange: ClosedRange<Date> {
-        if selectedDateRange == .custom {
-            // Order the bounds defensively: forming a ClosedRange with
-            // lowerBound > upperBound is a hard runtime trap.
-            let lower = min(customStartDate, customEndDate)
-            let upper = max(customStartDate, customEndDate)
-            return lower...upper
-        }
-        return selectedDateRange.dateRange()
+        let today = Date()
+        let yearStart = ReportGeneratorService.schoolYearStart(asOf: today, context: viewContext).date
+        return selectedDateRange.dateRange(
+            from: today, customStart: customStartDate, customEnd: customEndDate, schoolYearStart: { _ in yearStart }
+        )
+    }
+
+    /// True when "This School Year" is picked but this device doesn't yet know when
+    /// the school year began (no start setting and no records from this year).
+    private var schoolYearStartUnknown: Bool {
+        selectedDateRange == .thisSchoolYear
+            && !ReportGeneratorService.schoolYearStart(asOf: Date(), context: viewContext).isKnown
     }
 
     var body: some View {
@@ -98,13 +107,6 @@ struct ReportGeneratorView: View {
                     }
                 }
             }
-            #if os(iOS)
-            .sheet(isPresented: $showingShareSheet) {
-                if let pdfData = generatedPDF {
-                    ShareSheet(items: [pdfData])
-                }
-            }
-            #endif
             .sheet(isPresented: $showingPreview) {
                 if let pdfData = generatedPDF {
                     PDFPreviewView(pdfData: pdfData, studentName: student.firstName)
@@ -145,6 +147,14 @@ struct ReportGeneratorView: View {
         }
         .navigationTitle("Report — \(student.fullName)")
         .toolbar {
+            if let sharedPDFURL {
+                ToolbarItem(placement: .primaryAction) {
+                    ShareLink(item: sharedPDFURL) {
+                        Label("Share Report", systemImage: "square.and.arrow.up")
+                    }
+                    .help("Share the generated report")
+                }
+            }
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     generateReport()
@@ -186,7 +196,12 @@ struct ReportGeneratorView: View {
         } header: {
             Text("Date Range")
         } footer: {
-            Text("Only notes flagged for report within this range will be included.")
+            if schoolYearStartUnknown {
+                Text("This device doesn't know when the school year started yet, so the report starts "
+                    + "September 1. To include earlier days, choose Custom Range.")
+            } else {
+                Text("Only notes flagged for report within this range will be included.")
+            }
         }
     }
 
@@ -253,10 +268,12 @@ struct ReportGeneratorView: View {
     private var exportSection: some View {
         if generatedPDF != nil {
             Section {
-                Button {
-                    showingShareSheet = true
-                } label: {
-                    Label("Share Report", systemImage: "square.and.arrow.up")
+                // ShareLink works on the Mac too; the old share sheet was iOS-only,
+                // so this button did nothing there.
+                if let sharedPDFURL {
+                    ShareLink(item: sharedPDFURL) {
+                        Label("Share Report", systemImage: "square.and.arrow.up")
+                    }
                 }
 
                 Button {
@@ -274,11 +291,11 @@ struct ReportGeneratorView: View {
         Group {
             switch selectedStyle {
             case .progressReport:
-                Text("Groups notes by category with images. Best for regular progress updates.")
+                Text("Groups notes by category. Best for regular progress updates.")
             case .parentConference:
-                Text("Chronological list with images. Ideal for parent meetings.")
+                Text("Lists notes by date, newest first. Ideal for parent meetings.")
             case .iepDocumentation:
-                Text("Groups by category without images. Focused documentation format.")
+                Text("Groups notes by category. A focused documentation format.")
             }
         }
     }
@@ -296,6 +313,7 @@ struct ReportGeneratorView: View {
         isGenerating = true
         errorMessage = nil
         generatedPDF = nil
+        sharedPDFURL = nil
 
         Task {
             let notes = reportService.fetchReportNotes(
@@ -322,8 +340,29 @@ struct ReportGeneratorView: View {
                 errorMessage = "Couldn't make the report. Try again."
             } else {
                 generatedPDF = pdfData
+                sharedPDFURL = writeShareableCopy(of: pdfData)
             }
             isGenerating = false
+        }
+    }
+
+    /// Writes the report to a temporary file named for the child, which Share hands
+    /// on (Mail, Messages, Files, AirDrop). Nil when it can't be written: the
+    /// preview still works then, only Share is hidden.
+    private func writeShareableCopy(of pdfData: Data) -> URL? {
+        let name = "\(student.fullName) \(selectedStyle.rawValue)"
+            .replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-")
+        let folder = FileManager.default.temporaryDirectory
+            .appendingPathComponent("Reports", isDirectory: true)
+        let url = folder.appendingPathComponent(name).appendingPathExtension("pdf")
+        do {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try pdfData.write(to: url, options: .atomic)
+            return url
+        } catch {
+            Self.logger.error("Couldn't write the report for sharing: \(error, privacy: .public)")
+            return nil
         }
     }
 }

@@ -111,7 +111,7 @@ struct TodayBumpDayAndMeetingOrderTests {
         }
 
         let agenda = TodayAgendaBuilder.buildAgenda(
-            lessons: [first, second], overdueSchedule: [], todaysSchedule: [], day: day, context: context
+            lessons: [first, second], day: day, context: context
         )
         #expect(agenda.map(\.id) == [second.id, first.id].compactMap { $0 })
     }

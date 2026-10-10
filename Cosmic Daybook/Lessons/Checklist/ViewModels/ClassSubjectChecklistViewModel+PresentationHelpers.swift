@@ -1,53 +1,12 @@
 // ClassAreaChecklistViewModel+PresentationHelpers.swift
-// CDWorkModel find-or-create and CDLessonPresentation upsert/delete helpers
-// for ClassAreaChecklistViewModel.
+// CDLessonPresentation upsert helper for ClassAreaChecklistViewModel. A cell's work for
+// Mastered and its Clear live in `ChecklistCellRecords`, shared with the selection bar.
 
 import Foundation
 import OSLog
 import CoreData
 
 extension ClassAreaChecklistViewModel {
-
-    // MARK: - Work Model Helpers
-
-    /// Finds existing work or creates new one, and marks it complete.
-    func findOrCreateWorkAndMarkComplete(student: CDStudent, lesson: CDLesson, context: NSManagedObjectContext) {
-        guard let sid = student.id, let lid = lesson.id else { return }
-        let lidString = lid.uuidString
-
-        // PERF: Filter by lessonID in predicate to avoid loading all non-complete work.
-        let workRequest = CDFetchRequest(CDWorkModel.self)
-        workRequest.predicate = NSPredicate(
-            format: "statusRaw IN %@ AND lessonID == %@", WorkStatus.openRawValues, lidString
-        )
-        let matchingWorkModels = context.safeFetch(workRequest)
-
-        if let existingWork = matchingWorkModels.first(where: { work in
-            let participants: [CDWorkParticipantEntity] =
-                (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
-            return participants.contains { $0.studentID == sid.uuidString }
-        }) {
-            _ = try? WorkLogService.log(
-                [.init(work: existingWork, status: .done)], context: context, saveImmediately: false
-            )
-            return
-        }
-
-        let repository = WorkRepository(context: context)
-        do {
-            let work = try repository.createWork(
-                studentID: sid,
-                lessonID: lid,
-                title: nil as String?,
-                kind: nil as WorkKind?,
-                presentationID: nil as UUID?,
-                scheduledDate: nil as Date?
-            )
-            try WorkLogService.log([.init(work: work, status: .done)], context: context, saveImmediately: false)
-        } catch {
-            Self.logger.warning("Failed to create work for student \(sid): \(error)")
-        }
-    }
 
     // MARK: - CDLessonPresentation Helpers
 
@@ -76,16 +35,6 @@ extension ClassAreaChecklistViewModel {
             lp.presentedAt = Date()
             lp.lastObservedAt = Date()
             lp.masteredAt = state == .proficient ? Date() : nil
-        }
-    }
-
-    func deleteLessonPresentation(studentID: String, lessonID: String, context: NSManagedObjectContext) {
-        // OPTIMIZATION: Use predicate to fetch only the specific presentations to delete
-        let request = CDFetchRequest(CDLessonPresentation.self)
-        request.predicate = NSPredicate(format: "studentID == %@ AND lessonID == %@", studentID, lessonID)
-        let toDelete = context.safeFetch(request)
-        for lp in toDelete {
-            context.delete(lp)
         }
     }
 }

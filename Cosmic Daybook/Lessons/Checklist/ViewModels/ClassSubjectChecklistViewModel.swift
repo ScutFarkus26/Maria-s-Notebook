@@ -5,7 +5,7 @@
 //
 // Extensions:
 // - ClassAreaChecklistViewModel+CellActions.swift         (toggle/mark/clear individual cells)
-// - ClassAreaChecklistViewModel+PresentationHelpers.swift (findOrCreateWork, upsert/deleteLessonPresentation)
+// - ClassAreaChecklistViewModel+PresentationHelpers.swift (upsert history; Mastered/Clear: ChecklistCellRecords)
 // - ClassAreaChecklistViewModel+Collapsing.swift          (sequence bands folded away, per area)
 // - ClassAreaChecklistViewModel+Selection.swift           (clicks, cursor, card, selecting without a mode)
 // - ClassAreaChecklistViewModel+LadderSteps.swift         (the card's steps: presented, practicing, reviewing)
@@ -88,6 +88,8 @@ class ClassAreaChecklistViewModel {
 
     // MARK: - Multi-Selection State
     var selectedCells: Set<CellIdentifier> = []
+    /// A Clear waiting for the guide's yes (+Clearing).
+    var pendingClear: ChecklistClearRequest?
     /// The iPhone's Select mode (long-press → Select). The Mac and iPad have no mode:
     /// ⌘-click, Shift-click and a drag select there (+Selection).
     var isEditModeActive: Bool = false

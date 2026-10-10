@@ -26,9 +26,22 @@ struct QuickNoteSheet: View {
         )
     }
 
+    /// Everyone on the roster, withdrawn children too, so a chip for a child
+    /// who has left still shows her name and can be removed.
+    private var chipStudents: [CDStudent] { dependencies.roster.all }
+
     private var selectedLesson: CDLesson? {
         guard let id = viewModel.selectedLessonID else { return nil }
         return dependencies.lessonCatalog.lesson(id: id)
+    }
+
+    /// The chosen children, through the view model so a child she takes off
+    /// stays off.
+    private var selectedStudentsBinding: Binding<Set<UUID>> {
+        Binding(
+            get: { viewModel.selectedStudentIDs },
+            set: { viewModel.setSelectedStudents($0) }
+        )
     }
 
     // MARK: - View Model
@@ -37,6 +50,7 @@ struct QuickNoteSheet: View {
     // MARK: - UI State
     @FocusState private var isFocused: Bool
     @State private var showQuickTags: Bool = false
+    @State private var isConfirmingDiscard = false
 
     // MARK: - Init
 
@@ -74,8 +88,50 @@ struct QuickNoteSheet: View {
                 }
                 isFocused = true
             }
+            // A swipe down or a tap outside used to throw the note away.
+            .interactiveDismissDisabled(viewModel.hasUnsavedContent)
+            .confirmationDialog(
+                "Discard this note?",
+                isPresented: $isConfirmingDiscard,
+                titleVisibility: .visible
+            ) {
+                Button("Discard Note", role: .destructive) { discardAndClose() }
+                Button("Keep Editing", role: .cancel) {}
+            } message: {
+                Text("What you wrote here hasn't been saved.")
+            }
+            .alert("Couldn't Save the Note", isPresented: Binding(
+                get: { viewModel.saveErrorMessage != nil },
+                set: { if !$0 { viewModel.saveErrorMessage = nil } }
+            )) {
+                Button("OK") { viewModel.saveErrorMessage = nil }
+            } message: {
+                Text(viewModel.saveErrorMessage ?? QuickNoteViewModel.notSavedMessage)
+            }
     }
-    
+
+    // MARK: - Save and Cancel
+
+    private func save() {
+        if viewModel.saveNote(viewContext: viewContext, saveCoordinator: dependencies.saveCoordinator) {
+            dismiss()
+        }
+    }
+
+    /// Cancel asks first when closing would throw away her text or photo.
+    private func cancel() {
+        if viewModel.hasUnsavedContent {
+            isConfirmingDiscard = true
+        } else {
+            dismiss()
+        }
+    }
+
+    private func discardAndClose() {
+        viewModel.discardUnsavedPhoto()
+        dismiss()
+    }
+
     private var actualView: some View {
         #if os(macOS)
         macOSLayout
@@ -193,13 +249,11 @@ struct QuickNoteSheet: View {
                     // Selected Students
                     if !viewModel.selectedStudentIDs.isEmpty {
                         SelectedStudentsBar(
-                            students: students,
+                            students: chipStudents,
                             selectedStudentIDs: viewModel.selectedStudentIDs,
                             displayName: { viewModel.getDisplayName(for: $0, students: students) },
                             onRemove: { id in
-                                adaptiveWithAnimation {
-                                    _ = viewModel.selectedStudentIDs.remove(id)
-                                }
+                                adaptiveWithAnimation { viewModel.removeStudent(id) }
                             }
                         )
                     }
@@ -207,6 +261,7 @@ struct QuickNoteSheet: View {
                     // Editor
                     QuickNoteEditor(
                         bodyText: $viewModel.bodyText,
+                        selection: $viewModel.textSelection,
                         isFocused: $isFocused,
                         isProcessingAI: viewModel.isProcessingAI,
                         onTextChange: { viewModel.analyzeText($0, students: students) }
@@ -219,14 +274,11 @@ struct QuickNoteSheet: View {
                             detectedCandidateIDs: viewModel.detectedCandidateIDs,
                             displayName: { viewModel.getDisplayName(for: $0, students: students) },
                             onAdd: { id in
-                                adaptiveWithAnimation {
-                                    _ = viewModel.selectedStudentIDs.insert(id)
-                                    _ = viewModel.detectedCandidateIDs.remove(id)
-                                }
+                                adaptiveWithAnimation { viewModel.addStudent(id) }
                             }
                         )
                     }
-                    
+
                     // Toolbar
                     HStack {
                         Button { viewModel.isShowingStudentPicker = true } label: {
@@ -236,21 +288,21 @@ struct QuickNoteSheet: View {
                         .popover(isPresented: $viewModel.isShowingStudentPicker) {
                             StudentPickerPopover(
                                 students: students,
-                                selectedIDs: $viewModel.selectedStudentIDs,
+                                selectedIDs: selectedStudentsBinding,
                                 onDone: { viewModel.isShowingStudentPicker = false }
                             )
                         }
-                        
+
                         Spacer()
-                        
+
                         // Apple Intelligence / Magic Menu
                         aiMenuButton(students: students)
-                        
+
                         // Attachments
                         if let img = viewModel.attachedImage {
                             QuickNoteAttachmentThumbnail(image: img) {
-                                viewModel.attachedImage = nil
-                                viewModel.attachedImagePath = nil
+                                viewModel.selectedPhotoItem = nil
+                                viewModel.removeAttachedPhoto()
                             }
                         }
                         
@@ -267,13 +319,10 @@ struct QuickNoteSheet: View {
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") { cancel() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        viewModel.saveNote(viewContext: viewContext)
-                        dismiss()
-                    }
+                    Button("Save") { save() }
                     .fontWeight(.bold)
                     .disabled(viewModel.bodyText.trimmed().isEmpty)
                 }
@@ -301,13 +350,11 @@ struct QuickNoteSheet: View {
                 // Selected Students
                 if !viewModel.selectedStudentIDs.isEmpty {
                     SelectedStudentsBar(
-                        students: students,
+                        students: chipStudents,
                         selectedStudentIDs: viewModel.selectedStudentIDs,
                         displayName: { viewModel.getDisplayName(for: $0, students: students) },
                         onRemove: { id in
-                            adaptiveWithAnimation {
-                                _ = viewModel.selectedStudentIDs.remove(id)
-                            }
+                            adaptiveWithAnimation { viewModel.removeStudent(id) }
                         }
                     )
                     .background(Color.controlBackgroundColor(opacity: UIConstants.OpacityConstants.semi))
@@ -334,6 +381,7 @@ struct QuickNoteSheet: View {
                 // Editor
                 QuickNoteEditor(
                     bodyText: $viewModel.bodyText,
+                    selection: $viewModel.textSelection,
                     isFocused: $isFocused,
                     isProcessingAI: viewModel.isProcessingAI,
                     onTextChange: { viewModel.analyzeText($0, students: students) }
@@ -347,10 +395,7 @@ struct QuickNoteSheet: View {
                         detectedCandidateIDs: viewModel.detectedCandidateIDs,
                         displayName: { viewModel.getDisplayName(for: $0, students: students) },
                         onAdd: { id in
-                            adaptiveWithAnimation {
-                                _ = viewModel.selectedStudentIDs.insert(id)
-                                _ = viewModel.detectedCandidateIDs.remove(id)
-                            }
+                            adaptiveWithAnimation { viewModel.addStudent(id) }
                         }
                     )
                     .padding(.bottom, 8)
@@ -371,12 +416,9 @@ struct QuickNoteSheet: View {
             .navigationTitle("Quick Note")
             .inlineNavigationTitle()
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { cancel() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { 
-                        viewModel.saveNote(viewContext: viewContext)
-                        dismiss()
-                    }
+                    Button("Save") { save() }
                         .fontWeight(.bold)
                         .disabled(viewModel.bodyText.trimmed().isEmpty)
                 }
@@ -384,7 +426,7 @@ struct QuickNoteSheet: View {
             .popover(isPresented: $viewModel.isShowingStudentPicker) {
                 StudentPickerPopover(
                     students: students,
-                    selectedIDs: $viewModel.selectedStudentIDs,
+                    selectedIDs: selectedStudentsBinding,
                     onDone: { viewModel.isShowingStudentPicker = false }
                 )
                 .presentationDetents([.medium, .large])
@@ -435,7 +477,9 @@ struct QuickNoteSheet: View {
                     .colorMultiply(.clear)
                     .background(
                         Image(systemName: "calendar")
-                            .foregroundStyle(AppCalendar.shared.isDateInToday(viewModel.noteDate) ? .primary : Color.red)
+                            .foregroundStyle(
+                                AppCalendar.shared.isDateInToday(viewModel.noteDate) ? .primary : Color.red
+                            )
                     )
                     .frame(width: 24, height: 24)
                     .fixedSize()

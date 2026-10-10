@@ -19,12 +19,18 @@ extension LessonPlanningService {
             let response = try JSONDecoder().decode(PlanningResponse.self, from: data)
             let allLessons = fetchAllLessons()
 
-            return response.recommendations.compactMap { apiRec in
-                // Resolve lesson ID from name
-                let lesson = allLessons.first { $0.name.lowercased() == apiRec.lessonName.lowercased() }
-                    ?? allLessons.first { $0.name.lowercased().contains(apiRec.lessonName.lowercased()) }
+            let candidates = allLessons.compactMap { lesson -> LessonData? in
+                guard let id = lesson.id else { return nil }
+                return LessonData(id: id, name: lesson.name, area: lesson.area, sequence: lesson.sequence)
+            }
 
-                guard let lessonID = lesson?.id else {
+            return response.recommendations.compactMap { apiRec in
+                let lessonID = Self.resolveLessonID(
+                    named: apiRec.lessonName, area: apiRec.area, sequence: apiRec.sequence, in: candidates
+                )
+                let lesson = lessonID.flatMap { id in allLessons.first { $0.id == id } }
+
+                guard let lessonID else {
                     Self.logger.info("Could not resolve lesson: \(apiRec.lessonName)")
                     return nil
                 }
@@ -57,6 +63,34 @@ extension LessonPlanningService {
             Self.logger.warning("Failed to parse planning response: \(error)")
             return []
         }
+    }
+
+    /// Finds the lesson a suggestion names. Lesson names repeat across areas
+    /// ("Introduction", "Addition"), so among lessons with that name the one in
+    /// the suggested area and sequence wins, then one in the suggested area,
+    /// then the first in curriculum order. Only when no name matches exactly
+    /// does a lesson whose name contains the suggested one count, looked for in
+    /// the same order.
+    nonisolated static func resolveLessonID(
+        named name: String,
+        area: String,
+        sequence: String,
+        in lessons: [LessonData]
+    ) -> UUID? {
+        let wanted = name.folded()
+        guard !wanted.isEmpty else { return nil }
+        let wantedArea = area.folded()
+        let wantedSequence = sequence.folded()
+
+        func best(_ matches: [LessonData]) -> LessonData? {
+            let inArea = matches.filter { !wantedArea.isEmpty && $0.area.folded() == wantedArea }
+            let inSequence = inArea.filter { !wantedSequence.isEmpty && $0.sequence.folded() == wantedSequence }
+            return inSequence.first ?? inArea.first ?? matches.first
+        }
+
+        let exact = lessons.filter { $0.name.folded() == wanted }
+        if let match = best(exact) { return match.id }
+        return best(lessons.filter { $0.name.folded().contains(wanted) })?.id
     }
 
     /// Resolve only unambiguous names from the supplied classroom roster. This

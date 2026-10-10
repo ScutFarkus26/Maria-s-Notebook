@@ -170,6 +170,19 @@ private extension CaptureProposalReviewView {
                 }
             }
             .disabled(!proposal.recordsPresentation)
+
+            // The day it happened: read from her words ("yesterday", "on
+            // Tuesday"), today otherwise, and never a day still to come. The
+            // presentation and the notes are saved on it.
+            DatePicker(
+                proposal.recordsPresentation ? "Given on" : "Seen on",
+                selection: Binding(
+                    get: { proposal.presentedOn },
+                    set: { proposal.presentedOn = AppCalendar.startOfDay($0) }
+                ),
+                in: ...Date(),
+                displayedComponents: .date
+            )
         }
         .padding(14)
         .background(

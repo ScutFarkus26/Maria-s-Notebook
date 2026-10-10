@@ -4,16 +4,21 @@ import Foundation
 extension CommandBarViewModel {
     /// Persists the reviewed proposal as one confirmed operation. Parsing never
     /// calls this method; only the review screen's save button does.
+    /// - Parameter presentedAt: when given, overrides the day on the proposal.
+    ///   Otherwise the presentation and the notes are saved on the proposal's
+    ///   `presentedOn` (the day she said or picked): now if that's today, the
+    ///   start of the day if it's earlier.
     @discardableResult
     func saveCaptureProposal(
         context: NSManagedObjectContext,
         saveCoordinator: SaveCoordinator,
-        presentedAt: Date = Date(),
+        presentedAt: Date? = nil,
         recordedPresentationID: UUID? = nil
     ) throws -> CaptureSaveReceipt {
         guard let proposal = captureProposal else {
             throw CaptureSaveError.invalid("There's nothing to save yet.")
         }
+        let presentedAt = presentedAt ?? CaptureDateParser.moment(on: proposal.presentedOn, now: Date())
         if let validationMessage = captureValidationMessage {
             throw CaptureSaveError.invalid(validationMessage)
         }
@@ -92,6 +97,8 @@ extension CommandBarViewModel {
     ) throws -> CaptureSaveReceipt {
         guard proposal.recordsPresentation else {
             let notes = makeStandaloneObservationNotes(proposal: proposal, context: context)
+            // "Yesterday Maya…" is a note about yesterday.
+            notes.forEach { $0.createdAt = presentedAt }
             return CaptureSaveReceipt(presentationID: nil, noteCount: notes.count, workCount: 0)
         }
 
@@ -128,9 +135,9 @@ extension CommandBarViewModel {
             throw CaptureSaveError.saveFailed
         }
 
-        let observations = Dictionary(uniqueKeysWithValues: proposal.studentEntries.map {
+        let observations = Dictionary(proposal.studentEntries.map {
             ($0.studentID, $0.observation)
-        })
+        }, uniquingKeysWith: { first, _ in first })
         let notes = try PresentationOutcomePersistenceService.persistObservations(
             groupObservation: proposal.groupObservation,
             studentObservations: observations,
@@ -138,6 +145,8 @@ extension CommandBarViewModel {
             presentationID: presentationID,
             context: context
         )
+        // The notes are about the day the lesson was given.
+        notes.forEach { $0.createdAt = presentedAt }
         let persistence = CapturePersistenceContext(
             lessonID: lessonID,
             lessonName: lesson.name,

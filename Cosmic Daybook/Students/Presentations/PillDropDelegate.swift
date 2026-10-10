@@ -47,15 +47,7 @@ struct PillDropDelegate: DropDelegate {
                           let target = viewContext.object(CDLessonAssignment.self, id: targetID),
                           source.id != target.id,
                           lessonID == targetLessonID else { return }
-                    let studentIDString = studentID.uuidString
-                    if !target.studentIDs.contains(studentIDString) {
-                        target.studentIDs.append(studentIDString)
-                    }
-                    source.studentIDs.removeAll { $0 == studentIDString }
-                    let sourceEmptied = source.studentIDs.isEmpty
-                    if sourceEmptied {
-                        viewContext.delete(source)
-                    }
+                    let sourceEmptied = move(studentID, from: source, to: target)
                     onDidMutate("Move student between lessons")
                     if sourceEmptied {
                         onSourceEmptied()
@@ -79,6 +71,26 @@ struct PillDropDelegate: DropDelegate {
                 }
             }
         }
+        return true
+    }
+
+    /// Moves one child from `source` to `target`; her year-plan entry
+    /// follows her. A plan she leaves empty is folded into the target (its
+    /// notes would cascade away with it) and deleted. Returns whether it was.
+    private func move(_ studentID: UUID, from source: CDLessonAssignment, to target: CDLessonAssignment) -> Bool {
+        let studentIDString = studentID.uuidString
+        if !target.studentIDs.contains(studentIDString) {
+            target.studentIDs.append(studentIDString)
+        }
+        source.studentIDs.removeAll { $0 == studentIDString }
+        for moved in [source, target] {
+            moved.updateDenormalizedKeys()
+            moved.modifiedAt = Date()
+        }
+        PresentationRecordCleanup.moveStudents([studentIDString], from: source, to: target, in: viewContext)
+        guard source.studentIDs.isEmpty else { return false }
+        PresentationRecordCleanup.prepareToMerge(source, into: target, in: viewContext)
+        viewContext.delete(source)
         return true
     }
 

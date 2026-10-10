@@ -66,7 +66,7 @@ extension HebrewParshaService {
         )
     }
 
-    private static func roshHashanahDate(hebYear: Int, hebrew: Calendar, gregorian: Calendar) -> Date? {
+    static func roshHashanahDate(hebYear: Int, hebrew: Calendar, gregorian: Calendar) -> Date? {
         var comps = DateComponents()
         comps.year = hebYear
         comps.month = 1 // Tishri
@@ -99,15 +99,7 @@ extension HebrewParshaService {
         )
 
         // Pairs keyed by the first parsha of each (identical to the dash-joined key).
-        let pairMap: [(first: String, second: String, combined: String)] = [
-            ("vayakhel", "pekudei", "vayakhel-pekudei"),
-            ("tazria", "metzora", "tazria-metzora"),
-            ("acharei-mot", "kedoshim", "acharei-mot-kedoshim"),
-            ("behar", "bechukotai", "behar-bechukotai"),
-            ("chukat", "balak", "chukat-balak"),
-            ("matot", "masei", "matot-masei"),
-            ("nitzavim", "vayelech", "nitzavim-vayelech")
-        ]
+        let pairMap = doubledPairs
         let pairFirsts = Set(pairMap.map(\.first))
         let pairByFirst = Dictionary(uniqueKeysWithValues: pairMap.map { ($0.first, $0) })
 
@@ -146,6 +138,35 @@ extension HebrewParshaService {
         }
 
         return schedule
+    }
+
+    /// The reading on a Shabbat between Rosh Hashanah and Simchat Torah, where
+    /// the cycle that began a year earlier finishes: the parshiot its schedule
+    /// left unread (Vayelech when Nitzavim was read alone, then Ha'azinu), one
+    /// per Shabbat that no festival displaces. V'Zot HaBerachah is read on
+    /// Simchat Torah itself, never on a Shabbat. `nil` when the Shabbat is a
+    /// festival, falls before Rosh Hashanah, or nothing is left to read.
+    static func leftoverReading(forShabbat shabbat: Date, after schedule: [String], cycleYear: Int) -> String? {
+        guard displacingFestivalName(forShabbat: shabbat) == nil,
+              let nextRoshHashanah = roshHashanahDate(hebYear: cycleYear + 1, hebrew: hebrew, gregorian: gregorian),
+              shabbat >= nextRoshHashanah,
+              let lastRead = schedule.last else {
+            return nil
+        }
+        // The cycle position after the last reading: a combined week read both halves.
+        let lastSingle = doubledPairs.first { $0.combined == lastRead }?.second ?? lastRead
+        guard let lastIndex = allParshaKeys.firstIndex(of: lastSingle) else { return nil }
+        let leftovers = allParshaKeys[(lastIndex + 1)...].filter { $0 != "vzot-haberachah" }
+
+        // Count the Shabbatot since Rosh Hashanah that carried a leftover reading.
+        var readSoFar = 0
+        var current = shabbatOfWeek(containing: nextRoshHashanah, calendar: gregorian)
+        while current < shabbat {
+            if displacingFestivalName(forShabbat: current) == nil { readSoFar += 1 }
+            guard let next = gregorian.date(byAdding: .day, value: 7, to: current) else { return nil }
+            current = next
+        }
+        return readSoFar < leftovers.count ? leftovers[readSoFar] : nil
     }
 
     /// Returns the first Shabbat on or after `simchatTorah + 1 day` that carries a

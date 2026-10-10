@@ -216,23 +216,17 @@ struct TagPicker: View {
 
     private func handleSavedTag(_ savedTag: String) {
         if let originalTag = editingOriginalTag {
-            selectedTags = uniqueTags(selectedTags.map { $0 == originalTag ? savedTag : $0 })
-
-            for todo in allTodos where todo.tagsArray.contains(originalTag) {
-                let updated = todo.tagsArray.map { $0 == originalTag ? savedTag : $0 }
-                todo.tagsArray = uniqueTags(updated)
+            selectedTags = TagRename.renamed(originalTag, to: savedTag, in: selectedTags)
+            // Todo templates and resources pick from the same tags, so the
+            // rename reaches them too, not only todos.
+            if TagRename.rename(originalTag, to: savedTag, in: viewContext) > 0 {
+                dependencies.saveCoordinator.save(viewContext, reason: "Update tags")
             }
-
-            dependencies.saveCoordinator.save(viewContext, reason: "Update tags")
         } else if !selectedTags.contains(savedTag) {
             selectedTags.append(savedTag)
         }
     }
 
-    private func uniqueTags(_ tags: [String]) -> [String] {
-        var seen = Set<String>()
-        return tags.filter { seen.insert($0).inserted }
-    }
 }
 
 struct TagButton: View {
@@ -344,7 +338,8 @@ struct CustomTagSheet: View {
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button(isEditing ? "Save" : "Add") {
-                        let tag = TodoTagHelper.createTag(name: tagName, color: selectedColor)
+                        // Trimmed, so "Art " and "Art" are one tag, not two.
+                        let tag = TodoTagHelper.createTag(name: tagName.trimmed(), color: selectedColor)
                         if let onSave {
                             onSave(tag)
                         } else if !selectedTags.contains(tag) {
@@ -352,7 +347,7 @@ struct CustomTagSheet: View {
                         }
                         dismiss()
                     }
-                    .disabled(tagName.isEmpty)
+                    .disabled(tagName.trimmed().isEmpty)
                 }
             }
         }

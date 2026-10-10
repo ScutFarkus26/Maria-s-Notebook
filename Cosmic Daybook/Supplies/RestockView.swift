@@ -13,6 +13,7 @@ import CoreData
 struct RestockView: View {
     @Environment(\.managedObjectContext) var viewContext
     @Environment(SaveCoordinator.self) var saveCoordinator
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dependencies) var dependencies
     #if os(iOS)
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
@@ -196,6 +197,10 @@ struct RestockView: View {
             names = ClassroomNames.snapshot(in: viewContext)
         }
         .onDisappear(perform: flushPendingSave)
+        // A level tap waits 0.8 s to batch; leaving the app mustn't drop it.
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { flushPendingSave() }
+        }
         .navigationTitle("Restock")
         #if os(macOS)
         .toolbar {

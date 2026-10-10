@@ -84,8 +84,13 @@ struct StudentCategorizer {
             )
         }
 
-        // Check for completed work (recently passed)
-        if let completedWork = studentWork.first(where: { $0.status.isClosed }) {
+        // Check for completed work (recently passed): her latest finished
+        // row. Incomplete closes work without finishing it, so it isn't
+        // "Recently Completed".
+        let finished = studentWork
+            .filter { $0.status.isClosed && $0.status != .incomplete }
+            .max { ($0.completedAt ?? .distantPast) < ($1.completedAt ?? .distantPast) }
+        if let completedWork = finished {
             let daysSince = completedWork.completedAt.map {
                 AppCalendar.shared.dateComponents([.day], from: $0, to: Date()).day ?? Int.max
             } ?? Int.max
@@ -161,10 +166,21 @@ struct StudentCategorizer {
             return []
         }
 
-        guard let lessonAssignment = allLessonAssignments.first(where: { lessonAssignment in
+        // The presentation this work follows, when it names one; otherwise the
+        // child's latest given presentation of the lesson. It used to be any
+        // record of the lesson naming her — a draft, or a group from two years
+        // ago — so "Learned Together" could list the wrong children.
+        let mine = allLessonAssignments.filter { lessonAssignment in
             lessonAssignment.lessonIDUUID == lessonUUID &&
             lessonAssignment.resolvedStudentIDs.contains(studentUUID)
-        }) else {
+        }
+        let followed = workItem.presentationID.flatMap(UUID.init(uuidString:)).flatMap { presentationID in
+            mine.first { $0.id == presentationID }
+        }
+        let latestGiven = mine.filter(\.isPresented).max { lhs, rhs in
+            (lhs.presentedAt ?? lhs.createdAt ?? .distantPast) < (rhs.presentedAt ?? rhs.createdAt ?? .distantPast)
+        }
+        guard let lessonAssignment = followed ?? latestGiven else {
             return []
         }
 

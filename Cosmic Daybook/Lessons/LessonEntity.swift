@@ -183,6 +183,16 @@ nonisolated extension CDLesson {
         set { primaryAttachmentID = newValue?.uuidString }
     }
 
+    /// The Lessons screen's "Has File": a Pages file or an attachment of its own.
+    /// It used to look only at the Pages file, so a lesson whose files were
+    /// all attachments never matched.
+    var hasAnyFile: Bool {
+        if !(pagesFileRelativePath ?? "").trimmingCharacters(in: .whitespaces).isEmpty || pagesFileBookmark != nil {
+            return true
+        }
+        return ((attachments?.allObjects as? [CDLessonAttachment]) ?? []).contains { !$0.isDeleted }
+    }
+
     /// Helper to access suggested follow-up work as an array of individual items
     var suggestedFollowUpWorkItems: [String] {
         suggestedFollowUpWork

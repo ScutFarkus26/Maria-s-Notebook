@@ -10,13 +10,14 @@ struct MarkdownExporter {
         let issue = t.issueDescription.trimmed()
         if !issue.isEmpty {
             m += """
-            **CDIssue**
+            **Issue**
             
             \(issue)
             
             """
         }
-        let solutions = (t.proposedSolutions?.allObjects as? [CDProposedSolutionEntity]) ?? []
+        let solutions = ((t.proposedSolutions?.allObjects as? [CDProposedSolutionEntity]) ?? [])
+            .sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
         if !solutions.isEmpty {
             m += "## Proposed Solutions\n\n"
             for s in solutions {

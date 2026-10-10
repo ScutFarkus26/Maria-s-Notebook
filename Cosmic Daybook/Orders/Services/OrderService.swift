@@ -165,15 +165,24 @@ nonisolated enum OrderService {
     /// Saves an edit. The link is the first web link in `urlString`, cleaned;
     /// empty text removes the link, and text with no web link in it leaves the
     /// link as it was (the editor refuses it before it gets here).
+    ///
+    /// `loadedTitle` is the name the editor opened with. When `title` is still
+    /// that, the guide didn't touch the Name field and the item's title is
+    /// left as it is now: a page's title can land while the editor is open,
+    /// and saving the empty field over it would print "amazon.com" in the
+    /// email (bug hunt 2026-10-10 #21). Nil writes `title` regardless.
     static func update(
         _ item: CDOrderItem,
         title: String,
+        loadedTitle: String? = nil,
         urlString: String,
         quantity: Int,
         notes: String,
         at date: Date = Date()
     ) {
-        item.title = title.trimmed()
+        if title != loadedTitle {
+            item.title = title.trimmed()
+        }
         if urlString.trimmed().isEmpty {
             item.urlString = ""
         } else if let url = firstWebURL(in: urlString) {

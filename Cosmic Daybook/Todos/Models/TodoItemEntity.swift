@@ -90,6 +90,16 @@ nonisolated extension CDTodoItem {
         set { recurrenceRaw = newValue.rawValue }
     }
 
+    /// Sets how the todo repeats, as the editor's picker does. Choosing
+    /// Custom with no interval stored stores the 7 days the editor shows:
+    /// left at the default, it used to store 0 (bug hunt 2026-10-10).
+    func setRecurrence(_ pattern: RecurrencePattern) {
+        recurrence = pattern
+        if pattern == .custom && customIntervalDays <= 0 {
+            customIntervalDays = Int64(TodoRepeatRule.defaultCustomIntervalDays)
+        }
+    }
+
     var mood: TodoMood? {
         get { moodRaw.flatMap { TodoMood(rawValue: $0) } }
         set { moodRaw = newValue?.rawValue }
@@ -142,17 +152,6 @@ nonisolated extension CDTodoItem {
     /// Whether this todo has a hard deadline set
     var hasDeadline: Bool {
         dueDate != nil
-    }
-
-    /// Whether this todo is scheduled for today
-    var isScheduledForToday: Bool {
-        if let scheduled = scheduledDate {
-            return AppCalendar.shared.isDateInToday(scheduled)
-        }
-        if let due = dueDate {
-            return AppCalendar.shared.isDateInToday(due)
-        }
-        return false
     }
 }
 

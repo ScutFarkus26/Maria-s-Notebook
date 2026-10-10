@@ -18,10 +18,9 @@ struct LessonDetailWindowHost: View {
                 minSize: CGSize(width: 400, height: 300)
             )
         ) { (lesson: CDLesson) in
-            LessonDetailView(lesson: lesson, onSave: { _ in
-                // Save is handled by the view itself with SaveCoordinator
-            })
-            .navigationTitle(lesson.name.isEmpty ? "Lesson" : lesson.name)
+            // The card saves its own edits.
+            LessonDetailView(lesson: lesson)
+                .navigationTitle(lesson.name.isEmpty ? "Lesson" : lesson.name)
         }
     }
 }

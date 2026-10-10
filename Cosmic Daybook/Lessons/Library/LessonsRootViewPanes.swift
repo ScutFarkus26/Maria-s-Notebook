@@ -67,9 +67,8 @@ extension LessonsRootView {
                 onCreateLessonAfter: { lesson in
                     addLessonContext = AddLessonContext(source: lesson)
                 },
-                onReorderLessons: { source, destination in
-                    let groupLessons = lessonsForSequence(focusedThread.sequence, ungroupedLabel: "Ungrouped")
-                    moveLessonsInArea(from: source, to: destination, in: groupLessons)
+                onReorderLessons: { movedID, targetID in
+                    moveLessonsInArea(moving: movedID, onto: targetID, sequence: focusedThread.sequence)
                 }
             )
         } else {
@@ -127,7 +126,7 @@ extension LessonsRootView {
             result = result.filter { $0.personalKind == kind }
         }
         if filterState.hasAttachmentFilter {
-            result = result.filter { $0.pagesFileBookmark != nil || $0.pagesFileRelativePath != nil }
+            result = result.filter(\.hasAnyFile)
         }
         if filterState.needsAttentionFilter, let counts = statusCounts {
             result = result.filter { guard let id = $0.id else { return false }; return counts[id, default: 0] > 0 }
@@ -190,12 +189,12 @@ extension LessonsRootView {
     // MARK: - Lesson Detail Pane (Right)
 
     func lessonDetailPane(lesson: CDLesson) -> some View {
+        // The card saves its own edits. `.id` gives each lesson a fresh card: without it,
+        // clicking another lesson's pill kept the open card's drafts and file state, so
+        // Save wrote lesson A over lesson B and Remove deleted A's file.
         LessonDetailView(
             lesson: lesson,
             allLessons: lessons,
-            onSave: { _ in
-                saveCoordinator.save(viewContext, reason: "Update lesson")
-            },
             onDone: {
                 selectedLessonDetail = nil
             },
@@ -206,30 +205,31 @@ extension LessonsRootView {
                 lessonToSchedule = lesson
             }
         )
+        .id(lesson.objectID)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.Colors.paneBackground)
     }
 
-    // MARK: - Reorder helper (still used by reordering extension)
+    // MARK: - Reorder helpers (used by the reordering extension)
 
+    /// Every lesson in the selected area, whatever the filter chips hide: a reorder
+    /// renumbers the whole sequence, never just the lessons on screen.
+    func allLessonsInSelectedArea() -> [CDLesson] {
+        guard let area = selectedArea?.trimmed(), !area.isEmpty else { return [] }
+        return lessons
+            .filter { !$0.isDeleted && $0.area.trimmed().caseInsensitiveCompare(area) == .orderedSame }
+            .uniqueByID
+    }
+
+    /// One sequence of the selected area, every lesson in it, in map order.
     func lessonsForSequence(_ sequence: String, ungroupedLabel: String) -> [CDLesson] {
-        // Called only from actions: read fresh, as the reorders always did.
-        computeLessonsForArea().filter { lesson in
+        LessonSequenceOrdering.sorted(allLessonsInSelectedArea().filter { lesson in
             let lessonSequenceTrimmed = lesson.sequence.trimmed()
             if sequence == ungroupedLabel {
                 return lessonSequenceTrimmed.isEmpty
             } else {
                 return lessonSequenceTrimmed.caseInsensitiveCompare(sequence.trimmed()) == .orderedSame
             }
-        }.sorted { lhs, rhs in
-            if lhs.orderInSequence != rhs.orderInSequence {
-                return lhs.orderInSequence < rhs.orderInSequence
-            }
-            let nameCompare = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
-            if nameCompare != .orderedSame {
-                return nameCompare == .orderedAscending
-            }
-            return (lhs.id?.uuidString ?? "") < (rhs.id?.uuidString ?? "")
-        }
+        })
     }
 }

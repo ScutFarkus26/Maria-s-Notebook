@@ -25,6 +25,12 @@ extension SharedStoreOrphanGuard {
     private static var pinSeenKey: String { UserDefaultsKeys.classroomSharePinSeen }
     private static var pinSeenAtKey: String { UserDefaultsKeys.classroomSharePinSeenAt }
 
+    /// Set once this build has looked on this device for the classroom
+    /// share's pin and found none (`noteNoPinFound`). Device-local, per
+    /// CloudKit environment; never exported (the backup carries only the
+    /// preference keys it lists).
+    static var pinLookedForKey: String { CloudKitEnvironment.scoped("ClassroomShare.pinLookedFor") }
+
     /// One record waiting, and when it was last added.
     struct Entry: Equatable, Sendable {
         let uri: String
@@ -122,7 +128,14 @@ extension SharedStoreOrphanGuard {
     /// filing until an import that began after it has finished
     /// (`waitingForImportAfterPin`).
     ///
-    /// With no zone noted at all, nothing is forgotten: builds before
+    /// With no zone noted, it depends on whether this build has looked for a
+    /// pin here before and found none (`noteNoPinFound`). If it has, the pin
+    /// came after, and wasn't made here (setup here notes its own first), so
+    /// it forgets as above: the iPad in the minutes before the Mac's Set Up
+    /// reaches it (bug hunt 2026-10-10, #3). That is decided by whether the
+    /// marker exists, never by comparing it with `pinnedAt`, which another
+    /// device's clock wrote. If it hasn't, nothing is forgotten: the pin was
+    /// already here when this build first looked, and builds before
     /// 2026-10-06 never noted one, not even the pin setup made on this very
     /// device, and nothing else on the device says which made it (the
     /// membership row has no device, and the guide's Mac and iPad share one
@@ -135,7 +148,7 @@ extension SharedStoreOrphanGuard {
         guard seenBefore != pinnedZone else { return }
         defaults.set(pinnedZone, forKey: Self.pinSeenKey)
         defaults.set(Date().timeIntervalSinceReferenceDate, forKey: Self.pinSeenAtKey)
-        guard seenBefore != nil else {
+        guard seenBefore != nil || hasLookedForPin else {
             Self.logger.notice("Classroom share pin noted for the first time: forgot nothing; waiting for an import")
             return
         }
@@ -149,6 +162,20 @@ extension SharedStoreOrphanGuard {
             "Classroom share pinned on another device: forgot \(forgotten, privacy: .public) listed before it"
         )
         write(kept)
+    }
+
+    /// Whether this build has looked for a pin on this device and found none.
+    var hasLookedForPin: Bool { defaults.bool(forKey: Self.pinLookedForKey) }
+
+    /// This build looked for the classroom share's pin on this device (at
+    /// launch, or in a filing pass) and found none. A pin seen after this,
+    /// with no zone noted, came later and wasn't made here unless setup here
+    /// noted it (`forgetWhatSetupElsewhereTook`). Never cleared: it stays
+    /// true of this device once it is.
+    func noteNoPinFound() {
+        guard !hasLookedForPin else { return }
+        defaults.set(true, forKey: Self.pinLookedForKey)
+        Self.logger.notice("No classroom share pin on this device yet: a pin seen later is from another device")
     }
 
     /// Set Up Classroom Sharing on this device just made the pin in `zone`
@@ -175,6 +202,12 @@ extension SharedStoreOrphanGuard {
         forgetWhatSetupElsewhereTook(pinnedZone: pinnedZone, pinnedAt: pinnedAt)
         return waitingForImportAfterPin(notebookStoreID: notebookStoreID)
     }
+
+    /// Whether a pin from another device was noted here and no import has yet
+    /// been found to end the wait (`waitingForImportAfterPin`). Reads only:
+    /// the sync status asks after each notebook import whether to wake the
+    /// guard (bug hunt 2026-10-10, #5).
+    var isWaitingForImportAfterPin: Bool { defaults.object(forKey: Self.pinSeenAtKey) != nil }
 
     /// Whether a pin made on another device arrived here so recently that no
     /// import into the notebook has finished since. Until one has, this device

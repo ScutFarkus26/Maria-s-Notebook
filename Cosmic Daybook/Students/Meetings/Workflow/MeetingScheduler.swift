@@ -82,10 +82,12 @@ enum MeetingScheduler {
         return completed.last?.date
     }
 
-    /// Clears all scheduled meetings for a student.
+    /// Clears the student's own bookings. Group sittings she is part of stay:
+    /// they are the group's booking, not hers, and a group stores its first
+    /// participant in `studentID`, so matching on that alone deleted the
+    /// group's meeting (bug hunt 2026-10-10, Part 2 #69).
     static func clearMeetings(studentID: UUID, context: NSManagedObjectContext) {
-        let studentIDString = studentID.uuidString
-        let existing = fetchAll(studentID: studentIDString, context: context)
+        let existing = fetchAll(studentID: studentID.uuidString, context: context).filter { !$0.isGroupMeeting }
         for meeting in existing {
             context.delete(meeting)
         }

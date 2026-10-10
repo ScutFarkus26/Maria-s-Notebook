@@ -311,12 +311,15 @@ extension MCPNotebookTools {
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
     ) throws -> String {
         let day: Date = AppCalendar.startOfDay(try dayArgument(arguments, "date") ?? Date())
-        let request = CDFetchRequest(CDDayPad.self)
-        request.predicate = NSPredicate(format: "day == %@", day as NSDate)
-        request.fetchLimit = 1
-        let existing: CDDayPad? = modelContext.safeFetch(request).first
+        // The app's own fetch: two devices' copies of the day are joined into the
+        // one every device keeps, rather than reading or overwriting whichever
+        // copy the store returned first.
+        let existing: CDDayPad? = TodayDataFetcher.fetchDayPad(day: day, context: modelContext)
 
         guard let body = arguments["body"]?.stringValue else {
+            if modelContext.deletedObjects.contains(where: { $0 is CDDayPad }), !modelContext.safeSave() {
+                modelContext.rollback()
+            }
             guard let text = existing.flatMap({ nonEmpty($0.body) }) else {
                 return "The pad for \(dayString(day)) is empty."
             }

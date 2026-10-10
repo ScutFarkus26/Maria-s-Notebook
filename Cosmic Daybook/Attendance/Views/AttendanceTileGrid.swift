@@ -73,7 +73,10 @@ struct AttendanceTileGrid: View {
         AttendanceTile(
             row: row,
             tapTarget: viewModel.statusAfterTap(for: row),
-            tapHint: viewModel.isFuture ? "Only absences ahead" : "Hold to change",
+            // The tile's line fits an SE's one-line tile; VoiceOver reads the
+            // whole sentence.
+            tapHint: viewModel.isFuture ? "Absences only" : "Hold to change",
+            spokenTapHint: viewModel.isFuture ? "You can only mark absences on a future day" : nil,
             menuStatuses: viewModel.menuStatuses,
             canMark: isEditing,
             usesShortName: true,

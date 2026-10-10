@@ -474,12 +474,21 @@ extension ClassroomNames {
     /// assistant, `displayName` is also the name her marks carry. The
     /// notebook's account changes (`ClassroomIdentity`); the last account's
     /// row stays its own (2026-10-09 hunt, #5).
+    ///
+    /// Posts `waitingNameForgotten`: Settings › Classroom's Your Name card
+    /// showed the name "saved on this device", and kept it as saved, so
+    /// leaving the field never saved it again (bug hunt 2026-10-10, #9).
     static func forgetWaitingName() {
         guard ClassroomIdentity.nameWaitingAs != nil else { return }
         beforeMarks = nil
         ClassroomIdentity.nameWaitingAs = nil
         ClassroomIdentity.displayName = nil
+        NotificationCenter.default.post(name: waitingNameForgotten, object: nil)
     }
+
+    /// Posted on the main actor when a name waiting to go into the list was
+    /// dropped because another Apple Account signed in (`forgetWaitingName`).
+    static let waitingNameForgotten = Notification.Name("ClassroomNames.waitingNameForgotten")
 
     /// One `writeWaitingName` call's arguments.
     struct WaitingWrite {

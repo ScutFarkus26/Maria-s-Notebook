@@ -15,8 +15,17 @@ extension WorkDetailViewModel {
     func save(modelContext: NSManagedObjectContext, saveCoordinator: SaveCoordinator) -> Bool {
         guard let work else { return true }
 
-        work.kind = workKind
-        work.title = workTitle
+        // A new title or kind is the guide renaming the assignment, so it goes
+        // on every linked copy. Renaming one copy used to leave the others
+        // behind, and the copies stopped reading as one group. The group is
+        // resolved before the edit, while every copy still matches.
+        let rows = work.title != workTitle || work.kind != workKind
+            ? WorkGrouping.group(containing: work, in: modelContext).members
+            : [work]
+        for row in rows {
+            row.kind = workKind
+            row.title = workTitle
+        }
         work.checkInStyle = checkInStyle
 
         // A status change is a log entry — completion record, check-ins, note —

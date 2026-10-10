@@ -13,42 +13,64 @@ struct PendingFocusItem: Identifiable, Equatable {
 /// across the wide/narrow line) rebuilds views without losing anything.
 ///
 /// Drafts are saved on a short debounce after the last change and flushed
-/// when the meeting is left, then removed when it is completed or cleared.
+/// when the meeting is left, then removed when it is completed or cleared. A
+/// work card's decision is written at once (`+Decisions`).
+///
+/// The child's meeting can be open in two windows (Mac, iPad), each with its
+/// own model on the one stored draft. A model writes only what it changed,
+/// field by field, and item by item for focus ticks, each work's note and
+/// each work's decision and receipt, taking the rest from the stored draft;
+/// and it takes up the stored draft's changes as they come (bug hunt
+/// 2026-10-10, #11 and its review).
 @Observable @MainActor
 final class MeetingDraftModel {
+    typealias Draft = MeetingPersistenceService.CurrentMeetingData
+
     let studentID: UUID
 
-    var reflection = "" { didSet { changed() } }
-    var guideNotes = "" { didSet { changed() } }
+    var reflection = "" { didSet { changed(.reflection) } }
+    var guideNotes = "" { didSet { changed(.guideNotes) } }
     /// Catalog lessons asked for; they go to the inbox on Complete.
-    var requestLessonIDs: [UUID] = [] { didSet { changed() } }
+    var requestLessonIDs: [UUID] = [] { didSet { changed(.requestLessonIDs) } }
     /// Requests that matched no lesson, kept as the guide typed them.
-    var requestTexts: [String] = [] { didSet { changed() } }
+    var requestTexts: [String] = [] { didSet { changed(.requests) } }
     /// What is typed in the request field and not yet added. Saved with the
     /// draft as a free-text request, and filed as one on Complete, so moving
     /// on doesn't drop it.
-    var requestQuery = "" { didSet { changed() } }
-    var nextMeetingDate: Date? { didSet { changed() } }
+    var requestQuery = "" { didSet { changed(.requests) } }
+    var nextMeetingDate: Date? { didSet { changed(.nextMeetingDate) } }
 
-    var pendingFocus: [PendingFocusItem] = [] { didSet { changed() } }
-    var resolvedFocusIDs: Set<UUID> = [] { didSet { changed() } }
-    var droppedFocusIDs: Set<UUID> = [] { didSet { changed() } }
+    var pendingFocus: [PendingFocusItem] = [] { didSet { changed(.pendingFocus) } }
+    var resolvedFocusIDs: Set<UUID> = [] {
+        didSet { changed(\.focusIDs, oldValue.symmetricDifference(resolvedFocusIDs)) }
+    }
+    var droppedFocusIDs: Set<UUID> = [] {
+        didSet { changed(\.focusIDs, oldValue.symmetricDifference(droppedFocusIDs)) }
+    }
 
-    var workNotes: [UUID: String] = [:] { didSet { changed() } }
-    var reviewedWorkIDs: Set<UUID> = [] { didSet { changed() } }
+    var workNotes: [UUID: String] = [:] { didSet { changed(\.noteWorkIDs, Self.changedKeys(oldValue, workNotes)) } }
+    var reviewedWorkIDs: Set<UUID> = [] {
+        didSet { changed(\.decisionWorkIDs, oldValue.symmetricDifference(reviewedWorkIDs)) }
+    }
     /// Work decided as Re-present: closed as Incomplete now, its lesson
     /// planned again as a second pass on Complete.
-    var representWorkIDs: Set<UUID> = [] { didSet { changed() } }
+    var representWorkIDs: Set<UUID> = [] {
+        didSet { changed(\.decisionWorkIDs, oldValue.symmetricDifference(representWorkIDs)) }
+    }
     /// Work decided as Ready for Next: closed now with no mastery mark, its
     /// next lesson put On Deck on Complete.
-    var readyWorkIDs: Set<UUID> = [] { didSet { changed() } }
+    var readyWorkIDs: Set<UUID> = [] {
+        didSet { changed(\.decisionWorkIDs, oldValue.symmetricDifference(readyWorkIDs)) }
+    }
     /// The `WorkLogService` receipt of the status each card's choice set,
     /// kept with the draft so Clear, Rest or another outcome can take the
     /// close back after a relaunch, not just log Working on top of it
     /// (bug hunt 2026-10-09, #9 and #10). A list, oldest first, read newest
     /// first; a card's next choice takes the earlier one back, so it rarely
     /// holds more than one.
-    var closeTokens: [UUID: [MeetingCloseToken]] = [:] { didSet { changed() } }
+    var closeTokens: [UUID: [MeetingCloseToken]] = [:] {
+        didSet { changed(\.decisionWorkIDs, Self.changedKeys(oldValue, closeTokens)) }
+    }
 
     /// Focus items carried from earlier meetings.
     private(set) var activeFocusItems: [CDStudentFocusItem] = []
@@ -65,8 +87,13 @@ final class MeetingDraftModel {
     @ObservationIgnored private var storedIsCompleted = false
 
     @ObservationIgnored private var isLoading = false
+    /// Set while this model reads or writes the stored draft, so the change
+    /// notices its own write posts aren't taken for another window's.
     @ObservationIgnored private var isWriting = false
     @ObservationIgnored private var hasUnsavedChanges = false
+    /// What this model changed since it last wrote; on everything else the
+    /// stored draft has the newer word.
+    @ObservationIgnored private var changes = Changes()
     @ObservationIgnored private var saveTask: Task<Void, Never>?
 
     init(studentID: UUID) {
@@ -76,63 +103,11 @@ final class MeetingDraftModel {
     // MARK: - Load & save
 
     func load(context: NSManagedObjectContext) {
-        isLoading = true
-        defer { isLoading = false }
-        let data = MeetingPersistenceService.loadCurrent(studentID: studentID)
-        storedFocusText = data.focusText
-        storedIsCompleted = data.isCompleted
-        reflection = data.reflectionText
-        guideNotes = data.guideNotesText
-        requestTexts = data.requestsText
-            .split(whereSeparator: \.isNewline)
-            .map { String($0).trimmed() }
-            .filter { !$0.isEmpty }
-        requestLessonIDs = (data.requestLessonIDs ?? []).compactMap(UUID.init(uuidString:))
-        nextMeetingDate = data.nextMeetingDate
-        pendingFocus = (data.pendingFocusTexts ?? []).map { PendingFocusItem(text: $0) }
-        resolvedFocusIDs = Set((data.resolvedFocusIDs ?? []).compactMap(UUID.init(uuidString:)))
-        droppedFocusIDs = Set((data.droppedFocusIDs ?? []).compactMap(UUID.init(uuidString:)))
-        workNotes = Dictionary(
-            (data.workReviewDrafts ?? [:]).compactMap { key, value in UUID(uuidString: key).map { ($0, value) } },
-            uniquingKeysWith: { first, _ in first }
-        )
-        reviewedWorkIDs = Set((data.reviewedWorkIDs ?? []).compactMap(UUID.init(uuidString:)))
-        representWorkIDs = Set((data.representWorkIDs ?? []).compactMap(UUID.init(uuidString:)))
-        readyWorkIDs = Set((data.readyWorkIDs ?? []).compactMap(UUID.init(uuidString:)))
-        closeTokens = Dictionary(
-            (data.closeTokens ?? [:]).compactMap { key, value in UUID(uuidString: key).map { ($0, value) } },
-            uniquingKeysWith: { first, _ in first }
-        )
+        changes = Changes()
+        takeUp(readStored())
         savedAt = data.isEmpty ? nil : Date()
         activeFocusItems = FocusItemService.fetchActive(studentID: studentID, context: context)
         lessonsWithNext = Self.lessonsWithNext(in: context)
-    }
-
-    /// Whether Ready for Next has a lesson to put On Deck after `lessonID`.
-    func hasNextLesson(after lessonID: String) -> Bool {
-        UUID(uuidString: lessonID).map(lessonsWithNext.contains) ?? false
-    }
-
-    /// Ready for Next plans what `PlanNextLessonService.findNextLesson` finds:
-    /// the lesson after this one in its area and sequence. One lesson fetch.
-    /// Lessons tied for last place count as having none, so the button never
-    /// offers a plan Complete can't make.
-    private static func lessonsWithNext(in context: NSManagedObjectContext) -> Set<UUID> {
-        var sequences: [String: [CDLesson]] = [:]
-        for lesson in context.safeFetch(CDFetchRequest(CDLesson.self)) {
-            let area = lesson.area.trimmed().lowercased()
-            let sequence = lesson.sequence.trimmed().lowercased()
-            guard !area.isEmpty, !sequence.isEmpty else { continue }
-            sequences[area + "\u{1F}" + sequence, default: []].append(lesson)
-        }
-        var result: Set<UUID> = []
-        for lessons in sequences.values {
-            guard let last = lessons.map(\.orderInSequence).max() else { continue }
-            for lesson in lessons where lesson.orderInSequence < last {
-                if let id = lesson.id { result.insert(id) }
-            }
-        }
-        return result
     }
 
     var data: MeetingPersistenceService.CurrentMeetingData {
@@ -158,14 +133,27 @@ final class MeetingDraftModel {
     var isEmpty: Bool { data.isEmpty }
 
     /// The free-text requests, with anything still typed in the field as one more.
-    private var allRequestTexts: [String] {
+    var allRequestTexts: [String] {
         let pending = requestQuery.trimmed()
         guard !pending.isEmpty, !requestTexts.contains(pending) else { return requestTexts }
         return requestTexts + [pending]
     }
 
-    private func changed() {
+    /// A field changed here.
+    private func changed(_ field: Field) {
         guard !isLoading else { return }
+        changes.fields.insert(field)
+        scheduleSave()
+    }
+
+    /// Items of a keyed field changed here: focus ticks, notes, decisions.
+    private func changed(_ items: WritableKeyPath<Changes, Set<UUID>>, _ ids: Set<UUID>) {
+        guard !isLoading, !ids.isEmpty else { return }
+        changes[keyPath: items].formUnion(ids)
+        scheduleSave()
+    }
+
+    private func scheduleSave() {
         hasUnsavedChanges = true
         saveTask?.cancel()
         saveTask = Task { [weak self] in
@@ -176,42 +164,57 @@ final class MeetingDraftModel {
     }
 
     /// Writes the draft now (leaving the child, the app going to the background),
-    /// when something changed since it was loaded or last written.
+    /// when something changed since it was loaded or last written. What the
+    /// tab or a second window stored since, this one takes up first, wherever
+    /// it hasn't changed the same thing itself.
     func flush() {
         saveTask?.cancel()
         saveTask = nil
         guard hasUnsavedChanges else { return }
         hasUnsavedChanges = false
-        // The tab may have written its fields since this draft was loaded.
-        let stored = MeetingPersistenceService.loadCurrent(studentID: studentID)
-        storedFocusText = stored.focusText
-        storedIsCompleted = stored.isCompleted
-        let snapshot = data
+        let wasWriting = isWriting
         isWriting = true
+        defer { isWriting = wasWriting }
+        takeUp(MeetingPersistenceService.loadCurrent(studentID: studentID))
+        changes = Changes()
+        let snapshot = data
         MeetingPersistenceService.saveCurrent(studentID: studentID, data: snapshot)
-        isWriting = false
         savedAt = snapshot.isEmpty && snapshot.nextMeetingDate == nil ? nil : Date()
     }
 
-    /// The stored drafts changed. When this child's was cleared or filed
-    /// somewhere else (the student record's Meetings tab, or her meeting open
-    /// in a second window) while this one still holds it, drop what this one
-    /// holds without writing: its next save would otherwise put back Re-present
-    /// and Ready decisions, and their receipts, for work already taken back or
-    /// planned (bug hunt 2026-10-09 review).
+    /// This child's stored draft changed somewhere else: the student record's
+    /// Meetings tab, or her meeting open in a second window.
+    ///
+    /// Cleared or filed while this one still holds it: drop what this one
+    /// holds without writing, as its next save would otherwise put back
+    /// Re-present and Ready decisions, and their receipts, for work already
+    /// taken back or planned (bug hunt 2026-10-09 review). Written: take it
+    /// up wherever this one has nothing of its own waiting to be saved (bug
+    /// hunt 2026-10-10, #11).
     func storedDraftsChanged() {
-        guard !isLoading, !isWriting, savedAt != nil,
-              !MeetingPersistenceService.hasDraft(studentID: studentID) else { return }
-        clear()
+        guard !isLoading, !isWriting else { return }
+        if savedAt != nil, !MeetingPersistenceService.hasDraft(studentID: studentID) {
+            clear()
+            return
+        }
+        takeUpStored()
+        if !hasUnsavedChanges {
+            savedAt = data.isEmpty ? nil : (savedAt ?? Date())
+        }
     }
 
     /// Clear Meeting: Re-present and Ready for Next closed their work at once
     /// but plan their lessons only on Complete, so that work goes back as it
     /// was before the meeting rather than staying closed with nothing
     /// planned (`MeetingLessonDecisions.takeBack`). Then the form is emptied.
-    func discard(context: NSManagedObjectContext) {
-        MeetingLessonDecisions.takeBack(data, context: context)
+    /// When the work couldn't be put back, the form and the stored draft stay,
+    /// receipts and all, for another try (bug hunt 2026-10-10, #12).
+    @discardableResult
+    func discard(context: NSManagedObjectContext) -> Bool {
+        takeUpStored()
+        guard MeetingLessonDecisions.takeBack(data, context: context) else { return false }
         clear()
+        return true
     }
 
     /// Empties the form and removes the stored draft.
@@ -237,204 +240,82 @@ final class MeetingDraftModel {
         storedIsCompleted = false
         isLoading = false
         hasUnsavedChanges = false
+        changes = Changes()
         savedAt = nil
         MeetingPersistenceService.clearCurrent(studentID: studentID)
     }
 
-    // MARK: - Work decisions
-
-    /// Applies a status from a decision card at once (through `WorkLogService`,
-    /// the only status writer) and counts the item as reviewed. A choice made
-    /// earlier on the card is taken back first, so its close doesn't leave
-    /// skipped check-ins, completed todos or a completion record behind; work
-    /// changed since then takes the new status on top. One save; returns
-    /// false, with nothing changed or recorded, when it didn't save.
-    @discardableResult
-    func decide(_ work: CDWorkModel, status: WorkStatus, context: NSManagedObjectContext) -> Bool {
-        let transaction = ContextMutationTransaction(context: context)
-        _ = takeBackEarlierChoice(on: work, context: context)
-        if work.isResting { MeetingReviewService.clearWorkResting(work) }
-        var receipt: WorkLogService.Receipt?
-        if work.status != status {
-            do {
-                receipt = try WorkLogService.log(
-                    [.init(work: work, status: status)], context: context, saveImmediately: false
-                )
-            } catch {
-                transaction.rollback()
-                ToastService.shared.showError(Self.decisionFailure)
-                return false
-            }
-        }
-        work.lastTouchedAt = Date()
-        let token = receipt.flatMap { MeetingCloseToken($0.token, leaving: work, in: context) }
-        guard context.safeSave() else {
-            transaction.rollback()
-            ToastService.shared.showError(Self.decisionFailure)
-            return false
-        }
-        transaction.commit()
-        guard let id = work.id else { return true }
-        forgetLessonDecision(id)
-        closeTokens[id] = token.map { [$0] }
-        reviewedWorkIDs.insert(id)
-        return true
-    }
-
-    /// The work didn't take: it closes as Incomplete now, and Complete plans
-    /// its lesson again as a second pass.
-    func represent(_ work: CDWorkModel, context: NSManagedObjectContext) {
-        guard decide(work, status: .incomplete, context: context), let id = work.id else { return }
-        representWorkIDs.insert(id)
-    }
-
-    /// She's ready to move on: the work closes with no mastery mark (ready
-    /// isn't mastered), and Complete confirms her on the lesson and puts the
-    /// next one in the sequence On Deck.
-    func readyForNext(_ work: CDWorkModel, context: NSManagedObjectContext) {
-        guard decide(work, status: .done, context: context), let id = work.id else { return }
-        readyWorkIDs.insert(id)
-    }
-
-    /// Another outcome replaces a Re-present or Ready for Next chosen earlier.
-    private func forgetLessonDecision(_ id: UUID) {
-        representWorkIDs.remove(id)
-        readyWorkIDs.remove(id)
-    }
-
-    /// Takes back, in memory, the statuses the card's earlier choices set in
-    /// this meeting, newest first (the caller saves).
-    private func takeBackEarlierChoice(
-        on work: CDWorkModel, context: NSManagedObjectContext
-    ) -> MeetingCloseToken.TakeBack {
-        guard let id = work.id else { return .nothing }
-        return MeetingCloseToken.takeBack(closeTokens[id] ?? [], of: work, in: context)
-    }
-
-    /// Resting work is open: a status the card set in this meeting is taken
-    /// back, and Re-present or Ready work with no receipt to take back goes
-    /// back to Working, as Clear does (bug hunt 2026-10-09, #10). Work changed
-    /// since keeps its status and rests.
-    func rest(_ work: CDWorkModel, until date: Date, context: NSManagedObjectContext) {
-        let transaction = ContextMutationTransaction(context: context)
-        let wasLessonDecision = work.id.map { representWorkIDs.contains($0) || readyWorkIDs.contains($0) } ?? false
-        let takeBack = takeBackEarlierChoice(on: work, context: context)
-        if wasLessonDecision, takeBack == .nothing || takeBack == .unreadable, work.status.isClosed {
-            do {
-                try WorkLogService.log([.init(work: work, status: .active)], context: context, saveImmediately: false)
-            } catch {
-                transaction.rollback()
-                ToastService.shared.showError(Self.decisionFailure)
-                return
-            }
-        }
-        MeetingReviewService.setWorkResting(work, until: date)
-        work.lastTouchedAt = Date()
-        guard context.safeSave() else {
-            transaction.rollback()
-            ToastService.shared.showError(Self.decisionFailure)
-            return
-        }
-        transaction.commit()
-        guard let id = work.id else { return }
-        forgetLessonDecision(id)
-        closeTokens[id] = nil
-        reviewedWorkIDs.insert(id)
-    }
-
-    /// A decision card that didn't save says so; `safeSave` has logged why.
-    private static let decisionFailure = "Couldn't save that decision about the work. Try again."
-
-    // MARK: - Complete
-
-    /// Files the meeting: history, work reviews, focus changes, requested
-    /// lessons to the inbox, today's booking cleared and the next one booked.
-    /// Returns false (form kept) when the save fails.
-    func complete(
-        context: NSManagedObjectContext,
-        saveCoordinator: SaveCoordinator,
-        lessonName: (UUID) -> String?
-    ) -> Bool {
-        let resolvedItems = activeFocusItems.filter { resolvedFocusIDs.contains($0.id ?? UUID()) }
-        let carryForward = activeFocusItems.filter {
-            guard let id = $0.id else { return false }
-            return !resolvedFocusIDs.contains(id) && !droppedFocusIDs.contains(id)
-        }
-        var completed = data
-        completed.isCompleted = true
-        // The checklist, then any focus typed on the student record's Meetings tab.
-        let typedFocus = MeetingPersistenceService.loadCurrent(studentID: studentID).focusText.trimmed()
-        completed.focusText = [
-            FocusItemService.snapshotText(
-                activeItems: carryForward,
-                resolvedItems: resolvedItems,
-                newTexts: pendingFocus.map(\.text)
-            ),
-            typedFocus
-        ].filter { !$0.isEmpty }.joined(separator: "\n")
-        completed.requestsText = (requestLessonIDs.compactMap(lessonName) + allRequestTexts).joined(separator: "; ")
-
-        // Everything below lands in one save, or none of it does: a failed
-        // save takes back the history entry, reviews and inbox drafts, so
-        // trying Complete again doesn't file them twice.
-        let transaction = ContextMutationTransaction(context: context)
-        guard let meeting = MeetingPersistenceService.saveToHistory(
-            studentID: studentID, data: completed, context: context, save: false
-        ) else {
-            transaction.rollback()
-            return false
-        }
-        let meetingID = meeting.id ?? UUID()
-
-        MeetingReviewService.persistReviews(
-            meetingID: meetingID, meeting: meeting, drafts: workNotes, reviewedIDs: reviewedWorkIDs, context: context
-        )
-        persistFocus(meetingID: meetingID, context: context)
-        let planned: Set<UUID>
-        do {
-            planned = try MeetingLessonDecisions.file(data, studentID: studentID, context: context)
-        } catch {
-            transaction.rollback()
-            return false
-        }
-        for lessonID in requestLessonIDs where !planned.contains(lessonID) {
-            _ = PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: [studentID], context: context)
-        }
-        _ = MeetingScheduler.completeBooking(studentID: studentID, heldOn: Date(), context: context)
-
-        // A failure shows the "Couldn't Save" alert and keeps the form open
-        // so the meeting record isn't silently lost.
-        guard saveCoordinator.save(context, reason: "Save meeting") else {
-            transaction.rollback()
-            return false
-        }
-        transaction.commit()
-
-        if let next = nextMeetingDate {
-            MeetingScheduler.scheduleMeeting(studentID: studentID, date: next, context: context)
-        }
-        clear()
+    /// The carried focus items, fetched again (after Complete has filed them).
+    func refreshFocusItems(context: NSManagedObjectContext) {
         activeFocusItems = FocusItemService.fetchActive(studentID: studentID, context: context)
-        return true
     }
 
-    private func persistFocus(meetingID: UUID, context: NSManagedObjectContext) {
-        for item in activeFocusItems {
-            guard let itemID = item.id else { continue }
-            if resolvedFocusIDs.contains(itemID) {
-                FocusItemService.resolve(item, inMeetingID: meetingID)
-            } else if droppedFocusIDs.contains(itemID) {
-                FocusItemService.drop(item, inMeetingID: meetingID)
-            }
+    // MARK: - Taking up the stored draft
+
+    /// Before a card's decision, Clear or Complete: the stored draft's word
+    /// on everything this model hasn't changed, so a card takes back the
+    /// newest receipt and filing sees both windows' decisions.
+    func takeUpStored() {
+        takeUp(readStored())
+    }
+
+    /// The stored draft, wherever this model has nothing of its own waiting
+    /// to be saved: field by field, and item by item for focus ticks, each
+    /// work's note and each work's decision and receipt. A stale window can
+    /// then neither erase a Re-present made elsewhere nor bring back one
+    /// switched off there, nor write back text another window changed (bug
+    /// hunt 2026-10-10, #11 and its review). A field already holding the
+    /// value is left alone, so only what moved redraws. Writes nothing.
+    private func takeUp(_ stored: Draft) {
+        let wasLoading = isLoading
+        isLoading = true
+        defer { isLoading = wasLoading }
+        let mine = changes
+        storedFocusText = stored.focusText
+        storedIsCompleted = stored.isCompleted
+        if !mine.fields.contains(.reflection) { update(\.reflection, to: stored.reflectionText) }
+        if !mine.fields.contains(.guideNotes) { update(\.guideNotes, to: stored.guideNotesText) }
+        if !mine.fields.contains(.requests) { update(\.requestTexts, to: requestTexts(in: stored)) }
+        if !mine.fields.contains(.requestLessonIDs) {
+            update(\.requestLessonIDs, to: (stored.requestLessonIDs ?? []).compactMap(UUID.init(uuidString:)))
         }
-        let existingCount = activeFocusItems.count
-        for (index, pending) in pendingFocus.enumerated() {
-            let trimmed = pending.text.trimmed()
-            guard !trimmed.isEmpty else { continue }
-            FocusItemService.create(
-                studentID: studentID, text: trimmed, meetingID: meetingID,
-                sortOrder: existingCount + index, context: context
-            )
+        if !mine.fields.contains(.nextMeetingDate) { update(\.nextMeetingDate, to: stored.nextMeetingDate) }
+        if !mine.fields.contains(.pendingFocus), pendingFocus.map(\.text) != (stored.pendingFocusTexts ?? []) {
+            pendingFocus = (stored.pendingFocusTexts ?? []).map { PendingFocusItem(text: $0) }
         }
+        let focus = mine.focusIDs
+        update(\.resolvedFocusIDs, to: Self.merged(resolvedFocusIDs, Self.ids(stored.resolvedFocusIDs), keeping: focus))
+        update(\.droppedFocusIDs, to: Self.merged(droppedFocusIDs, Self.ids(stored.droppedFocusIDs), keeping: focus))
+        update(\.workNotes, to: Self.merged(workNotes, Self.keyed(stored.workReviewDrafts), keeping: mine.noteWorkIDs))
+        let work = mine.decisionWorkIDs
+        update(\.reviewedWorkIDs, to: Self.merged(reviewedWorkIDs, Self.ids(stored.reviewedWorkIDs), keeping: work))
+        update(\.representWorkIDs, to: Self.merged(representWorkIDs, Self.ids(stored.representWorkIDs), keeping: work))
+        update(\.readyWorkIDs, to: Self.merged(readyWorkIDs, Self.ids(stored.readyWorkIDs), keeping: work))
+        update(\.closeTokens, to: Self.merged(closeTokens, Self.keyed(stored.closeTokens), keeping: work))
+    }
+
+    /// The stored free-text requests. Text still in the request field reaches
+    /// the store as a request; it stays in the field rather than showing twice.
+    private func requestTexts(in stored: Draft) -> [String] {
+        let typed = requestQuery.trimmed()
+        return stored.requestsText
+            .split(whereSeparator: \.isNewline)
+            .map { String($0).trimmed() }
+            .filter { !$0.isEmpty && $0 != typed }
+    }
+
+    /// The stored draft, read with this model's change handler muted (a
+    /// draft still in the old keys is moved into its blob on first read).
+    func readStored() -> Draft {
+        let wasWriting = isWriting
+        isWriting = true
+        defer { isWriting = wasWriting }
+        return MeetingPersistenceService.loadCurrent(studentID: studentID)
+    }
+
+    private func update<Value: Equatable>(
+        _ keyPath: ReferenceWritableKeyPath<MeetingDraftModel, Value>, to value: Value
+    ) {
+        if self[keyPath: keyPath] != value { self[keyPath: keyPath] = value }
     }
 }

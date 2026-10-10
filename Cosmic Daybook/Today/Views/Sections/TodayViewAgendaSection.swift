@@ -64,8 +64,6 @@ extension TodayView {
                 return ("clock.fill", .orange)
             case .followUp:
                 return ("arrow.uturn.left.circle.fill", .purple)
-            case .groupedScheduledWork:
-                return ("person.3.fill", .orange)
             case .groupedFollowUp:
                 return ("person.3.fill", .purple)
             }
@@ -83,7 +81,6 @@ extension TodayView {
         switch item {
         case .lesson(let sl): agendaLessonRow(sl, isNext: isNext)
         case .scheduledWork(let scheduled): agendaScheduledWorkRow(scheduled)
-        case .groupedScheduledWork(let items): agendaGroupedScheduledWorkRow(items)
         case .followUp, .groupedFollowUp: goneQuietRow(for: item, checkInDay: nextSchoolDaySync(after: Date()))
         }
     }
@@ -117,17 +114,6 @@ extension TodayView {
                 logWorkStatus(rows, as: status)
             }
         }
-    }
-
-    @ViewBuilder
-    private func agendaGroupedScheduledWorkRow(_ items: [ScheduledWorkItem]) -> some View {
-        GroupedScheduledWorkListRow(
-            items: items,
-            studentNames: items.map { resolveStudentName(for: $0.work) },
-            lessonName: items.first.map { resolveLessonName(for: $0.work) } ?? "Lesson",
-            isFlexible: items.first?.work.checkInStyle == .flexible,
-            onTap: { workID in selectedWorkID = workID }
-        )
     }
 
     @ViewBuilder

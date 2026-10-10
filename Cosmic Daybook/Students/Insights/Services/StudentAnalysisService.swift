@@ -104,14 +104,19 @@ final class StudentAnalysisService {
             )
         }
 
-        // Fetch notes via Core Data
+        // Her notes: the ones about her alone, and the group observations that name
+        // her among others (no single student in the index, so they're matched by
+        // their scope; they used to be left out). Whole-class notes stay out.
         let noteRequest = CDFetchRequest(CDNote.self)
         noteRequest.predicate = NSPredicate(
-            format: "searchIndexStudentID == %@ AND createdAt >= %@",
-            studentID as CVarArg, since as NSDate
+            format: "createdAt >= %@ AND (searchIndexStudentID == %@ "
+                + "OR (scopeIsAll == NO AND searchIndexStudentID == nil))",
+            since as NSDate, studentID as CVarArg
         )
         noteRequest.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
-        let notes = (try? modelContext.fetch(noteRequest)) ?? []
+        let notes = ((try? modelContext.fetch(noteRequest)) ?? []).filter { note in
+            note.searchIndexStudentID == studentID || note.scope.applies(to: studentID)
+        }
 
         // Fetch practice sessions
         let practiceRequest = CDFetchRequest(CDPracticeSession.self)

@@ -65,4 +65,100 @@ extension TodoMainView {
     func countForTag(_ tag: String) -> Int {
         cachedTagCounts[tag] ?? 0
     }
+
+    // MARK: - Sidebar counts
+
+    // PERF: Compute tag data and filter/tag counts in a single pass over allTodos.
+    // Previously each was a separate computed property scanning allTodos independently.
+    func refreshTagCaches() {
+        // Build allUsedTags
+        var tagSet = Set<String>()
+        // Build filter counts and tag counts in the same pass
+        var filterCounts: [TodoListFilter: Int] = [:]
+        var tagCounts: [String: Int] = [:]
+        let today = Date()
+
+        for todo in allTodos {
+            // Count filters
+            for filter in TodoListFilter.allCases where filter != .all {
+                if filter.matches(todo, today: today) {
+                    filterCounts[filter, default: 0] += 1
+                }
+            }
+            // Collect tags and count per-tag
+            for tag in todo.tagsArray {
+                tagSet.insert(tag)
+                if !hideCompleted || !todo.isCompleted {
+                    tagCounts[tag, default: 0] += 1
+                }
+            }
+        }
+
+        // When hiding completed in tags, omit tags that have zero visible todos
+        let visibleTags = hideCompleted ? tagSet.filter { (tagCounts[$0] ?? 0) > 0 } : tagSet
+        cachedAllUsedTags = visibleTags.sorted {
+            TodoTagHelper.tagName($0)
+                .localizedCaseInsensitiveCompare(TodoTagHelper.tagName($1)) == .orderedAscending
+        }
+        cachedFilterCounts = filterCounts
+        cachedTagCounts = tagCounts
+
+        // If the selected tag was hidden, deselect it
+        if let selected = selectedTag, !visibleTags.contains(selected) {
+            selectedTag = nil
+            selectedFilter = .inbox
+        }
+    }
+
+    /// The todo fields the sidebar's counts and tags read.
+    private static let countedKeys: Set<String> = ["isCompleted", "isSomeday", "scheduledDate", "dueDate", "tags"]
+
+    /// Whether a change in the view context can move the sidebar's counts or
+    /// tags: a todo added, deleted or refreshed from iCloud, or one of the
+    /// fields they read edited. They used to refresh only when the number of
+    /// todos changed, so a tick, a new date or a new tag left them stale.
+    static func changesTodoCounts(_ note: Notification) -> Bool {
+        let info = note.userInfo ?? [:]
+        let wholeTodoKeys = [NSInsertedObjectsKey, NSDeletedObjectsKey, NSRefreshedObjectsKey, NSInvalidatedObjectsKey]
+        let touchesWholeTodo = wholeTodoKeys.contains { key in
+            (info[key] as? Set<NSManagedObject>)?.contains { $0 is CDTodoItem } == true
+        }
+        if touchesWholeTodo || info[NSInvalidatedAllObjectsKey] != nil { return true }
+        let updated = info[NSUpdatedObjectsKey] as? Set<NSManagedObject> ?? []
+        return updated.contains { object in
+            guard let todo = object as? CDTodoItem else { return false }
+            return !countedKeys.isDisjoint(with: todo.changedValuesForCurrentEvent().keys)
+        }
+    }
+
+    // MARK: - Upcoming days
+
+    // PERF: Static cached DateFormatter to avoid allocating per call.
+    // DateFormatter is expensive to create; called once per todo during grouping.
+    private static let dayTimelineFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEE, MMM d"
+        return f
+    }()
+
+    func dayTimelineKey(_ date: Date) -> String {
+        Self.upcomingDayKey(date)
+    }
+
+    /// An Upcoming day heading, "EEE, MMM d".
+    static func upcomingDayKey(_ date: Date) -> String {
+        dayTimelineFormatter.string(from: date)
+    }
+
+    /// The day an Upcoming heading names. Headings carry no year, and the
+    /// timeline only looks ahead, so a day that reads as earlier than
+    /// `today` is next year's: in December, January's days come after
+    /// December's, not before them (bug hunt 2026-10-10).
+    static func upcomingDayDate(_ key: String, today: Date) -> Date? {
+        let startOfToday = AppCalendar.startOfDay(today)
+        dayTimelineFormatter.defaultDate = startOfToday
+        guard let date = dayTimelineFormatter.date(from: key) else { return nil }
+        guard date < startOfToday else { return date }
+        return AppCalendar.shared.date(byAdding: .year, value: 1, to: date)
+    }
 }

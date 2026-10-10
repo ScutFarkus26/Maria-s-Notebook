@@ -115,7 +115,7 @@ extension MCPNotebookTools {
             }
             return CheckInAddResult()
         }
-        try refuseAddIfClosed(work, arguments)
+        try refuseAddIfClosed(work, arguments, in: modelContext)
 
         let landing = YearPlanPacing.schoolDay(onOrAfter: day, in: modelContext)
         let on = dayString(landing)
@@ -138,12 +138,7 @@ extension MCPNotebookTools {
         let siblings = WorkGrouping.group(containing: work, in: modelContext).siblings
         guard !siblings.isEmpty else { return result }
         if arguments["add_check_in_for_this_child_only"]?.boolValue == true {
-            let count = siblings.count
-            result.lines.append(
-                "this child only — \(count) linked "
-                    + (count == 1 ? "copy got" : "copies got")
-                    + " no check-in on \(on)"
-            )
+            result.lines += thisChildOnlyAddLines(for: siblings, on: landing, in: modelContext)
             return result
         }
         for sibling in siblings {
@@ -154,14 +149,43 @@ extension MCPNotebookTools {
         return result
     }
 
+    /// What a this-child-only add says about the copies it left alone, read
+    /// off each one: the copies with nothing on the day are counted together,
+    /// and a copy that already has a check-in there is named with it, so the
+    /// reply never says a copy has none when it has one.
+    private static func thisChildOnlyAddLines(
+        for siblings: [CDWorkModel], on landing: Date, in modelContext: NSManagedObjectContext
+    ) -> [String] {
+        let on = dayString(landing)
+        var lines: [String] = []
+        var withoutOne = 0
+        for sibling in siblings {
+            if let existing = blockingCheckIn(of: sibling, on: landing, in: modelContext) {
+                lines.append(
+                    "\(linkedCopyLabel(sibling, in: modelContext)) already has a "
+                        + "\(existing.status.rawValue.lowercased()) check-in on \(on)"
+                )
+            } else {
+                withoutOne += 1
+            }
+        }
+        guard withoutOne > 0 else { return ["this child only — the linked copies were left alone"] + lines }
+        let summary = "this child only — \(withoutOne) linked "
+            + (withoutOne == 1 ? "copy got" : "copies got")
+            + " no check-in on \(on)"
+        return [summary] + lines
+    }
+
     /// Closed work is off the schedule; a check-in on it would show up under
     /// the day's check-ins for work nobody is doing any more. When this call's
-    /// own status is what closed it, the refusal says so.
-    private static func refuseAddIfClosed(_ work: CDWorkModel, _ arguments: [String: JSONValue]) throws {
+    /// own status is what closed it, the refusal says so: only when the call
+    /// logged a status on this very row. A status for other children's
+    /// copies (`students`) leaves this row as it was, already closed.
+    private static func refuseAddIfClosed(
+        _ work: CDWorkModel, _ arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
+    ) throws {
         guard work.isClosed else { return }
-        let setsStatus = nonEmpty(arguments["status"]?.stringValue) != nil
-            || nonEmpty(arguments["outcome"]?.stringValue) != nil
-        if setsStatus {
+        if try callLoggedStatus(on: work, arguments, in: modelContext) {
             throw MCPToolError(
                 "This call sets the work to \(work.status.displayName), which closes it, so it can't also "
                     + "get a new check-in. Nothing has been changed. Drop one of the two and call again."
@@ -171,6 +195,22 @@ extension MCPNotebookTools {
             "This work is already closed (\(work.status.displayName)), so it can't get a new check-in. "
                 + "Set its status back to active first if it's still going."
         )
+    }
+
+    /// Whether this call's `status` (or `outcome`) was logged on `work`
+    /// itself: the rows `applyStatus` resolved, which a `students` list can
+    /// narrow to other children's copies.
+    private static func callLoggedStatus(
+        on work: CDWorkModel, _ arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
+    ) throws -> Bool {
+        let setsStatus = nonEmpty(arguments["status"]?.stringValue) != nil
+            || nonEmpty(arguments["outcome"]?.stringValue) != nil
+        guard setsStatus else { return false }
+        let named = try namedStudents(arguments, in: modelContext)
+        let rows = (try? WorkLogTargets.resolve(
+            work: work, students: named.map { Set($0.map(\.id)) }, in: modelContext
+        )) ?? []
+        return rows.contains { $0 === work }
     }
 
     /// One linked copy's line of the receipt, and whether it got a check-in:
@@ -275,18 +315,42 @@ extension MCPNotebookTools {
         let siblings = WorkGrouping.group(containing: work, in: modelContext).siblings
         guard !siblings.isEmpty else { return changes }
         if arguments["move_check_in_for_this_child_only"]?.boolValue == true {
-            let count = siblings.count
-            changes.append(
-                "this child only — \(count) linked "
-                    + (count == 1 ? "copy still has its" : "copies still have their")
-                    + " check-in on \(from)"
-            )
-            return changes
+            return changes + thisChildOnlyMoveLines(for: siblings, from: fromDay, in: modelContext)
         }
         for sibling in siblings {
             changes.append(moveSiblingCheckIn(of: sibling, from: fromDay, to: landing, in: modelContext))
         }
         return changes
+    }
+
+    /// What a this-child-only move says about the copies it left alone, read
+    /// off each one: the copies still scheduled on the old day are counted
+    /// together, and a copy whose check-in there is already done, or that has
+    /// none there, is named with what it actually has.
+    private static func thisChildOnlyMoveLines(
+        for siblings: [CDWorkModel], from fromDay: Date, in modelContext: NSManagedObjectContext
+    ) -> [String] {
+        let from = dayString(fromDay)
+        var lines: [String] = []
+        var stillScheduled = 0
+        for sibling in siblings {
+            let onDay = checkIns(of: sibling, on: fromDay, in: modelContext)
+            let label = linkedCopyLabel(sibling, in: modelContext)
+            if onDay.contains(where: { $0.status == .scheduled }) {
+                stillScheduled += 1
+            } else if let settled = onDay.first {
+                lines.append(
+                    "\(label) stayed on \(from) — its check-in is already \(settled.status.rawValue.lowercased())"
+                )
+            } else {
+                lines.append("\(label) has no check-in on \(from)")
+            }
+        }
+        guard stillScheduled > 0 else { return ["this child only — the linked copies were left alone"] + lines }
+        let summary = "this child only — \(stillScheduled) linked "
+            + (stillScheduled == 1 ? "copy still has its" : "copies still have their")
+            + " check-in on \(from)"
+        return [summary] + lines
     }
 
     /// One linked copy's line of the receipt: moved; kept because its child

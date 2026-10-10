@@ -7,6 +7,10 @@ extension AttendanceTile {
 
     // MARK: - Style
 
+    var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
+    }
+
     /// Present, late and left early all mean the child came in.
     var isHere: Bool { row.isHere }
 

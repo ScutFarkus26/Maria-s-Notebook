@@ -41,7 +41,6 @@ enum AgendaItem: Identifiable {
     case lesson(CDLessonAssignment)
     case scheduledWork(ScheduledWorkItem)
     case followUp(FollowUpWorkItem)
-    case groupedScheduledWork([ScheduledWorkItem])
     case groupedFollowUp([FollowUpWorkItem])
 
     var id: UUID {
@@ -49,7 +48,6 @@ enum AgendaItem: Identifiable {
         case .lesson(let sl): return sl.id ?? UUID()
         case .scheduledWork(let item): return item.id
         case .followUp(let item): return item.id
-        case .groupedScheduledWork(let items): return items.first?.id ?? UUID()
         case .groupedFollowUp(let items): return items.first?.id ?? UUID()
         }
     }
@@ -59,7 +57,6 @@ enum AgendaItem: Identifiable {
         case .lesson: return .lesson
         case .scheduledWork: return .scheduledWork
         case .followUp: return .followUp
-        case .groupedScheduledWork: return .groupedScheduledWork
         case .groupedFollowUp: return .groupedFollowUp
         }
     }

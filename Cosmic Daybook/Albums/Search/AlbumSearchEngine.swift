@@ -116,7 +116,10 @@ nonisolated enum AlbumSearchEngine {
     /// lesson they were written against.
     private static func noteHits(in notes: [AlbumNoteSnapshot], corpus: AlbumSearchCorpus,
                                  terms: [String], albumFilter: String?) -> [AlbumSearchHit] {
-        let albumTitles = Dictionary(uniqueKeysWithValues: corpus.albums.map { ($0.id, ($0.title, $0.subject)) })
+        let albumTitles = Dictionary(
+            corpus.albums.map { ($0.id, ($0.title, $0.subject)) },
+            uniquingKeysWith: { first, _ in first }
+        )
         var hits: [AlbumSearchHit] = []
         for note in notes {
             if let filter = albumFilter, note.albumID != filter { continue }

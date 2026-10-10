@@ -115,6 +115,9 @@ enum MigrationRunner {
             DataMigrations.markCheckInLinkRepairRun(firstDownloadPending: firstDownloadPending)
             if noteScopeRepairDue { DataMigrations.markNoteScopeIndexRepairDone() }
         }
+        // Multi-child notes get the student links their scope names, once per
+        // device after the first download; it saves on its own (see +NoteScopeIndex).
+        DataCleanupService.repairNoteStudentLinksIfDue(using: context, firstDownloadPending: firstDownloadPending)
         return results
     }
 

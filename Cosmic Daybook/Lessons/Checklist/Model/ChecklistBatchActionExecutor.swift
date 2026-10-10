@@ -6,7 +6,7 @@ import CoreData
 
 /// Executes batch operations on checklist cells.
 /// Handles adding to inbox, marking presented/mastered, and clearing status.
-enum ChecklistBatchActionExecutor { // swiftlint:disable:this type_body_length
+enum ChecklistBatchActionExecutor {
     private static let logger = Logger.lessons
 
     // MARK: - Batch Add to Inbox
@@ -86,7 +86,9 @@ enum ChecklistBatchActionExecutor { // swiftlint:disable:this type_body_length
 
     // MARK: - Batch Mark Mastered
 
-    /// Marks selected cells as mastered/complete.
+    /// Marks selected cells as mastered. A cell already carrying a mastery mark is skipped;
+    /// every other one is marked, Reviewing ones included. (The gate used to be closed work,
+    /// so a cell whose work had closed without a mark could never be marked from here.)
     static func batchMarkProficient(
         selectedCells: Set<CellIdentifier>,
         students: [CDStudent],
@@ -94,18 +96,15 @@ enum ChecklistBatchActionExecutor { // swiftlint:disable:this type_body_length
         matrixStates: [UUID: [UUID: StudentChecklistRowState]],
         context: NSManagedObjectContext
     ) {
-        // Pre-fetch shared data once before the loop
-        let allWorkModels = context.safeFetch(CDFetchRequest(CDWorkModel.self))
         let allLPs = context.safeFetch(CDFetchRequest(CDLessonPresentation.self))
 
         for cell in selectedCells {
             guard let student = students.first(where: { $0.id == cell.studentID }),
                   let lesson = lessons.first(where: { $0.id == cell.lessonID }) else { continue }
             let state = matrixStates[cell.studentID]?[cell.lessonID]
-            if state?.isComplete != true {
+            if state?.isMastered != true {
                 markCompleteNoRecompute(
                     student: student, lesson: lesson,
-                    prefetchedWorkModels: allWorkModels,
                     prefetchedLPs: allLPs,
                     context: context
                 )
@@ -116,26 +115,18 @@ enum ChecklistBatchActionExecutor { // swiftlint:disable:this type_body_length
 
     // MARK: - Batch Clear Status
 
-    /// Clears all status from selected cells.
+    /// Clears the selected cells by the same rule as a cell's own Clear
+    /// (`ChecklistCellRecords.clear`).
     static func batchClearStatus(
         selectedCells: Set<CellIdentifier>,
         students: [CDStudent],
         lessons: [CDLesson],
         context: NSManagedObjectContext
     ) {
-        // Pre-fetch shared data once before the loop
-        let allWorkModels = context.safeFetch(CDFetchRequest(CDWorkModel.self))
-        let allLPs = context.safeFetch(CDFetchRequest(CDLessonPresentation.self))
-
         for cell in selectedCells {
-            guard let student = students.first(where: { $0.id == cell.studentID }),
-                  let lesson = lessons.first(where: { $0.id == cell.lessonID }) else { continue }
-            clearStatusNoRecompute(
-                student: student, lesson: lesson,
-                prefetchedWorkModels: allWorkModels,
-                prefetchedLPs: allLPs,
-                context: context
-            )
+            guard students.contains(where: { $0.id == cell.studentID }),
+                  lessons.contains(where: { $0.id == cell.lessonID }) else { continue }
+            ChecklistCellRecords.clear(studentID: cell.studentID, lessonID: cell.lessonID, in: context)
         }
         context.safeSave()
     }
@@ -214,7 +205,6 @@ enum ChecklistBatchActionExecutor { // swiftlint:disable:this type_body_length
 
     private static func markCompleteNoRecompute(
         student: CDStudent, lesson: CDLesson,
-        prefetchedWorkModels: [CDWorkModel],
         prefetchedLPs: [CDLessonPresentation],
         context: NSManagedObjectContext
     ) {
@@ -231,10 +221,9 @@ enum ChecklistBatchActionExecutor { // swiftlint:disable:this type_body_length
             )
         }
 
-        findOrCreateWorkAndMarkComplete(
-            student: student, lesson: lesson,
-            prefetchedWorkModels: prefetchedWorkModels, context: context
-        )
+        if let studentID = student.id, let lessonID = lesson.id {
+            ChecklistCellRecords.closeWorkForMastery(studentID: studentID, lessonID: lessonID, in: context)
+        }
 
         upsertLessonPresentation(
             studentID: studentIDString, lessonID: lessonIDString,
@@ -248,43 +237,6 @@ enum ChecklistBatchActionExecutor { // swiftlint:disable:this type_body_length
         SequenceTrackService.checkAndCompleteTrackIfNeeded(
             lessonArea: lesson.area, lessonSequence: lesson.sequence,
             studentID: studentIDString, context: context
-        )
-    }
-
-    private static func clearStatusNoRecompute(
-        student: CDStudent, lesson: CDLesson,
-        prefetchedWorkModels: [CDWorkModel],
-        prefetchedLPs: [CDLessonPresentation],
-        context: NSManagedObjectContext
-    ) {
-        let sidString = student.cloudKitKey
-        let lidString = lesson.id?.uuidString ?? ""
-
-        let lasRequest = CDFetchRequest(CDLessonAssignment.self)
-        lasRequest.predicate = NSPredicate(format: "lessonID == %@", lidString as CVarArg)
-        let las = context.safeFetch(lasRequest)
-        for la in las where la.studentIDs.contains(sidString) {
-            var newIDs = la.studentIDs
-            newIDs.removeAll { $0 == sidString }
-            if newIDs.isEmpty {
-                PresentationRecordCleanup.prepareToDelete(la, in: context)
-                context.delete(la)
-            } else {
-                PresentationRecordCleanup.removeStudents([sidString], from: la, in: context)
-                la.studentIDs = newIDs
-            }
-        }
-
-        // Take her off this lesson's work rather than deleting every row that
-        // names her: a shared row also carries the other children on it.
-        if let studentID = student.id {
-            let lessonWork = prefetchedWorkModels.filter { $0.lessonID == lidString }
-            WorkDeletionService.removeWithoutSaving(studentID: studentID, from: lessonWork, in: context)
-        }
-
-        deleteLessonPresentation(
-            studentID: sidString, lessonID: lidString,
-            from: prefetchedLPs, context: context
         )
     }
 
@@ -314,42 +266,6 @@ enum ChecklistBatchActionExecutor { // swiftlint:disable:this type_body_length
                 lessonArea: lesson.area, lessonSequence: lesson.sequence,
                 studentIDs: [studentIDString], context: context
             )
-        }
-    }
-
-    private static func findOrCreateWorkAndMarkComplete(
-        student: CDStudent, lesson: CDLesson,
-        prefetchedWorkModels: [CDWorkModel],
-        context: NSManagedObjectContext
-    ) {
-        guard let sid = student.id, let lid = lesson.id else { return }
-        let lidString = lid.uuidString
-
-        // Filter from pre-fetched data instead of re-fetching all WorkModels
-        if let existingWork = prefetchedWorkModels.first(where: { work in
-            guard work.lessonID == lidString else { return false }
-            let parts = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
-            return parts.contains { $0.studentID == sid.uuidString }
-        }) {
-            _ = try? WorkLogService.log(
-                [.init(work: existingWork, status: .done)], context: context, saveImmediately: false
-            )
-            return
-        }
-
-        let repository = WorkRepository(context: context)
-        do {
-            let work = try repository.createWork(
-                studentID: sid,
-                lessonID: lid,
-                title: nil,
-                kind: nil,
-                presentationID: nil,
-                scheduledDate: nil
-            )
-            try WorkLogService.log([.init(work: work, status: .done)], context: context, saveImmediately: false)
-        } catch {
-            logger.warning("Failed to create work: \(error)")
         }
     }
 

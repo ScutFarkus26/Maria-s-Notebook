@@ -70,7 +70,7 @@ struct NewTodoForm: View {
                                         selectedStudentIDs.insert(sid)
                                     }
                                 } label: {
-                                    Text(student.firstName)
+                                    Text(student.shortName)
                                         .font(AppTheme.ScaledFont.caption)
                                         .fontWeight(isSelected ? .semibold : .regular)
                                         .padding(.horizontal, 10)
@@ -201,6 +201,7 @@ struct NewTodoForm: View {
                 .keyboardShortcut(.defaultAction)
             }
         }
+        .saveErrorAlert()
     }
 
     private func addSubtask() {
@@ -213,6 +214,8 @@ struct NewTodoForm: View {
     private func createTodo() {
         isCreatingTodo = true
         defer { isCreatingTodo = false }
+        // A checklist item typed but not yet entered with Return is kept.
+        addSubtask()
 
         let resolvedStudentIDs = resolveStudentIDs()
         let resolvedStudentNames = allStudents
@@ -245,14 +248,23 @@ struct NewTodoForm: View {
         }
 
         // Create subtasks
+        var subtasks: [CDTodoSubtask] = []
         for (index, subtaskTitle) in subtaskTitles.enumerated() {
             let subtask = CDTodoSubtask(context: viewContext)
             subtask.title = subtaskTitle
             subtask.orderIndex = Int64(index)
             subtask.todo = todo
+            subtasks.append(subtask)
         }
 
-        viewContext.safeSave()
+        guard dependencies.saveCoordinator.save(viewContext, reason: "Create todo") else {
+            // The coordinator's alert says it didn't save; the form stays
+            // open with what she typed, and the unsaved todo is taken back
+            // so trying again doesn't make two.
+            subtasks.forEach(viewContext.delete)
+            viewContext.delete(todo)
+            return
+        }
         dismiss()
     }
 

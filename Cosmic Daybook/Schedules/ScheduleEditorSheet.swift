@@ -34,6 +34,10 @@ struct ScheduleEditorSheet: View {
     // Slot assignments by day: [Weekday: [SlotAssignment]]
     @State private var assignments: [Weekday: [SlotAssignment]] = [:]
 
+    /// The time field being typed in. A day's rows are put in time order when
+    /// she leaves a field or presses Return, not on every keystroke.
+    @FocusState private var focusedTime: SlotAssignment.ID?
+
     private var isEditing: Bool { schedule != nil }
 
     private var isValid: Bool {
@@ -90,6 +94,12 @@ struct ScheduleEditorSheet: View {
         .onAppear {
             loadExistingData()
         }
+        .onChange(of: focusedTime) { previous, _ in
+            if let previous, let weekday = weekday(of: previous) {
+                sortDay(weekday)
+            }
+        }
+        .saveErrorAlert()
     }
 
     // MARK: - Basic Info Section
@@ -246,6 +256,8 @@ struct ScheduleEditorSheet: View {
                 .font(.subheadline)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 80)
+                .focused($focusedTime, equals: assignment.id)
+                .onSubmit { sortDay(weekday) }
 
             Button {
                 removeStudent(assignment.studentID, from: weekday)
@@ -260,13 +272,6 @@ struct ScheduleEditorSheet: View {
 
     // MARK: - Helpers
 
-    /// Converts time string (e.g., "9:30" or "10:15") to minutes since midnight for proper sorting
-    private func timeToMinutes(_ timeString: String) -> Int? {
-        let components = timeString.split(separator: ":").compactMap { Int($0) }
-        guard components.count == 2 else { return nil }
-        return components[0] * 60 + components[1]
-    }
-
     private func bindingForTime(assignment: SlotAssignment, weekday: Weekday) -> Binding<String> {
         Binding(
             get: {
@@ -276,27 +281,25 @@ struct ScheduleEditorSheet: View {
                 if var dayAssignments = assignments[weekday],
                    let index = dayAssignments.firstIndex(where: { $0.id == assignment.id }) {
                     dayAssignments[index].timeString = newValue
-                    // Sort by time after updating
-                    dayAssignments.sort { lhs, rhs in
-                        let lhsTime = lhs.timeString
-                        let rhsTime = rhs.timeString
-                        // Empty times go last
-                        if lhsTime.isEmpty && rhsTime.isEmpty { return false }
-                        if !lhsTime.isEmpty && rhsTime.isEmpty { return true }
-                        if lhsTime.isEmpty && !rhsTime.isEmpty { return false }
-                        // Compare by actual time value (minutes since midnight)
-                        let lhsMinutes = timeToMinutes(lhsTime)
-                        let rhsMinutes = timeToMinutes(rhsTime)
-                        if let lm = lhsMinutes, let rm = rhsMinutes {
-                            return lm < rm
-                        }
-                        // Fallback to string comparison for invalid times
-                        return lhsTime < rhsTime
-                    }
                     assignments[weekday] = dayAssignments
                 }
             }
         )
+    }
+
+    /// The day `assignmentID` is on.
+    private func weekday(of assignmentID: SlotAssignment.ID) -> Weekday? {
+        assignments.first { $0.value.contains { $0.id == assignmentID } }?.key
+    }
+
+    /// Puts a day's rows in time order (`ScheduleTime`): "1:15" after
+    /// "9:30", AM and PM understood, blank times last.
+    private func sortDay(_ weekday: Weekday) {
+        guard let dayAssignments = assignments[weekday] else { return }
+        let sorted = ScheduleSlotWriter.ordered(dayAssignments, by: \.timeString)
+        if sorted.map(\.id) != dayAssignments.map(\.id) {
+            assignments[weekday] = sorted
+        }
     }
 
     private func availableStudents(for weekday: Weekday) -> [CDStudent] {
@@ -326,34 +329,12 @@ struct ScheduleEditorSheet: View {
         colorHex = schedule.colorHex
         icon = schedule.icon
 
-        // Load existing slot assignments with times
-        for slot in schedule.safeSlots {
-            var dayAssignments = assignments[slot.weekday] ?? []
-            dayAssignments.append(SlotAssignment(
-                studentID: slot.studentID,
-                timeString: slot.timeString ?? ""
-            ))
-            assignments[slot.weekday] = dayAssignments
-        }
-
-        // Sort each day's assignments by time
-        for weekday in Weekday.allCases {
-            if var dayAssignments = assignments[weekday] {
-                dayAssignments.sort { lhs, rhs in
-                    let lhsTime = lhs.timeString
-                    let rhsTime = rhs.timeString
-                    // Empty times go last
-                    if lhsTime.isEmpty && rhsTime.isEmpty { return false }
-                    if !lhsTime.isEmpty && rhsTime.isEmpty { return true }
-                    if lhsTime.isEmpty && !rhsTime.isEmpty { return false }
-                    // Compare by actual time value
-                    if let lm = timeToMinutes(lhsTime), let rm = timeToMinutes(rhsTime) {
-                        return lm < rm
-                    }
-                    return lhsTime < rhsTime
-                }
-                assignments[weekday] = dayAssignments
-            }
+        // One row per child and day (a child on a day twice shows once, and
+        // the save keeps one slot), in the order the schedule shows them.
+        for (weekday, slotsByStudent) in ScheduleSlotWriter.slotsByDay(of: schedule).kept {
+            let slots = slotsByStudent.values.sorted { $0.sortOrder < $1.sortOrder }
+            let dayAssignments = slots.map { SlotAssignment(studentID: $0.studentID, timeString: $0.timeString ?? "") }
+            assignments[weekday] = ScheduleSlotWriter.ordered(dayAssignments, by: \.timeString)
         }
     }
 
@@ -361,6 +342,7 @@ struct ScheduleEditorSheet: View {
         let trimmedName = name.trimmed()
         guard !trimmedName.isEmpty else { return }
 
+        let target: CDSchedule
         if let schedule {
             // Update existing schedule
             schedule.name = trimmedName
@@ -368,14 +350,7 @@ struct ScheduleEditorSheet: View {
             schedule.colorHex = colorHex
             schedule.icon = icon
             schedule.touch()
-
-            // Remove old slots
-            for slot in schedule.safeSlots {
-                viewContext.delete(slot)
-            }
-
-            // Create new slots
-            createSlots(for: schedule)
+            target = schedule
         } else {
             // Create new schedule
             let newSchedule = CDSchedule(context: viewContext)
@@ -384,40 +359,18 @@ struct ScheduleEditorSheet: View {
             newSchedule.colorHex = colorHex
             newSchedule.icon = icon
             // CDSchedule(context:) already inserts into context
-
-            // Create slots
-            createSlots(for: newSchedule)
+            target = newSchedule
         }
 
-        viewContext.safeSave()
-        dismiss()
-    }
+        // Slots are updated in place, so each child keeps one slot a day.
+        let days = assignments.mapValues { day in
+            day.map { ScheduleSlotWriter.Entry(studentID: $0.studentID, timeString: $0.timeString) }
+        }
+        ScheduleSlotWriter.apply(days, to: target, in: viewContext)
 
-    private func createSlots(for schedule: CDSchedule) {
-        for (weekday, slotAssignments) in assignments {
-            // Sort by time before saving
-            let sorted = slotAssignments.sorted { lhs, rhs in
-                let lhsTime = lhs.timeString
-                let rhsTime = rhs.timeString
-                // Empty times go last
-                if lhsTime.isEmpty && rhsTime.isEmpty { return false }
-                if !lhsTime.isEmpty && rhsTime.isEmpty { return true }
-                if lhsTime.isEmpty && !rhsTime.isEmpty { return false }
-                // Compare by actual time value
-                if let lm = timeToMinutes(lhsTime), let rm = timeToMinutes(rhsTime) {
-                    return lm < rm
-                }
-                return lhsTime < rhsTime
-            }
-            for (index, assignment) in sorted.enumerated() {
-                let slot = CDScheduleSlot(context: viewContext)
-                slot.scheduleID = schedule.id?.uuidString ?? ""
-                slot.studentID = assignment.studentID
-                slot.weekday = weekday
-                slot.timeString = assignment.timeString.isEmpty ? nil : assignment.timeString
-                slot.sortOrder = Int64(index)
-                slot.schedule = schedule
-            }
+        // On failure the coordinator's alert says so and the sheet stays open.
+        if dependencies.saveCoordinator.save(viewContext, reason: "Save schedule") {
+            dismiss()
         }
     }
 

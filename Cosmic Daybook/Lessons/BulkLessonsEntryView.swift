@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import SwiftUI
 import OSLog
 import CoreData
@@ -328,7 +329,6 @@ public struct BulkLessonsEntryView: View {
         selectedRowIDs.removeAll()
     }
 
-    // swiftlint:disable:next function_body_length
     private func commit() {
         let items = rows.map { r -> EntryRow in
             var copy = r
@@ -342,17 +342,9 @@ public struct BulkLessonsEntryView: View {
 
         guard !items.isEmpty else { return }
 
-        // Build a map of max orderInSequence for each area+sequence combination from existing lessons
-        let allLessons = repository.fetchLessons()
-        var maxOrderBySequence: [String: Int] = [:]
-        for lesson in allLessons {
-            let key = "\(lesson.area)|\(lesson.sequence)"
-            let current = maxOrderBySequence[key] ?? -1
-            let order = Int(lesson.orderInSequence)
-            if order > current {
-                maxOrderBySequence[key] = order
-            }
-        }
+        // The highest orderInSequence in each sub-area, keyed as the Lessons screen groups them
+        // (trimmed, any case), so a new row lands after the lessons already there.
+        let maxOrderBySequence = BulkLessonInsertion.maxOrders(of: repository.fetchLessons())
 
         let drafts = items.map { row in
             BulkLessonDraft(

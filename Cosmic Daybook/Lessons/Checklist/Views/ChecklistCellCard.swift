@@ -157,7 +157,7 @@ struct ChecklistCellCard: View {
                 Spacer(minLength: 8)
                 Button("Clear", role: .destructive) { onAction(.clearStatus, cell) }
                     .disabled(status == .ready || status == .notReady)
-                    .help("Take everything off this cell: plans, presentations, open work and the mark")
+                    .help("Take everything off this cell: plans, presentations, work and the mark. Notes stay.")
             }
             .buttonStyle(.borderless)
             .font(.footnote)

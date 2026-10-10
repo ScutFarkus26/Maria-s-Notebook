@@ -47,7 +47,9 @@ struct AIPlanningAssistantView: View {
         .presentationDragIndicator(.visible)
         #endif
         .onAppear {
-            vm.configure(context: viewContext, mcpClient: dependencies.mcpClient)
+            vm.configure(
+                context: viewContext, mcpClient: dependencies.mcpClient, saveCoordinator: dependencies.saveCoordinator
+            )
             vm.startPlanning()
         }
     }
@@ -275,7 +277,7 @@ struct AIPlanningAssistantView: View {
     
     private var applyButton: some View {
         Button(action: { vm.applyPlan() }, label: {
-            let count = vm.acceptedRecommendations.count
+            let count = vm.recommendationsToApply.count
             let suffix = count == 1 ? "" : "s"
             Label(
                 "Apply \(count) Lesson\(suffix)",

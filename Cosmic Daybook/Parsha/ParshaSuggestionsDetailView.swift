@@ -141,7 +141,7 @@ private struct SuggestionRow: View {
     var body: some View {
         // Looked up once per pass rather than once per use below.
         let lesson = self.lesson
-        let isAlreadyTagged = lesson?.parshaKey == parshaKey
+        let isAlreadyTagged = HebrewParshaService.tag(lesson?.parshaKey, matches: parshaKey)
         VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
             HStack {
                 if let lesson {

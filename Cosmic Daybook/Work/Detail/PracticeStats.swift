@@ -13,7 +13,8 @@ struct PracticeStats {
 }
 
 struct PracticeStatsCalculator {
-    static func calculate(from sessions: [CDPracticeSession]) -> PracticeStats {
+    /// `today` is a parameter so tests can pin it.
+    static func calculate(from sessions: [CDPracticeSession], today: Date = Date()) -> PracticeStats {
         var stats = PracticeStats()
         
         stats.totalSessions = sessions.count
@@ -22,7 +23,12 @@ struct PracticeStatsCalculator {
         stats.avgIndependence = calculateAverage(values: sessions.compactMap(\.independenceLevelValue))
         stats.topBehaviors = extractTopBehaviors(from: sessions, limit: 3)
         stats.needsReteaching = sessions.filter(\.needsReteaching).count
-        stats.upcomingCheckIns = sessions.filter { $0.checkInScheduledFor != nil }.count
+        // Upcoming means today or later: a check-in date from last month is
+        // history, and used to keep counting here forever.
+        let startOfToday = AppCalendar.startOfDay(today)
+        stats.upcomingCheckIns = sessions.filter { session in
+            session.checkInScheduledFor.map { AppCalendar.startOfDay($0) >= startOfToday } ?? false
+        }.count
         
         return stats
     }

@@ -61,7 +61,7 @@ struct ProgressDashboardView: View {
         if viewModel.isLoading {
             ProgressView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if viewModel.filteredCards.isEmpty {
+        } else if viewModel.studentCards.isEmpty {
             emptyState
         } else {
             scrollContent
@@ -79,6 +79,13 @@ struct ProgressDashboardView: View {
                 summaryRow
                     .padding(.horizontal)
                     .padding(.bottom, 16)
+
+                // The filter row stays above this, so a level with no one in it
+                // can be switched back (it used to vanish with the cards).
+                if viewModel.filteredCards.isEmpty {
+                    filteredEmptyState
+                        .padding(.top, 24)
+                }
 
                 LazyVStack(spacing: 12) {
                     ForEach(viewModel.filteredCards) { card in
@@ -158,6 +165,19 @@ struct ProgressDashboardView: View {
     }
 
     // MARK: - Empty State
+
+    @ViewBuilder
+    private var filteredEmptyState: some View {
+        if viewModel.searchText.isEmpty {
+            ContentUnavailableView {
+                Label("No Students Here", systemImage: "line.3.horizontal.decrease.circle")
+            } description: {
+                Text("No one at this level has progress yet. Choose another level above.")
+            }
+        } else {
+            ContentUnavailableView.search(text: viewModel.searchText)
+        }
+    }
 
     private var emptyState: some View {
         ContentUnavailableView {
