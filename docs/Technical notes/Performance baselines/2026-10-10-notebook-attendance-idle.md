@@ -11,7 +11,7 @@ The notebook's half of the Daybook Assistant's finding 1 (see [the Assistant's b
 - **Driving:** a throwaway XCUITest attached by bundle ID tapped the screens into place and then ended, so nothing was driving the app while it was measured. The simulator panel wasn't available.
 - **CPU:** `top -l 2 -s 60 -pid <pid> -stats pid,cpu,idlew,power,time`, taking the second sample (the average over 60 s). Also `sample <pid> 5` and `footprint <pid>`.
 - **The Mac was very busy:** other sessions' builds and tests kept the load average between 120 and 540 throughout. A per-frame redraw starved of CPU shows less than it would on a quiet Mac, so the before-numbers are, if anything, low.
-- **The Mac app wasn't measured.** The copy running was Danny's TestFlight copy, opened by the MCP bridge, and a second copy can't safely open the live store. The Mac draws the same band with the same code.
+- **The Mac app wasn't measured.** The copy running was Danny's TestFlight copy, opened by the MCP bridge, and a second copy can't safely open the live store. The Mac draws the same band with the same code. Checking it on the Mac, and seeing the 8:30 and 9:00 change on a school day, is in Tide: [Check on a device](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=On%20a%20school%20day%2C%20leave%20the%20Mac%27s%20Attendance%20open%20from%20before%208%3A30%20to%20after%209%3A00%20and%20check%20the%20front-desk%20line%20changes%20at%208%3A30%20and%20turns%20orange%20at%209%3A00).
 
 ## Idle on screen, 60 s
 
