@@ -13,7 +13,7 @@ Danny gets a plain answer to "could the Assistant have drained her battery?", ba
   - Instruments' SwiftUI recording fails on the simulator ("Hitches is not supported"), so the grid's per-frame redraw (finding 1) is located by elimination, not pinned.
   - It was a Saturday, so the grid was measured on Friday's page.
 - [x] Phase 2: Fix what Danny picks (session: fresh, once Danny has picked) · est. ~4–6% weekly (three agents, two of them deep) · started at 21% · actual ~6% (21→27), done 2026-10-10. Findings 1–6, eight commits. Differed from the plan:
-  - Finding 1's cause wasn't any suspect: the front-desk line's `TimelineView(.explicit)` redrew every frame once both its times had passed (`AssistantFrontDeskRow.swift`, outside Agent G's list; no other agent owned it). The notebook's attendance screen uses the same timeline twice; that's left for a separate session.
+  - Finding 1's cause wasn't any suspect: the front-desk line's `TimelineView(.explicit)` redrew every frame once both its times had passed (`AssistantFrontDeskRow.swift`, outside Agent G's list; no other agent owned it). The notebook's attendance screen used the same timeline twice; a separate session fixed it on 2026-10-10 (011853fe: 6.3–9.4% → 0.0% CPU on a past day).
   - Finding 5's share check still runs on her own shared-store saves: telling them apart needs a history read on every change, about what the check costs.
   - Agent S touched `AssistantReloadOnReturn.swift` (one line, unassigned). Siri attendance's export wait in `SiriAttendance.swift` still added up to 20 s after the attach wait; the lead fixed it (3a0500f1).
   - Agents R and S's before/after numbers are counts from the code and tests: a simulator gets no iCloud pushes.
