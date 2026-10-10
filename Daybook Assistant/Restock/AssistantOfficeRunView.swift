@@ -30,7 +30,7 @@ struct AssistantOfficeRunView: View {
                     .textCase(nil)
             } footer: {
                 if !model.officeRun.isEmpty {
-                    Text("Checked-off shelf items go back to Stocked for everyone.")
+                    Text("Checking off a regular supply marks it Stocked for everyone.")
                 }
             }
             if !model.ordering.isEmpty {
@@ -89,7 +89,7 @@ struct AssistantOfficeRunView: View {
         .contextMenu {
             Section {
                 Button(
-                    done ? "Put it back" : "Got it",
+                    done ? "Undo" : "Got it",
                     systemImage: done ? "arrow.uturn.backward" : "checkmark",
                     action: toggle
                 )
@@ -100,7 +100,7 @@ struct AssistantOfficeRunView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(spokenTitle(need, done: done, tag: tag))
         .accessibilityValue(detail)
-        .accessibilityHint(done ? "Double tap to put it back on the run" : "Double tap when you have it")
+        .accessibilityHint(done ? "Double tap to undo" : "Double tap when you have it")
         .accessibilityAddTraits(.isButton)
     }
 

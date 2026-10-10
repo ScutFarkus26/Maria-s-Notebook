@@ -10,7 +10,7 @@ struct AssistantICloudStatusTests {
     @Test("Problems she can act on are named; available and unknown stay quiet")
     func wording() {
         #expect(CKAccountStatus.noAccount.assistantProblem?.contains("isn't signed in") == true)
-        #expect(CKAccountStatus.restricted.assistantProblem?.contains("restricted") == true)
+        #expect(CKAccountStatus.restricted.assistantProblem?.contains("blocked") == true)
         #expect(CKAccountStatus.temporarilyUnavailable.assistantProblem != nil)
         #expect(CKAccountStatus.available.assistantProblem == nil)
         #expect(CKAccountStatus.couldNotDetermine.assistantProblem == nil)

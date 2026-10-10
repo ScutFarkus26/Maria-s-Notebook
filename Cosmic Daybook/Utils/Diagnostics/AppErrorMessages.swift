@@ -181,7 +181,7 @@ enum AppErrorMessages {
         case ("CKErrorDomain", 25):
             return "Couldn't \(action). Your iCloud storage is full. Free up space, then try again."
         case ("CKErrorDomain", 10):
-            return "Couldn't \(action). This Apple Account isn't allowed to change the classroom share."
+            return "Couldn't \(action). This Apple Account isn't allowed to change who the classroom is shared with."
         case ("CKErrorDomain", 37):
             return "Couldn't \(action). An invitation is already waiting to be accepted."
         default:

@@ -86,13 +86,14 @@ struct AssistantWeNeedSheet: View {
 
     private var hint: String {
         if let staple {
-            return "\(staple.name) is on the shelf. This marks it Out."
+            return "\(staple.name) is already one of the class's supplies. This marks it Out."
         }
-        return "Not on the shelf, so this asks once. Paste a link to suggest a product."
+        return "This isn't one of the class's regular supplies, so it's asked for just this once. "
+            + "Paste a link to suggest a product."
     }
 
     private var goLabel: String {
-        if staple != nil { return "Mark It Out" }
+        if staple != nil { return "Mark as Out" }
         return source == .office ? "Add to Office Run" : model.askToOrder
     }
 

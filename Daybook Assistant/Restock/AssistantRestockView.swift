@@ -130,7 +130,9 @@ struct AssistantRestockView: View {
     private var runLine: String {
         let open = model.officeRun.filter { !model.isCheckedOff($0) }
         guard !open.isEmpty else {
-            return model.ordering.isEmpty ? "Nothing to grab right now" : "Nothing to grab · see what's ordered"
+            return model.ordering.isEmpty
+                ? "Nothing to grab right now"
+                : "Nothing to grab · tap to see what's being ordered"
         }
         return open.map(\.displayTitle).joined(separator: ", ")
     }

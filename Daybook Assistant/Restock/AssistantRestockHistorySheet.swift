@@ -43,10 +43,10 @@ struct AssistantRestockHistorySheet: View {
     }
 
     /// The entry's reason, naming who made it as they go by now (`names`,
-    /// `RestockHistoryLine`); a counted change with no reason: "+3", "−2".
+    /// `RestockHistoryLine`); a counted change with no reason: "Added 3", "Removed 2".
     static func line(for entry: CDSupplyTransaction, names: ClassroomNames.Snapshot) -> String {
         let reason = RestockHistoryLine.text(reason: entry.reason, changedByID: entry.changedByID, names: names)
         guard reason.isEmpty else { return reason }
-        return entry.quantityChange > 0 ? "+\(entry.quantityChange)" : "−\(abs(entry.quantityChange))"
+        return entry.quantityChange > 0 ? "Added \(entry.quantityChange)" : "Removed \(abs(entry.quantityChange))"
     }
 }

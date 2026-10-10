@@ -27,7 +27,7 @@ struct AssistantStartupProblemTests {
             let message = AssistantStartupProblem(error).message
             #expect(!message.contains("Cosmic Daybook"))
             #expect(!message.contains("Settings"))
-            #expect(message.contains("rebuild") || message.contains("Rebuild"))
+            #expect(message.contains("from iCloud again"))
         }
     }
 
