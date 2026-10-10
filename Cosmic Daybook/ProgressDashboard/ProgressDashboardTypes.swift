@@ -52,10 +52,10 @@ struct LessonPillState: Identifiable {
     let status: LessonNodeStatus
     let orderInSequence: Int
 
-    /// True once the lesson has been presented (presented / practicing / reviewing / completed).
+    /// True once the lesson has been presented (presented / practicing / reviewing / mastered).
     var isPresentedOrBeyond: Bool {
         switch status {
-        case .presented, .practicing, .reviewing, .completed: return true
+        case .presented, .practicing, .reviewing, .mastered: return true
         case .notStarted, .scheduled: return false
         }
     }

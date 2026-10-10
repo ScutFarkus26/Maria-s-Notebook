@@ -64,6 +64,46 @@ public enum ChecklistDisplayStatus: Sendable, Hashable, CaseIterable {
         case .mastered:   return "Mastered"
         }
     }
+
+    /// The one ladder every progress screen climbs (the Checklist, the Progress Dashboard,
+    /// the student page's track timeline): the highest rung reached, mastered > reviewing >
+    /// practicing > presented > planned, then ready or not yet ready by `blockingReason`.
+    /// Only a mastery mark is Mastered; closed work without one is Reviewing, however it closed.
+    public static func resolve( // swiftlint:disable:this function_parameter_count
+        isMastered: Bool,
+        hasReviewWork: Bool,
+        allWorkClosed: Bool,
+        hasActiveWork: Bool,
+        isPresented: Bool,
+        isPlanned: Bool,
+        blockingReason: BlockingReason = .none
+    ) -> ChecklistDisplayStatus {
+        if isMastered { return .mastered }
+        if hasReviewWork || allWorkClosed { return .reviewing }
+        if hasActiveWork { return .practicing }
+        if isPresented { return .presented }
+        if isPlanned { return .planned }
+        return blockingReason == .none ? .ready : .notReady
+    }
+
+    /// `resolve` from a child's work rows on the lesson, in any order.
+    public static func resolve(
+        isMastered: Bool,
+        workStatuses: [WorkStatus],
+        isPresented: Bool,
+        isPlanned: Bool,
+        blockingReason: BlockingReason = .none
+    ) -> ChecklistDisplayStatus {
+        resolve(
+            isMastered: isMastered,
+            hasReviewWork: workStatuses.contains(.review),
+            allWorkClosed: !workStatuses.isEmpty && workStatuses.allSatisfy(\.isClosed),
+            hasActiveWork: workStatuses.contains(.active),
+            isPresented: isPresented,
+            isPlanned: isPlanned,
+            blockingReason: blockingReason
+        )
+    }
 }
 
 import SwiftUI
@@ -92,12 +132,15 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
     /// then ready or not yet ready by the blocking reason. Closed work counts as Reviewing
     /// until the lesson carries a mastery mark; a mark is Mastered with or without work.
     public var displayStatus: ChecklistDisplayStatus {
-        if isMastered { return .mastered }
-        if isWorkReview || isComplete { return .reviewing }
-        if isWorkActive { return .practicing }
-        if isPresented { return .presented }
-        if isScheduled { return .planned }
-        return blockingReason == .none ? .ready : .notReady
+        .resolve(
+            isMastered: isMastered,
+            hasReviewWork: isWorkReview,
+            allWorkClosed: isComplete,
+            hasActiveWork: isWorkActive,
+            isPresented: isPresented,
+            isPlanned: isScheduled,
+            blockingReason: blockingReason
+        )
     }
 
     /// Open work that hasn't been touched in a while, on a lesson not yet mastered.

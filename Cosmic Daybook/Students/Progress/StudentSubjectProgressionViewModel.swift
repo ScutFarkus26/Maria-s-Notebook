@@ -51,6 +51,10 @@ final class StudentAreaProgressionViewModel {
             studentID: studentIDStr, lessonIDs: groupLessons.map { $0.id?.uuidString ?? "" }, context: context
         )
         let studentCheckIns = fetchCheckIns(workIDs: studentWork.compactMap { $0.id?.uuidString }, context: context)
+        // lessonID → the children with a mastery mark on it: the Checklist's "Mastered".
+        let masteryMarks = PresentationRecordIndex.masteryMarks(
+            lessonIDs: Set(groupLessons.compactMap { $0.id?.uuidString }), in: context
+        )
 
         // School day counting helper
         let calendar = AppCalendar.shared
@@ -101,32 +105,17 @@ final class StudentAreaProgressionViewModel {
                 )
             }
 
-            // Determine status
-            let status: LessonNodeStatus
-            if presentation != nil {
-                let allComplete = !lessonWork.isEmpty && lessonWork.allSatisfy { $0.status.isClosed }
-                let hasReview = lessonWork.contains { $0.status == .review }
-                let hasActive = lessonWork.contains { $0.status.isOpen }
+            let status = LessonNodeStatus.resolve(
+                isPresented: presentation != nil,
+                scheduledFor: scheduledPresentation?.scheduledFor,
+                isMastered: masteryMarks[lessonIDStr]?.contains(studentIDStr) ?? false,
+                workStatuses: lessonWork.map(\.status)
+            )
+            if status == .mastered { completed += 1 }
 
-                if allComplete {
-                    status = .completed
-                    completed += 1
-                } else if hasReview {
-                    status = .reviewing
-                } else if hasActive && !lessonWork.isEmpty {
-                    status = .practicing
-                } else {
-                    status = .presented
-                }
-            } else if let scheduled = scheduledPresentation, let date = scheduled.scheduledFor {
-                status = .scheduled(date)
-            } else {
-                status = .notStarted
-            }
-
-            // Determine if this is the "next" lesson
+            // The "next" lesson: the first one with nothing on it yet.
             let isNext: Bool
-            if !foundNext && presentation == nil && scheduledPresentation == nil {
+            if !foundNext && status == .notStarted && scheduledPresentation == nil {
                 isNext = true
                 foundNext = true
             } else {

@@ -4,9 +4,9 @@
 // For every enrolled student, finds the subjects (lesson.area) and sequences (lesson.sequence)
 // the student has "started" — meaning at least one of: a presented assignment, a scheduled or
 // draft assignment, or an active (non-complete) work item. Within each sequence, every lesson
-// becomes a pill with its progression status derived the same way StudentAreaProgressionViewModel
-// derives it: presentation present → presented/practicing/reviewing/completed based on work;
-// no presentation but scheduled → scheduled; otherwise → notStarted.
+// becomes a pill with its progression status by the Checklist's rule (`LessonNodeStatus.resolve`),
+// as StudentAreaProgressionViewModel does: only a mastery mark is Mastered, closed work without
+// one is Reviewing.
 
 import Foundation
 import CoreData
@@ -74,6 +74,10 @@ final class ProgressDashboardViewModel {
             grouping: allLessons.filter { !$0.area.trimmed().isEmpty && !$0.sequence.trimmed().isEmpty },
             by: { AreaSeqKey(area: $0.area.trimmed(), sequence: $0.sequence.trimmed()) }
         )
+        // lessonID → the children with a mastery mark on it: the Checklist's "Mastered".
+        let masteryMarks = PresentationRecordIndex.masteryMarks(
+            lessonIDs: Set(lessonsByPair.values.joined().compactMap { $0.id?.uuidString }), in: context
+        )
 
         // Each assignment's studentIDs blob decoded once, not once per student;
         // each student's slice keeps the fetch order the per-student filter had.
@@ -89,10 +93,6 @@ final class ProgressDashboardViewModel {
 
             let assignmentsForStudent = assignmentsByStudent[studentIDStr] ?? []
             let workForStudent = workByStudent[studentIDStr] ?? []
-            let openWorkByLesson = Dictionary(
-                grouping: workForStudent.filter { $0.status.isOpen },
-                by: { $0.lessonID }
-            )
             let workByLesson = Dictionary(grouping: workForStudent) { $0.lessonID }
 
             // Find every (area, sequence) pair this student is active in.
@@ -141,14 +141,11 @@ final class ProgressDashboardViewModel {
                     let scheduledPresentation = assignmentsForStudent.first {
                         $0.lessonID == lessonIDStr && $0.isScheduled
                     }
-                    let lessonWork = workByLesson[lessonIDStr] ?? []
-                    let openLessonWork = openWorkByLesson[lessonIDStr] ?? []
-
-                    let status: LessonNodeStatus = Self.resolveStatus(
-                        presentation: presentation,
-                        scheduledPresentation: scheduledPresentation,
-                        lessonWork: lessonWork,
-                        openLessonWork: openLessonWork
+                    let status = LessonNodeStatus.resolve(
+                        isPresented: presentation != nil,
+                        scheduledFor: scheduledPresentation?.scheduledFor,
+                        isMastered: masteryMarks[lessonIDStr]?.contains(studentIDStr) ?? false,
+                        workStatuses: (workByLesson[lessonIDStr] ?? []).map(\.status)
                     )
 
                     pills.append(LessonPillState(
@@ -197,36 +194,6 @@ final class ProgressDashboardViewModel {
         }
 
         studentCards = cards
-    }
-
-    // MARK: - Status Resolution
-
-    /// Same shape as StudentAreaProgressionViewModel so colors and labels stay consistent.
-    private static func resolveStatus(
-        presentation: CDLessonAssignment?,
-        scheduledPresentation: CDLessonAssignment?,
-        lessonWork: [CDWorkModel],
-        openLessonWork: [CDWorkModel]
-    ) -> LessonNodeStatus {
-        if presentation != nil {
-            let allComplete = !lessonWork.isEmpty && lessonWork.allSatisfy { $0.status.isClosed }
-            let hasReview = lessonWork.contains { $0.status == .review }
-            let hasActive = !openLessonWork.isEmpty
-
-            if allComplete {
-                return .completed
-            } else if hasReview {
-                return .reviewing
-            } else if hasActive {
-                return .practicing
-            } else {
-                return .presented
-            }
-        } else if let scheduled = scheduledPresentation, let date = scheduled.scheduledFor {
-            return .scheduled(date)
-        } else {
-            return .notStarted
-        }
     }
 
     // MARK: - Grouping

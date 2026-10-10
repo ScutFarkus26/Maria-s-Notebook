@@ -196,7 +196,7 @@ struct ProgressionStatusPill: View {
         case .presented:    return nil
         case .practicing:   return "pencil"
         case .reviewing:    return "exclamationmark"
-        case .completed:    return "checkmark"
+        case .mastered:     return "checkmark"
         }
     }
 
@@ -207,7 +207,7 @@ struct ProgressionStatusPill: View {
         case .presented:    return areaColor.opacity(0.22)
         case .practicing:   return areaColor.opacity(0.30)
         case .reviewing:    return Color.yellow.opacity(0.25)
-        case .completed:    return Color.green.opacity(0.30)
+        case .mastered:     return Color.green.opacity(0.30)
         }
     }
 
@@ -218,7 +218,7 @@ struct ProgressionStatusPill: View {
         case .presented:    return areaColor.opacity(0.60)
         case .practicing:   return areaColor.opacity(0.75)
         case .reviewing:    return Color.yellow.opacity(0.85)
-        case .completed:    return Color.green.opacity(0.80)
+        case .mastered:     return Color.green.opacity(0.80)
         }
     }
 
@@ -241,7 +241,7 @@ struct ProgressionStatusPill: View {
     private var statusForeground: Color {
         switch pill.status {
         case .reviewing:    return Color(.systemOrange)
-        case .completed:    return Color.green
+        case .mastered:     return Color.green
         default:            return areaColor
         }
     }

@@ -5,14 +5,17 @@ import SwiftUI
 
 // MARK: - CDLesson Node Status
 
-/// Status of a single lesson in a student's progression timeline.
-enum LessonNodeStatus: Sendable {
+/// Status of a single lesson in a student's progression timeline: the Checklist's ladder
+/// (`ChecklistDisplayStatus.resolve`), with a dated plan as `scheduled` and everything below
+/// it as `notStarted`. See `resolve`.
+enum LessonNodeStatus: Sendable, Equatable {
     case notStarted
     case scheduled(Date)
     case presented
     case practicing
     case reviewing
-    case completed
+    /// A mastery mark on the child's `CDLessonPresentation`, never closed work alone.
+    case mastered
 
     var color: Color {
         switch self {
@@ -21,7 +24,7 @@ enum LessonNodeStatus: Sendable {
         case .presented:    return .orange
         case .practicing:   return .blue
         case .reviewing:    return .yellow
-        case .completed:    return .green
+        case .mastered:     return .green
         }
     }
 
@@ -32,7 +35,7 @@ enum LessonNodeStatus: Sendable {
         case .presented:    return "circle.fill"
         case .practicing:   return "pencil.circle.fill"
         case .reviewing:    return "eye.circle.fill"
-        case .completed:    return "checkmark.circle.fill"
+        case .mastered:     return "checkmark.circle.fill"
         }
     }
 
@@ -43,7 +46,37 @@ enum LessonNodeStatus: Sendable {
         case .presented:        return "Presented"
         case .practicing:       return "Practicing"
         case .reviewing:        return "Reviewing"
-        case .completed:        return "Mastered"
+        case .mastered:         return "Mastered"
+        }
+    }
+
+    /// A lesson's status for one child, by the Checklist's rule.
+    /// - Parameters:
+    ///   - isPresented: The child has a presented assignment for the lesson.
+    ///   - scheduledFor: The date of the child's planned (not yet presented) assignment;
+    ///     nil when there is none or it waits undated in the Inbox.
+    ///   - isMastered: The child has a mastery mark on the lesson
+    ///     (`PresentationRecordIndex.masteryMarks`).
+    ///   - workStatuses: The child's work on the lesson, open and closed.
+    static func resolve(
+        isPresented: Bool,
+        scheduledFor: Date?,
+        isMastered: Bool,
+        workStatuses: [WorkStatus]
+    ) -> LessonNodeStatus {
+        let rung = ChecklistDisplayStatus.resolve(
+            isMastered: isMastered,
+            workStatuses: workStatuses,
+            isPresented: isPresented,
+            isPlanned: scheduledFor != nil
+        )
+        switch rung {
+        case .mastered:   return .mastered
+        case .reviewing:  return .reviewing
+        case .practicing: return .practicing
+        case .presented:  return .presented
+        case .planned:    return scheduledFor.map(LessonNodeStatus.scheduled) ?? .notStarted
+        case .ready, .notReady: return .notStarted
         }
     }
 }

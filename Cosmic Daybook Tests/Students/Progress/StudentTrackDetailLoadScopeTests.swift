@@ -134,13 +134,11 @@ struct StudentTrackDetailLoadScopeTests {
         let timeline = StudentAreaProgressionViewModel()
         timeline.configure(for: seeded.student, area: load.area, sequence: load.sequence, context: seeded.context)
         #expect(timeline.totalCount == 2)
-        #expect(timeline.completedCount == 0)
+        // The first lesson's mastery mark makes it Mastered, open work or not (the Checklist's rule).
+        #expect(timeline.completedCount == 1)
         #expect(timeline.nodes.map(\.id) == [seeded.firstLesson.id, seeded.secondLesson.id])
         let first = try #require(timeline.nodes.first)
-        guard case .practicing = first.status else {
-            Issue.record("first lesson should be practicing, was \(first.status)")
-            return
-        }
+        #expect(first.status == .mastered)
         #expect(first.activeWork.count == 1)
         #expect(first.activeWork.first?.lastCheckIn != nil)
         #expect(first.isNext == false)
