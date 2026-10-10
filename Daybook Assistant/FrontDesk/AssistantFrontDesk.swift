@@ -54,11 +54,7 @@ final class AssistantFrontDesk {
     /// The two moments on `day` the bar's email line changes: half an hour
     /// before the due time, and at it.
     func changeTimes(on day: Date) -> [Date] {
-        let calendar = Calendar.current
-        guard let deadline = calendar.date(
-            byAdding: .minute, value: deadlineMinutes, to: calendar.startOfDay(for: day)
-        ) else { return [] }
-        return [deadline.addingTimeInterval(-Double(AttendanceEmailLog.dueWindowMinutes) * 60), deadline]
+        AttendanceEmailLog.changeTimes(on: day, deadlineMinutes: deadlineMinutes)
     }
 
     /// Whether the bar offers Close Arrival & Email: the email is due or

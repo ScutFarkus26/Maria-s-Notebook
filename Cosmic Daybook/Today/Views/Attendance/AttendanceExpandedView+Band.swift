@@ -93,8 +93,8 @@ extension AttendanceExpandedView {
     /// The front desk's two moments (half an hour before the due time, and
     /// at it) redraw the buttons; nothing else does.
     private var bandActions: some View {
-        TimelineView(.explicit(frontDeskChangeTimes)) { _ in
-            // The clock is read, not the entry's date (see `frontDeskControl`).
+        // Read from the clock each time (see `frontDeskControl`).
+        RedrawsAt(times: frontDeskChangeTimes) {
             let urgency = AttendanceEmailLog.urgency(for: date, deadlineMinutes: deadlineMinutes)
             VStack(alignment: .trailing, spacing: 6) {
                 phaseLine(urgency)

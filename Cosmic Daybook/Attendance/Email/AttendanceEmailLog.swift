@@ -40,6 +40,16 @@ enum AttendanceEmailLog {
         return now >= dueFrom ? .due(deadline) : .none
     }
 
+    /// The two moments on `day` the screens' email line changes, where
+    /// `urgency` turns due and then late: half an hour before the due time,
+    /// and at it.
+    static func changeTimes(on day: Date, deadlineMinutes: Int, calendar: Calendar = .current) -> [Date] {
+        guard let deadline = calendar.date(
+            byAdding: .minute, value: deadlineMinutes, to: calendar.startOfDay(for: day)
+        ) else { return [] }
+        return [deadline.addingTimeInterval(-Double(dueWindowMinutes) * 60), deadline]
+    }
+
     /// What an email is written from.
     struct Settings: Equatable, Sendable {
         var isEnabled: Bool

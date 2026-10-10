@@ -130,6 +130,16 @@ RULES: list[Rule] = [
         re.compile(r"repeatForever"),
     ),
     Rule(
+        "explicit_timeline",
+        "TimelineView with an explicit schedule",
+        "Once every date in an explicit schedule has passed, TimelineView redraws its content every frame for "
+        "as long as it is on screen (2026-10-10: the front-desk line held idle attendance screens at 8–10% CPU "
+        "every day after the due time and on every past day, in the Assistant and the notebook).",
+        "Does the content change only at a few known moments? Use `RedrawsAt(times:)`, which sleeps to each "
+        "moment still ahead and then waits for nothing. A periodic schedule is fine.",
+        re.compile(r"TimelineView\(\s*\.explicit"),
+    ),
+    Rule(
         "high_priority_background_task",
         "Background work started at .userInitiated / .userInteractive / .high",
         "High QoS lets maintenance pre-empt the UI and runs on performance cores, which is exactly what "

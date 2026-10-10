@@ -18,19 +18,16 @@ extension AttendanceExpandedView {
     var deadlineMinutes: Int { AttendanceEmail.storedSettings().deadlineMinutes }
 
     /// The two moments the control changes: half an hour before the due
-    /// time, and at it. A timeline redraws it then and at no other time.
+    /// time, and at it. It's redrawn then and at no other time.
     var frontDeskChangeTimes: [Date] {
-        let calendar = Calendar.current
-        guard let deadline = calendar.date(
-            byAdding: .minute, value: deadlineMinutes, to: calendar.startOfDay(for: date)
-        ) else { return [] }
-        return [deadline.addingTimeInterval(-Double(AttendanceEmailLog.dueWindowMinutes) * 60), deadline]
+        AttendanceEmailLog.changeTimes(on: date, deadlineMinutes: deadlineMinutes)
     }
 
     var frontDeskControl: some View {
-        // The clock is read, not the entry's date: before the first entry an
-        // explicit timeline hands the view that first entry, not now.
-        TimelineView(.explicit(frontDeskChangeTimes)) { _ in
+        // Redrawn at the moments it changes, reading the clock each time. Not
+        // an explicit TimelineView: once both moments had passed (every day
+        // after the due time, and every past day) it redrew every frame.
+        RedrawsAt(times: frontDeskChangeTimes) {
             AttendanceFrontDeskControl(
                 sentSummary: frontDeskSend.map(frontDeskSummary),
                 isRollComplete: isRollComplete,

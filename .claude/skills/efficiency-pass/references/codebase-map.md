@@ -75,6 +75,8 @@ hot paths are, and what has been checked and should not be re-litigated.
 | An album's outline, lessons and page count without keeping its PDF open | `AlbumContents` (read once); `Album.document` opens on demand and `releaseDocument()` closes it (called by `releaseMemory` at both levels) | `Albums/Library/AlbumContents.swift`, `Albums/Library/AlbumLibrary.swift` |
 | Album search text, vectors and saves | `AlbumTextFolds` (fold off-main, once per album, on first search), `AlbumPageTextReader` (reopens the PDF every 50 pages), `AlbumVectorCacheFile` (raw Float32 cache), `AlbumSaveDebouncer` (per-key debounce: ink by page, position by album; flush on disappear/background) | `Albums/` |
 | Release something after a quiet period (resettable, injected clock) | `IdleCountdown` (used for the album query model: released 5 min after the last search) | `Albums/Search/IdleCountdown.swift` |
+| Redraw a view at a few known moments (content that reads the clock, like the front desk's due line) | `RedrawsAt(times:) { … }`: sleeps to each time still ahead, then waits for nothing. Never `TimelineView(.explicit(times))`, which redraws every frame once all its times have passed (rule `explicit_timeline`). The Assistant's `AssistantFrontDeskRow` does the same inline (it doesn't compile this file) | `Utils/SwiftUI/RedrawsAt.swift` |
+| The front desk's two change moments on a day (the due window opening, the due time) | `AttendanceEmailLog.changeTimes(on:deadlineMinutes:)`, shared by the notebook and the Assistant | `Attendance/Email/AttendanceEmailLog.swift` |
 | A spinner that stops (sync icons and the like) | `.spinning(while:)`: one turn a second while the flag is on, nothing under Reduce Motion; the spinning view is its own branch, so the animation ends with it. Never a `repeatForever` keyed on a flag, which keeps redrawing after the flag turns off | `Components/Modifiers/AdaptiveAnimationModifier.swift` |
 | Mac maintenance on a schedule | `ScheduledBackupActivity` (`NSBackgroundActivityScheduler`, 10% tolerance, `.utility`, honours `shouldDefer`); timing in `ScheduledBackupTiming` | `Backup/Core/` |
 
@@ -173,7 +175,9 @@ Fixed (findings 1–6):
 - **Grid at rest:** `AssistantFrontDeskRow`'s `TimelineView(.explicit)` redrew every frame once
   both its times had passed (9.4% → 0.6% CPU on a past day, 7–10.5% → 0.0% on today after the
   due time). Now a `.task(id:)` that sleeps to each time ahead. The notebook's
-  `AttendanceExpandedView+FrontDesk.swift` and `+Band.swift` use the same timeline (not fixed here).
+  `AttendanceExpandedView+FrontDesk.swift` and `+Band.swift` used the same timeline; fixed
+  2026-10-10 with `RedrawsAt` (numbers in
+  `docs/Technical notes/Performance baselines/2026-10-10-notebook-attendance-idle.md`).
 - **Reminders:** `ReminderRuns.replace` adds only new or changed requests (≈30 adds → 0 with
   nothing changed); `ReminderRuns.run(for:)` skips a queued rebuild a newer one of the same
   context replaced; the screen's `ArrivalReminderFollower` only asks permission and hands the

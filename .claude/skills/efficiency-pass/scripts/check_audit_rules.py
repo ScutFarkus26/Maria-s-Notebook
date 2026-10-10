@@ -49,6 +49,9 @@ CASES = [
     ("offset_paging", "196babd3", "Backup/BackupService+DataCollection.swift", True),
     # Fixed after AFTER (2026-09-28), so it is not checked there.
     ("repeat_forever_animation", "cfcf9043", "Settings/CloudKitStatusSettingsView.swift", None),
+    # Fixed after AFTER (2026-10-10), so it is not checked there.
+    ("explicit_timeline", "f68a1540", "Today/Views/Attendance/AttendanceExpandedView+Band.swift", None),
+    ("explicit_timeline", "f68a1540", "Today/Views/Attendance/AttendanceExpandedView+FrontDesk.swift", None),
 ]
 
 
