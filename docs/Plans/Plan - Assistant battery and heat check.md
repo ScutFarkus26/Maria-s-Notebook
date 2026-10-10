@@ -21,11 +21,11 @@ Danny gets a plain answer to "could the Assistant have drained her battery?", ba
   - `verify.sh`: all three builds passed. The first whole-suite run failed 34 tests, all in the name-list suites and the share waiting list, which this work doesn't touch. Those suites passed alone (67 tests), and a second whole-suite run passed: 2859 tests, 2845 passed, 14 skipped. It's a test-isolation flake, sent to a separate session.
   - `verify.sh` doesn't run the Assistant's tests, so they ran separately: 300 tests in 44 suites passed.
   - Re-measuring: simulator taps weren't available, so the grid's after-numbers come from Agent G's Release run. The merged build was re-measured on the weekend screen and while closed: suspended 2.1 s after leaving. The first launch after `simctl erase` hit Phase 1's notification-service hang again; a reinstall cleared it.
-  - Tide wasn't reachable, so the device checks below still need rows in `Areas/App Development/Daybook Assistant/To do.md`:
-    - On a phone, check that arrival and front-desk reminders still ring on time after marks and imports (the comparison skips unchanged ones).
-    - With the app closed, change a pickup or a Restock need in the notebook, then open the Assistant: it should show the change at once.
-    - Decide whether Restock's reconcile should still run after a sync (the behavior half of finding 4).
-    - The existing warmth check (a school-day grid left open 10 minutes) now also covers finding 1's fix.
+  - Device checks and the open choice, in Tide's Daybook Assistant list:
+    - Check that the reminders still ring on time on a phone: [Tide row](tide://box/Areas/App%20Development/Daybook%20Assistant/To%20do.md?text=On%20my%20assistant%27s%20phone%2C%20check%20the%20arrival%20and%20front-desk%20reminders%20still%20ring%20on%20time%20after%20the%20battery%20fixes).
+    - Check that a change made while the Assistant is closed shows when it opens: [Tide row](tide://box/Areas/App%20Development/Daybook%20Assistant/To%20do.md?text=With%20the%20Assistant%20closed%2C%20change%20a%20pickup%20in%20the%20notebook%2C%20then%20open%20the%20Assistant%20and%20check%20it%20shows%20right%20away).
+    - Decide whether Restock still reconciles after every sync: [Tide row](tide://box/Areas/App%20Development/Daybook%20Assistant/To%20do.md?text=Decide%20whether%20the%20Assistant%27s%20Restock%20should%20still%20tidy%20its%20list%20after%20every%20sync).
+    - The grid fix is covered by the existing warmth check: [Tide row](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=On%20a%20school%20day%2C%20leave%20the%20Daybook%20Assistant%27s%20attendance%20grid%20open%20on%20an%20iPhone%20for%2010%20minutes%20and%20feel%20whether%20the%20phone%20gets%20warm).
 
 ## Cost
 
