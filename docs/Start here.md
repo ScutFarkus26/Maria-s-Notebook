@@ -8,6 +8,7 @@ run `docs-index`; edit only the Other documents section by hand.
 
 | Plan | What it is | Status | Date |
 |---|---|---|---|
+| [Plan - Assistant battery and heat check](<Plans/Plan - Assistant battery and heat check.md>) | Audit and measure the Daybook Assistant for battery, memory and heat, report what it costs while open and while closed, then fix the items Danny picks. | Working on it | 2026-10-07 |
 | [Plan - Daybook Assistant bug fixes](<Plans/Plan - Daybook Assistant bug fixes.md>) | Fixes for the ~50 findings of the 2026-10-04 Daybook Assistant bug hunt, in six phases. | Working on it | 2026-10-05 |
 | [Plan - Debug builds open a fake notebook](<Plans/Plan - Debug builds open a fake notebook.md>) | Debug builds open a fake, local-only notebook; the real one only through the Real Notebook scheme. | Not started | 2026-10-04 |
 | [Plan - Name list freeze fix](<Plans/Plan - Name list freeze fix.md>) | stop the name list from asking iCloud questions on the main thread, which froze the app until iOS killed it. | Working on it | 2026-10-06 |
