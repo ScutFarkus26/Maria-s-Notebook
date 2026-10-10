@@ -23,6 +23,8 @@ struct ClassroomYourNameCard: View {
     /// The name is saved on this device but not in the list yet: this
     /// account's iCloud record name hasn't come back.
     @State private var isWaiting = false
+    /// The last save was taken back: the Apple Account changed during it.
+    @State private var wasNotSaved = false
     @FocusState private var isEditing: Bool
 
     var body: some View {
@@ -33,7 +35,11 @@ struct ClassroomYourNameCard: View {
         ) {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
                 field
-                if isWaiting {
+                if wasNotSaved {
+                    Text(SettingsCopy.YourName.notSaved)
+                        .font(.footnote)
+                        .foregroundStyle(AppColors.warning)
+                } else if isWaiting {
                     Text(SettingsCopy.YourName.waiting)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -81,33 +87,62 @@ struct ClassroomYourNameCard: View {
         let typed = name.trimmed()
         guard typed != (saving ?? stored) else { return }
         saving = typed
+        wasNotSaved = false
         let coordinator = dependencies.saveCoordinator
         let context = viewContext
         Task {
             let saved = await Self.setName(typed, in: context, save: { coordinator.save($0, reason: "Set your name") })
             if saving == typed { saving = nil }
-            guard saved else { return }
-            stored = typed
-            // Not over what was typed while the name was being saved.
-            if name.trimmed() == typed { name = typed }
+            switch saved {
+            case .saved, .waiting:
+                stored = typed
+                // Not over what was typed while the name was being saved.
+                if name.trimmed() == typed { name = typed }
+            case .notSaved:
+                // Left as typed, so leaving the field again tries again.
+                wasNotSaved = name.trimmed() == typed
+            case .failed, .overtaken:
+                return
+            }
             isWaiting = ClassroomIdentity.nameWaitingAs != nil
         }
+    }
+
+    /// What `setName` did.
+    enum Saved: Equatable {
+        /// In the classroom's list, or there was no name there to clear.
+        case saved
+        /// Kept on this device until iCloud answers; it goes into the list
+        /// later (`ClassroomNames.writeWaitingName`).
+        case waiting
+        /// Not saved: the Apple Account changed while it was saving, so the
+        /// name, typed under the last one, was taken back. The card says so.
+        case notSaved
+        /// The save failed; the save coordinator says so.
+        case failed
+        /// A newer name overtook this one, and is saved instead.
+        case overtaken
     }
 
     /// Sets the lead guide's own name in the classroom's list and saves, on
     /// `context`, the view context: his row joins the share from the private
     /// store only through `SharedStoreOrphanGuard`, which sees view-context
-    /// saves alone. Before his record name is known the name waits on the
-    /// device (`ClassroomNames.setMyName`) and nothing is saved. Returns false
-    /// when the save failed, or when a newer name overtook this one (that one
-    /// is saved instead).
+    /// saves alone. Before his record name is known, or while CloudKit
+    /// doesn't answer, the name waits on the device
+    /// (`ClassroomNames.setMyName`) and nothing is saved. It used to say
+    /// saved when an account change took the name back (2026-10-09 hunt, #5).
     @discardableResult
     static func setName(
         _ typed: String,
         in context: NSManagedObjectContext,
         save: (NSManagedObjectContext) -> Bool
-    ) async -> Bool {
-        if case .overtaken = await ClassroomNames.setMyName(typed, role: .leadGuide, in: context) { return false }
-        return save(context)
+    ) async -> Saved {
+        switch await ClassroomNames.setMyName(typed, role: .leadGuide, in: context) {
+        case .written: save(context) ? .saved : .failed
+        case .nothingToClear: .saved
+        case .waiting: .waiting
+        case .nothing: .notSaved
+        case .overtaken: .overtaken
+        }
     }
 }

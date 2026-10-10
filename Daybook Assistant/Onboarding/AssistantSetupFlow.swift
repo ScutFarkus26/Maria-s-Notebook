@@ -172,7 +172,7 @@ struct AssistantSetupReminderPage: View {
     var body: some View {
         AssistantOnboardingPage(
             systemImage: "bell",
-            title: "A nudge when arrival closes",
+            title: "A reminder when arrival closes",
             message: "On school mornings, if anyone still isn't marked, you'll get a reminder to close arrival. "
                 + "Weekends and days off are skipped."
         ) {

@@ -245,8 +245,8 @@ nonisolated extension RestockService {
     /// Two devices can each open a need for the same staple before either
     /// syncs. Keeps the oldest by (`createdAt`, `id`), so every device keeps
     /// the same one, and deletes the rest; if only a newer copy had been asked
-    /// for, the one kept takes over its request, so the order is still
-    /// followed.
+    /// for, the one kept takes over its request and what it asked for
+    /// (`takeRequest`), so the order is still followed.
     ///
     /// It also mends one way a staple's level and its need fall out of step
     /// across devices (one checks the need off as another marks the staple
@@ -275,11 +275,7 @@ nonisolated extension RestockService {
             guard let kept = ordered.first else { continue }
             let extras = ordered.dropFirst()
             if kept.requestedAt == nil, let asked = extras.first(where: { $0.requestedAt != nil }) {
-                kept.requestID = asked.requestID
-                kept.requestedFrom = asked.requestedFrom
-                kept.requestedAt = asked.requestedAt
-                kept.confirmedAt = asked.confirmedAt
-                kept.modifiedAt = asked.modifiedAt
+                takeRequest(of: asked, into: kept)
             }
             for extra in extras {
                 context.delete(extra)
@@ -287,6 +283,23 @@ nonisolated extension RestockService {
             }
         }
         return removed + openMissingNeeds(besides: Set(byStaple.keys), store: store, now: now, in: context)
+    }
+
+    /// The kept need becomes the copy the office was asked for: what was
+    /// asked (how many, the note, the name and the link) along with when and
+    /// of whom, so Asked For shows what the office has in hand. A name or
+    /// link the asked copy lacks keeps the kept need's own. Every device
+    /// merges the same two copies the same way.
+    private static func takeRequest(of asked: CDOrderItem, into kept: CDOrderItem) {
+        kept.requestID = asked.requestID
+        kept.requestedFrom = asked.requestedFrom
+        kept.requestedAt = asked.requestedAt
+        kept.confirmedAt = asked.confirmedAt
+        kept.quantity = asked.quantity
+        kept.notes = asked.notes
+        if !asked.title.trimmed().isEmpty { kept.title = asked.title }
+        if !asked.urlString.trimmed().isEmpty { kept.urlString = asked.urlString }
+        kept.modifiedAt = asked.modifiedAt
     }
 
     /// Opens a need for each settled Low or Out staple whose id isn't among

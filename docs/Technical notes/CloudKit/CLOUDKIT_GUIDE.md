@@ -298,6 +298,33 @@ notification, or on `.didSave` for main-queue contexts, as
 - A dead mirroring delegate (setup failure, 134421, 134406, or "never successfully initialized").
 - Retry state with backoff.
 
+**Sync stopped is per store (2026-10-10 bug-hunt fixes).**
+- `mirroringDelegateFailed` is derived from `stoppedStores`. Nothing sets it
+  without naming the store that stopped.
+- A failed attach records the store it ran against. On the guide's devices that
+  is the private store (`.notebook`), never the shared one.
+- Each store records when it stopped. Only a success whose event started after
+  that clears it, so a launch import that finished earlier and is replayed by
+  `configure` can't revive a dead delegate.
+- **No Apple Account at all** (CloudKit says `noAccount`): filing into the share
+  pauses until the app is reopened (`shareFilingPausedUntilReopen`).
+  `resetForNewAccount` leaves this pause alone.
+- **An account signed in but not ready yet**: filing waits only until that
+  store's setup succeeds again and an import or export follows. Core Data's
+  134400 also comes in this case, so the app asks CloudKit which one it is
+  (`CloudKitSyncStatusService+AccountReadiness.swift`).
+- Every attach path checks both states: setup, the orphan guard, the attendance
+  catch-up and Remove Last Year.
+
+**A pin from another device waits for an import.**
+- `fetchShares` only knows what is already mirrored on this device, so a
+  half-downloaded device sees records already in the share as unshared.
+- A resumed setup, and the attendance catch-up, refuse until the notebook has
+  imported since the pin was first seen here (`resumedSetupMustWait`).
+- Only `createPinnedShare` marks a pin as made here.
+- A device whose older build never recorded the pin waits for an import too,
+  and forgets nothing.
+
 **Where it shows up:**
 - **Settings → Data & Sync → iCloud**: status, a dead-delegate banner, and Sync Now.
 - **Settings → Classroom**: what the classroom share holds, a read-only count

@@ -221,4 +221,119 @@ struct MeetingDraftStoreTests {
         #expect(context.safeFetch(CDFetchRequest(CDStudentMeeting.self)).count == 1)
         #expect(context.safeFetch(CDFetchRequest(CDLessonAssignment.self)).count == 1)
     }
+
+    @Test("Re-present closes the work as Incomplete and plans its lesson again once on Complete")
+    @MainActor
+    func representPlansTheLessonAgain() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let lesson = CoreDataTestHelpers.seedLesson(
+            in: context, name: "Checkerboard", area: "Math", sequence: "Multiplication"
+        )
+        let student = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Levi")
+        let child = try #require(student.id)
+        let lessonID = try #require(lesson.id)
+        defer { Store.clearCurrent(studentID: child) }
+        let given = PresentationFactory.makePresented(lesson: lesson, students: [student], context: context)
+        let work = CoreDataTestHelpers.seedWorkModel(in: context, title: "Checkerboard", studentID: child, lessonID: lessonID)
+        work.presentationID = given.id?.uuidString
+        #expect(CoreDataTestHelpers.save(context))
+
+        let draft = MeetingDraftModel(studentID: child)
+        draft.load(context: context)
+        draft.represent(work, context: context)
+        #expect(work.status == .incomplete)
+        let workID = try #require(work.id)
+        #expect(draft.representWorkIDs == [workID])
+        #expect(draft.reviewedWorkIDs.contains(workID))
+
+        // The same lesson asked for by name too still plans it once.
+        draft.requestLessonIDs = [lessonID]
+        #expect(draft.complete(context: context, saveCoordinator: .preview) { _ in nil })
+
+        let planned = context.safeFetch(CDFetchRequest(CDLessonAssignment.self)).filter { !$0.isPresented }
+        #expect(planned.count == 1)
+        #expect(planned.first?.resolvedStudentIDs == [child])
+        #expect(planned.first?.notes.isEmpty == false)
+        #expect(given.needsAnotherPresentation)
+        #expect(draft.representWorkIDs.isEmpty)
+    }
+
+    @Test("Choosing another outcome after Re-present takes the re-presentation back")
+    @MainActor
+    func anotherOutcomeUndoesRepresent() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let child = UUID()
+        defer { Store.clearCurrent(studentID: child) }
+        let work = CoreDataTestHelpers.seedWorkModel(in: context, studentID: child)
+        #expect(CoreDataTestHelpers.save(context))
+
+        let draft = MeetingDraftModel(studentID: child)
+        draft.load(context: context)
+        draft.represent(work, context: context)
+        draft.decide(work, status: .active, context: context)
+        #expect(work.status == .active)
+        #expect(draft.representWorkIDs.isEmpty)
+    }
+
+    @Test("Ready for Next closes the work unmastered, confirms her and puts the next lesson On Deck once")
+    @MainActor
+    func readyForNextPlansTheNextLesson() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let first = CoreDataTestHelpers.seedLesson(in: context, name: "Stamp Game", area: "Math", sequence: "Operations")
+        first.orderInSequence = 1
+        let second = CoreDataTestHelpers.seedLesson(in: context, name: "Dot Board", area: "Math", sequence: "Operations")
+        second.orderInSequence = 2
+        let student = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Levi")
+        let child = try #require(student.id)
+        defer { Store.clearCurrent(studentID: child) }
+        let given = PresentationFactory.makePresented(lesson: first, students: [student], context: context)
+        let work = CoreDataTestHelpers.seedWorkModel(
+            in: context, title: "Stamp Game", studentID: child, lessonID: try #require(first.id)
+        )
+        work.presentationID = given.id?.uuidString
+        #expect(CoreDataTestHelpers.save(context))
+
+        let draft = MeetingDraftModel(studentID: child)
+        draft.load(context: context)
+        draft.represent(work, context: context)
+        draft.readyForNext(work, context: context)
+        #expect(work.status == .done)
+        #expect(draft.representWorkIDs.isEmpty)
+        #expect(draft.readyWorkIDs == [try #require(work.id)])
+        // The next lesson asked for by name too still goes On Deck once.
+        draft.requestLessonIDs = [try #require(second.id)]
+        #expect(draft.complete(context: context, saveCoordinator: .preview) { _ in nil })
+
+        let onDeck = context.safeFetch(CDFetchRequest(CDLessonAssignment.self)).filter { !$0.isPresented }
+        #expect(onDeck.count == 1)
+        #expect(onDeck.first?.lessonID == second.id?.uuidString)
+        #expect(onDeck.first?.resolvedStudentIDs == [child])
+        #expect(given.confirmedStudentIDs == [child.uuidString])
+        #expect(draft.readyWorkIDs.isEmpty)
+    }
+
+    @Test("Clear Meeting puts Re-present and Ready work back to Working")
+    @MainActor
+    func clearReopensPendingWork() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let child = UUID()
+        defer { Store.clearCurrent(studentID: child) }
+        let represented = CoreDataTestHelpers.seedWorkModel(in: context, title: "Bead frame", studentID: child)
+        let ready = CoreDataTestHelpers.seedWorkModel(in: context, title: "Stamp Game", studentID: child)
+        let mastered = CoreDataTestHelpers.seedWorkModel(in: context, title: "Dot Board", studentID: child)
+        #expect(CoreDataTestHelpers.save(context))
+
+        let draft = MeetingDraftModel(studentID: child)
+        draft.load(context: context)
+        draft.represent(represented, context: context)
+        draft.readyForNext(ready, context: context)
+        draft.decide(mastered, status: .mastered, context: context)
+        draft.discard(context: context)
+
+        #expect(represented.status == .active)
+        #expect(ready.status == .active)
+        #expect(mastered.status == .mastered)
+        #expect(draft.representWorkIDs.isEmpty && draft.readyWorkIDs.isEmpty)
+        #expect(Store.loadCurrent(studentID: child).isEmpty)
+    }
 }

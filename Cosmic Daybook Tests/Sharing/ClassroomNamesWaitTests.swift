@@ -223,15 +223,20 @@ extension ClassroomNamesWaitTests {
         #expect(waiting == nil, "written: nothing waits")
         #expect(name == nil, "the guide's own copy goes once his row has it")
 
-        // The account is being read again (unknown, not another one): it keeps waiting.
-        let kept = await whileLookingUp(Log(), during: { ClassroomIdentity.currentUserRecordName = nil }, {
+        // The stores going during the wait (her stack rebuilt): it keeps waiting.
+        let coordinator = try #require(context.persistentStoreCoordinator)
+        let stores = coordinator.persistentStores
+        let kept = await whileLookingUp(Log(), during: {
+            for store in stores { try? coordinator.remove(store) }
+        }, {
             await Support.asDevice(recordName: "_guide") {
-                _ = await ClassroomNames.setMyName("Daniel", role: .leadGuide, in: context)
-                return (ClassroomIdentity.displayName, ClassroomIdentity.nameWaitingAs)
+                let set = await ClassroomNames.setMyName("Daniel", role: .leadGuide, in: context)
+                return (set, ClassroomIdentity.displayName, ClassroomIdentity.nameWaitingAs)
             }
         })
-        #expect(kept.0 == "Daniel")
-        #expect(kept.1 == .leadGuide)
+        if case .waiting = kept.0 {} else { Issue.record("expected the name to wait, got \(kept.0)") }
+        #expect(kept.1 == "Daniel")
+        #expect(kept.2 == .leadGuide)
     }
 
     @Test("A guide's name waiting on a notebook that joined a class as an assistant asks the zones of his own rows")

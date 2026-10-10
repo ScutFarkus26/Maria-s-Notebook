@@ -14,16 +14,16 @@ struct AssistantStartupProblemView: View {
             Text(problem.message)
         } actions: {
             if problem.canRebuild {
-                Button("Rebuild from iCloud") { confirmingRebuild = true }
+                Button("Download from iCloud again") { confirmingRebuild = true }
                     .buttonStyle(.borderedProminent)
             }
         }
         .confirmationDialog(
-            "Rebuild your class from iCloud?",
+            "Download your class from iCloud again?",
             isPresented: $confirmingRebuild,
             titleVisibility: .visible
         ) {
-            Button("Rebuild", role: .destructive) {
+            Button("Download again", role: .destructive) {
                 Task { await bootstrapper.rebuildFromICloud() }
             }
         } message: {

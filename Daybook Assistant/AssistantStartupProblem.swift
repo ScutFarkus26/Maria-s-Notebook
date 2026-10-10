@@ -32,12 +32,12 @@ struct AssistantStartupProblem: Equatable {
             // one; the later build's data would be destroyed by opening it.
             message = "This copy of Assistant is older than the one that last opened "
                 + "your class on this iPhone. Install the latest version from TestFlight, "
-                + "or rebuild your class from iCloud."
+                + "or download your class from iCloud again."
         case CoreDataStackError.storeSchemaIncoherent:
-            message = "Your class's copy on this iPhone is damaged. Rebuild it from iCloud to carry on."
+            message = "Your class's copy on this iPhone is damaged. Download it from iCloud again to carry on."
         default:
             message = "Assistant couldn't open your class on this iPhone. "
-                + "Quit and reopen the app, or rebuild your class from iCloud."
+                + "Quit and reopen the app, or download your class from iCloud again."
         }
     }
 }

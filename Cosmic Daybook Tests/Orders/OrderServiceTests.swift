@@ -143,7 +143,7 @@ struct OrderServiceTests {
 
     // MARK: - The Request Email
 
-    @Test("The request lists each item with its link, quantity and note")
+    @Test("The request lists each item with its link beside its name, then quantity and note")
     func messageBody() {
         let lines = [
             OrderRequestLine(title: "Colored Pencils", link: "https://example.com/p", quantity: 2, notes: "24 count"),
@@ -155,14 +155,12 @@ struct OrderServiceTests {
 
             Could you please order these for my classroom?
 
-            1. Colored Pencils
+            1. Colored Pencils — https://example.com/p
                 Quantity: 2
-                https://example.com/p
                 Note: 24 count
 
-            2. Glue Sticks
+            2. Glue Sticks — https://example.com/g
                 Quantity: 1
-                https://example.com/g
 
             Thank you!
             Danny
@@ -186,5 +184,137 @@ struct OrderServiceTests {
         #expect(recipient.isConfigured)
         #expect(recipient.label == "Front Office")
         #expect(!OrderRequestRecipient(name: "Maria", email: " ").isConfigured)
+    }
+
+    @Test("CC addresses are split, and one already in To isn't copied again")
+    func ccRecipients() {
+        let recipient = OrderRequestRecipient(
+            name: "Office", email: "office@school.org",
+            cc: "Principal@school.org, office@SCHOOL.org; admin@school.org"
+        )
+        #expect(recipient.ccEmails == ["Principal@school.org", "admin@school.org"])
+        #expect(OrderRequestRecipient(name: "", email: "a@school.org").ccEmails.isEmpty)
+    }
+
+    @Test("The mail link carries the CC addresses")
+    func mailtoCarriesCC() throws {
+        let url = try #require(AttendanceEmail.makeMailtoURL(
+            to: ["office@school.org"], cc: ["a@school.org", "b@school.org"],
+            subject: "Order request", body: "Hi"
+        ))
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        #expect(items.first { $0.name == "cc" }?.value == "a@school.org,b@school.org")
+        let plain = try #require(AttendanceEmail.makeMailtoURL(to: ["o@s.org"], subject: "S", body: "B"))
+        #expect(!plain.absoluteString.contains("cc="))
+    }
+
+    @Test("The guide's own message fills in the name, items and sign-off")
+    func customTemplate() {
+        let line = OrderRequestLine(title: "Stapler", link: "", quantity: 3, notes: "")
+        let body = OrderRequestMessage.body(
+            for: [line], recipientName: "Maria", signOff: "Danny",
+            template: "Good morning [name]!\n\nWhen you have a moment:\n\n[Items]\n\nMany thanks,\n[Your name]"
+        )
+        #expect(body == """
+            Good morning Maria!
+
+            When you have a moment:
+
+            1. Stapler
+                Quantity: 3
+
+            Many thanks,
+            Danny
+            """)
+    }
+
+    @Test("A message without [Items] still lists them, and a missing name drops cleanly")
+    func customTemplateFallbacks() {
+        let line = OrderRequestLine(title: "Stapler", link: "", quantity: 1, notes: "")
+        let body = OrderRequestMessage.body(
+            for: [line], recipientName: "", signOff: "",
+            template: "Hi [Name],\nPlease order:\n[Your name]"
+        )
+        #expect(body == "Hi,\nPlease order:\n\n1. Stapler\n    Quantity: 1")
+    }
+
+    @Test("The standard template, or none, gives the standard message")
+    func standardTemplate() {
+        let line = OrderRequestLine(title: "Stapler", link: "", quantity: 1, notes: "")
+        let standard = OrderRequestMessage.body(for: [line], recipientName: "Maria", signOff: "Danny")
+        #expect(OrderRequestMessage.body(
+            for: [line], recipientName: "Maria", signOff: "Danny",
+            template: OrderRequestMessage.standardTemplate
+        ) == standard)
+        #expect(standard.contains("order this for my classroom"))
+        // The standard template, filled in for two items, reads the same as the standard message.
+        let lines = [line, OrderRequestLine(title: "Tape", link: "", quantity: 1, notes: "")]
+        #expect(OrderRequestMessage.body(
+            for: lines, recipientName: "Maria", signOff: "Danny",
+            template: OrderRequestMessage.standardTemplate + "\n "
+        ) == OrderRequestMessage.body(for: lines, recipientName: "Maria", signOff: "Danny"))
+    }
+}
+
+// MARK: - Links from pasted text, and the titles to fill in (bug hunt 2026-10-09 #22, #23)
+
+extension OrderServiceTests {
+
+    @Test("The link in pasted text is its first web link; a name or a mail link is no link at all")
+    func firstWebLink() {
+        #expect(OrderService.firstWebURL(in: " example.com/pencils ")?.absoluteString == "https://example.com/pencils")
+        #expect(OrderService.firstWebURL(in: "https://www.amazon.com/dp/B000HHKAE2")?.absoluteString
+            == "https://www.amazon.com/dp/B000HHKAE2")
+        let shared = "Check out Crayola Pencils, 24 ct! https://a.co/d/3xYz9 Shared from the app"
+        #expect(OrderService.firstWebURL(in: shared)?.absoluteString == "https://a.co/d/3xYz9")
+        #expect(OrderService.firstWebURL(in: "Crayola") == nil, "one word is a name, not a site")
+        #expect(OrderService.firstWebURL(in: "Look at this one") == nil)
+        #expect(OrderService.firstWebURL(in: "mailto:office@school.org") == nil)
+        #expect(OrderService.webURL(from: "mailto:office@school.org") == nil, "not a login at school.org")
+        #expect(OrderService.firstWebURL(in: "Write to office@school.org") == nil)
+        #expect(OrderService.firstWebURL(in: "file:///Users/guide/list.pdf") == nil)
+        #expect(OrderService.firstWebURL(in: "javascript:alert(1)") == nil)
+        #expect(OrderService.firstWebURL(in: "   ") == nil)
+    }
+
+    @Test("Editing keeps only the web link from pasted text, clears an empty link, and keeps the old one for junk")
+    func editLink() throws {
+        let context = try makeContext()
+        let item = try #require(OrderService.addLinks([link("rods")], in: context).first)
+        OrderService.update(
+            item, title: "Rods", urlString: "These look good https://www.example.com/beads?utm_source=share",
+            quantity: 2, notes: ""
+        )
+        #expect(item.urlString == "https://www.example.com/beads")
+        OrderService.update(item, title: "Rods", urlString: "no link here", quantity: 2, notes: "")
+        #expect(item.urlString == "https://www.example.com/beads", "text with no link leaves the link alone")
+        OrderService.update(item, title: "Rods", urlString: "  ", quantity: 2, notes: "")
+        #expect(item.urlString.isEmpty)
+        #expect(item.url == nil)
+    }
+
+    @Test("Only a web link opens: a stored mail, file or script link reads as no link")
+    func onlyWebLinksOpen() throws {
+        let context = try makeContext()
+        let item = CDOrderItem(context: context)
+        item.urlString = "https://www.example.com/rods"
+        #expect(item.url?.absoluteString == "https://www.example.com/rods")
+        for stored in ["javascript:alert(1)", "mailto:office@school.org", "file:///tmp/list.pdf",
+                       "Look at this https://www.example.com/rods"] {
+            item.urlString = stored
+            #expect(item.url == nil, "\(stored)")
+            #expect(item.host == nil)
+        }
+    }
+
+    @Test("Spaces separate addresses too, and what isn't an address gets no email")
+    func recipientsCheckedForShape() {
+        let recipient = OrderRequestRecipient(
+            name: "Office", email: "office@school.org principal",
+            cc: "a@school.org b@school.org, Jo"
+        )
+        #expect(recipient.emails == ["office@school.org"])
+        #expect(recipient.ccEmails == ["a@school.org", "b@school.org"])
+        #expect(!OrderRequestRecipient(name: "Office", email: "the office").isConfigured)
     }
 }

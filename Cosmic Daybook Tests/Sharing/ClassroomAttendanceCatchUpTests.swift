@@ -53,6 +53,19 @@ struct ClassroomAttendanceCatchUpTests {
         #expect(waiting == [thisYear.objectID])
     }
 
+    @Test("While iCloud's account holds filing the step is refused before anything else")
+    func refusedUnderTheHolds() throws {
+        let stack = try CoreDataTestHelpers.makeInMemoryStack()
+        let sync = CloudKitSyncStatusService()
+        // The test stack doesn't run CloudKit: that is the first thing the step minds otherwise.
+        #expect(ClassroomAttendanceCatchUp.blocker(coreDataStack: stack, sync: sync) == .cloudKitInactive)
+
+        sync.accountNotReadyStores = ["private-store": .awaitingSync]
+        #expect(ClassroomAttendanceCatchUp.blocker(coreDataStack: stack, sync: sync) == .iCloudNotReadyYet)
+        sync.shareFilingPausedUntilReopen = true
+        #expect(ClassroomAttendanceCatchUp.blocker(coreDataStack: stack, sync: sync) == .iCloudNotReadyAtLaunch)
+    }
+
     @Test("The count and the result read plainly")
     func wording() {
         let one = ClassroomAttendanceCatchUp.title(waiting: 1)

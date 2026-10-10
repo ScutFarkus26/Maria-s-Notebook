@@ -9,7 +9,7 @@ extension CKAccountStatus {
         case .noAccount:
             return "This iPhone isn't signed in to iCloud. Sign in from the top of the Settings app."
         case .restricted:
-            return "iCloud is restricted on this iPhone, by Screen Time or a device profile."
+            return "iCloud is blocked on this iPhone, by Screen Time or a device setting."
         case .temporarilyUnavailable:
             return "iCloud is unavailable right now. Open Settings and check your Apple Account."
         case .available, .couldNotDetermine:

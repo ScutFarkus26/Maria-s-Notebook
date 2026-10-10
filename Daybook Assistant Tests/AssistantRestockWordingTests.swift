@@ -222,7 +222,7 @@ struct AssistantRestockWordingTests {
             let lines = tab.history(for: towels).map {
                 AssistantRestockHistorySheet.line(for: $0, names: tab.author.names)
             }
-            #expect(lines == ["−2", "Out", "Low · Anna"], "stamped 'Ana', she goes by 'Anna' now")
+            #expect(lines == ["Removed 2", "Out", "Low · Anna"], "stamped 'Ana', she goes by 'Anna' now")
         }
     }
 

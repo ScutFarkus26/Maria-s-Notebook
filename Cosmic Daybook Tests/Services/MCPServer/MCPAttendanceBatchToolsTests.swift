@@ -71,7 +71,7 @@ struct MCPAttendanceBatchToolsTests {
             "students": .array([mark("Ora", "tardy"), mark("Etty", "leftEarly")]),
             "date": .string("2026-09-14")
         ])
-        #expect(receipt.contains("- Ora Levi — tardy"))
+        #expect(receipt.contains("- Ora Levi — late"))
         #expect(receipt.contains("- Etty Klein — left early"))
         #expect(receipt.contains("2 student(s) marked."))
         #expect(records(in: context).count == 2)

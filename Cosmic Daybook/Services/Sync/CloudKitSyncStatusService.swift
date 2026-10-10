@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import CloudKit
 import CoreData
 import OSLog
 
@@ -72,25 +73,37 @@ final class CloudKitSyncStatusService {
     /// a network), `NSCocoaErrorDomain` 134421 / 134406, or "never
     /// successfully initialized". Apple documents no recovery from these, so
     /// it holds until the store that set it imports or exports successfully
-    /// again (`stoppedStores`). Deliberately one flag, not per store:
-    /// attaching records to the classroom share also sets it and has no store
-    /// to name. `storeHealth` names the store and the cause
+    /// again. One flag for the screens, kept per store underneath
+    /// (`stoppedSince`): every source names its store, an attach to the
+    /// classroom share included (`markMirroringStopped(byAttachToStoreWithIdentifier:)`;
+    /// bug hunt 2026-10-09, #2). `storeHealth` names the store and the cause
     /// (`SyncStoppedAdvice`): re-downloading fixes a damaged local copy, but
     /// not a server refusal such as a schema missing from Production, where
     /// it would throw away the unsent changes.
-    var mirroringDelegateFailed: Bool = false {
-        didSet {
-            // Set from outside (attaching records to the share), with no
-            // event to name the store: the classroom share's is the one it used.
-            if mirroringDelegateFailed, stoppedStores.isEmpty { stoppedStores = [.classroomShare] }
-            if !mirroringDelegateFailed { stoppedStores = [] }
-        }
-    }
+    var mirroringDelegateFailed: Bool { !stoppedSince.isEmpty }
 
-    /// The stores whose failures set `mirroringDelegateFailed`. Each leaves
-    /// on its own store's next successful import or export; the flag clears
-    /// once none is left.
-    @ObservationIgnored var stoppedStores: Set<SyncedStore> = []
+    /// The stores whose mirroring delegates died, and since when. Each leaves
+    /// on a successful import or export of its own that started after that
+    /// (`clearMirroringStopped`). Written only by `markMirroringStopped`,
+    /// `clearMirroringStopped` and `resetForNewAccount`.
+    var stoppedSince: [SyncedStore: Date] = [:]
+
+    /// True once a CloudKit setup failed with no iCloud account signed in at
+    /// all (the account status says `noAccount`): nothing is filed into the
+    /// classroom share until the app is reopened (Danny's call, bug hunt
+    /// 2026-10-09, #2; `shareFilingHold`). Kept for the life of the process:
+    /// another account signing in or a store's later success doesn't clear it.
+    var shareFilingPausedUntilReopen = false
+
+    /// Stores whose setup failed for want of a ready iCloud account, by store
+    /// identifier, and how far each has come back (`followAccountReadiness`).
+    var accountNotReadyStores: [String: AccountReadiness] = [:]
+
+    /// CloudKit's account status, asked after a setup failed for want of an
+    /// account; a test sets its own.
+    @ObservationIgnored var accountStatus: @MainActor () async throws -> CKAccountStatus = {
+        try await CloudKitConfigurationService.container.accountStatus()
+    }
 
     /// Failed setup/import/export events per store (notebook, classroom share)
     /// that no later success of the same kind on the same store has cleared.

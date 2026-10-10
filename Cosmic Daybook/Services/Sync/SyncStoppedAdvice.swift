@@ -26,7 +26,8 @@ nonisolated struct SyncStoppedAdvice: Equatable, Sendable {
 
     let diagnosis: Diagnosis
     /// The store that stopped; nil when nothing this session says which (the
-    /// flag can come from attaching records to the share, which has no store).
+    /// flag can come from attaching records to the share, which records no
+    /// failed event; `stoppedStores` names its store).
     let store: SyncedStore?
     let title: String
     /// What happened and what to do, in plain words.

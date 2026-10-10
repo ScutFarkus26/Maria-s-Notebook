@@ -34,6 +34,9 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
     }
 
     @State var assignment: CDLessonAssignment?
+    /// Children on it whose own follow-up says re-present (a meeting's
+    /// Re-present for one child), loaded with the assignment.
+    @State private var representedStudentIDs: Set<String> = []
     @State var unifiedNotes: [CDNote] = []
     /// The "Related Work" section's data, loaded with the assignment and on
     /// work / student / practice-session changes (see `reloadWorkSummary`).
@@ -68,6 +71,14 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
 
     private func studentList(for la: CDLessonAssignment) -> [CDStudent] {
         la.resolvedStudentIDs.compactMap { studentsByID[$0] }
+    }
+
+    /// The children flagged on their own follow-up rows, by short name, or nil.
+    private func representedNames(for la: CDLessonAssignment) -> String? {
+        let names = la.resolvedStudentIDs
+            .filter { representedStudentIDs.contains($0.uuidString) }
+            .compactMap { studentsByID[$0]?.shortName }
+        return names.isEmpty ? nil : ListFormatter.localizedString(byJoining: names)
     }
 
     var body: some View {
@@ -155,6 +166,8 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
             } else {
                 self.assignment = nil
             }
+            representedStudentIDs = ChildRepresentations(presentationIDs: [targetID.uuidString], in: viewContext)
+                .students(on: targetID.uuidString)
             reloadNotes()
             reloadWorkSummary()
             isLoading = false
@@ -221,7 +234,8 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
 
                 studentsSection(for: la)
 
-                if la.needsPractice || la.needsAnotherPresentation || !la.followUpWork.isEmpty {
+                if la.needsPractice || la.needsAnotherPresentation || representedNames(for: la) != nil
+                    || !la.followUpWork.isEmpty {
                     followUpSection(for: la)
                 }
 
@@ -299,6 +313,14 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
             if la.needsAnotherPresentation {
                 Label(
                     "Needs Another Presentation",
+                    systemImage: SFSymbol.Action.arrowCounterclockwise
+                )
+                    .font(.subheadline)
+                    .foregroundStyle(AppColors.warning)
+            } else if let names = representedNames(for: la) {
+                // One child's Re-present is hers alone, so it names her.
+                Label(
+                    "Needs Another Presentation: \(names)",
                     systemImage: SFSymbol.Action.arrowCounterclockwise
                 )
                     .font(.subheadline)

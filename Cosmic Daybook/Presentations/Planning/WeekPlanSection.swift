@@ -52,6 +52,9 @@ struct WeekPlanSection: View {
     @State var days: [Date] = []
     /// The day at the strip's leading edge, kept in step with the scroll view.
     @State var leadingDay: Date?
+    /// Whether the strip is scrolling or holding a day in place, which is when
+    /// it must not load more days.
+    @State var stripSettle = WeekPlanDayWindow.Settle()
     @State var showClearAllConfirmation = false
     @State var selectedGroup: CalendarCheckInGroup?
     @State var prompt: WorkCheckInPlanPrompt?
@@ -81,7 +84,7 @@ struct WeekPlanSection: View {
         ScrollViewReader { proxy in
             VStack(spacing: 6) {
                 header
-                dayStrip
+                dayStrip(proxy)
             }
             .task {
                 startDate = restoredStartDate()
@@ -94,8 +97,8 @@ struct WeekPlanSection: View {
             .onChange(of: startDate) { _, _ in
                 Task { await reloadDays() }
             }
-            .onChange(of: leadingDay) { _, day in
-                leadingDayChanged(to: day)
+            .onChange(of: leadingDay) { _, _ in
+                leadingDayChanged(proxy: proxy)
             }
             .onChange(of: visibleKindsRaw) { _, _ in
                 Task { await refreshCheckIns() }
@@ -235,7 +238,7 @@ struct WeekPlanSection: View {
     /// Five equal columns across the pane, in a strip that scrolls through the
     /// school days either side and comes to rest on a day's edge. A pane too
     /// narrow for five at the minimum width shows fewer.
-    private var dayStrip: some View {
+    private func dayStrip(_ proxy: ScrollViewProxy) -> some View {
         let assignments = Array(lessonAssignments)
         let byDay = Self.scheduledByDay(assignments, days: days, calendar: calendar)
         let columnWidth = Self.columnWidth(forStripWidth: stripWidth, dayCount: Self.visibleDayCount)
@@ -270,6 +273,9 @@ struct WeekPlanSection: View {
         .contentMargins(.horizontal, Self.stripPadding, for: .scrollContent)
         .scrollTargetBehavior(.viewAligned(limitBehavior: .never))
         .scrollPosition(id: $leadingDay, anchor: .leading)
+        .onScrollPhaseChange { _, phase in
+            stripScrollPhaseChanged(phase, proxy: proxy)
+        }
         .onGeometryChange(for: CGFloat.self) { proxy in
             proxy.size.width
         } action: { width in

@@ -44,6 +44,8 @@ nonisolated enum BackupPreferencesService {
         "Orders.recipientName",
         "Orders.recipientEmail",
         "Orders.signOffName",
+        "Orders.ccEmail",
+        "Orders.messageTemplate",
         // Age indicators (synced)
         "LessonAge.warningDays",
         "LessonAge.overdueDays",

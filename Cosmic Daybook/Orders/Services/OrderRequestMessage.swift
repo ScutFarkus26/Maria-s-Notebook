@@ -9,23 +9,35 @@ enum OrderRequestPrefs {
     static let recipientNameKey = "Orders.recipientName"
     static let recipientEmailKey = "Orders.recipientEmail"
     static let signOffNameKey = "Orders.signOffName"
+    static let ccEmailKey = "Orders.ccEmail"
+    /// The guide's own wording for the email. Empty means the standard message.
+    static let messageTemplateKey = "Orders.messageTemplate"
 }
 
 /// The person order requests go to.
 struct OrderRequestRecipient: Equatable, Sendable {
     var name: String
     var email: String
+    /// Copied on every request: commas or semicolons separate several.
+    var cc: String = ""
 
     static func stored() -> OrderRequestRecipient {
         let store = SyncedPreferencesStore.shared
         return OrderRequestRecipient(
             name: store.string(forKey: OrderRequestPrefs.recipientNameKey)?.trimmed() ?? "",
-            email: store.string(forKey: OrderRequestPrefs.recipientEmailKey)?.trimmed() ?? ""
+            email: store.string(forKey: OrderRequestPrefs.recipientEmailKey)?.trimmed() ?? "",
+            cc: store.string(forKey: OrderRequestPrefs.ccEmailKey)?.trimmed() ?? ""
         )
     }
 
     /// Every address in the email field — commas or semicolons separate several.
     var emails: [String] { AttendanceEmail.parseRecipients(from: email) }
+
+    /// Every CC address, leaving out any already in To.
+    var ccEmails: [String] {
+        let to = Set(emails.map { $0.lowercased() })
+        return AttendanceEmail.parseRecipients(from: cc).filter { !to.contains($0.lowercased()) }
+    }
 
     var isConfigured: Bool { !emails.isEmpty }
 
@@ -70,9 +82,78 @@ enum OrderRequestMessage {
         }
     }
 
-    /// A numbered list, each item's link on the line under its name. Mail sends
+    /// The words the guide can put in their own message, filled in when the
+    /// email is written.
+    enum Placeholder {
+        static let name = "[Name]"
+        static let items = "[Items]"
+        static let signOff = "[Your name]"
+    }
+
+    /// The standard message written with placeholders, as Settings shows it
+    /// before the guide changes anything.
+    static let standardTemplate = """
+        Hi \(Placeholder.name),
+
+        Could you please order these for my classroom?
+
+        \(Placeholder.items)
+
+        Thank you!
+        \(Placeholder.signOff)
+        """
+
+    /// The email body. With no `template` (or the standard one) it's the
+    /// standard message, which says "this" or "these" to fit the count; with
+    /// the guide's own template, the placeholders are filled in and the items
+    /// are added at the end if the template leaves `[Items]` out.
+    static func body(
+        for lines: [OrderRequestLine],
+        recipientName: String,
+        signOff: String,
+        template: String = ""
+    ) -> String {
+        let custom = template.trimmed()
+        guard !custom.isEmpty, custom != standardTemplate.trimmed() else {
+            return standardBody(for: lines, recipientName: recipientName, signOff: signOff)
+        }
+        return fill(custom, lines: lines, recipientName: recipientName, signOff: signOff)
+    }
+
+    private static func itemsText(for lines: [OrderRequestLine]) -> String {
+        lines.enumerated()
+            .map { index, line in itemBlock(number: index + 1, line: line).joined(separator: "\n") }
+            .joined(separator: "\n\n")
+    }
+
+    private static func fill(
+        _ template: String,
+        lines: [OrderRequestLine],
+        recipientName: String,
+        signOff: String
+    ) -> String {
+        let name = recipientName.trimmed()
+        let signature = signOff.trimmed()
+        var text = template
+        if name.isEmpty {
+            // "Hi [Name]," reads "Hi," rather than "Hi ,".
+            text = text.replacingOccurrences(of: " " + Placeholder.name, with: "", options: .caseInsensitive)
+        }
+        text = text.replacingOccurrences(of: Placeholder.name, with: name, options: .caseInsensitive)
+        text = text.replacingOccurrences(of: Placeholder.signOff, with: signature, options: .caseInsensitive)
+
+        let items = itemsText(for: lines)
+        if text.range(of: Placeholder.items, options: .caseInsensitive) != nil {
+            text = text.replacingOccurrences(of: Placeholder.items, with: items, options: .caseInsensitive)
+        } else if !items.isEmpty {
+            text = text.trimmed() + "\n\n" + items
+        }
+        return text.trimmed()
+    }
+
+    /// A numbered list, each item's link beside its name. Mail sends
     /// plain text in a proportional font, so blank lines carry the structure.
-    static func body(for lines: [OrderRequestLine], recipientName: String, signOff: String) -> String {
+    private static func standardBody(for lines: [OrderRequestLine], recipientName: String, signOff: String) -> String {
         let name = recipientName.trimmed()
         let greeting = name.isEmpty ? "Hi," : "Hi \(name),"
         let ask = lines.count == 1
@@ -94,15 +175,13 @@ enum OrderRequestMessage {
     private static let indent = "    "
 
     private static func itemBlock(number: Int, line: OrderRequestLine) -> [String] {
-        // Always stated, even for one: the office should never have to ask how many.
-        var block = [
-            "\(number). \(line.title.trimmed())",
-            "\(indent)Quantity: \(max(1, line.quantity))"
-        ]
+        // The link sits beside the name, so each line says what it opens.
         let link = line.link.trimmed()
-        if !link.isEmpty {
-            block.append(indent + link)
-        }
+        let heading = link.isEmpty
+            ? "\(number). \(line.title.trimmed())"
+            : "\(number). \(line.title.trimmed()) \u{2014} \(link)"
+        // Always stated, even for one: the office should never have to ask how many.
+        var block = [heading, "\(indent)Quantity: \(max(1, line.quantity))"]
         let notes = line.notes.trimmed()
         if !notes.isEmpty {
             block.append("\(indent)Note: \(notes)")

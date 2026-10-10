@@ -58,10 +58,12 @@ nonisolated public class CDOrderItem: NSManagedObject {
         return .toRequest
     }
 
+    /// The link, only when it is a web page: Open Link and the title fetch
+    /// never open a mail, file or script link that found its way in.
     var url: URL? {
         let trimmed = urlString.trimmed()
-        guard !trimmed.isEmpty else { return nil }
-        return URL(string: trimmed)
+        guard !trimmed.isEmpty, let url = URL(string: trimmed), OrderService.isWebURL(url) else { return nil }
+        return url
     }
 
     /// The site the link points at, without a leading "www.".

@@ -91,17 +91,28 @@ enum ClassroomAttendanceCatchUp {
 
     // MARK: - On the Mac
 
-    /// Why the step can't run now, or nil.
-    static func blocker(coreDataStack: CoreDataStack) -> ClassroomShareError? {
+    /// Why the step can't run now, or nil. First: a setup found no ready
+    /// iCloud account (`shareFilingHold`). Last: on a device that didn't make
+    /// the pin, until the notebook has imported since the pin arrived
+    /// (`pinWaitBlocker`): before then marks already in the share can read as
+    /// outside it, and `share(_:to:)` on them is the 2026-09-28 incident's call.
+    static func blocker(
+        coreDataStack: CoreDataStack,
+        sync: CloudKitSyncStatusService = .shared,
+        guardian: SharedStoreOrphanGuard = .shared
+    ) -> ClassroomShareError? {
         let context = coreDataStack.viewContext
+        if let hold = sync.shareFilingHold { return ClassroomShareError(hold) }
         guard coreDataStack.isCloudKitActive else { return .cloudKitInactive }
-        guard coreDataStack.privatePersistentStore != nil else { return .sharedStoreUnavailable }
+        guard let store = coreDataStack.privatePersistentStore else { return .sharedStoreUnavailable }
         guard !CoreDataStack.isSecondaryProcess else { return .anotherCopyOpen }
         guard CDClassroomMembership.currentRole(in: context) == .leadGuide else { return .assistantCannotCreateShare }
         guard !FirstDownloadGate.isPending() else { return .firstDownloadPending }
-        guard !CloudKitSyncStatusService.shared.mirroringDelegateFailed else { return .mirroringStopped }
-        guard CDClassroomMembership.pinnedZoneName(in: context) != nil else { return .notSetUp }
-        return nil
+        guard !sync.mirroringDelegateFailed else { return .mirroringStopped }
+        guard let zone = CDClassroomMembership.pinnedZoneName(in: context) else { return .notSetUp }
+        return ClassroomSharingService.pinWaitBlocker(
+            pinnedZone: zone, context: context, notebookStoreID: store.identifier, guardian: guardian
+        )
     }
 
     /// How many marks the card offers to add; nil when the step can't run here
@@ -132,7 +143,8 @@ enum ClassroomAttendanceCatchUp {
             logger.notice("Adding this year's attendance to the share: \(ids.count, privacy: .public) mark(s)")
             let outcome = await ClassroomShareAttach.attach(ids, to: share, container: container)
             if outcome.mirroringDelegateDied {
-                CloudKitSyncStatusService.shared.mirroringDelegateFailed = true
+                // The store the attach ran against: the private store's delegate died.
+                CloudKitSyncStatusService.shared.markMirroringStopped(byAttachToStoreWithIdentifier: store.identifier)
             }
             let report = Report(
                 attached: outcome.attached, failed: outcome.failed.count,

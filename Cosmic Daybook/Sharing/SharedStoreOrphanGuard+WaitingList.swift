@@ -106,9 +106,10 @@ extension SharedStoreOrphanGuard {
 
     // MARK: - A pin made on another device
 
-    /// The first time this device sees a pin made elsewhere (Set Up Classroom
-    /// Sharing run on the guide's Mac, say), it forgets what it listed before
-    /// that pin was made. That setup took every classroom record it had, and
+    /// The first time this device sees a pin in a zone other than the one it
+    /// noted last, the pin was made elsewhere (Set Up Classroom Sharing run on
+    /// the guide's Mac, say), and it forgets what it listed before that pin
+    /// was made. That setup took every classroom record it had, and
     /// this device's view of which are shared may still be half downloaded, so
     /// attaching them here could ask CloudKit to share records already in the
     /// share (2026-10-05 hunt). One that never reached the other device stays
@@ -116,10 +117,28 @@ extension SharedStoreOrphanGuard {
     /// Entries listed before stamps were kept (stamp 0) can't be dated, and
     /// stay. Setup on this device notes its own pin first (`notePinMadeHere`),
     /// so its list is never touched here.
+    ///
+    /// Either way the pin is noted as seen now (`pinSeenAt`), which holds
+    /// filing until an import that began after it has finished
+    /// (`waitingForImportAfterPin`).
+    ///
+    /// With no zone noted at all, nothing is forgotten: builds before
+    /// 2026-10-06 never noted one, not even the pin setup made on this very
+    /// device, and nothing else on the device says which made it (the
+    /// membership row has no device, and the guide's Mac and iPad share one
+    /// owner). Forgetting there dropped what setup had failed to attach on
+    /// the guide's own Mac (bug hunt 2026-10-09, #3). The wait for an import
+    /// still keeps a half-downloaded device from sharing records twice; on
+    /// the pin's own device it costs only that wait.
     func forgetWhatSetupElsewhereTook(pinnedZone: String, pinnedAt: Date?) {
-        guard defaults.string(forKey: Self.pinSeenKey) != pinnedZone else { return }
+        let seenBefore = defaults.string(forKey: Self.pinSeenKey)
+        guard seenBefore != pinnedZone else { return }
         defaults.set(pinnedZone, forKey: Self.pinSeenKey)
         defaults.set(Date().timeIntervalSinceReferenceDate, forKey: Self.pinSeenAtKey)
+        guard seenBefore != nil else {
+            Self.logger.notice("Classroom share pin noted for the first time: forgot nothing; waiting for an import")
+            return
+        }
         guard let pinnedAt else { return }
         let made = pinnedAt.timeIntervalSinceReferenceDate
         let entries = pendingEntries
@@ -132,11 +151,29 @@ extension SharedStoreOrphanGuard {
         write(kept)
     }
 
-    /// Set Up Classroom Sharing on this device: the pin in `zone` is this
-    /// device's own, and what it listed stays for setup and the guard to settle.
+    /// Set Up Classroom Sharing on this device just made the pin in `zone`
+    /// (`createPinnedShare`): it is this device's own, and what it listed
+    /// stays for setup and the guard to settle. Only for a pin made here, now:
+    /// it ends the wait for an import (`waitingForImportAfterPin`).
     func notePinMadeHere(zone: String) {
         defaults.set(zone, forKey: Self.pinSeenKey)
         defaults.removeObject(forKey: Self.pinSeenAtKey)
+    }
+
+    /// For a path that files this device's existing records into the share
+    /// outside the guard's passes (a resumed Set Up Classroom Sharing, "Add
+    /// them to the share", the attendance catch-up): true while it must wait.
+    /// A pin this device hasn't seen is noted first, as the guard's own passes
+    /// note it (`forgetWhatSetupElsewhereTook`); then it waits as they do,
+    /// until an import into the notebook that began after the pin was seen
+    /// has finished. Before then this device may hold only part of what is
+    /// shared, and `fetchShares` reads only what has been downloaded, so
+    /// records already in the share would count as outside it and be shared a
+    /// second time. It never notes the pin as made here: that switched the
+    /// wait off for the guard too (bug hunt 2026-10-09, #1).
+    func mustWaitForImportAfterPin(pinnedZone: String, pinnedAt: Date?, notebookStoreID: String) -> Bool {
+        forgetWhatSetupElsewhereTook(pinnedZone: pinnedZone, pinnedAt: pinnedAt)
+        return waitingForImportAfterPin(notebookStoreID: notebookStoreID)
     }
 
     /// Whether a pin made on another device arrived here so recently that no

@@ -106,6 +106,10 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
             request.sortDescriptors = [NSSortDescriptor(key: "presentedAt", ascending: false)]
             return context.safeFetch(request)
         }()
+
+        /// The children whose own follow-up says re-present, so one child's
+        /// Re-present isn't read as the whole group's.
+        private(set) lazy var representations = ChildRepresentations(in: context)
     }
 
     private func appendStudentDetail(
@@ -164,7 +168,9 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
             let date = formattedDate(pres.presentedAt ?? pres.createdAt)
             var line = "  • \(lessonName)\(areaStr) — \(date)"
             if pres.needsPractice { line += " [needs practice]" }
-            if pres.needsAnotherPresentation { line += " [needs re-presentation]" }
+            if pres.needsAnotherPresentation(for: studentIDString, given: reads.representations) {
+                line += " [needs re-presentation]"
+            }
             if !pres.followUpWork.isEmpty { line += " → follow-up: \(pres.followUpWork.prefix(80))" }
             lines.append(line)
             if !pres.notes.isEmpty { lines.append("    Notes: \(pres.notes.prefix(120))") }

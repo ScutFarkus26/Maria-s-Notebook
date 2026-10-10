@@ -18,7 +18,11 @@ struct OrderItemEditSheet: View {
     @State private var isFetchingTitle = false
     @State private var confirmingDelete = false
 
-    private var fetchURL: URL? { OrderService.webURL(from: link) }
+    /// The web link in the field: pasted share text keeps only its link.
+    private var fetchURL: URL? { OrderService.firstWebURL(in: link) }
+
+    /// Text in the Link field with no web link in it.
+    private var linkIsInvalid: Bool { !link.trimmed().isEmpty && fetchURL == nil }
 
     var body: some View {
         NavigationStack {
@@ -38,6 +42,11 @@ struct OrderItemEditSheet: View {
                             }
                             .help("Open the link")
                         }
+                    }
+                    if linkIsInvalid {
+                        Text("That doesn't look like a web link.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                     Button {
                         fetchTitle()
@@ -91,6 +100,7 @@ struct OrderItemEditSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save", action: save)
+                        .disabled(linkIsInvalid)
                 }
             }
             .confirmationDialog(

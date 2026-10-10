@@ -131,8 +131,12 @@ private struct MeetingSessionContent: View {
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { draft.flush() }
         }
+        // Cleared or filed from the student record's tab or another window.
+        .onReceive(NotificationCenter.default.publisher(for: .meetingDraftsDidChange)) { _ in
+            draft.storedDraftsChanged()
+        }
         .confirmationDialog("Clear this meeting?", isPresented: $isConfirmingClear, titleVisibility: .visible) {
-            Button("Clear Meeting", role: .destructive) { draft.clear() }
+            Button("Clear Meeting", role: .destructive) { draft.discard(context: viewContext) }
         } message: {
             Text("Everything written for \(student.firstName)'s meeting so far will be erased.")
         }

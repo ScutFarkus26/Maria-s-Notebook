@@ -69,7 +69,7 @@ struct AssistantRestockTile: View {
                 Text(level.displayName)
                     .font(.footnote.weight(.semibold))
             }
-            Text(showsHoldHint ? "Hold for more" : (markedBy ?? " "))
+            Text(showsHoldHint ? "Already out. Hold to change." : (markedBy ?? " "))
                 .font(.caption)
                 .foregroundStyle(style.detail)
                 .lineLimit(1)

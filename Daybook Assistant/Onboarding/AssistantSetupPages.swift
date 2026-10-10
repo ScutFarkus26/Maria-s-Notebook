@@ -154,7 +154,7 @@ struct AssistantSetupDonePage: View {
                 + "classroom."
         ) {
             OnboardingCard {
-                summary("Children", value: childCount == 0 ? "Coming down from iCloud…" : "\(childCount)", first: true)
+                summary("Children", value: childCount == 0 ? "Downloading from iCloud…" : "\(childCount)", first: true)
                 summary("Your name", value: name.isEmpty ? "Not set" : name)
                 summary(
                     "Arrival reminder",

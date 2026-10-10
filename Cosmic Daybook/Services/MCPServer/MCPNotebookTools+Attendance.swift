@@ -22,7 +22,7 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "attendance_for_day",
             title: "Attendance For A Day",
-            description: "Who was present, absent, tardy or left early on a given day, and who "
+            description: "Who was present, absent, late or left early on a given day, and who "
                 + "has not been marked yet.",
             inputSchema: [
                 "type": "object",
@@ -180,10 +180,10 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "mark_attendance",
             title: "Mark Attendance",
-            description: "Mark one student present, absent, tardy or left-early on a day, with an optional "
-                + "absence reason and note. Pass students for several at once, or mark_all_present to "
-                + "mark everyone not named there present. Marks are attributed and sync to the "
-                + "classroom.",
+            description: "Mark one student present, absent, late (status tardy) or left early on a day, "
+                + "with an optional absence reason and note. Pass students for several at once, or "
+                + "mark_all_present to mark everyone not named there present. Marks are attributed "
+                + "and sync to the classroom.",
             inputSchema: markAttendanceSchema,
             annotations: .idempotentWrite,
             handler: { arguments in
@@ -195,7 +195,7 @@ extension MCPNotebookTools {
     private static let attendanceStatusSchema: JSONValue = [
         "type": "string",
         "enum": ["present", "absent", "tardy", "leftEarly", "unmarked"],
-        "description": "present, absent, tardy, leftEarly, or unmarked"
+        "description": "present, absent, tardy (replies call it late), leftEarly, or unmarked"
     ]
 
     private static let markAttendanceSchema: JSONValue = [

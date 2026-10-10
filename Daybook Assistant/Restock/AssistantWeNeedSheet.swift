@@ -3,9 +3,10 @@ import CoreData
 
 /// "We need…": something that isn't on the shelf, asked for once. A name,
 /// where it comes from (the office, or ordered by the guide) and how many.
-/// Naming a staple marks it Out instead. Pasting a link suggests a product
-/// and switches to Needs ordering. Only the guide sends the order email, so
-/// there's no Draft Request here.
+/// Naming a staple marks it Out instead, with how many on its need. Pasting
+/// a link suggests a product and switches to Needs ordering. Only the guide
+/// sends the order email, so there's no Draft Request here. A save that
+/// fails keeps the sheet open and says so.
 struct AssistantWeNeedSheet: View {
     let model: AssistantRestockModel
 
@@ -40,8 +41,9 @@ struct AssistantWeNeedSheet: View {
                         .padding(.horizontal, 4)
                     if staple == nil {
                         sourcePicker
-                        quantityRow
                     }
+                    // A staple's count goes on its need, until the guide asks for it.
+                    quantityRow
                     Button(action: add) {
                         Text(goLabel)
                             .font(.headline)
@@ -86,13 +88,14 @@ struct AssistantWeNeedSheet: View {
 
     private var hint: String {
         if let staple {
-            return "\(staple.name) is on the shelf. This marks it Out."
+            return "\(staple.name) is already one of the class's supplies. This marks it Out."
         }
-        return "Not on the shelf, so this asks once. Paste a link to suggest a product."
+        return "This isn't one of the class's regular supplies, so it's asked for just this once. "
+            + "Paste a link to suggest a product."
     }
 
     private var goLabel: String {
-        if staple != nil { return "Mark It Out" }
+        if staple != nil { return "Mark as Out" }
         return source == .office ? "Add to Office Run" : model.askToOrder
     }
 
@@ -181,6 +184,9 @@ struct AssistantWeNeedSheet: View {
             dismiss()
         case .alreadyListed:
             notice = "That's already on the list."
+        case .notSaved:
+            // Kept open, so tapping again tries the save again.
+            notice = model.errorMessage ?? "Couldn't save that change. Try again."
         case .nothing:
             break
         }

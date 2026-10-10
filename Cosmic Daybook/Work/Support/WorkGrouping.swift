@@ -27,6 +27,19 @@
 //  as a single row — the conservative answer, and the one that keeps callers
 //  from reaching into records that are no longer part of any group.
 //
+//  Mutual naming alone can't tell one fan-out from the next, though. The same
+//  work given to the same children twice — an assign_work call weeks after
+//  the first — names the same owners both times, and neither sets a
+//  presentation, so the second assignment used to join the first: a check-in,
+//  a status or a delete on the new rows reached the old ones too. So copies
+//  must also have been made together: created within `fanOutWindow` of each
+//  other. A shared presentation isn't enough on its own — `createWork` links
+//  every copy to the children's latest record for the lesson, so the same
+//  work given again weeks later carries the same presentation as the first.
+//  Only Quick New Work and assign_work make copies that name each other, both
+//  in one pass, and backup restore and sync keep `createdAt`. A row with no
+//  creation date keeps the old rule, so older group work still groups.
+//
 
 import CoreData
 import Foundation
@@ -186,9 +199,10 @@ enum WorkGrouping {
 
     /// Whether two rows are copies of one another created by the same fan-out.
     ///
-    /// The mutual naming test carries the weight; the field comparisons only
-    /// keep two genuinely separate assignments of the same lesson from being
-    /// read as one group.
+    /// The mutual naming test carries the weight; the field comparisons and
+    /// `wereMadeTogether` keep two genuinely separate assignments of the same
+    /// lesson — or the same assignment given twice — from being read as one
+    /// group.
     static func areLinkedCopies(_ lhs: CDWorkModel, _ rhs: CDWorkModel) -> Bool {
         guard lhs !== rhs,
               let lhsOwner = owner(of: lhs),
@@ -199,8 +213,24 @@ enum WorkGrouping {
               studentIDs(of: rhs).contains(lhsOwner) else { return false }
 
         return lhs.lessonID == rhs.lessonID
-            && lhs.presentationID == rhs.presentationID
             && lhs.kind == rhs.kind
             && lhs.title.foldedKey() == rhs.title.foldedKey()
+            && wereMadeTogether(lhs, rhs)
+    }
+
+    /// How far apart two copies of one fan-out can have been created.
+    /// `assign_work` and Quick New Work make every copy in one pass, so their
+    /// stamps are milliseconds apart; a repeat assignment is days or weeks on.
+    static let fanOutWindow: TimeInterval = 60
+
+    /// Whether two rows came from the same act of assigning: the same
+    /// presentation (or none on both), and created within `fanOutWindow`.
+    /// The window applies even when the presentation matches, since a repeat
+    /// assignment inherits the first one's. A missing creation date can't rule
+    /// a row out, so it passes, as every row did before the window existed.
+    private static func wereMadeTogether(_ lhs: CDWorkModel, _ rhs: CDWorkModel) -> Bool {
+        guard lhs.presentationID == rhs.presentationID else { return false }
+        guard let lhsCreated = lhs.createdAt, let rhsCreated = rhs.createdAt else { return true }
+        return abs(lhsCreated.timeIntervalSince(rhsCreated)) <= fanOutWindow
     }
 }

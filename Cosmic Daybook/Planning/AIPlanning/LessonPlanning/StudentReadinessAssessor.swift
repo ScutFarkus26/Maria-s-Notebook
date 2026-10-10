@@ -23,13 +23,15 @@ struct StudentReadinessAssessor {
         let allLessons = DataQueryService(context: context).fetchAllLessons(sortBy: CDLesson.sortByCurriculumOrder)
         let allPresentations = fetchPresentations(context: context)
         let allWork = fetchAllWork(context: context)
+        let representations = ChildRepresentations(in: context)
 
         return students.map { student in
             buildProfile(
                 for: student,
                 allLessons: allLessons,
                 allPresentations: allPresentations,
-                allWork: allWork
+                allWork: allWork,
+                representations: representations
             )
         }
     }
@@ -55,19 +57,19 @@ struct StudentReadinessAssessor {
 
     // MARK: - Profile Building
 
-    // swiftlint:disable:next function_parameter_count
     private static func buildProfile(
         for student: CDStudent,
         allLessons: [CDLesson],
         allPresentations: [CDLessonAssignment],
-        allWork: [CDWorkModel]
+        allWork: [CDWorkModel],
+        representations: ChildRepresentations
     ) -> StudentReadinessProfile {
         let studentIDStr = student.id?.uuidString ?? ""
         let studentPresentations = allPresentations.filter { $0.studentIDs.contains(studentIDStr) }
         let studentWork = allWork.filter { $0.studentID == studentIDStr }
         let areaReadiness = computeAreaReadiness(
             studentID: student.id ?? UUID(), allLessons: allLessons,
-            presentations: studentPresentations, work: studentWork
+            presentations: studentPresentations, work: studentWork, representations: representations
         )
         let daysSinceLastPresentation = computeDaysSinceLastPresentation(studentPresentations)
         let activeWorkCount = studentWork.filter { $0.status.isOpen }.count
@@ -95,7 +97,8 @@ struct StudentReadinessAssessor {
         studentID: UUID,
         allLessons: [CDLesson],
         presentations: [CDLessonAssignment],
-        work: [CDWorkModel]
+        work: [CDWorkModel],
+        representations: ChildRepresentations
     ) -> [AreaReadiness] {
         let lessonsByAreaSequence = Dictionary(grouping: allLessons) {
             AreaSequenceKey(area: $0.area.trimmed(), sequence: $0.sequence.trimmed())
@@ -108,7 +111,8 @@ struct StudentReadinessAssessor {
                 studentID: studentID,
                 sorted: sorted,
                 presentations: presentations,
-                work: work
+                work: work,
+                representations: representations
             )
             let currentLesson = groupProgress.currentLesson
             var nextLesson = groupProgress.nextLesson
@@ -133,7 +137,8 @@ struct StudentReadinessAssessor {
         studentID: UUID,
         sorted: [CDLesson],
         presentations: [CDLessonAssignment],
-        work: [CDWorkModel]
+        work: [CDWorkModel],
+        representations: ChildRepresentations
     ) -> LessonSequenceProgress {
         var progress = LessonSequenceProgress()
         for lesson in sorted {
@@ -152,7 +157,8 @@ struct StudentReadinessAssessor {
                 progress.proficiency = determinePlanningSignal(
                     studentID: studentID,
                     lessonID: lessonIDStr,
-                    presentations: presentations
+                    presentations: presentations,
+                    representations: representations
                 )
                 progress.evidenceAvailability = evidenceAvailability(
                     for: progress.proficiency,
@@ -170,7 +176,8 @@ struct StudentReadinessAssessor {
     private static func determinePlanningSignal(
         studentID: UUID,
         lessonID: String,
-        presentations: [CDLessonAssignment]
+        presentations: [CDLessonAssignment],
+        representations: ChildRepresentations
     ) -> ProficiencySignal {
         let matching = presentations.filter {
             $0.lessonID == lessonID && ($0.isPresented || $0.presentedAt != nil)
@@ -182,7 +189,10 @@ struct StudentReadinessAssessor {
             return .notPresented
         }
 
-        if latest.needsAnotherPresentation { return .needsReteaching }
+        // Her own Re-present counts, not only the flag shared by the group.
+        if latest.needsAnotherPresentation(for: studentID.uuidString, given: representations) {
+            return .needsReteaching
+        }
         if latest.needsPractice { return .needsMorePractice }
         // A readiness heuristic for planning, not the record: the Three-Year
         // View and the tracks count only an explicit mastery mark.

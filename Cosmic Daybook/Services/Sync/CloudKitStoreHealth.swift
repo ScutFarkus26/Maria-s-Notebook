@@ -268,6 +268,30 @@ nonisolated struct CloudKitStoreHealth: Equatable, Sendable {
         }
     }
 
+    /// True when `error` says there was no ready iCloud account to set up
+    /// with: Core Data's 134400 ("Unable to initialize without an iCloud
+    /// account", given both with none signed in and with one not ready yet),
+    /// CloudKit's `notAuthenticated`, or an account still signing in. Narrower
+    /// than `isAccountOrNetworkFailure` (no network trouble). A setup that
+    /// fails this way holds filing into the classroom share
+    /// (`CloudKitSyncStatusService.followAccountReadiness`).
+    static func isAccountUnavailable(_ error: any Error) -> Bool {
+        leafErrors(of: error as NSError).contains { leaf in
+            if leaf.domain == NSCocoaErrorDomain { return leaf.code == 134_400 }
+            guard leaf.domain == CKErrorDomain, let code = CKError.Code(rawValue: leaf.code) else { return false }
+            return code == .notAuthenticated || code == .accountTemporarilyUnavailable
+        }
+    }
+
+    /// True when `error` itself says the account is signed in but not ready
+    /// yet (`accountTemporarilyUnavailable`), so there's no need to ask
+    /// CloudKit whether one is signed in at all.
+    static func isAccountNotReadyYet(_ error: any Error) -> Bool {
+        leafErrors(of: error as NSError).contains { leaf in
+            leaf.domain == CKErrorDomain && leaf.code == CKError.Code.accountTemporarilyUnavailable.rawValue
+        }
+    }
+
     struct Detail: Equatable, Sendable {
         let message: String
         let code: String

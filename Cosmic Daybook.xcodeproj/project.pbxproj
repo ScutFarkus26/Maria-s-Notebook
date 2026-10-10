@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		DA04ADDDFA93604DC6F41927 /* FrontDeskEmailReminder.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA81450488D563DB66DE5C52 /* FrontDeskEmailReminder.swift */; };
 		DAA69B3F552AAB25E7E0C7AA /* AttendanceEmailReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA0E0896BB76C0AC8423748B /* AttendanceEmailReport.swift */; };
+		EA5E0C1E2C3F4B5A6978D102 /* EmailRecipients.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA5E0C1E2C3F4B5A6978D101 /* EmailRecipients.swift */; };
 		DAE0AFEF3C256CA7BE75E379 /* AttendanceEmailLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA4381AE092034B60AB373EF /* AttendanceEmailLog.swift */; };
 		DAC981E4D451662AE6834EBF /* AttendanceEmailSettingsEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA9FBBE074540600EBA950C6 /* AttendanceEmailSettingsEntity.swift */; };
 		DAB306EA1A8AFF297FDA05F6 /* AttendanceEmailSendEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA2063ED6D053DB24D69F916 /* AttendanceEmailSendEntity.swift */; };
@@ -135,6 +136,7 @@
 /* Begin PBXFileReference section */
 		DA81450488D563DB66DE5C52 /* FrontDeskEmailReminder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FrontDeskEmailReminder.swift; path = "Cosmic Daybook/Attendance/Email/FrontDeskEmailReminder.swift"; sourceTree = SOURCE_ROOT; };
 		DA0E0896BB76C0AC8423748B /* AttendanceEmailReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceEmailReport.swift; path = "Cosmic Daybook/Attendance/Email/AttendanceEmailReport.swift"; sourceTree = SOURCE_ROOT; };
+		EA5E0C1E2C3F4B5A6978D101 /* EmailRecipients.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EmailRecipients.swift; path = "Cosmic Daybook/Attendance/Email/EmailRecipients.swift"; sourceTree = SOURCE_ROOT; };
 		DA4381AE092034B60AB373EF /* AttendanceEmailLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceEmailLog.swift; path = "Cosmic Daybook/Attendance/Email/AttendanceEmailLog.swift"; sourceTree = SOURCE_ROOT; };
 		DA9FBBE074540600EBA950C6 /* AttendanceEmailSettingsEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceEmailSettingsEntity.swift; path = "Cosmic Daybook/Attendance/Email/AttendanceEmailSettingsEntity.swift"; sourceTree = SOURCE_ROOT; };
 		DA2063ED6D053DB24D69F916 /* AttendanceEmailSendEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceEmailSendEntity.swift; path = "Cosmic Daybook/Attendance/Email/AttendanceEmailSendEntity.swift"; sourceTree = SOURCE_ROOT; };
@@ -387,6 +389,7 @@
 				DA2181E9509EDA1E2E64F7F3 /* AttendanceDayLocks.swift */,
 				DA81450488D563DB66DE5C52 /* FrontDeskEmailReminder.swift */,
 				DA0E0896BB76C0AC8423748B /* AttendanceEmailReport.swift */,
+				EA5E0C1E2C3F4B5A6978D101 /* EmailRecipients.swift */,
 				DA4381AE092034B60AB373EF /* AttendanceEmailLog.swift */,
 				DA9FBBE074540600EBA950C6 /* AttendanceEmailSettingsEntity.swift */,
 				DA2063ED6D053DB24D69F916 /* AttendanceEmailSendEntity.swift */,
@@ -684,6 +687,7 @@
 				DA81E9509EDA1E2E64F7F3AE /* AttendanceDayLocks.swift in Sources */,
 				DA04ADDDFA93604DC6F41927 /* FrontDeskEmailReminder.swift in Sources */,
 				DAA69B3F552AAB25E7E0C7AA /* AttendanceEmailReport.swift in Sources */,
+				EA5E0C1E2C3F4B5A6978D102 /* EmailRecipients.swift in Sources */,
 				DAE0AFEF3C256CA7BE75E379 /* AttendanceEmailLog.swift in Sources */,
 				DAC981E4D451662AE6834EBF /* AttendanceEmailSettingsEntity.swift in Sources */,
 				DAB306EA1A8AFF297FDA05F6 /* AttendanceEmailSendEntity.swift in Sources */,

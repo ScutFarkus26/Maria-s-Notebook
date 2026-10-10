@@ -275,7 +275,7 @@ struct AssistantAttendanceView: View {
             ContentUnavailableView {
                 Label("No students yet", systemImage: "person.3")
             } description: {
-                Text("The class list comes down from iCloud. It can take a minute after you join.")
+                Text("The class list downloads from iCloud. It can take a minute after you join.")
             } actions: {
                 Button("Check Again") { viewModel.load() }
             }
@@ -394,7 +394,7 @@ struct AssistantAttendanceView: View {
         AttendanceTile(
             row: row,
             tapTarget: viewModel.statusAfterTap(for: row),
-            tapHint: viewModel.isFuture ? "Only absences ahead" : "Hold to change",
+            tapHint: viewModel.isFuture ? "You can only mark absences on a future day." : "Hold to change",
             menuStatuses: viewModel.menuStatuses,
             canMark: viewModel.canMark,
             usesShortName: usesShortNames,

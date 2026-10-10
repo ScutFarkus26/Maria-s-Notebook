@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 // ClassroomNames+Zones.swift
 // Where each name row is mirrored in CloudKit, asked off the main thread.
 // The question waits on the mirroring delegate, which answers after its sync
@@ -8,6 +9,7 @@ import CloudKit
 import CoreData
 import Foundation
 import OSLog
+import Synchronization
 
 extension ClassroomNames {
 
@@ -32,6 +34,10 @@ extension ClassroomNames {
         var zones: [NSManagedObjectID: String] = [:]
         /// False when there is no CloudKit container: nothing is ever sent.
         var syncs = true
+        /// False when CloudKit didn't say in time (`zoneLookupTimeLimit`):
+        /// nothing was asked, so every row has no answer. The writes then
+        /// wait (`lookUpMyZones`), and the reads keep the zones last looked up.
+        var answered = true
 
         func answer(for objectID: NSManagedObjectID) -> ZoneAnswer {
             if objectID.isTemporaryID || !syncs { return .notSent }
@@ -55,8 +61,10 @@ extension ClassroomNames {
 
     /// Warms `knownZones` from every name row `context`'s stores hold (a small
     /// table), asking off the main thread. Run once the stores load, after
-    /// each successful import (`Arrival`, which this tells to), and after the
-    /// Assistant builds a new stack (new stores, new object IDs).
+    /// an import that brought rows it has no answer for (`Arrival`, which
+    /// this tells to), and after the Assistant builds a new stack (new
+    /// stores, new object IDs). When CloudKit doesn't say in time, the zones
+    /// last looked up stay.
     static func warmZones(in context: NSManagedObjectContext, arrival: Arrival? = .shared) async {
         arrival?.zonesContext = context
         await gate.enter()
@@ -64,7 +72,18 @@ extension ClassroomNames {
         let request = CDFetchRequest(CDClassroomPerson.self)
         request.includesPropertyValues = false
         let ids = context.safeFetch(request).map(\.objectID)
-        knownZones = await lookUpZones(of: ids, in: context)
+        let map = await lookUpZones(of: ids, in: context)
+        if map.answered { knownZones = map }
+    }
+
+    /// Whether `context`'s stores hold a name row `knownZones` has no answer
+    /// for: one an import brought since the last warm-up. Rows only renamed
+    /// keep their zones, so an import of those needs no warm-up (2026-10-09
+    /// hunt, #6). Never asks iCloud.
+    static func hasRowsWithoutZones(in context: NSManagedObjectContext) -> Bool {
+        let request = CDFetchRequest(CDClassroomPerson.self)
+        request.includesPropertyValues = false
+        return context.safeFetch(request).contains { knownZones.answer(for: $0.objectID) == .noAnswer }
     }
 
     // MARK: - Rows and their zones
@@ -186,8 +205,22 @@ extension ClassroomNames {
     // MARK: - Asking
 
     /// Test seam: the zones of a batch of rows, instead of asking CloudKit.
-    /// A row with no entry has no record (not sent).
+    /// A row with no entry has no record (not sent). Asked on a pool thread
+    /// within `zoneLookupTimeLimit`, as CloudKit is.
     @TaskLocal static var zoneLookupOverride: (@Sendable ([NSManagedObjectID]) -> [NSManagedObjectID: String])?
+
+    /// How long a lookup waits for CloudKit's answer (2026-10-09 hunt, #7).
+    /// Apple documents no time limit for `recordIDs(for:)`, and one that
+    /// never returned held `gate`, so no name could be saved until relaunch.
+    /// After this, every row has no answer and the gate moves on. Tests
+    /// shorten it.
+    @TaskLocal static var zoneLookupTimeLimit: Duration = .seconds(30)
+
+    /// The lookup still out, if any; tests wait on it. Lookups run one at a
+    /// time (`gate`), so one still out when the next begins ran out of time:
+    /// until it returns, new lookups get no answer at once rather than park
+    /// a second pool thread. Its answer, when it comes, is dropped.
+    private(set) static var lookupOut: Task<Void, Never>?
 
     /// Test seam: runs once each lookup has its answer, still inside the
     /// wait, so a test can change things the way an import or a second tap
@@ -205,20 +238,31 @@ extension ClassroomNames {
 
     private static let zonesLogger = Logger.app(category: "names")
 
-    /// Where each of `ids` lives, waiting for CloudKit off the main thread.
-    /// Run it holding `gate`.
+    /// Where each of `ids` lives, waiting for CloudKit off the main thread,
+    /// at most `zoneLookupTimeLimit`. Run it holding `gate`. With no rows to
+    /// ask about, nothing is asked.
     static func lookUpZones(of ids: [NSManagedObjectID], in context: NSManagedObjectContext) async -> ZoneMap {
         let permanent = ids.filter { !$0.isTemporaryID }
         var map = ZoneMap(asked: Set(permanent))
+        let ask: (@Sendable () async -> [NSManagedObjectID: String])?
         if let zoneLookupOverride {
-            map.zones = zoneLookupOverride(permanent)
+            ask = { await overriddenZoneNames(of: permanent, using: zoneLookupOverride) }
         } else if let container = CoreDataStack.cloudKitContainer(for: context) {
-            let started = ContinuousClock.now
-            map.zones = await recordZoneNames(of: permanent, container: container)
-            let waited = String(describing: ContinuousClock.now - started)
-            zonesLogger.debug("Name rows' zones: \(permanent.count) rows in \(waited, privacy: .public)")
+            ask = { await recordZoneNames(of: permanent, container: container) }
         } else {
+            ask = nil
             map.syncs = false
+        }
+        if let ask, !permanent.isEmpty {
+            let started = ContinuousClock.now
+            if let zones = await zoneNamesInTime(ask) {
+                map.zones = zones
+                let waited = String(describing: ContinuousClock.now - started)
+                zonesLogger.debug("Name rows' zones: \(permanent.count) rows in \(waited, privacy: .public)")
+            } else {
+                map.asked = []
+                map.answered = false
+            }
         }
         if let zoneLookupHook { await zoneLookupHook.during() }
         return map
@@ -227,8 +271,8 @@ extension ClassroomNames {
     /// The CloudKit zone each of `ids` is mirrored to, asked in one batch off
     /// the caller's actor: `recordIDs(for:)` waits on the mirroring delegate.
     /// A row with no record has no entry. The only place the name list asks
-    /// CloudKit where its rows are; one at a time (`gate`), so at most one
-    /// pool thread waits here.
+    /// CloudKit where its rows are; one at a time (`gate`, `lookupOut`), so
+    /// at most one pool thread waits here.
     @concurrent
     nonisolated static func recordZoneNames(
         of ids: [NSManagedObjectID],
@@ -238,12 +282,61 @@ extension ClassroomNames {
         return container.recordIDs(for: ids).mapValues(\.zoneID.zoneName)
     }
 
+    /// `zoneLookupOverride`'s answer, on a pool thread as CloudKit's is, so a
+    /// test's lookup can block the way the real one can.
+    @concurrent
+    nonisolated private static func overriddenZoneNames(
+        of ids: [NSManagedObjectID],
+        using lookup: @Sendable ([NSManagedObjectID]) -> [NSManagedObjectID: String]
+    ) async -> [NSManagedObjectID: String] {
+        lookup(ids)
+    }
+
+    /// `ask`'s answer, or nil when it hasn't come within `zoneLookupTimeLimit`
+    /// (2026-10-09 hunt, #7), or when an earlier lookup that ran out of time
+    /// is still out (`lookupOut`). The lookup is a synchronous call that may
+    /// never return, and a task group waits for every child, cancelled or
+    /// not, so it can't walk away from one: the wait is a continuation that
+    /// the answer, the time limit or a cancellation resumes, whichever comes
+    /// first (`LookupRace`). A late answer is dropped.
+    private static func zoneNamesInTime(
+        _ ask: @escaping @Sendable () async -> [NSManagedObjectID: String]
+    ) async -> [NSManagedObjectID: String]? {
+        guard lookupOut == nil else {
+            zonesLogger.notice("An earlier zone lookup is still out; the names wait")
+            return nil
+        }
+        let limit = zoneLookupTimeLimit
+        let race = LookupRace()
+        lookupOut = Task {
+            race.finish(await ask())
+            lookupOut = nil
+        }
+        let timer = Task {
+            guard (try? await Task.sleep(for: limit)) != nil else { return }
+            race.finish(nil)
+        }
+        let zones = await withTaskCancellationHandler {
+            await withCheckedContinuation { race.wait($0) }
+        } onCancel: {
+            race.finish(nil)
+        }
+        timer.cancel()
+        if zones == nil {
+            zonesLogger.notice("CloudKit didn't say where the name rows are in time; the names wait")
+        }
+        return zones
+    }
+
     /// The first steps of every write, holding `gate`: this person's rows'
     /// IDs are collected, their zones asked off the main thread, and then
     /// whether this device may still write as `me` is checked again, and
     /// whether `context` still has its stores (her stack can be rebuilt
-    /// during the wait). Nil when it may not. The caller refetches the rows
-    /// (`myRows`): an import can delete or change them during the wait.
+    /// during the wait). Nil when it may not, and when CloudKit didn't say
+    /// in time: with no answer for any row, a write would leave all of them
+    /// out (`myRows`) and make this person a second row. The caller
+    /// refetches the rows (`myRows`): an import can delete or change them
+    /// during the wait.
     static func lookUpMyZones(
         _ me: String,
         role: CDClassroomMembership.ClassroomRole,
@@ -251,7 +344,7 @@ extension ClassroomNames {
     ) async -> ZoneMap? {
         let ids = fetchMyRows(me, role: role, in: context).map(\.objectID)
         let map = await lookUpZones(of: ids, in: context)
-        guard mayStillWrite(as: me),
+        guard map.answered, mayStillWrite(as: me),
               context.persistentStoreCoordinator?.persistentStores.isEmpty == false else { return nil }
         knownZones.update(with: map)
         return map
@@ -308,18 +401,84 @@ extension ClassroomNames {
     struct BeforeMarks {
         let name: String?
         let role: CDClassroomMembership.ClassroomRole?
+        let account: String?
+
+        /// This device's, as they are now.
+        static var now: BeforeMarks {
+            BeforeMarks(
+                name: ClassroomIdentity.displayName,
+                role: ClassroomIdentity.nameWaitingAs,
+                account: ClassroomIdentity.nameWaitingFor
+            )
+        }
     }
 
     static var beforeMarks: BeforeMarks?
 
     /// Another account signed in while `setMyName` waited: its mark (and
-    /// those of the calls it overtook) goes back to what was there before,
-    /// unless something else has changed it since (the Assistant's
-    /// `forgetForNewAccount`).
+    /// those of the calls it overtook) goes back to what was there before.
+    /// Not when something else has changed the mark since: an account change
+    /// that dropped the waiting name (`forgetWaitingName`, the Assistant's
+    /// `forgetForNewAccount`), whose name, or none, stands.
     static func unmark(_ typed: String, as role: CDClassroomMembership.ClassroomRole) {
-        guard let before = beforeMarks else { return }
-        if ClassroomIdentity.nameWaitingAs == role { ClassroomIdentity.nameWaitingAs = before.role }
-        if (ClassroomIdentity.displayName ?? "") == typed { ClassroomIdentity.displayName = before.name }
+        guard let before = beforeMarks, ClassroomIdentity.nameWaitingAs == role,
+              (ClassroomIdentity.displayName ?? "") == typed else { return }
+        if let role = before.role {
+            mark(waitingAs: role, typedUnder: before.account)
+        } else {
+            ClassroomIdentity.nameWaitingAs = nil
+        }
+        ClassroomIdentity.displayName = before.name
+    }
+
+    /// Her name was saved where it couldn't go into the list (no classroom
+    /// open yet, or the Sample Class): it waits, and the next launch on the
+    /// real classroom writes it (`writeWaitingName`), even over a row she
+    /// already has. Under this account, as `writeWaitingName` checks.
+    static func markWaiting(as role: CDClassroomMembership.ClassroomRole) {
+        mark(waitingAs: role, typedUnder: ClassroomIdentity.currentUserRecordName)
+    }
+
+    /// Marks the name in `ClassroomIdentity.displayName` waiting as `role`,
+    /// typed under `account` (nil when this account's record name isn't
+    /// known yet), so it's never written under another account.
+    static func mark(waitingAs role: CDClassroomMembership.ClassroomRole, typedUnder account: String?) {
+        ClassroomIdentity.nameWaitingAs = role
+        ClassroomIdentity.nameWaitingFor = account
+    }
+
+    /// A name waiting from another account than `me` is dropped, never
+    /// written into `me`'s row: the change of account went unseen (it
+    /// couldn't be read, and the app opened again under the new one), so
+    /// nothing dropped it then (2026-10-09 review). On her phone her name
+    /// comes back from the new account's iCloud copy, as at any account
+    /// change (`AssistantNameStore.forgetForNewAccount`). A name typed before
+    /// any account was known stays: it's whoever's signed in.
+    static func dropWaitingName(typedUnderAnotherThan me: String) {
+        guard ClassroomIdentity.nameWaitingAs != nil, let typedUnder = ClassroomIdentity.nameWaitingFor,
+              typedUnder != me else { return }
+        zonesLogger.notice("A name waiting from another Apple Account was dropped")
+        #if ASSISTANT_APP
+        AssistantNameStore.forgetForNewAccount()
+        #else
+        forgetWaitingName()
+        #endif
+    }
+
+    /// Another Apple Account is confirmed signed in on this device: a name
+    /// waiting to go into the list was typed under the last one, so it stops
+    /// waiting and goes, as the Assistant's
+    /// `AssistantNameStore.forgetForNewAccount` does (which also brings hers
+    /// back from iCloud). A `setMyName` still waiting puts nothing back
+    /// (`unmark`). Nothing when no name waits: on a notebook in a class as an
+    /// assistant, `displayName` is also the name her marks carry. The
+    /// notebook's account changes (`ClassroomIdentity`); the last account's
+    /// row stays its own (2026-10-09 hunt, #5).
+    static func forgetWaitingName() {
+        guard ClassroomIdentity.nameWaitingAs != nil else { return }
+        beforeMarks = nil
+        ClassroomIdentity.nameWaitingAs = nil
+        ClassroomIdentity.displayName = nil
     }
 
     /// One `writeWaitingName` call's arguments.
@@ -329,6 +488,31 @@ extension ClassroomNames {
         let context: NSManagedObjectContext
         let arrival: Arrival
         let save: (_ context: NSManagedObjectContext, _ created: [NSManagedObject]) -> Bool
+    }
+
+    /// Runs `write` again after the next successful import, for `me`.
+    static func holdUntilNextImport(_ write: WaitingWrite, for me: String) {
+        let role = write.role
+        let save = write.save
+        write.arrival.holdUntilNextImport(for: me) { [weak context = write.context, weak arrival = write.arrival] in
+            guard let context, let arrival else { return }
+            await writeWaitingName(role: role, in: context, arrival: arrival, save: save)
+        }
+    }
+
+    /// A name `setMyName` couldn't write yet goes in after the next
+    /// successful import, if this account is still signed in then. On the
+    /// notebook only: there `writeWaitingName` otherwise runs only at launch,
+    /// so on a Mac left open the name waited for a relaunch (2026-10-09
+    /// review). Her phone writes it with her own save (`AssistantSave`) on
+    /// each return to the app and once an account change is read.
+    static func holdWaitingName(for me: String, in context: NSManagedObjectContext, arrival: Arrival) {
+        #if !ASSISTANT_APP
+        arrival.holdUntilNextImport(for: me) { [weak context, weak arrival] in
+            guard let context, let arrival else { return }
+            await writeWaitingName(in: context, arrival: arrival)
+        }
+        #endif
     }
 
     /// The calls to `writeWaitingName` on one context that came while it ran:
@@ -363,5 +547,53 @@ extension ClassroomNames {
             for caller in waiting { caller.resume(returning: nextWrote) }
         }
         return wrote
+    }
+}
+
+/// One lookup racing its time limit: the first of its answer, the time
+/// limit or a cancellation resumes the write waiting for it, once; the
+/// others are dropped.
+nonisolated private final class LookupRace: Sendable {
+    private enum State {
+        /// Nothing has finished, and the write isn't waiting yet.
+        case started
+        /// The write waits here.
+        case waiting(CheckedContinuation<[NSManagedObjectID: String]?, Never>)
+        /// Finished before the write began to wait (a cancellation can).
+        case finished([NSManagedObjectID: String]?)
+        /// The write has its answer.
+        case resumed
+    }
+
+    private let state = Mutex<State>(.started)
+
+    /// The write begins to wait; at once, if the race is already over.
+    func wait(_ continuation: CheckedContinuation<[NSManagedObjectID: String]?, Never>) {
+        let early: [NSManagedObjectID: String]?? = state.withLock { state in
+            guard case .finished(let zones) = state else {
+                state = .waiting(continuation)
+                return .none
+            }
+            state = .resumed
+            return .some(zones)
+        }
+        if let early { continuation.resume(returning: early) }
+    }
+
+    /// Ends the race with `zones` (nil: no answer), unless it's over.
+    func finish(_ zones: [NSManagedObjectID: String]?) {
+        let waiting: CheckedContinuation<[NSManagedObjectID: String]?, Never>? = state.withLock { state in
+            switch state {
+            case .started:
+                state = .finished(zones)
+                return nil
+            case .waiting(let continuation):
+                state = .resumed
+                return continuation
+            case .finished, .resumed:
+                return nil
+            }
+        }
+        waiting?.resume(returning: zones)
     }
 }

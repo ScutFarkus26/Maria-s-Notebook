@@ -36,11 +36,28 @@ final class MeetingDraftModel {
 
     var workNotes: [UUID: String] = [:] { didSet { changed() } }
     var reviewedWorkIDs: Set<UUID> = [] { didSet { changed() } }
+    /// Work decided as Re-present: closed as Incomplete now, its lesson
+    /// planned again as a second pass on Complete.
+    var representWorkIDs: Set<UUID> = [] { didSet { changed() } }
+    /// Work decided as Ready for Next: closed now with no mastery mark, its
+    /// next lesson put On Deck on Complete.
+    var readyWorkIDs: Set<UUID> = [] { didSet { changed() } }
+    /// The `WorkLogService` receipt of the status each card's choice set,
+    /// kept with the draft so Clear, Rest or another outcome can take the
+    /// close back after a relaunch, not just log Working on top of it
+    /// (bug hunt 2026-10-09, #9 and #10). A list, oldest first, read newest
+    /// first; a card's next choice takes the earlier one back, so it rarely
+    /// holds more than one.
+    var closeTokens: [UUID: [MeetingCloseToken]] = [:] { didSet { changed() } }
 
     /// Focus items carried from earlier meetings.
     private(set) var activeFocusItems: [CDStudentFocusItem] = []
     /// When the draft last reached disk; nil until something is written.
     private(set) var savedAt: Date?
+    /// Lessons with a next lesson in their sequence, worked out once when the
+    /// draft loads, so a card's Ready for Next reads a set rather than the
+    /// catalog (bug hunt 2026-10-09, #13).
+    private(set) var lessonsWithNext: Set<UUID> = []
 
     /// The student record's Meetings tab writes these two; the workflow
     /// doesn't show them, so its saves carry them through untouched.
@@ -48,6 +65,7 @@ final class MeetingDraftModel {
     @ObservationIgnored private var storedIsCompleted = false
 
     @ObservationIgnored private var isLoading = false
+    @ObservationIgnored private var isWriting = false
     @ObservationIgnored private var hasUnsavedChanges = false
     @ObservationIgnored private var saveTask: Task<Void, Never>?
 
@@ -79,8 +97,42 @@ final class MeetingDraftModel {
             uniquingKeysWith: { first, _ in first }
         )
         reviewedWorkIDs = Set((data.reviewedWorkIDs ?? []).compactMap(UUID.init(uuidString:)))
+        representWorkIDs = Set((data.representWorkIDs ?? []).compactMap(UUID.init(uuidString:)))
+        readyWorkIDs = Set((data.readyWorkIDs ?? []).compactMap(UUID.init(uuidString:)))
+        closeTokens = Dictionary(
+            (data.closeTokens ?? [:]).compactMap { key, value in UUID(uuidString: key).map { ($0, value) } },
+            uniquingKeysWith: { first, _ in first }
+        )
         savedAt = data.isEmpty ? nil : Date()
         activeFocusItems = FocusItemService.fetchActive(studentID: studentID, context: context)
+        lessonsWithNext = Self.lessonsWithNext(in: context)
+    }
+
+    /// Whether Ready for Next has a lesson to put On Deck after `lessonID`.
+    func hasNextLesson(after lessonID: String) -> Bool {
+        UUID(uuidString: lessonID).map(lessonsWithNext.contains) ?? false
+    }
+
+    /// Ready for Next plans what `PlanNextLessonService.findNextLesson` finds:
+    /// the lesson after this one in its area and sequence. One lesson fetch.
+    /// Lessons tied for last place count as having none, so the button never
+    /// offers a plan Complete can't make.
+    private static func lessonsWithNext(in context: NSManagedObjectContext) -> Set<UUID> {
+        var sequences: [String: [CDLesson]] = [:]
+        for lesson in context.safeFetch(CDFetchRequest(CDLesson.self)) {
+            let area = lesson.area.trimmed().lowercased()
+            let sequence = lesson.sequence.trimmed().lowercased()
+            guard !area.isEmpty, !sequence.isEmpty else { continue }
+            sequences[area + "\u{1F}" + sequence, default: []].append(lesson)
+        }
+        var result: Set<UUID> = []
+        for lessons in sequences.values {
+            guard let last = lessons.map(\.orderInSequence).max() else { continue }
+            for lesson in lessons where lesson.orderInSequence < last {
+                if let id = lesson.id { result.insert(id) }
+            }
+        }
+        return result
     }
 
     var data: MeetingPersistenceService.CurrentMeetingData {
@@ -96,7 +148,10 @@ final class MeetingDraftModel {
             droppedFocusIDs: droppedFocusIDs.map(\.uuidString),
             workReviewDrafts: Dictionary(uniqueKeysWithValues: workNotes.map { ($0.key.uuidString, $0.value) }),
             reviewedWorkIDs: reviewedWorkIDs.map(\.uuidString),
-            requestLessonIDs: requestLessonIDs.map(\.uuidString)
+            requestLessonIDs: requestLessonIDs.map(\.uuidString),
+            representWorkIDs: representWorkIDs.map(\.uuidString),
+            readyWorkIDs: readyWorkIDs.map(\.uuidString),
+            closeTokens: Dictionary(uniqueKeysWithValues: closeTokens.map { ($0.key.uuidString, $0.value) })
         )
     }
 
@@ -132,8 +187,31 @@ final class MeetingDraftModel {
         storedFocusText = stored.focusText
         storedIsCompleted = stored.isCompleted
         let snapshot = data
+        isWriting = true
         MeetingPersistenceService.saveCurrent(studentID: studentID, data: snapshot)
+        isWriting = false
         savedAt = snapshot.isEmpty && snapshot.nextMeetingDate == nil ? nil : Date()
+    }
+
+    /// The stored drafts changed. When this child's was cleared or filed
+    /// somewhere else (the student record's Meetings tab, or her meeting open
+    /// in a second window) while this one still holds it, drop what this one
+    /// holds without writing: its next save would otherwise put back Re-present
+    /// and Ready decisions, and their receipts, for work already taken back or
+    /// planned (bug hunt 2026-10-09 review).
+    func storedDraftsChanged() {
+        guard !isLoading, !isWriting, savedAt != nil,
+              !MeetingPersistenceService.hasDraft(studentID: studentID) else { return }
+        clear()
+    }
+
+    /// Clear Meeting: Re-present and Ready for Next closed their work at once
+    /// but plan their lessons only on Complete, so that work goes back as it
+    /// was before the meeting rather than staying closed with nothing
+    /// planned (`MeetingLessonDecisions.takeBack`). Then the form is emptied.
+    func discard(context: NSManagedObjectContext) {
+        MeetingLessonDecisions.takeBack(data, context: context)
+        clear()
     }
 
     /// Empties the form and removes the stored draft.
@@ -152,6 +230,9 @@ final class MeetingDraftModel {
         droppedFocusIDs = []
         workNotes = [:]
         reviewedWorkIDs = []
+        representWorkIDs = []
+        readyWorkIDs = []
+        closeTokens = [:]
         storedFocusText = ""
         storedIsCompleted = false
         isLoading = false
@@ -163,35 +244,106 @@ final class MeetingDraftModel {
     // MARK: - Work decisions
 
     /// Applies a status from a decision card at once (through `WorkLogService`,
-    /// the only status writer) and counts the item as reviewed.
-    func decide(_ work: CDWorkModel, status: WorkStatus, context: NSManagedObjectContext) {
+    /// the only status writer) and counts the item as reviewed. A choice made
+    /// earlier on the card is taken back first, so its close doesn't leave
+    /// skipped check-ins, completed todos or a completion record behind; work
+    /// changed since then takes the new status on top. One save; returns
+    /// false, with nothing changed or recorded, when it didn't save.
+    @discardableResult
+    func decide(_ work: CDWorkModel, status: WorkStatus, context: NSManagedObjectContext) -> Bool {
+        let transaction = ContextMutationTransaction(context: context)
+        _ = takeBackEarlierChoice(on: work, context: context)
         if work.isResting { MeetingReviewService.clearWorkResting(work) }
+        var receipt: WorkLogService.Receipt?
         if work.status != status {
             do {
-                try WorkLogService.log([.init(work: work, status: status)], context: context, saveImmediately: false)
+                receipt = try WorkLogService.log(
+                    [.init(work: work, status: status)], context: context, saveImmediately: false
+                )
             } catch {
+                transaction.rollback()
+                ToastService.shared.showError(Self.decisionFailure)
+                return false
+            }
+        }
+        work.lastTouchedAt = Date()
+        let token = receipt.flatMap { MeetingCloseToken($0.token, leaving: work, in: context) }
+        guard context.safeSave() else {
+            transaction.rollback()
+            ToastService.shared.showError(Self.decisionFailure)
+            return false
+        }
+        transaction.commit()
+        guard let id = work.id else { return true }
+        forgetLessonDecision(id)
+        closeTokens[id] = token.map { [$0] }
+        reviewedWorkIDs.insert(id)
+        return true
+    }
+
+    /// The work didn't take: it closes as Incomplete now, and Complete plans
+    /// its lesson again as a second pass.
+    func represent(_ work: CDWorkModel, context: NSManagedObjectContext) {
+        guard decide(work, status: .incomplete, context: context), let id = work.id else { return }
+        representWorkIDs.insert(id)
+    }
+
+    /// She's ready to move on: the work closes with no mastery mark (ready
+    /// isn't mastered), and Complete confirms her on the lesson and puts the
+    /// next one in the sequence On Deck.
+    func readyForNext(_ work: CDWorkModel, context: NSManagedObjectContext) {
+        guard decide(work, status: .done, context: context), let id = work.id else { return }
+        readyWorkIDs.insert(id)
+    }
+
+    /// Another outcome replaces a Re-present or Ready for Next chosen earlier.
+    private func forgetLessonDecision(_ id: UUID) {
+        representWorkIDs.remove(id)
+        readyWorkIDs.remove(id)
+    }
+
+    /// Takes back, in memory, the statuses the card's earlier choices set in
+    /// this meeting, newest first (the caller saves).
+    private func takeBackEarlierChoice(
+        on work: CDWorkModel, context: NSManagedObjectContext
+    ) -> MeetingCloseToken.TakeBack {
+        guard let id = work.id else { return .nothing }
+        return MeetingCloseToken.takeBack(closeTokens[id] ?? [], of: work, in: context)
+    }
+
+    /// Resting work is open: a status the card set in this meeting is taken
+    /// back, and Re-present or Ready work with no receipt to take back goes
+    /// back to Working, as Clear does (bug hunt 2026-10-09, #10). Work changed
+    /// since keeps its status and rests.
+    func rest(_ work: CDWorkModel, until date: Date, context: NSManagedObjectContext) {
+        let transaction = ContextMutationTransaction(context: context)
+        let wasLessonDecision = work.id.map { representWorkIDs.contains($0) || readyWorkIDs.contains($0) } ?? false
+        let takeBack = takeBackEarlierChoice(on: work, context: context)
+        if wasLessonDecision, takeBack == .nothing || takeBack == .unreadable, work.status.isClosed {
+            do {
+                try WorkLogService.log([.init(work: work, status: .active)], context: context, saveImmediately: false)
+            } catch {
+                transaction.rollback()
                 ToastService.shared.showError(Self.decisionFailure)
                 return
             }
         }
-        markReviewed(work)
-        if !context.safeSave() { ToastService.shared.showError(Self.decisionFailure) }
-    }
-
-    func rest(_ work: CDWorkModel, until date: Date, context: NSManagedObjectContext) {
         MeetingReviewService.setWorkResting(work, until: date)
-        markReviewed(work)
-        if !context.safeSave() { ToastService.shared.showError(Self.decisionFailure) }
+        work.lastTouchedAt = Date()
+        guard context.safeSave() else {
+            transaction.rollback()
+            ToastService.shared.showError(Self.decisionFailure)
+            return
+        }
+        transaction.commit()
+        guard let id = work.id else { return }
+        forgetLessonDecision(id)
+        closeTokens[id] = nil
+        reviewedWorkIDs.insert(id)
     }
 
     /// A decision card that didn't save says so; `safeSave` has logged why.
     private static let decisionFailure = "Couldn't save that decision about the work. Try again."
-
-    func markReviewed(_ work: CDWorkModel) {
-        guard let id = work.id else { return }
-        reviewedWorkIDs.insert(id)
-        work.lastTouchedAt = Date()
-    }
 
     // MARK: - Complete
 
@@ -238,7 +390,14 @@ final class MeetingDraftModel {
             meetingID: meetingID, meeting: meeting, drafts: workNotes, reviewedIDs: reviewedWorkIDs, context: context
         )
         persistFocus(meetingID: meetingID, context: context)
-        for lessonID in requestLessonIDs {
+        let planned: Set<UUID>
+        do {
+            planned = try MeetingLessonDecisions.file(data, studentID: studentID, context: context)
+        } catch {
+            transaction.rollback()
+            return false
+        }
+        for lessonID in requestLessonIDs where !planned.contains(lessonID) {
             _ = PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: [studentID], context: context)
         }
         _ = MeetingScheduler.completeBooking(studentID: studentID, heldOn: Date(), context: context)

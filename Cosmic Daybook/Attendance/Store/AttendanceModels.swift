@@ -19,7 +19,7 @@ enum AttendanceStatus: String, Codable, CaseIterable, Sendable {
         case .unmarked: return "Unmarked"
         case .present: return "Present"
         case .absent: return "Absent"
-        case .tardy: return "Tardy"
+        case .tardy: return "Late"
         case .leftEarly: return "Left Early"
         }
     }

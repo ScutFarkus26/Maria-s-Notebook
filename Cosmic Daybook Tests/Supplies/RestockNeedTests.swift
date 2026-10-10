@@ -301,3 +301,66 @@ struct RestockNeedTests {
         #expect(ana.reads(changedByID: "_bea", name: "") == "your guide")
     }
 }
+
+// MARK: - Two needs merged (bug hunt 2026-10-09 #20)
+
+extension RestockNeedTests {
+
+    @Test("Merging two needs keeps what the office was asked for: how many, the note, the name and the link")
+    func reconcileKeepsWhatWasAskedFor() throws {
+        let context = try makeContext()
+        let towels = try staple("Paper Towels", in: context)
+        let supplyID = try #require(towels.id?.uuidString)
+        func need(created: Date) -> CDOrderItem {
+            let item = CDOrderItem(context: context)
+            item.title = "Paper Towels"
+            item.source = .order
+            item.supplyID = supplyID
+            item.createdAt = created
+            return item
+        }
+        let older = need(created: at(10))
+        let asked = need(created: at(20))
+        asked.quantity = 6
+        asked.notes = "The big rolls"
+        asked.title = "Bounty Paper Towels"
+        asked.urlString = "https://www.example.com/towels"
+        RestockService.markRequested([asked], from: "Office", at: at(40))
+        #expect(CoreDataTestHelpers.save(context))
+
+        #expect(RestockService.reconcile(in: context) == 1)
+        #expect(asked.isDeleted)
+        #expect(older.requestedAt == at(40))
+        #expect(older.quantity == 6, "Asked For shows the 6 the office was asked for, not 1")
+        #expect(older.notes == "The big rolls")
+        #expect(older.title == "Bounty Paper Towels")
+        #expect(older.urlString == "https://www.example.com/towels")
+        #expect(older.stage == .requested)
+    }
+
+    @Test("Merging keeps the kept need's name and link when the asked-for copy has none")
+    func reconcileKeepsOwnNameWhenAskedHasNone() throws {
+        let context = try makeContext()
+        let glue = try staple("Glue Sticks", in: context)
+        let supplyID = try #require(glue.id?.uuidString)
+        let older = CDOrderItem(context: context)
+        older.title = "Glue Sticks"
+        older.urlString = "https://www.example.com/glue"
+        older.supplyID = supplyID
+        older.source = .order
+        older.createdAt = at(10)
+        let asked = CDOrderItem(context: context)
+        asked.title = " "
+        asked.supplyID = supplyID
+        asked.source = .order
+        asked.quantity = 3
+        asked.createdAt = at(20)
+        RestockService.markRequested([asked], from: "Office", at: at(30))
+        #expect(CoreDataTestHelpers.save(context))
+
+        #expect(RestockService.reconcile(in: context) == 1)
+        #expect(older.title == "Glue Sticks")
+        #expect(older.urlString == "https://www.example.com/glue")
+        #expect(older.quantity == 3)
+    }
+}

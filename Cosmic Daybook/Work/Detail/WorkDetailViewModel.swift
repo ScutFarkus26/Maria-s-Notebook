@@ -13,6 +13,9 @@ final class WorkDetailViewModel {
     var relatedStudent: CDStudent?
     var workModelNotes: [CDNote] = []
     var relatedPresentation: CDLessonAssignment?
+    /// The presentation needs giving to this work's child again: the flag
+    /// shared by the group, or her own follow-up says re-present.
+    var relatedPresentationNeedsAnother = false
     var relatedLessonAssignments: [CDLessonAssignment] = []
     var resolvedPresentationID: UUID?
     // PERF: Cached UUID parses to avoid repeated UUID(uuidString:) in body-path computed properties
@@ -139,6 +142,12 @@ final class WorkDetailViewModel {
 
         // Load presentation
         relatedPresentation = workModel.fetchPresentation(from: modelContext)
+        relatedPresentationNeedsAnother = relatedPresentation.map { presentation in
+            let representations = presentation.id.map {
+                ChildRepresentations(presentationIDs: [$0.uuidString], in: modelContext)
+            } ?? .none
+            return presentation.needsAnotherPresentation(for: workModel.studentID, given: representations)
+        } ?? false
 
         // Load peer context
         loadPeerData(for: workModel, modelContext: modelContext)

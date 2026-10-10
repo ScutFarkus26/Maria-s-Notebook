@@ -79,3 +79,43 @@ struct AttendanceEmailPreferencesTests {
         }
     }
 }
+
+// MARK: - Recipients (bug hunt 2026-10-09 #24)
+
+// The parser every email shares: the attendance email, order requests and the
+// Assistant's front desk.
+extension AttendanceEmailPreferencesTests {
+
+    @Test("Commas, semicolons, spaces and new lines all separate addresses")
+    func recipientSeparators() {
+        let typed = "office@school.org, front@school.org;nurse@school.org  head@school.org\nadmin@school.org"
+        #expect(AttendanceEmail.parseRecipients(from: typed) == [
+            "office@school.org", "front@school.org", "nurse@school.org", "head@school.org", "admin@school.org"
+        ])
+        #expect(AttendanceEmail.parseRecipients(from: nil).isEmpty)
+        #expect(AttendanceEmail.parseRecipients(from: " , ;").isEmpty)
+    }
+
+    @Test("Only address-shaped entries count; brackets, quotes and mailto: come off")
+    func recipientShapes() {
+        let typed = "Front Office <front@school.org>, \"nurse@school.org\", mailto:head@school.org, "
+            + "office@school, @school.org, jo@, a@b@school.org, jo@school.o"
+        let checked = AttendanceEmail.checkRecipients(typed)
+        #expect(checked.addresses == ["front@school.org", "nurse@school.org", "head@school.org"])
+        #expect(checked.leftOut == [
+            "Front", "Office", "office@school", "@school.org", "jo@", "a@b@school.org", "jo@school.o"
+        ])
+    }
+
+    @Test("Settings says plainly which entries get no email, and nothing when all are addresses")
+    func recipientLeftOutNote() {
+        #expect(AttendanceEmail.leftOutNote(for: "office@school.org front@school.org") == nil)
+        #expect(AttendanceEmail.leftOutNote(for: "") == nil)
+        #expect(AttendanceEmail.leftOutNote(for: "office@school.org, principal")
+            == "“principal” isn't an email address, so no email goes to it.")
+        #expect(AttendanceEmail.leftOutNote(for: "Ms Rivera office@school.org")
+            == "“Ms” and “Rivera” aren't email addresses, so no email goes to them.")
+        #expect(AttendanceEmail.leftOutNote(for: "a, b, c")
+            == "“a”, “b” and “c” aren't email addresses, so no email goes to them.")
+    }
+}

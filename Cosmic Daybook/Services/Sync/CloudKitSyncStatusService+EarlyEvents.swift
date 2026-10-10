@@ -78,7 +78,12 @@ extension CloudKitSyncStatusService {
 
     /// One event from the stream: handled, or kept until `configure`. Only
     /// finished events are kept; a started one only turns the spinner on.
+    /// Whether the iCloud account holds filing into the classroom share is
+    /// followed here, as each event arrives, before `configure` too (a launch
+    /// with no window never configures, and Siri's marks are filed all the
+    /// same), and only here, so a buffered event isn't counted twice.
     func receive(_ event: CloudKitEventValues) {
+        followAccountReadiness(event)
         guard handlesCloudKitEvents else {
             guard event.isFinished else { return }
             bufferedEvents.append(event)

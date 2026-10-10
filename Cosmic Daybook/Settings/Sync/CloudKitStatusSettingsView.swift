@@ -35,6 +35,16 @@ struct CloudKitStatusSettingsView: View {
                 SyncStoppedBanner(advice: SyncStoppedAdvice.make(health: syncService.storeHealth))
             }
 
+            // A setup found no ready iCloud account: nothing goes into the
+            // classroom share until it's ready, or with none, until the app is
+            // reopened (bug hunt 2026-10-09, #2).
+            if let hold = syncService.shareFilingHold {
+                Label(hold.message, systemImage: "pause.circle")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             // Status Indicator Row
             HStack(spacing: 10) {
                 SyncStatusIndicator(health: syncService.syncHealth)

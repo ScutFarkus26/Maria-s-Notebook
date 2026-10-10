@@ -104,6 +104,16 @@ enum AssistantSampleClass {
         guard FileManager.default.fileExists(atPath: url.path) else { return }
         let coordinator = NSPersistentStoreCoordinator(managedObjectModel: try CoreDataStack.sharedModel())
         try coordinator.destroyPersistentStore(at: url, type: .sqlite)
+        // The destroy leaves an empty database behind, and the store opening
+        // stamps its schema version into any file it finds. A stamped empty
+        // file reads as up to date, so Core Data never builds its tables and
+        // the open fails. Take the files away so the next open starts clean.
+        for suffix in ["", "-wal", "-shm"] {
+            let file = URL(fileURLWithPath: url.path + suffix)
+            if FileManager.default.fileExists(atPath: file.path) {
+                try FileManager.default.removeItem(at: file)
+            }
+        }
     }
 
     /// A fresh sample in memory: the Debug launch argument's, and the tests'.

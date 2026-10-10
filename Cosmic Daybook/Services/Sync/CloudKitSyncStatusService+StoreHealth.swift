@@ -6,13 +6,16 @@ import OSLog
 
 extension CloudKitSyncStatusService {
 
-    /// Which store an `NSPersistentCloudKitContainer` event belongs to.
+    /// Which store an `NSPersistentCloudKitContainer` event belongs to. Before
+    /// `configure` (a launch with no window: Siri, the MCP server), the stack
+    /// whose stores opened, so an attach that fails then still names its store.
     func syncedStore(forIdentifier identifier: String?) -> SyncedStore {
         if let syncedStoreResolver { return syncedStoreResolver(identifier) }
+        let stack = coreDataStack ?? earlyCaptureStack
         return SyncedStore(
             identifier: identifier,
-            notebookIdentifier: coreDataStack?.privatePersistentStore?.identifier,
-            classroomShareIdentifier: coreDataStack?.sharedPersistentStore?.identifier
+            notebookIdentifier: stack?.privatePersistentStore?.identifier,
+            classroomShareIdentifier: stack?.sharedPersistentStore?.identifier
         )
     }
 
@@ -48,20 +51,46 @@ extension CloudKitSyncStatusService {
         return description.range(of: "never successfully initialized", options: .caseInsensitive) != nil
     }
 
-    /// `store`'s mirroring delegate died: sets `mirroringDelegateFailed` until
-    /// that store next imports or exports successfully.
-    func markMirroringStopped(by store: SyncedStore) {
-        stoppedStores.insert(store)
-        if !mirroringDelegateFailed { mirroringDelegateFailed = true }
+    /// The stores in `stoppedSince`.
+    var stoppedStores: Set<SyncedStore> { Set(stoppedSince.keys) }
+
+    /// `store`'s mirroring delegate died, as of `date` (a failed event's
+    /// start, or now): sets `mirroringDelegateFailed` until that store next
+    /// imports or exports successfully in an event that started after it.
+    func markMirroringStopped(by store: SyncedStore, at date: Date = Date()) {
         Self.logger.error("CloudKit mirroring delegate marked as failed: \(store.displayName, privacy: .public)")
+        // The latest time counts: only a success after it says the delegate works again.
+        if let since = stoppedSince[store], since >= date { return }
+        stoppedSince[store] = date
     }
 
-    /// `store` imported or exported successfully, so its delegate works: it
-    /// no longer holds the stopped flag, which clears once no store does. A
-    /// setup event alone never clears it (Apple documents no such recovery).
-    func clearMirroringStopped(by store: SyncedStore) {
-        guard stoppedStores.remove(store) != nil, stoppedStores.isEmpty, mirroringDelegateFailed else { return }
-        mirroringDelegateFailed = false
+    /// An attach to the classroom share (`ClassroomShareAttach`) found the
+    /// mirroring delegate dead. Named by the store the attach ran against,
+    /// which for the guide's attaches is the private store (the notebook), so
+    /// only that store's next successful import or export clears it; the
+    /// classroom share's syncing says nothing about it (bug hunt 2026-10-09,
+    /// #2). A store this service can't name (`.other`) holds the flag for the
+    /// session. Dated now: an attach before `configure` (Siri in the
+    /// background) is followed by the launch's own events, handed over late,
+    /// and a success among them that started before now proves nothing.
+    func markMirroringStopped(byAttachToStoreWithIdentifier identifier: String) {
+        markMirroringStopped(by: syncedStore(forIdentifier: identifier))
+    }
+
+    /// `store` imported or exported successfully in an event that began at
+    /// `start`, so its delegate works: it no longer holds the stopped flag,
+    /// which clears once no store does. Only an event that began after the
+    /// store was found dead counts. A setup event alone never clears it
+    /// (Apple documents no such recovery).
+    func clearMirroringStopped(by store: SyncedStore, eventStartedAt start: Date) {
+        // Checked first: this runs on every successful import and export.
+        guard let since = stoppedSince[store] else { return }
+        guard start > since else {
+            Self.logger.notice("\(store.displayName, privacy: .public) synced in an event from before it stopped")
+            return
+        }
+        stoppedSince[store] = nil
+        guard stoppedSince.isEmpty else { return }
         Self.logger.notice("CloudKit sync is running again: \(store.displayName, privacy: .public) synced")
         SyncEventLogger.shared.log("cloudkit", status: "success", message: "iCloud sync is running again")
     }
@@ -70,7 +99,10 @@ extension CloudKitSyncStatusService {
 
     /// Another Apple Account signed in while the app runs. What this service
     /// knew (when it last synced, which stores failed, the stopped flag, the
-    /// shown error, the waiting count) was the old account's.
+    /// shown error, the waiting count) was the old account's. What holds
+    /// filing into the classroom share (`shareFilingHold`) stays: the pause
+    /// until reopening is for the life of the process, and a store waiting for
+    /// its account clears on its own once it has set up and synced.
     func resetForNewAccount() {
         Self.logger.notice("The iCloud account changed: sync status starts over for the new account")
         syncDatePersistTask?.cancel()
@@ -85,7 +117,7 @@ extension CloudKitSyncStatusService {
         UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSuccessfulExportStartByStore)
         lastSuccessfulSync = nil
         storeHealth = CloudKitStoreHealth()
-        mirroringDelegateFailed = false
+        if !stoppedSince.isEmpty { stoppedSince = [:] }
         if pendingSyncCount != 0 { pendingSyncCount = 0 }
         clearError()
     }

@@ -55,6 +55,8 @@ final class SharedStoreOrphanGuard {
     /// `container.share(_:to:)` can block for good and can't be cancelled, so
     /// the pass keeps the attach lock until it returns. A test sets its own.
     var attachPassTimeout: Duration = .seconds(120)
+    /// The sync status a pass checks first; a test sets its own.
+    var syncStatus: () -> CloudKitSyncStatusService = { .shared }
 
     private var saveObservation: NotificationCenter.ObservationToken?
     private var remoteChangeTask: Task<Void, Never>?
@@ -175,8 +177,7 @@ final class SharedStoreOrphanGuard {
             AppBootstrapper.takeOverIfAlone(coreDataStack: stack)
             guard !CoreDataStack.isSecondaryProcess else { return }
         }
-        guard !FirstDownloadGate.isPending(),
-              !CloudKitSyncStatusService.shared.mirroringDelegateFailed else { return }
+        guard !FirstDownloadGate.isPending(), !syncStopsFiling else { return }
         // No pin yet: not shared, or the setup hasn't reached this device.
         // Keep waiting; setup here, or the pin's arrival, settles it.
         guard let pin = CDClassroomMembership.current(in: stack.viewContext),
@@ -202,6 +203,9 @@ final class SharedStoreOrphanGuard {
     /// launch. The pass keeps the lock until it does return, and anything
     /// waiting stays listed: each later attempt finds the lock stuck and
     /// leaves without waiting, and the late pass looks again when it ends.
+    ///
+    /// Sync is checked again once the lock is held (`syncStopsFiling`): the
+    /// wait for it can outlast a setup whose attach found the delegate dead.
     func attachWaiting(_ pass: @escaping @Sendable @MainActor ([Entry]) async -> Void) async {
         let lock = attachLock
         guard await lock.acquireUnlessStuck() else {
@@ -209,7 +213,7 @@ final class SharedStoreOrphanGuard {
             return
         }
         let taken = pendingEntries
-        guard !taken.isEmpty else {
+        guard !taken.isEmpty, !syncStopsFiling else {
             lock.release()
             return
         }
@@ -228,6 +232,16 @@ final class SharedStoreOrphanGuard {
                 "Classroom attach pass still running after \(seconds, privacy: .public) s; records stay listed"
             )
         }
+    }
+
+    /// Whether sync says nothing may be filed into the share now: a mirroring
+    /// delegate died (`container.share(_:to:)` on a dead store can raise an
+    /// exception no Swift `catch` traps), or a setup found no ready iCloud
+    /// account (`shareFilingHold`: until it is ready, or with none signed in,
+    /// until the app is reopened). What is waiting stays listed.
+    private var syncStopsFiling: Bool {
+        let sync = syncStatus()
+        return sync.mirroringDelegateFailed || sync.shareFilingHold != nil
     }
 
     /// One pass, holding the attach lock: reads the pinned share and attaches
@@ -278,7 +292,8 @@ final class SharedStoreOrphanGuard {
         }
         let outcome = await ClassroomShareAttach.attach(waiting, to: share, container: container)
         if outcome.mirroringDelegateDied {
-            CloudKitSyncStatusService.shared.mirroringDelegateFailed = true
+            // The store the attach ran against: the private store's delegate died.
+            syncStatus().markMirroringStopped(byAttachToStoreWithIdentifier: storeID)
         }
         // Keep what failed, anything added again meanwhile, and, until the
         // school-year start reaches this device, what looked like last year's.

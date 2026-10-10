@@ -161,11 +161,9 @@ struct RestockNeedSheet: View {
     }
 
     private func pasted(_ strings: [String]) {
-        let url = strings
-            .flatMap { $0.components(separatedBy: .whitespacesAndNewlines) }
-            .lazy
-            .compactMap(OrderService.webURL(from:))
-            .first
+        // The first web link in what was pasted: share text's other words
+        // ("Look at this!") would otherwise read as sites of their own.
+        let url = strings.lazy.compactMap(OrderService.firstWebURL(in:)).first
         guard let url else {
             notice = "That isn't a web link."
             return
