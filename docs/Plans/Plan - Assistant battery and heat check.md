@@ -1,6 +1,6 @@
 # Assistant battery and heat check
 
-> **Working on it.** Written 2026-10-07. An assistant's iPhone battery died during the school day; Danny wants to be sure the Daybook Assistant isn't the cause.
+> **Done 2026-10-10** (320cca91). Written 2026-10-07. An assistant's iPhone battery died during the school day; Danny wants to be sure the Daybook Assistant isn't the cause.
 > In short: Audit and measure the Daybook Assistant for battery, memory and heat, report what it costs while open and while closed, then fix the items Danny picks.
 
 ## Goal
@@ -17,7 +17,7 @@ Danny gets a plain answer to "could the Assistant have drained her battery?", ba
   - Finding 5's share check still runs on her own shared-store saves: telling them apart needs a history read on every change, about what the check costs.
   - Agent S touched `AssistantReloadOnReturn.swift` (one line, unassigned). Siri attendance's export wait in `SiriAttendance.swift` still added up to 20 s after the attach wait; the lead fixed it (3a0500f1).
   - Agents R and S's before/after numbers are counts from the code and tests: a simulator gets no iCloud pushes.
-- [x] Phase 3: Combine, full check, re-measure (session: same as Phase 2) · est. ~1–2% weekly · started at 27% · actual ~2% (27→29), done 2026-10-10 except landing on main, which waits for Danny's /close-out. Differed from the plan:
+- [x] Phase 3: Combine, full check, re-measure (session: same as Phase 2) · est. ~1–2% weekly · started at 27% · actual ~2% (27→29), done 2026-10-10, on main as 320cca91. Differed from the plan:
   - `verify.sh`: all three builds passed. The first whole-suite run failed 34 tests, all in the name-list suites and the share waiting list, which this work doesn't touch. Those suites passed alone (67 tests), and a second whole-suite run passed: 2859 tests, 2845 passed, 14 skipped. It's a test-isolation flake, sent to a separate session.
   - `verify.sh` doesn't run the Assistant's tests, so they ran separately: 300 tests in 44 suites passed.
   - Re-measuring: simulator taps weren't available, so the grid's after-numbers come from Agent G's Release run. The merged build was re-measured on the weekend screen and while closed: suspended 2.1 s after leaving. The first launch after `simctl erase` hit Phase 1's notification-service hang again; a reinstall cleared it.
