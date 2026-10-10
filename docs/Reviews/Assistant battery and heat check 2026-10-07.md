@@ -1,6 +1,6 @@
 # Assistant battery and heat check
 
-> Phase 1 of [Plan - Assistant battery and heat check](<../Plans/Plan - Assistant battery and heat check.md>), done 2026-10-10. Three read-only code checkers (background and sync on Opus; on-screen and launch/memory on Sonnet), the lead re-reading the top findings, and measurements on a Release build. The numbers are in [the baseline](<../Technical notes/Performance baselines/2026-10-07-assistant-idle-baseline.md>). Nothing in the app was changed.
+> Phase 1 of [Plan - Assistant battery and heat check](<../Plans/Plan - Assistant battery and heat check.md>), done 2026-10-10. Three read-only code checkers (background and sync on Opus; on-screen and launch/memory on Sonnet), the lead re-reading the top findings, and measurements on a Release build. The numbers are in [the baseline](<../Technical notes/Performance baselines/2026-10-07-assistant-idle-baseline.md>). Nothing in the app was changed in Phase 1. Findings 1–6 were fixed on 2026-10-10 in Phase 2 (marked below).
 
 ## The short answer
 
@@ -32,24 +32,32 @@ Each finding is marked **safe** (same behavior, cheaper) or **behavior** (your c
    - Left to suspect: the grid's fade mask over the scroll view, the arrival bar's fill line and its animations, and the glass controls.
    - **Safe.** S–M: find it in a test build by removing those one at a time, then fix it.
    - Unverified: whether "today's" grid does the same (it was Saturday), and what it costs on a phone. [Check on a phone](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=On%20a%20school%20day%2C%20leave%20the%20Daybook%20Assistant%27s%20attendance%20grid%20open%20on%20an%20iPhone%20for%2010%20minutes%20and%20feel%20whether%20the%20phone%20gets%20warm).
+   - **Fixed 2026-10-10** (4464eb59). It wasn't any of the suspects: the front-desk email line's `TimelineView(.explicit)` redrew every frame once both its times had passed, which is every day after the due time and every past day. Now 0.6% CPU on a past day (from 9.4%) and 0.0% on today after the due time (from 7–10.5%).
 2. **Every reminder rebuild re-adds all arrival and front-desk reminders, even unchanged ones.** `FrontDeskEmailReminder.swift:250-267` (`ReminderRuns.replace`). Pickup reminders already compare first (`EarlyPickupReminder.swift:168-175`). That's about 30 requests per rebuild, at 100–300 rebuilds a day. **Safe.** S: compare first, as pickups do.
+   - **Fixed 2026-10-10** (bc8035c2): with nothing changed, a rebuild now adds 0 (from about 30).
 3. **Each change rebuilds the reminders twice, and queued rebuilds that are already stale still run.**
    - Both the background upkeep (`AssistantBootstrapper+Observers.swift:26` → `EarlyPickupReminderUpkeep.swift:29-36`) and the screen's follower (`ArrivalReminder.swift:196-199`) rebuild, and every screen reload sets the follower off again.
    - `ReminderRuns.run` (`FrontDeskEmailReminder.swift:237-245`) finishes every queued rebuild, even when a newer one replaces it. Marking 22 children makes about 22 rebuilds in a row.
    - **Safe.** S–M: send the follower through the upkeep's one-second settle, and run only the newest queued rebuild.
+   - **Fixed 2026-10-10** (5139860d): one rebuild per settle window, and a queued rebuild that a newer one replaced is skipped.
 4. **The screens reload after every sync, even while the app is in the background.**
    - `RemoteImportReloader` (`RemoteImportReloader.swift:56-76`) feeds both the attendance screen and Restock (`AssistantTabs.swift:35-40`).
    - Attendance runs about 12–15 fetches. One of them is a 40-day read of about 300 records, needed only for the "welcome back" wave.
    - Restock runs its full load. That includes a reconcile that can save, and it always bumps `revision`, which redraws every Restock tile.
    - Failed or empty imports count too, because `isFinishedImport` doesn't check for success.
    - **Safe:** pause the reloader while the app isn't on screen (the `isPaused` hold is already there, and the return-to-app reload already exists), and bump `revision` only on a real change. **Behavior:** whether Restock's reconcile should run after a sync at all. S.
+   - **Fixed 2026-10-10** (a5cad8a0), the safe half: no reloads while the app is away (the return's own load shows what arrived), failed imports don't count, and Restock redraws only on a real change. Restock's reconcile still runs on every reload; that's the behavior half, left for you.
 5. **The sync-change handler doesn't check which store changed or wait for a burst to settle.** `AssistantBootstrapper+Observers.swift:19-47`. Each notification, including her own saves, runs a membership fetch and the still-in-class check, and starts a new background task (`EarlyPickupReminderUpkeep.swift:32`). **Safe.** S: one background task per settle window, and the share check only for changes from someone else.
+   - **Fixed 2026-10-10** (2d78d6e4), mostly: one background task per burst, and the membership read only for changes to the private store. The share check still runs for every shared-store change, her own saves included: telling hers from the guide's would take a history read on every change, which costs about the same.
 6. **Some waits that hold the app awake have no time limit.**
    - When she leaves the app with unsent marks, the keep-alive's wait for the share attach (`UnsentChangesKeepAlive.swift:164-171` → `AssistantShareAttacher.swift:196-198`) can run past its 25 s limit, up to iOS's own cut-off. iOS counts those against the app when it decides how often to wake it.
    - Siri's attach wait has the same gap (`AssistantSiriHost.swift:95`).
    - **Safe.** S: race each wait against its deadline.
+   - **Fixed 2026-10-10** (e49658e7, 3a0500f1): both waits end at 25 s, and Siri's export wait gets only what's left of it. The send itself keeps going and tries again later, as before.
 
 ### Smaller
+
+Left as they were on 2026-10-10 (you picked 1–6).
 
 7. **A background relaunch runs the whole startup.** When iOS has closed the app, a push restarts it and runs the full start (`AssistantApp.swift:25-27` → `AssistantBootstrapper.swift:115-127`). That's both stores and both mirrors, the account checks, the name-zone lookup, the share retry and the history-trim timer. **Safe.** M: open the stores only, and leave the rest for when she opens the app.
 8. **The stores open on the main thread at every cold start, Siri's included.** `AssistantStack.swift:30`. The notebook moved this off the main thread on 5 October; the Assistant didn't. **Safe.** M. The risk is iOS killing a slow background launch, not steady drain.

@@ -244,9 +244,13 @@ struct SiriAttendance {
 
         let createdIDs = created.map(\.objectID)
         let stack = self.stack
+        // The attach and the export share one 25 s, inside the 30 s iOS
+        // allows: the export used to get its own 20 s after an attach wait
+        // of up to 25 s, which outlasted it.
+        let deadline = ContinuousClock.now + UnsentChangesKeepAlive.limit
         SiriSyncKeepAlive.run {
             await SiriHost.didSave(created: createdIDs, in: stack)
-            await exportWatch.wait(upTo: .seconds(20))
+            await exportWatch.wait(upTo: min(.seconds(20), max(.zero, deadline - ContinuousClock.now)))
         }
         NotificationCenter.default.post(name: .attendanceChangedBySiri, object: nil)
         Self.logger.notice("Siri marked attendance: \(marks.count, privacy: .public) record(s)")

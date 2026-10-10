@@ -12,8 +12,20 @@ Danny gets a plain answer to "could the Assistant have drained her battery?", ba
   - The leased simulator's notification service was broken (the app hung on "Starting…") until `simctl erase`.
   - Instruments' SwiftUI recording fails on the simulator ("Hitches is not supported"), so the grid's per-frame redraw (finding 1) is located by elimination, not pinned.
   - It was a Saturday, so the grid was measured on Friday's page.
-- [ ] Phase 2: Fix what Danny picks (session: fresh, once Danny has picked) · est. ~3–6% weekly (sized once he picks)
-- [ ] Phase 3: Combine, full check, re-measure (session: same as Phase 2) · est. ~1–2% weekly
+- [x] Phase 2: Fix what Danny picks (session: fresh, once Danny has picked) · est. ~4–6% weekly (three agents, two of them deep) · started at 21% · actual ~6% (21→27), done 2026-10-10. Findings 1–6, eight commits. Differed from the plan:
+  - Finding 1's cause wasn't any suspect: the front-desk line's `TimelineView(.explicit)` redrew every frame once both its times had passed (`AssistantFrontDeskRow.swift`, outside Agent G's list; no other agent owned it). The notebook's attendance screen uses the same timeline twice; that's left for a separate session.
+  - Finding 5's share check still runs on her own shared-store saves: telling them apart needs a history read on every change, about what the check costs.
+  - Agent S touched `AssistantReloadOnReturn.swift` (one line, unassigned). Siri attendance's export wait in `SiriAttendance.swift` still added up to 20 s after the attach wait; the lead fixed it (3a0500f1).
+  - Agents R and S's before/after numbers are counts from the code and tests: a simulator gets no iCloud pushes.
+- [x] Phase 3: Combine, full check, re-measure (session: same as Phase 2) · est. ~1–2% weekly · started at 27% · actual ~2% (27→29), done 2026-10-10 except landing on main, which waits for Danny's /close-out. Differed from the plan:
+  - `verify.sh`: all three builds passed. The first whole-suite run failed 34 tests, all in the name-list suites and the share waiting list, which this work doesn't touch. Those suites passed alone (67 tests), and a second whole-suite run passed: 2859 tests, 2845 passed, 14 skipped. It's a test-isolation flake, sent to a separate session.
+  - `verify.sh` doesn't run the Assistant's tests, so they ran separately: 300 tests in 44 suites passed.
+  - Re-measuring: simulator taps weren't available, so the grid's after-numbers come from Agent G's Release run. The merged build was re-measured on the weekend screen and while closed: suspended 2.1 s after leaving. The first launch after `simctl erase` hit Phase 1's notification-service hang again; a reinstall cleared it.
+  - Tide wasn't reachable, so the device checks below still need rows in `Areas/App Development/Daybook Assistant/To do.md`:
+    - On a phone, check that arrival and front-desk reminders still ring on time after marks and imports (the comparison skips unchanged ones).
+    - With the app closed, change a pickup or a Restock need in the notebook, then open the Assistant: it should show the change at once.
+    - Decide whether Restock's reconcile should still run after a sync (the behavior half of finding 4).
+    - The existing warmth check (a school-day grid left open 10 minutes) now also covers finding 1's fix.
 
 ## Cost
 
@@ -100,6 +112,20 @@ Checked 2026-10-07 against Xcode 27.0 (27A266a, iOS 27.0 SDK) by an sdk-verifier
 - Cost: ~3–6% (at most three agents; past small agent phases landed under 1% each, while deep sync work runs 2–4%).
 - Done when: each agent builds only the `Daybook Assistant` scheme (plus `Cosmic Daybook` if it touched shared files) for the leased simulator, and runs `-only-testing:` for the suites covering its files (the Assistant's test target, and `CosmicDaybookTests/<Suite>` for shared code). Each change that adds a gate or reshapes a cache gets a test pinning old path = new path and one pinning the gate skipping. Each agent re-takes the Phase 1 measurement that its fix should move, and reports both numbers.
 - Hand off: no. Phase 3 follows in the same session.
+
+### Danny's picks (2026-10-10): findings 1–6
+
+Three agents, each in its own worktree, all at once (‖). The "Before" numbers come from the [Phase 1 baseline](<../Technical notes/Performance baselines/2026-10-07-assistant-idle-baseline.md>); "static" means counted by reading the code.
+
+- **Agent G, the grid at rest** (`feature-phase`, Opus high) ‖. Finding 1. Owns `Daybook Assistant/Attendance/AssistantAttendanceView.swift`, `AssistantArrivalBar.swift`, `AssistantAttendanceView+Toolbar.swift` and the other view files in `Daybook Assistant/Attendance/` (not `AssistantAttendanceViewModel*.swift`). Finds the never-ending SwiftUI animation by removing the suspects one at a time in a Release build on the leased simulator (fade mask, arrival bar fill and its animations, glass controls), then fixes it without changing what the screen shows.
+  - Before: grid idle 7.7% CPU over 60 s (Friday's page, Release), 5.3–5.9% after a trip out and back; weekend screen 0.1%.
+- **Agent R, reminder rebuilds and the sync-change handler** (`feature-phase-deep`, Opus xhigh) ‖. Findings 2, 3 and 5. Owns `Cosmic Daybook/Attendance/Email/FrontDeskEmailReminder.swift` (`ReminderRuns`), `Daybook Assistant/Reminders/*` and `Daybook Assistant/Sync/AssistantBootstrapper+Observers.swift`.
+  - 2. `ReminderRuns.replace` adds only requests that are new or changed, comparing first as `EarlyPickupReminder` does. Before: about 30 `add` calls per rebuild with nothing changed (static).
+  - 3. The screen's follower goes through the upkeep's one-second settle instead of rebuilding on its own, and `ReminderRuns.run` skips a queued rebuild that a newer one has replaced. Before: two rebuilds per change, about 22 in a row for 22 marks (static).
+  - 5. One background task per settle window, not one per notification; the membership and still-in-class checks only for changes from someone else's store writes, not her own saves. Before: a membership fetch, the still-in-class check and a new background task on every remote-change notification, her own saves included (static).
+- **Agent S, reloads after sync and the keep-alive waits** (`feature-phase-deep`, Opus xhigh) ‖. Findings 4 and 6. Owns `Cosmic Daybook/Sharing/RemoteImportReloader.swift` (only the Assistant uses it), `Daybook Assistant/Attendance/AssistantAttendanceViewModel*.swift`, `Daybook Assistant/Restock/AssistantRestockModel*.swift`, `Daybook Assistant/AssistantTabs.swift`, `Cosmic Daybook/Services/Sync/UnsentChangesKeepAlive.swift`, `Daybook Assistant/Sync/AssistantShareAttacher.swift` and `Daybook Assistant/Siri/AssistantSiriHost.swift`.
+  - 4. The reloader holds reloads while the app isn't on screen and runs one on return (folded into the existing return-to-app reload, not a second one), counts only successful imports, and Restock bumps `revision` only on a real change. Restock's reconcile keeps running when a reload does run (the behavior half of finding 4 is left as it is; Danny can change it later). Before: about 12–15 attendance fetches plus a full Restock load per finished import, in the background too (static).
+  - 6. Each attach wait races its deadline: the keep-alive's 25 s and Siri's own. Before: no limit past 25 s, up to iOS's own cut-off (static).
 
 ## Phase 3: Combine, full check, re-measure
 

@@ -163,6 +163,36 @@ background (fetches only now); the Assistant mirrors its private store to its ow
 `SharedStoreOrphanGuard.flush` in the notebook still calls the synchronous
 `ClassroomShareAttach.classroomShare(in:)` on the main actor (the async form is there now).
 
+## Daybook Assistant (2026-10-10 battery and heat check)
+
+Report `docs/Reviews/Assistant battery and heat check 2026-10-07.md` (16 findings), numbers in
+`docs/Technical notes/Performance baselines/2026-10-07-assistant-idle-baseline.md`. Measure a
+Release build opened through "Try a Sample Class" (or a relaunch with the sample's "was open"
+preference set), not `-AssistantSampleClass`, which skips the observers and reminder upkeep.
+Fixed (findings 1–6):
+- **Grid at rest:** `AssistantFrontDeskRow`'s `TimelineView(.explicit)` redrew every frame once
+  both its times had passed (9.4% → 0.6% CPU on a past day, 7–10.5% → 0.0% on today after the
+  due time). Now a `.task(id:)` that sleeps to each time ahead. The notebook's
+  `AttendanceExpandedView+FrontDesk.swift` and `+Band.swift` use the same timeline (not fixed here).
+- **Reminders:** `ReminderRuns.replace` adds only new or changed requests (≈30 adds → 0 with
+  nothing changed); `ReminderRuns.run(for:)` skips a queued rebuild a newer one of the same
+  context replaced; the screen's `ArrivalReminderFollower` only asks permission and hands the
+  rebuild to `EarlyPickupReminderUpkeep`, whose settle holds one background task per burst.
+- **Remote-change handler:** membership is re-read only for private-store changes; the share
+  check still runs per shared-store change (telling her saves from the guide's needs a history
+  read that costs about the same).
+- **Reloads:** `RemoteImportReloader.appLeft()/appReturned()` hold reloads while the app is
+  away and drop them on return (the return's own load shows them); failed imports don't count;
+  Restock bumps `revision` only when `Shown` changed.
+- **Waits:** `UnsentChangesKeepAlive.wait(atMost:for:)` races the share attach against 25 s,
+  for leaving the app and for Siri; Siri attendance's export wait gets only what's left of 25 s.
+
+Left (findings 7–16): a background relaunch runs the whole start; stores open on the main thread
+at cold start; the notebook's launch repairs run in the Assistant; the private store's second
+mirror (one membership row); Siri name lists re-registered each launch; the name write on every
+return; the guide's name formatted per tile; the sample's store kept open after joining; two
+account-status asks; the fade mask's extra pass while scrolling.
+
 ## Verified OK on 2026-09-10 (do not re-audit unless the code changed)
 
 All `repeatForever` animations are gated or bounded (wrong for the two Settings sync spinners: keyed

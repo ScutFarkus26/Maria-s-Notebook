@@ -44,3 +44,41 @@ The wallpaper photo and tab trips were not measured. Reading the code puts a pho
 | First step back after relaunch (includes opening the sample's stores and mirroring tables) | 211 |
 | One day step (Thursday from Friday) | 20 (5 attendance, 4 non-school day, 2 student, 2 overrides, 2 membership, 2 day lock, 3 others) |
 | One mark (tap a tile) | 9 (writes were not counted per action) |
+
+## After the fixes (2026-10-10, Phase 3)
+
+Findings 1–6 fixed (see the report). Same simulator, iOS 27.0, signed out of iCloud, Saturday again.
+
+- **Builds:** the grid numbers come from Agent G's Release build (main f567d9b8 plus the grid fix 4464eb59), measured the same way as above. Everything else comes from a Release build of the merged branch (all three agents' work plus 3a0500f1).
+- **Launch:** the sample class reopened by setting its "was open" preference (`Assistant.sampleClass.wasOpen`) and relaunching. That takes the same start path as tapping "Try a Sample Class". Simulator taps weren't available to this session, so the grid page, Restock and the per-mark queries weren't re-taken on the merged build.
+
+### Idle on screen
+
+| Screen | Before | After |
+|---|---|---|
+| Attendance grid, a past day (Friday) | 7.7% (60 s); 9.4% in Agent G's own before-run | **0.6%** (60 s, Agent G) |
+| Attendance grid, "today" on a school day after the due time | not measured (Saturday) | **0.0%** (from 7.0–10.5%; Agent G moved the app's time zone so Saturday morning was Friday night) |
+| Weekend screen | 0.1% (20 s) | 0.0% (20 s, merged build) |
+
+### While closed
+
+Left the weekend screen for Settings at 09:12:40. The last "Update reminders" background task ended 2.0 s later, and iOS suspended the app at 2.1 s. CPU: 1.6% in the first 10 s, then 0.0% for the next 30 s. Before: work stopped within 10 s.
+
+Setup snag, again: on the first launch after `simctl erase`, the app sat on "Starting…". Its first `pendingNotificationRequests()` never returned, so the launch reminder rebuild held its background task until iOS cut it off at about 30 s. An uninstall and reinstall cleared it for both the merged build and Agent G's, and nothing in that path changed. It's the same simulator fault as in Phase 1.
+
+### Memory
+
+| Moment | Before | After |
+|---|---|---|
+| Weekend screen | 37 MB | 27–28 MB (merged build; not attributable to the fixes alone: a fresh install with no sample marks yet) |
+
+### Counted from the code and tests (no pushes reach the simulator)
+
+| What | Before | After |
+|---|---|---|
+| Reminder requests added in a rebuild with nothing changed | ~30 | 0 |
+| Reminder rebuilds per change | 2 (screen + upkeep), ~22 for 22 marks in a row | 1 per one-second settle window |
+| Background tasks per burst of remote changes | 1 per notification | 1 per settle window |
+| Membership reads per change | every change, her own saves included | private-store changes only |
+| Reloads per finished import while the app is away | attendance (~12–15 fetches) + full Restock load | none; one load on return |
+| Longest attach wait when leaving or after Siri | until iOS's cut-off (~30 s) | 25 s, export wait included |

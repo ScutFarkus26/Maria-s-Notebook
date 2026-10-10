@@ -80,4 +80,97 @@ struct RemoteImportReloaderTests {
         let empty = Notification(name: NSPersistentCloudKitContainer.eventChangedNotification)
         #expect(!RemoteImportReloader.isFinishedImport(empty, storeIdentifier: "store"))
     }
+
+    // Assistant battery and heat check 2026-10-10, finding 4: a failed import
+    // reloaded too.
+    @Test("a finished import into the store that worked counts, as before")
+    func successfulImportCounts() {
+        #expect(RemoteImportReloader.isFinishedImport(
+            type: .import, ended: true, succeeded: true, eventStore: "store", storeIdentifier: "store"
+        ))
+    }
+
+    @Test("a failed, unfinished, other store's or export event doesn't count")
+    func failedImportDoesNotCount() {
+        func counts(
+            _ type: NSPersistentCloudKitContainer.EventType = .import,
+            ended: Bool = true,
+            succeeded: Bool = true,
+            store: String = "store"
+        ) -> Bool {
+            RemoteImportReloader.isFinishedImport(
+                type: type, ended: ended, succeeded: succeeded, eventStore: store, storeIdentifier: "store"
+            )
+        }
+        #expect(!counts(succeeded: false))
+        #expect(!counts(ended: false))
+        #expect(!counts(store: "other"))
+        #expect(!counts(.export))
+        #expect(!counts(.setup))
+    }
+
+    // Finding 4: every finished import reloaded in the background too.
+    @Test("away, an import's reload is held, and the return drops it: the owner's own reload shows it")
+    func awayHoldsAndReturnDrops() async {
+        let counter = Counter()
+        let reloader = RemoteImportReloader(delay: .milliseconds(30), sleep: Self.noWait) { counter.reloads += 1 }
+
+        reloader.appLeft()
+        reloader.importFinished()
+        await waitFor { reloader.hasHeldReload }
+        #expect(reloader.hasHeldReload)
+        #expect(counter.reloads == 0)
+        // A sheet closing while away doesn't run it either.
+        reloader.isPaused = true
+        reloader.isPaused = false
+        #expect(counter.reloads == 0)
+
+        reloader.appReturned()
+        #expect(!reloader.hasHeldReload)
+        #expect(counter.reloads == 0)
+    }
+
+    @Test("back on screen, imports reload as before")
+    func returnedReloadsAgain() async {
+        let counter = Counter()
+        let reloader = RemoteImportReloader(delay: .milliseconds(30), sleep: Self.noWait) { counter.reloads += 1 }
+
+        reloader.appLeft()
+        reloader.appReturned()
+        reloader.importFinished()
+        await waitFor { counter.reloads > 0 }
+        #expect(counter.reloads == 1)
+        #expect(!reloader.hasHeldReload)
+    }
+
+    @Test("a reload still settling when the app comes back is dropped, not run after the return's own")
+    func returnCancelsTheSettle() async {
+        let counter = Counter()
+        let cancelled = Flag()
+        // Settles for a minute unless cancelled; a passing run never waits it out.
+        let sleep: RemoteImportReloader.Sleep = { _ in
+            do {
+                try await Task.sleep(for: .seconds(60))
+            } catch {
+                await cancelled.set()
+                throw error
+            }
+        }
+        let reloader = RemoteImportReloader(delay: .seconds(60), sleep: sleep) { counter.reloads += 1 }
+
+        reloader.appLeft()
+        reloader.importFinished()
+        reloader.appReturned()
+        await waitFor { cancelled.isSet }
+        #expect(cancelled.isSet)
+        try? await Task.sleep(for: .milliseconds(150))
+        #expect(counter.reloads == 0)
+        #expect(!reloader.hasHeldReload)
+    }
+}
+
+@MainActor
+private final class Flag {
+    private(set) var isSet = false
+    func set() { isSet = true }
 }

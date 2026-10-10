@@ -24,20 +24,40 @@ struct AssistantFrontDeskRow: View {
     let onCloseAndSend: () -> Void
     @Environment(AssistantBootstrapper.self) private var bootstrapper
 
+    /// Bumped at the moments the line changes, to redraw it then.
+    @State private var changes = 0
+
     private var frontDesk: AssistantFrontDesk { viewModel.frontDesk }
     private var deadlineMinutes: Int { frontDesk.deadlineMinutes }
 
+    /// Due, late or neither, by the clock now.
+    private var urgency: AttendanceEmailLog.Urgency {
+        _ = changes
+        return AttendanceEmailLog.urgency(for: viewModel.date, deadlineMinutes: deadlineMinutes)
+    }
+
     var body: some View {
         if frontDesk.isOffered(by: viewModel) {
-            // Redrawn only at the two moments the line changes: half an hour
-            // before the due time, and at it. The clock is read, not the
-            // entry's date: before the first entry an explicit timeline
-            // hands the view that first entry, not now.
-            TimelineView(.explicit(frontDesk.changeTimes(on: viewModel.date))) { _ in
-                content(urgency: AttendanceEmailLog.urgency(for: viewModel.date, deadlineMinutes: deadlineMinutes))
-            }
-            .animation(.smooth(duration: 0.3), value: frontDesk.latestSend)
+            content(urgency: urgency)
+                .animation(.smooth(duration: 0.3), value: frontDesk.latestSend)
+                // Redrawn only at the two moments the line changes: half an
+                // hour before the due time, and at it. Not an explicit
+                // TimelineView: once both moments had passed (every day after
+                // the due time, and every past day) it redrew the bar every
+                // frame, 8–10% CPU on an idle grid (2026-10-10).
+                .task(id: frontDesk.changeTimes(on: viewModel.date)) {
+                    for time in Self.changesAhead(frontDesk.changeTimes(on: viewModel.date), now: Date()) {
+                        guard (try? await Task.sleep(for: .seconds(time.timeIntervalSinceNow))) != nil else { return }
+                        changes += 1
+                    }
+                }
         }
+    }
+
+    /// The change moments still ahead of `now`: none once the due time has
+    /// passed, so the line then waits for nothing.
+    static func changesAhead(_ times: [Date], now: Date) -> [Date] {
+        times.filter { $0 > now }
     }
 
     @ViewBuilder

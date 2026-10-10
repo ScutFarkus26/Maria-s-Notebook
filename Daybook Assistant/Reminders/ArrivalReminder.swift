@@ -87,7 +87,7 @@ enum ArrivalReminder {
         now: Date = Date(),
         center: any ReminderCenter = SystemReminderCenter()
     ) async {
-        await runs.run {
+        await runs.run(for: context) {
             let requests = await wantedRequests(in: context, now: now, center: center)
             await ReminderRuns.replace(where: isOurs, with: requests, center: center, logger: logger)
         }
@@ -173,12 +173,19 @@ final class ArrivalReminderTaps: NSObject, UNUserNotificationCenterDelegate {
 /// The early-pickup reminders follow the loads too, and her own pickup edits
 /// and marks (a child marked Left Early or absent loses theirs).
 ///
+/// The screen only asks for notifications. The rebuild itself goes through
+/// the upkeep's one-second settle (`EarlyPickupReminderUpkeep`), which every
+/// import and trip to the background feeds too, so a change both see
+/// rebuilds once: each used to rebuild here and again there, and 22 marks
+/// set off about 22 rebuilds in a row.
+///
 /// A modifier of its own, like `AssistantReloadOnReturn`: read in the
 /// attendance screen's body, `loadGeneration` would redraw the whole grid on
 /// every reload, which `Row`'s Equatable exists to avoid.
 struct ArrivalReminderFollower: ViewModifier {
     let viewModel: AssistantAttendanceViewModel?
     let context: NSManagedObjectContext
+    @Environment(AssistantBootstrapper.self) private var bootstrapper
 
     private var signature: String {
         guard let viewModel else { return "" }
@@ -195,34 +202,48 @@ struct ArrivalReminderFollower: ViewModifier {
 
     func body(content: Content) -> some View {
         content.task(id: signature) {
-            await Self.refresh(hasClass: viewModel?.rows.isEmpty == false, in: context)
+            await Self.follow(hasClass: viewModel?.rows.isEmpty == false, in: context) {
+                bootstrapper.pickupRemindersMayHaveChanged()
+            }
         }
     }
 
     /// Asks for notifications the first time a class is on screen, then
-    /// brings all three reminders up to date. The sample class rings its
-    /// pickups, so Leaving Early… can be tried there, and schedules nothing
-    /// else.
-    static func refresh(
+    /// hands the rebuild of all three reminders to the upkeep (`rebuild`).
+    static func follow(
         hasClass: Bool,
         in context: NSManagedObjectContext,
         setupDone: Bool = AssistantOnboarding.setupDone(),
         isSample: Bool = AssistantSampleClass.isActive,
-        center: any ReminderCenter = SystemReminderCenter()
+        center: any ReminderCenter = SystemReminderCenter(),
+        rebuild: @MainActor () -> Void
     ) async {
         guard hasClass else { return }
-        // Setup's reminder page asks, in its own words. Until setup is done
-        // an alert would land on top of it instead, the pickups' included.
-        if !isSample {
-            if setupDone { await ArrivalReminder.requestPermissionIfNeeded(center: center) }
-            await ArrivalReminder.reschedule(in: context, center: center)
+        await askPermission(in: context, setupDone: setupDone, isSample: isSample, center: center)
+        rebuild()
+    }
+
+    /// The question each reminder's rebuild used to ask here, before the
+    /// upkeep (which never asks: the alert belongs on screen) did the
+    /// rebuilding. The sample class rings its pickups, so Leaving Early… can
+    /// be tried there, and asks for nothing else. Setup's reminder page asks,
+    /// in its own words: until setup is done an alert would land on top of it
+    /// instead, the pickups' included.
+    static func askPermission(
+        in context: NSManagedObjectContext,
+        setupDone: Bool,
+        isSample: Bool,
+        center: any ReminderCenter
+    ) async {
+        guard setupDone, await center.authorizationStatus() == .notDetermined else { return }
+        if !isSample { await ArrivalReminder.requestPermissionIfNeeded(center: center) }
+        if EarlyPickupReminder.isEnabled(), !EarlyPickupReminder.pendingPickups(in: context).isEmpty {
+            await EarlyPickupReminder.requestPermissionIfNeeded(center: center)
         }
-        await EarlyPickupReminder.reschedule(in: context, asksPermission: setupDone, center: center)
         guard !isSample else { return }
-        if setupDone, FrontDeskEmailReminder.isEnabled(), AttendanceEmailLog.settings(in: context)?.canSend == true {
+        if FrontDeskEmailReminder.isEnabled(), AttendanceEmailLog.settings(in: context)?.canSend == true {
             _ = await FrontDeskEmailReminder.requestPermission(center: center)
         }
-        await FrontDeskEmailReminder.reschedule(in: context, center: center)
     }
 }
 

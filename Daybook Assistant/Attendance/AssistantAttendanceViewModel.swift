@@ -147,9 +147,25 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
     }
 
     /// Reloads the day whenever an import into the classroom's store finishes,
-    /// until the calling task is cancelled.
+    /// until the calling task is cancelled. The screen's task calls this
+    /// right after loading the day, so the screen is showing whatever scene
+    /// change it last heard (a tab out of sight may not hear the return):
+    /// nothing held from a trip away outlasts that load.
     func followRemoteImports(into storeIdentifier: String) async {
+        importReloader?.appReturned()
         await importReloader?.observeImports(into: storeIdentifier)
+    }
+
+    /// The app left the screen (`isActive` false) or came back to it. Away,
+    /// an import doesn't reload the day; back, the return-to-app reload
+    /// (`AssistantReloadOnReturn`) shows it, and a reload held meanwhile is
+    /// dropped rather than run as a second one.
+    func followScene(isActive: Bool) {
+        if isActive {
+            importReloader?.appReturned()
+        } else {
+            importReloader?.appLeft()
+        }
     }
 
     /// Holds remote reloads while a sheet is editing one of the rows.

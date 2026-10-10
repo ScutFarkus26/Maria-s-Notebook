@@ -1,19 +1,28 @@
 import Foundation
 import CoreData
+import OSLog
 import Testing
 import UserNotifications
 @testable import Daybook_Assistant
 
 /// A notification center that allows everything and remembers what was
-/// scheduled: the simulator's own has no permission under tests.
+/// scheduled: the simulator's own has no permission under tests. It counts
+/// the adds and the reads of what's pending, for the tests of work skipped.
 @MainActor
 final class FakeReminderCenter: ReminderCenter {
     var status: UNAuthorizationStatus = .authorized
     private(set) var pending: [String: UNNotificationRequest] = [:]
     private(set) var authorizationRequests = 0
+    private(set) var adds = 0
+    private(set) var pendingReads = 0
 
     func ids(_ prefix: String) -> Set<String> {
         Set(pending.keys.filter { $0.hasPrefix(prefix) })
+    }
+
+    /// Requests already pending, as an earlier run left them; not counted.
+    func seed(_ requests: [UNNotificationRequest]) {
+        for request in requests { pending[request.identifier] = request }
     }
 
     func authorizationStatus() async -> UNAuthorizationStatus { status }
@@ -23,13 +32,17 @@ final class FakeReminderCenter: ReminderCenter {
         return false
     }
 
-    func pendingRequests() async -> [UNNotificationRequest] { Array(pending.values) }
+    func pendingRequests() async -> [UNNotificationRequest] {
+        pendingReads += 1
+        return Array(pending.values)
+    }
 
     func removePendingRequests(withIdentifiers identifiers: [String]) {
         for id in identifiers { pending[id] = nil }
     }
 
     func add(_ request: UNNotificationRequest) async throws {
+        adds += 1
         pending[request.identifier] = request
     }
 }
@@ -101,15 +114,15 @@ struct ReminderRescheduleTests {
         let center = FakeReminderCenter()
         center.status = .notDetermined
 
-        await ArrivalReminderFollower.refresh(
+        await ArrivalReminderFollower.follow(
             hasClass: true, in: context, setupDone: false, isSample: false, center: center
-        )
+        ) {}
         #expect(center.authorizationRequests == 0)
 
         // Once setup is done, the screen asks.
-        await ArrivalReminderFollower.refresh(
+        await ArrivalReminderFollower.follow(
             hasClass: true, in: context, setupDone: true, isSample: false, center: center
-        )
+        ) {}
         #expect(center.authorizationRequests > 0)
     }
 

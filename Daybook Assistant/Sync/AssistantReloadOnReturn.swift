@@ -23,6 +23,9 @@ struct AssistantReloadOnReturn: ViewModifier {
         content.onChange(of: scenePhase) { oldPhase, phase in
             if phase != .active { onLeaveActive() }
             guard let viewModel else { return }
+            // Imports don't reload the day while the app is away: the load
+            // below shows them.
+            viewModel.followScene(isActive: phase == .active)
             if phase == .active {
                 // Left open overnight on today, the screen moves on to the new
                 // today; left on another day, it stays there.

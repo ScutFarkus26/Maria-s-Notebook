@@ -6,7 +6,7 @@ import CoreData
 ///
 /// The Restock model lives here rather than in its tab, so the badge is right
 /// before the tab is ever opened, and follows the guide's changes as they
-/// arrive from iCloud.
+/// arrive from iCloud while the app is on screen.
 struct AssistantTabs: View {
     let coreDataStack: CoreDataStack
 
@@ -81,10 +81,10 @@ struct AssistantTabs: View {
 }
 
 /// A burst of Restock taps saves before the app goes, and coming back reads
-/// what changed meanwhile; back from the background, this phone's check-offs
-/// are done with. A modifier of its own, so the scene phase's four changes on
-/// every trip away and back redraw only this, not the tabs
-/// (`AssistantReloadOnReturn`).
+/// what changed meanwhile (imports don't reload the tab while it's away);
+/// back from the background, this phone's check-offs are done with. A
+/// modifier of its own, so the scene phase's four changes on every trip away
+/// and back redraw only this, not the tabs (`AssistantReloadOnReturn`).
 private struct RestockFollowsScene: ViewModifier {
     let model: AssistantRestockModel?
     @Environment(\.scenePhase) private var scenePhase
@@ -95,10 +95,13 @@ private struct RestockFollowsScene: ViewModifier {
     func body(content: Content) -> some View {
         content.onChange(of: scenePhase) { oldPhase, phase in
             if phase == .active, oldPhase != .active {
+                // The load below shows what arrived while away.
+                model?.followScene(isActive: true)
                 if wentAway { model?.forgetCheckOffs() }
                 wentAway = false
                 model?.load()
             } else if phase != .active {
+                model?.followScene(isActive: false)
                 if phase == .background { wentAway = true }
                 model?.flush()
             }

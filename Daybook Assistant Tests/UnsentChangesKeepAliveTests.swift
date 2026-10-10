@@ -128,6 +128,124 @@ struct UnsentChangesKeepAliveTests {
         #expect(keepAlive.hasUnsentWork)
     }
 
+    // Assistant battery and heat check 2026-10-10, finding 6: leaving with
+    // unsent marks waited for the share attach with no limit, past 25 s up to
+    // iOS's own cut-off. A sleep that returns at once stands in for the limit
+    // passing; one cancelled when the work returns, for a limit not reached.
+
+    @Test("Leaving waits for the app's own sending, then the export, as before")
+    func leavingWaitsForSending() async {
+        let sending = Gate()
+        let keepAlive = UnsentChangesKeepAlive(viewContext: context, waitForWork: { await sending.wait() })
+        saveAMark()
+        let left = Flag(false)
+        let leaving = Task {
+            await keepAlive.sendBeforeSuspending(within: .seconds(60))
+            left.value = true
+        }
+        await waitFor { sending.waiting == 1 }
+        #expect(!left.value)
+
+        sending.open()
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(!left.value)
+        keepAlive.exported(startedAt: Date())
+        await leaving.value
+        #expect(left.value)
+        #expect(!keepAlive.hasUnsentWork)
+    }
+
+    @Test("Sending that never finishes holds the app no longer than the limit", .timeLimit(.minutes(1)))
+    func sendingPastTheLimit() async {
+        let sending = Gate()
+        let sent = Flag(false)
+        let keepAlive = UnsentChangesKeepAlive(
+            viewContext: context,
+            waitForWork: {
+                await sending.wait()
+                sent.value = true
+            },
+            sleep: { _ in }
+        )
+        saveAMark()
+
+        await keepAlive.sendBeforeSuspending()
+        // Back with the sending still under way, and the mark still waiting
+        // to go: only the wait ended.
+        #expect(!sent.value)
+        #expect(keepAlive.hasUnsentWork)
+
+        // The sending carries on, and finishes when it can.
+        sending.open()
+        await waitFor { sent.value }
+        #expect(sent.value)
+    }
+
+    @Test("A wait for work answers when the work returns, or false at the limit")
+    func waitAtMost() async {
+        let returned = await UnsentChangesKeepAlive.wait(atMost: .seconds(60)) {}
+        #expect(returned)
+
+        let sending = Gate()
+        let late = await UnsentChangesKeepAlive.wait(
+            atMost: .seconds(60), sleep: { _ in }, for: { await sending.wait() }
+        )
+        #expect(!late)
+        sending.open()
+    }
+
+    @Test("Siri waits for its marks to go into the share, as before")
+    func siriWaitsForTheAttach() async throws {
+        let attacher = AssistantShareAttacher(
+            defaults: AssistantTestSupport.makeDefaults(),
+            attempt: { _, _, _ in CDAttendanceStore.ShareAttachResult(left: []) },
+            zoneCheck: { _, _, _ in [] }
+        )
+        let mark = try savedMark()
+        await SiriHost.didSave(created: [mark], in: stack, attacher: attacher)
+        #expect(!attacher.isRunning)
+        #expect(attacher.pending.isEmpty)
+    }
+
+    @Test("An attach that never finishes holds Siri's keep-alive no longer than its limit", .timeLimit(.minutes(1)))
+    func siriAttachPastTheLimit() async throws {
+        let cloudKit = Gate()
+        let attacher = AssistantShareAttacher(
+            defaults: AssistantTestSupport.makeDefaults(),
+            attempt: { _, _, _ in
+                await cloudKit.wait()
+                return CDAttendanceStore.ShareAttachResult(left: [])
+            },
+            zoneCheck: { _, _, _ in [] }
+        )
+        let mark = try savedMark()
+        await SiriHost.didSave(created: [mark], in: stack, attacher: attacher, sleep: { _ in })
+        // The attach carries on, its mark still listed for the next try.
+        #expect(attacher.isRunning)
+        #expect(attacher.pending == [mark.uriRepresentation()])
+
+        cloudKit.open()
+        await attacher.waitUntilIdle()
+        #expect(attacher.pending.isEmpty)
+    }
+
+    /// A mark saved, with its permanent ID.
+    private func savedMark() throws -> NSManagedObjectID {
+        let record = CDAttendanceRecord(context: context)
+        record.id = UUID()
+        try #require(context.safeSave())
+        return record.objectID
+    }
+
+    /// Polls `condition` with a generous deadline: a passing run returns as
+    /// soon as it holds.
+    private func waitFor(_ condition: () -> Bool) async {
+        let deadline = ContinuousClock.now + .seconds(30)
+        while !condition(), ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+    }
+
     private struct Split {
         let context: NSManagedObjectContext
         let privateStore: NSPersistentStore
@@ -159,4 +277,25 @@ struct UnsentChangesKeepAliveTests {
 private final class Flag {
     var value: Bool
     init(_ value: Bool) { self.value = value }
+}
+
+/// Work that waits until a test opens it: the app's sending, or CloudKit.
+@MainActor
+private final class Gate {
+    private var isOpen = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+    /// How many are waiting now.
+    var waiting: Int { waiters.count }
+
+    func wait() async {
+        guard !isOpen else { return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func open() {
+        isOpen = true
+        let resumed = waiters
+        waiters = []
+        resumed.forEach { $0.resume() }
+    }
 }

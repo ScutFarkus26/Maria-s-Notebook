@@ -123,6 +123,12 @@ Habits from 2023-2024 that no longer match Apple's current guidance:
 - **SwiftUI instrument thresholds:** orange > 500 µs, red > 1 ms per body update. Lanes:
   Update Groups / Long View Body Updates / Long Platform View Updates / Other Long Updates.
 - **`Self._printChanges()`** for a quick check; the instrument for real work.
+- **`TimelineView(.explicit(dates))` once every date has passed redraws every frame**
+  **[observed, not documented]**: 2026-10-10, the Assistant's front-desk line sat at 8–10% CPU
+  on an idle grid (Release, simulator) every day after its due time. For a view that changes
+  at a few known moments, use a `.task(id:)` that sleeps until each moment still ahead and
+  bumps a `@State` counter (`AssistantFrontDeskRow`). Apple gives no energy guidance for
+  `.everyMinute` / `.periodic` either: keep the closure small (session 306).
 - **`@FetchRequest`:** Apple gives no current numbers. Apply the SwiftData-lab rules: precise
   predicates, fetch limits, narrower views, selective refetch from persistent history.
 
@@ -154,6 +160,16 @@ Habits from 2023-2024 that no longer match Apple's current guidance:
   bottleneck, so few contexts; pass `NSManagedObjectID`s across actors; sync latency is
   platform policy (the phone throttles when hot); verify indexes with the **Data
   Persistence** template. Nothing new in Core Data at WWDC26.
+- **CloudKit pushes and remote changes (checked 2026-10-07):** CloudKit wakes the app through
+  `remote-notification`; the pushes are low priority and coalesced, each wake gets about 30 s,
+  and a force-quit app gets none. "Apps that use significant amounts of power when processing
+  remote notifications may not always be woken up early." Apple publishes no per-hour rate.
+  `NSPersistentStoreRemoteChange` fires "for every write to the store", the app's own and
+  other processes' included, so a handler checks which store and which author before doing
+  anything, on a background context, and it's "unnecessary to update your UI in response to
+  every notification." Every mirrored store is its own database subscription: a second store
+  that mirrors (the Assistant's private one) can mean a second import per change
+  **[inference]**. ([Syncing](https://developer.apple.com/documentation/coredata/syncing-a-core-data-store-with-cloudkit); [Consuming relevant store changes](https://developer.apple.com/documentation/coredata/consuming-relevant-store-changes); [Pushing background updates](https://developer.apple.com/documentation/usernotifications/pushing-background-updates-to-your-app))
 - **Debugging sync cost:** `-com.apple.CoreData.CloudKitDebug 1`; `-com.apple.CoreData.SQLDebug 1`;
   test by backgrounding/foregrounding, not force-quit.
 - **SQLite hygiene Apple attributes to Core Data:** WAL, transactions, indexes
@@ -256,14 +272,18 @@ Habits from 2023-2024 that no longer match Apple's current guidance:
 - **Power Profiler:** iOS/iPadOS 26+ physical devices only. Passive mode: Settings ▸
   Developer ▸ Performance Trace ▸ Power Profiler ▸ toggle the app, then the Control Center
   control; up to 10 h; share the `.aar`. Values not comparable across device models;
-  system power reads 0 while charging.
+  system power reads 0 while charging. It needs Developer Mode, which only appears on a
+  phone that has been paired with a Mac once; it can trace a TestFlight install. The iOS 27
+  release notes list the Control Center trace control as possibly failing.
   ([doc](https://developer.apple.com/documentation/xcode/measuring-your-app-s-power-use-with-power-profiler))
   Mac: Energy Impact gauge, Activity Monitor, `powermetrics` (sudo).
 - **Instruments 27:** Top Functions, Run Comparisons, Swift Executors, unified System Trace
   with syscall Inspector, os_log overlay, StateReporting states under Points of Interest.
   Diagnostic model: CPU saturation → CPU Profiler + Top Functions; contention → Swift
   Executors; system blocking → System Trace. (session 268-26)
-- **MetricKit (OS 27):** `MetricManager.metricReports` / `diagnosticReports`; groups `.cpu
+- **MetricKit (OS 27):** `MetricManager` is iOS 27+ only; the old `MXMetricManager` API is
+  "to be deprecated", so an app with an iOS 18 target (the Assistant) gets neither cleanly.
+  `MetricManager.metricReports` / `diagnosticReports`; groups `.cpu
   .memory .energy .display .disk .network .gpu .launch .hang .metal`; StateReporting
   `StateReporter.reporter(for:)` + `reportTransition(to:)`; `trackLaunchTask(id:)`;
   `logHandle(category:)` for custom signpost metrics; `DiagnosticReport.Environment.signpostData`
@@ -272,6 +292,8 @@ Habits from 2023-2024 that no longer match Apple's current guidance:
 - **Organizer (Xcode 27):** Hitches metric (≤10 ms/s good, ≤25 warning, ≤50 critical),
   Storage metric, Metric Goals (battery, disk writes, hang rate, hitches, memory, storage),
   Battery Usage split on-screen vs background and by subsystem, energy exception reports.
+  Battery reports cover App Store apps; a small TestFlight audience shows "Insufficient usage
+  data", so expect nothing for the Assistant.
   ([Analyzing battery use](https://developer.apple.com/documentation/xcode/analyzing-your-app-s-battery-use))
 - **Thread Performance Checker:** on by default for Run; can fail tests via test-plan
   Runtime API Checking.

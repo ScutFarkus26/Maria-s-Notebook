@@ -12,6 +12,14 @@ import CoreData
 /// once when the burst ends. While `isPaused` (a sheet is editing one of the
 /// rows) a due reload is held and runs when the pause lifts.
 ///
+/// Nothing reloads while the app is off screen. From `appLeft()` (the
+/// background, Control Center, Siri over the app) a due reload is held, and
+/// `appReturned()` drops it: the owner reloads everything on the way back
+/// (`AssistantReloadOnReturn`, `RestockFollowsScene`), and that one load shows
+/// what arrived. Until 2026-10-10 every finished import reloaded in the
+/// background too: about 12–15 fetches for the attendance screen and a full
+/// Restock load each time, with nobody looking.
+///
 /// The Daybook Assistant compiles this file by path and targets iOS 18, so it
 /// uses the classic `eventChangedNotification`, not the iOS 27 typed messages.
 @MainActor
@@ -25,13 +33,16 @@ final class RemoteImportReloader {
     private let sleep: Sleep
     private let reload: @MainActor () -> Void
     private var pending: Task<Void, Never>?
-    /// A reload came due while paused and waits for the pause to lift.
+    /// A reload came due while paused or away, and waits.
     private(set) var hasHeldReload = false
+    /// Between `appLeft()` and `appReturned()`.
+    private(set) var isAway = false
 
-    /// While true, a due reload waits; setting it back to false runs it.
+    /// While true, a due reload waits; setting it back to false runs it. Away,
+    /// it waits on: the return's own load shows it.
     var isPaused = false {
         didSet {
-            guard !isPaused, hasHeldReload else { return }
+            guard !isPaused, !isAway, hasHeldReload else { return }
             hasHeldReload = false
             reload()
         }
@@ -64,6 +75,23 @@ final class RemoteImportReloader {
         }
     }
 
+    /// The app left the screen: a reload that comes due is held, not run.
+    func appLeft() {
+        isAway = true
+    }
+
+    /// The app is back, and its owner reloads everything now. A reload held
+    /// meanwhile (a sheet's hold too: the return's load doesn't wait for the
+    /// sheet), or one still settling from an import that already finished,
+    /// would only run that load again, so both go. Imports that finish from
+    /// here on reload as usual.
+    func appReturned() {
+        isAway = false
+        hasHeldReload = false
+        pending?.cancel()
+        pending = nil
+    }
+
     /// Feeds every finished import into the store with `storeIdentifier` to
     /// `importFinished` until the calling task is cancelled (a view's `.task`).
     func observeImports(into storeIdentifier: String) async {
@@ -76,7 +104,7 @@ final class RemoteImportReloader {
     }
 
     private func fire() {
-        if isPaused {
+        if isPaused || isAway {
             hasHeldReload = true
         } else {
             reload()
@@ -89,6 +117,23 @@ final class RemoteImportReloader {
         guard let event = note.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
                 as? NSPersistentCloudKitContainer.Event
         else { return false }
-        return event.type == .import && event.endDate != nil && event.storeIdentifier == storeIdentifier
+        return isFinishedImport(
+            type: event.type, ended: event.endDate != nil, succeeded: event.succeeded,
+            eventStore: event.storeIdentifier, storeIdentifier: storeIdentifier
+        )
+    }
+
+    /// Whether an event is an import into the store with `storeIdentifier`
+    /// that finished and worked. A failed one (offline, a quota, a conflict)
+    /// counted too until 2026-10-10; CloudKit tries it again, and the try that
+    /// works reloads. Pure, for the tests: an event can't be made in one.
+    nonisolated static func isFinishedImport(
+        type: NSPersistentCloudKitContainer.EventType,
+        ended: Bool,
+        succeeded: Bool,
+        eventStore: String,
+        storeIdentifier: String
+    ) -> Bool {
+        type == .import && ended && succeeded && eventStore == storeIdentifier
     }
 }

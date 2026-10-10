@@ -38,9 +38,13 @@ final class AssistantRestockModel {
     private(set) var ordering: [CDOrderItem] = []
     /// Open needs from the office: the tab's badge.
     private(set) var officeRunCount = 0
-    /// Bumped by every change and reload, so tiles that read their staple's
-    /// level straight off the managed object redraw.
+    /// Bumped by every change here, and by a reload that finds something the
+    /// tab shows has changed (`Shown`), so tiles that read their staple's
+    /// level straight off the managed object redraw. Every reload bumped it
+    /// until 2026-10-10, and every import reloaded: each one redrew every tile.
     private(set) var revision = 0
+    /// What the tab showed at the last `revision`, to compare a reload with.
+    @ObservationIgnored private var lastShown: Shown?
     /// The last failed save, until one works.
     private(set) var errorMessage: String?
 
@@ -59,8 +63,9 @@ final class AssistantRestockModel {
     /// attendance grid saves the same context, and a record its save wrote
     /// never went into the share.
     @ObservationIgnored private var createdSinceSave: Set<NSManagedObject> = []
-    /// Reloads the tab when the guide's changes arrive from iCloud.
-    @ObservationIgnored private var importReloader: RemoteImportReloader?
+    /// Reloads the tab when the guide's changes arrive from iCloud
+    /// (AssistantRestockModel+Reloads).
+    @ObservationIgnored private(set) var importReloader: RemoteImportReloader?
 
     let context: NSManagedObjectContext
     /// Who this phone's changes are stamped with, and who "you" are when
@@ -155,40 +160,42 @@ final class AssistantRestockModel {
             save()
         }
         let staples = RestockService.staples(in: context, store: store)
-        shelf = RestockService.shelf(staples)
+        let newShelf = RestockService.shelf(staples)
+        // `PlaceGroup` isn't Equatable, so even the same shelf redrew the tab.
+        if !Self.sameShelf(shelf, newShelf) { shelf = newShelf }
         staplesByID = Dictionary(
             staples.compactMap { staple in staple.id.map { ($0.uuidString.uppercased(), staple) } },
             uniquingKeysWith: { first, _ in first }
         )
         staplesWithHistory = RestockService.stapleIDsWithHistory(in: context, store: store)
         AssistantRestockVocabulary.refresh(for: staples)
-        refreshNeeds()
-    }
-
-    /// Reloads the tab whenever an import into the classroom's store
-    /// finishes, until the calling task is cancelled.
-    func followRemoteImports(into storeIdentifier: String) async {
-        await importReloader?.observeImports(into: storeIdentifier)
+        refreshNeeds(redraw: false)
     }
 
     /// The needs again, without refetching the shelf: a change made here
-    /// opens and closes needs, but never adds or removes a staple.
-    private func refreshNeeds() {
+    /// opens and closes needs, but never adds or removes a staple. `redraw`
+    /// bumps `revision` whatever changed, for her own changes; a reload
+    /// bumps it only when what the tab shows differs from the last time.
+    private func refreshNeeds(redraw: Bool = true) {
         let open = RestockService.openNeeds(in: context, store: store)
         ordering = open.filter { $0.source == .order }
         let run = open.filter { $0.source == .office }
         officeRunCount = run.count
         // Ticked here and still checked off: kept in place on the list.
-        checkOffs = checkOffs.filter { _, checkOff in
+        let kept = checkOffs.filter { _, checkOff in
             let need = checkOff.need
             return !need.isDeleted && need.managedObjectContext != nil && need.receivedAt != nil
         }
+        // Only when one went: `CheckOff` isn't Equatable, so any assignment redrew.
+        if kept.count != checkOffs.count { checkOffs = kept }
         tickedRanks = tickedRanks.filter { checkOffs[$0.key] != nil }
         officeRun = (run + checkOffs.values.map(\.need)).sorted { lhs, rhs in
             let (left, right) = (runRank(lhs), runRank(rhs))
             return left != right ? left < right : RestockService.isOlder(lhs, rhs)
         }
-        revision &+= 1
+        let shown = shownNow()
+        if redraw || shown != lastShown { revision &+= 1 }
+        lastShown = shown
     }
 
     /// Where a need sorts on the office run: Out first, then Low, then the

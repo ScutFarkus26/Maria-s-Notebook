@@ -88,10 +88,27 @@ enum SiriHost {
         )
     }
 
+    /// How long Siri's keep-alive waits for the share attach: the same 25 s
+    /// as leaving the app (`UnsentChangesKeepAlive.limit`), inside the 30 s
+    /// iOS allows in the background.
+    static let attachWaitLimit = UnsentChangesKeepAlive.limit
+
     /// New marks go into the classroom share explicitly, as the grid's do.
-    static func didSave(created: [NSManagedObjectID], in stack: CoreDataStack) async {
+    /// Siri's keep-alive (`SiriSyncKeepAlive`) waits for the attach at most
+    /// `limit`: `share(_:to:)` can block for good, and until 2026-10-10 the
+    /// wait for it held the app awake until iOS cut it off. Only the waiting
+    /// ends: an attach still running carries on while the app does, and what
+    /// hasn't gone in stays on the attacher's list for its next try (a save,
+    /// a return to the app, the next launch). Tests pass `attacher` and `sleep`.
+    static func didSave(
+        created: [NSManagedObjectID],
+        in stack: CoreDataStack,
+        attacher: AssistantShareAttacher = .shared,
+        limit: Duration = SiriHost.attachWaitLimit,
+        sleep: @escaping UnsentChangesKeepAlive.Sleep = { try await Task.sleep(for: $0) }
+    ) async {
         guard !created.isEmpty else { return }
-        AssistantShareAttacher.shared.attach(created, container: stack.container, context: stack.viewContext)
-        await AssistantShareAttacher.shared.waitUntilIdle()
+        attacher.attach(created, container: stack.container, context: stack.viewContext)
+        await UnsentChangesKeepAlive.wait(atMost: limit, sleep: sleep) { await attacher.waitUntilIdle() }
     }
 }
