@@ -1,6 +1,21 @@
 import CoreData
 import Foundation
+import Testing
 @testable import CosmicDaybook
+
+/// Every suite that runs as a given device (`asDevice`), sets
+/// `ClassroomIdentity`, or runs the name list's writes, nested here so they run
+/// one at a time. What they share is process-wide: this device's identity in
+/// `UserDefaults.standard`, and `ClassroomNames`' gate, `nameSets`,
+/// `lookupOut` and `knownZones`. Swift Testing runs suites side by side even
+/// with `-parallel-testing-enabled NO`, and `.serialized` on a suite orders
+/// only its own tests, so while one suite's test waited for a lookup another
+/// suite changed who the device was or overtook its name (2026-10-10: 34
+/// failures in one whole-suite run, none alone). A new suite that touches any
+/// of this goes in here too (`extension ClassroomNamesSuites`).
+@Suite("Classroom names and identity, one suite at a time", .serialized)
+@MainActor
+enum ClassroomNamesSuites {}
 
 /// Shared by the classroom-names suites: fixed times, rows as another device
 /// wrote them, stamped marks and sends, and running as a given device.
@@ -34,8 +49,8 @@ enum ClassroomNamesTestSupport {
     }
 
     /// `asDevice`, for a body that waits (the name list's writes do). The
-    /// suites that use it run serialized, so no other test's identity lands
-    /// in between.
+    /// suites that use it run one at a time (`ClassroomNamesSuites`), so no
+    /// other test's identity lands in between.
     static func asDevice<T>(
         recordName: String?,
         displayName: String? = nil,

@@ -106,7 +106,8 @@ struct ClassroomShareWaitingListTests {
         #expect(guardian.pendingURIs.first == uri(days[0]))
     }
 
-    @Test("Past the cap, records deleted since leave first, and every one still waiting stays")
+    @Test("Past the cap, records deleted since leave first, and every one still waiting stays",
+          .timeLimit(.minutes(1)))
     func goneRecordsLeaveBeforeWaitingOnes() async throws {
         let (stack, _) = try makeStack()
         let context = stack.viewContext
@@ -118,10 +119,15 @@ struct ClassroomShareWaitingListTests {
         guardian.start(coreDataStack: stack)
         guardian.enqueue(waiting.map(\.objectID))
         guardian.enqueue(doomed.map(\.objectID))
+        // Going past the cap started a prune; it runs once this test waits,
+        // so after the deletes are saved. Waits for it to finish rather than
+        // for a few seconds: in a whole-suite run the main actor is busy with
+        // other suites, and 3 s ran out before it did (2026-10-10).
+        let prune = try #require(guardian.pruneTask)
         for day in doomed { context.delete(day) }
         #expect(context.safeSave())
 
-        try await eventually { guardian.pendingURIs.count <= 100 }
+        await prune.value
         let pending = Set(guardian.pendingURIs)
         #expect(Set(waiting.map(uri)).isSubset(of: pending))
         #expect(pending.count == 100)
