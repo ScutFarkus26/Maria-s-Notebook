@@ -125,4 +125,39 @@ struct StoreLoadSafetyTests {
         #expect(inShare != privateOnly)
         #expect(inShare == CoreDataStack.modelSchemaDigest(model(sharedHoldsThing: true)))
     }
+
+    // MARK: - A store Core Data emptied (2026-10-10)
+
+    // The Assistant's sample class emptied its store with
+    // `destroyPersistentStore` each new day. On iOS 26 the pre-load checks'
+    // metadata read wrote Core Data's bookkeeping tables into the empty file,
+    // and the load then failed ("Can't find table for entity …"). iOS 27 and
+    // macOS 27 leave the file alone, so here this pins the rule rather than
+    // reproducing the failure.
+
+    @Test("A store Core Data emptied is left untouched before it loads, and loads as a new one")
+    func emptiedStoreLoadsFresh() throws {
+        let fixture = try StoreFileFixture()
+        defer { fixture.cleanUp() }
+        let model = StoreFileFixture.model()
+        let url = try StoreFileFixture.makeStore(at: fixture.url("thing.sqlite"), model: model, rows: 2)
+        try NSPersistentStoreCoordinator(managedObjectModel: model)
+            .destroyPersistentStore(at: url, type: .sqlite, options: nil)
+        #expect(CoreDataStack.isUnbuiltStore(storeURL: url))
+
+        let container = StoreFileFixture.container(model: model, url: url)
+        let backups = try CoreDataStack.prepareStoresForLoad(container: container, model: model)
+        #expect(backups.isEmpty, "nothing to back up")
+        #expect(CoreDataStack.isUnbuiltStore(storeURL: url), "no tables written into it")
+
+        var loadError: Error?
+        container.loadPersistentStores { _, error in loadError = error }
+        #expect(loadError == nil)
+        try StoreFileFixture.addRows(1, to: container.persistentStoreCoordinator, model: model)
+        for store in container.persistentStoreCoordinator.persistentStores {
+            try container.persistentStoreCoordinator.remove(store)
+        }
+        #expect(StoreFileFixture.rowCount(at: url) == 1)
+        #expect(!CoreDataStack.isUnbuiltStore(storeURL: url))
+    }
 }

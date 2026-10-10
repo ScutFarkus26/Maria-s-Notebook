@@ -182,6 +182,11 @@ nonisolated extension CoreDataStack {
             if let folder = unfinishedRestoreFolder(in: url.deletingLastPathComponent()) {
                 throw CoreDataStackError.restoreUnfinished(folderName: folder)
             }
+            // A file Core Data hasn't built yet loads as a new store, and has
+            // nothing to check, migrate, repair or stamp (`restampSchemaVersion`
+            // stamps it once loaded). Leave it alone: even reading its metadata
+            // can break it (`isUnbuiltStore`).
+            if isUnbuiltStore(storeURL: url) { continue }
             try verifyStoreIsNotFromNewerBuild(storeURL: url)
 
             // Migration is in-place and irreversible, and both cleanups below
@@ -276,6 +281,35 @@ nonisolated extension CoreDataStack {
         }
 
         return backups
+    }
+
+    /// True when `storeURL` is a file Core Data hasn't built a store in yet:
+    /// SQLite opens it, and it has no tables. That's what
+    /// `destroyPersistentStore` leaves (it empties the file rather than
+    /// removing it). The Assistant's sample class reopened one each new day
+    /// until it began removing the files too (82309223); this keeps any
+    /// other emptied file from failing the same way.
+    ///
+    /// Asked of SQLite, read-only, never of Core Data: on iOS 26, reading
+    /// such a file's metadata (`metadataForPersistentStore`) writes Core
+    /// Data's bookkeeping tables into it and no entity tables, and the load
+    /// then takes it for a built store and fails ("Can't find table for
+    /// entity …"), 2026-10-10. iOS 27 and macOS 27 don't, but the Assistant
+    /// runs on iOS 26 phones. Left alone, it loads as a new store.
+    static func isUnbuiltStore(storeURL: URL) -> Bool {
+        guard FileManager.default.fileExists(atPath: storeURL.path) else { return false }
+        var handle: OpaquePointer?
+        guard sqlite3_open_v2(storeURL.path, &handle, SQLITE_OPEN_READONLY, nil) == SQLITE_OK,
+              let handle else {
+            if handle != nil { sqlite3_close(handle) }
+            return false
+        }
+        defer { sqlite3_close(handle) }
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(handle, "SELECT 1 FROM sqlite_master LIMIT 1", -1, &statement, nil) == SQLITE_OK,
+              let statement else { return false }
+        defer { sqlite3_finalize(statement) }
+        return sqlite3_step(statement) == SQLITE_DONE
     }
 
     // MARK: - Physical Schema Coherence Cache
