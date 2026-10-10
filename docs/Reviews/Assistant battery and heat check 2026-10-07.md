@@ -68,7 +68,7 @@ Left as they were on 2026-10-10 (you picked 1–6).
 13. **The guide's name is formatted again for each of 22 tiles on every pass** (`AssistantAttendanceView.swift:407-411`). **Safe.** XS.
 14. **The sample class's database stays open after she joins the real class**, a few MB (`AssistantSampleClass.swift:65`). **Safe.** XS.
 15. **The iCloud account status is asked twice at launch** (`AssistantBootstrapper+Names.swift:35`, `AssistantApp.swift:49`). **Safe.** XS; negligible.
-16. **The grid's fade mask over frosted tiles costs an extra drawing pass on every frame of scrolling or tapping** (`AssistantAttendanceView.swift:307`). Zero at rest. Unverified: it needs a look on a device. Tied to finding 1.
+16. **The grid's fade mask over frosted tiles costs an extra drawing pass on every frame of scrolling or tapping** (`AssistantAttendanceView.swift:307`). Zero at rest. Unverified: it needs a look on a device ([Tide row](tide://box/Areas/App%20Development/Daybook%20Assistant/To%20do.md?text=On%20my%20assistant%27s%20SE%2C%20with%20a%20frosted%20background%20on%2C%20scroll%20and%20tap%20the%20attendance%20grid%20and%20check%20it%20stays%20smooth)). Tied to finding 1.
 
 ## Checked and fine
 
