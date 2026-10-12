@@ -31,7 +31,7 @@ Finding numbers (#n) are the report's.
 Build board: https://claude.ai/artifact/WAKaFZGNPQsfKD4A5GbqsM (m1–m3 = the three phases).
 - [x] Phase 1: Wave 1 — P Projects, reports & Today ‖ A Albums, lessons & resources ‖ W Work & checklist ‖ M Command bar & MCP (session: here, agents in worktrees) · est. ~5–9% weekly · started at 3% · cost ~5% (3→8%, overlapping Wave 2's start). As planned: all four agents' builds clean, suites pass (M 462, A 165 + 7 skipped, P 226, W 360 tests), new tests failed first; merged into this branch. Differed: Tide rows wait for Phase 3 (no Tide connection in this session); two cross-owner follow-ups from P (WorkDeletionService.removalPlan for Uniform rows; OrderRequestDraftSheet's Mac mail) and one from M (MCP_SERVER.md) go to Phase 3.
 - [x] Phase 2: Wave 2 — R App core & navigation ‖ S Students & meetings ‖ Pr Presentations ‖ C Calendar, school year & Siri ‖ Q Search & chat (session: here; each starts as a Wave 1 slot frees, at most four agents at once) · est. ~5–9% weekly · started at 3–8% (R, S, Pr began while Wave 1 ran) · cost ~2% (8→10%, overlapping Phase 3's first reviews). As planned: five agents, builds clean, suites pass (R 82, S 165 + the one MCP test it handed on, Pr 287, C 139, Q 71 tests); merged. Differed: C didn't show its tests failing first (they call API the fix adds; review (c) judged them real); Pr's #25 pill and R's leftovers were cross-owner and done by the main session; Q kept the snapshot format (folds on load) and made the chat tool context per answer.
-- [x] Phase 3: Combine, review, fix round, full builds and suites, land on main (session: here) · est. ~5–9% weekly · started at ~8% (merging and review (a) began while Wave 2 ran) · cost ~4% (8→12%). Whole run ~9% (3→12%) against 16–28%. Merged all nine with no conflicts; three Opus reviews found 24 problems ((a) 6, (b) 11, (c) 7): 21 fixed (main session plus four fresh agents), 1 false alarm, 1 known limit, 1 design note in MCP_SERVER.md. Full builds clean (notebook iOS + macOS, Assistant iOS) with no new warnings; whole suites: notebook 3,377 tests in 562 suites, Assistant 309 in 47, all passing. Differed: Tide wasn't reachable, so the device checks are listed below instead of as rows; the Go menu's any-window switching was found and left as a separate task.
+- [x] Phase 3: Combine, review, fix round, full builds and suites, land on main (session: here) · est. ~5–9% weekly · started at ~8% (merging and review (a) began while Wave 2 ran) · cost ~4% (8→12%). Whole run ~9% (3→12%) against 16–28%. Merged all nine with no conflicts; three Opus reviews found 24 problems ((a) 6, (b) 11, (c) 7): 21 fixed (main session plus four fresh agents), 1 false alarm, 1 known limit, 1 design note in MCP_SERVER.md. Full builds clean (notebook iOS + macOS, Assistant iOS) with no new warnings; whole suites: notebook 3,377 tests in 562 suites, Assistant 309 in 47, all passing. Differed: the device checks went into Tide after the run (listed below); the Go menu's any-window switching was found and left as a separate task.
 
 ## Cost
 
@@ -267,41 +267,20 @@ None open. **Decided during the run** (for Danny to read):
 - **Command bar, misheard names:** picking a child settles a name only when it's the single name left and matches nobody in the class.
 - **C's new messages** (rollover, Siri) sit beside their views, not in the catalogs.
 
-## Device checks (for Tide)
+## Device checks
 
-Tide wasn't reachable from this session, so these wait to become rows under Check on a device in `Areas/App Development/Cosmic Daybook/To do.md`. None was tried; all are on main, not rolled out.
+In Tide under Cosmic Daybook's To do (Release and Check on a device). None tried yet; all wait for the roll-out.
 
-**Before rolling out**
-- Update every device together: an older build still makes project check-in work without its project link, which the new launch repair then has to fix again.
-
-**Mac**
-- The command bar asks before discarding words on a swipe, Cancel or click outside, but not after Save, and opening the Practice or Work form from it asks nothing.
-- With two windows open (A on Lessons, B in front on Today), ⌘N, ⇧⌘N, ⇧⌘I and the sidebar's right-click menus act in B only; Siri's Create New Lesson still opens the New Lesson sheet.
-- A template editor's Cancel and Save don't ask twice, and a second window doesn't open its own editor.
-- An album note editor's Cancel and Save ask only when something changed.
-- Send to Family, and an office order email, ask "Did the email send?" before marking anything sent.
-- View Class Progress on a Geometry track card scrolls the checklist to the Geometry band.
-- The student report window clears its PDF when the period or style changes.
-- Recording a presentation with an observation through Claude shows it in Observations right away.
-- Two chat windows (one on Sample Class) asked at the same moment each answer from their own classroom.
-
-**iPhone and iPad**
-- Dictate in the command bar, stop, type a few words at once, then press Return twice: the typed words stay, the capture is organized once, and Recent gets one entry.
-- The last dictated words are kept when sending straight after speaking.
-- With no Mail account set up, sending a report with the PDF on offers Share PDF.
-- In Low Power Mode, launch cold and search straight away: results come.
-- Spotlight search no longer finds a child who has left.
-- Narrow the window or rotate (iPad), or bring up the keyboard (iPhone): the floating button comes back into reach, and returns to where you put it afterward.
-
-**Any device**
-- Have Claude book a lesson at 10:30, then drag another card on that day: the lesson stays at 10:30 and the dragged card draws below it.
-- On Today, tap a group meeting, pick one child, complete her meeting: the others stay booked.
-- Read an album while the library reloads (add an albums folder): the page and highlights stay.
-- Swipe away an edited album note: it asks first.
-- Open a resource whose file was deleted: a plain message, no crash.
-- Open an old project check-in and leave it: the project stays dormant.
-- The Work column drops a child marked as left without reopening the screen.
-- The calendar's year arrows and the New Year scroll work, and a day note is kept after clicking away.
-- The front-desk reminder tapped with the app closed opens Attendance.
-- Run the year rollover's sheet in spring: it defaults to this year's last day; pick an autumn date and it warns.
-- Known limit: finish two children of the same group meeting on two devices before they sync, and a child who already met can reappear on Today's booking. Remove it by hand if it does.
+- Roll out to the Mac, iPhone and iPad together. [Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Roll%20out%20main%20%28a031f7ab%20or%20later%29%20to%20the%20Mac%2C%20iPhone%20and%20iPad%20together)
+- The Mac command bar asks before throwing words away, not after Save or when opening a form. [Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20type%20in%20the%20Mac%20command%20bar%20and%20check%20it%20asks%20before%20throwing%20words%20away%20on%20Cancel%20or%20a%20click%20outside%2C%20not%20after%20Save%2C%20and%20opens%20the%20Practice%20or%20Work%20form%20without%20asking)
+- New Lesson, New Student and Import Students act only in the front Mac window. [Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20open%20two%20Mac%20windows%2C%20one%20on%20Lessons%20and%20Today%20in%20front%2C%20and%20check%20New%20Lesson%2C%20New%20Student%20and%20Import%20Students%20act%20only%20in%20the%20front%20window)
+- Template and album-note editors ask only when something changed. [Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20edit%20a%20template%20and%20an%20album%20note%20on%20the%20Mac%20and%20check%20Cancel%20and%20Save%20ask%20only%20when%20something%20changed%2C%20never%20twice)
+- Report and office-order emails ask "Did the email send?" [Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20send%20a%20report%20with%20Send%20to%20Family%20and%20an%20office%20order%20email%20on%20the%20Mac%2C%20and%20check%20each%20asks%20%22Did%20the%20email%20send%3F%22%20before%20marking%20it%20sent)
+- View Class Progress, the report window's PDF and the Work column. [Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20on%20the%20Mac%20use%20View%20Class%20Progress%20on%20a%20Geometry%20track%20card%20and%20check%20the%20checklist%20scrolls%20to%20the%20Geometry%20band)
+- Claude's presentations reach Observations at once; two chat windows keep their own class. [Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20have%20Claude%20record%20a%20presentation%20with%20an%20observation%2C%20and%20check%20it%20shows%20in%20Observations%20on%20the%20Mac%20straight%20away)
+- Dictation keeps typing and last words, and organizes once. [Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20dictate%20in%20the%20command%20bar%20on%20my%20iPhone%2C%20stop%2C%20type%20a%20few%20words%20at%20once%2C%20press%20Return%20twice%2C%20and%20check%20my%20typing%20stays%20and%20the%20capture%20is%20organized%20once)
+- Search after a Low Power launch, Spotlight, and the floating button. [Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20launch%20the%20notebook%20cold%20on%20my%20iPhone%20in%20Low%20Power%20Mode%20and%20search%20straight%20away%2C%20and%20check%20results%20come)
+- A time Claude set stays put; group meetings keep the others booked (and the known two-device limit). [Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20have%20Claude%20book%20a%20lesson%20at%2010%3A30%2C%20drag%20another%20card%20on%20that%20day%2C%20and%20check%20the%20lesson%20stays%20at%2010%3A30%20with%20the%20dragged%20card%20below%20it)
+- Albums keep the page while reloading; a missing resource file says so. [Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20read%20an%20album%20while%20adding%20an%20albums%20folder%2C%20and%20check%20the%20page%20and%20highlights%20stay%20put%20while%20the%20library%20reloads)
+- The rollover sheet's default date and its warning. [Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20open%20the%20year%20rollover%20sheet%20and%20check%20its%20default%20date%20is%20the%20day%20before%20this%20school%20year%20began%2C%20and%20that%20picking%20a%20date%20this%20autumn%20warns%20first)
+- The calendar's arrows and day notes, old project check-ins, and the front-desk reminder. [Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20use%20the%20calendar%27s%20year%20arrows%20and%20New%20Year%20scroll%2C%20write%20a%20day%20note%20and%20click%20away%2C%20and%20check%20the%20note%20is%20kept)
