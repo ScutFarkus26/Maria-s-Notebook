@@ -10,7 +10,6 @@ run `docs-index`; edit only the Other documents section by hand.
 |---|---|---|---|
 | [Plan - Daybook Assistant bug fixes](<Plans/Plan - Daybook Assistant bug fixes.md>) | Fixes for the ~50 findings of the 2026-10-04 Daybook Assistant bug hunt, in six phases. | Working on it | 2026-10-05 |
 | [Plan - Debug builds open a fake notebook](<Plans/Plan - Debug builds open a fake notebook.md>) | Debug builds open a fake, local-only notebook; the real one only through the Real Notebook scheme. | Not started | 2026-10-04 |
-| [Plan - Name list freeze fix](<Plans/Plan - Name list freeze fix.md>) | stop the name list from asking iCloud questions on the main thread, which froze the app until iOS killed it. | Working on it | 2026-10-06 |
 | [Plan - Names you set yourself](<Plans/Plan - Names you set yourself.md>) | A small shared list of each person's current name, set by that person, so the Assistant says "Danny" instead of "your guide" and a rename shows everywhere, old entries included. | Working on it | 2026-10-05 |
 | [Plan - Restock](<Plans/Plan - Restock.md>) | Supplies and orders as one page, shared with the Daybook Assistant; shipped to TestFlight, device checks open. | Working on it | 2026-10-03 |
 | [Plan - School year separation](<Plans/Plan - School year separation.md>) | A school-year lens across the app; reports, exports and the activity stamp were never built. | Working on it | 2026-09-30 |
@@ -22,6 +21,7 @@ run `docs-index`; edit only the Other documents section by hand.
 
 | Plan | What it is | Status | Date |
 |---|---|---|---|
+| [Plan - Name list freeze fix](<Plans/Plan - Name list freeze fix.md>) | stop the name list from asking iCloud questions on the main thread, which froze the app until iOS killed it. | Done (59cdbcc9) | 2026-10-11 |
 | [Plan - Bug hunt 2026-10-11 fixes](<Plans/Plan - Bug hunt 2026-10-11 fixes.md>) | fix every finding with nine fix agents in rolling waves of at most four, each owning its own files, then review the combined change, fix what the review finds with fresh small agents, and land it on main without rolling out. | Done (a031f7ab) | 2026-10-11 |
 | [Plan - Bug hunt 2026-10-10 fixes](<Plans/Plan - Bug hunt 2026-10-10 fixes.md>) | fix every finding with thirteen fix agents in rolling waves of at most four, sweep out the dead code, review the combined change, and land it on main without rolling out. | Done (50562549) | 2026-10-10 |
 | [Plan - Bug hunt 2026-10-09 fixes](<Plans/Plan - Bug hunt 2026-10-09 fixes.md>) | fix all 26 findings in six parallel fix agents over two waves, review the combined change, and land it on main without rolling out. | Done (edcfb352) | 2026-10-10 |

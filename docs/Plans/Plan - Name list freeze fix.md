@@ -1,6 +1,6 @@
 # Name list freeze fix
 
-> **Working on it.** Written 2026-10-06, from three crash reports pulled off Danny's iPhone that day.
+> **Done 2026-10-11** (59cdbcc9). Written 2026-10-06, from three crash reports pulled off Danny's iPhone that day.
 > In short: stop the name list from asking iCloud questions on the main thread, which froze the app until iOS killed it.
 
 ## Goal
@@ -9,7 +9,7 @@ The notebook on Danny's iPhone was killed three times on 2026-10-06 (4:44, 5:36 
 
 ## Progress
 - [x] Phase 1: Move the zone lookups off the main thread (session: here) · est. ~2–3% weekly · started at 96%, ended at 99% (~3%, includes the review and fix-round agents). On main 76725877 (f43b99cc + 0dab11dc), whole suites 2,759 + 265 pass. Differed: a code review found six races, fixed in 0dab11dc; two loose ends are in Tide.
-- [ ] Phase 2: Roll out both apps to TestFlight (session: here) · est. ~0.5–1% weekly
+- [x] Phase 2: Roll out both apps to TestFlight · covered by later roll-outs, which include 59cdbcc9: notebook TestFlight 300000000013 (2026-10-07) through 300000000015, Daybook Assistant builds 015–017. Left for Danny: [check the iPhone has logged no new Cosmic Daybook freezes since TestFlight build 13](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Check%20the%20iPhone%20has%20logged%20no%20new%20Cosmic%20Daybook%20freezes%20since%20TestFlight%20build%2013).
 
 ## Cost
 
