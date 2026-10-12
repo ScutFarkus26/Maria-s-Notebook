@@ -75,10 +75,8 @@ struct WhoIsMissingIntent: AppIntent {
             return .result(dialog: "Everyone is marked.")
         }
         let count = missing.count
-        return .result(dialog: IntentDialog(
-            full: "\(count) not marked yet: \(missing.formatted(.list(type: .and))).",
-            supporting: "\(count) not marked"
-        ))
+        // The same words on screen as spoken, so a tapped shortcut shows the names.
+        return .result(dialog: "\(count) not marked yet: \(missing.formatted(.list(type: .and))).")
     }
 }
 
@@ -107,9 +105,7 @@ struct WhoIsAbsentIntent: AppIntent {
             return .result(dialog: "No one is marked absent.")
         }
         let count = absent.count
-        return .result(dialog: IntentDialog(
-            full: "\(count) absent: \(absent.formatted(.list(type: .and))).",
-            supporting: "\(count) absent"
-        ))
+        // The same words on screen as spoken, so a tapped shortcut shows the names.
+        return .result(dialog: "\(count) absent: \(absent.formatted(.list(type: .and))).")
     }
 }
