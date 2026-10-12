@@ -1,6 +1,6 @@
 # Bug hunt 2026-10-11 fixes
 
-> **Working on it.** Written 2026-10-11 from the read-only hunt in <../Reviews/Bug hunt 2026-10-11.md> (77 findings in the oldest code no earlier hunt had read).
+> **Done 2026-10-11** (a031f7ab). Not rolled out. Written 2026-10-11 from the read-only hunt in <../Reviews/Bug hunt 2026-10-11.md> (77 findings in the oldest code no earlier hunt had read).
 > In short: fix every finding with nine fix agents in rolling waves of at most four, each owning its own files, then review the combined change, fix what the review finds with fresh small agents, and land it on main without rolling out.
 
 **Runs autonomously** (Danny, 2026-10-11): approved to run every phase through landing on main without stopping. Decisions that come up mid-run are made by the main session from Decisions and sensible defaults, and logged under Open questions as "decided during the run" for Danny to read afterward.
