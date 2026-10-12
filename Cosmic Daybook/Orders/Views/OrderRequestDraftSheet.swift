@@ -361,16 +361,21 @@ extension OrderRequestDraftSheet {
             }
             return
         }
-        MacOSMailSender.send(
+        // Mail never reports a send, only that it took the message (bug hunt
+        // 2026-10-11 #75), so the guide says whether it went.
+        MacOSMailSender.compose(
             to: recipient.emails.joined(separator: ", "),
             subject: subject,
             body: messageBody
-        ) { success in
-            if success {
-                markAskedFor()
-            } else {
-                // The compose window may still have opened; let the guide say.
+        ) { outcome in
+            switch outcome {
+            case .handedToMail, .failed:
+                // A failure may still have opened the compose window.
                 confirmingSent = true
+            case .cancelled:
+                break
+            case .unavailable:
+                sendErrorMessage = "Mail couldn't open the message. Copy the message instead."
             }
         }
     }

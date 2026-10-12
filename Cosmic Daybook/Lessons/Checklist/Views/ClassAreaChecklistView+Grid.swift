@@ -172,7 +172,20 @@ extension ClassAreaChecklistView {
     /// opening it first if it was folded.
     fileprivate func performSequenceJump(using proxy: ScrollViewProxy) async {
         guard let jump = sequenceJump else { return }
-        if viewModel.expandSequence(jump.sequence) {
+        // A jump from "View Class Progress" can land before its area's bands
+        // draw (a change of area rebuilds the grid a beat later), and names the
+        // band from a track title, so the band is waited for and then spelled
+        // the way the grid spells it.
+        var resolved = viewModel.visibleSequence(matching: jump.sequence)
+        var waited = 0
+        while resolved == nil && waited < 20 {
+            try? await Task.sleep(for: .milliseconds(50))
+            guard !Task.isCancelled else { return }
+            waited += 1
+            resolved = viewModel.visibleSequence(matching: jump.sequence)
+        }
+        guard let sequence = resolved else { return }
+        if viewModel.expandSequence(sequence) {
             try? await Task.sleep(for: .milliseconds(80))
             guard !Task.isCancelled else { return }
         }
@@ -182,8 +195,15 @@ extension ClassAreaChecklistView {
         let free = gridViewportHeight - metrics.sequenceBandHeight
         let fraction = free > metrics.headerHeight ? metrics.headerHeight / free : 0
         withAnimation(.easeInOut(duration: 0.3)) {
-            proxy.scrollTo(Self.bandAnchor(for: jump.sequence), anchor: UnitPoint(x: 0, y: fraction))
+            proxy.scrollTo(Self.bandAnchor(for: sequence), anchor: UnitPoint(x: 0, y: fraction))
         }
+    }
+
+    /// Turns the band a deep link asked for (`pendingSequenceJump`) into a jump.
+    func takePendingSequenceJump() {
+        guard let sequence = viewModel.pendingSequenceJump else { return }
+        viewModel.pendingSequenceJump = nil
+        sequenceJump = ChecklistSequenceJump(sequence: sequence)
     }
 }
 

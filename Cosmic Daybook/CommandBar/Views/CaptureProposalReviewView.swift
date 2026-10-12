@@ -1,31 +1,9 @@
 import SwiftUI
-/// One review surface for both free-form classroom capture and the optional
-/// reflection that follows an already-recorded presentation.
+/// The review of one free-form classroom capture before anything is saved.
 struct CaptureProposalReviewView: View {
-    enum Mode {
-        case newCapture
-        case recordedPresentation(lessonName: String, presentedAt: Date)
-
-        var allowsPresentationEditing: Bool {
-            if case .newCapture = self { return true }
-            return false
-        }
-
-        var allowsStudentEditing: Bool {
-            if case .newCapture = self { return true }
-            return false
-        }
-
-        var allowsFollowUpEditing: Bool {
-            if case .newCapture = self { return true }
-            return false
-        }
-    }
-
     @Binding var proposal: CaptureProposal
     let students: [CDStudent]
     let lessons: [CDLesson]
-    let mode: Mode
     let validationMessage: String?
     let saveTitle: String
     var isSaving: Bool = false
@@ -43,17 +21,9 @@ struct CaptureProposalReviewView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                if case let .recordedPresentation(lessonName, presentedAt) = mode {
-                    recordedPresentationHeader(lessonName: lessonName, presentedAt: presentedAt)
-                }
-
                 privacyDisclosure
-
-                if mode.allowsPresentationEditing {
-                    presentationReviewCard
-                    studentsReviewCard
-                }
-
+                presentationReviewCard
+                studentsReviewCard
                 observationsReviewCard
 
                 if let validationMessage {
@@ -101,36 +71,6 @@ struct CaptureProposalReviewView: View {
 }
 
 private extension CaptureProposalReviewView {
-    private func recordedPresentationHeader(lessonName: String, presentedAt: Date) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label("Presentation recorded", systemImage: "checkmark.circle.fill")
-                .font(.headline)
-                .foregroundStyle(AppColors.success)
-
-            Text(lessonName)
-                .font(.title3.weight(.semibold))
-
-            HStack(spacing: 8) {
-                Text(presentedAt.formatted(date: .abbreviated, time: .omitted))
-                Text("\u{2022}")
-                Text(childCountLabel)
-            }
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(
-            Color.green.opacity(UIConstants.OpacityConstants.veryFaint),
-            in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
-        )
-    }
-
-    private var childCountLabel: String {
-        let count = proposal.studentEntries.count
-        return count == 1 ? "1 child" : "\(count) children"
-    }
-
     private var privacyDisclosure: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: proposal.source.icon)
@@ -197,18 +137,11 @@ private extension CaptureProposalReviewView {
                 Label("Children", systemImage: "person.2")
                     .font(.headline)
                 Spacer()
-                if mode.allowsStudentEditing {
-                    studentSelectionMenu
-                }
+                studentSelectionMenu
             }
 
-            if !proposal.unresolvedStudentNames.isEmpty {
-                Label(
-                    "Please choose who was meant by \(proposal.unresolvedStudentNames.joined(separator: ", ")).",
-                    systemImage: "exclamationmark.triangle"
-                )
-                .font(.footnote)
-                .foregroundStyle(.orange)
+            ForEach(proposal.unresolvedStudentNames, id: \.self) { name in
+                unplacedNameRow(name)
             }
 
             if proposal.studentEntries.isEmpty {
@@ -232,6 +165,28 @@ private extension CaptureProposalReviewView {
             Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint),
             in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
         )
+    }
+
+    /// A name the organizer couldn't place on one child, with what was said
+    /// about her. Picking her with Edit settles it; Leave Out says it's nobody
+    /// in the class. Save waits until one or the other.
+    private func unplacedNameRow(_ name: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 3) {
+                Label("Who is “\(name)”? Pick the child with Edit.", systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.orange)
+                if let said = proposal.unplacedWords[name]?.observation, !said.isEmpty {
+                    Text("You said: \(said)")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            Button("Leave Out") {
+                proposal.leaveOutUnplacedName(name)
+            }
+            .buttonStyle(.borderless)
+        }
+        .font(.footnote)
     }
 
     private var studentSelectionMenu: some View {
@@ -259,10 +214,7 @@ private extension CaptureProposalReviewView {
 private extension CaptureProposalReviewView {
     private var observationsReviewCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label(
-                mode.allowsFollowUpEditing ? "Observations and next steps" : "Observations",
-                systemImage: "text.bubble"
-            )
+            Label("Observations and next steps", systemImage: "text.bubble")
                 .font(.headline)
 
             VStack(alignment: .leading, spacing: 6) {
@@ -292,12 +244,7 @@ private extension CaptureProposalReviewView {
                     .padding(.top, 10)
                 } label: {
                     HStack {
-                        Label(
-                            mode.allowsFollowUpEditing
-                                ? "Individual observations and follow-up"
-                                : "Individual observations",
-                            systemImage: "person.text.rectangle"
-                        )
+                        Label("Individual observations and follow-up", systemImage: "person.text.rectangle")
                         Spacer()
                         if hasIndividualDetails {
                             Text("Added")
@@ -341,21 +288,19 @@ private extension CaptureProposalReviewView {
             .lineLimit(2...5)
             .textFieldStyle(.roundedBorder)
 
-            if mode.allowsFollowUpEditing {
-                Picker("Next step", selection: studentFollowUpBinding(entry.id)) {
-                    ForEach(CaptureFollowUp.allCases) { followUp in
-                        Label(followUp.displayName, systemImage: followUp.icon).tag(followUp)
-                    }
+            Picker("Next step", selection: studentFollowUpBinding(entry.id)) {
+                ForEach(CaptureFollowUp.allCases) { followUp in
+                    Label(followUp.displayName, systemImage: followUp.icon).tag(followUp)
                 }
-                .pickerStyle(.menu)
+            }
+            .pickerStyle(.menu)
 
-                if entry.followUp == .practice || entry.followUp == .followUpWork {
-                    TextField(
-                        entry.followUp == .practice ? "Practice title (optional)" : "Describe the follow-up work",
-                        text: studentFollowUpDetailBinding(entry.id)
-                    )
-                    .textFieldStyle(.roundedBorder)
-                }
+            if entry.followUp == .practice || entry.followUp == .followUpWork {
+                TextField(
+                    entry.followUp == .practice ? "Practice title (optional)" : "Describe the follow-up work",
+                    text: studentFollowUpDetailBinding(entry.id)
+                )
+                .textFieldStyle(.roundedBorder)
             }
         }
     }
@@ -416,19 +361,17 @@ private extension CaptureProposalReviewView {
 
     private func setStudent(_ student: CDStudent, isSelected: Bool) {
         guard let id = student.id else { return }
-        if isSelected {
-            guard !proposal.studentEntries.contains(where: { $0.studentID == id }) else { return }
-            proposal.studentEntries.append(StudentCaptureProposal(
-                studentID: id,
-                studentName: student.shortName
-            ))
-            proposal.studentEntries.sort { lhs, rhs in
-                let lhsName = lhs.studentName.localizedStandardCompare(rhs.studentName)
-                return lhsName == .orderedAscending
-            }
-        } else {
-            proposal.studentEntries.removeAll { $0.studentID == id }
+        let roster = students.uniqueByID.compactMap { child -> StudentData? in
+            guard let childID = child.id else { return nil }
+            return StudentData(
+                id: childID, firstName: child.firstName, lastName: child.lastName, nickname: child.nickname
+            )
         }
-        proposal.unresolvedStudentNames = []
+        proposal.setStudent(
+            StudentData(id: id, firstName: student.firstName, lastName: student.lastName, nickname: student.nickname),
+            named: student.shortName,
+            isSelected: isSelected,
+            roster: roster
+        )
     }
 }

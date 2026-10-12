@@ -149,89 +149,24 @@ enum BlockingAlgorithmEngine {
             )
         }
 
-        // If neither gate is required, not blocked
-        if !rules.requiresPractice && !rules.requiresTeacherConfirmation {
-            let allReady = Dictionary(
-                la.resolvedStudentIDs.map { sid in
-                    (sid, StudentReadiness(
-                        studentID: sid,
-                        isReady: true,
-                        workComplete: true,
-                        teacherConfirmed: true,
-                        workRequired: false,
-                        confirmationRequired: false
-                    ))
-                },
-                uniquingKeysWith: { first, _ in first }
-            )
-            return BlockingCheckResult(isBlocked: false, prereqOpenCount: 0, perStudentReadiness: allReady)
-        }
-
         // Find presented assignments for the preceding lesson
         let precedingLessonIDStr = precedingLesson.id?.uuidString ?? ""
         let precedingAssignments = context.presentedAssignmentsByLessonID[precedingLessonIDStr] ?? []
 
-        // Build per-student readiness
+        // Build per-student readiness. With neither gate required, every
+        // child reads ready and nothing is open.
         var perStudentReadiness: [UUID: StudentReadiness] = [:]
         var totalPrereqOpen = 0
 
         for studentID in la.resolvedStudentIDs {
-            // Every giving of the preceding lesson she was on, latest first:
-            // the latest one's work gates her, and a confirmation on any of
-            // them counts. Taking the first in fetch order ignored a
-            // confirmation made on the other giving.
-            let studentAssignments = latestFirst(precedingAssignments.filter { assignment in
-                assignment.resolvedStudentIDs.contains(studentID)
-            })
-            let studentAssignment = studentAssignments.first
-
-            // Gate 1: Work completion
-            var workComplete = true
-            if rules.requiresPractice, let assignment = studentAssignment {
-                let presentationID = assignment.id?.uuidString ?? ""
-                // Only this student's own work can gate their readiness — a classmate's
-                // unfinished work on the same group presentation must not block them.
-                let prerequisiteWork = gatingWork(
-                    for: studentID, among: context.workByPresentationID[presentationID] ?? []
-                )
-
-                if prerequisiteWork.isEmpty {
-                    // No work assigned yet — if practice is required, student isn't ready
-                    workComplete = !assignment.needsPractice
-                } else {
-                    for work in prerequisiteWork {
-                        if !isWorkCompleteForStudent(work: work, studentID: studentID) {
-                            workComplete = false
-                            totalPrereqOpen += 1
-                        }
-                    }
-                }
-            } else if rules.requiresPractice && studentAssignment == nil {
-                // Preceding lesson hasn't been presented to this student
-                workComplete = false
-            }
-
-            // Gate 2: Teacher confirmation
-            var teacherConfirmed = true
-            if rules.requiresTeacherConfirmation {
-                if !studentAssignments.isEmpty {
-                    teacherConfirmed = studentAssignments.contains { $0.isStudentConfirmed(studentID) }
-                } else {
-                    // Preceding lesson hasn't been presented
-                    teacherConfirmed = false
-                }
-            }
-
-            let isReady = workComplete && teacherConfirmed
-
-            perStudentReadiness[studentID] = StudentReadiness(
-                studentID: studentID,
-                isReady: isReady,
-                workComplete: workComplete,
-                teacherConfirmed: teacherConfirmed,
-                workRequired: rules.requiresPractice,
-                confirmationRequired: rules.requiresTeacherConfirmation
+            let verdict = readiness(
+                of: studentID,
+                givings: givings(for: studentID, among: precedingAssignments),
+                rules: rules,
+                workByPresentationID: context.workByPresentationID
             )
+            totalPrereqOpen += verdict.openWorkCount
+            perStudentReadiness[studentID] = verdict.readiness
         }
 
         let isBlocked = perStudentReadiness.values.contains { !$0.isReady }
@@ -241,6 +176,83 @@ enum BlockingAlgorithmEngine {
             prereqOpenCount: totalPrereqOpen,
             perStudentReadiness: perStudentReadiness
         )
+    }
+
+    // MARK: - One Child
+
+    /// Every giving of a lesson (out of `presented`, any children's) that
+    /// `studentID` was on, latest first: the latest one's work gates her, and
+    /// a confirmation on any of them counts. Taking the first in fetch order
+    /// ignored a confirmation made on the other giving.
+    nonisolated static func givings(
+        for studentID: UUID, among presented: [CDLessonAssignment]
+    ) -> [CDLessonAssignment] {
+        latestFirst(presented.filter { assignment in
+            assignment.state == .presented && assignment.resolvedStudentIDs.contains(studentID)
+        })
+    }
+
+    /// One child's readiness for the lesson after the one `givings` gave
+    /// her: the rule `checkBlocking` applies to each child on a plan. The
+    /// checklist asks it too (`ChecklistMatrixBuilder`), so its "Not yet"
+    /// and Presentations' Ready can't disagree.
+    ///
+    /// - Parameters:
+    ///   - givings: her givings of the preceding lesson, from
+    ///     `givings(for:among:)`. Empty means it wasn't given to her.
+    ///   - rules: the preceding lesson's progression rules.
+    ///   - workByPresentationID: the work on those givings, open **and**
+    ///     closed: with open work alone, a child whose practice is done reads
+    ///     as having none and, when the lesson needs practice, as not ready.
+    /// - Returns: her readiness, and how many of her rows are still open.
+    static func readiness(
+        of studentID: UUID,
+        givings: [CDLessonAssignment],
+        rules: LessonProgressionRules.ResolvedRules,
+        workByPresentationID: [String: [CDWorkModel]]
+    ) -> (readiness: StudentReadiness, openWorkCount: Int) {
+        let latest = givings.first
+        var openWorkCount = 0
+
+        // Gate 1: Work completion
+        var workComplete = true
+        if rules.requiresPractice, let assignment = latest {
+            let presentationID = assignment.id?.uuidString ?? ""
+            // Only this student's own work can gate their readiness — a classmate's
+            // unfinished work on the same group presentation must not block them.
+            let prerequisiteWork = gatingWork(
+                for: studentID, among: workByPresentationID[presentationID] ?? []
+            )
+
+            if prerequisiteWork.isEmpty {
+                // No work assigned yet — if practice is required, student isn't ready
+                workComplete = !assignment.needsPractice
+            } else {
+                for work in prerequisiteWork where !isWorkCompleteForStudent(work: work, studentID: studentID) {
+                    workComplete = false
+                    openWorkCount += 1
+                }
+            }
+        } else if rules.requiresPractice && latest == nil {
+            // Preceding lesson hasn't been presented to this student
+            workComplete = false
+        }
+
+        // Gate 2: Teacher confirmation. Not given to her means not confirmed.
+        var teacherConfirmed = true
+        if rules.requiresTeacherConfirmation {
+            teacherConfirmed = givings.contains { $0.isStudentConfirmed(studentID) }
+        }
+
+        let readiness = StudentReadiness(
+            studentID: studentID,
+            isReady: workComplete && teacherConfirmed,
+            workComplete: workComplete,
+            teacherConfirmed: teacherConfirmed,
+            workRequired: rules.requiresPractice,
+            confirmationRequired: rules.requiresTeacherConfirmation
+        )
+        return (readiness, openWorkCount)
     }
 
     /// Presentations newest first: by the day given (an undated one counts

@@ -4,13 +4,17 @@ import CoreData
 extension ProjectDetailView {
     var studentProgressSection: some View {
         SectionCard(title: "Student Progress", systemImage: "person.line.dotted.person") {
-            if club.memberStudentIDsArray.isEmpty {
+            // The children still in the class (and shown): the member list keeps
+            // everyone ever added, and a child who left read as "Student" here.
+            let shown = studentsByID
+            let members = club.memberStudentIDsArray.filter { shown[uuidString: $0] != nil }
+            if members.isEmpty {
                 Text("Add students to begin tracking the project group")
                     .foregroundStyle(.secondary)
             } else {
                 VStack(spacing: AppTheme.Spacing.small) {
                     ForEach(
-                        club.memberStudentIDsArray.sorted { studentName(for: $0) < studentName(for: $1) },
+                        members.sorted { studentName(for: $0) < studentName(for: $1) },
                         id: \.self
                     ) { sid in
                         ProjectStudentProgressRow(

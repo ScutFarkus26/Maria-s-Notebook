@@ -42,7 +42,6 @@ extension MCPNotebookTools {
                 context: modelContext, saveImmediately: false
             )
         } catch {
-            modelContext.rollback()
             throw MCPToolError("That status could not be logged", underlying: error)
         }
 

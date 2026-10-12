@@ -51,7 +51,6 @@ struct PresentationsView: View {
     struct ViewModelDependencies: Equatable {
         let changeToken: Int
         let assignmentChangeToken: Int
-        let missWindowRaw: String
         let showTestStudents: Bool
         let testStudentNamesRaw: String
     }
@@ -60,7 +59,6 @@ struct PresentationsView: View {
         ViewModelDependencies(
             changeToken: changeToken,
             assignmentChangeToken: assignmentChangeToken,
-            missWindowRaw: missWindowRaw,
             showTestStudents: testStudents.show,
             testStudentNamesRaw: testStudents.namesRaw
         )
@@ -69,21 +67,6 @@ struct PresentationsView: View {
     // NOTE: CDWorkModel fetching is handled by the ViewModel
 
     @AppStorage(UserDefaultsKeys.planningInboxOrder) var inboxOrderRaw: String = ""
-
-    @AppStorage(UserDefaultsKeys.lessonsAgendaMissWindow)
-    var missWindowRaw: String = PresentationsMissWindow.all.rawValue
-    @AppStorage(UserDefaultsKeys.planningRecentWindowDays) private var recentWindowDays: Int = 1
-
-    var missWindow: PresentationsMissWindow { PresentationsMissWindow(rawValue: missWindowRaw) ?? .all }
-
-    func syncRecentWindowWithMissWindow() {
-        switch missWindow {
-        case .all: recentWindowDays = 0
-        case .d1: recentWindowDays = 1
-        case .d2: recentWindowDays = 2
-        case .d3: recentWindowDays = 3
-        }
-    }
 
     @TestStudentVisibility var testStudents
 

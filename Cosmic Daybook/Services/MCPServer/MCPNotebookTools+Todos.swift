@@ -232,7 +232,7 @@ extension MCPNotebookTools {
             inputSchema: updateTodoSchema,
             annotations: .idempotentWrite,
             handler: { arguments in
-                try rollingBackOnFailure(context()) { try updateTodo(arguments: arguments, in: $0) }
+                try undoingOnFailure(context()) { try updateTodo(arguments: arguments, in: $0) }
             }
         )
     }
@@ -301,7 +301,6 @@ extension MCPNotebookTools {
             throw MCPToolError("Nothing to change — pass at least one field to update.")
         }
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The todo could not be updated.")
         }
         let id = todo.id?.uuidString ?? "unknown"

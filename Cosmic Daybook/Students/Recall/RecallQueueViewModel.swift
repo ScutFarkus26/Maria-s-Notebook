@@ -41,16 +41,23 @@ final class RecallQueueViewModel {
         defer { isLoading = false }
 
         let queries = DataQueryService(context: context)
-        let visibleStudents = queries.fetchAllStudents(
-            excludeTest: true, excludeWithdrawn: true, sortBy: CDStudent.sortByName
-        )
+        // Every child the checks name, so one who has left keeps her name in By Student; the
+        // queue is for the enrolled class, and test students stay out of the queue and the
+        // stats (bug hunt 2026-10-11, #32).
+        let allStudents = queries.fetchAllStudents(excludeWithdrawn: false)
+        let realStudents = Set(TestStudentsFilter.filterVisible(allStudents).compactMap(\.id))
         var nameByID: [String: String] = [:]
         var visibleIDs = Set<String>()
-        for student in visibleStudents {
+        var testIDs = Set<String>()
+        for student in allStudents {
             guard let id = student.id else { continue }
             let key = RecallFrontierEngine.normalize(id.uuidString)
+            guard realStudents.contains(id) else {
+                testIDs.insert(key)
+                continue
+            }
             nameByID[key] = student.fullName
-            visibleIDs.insert(key)
+            if student.isEnrolled { visibleIDs.insert(key) }
         }
 
         let curriculum = queries.fetchAllLessons(sortBy: CDLesson.sortByCurriculumOrder)
@@ -79,13 +86,15 @@ final class RecallQueueViewModel {
                 schoolYearKey: $0.schoolYearKey, source: $0.source, checkedAt: $0.checkedAt
             )
         }
-        let statRows: [RecallStatRow] = recallRows.map {
-            RecallStatRow(
-                studentID: RecallFrontierEngine.normalize($0.studentID), outcome: $0.outcome,
-                source: $0.source, schoolYearKey: $0.schoolYearKey,
-                originalMasteredAt: $0.originalMasteredAt, checkedAt: $0.checkedAt
-            )
-        }
+        let statRows: [RecallStatRow] = recallRows
+            .filter { !testIDs.contains(RecallFrontierEngine.normalize($0.studentID)) }
+            .map {
+                RecallStatRow(
+                    studentID: RecallFrontierEngine.normalize($0.studentID), outcome: $0.outcome,
+                    source: $0.source, schoolYearKey: $0.schoolYearKey,
+                    originalMasteredAt: $0.originalMasteredAt, checkedAt: $0.checkedAt
+                )
+            }
 
         let intervalDays = UserDefaults.standard.object(forKey: UserDefaultsKeys.recallSpacedIntervalDays) as? Int ?? 90
         let config = RecallConfig(

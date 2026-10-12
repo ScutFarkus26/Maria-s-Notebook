@@ -23,6 +23,8 @@ struct QuickNoteGlassButton: View {
     @State private var dragTranslation: CGSize = .zero
     @State private var longPressTask: Task<Void, Never>?
     @State private var sparklePhase: Bool = false
+    /// The area the button floats over, for keeping it inside the window.
+    @State private var containerSize: CGSize = .zero
 
     @AppStorage(UserDefaultsKeys.quickNoteButtonOffsetX) private var savedOffsetX: Double = 0
     @AppStorage(UserDefaultsKeys.quickNoteButtonOffsetY) private var savedOffsetY: Double = 0
@@ -31,10 +33,30 @@ struct QuickNoteGlassButton: View {
     private let longPressDuration: Duration = .milliseconds(400) // 0.4 seconds
 
     var body: some View {
+        accessibleContent
+            // Fills the overlay only to measure it (an empty frame takes no
+            // touches), so a narrowed Mac window or a rotated iPad pulls a
+            // dragged-away button back into reach.
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+            .onGeometryChange(for: CGSize.self, of: Self.size(of:), action: measureContainer)
+    }
+
+    nonisolated private static func size(of proxy: GeometryProxy) -> CGSize { proxy.size }
+
+    private func measureContainer(_ size: CGSize) {
+        containerSize = size
+        pullBackIntoView()
+    }
+
+    private var labeledContent: some View {
         pointerContent
-        .accessibilityLabel("Quick capture")
-        .accessibilityHint("Opens quick capture")
-        .accessibilityAddTraits(.isButton)
+            .accessibilityLabel("Quick capture")
+            .accessibilityHint("Opens quick capture")
+            .accessibilityAddTraits(.isButton)
+    }
+
+    private var accessibleContent: some View {
+        labeledContent
         // The long-press menu and the drag are unreachable by assistive tech,
         // so every action is also in the VoiceOver actions rotor.
         .accessibilityAction(named: "Quick Capture") { isShowingCommandBar = true }
@@ -57,16 +79,11 @@ struct QuickNoteGlassButton: View {
                 }
             }
         .offset(offset)
-        .padding(.trailing, AppTheme.Spacing.large)
-        #if os(iOS)
-        // 32 + 16 = 48pt base, plus 37pt for safe area
-        .padding(.bottom, AppTheme.Spacing.xlarge + AppTheme.Spacing.medium)
-        #else
-        .padding(.bottom, AppTheme.Spacing.medium + AppTheme.Spacing.small) // 16 + 8 = 24pt base
-        #endif
+        .padding(.trailing, Self.trailingInset)
+        .padding(.bottom, Self.bottomInset)
         .gesture(combinedGesture)
         .onAppear {
-            self.offset = CGSize(width: savedOffsetX, height: savedOffsetY)
+            self.offset = restingOffset
         }
         .onChange(of: isPieMenuExpanded) { _, expanded in
             sparklePhase = expanded
@@ -216,10 +233,10 @@ struct QuickNoteGlassButton: View {
                     updateHighlightedAction(translation: value.translation)
                 } else if distance >= 2 && longPressTask == nil {
                     // Regular drag to reposition (only once the long press is off the table)
-                    self.offset = CGSize(
-                        width: savedOffsetX + value.translation.width,
-                        height: savedOffsetY + value.translation.height
-                    )
+                    self.offset = clamped(CGSize(
+                        width: restingOffset.width + value.translation.width,
+                        height: restingOffset.height + value.translation.height
+                    ))
                 }
             }
             .onEnded { value in
@@ -240,14 +257,14 @@ struct QuickNoteGlassButton: View {
                     }
                 } else if distance < 2 {
                     // A plain tap is the one capture surface.
-                    self.offset = CGSize(width: savedOffsetX, height: savedOffsetY)
+                    self.offset = restingOffset
                     isShowingCommandBar = true
                 } else {
-                    // Drag ended - save new position
-                    let finalOffset = CGSize(
-                        width: savedOffsetX + value.translation.width,
-                        height: savedOffsetY + value.translation.height
-                    )
+                    // Drag ended - save new position, inside the window
+                    let finalOffset = clamped(CGSize(
+                        width: restingOffset.width + value.translation.width,
+                        height: restingOffset.height + value.translation.height
+                    ))
                     savedOffsetX = finalOffset.width
                     savedOffsetY = finalOffset.height
 
@@ -325,6 +342,32 @@ struct QuickNoteGlassButton: View {
             onNewTodo()
         case .newNote:
             onNewNote()
+        }
+    }
+
+    /// `offset` kept inside the measured window; unchanged before it is measured.
+    private func clamped(_ offset: CGSize) -> CGSize {
+        guard containerSize.width > 0, containerSize.height > 0 else { return offset }
+        return Self.clampedOffset(
+            offset, in: containerSize, buttonSize: Self.buttonSize,
+            trailingInset: Self.trailingInset, bottomInset: Self.bottomInset
+        )
+    }
+
+    /// Where the button rests: the saved position, kept inside this window.
+    private var restingOffset: CGSize {
+        clamped(CGSize(width: savedOffsetX, height: savedOffsetY))
+    }
+
+    /// Shows a saved position that is now outside the window inside it. Only the
+    /// drawn offset moves: the saved one is the guide's, shared by every window,
+    /// and a keyboard or a narrow window mustn't overwrite it (review 2026-10-11
+    /// (c) #4). Left alone mid-drag.
+    private func pullBackIntoView() {
+        guard dragTranslation == .zero else { return }
+        let inside = restingOffset
+        if offset != inside {
+            offset = inside
         }
     }
 

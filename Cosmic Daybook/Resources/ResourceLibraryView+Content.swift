@@ -18,13 +18,13 @@ extension ResourceLibraryView {
                         selectableCard(resource: resource)
                     } else {
                         ResourceCard(resource: resource) {
-                            ResourceDocumentActions.open(resource)
+                            openResource(resource)
                         } onViewDetails: {
                             openResourceDetails(resource)
                         } onOpen: {
-                            ResourceDocumentActions.open(resource)
+                            openResource(resource)
                         } onPrint: {
-                            ResourceDocumentActions.print(resource)
+                            printResource(resource)
                         } onDelete: {
                             deleteResource(resource)
                         } onRename: {
@@ -43,7 +43,7 @@ extension ResourceLibraryView {
                         selectableRow(resource: resource)
                     } else {
                         Button {
-                            ResourceDocumentActions.open(resource)
+                            openResource(resource)
                         } label: {
                             ResourceRow(resource: resource)
                         }
@@ -61,13 +61,13 @@ extension ResourceLibraryView {
     @ViewBuilder
     private func resourceRowContextMenu(for resource: CDResource) -> some View {
         Button {
-            ResourceDocumentActions.open(resource)
+            openResource(resource)
         } label: {
             Label("Open", systemImage: "arrow.up.forward.square")
         }
 
         Button {
-            ResourceDocumentActions.print(resource)
+            printResource(resource)
         } label: {
             Label("Print", systemImage: "printer")
         }

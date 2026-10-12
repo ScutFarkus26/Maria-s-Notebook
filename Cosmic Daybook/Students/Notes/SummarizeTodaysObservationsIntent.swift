@@ -72,17 +72,18 @@ enum TodayObservationsData {
         return context.safeFetch(request).map { note in
             let trimmed = note.body.trimmingCharacters(in: .whitespacesAndNewlines)
             let body = trimmed.count > 100 ? String(trimmed.prefix(100)) + "…" : trimmed
-            if let name = studentFirstName(for: note, in: context) {
-                return "\(name): \(body)"
-            }
-            return body
+            let names = studentNames(for: note, in: context)
+            return names.isEmpty ? body : "\(names): \(body)"
         }
     }
 
+    /// The children the note is about, by short name ("Etty D, Maya S"), so
+    /// the two Ettys can be told apart and a note about several children
+    /// names them all (bug hunt 2026-10-11, #33). Empty for a whole-class note.
     @MainActor
-    private static func studentFirstName(for note: CDNote, in context: NSManagedObjectContext) -> String? {
-        guard let studentID = note.searchIndexStudentID else { return nil }
-        return context.object(CDStudent.self, id: studentID)?.firstName
+    private static func studentNames(for note: CDNote, in context: NSManagedObjectContext) -> String {
+        guard let ids = note.scope.studentIDs else { return "" }
+        return ids.compactMap { context.object(CDStudent.self, id: $0)?.shortName }.joined(separator: ", ")
     }
 }
 

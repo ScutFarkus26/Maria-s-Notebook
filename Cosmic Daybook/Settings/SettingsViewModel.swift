@@ -301,7 +301,6 @@ final class SettingsViewModel {
                 warnings: summary.warnings,
                 notes: summary.notes
             )
-            dependencies.appRouter.requestBackfillIsPresented()
         } catch {
             showRestoreFailure(error, operation: "restore your backup")
         }

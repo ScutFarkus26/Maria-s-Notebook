@@ -44,20 +44,35 @@ final class SchoolYearRolloverViewModel {
 
     /// Near a year boundary the rollover should be dated to the outgoing year's last
     /// day, so departures stay visible in that year's lens and drop out of the next.
+    ///
+    /// From the middle of the year on (spring, when school lets out, and the summer
+    /// before the next start) that is this year's last day. In its first half the
+    /// year to close out is the one that has already ended, so the default is the
+    /// day before this year's first day. It used to be today once the year was more
+    /// than 30 days old, which in autumn closed out the year still under way
+    /// (2026-10-11 hunt, #35); a closing stretch of only 60 days then sent a June
+    /// rollover back a year (review 2026-10-11 (c) #1).
     static func defaultEffectiveDate(today: Date = Date(), store: SchoolYearStore) -> Date {
         let calendar = AppCalendar.shared
-        let current = store.current
-        let lastDayOfCurrent = calendar.date(byAdding: .day, value: -1, to: current.end) ?? current.end
-        // Closing stretch of the current year (within ~60 days of its end).
-        if let window = calendar.date(byAdding: .day, value: 60, to: today), window >= current.end {
-            return lastDayOfCurrent
+        let current = currentYear(today: today, store: store)
+        if isInSecondHalf(today, of: current) {
+            return calendar.date(byAdding: .day, value: -1, to: current.end) ?? current.end
         }
-        // Just after a boundary: the rollover belongs to the year that just ended.
-        let daysSinceStart = calendar.dateComponents([.day], from: current.start, to: today).day ?? 0
-        if daysSinceStart < 30 {
-            return calendar.date(byAdding: .day, value: -1, to: current.start) ?? today
-        }
-        return today
+        return calendar.date(byAdding: .day, value: -1, to: current.start) ?? today
+    }
+
+    /// The school year under way on `today`, by the store's start.
+    private static func currentYear(today: Date, store: SchoolYearStore) -> SchoolYear {
+        SchoolYear.containing(
+            today, startMonth: store.startMonth, startDay: store.startDay, calendar: AppCalendar.shared
+        )
+    }
+
+    /// On or after the year's midpoint: the half in which the year to close out
+    /// is this one (its last 60 days, the usual time to roll over, included).
+    private static func isInSecondHalf(_ date: Date, of year: SchoolYear) -> Bool {
+        let midpoint = year.start.addingTimeInterval(year.end.timeIntervalSince(year.start) / 2)
+        return date >= midpoint
     }
 
     // MARK: - Year math
@@ -70,13 +85,37 @@ final class SchoolYearRolloverViewModel {
         )
     }
 
-    /// The school year after the effective date (the year being rolled into).
-    func incomingYear(store: SchoolYearStore) -> SchoolYear {
+    /// The school year being rolled into. Closing out a year that has already
+    /// ended rolls into the year under way, the store's current one; closing out
+    /// the current year (its closing stretch) rolls into the next.
+    func incomingYear(store: SchoolYearStore, today: Date = Date()) -> SchoolYear {
         let outgoing = outgoingYear(store: store)
+        let current = Self.currentYear(today: today, store: store)
+        if outgoing.beginYear < current.beginYear { return current }
         return SchoolYear.beginning(
             in: outgoing.beginYear + 1,
             startMonth: store.startMonth, startDay: store.startDay, calendar: AppCalendar.shared
         )
+    }
+
+    /// True when the effective date falls in the first half of the year still
+    /// under way: the rollover would close out a year barely begun and roll
+    /// into one that hasn't, so the sheet asks first.
+    func closesYearInProgress(store: SchoolYearStore, today: Date = Date()) -> Bool {
+        let current = Self.currentYear(today: today, store: store)
+        return current.range.contains(plan.effectiveDate)
+            && !Self.isInSecondHalf(plan.effectiveDate, of: current)
+    }
+
+    /// What the sheet says when `closesYearInProgress`; nil otherwise.
+    func yearInProgressWarning(store: SchoolYearStore, today: Date = Date()) -> String? {
+        guard closesYearInProgress(store: store, today: today) else { return nil }
+        let current = Self.currentYear(today: today, store: store)
+        let lastYearEnd = AppCalendar.shared.date(byAdding: .day, value: -1, to: current.start) ?? current.start
+        return "This date is in the school year still under way, so the rollover will close out "
+            + "\(outgoingYear(store: store).label) and roll into \(incomingYear(store: store, today: today).label). "
+            + "To close out last year instead, set the date to "
+            + "\(DateFormatters.mediumDate.string(from: lastYearEnd)) or earlier."
     }
 
     /// Explains what the chosen effective date means for the school-year lens.

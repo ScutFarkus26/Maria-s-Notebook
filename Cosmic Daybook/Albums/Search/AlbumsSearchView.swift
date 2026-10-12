@@ -104,7 +104,7 @@ struct AlbumsSearchView: View {
                         }
                     }
                 }
-                ForEach(results.pageGroups, id: \.albumTitle) { group in
+                ForEach(results.pageGroups, id: \.albumID) { group in
                     Section {
                         ForEach(group.hits) { hit in
                             pageRow(hit)

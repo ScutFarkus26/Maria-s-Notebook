@@ -2,10 +2,10 @@ import SwiftUI
 import CoreData
 
 struct WorksLogView: View {
-    var embeddedSearchText: String? = nil
+    var embeddedSearchText: String?
     var completedOnly: Bool = false
     var isEmbedded: Bool = false
-    var focusedWorkID: UUID? = nil
+    var focusedWorkID: UUID?
 
     #if os(macOS)
     @Environment(\.openWindow) private var openWindow
@@ -18,8 +18,9 @@ struct WorksLogView: View {
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)]
         request.fetchBatchSize = 50
         // Prefetch unifiedNotes so latestUnifiedNoteText doesn't fault the relationship
-        // per row (N+1) when filtering/searching the works list.
-        request.relationshipKeyPathsForPrefetching = ["unifiedNotes"]
+        // per row (N+1) when filtering/searching the works list, and participants
+        // for the per-group visibility a picked child reads (WorkVisibility).
+        request.relationshipKeyPathsForPrefetching = ["unifiedNotes", "participants"]
         return request
     }())
     private var allWorks: FetchedResults<CDWorkModel>
@@ -74,7 +75,11 @@ struct WorksLogView: View {
 
     /// Filtered works based on current filter selections
     private func filteredWorks(using assignmentsByID: [UUID: CDLessonAssignment]) -> [CDWorkModel] {
-        allWorks.filter { work in
+        // Whose each row is, read per linked group. `allWorks` is the whole
+        // table, so every row's group is already in hand; only built while a
+        // child is picked.
+        let visibility = WorkVisibility(rows: selectedStudentIDs.isEmpty ? [] : Array(allWorks))
+        return allWorks.filter { work in
             if completedOnly && work.status.isOpen { return false }
 
             // A one-shot route to a particular record takes precedence over
@@ -82,21 +87,14 @@ struct WorksLogView: View {
             // long enough to reveal it, without weakening the History scope.
             if let focusedWorkID, work.id == focusedWorkID { return true }
 
-            // Kind filter
-            if let kind = selectedKind, work.kind != kind { return false }
+            if !WorksLogRows.matches(work, kind: selectedKind) { return false }
 
             // Status filter
             if !completedOnly,
                !selectedStatuses.isEmpty,
                !selectedStatuses.contains(work.status) { return false }
 
-            // CDStudent filter (check participants)
-            if !selectedStudentIDs.isEmpty {
-                let workStudentIDs = Set((work.participants as? Set<CDWorkParticipantEntity> ?? []).compactMap {
-                    UUID(uuidString: $0.studentID)
-                })
-                if workStudentIDs.isDisjoint(with: selectedStudentIDs) { return false }
-            }
+            if !WorksLogRows.matches(work, students: selectedStudentIDs, visibility: visibility) { return false }
 
             // Search filter
             if !effectiveSearchText.isEmpty {
@@ -137,11 +135,9 @@ struct WorksLogView: View {
     }
 
     private func workTitle(_ work: CDWorkModel, _ assignmentsByID: [UUID: CDLessonAssignment]) -> String {
-        let title = work.title.trimmed()
-        if !title.isEmpty { return title }
-        let kindLabel = (work.kind ?? .research).shortLabel
-        if let lesson = linkedLesson(for: work, assignmentsByID) { return "\(kindLabel): \(lesson.name)" }
-        return kindLabel
+        WorksLogRows.title(
+            of: work, linkedLesson: linkedLesson(for: work, assignmentsByID), lessonsByID: lessonsByID
+        )
     }
 
     private func workSubtitle(_ work: CDWorkModel, _ assignmentsByID: [UUID: CDLessonAssignment]) -> String {
@@ -152,7 +148,9 @@ struct WorksLogView: View {
             return work.createdAt ?? Date()
         }()
         let dateString = DateFormatter.localizedString(from: date, dateStyle: .medium, timeStyle: .none)
-        if let lesson = linkedLesson(for: work, assignmentsByID) {
+        if let lesson = WorksLogRows.lesson(
+            of: work, linkedLesson: linkedLesson(for: work, assignmentsByID), lessonsByID: lessonsByID
+        ) {
             let area = lesson.area.trimmed()
             return area.isEmpty ? dateString : "\(area) • \(dateString)"
         }

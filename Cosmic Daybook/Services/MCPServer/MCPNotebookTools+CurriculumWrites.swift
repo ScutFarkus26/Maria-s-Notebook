@@ -62,7 +62,7 @@ extension MCPNotebookTools {
             ],
             annotations: .write,
             handler: { arguments in
-                try createLesson(arguments: arguments, in: context())
+                try undoingOnFailure(context()) { try createLesson(arguments: arguments, in: $0) }
             }
         )
     }
@@ -96,7 +96,6 @@ extension MCPNotebookTools {
         rebuildSortIndex(forArea: area, from: lessons + [lesson])
 
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The lesson could not be saved.")
         }
         refreshSequenceTrack(area: area, sequence: sequence, in: modelContext)
@@ -180,7 +179,7 @@ extension MCPNotebookTools {
             ],
             annotations: .idempotentWrite,
             handler: { arguments in
-                try updateLesson(arguments: arguments, in: context())
+                try undoingOnFailure(context()) { try updateLesson(arguments: arguments, in: $0) }
             }
         )
     }
@@ -211,7 +210,6 @@ extension MCPNotebookTools {
             throw MCPToolError("Nothing to change — pass at least one field.")
         }
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The lesson could not be saved.")
         }
         return "Updated \(describeLesson(lesson)): \(changes.joined(separator: "; "))."

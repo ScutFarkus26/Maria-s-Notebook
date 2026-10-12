@@ -1,36 +1,41 @@
 // ParentReportDraftEditorView.swift
 // Review-and-edit surface for one student's monthly report. The guide reads,
 // edits, and sends; AI output is labeled and never leaves without review.
+// Sending lives in ParentReportDraftEditorView+Sending.swift.
 
 import SwiftUI
 import CoreData
-#if os(iOS)
-import MessageUI
-#endif
 
 struct ParentReportDraftEditorView: View {
     let student: CDStudent
     let month: ReportMonth
     var onChange: () -> Void = {}
 
-    @Environment(\.managedObjectContext) private var viewContext
-    @Environment(\.dependencies) private var dependencies
+    @Environment(\.managedObjectContext) var viewContext
+    @Environment(\.dependencies) var dependencies
     @Environment(\.dismiss) private var dismiss
 
-    @State private var report: CDParentCommunication?
-    @State private var narrative = ""
+    @State var report: CDParentCommunication?
+    @State var narrative = ""
     @State private var includeReflection = false
-    @State private var attachPDF = false
+    @State var attachPDF = false
     @State private var isGenerating = false
+    /// The draft this editor last generated: text that differs from it is the
+    /// guide's, and Regenerate asks before replacing it (2026-10-11 #68).
+    @State private var lastGeneratedNarrative: String?
+    @State private var confirmingRegenerate = false
     @State private var evidence: [MonthlyReportEvidenceItem] = []
-    @State private var guardianEmails: [String] = []
-    @State private var showingMailComposer = false
-    @State private var showingMacSentConfirmation = false
-    @State private var sendErrorMessage: String?
+    @State var guardianEmails: [String] = []
+    @State var showingMailComposer = false
+    /// "Did the email send?" Mail never tells the app, so the guide says.
+    @State var askingWhetherSent = false
+    @State var sendErrorMessage: String?
+    /// The PDF written out for Share PDF when a mail link can't carry it.
+    @State var sharedPDFURL: URL?
 
-    private var studentName: String { student.shortName }
-    private var hasDraft: Bool { report != nil && !narrative.isEmpty }
-    private var isSent: Bool { report?.status == .sent }
+    var studentName: String { student.shortName }
+    var hasDraft: Bool { report != nil && !narrative.isEmpty }
+    var isSent: Bool { report?.status == .sent }
 
     var body: some View {
         NavigationStack {
@@ -58,19 +63,21 @@ struct ParentReportDraftEditorView: View {
             }
             .onAppear(perform: load)
             #if os(iOS)
-            .sheet(isPresented: $showingMailComposer, onDismiss: { onChange() }) {
+            .sheet(isPresented: $showingMailComposer, onDismiss: { onChange() }, content: {
                 mailComposer
-            }
+            })
             #endif
             .confirmationDialog(
                 "Did the email send?",
-                isPresented: $showingMacSentConfirmation,
+                isPresented: $askingWhetherSent,
                 titleVisibility: .visible
             ) {
                 Button("Yes, mark as sent") { recordSent() }
                 Button("Not yet", role: .cancel) {}
             } message: {
-                Text("Mail doesn't confirm delivery back to the app.")
+                Text(sharedPDFURL == nil
+                     ? AppErrorMessages.ParentReports.didItSend
+                     : AppErrorMessages.ParentReports.pdfNotAttached)
             }
             .alert("Couldn't Send", isPresented: .init(
                 get: { sendErrorMessage != nil },
@@ -97,9 +104,12 @@ struct ParentReportDraftEditorView: View {
             }
             TextEditor(text: $narrative)
                 .frame(minHeight: 140)
+                // Typing while a draft is on its way would be replaced by it,
+                // and a sent report reads as it went home.
+                .disabled(isGenerating || report?.status == .sent)
                 .onChange(of: narrative) { _, _ in persistNarrative() }
             Button {
-                generateDraft()
+                requestDraft()
             } label: {
                 if isGenerating {
                     HStack {
@@ -111,6 +121,16 @@ struct ParentReportDraftEditorView: View {
                 }
             }
             .disabled(isGenerating || isSent)
+            .confirmationDialog(
+                "Replace the report with a new draft?",
+                isPresented: $confirmingRegenerate,
+                titleVisibility: .visible
+            ) {
+                Button("Replace with New Draft", role: .destructive) { generateDraft() }
+                Button("Keep My Text", role: .cancel) {}
+            } message: {
+                Text("The new draft takes the place of the text you have now.")
+            }
         } header: {
             Text("Narrative")
         } footer: {
@@ -155,53 +175,6 @@ struct ParentReportDraftEditorView: View {
         }
     }
 
-    private var sendSection: some View {
-        Section {
-            Toggle("Attach PDF report", isOn: $attachPDF)
-                .onChange(of: attachPDF) { _, newValue in
-                    report?.attachPDF = newValue
-                    dependencies.saveCoordinator.save(viewContext, reason: "Update report options")
-                }
-                .disabled(isSent)
-
-            if guardianEmails.isEmpty {
-                Label("Add a guardian with an email on \(studentName)'s profile to send.", systemImage: "exclamationmark.triangle")
-                    .font(.caption)
-                    .foregroundStyle(AppColors.warning)
-            } else {
-                LabeledContent("To") {
-                    Text(guardianEmails.joined(separator: ", "))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            if let report, report.status == .draft, hasDraft {
-                Button("Mark Reviewed") {
-                    dependencies.monthlyReportDraftService.markReviewed(report)
-                    onChange()
-                }
-            }
-
-            if isSent {
-                Label(
-                    "Sent \(report?.sentAt?.formatted(date: .abbreviated, time: .shortened) ?? "")",
-                    systemImage: "checkmark.circle.fill"
-                )
-                .foregroundStyle(AppColors.success)
-            } else {
-                Button {
-                    send()
-                } label: {
-                    Label("Send to Family…", systemImage: "paperplane")
-                }
-                .disabled(!hasDraft || guardianEmails.isEmpty)
-            }
-        } header: {
-            Text("Send")
-        }
-    }
-
     // MARK: - Data
 
     private func load() {
@@ -209,13 +182,17 @@ struct ParentReportDraftEditorView: View {
         let service = dependencies.monthlyReportDraftService
         report = service.existingReport(studentID: studentID, monthKey: month.monthKey)
         narrative = report?.body ?? ""
+        // An AI draft she hasn't typed into is replaced without asking.
+        lastGeneratedNarrative = report?.aiGenerated == true ? report?.body : nil
         includeReflection = report?.includeStudentReflection ?? false
         attachPDF = report?.attachPDF ?? false
 
+        // Each address on its own: a field holding two used to reach Mail as
+        // one broken recipient (2026-10-11 #77).
         let request = CDGuardian.fetchRequest(studentID: studentID)
         guardianEmails = viewContext.safeFetch(request)
-            .filter { $0.receivesReports && !$0.email.isEmpty }
-            .map(\.email)
+            .filter(\.receivesReports)
+            .flatMap { AttendanceEmail.parseRecipients(from: $0.email) }
 
         reloadEvidence()
     }
@@ -232,14 +209,33 @@ struct ParentReportDraftEditorView: View {
         ).allItems.sorted { $0.date < $1.date }
     }
 
-    private func persistNarrative() {
-        guard let report, report.body != narrative else { return }
-        report.body = narrative
-        report.modifiedAt = Date()
+    /// Saves what she typed, making the report on her first words when there
+    /// is no draft yet (2026-10-11 #69).
+    func persistNarrative() {
+        let service = dependencies.monthlyReportDraftService
+        guard let saved = service.saveTypedNarrative(narrative, for: student, month: month) else { return }
+        if saved.isInserted {
+            saved.includeStudentReflection = includeReflection
+            saved.attachPDF = attachPDF
+        }
+        report = saved
+        guard saved.hasChanges else { return }
         dependencies.saveCoordinator.save(viewContext, reason: "Save report narrative")
     }
 
+    /// Drafts, asking first when that would replace her own text.
+    private func requestDraft() {
+        if MonthlyReportDraftService.replacingNeedsConfirmation(
+            current: narrative, lastGenerated: lastGeneratedNarrative
+        ) {
+            confirmingRegenerate = true
+        } else {
+            generateDraft()
+        }
+    }
+
     private func generateDraft() {
+        persistNarrative()
         isGenerating = true
         Task {
             let service = dependencies.monthlyReportDraftService
@@ -249,109 +245,21 @@ struct ParentReportDraftEditorView: View {
                 includeStudentReflection: includeReflection
             )
             let updated = service.upsertReport(for: student, month: month, draft: draft)
+            report = updated
+            isGenerating = false
+            // Sent meanwhile, from another device: what went home stays.
+            guard updated.status != .sent else {
+                narrative = updated.body
+                onChange()
+                return
+            }
             updated.includeStudentReflection = includeReflection
             updated.attachPDF = attachPDF
             dependencies.saveCoordinator.save(viewContext, reason: "Save report draft")
-            report = updated
+            lastGeneratedNarrative = draft.narrative
             narrative = draft.narrative
-            isGenerating = false
             reloadEvidence()
             onChange()
         }
     }
-
-    // MARK: - Sending
-
-    private func makePDFData() -> Data? {
-        guard attachPDF else { return nil }
-        let reportService = dependencies.reportGeneratorService
-        let range = month.closedRange(calendar: AppCalendar.shared)
-        let notes = reportService.fetchReportNotes(for: student, dateRange: range, context: viewContext)
-        return reportService.generatePDF(
-            student: student,
-            notes: notes,
-            style: .progressReport,
-            dateRange: range,
-            aiNarrative: narrative.isEmpty ? nil : narrative
-        )
-    }
-
-    private func recordSent() {
-        guard let report else { return }
-        dependencies.monthlyReportDraftService.markSent(report, recipients: guardianEmails)
-        onChange()
-    }
-
-    private var emailSubject: String {
-        report?.subject.isEmpty == false
-            ? (report?.subject ?? "")
-            : "\(studentName) — \(month.displayName) update"
-    }
-
-    #if os(iOS)
-    @ViewBuilder
-    private var mailComposer: some View {
-        let attachments: [MailComposerView.Attachment] = makePDFData().map {
-            [MailComposerView.Attachment(
-                data: $0,
-                mimeType: "application/pdf",
-                fileName: "\(studentName) \(month.monthKey).pdf"
-            )]
-        } ?? []
-        MailComposerView(
-            toRecipients: guardianEmails,
-            subject: emailSubject,
-            body: narrative,
-            preferredSender: AttendanceEmail.storedFromAddress(),
-            attachments: attachments
-        ) { result, _ in
-            showingMailComposer = false
-            if result == .sent {
-                recordSent()
-            }
-        }
-    }
-
-    private func send() {
-        persistNarrative()
-        if MFMailComposeViewController.canSendMail() {
-            showingMailComposer = true
-        } else if let url = AttendanceEmail.makeMailtoURL(
-            to: guardianEmails,
-            subject: emailSubject,
-            body: narrative
-        ) {
-            UIApplication.shared.open(url)
-            showingMacSentConfirmation = true
-        } else {
-            sendErrorMessage = "No email account is set up on this device. Add one in Mail, "
-                + "or copy the report and send it another way."
-        }
-    }
-    #elseif os(macOS)
-    private func send() {
-        persistNarrative()
-        var attachmentURL: URL?
-        if let pdfData = makePDFData() {
-            let url = FileManager.default.temporaryDirectory
-                .appendingPathComponent("\(studentName) \(month.monthKey).pdf")
-            if (try? pdfData.write(to: url)) != nil {
-                attachmentURL = url
-            }
-        }
-        MacOSMailSender.send(
-            to: guardianEmails.joined(separator: ", "),
-            subject: emailSubject,
-            body: narrative,
-            attachmentURL: attachmentURL
-        ) { success in
-            if success {
-                recordSent()
-            } else {
-                // The compose window may still have opened; let the guide decide.
-                showingMacSentConfirmation = true
-            }
-        }
-    }
-    #endif
 }

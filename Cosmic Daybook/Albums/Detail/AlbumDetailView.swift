@@ -95,6 +95,10 @@ struct AlbumDetailView: View {
             .userActivity(Handoff.ActivityType.albumPage, element: currentPage) { page, activity in
                 Handoff.describeAlbumPage(activity, albumID: album.id, title: album.title, pageIndex: page)
             }
+            // A library reload hands this view a new `Album` for the same file,
+            // with a fresh document: the highlights and any find go on it too.
+            // (Here, not in `body`, whose chain was slow to type-check.)
+            .onChange(of: ObjectIdentifier(album)) { albumReloaded() }
     }
 
     var body: some View {
@@ -294,6 +298,14 @@ struct AlbumDetailView: View {
         #if os(macOS)
         installFocusActions() // Highlight Selection re-applies the highlights it reads.
         #endif
+    }
+
+    private func albumReloaded() {
+        album.applyHighlights(albumHighlights)
+        // A turn later, once the viewer holds the new document.
+        if showFindBar, !findText.isEmpty {
+            Task { runFind() }
+        }
     }
 
     #if os(macOS)

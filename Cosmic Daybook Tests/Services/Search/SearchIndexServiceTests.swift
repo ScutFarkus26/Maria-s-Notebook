@@ -33,7 +33,7 @@ struct SearchIndexServiceTests {
     func prefixAndExactMatching() {
         let index = freshIndex()
         let binomial = result("Binomial Cube")
-        index.indexResult(binomial, text: "Binomial Cube sensorial material")
+        index.addForTesting(binomial, text: "Binomial Cube sensorial material")
 
         #expect(index.search(query: "binomial").contains(binomial))
         #expect(index.search(query: "binom").contains(binomial))
@@ -47,9 +47,9 @@ struct SearchIndexServiceTests {
         let both = result("Golden Beads")
         let onlyGolden = result("Golden Mat")
         let onlyBeads = result("Bead Chain")
-        index.indexResult(both, text: "golden beads decimal system")
-        index.indexResult(onlyGolden, text: "golden mat layout")
-        index.indexResult(onlyBeads, text: "beads chain skip counting")
+        index.addForTesting(both, text: "golden beads decimal system")
+        index.addForTesting(onlyGolden, text: "golden mat layout")
+        index.addForTesting(onlyBeads, text: "beads chain skip counting")
 
         let hits = index.search(query: "golden beads")
         #expect(hits.contains(both))
@@ -65,8 +65,8 @@ struct SearchIndexServiceTests {
         let index = freshIndex()
         let withBox = result("Grammar Symbols Box")
         let withoutBox = result("Grammar Farm")
-        index.indexResult(withBox, text: "grammar symbols box language")
-        index.indexResult(withoutBox, text: "grammar farm language symbols")
+        index.addForTesting(withBox, text: "grammar symbols box language")
+        index.addForTesting(withoutBox, text: "grammar farm language symbols")
 
         // Both carry "grammar" and "symbols", so both survive.
         #expect(Set(index.search(query: "grammar symbols")) == Set([withBox, withoutBox]))
@@ -84,7 +84,7 @@ struct SearchIndexServiceTests {
     func unmatchedQueryTokenIsIgnored() {
         let index = freshIndex()
         let grammar = result("Grammar Symbols Box")
-        index.indexResult(grammar, text: "grammar symbols box language")
+        index.addForTesting(grammar, text: "grammar symbols box language")
 
         #expect(index.search(query: "grammar") == [grammar])
         #expect(index.search(query: "grammar trinomial") == [grammar])
@@ -97,8 +97,8 @@ struct SearchIndexServiceTests {
         let index = freshIndex()
         let note = result("Practical Life", .note)
         let lesson = result("Practical Life", .lesson)
-        index.indexResult(note, text: "practical life pouring")
-        index.indexResult(lesson, text: "practical life pouring")
+        index.addForTesting(note, text: "practical life pouring")
+        index.addForTesting(lesson, text: "practical life pouring")
 
         #expect(Set(index.search(query: "pouring")) == Set([note, lesson]))
         #expect(index.search(query: "pouring", entityTypes: [.lesson]) == [lesson])
@@ -110,7 +110,7 @@ struct SearchIndexServiceTests {
     func limitCapsResults() {
         let index = freshIndex()
         for number in 0..<25 {
-            index.indexResult(result("Card \(number)"), text: "counting card number \(number)")
+            index.addForTesting(result("Card \(number)"), text: "counting card number \(number)")
         }
         #expect(index.search(query: "counting", limit: 10).count == 10)
         #expect(index.search(query: "counting", limit: 50).count == 25)
@@ -119,7 +119,7 @@ struct SearchIndexServiceTests {
     @Test("single-character and empty queries return nothing")
     func degenerateQueries() {
         let index = freshIndex()
-        index.indexResult(result("Sandpaper Letters"), text: "sandpaper letters language")
+        index.addForTesting(result("Sandpaper Letters"), text: "sandpaper letters language")
         // `tokenize` drops tokens shorter than 2 characters.
         #expect(index.search(query: "s").isEmpty)
         #expect(index.search(query: "").isEmpty)
@@ -135,8 +135,8 @@ struct SearchIndexServiceTests {
         let id = UUID()
         let before = SearchResult(id: id, entityType: .note, title: "Draft title", snippet: "")
         let after = SearchResult(id: id, entityType: .note, title: "Final title", snippet: "")
-        index.indexResult(before, text: "shared observation text")
-        index.indexResult(after, text: "shared observation text")
+        index.addForTesting(before, text: "shared observation text")
+        index.addForTesting(after, text: "shared observation text")
 
         let hits = index.search(query: "observation")
         #expect(hits.count == 1)
@@ -146,11 +146,23 @@ struct SearchIndexServiceTests {
     @Test("purge empties the index and clears readiness")
     func purgeClearsEverything() {
         let index = freshIndex()
-        index.indexResult(result("Moveable Alphabet"), text: "moveable alphabet language")
+        index.addForTesting(result("Moveable Alphabet"), text: "moveable alphabet language")
         #expect(!index.search(query: "alphabet").isEmpty)
 
         index.purge()
         #expect(index.search(query: "alphabet").isEmpty)
         #expect(!index.isReady)
+    }
+}
+
+extension SearchIndexService {
+    /// Adds one result the way a refresh builds its contents
+    /// (`SearchIndexContents.add`), so these tests reach `search` through the
+    /// real index. Stands in for `indexResult`, which only tests called and
+    /// was removed (bug hunt 2026-10-11).
+    func addForTesting(_ result: SearchResult, text: String) {
+        var updated = contents
+        updated.add(result, text: text)
+        setContents(updated)
     }
 }

@@ -232,29 +232,47 @@ final class AppBootstrapper {
 
         logger.info("Post-launch migrations finished in \(formatSeconds(Date().timeIntervalSince(start)))")
 
-        // 4. Bring the full-text search index up to date after data is clean.
-        // `refresh` reuses the on-disk snapshot and replays persistent history
-        // since it was written; only a missing or stale snapshot costs a full pass.
-        //
-        // Skipped entirely on a hot device or in Low Power Mode: the refresh is
-        // change-gated, so the next launch picks up everything this one missed.
-        // Searching still works meanwhile — the snapshot on disk is just older.
-        guard !EnergyPolicy.shared.shouldDeferMaintenance else {
-            logger.notice("Post-launch: search index refresh skipped — device hot or in Low Power Mode")
-            return
-        }
-
         // 3.95. iCloud files. Photos kept on this device before note photos
         // moved to iCloud (2026-09-27) join them, once iCloud Drive is on; a
         // no-op once the local folder is empty. Then, on iPhone and iPad, ask
         // iCloud for every file of the app's not yet downloaded, so lesson
-        // files, stories and photos open without a network.
+        // files, stories and photos open without a network. Both run on a hot
+        // device or in Low Power Mode too (the sweep waits by itself, and
+        // starts again on the next return to the foreground); they used to be
+        // skipped with the search index below.
         await PhotoStorageService.moveLocalPhotosToICloud()
         #if !os(macOS)
         UbiquitousDownloadSweep.shared.start()
         #endif
+
+        // 4. Bring the full-text search index up to date after data is clean.
+        await prepareSearchIndex(
+            .shared,
+            container: coreDataStack.container,
+            deferMaintenance: EnergyPolicy.shared.shouldDeferMaintenance
+        )
+    }
+
+    /// The launch's search-index step. `refresh` reuses the on-disk snapshot
+    /// and replays persistent history since it was written; only a missing or
+    /// stale snapshot costs a full pass.
+    ///
+    /// On a hot device or in Low Power Mode the refresh waits for the first
+    /// search instead, but the index is still given its container, so that
+    /// search builds it. It used to return before the container was set, and
+    /// search found nothing until the next launch (bug hunt 2026-10-11 #43).
+    static func prepareSearchIndex(
+        _ index: SearchIndexService,
+        container: NSPersistentContainer,
+        deferMaintenance: Bool
+    ) async {
+        guard !deferMaintenance else {
+            logger.notice("Post-launch: search index left for the first search — device hot or in Low Power Mode")
+            index.adopt(container)
+            return
+        }
         let searchIndex = LaunchSignposts.begin("SearchIndexRebuild")
-        await SearchIndexService.shared.refresh(container: coreDataStack.container)
+        await index.refresh(container: container)
         LaunchSignposts.end("SearchIndexRebuild", searchIndex)
     }
 

@@ -37,16 +37,6 @@ enum TestStudentsFilter {
         }
     }
 
-    /// Computes the IDs of hidden students from the provided list.
-    static func hiddenIDs(from students: [CDStudent], show: Bool? = nil, namesRaw: String? = nil) -> Set<UUID> {
-        let set = normalizedHiddenNames(show: show, namesRaw: namesRaw)
-        guard !set.isEmpty else { return [] }
-        return Set(students.compactMap { s in
-            let name = s.fullName.normalizedForComparison()
-            return set.contains(name) ? s.id : nil
-        })
-    }
-
     /// Builds a reusable visibility predicate for test students.
     /// - Parameters:
     ///   - showTestStudents: When true, no students are hidden (predicate always true).

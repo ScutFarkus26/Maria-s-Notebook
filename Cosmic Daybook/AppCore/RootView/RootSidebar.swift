@@ -10,7 +10,9 @@ import CoreData
 /// Sidebar with grouped sections (Source List style) for selecting navigation items.
 struct RootSidebar: View {
     @Binding var selection: RootView.NavigationItem
-    @Environment(\.appRouter) private var appRouter
+    /// This window's own create actions: the shared router flags opened an
+    /// editor in every main window at once, or in the one behind the key one.
+    @Environment(\.quickCaptureActions) private var quickCapture
     @Environment(\.managedObjectContext) private var viewContext
     /// Open needs, for the Restock row's badge.
     @State private var restockNeeds = 0
@@ -73,13 +75,13 @@ extension RootSidebar {
         case .students:
             row.contextMenu {
                 Button {
-                    appRouter.requestNewStudent()
+                    quickCapture?.newStudent()
                 } label: {
                     Label("New Student", systemImage: "person.badge.plus")
                 }
 
                 Button {
-                    appRouter.requestImportStudents()
+                    quickCapture?.importStudents()
                 } label: {
                     Label("Import Students…", systemImage: "square.and.arrow.down")
                 }
@@ -87,13 +89,13 @@ extension RootSidebar {
         case .planningAgenda:
             row.contextMenu {
                 Button {
-                    appRouter.triggerNewPresentation = true
+                    quickCapture?.newPresentation()
                 } label: {
                     Label("New Presentation…", systemImage: "calendar.badge.plus")
                 }
 
                 Button {
-                    appRouter.requestNewWork()
+                    quickCapture?.newWork()
                 } label: {
                     Label("New Work…", systemImage: SFSymbol.Action.plusCircle)
                 }
@@ -101,15 +103,9 @@ extension RootSidebar {
         case .lessons:
             row.contextMenu {
                 Button {
-                    appRouter.requestNewLesson()
+                    quickCapture?.newLesson()
                 } label: {
                     Label("New Lesson", systemImage: SFSymbol.Action.plusCircle)
-                }
-
-                Button {
-                    appRouter.requestImportLessons()
-                } label: {
-                    Label("Import Lessons…", systemImage: "square.and.arrow.down")
                 }
             }
         case .supplies:

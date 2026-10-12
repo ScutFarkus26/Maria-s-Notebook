@@ -36,7 +36,7 @@ extension MCPNotebookTools {
             inputSchema: addFollowUpSchema,
             annotations: .write,
             handler: { arguments in
-                try addFollowUp(arguments: arguments, in: context())
+                try undoingOnFailure(context()) { try addFollowUp(arguments: arguments, in: $0) }
             }
         )
     }
@@ -119,7 +119,6 @@ extension MCPNotebookTools {
         let linkPhrase = applyTodoWorkLink(workLink, to: todo)
 
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The follow-up could not be saved.")
         }
 
@@ -177,7 +176,7 @@ extension MCPNotebookTools {
             ],
             annotations: .idempotentWrite,
             handler: { arguments in
-                try resolveFollowUp(arguments: arguments, in: context())
+                try undoingOnFailure(context()) { try resolveFollowUp(arguments: arguments, in: $0) }
             }
         )
     }
@@ -203,7 +202,6 @@ extension MCPNotebookTools {
             todo.isCompleted = true
             todo.completedAt = Date()
             guard modelContext.safeSave() else {
-                modelContext.rollback()
                 throw MCPToolError("The follow-up could not be saved.")
             }
             return "Completed follow-up [todo id=\(idString)] \"\(todo.title)\"."
@@ -230,7 +228,6 @@ extension MCPNotebookTools {
         }
         FocusItemService.resolve(item)
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The goal could not be saved.")
         }
         return "Resolved goal [focusItem id=\(idString)] \"\(item.text)\"."
@@ -245,9 +242,9 @@ extension MCPNotebookTools {
         }
         NoteRepository(context: modelContext).updateNote(id: id, needsFollowUp: false)
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The note could not be saved.")
         }
+        announceSavedNote(id)
         return "Cleared the follow-up flag on [note id=\(idString)]."
     }
 }

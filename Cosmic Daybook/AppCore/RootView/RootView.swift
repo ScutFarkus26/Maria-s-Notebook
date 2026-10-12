@@ -41,6 +41,7 @@ struct RootView: View {
     @State var activeSheet: ActiveSheet?
     @State private var focusedSearchAction = FocusedSearchAction()
     @State private var quickCaptureActions = QuickCaptureActions()
+    @State private var createRequests = WindowCreateRequests()
     @State var selectedNavItem: NavigationItem = .today
     @AppStorage(UserDefaultsKeys.quickCaptureButtonVisible)
     private var isQuickCaptureButtonVisible = true
@@ -48,15 +49,18 @@ struct RootView: View {
     // Preferences for presentations preloading
     
     // MARK: - Computed
-    /// The saved selection, migrated by `NavigationSelectionRestorer` (retired
-    /// raw values, the legacy `Tab` enum, aliased cases). A restore that lands
-    /// on the Lessons & Work workspace also carries which lens to open.
-    private func resolvedPersistedNavItem() -> NavigationItem {
-        let resolution = NavigationSelectionRestorer.resolve(
-            navItemRaw: selectedNavItemRaw,
-            legacyTabRaw: selectedTabRaw,
-            planningModeRaw: UserDefaults.standard.string(forKey: UserDefaultsKeys.planningRootViewMode)
-        )
+    /// The section this window opens on: a request made before it existed
+    /// first, else the saved selection, migrated by `NavigationSelectionRestorer`
+    /// (retired raw values, the legacy `Tab` enum, aliased cases). A restore
+    /// that lands on the Lessons & Work workspace also carries which lens to open.
+    private func launchNavItem() -> NavigationItem {
+        let resolution = NavigationSelectionRestorer.launchSelection(pending: appRouter.takePendingNavItem()) {
+            NavigationSelectionRestorer.resolve(
+                navItemRaw: selectedNavItemRaw,
+                legacyTabRaw: selectedTabRaw,
+                planningModeRaw: UserDefaults.standard.string(forKey: UserDefaultsKeys.planningRootViewMode)
+            )
+        }
         if let scope = resolution.lessonsAndWorkScope {
             appRouter.lessonsAndWorkRequest = .init(scope: scope)
         }
@@ -86,6 +90,12 @@ struct RootView: View {
         // every RootView body pass; the handlers are refilled only when the
         // context or dependencies they capture change.
         .focusedSceneValue(\.quickCapture, quickCaptureActions)
+        // The same actions for screens inside this window (the sidebar's
+        // menus, Today's `+`), so one click acts in this window only.
+        .environment(\.quickCaptureActions, quickCaptureActions)
+        // This window's New Lesson / New Student, for its own Lessons and
+        // Students; the router's are seen by every window.
+        .environment(\.windowCreateRequests, createRequests)
         .onChange(of: quickCaptureInputs) {
             installQuickCaptureHandlers()
         }
@@ -216,21 +226,6 @@ struct RootView: View {
             appRouter.triggerNewWorkItem = false
             activeSheet = .newWorkItem(lessonID: nil, studentIDs: [])
         }
-        .onChange(of: appRouter.triggerRecordPractice) { _, value in
-            guard value else { return }
-            appRouter.triggerRecordPractice = false
-            activeSheet = .recordPractice
-        }
-        .onChange(of: appRouter.triggerNewPresentation) { _, value in
-            guard value else { return }
-            appRouter.triggerNewPresentation = false
-            createPresentationDraft()
-        }
-        .onChange(of: appRouter.triggerCommandBar) { _, value in
-            guard value else { return }
-            appRouter.triggerCommandBar = false
-            activeSheet = .commandBar
-        }
     }
 
     /// What the quick-capture handlers capture by copy.
@@ -245,8 +240,22 @@ struct RootView: View {
             newWork: { activeSheet = .newWorkItem(lessonID: nil, studentIDs: []) },
             recordPractice: { activeSheet = .recordPractice },
             newTodo: { activeSheet = .newTodo(initialTitle: "") },
-            newNote: { activeSheet = .quickNote(QuickNoteParams()) }
+            newNote: { activeSheet = .quickNote(QuickNoteParams()) },
+            openCommandBar: { activeSheet = .commandBar },
+            newLesson: { askInThisWindow(.newLesson(defaultArea: nil, defaultSequence: nil)) },
+            newStudent: { askInThisWindow(.newStudent) },
+            importStudents: { askInThisWindow(.importStudents) }
         ))
+    }
+
+    /// Goes to the section that answers `request` in this window and leaves
+    /// the request for that section's screen, which opens its sheet on appear
+    /// or, already on screen, at once.
+    private func askInThisWindow(_ request: WindowCreateRequests.Request) {
+        createRequests.ask(request)
+        if selectedNavItem != request.answeringSection {
+            selectedNavItem = request.answeringSection
+        }
     }
 
     /// Creates a presentation draft and opens its editor sheet. Shared by the
@@ -377,12 +386,18 @@ struct RootView: View {
 
     // MARK: - Event Handlers
 
+    /// Runs on first appear. A request made while the store was still loading
+    /// (before this view existed, so no `onChange` saw it) is applied here
+    /// rather than overwritten by the saved section.
     private func restoreSelectionIfNeeded() {
-        let persistedSelection = resolvedPersistedNavItem()
-        if selectedNavItem != persistedSelection {
-            selectedNavItem = persistedSelection
+        let launchSelection = launchNavItem()
+        if selectedNavItem != launchSelection {
+            selectedNavItem = launchSelection
         }
-        persistSelection(persistedSelection)
+        persistSelection(launchSelection)
+        #if os(macOS)
+        handleNavigationDestinationChange(nil, appRouter.navigationDestination)
+        #endif
     }
 
     private func persistSelection(_ item: RootView.NavigationItem) {

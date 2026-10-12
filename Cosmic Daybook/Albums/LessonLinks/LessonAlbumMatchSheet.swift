@@ -42,7 +42,7 @@ struct LessonAlbumMatchSheet: View {
     var body: some View {
         NavigationStack {
             content
-                .navigationTitle("Match Lessons to Albums")
+                .navigationTitle(isFindingDifferentPage ? "Find a Different Page" : "Match Lessons to Albums")
                 #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
                 #endif
@@ -73,10 +73,15 @@ struct LessonAlbumMatchSheet: View {
             }
         } else if candidates.isEmpty {
             ContentUnavailableView {
-                Label("No Matches Found", systemImage: "questionmark.folder")
+                Label(isFindingDifferentPage ? "No Other Page Found" : "No Matches Found",
+                      systemImage: "questionmark.folder")
             } description: {
-                Text("Nothing in the albums looked close enough to these lessons. "
-                     + "You can still link a lesson by hand from its detail view.")
+                if isFindingDifferentPage {
+                    Text("No other album page looked close enough to this lesson. Its link stays as it is.")
+                } else {
+                    Text("Nothing in the albums looked close enough to "
+                         + (lessons.count == 1 ? "this lesson." : "these lessons."))
+                }
             }
         } else {
             List {
@@ -166,10 +171,23 @@ struct LessonAlbumMatchSheet: View {
 
     // MARK: Actions
 
+    /// The candidates the sheet offers for `lessons`. A single lesson is
+    /// matched even when it's linked already: that's "Find a Different
+    /// Page…", which leaves its current page out.
+    static func candidates(for lessons: [CDLesson], library: AlbumLibrary) async -> [LessonAlbumMatcher.Candidate] {
+        await LessonAlbumMatcher.candidates(for: lessons, library: library,
+                                            includeAlreadyLinked: lessons.count == 1)
+    }
+
+    /// True for "Find a Different Page…": one lesson, linked already.
+    private var isFindingDifferentPage: Bool {
+        lessons.count == 1 && lessons.first?.albumLink != nil
+    }
+
     private func runMatch() async {
         isMatching = true
         await library.ensureIndexed()
-        let found = await LessonAlbumMatcher.candidates(for: lessons, library: library)
+        let found = await Self.candidates(for: lessons, library: library)
         candidates = found
         // Confident matches start selected; the rest are opt-in.
         accepted = Set(found.filter(\.isConfident).map(\.id))

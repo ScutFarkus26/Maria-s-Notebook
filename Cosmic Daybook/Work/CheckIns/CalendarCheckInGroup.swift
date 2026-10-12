@@ -70,7 +70,9 @@ enum CalendarCheckInGrouper {
                 checkIn: checkIn,
                 lessonTitle: lookup.lessonTitle(for: work),
                 studentName: lookup.studentName(for: work),
-                sequenceKey: "\(work.lessonID)|\(checkIn.purpose)",
+                // One pill per lesson and reason, however the purpose was spelled
+                // when stored (bug hunt 2026-10-11 #25).
+                sequenceKey: "\(work.lessonID)|\(CheckInReason.displayName(forStoredPurpose: checkIn.purpose))",
                 isIndividual: work.checkInStyle == .individual
             )
         }

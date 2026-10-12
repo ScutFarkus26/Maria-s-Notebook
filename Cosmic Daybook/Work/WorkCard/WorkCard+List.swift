@@ -7,8 +7,7 @@ struct WorkCardListContent: View {
     let config: WorkCard.ListModeConfig
 
     private var workType: WorkCardWorkType {
-        // Use kind for work type
-        return WorkCardWorkType(from: config.work.kind ?? .research)
+        WorkCardWorkType(from: config.work.displayKind)
     }
 
     var body: some View {

@@ -56,6 +56,11 @@ struct SectionReorderItem: Identifiable {
 struct AddLessonContext: Identifiable {
     let id = UUID()
     let source: CDLesson?
+    /// Starting area and sequence when no `source` gives them (a router New Lesson request).
+    var defaultArea: String?
+    var defaultSequence: String?
+    var startingSequence: String? { source?.sequence ?? defaultSequence }
+    func startingArea(orElse fallback: String?) -> String? { source?.area ?? defaultArea ?? fallback }
 }
 
 // MARK: - LessonsRootView
@@ -64,6 +69,7 @@ struct LessonsRootView: View {
     // MARK: - Environment
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.appRouter) var appRouter
+    @Environment(\.windowCreateRequests) var windowCreateRequests
     @Environment(SaveCoordinator.self) var saveCoordinator
     @Environment(\.dependencies) var dependencies
 
@@ -211,25 +217,7 @@ struct LessonsRootView: View {
         // replaced did: the map's pills read their lessons' names off the rows.
         // swiftlint:disable:next redundant_discardable_let
         let _ = dependencies.lessonCatalog.version
-        lessonsMainLayout
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .adaptiveAnimation(.spring(response: 0.3, dampingFraction: 0.85), value: selectedLessonDetail?.id)
-        #if os(iOS)
-        .environment(\.editMode, $editMode)
-        #endif
-        .task { await handleInitialLoad() }
-        .task { openPendingLesson() }
-        .onChange(of: appRouter.pendingLessonID) { openPendingLesson() }
-        .onAppear { refreshLessonsForArea() }
-        .onChange(of: lessonsForAreaInputs) { refreshLessonsForArea() }
-        // Only while on screen: a TabView keeps this tab alive behind the
-        // others, and `.onAppear` above re-derives the list when it is back.
-        .onPresentationDataChangeWhenVisible(of: ["Lesson"], in: viewContext, catchUpOnAppear: false) {
-            refreshLessonsForArea()
-        }
-        .task(id: lessonsForArea.compactMap(\.id)) { await fetchPresentationHistory() }
-        .onChange(of: filterState.selectedArea) { _, newValue in handleAreaChange(newValue) }
-        .onChange(of: filterState.searchText) { _, newValue in handleSearchTextChange(newValue) }
+        lessonsLiveLayout
         .sheet(item: $lessonToSchedule) { lesson in lessonScheduleSheet(lesson) }
         .sheet(item: $trackSettingsItem) { item in
             SequenceTrackSettingsSheet(area: item.area, sequence: item.sequence)
@@ -239,8 +227,8 @@ struct LessonsRootView: View {
         }
         .sheet(item: $addLessonContext) { context in
             AddLessonView(
-                defaultArea: context.source?.area ?? selectedArea,
-                defaultSequence: context.source?.sequence,
+                defaultArea: context.startingArea(orElse: selectedArea),
+                defaultSequence: context.startingSequence,
                 defaultSection: context.source?.section,
                 onLessonCreated: { newLesson in
                     if let source = context.source {
@@ -252,17 +240,30 @@ struct LessonsRootView: View {
         .sheet(isPresented: $showingBulkEntry) { BulkLessonsEntryView(defaultArea: selectedArea) }
     }
 
-    /// Reveals a lesson requested from elsewhere in the app — today, the
-    /// album reader's "Notebook Lesson" jump on a linked album page.
-    private func openPendingLesson() {
-        guard let id = appRouter.pendingLessonID else { return }
-        _ = appRouter.consumePendingLessonID()
-        guard let lesson = lessons.first(where: { $0.id == id }) else { return }
-        // Clear any area filter that would hide the lesson from its column.
-        if !lesson.area.trimmed().isEmpty, filterState.selectedArea != lesson.area {
-            filterState.selectedArea = lesson.area
+    /// The layout with its loading, refresh and request hooks. Split from
+    /// `body`, whose single modifier chain took over a second to type-check.
+    private var lessonsLiveLayout: some View {
+        lessonsMainLayout
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .adaptiveAnimation(.spring(response: 0.3, dampingFraction: 0.85), value: selectedLessonDetail?.id)
+        #if os(iOS)
+        .environment(\.editMode, $editMode)
+        #endif
+        .task { await handleInitialLoad() }
+        .task { openPendingLesson(); openNewLessonRequest() }
+        .onChange(of: appRouter.pendingLessonID) { openPendingLesson() }
+        .onChange(of: appRouter.navigationDestination) { openNewLessonRequest() }
+        .onChange(of: windowCreateRequests?.pending) { openNewLessonRequest() }
+        .onAppear { refreshLessonsForArea() }
+        .onChange(of: lessonsForAreaInputs) { refreshLessonsForArea() }
+        // Only while on screen: a TabView keeps this tab alive behind the
+        // others, and `.onAppear` above re-derives the list when it is back.
+        .onPresentationDataChangeWhenVisible(of: ["Lesson"], in: viewContext, catchUpOnAppear: false) {
+            refreshLessonsForArea()
         }
-        selectedLessonDetail = lesson
+        .task(id: lessonsForArea.compactMap(\.id)) { await fetchPresentationHistory() }
+        .onChange(of: filterState.selectedArea) { _, newValue in handleAreaChange(newValue) }
+        .onChange(of: filterState.searchText) { _, newValue in handleSearchTextChange(newValue) }
     }
 
     private func lessonScheduleSheet(_ lesson: CDLesson) -> some View {

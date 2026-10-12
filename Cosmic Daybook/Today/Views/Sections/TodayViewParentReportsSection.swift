@@ -21,6 +21,7 @@ extension TodayView {
 struct ParentReportsSectionView: View {
     @Environment(\.appRouter) private var appRouter
     @Environment(\.calendar) private var calendar
+    @TestStudentVisibility private var testStudents
 
     @FetchRequest(
         sortDescriptors: [],
@@ -38,6 +39,15 @@ struct ParentReportsSectionView: View {
 
     private var cycle: ReportMonth { ReportMonth.currentCycle() }
 
+    /// How many of the children counted (`studentIDs`) have a sent report,
+    /// given the student id of every sent report row. Each child counts once
+    /// (sync can leave two rows for one report), and only a child still
+    /// counted: the banner said "23 of 22" with duplicates and children who
+    /// had left (2026-10-11 #77).
+    static func sentCount(sentReportStudentIDs: [String], studentIDs: Set<String>) -> Int {
+        Set(sentReportStudentIDs).intersection(studentIDs).count
+    }
+
     /// The last two days of the window, when the reports are about to be late.
     private func isRunningOut(now: Date, window: DateInterval) -> Bool {
         guard let twoDaysBeforeClose = calendar.date(byAdding: .day, value: -2, to: window.end) else {
@@ -49,8 +59,10 @@ struct ParentReportsSectionView: View {
     var body: some View {
         let now = Date()
         let window = cycle.cycleWindow(calendar: calendar)
-        let total = enrolledStudents.count
-        let sent = sentReports.count
+        // The class as the roster and the Parent Reports screen count it.
+        let classIDs = Set(testStudents.visible(enrolledStudents).compactMap { $0.id?.uuidString })
+        let total = classIDs.count
+        let sent = Self.sentCount(sentReportStudentIDs: sentReports.map(\.studentID), studentIDs: classIDs)
         let isOverdue = isRunningOut(now: now, window: window)
         if TodaySectionVisibility.showsParentReports(now: now, window: window, enrolled: total, sent: sent) {
             Section {

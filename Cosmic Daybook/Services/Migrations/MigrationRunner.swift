@@ -118,6 +118,9 @@ enum MigrationRunner {
         // Multi-child notes get the student links their scope names, once per
         // device after the first download; it saves on its own (see +NoteScopeIndex).
         DataCleanupService.repairNoteStudentLinksIfDue(using: context, firstDownloadPending: firstDownloadPending)
+        // Uniform check-in work saved without its project type, once per device
+        // after the first download; it saves on its own (see +ProjectWorkContext).
+        DataCleanupService.repairProjectWorkContextTypeIfDue(using: context, firstDownloadPending: firstDownloadPending)
         return results
     }
 

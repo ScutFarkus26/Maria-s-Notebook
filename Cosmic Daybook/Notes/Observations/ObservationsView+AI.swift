@@ -139,6 +139,10 @@ extension ObservationsView {
         summaryTask?.cancel()
         summaryTask = Task {
             await runSummary(sourceItems: sourceItems, mode: mode, session: session)
+            // A stopped run leaves the state alone: Stop already reset it, and
+            // a newer run may own it now. Clearing it here ended the next
+            // Reflect's spinner and dropped its task (2026-10-11 #77).
+            guard !Task.isCancelled else { return }
             isSummarizing = false
             summaryTask = nil
         }
@@ -161,24 +165,37 @@ extension ObservationsView {
                 prompt = ObservationReflectionService.prompt(from: packets, narrative: mode == .narrative)
             }
 
-            guard !packets.isEmpty,
-                  await budget.fits(prompt: prompt, reserving: TokenBudget.draftReply) else {
+            // Notes with no words in them aren't "too many notes".
+            guard !packets.isEmpty else {
+                try Task.checkCancellation()
+                summaryErrorMessage = "None of these notes has any words to reflect on. "
+                    + "Choose notes with text and try again."
+                return
+            }
+            guard await budget.fits(prompt: prompt, reserving: TokenBudget.draftReply) else {
+                try Task.checkCancellation()
                 summaryErrorMessage = "That's too many notes for Apple Intelligence at once. "
                     + "Choose fewer observations and try again."
                 return
             }
 
+            try Task.checkCancellation()
             summarySources = ObservationReflectionService.referenceMap(from: packets)
             switch mode {
             case .digest:
                 let response = try await session.respond(to: prompt, generating: NotesDigest.self)
+                try Task.checkCancellation()
                 summaryDigest = ObservationReflectionService.validate(response.content, against: packets)
             case .narrative:
                 let response = try await session.respond(to: prompt, generating: NotesNarrative.self)
+                try Task.checkCancellation()
                 summaryNarrative = response.content
                 summaryNarrativeDraft = response.content.narrative
             }
+        } catch is CancellationError {
+            // Stopped: whatever comes next owns the sheet.
         } catch {
+            guard !Task.isCancelled else { return }
             Logger.ai.error("[\(#function)] Observations reflection failed: \(error)")
             summaryErrorMessage = AppErrorMessages.aiMessage(
                 for: error, fallback: "Couldn't write the reflection. Try again."

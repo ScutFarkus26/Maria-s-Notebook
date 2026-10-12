@@ -17,6 +17,8 @@ struct SchoolYearRolloverView: View {
 
     @State private var viewModel = SchoolYearRolloverViewModel()
     @State private var reportStudent: CDStudent?
+    /// Asking before a rollover dated inside the year still under way (#35).
+    @State private var confirmingYearInProgress = false
 
     private var store: SchoolYearStore { dependencies.schoolYearStore }
 
@@ -54,6 +56,18 @@ struct SchoolYearRolloverView: View {
         } message: { message in
             Text(message)
         }
+        .confirmationDialog(
+            "Close Out \(viewModel.outgoingYear(store: store).label)?",
+            isPresented: $confirmingYearInProgress,
+            titleVisibility: .visible
+        ) {
+            Button("Apply Rollover") {
+                viewModel.apply(context: viewContext, store: store)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(viewModel.yearInProgressWarning(store: store) ?? "")
+        }
     }
 
     private var title: String {
@@ -85,7 +99,11 @@ struct SchoolYearRolloverView: View {
                     .disabled(viewModel.changeCount == 0)
             case .review:
                 Button("Apply Rollover (\(viewModel.changeCount))") {
-                    viewModel.apply(context: viewContext, store: store)
+                    if viewModel.closesYearInProgress(store: store) {
+                        confirmingYearInProgress = true
+                    } else {
+                        viewModel.apply(context: viewContext, store: store)
+                    }
                 }
             case .done:
                 Button("Done") { dismiss() }
@@ -101,9 +119,7 @@ struct SchoolYearRolloverView: View {
                 DatePicker("Effective date", selection: $viewModel.plan.effectiveDate, displayedComponents: .date)
                 Toggle("Log an observation for each change", isOn: $viewModel.plan.writeNotes)
             } footer: {
-                Text(viewModel.lensFootnote(store: store))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                effectiveDateFooter
             }
 
             RolloverCarryOverSection(viewModel: viewModel, store: store)
@@ -218,9 +234,7 @@ struct SchoolYearRolloverView: View {
                     .foregroundStyle(.secondary)
                 departureEffects
             } footer: {
-                Text(viewModel.lensFootnote(store: store))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                effectiveDateFooter
             }
 
             reviewSections
@@ -304,6 +318,22 @@ private extension SchoolYearRolloverView {
             Button("Generate Summary") { reportStudent = student }
                 .buttonStyle(.bordered)
         }
+    }
+}
+
+/// The effective date's footer: what the date means for the lens, and a plain
+/// warning when it falls inside the year still under way (2026-10-11 hunt, #35).
+private extension SchoolYearRolloverView {
+    var effectiveDateFooter: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let warning = viewModel.yearInProgressWarning(store: store) {
+                Label(warning, systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+            }
+            Text(viewModel.lensFootnote(store: store))
+                .foregroundStyle(.secondary)
+        }
+        .font(.footnote)
     }
 }
 

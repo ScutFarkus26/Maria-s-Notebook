@@ -95,7 +95,7 @@ final class WorkDetailViewModel {
         self.work = fetchedWork
         self.status = fetchedWork.status
         self.workTitle = fetchedWork.title
-        self.workKind = fetchedWork.kind ?? .practiceLesson
+        self.workKind = fetchedWork.displayKind
         self.checkInStyle = fetchedWork.checkInStyle
         // PERF: Parse UUIDs once on load instead of on every body evaluation
         self.resolvedLessonID = UUID(uuidString: fetchedWork.lessonID)

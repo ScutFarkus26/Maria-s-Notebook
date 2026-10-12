@@ -59,7 +59,6 @@ struct PresentationsBacklogFix1010ITests {
             viewContext: room.context,
             calendar: AppCalendar.shared,
             inboxOrderRaw: "",
-            missWindow: .all,
             showTestStudents: showTestStudents,
             testStudentNamesRaw: testNames,
             lessons: room.context.safeFetch(CDFetchRequest(CDLesson.self)),

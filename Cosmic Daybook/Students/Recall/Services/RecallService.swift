@@ -7,7 +7,9 @@
 //   shaky     → set needsPractice on the matching assignment(s) she was given alone; when she
 //               had it with a group, practice work of her own on her latest giving instead,
 //               since the group's flag held every child in it back
-//   forgotten → set needsAnotherPresentation on the matching assignment(s)
+//   forgotten → re-present: the shared needsAnotherPresentation only where she had the lesson
+//               alone; on a group presentation her own CDLessonPresentation row says re-present
+//               (ChildRepresentations), as a meeting's Re-present does
 //
 // `masteredAt`/`stateRaw` on CDLessonPresentation are never touched — that's the "never
 // overwrite the ladder" guarantee (do NOT route through updateProficiencyState, which nulls
@@ -84,7 +86,9 @@ struct RecallService {
                     schoolYearKey: $0.schoolYearKey, source: $0.source, checkedAt: $0.checkedAt
                 )
             }
-        let intents = RecallFrontierEngine.coveredIntents(forRetained: entry, existing: existing, schoolYearKey: yearKey)
+        let intents = RecallFrontierEngine.coveredIntents(
+            forRetained: entry, existing: existing, schoolYearKey: yearKey
+        )
         for intent in intents {
             let covered = CDLessonRecallCheck(context: context)
             covered.studentID = intent.studentID
@@ -104,7 +108,9 @@ struct RecallService {
     /// `needsPractice` is a whole presentation's flag, and the blocking check holds back every
     /// child on it who has no work of her own. So it is set only where she was given the lesson
     /// alone; when she had it with a group she gets practice work of her own on her latest
-    /// giving instead, which gates her and nobody else.
+    /// giving instead, which gates her and nobody else. `needsAnotherPresentation` is likewise
+    /// everyone's, so Forgotten on a group presentation marks her own row instead (bug hunt
+    /// 2026-10-11, #26).
     private func setFollowUp(entry: RecallQueueEntry, needsPractice: Bool, needsAnotherPresentation: Bool) {
         let request = CDFetchRequest(CDLessonAssignment.self)
         // Predicate on lessonID (stored as String) to avoid a full-table scan.
@@ -116,16 +122,28 @@ struct RecallService {
         var flaggedHerOwn = false
         for assignment in hers {
             let alone = Set(assignment.studentIDs.map(RecallFrontierEngine.normalize)) == [sid]
-            if needsAnotherPresentation { assignment.needsAnotherPresentation = true }
+            if needsAnotherPresentation {
+                markForAnotherPresentation(assignment, studentID: sid)
+            }
             if needsPractice && alone {
                 assignment.needsPractice = true
+                assignment.modifiedAt = Date()
                 flaggedHerOwn = true
             }
-            if needsAnotherPresentation || (needsPractice && alone) { assignment.modifiedAt = Date() }
         }
         if needsPractice, !flaggedHerOwn,
            let latest = BlockingAlgorithmEngine.latestFirst(hers.filter(\.isGiven)).first {
             addPracticeWork(studentID: sid, lessonID: entry.frontierLessonID, on: latest)
+        }
+    }
+
+    /// The shared flag when she had it alone, her own follow-up row on a group presentation.
+    private func markForAnotherPresentation(_ assignment: CDLessonAssignment, studentID: String) {
+        guard let studentUUID = UUID(uuidString: studentID) else { return }
+        do {
+            try MeetingLessonDecisions.flagForAnotherPresentation(assignment, studentID: studentUUID, context: context)
+        } catch {
+            Logger.students.warning("Recall: couldn't mark a forgotten lesson: \(error.localizedDescription)")
         }
     }
 

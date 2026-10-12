@@ -67,42 +67,47 @@ extension StudentNotesTimelineList {
         let remainingCount: Int
 
         var hasMore: Bool { remainingCount > 0 }
+
+        /// Pinned notes come from the whole filtered list, so one stays in Pinned however
+        /// many newer notes there are (bug hunt 2026-10-11, #29); the page and Show More
+        /// count the unpinned ones.
+        static func make(from all: [UnifiedNoteItem], displayedCount: Int, calendar: Calendar) -> DisplayedItems {
+            let pinned = all.filter(\.isPinned)
+            let unpinned = all.filter { !$0.isPinned }
+            let page = Array(unpinned.prefix(displayedCount))
+            return DisplayedItems(
+                displayed: pinned + page,
+                pinned: pinned,
+                grouped: groupedItems(from: page, calendar: calendar),
+                remainingCount: max(0, unpinned.count - displayedCount)
+            )
+        }
+
+        // Group unpinned items by month and year
+        private static func groupedItems(
+            from items: [UnifiedNoteItem], calendar: Calendar
+        ) -> [(key: String, items: [UnifiedNoteItem])] {
+            let grouped = items.grouped { StudentNotesTimelineList.monthYearKey(for: $0.date, calendar: calendar) }
+            .mapValues { items in
+                items.sorted { $0.date > $1.date } // Sort items within each sequence (newest first)
+            }
+
+            // Sort groups by date (newest first); the keys are "yyyy-MM".
+            return grouped.keys.sorted(by: >).map { key in
+                (key: key, items: grouped[key] ?? [])
+            }
+        }
     }
 
     func makeDisplayedItems() -> DisplayedItems {
-        let all = allFilteredItems
-        let displayed = Array(all.prefix(displayedCount))
-        return DisplayedItems(
-            displayed: displayed,
-            pinned: displayed.filter(\.isPinned),
-            grouped: groupedItems(from: displayed.filter { !$0.isPinned }),
-            remainingCount: max(0, all.count - displayedCount)
-        )
+        DisplayedItems.make(from: allFilteredItems, displayedCount: displayedCount, calendar: calendar)
     }
 
     var hasActiveFilters: Bool {
         !selectedFilterTags.isEmpty || !debouncedSearchText.isEmpty || selectedFilter != .all
     }
 
-    // Group unpinned items by month and year
-    private func groupedItems(from items: [UnifiedNoteItem]) -> [(key: String, items: [UnifiedNoteItem])] {
-        let grouped = items.grouped { monthYearKey(for: $0.date) }
-        .mapValues { items in
-            items.sorted { $0.date > $1.date } // Sort items within each sequence (newest first)
-        }
-
-        // Sort groups by date (newest first)
-        let sortedKeys = grouped.keys.sorted { key1, key2 in
-            // Parse the keys to compare dates properly
-            key1 > key2
-        }
-
-        return sortedKeys.map { key in
-            (key: key, items: grouped[key] ?? [])
-        }
-    }
-
-    func monthYearKey(for date: Date) -> String {
+    static func monthYearKey(for date: Date, calendar: Calendar) -> String {
         let components = calendar.dateComponents([.year, .month], from: date)
         let year = components.year ?? 0
         let month = components.month ?? 0
@@ -126,7 +131,7 @@ extension StudentNotesTimelineList {
     }
 
     func loadMoreItems() {
-        let newCount = min(displayedCount + pageSize, allFilteredItems.count)
+        let newCount = min(displayedCount + pageSize, allFilteredItems.filter { !$0.isPinned }.count)
         adaptiveWithAnimation {
             displayedCount = newCount
         }

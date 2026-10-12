@@ -17,6 +17,8 @@ struct ParentReportsQueueView: View {
     @State private var isDraftingAll = false
     @State private var draftingProgress = ""
 
+    @TestStudentVisibility private var testStudents
+
     @FetchRequest(
         sortDescriptors: [
             NSSortDescriptor(key: "firstName", ascending: true),
@@ -24,7 +26,13 @@ struct ParentReportsQueueView: View {
         ],
         predicate: NSPredicate(format: "enrollmentStatusRaw == %@", CDStudent.EnrollmentStatus.enrolled.rawValue),
         animation: .default
-    ) private var students: FetchedResults<CDStudent>
+    ) private var enrolledStudents: FetchedResults<CDStudent>
+
+    /// The class as the roster shows it: hidden test students and sync's
+    /// duplicate rows left out, as the Today banner counts it.
+    private var students: [CDStudent] {
+        testStudents.visible(enrolledStudents)
+    }
 
     private var sentCount: Int {
         students.filter { status(for: $0) == .sent }.count
@@ -75,12 +83,14 @@ struct ParentReportsQueueView: View {
 
     private var monthPicker: some View {
         HStack {
+            // The month stays put while Draft All Missing runs.
             Button {
                 month = month.previous
             } label: {
                 Image(systemName: "chevron.left")
             }
             .buttonStyle(.borderless)
+            .disabled(isDraftingAll)
             Spacer()
             Text(month.displayName)
                 .font(.headline)
@@ -91,7 +101,7 @@ struct ParentReportsQueueView: View {
                 Image(systemName: "chevron.right")
             }
             .buttonStyle(.borderless)
-            .disabled(month == ReportMonth.currentCycle())
+            .disabled(isDraftingAll || month == ReportMonth.currentCycle())
         }
         .padding(.vertical, 2)
     }
@@ -149,27 +159,26 @@ struct ParentReportsQueueView: View {
         let request = CDFetchRequest(CDGuardian.self)
         request.predicate = NSPredicate(format: "receivesReports == YES AND email != ''")
         for guardian in viewContext.safeFetch(request) {
-            emails[guardian.studentID, default: []].append(guardian.email)
+            emails[guardian.studentID, default: []]
+                .append(contentsOf: AttendanceEmail.parseRecipients(from: guardian.email))
         }
         guardianEmailsByStudent = emails
     }
 
+    /// Drafts every report still missing for the month on screen when it
+    /// starts. That month is captured and the arrows wait: the run used to
+    /// read the screen's month after each draft, so switching months could
+    /// redraft another month's reports, sent ones included (2026-10-11 #67).
     private func draftAllMissing() {
         let missing = students.filter { report(for: $0) == nil }
         guard !missing.isEmpty else { return }
+        let draftingMonth = month
         isDraftingAll = true
         Task {
-            let service = dependencies.monthlyReportDraftService
-            for (index, student) in missing.enumerated() {
-                draftingProgress = "Drafting \(index + 1) of \(missing.count)…"
-                let draft = await service.generateDraft(
-                    for: student,
-                    month: month,
-                    includeStudentReflection: false
-                )
-                if !draft.narrative.isEmpty || !draft.includedRefs.isEmpty {
-                    service.upsertReport(for: student, month: month, draft: draft)
-                }
+            await dependencies.monthlyReportDraftService.draftMissingReports(
+                for: missing, month: draftingMonth
+            ) { index, total in
+                draftingProgress = "Drafting \(index) of \(total)…"
             }
             isDraftingAll = false
             draftingProgress = ""

@@ -109,8 +109,7 @@ extension ImmediatePresentationRecordingTests {
         #expect(fixture.assignment.scheduledForDay == Date.distantPast)
         #expect(!fixture.assignment.needsAnotherPresentation)
         #expect(token.assignmentID == fixture.assignment.id)
-        #expect(token.presentedDay == expectedDay)
-        #expect(token.createdHistoryCount == 2)
+        #expect(token.createdHistoryObjectIDs.count == 2)
 
         let history = try exactHistory(for: fixture.assignment, in: fixture.context)
         #expect(history.count == 2)
@@ -271,7 +270,7 @@ extension ImmediatePresentationRecordingTests {
             saveCoordinator: fixture.coordinator
         )
 
-        #expect(token.createdHistoryCount == 1)
+        #expect(token.createdHistoryObjectIDs.count == 1)
         #expect(existing.lastObservedAt == expectedDay)
         #expect(existing.followUpAction == .watchWork)
         #expect(existing.hasOpenFollowUp)

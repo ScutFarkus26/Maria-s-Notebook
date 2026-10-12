@@ -94,7 +94,7 @@ extension MCPNotebookTools {
             inputSchema: updateGoingOutSchema,
             annotations: .idempotentWrite,
             handler: { arguments in
-                try rollingBackOnFailure(context()) { try updateGoingOut(arguments: arguments, in: $0) }
+                try undoingOnFailure(context()) { try updateGoingOut(arguments: arguments, in: $0) }
             }
         )
     }
@@ -160,7 +160,6 @@ extension MCPNotebookTools {
             throw MCPToolError("Nothing to change — pass at least one field.")
         }
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The Going Out could not be saved.")
         }
         let id = goingOut.id?.uuidString ?? "unknown"

@@ -51,7 +51,7 @@ extension MCPNotebookTools {
             ],
             annotations: .write,
             handler: { arguments in
-                try scheduleMeeting(arguments: arguments, in: context())
+                try undoingOnFailure(context()) { try scheduleMeeting(arguments: arguments, in: $0) }
             }
         )
     }
@@ -86,7 +86,6 @@ extension MCPNotebookTools {
             context: modelContext
         )
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The meeting could not be booked.")
         }
         return receipt(for: booking, student: student, day: day, in: modelContext)

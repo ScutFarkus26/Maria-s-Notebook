@@ -2,7 +2,6 @@ import OSLog
 import SwiftUI
 import CoreData
 
-// swiftlint:disable:next type_body_length
 struct NewProjectSessionSheet: View {
     private static let logger = Logger.projects
     let club: CDProject
@@ -251,18 +250,23 @@ struct NewProjectSessionSheet: View {
     /// Creates uniform works for all members
     private func createUniformWorks(session: CDProjectSession, scheduledDay: Date) {
         let lessonUUID = resolveGenericProjectLessonID(context: managedObjectContext)
+        let assignmentService = SessionWorkAssignmentService(context: managedObjectContext)
 
         // The member list keeps every child ever added; only those still in the
         // class get check-in work.
         for sid in SessionWorkAssignmentService.enrolledMemberIDs(of: club, in: managedObjectContext) {
-            createWork(
-                studentID: sid,
-                lessonID: lessonUUID,
-                sessionID: session.id ?? UUID(),
-                scheduledDate: scheduledDay,
-                title: "\(club.title): Follow-Up",
-                instructions: defaultFollowUpInstructions
-            )
+            do {
+                try assignmentService.createUniformWork(
+                    session: session,
+                    studentID: sid,
+                    lessonID: lessonUUID,
+                    title: "\(club.title): Follow-Up",
+                    instructions: defaultFollowUpInstructions,
+                    scheduledDate: scheduledDay
+                )
+            } catch {
+                Self.logger.warning("Failed to create CDWorkModel for project session: \(error)")
+            }
         }
     }
 
@@ -270,48 +274,6 @@ struct NewProjectSessionSheet: View {
         let items = agendaItems.map { $0.trimmed() }.filter { !$0.isEmpty }
         guard !items.isEmpty else { return "See project check-in notes." }
         return items.joined(separator: "\n")
-    }
-
-    // swiftlint:disable:next function_parameter_count
-    private func createWork(
-        studentID: String,
-        lessonID: UUID,
-        sessionID: UUID,
-        scheduledDate: Date,
-        title: String,
-        instructions: String
-    ) {
-        guard let studentUUID = UUID(uuidString: studentID) else { return }
-
-        let repository = WorkRepository(context: managedObjectContext)
-        do {
-            let workModel = try repository.createWork(
-                studentID: studentUUID,
-                lessonID: lessonID,
-                title: title,
-                kind: .followUpAssignment,
-                presentationID: nil,
-                scheduledDate: scheduledDate
-            )
-            // Link the work to its originating project session so it appears under that
-            // project/session — the Projects views filter work by sourceContextID.
-            workModel.sourceContextID = sessionID.uuidString
-
-            if !instructions.isEmpty {
-                workModel.setLegacyNoteText(instructions, in: managedObjectContext)
-            }
-
-            let checkInService = WorkCheckInService(context: managedObjectContext)
-            try checkInService.createCheckIn(
-                for: workModel,
-                date: scheduledDate,
-                status: .scheduled,
-                purpose: "Due Date",
-                note: ""
-            )
-        } catch {
-            Self.logger.warning("Failed to create CDWorkModel for project session: \(error)")
-        }
     }
 
     private func resolveGenericProjectLessonID(context: NSManagedObjectContext) -> UUID {

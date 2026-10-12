@@ -97,7 +97,7 @@ extension MCPNotebookTools {
             inputSchema: updateGuardianSchema,
             annotations: .idempotentWrite,
             handler: { arguments in
-                try rollingBackOnFailure(context()) { try updateGuardian(arguments: arguments, in: $0) }
+                try undoingOnFailure(context()) { try updateGuardian(arguments: arguments, in: $0) }
             }
         )
     }
@@ -172,11 +172,9 @@ extension MCPNotebookTools {
             throw MCPToolError("Nothing to change — pass at least one field.")
         }
         guard guardian.name.trimmed().isEmpty == false else {
-            modelContext.rollback()
             throw MCPToolError("A guardian needs a name.")
         }
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The guardian could not be saved.")
         }
         let id = guardian.id?.uuidString ?? "unknown"

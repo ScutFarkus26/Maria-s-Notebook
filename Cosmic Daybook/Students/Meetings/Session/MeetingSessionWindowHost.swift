@@ -14,7 +14,9 @@ struct MeetingSessionWindowHost: View {
     var body: some View {
         ScheduledMeetingSessionSheet(studentID: payload.studentID) {
             if let meetingID = payload.scheduledMeetingID {
-                MeetingScheduler.clearMeeting(id: meetingID, context: viewContext)
+                MeetingScheduler.clearMeeting(
+                    id: meetingID, completedFor: payload.studentID, context: viewContext
+                )
             }
             dismissWindow(id: "MeetingSessionWindow", value: payload)
         }

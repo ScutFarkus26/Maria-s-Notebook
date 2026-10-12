@@ -129,7 +129,10 @@ struct WorkDeletionServiceTests {
         let context = try CoreDataTestHelpers.makeContext()
         let only = UUID()
         let work = seedSharedRow(in: context, owner: only, passengers: [])
+        let session = CDProjectSession(context: context)
+        session.assignmentMode = .choice
         work.sourceContextType = .projectSession
+        work.sourceContextID = session.id?.uuidString ?? ""
         CoreDataTestHelpers.save(context)
 
         try WorkDeletionService(context: context).remove(studentID: only, from: work)

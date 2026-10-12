@@ -8,6 +8,7 @@ run `docs-index`; edit only the Other documents section by hand.
 
 | Plan | What it is | Status | Date |
 |---|---|---|---|
+| [Plan - Bug hunt 2026-10-11 fixes](<Plans/Plan - Bug hunt 2026-10-11 fixes.md>) | fix every finding with nine fix agents in rolling waves of at most four, each owning its own files, then review the combined change, fix what the review finds with fresh small agents, and land it on main without rolling out. | Not started | 2026-10-11 |
 | [Plan - Daybook Assistant bug fixes](<Plans/Plan - Daybook Assistant bug fixes.md>) | Fixes for the ~50 findings of the 2026-10-04 Daybook Assistant bug hunt, in six phases. | Working on it | 2026-10-05 |
 | [Plan - Debug builds open a fake notebook](<Plans/Plan - Debug builds open a fake notebook.md>) | Debug builds open a fake, local-only notebook; the real one only through the Real Notebook scheme. | Not started | 2026-10-04 |
 | [Plan - Name list freeze fix](<Plans/Plan - Name list freeze fix.md>) | stop the name list from asking iCloud questions on the main thread, which froze the app until iOS killed it. | Working on it | 2026-10-06 |
@@ -84,7 +85,7 @@ Cosmic Daybook (the notebook app for macOS, iPad and iPhone) and the Daybook Ass
   - [ADR-003](<Technical notes/Decision records/ADR-003-repository-pattern.md>): when to use repositories versus `@FetchRequest` (accepted 2026-01).
   - [ADR-004](<Technical notes/Decision records/ADR-004-dependency-injection.md>): dependency injection through `AppDependencies` (accepted 2026-02).
 - [Performance baselines](<Technical notes/Performance baselines/>): 16 dated performance measurements (2026-09-04 to 2026-09-29): clean build, launch, energy waves, build-speed levers. Covers both apps.
-- [Reviews](<Reviews/>): [2026-10-02](<Reviews/Organization audit 2026-10-02.md>) is the organization audit of the repo with the changes applied; [2026-10-05](<Reviews/Sync and sharing bug hunt 2026-10-05.md>) is the sync and sharing bug hunt (findings only, nothing fixed yet).
+- [Reviews](<Reviews/>): [2026-10-02](<Reviews/Organization audit 2026-10-02.md>) is the organization audit of the repo with the changes applied; [2026-10-05](<Reviews/Sync and sharing bug hunt 2026-10-05.md>) is the sync and sharing bug hunt (findings only, nothing fixed yet). [2026-10-11](<Reviews/Bug hunt 2026-10-11.md>) is the hunt over the oldest code no earlier hunt had read (findings only, nothing fixed yet).
 
 ### Manuals (these stay in `Documentation/`)
 

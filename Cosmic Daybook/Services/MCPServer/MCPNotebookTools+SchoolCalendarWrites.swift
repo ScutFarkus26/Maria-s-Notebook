@@ -26,7 +26,7 @@ extension MCPNotebookTools {
             inputSchema: setSchoolDaysSchema,
             annotations: .idempotentWrite,
             handler: { arguments in
-                try setSchoolDays(arguments: arguments, in: context())
+                try undoingOnFailure(context()) { try setSchoolDays(arguments: arguments, in: $0) }
             }
         )
     }
@@ -124,11 +124,9 @@ extension MCPNotebookTools {
                 tally.record(change, on: day)
             }
         } catch {
-            modelContext.rollback()
             throw MCPToolError("The calendar could not be read", underlying: error)
         }
         if tally.wroteSomething, !modelContext.safeSave() {
-            modelContext.rollback()
             throw MCPToolError("The calendar change could not be saved.")
         }
         return tally.lines(state: inSession ? "in session" : "no school", reason: reason)

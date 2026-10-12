@@ -71,7 +71,13 @@ extension WeekPlanSection {
     ) -> String {
         let moved: String
         switch daysRearranged {
-        case 0: moved = "Nothing to rearrange on these days."
+        case 0:
+            // Nothing moved because nothing could, not because nothing was
+            // wrong: the one-day wording, so the sentence naming who is still
+            // doubled up doesn't contradict it.
+            moved = unresolved.isEmpty
+                ? "Nothing to rearrange on these days."
+                : DayBalanceService.halvesNotEnoughSentence
         case 1: moved = "Rearranged 1 day."
         default: moved = "Rearranged \(daysRearranged) days."
         }

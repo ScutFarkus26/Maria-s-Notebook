@@ -58,7 +58,7 @@ extension MCPNotebookTools {
             ],
             annotations: .idempotentWrite,
             handler: { arguments in
-                try updateYearPlanEntry(arguments: arguments, in: context())
+                try undoingOnFailure(context()) { try updateYearPlanEntry(arguments: arguments, in: $0) }
             }
         )
     }
@@ -112,7 +112,6 @@ extension MCPNotebookTools {
         }
 
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The year-plan entry could not be saved.")
         }
         let lessons: [UUID: String] = lessonNameIndex(in: modelContext)
@@ -144,7 +143,7 @@ extension MCPNotebookTools {
             ],
             annotations: .destructive,
             handler: { arguments in
-                try skipYearPlanEntries(arguments: arguments, in: context())
+                try undoingOnFailure(context()) { try skipYearPlanEntries(arguments: arguments, in: $0) }
             }
         )
     }
@@ -174,7 +173,6 @@ extension MCPNotebookTools {
         let skipped = StudentDeparturePlans.skip(entries: entries)
 
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The year-plan entries could not be saved.")
         }
         let behindNote = behind > 0 ? " \(behind) of them had gone behind pace." : ""

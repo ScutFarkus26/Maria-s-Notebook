@@ -21,6 +21,7 @@ struct WorksAgendaView: View {
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.calendar) var calendar
     @Environment(\.appRouter) var appRouter
+    @Environment(\.quickCaptureActions) var quickCapture
     @Environment(\.dependencies) var dependencies
     @Environment(SaveCoordinator.self) var saveCoordinator
     @Environment(RestoreCoordinator.self) private var restoreCoordinator
@@ -43,12 +44,6 @@ struct WorksAgendaView: View {
     }())
     var openWork: FetchedResults<CDWorkModel>
 
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkCheckIn.date, ascending: true)],
-        predicate: NSPredicate(format: "statusRaw == %@", "Scheduled")
-    )
-    var scheduledCheckIns: FetchedResults<CDWorkCheckIn>
-
     // PERF: Use lightweight count-based change detection instead of loading full tables.
     @State var lessonChangeToken: Int = 0
     @State var studentChangeToken: Int = 0
@@ -56,18 +51,21 @@ struct WorksAgendaView: View {
     // Lazy-loaded caches (only populated when needed)
     @State var lessonsByIDCache: [UUID: CDLesson] = [:]
     @State var studentsByIDCache: [UUID: CDStudent] = [:]
-    /// The enrolled roster, for the Work half's column of children. Not the
-    /// same list as `studentsByIDCache`, which holds only the owners of work on
-    /// screen and keeps withdrawn children so their cards still have a name —
-    /// this one is who the guide is teaching, including everyone with nothing.
-    @State var rosterStudents: [CDStudent] = []
     /// School days since the guide last touched anything of each child's, and
     /// by its keys, who has anything open at all. Built on the same debounced
     /// path as `partition`, never in a `body` pass: it walks every open item's
     /// check-ins and notes and then counts school days.
     @State var quietDaysByStudent: [UUID: Int] = [:]
+    /// Each open item's age in school days since it was last touched — the
+    /// number its card shows — built with `quietDaysByStudent` so the printed
+    /// sheet can say the same.
+    @State var workAgeByID: [UUID: Int] = [:]
     /// The child the Work half's column is narrowing the grid to.
     @State var workStudentFilter: UUID?
+    /// Whose each open row is, read per linked group, for the column and its
+    /// child filter. Built with `partition`, on the same debounced path: it
+    /// fetches every row on the open work's lessons.
+    @State var workVisibility = WorkVisibility(rows: [])
 
     /// Every record on screen, triaged once. The Attention list reads it, the
     /// card badges read it, and the picker's counts will. Rebuilt on the same

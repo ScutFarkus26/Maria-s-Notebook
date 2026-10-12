@@ -2,9 +2,9 @@
 //  OpenLessonIntent.swift
 //  Cosmic Daybook
 //
-//  Opens the Lessons library (and powers tapping a lesson in Spotlight search).
-//  Per-lesson deep-linking isn't wired in the router yet, so this lands on the
-//  Lessons list — still the right destination for "open lessons".
+//  Opens a lesson in the Lessons library (and powers tapping a lesson in
+//  Spotlight search), through the router's own lesson link, which Lessons
+//  picks up when it appears.
 //
 
 import AppIntents
@@ -21,7 +21,7 @@ struct OpenLessonIntent: OpenIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        AppRouter.shared.navigateTo(.lessons)
+        AppRouter.shared.navigateToLesson(target.id)
         return .result()
     }
 }

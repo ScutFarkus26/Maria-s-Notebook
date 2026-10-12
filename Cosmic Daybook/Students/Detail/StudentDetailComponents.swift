@@ -187,12 +187,20 @@ struct StudentInfoRows: View {
     /// pairs don't stretch across the full detail width.
     var useGrid: Bool = false
 
+    // With no birthday on file, birthday, age and grade read "—" rather than
+    // today's date, age 0 and a grade from today (bug hunt 2026-10-11, #31).
+    private static let notOnFile = "—"
+
     private var formattedBirthday: String {
-        DateFormatters.longDate.string(from: student.birthday ?? Date())
+        student.birthday.map { DateFormatters.longDate.string(from: $0) } ?? Self.notOnFile
     }
 
     private var ageDescription: String {
-        AgeUtils.verboseAgeString(for: student.birthday ?? Date())
+        student.birthday.map { AgeUtils.verboseAgeString(for: $0) } ?? Self.notOnFile
+    }
+
+    private var gradeDescription: String {
+        student.birthday.map { FloridaGradeCalculator.grade(for: $0).displayString } ?? Self.notOnFile
     }
 
     private func promotionDescription(from previous: CDStudent.Level) -> String {
@@ -241,7 +249,7 @@ struct StudentInfoRows: View {
         InfoRowView(icon: "gift", title: "Age", value: ageDescription)
         InfoRowView(
             icon: "graduationcap", title: "Florida Grade Equivalent",
-            value: FloridaGradeCalculator.grade(for: student.birthday ?? Date()).displayString
+            value: gradeDescription
         )
         if let previous = student.previousLevel {
             InfoRowView(icon: "arrow.up.circle", title: "Promoted", value: promotionDescription(from: previous))
@@ -259,45 +267,47 @@ struct AttendanceInfoRow: View {
     let student: CDStudent
     @Environment(\.managedObjectContext) private var viewContext
     
-    private var daysTardyThisSchoolYear: Int {
+    private var countsThisSchoolYear: SchoolYearCounts {
         do {
-            return try Self.schoolYearCount(of: .tardy, studentID: student.id, on: Date(), in: viewContext)
+            return try Self.schoolYearCounts(studentID: student.id, on: Date(), in: viewContext)
         } catch {
-            Self.logger.warning("Failed to fetch tardy records: \(error)")
-            return 0
+            Self.logger.warning("Failed to fetch attendance records: \(error)")
+            return SchoolYearCounts()
         }
     }
 
-    private var daysAbsentThisSchoolYear: Int {
-        do {
-            return try Self.schoolYearCount(of: .absent, studentID: student.id, on: Date(), in: viewContext)
-        } catch {
-            Self.logger.warning("Failed to fetch absent records: \(error)")
-            return 0
-        }
+    /// The badges' two figures for the school year containing `date`.
+    struct SchoolYearCounts: Equatable {
+        var tardy = 0
+        var absent = 0
     }
 
-    /// The student's records marked `status` in the school year containing
-    /// `date`, counted by the store: only the number is shown, so no row is
-    /// fetched. The predicate is the one the rows were fetched with plus
-    /// `statusRaw`, which is the in-memory `status ==` filter that used to run
-    /// over them — `status` reads an unknown raw value as `.unmarked`, so pass
-    /// any status but that one. `count(for:)` sees unsaved changes as the
-    /// fetch did.
-    static func schoolYearCount(
-        of status: AttendanceStatus, studentID: UUID?, on date: Date, in context: NSManagedObjectContext
-    ) throws -> Int {
+    /// The student's late arrivals and absences in the school year containing
+    /// `date`, one record per day (`deduplicatedPerStudentDay()`: two devices
+    /// marking the same day before syncing each made one), with late counted
+    /// by `cameLate`, so a child who came late and then left early was late
+    /// that day too — as the attendance history counts them (bug hunt
+    /// 2026-10-11, #34). Fetches the child's one year of rows (a few hundred
+    /// at most) once per body pass; unsaved changes are seen.
+    static func schoolYearCounts(
+        studentID: UUID?, on date: Date, in context: NSManagedObjectContext
+    ) throws -> SchoolYearCounts {
         let calendar = AppCalendar.shared
         let start = FloridaGradeCalculator.schoolYearStart(for: date, calendar: calendar)
-        guard let end = calendar.date(byAdding: .year, value: 1, to: start) else { return 0 }
+        guard let end = calendar.date(byAdding: .year, value: 1, to: start) else { return SchoolYearCounts() }
         let request = CDFetchRequest(CDAttendanceRecord.self)
         request.predicate = NSPredicate(
-            format: "studentID == %@ AND date >= %@ AND date < %@ AND statusRaw == %@",
-            studentID?.uuidString ?? "", start as CVarArg, end as CVarArg, status.rawValue
+            format: "studentID == %@ AND date >= %@ AND date < %@",
+            studentID?.uuidString ?? "", start as CVarArg, end as CVarArg
         )
-        return try context.count(for: request)
+        var counts = SchoolYearCounts()
+        for record in try context.fetch(request).deduplicatedPerStudentDay() {
+            if record.cameLate { counts.tardy += 1 }
+            if record.status == .absent { counts.absent += 1 }
+        }
+        return counts
     }
-    
+
     private func metricBadge(label: String, count: Int, color: Color) -> some View {
         StatusPill(
             text: "\(label) \(count)",
@@ -317,9 +327,10 @@ struct AttendanceInfoRow: View {
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
+            let counts = countsThisSchoolYear
             HStack(spacing: AppTheme.Spacing.small) {
-                metricBadge(label: "Tardy", count: daysTardyThisSchoolYear, color: .blue)
-                metricBadge(label: "Absent", count: daysAbsentThisSchoolYear, color: .red)
+                metricBadge(label: "Tardy", count: counts.tardy, color: .blue)
+                metricBadge(label: "Absent", count: counts.absent, color: .red)
             }
         }
     }

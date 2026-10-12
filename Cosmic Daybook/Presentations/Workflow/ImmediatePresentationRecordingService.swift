@@ -37,8 +37,6 @@ struct ImmediatePresentationRecordingService {
     /// same lesson never cause Undo to remove another presentation's history.
     struct UndoToken {
         let assignmentID: UUID
-        let presentedDay: Date
-        let createdHistoryCount: Int
 
         let assignmentObjectID: NSManagedObjectID
         let assignmentState: AssignmentStateSnapshot
@@ -235,8 +233,6 @@ private extension ImmediatePresentationRecordingService {
     ) -> UndoToken {
         UndoToken(
             assignmentID: preparation.assignmentID,
-            presentedDay: preparation.presentedDay,
-            createdHistoryCount: changes.createdHistoryRows.count,
             assignmentObjectID: assignment.objectID,
             assignmentState: preparation.assignmentState,
             createdHistoryObjectIDs: changes.createdHistoryRows.map(\.objectID),

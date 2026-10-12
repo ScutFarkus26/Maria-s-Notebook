@@ -161,23 +161,30 @@ nonisolated final class AppleIntelligenceCommandParser: Sendable {
         return containsMatches.count == 1 ? containsMatches[0].id : nil
     }
 
+    /// The children the names settle on, once each, and the names that settle
+    /// on nobody or on more than one child.
+    private func sortNames(_ names: [String], in students: [StudentData]) -> (resolved: [UUID], unresolved: [String]) {
+        var resolved: [UUID] = []
+        var unresolved: [String] = []
+        for name in names where !name.trimmed().isEmpty {
+            if let id = resolveUniqueStudentID(named: name, in: students) {
+                if !resolved.contains(id) { resolved.append(id) }
+            } else if !unresolved.contains(where: { $0.folded() == name.folded() }) {
+                unresolved.append(name)
+            }
+        }
+        return (resolved, unresolved)
+    }
+
     private func makeCaptureProposal(
         from generated: GeneratedClassroomCapture,
         input: String,
         students: [StudentData],
         lessons: [LessonData]
     ) -> CaptureProposal {
-        let allNames = generated.presentationStudentNames + generated.studentCaptures.map(\.studentName)
-        var resolvedIDs: [UUID] = []
-        var unresolvedNames: [String] = []
-
-        for name in allNames where !name.trimmed().isEmpty {
-            if let id = resolveUniqueStudentID(named: name, in: students) {
-                if !resolvedIDs.contains(id) { resolvedIDs.append(id) }
-            } else if !unresolvedNames.contains(where: { $0.folded() == name.folded() }) {
-                unresolvedNames.append(name)
-            }
-        }
+        let (resolvedIDs, unresolvedNames) = sortNames(
+            generated.presentationStudentNames + generated.studentCaptures.map(\.studentName), in: students
+        )
 
         var entries = resolvedIDs.compactMap { id -> StudentCaptureProposal? in
             guard let student = students.first(where: { $0.id == id }) else { return nil }
@@ -210,7 +217,7 @@ nonisolated final class AppleIntelligenceCommandParser: Sendable {
         entries.sort { (rosterOrder[$0.studentID] ?? .max) < (rosterOrder[$1.studentID] ?? .max) }
 
         let lessonName = generated.lessonName.trimmed()
-        return CaptureProposal(
+        var proposal = CaptureProposal(
             rawText: input,
             recordsPresentation: generated.recordsPresentation,
             lessonID: resolveLessonID(named: lessonName, in: lessons),
@@ -222,6 +229,31 @@ nonisolated final class AppleIntelligenceCommandParser: Sendable {
             unresolvedStudentNames: unresolvedNames,
             source: .appleIntelligence
         )
+        proposal.unplacedWords = Self.unplacedWords(
+            for: unresolvedNames, from: generated.studentCaptures, input: input
+        )
+        return proposal
+    }
+
+    /// What was said about each child the model named but the roster couldn't
+    /// place, kept until the guide picks who was meant. It used to be dropped
+    /// with her (bug hunt 2026-10-11 #46).
+    private static func unplacedWords(
+        for names: [String], from captures: [GeneratedStudentCapture], input: String
+    ) -> [String: UnplacedStudentWords] {
+        var words: [String: UnplacedStudentWords] = [:]
+        for capture in captures {
+            guard let name = names.first(where: { $0.folded() == capture.studentName.folded() }) else { continue }
+            let observation = isGrounded(capture.observationEvidence, in: input) ? capture.observation.trimmed() : ""
+            let followUp = isGrounded(capture.followUpEvidence, in: input) ? mapFollowUp(capture.followUp) : .none
+            guard !observation.isEmpty || followUp != .none else { continue }
+            words[name] = UnplacedStudentWords(
+                observation: observation,
+                followUp: followUp,
+                followUpDetail: followUp == .none ? "" : capture.followUpDetail.trimmed()
+            )
+        }
+        return words
     }
 
     private static func mapFollowUp(_ value: GeneratedCaptureFollowUp) -> CaptureFollowUp {

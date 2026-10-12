@@ -105,12 +105,6 @@ extension LessonsRootView {
             } label: {
                 Label("Bulk Entry…", systemImage: "square.grid.3x3")
             }
-
-            Button {
-                appRouter.requestImportLessons()
-            } label: {
-                Label("Import Lessons…", systemImage: "square.and.arrow.down")
-            }
         } label: {
             Label("Add", systemImage: "plus")
         }

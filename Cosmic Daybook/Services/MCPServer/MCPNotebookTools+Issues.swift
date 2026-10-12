@@ -132,7 +132,7 @@ extension MCPNotebookTools {
             inputSchema: updateIssueSchema,
             annotations: .idempotentWrite,
             handler: { arguments in
-                try rollingBackOnFailure(context()) { try updateIssue(arguments: arguments, in: $0) }
+                try undoingOnFailure(context()) { try updateIssue(arguments: arguments, in: $0) }
             }
         )
     }
@@ -208,7 +208,6 @@ extension MCPNotebookTools {
             throw MCPToolError("Nothing to change — pass at least one field.")
         }
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The issue could not be saved.")
         }
         let id: String = issue.id?.uuidString ?? "unknown"

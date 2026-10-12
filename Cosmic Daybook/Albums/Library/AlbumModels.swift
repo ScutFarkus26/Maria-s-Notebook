@@ -61,7 +61,9 @@ nonisolated struct AlbumOutlineNode: Identifiable, Hashable, Sendable {
 
 /// A flattened outline entry, in document order. Used to map any page to its lesson.
 nonisolated struct AlbumLessonRef: Identifiable, Hashable, Codable, Sendable {
-    var id: String { "\(pageIndex)-\(title)" }
+    /// A section and its first lesson can share a title and a page, so the
+    /// depth tells them apart.
+    var id: String { "\(pageIndex)-\(depth)-\(title)" }
     let title: String
     let pageIndex: Int
     let depth: Int
@@ -154,6 +156,8 @@ nonisolated struct AlbumSearchHit: Identifiable, Sendable {
 /// Page-content hits for one album, grouped under its title so the search
 /// screen can show them as a section.
 nonisolated struct AlbumPageGroup: Sendable {
+    /// The list's id for the section: two albums can clean up to one title.
+    let albumID: String
     let albumTitle: String
     let subject: AlbumSubject
     let hits: [AlbumSearchHit]

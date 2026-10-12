@@ -68,6 +68,10 @@ struct ClassAreaChecklistView: View {
                     context: viewContext, show: testStudents.show, namesRaw: testStudents.namesRaw
                 )
                 didFinishInitialLoad = true
+                takePendingSequenceJump()
+            }
+            .onChange(of: viewModel.pendingSequenceJump) { _, _ in
+                takePendingSequenceJump()
             }
             .sheet(item: $workTarget) { target in
                 QuickNewWorkItemSheet(
@@ -90,6 +94,15 @@ struct ClassAreaChecklistView: View {
                 guard let request else { return }
                 _ = appRouter.consumeChecklistLessonRequest()
                 viewModel.focusLesson(request.lessonID, area: request.area, context: viewContext)
+            }
+            // Likewise "View Class Progress" while the grid is up: switching the
+            // area reloads through `onChange(of: selectedArea)`, and the jump
+            // waits for the band to draw.
+            .onChange(of: appRouter.checklistFilterArea) { _, area in
+                guard area != nil, didFinishInitialLoad else { return }
+                let sequence = viewModel.consumeDeepLink(from: appRouter)
+                viewModel.applyFilters()
+                if let sequence { sequenceJump = ChecklistSequenceJump(sequence: sequence) }
             }
             .onChange(of: viewModel.selectedArea) { _, newValue in
                 // Skip during initial load — loadData already built the matrix

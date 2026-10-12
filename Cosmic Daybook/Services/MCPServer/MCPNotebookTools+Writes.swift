@@ -25,7 +25,7 @@ extension MCPNotebookTools {
             inputSchema: createObservationSchema,
             annotations: .write,
             handler: { arguments in
-                try recordObservation(arguments: arguments, in: context())
+                try undoingOnFailure(context()) { try recordObservation(arguments: arguments, in: $0) }
             }
         )
     }
@@ -55,9 +55,9 @@ extension MCPNotebookTools {
 
         let note = insertObservation(draft, in: modelContext)
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The observation could not be saved.")
         }
+        announceSavedNote(note.id)
         return "Recorded observation [note id=\(citationID(note.id))] about \(draft.names) "
             + "on \(dayString(draft.date))."
     }
@@ -90,7 +90,7 @@ extension MCPNotebookTools {
             ],
             annotations: .idempotentWrite,
             handler: { arguments in
-                try updateStudent(arguments: arguments, in: context())
+                try undoingOnFailure(context()) { try updateStudent(arguments: arguments, in: $0) }
             }
         )
     }
@@ -123,7 +123,6 @@ extension MCPNotebookTools {
             throw MCPToolError("The student record could not be updated.")
         }
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The student changes could not be saved.")
         }
         return "Updated \(student.fullName): \(edits.descriptions.joined(separator: ", "))."
@@ -201,7 +200,7 @@ extension MCPNotebookTools {
             inputSchema: updateObservationSchema,
             annotations: .idempotentWrite,
             handler: { arguments in
-                try updateObservation(arguments: arguments, in: context())
+                try undoingOnFailure(context()) { try updateObservation(arguments: arguments, in: $0) }
             }
         )
     }
@@ -276,9 +275,9 @@ extension MCPNotebookTools {
             needsFollowUp: edits.needsFollowUp
         )
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The observation changes could not be saved.")
         }
+        announceSavedNote(noteID)
         let linkNote = keptPresentationLink ? " Still linked to its presentation." : ""
         return "Updated observation [note id=\(idString)]: "
             + edits.descriptions.joined(separator: ", ") + ".\(linkNote)"

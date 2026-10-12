@@ -40,15 +40,16 @@ nonisolated enum AlbumSearchEngine {
                                         terms: [String], foldedQuery: String) -> [AlbumSearchHit] {
         var lessonHits: [AlbumSearchHit] = []
         for album in albums {
-            for lesson in album.lessons {
+            for (index, lesson) in album.lessons.enumerated() {
                 let folded = lesson.title.folded()
                 guard terms.allSatisfy({ folded.contains($0) }) else { continue }
                 var score = 100.0
                 if folded.contains(foldedQuery) { score += 40 }
                 if folded.hasPrefix(foldedQuery) { score += 30 }
                 score -= Double(folded.count) * 0.1
+                // By position in the outline: two entries can share a title and a page.
                 lessonHits.append(AlbumSearchHit(
-                    id: "lesson-\(album.id)-\(lesson.id)", kind: .lesson,
+                    id: "lesson-\(album.id)-\(index)", kind: .lesson,
                     albumID: album.id, albumTitle: album.title, subject: album.subject,
                     pageIndex: lesson.pageIndex, lessonTitle: lesson.title,
                     snippet: "", score: score))
@@ -64,7 +65,7 @@ nonisolated enum AlbumSearchEngine {
         for album in albums {
             let hits = pageHits(in: album, query: query, terms: terms, foldedQuery: foldedQuery)
             if !hits.isEmpty {
-                groups.append(AlbumPageGroup(albumTitle: album.title, subject: album.subject,
+                groups.append(AlbumPageGroup(albumID: album.id, albumTitle: album.title, subject: album.subject,
                                              hits: Array(hits.prefix(8))))
             }
         }

@@ -315,6 +315,8 @@ extension CoreDataStack {
         defaults.removeObject(forKey: UserDefaultsKeys.noteScopeIndexRepairDone)
         // ...and for multi-child notes missing their student links.
         defaults.removeObject(forKey: UserDefaultsKeys.noteStudentLinkRepairDone)
+        // ...and for project check-in work saved without its type.
+        defaults.removeObject(forKey: UserDefaultsKeys.projectWorkContextRepairDone)
         #endif
         clearLocalCacheResetRequest(in: defaults)
     }

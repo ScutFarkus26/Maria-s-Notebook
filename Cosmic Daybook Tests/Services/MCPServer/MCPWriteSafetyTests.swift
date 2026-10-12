@@ -30,9 +30,11 @@ struct MCPWriteSafetyTests {
     }
 
     /// A row missing a mandatory value, so the context's next save fails.
-    private func poisonNextSave(_ context: NSManagedObjectContext) {
+    @discardableResult
+    private func poisonNextSave(_ context: NSManagedObjectContext) -> CDLessonAssignment {
         let broken = CDLessonAssignment(context: context)
         broken.setValue(nil, forKey: "lessonID")
+        return broken
     }
 
     // MARK: - D12 / D13: a refused argument leaves nothing behind
@@ -111,7 +113,7 @@ struct MCPWriteSafetyTests {
         )
         _ = try LifecycleService.recordPresentation(from: given, presentedAt: daysAgo(3), modelContext: context)
         CoreDataTestHelpers.save(context)
-        poisonNextSave(context)
+        let unrelated = poisonNextSave(context)
 
         await #expect(throws: MCPToolError.self) {
             _ = try await tool(named: "mark_mastered", in: tools).handler([
@@ -121,7 +123,11 @@ struct MCPWriteSafetyTests {
 
         let rows = context.safeFetch(CDFetchRequest(CDLessonPresentation.self))
         #expect(rows.allSatisfy { $0.state != .proficient })
-        #expect(!context.hasChanges)
+        // Its own marks are taken back; the unsaved row that made the save
+        // fail isn't the tool's, so it stays (bug hunt 2026-10-11 #53).
+        #expect(context.insertedObjects == [unrelated])
+        #expect(context.updatedObjects.isEmpty)
+        #expect(context.deletedObjects.isEmpty)
     }
 
     @Test("RolloverService.apply: a failed save throws and changes nobody")

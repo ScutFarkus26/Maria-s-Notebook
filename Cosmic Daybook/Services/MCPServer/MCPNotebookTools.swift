@@ -191,17 +191,26 @@ enum MCPNotebookTools {
         ]
     }
 
-    /// Runs a write that can refuse an argument part-way through. A refusal
-    /// after an earlier field was applied would leave that edit pending in the
-    /// shared view context, to be saved by the next unrelated save; so any
-    /// throw rolls the context back first.
-    static func rollingBackOnFailure<Result>(
+    /// Runs one write and keeps it only if it finishes. A refusal part-way
+    /// through, or a failed save, undoes exactly what the write changed
+    /// (`MCPWriteScope`): an edit applied before the refusal isn't left
+    /// pending for the next unrelated save, and the guide's own unsaved edits
+    /// in the shared view context are left alone, where `rollback()` threw
+    /// them away too (bug hunt 2026-10-11 #53).
+    ///
+    /// The write must be synchronous (an `await` would let her edits land
+    /// inside the scope) and must not open another scope, or run a service
+    /// with its own `ContextMutationTransaction`: they don't nest.
+    static func undoingOnFailure<Result>(
         _ modelContext: NSManagedObjectContext, _ write: (NSManagedObjectContext) throws -> Result
     ) throws -> Result {
+        let scope = MCPWriteScope(context: modelContext)
         do {
-            return try write(modelContext)
+            let result = try write(modelContext)
+            scope.commit()
+            return result
         } catch {
-            modelContext.rollback()
+            scope.undo()
             throw error
         }
     }
@@ -217,28 +226,36 @@ extension MCPNotebookTools {
         date.map { isoDay.string(from: $0) } ?? "undated"
     }
 
-    /// Resolves a student by first name, full name, or nickname
-    /// (diacritic- and case-insensitive), mirroring NotebookTools'
-    /// resolver. Ambiguity and misses throw tool errors the model can
-    /// relay to the teacher.
+    /// Resolves a student by first name, full name, short name ("Maya S",
+    /// the form the app uses when two children share a first name, with or
+    /// without a period) or nickname, diacritic- and case-insensitive,
+    /// mirroring NotebookTools' resolver. A full or short name settles a
+    /// first name two children share. Ambiguity and misses throw tool errors
+    /// the model can relay to the teacher.
     static func resolveStudent(named name: String, in context: NSManagedObjectContext) throws -> CDStudent {
-        let token = name.folded()
+        var token = name.folded()
+        if token.hasSuffix(".") { token.removeLast() }
         guard !token.isEmpty else {
             throw MCPToolError("A student name is required.")
         }
-        let matches = context.safeFetch(CDFetchRequest(CDStudent.self)).filter { student in
-            let first = student.firstName.folded()
-            let full = student.fullName.folded()
-            let nickname = (student.nickname ?? "").folded()
-            return token == first || token == full || (!nickname.isEmpty && token == nickname)
+        let students = context.safeFetch(CDFetchRequest(CDStudent.self))
+        let byWholeName = students.filter { student in
+            token == student.fullName.folded() || token == student.shortName.folded()
         }
+        let matches = byWholeName.isEmpty
+            ? students.filter { student in
+                let nickname = (student.nickname ?? "").folded()
+                return token == student.firstName.folded() || (!nickname.isEmpty && token == nickname)
+            }
+            : byWholeName
         guard !matches.isEmpty else {
             throw MCPToolError("No student named \"\(name)\" was found.")
         }
         guard matches.count == 1, let student = matches.first else {
-            let names = matches.map(\.fullName).sorted().joined(separator: ", ")
+            let names = matches.map { "\($0.fullName) (\($0.shortName))" }.sorted().joined(separator: ", ")
             throw MCPToolError(
-                "More than one student matches \"\(name)\": \(names). Ask which student the guide means."
+                "More than one student matches \"\(name)\": \(names). Ask which student the guide means, "
+                    + "then pass that child's full name or the short name shown."
             )
         }
         return student

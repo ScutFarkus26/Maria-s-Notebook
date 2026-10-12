@@ -156,10 +156,20 @@ struct ResourceLibraryView: View {
         }
     }
 
+    /// What select mode acts on (`ResourceSelection`).
+    var resourceSelection: ResourceSelection {
+        ResourceSelection(visibleIDs: filteredResources.compactMap(\.id), selectedIDs: selectedResourceIDs)
+    }
+
+    /// How many ticked resources the filter shows: the "N selected" count.
+    var selectedCount: Int { resourceSelection.actedOnIDs.count }
+
+    /// The ticked resources the filter shows: what the bulk actions change.
     var selectedResources: [CDResource] {
-        allResources.filter { resource in
+        let acted = resourceSelection.actedOnIDs
+        return filteredResources.filter { resource in
             guard let resourceID = resource.id else { return false }
-            return selectedResourceIDs.contains(resourceID)
+            return acted.contains(resourceID)
         }
     }
 
@@ -184,7 +194,7 @@ struct ResourceLibraryView: View {
     private var resourceLibraryToolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
             if isSelectMode {
-                Text("\(selectedResourceIDs.count) selected")
+                Text("\(selectedCount) selected")
                     .foregroundStyle(.secondary)
 
                 Button(resourceSelectionButtonTitle) {
@@ -207,7 +217,7 @@ struct ResourceLibraryView: View {
                         showingBulkDeleteConfirmation = true
                     }
                 }
-                .disabled(selectedResourceIDs.isEmpty)
+                .disabled(selectedCount == 0)
 
                 Button("Done") { exitSelectMode() }
             } else {
@@ -234,19 +244,11 @@ struct ResourceLibraryView: View {
     }
 
     private var resourceSelectionButtonTitle: String {
-        let allFilteredSelected = !filteredResources.isEmpty
-            && selectedResourceIDs.count == filteredResources.count
-        return allFilteredSelected ? "Deselect All" : "Select All"
+        resourceSelection.allVisibleSelected ? "Deselect All" : "Select All"
     }
 
     private func toggleAllFilteredResources() {
-        let allFilteredSelected = !filteredResources.isEmpty
-            && selectedResourceIDs.count == filteredResources.count
-        if allFilteredSelected {
-            selectedResourceIDs.removeAll()
-        } else {
-            selectedResourceIDs = Set(filteredResources.compactMap(\.id))
-        }
+        selectedResourceIDs = resourceSelection.togglingAll()
     }
     #endif
 
@@ -257,7 +259,7 @@ struct ResourceLibraryView: View {
                 HStack(spacing: 12) {
                     if isSelectMode {
                         // Bulk mode controls
-                        Text("\(selectedResourceIDs.count) selected")
+                        Text("\(selectedCount) selected")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 
@@ -369,7 +371,7 @@ struct ResourceLibraryView: View {
             categoryPickerSheet(for: resource)
         }
         .confirmationDialog(
-            "Delete \(selectedResourceIDs.count) Resource\(selectedResourceIDs.count == 1 ? "" : "s")?",
+            "Delete \(selectedCount) Resource\(selectedCount == 1 ? "" : "s")?",
             isPresented: $showingBulkDeleteConfirmation,
             titleVisibility: .visible
         ) {

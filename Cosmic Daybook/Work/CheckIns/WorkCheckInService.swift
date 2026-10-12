@@ -47,6 +47,35 @@ struct WorkCheckInService {
         }
     }
 
+    /// Puts a work item on `day` to be checked: its earliest check-in still
+    /// marked Scheduled moves there, or one is made, and the due date follows
+    /// so the two never drift. The Work grid's Schedule and a child's overview
+    /// card both write through here. Does not save.
+    ///
+    /// A finished check-in, and the note on it, stays on the day it happened.
+    /// Open work usually carries one — logging "keep working" completes that
+    /// day's — and taking the earliest of any status moved it to the new day,
+    /// rewriting history and leaving nothing new on the calendar.
+    @discardableResult
+    func scheduleCheck(for work: CDWorkModel, on day: Date) -> CDWorkCheckIn {
+        let checkDay = AppCalendar.startOfDay(day)
+        work.dueAt = checkDay
+        let earliest = WorkLogService.scheduledCheckIns(of: work, in: context).min { lhs, rhs in
+            let lhsDate = lhs.date ?? .distantFuture
+            let rhsDate = rhs.date ?? .distantFuture
+            if lhsDate != rhsDate { return lhsDate < rhsDate }
+            return (lhs.id?.uuidString ?? "") < (rhs.id?.uuidString ?? "")
+        }
+        guard let earliest else {
+            return CDWorkCheckIn.make(
+                for: work, on: checkDay, purpose: CheckInReason.progressCheck.rawValue, in: context
+            )
+        }
+        earliest.date = checkDay
+        if earliest.work == nil { earliest.work = work }
+        return earliest
+    }
+
     /// Reschedule a check-in and persist immediately.
     func reschedule(_ checkIn: CDWorkCheckIn, to date: Date, note: String? = nil) throws {
         checkIn.date = date

@@ -85,10 +85,13 @@ extension JSONValue {
         return nil
     }
 
+    /// A whole number, or nil. `Int(exactly:)` turns down a fraction, NaN,
+    /// infinity and anything past `Int`'s range, where `Int(_:)` trapped and
+    /// took the app down (`"limit": 1e20`, bug hunt 2026-10-11 #52).
     var intValue: Int? {
         switch self {
         case .int(let value): return value
-        case .double(let value) where value.truncatingRemainder(dividingBy: 1) == 0: return Int(value)
+        case .double(let value): return Int(exactly: value)
         default: return nil
         }
     }

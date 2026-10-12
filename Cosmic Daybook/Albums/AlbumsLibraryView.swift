@@ -153,7 +153,7 @@ private struct AlbumRecentCard: View {
             nav.jump(albumID: visit.albumID, pageIndex: Int(visit.pageIndex))
         } label: {
             VStack(alignment: .leading, spacing: 6) {
-                Label(album?.title ?? visit.albumID,
+                Label(album?.title ?? Album.title(forID: visit.albumID),
                       systemImage: album?.subject.symbol ?? "doc.fill")
                     .font(.caption.bold())
                     .foregroundStyle(album?.subject.color ?? .gray)

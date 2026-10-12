@@ -11,16 +11,27 @@ import AppKit
 enum ResourceDocumentActions {
     private static let logger = Logger.resources
 
-    static func open(_ resource: CDResource) {
-        Task { await openWhenReady(resource) }
+    /// How a request to open or print a resource's file went.
+    enum Outcome {
+        /// The file was handed to the system to open, share or print.
+        case shown
+        /// The file isn't on this device: moved, deleted, or never downloaded.
+        case fileMissing
+        /// There was no window to show it in.
+        case notShown
     }
 
-    private static func openWhenReady(_ resource: CDResource) async {
-        guard let url = await exportableFileURL(for: resource) else { return }
+    /// Opens the file (Share on iPhone and iPad); `completion` hears how it went.
+    static func open(_ resource: CDResource, completion: @escaping (Outcome) -> Void = { _ in }) {
+        Task { completion(await openWhenReady(resource)) }
+    }
+
+    private static func openWhenReady(_ resource: CDResource) async -> Outcome {
+        guard let url = await exportableFileURL(for: resource) else { return .fileMissing }
         #if os(macOS)
-        NSWorkspace.shared.open(url)
+        guard NSWorkspace.shared.open(url) else { return .notShown }
         #else
-        guard let (window, presenter) = activePresentationContext() else { return }
+        guard let (window, presenter) = activePresentationContext() else { return .notShown }
         let activityController = UIActivityViewController(
             activityItems: [url],
             applicationActivities: nil
@@ -36,14 +47,16 @@ enum ResourceDocumentActions {
         }
         presenter.present(activityController, animated: true)
         #endif
+        return .shown
     }
 
-    static func print(_ resource: CDResource) {
-        Task { await printWhenReady(resource) }
+    /// Prints the file; `completion` hears how it went.
+    static func print(_ resource: CDResource, completion: @escaping (Outcome) -> Void = { _ in }) {
+        Task { completion(await printWhenReady(resource)) }
     }
 
-    private static func printWhenReady(_ resource: CDResource) async {
-        guard let url = await exportableFileURL(for: resource) else { return }
+    private static func printWhenReady(_ resource: CDResource) async -> Outcome {
+        guard let url = await exportableFileURL(for: resource) else { return .fileMissing }
         #if os(iOS)
         let printController = UIPrintInteractionController.shared
         let printInfo = UIPrintInfo(dictionary: nil)
@@ -72,7 +85,7 @@ enum ResourceDocumentActions {
                 scalingMode: .pageScaleNone,
                 autoRotate: true
               ) else {
-            return
+            return .fileMissing
         }
 
         printInfo.topMargin = 36
@@ -87,6 +100,7 @@ enum ResourceDocumentActions {
             operation.run()
         }
         #endif
+        return .shown
     }
 
     /// The file to hand to Open, Share or Print, once it is on this device (an
@@ -96,6 +110,10 @@ enum ResourceDocumentActions {
         do {
             let stored = try ResourceFileStorage.resolve(relativePath: resource.fileRelativePath)
             let url = await UbiquitousFile.localURL(for: stored)
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                logger.warning("A resource's file isn't on this device")
+                return nil
+            }
             #if os(macOS)
             return url
             #else

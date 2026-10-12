@@ -62,7 +62,7 @@ extension MCPNotebookTools {
             ],
             annotations: .destructive,
             handler: { arguments in
-                try discardPresentation(arguments: arguments, in: context())
+                try undoingOnFailure(context()) { try discardPresentation(arguments: arguments, in: $0) }
             }
         )
     }
@@ -91,7 +91,6 @@ extension MCPNotebookTools {
         PresentationRecordCleanup.prepareToDelete(assignment, in: modelContext)
         modelContext.delete(assignment)
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The presentation could not be discarded.")
         }
         return "Discarded.\n\n" + report.joined(separator: "\n")
@@ -140,7 +139,7 @@ extension MCPNotebookTools {
             ],
             annotations: .idempotentWrite,
             handler: { arguments in
-                try updatePresentationRoster(arguments: arguments, in: context())
+                try undoingOnFailure(context()) { try updatePresentationRoster(arguments: arguments, in: $0) }
             }
         )
     }
@@ -198,7 +197,6 @@ extension MCPNotebookTools {
         assignment.confirmedStudentIDs = assignment.confirmedStudentIDs.filter { roster.contains($0) }
         assignment.modifiedAt = Date()
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The presentation could not be saved.")
         }
         let id: String = assignment.id?.uuidString ?? "unknown"

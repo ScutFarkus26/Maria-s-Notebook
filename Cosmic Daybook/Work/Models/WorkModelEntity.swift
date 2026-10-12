@@ -104,6 +104,11 @@ nonisolated extension CDWorkModel {
         set { kindRaw = newValue?.rawValue }
     }
 
+    /// The kind screens show and filter by: untagged work is Practice
+    /// everywhere — card, list, log, filters and detail. The card and the
+    /// log used to call it a Project while the filter called it Practice.
+    var displayKind: WorkKind { kind ?? .practiceLesson }
+
     /// The row's one verdict. `completionOutcomeRaw` is legacy — folded into
     /// this by `WorkStatusMigration` and read by nothing else. Setting a status
     /// clears it: left on a row reopened and marked Done, it folded Done back

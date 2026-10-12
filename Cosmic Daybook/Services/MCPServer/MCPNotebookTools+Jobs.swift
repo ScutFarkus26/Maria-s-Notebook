@@ -104,7 +104,7 @@ extension MCPNotebookTools {
             ],
             annotations: .idempotentWrite,
             handler: { arguments in
-                try assignJob(arguments: arguments, in: context())
+                try undoingOnFailure(context()) { try assignJob(arguments: arguments, in: $0) }
             }
         )
     }
@@ -127,7 +127,6 @@ extension MCPNotebookTools {
         if arguments["clear"]?.boolValue == true {
             existing.forEach { modelContext.delete($0) }
             guard modelContext.safeSave() else {
-                modelContext.rollback()
                 throw MCPToolError("The roster could not be cleared.")
             }
             return "Cleared \(job.name) for the week of \(dayString(weekStart))."
@@ -159,7 +158,6 @@ extension MCPNotebookTools {
         assignment.job = job
 
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The job assignment could not be saved.")
         }
         return "Gave \(job.name) to \(student.fullName) for the week of \(dayString(weekStart))."

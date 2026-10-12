@@ -232,6 +232,15 @@ final class PresentationDetailViewModel {
                 // "Previously Presented" is intentionally historical and
                 // undated; never substitute today's date for missing knowledge.
                 lessonAssignment.markPreviouslyPresented()
+                // The two cleanups `recordPresentation` runs, neither of which
+                // needs a date: entries promoted into this plan for another
+                // lesson go back to planned, and the children come off any
+                // other plan for this lesson, so Maya isn't taught it again
+                // on Thursday.
+                PresentationRecordCleanup.returnEntriesForOtherLessons(
+                    promotedInto: lessonAssignment, in: viewContext
+                )
+                YearPlanReleaseService.releaseRedundantPlans(after: lessonAssignment, in: viewContext)
             }
 
             updateProficiencyState(

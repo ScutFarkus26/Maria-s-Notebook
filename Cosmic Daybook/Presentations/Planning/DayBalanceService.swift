@@ -94,8 +94,18 @@ enum DayBalanceService {
             if let when = assignment.scheduledFor { previous[id] = when }
         }
 
+        // A card the balancer left in its half keeps a time the guide set
+        // (10:30 through Claude); a card it moved takes a slot in the other.
+        let placements = outcome.placements.map { placement in
+            var placement = placement
+            if let current = byID[placement.id]?.scheduledFor,
+               DayPeriod(scheduledFor: current, using: calendar) == placement.period {
+                placement.keptTime = DayHalfPlanner.keptTime(of: current, using: calendar)
+            }
+            return placement
+        }
         let times = DayHalfPlanner.times(
-            for: outcome.placements,
+            for: placements,
             on: day,
             using: calendar,
             spacingSeconds: UIConstants.scheduleSpacingSeconds
@@ -156,12 +166,15 @@ enum DayBalanceService {
         }
     }
 
+    /// Why nothing moved on a day that still has a clash: two halves have no
+    /// answer for it. The week-wide Balance's toast says the same.
+    static let halvesNotEnoughSentence =
+        "Morning and afternoon aren't enough to give everyone one lesson at a time."
+
     private static func movedSentence(_ result: Result) -> String? {
         switch (result.movedToMorning, result.movedToAfternoon) {
         case (0, 0):
-            return result.isClean
-                ? "Nothing to rearrange."
-                : "Morning and afternoon aren't enough to give everyone one lesson at a time."
+            return result.isClean ? "Nothing to rearrange." : halvesNotEnoughSentence
         case (0, let afternoon):
             return "Moved \(lessons(afternoon)) to the afternoon."
         case (let morning, 0):

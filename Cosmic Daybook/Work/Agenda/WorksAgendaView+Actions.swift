@@ -63,26 +63,7 @@ extension WorksAgendaView {
     /// parameter now because the same write serves the Schedule menu and the
     /// calendar the selection bar opens.
     func schedule(_ w: CDWorkModel, on day: Date) {
-        let checkDay = AppCalendar.startOfDay(day)
-        let workIDString = w.id?.uuidString ?? ""
-        let request = CDFetchRequest(CDWorkCheckIn.self)
-        request.predicate = NSPredicate(format: "workID == %@", workIDString)
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkCheckIn.date, ascending: true)]
-        request.fetchLimit = 1
-        let existing: CDWorkCheckIn?
-        do {
-            existing = try viewContext.fetch(request).first
-        } catch {
-            Self.logger.warning("Failed to fetch CDWorkCheckIn: \(error)")
-            existing = nil
-        }
-        if let existing {
-            existing.date = checkDay
-            if existing.work == nil { existing.work = w }
-        } else {
-            CDWorkCheckIn.make(for: w, on: checkDay, purpose: "progressCheck", in: viewContext)
-        }
-        w.dueAt = checkDay
+        WorkCheckInService(context: viewContext).scheduleCheck(for: w, on: day)
         saveCoordinator.save(viewContext, reason: "Quick schedule work check")
     }
 

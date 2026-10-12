@@ -23,7 +23,7 @@ extension WorksAgendaView {
 
         ToolbarItemGroup(placement: .primaryAction) {
             Button {
-                appRouter.requestNewWork()
+                newWorkInThisWindow()
             } label: {
                 Label("New Work", systemImage: "plus")
             }
@@ -87,7 +87,7 @@ extension WorksAgendaView {
                     }
 
                     Button {
-                        appRouter.requestNewWork()
+                        newWorkInThisWindow()
                     } label: {
                         Image(systemName: "plus")
                     }
@@ -168,5 +168,16 @@ extension WorksAgendaView {
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(isCalendarExpanded ? "Hide the schedule" : "Show the schedule")
+    }
+
+    /// New Work opens in this window only: the router's request was obeyed by
+    /// every open window (bug hunt 2026-10-11 #5). A window outside RootView
+    /// has no per-window actions and falls back to the request.
+    func newWorkInThisWindow() {
+        if let quickCapture {
+            quickCapture.newWork()
+        } else {
+            appRouter.requestNewWork()
+        }
     }
 }

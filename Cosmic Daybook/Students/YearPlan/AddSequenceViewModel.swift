@@ -155,9 +155,9 @@ final class AddSequenceViewModel {
             }
 
             let lessonIDStr = lessonInSequence.id?.uuidString ?? ""
-            let alreadyExists = !lessonIDStr.isEmpty && entryExists(
+            let alreadyExists = !lessonIDStr.isEmpty && plannedEntry(
                 lessonID: lessonIDStr, studentID: studentIDStr, context: context
-            )
+            ) != nil
 
             items.append(PreviewItem(
                 id: lessonInSequence.id ?? UUID(),
@@ -185,15 +185,19 @@ final class AddSequenceViewModel {
 
         for item in previewItems {
             let lessonIDStr = item.id.uuidString
-            // Skip lessons that already have a Year Plan entry for this student —
-            // re-scheduling the same sequence must not create duplicates.
-            guard !entryExists(lessonID: lessonIDStr, studentID: studentIDStr, context: context) else {
+            // Skip lessons already planned for this student — re-scheduling the
+            // same sequence must not create duplicates.
+            guard plannedEntry(lessonID: lessonIDStr, studentID: studentIDStr, context: context) == nil else {
                 continue
             }
 
-            let entry = CDYearPlanEntry(context: context)
+            // A skipped entry is planned again in place, so the lesson keeps one
+            // row; only a lesson with no entry at all gets a new one.
+            let entry = skippedEntry(lessonID: lessonIDStr, studentID: studentIDStr, context: context)
+                ?? CDYearPlanEntry(context: context)
             entry.studentID = studentIDStr
             entry.lessonID = lessonIDStr
+            entry.promotedAssignmentID = nil
             entry.plannedDate = item.date
             entry.spacingSchoolDays = Int64(spacingDays)
             entry.sequenceGroupKey = sequenceKey
@@ -206,20 +210,39 @@ final class AddSequenceViewModel {
 
     // MARK: - Helpers
 
-    /// Whether a Year Plan entry already exists for this lesson + student.
-    /// Uses the same uniqueness key (lessonID + studentID) as the preview and the
-    /// rest of the Year Plan services, so the preview and the insert agree.
-    private func entryExists(
+    /// The Year Plan entry already planning this lesson for this student
+    /// (planned or promoted), if any. Uses the same uniqueness key (lessonID +
+    /// studentID) as the rest of the Year Plan services, so the preview and the
+    /// insert agree. A skipped entry doesn't count: skipping is the guide's
+    /// "not this year", and counting it left those lessons out of a re-added
+    /// sequence with gaps in the dates (2026-10-11 hunt, #36).
+    private func plannedEntry(
         lessonID: String,
         studentID: String,
         context: NSManagedObjectContext
-    ) -> Bool {
+    ) -> CDYearPlanEntry? {
+        entries(lessonID: lessonID, studentID: studentID, context: context).first { $0.status != .skipped }
+    }
+
+    /// A skipped entry for this lesson and student, to plan again in place.
+    private func skippedEntry(
+        lessonID: String,
+        studentID: String,
+        context: NSManagedObjectContext
+    ) -> CDYearPlanEntry? {
+        entries(lessonID: lessonID, studentID: studentID, context: context).first { $0.status == .skipped }
+    }
+
+    private func entries(
+        lessonID: String,
+        studentID: String,
+        context: NSManagedObjectContext
+    ) -> [CDYearPlanEntry] {
         let req = CDFetchRequest(CDYearPlanEntry.self)
         req.predicate = NSPredicate(
             format: "lessonID == %@ AND studentID == %@",
             lessonID, studentID
         )
-        req.fetchLimit = 1
-        return context.safeFetchFirst(req) != nil
+        return context.safeFetch(req)
     }
 }

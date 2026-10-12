@@ -36,32 +36,6 @@ extension CommandBarViewModel {
             .first
     }
 
-    /// Resolves the presentation that the guide just recorded. This path must
-    /// never guess, create a replacement, or run the lifecycle a second time.
-    func exactRecordedAssignment(
-        id: UUID,
-        lessonID: UUID,
-        studentIDs: [UUID],
-        context: NSManagedObjectContext
-    ) throws -> CDLessonAssignment {
-        let request = CDFetchRequest(CDLessonAssignment.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        request.fetchLimit = 1
-        guard let assignment = try context.fetch(request).first else {
-            throw CaptureSaveError.presentationMissing
-        }
-        guard assignment.isPresented else {
-            throw CaptureSaveError.presentationNotGiven
-        }
-        guard assignment.lessonIDUUID == lessonID else {
-            throw CaptureSaveError.lessonMismatch
-        }
-        guard Set(assignment.resolvedStudentIDs) == Set(studentIDs) else {
-            throw CaptureSaveError.childrenMismatch
-        }
-        return assignment
-    }
-
     func makeStandaloneObservationNotes(
         proposal: CaptureProposal,
         context: NSManagedObjectContext

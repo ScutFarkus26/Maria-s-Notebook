@@ -160,7 +160,8 @@ enum MeetingLessonDecisions {
     /// way a presentation review's Re-present resolves it, starting a
     /// follow-up on a row that had none. The shared flag says the same of
     /// everyone on the presentation, so it is set only when she had it alone.
-    private static func flagForAnotherPresentation(
+    /// A recall check's Forgotten files the same way (bug hunt 2026-10-11, #26).
+    static func flagForAnotherPresentation(
         _ presentation: CDLessonAssignment, studentID: UUID, context: NSManagedObjectContext
     ) throws {
         let now = Date()

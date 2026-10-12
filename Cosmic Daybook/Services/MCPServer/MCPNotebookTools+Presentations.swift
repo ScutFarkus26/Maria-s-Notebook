@@ -173,6 +173,8 @@ extension MCPNotebookTools {
         let assignment: CDLessonAssignment
         let origin: PresentationOrigin
         let noteCount: Int
+        /// One of the observations filed, for the note lists' announcement.
+        let firstNoteID: UUID?
         let workCount: Int
         /// The receipt's account of the regive guard, empty unless a purpose
         /// was given.
@@ -187,25 +189,28 @@ extension MCPNotebookTools {
         let index = PresentationRecordIndex(
             lessonIDs: Set(filings.map { $0.lessonID.uuidString }), in: modelContext
         )
-        var filed: [FiledPresentation] = []
-        do {
-            let resolved = filings.map { resolve($0, index: index, in: modelContext) }
-            try refuseUnexplainedRepeats(resolved)
-            for item in resolved {
-                filed.append(try write(item, index: index, in: modelContext))
+        // Every presentation in the call lands, or none does; a refusal or a
+        // failed save undoes only this call's rows.
+        let filed: [FiledPresentation] = try undoingOnFailure(modelContext) { modelContext in
+            var filed: [FiledPresentation] = []
+            do {
+                let resolved = filings.map { resolve($0, index: index, in: modelContext) }
+                try refuseUnexplainedRepeats(resolved)
+                for item in resolved {
+                    filed.append(try write(item, index: index, in: modelContext))
+                }
+            } catch let error as MCPToolError {
+                throw error
+            } catch {
+                throw MCPToolError("The presentation could not be recorded", underlying: error)
             }
-        } catch let error as MCPToolError {
-            modelContext.rollback()
-            throw error
-        } catch {
-            modelContext.rollback()
-            throw MCPToolError("The presentation could not be recorded", underlying: error)
+            guard modelContext.safeSave() else {
+                throw MCPToolError("The presentation could not be saved.")
+            }
+            return filed
         }
-
-        guard modelContext.safeSave() else {
-            modelContext.rollback()
-            throw MCPToolError("The presentation could not be saved.")
-        }
+        // The note lists wait for this rather than watching the store (#48).
+        announceSavedNote(filed.lazy.compactMap(\.firstNoteID).first)
 
         let receipts = filed.map(receipt(for:))
         guard receipts.count > 1 else { return receipts[0] }
@@ -269,7 +274,7 @@ extension MCPNotebookTools {
 
         return FiledPresentation(
             filing: filing, assignment: assignment, origin: resolved.origin,
-            noteCount: notes.count, workCount: workCount,
+            noteCount: notes.count, firstNoteID: notes.lazy.compactMap(\.id).first, workCount: workCount,
             repeatNote: repeatReceipt(
                 filing.purpose, conflicts: resolved.conflicts.count, of: filing.students.count
             )

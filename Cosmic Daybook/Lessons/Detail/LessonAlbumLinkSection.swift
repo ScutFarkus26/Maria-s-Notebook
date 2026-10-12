@@ -17,6 +17,10 @@ struct LessonAlbumLinkSection: View {
     let lesson: CDLesson
 
     @State private var showMatchSheet = false
+    /// Whether this device can reach any album folder. The library stays
+    /// unloaded (`.needsFolder`) until Albums is opened, so the row asks the
+    /// saved folders instead; nil until it has.
+    @State private var hasAlbumFolder: Bool?
 
     private var link: AlbumLink? { lesson.albumLink }
 
@@ -52,6 +56,10 @@ struct LessonAlbumLinkSection: View {
         .padding(.top, AppTheme.Spacing.verySmall)
         .sheet(isPresented: $showMatchSheet) {
             LessonAlbumMatchSheet(lessons: [lesson])
+        }
+        .task(id: library.state) {
+            guard library.state == .needsFolder else { return }
+            hasAlbumFolder = AlbumLibrary.hasResolvableFolderBookmark()
         }
     }
 
@@ -94,16 +102,26 @@ struct LessonAlbumLinkSection: View {
             .buttonStyle(.plain)
             .help("Open this lesson in its album")
         } else if library.state == .needsFolder {
-            Text("No teaching albums set up yet.")
-                .font(AppTheme.ScaledFont.caption)
-                .foregroundStyle(.tertiary)
+            // Nothing until the saved folders have been checked, so the row
+            // doesn't flash one answer and then the other.
+            if hasAlbumFolder == false {
+                Text("No teaching albums set up yet.")
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.tertiary)
+            } else if hasAlbumFolder == true {
+                findInAlbumsButton
+            }
         } else {
-            // Opens the match sheet, which indexes the albums itself.
-            Button("Find in Albums…") { showMatchSheet = true }
-                .font(AppTheme.ScaledFont.caption)
-                .buttonStyle(.plain)
-                .foregroundStyle(.tint)
+            findInAlbumsButton
         }
+    }
+
+    /// Opens the match sheet, which loads and indexes the albums itself.
+    private var findInAlbumsButton: some View {
+        Button("Find in Albums…") { showMatchSheet = true }
+            .font(AppTheme.ScaledFont.caption)
+            .buttonStyle(.plain)
+            .foregroundStyle(.tint)
     }
 
     @ViewBuilder

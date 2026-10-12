@@ -129,33 +129,43 @@ final class CommandBarService {
         command: ParsedCommand,
         students: [StudentData]
     ) -> CaptureProposal {
-        let presentationObservation = command.intent == .recordPresentation
-            && command.studentIDs.count == 1
+        // One child only when nobody else was named: a name it couldn't place
+        // ("Sarah", two Sarahs) is someone too, so "Maya and Sarah built the
+        // cube" isn't all Maya's (review (b) 2026-10-11).
+        let placedCount = command.studentIDs.filter { id in students.contains { $0.id == id } }.count
+        let isOneChild = placedCount + command.unresolvedStudentNames.count == 1
+        let presentationObservation = command.intent == .recordPresentation && isOneChild
             ? observationAfterFirstSentence(in: input)
             : ""
+        let oneChildObservation = command.intent == .addNote ? command.freeText : presentationObservation
         let entries = command.studentIDs.compactMap { id -> StudentCaptureProposal? in
             guard let student = students.first(where: { $0.id == id }) else { return nil }
             return StudentCaptureProposal(
                 studentID: id,
                 studentName: "\(student.firstName) \(student.lastName)",
-                observation: command.intent == .addNote && command.studentIDs.count == 1
-                    ? command.freeText
-                    : presentationObservation,
+                observation: isOneChild ? oneChildObservation : "",
                 followUp: .none
             )
         }
 
-        return CaptureProposal(
+        var proposal = CaptureProposal(
             rawText: input,
             recordsPresentation: command.intent == .recordPresentation,
             lessonID: command.lessonID,
             lessonName: command.rawLessonName,
-            groupObservation: command.intent == .addNote && entries.count != 1 ? command.freeText : "",
+            groupObservation: command.intent == .addNote && !isOneChild ? command.freeText : "",
             studentEntries: entries,
-            unresolvedStudentNames: [],
+            unresolvedStudentNames: command.unresolvedStudentNames,
             source: .deterministic,
             presentedOn: CaptureDateParser.day(in: input, today: Date())
         )
+        // The one child named is the one it couldn't place: what was said
+        // waits with her name and goes to whoever the guide picks.
+        if isOneChild, entries.isEmpty, let name = command.unresolvedStudentNames.first,
+           !oneChildObservation.isEmpty {
+            proposal.unplacedWords[name] = UnplacedStudentWords(observation: oneChildObservation)
+        }
+        return proposal
     }
 
     /// A conservative fallback can safely retain a separately spoken second

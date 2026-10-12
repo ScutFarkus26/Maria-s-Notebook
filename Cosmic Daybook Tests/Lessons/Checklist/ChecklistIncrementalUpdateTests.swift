@@ -94,7 +94,10 @@ struct ChecklistIncrementalUpdateTests {
         fixture.viewModel.togglePresented(student: fixture.ada, lesson: fixture.middle, context: fixture.context)
 
         #expect(fixture.viewModel.matrixStates == fullRebuild(fixture))
-        #expect(try blocking(fixture, fixture.ada, fixture.next) == .practiceAndConfirmation)
+        // The planner's rule (bug hunt 2026-10-11, #17): the shared work follows
+        // no presentation, so it doesn't gate her, and the new giving asks for no
+        // practice; the guide's confirmation is what she still needs.
+        #expect(try blocking(fixture, fixture.ada, fixture.next) == .confirmationRequired)
         #expect(fixture.viewModel.state(for: fixture.ada, lesson: fixture.middle)?.isPresented == true)
     }
 
@@ -107,7 +110,7 @@ struct ChecklistIncrementalUpdateTests {
         )
 
         #expect(fixture.viewModel.matrixStates == fullRebuild(fixture))
-        #expect(try blocking(fixture, fixture.ada, fixture.next) == .practiceAndConfirmation)
+        #expect(try blocking(fixture, fixture.ada, fixture.next) == .confirmationRequired)
     }
 
     @Test("Planning a middle lesson matches a full rebuild")

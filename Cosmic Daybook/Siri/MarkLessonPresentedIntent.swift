@@ -41,9 +41,7 @@ struct MarkLessonPresentedIntent: AppIntent {
             throw MarkLessonPresentedError.lessonNotFound(lesson.name)
         }
 
-        guard let cdStudent = context.object(CDStudent.self, id: student.id), let studentID = cdStudent.id else {
-            throw MarkLessonPresentedError.studentNotFound(student.fullName)
-        }
+        let (cdStudent, studentID) = try classStudent(in: context)
 
         // Marking a presentation changes curriculum history. Confirm after
         // resolving the exact lesson and child, before splitting or creating data.
@@ -96,7 +94,22 @@ struct MarkLessonPresentedIntent: AppIntent {
         guard context.safeSave() else { throw MarkLessonPresentedError.saveFailed }
 
         Logger.database.info("Marked lesson presented via Siri for student \(studentID.uuidString, privacy: .public)")
-        return .result(dialog: "Marked \(cdLesson.name) as presented to \(cdStudent.firstName).")
+        // The short name, so the two Ettys are told apart ("Etty D").
+        return .result(dialog: "Marked \(cdLesson.name) as presented to \(cdStudent.shortName).")
+    }
+
+    /// The chosen child, if she is still in the class. The name query falls
+    /// back to children who have left, so "Open Leah" still finds her; a
+    /// lesson is recorded only for a child on the roll (2026-10-11 hunt, #37).
+    @MainActor
+    private func classStudent(in context: NSManagedObjectContext) throws -> (CDStudent, UUID) {
+        guard let cdStudent = context.object(CDStudent.self, id: student.id), let studentID = cdStudent.id else {
+            throw MarkLessonPresentedError.studentNotFound(student.fullName)
+        }
+        guard SiriHost.roster(in: context).contains(cdStudent) else {
+            throw MarkLessonPresentedError.notInClass(cdStudent.shortName)
+        }
+        return (cdStudent, studentID)
     }
 }
 
@@ -105,6 +118,7 @@ struct MarkLessonPresentedIntent: AppIntent {
 enum MarkLessonPresentedError: Error, CustomLocalizedStringResourceConvertible {
     case lessonNotFound(String)
     case studentNotFound(String)
+    case notInClass(String)
     case saveFailed
 
     var localizedStringResource: LocalizedStringResource {
@@ -113,6 +127,8 @@ enum MarkLessonPresentedError: Error, CustomLocalizedStringResourceConvertible {
             return "I couldn't find the lesson \(name)."
         case .studentNotFound(let name):
             return "I couldn't find \(name) in your students."
+        case .notInClass(let name):
+            return "\(name) isn't in your class anymore, so nothing was marked."
         case .saveFailed:
             return "Something went wrong saving the presentation. Try again."
         }

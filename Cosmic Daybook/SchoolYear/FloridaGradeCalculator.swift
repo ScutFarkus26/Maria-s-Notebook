@@ -1,6 +1,8 @@
 // FloridaGradeCalculator.swift
-// Determines Florida grade equivalents based on birthday and configurable school-year start.
-// Behavior-preserving cleanup: comments and MARKs only.
+// Determines Florida grade equivalents from a birthday: age on September 1 of the
+// school year under way (Florida's fixed cutoff), whatever day the class's own
+// school year starts on. The configurable start still decides which school year
+// that is, and is what attendance and the other year-start callers read.
 
 import Foundation
 
@@ -50,6 +52,12 @@ struct FloridaGradeCalculator {
         let value = UserDefaults.standard.integer(forKey: UserDefaultsKeys.schoolYearStartDay)
         return (1...31).contains(value) ? value : 1
     }
+    /// Florida's grade cutoff: a child's grade follows her age on September 1,
+    /// the date the grade guidelines in Settings name. Fixed, not the class's
+    /// configured start: with the year starting August 25, a child born
+    /// August 26 – September 1 came out a grade off (2026-10-11 hunt, #38).
+    static let gradeCutoffMonth: Int = 9
+    static let gradeCutoffDay: Int = 1
     /// Minimum age (in whole years) on/before school start to be 1st grade
     static let minimumFirstGradeAge: Int = 6
     /// Ages at or above this threshold are considered "Graduated".
@@ -72,16 +80,27 @@ struct FloridaGradeCalculator {
         }
     }
 
-    /// Computes the child's age in whole years as of the school year start.
+    /// September 1 of the school year under way on `referenceDate`: the
+    /// configured start says which school year that is (so the week between an
+    /// August 25 start and September 1 already counts as the new year), and the
+    /// cutoff is that year's September 1.
+    static func gradeCutoff(for referenceDate: Date = Date(), calendar: Calendar = .current) -> Date {
+        let beginYear = calendar.component(.year, from: schoolYearStart(for: referenceDate, calendar: calendar))
+        let components = DateComponents(year: beginYear, month: gradeCutoffMonth, day: gradeCutoffDay)
+        return calendar.date(from: components) ?? schoolYearStart(for: referenceDate, calendar: calendar)
+    }
+
+    /// Computes the child's age in whole years as of the grade cutoff
+    /// (September 1 of the school year under way).
     /// Uses start-of-day normalization to avoid time-of-day issues.
     static func ageOnSchoolYearStart(
         birthday: Date,
         referenceDate: Date = Date(),
         calendar: Calendar = .current
     ) -> Int {
-        let start = schoolYearStart(for: referenceDate, calendar: calendar)
+        let cutoff = gradeCutoff(for: referenceDate, calendar: calendar)
         let birthdayStartOfDay = calendar.startOfDay(for: birthday)
-        return calendar.dateComponents([.year], from: birthdayStartOfDay, to: start).year ?? 0
+        return calendar.dateComponents([.year], from: birthdayStartOfDay, to: cutoff).year ?? 0
     }
 
     // MARK: - Public API

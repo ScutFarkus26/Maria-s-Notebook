@@ -21,20 +21,32 @@ final class AppRouter {
     /// Navigation destinations for sheet presentation
     enum NavigationDestination: Identifiable, Equatable {
         case newLesson(defaultArea: String?, defaultSequence: String?)
-        case importLessons
         case newStudent
         case importStudents
         case openStudentDetail(UUID)
-        case backfillIsPresented
         
         var id: String {
             switch self {
             case .newLesson: return "newLesson"
-            case .importLessons: return "importLessons"
             case .newStudent: return "newStudent"
             case .importStudents: return "importStudents"
             case .openStudentDetail(let id): return "openStudentDetail_\(id.uuidString)"
-            case .backfillIsPresented: return "backfillIsPresented"
+            }
+        }
+
+        /// The section that answers this request, when the window has to go
+        /// there first. Nil for Open Student on the Mac, which opens the child
+        /// in her own window from wherever the guide is.
+        var answeringSection: RootView.NavigationItem? {
+            switch self {
+            case .newLesson: return .lessons
+            case .newStudent, .importStudents: return .students
+            case .openStudentDetail:
+                #if os(macOS)
+                return nil
+                #else
+                return .students
+                #endif
             }
         }
         
@@ -131,14 +143,11 @@ final class AppRouter {
     /// Refresh trigger for planning inbox
     var planningInboxRefreshTrigger: UUID = UUID()
 
-    /// Triggers for quick-action sheets shown by RootView. Setting any to true asks
-    /// RootView to present the corresponding sheet; RootView resets the value to false
-    /// after consuming it. Used by Today's toolbar `+` menu and other entry points
-    /// that don't have direct access to RootView's local sheet state.
+    /// Asks RootView to present the new-work sheet; RootView resets it after
+    /// consuming it. Every main window observes it, so screens inside a window
+    /// use that window's `QuickCaptureActions` instead; this is left for the
+    /// work agenda's New Work.
     var triggerNewWorkItem: Bool = false
-    var triggerRecordPractice: Bool = false
-    var triggerNewPresentation: Bool = false
-    var triggerCommandBar: Bool = false
 
     /// App lifecycle events
     var appDataWillBeReplaced: Bool = false
@@ -146,24 +155,26 @@ final class AppRouter {
     
     // MARK: - Navigation Methods
     
-    /// Request to show new lesson sheet
+    /// Opens Lessons with its New Lesson sheet, for callers with no window
+    /// (Siri's Create New Lesson). `LessonsRootView` answers it, on appear or
+    /// while on screen. File › New Lesson… and the sidebar ask their own
+    /// window instead (`WindowCreateRequests`): every window sees this one.
     func requestNewLesson(defaultArea: String? = nil, defaultSequence: String? = nil) {
         navigationDestination = .newLesson(defaultArea: defaultArea, defaultSequence: defaultSequence)
+        selectedNavItem = .lessons
     }
-    
-    /// Request to show import lessons
-    func requestImportLessons() {
-        navigationDestination = .importLessons
-    }
-    
-    /// Request to show new student sheet
+
+    /// Opens Students with its Add Student sheet. Asking alone waited until
+    /// Students next appeared, when the sheet popped up out of nowhere.
     func requestNewStudent() {
         navigationDestination = .newStudent
+        selectedNavItem = .students
     }
-    
-    /// Request to show import students
+
+    /// Opens Students with its file importer.
     func requestImportStudents() {
         navigationDestination = .importStudents
+        selectedNavItem = .students
     }
     
     /// Shows Settings › Sync and backup, where backing up and restoring live
@@ -186,14 +197,15 @@ final class AppRouter {
         triggerNewWorkItem = true
     }
 
-    /// Request to open student detail
+    /// Opens one child: in her own window on the Mac (RootView answers), and
+    /// in the Students section elsewhere, which answers once it is showing.
+    /// Selecting Students is what makes a tap act now rather than the next
+    /// time Students happens to open.
     func requestOpenStudentDetail(_ studentID: UUID) {
         navigationDestination = .openStudentDetail(studentID)
-    }
-    
-    /// Request to show backfill
-    func requestBackfillIsPresented() {
-        navigationDestination = .backfillIsPresented
+        #if !os(macOS)
+        selectedNavItem = .students
+        #endif
     }
 
     /// Navigate to a specific navigation item
@@ -301,6 +313,34 @@ final class AppRouter {
         planningInboxRefreshTrigger = UUID()
     }
     
+    /// What a New Lesson request carried, for the sheet's starting fields.
+    struct NewLessonRequest: Equatable {
+        let defaultArea: String?
+        let defaultSequence: String?
+    }
+
+    /// Takes a pending New Lesson request, leaving any other screen's request
+    /// in place. Reads the router's current value, so when two windows' Lessons
+    /// both see the change only the first opens the sheet.
+    func consumeNewLessonRequest() -> NewLessonRequest? {
+        guard case .newLesson(let area, let sequence) = navigationDestination else { return nil }
+        navigationDestination = nil
+        return NewLessonRequest(defaultArea: area, defaultSequence: sequence)
+    }
+
+    /// The section asked for before this window existed (a reminder tapped
+    /// with the app closed, Siri's Open Section on a cold launch), or else the
+    /// section that answers a pending sheet request. Clears the section
+    /// request, so asking for the same section again later still switches;
+    /// a sheet request stays for its screen to answer.
+    func takePendingNavItem() -> RootView.NavigationItem? {
+        if let item = selectedNavItem {
+            selectedNavItem = nil
+            return item.canonical
+        }
+        return navigationDestination?.answeringSection
+    }
+
     /// Clear current navigation destination
     func clearNavigation() {
         navigationDestination = nil

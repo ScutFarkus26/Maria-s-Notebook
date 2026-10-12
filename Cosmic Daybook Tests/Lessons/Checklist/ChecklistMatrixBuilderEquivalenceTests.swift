@@ -110,8 +110,12 @@ struct ChecklistMatrixBuilderEquivalenceTests {
     }
 }
 
-/// The builder as it was before the batched fetches (2026-09-22), kept verbatim
-/// apart from calling the shared `buildCellState`.
+/// The builder as it was before the batched fetches (2026-09-22): one fetch per
+/// lesson (and per giving), calling the shared `buildCellState`. Its rules
+/// follow the builder's since bug hunt 2026-10-11 #17/#18: a cell reads the
+/// work that counts as the child's (`WorkGrouping.visibleWork`, row by row,
+/// against the builder's batched `WorkVisibility`), and "Not yet" is the
+/// planner's readiness rule.
 @MainActor
 private enum LegacyMatrixBuilder {
     // swiftlint:disable:next function_body_length
@@ -150,16 +154,14 @@ private enum LegacyMatrixBuilder {
                 guard let lessonID = lesson.id else { continue }
                 let lessonIDString = lessonID.uuidString
                 let studentLAs = (lasByLessonID[lessonIDString] ?? []).filter { $0.studentIDs.contains(studentKey) }
-                let studentWorks = (worksByLessonID[lessonIDString] ?? []).filter { work in
-                    let participants = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
-                    return participants.contains { $0.studentID == studentKey }
-                }
+                let studentWorks = WorkGrouping.visibleWork(
+                    for: studentUUID, among: worksByLessonID[lessonIDString] ?? [], in: context
+                )
                 let blockingReason: BlockingReason
                 if !studentLAs.contains(where: { $0.isPresented }), let preceding = precedingLessonMap[lessonID] {
                     blockingReason = computeBlockingReason(
                         precedingLesson: preceding, rules: progressionRulesMap[lessonID],
-                        studentID: studentUUID, studentKey: studentKey,
-                        lasByLessonID: lasByLessonID, worksByLessonID: worksByLessonID
+                        studentID: studentUUID, lasByLessonID: lasByLessonID, context: context
                     )
                 } else {
                     blockingReason = .none
@@ -175,36 +177,34 @@ private enum LegacyMatrixBuilder {
         return newMatrix
     }
 
-    // swiftlint:disable:next function_parameter_count
     private static func computeBlockingReason(
         precedingLesson: CDLesson,
         rules: LessonProgressionRules.ResolvedRules?,
         studentID: UUID,
-        studentKey: String,
         lasByLessonID: [String: [CDLessonAssignment]],
-        worksByLessonID: [String: [CDWorkModel]]
+        context: NSManagedObjectContext
     ) -> BlockingReason {
         guard let rules, rules.requiresPractice || rules.requiresTeacherConfirmation else { return .none }
         let precedingIDStr = precedingLesson.id?.uuidString ?? ""
-        let precedingLAs = lasByLessonID[precedingIDStr] ?? []
-        guard let presentedLA = precedingLAs.first(where: { $0.isPresented && $0.studentIDs.contains(studentKey) })
-        else { return .prerequisiteNotPresented }
-        var needsPractice = false
-        var needsConfirmation = false
-        if rules.requiresPractice {
-            let studentWorks = (worksByLessonID[precedingIDStr] ?? []).filter { work in
-                let participants = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
-                return participants.contains { $0.studentID == studentKey }
-            }
-            let allComplete = !studentWorks.isEmpty && studentWorks.allSatisfy { $0.status.isClosed }
-            if studentWorks.isEmpty || !allComplete { needsPractice = true }
+        let givings = BlockingAlgorithmEngine.givings(
+            for: studentID, among: (lasByLessonID[precedingIDStr] ?? []).filter(\.isPresented)
+        )
+        guard !givings.isEmpty else { return .prerequisiteNotPresented }
+        var workByPresentationID: [String: [CDWorkModel]] = [:]
+        for giving in givings {
+            guard let presentationID = giving.id?.uuidString else { continue }
+            let descriptor: NSFetchRequest<CDWorkModel> = CDFetchRequest(CDWorkModel.self)
+            descriptor.predicate = NSPredicate(format: "presentationID == %@", presentationID)
+            workByPresentationID[presentationID] = context.safeFetch(descriptor)
         }
-        if rules.requiresTeacherConfirmation, !presentedLA.isStudentConfirmed(studentID) {
-            needsConfirmation = true
+        let readiness = BlockingAlgorithmEngine.readiness(
+            of: studentID, givings: givings, rules: rules, workByPresentationID: workByPresentationID
+        ).readiness
+        switch (readiness.workComplete, readiness.teacherConfirmed) {
+        case (false, false): return .practiceAndConfirmation
+        case (false, true): return .practiceRequired
+        case (true, false): return .confirmationRequired
+        case (true, true): return .none
         }
-        if needsPractice && needsConfirmation { return .practiceAndConfirmation }
-        if needsPractice { return .practiceRequired }
-        if needsConfirmation { return .confirmationRequired }
-        return .none
     }
 }

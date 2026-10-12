@@ -3,15 +3,16 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-/// The student detail's attendance badges used to fetch the child's school-year
-/// rows twice per body pass just to count them. They are counted by the store
-/// now; the numbers must be the old fetch-and-filter's, saved or not.
+/// The student detail's attendance badges count the child's school-year rows
+/// once per body pass, one record per day, with late arrivals counted by
+/// `cameLate` (bug hunt 2026-10-11, #34). The numbers must be the
+/// fetch-dedupe-and-filter's, saved or not.
 @Suite("Attendance info row counts")
 @MainActor
 struct AttendanceInfoRowCountTests {
 
-    /// The badge's old read, kept verbatim as the reference.
-    private func legacyCount(
+    /// The reference read: every row of the year, one per day, then filtered.
+    private func referenceCount(
         _ status: AttendanceStatus, studentID: UUID?, on date: Date, in context: NSManagedObjectContext
     ) throws -> Int {
         let calendar = AppCalendar.shared
@@ -23,7 +24,8 @@ struct AttendanceInfoRowCountTests {
             format: "studentID == %@ AND date >= %@ AND date < %@",
             studentIDString, start as CVarArg, end as CVarArg
         )
-        return try context.fetch(descriptor).filter { $0.status == status }.count
+        let records = try context.fetch(descriptor).deduplicatedPerStudentDay()
+        return records.filter { status == .tardy ? $0.cameLate : $0.status == status }.count
     }
 
     private func record(
@@ -71,24 +73,21 @@ struct AttendanceInfoRowCountTests {
         let reference = try CoreDataTestHelpers.day("2026-10-15")
         try seedAndEdit(context, ora: ora, reference: reference)
 
-        for status in [AttendanceStatus.tardy, .absent, .present, .leftEarly] {
-            let counted = try AttendanceInfoRow.schoolYearCount(of: status, studentID: ora, on: reference, in: context)
-            let fetched = try legacyCount(status, studentID: ora, on: reference, in: context)
-            #expect(counted == fetched, "\(status.rawValue)")
-        }
+        let counted = try AttendanceInfoRow.schoolYearCounts(studentID: ora, on: reference, in: context)
+        #expect(counted.tardy == (try referenceCount(.tardy, studentID: ora, on: reference, in: context)))
+        #expect(counted.absent == (try referenceCount(.absent, studentID: ora, on: reference, in: context)))
         // Not vacuous: 4 saved tardies, one deleted, one absence turned tardy,
-        // one new — the duplicate day counted twice, as the rows were.
-        #expect(try AttendanceInfoRow.schoolYearCount(of: .tardy, studentID: ora, on: reference, in: context) == 5)
-        #expect(try AttendanceInfoRow.schoolYearCount(of: .absent, studentID: ora, on: reference, in: context) == 2)
-        #expect(try AttendanceInfoRow.schoolYearCount(of: .tardy, studentID: nil, on: reference, in: context) == 0)
+        // one new — the duplicate day counted once.
+        #expect(counted == AttendanceInfoRow.SchoolYearCounts(tardy: 4, absent: 2))
+        #expect(try AttendanceInfoRow.schoolYearCounts(studentID: nil, on: reference, in: context) == .init())
     }
 
-    @Test("Store counts equal the old fetch-and-filter on the in-memory store")
+    @Test("Counts equal the fetch-dedupe-and-filter on the in-memory store")
     func countsMatchInMemory() throws {
         try expectSameCounts(in: try CoreDataTestHelpers.makeContext())
     }
 
-    @Test("Store counts equal the old fetch-and-filter on SQLite, with unsaved edits pending")
+    @Test("Counts equal the fetch-dedupe-and-filter on SQLite, with unsaved edits pending")
     func countsMatchOnSQLite() throws {
         try expectSameCounts(in: try CoreDataTestHelpers.makeSplitStoreContext())
     }

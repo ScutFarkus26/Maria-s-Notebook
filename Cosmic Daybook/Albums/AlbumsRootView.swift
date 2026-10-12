@@ -69,12 +69,6 @@ struct AlbumsRootView: View {
         }
         .environment(nav)
         .environment(intelligence)
-        .fileImporter(isPresented: $nav.showFolderPicker,
-                      allowedContentTypes: [.folder]) { result in
-            if case .success(let url) = result {
-                library.chooseFolder(url)
-            }
-        }
         .task {
             library.bootstrapIfNeeded()
             intelligence.refreshAvailability()
@@ -89,6 +83,9 @@ struct AlbumsRootView: View {
             library.repairAlbumIdentities(in: context)
             consumeRouterRequest()
         }
+        // A reload while Albums shows goes ready → loading → ready in one
+        // turn, so the state never changes; the repair flag every load sets does.
+        .onChange(of: library.needsIdentityRepair) { library.repairAlbumIdentities(in: context) }
         .onChange(of: appRouter.albumPageRequest) { consumeRouterRequest() }
         .onAppear {
             guard !hasAppeared else { return }

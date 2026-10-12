@@ -187,10 +187,14 @@ struct WeekPlanSection: View {
             Divider()
             // The day columns each carry their own clash button; this is the
             // same gesture for a guide looking at the whole strip at once.
-            Button {
-                balanceVisibleDays()
-            } label: {
-                Label("Balance AM/PM on These Days", systemImage: "wand.and.sparkles")
+            // Hidden with the presentations: it would rearrange cards the guide
+            // can't see.
+            if visibleKinds.showsPresentations {
+                Button {
+                    balanceVisibleDays()
+                } label: {
+                    Label("Balance AM/PM on These Days", systemImage: "wand.and.sparkles")
+                }
             }
             Divider()
             Button {

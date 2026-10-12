@@ -15,13 +15,7 @@ import Foundation
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
 import FoundationModels
 
-protocol FoundationModelClient: MCPClientProtocol {
-    /// True when the backing model can accept requests right now.
-    var isAvailable: Bool { get }
-
-    /// Human-readable description of why the model is unavailable.
-    var unavailabilityReason: String { get }
-
+protocol FoundationModelClient: RoutableModelClient {
     /// A session configured for this client's model.
     func makeSession(instructions: String) -> LanguageModelSession
 

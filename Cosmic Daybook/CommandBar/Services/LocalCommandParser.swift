@@ -110,7 +110,10 @@ actor LocalCommandParser {
             rawLessonName: matchedLessonName,
             freeText: freeText,
             inferredTags: inferredTags,
-            confidence: confidence
+            confidence: confidence,
+            unresolvedStudentNames: Self.unplacedNames(
+                suggested: studentResult.fuzzy, placed: Set(matchedStudentIDs), students: students
+            )
         )
 
         if confidence >= ParsedCommand.confidenceThreshold {
@@ -118,6 +121,23 @@ actor LocalCommandParser {
         } else {
             return .ambiguous(suggestions: [command])
         }
+    }
+
+    /// First names the tagger only suggested, never settled on one child:
+    /// "Sarah" when two Sarahs are in the class. A name a placed child already
+    /// carries ("Etty D" said, so the other Etty isn't meant) isn't asked about.
+    /// The review asks who was meant instead of leaving her out unseen (bug
+    /// hunt 2026-10-11 #46).
+    static func unplacedNames(suggested: Set<UUID>, placed: Set<UUID>, students: [StudentData]) -> [String] {
+        let placedFirstNames = Set(students.filter { placed.contains($0.id) }.map { $0.firstName.folded() })
+        var names: [String] = []
+        for student in students where suggested.contains(student.id) && !placed.contains(student.id) {
+            let first = student.firstName.folded()
+            guard !first.isEmpty, !placedFirstNames.contains(first),
+                  !names.contains(where: { $0.folded() == first }) else { continue }
+            names.append(student.firstName.trimmed())
+        }
+        return names
     }
 
     // MARK: - Intent Detection

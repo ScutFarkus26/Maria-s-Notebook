@@ -28,7 +28,7 @@ extension MCPNotebookTools {
             inputSchema: assignWorkSchema,
             annotations: .write,
             handler: { arguments in
-                try assignWork(arguments: arguments, in: context())
+                try undoingOnFailure(context()) { try assignWork(arguments: arguments, in: $0) }
             }
         )
     }
@@ -134,7 +134,6 @@ extension MCPNotebookTools {
         linkParticipants(across: created, in: modelContext)
 
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The work could not be saved.")
         }
 
@@ -170,7 +169,6 @@ extension MCPNotebookTools {
                 created.append(work)
             }
         } catch {
-            modelContext.rollback()
             throw MCPToolError("The work could not be created", underlying: error)
         }
         return created
@@ -220,7 +218,7 @@ extension MCPNotebookTools {
             inputSchema: updateWorkSchema,
             annotations: .idempotentWrite,
             handler: { arguments in
-                try updateWork(arguments: arguments, in: context())
+                try undoingOnFailure(context()) { try updateWork(arguments: arguments, in: $0) }
             }
         )
     }
@@ -318,23 +316,21 @@ extension MCPNotebookTools {
             throw MCPToolError("That work item has no identifier.")
         }
 
-        // One argument refused after another was applied would otherwise
-        // leave the earlier edit sitting unsaved in the shared context.
-        let (changes, wroteSomething) = try rollingBackOnFailure(modelContext) { modelContext in
-            var changes: [String] = []
-            changes += try applyStudentCompletion(arguments, to: work, workID: workID, in: modelContext)
-            changes += try applyCheckInCompletion(arguments, to: work, in: modelContext)
-            changes += try applyCheckInMove(arguments, to: work, in: modelContext)
-            changes += try applyDueDate(arguments, to: work)
-            changes += try applyStatus(arguments, to: work, workID: workID, in: modelContext)
-            // Every line so far is a write; the add's lines may not be.
-            let wroteBeforeAdd = !changes.isEmpty
-            // After the status, so a call that reopens the work can add a
-            // check-in to it, and one that closes it can't.
-            let add = try applyCheckInAdd(arguments, to: work, in: modelContext)
-            changes += add.lines
-            return (changes, wroteBeforeAdd || add.added > 0)
-        }
+        // One argument refused after another was applied undoes the earlier
+        // edit too: the handler runs the whole call in `undoingOnFailure`.
+        var changes: [String] = []
+        changes += try applyStudentCompletion(arguments, to: work, workID: workID, in: modelContext)
+        changes += try applyCheckInCompletion(arguments, to: work, in: modelContext)
+        changes += try applyCheckInMove(arguments, to: work, in: modelContext)
+        changes += try applyDueDate(arguments, to: work)
+        changes += try applyStatus(arguments, to: work, workID: workID, in: modelContext)
+        // Every line so far is a write; the add's lines may not be.
+        let wroteBeforeAdd = !changes.isEmpty
+        // After the status, so a call that reopens the work can add a
+        // check-in to it, and one that closes it can't.
+        let add = try applyCheckInAdd(arguments, to: work, in: modelContext)
+        changes += add.lines
+        let wroteSomething = wroteBeforeAdd || add.added > 0
 
         guard !changes.isEmpty else {
             throw MCPToolError("Nothing to change — pass at least one field to update.")
@@ -343,7 +339,6 @@ extension MCPNotebookTools {
         // so the call stays out of the write journal.
         if !wroteSomething { MCPCallOutcome.markNothingWritten() }
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The work could not be updated.")
         }
         return "[work id=\(workID.uuidString)] \(title(of: work)): "
@@ -363,7 +358,7 @@ extension MCPNotebookTools {
         }
         do {
             // Saved with the rest of the call, so a later argument's refusal
-            // rolls this back too.
+            // undoes this too.
             try WorkCompletionService.markCompleted(
                 workID: workID, studentID: studentID,
                 note: nonEmpty(arguments["note"]?.stringValue) ?? "",
@@ -371,7 +366,6 @@ extension MCPNotebookTools {
                 saveImmediately: false
             )
         } catch {
-            modelContext.rollback()
             throw MCPToolError("That completion could not be recorded", underlying: error)
         }
         work.participant(for: studentID)?.completedAt = Date()

@@ -5,7 +5,7 @@ import SwiftUI
 import CoreData
 
 /// The editable copy of a note template's fields.
-struct NoteTemplateDraft {
+nonisolated struct NoteTemplateDraft: Equatable {
     var title = ""
     var body = ""
     var tags: [String] = []

@@ -46,7 +46,8 @@ struct AIPrompts {
 
     Guidelines:
     - Be concise and practical — teachers are busy
-    - Use first names when referring to students
+    - Refer to students by short name: first name and last initial, like "Maya S", so two \
+    children who share a first name stay apart. The notebook tools take a full name or a short name.
     - If you don't have enough data to answer, say so honestly
     - Never invent observations or data not present in the context
     - Use growth-oriented, strengths-based language when discussing students

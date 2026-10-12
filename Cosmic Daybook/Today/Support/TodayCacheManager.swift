@@ -50,7 +50,7 @@ final class TodayCacheManager {
     private var missingLessonIDs: Set<UUID> = []
     /// Flips when a student or lesson changes; made on first use.
     private var missInputs: ManagedObjectChangeFlag?
-    /// Whole-table student or lesson reads made so far (for tests pinning
+    /// Student-table and lesson reads made so far (for tests pinning
     /// the miss caching).
     private(set) var tableFetchCount = 0
 
@@ -141,14 +141,15 @@ final class TodayCacheManager {
         let missingIDSet = ids.filter { lessonsByID[$0] == nil && !missingLessonIDs.contains($0) }
         guard !missingIDSet.isEmpty else { return }
 
-        // PERFORMANCE: Fetch all lessons once and filter in memory
-        // Core Data NSPredicate doesn't efficiently support IN queries with large UUID sets
+        // Only the lessons asked for, however large the library. A whole-table
+        // read capped at 1,000 rows left every lesson past the cap reading
+        // "Lesson" (bug hunt 2026-10-11 #71, as 10-10 #72 elsewhere).
         let request = CDFetchRequest(CDLesson.self)
-        request.fetchLimit = 1000 // Safety limit for lesson library
-        let allLessons = context.safeFetch(request)
+        request.predicate = NSPredicate(format: "id IN %@", Array(missingIDSet))
+        let fetched = context.safeFetch(request)
         tableFetchCount += 1
 
-        for lesson in allLessons {
+        for lesson in fetched {
             if let lessonID = lesson.id, missingIDSet.contains(lessonID) {
                 lessonsByID[lessonID] = lesson
             }

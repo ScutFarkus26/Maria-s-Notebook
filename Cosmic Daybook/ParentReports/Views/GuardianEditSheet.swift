@@ -23,12 +23,26 @@ struct GuardianEditSheet: View {
 
     private var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var trimmedEmail: String { email.trimmingCharacters(in: .whitespacesAndNewlines) }
-    private var canSave: Bool { !trimmedName.isEmpty || !trimmedEmail.isEmpty }
+    private var canSave: Bool {
+        (!trimmedName.isEmpty || !trimmedEmail.isEmpty) && Self.emailProblem(email) == nil
+    }
+
+    /// What's wrong with the typed email, in a plain sentence; nil when it's
+    /// one address or empty. Two addresses in the field went to Mail as one
+    /// broken recipient (2026-10-11 #77).
+    static func emailProblem(_ text: String) -> String? {
+        let typed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !typed.isEmpty else { return nil }
+        let check = AttendanceEmail.checkRecipients(typed)
+        if check.addresses.count > 1 { return AppErrorMessages.ParentReports.guardianOneAddress }
+        if check.addresses.count == 1, check.leftOut.isEmpty { return nil }
+        return AppErrorMessages.ParentReports.guardianNotAnAddress
+    }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Contact") {
+                Section {
                     TextField("Name", text: $name)
                     TextField("Email", text: $email)
                         .textContentType(.emailAddress)
@@ -41,6 +55,13 @@ struct GuardianEditSheet: View {
                         ForEach(GuardianRelationship.allCases) { relationship in
                             Text(relationship.displayName).tag(relationship)
                         }
+                    }
+                } header: {
+                    Text("Contact")
+                } footer: {
+                    if let problem = Self.emailProblem(email) {
+                        Text(problem)
+                            .foregroundStyle(AppColors.warning)
                     }
                 }
                 Section {

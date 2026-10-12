@@ -295,4 +295,36 @@ enum AppErrorMessages {
         }
         return userMessage(for: error, context: "updating \(service)")
     }
+
+    /// A resource's file couldn't be opened or printed: it isn't on this device
+    /// (moved, deleted, or not downloaded from iCloud yet), or it can't be read.
+    static let resourceFileUnavailable = "Couldn't open this resource's file. It may have been moved or deleted, "
+        + "or it may still be downloading from iCloud. If it still won't open later, add the file again."
+}
+
+// MARK: - Parent reports and guardians (bug hunt 2026-10-11)
+
+extension AppErrorMessages {
+    /// What the Parent Reports editor and the guardian sheet say when sending
+    /// can't go as planned, or an email isn't usable.
+    enum ParentReports {
+        /// Mail doesn't tell the app whether a message went (the Mac's Mail
+        /// and the iPhone's mail link alike), so the guide says.
+        static let didItSend = "Mail doesn't tell the app whether a message went. "
+            + "Mark the report sent once it has."
+        /// The Mac's Mail couldn't open a message at all.
+        static let mailCouldNotOpen = "Mail couldn't open the report. "
+            + "Copy the report text and send it another way."
+        /// No mail account on this iPhone or iPad, and no app took the mail link.
+        static let noMailApp = "No email app is set up on this device. "
+            + "Add an account in Mail, or copy the report text and send it another way."
+        /// A mail link carries text only.
+        static let pdfNotAttached = "A mail link can't carry the PDF, so it isn't attached. "
+            + "Use Share PDF to send it separately."
+        /// A guardian's email field holds more than one address.
+        static let guardianOneAddress = "Enter one email address. To send to a second address too, "
+            + "add it as another guardian."
+        /// A guardian's email field holds something that isn't an address.
+        static let guardianNotAnAddress = "That isn't an email address. Check it for typos."
+    }
 }

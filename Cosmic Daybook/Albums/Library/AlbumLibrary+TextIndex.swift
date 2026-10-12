@@ -17,20 +17,53 @@ extension AlbumLibrary {
         startIndexBuild()
     }
 
+    /// Reads every album's page text, then embeds every lesson. A load that
+    /// replaces the album list while this runs (a shelf download landing, a
+    /// folder added) sends it round again for the new list, and critical memory
+    /// pressure ends it with the index marked purged: either way the semantic
+    /// build is never handed a text table that doesn't match the albums.
     func buildIndexes(policy: EnergyPolicy = .shared) async {
-        guard !indexing else { return }
+        guard !indexing else {
+            // Another pass is reading the albums now; it goes round once more.
+            indexBuildStale = true
+            return
+        }
+        repeat {
+            indexBuildStale = false
+            guard let read = await indexPageTexts(policy: policy) else { continue }
+            // Embedding every lesson is discretionary work too.
+            await pauseIndexingWhileDeferred(policy: policy)
+            if !isCurrentAlbumList(read) { indexBuildStale = true }
+            guard !indexBuildStale, !indexPurged else { continue }
+            await semantic.build(items: semanticItems())
+        } while indexBuildStale && !Task.isCancelled
+    }
+
+    /// One pass over the album list as it stands. Returns the albums it read,
+    /// or nil when a memory purge or a new album list cut it short; a new list
+    /// marks the build stale so it goes round again.
+    private func indexPageTexts(policy: EnergyPolicy) async -> [Album]? {
         indexing = true
+        indexPurged = false
         indexProgress = 0
         indexedPageCount = 0
+        defer { indexing = false }
         var lastSeen = (UserDefaults.standard.dictionary(forKey: Self.lastSeenKey) as? [String: Double]) ?? [:]
         var lastSeenChanged = false
-        let items = albums.map { (id: $0.id, url: $0.url, pages: $0.pageCount) }
+        let read = albums
+        let items = read.map { (id: $0.id, url: $0.url) }
         let cacheDir = Self.indexCacheDirectory()
+        var cutShort = false
         for (i, item) in items.enumerated() {
             // Parsing a PDF is discretionary work, so a hot device or Low Power
             // Mode pauses between albums rather than abandoning the index.
             if i > 0 {
                 await pauseIndexingWhileDeferred(policy: policy)
+            }
+            // A purge or a reload during the pause makes the rest of this pass moot.
+            if indexPurged || indexBuildStale || !isCurrentAlbumList(read) {
+                cutShort = true
+                break
             }
             let modified = (try? item.url.resourceValues(forKeys: [.contentModificationDateKey]))?
                 .contentModificationDate ?? .distantPast
@@ -61,11 +94,15 @@ extension AlbumLibrary {
         if lastSeenChanged {
             UserDefaults.standard.set(lastSeen, forKey: Self.lastSeenKey)
         }
-        indexing = false
-        indexPurged = false
-        // Embedding every lesson is discretionary work too.
-        await pauseIndexingWhileDeferred(policy: policy)
-        await semantic.build(items: semanticItems())
+        if !indexPurged, !isCurrentAlbumList(read) { indexBuildStale = true }
+        guard !cutShort, !indexPurged, !indexBuildStale else { return nil }
+        return read
+    }
+
+    /// True while `albums` is still the list `read` was taken from: a load
+    /// replaces every `Album`, even one whose file is unchanged.
+    private func isCurrentAlbumList(_ read: [Album]) -> Bool {
+        read.count == albums.count && zip(read, albums).allSatisfy { $0 === $1 }
     }
 
     /// Waits while the device is too hot (or in Low Power Mode) to index the
@@ -88,15 +125,18 @@ extension AlbumLibrary {
         return 1
     }
 
-    /// Per-lesson titles and body texts used to build the semantic index.
+    /// Per-lesson titles and body texts used to build the semantic index. An
+    /// album whose page text hasn't been read yet waits for the next build, and
+    /// a lesson's pages are clamped to the text there is.
     private func semanticItems() -> [AlbumSemanticIndex.BuildItem] {
-        albums.map { album in
-            let texts = pageTexts[album.id] ?? []
+        albums.compactMap { album in
+            guard let texts = pageTexts[album.id] else { return nil }
             let bodies = album.lessons.enumerated().map { i, lesson in
                 let end = i + 1 < album.lessons.count
                     ? max(album.lessons[i + 1].pageIndex, lesson.pageIndex + 1)
                     : album.pageCount
-                let body = (lesson.pageIndex..<min(end, texts.count))
+                let upper = min(end, texts.count)
+                let body = (min(lesson.pageIndex, upper)..<upper)
                     .map { texts[$0] }
                     .joined(separator: " ")
                 return lesson.title + ". " + String(body.prefix(700))

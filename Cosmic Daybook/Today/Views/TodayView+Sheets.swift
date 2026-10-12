@@ -153,7 +153,7 @@ struct TodayViewSheets: ViewModifier {
     private func meetingSessionSheet(_ studentID: UUID) -> some View {
         ScheduledMeetingSessionSheet(studentID: studentID) {
             if let meetingID = selectedMeetingID {
-                MeetingScheduler.clearMeeting(id: meetingID, context: viewContext)
+                MeetingScheduler.clearMeeting(id: meetingID, completedFor: studentID, context: viewContext)
             }
             selectedMeetingStudentID = nil
             selectedMeetingID = nil

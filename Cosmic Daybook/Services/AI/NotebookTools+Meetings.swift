@@ -20,14 +20,25 @@ import OSLog
 import FoundationModels
 
 extension NotebookTools {
-    /// The meeting and follow-up bridges, attached after the lookups.
-    static var meetingTools: [any Tool] {
-        [ListOpenFollowUpsTool(), RecordStudentMeetingTool(), AddFollowUpTool(), ResolveFollowUpTool()]
+    /// The meeting and follow-up bridges, attached after the lookups, working
+    /// in the classroom of the answer they were built for.
+    static func meetingTools(toolContext: ChatToolContext) -> [any Tool] {
+        let provider: MCPContextProvider = { toolContext.context }
+        return [
+            ListOpenFollowUpsTool(contextProvider: provider),
+            RecordStudentMeetingTool(contextProvider: provider),
+            AddFollowUpTool(contextProvider: provider),
+            ResolveFollowUpTool(contextProvider: provider)
+        ]
     }
 }
 
 /// Runs one bridged MCP handler, converting expected tool errors into
-/// replies the model can relay to the guide.
+/// replies the model can relay to the guide. A write runs inside
+/// `MCPNotebookTools.undoingOnFailure`, as its MCP handler does: the handlers
+/// no longer take back a failed save themselves, so a bare call left the
+/// meeting, its goals or a completed todo pending for the guide's next save
+/// (bug hunt 2026-10-11 review).
 @MainActor
 private func bridgedNotebookOperation(_ operation: () throws -> String) -> String {
     do {
@@ -45,7 +56,7 @@ private func bridgedNotebookOperation(_ operation: () throws -> String) -> Strin
 /// Records a completed student meeting through the same path as the in-app
 /// meeting form; new goals become open focus items.
 struct RecordStudentMeetingTool: Tool {
-    var contextProvider: MCPContextProvider = { ChatToolContext.context }
+    var contextProvider: MCPContextProvider
     let name = "recordStudentMeeting"
     let description = "Record a completed student meeting (conference) in the student's history. "
         + "Use ONLY when the guide explicitly asks to record or file a meeting — never for "
@@ -53,7 +64,7 @@ struct RecordStudentMeetingTool: Tool {
 
     @Generable(description: "Record student meeting arguments")
     struct Arguments {
-        @Guide(description: "The student met with: a first name, full name, or nickname")
+        @Guide(description: "The student met with: a short name (like \"Maya S\"), full name, or first name")
         var student: String
         @Guide(description: "Meeting date as YYYY-MM-DD, or empty for today")
         var date: String
@@ -81,7 +92,9 @@ struct RecordStudentMeetingTool: Tool {
         let contextProvider = contextProvider
         return await MainActor.run {
             bridgedNotebookOperation {
-                try MCPNotebookTools.recordMeeting(arguments: toolArguments, in: contextProvider())
+                try MCPNotebookTools.undoingOnFailure(contextProvider()) {
+                    try MCPNotebookTools.recordMeeting(arguments: toolArguments, in: $0)
+                }
             }
         }
     }
@@ -90,7 +103,7 @@ struct RecordStudentMeetingTool: Tool {
 /// Adds a follow-up to the guide's todo list through the same path as the
 /// in-app new-todo form, including student tag syncing.
 struct AddFollowUpTool: Tool {
-    var contextProvider: MCPContextProvider = { ChatToolContext.context }
+    var contextProvider: MCPContextProvider
     let name = "addFollowUp"
     let description = "Add a follow-up to the guide's todo list — something owed to a student, "
         + "a parent, an assistant, or the guide themself. Use ONLY when the guide explicitly "
@@ -119,7 +132,9 @@ struct AddFollowUpTool: Tool {
         let contextProvider = contextProvider
         let reply = await MainActor.run {
             bridgedNotebookOperation {
-                try MCPNotebookTools.addFollowUp(arguments: toolArguments, in: contextProvider())
+                try MCPNotebookTools.undoingOnFailure(contextProvider()) {
+                    try MCPNotebookTools.addFollowUp(arguments: toolArguments, in: $0)
+                }
             }
         }
         // The same-day duplicate guard ends by offering `force: true`, which
@@ -131,7 +146,7 @@ struct AddFollowUpTool: Tool {
 /// Marks a follow-up done: completes a todo or resolves a student's open
 /// goal (focus item) by id.
 struct ResolveFollowUpTool: Tool {
-    var contextProvider: MCPContextProvider = { ChatToolContext.context }
+    var contextProvider: MCPContextProvider
     let name = "resolveFollowUp"
     let description = "Mark a follow-up done: completes a todo, or resolves a student's open "
         + "goal, by the id shown in listOpenFollowUps. Use ONLY when the guide explicitly says "
@@ -148,7 +163,9 @@ struct ResolveFollowUpTool: Tool {
         let contextProvider = contextProvider
         return await MainActor.run {
             bridgedNotebookOperation {
-                try MCPNotebookTools.resolveFollowUp(arguments: toolArguments, in: contextProvider())
+                try MCPNotebookTools.undoingOnFailure(contextProvider()) {
+                    try MCPNotebookTools.resolveFollowUp(arguments: toolArguments, in: $0)
+                }
             }
         }
     }
@@ -161,7 +178,7 @@ struct ResolveFollowUpTool: Tool {
 /// this one cites inline ([todo id=…], [focusItem id=…], [note id=…])
 /// rather than feeding the evidence collector.
 struct ListOpenFollowUpsTool: Tool {
-    var contextProvider: MCPContextProvider = { ChatToolContext.context }
+    var contextProvider: MCPContextProvider
     let name = "listOpenFollowUps"
     let description = "List everything currently open: the guide's follow-up todos, each "
         + "student's open goals, and observation notes flagged for follow-up. Optionally "

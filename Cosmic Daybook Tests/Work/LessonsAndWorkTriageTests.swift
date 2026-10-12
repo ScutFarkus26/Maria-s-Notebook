@@ -195,8 +195,8 @@ struct LessonsAndWorkTriageTests {
     @Test("A presentation whose day has passed keeps its day, for now")
     func missedPresentationStaysScheduled() {
         // Documents today's behaviour deliberately: the calendar keeps showing
-        // it, and "missed" is PresentationsMissWindow's job. Promoting these to
-        // .attention is a behaviour change, not part of adopting the service.
+        // it. Promoting these to .attention is a behaviour change, not part of
+        // adopting the service.
         let missed = PresentationTriageInput(state: .scheduled, scheduledFor: yesterday)
         #expect(LessonsAndWorkTriage.bucket(for: missed) == .scheduled)
     }

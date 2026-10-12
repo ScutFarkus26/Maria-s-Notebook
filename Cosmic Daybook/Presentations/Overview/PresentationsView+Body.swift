@@ -24,7 +24,6 @@ extension PresentationsView {
             updateViewModel()
 
             syncInboxOrderWithCurrentBase()
-            syncRecentWindowWithMissWindow()
             revealFocusedPresentationIfNeeded()
         }
         .onPresentationDataChange(of: Self.watchedEntityNames, in: viewContext) { touched in
@@ -45,10 +44,6 @@ extension PresentationsView {
             if old.assignmentChangeToken != new.assignmentChangeToken {
                 syncInboxOrderWithCurrentBase()
                 revealFocusedPresentationIfNeeded()
-            }
-
-            if old.missWindowRaw != new.missWindowRaw {
-                syncRecentWindowWithMissWindow()
             }
 
             // Debounce the heavy fetch path: a CloudKit import that
@@ -248,7 +243,6 @@ extension PresentationsView {
             viewContext: viewContext,
             calendar: calendar,
             inboxOrderRaw: inboxOrderRaw,
-            missWindow: missWindow,
             showTestStudents: testStudents.show,
             testStudentNamesRaw: testStudents.namesRaw,
             lessons: dependencies.lessonCatalog.all,

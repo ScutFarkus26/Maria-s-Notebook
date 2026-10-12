@@ -18,6 +18,8 @@ import UniformTypeIdentifiers
 struct StudentsView: View {
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.appRouter) private var appRouter
+    /// This window's New Student / Import Students (File menu, sidebar).
+    @Environment(\.windowCreateRequests) private var windowCreateRequests
     @Environment(\.calendar) var calendar
     @Environment(\.dependencies) var dependencies
     #if os(iOS)
@@ -136,12 +138,14 @@ struct StudentsView: View {
         .onChange(of: appRouter.navigationDestination) { _, destination in
             handleNavigationDestinationChange(destination)
         }
+        .onChange(of: windowCreateRequests?.pending) { handleWindowCreateRequest() }
         .onAppear {
             ensureInitialManualOrderIfNeeded()
             refreshSignals()
             // A request made before this tab first appeared (a Handoff from
             // another device switches to it and asks in one step).
             handleNavigationDestinationChange(appRouter.navigationDestination)
+            handleWindowCreateRequest()
         }
         // Debounce: saves arrive in bursts (bulk edits, CloudKit merge
         // batches). Saves touching nothing a signal is read from (work,
@@ -315,8 +319,19 @@ struct StudentsView: View {
         assignManualOrder(from: newAllIDs)
         dependencies.saveCoordinator.save(viewContext, reason: "Reorder students")
     }
+}
 
-    // MARK: - Navigation Helpers
+// MARK: - Navigation Helpers
+
+extension StudentsView {
+    /// Opens the sheet this window asked for, which also brought it here.
+    private func handleWindowCreateRequest() {
+        switch windowCreateRequests?.consumeStudentRequest() {
+        case .newStudent: showingAddStudent = true
+        case .importStudents: showingStudentCSVImporter = true
+        case .newLesson, nil: break
+        }
+    }
 
     private func handleNavigationDestinationChange(_ destination: AppRouter.NavigationDestination?) {
         guard let destination else { return }

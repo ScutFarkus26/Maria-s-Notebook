@@ -152,13 +152,19 @@ private struct ProjectWorkProgressRow: View {
     let onSave: (String) -> Void
     /// A typed edit: saved once typing pauses.
     var onEdited: (String) -> Void = { _ in }
+    /// She typed in the title since the last touch.
+    @State private var renamed = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline, spacing: AppTheme.Spacing.small) {
                 TextField("Follow-up", text: Binding(
                     get: { work.title },
-                    set: { work.title = $0 }
+                    set: { newTitle in
+                        guard newTitle != work.title else { return }
+                        work.title = newTitle
+                        renamed = true
+                    }
                 ))
                 .textFieldStyle(.roundedBorder)
                 .onSubmit { persist(reason: "Rename Project Follow-Up") }
@@ -229,7 +235,11 @@ private struct ProjectWorkProgressRow: View {
             }
         }
         .padding(.vertical, 6)
-        .onDisappear { persist(reason: "Save Project Follow-Up") }
+        // Only a real edit marks the follow-up touched: scrolling past it, or
+        // leaving the page, used to reset its age every time (2026-10-11 #66).
+        .onDisappear {
+            if renamed || work.hasChanges { persist(reason: "Save Project Follow-Up") }
+        }
         // The title field writes straight to the work; save once typing pauses,
         // without marking the work touched per keystroke (Return still does).
         .onChange(of: work.title) { _, _ in onEdited("Rename Project Follow-Up") }
@@ -253,6 +263,7 @@ private struct ProjectWorkProgressRow: View {
     }
 
     private func persist(reason: String) {
+        renamed = false
         work.lastTouchedAt = Date()
         onSave(reason)
     }
@@ -262,13 +273,19 @@ private struct ProjectWorkNoteField: View {
     @ObservedObject var work: CDWorkModel
     let onSave: (String) -> Void
     @Environment(\.managedObjectContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @State private var text: String
+    /// The field note as this field loaded or last wrote it.
+    @State private var base: String
+    /// A typed edit's save, waiting for the typing to pause.
+    @State private var pendingSave: Task<Void, Never>?
 
     init(work: CDWorkModel, onSave: @escaping (String) -> Void) {
         self.work = work
         self.onSave = onSave
         // The field note `persist` saves back, not the newest observation.
         text = work.legacyNoteText
+        base = work.legacyNoteText
     }
 
     var body: some View {
@@ -277,12 +294,33 @@ private struct ProjectWorkNoteField: View {
             .textFieldStyle(.roundedBorder)
             .onSubmit { persist() }
             .onDisappear { persist() }
+            // Saved once typing pauses and when the app goes to the background,
+            // not only on Return or leaving the page (2026-10-11 #72).
+            .onChange(of: text) { _, _ in schedulePersist() }
+            .onChange(of: scenePhase) { _, phase in
+                if phase != .active { persist() }
+            }
+    }
+
+    private func schedulePersist() {
+        pendingSave?.cancel()
+        pendingSave = Task {
+            try? await Task.sleep(for: .milliseconds(800))
+            guard !Task.isCancelled else { return }
+            persist()
+        }
     }
 
     private func persist() {
-        let trimmed = text.trimmed()
-        guard trimmed != work.legacyNoteText.trimmed() else { return }
-        work.setLegacyNoteText(trimmed.isEmpty ? nil : trimmed, in: modelContext)
+        pendingSave?.cancel()
+        pendingSave = nil
+        guard let note = ProjectCheckInSave.noteToWrite(typed: text, base: base, stored: work.legacyNoteText) else {
+            return
+        }
+        work.setLegacyNoteText(note.isEmpty ? nil : note, in: modelContext)
+        base = note
+        // A merge with a newer note from another device: show what was saved.
+        if note != text.trimmed() { text = note }
         work.lastTouchedAt = Date()
         onSave("Save Project Observation")
     }

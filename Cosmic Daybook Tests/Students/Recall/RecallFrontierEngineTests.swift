@@ -5,7 +5,7 @@ import Testing
 // MARK: - RecallFrontierEngine (pure core)
 //
 // Exhaustive tests for the recall queue math: frontier selection, co-frontier ties, covers-N,
-// covered-stamp idempotency, drill-down, and the two eligibility triggers (start-of-year sweep
+// covered-stamp idempotency, and the two eligibility triggers (start-of-year sweep
 // and spaced re-check). No Core Data — pure value types in, value types out.
 
 @Suite("Recall frontier engine")
@@ -187,23 +187,5 @@ struct RecallFrontierEngineTests {
         let intents = RecallFrontierEngine.coveredIntents(forRetained: entry, existing: existing, schoolYearKey: Self.key)
         #expect(intents.count == 2)
         #expect(!intents.contains { $0.lessonID == Self.stamp.uuidString })
-    }
-
-    // MARK: - Drill-down
-
-    @Test("Drill-down returns the next lesson below the frontier")
-    func drillDown() {
-        let below = RecallFrontierEngine.precedingLesson(
-            below: Self.longDiv, area: "Math", sequence: "Division", lessons: Self.divisionLessons
-        )
-        #expect(below?.id == Self.racks)
-    }
-
-    @Test("Drill-down at the lowest rung returns nil")
-    func drillDownFloor() {
-        let below = RecallFrontierEngine.precedingLesson(
-            below: Self.board, area: "Math", sequence: "Division", lessons: Self.divisionLessons
-        )
-        #expect(below == nil)
     }
 }

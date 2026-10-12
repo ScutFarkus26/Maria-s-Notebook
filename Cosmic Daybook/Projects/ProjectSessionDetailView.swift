@@ -20,6 +20,8 @@ struct ProjectSessionDetailView: View {
     @State var showAddWorkSheet: Bool = false
     @State var stepEditorTarget: StepEditorTarget?
     @State private var sessionNotesText: String
+    /// The field note as this page loaded or last wrote it.
+    @State private var sessionNotesBase: String
     /// A typed edit's save, waiting for the typing to pause.
     @State private var pendingSave: Task<Void, Never>?
     @Environment(\.scenePhase) private var scenePhase
@@ -28,6 +30,7 @@ struct ProjectSessionDetailView: View {
         self.session = session
         // The field note `saveSessionNotes` saves back, not the newest observation.
         sessionNotesText = session.legacyNoteText
+        sessionNotesBase = session.legacyNoteText
     }
 
     var students: [CDStudent] {
@@ -57,7 +60,9 @@ struct ProjectSessionDetailView: View {
     }
 
     func studentName(for sid: String) -> String {
-        studentsByID[uuidString: sid].map(\.shortName) ?? "Student"
+        if let student = studentsByID[uuidString: sid] { return student.shortName }
+        // A child who has left keeps her name on the work she did here.
+        return dependencies.roster.all.first { $0.id?.uuidString == sid }?.shortName ?? "Student"
     }
 
     /// Works grouped by student (for uniform mode or assigned works in choice mode)
@@ -107,9 +112,11 @@ struct ProjectSessionDetailView: View {
         sessionWorkModels.filter(\.isOffered)
     }
 
-    /// CDProject member IDs for showing selection status
+    /// The project's members still in the class (and shown), for selection
+    /// status. The member list keeps every child ever added.
     var projectMemberIDs: [String] {
-        session.project?.memberStudentIDsArray ?? []
+        let shown = studentsByID
+        return (session.project?.memberStudentIDsArray ?? []).filter { shown[uuidString: $0] != nil }
     }
 
     private var studentSelectionBinding: Binding<StudentIDWrapper?> {
@@ -183,7 +190,7 @@ struct ProjectSessionDetailView: View {
                     TextField("Observation notes", text: $sessionNotesText, axis: .vertical)
                         .lineLimit(3...6)
                         .textFieldStyle(.roundedBorder)
-                        .onSubmit { saveSessionNotes() }
+                        .onSubmit { saveProjectSession(reason: "Save Project Observation") }
                 }
 
                 agendaItemsEditor
@@ -191,63 +198,15 @@ struct ProjectSessionDetailView: View {
             .padding(.vertical, 6)
         }
         .padding(.horizontal)
-        .onDisappear {
-            saveSessionNotes()
-            saveProjectSession(reason: "Save Project Check-In")
-        }
-        // These two fields write straight to the session; save once typing pauses
-        // rather than only on leaving the screen (2026-10-10 sweep and review).
+        .onDisappear { saveProjectSession(reason: "Save Project Check-In") }
+        // These fields write to the session; save once typing pauses rather
+        // than only on leaving the screen (2026-10-10 sweep and review; the
+        // notes since 2026-10-11 #72, which were lost when the app went away).
         .onChange(of: session.chapterOrPages) { _, _ in scheduleProjectSave(reason: "Edit Project Focus") }
         .onChange(of: session.agendaItems) { _, _ in scheduleProjectSave(reason: "Edit Project Next Step") }
+        .onChange(of: sessionNotesText) { _, _ in scheduleProjectSave(reason: "Edit Project Observation") }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { flushPendingProjectSave() }
-        }
-    }
-
-    private var agendaItemsEditor: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Student Questions & Next Steps")
-                .font(.headline)
-            ForEach(Array(session.agendaItems.enumerated()), id: \.offset) { index, _ in
-                HStack {
-                    TextField("Question, observation, or next step", text: Binding(
-                        get: {
-                            session.agendaItems.indices.contains(index)
-                                ? session.agendaItems[index] : ""
-                        },
-                        set: { newValue in
-                            var items = session.agendaItems
-                            if items.indices.contains(index) {
-                                items[index] = newValue
-                                session.agendaItems = items
-                            }
-                        }
-                    ), axis: .vertical)
-                    .lineLimit(1...3)
-                    .textFieldStyle(.roundedBorder)
-                    Button(role: .destructive) {
-                        var items = session.agendaItems
-                        if items.indices.contains(index) {
-                            items.remove(at: index)
-                            session.agendaItems = items
-                            saveProjectSession(reason: "Remove Project Next Step")
-                        }
-                    } label: {
-                        Image(systemName: "minus.circle.fill")
-                            .foregroundStyle(AppColors.destructive)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            Button {
-                var items = session.agendaItems
-                items.append("")
-                session.agendaItems = items
-                saveProjectSession(reason: "Add Project Next Step")
-            } label: {
-                Label("Add Next Step", systemImage: "plus.circle.fill")
-            }
-            .buttonStyle(.plain)
         }
     }
 
@@ -277,10 +236,14 @@ struct ProjectSessionDetailView: View {
         stepEditorTarget = StepEditorTarget(work: work, step: step)
     }
 
+    /// Writes the typed notes, then saves the check-in when anything on it
+    /// changed, stamping its project active. Leaving the page with nothing
+    /// changed saves nothing (2026-10-11 #66).
     func saveProjectSession(reason: String) {
         pendingSave?.cancel()
         pendingSave = nil
-        session.project?.modifiedAt = Date()
+        saveSessionNotes()
+        guard ProjectCheckInSave.prepareSave(session, works: sessionWorkModels) else { return }
         saveCoordinator.save(modelContext, reason: reason)
     }
 
@@ -295,17 +258,21 @@ struct ProjectSessionDetailView: View {
         }
     }
 
-    /// Saves a typed edit still waiting, when leaving the app.
+    /// Saves a typed edit still waiting, the notes included, when leaving the app.
     func flushPendingProjectSave() {
-        guard pendingSave != nil else { return }
         saveProjectSession(reason: "Save Project Check-In")
     }
 
+    /// Writes the notes field into the session when she changed it, never
+    /// her old text over a newer note from another device (2026-10-11 #73).
     private func saveSessionNotes() {
-        let trimmed = sessionNotesText.trimmed()
-        if trimmed != session.legacyNoteText.trimmed() {
-            session.setLegacyNoteText(trimmed.isEmpty ? nil : trimmed, in: modelContext)
-        }
+        guard let text = ProjectCheckInSave.noteToWrite(
+            typed: sessionNotesText, base: sessionNotesBase, stored: session.legacyNoteText
+        ) else { return }
+        session.setLegacyNoteText(text.isEmpty ? nil : text, in: modelContext)
+        sessionNotesBase = text
+        // A merge with the newer note: show what was saved.
+        if text != sessionNotesText.trimmed() { sessionNotesText = text }
     }
 
     struct StepEditorTarget: Identifiable {

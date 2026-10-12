@@ -146,7 +146,7 @@ enum WorkPeers {
     }
 
     private static func describe(_ work: CDWorkModel, days: Int, naming detail: Detail) -> String {
-        let kind = (work.kind ?? .research).displayName
+        let kind = work.displayKind.displayName
         let title = work.title.trimmed()
         // Falls back to the kind rather than to the lesson name: every row in
         // a lesson's list carries the same lesson, so it distinguishes nothing.

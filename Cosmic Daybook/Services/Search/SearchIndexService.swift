@@ -150,6 +150,10 @@ final class SearchIndexService {
     let catchUpDelay: Duration
 
     @ObservationIgnored var catchUpTask: Task<Void, Never>?
+    /// The build under way (the launch refresh or a first search's), shared
+    /// by every caller that arrives while it runs, and the container it reads.
+    @ObservationIgnored private var pendingBuild: Task<Void, Never>?
+    @ObservationIgnored private weak var pendingBuildContainer: NSPersistentContainer?
     @ObservationIgnored var scheduledCatchUp: Task<Void, Never>?
     @ObservationIgnored var followTask: Task<Void, Never>?
     @ObservationIgnored weak var followedCoordinator: NSPersistentStoreCoordinator?
@@ -192,6 +196,11 @@ final class SearchIndexService {
     /// ready, replays whatever was written since it was last brought current,
     /// so a search right after a save or delete sees it. The replay is gated
     /// on the history token, so with nothing new it costs one token read.
+    ///
+    /// After a deferred launch (see `adopt`) the first call is the build.
+    /// Callers arriving while a build runs (the Search sheet and a chat
+    /// answer at once, or either during the launch refresh) wait for it
+    /// rather than each starting their own (see `refresh`).
     func ensureReady() async {
         guard let container = indexingContainer else { return }
         if isReady {
@@ -201,14 +210,50 @@ final class SearchIndexService {
         }
     }
 
+    /// Points the index at `container` without building it: a launch on a
+    /// hot device or in Low Power Mode leaves the build to the first search,
+    /// which `ensureReady()` runs from the on-disk snapshot when there is
+    /// one. Without this nothing set the container on such a launch, so
+    /// search, chat and MCP `search_notebook` found nothing all session
+    /// (bug hunt 2026-10-11 #43).
+    func adopt(_ container: NSPersistentContainer) {
+        indexingContainer = container
+    }
+
     // MARK: - Building
 
     /// Launch-time entry point. Reuses the on-disk snapshot when it belongs to
     /// this store, replays persistent history recorded since it was written, and
     /// falls back to a full rebuild otherwise. The fetches, the decode, and the
     /// tokenization all run off the main actor; only the final assignment lands here.
+    ///
+    /// A call while a build of the same container runs waits for that build
+    /// instead of starting another. The launch called this directly, so a
+    /// search (Search screen, MCP `search_notebook`, chat) during the launch
+    /// refresh ran a second full refresh beside it, and both wrote the
+    /// snapshot (review (b) 2026-10-11).
     func refresh(container: NSPersistentContainer) async {
         indexingContainer = container
+        while let pending = pendingBuild {
+            let sameContainer = pendingBuildContainer === container
+            await pending.value
+            if sameContainer { return }
+        }
+        let build = Task { [weak self] in
+            guard let self else { return }
+            await self.build(container: container)
+        }
+        pendingBuild = build
+        pendingBuildContainer = container
+        await build.value
+        if pendingBuild == build {
+            pendingBuild = nil
+            pendingBuildContainer = nil
+        }
+    }
+
+    /// One refresh pass; `refresh` makes sure only one runs at a time.
+    private func build(container: NSPersistentContainer) async {
         follow(container)
         let currentToken = Self.archivedCurrentHistoryToken(of: container)
         let outcome = await Self.refreshContents(
@@ -244,16 +289,6 @@ final class SearchIndexService {
 
     var contents: SearchIndexContents {
         SearchIndexContents(index: index, resultsById: resultsById, idsByURI: idsByURI)
-    }
-
-    // MARK: - Incremental Updates
-
-    func indexResult(_ result: SearchResult, text: String) {
-        resultsById[result.id] = result
-        for token in Self.tokenize(text) {
-            if index[token] == nil { sortedTokens = nil }
-            index[token, default: []].insert(result.id)
-        }
     }
 
     // MARK: - Search
@@ -292,27 +327,41 @@ final class SearchIndexService {
             }
         }
 
-        // Ranking by "number of matching query tokens" is vestigial: `candidates` is
-        // the intersection of every token's match set, so each survivor matches all of
-        // them and every score is identical. It was already a tie before this rewrite —
-        // but it was an expensive one. The old code scored inside the sort comparator,
-        // recomputing both operands on every comparison, and each score rescanned the
-        // entire vocabulary (`index.keys.contains(where:)`) once per query token:
-        // O(candidates · log(candidates) · tokens · vocabulary) on the main actor, for a
-        // view that searches on every keystroke.
-        //
-        // Kept as a cheap explicit pass rather than deleted, so that relaxing the
-        // intersection above (to OR/fuzzy matching) starts ranking for real instead of
-        // silently returning an arbitrary set order.
+        // Every survivor matches all the query tokens, so there is no score to
+        // rank by. The order is by kind (students, then lessons, then
+        // everything else), then newest first; it used to be a Set's, and the
+        // limit kept an arbitrary 50 (or 8 for chat and MCP), so the child's
+        // own row could be missing (bug hunt 2026-10-11 #44).
         let ranked = candidates
-            .compactMap { id -> (result: SearchResult, score: Int)? in
-                guard let result = resultsById[id] else { return nil }
-                return (result, tokenMatches.reduce(0) { $0 + ($1.contains(id) ? 1 : 0) })
-            }
-            .sorted { $0.score > $1.score }
-            .map(\.result)
-
+            .compactMap { resultsById[$0] }
+            .sorted(by: Self.ranksBefore)
         return Array(ranked.prefix(limit))
+    }
+
+    /// Search order: students, then lessons, then notes, todos and work
+    /// together; newest first within each, undated last; then by title and id,
+    /// so the same index always gives the same order.
+    nonisolated static func ranksBefore(_ lhs: SearchResult, _ rhs: SearchResult) -> Bool {
+        let lhsKind = kindRank(lhs.entityType)
+        let rhsKind = kindRank(rhs.entityType)
+        if lhsKind != rhsKind { return lhsKind < rhsKind }
+        switch (lhs.date, rhs.date) {
+        case let (left?, right?) where left != right: return left > right
+        case (.some, nil): return true
+        case (nil, .some): return false
+        default: break
+        }
+        let order = lhs.title.localizedStandardCompare(rhs.title)
+        if order != .orderedSame { return order == .orderedAscending }
+        return lhs.id.uuidString < rhs.id.uuidString
+    }
+
+    private nonisolated static func kindRank(_ type: SearchableEntityType) -> Int {
+        switch type {
+        case .student: 0
+        case .lesson: 1
+        case .note, .todo, .work: 2
+        }
     }
 
     /// Every token in the index with `prefix` as a `hasPrefix` prefix — the
@@ -334,24 +383,5 @@ final class SearchIndexService {
         let upper = Self.lowerBound(of: prefix + "\u{10FFFF}", in: sorted)
         guard lower < upper else { return [] }
         return sorted[lower..<upper].filter { $0.hasPrefix(prefix) }
-    }
-
-    /// First position in `sorted` whose element is not below `value`.
-    nonisolated static func lowerBound(of value: String, in sorted: [String]) -> Int {
-        var low = 0
-        var high = sorted.count
-        while low < high {
-            let mid = (low + high) / 2
-            if sorted[mid] < value { low = mid + 1 } else { high = mid }
-        }
-        return low
-    }
-
-    // MARK: - Tokenization
-
-    nonisolated static func tokenize(_ text: String) -> [String] {
-        text.lowercased()
-            .components(separatedBy: CharacterSet.alphanumerics.inverted)
-            .filter { $0.count >= 2 }
     }
 }

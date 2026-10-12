@@ -16,49 +16,24 @@ import OSLog
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
 import FoundationModels
 
-actor EvidenceSourceCollector {
-    private var sourcesByID: [String: EvidenceReference] = [:]
-
-    func record(_ reference: EvidenceReference) {
-        sourcesByID[reference.id] = reference
-    }
-
-    func record(contentsOf references: [EvidenceReference]) {
-        for reference in references {
-            sourcesByID[reference.id] = reference
-        }
-    }
-
-    func snapshot() -> [EvidenceReference] {
-        sourcesByID.values.sorted {
-            ($0.date ?? .distantPast) > ($1.date ?? .distantPast)
-        }
-    }
-
-    func consume() -> [EvidenceReference] {
-        let snapshot = snapshot()
-        sourcesByID.removeAll()
-        return snapshot
-    }
-}
-
 enum NotebookTools {
-    /// The lookup toolset attached to on-device chat sessions.
-    static func chatTools(sourceCollector: EvidenceSourceCollector? = nil) -> [any Tool] {
+    /// The lookup toolset attached to one on-device chat answer, reading the
+    /// classroom in `toolContext` and recording its sources there.
+    static func chatTools(toolContext: ChatToolContext) -> [any Tool] {
         [
-            SearchNotebookTool(sourceCollector: sourceCollector),
-            StudentNotesTool(sourceCollector: sourceCollector),
-            StudentPresentationHistoryTool(sourceCollector: sourceCollector),
-            PresentationWorkTool(sourceCollector: sourceCollector),
-            MissingPresentationObservationsTool(sourceCollector: sourceCollector),
+            SearchNotebookTool(toolContext: toolContext),
+            StudentNotesTool(toolContext: toolContext),
+            StudentPresentationHistoryTool(toolContext: toolContext),
+            PresentationWorkTool(toolContext: toolContext),
+            MissingPresentationObservationsTool(toolContext: toolContext),
             SearchTeachingAlbumsTool()
-        ] + meetingTools
+        ] + meetingTools(toolContext: toolContext)
     }
 }
 
 /// Keyword search across notes, lessons, students, todos, and work records.
 struct SearchNotebookTool: Tool {
-    let sourceCollector: EvidenceSourceCollector?
+    let toolContext: ChatToolContext
     let name = "searchNotebook"
     let description = "Search the teacher's notebook (observation notes, lessons, "
         + "students, todos, work records) by keyword. Returns the best matches with snippets."
@@ -72,7 +47,7 @@ struct SearchNotebookTool: Tool {
     func call(arguments: Arguments) async throws -> String {
         let query = arguments.query
         // The index is of the guide's own notebook, never Sample Class's.
-        guard await ChatToolContext.readsGuidesNotebook else {
+        guard await toolContext.readsGuidesNotebook else {
             return "Notebook search isn't available in Sample Class. Ask about a student by name instead."
         }
         // The index can be purged under memory pressure — rebuild before searching
@@ -84,29 +59,28 @@ struct SearchNotebookTool: Tool {
         guard !results.isEmpty else {
             return "No notebook entries matched \"\(query)\"."
         }
-        if let sourceCollector {
-            for result in results {
-                await sourceCollector.record(result.evidenceReference)
-            }
+        for result in results {
+            await toolContext.sources.record(result.evidenceReference)
         }
         let lines = results.enumerated().map { index, result in
             let date = result.date.map { DateFormatters.mediumDate.string(from: $0) } ?? "Undated"
-            return "- [S\(index + 1)] [\(result.entityType.rawValue) id=\(result.id.uuidString)] \(date) — \(result.title): \(result.snippet)"
+            let record = "[\(result.entityType.rawValue) id=\(result.id.uuidString)]"
+            return "- [S\(index + 1)] \(record) \(date) — \(result.title): \(result.snippet)"
         }
         return lines.joined(separator: "\n")
     }
 }
 
-/// A student's recent observation notes with dates and full text.
+/// A student's recent observation notes with dates, each cut to a short excerpt.
 struct StudentNotesTool: Tool {
-    let sourceCollector: EvidenceSourceCollector?
+    let toolContext: ChatToolContext
     let name = "recentStudentNotes"
     let description = "Get a student's observation notes from the last N days, with dates "
-        + "and full text. Use when asked about a specific student's recent work or behavior."
+        + "and the start of each note. Use when asked about a specific student's recent work or behavior."
 
     @Generable(description: "Recent student notes arguments")
     struct Arguments {
-        @Guide(description: "The student's first name or full name")
+        @Guide(description: "The student's short name (like \"Maya S\") or full name")
         var studentName: String
 
         @Guide(description: "How many days back to look (1-120; use 30 if unsure)")
@@ -117,49 +91,34 @@ struct StudentNotesTool: Tool {
         let name = arguments.studentName
         let days = min(max(arguments.daysBack, 1), 120)
         let result = await MainActor.run {
-            Self.fetchNotes(studentName: name, daysBack: days)
+            Self.fetchNotes(studentName: name, daysBack: days, in: toolContext.context)
         }
-        if let sourceCollector {
-            await sourceCollector.record(contentsOf: result.sources)
-        }
+        await toolContext.sources.record(contentsOf: result.sources)
         return result.text
     }
 
     @MainActor
     private static func fetchNotes(
         studentName: String,
-        daysBack: Int
-    ) -> (text: String, sources: [EvidenceReference]) {
-        let context = ChatToolContext.context
-
-        // Resolve the student by (diacritic-insensitive) name.
-        let token = studentName.folded()
-        let studentRequest = CDFetchRequest(CDStudent.self)
-        let students = context.safeFetch(studentRequest)
-        let matches = students.filter { s in
-            let first = s.firstName.folded()
-            let last = s.lastName.folded()
-            let nick = (s.nickname ?? "").folded()
-            return token == first || token == "\(first) \(last)" || (!nick.isEmpty && token == nick)
+        daysBack: Int,
+        in context: NSManagedObjectContext
+    ) -> NotebookToolResult {
+        let student: CDStudent
+        switch NotebookToolStudentResolver.resolve(studentName, in: context) {
+        case .failure(let message):
+            return NotebookToolResult(text: message, sources: [])
+        case .success(let match):
+            student = match
         }
-        guard !matches.isEmpty else {
-            return ("No student named \"\(studentName)\" found in this classroom.", [])
-        }
-        if matches.count > 1 {
-            let names = matches.map(\.fullName).sorted().joined(separator: ", ")
-            return ("More than one student matches \"\(studentName)\": \(names). Ask the guide which student they mean.", [])
-        }
-        guard let student = matches.first, let studentID = student.id else {
-            return ("No student named \"\(studentName)\" found in this classroom.", [])
+        guard let studentID = student.id else {
+            return NotebookToolResult(text: "No student named \"\(studentName)\" found in this classroom.", sources: [])
         }
 
         let cutoff = AppCalendar.shared.date(byAdding: .day, value: -daysBack, to: Date()) ?? Date.distantPast
         let noteRequest = CDFetchRequest(CDNote.self)
         noteRequest.predicate = NSPredicate(format: "createdAt >= %@", cutoff as NSDate)
         noteRequest.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
-        let notes = context.safeFetch(noteRequest)
-
-        let matching = notes.filter { note in
+        let matching = context.safeFetch(noteRequest).filter { note in
             switch note.scope {
             case .all:
                 return false // classroom-wide notes aren't about this student specifically
@@ -170,17 +129,25 @@ struct StudentNotesTool: Tool {
             }
         }
         guard !matching.isEmpty else {
-            return ("No notes about \(student.firstName) in the last \(daysBack) days.", [])
+            let text = "No notes about \(student.shortName) in the last \(daysBack) days."
+            return NotebookToolResult(text: text, sources: [])
         }
+        return reply(about: student, notes: Array(matching.prefix(20)), daysBack: daysBack)
+    }
 
+    /// The notes newest first, each an excerpt, as many as fit the reply's
+    /// limit; the sources are the notes shown.
+    @MainActor
+    private static func reply(about student: CDStudent, notes: [CDNote], daysBack: Int) -> NotebookToolResult {
         let formatter = DateFormatters.mediumDate
-        let selected = Array(matching.prefix(20))
-        let lines = selected.map { note -> String in
+        let lines = notes.map { note -> String in
             let date = note.createdAt.map { formatter.string(from: $0) } ?? "Undated"
             let tags = note.tagsArray.isEmpty ? "" : " [\(note.tagsArray.joined(separator: ", "))]"
-            return "[note id=\(note.id?.uuidString ?? "unknown")] \(date)\(tags): \(note.body)"
+            let body = NotebookToolText.excerpt(note.body)
+            return "[note id=\(note.id?.uuidString ?? "unknown")] \(date)\(tags): \(body)"
         }
-        let sources = selected.compactMap { note -> EvidenceReference? in
+        let shown = NotebookToolText.fitting(lines)
+        let sources = notes.prefix(shown.count).compactMap { note -> EvidenceReference? in
             guard let id = note.id else { return nil }
             return EvidenceReference(
                 entityKind: .note,
@@ -190,10 +157,12 @@ struct StudentNotesTool: Tool {
                 excerpt: String(note.body.prefix(180))
             )
         }
-        return (
-            "Notes about \(student.firstName) (last \(daysBack) days):\n" + lines.joined(separator: "\n"),
-            sources
-        )
+        var text = "Notes about \(student.shortName) (last \(daysBack) days):\n" + shown.joined(separator: "\n")
+        let left = notes.count - shown.count
+        if left > 0 {
+            text += "\n(\(left) older note\(left == 1 ? "" : "s") not shown; ask about fewer days to see them.)"
+        }
+        return NotebookToolResult(text: text, sources: sources)
     }
 }
 
@@ -204,13 +173,14 @@ private struct NotebookToolResult: Sendable {
 
 /// Exact presentation history for one unambiguously resolved student.
 struct StudentPresentationHistoryTool: Tool {
-    let sourceCollector: EvidenceSourceCollector?
+    let toolContext: ChatToolContext
     let name = "studentPresentationHistory"
-    let description = "Look up dated lesson presentations for one student. Use this instead of inferring lesson history from work."
+    let description = "Look up dated lesson presentations for one student. "
+        + "Use this instead of inferring lesson history from work."
 
     @Generable(description: "Student presentation-history arguments")
     struct Arguments {
-        @Guide(description: "The student's first or full name")
+        @Guide(description: "The student's short name (like \"Maya S\") or full name")
         var studentName: String
         @Guide(description: "Maximum presentations to return, from 1 through 20")
         var limit: Int
@@ -218,17 +188,20 @@ struct StudentPresentationHistoryTool: Tool {
 
     func call(arguments: Arguments) async throws -> String {
         let result = await MainActor.run {
-            Self.fetch(studentName: arguments.studentName, limit: min(max(arguments.limit, 1), 20))
+            Self.fetch(
+                studentName: arguments.studentName,
+                limit: min(max(arguments.limit, 1), 20),
+                in: toolContext.context
+            )
         }
-        if let sourceCollector {
-            await sourceCollector.record(contentsOf: result.sources)
-        }
+        await toolContext.sources.record(contentsOf: result.sources)
         return result.text
     }
 
     @MainActor
-    private static func fetch(studentName: String, limit: Int) -> NotebookToolResult {
-        let context = ChatToolContext.context
+    private static func fetch(
+        studentName: String, limit: Int, in context: NSManagedObjectContext
+    ) -> NotebookToolResult {
         switch NotebookToolStudentResolver.resolve(studentName, in: context) {
         case .failure(let message):
             return NotebookToolResult(text: message, sources: [])
@@ -284,7 +257,7 @@ struct StudentPresentationHistoryTool: Tool {
 
 /// Work records linked to one exact presentation.
 struct PresentationWorkTool: Tool {
-    let sourceCollector: EvidenceSourceCollector?
+    let toolContext: ChatToolContext
     let name = "workForPresentation"
     let description = "Look up work explicitly linked to a presentation ID returned by another notebook tool."
 
@@ -298,16 +271,13 @@ struct PresentationWorkTool: Tool {
         guard let presentationID = UUID(uuidString: arguments.presentationID) else {
             return "The presentation ID was not a valid UUID."
         }
-        let result = await MainActor.run { Self.fetch(presentationID: presentationID) }
-        if let sourceCollector {
-            await sourceCollector.record(contentsOf: result.sources)
-        }
+        let result = await MainActor.run { Self.fetch(presentationID: presentationID, in: toolContext.context) }
+        await toolContext.sources.record(contentsOf: result.sources)
         return result.text
     }
 
     @MainActor
-    private static func fetch(presentationID: UUID) -> NotebookToolResult {
-        let context = ChatToolContext.context
+    private static func fetch(presentationID: UUID, in context: NSManagedObjectContext) -> NotebookToolResult {
         let request = CDFetchRequest(CDWorkModel.self)
         request.predicate = NSPredicate(format: "presentationID == %@", presentationID.uuidString)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)]
@@ -334,9 +304,10 @@ struct PresentationWorkTool: Tool {
 
 /// Deterministic coverage check for presentations lacking a linked observation.
 struct MissingPresentationObservationsTool: Tool {
-    let sourceCollector: EvidenceSourceCollector?
+    let toolContext: ChatToolContext
     let name = "presentationsMissingObservations"
-    let description = "Find presented lessons that have no linked observation. This reports missing records and never judges readiness."
+    let description = "Find presented lessons that have no linked observation. "
+        + "This reports missing records and never judges readiness."
 
     @Generable(description: "Missing presentation-observation arguments")
     struct Arguments {
@@ -347,17 +318,14 @@ struct MissingPresentationObservationsTool: Tool {
     func call(arguments: Arguments) async throws -> String {
         let days = min(max(arguments.daysBack, 1), 120)
         let result = await MainActor.run {
-            let context = ChatToolContext.context
             let start = AppCalendar.shared.date(byAdding: .day, value: -days, to: Date()) ?? .distantPast
             return PresentationObservationCoverageService.missingObservationReferences(
-                in: context,
+                in: toolContext.context,
                 from: start,
                 through: Date()
             )
         }
-        if let sourceCollector {
-            await sourceCollector.record(contentsOf: result)
-        }
+        await toolContext.sources.record(contentsOf: result)
         guard !result.isEmpty else {
             return "Every presentation in the last \(days) days has a linked observation."
         }
@@ -365,33 +333,6 @@ struct MissingPresentationObservationsTool: Tool {
             let date = reference.date.map { DateFormatters.mediumDate.string(from: $0) } ?? "Undated"
             return "- [M\(index + 1)] [presentation id=\(reference.entityID.uuidString)] \(date) — \(reference.title)"
         }.joined(separator: "\n")
-    }
-}
-
-@MainActor
-private enum NotebookToolStudentResolver {
-    enum Resolution {
-        case success(CDStudent)
-        case failure(String)
-    }
-
-    static func resolve(_ name: String, in context: NSManagedObjectContext) -> Resolution {
-        let token = name.folded()
-        let matches = context.safeFetch(CDFetchRequest(CDStudent.self)).filter { student in
-            let first = student.firstName.folded()
-            let full = student.fullName.folded()
-            let nickname = (student.nickname ?? "").folded()
-            return token == first || token == full || (!nickname.isEmpty && token == nickname)
-        }
-        guard !matches.isEmpty else {
-            return .failure("No student named \"\(name)\" was found.")
-        }
-        guard matches.count == 1, let student = matches.first else {
-            return .failure(
-                "More than one student matches \"\(name)\": \(matches.map(\.fullName).sorted().joined(separator: ", ")). Ask which student the guide means."
-            )
-        }
-        return .success(student)
     }
 }
 

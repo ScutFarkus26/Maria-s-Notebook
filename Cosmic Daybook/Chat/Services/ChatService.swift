@@ -27,10 +27,11 @@ final class ChatService {
         session.classroomSnapshotText = contextAssembler.buildClassroomSnapshot()
         session.snapshotBuiltAt = Date()
 
-        // Populate student names for dynamic suggested questions
+        // Student names for the suggested questions, as short names ("Etty D"),
+        // so a card never asks about one of two Ettys (bug hunt 2026-10-11 #49).
         let queryService = DataQueryService(context: modelContext)
         let students = queryService.fetchAllStudents(excludeTest: true)
-        session.studentNames = students.map(\.firstName)
+        session.studentNames = students.map(\.shortName)
 
         Self.logger.debug("Chat session started with classroom snapshot")
         return session
@@ -73,17 +74,19 @@ final class ChatService {
         // Build messages array for API (keep within token budget)
         let apiMessages = buildAPIMessages(from: session.messages)
 
-        // The notebook tools read this chat's classroom (Sample Class, say).
-        ChatToolContext.use(modelContext)
-        let fullResponse = try await mcpClient.streamConversation(
+        // The notebook tools read this chat's classroom (Sample Class, say),
+        // and cite into this answer's own list, whatever another chat window
+        // is answering meanwhile.
+        let tools = ChatToolContext(modelContext)
+        let fullResponse = try await mcpClient.streamChat(
             messages: apiMessages,
             systemMessage: systemMessage,
             temperature: 0.7,
             maxTokens: 2048,
-            timeout: nil,
+            tools: tools,
             onText: onText
         )
-        let sources = await mcpClient.consumeEvidenceSources()
+        let sources = await tools.sources.consume()
 
         // Add the complete assistant response to session
         let assistantMessage = ChatMessage(role: .assistant, content: fullResponse, sources: sources)

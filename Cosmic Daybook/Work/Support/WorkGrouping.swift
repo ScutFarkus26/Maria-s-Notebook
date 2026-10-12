@@ -190,7 +190,14 @@ enum WorkGrouping {
     private static func closure(
         from work: CDWorkModel, in context: NSManagedObjectContext
     ) -> [CDWorkModel] {
-        let candidates = candidateRows(sharingLessonWith: work, in: context)
+        closure(from: work, among: candidateRows(sharingLessonWith: work, in: context))
+    }
+
+    /// The same walk over rows already in hand: `candidates` are the other
+    /// rows on the work's lesson (`WorkVisibility` passes them).
+    static func closure(
+        from work: CDWorkModel, among candidates: [CDWorkModel]
+    ) -> [CDWorkModel] {
         guard !candidates.isEmpty else { return [work] }
 
         let linked = walk(from: work, among: candidates, linkedBy: areLinkedCopies)

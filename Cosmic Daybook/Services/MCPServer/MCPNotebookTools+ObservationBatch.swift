@@ -182,6 +182,16 @@ extension MCPNotebookTools {
         return body.count <= 40 ? "\"\(body)\"" : "\"\(body.prefix(40))…\""
     }
 
+    /// Tells the note lists (Observations, a child's Notes, Today) that a note
+    /// was saved, as the app's own note editors do; they wait for it rather
+    /// than watching the store, so a note filed over MCP stayed hidden until
+    /// the next note saved in the app (bug hunt 2026-10-11 #48). One post per
+    /// call, even for a batch: each post reloads every list.
+    static func announceSavedNote(_ id: UUID?) {
+        guard let id else { return }
+        NotificationCenter.default.post(name: .noteDidSave, object: id)
+    }
+
     /// Builds the note the way `LogObservationIntent` does. The caller saves.
     static func insertObservation(
         _ draft: ObservationDraft, in modelContext: NSManagedObjectContext
@@ -207,6 +217,7 @@ extension MCPNotebookTools {
         var lines: [String] = []
         var filed = 0
         var skipped = 0
+        var firstFiledID: UUID?
         for draft in drafts {
             if !force, let existing = existingObservation(
                 body: draft.body, scope: draft.scope, on: draft.date, in: modelContext
@@ -217,15 +228,16 @@ extension MCPNotebookTools {
             }
             let note = insertObservation(draft, in: modelContext)
             filed += 1
+            firstFiledID = firstFiledID ?? note.id
             lines.append(
                 "- Filed [note id=\(citationID(note.id))] for \(draft.names) "
                     + "on \(dayString(draft.date))"
             )
         }
         if filed > 0, !modelContext.safeSave() {
-            modelContext.rollback()
             throw MCPToolError("The observations could not be saved.")
         }
+        announceSavedNote(firstFiledID)
         let header = "Filed \(filed) observation(s)"
             + (skipped > 0 ? ", skipped \(skipped) duplicate(s)" : "") + ":"
         return ([header] + lines).joined(separator: "\n")

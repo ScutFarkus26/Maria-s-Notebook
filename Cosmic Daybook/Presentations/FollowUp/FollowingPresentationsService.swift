@@ -71,6 +71,11 @@ enum FollowingPresentationsService {
     /// The same groups from lookups the caller already holds — the live
     /// catalog's and roster's `byID` (first row per ID, as above) and the
     /// assignments the rows name.
+    ///
+    /// `studentByID` is also who is shown: a row for a child it doesn't hold
+    /// (one who left, or a hidden test student) is left out, and a group with
+    /// nobody left disappears. Recording opens a follow-up for every child, so
+    /// a departed child's would otherwise stay open for good, labeled "Child".
     static func groups(
         rows: [CDLessonPresentation],
         assignmentByID: [UUID: CDLessonAssignment],
@@ -109,9 +114,8 @@ enum FollowingPresentationsService {
                 ?? first.createdAt
                 ?? date
             let children = groupRows.compactMap { row -> FollowingPresentationChild? in
-                guard let id = UUID(uuidString: row.studentID) else { return nil }
-                let name = studentByID[id].map(\.shortName) ?? "Child"
-                return FollowingPresentationChild(row: row, studentName: name)
+                guard let id = UUID(uuidString: row.studentID), let student = studentByID[id] else { return nil }
+                return FollowingPresentationChild(row: row, studentName: student.shortName)
             }
             .sorted { $0.studentName.localizedCaseInsensitiveCompare($1.studentName) == .orderedAscending }
             guard !children.isEmpty else { return nil }

@@ -25,6 +25,8 @@ struct NotebookCommands: Commands {
     #if os(macOS)
     @Environment(\.openSettings) private var openSettings
     #endif
+    /// The key main window's actions, so Import Students… opens in that window.
+    @FocusedValue(\.quickCapture) private var quickCapture
 
     var body: some Commands {
         // 0. ALBUM READING COMMANDS
@@ -39,11 +41,9 @@ struct NotebookCommands: Commands {
         // Moves Imports, Backups, and Restores here
         CommandGroup(replacing: .importExport) {
             Section {
-                Button("Import Lessons…") { appRouter.requestImportLessons() }
-                    .keyboardShortcut("i", modifiers: [.command])
-
-                Button("Import Students…") { appRouter.requestImportStudents() }
+                Button("Import Students…") { quickCapture?.importStudents() }
                     .keyboardShortcut("i", modifiers: [.command, .shift])
+                    .disabled(quickCapture == nil)
             }
 
             Section {

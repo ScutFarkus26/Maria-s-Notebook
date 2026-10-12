@@ -44,7 +44,7 @@ struct SearchIndexPrefixLookupTests {
                     title: "\(i)-\(copy)",
                     snippet: text
                 )
-                service.indexResult(result, text: copy == 2 ? text.uppercased() : text)
+                service.addForTesting(result, text: copy == 2 ? text.uppercased() : text)
             }
         }
         return service
@@ -121,7 +121,7 @@ struct SearchIndexPrefixLookupTests {
     @Test func vocabularyChangesAreSeenAfterASearch() {
         let service = makeIndex()
         #expect(service.keys(withPrefix: "xylo").isEmpty)
-        service.indexResult(SearchResult(id: UUID(), entityType: .lesson, title: "x", snippet: ""), text: "xylophone")
+        service.addForTesting(SearchResult(id: UUID(), entityType: .lesson, title: "x", snippet: ""), text: "xylophone")
         #expect(service.keys(withPrefix: "xylo") == ["xylophone"])
         #expect(service.search(query: "xylo").count == 1)
         service.purge()

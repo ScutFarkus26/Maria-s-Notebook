@@ -58,7 +58,7 @@ extension MCPNotebookTools {
             ],
             annotations: .write,
             handler: { arguments in
-                try schedulePresentation(arguments: arguments, in: context())
+                try undoingOnFailure(context()) { try schedulePresentation(arguments: arguments, in: $0) }
             }
         )
     }
@@ -111,7 +111,6 @@ extension MCPNotebookTools {
         }
 
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The presentation could not be scheduled.")
         }
 
@@ -257,7 +256,7 @@ extension MCPNotebookTools {
             ],
             annotations: .idempotentWrite,
             handler: { arguments in
-                try reschedulePresentation(arguments: arguments, in: context())
+                try undoingOnFailure(context()) { try reschedulePresentation(arguments: arguments, in: $0) }
             }
         )
     }
@@ -308,7 +307,6 @@ extension MCPNotebookTools {
         }
 
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The presentation could not be rescheduled.")
         }
         return "[presentation id=\(id.uuidString)] \(outcome)"

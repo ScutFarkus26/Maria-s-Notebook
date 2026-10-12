@@ -65,6 +65,28 @@ final class CalendarNoteEditor {
         editingCell = nil
         draft = ""
     }
+
+    /// Commits `cellID` only while it is still the open cell. Leaving a day's
+    /// field (focus moving away, the calendar going off screen) commits the
+    /// note, which used to be kept only on Return or when another day opened
+    /// (2026-10-11 hunt, #41). The check matters because opening a second day
+    /// commits the first and moves the draft to the second, and the first
+    /// field's focus loss can arrive after that: it must not write the second
+    /// day's text into the first.
+    func commitIfOpen(
+        _ cellID: CellID,
+        notes: [CellID: CDCalendarNote],
+        in context: NSManagedObjectContext
+    ) {
+        guard editingCell == cellID else { return }
+        commit(cellID, notes: notes, in: context)
+    }
+
+    /// Commits whichever day is open, if any (the calendar going away).
+    func commitOpenCell(notes: [CellID: CDCalendarNote], in context: NSManagedObjectContext) {
+        guard let open = editingCell else { return }
+        commit(open, notes: notes, in: context)
+    }
 }
 
 // MARK: - Note lookup

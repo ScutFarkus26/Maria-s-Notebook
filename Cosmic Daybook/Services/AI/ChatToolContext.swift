@@ -1,28 +1,65 @@
 import CoreData
 
-/// The store Ask AI's notebook tools read: the classroom the chat is
-/// answering in. `ChatService` sets it before each answer.
+/// What Ask AI's notebook tools work with while one answer is written: the
+/// classroom the chat is answering in, and the records they cite.
+/// `ChatService` makes one for each answer and hands it to the model client,
+/// which gives it to the tools it builds for that answer.
 ///
 /// The tools used to open the guide's own notebook whatever the window
 /// showed, so Ask AI in Sample Class answered with her real children's
-/// notes. The model framework calls the tools on tasks of its own, so the
-/// context can't travel as a task-local; one chat answers at a time.
+/// notes. The fix (2026-09-29) kept the classroom in one process-wide value,
+/// so two Mac chat windows answering at once could read each other's
+/// classroom, and one window's answer could clear or show the other's
+/// sources (bug hunt 2026-10-11 #53). The model framework calls the tools on
+/// tasks of its own, so the context can't travel as a task-local; it travels
+/// inside the tools instead.
 @MainActor
-enum ChatToolContext {
-    private static weak var current: NSManagedObjectContext?
+final class ChatToolContext {
+    /// The chat's classroom; `nil` for the guide's own notebook.
+    private let store: NSManagedObjectContext?
 
-    static func use(_ context: NSManagedObjectContext) {
-        current = context
+    /// The records the tools looked up for this answer, shown as its Sources.
+    let sources = EvidenceSourceCollector()
+
+    init(_ context: NSManagedObjectContext? = nil) {
+        store = context
     }
 
     /// The chat's classroom, else the guide's own notebook.
-    static var context: NSManagedObjectContext {
-        current ?? AppBootstrapping.getSharedCoreDataStack().viewContext
+    var context: NSManagedObjectContext {
+        store ?? AppBootstrapping.getSharedCoreDataStack().viewContext
     }
 
     /// Whether that is the guide's own notebook: the search index covers
     /// only hers.
-    static var readsGuidesNotebook: Bool {
+    var readsGuidesNotebook: Bool {
         context === AppBootstrapping.getSharedCoreDataStack().viewContext
+    }
+}
+
+/// The records an answer's notebook tools looked up, one entry per record.
+actor EvidenceSourceCollector {
+    private var sourcesByID: [String: EvidenceReference] = [:]
+
+    func record(_ reference: EvidenceReference) {
+        sourcesByID[reference.id] = reference
+    }
+
+    func record(contentsOf references: [EvidenceReference]) {
+        for reference in references {
+            sourcesByID[reference.id] = reference
+        }
+    }
+
+    func snapshot() -> [EvidenceReference] {
+        sourcesByID.values.sorted {
+            ($0.date ?? .distantPast) > ($1.date ?? .distantPast)
+        }
+    }
+
+    func consume() -> [EvidenceReference] {
+        let snapshot = snapshot()
+        sourcesByID.removeAll()
+        return snapshot
     }
 }

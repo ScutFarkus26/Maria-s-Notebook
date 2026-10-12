@@ -48,7 +48,7 @@ struct WorkCardGridContent: View {
     }
 
     private var kindText: String {
-        (config.work.kind ?? .research).displayName
+        config.work.displayKind.displayName
     }
 
     private var displayTitle: String {

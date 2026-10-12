@@ -165,21 +165,31 @@ struct LessonsScopeThreadFocusView: View {
         else { return false }
 
         let names = sectionedGroups.map { $0.0 }.filter { !$0.isEmpty }
-        guard let srcIdx = names.firstIndex(where: {
-            $0.caseInsensitiveCompare(item.section) == .orderedSame
-        }), let dstIdx = names.firstIndex(where: {
-            $0.caseInsensitiveCompare(targetSection) == .orderedSame
-        }) else { return false }
-
-        var newOrder = names
-        let moved = newOrder.remove(at: srcIdx)
-        let insertIdx = srcIdx < dstIdx ? dstIdx - 1 : dstIdx
-        newOrder.insert(moved, at: insertIdx)
+        guard let newOrder = Self.sectionOrder(names, moving: item.section, onto: targetSection) else {
+            return false
+        }
 
         FilterOrderStore.saveSectionOrder(newOrder, for: threadKey.area, sequence: threadKey.sequence)
         FilterOrderStore.resetCache()
         sectionOrderVersion &+= 1
         return true
+    }
+
+    /// The section names after the section `moving` is dropped on `target`, or
+    /// nil when either isn't one of `names`. The dropped section takes the
+    /// target's place: dragged down it lands below the target (so the next
+    /// section and last place are reachable), dragged up it lands above.
+    nonisolated static func sectionOrder(_ names: [String], moving: String, onto target: String) -> [String]? {
+        guard let srcIdx = names.firstIndex(where: {
+            $0.caseInsensitiveCompare(moving) == .orderedSame
+        }), let dstIdx = names.firstIndex(where: {
+            $0.caseInsensitiveCompare(target) == .orderedSame
+        }) else { return nil }
+
+        var newOrder = names
+        let moved = newOrder.remove(at: srcIdx)
+        newOrder.insert(moved, at: dstIdx)
+        return newOrder
     }
 
     @ViewBuilder

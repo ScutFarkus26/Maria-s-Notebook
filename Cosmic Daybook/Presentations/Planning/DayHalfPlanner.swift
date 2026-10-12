@@ -104,9 +104,29 @@ enum DayHalfPlanner {
     }
 
     /// One presentation's place in a day: which record, and which half.
+    ///
+    /// `keptTime` is a time the guide actually set (`moment(of:)` reads it as
+    /// `.time`), for a card the gesture isn't moving. Renumbering the day
+    /// leaves it there, so a `schedule_presentation` at 10:30 stays 10:30 when
+    /// something else on the day is dragged, flipped or balanced.
     struct Placement: Equatable, Sendable {
         let id: UUID
         var period: DayPeriod
+        var keptTime: Date?
+
+        init(id: UUID, period: DayPeriod, keptTime: Date? = nil) {
+            self.id = id
+            self.period = period
+            self.keptTime = keptTime
+        }
+    }
+
+    /// The stored time a card keeps through a renumbering: its own, when it is
+    /// a time the guide set rather than an ordering slot. Nil for a slot, or
+    /// for no schedule at all.
+    static func keptTime(of scheduledFor: Date?, using calendar: Calendar = AppCalendar.shared) -> Date? {
+        guard let scheduledFor, case .time = moment(of: scheduledFor, using: calendar) else { return nil }
+        return scheduledFor
     }
 
     /// The half a dropped presentation inherits.
@@ -150,6 +170,11 @@ enum DayHalfPlanner {
     /// Second-spaced times for a day's presentations, in list order, each
     /// counting from its own half's base hour.
     ///
+    /// A placement carrying a `keptTime` comes back at that time and takes no
+    /// slot. A slot after it in the list counts on from it rather than from
+    /// the base hour, so the card still draws below the kept one (review
+    /// 2026-10-11 (c) #5).
+    ///
     /// `spacingSeconds` must stay whole for the same reason
     /// `PlanningDropUtils.assignSequentialTimes` requires it: backups encode
     /// dates to whole-second precision, so sub-second offsets would collapse
@@ -162,8 +187,14 @@ enum DayHalfPlanner {
     ) -> [UUID: Date] {
         let startOfDay = calendar.startOfDay(for: day)
         var ranks: [DayPeriod: Int] = [:]
+        var latest: [DayPeriod: Date] = [:]
         var result: [UUID: Date] = [:]
         for placement in placements {
+            if let kept = placement.keptTime {
+                result[placement.id] = kept
+                latest[placement.period] = max(latest[placement.period] ?? kept, kept)
+                continue
+            }
             let rank = ranks[placement.period, default: 0]
             ranks[placement.period] = rank + 1
             // Set on the clock rather than added to midnight, which is off
@@ -171,11 +202,12 @@ enum DayHalfPlanner {
             let base = calendar.date(
                 bySettingHour: placement.period.baseHour, minute: 0, second: 0, of: startOfDay
             ) ?? startOfDay
-            result[placement.id] = calendar.date(
-                byAdding: .second,
-                value: rank * spacingSeconds,
-                to: base
-            ) ?? base
+            var time = calendar.date(byAdding: .second, value: rank * spacingSeconds, to: base) ?? base
+            if let floor = latest[placement.period], time <= floor {
+                time = calendar.date(byAdding: .second, value: spacingSeconds, to: floor) ?? floor
+            }
+            latest[placement.period] = time
+            result[placement.id] = time
         }
         return result
     }

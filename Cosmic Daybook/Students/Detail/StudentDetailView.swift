@@ -114,18 +114,6 @@ struct StudentDetailView: View {
         return vm.fetchWorkModelsForStudent(viewContext: viewContext)
     }
 
-    @ViewBuilder
-    private func lessonGiveSheet(for lesson: CDLesson) -> some View {
-        let newLA = vm.createDraftLessonAssignment(
-            for: lesson, viewContext: viewContext, saveCoordinator: saveCoordinator
-        )
-        PresentationDetailView(lessonAssignment: newLA) {
-            vm.selectedLessonForGive = nil
-            vm.loadData(viewContext: viewContext)
-        }
-        .studentDetailSheetSizing()
-    }
-
     private func handleCancelEdit() { isEditing = false }
 
     private func handleSaveEdit() {
@@ -301,17 +289,6 @@ struct StudentDetailView: View {
                     + "Anything shared with other children stays for those children. This can't be undone."
             )
         }
-        .sheet(item: $vm.selectedLessonForGive) { lesson in
-            lessonGiveSheet(for: lesson)
-        }
-#if os(iOS)
-        .sheet(item: $vm.selectedLessonAssignmentForDetail) { la in
-            PresentationDetailView(lessonAssignment: la) {
-                vm.selectedLessonAssignmentForDetail = nil
-            }
-            .studentDetailSheetSizing()
-        }
-#endif
 #if os(iOS)
         .sheet(isPresented: Binding(
             get: { selectedWorkID != nil },
@@ -348,11 +325,6 @@ struct StudentDetailView: View {
             guard let workID else { return }
             openWindow(id: "WorkDetailWindow", value: workID)
             selectedWorkID = nil
-        }
-        .onChange(of: vm.selectedLessonAssignmentForDetail?.id) { _, _ in
-            guard let lessonAssignmentID = vm.selectedLessonAssignmentForDetail?.id else { return }
-            openWindow(id: "PresentationDetailWindow", value: lessonAssignmentID)
-            vm.selectedLessonAssignmentForDetail = nil
         }
         #endif
     }

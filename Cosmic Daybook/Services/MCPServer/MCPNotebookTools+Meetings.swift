@@ -35,7 +35,7 @@ extension MCPNotebookTools {
                     ],
                     "date": [
                         "type": "string",
-                        "description": "Meeting date as YYYY-MM-DD (default today)"
+                        "description": "Meeting date as YYYY-MM-DD (default today); not a day still to come"
                     ],
                     "reflection": [
                         "type": "string",
@@ -59,7 +59,7 @@ extension MCPNotebookTools {
             ],
             annotations: .write,
             handler: { arguments in
-                try recordMeeting(arguments: arguments, in: context())
+                try undoingOnFailure(context()) { try recordMeeting(arguments: arguments, in: $0) }
             }
         )
     }
@@ -82,7 +82,7 @@ extension MCPNotebookTools {
                 "Provide at least one of reflection, lesson_requests, guide_notes, or goals."
             )
         }
-        let date = try dayArgument(arguments, "date") ?? Date()
+        let date = try heldMeetingDay(arguments)
 
         // Snapshot carried-forward focus items before adding this meeting's
         // new goals, matching the in-app completion flow.
@@ -119,7 +119,6 @@ extension MCPNotebookTools {
         )
 
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The meeting could not be saved.")
         }
 
@@ -127,6 +126,21 @@ extension MCPNotebookTools {
         let bookingSuffix = bookedFor.map { ", completing the booking made for \(dayString($0))" } ?? ""
         return "Recorded meeting [meeting id=\(meetingID.uuidString)] for \(student.fullName) "
             + "on \(dayString(date))\(goalSuffix)\(bookingSuffix)."
+    }
+
+    /// The `date` argument, today by default. A meeting is recorded once it
+    /// has been held: filing one for a day still to come would also complete
+    /// every booking up to that day (bug hunt 2026-10-11 #53).
+    private static func heldMeetingDay(_ arguments: [String: JSONValue]) throws -> Date {
+        let date = try dayArgument(arguments, "date") ?? Date()
+        guard AppCalendar.startOfDay(date) <= AppCalendar.startOfDay(Date()) else {
+            throw MCPToolError(
+                "create_meeting_entry refused — nothing has been changed. \(dayString(date)) hasn't "
+                    + "happened yet, and a meeting is recorded after it is held. To put one on the "
+                    + "calendar, use schedule_meeting."
+            )
+        }
+        return date
     }
 
     // MARK: - List Open Follow-Ups
@@ -138,7 +152,8 @@ extension MCPNotebookTools {
             description: "Everything currently open: the guide's follow-up todos, each "
                 + "student's open goals (focus items), and observation notes flagged for "
                 + "follow-up. Optionally narrowed to one student, or to the app's Watching "
-                + "list.",
+                + "list. Without a student, goals and notes about children who have left are "
+                + "left out.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -232,9 +247,14 @@ extension MCPNotebookTools {
         focusRequest.predicate = NSPredicate(
             format: "statusRaw == %@", FocusItemStatus.active.rawValue
         )
+        // Named, a child's goals and notes all show, whatever her status.
+        // Otherwise only the class as it is now: a goal or a flagged note about
+        // a child who left, or a hidden test student, isn't an open thread
+        // (bug hunt 2026-10-11 #51).
+        let current: Set<UUID> = filterID == nil ? currentRosterIDs(in: modelContext) : []
         let focusItems = modelContext.safeFetch(focusRequest)
             .filter { item in
-                guard let filterID else { return true }
+                guard let filterID else { return item.studentIDUUID.map(current.contains) ?? false }
                 return item.studentIDUUID == filterID
             }
             .sorted {
@@ -254,7 +274,7 @@ extension MCPNotebookTools {
         noteRequest.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
         let notes = modelContext.safeFetch(noteRequest)
             .filter { note in
-                guard let filterID else { return true }
+                guard let filterID else { return isAboutCurrentClass(note.scope, roster: current) }
                 return note.scope.applies(to: filterID)
             }
             .prefix(20)
@@ -273,6 +293,24 @@ extension MCPNotebookTools {
                 : "Nothing is open for \(filterName)."
         }
         return sections.joined(separator: "\n\n")
+    }
+
+    /// The children in the class now, as the app's roster shows them:
+    /// enrolled, less the test students hidden in Settings.
+    static func currentRosterIDs(in modelContext: NSManagedObjectContext) -> Set<UUID> {
+        let request = CDFetchRequest(CDStudent.self)
+        request.predicate = CDStudent.enrolledPredicate
+        return Set(TestStudentsFilter.filterVisible(modelContext.safeFetch(request)).compactMap(\.id))
+    }
+
+    /// A whole-class note always is; one about named children is when any of
+    /// them is still here.
+    private static func isAboutCurrentClass(_ scope: NoteScope, roster: Set<UUID>) -> Bool {
+        switch scope {
+        case .all: return true
+        case .student(let id): return roster.contains(id)
+        case .students(let ids): return ids.contains(where: roster.contains)
+        }
     }
 
     // MARK: - Shared

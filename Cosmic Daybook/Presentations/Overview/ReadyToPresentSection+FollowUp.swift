@@ -42,7 +42,10 @@ extension ReadyToPresentSection {
             rows: Array(followUpRows),
             // All three come from the view model's caches, which already hold
             // every assignment, lesson and visible student — the alternative is
-            // three more `@FetchRequest`s over the same tables.
+            // three more `@FetchRequest`s over the same tables. The students are
+            // the visible enrolled roster, which is also who the list may name:
+            // a follow-up for a child who left, or a hidden test student, is
+            // left out rather than shown as "Child".
             assignments: viewModel.cachedLessonAssignments,
             lessons: viewModel.lessons,
             students: viewModel.cachedStudents,

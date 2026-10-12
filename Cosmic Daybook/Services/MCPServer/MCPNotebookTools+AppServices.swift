@@ -151,11 +151,15 @@ extension MCPNotebookTools {
                 + "work, observations marked for the report, or attendance — so there is nothing to draft."
         }
 
-        let report = service.upsertReport(for: student, month: month, draft: draft)
-        report.includeStudentReflection = includeReflection
-        guard container.viewContext.safeSave() else {
-            container.viewContext.rollback()
-            throw MCPToolError("The report draft could not be saved.")
+        // Only the write is scoped: drafting above awaits the model, and the
+        // guide's own edits could land in a scope held open across it.
+        let report = try undoingOnFailure(container.viewContext) { context in
+            let report = service.upsertReport(for: student, month: month, draft: draft)
+            report.includeStudentReflection = includeReflection
+            guard context.safeSave() else {
+                throw MCPToolError("The report draft could not be saved.")
+            }
+            return report
         }
 
         let id = report.id?.uuidString ?? "unknown"

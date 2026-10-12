@@ -23,13 +23,11 @@ extension PresentationsViewModel {
     /// backlog with nothing in the store moved.
     static func settingsHash(
         _ inboxOrderRaw: String,
-        _ missWindow: PresentationsMissWindow,
         _ showTestStudents: Bool,
         _ testStudentNamesRaw: String
     ) -> Int {
         var hasher = Hasher()
         hasher.combine(inboxOrderRaw)
-        hasher.combine(missWindow)
         hasher.combine(showTestStudents)
         hasher.combine(testStudentNamesRaw)
         return hasher.finalize()

@@ -19,9 +19,3 @@ enum DayPeriod: CaseIterable, Hashable, Sendable {
         }
     }
 }
-
-struct ScheduledItem: Identifiable, Hashable {
-    let work: CDWorkModel
-    let checkIn: CDWorkCheckIn
-    var id: UUID { checkIn.id ?? UUID() }
-}

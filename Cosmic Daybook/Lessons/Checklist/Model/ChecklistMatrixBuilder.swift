@@ -70,7 +70,8 @@ enum ChecklistMatrixBuilder {
 
     /// Writes one state per (student, row lesson) into `matrix`, fetching the row lessons'
     /// records and their predecessors' (for the blocking reason) once, indexed by student,
-    /// plus the row lessons' mastery marks in one more fetch.
+    /// plus the row lessons' mastery marks in one more fetch, and the work on the
+    /// predecessors' presentations in one more.
     private static func fillRows(
         _ matrix: inout Matrix,
         rowLessons: [CDLesson],
@@ -79,21 +80,17 @@ enum ChecklistMatrixBuilder {
         context: NSManagedObjectContext
     ) {
         let rowIDs = Set(rowLessons.compactMap { $0.id?.uuidString })
-        var fetchIDs = rowIDs
+        var precedingIDs = Set<String>()
         var rowPrecedingMap: [UUID: CDLesson] = [:]
         for lesson in rowLessons {
             guard let lessonID = lesson.id else { continue }
             if let preceding = precedingLessonMap[lessonID] {
                 rowPrecedingMap[lessonID] = preceding
-                if let precedingID = preceding.id { fetchIDs.insert(precedingID.uuidString) }
+                if let precedingID = preceding.id { precedingIDs.insert(precedingID.uuidString) }
             }
         }
-        guard !fetchIDs.isEmpty else { return }
-        let records = LessonRecordIndex(
-            assignments: assignmentsByLesson(lessonIDs: Array(fetchIDs), context: context),
-            works: worksByLesson(lessonIDs: Array(fetchIDs), context: context),
-            masteryMarks: PresentationRecordIndex.masteryMarks(lessonIDs: rowIDs, in: context)
-        )
+        guard !rowIDs.isEmpty || !precedingIDs.isEmpty else { return }
+        let records = loadRecords(rowIDs: rowIDs, precedingIDs: precedingIDs, context: context)
         let rulesMap = progressionRules(for: rowPrecedingMap, context: context)
 
         // Pre-compute staleness threshold date once instead of per-cell
@@ -110,11 +107,14 @@ enum ChecklistMatrixBuilder {
                 let studentLAs = records.assignments[lessonIDString]?[studentKey] ?? []
                 let studentWorks = records.works[lessonIDString]?[studentKey] ?? []
 
-                // Only a cell not yet presented can be blocked by the lesson before it.
+                // Only a cell not yet presented can be blocked by the lesson before it,
+                // and a plan the guide unlocked isn't blocked, as in Presentations
+                // (BlockingAlgorithmEngine.checkBlocking).
                 let isPresented = studentLAs.contains { $0.isPresented }
-                let blockingReason: BlockingReason = isPresented ? .none : computeBlockingReason(
+                let isUnlocked = studentLAs.contains { !$0.isPresented && $0.manuallyUnblocked }
+                let blockingReason: BlockingReason = isPresented || isUnlocked ? .none : computeBlockingReason(
                     precedingLesson: rowPrecedingMap[lessonID], rules: rulesMap[lessonID],
-                    studentID: studentID, studentKey: studentKey, records: records
+                    studentID: studentID, records: records
                 )
 
                 studentRow[lessonID] = buildCellState(
@@ -129,46 +129,6 @@ enum ChecklistMatrixBuilder {
             }
             matrix[studentID] = studentRow
         }
-    }
-
-    // MARK: - Batched Reads
-
-    /// One fetch for the lessons asked for (it used to be one per lesson), indexed by
-    /// lesson and then by student key. Each student's list keeps fetch order — the order
-    /// its own `lessonID ==` fetch returned — so `.first` picks the same row as before;
-    /// each assignment's students are decoded once, and no cell filters a lesson's list.
-    private static func assignmentsByLesson(
-        lessonIDs: [String],
-        context: NSManagedObjectContext
-    ) -> [String: [String: [CDLessonAssignment]]] {
-        let request: NSFetchRequest<CDLessonAssignment> = CDFetchRequest(CDLessonAssignment.self)
-        request.predicate = NSPredicate(format: "lessonID IN %@", lessonIDs)
-        var result: [String: [String: [CDLessonAssignment]]] = [:]
-        for la in context.safeFetch(request) {
-            for studentKey in Set(la.studentIDs) {
-                result[la.lessonID, default: [:]][studentKey, default: []].append(la)
-            }
-        }
-        return result
-    }
-
-    /// Same for work, with participants prefetched so indexing doesn't fault a
-    /// to-many relationship per work.
-    private static func worksByLesson(
-        lessonIDs: [String],
-        context: NSManagedObjectContext
-    ) -> [String: [String: [CDWorkModel]]] {
-        let request: NSFetchRequest<CDWorkModel> = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(format: "lessonID IN %@", lessonIDs)
-        request.relationshipKeyPathsForPrefetching = ["participants"]
-        var result: [String: [String: [CDWorkModel]]] = [:]
-        for work in context.safeFetch(request) {
-            let participants = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
-            for studentKey in Set(participants.map(\.studentID)) {
-                result[work.lessonID, default: [:]][studentKey, default: []].append(work)
-            }
-        }
-        return result
     }
 
     /// Rules for each lesson's predecessor. The sequence-settings lookup is
@@ -196,12 +156,16 @@ enum ChecklistMatrixBuilder {
 
     // MARK: - Private Helpers
 
-    /// A batch's assignments and work, by lesson ID string and then by student key, and the
-    /// row lessons' mastery marks (lesson ID string → student keys).
+    /// A batch's assignments and work, by lesson ID string and then by student key, the
+    /// row lessons' mastery marks (lesson ID string → student keys), and what the
+    /// readiness rule reads for the predecessors: their givings by lesson ID string,
+    /// and the work on those givings by presentation ID string.
     private struct LessonRecordIndex {
         let assignments: [String: [String: [CDLessonAssignment]]]
         let works: [String: [String: [CDWorkModel]]]
         let masteryMarks: [String: Set<String>]
+        let precedingGivings: [String: [CDLessonAssignment]]
+        let precedingWork: [String: [CDWorkModel]]
     }
 
     /// Exact (case-preserving) area + sequence, the arguments `find` receives.
@@ -210,53 +174,64 @@ enum ChecklistMatrixBuilder {
         let sequence: String
     }
 
-    /// Computes why a student is blocked from a lesson based on the preceding lesson's state.
-    /// The first lesson of a sequence (no preceding lesson) is never blocked.
+    /// The row lessons' records and their predecessors', in one fetch per
+    /// entity, plus the row lessons' mastery marks and the work on the
+    /// predecessors' givings.
+    private static func loadRecords(
+        rowIDs: Set<String>, precedingIDs: Set<String>, context: NSManagedObjectContext
+    ) -> LessonRecordIndex {
+        let fetchIDs = Array(rowIDs.union(precedingIDs))
+        let assignments = fetchAssignments(lessonIDs: fetchIDs, context: context)
+        let works = fetchWorks(lessonIDs: fetchIDs, context: context)
+        let precedingGivings = presentedGivings(in: assignments, lessonIDs: precedingIDs)
+        return LessonRecordIndex(
+            assignments: assignmentsByLesson(assignments),
+            works: worksByLesson(works, visibility: WorkVisibility(rows: works)),
+            masteryMarks: PresentationRecordIndex.masteryMarks(lessonIDs: rowIDs, in: context),
+            precedingGivings: precedingGivings,
+            precedingWork: workByPresentationID(on: precedingGivings, context: context)
+        )
+    }
+
+    // MARK: - Readiness
+
+    /// Why a child isn't ready for a lesson yet, by the planner's own rule
+    /// (`BlockingAlgorithmEngine.readiness`), so the checklist's "Not yet" and
+    /// Presentations' Ready can't disagree. This used to be an older copy of
+    /// that rule: it read the first giving in fetch order, took a confirmation
+    /// only on that one, read no work as needing practice, and counted a
+    /// classmate's copy. The first lesson of a sequence (no preceding lesson)
+    /// is never blocked.
     private static func computeBlockingReason(
         precedingLesson: CDLesson?,
         rules: LessonProgressionRules.ResolvedRules?,
         studentID: UUID,
-        studentKey: String,
         records: LessonRecordIndex
     ) -> BlockingReason {
         guard let precedingLesson, let rules, rules.requiresPractice || rules.requiresTeacherConfirmation else {
             return .none
         }
 
-        let precedingIDStr = precedingLesson.id?.uuidString ?? ""
-        let presentedLA = records.assignments[precedingIDStr]?[studentKey]?.first { $0.isPresented }
-
-        guard let presentedLA else {
+        let givings = BlockingAlgorithmEngine.givings(
+            for: studentID, among: records.precedingGivings[precedingLesson.id?.uuidString ?? ""] ?? []
+        )
+        guard !givings.isEmpty else {
             // Preceding lesson hasn't been presented to this student
             return .prerequisiteNotPresented
         }
 
-        var needsPractice = false
-        var needsConfirmation = false
-
-        if rules.requiresPractice {
-            let studentWorks = records.works[precedingIDStr]?[studentKey] ?? []
-            let allComplete = !studentWorks.isEmpty && studentWorks.allSatisfy { $0.status.isClosed }
-            if studentWorks.isEmpty || !allComplete {
-                needsPractice = true
-            }
+        let readiness = BlockingAlgorithmEngine.readiness(
+            of: studentID, givings: givings, rules: rules, workByPresentationID: records.precedingWork
+        ).readiness
+        switch (readiness.workComplete, readiness.teacherConfirmed) {
+        case (false, false): return .practiceAndConfirmation
+        case (false, true): return .practiceRequired
+        case (true, false): return .confirmationRequired
+        case (true, true): return .none
         }
-
-        if rules.requiresTeacherConfirmation {
-            if !presentedLA.isStudentConfirmed(studentID) {
-                needsConfirmation = true
-            }
-        }
-
-        if needsPractice && needsConfirmation {
-            return .practiceAndConfirmation
-        } else if needsPractice {
-            return .practiceRequired
-        } else if needsConfirmation {
-            return .confirmationRequired
-        }
-        return .none
     }
+
+    // MARK: - Cells
 
     /// Internal (not private) so the equivalence test can drive the legacy path through it.
     static func buildCellState(
@@ -317,5 +292,85 @@ enum ChecklistMatrixBuilder {
 
     private static func lastActivity(_ work: CDWorkModel) -> Date {
         work.lastTouchedAt ?? work.completedAt ?? work.createdAt ?? .distantPast
+    }
+}
+
+// MARK: - Batched Reads
+
+extension ChecklistMatrixBuilder {
+
+    /// One fetch for the lessons asked for (it used to be one per lesson).
+    private static func fetchAssignments(lessonIDs: [String], context: NSManagedObjectContext) -> [CDLessonAssignment] {
+        let request: NSFetchRequest<CDLessonAssignment> = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "lessonID IN %@", lessonIDs)
+        return context.safeFetch(request)
+    }
+
+    /// Same for work, with participants prefetched so indexing doesn't fault a
+    /// to-many relationship per work. Every row of each lesson, open and closed,
+    /// which is what telling a linked copy from a shared row needs.
+    private static func fetchWorks(lessonIDs: [String], context: NSManagedObjectContext) -> [CDWorkModel] {
+        let request: NSFetchRequest<CDWorkModel> = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(format: "lessonID IN %@", lessonIDs)
+        request.relationshipKeyPathsForPrefetching = ["participants"]
+        return context.safeFetch(request)
+    }
+
+    /// Assignments indexed by lesson and then by student key. Each student's list
+    /// keeps fetch order — the order its own `lessonID ==` fetch returned — so
+    /// `.first` picks the same row as before; each assignment's students are
+    /// decoded once, and no cell filters a lesson's list.
+    private static func assignmentsByLesson(
+        _ assignments: [CDLessonAssignment]
+    ) -> [String: [String: [CDLessonAssignment]]] {
+        var result: [String: [String: [CDLessonAssignment]]] = [:]
+        for la in assignments {
+            for studentKey in Set(la.studentIDs) {
+                result[la.lessonID, default: [:]][studentKey, default: []].append(la)
+            }
+        }
+        return result
+    }
+
+    /// Work indexed by lesson and then by the children each row counts for: a
+    /// set of linked copies only for each copy's owner, a genuinely shared row
+    /// for everyone on it (`WorkVisibility`). Filing a row under every
+    /// participant showed a classmate's open copy as the child's own.
+    private static func worksByLesson(
+        _ works: [CDWorkModel], visibility: WorkVisibility
+    ) -> [String: [String: [CDWorkModel]]] {
+        var result: [String: [String: [CDWorkModel]]] = [:]
+        for work in works {
+            for studentID in WorkGrouping.studentIDs(of: work) where visibility.isVisible(work, to: studentID) {
+                result[work.lessonID, default: [:]][studentID.uuidString, default: []].append(work)
+            }
+        }
+        return result
+    }
+
+    /// The given presentations of `lessonIDs`, by lesson: what the planner's
+    /// readiness rule reads a child's givings from.
+    private static func presentedGivings(
+        in assignments: [CDLessonAssignment], lessonIDs: Set<String>
+    ) -> [String: [CDLessonAssignment]] {
+        var result: [String: [CDLessonAssignment]] = [:]
+        for la in assignments where la.isPresented && lessonIDs.contains(la.lessonID) {
+            result[la.lessonID, default: []].append(la)
+        }
+        return result
+    }
+
+    /// The work on those presentations, open and closed, by presentation id.
+    /// The rule needs the closed rows: a child whose practice is done has only
+    /// closed work there, and with open work alone she read as having none.
+    private static func workByPresentationID(
+        on givings: [String: [CDLessonAssignment]], context: NSManagedObjectContext
+    ) -> [String: [CDWorkModel]] {
+        let presentationIDs = Set(givings.values.joined().compactMap { $0.id?.uuidString })
+        guard !presentationIDs.isEmpty else { return [:] }
+        let request: NSFetchRequest<CDWorkModel> = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(format: "presentationID IN %@", Array(presentationIDs))
+        request.relationshipKeyPathsForPrefetching = ["participants"]
+        return Dictionary(grouping: context.safeFetch(request)) { $0.presentationID ?? "" }
     }
 }

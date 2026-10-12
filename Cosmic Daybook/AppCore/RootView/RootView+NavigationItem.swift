@@ -246,6 +246,20 @@ extension RootView {
             return NavigationSelectionResolution(item: .today)
         }
 
+        /// The section a window opens on: one asked for before it existed
+        /// (`AppRouter.takePendingNavItem()`) wins, and only with nothing
+        /// pending is the saved one read. `saved` isn't called then, since
+        /// restoring can queue a Lessons & Work lens over the request's own.
+        static func launchSelection(
+            pending: NavigationItem?,
+            saved: () -> NavigationSelectionResolution
+        ) -> NavigationSelectionResolution {
+            if let pending {
+                return NavigationSelectionResolution(item: pending.canonical)
+            }
+            return saved()
+        }
+
         private static func resolveLegacyTab(
             _ legacyTab: Tab,
             planningModeRaw: String?

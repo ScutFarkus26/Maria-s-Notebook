@@ -46,6 +46,12 @@ final class Album: Identifiable {
         self.fingerprint = contents.fingerprint
     }
 
+    /// The title an album shows, from its id (its filename) alone: for an album
+    /// that isn't on this device, whose PDF can't be read for it.
+    static func title(forID id: String) -> String {
+        cleanTitle(from: URL(fileURLWithPath: id))
+    }
+
     static func cleanTitle(from url: URL) -> String {
         var t = url.deletingPathExtension().lastPathComponent
             .trimmingCharacters(in: .whitespaces)

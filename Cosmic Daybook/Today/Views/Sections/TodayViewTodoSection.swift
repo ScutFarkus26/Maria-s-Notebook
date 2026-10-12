@@ -53,8 +53,9 @@ extension TodayView {
 
 // MARK: - Todos Section View
 
-/// Today's todo list: open todos scheduled or due on the selected day, overdue,
-/// or high priority, interleaved with the due work check-ins the parent passes in.
+/// Today's todo list: open todos planned or due by the selected day (the Todos
+/// screen's Today rule, `TodoListFilter.isDueOrPlanned`) or high priority,
+/// interleaved with the due work check-ins the parent passes in.
 /// A todo linked to work with a row on Today is left out (`hiddenTodoIDs`):
 /// that row shows it ("3 todos · Sep 18"), so it is not listed twice.
 struct TodayTodosSectionView<FollowUpRow: View>: View {
@@ -105,9 +106,9 @@ struct TodayTodosSectionView<FollowUpRow: View>: View {
     /// The store's half of `isShown`, wide enough to never drop a todo it
     /// shows: open, not someday, and high priority or due or scheduled
     /// before a horizon two days past the selected day. Every shown todo
-    /// passes — one scheduled or due on the day, or overdue, is dated before
-    /// the next day, which the environment calendar puts at most 25 hours
-    /// on — while undated and future todos below high priority stay in the store.
+    /// passes — one planned or due by the day is dated before the next day,
+    /// which the calendar puts at most 25 hours on — while undated and
+    /// future todos below high priority stay in the store.
     static func fetchPredicate(selectedDay: Date) -> NSPredicate {
         let horizon = selectedDay.addingTimeInterval(2 * 24 * 3600) as NSDate
         return NSPredicate(
@@ -129,27 +130,34 @@ struct TodayTodosSectionView<FollowUpRow: View>: View {
         }
     }
 
-    /// Open, not someday, and scheduled or due on the day, overdue (unless
-    /// rescheduled past it), or high priority.
-    private static func isShown(_ todo: CDTodoItem, selectedDay: Date, nextDay: Date) -> Bool {
+    /// Open, not someday, and planned or due by the day, or high priority.
+    /// The Todos screen's Today list and this one read the same rule
+    /// (`TodoListFilter.isDueOrPlanned`): Today used to drop a todo whose
+    /// planned day had passed, and one overdue but planned later, which the
+    /// Todos screen shows since 10-10 #25 (bug hunt 2026-10-11 #70).
+    private static func isShown(_ todo: CDTodoItem, selectedDay: Date) -> Bool {
         guard !todo.isCompleted else { return false }
         guard !todo.isSomeday else { return false }
-        if let scheduled = todo.scheduledDate, scheduled >= selectedDay && scheduled < nextDay { return true }
-        if let dueDate = todo.dueDate, dueDate < selectedDay {
-            if let scheduled = todo.scheduledDate, scheduled >= nextDay { return false }
-            return true
-        }
-        if let dueDate = todo.dueDate, dueDate >= selectedDay && dueDate < nextDay { return true }
-        return todo.priority == .high
+        return TodoListFilter.isDueOrPlanned(todo, by: selectedDay) || todo.priority == .high
     }
 
-    /// Overdue first, then scheduled on the day, then due on the day, then by priority.
+    /// Past its deadline on the selected day.
+    private static func isOverdue(_ todo: CDTodoItem, selectedDay: Date) -> Bool {
+        todo.dueDate.map { $0 < selectedDay } ?? false
+    }
+
+    /// Planned for the selected day or a day before it.
+    private static func isPlanned(_ todo: CDTodoItem, nextDay: Date) -> Bool {
+        todo.scheduledDate.map { $0 < nextDay } ?? false
+    }
+
+    /// Overdue first, then planned by the day, then due on the day, then by priority.
     private static func precedes(_ lhs: CDTodoItem, _ rhs: CDTodoItem, selectedDay: Date, nextDay: Date) -> Bool {
-        let lhsOverdue: Bool = lhs.dueDate.map { $0 < selectedDay } ?? false
-        let rhsOverdue: Bool = rhs.dueDate.map { $0 < selectedDay } ?? false
+        let lhsOverdue = isOverdue(lhs, selectedDay: selectedDay)
+        let rhsOverdue = isOverdue(rhs, selectedDay: selectedDay)
         if lhsOverdue != rhsOverdue { return lhsOverdue }
-        let lhsScheduled: Bool = lhs.scheduledDate.map { $0 >= selectedDay && $0 < nextDay } ?? false
-        let rhsScheduled: Bool = rhs.scheduledDate.map { $0 >= selectedDay && $0 < nextDay } ?? false
+        let lhsScheduled = isPlanned(lhs, nextDay: nextDay)
+        let rhsScheduled = isPlanned(rhs, nextDay: nextDay)
         if lhsScheduled != rhsScheduled { return lhsScheduled }
         let lhsDueOnDay: Bool = lhs.dueDate.map { $0 >= selectedDay && $0 < nextDay } ?? false
         let rhsDueOnDay: Bool = rhs.dueDate.map { $0 >= selectedDay && $0 < nextDay } ?? false
@@ -168,22 +176,15 @@ struct TodayTodosSectionView<FollowUpRow: View>: View {
         let todos = todoItems
             .filter { todo in
                 !(todo.id.map(hidden.contains) ?? false)
-                    && isShown(todo, selectedDay: selectedDay, nextDay: nextDay)
+                    && isShown(todo, selectedDay: selectedDay)
             }
             .sorted { precedes($0, $1, selectedDay: selectedDay, nextDay: nextDay) }
 
         // Partition the already-sorted list — reuses the pre-computed dates.
-        let overdue = todos.filter { todo in
-            guard let dueDate = todo.dueDate else { return false }
-            return dueDate < selectedDay && (todo.scheduledDate == nil || todo.scheduledDate! < nextDay)
-        }
+        let overdue = todos.filter { isOverdue($0, selectedDay: selectedDay) }
         let dueOnDay = todos.filter { todo in
-            let isOverdue = todo.dueDate.map {
-                $0 < selectedDay && (todo.scheduledDate == nil || todo.scheduledDate! < nextDay)
-            } ?? false
-            guard !isOverdue else { return false }
-            if let scheduled = todo.scheduledDate,
-               scheduled >= selectedDay && scheduled < nextDay { return true }
+            guard !isOverdue(todo, selectedDay: selectedDay) else { return false }
+            if isPlanned(todo, nextDay: nextDay) { return true }
             if let dueDate = todo.dueDate,
                dueDate >= selectedDay && dueDate < nextDay { return true }
             return false

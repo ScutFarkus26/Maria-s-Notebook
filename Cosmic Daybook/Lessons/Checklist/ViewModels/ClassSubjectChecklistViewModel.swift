@@ -85,6 +85,10 @@ class ClassAreaChecklistViewModel {
     /// The lesson whose row a deep link asked to reveal. The grid scrolls to it
     /// and flashes it, then clears this back to nil so the flash doesn't linger.
     var focusedLessonID: UUID?
+    /// The sequence band a deep link asked to open on ("View Class Progress"
+    /// on a track card), as `visibleSequences` spells it. The view scrolls to
+    /// it, as Jump to Sequence does, and clears this.
+    var pendingSequenceJump: String?
 
     // MARK: - Multi-Selection State
     var selectedCells: Set<CellIdentifier> = []
@@ -125,23 +129,6 @@ class ClassAreaChecklistViewModel {
         var lessonCount: Int { bySection.values.reduce(0) { $0 + $1.count } }
     }
 
-    /// The roster's birthday order: oldest first, a child with no birthday after
-    /// every child with one, and names (then id) breaking ties so the columns
-    /// hold still from one load to the next. Children with no birthday were
-    /// given the day they were added until 2026-10-05, which sorted them last;
-    /// with none they would otherwise land first, in no fixed order.
-    nonisolated static func rosterOrder(_ lhs: CDStudent, _ rhs: CDStudent) -> Bool {
-        switch (lhs.birthday, rhs.birthday) {
-        case let (left?, right?) where left != right: return left < right
-        case (.some, nil): return true
-        case (nil, .some): return false
-        default: break
-        }
-        if lhs.firstName != rhs.firstName { return lhs.firstName < rhs.firstName }
-        if lhs.lastName != rhs.lastName { return lhs.lastName < rhs.lastName }
-        return (lhs.id?.uuidString ?? "") < (rhs.id?.uuidString ?? "")
-    }
-
     func loadData(context: NSManagedObjectContext) {
         let studentFetch = CDFetchRequest(CDStudent.self)
         studentFetch.predicate = CDStudent.enrolledPredicate
@@ -154,30 +141,15 @@ class ClassAreaChecklistViewModel {
         let allLessons = context.safeFetch(allLessonsFetch)
         self.availableAreas = lessonsLogic.areas(from: allLessons)
 
-        // Consume deep-link filter from AppRouter if present. The lesson request
-        // is checked first: it names an exact row, so it outranks a plain area
-        // jump and the persisted area alike.
-        let router = AppRouter.shared
-        if let request = router.consumeChecklistLessonRequest() {
-            let area = request.area.trimmed()
-            if !area.isEmpty { selectedArea = area }
-            // A text filter carried over from a previous visit is free to hide
-            // the very row being revealed. `refreshLessonsAndSequences` below
-            // re-applies the filters, so clearing the fields is enough here.
-            lessonQuery = ""
-            appliedLessonQuery = ""
-            lessonQueryTokens = []
-            focusedLessonID = request.lessonID
-        } else if let filterArea = router.checklistFilterArea {
-            selectedArea = filterArea
-            router.checklistFilterArea = nil
-            router.checklistFilterSequence = nil
-        } else if selectedArea.isEmpty, let first = availableAreas.first {
+        // Consume a deep link from AppRouter if present (+DeepLinks).
+        let requestedSequence = consumeDeepLink(from: AppRouter.shared)
+        if selectedArea.isEmpty, let first = availableAreas.first {
             selectedArea = first
         }
         // Refresh lessons and groups but skip matrix recompute —
         // the caller (onAppear) will call applyVisibilityFilter which recomputes.
         refreshLessonsAndSequences(context: context)
+        if let requestedSequence { requestSequenceJump(requestedSequence) }
     }
 
     func applyVisibilityFilter(context: NSManagedObjectContext, show: Bool, namesRaw: String) {

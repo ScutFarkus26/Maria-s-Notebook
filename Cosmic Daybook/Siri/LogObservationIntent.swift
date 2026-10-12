@@ -61,7 +61,8 @@ struct LogObservationIntent: AppIntent {
         guard context.safeSave() else { throw LogObservationError.saveFailed }
 
         Logger.notes.info("Logged observation via Siri for student \(studentID.uuidString, privacy: .public)")
-        return .result(dialog: "Saved your observation about \(cdStudent.firstName).")
+        // The short name, so the two Ettys are told apart ("Etty D").
+        return .result(dialog: "Saved your observation about \(cdStudent.shortName).")
     }
 }
 

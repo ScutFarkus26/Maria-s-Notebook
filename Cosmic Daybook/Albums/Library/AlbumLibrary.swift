@@ -61,9 +61,17 @@ final class AlbumLibrary {
     /// `buildIndexes()` has run again.
     var indexPurged = false
     /// The index build in flight, cleared when it finishes. `ensureIndexed()`
-    /// awaits it instead of polling `indexing`; a build queued while another
-    /// runs is dropped, as `buildIndexes()` would have declined it anyway.
+    /// awaits it instead of polling `indexing`. A build asked for while one
+    /// runs marks it stale instead (`indexBuildStale`).
     private var indexTask: Task<Void, Never>?
+    /// Set when a load replaced the album list (or a rebuild was asked for)
+    /// while a build was under way: that build read the old list, so it goes
+    /// round once more before it finishes (`buildIndexes`).
+    @ObservationIgnored var indexBuildStale = false
+    /// Every PDF the last load found ready, including one PDFKit couldn't
+    /// open, so `refreshIfChanged()` doesn't take that one for a new album on
+    /// every activation.
+    @ObservationIgnored private var loadedFileNames: Set<String> = []
 
     static let bookmarksKey = UserDefaultsKeys.albumsFolderBookmarks
     static let lastSeenKey = UserDefaultsKeys.albumsLastSeenModDates
@@ -111,7 +119,7 @@ final class AlbumLibrary {
     /// Opening the albums means parsing every PDF and indexing its text, so
     /// the library loads the first time the Albums section (or an AI tool)
     /// actually needs it rather than at app launch.
-    private var didBootstrap = false
+    private(set) var didBootstrap = false
 
     func bootstrapIfNeeded() {
         guard !didBootstrap else { return }
@@ -147,10 +155,13 @@ final class AlbumLibrary {
         }
     }
 
-    /// Runs `buildIndexes()` as the stored in-flight build, unless one is
-    /// already stored.
+    /// Runs `buildIndexes()` as the stored in-flight build. With one already
+    /// running, that build goes round again for the album list as it is now.
     func startIndexBuild() {
-        guard indexTask == nil else { return }
+        guard indexTask == nil else {
+            indexBuildStale = true
+            return
+        }
         indexTask = Task {
             await buildIndexes()
             indexTask = nil
@@ -187,18 +198,9 @@ final class AlbumLibrary {
             // We can still use the folder for this session even if bookmarking failed.
         }
         let bookmarkList = (UserDefaults.standard.array(forKey: Self.bookmarksKey) as? [Data]) ?? []
-        var resolved: [URL] = []
-        var seen = Set<String>()
-        var deduped: [Data] = []
-        for data in bookmarkList {
-            guard let folder = resolveBookmark(data) else { continue }
-            let path = folder.standardizedFileURL.path
-            guard !seen.contains(path) else { continue }
-            seen.insert(path)
-            deduped.append(data)
-            resolved.append(folder)
-        }
-        UserDefaults.standard.set(deduped, forKey: Self.bookmarksKey)
+        let deduped = Self.dedupedBookmarks(bookmarkList) { resolveBookmark($0) }
+        var resolved = deduped.folders
+        UserDefaults.standard.set(deduped.kept, forKey: Self.bookmarksKey)
         if resolved.isEmpty {
             _ = url.startAccessingSecurityScopedResource()
             resolved = [url]
@@ -209,10 +211,7 @@ final class AlbumLibrary {
     func removeFolder(_ url: URL) {
         let target = url.standardizedFileURL.path
         let bookmarkList = (UserDefaults.standard.array(forKey: Self.bookmarksKey) as? [Data]) ?? []
-        let kept = bookmarkList.filter { data in
-            guard let folder = resolveBookmark(data) else { return false }
-            return folder.standardizedFileURL.path != target
-        }
+        let kept = Self.bookmarks(bookmarkList, removingFolderAt: target) { resolveBookmark($0) }
         UserDefaults.standard.set(kept, forKey: Self.bookmarksKey)
         let resolved = kept.compactMap { resolveBookmark($0) }
         let folders = withShelf(resolved)
@@ -254,6 +253,7 @@ final class AlbumLibrary {
             pending += listing.pending
         }
         pending.removeAll { seenNames.contains($0.lastPathComponent) }
+        loadedFileNames = seenNames
         pendingShelfAlbumNames = Set(pending.map(\.lastPathComponent))
         downloadPendingAlbums(pending)
         pdfURLs.sort { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
@@ -282,12 +282,13 @@ final class AlbumLibrary {
             let indexed = modDates[album.id] ?? .distantPast
             return abs(current.timeIntervalSince(indexed)) >= 1
         }
-        let fileNames = Set(albums.map(\.id))
         let listings = folderURLs.map(AlbumICloudShelf.listing(of:))
         let onDisk = Set(listings.flatMap(\.ready).map(\.lastPathComponent))
         let pending = Set(listings.flatMap(\.pending).map(\.lastPathComponent)).subtracting(onDisk)
         // A new album on the shelf, or one another device added, joins too.
-        if changed || fileNames != onDisk || pending != pendingShelfAlbumNames {
+        // Compared with every file the load found, not just the albums that
+        // opened: a PDF PDFKit can't open would otherwise look new each time.
+        if changed || loadedFileNames != onDisk || pending != pendingShelfAlbumNames {
             load(from: folderURLs)
         }
     }

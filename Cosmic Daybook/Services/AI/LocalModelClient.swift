@@ -16,8 +16,6 @@ import FoundationModels
 /// Falls back cleanly when Apple Intelligence is unavailable (wrong device, not enabled, etc.).
 @available(macOS 26.0, iOS 26.0, *)
 final class LocalModelClient: FoundationModelClient {
-    private let evidenceSourceCollector = EvidenceSourceCollector()
-
     // MARK: - Availability
 
     /// Returns true if the on-device model is ready to accept requests.
@@ -47,6 +45,8 @@ final class LocalModelClient: FoundationModelClient {
     // model can search the teacher's own notes/lessons/students while answering —
     // fully on-device.
 
+    // Without a chat of its own, a conversation reads the guide's notebook and
+    // its sources go unused; Ask AI calls `streamChat`.
     func sendConversation(
         messages: [[String: String]],
         systemMessage: String?,
@@ -55,7 +55,7 @@ final class LocalModelClient: FoundationModelClient {
         timeout: TimeInterval?
     ) async throws -> String {
         try requireAvailable()
-        let chat = await makeChatSession(messages: messages, systemMessage: systemMessage)
+        let chat = makeChatSession(messages: messages, systemMessage: systemMessage, tools: ChatToolContext())
         do {
             let response = try await chat.session.respond(
                 to: chat.prompt,
@@ -76,8 +76,24 @@ final class LocalModelClient: FoundationModelClient {
         timeout: TimeInterval?,
         onText: @escaping @MainActor @Sendable (String) -> Void
     ) async throws -> String {
+        try await streamChat(
+            messages: messages, systemMessage: systemMessage,
+            temperature: temperature, maxTokens: maxTokens,
+            tools: ChatToolContext(), onText: onText
+        )
+    }
+
+    // swiftlint:disable:next function_parameter_count
+    func streamChat(
+        messages: [[String: String]],
+        systemMessage: String?,
+        temperature: Double,
+        maxTokens: Int,
+        tools: ChatToolContext,
+        onText: @escaping @MainActor @Sendable (String) -> Void
+    ) async throws -> String {
         try requireAvailable()
-        let chat = await makeChatSession(messages: messages, systemMessage: systemMessage)
+        let chat = makeChatSession(messages: messages, systemMessage: systemMessage, tools: tools)
         do {
             let stream = chat.session.streamResponse(
                 to: chat.prompt,
@@ -99,21 +115,18 @@ final class LocalModelClient: FoundationModelClient {
         }
     }
 
-    func consumeEvidenceSources() async -> [EvidenceReference] {
-        await evidenceSourceCollector.consume()
-    }
-
-    // Builds the session for one chat turn: notebook tools attached, prior turns
-    // folded into the instructions, and the prompt to send with it.
+    // Builds the session for one chat turn: notebook tools attached (reading
+    // and citing through `tools`, this answer's own), prior turns folded into
+    // the instructions, and the prompt to send with it.
     private func makeChatSession(
         messages: [[String: String]],
-        systemMessage: String?
-    ) async -> (session: LanguageModelSession, prompt: String) {
-        _ = await evidenceSourceCollector.consume()
+        systemMessage: String?,
+        tools: ChatToolContext
+    ) -> (session: LanguageModelSession, prompt: String) {
         let base = systemMessage ?? AIPrompts.chatAssistant
         let instructions = Self.conversationInstructions(from: messages, base: base)
         let session = LanguageModelSession(
-            tools: NotebookTools.chatTools(sourceCollector: evidenceSourceCollector),
+            tools: NotebookTools.chatTools(toolContext: tools),
             instructions: instructions
         )
         return (session, Self.lastUserMessage(from: messages))

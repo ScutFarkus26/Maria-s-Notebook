@@ -128,10 +128,11 @@ final class StudentsViewModel {
                 }
             }
         case .birthday:
+            // Soonest first; children with no birthday on file last (bug hunt 2026-10-11, #31).
             let todayStart = AppCalendar.shared.startOfDay(for: today)
             return students.sorted { lhs, rhs in
-                let l = nextBirthday(from: lhs.birthday ?? Date(), relativeTo: todayStart)
-                let r = nextBirthday(from: rhs.birthday ?? Date(), relativeTo: todayStart)
+                let l = lhs.birthday.map { nextBirthday(from: $0, relativeTo: todayStart) } ?? .distantFuture
+                let r = rhs.birthday.map { nextBirthday(from: $0, relativeTo: todayStart) } ?? .distantFuture
                 return l == r ? lhs.manualOrder < rhs.manualOrder : l < r
             }
         }

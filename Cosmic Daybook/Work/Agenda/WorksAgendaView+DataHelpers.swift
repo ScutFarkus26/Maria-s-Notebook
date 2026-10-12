@@ -73,8 +73,10 @@ extension WorksAgendaView {
     /// `LessonsAndWorkPartition.workspaceAssignments`).
     func rebuildPartition() {
         let unresolvedFollowUpIDs = LessonsAndWorkTriage.unresolvedFollowUpAssignmentIDs(in: viewContext)
+        let works = Array(openWork).uniqueByID
+        workVisibility = WorkVisibility(covering: works, in: viewContext)
         partition = LessonsAndWorkPartition(
-            openWork: Array(openWork).uniqueByID,
+            openWork: works,
             assignments: LessonsAndWorkPartition.workspaceAssignments(
                 in: viewContext, unresolvedFollowUpIDs: unresolvedFollowUpIDs
             ),
@@ -120,7 +122,10 @@ extension WorksAgendaView {
             )
         }
 
-        quietDaysByStudent = QuietStudentsOrder.daysSinceTouchByStudent(in: works) { work in
+        workAgeByID = ageByWorkID
+        quietDaysByStudent = QuietStudentsOrder.daysSinceTouchByStudent(
+            in: works, visibility: workVisibility
+        ) { work in
             work.id.flatMap { ageByWorkID[$0] } ?? 0
         }
     }
@@ -169,18 +174,10 @@ extension WorksAgendaView {
             lessonsByIDCache = [:]
         }
 
-        // The shared roster, read two ways. The Work column needs the whole
-        // enrolled roster — a child with no work owns none of the ids collected
-        // above, and they are the ones it exists to show — while the card cache
-        // needs only the owners on screen, withdrawn children included so their
-        // cards still have a name on them. The roster is already de-duplicated.
+        // The card cache needs only the owners on screen, withdrawn children
+        // included so a shared row they own still has a name on it. (The Work
+        // column reads the whole enrolled roster live: `rosterStudents`.)
         let allStudents: [CDStudent] = dependencies.roster.all
-
-        rosterStudents = TestStudentsFilter.filterVisible(
-            dependencies.roster.enrolled,
-            show: testStudents.show,
-            namesRaw: testStudents.namesRaw
-        ).uniqueByID
 
         // Use uniquingKeysWith to handle CloudKit sync duplicates
         if !neededStudentIDs.isEmpty {
@@ -203,6 +200,20 @@ extension WorksAgendaView {
 
     // MARK: - Data Helpers
 
+    /// The enrolled roster less hidden test students: the Work column's
+    /// children, everyone the guide is teaching including those with nothing,
+    /// and the children whose work the grid shows. Read live from the shared
+    /// roster, which observation keeps current, so a child who leaves goes from
+    /// the column at once; it used to be copied only when the number of
+    /// students changed.
+    var rosterStudents: [CDStudent] {
+        TestStudentsFilter.filterVisible(
+            dependencies.roster.enrolled,
+            show: testStudents.show,
+            namesRaw: testStudents.namesRaw
+        ).uniqueByID
+    }
+
     /// Everything the search field and the kind chips leave visible, whichever
     /// pill is selected. The Work half slices the triaged partition against
     /// this, so text and kind are filtered in exactly one place.
@@ -222,32 +233,19 @@ extension WorksAgendaView {
     }
 
     func openWorksFiltered() -> [CDWorkModel] {
-        // Filter open work in memory (anything with an open status)
-        var works = Array(openWork).uniqueByID
-
-        // Hide scheduled work, which only means anything under the All pill —
-        // the other pills already are a state, and hiding scheduled work under
-        // the Scheduled pill would empty the list it names.
-        if hideScheduled && workChip == .all {
-            let scheduledWorkIDs = Set(scheduledCheckIns.compactMap { UUID(uuidString: $0.workID) })
-            works = works.filter { !scheduledWorkIDs.contains($0.id ?? UUID()) }
-        }
-
-        // Filter by visible work kinds. Untagged work falls back to .practiceLesson,
-        // matching how WorkCard displays it.
-        let kinds = visibleKinds.wrappedValue
-        if kinds.count < WorkKind.allCases.count {
-            works = works.filter { kinds.contains($0.kind ?? .practiceLesson) }
-        }
-
-        // The column's child filter. Applied here with the rest so the pill
-        // counts and the printed sheet see the list the guide is looking at, and
-        // by the column's own definition of whose work an item is — a child who
-        // has finished their part of a group project reads as done in both
-        // places or in neither.
-        if let studentID = workStudentFilter {
-            works = works.filter { QuietStudentsOrder.openStudentIDs(of: $0).contains(studentID) }
-        }
+        // Filter open work in memory (anything with an open status). The
+        // column's child filter is applied here with the rest so the pill
+        // counts and the printed sheet see the list the guide is looking at.
+        let filter = WorkAgendaFilter(
+            hideScheduled: hideScheduled,
+            chip: workChip,
+            kinds: visibleKinds.wrappedValue,
+            studentID: workStudentFilter,
+            rosterIDs: Set(rosterStudents.compactMap(\.id))
+        )
+        var works = filter.apply(
+            to: Array(openWork).uniqueByID, partition: partition, visibility: workVisibility
+        )
 
         // Optional search (use debounced text for filtering)
         if !debouncedSearchText.trimmed().isEmpty {
@@ -256,7 +254,7 @@ extension WorksAgendaView {
                 var hay: [String] = []
                 hay.append(w.title)
                 hay.append(lessonTitle(forLessonID: w.lessonID))
-                hay.append((w.kind ?? .practiceLesson).displayName)
+                hay.append(w.displayKind.displayName)
                 if let s = studentsByID[uuidString: w.studentID] {
                     hay.append(s.firstName)
                     hay.append(s.lastName)
@@ -286,7 +284,9 @@ extension WorksAgendaView {
                 lessonTitle: title,
                 studentName: student,
                 statusLabel: statusLabel(for: w),
-                ageDays: ageDays(for: w),
+                // The card's own number: school days since last touched. The
+                // sheet used to count calendar days since the work was made.
+                ageDays: w.id.flatMap { workAgeByID[$0] } ?? 0,
                 dueAt: w.dueAt,
                 needsAttention: needsAttention(for: w)
             )
@@ -296,13 +296,6 @@ extension WorksAgendaView {
 
     func statusLabel(for w: CDWorkModel) -> String {
         w.status.displayName
-    }
-
-    func ageDays(for w: CDWorkModel) -> Int {
-        // Clamped to the school-year counter epoch (see `SchoolYearCounters`).
-        let start = AppCalendar.startOfDay(SchoolYearCounters.countFrom(w.createdAt ?? Date()))
-        let end = AppCalendar.startOfDay(Date())
-        return AppCalendar.shared.dateComponents([.day], from: start, to: end).day ?? 0
     }
 
     /// The printed sheet flags exactly the work the Attention list holds, via

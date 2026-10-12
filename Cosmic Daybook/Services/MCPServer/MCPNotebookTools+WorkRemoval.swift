@@ -72,10 +72,13 @@ extension MCPNotebookTools {
                 + "Re-call with confirm: true to proceed.\n\n" + report
         }
 
+        // Not in `undoingOnFailure`: the service already undoes exactly its own
+        // changes when the save fails, with a transaction of its own, and the
+        // two don't nest. `rollback()` here used to take the guide's unsaved
+        // edits with it.
         do {
             try service.apply(plan)
         } catch {
-            modelContext.rollback()
             throw MCPToolError("The change could not be saved", underlying: error)
         }
         return "Removed \(student.fullName).\n\n" + report

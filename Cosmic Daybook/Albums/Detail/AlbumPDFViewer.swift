@@ -211,8 +211,13 @@ struct AlbumPDFViewer {
         coordinator.parent = self
         proxy?.pdfView = view
         if view.document !== document {
+            // A library reload hands the reader a fresh copy of the same PDF: keep
+            // her page and the marked search term, a turn later once it's laid out,
+            // rather than replaying the last jump or starting at page 1.
+            let page = min(max(currentPageIndex, 0), max(document.pageCount - 1, 0))
+            let kept = AlbumPageJump(id: UUID(), pageIndex: page, highlight: coordinator.appliedHighlight)
             view.document = document
-            coordinator.lastJumpID = nil
+            Task { [weak coordinator] in coordinator?.perform(kept) }
         }
         if let jump, jump.id != coordinator.lastJumpID {
             coordinator.lastJumpID = jump.id
@@ -223,6 +228,8 @@ struct AlbumPDFViewer {
     final class Coordinator: NSObject {
         var parent: AlbumPDFViewer
         var lastJumpID: UUID?
+        /// The search term marked now, put back when the document is swapped.
+        private(set) var appliedHighlight: String?
         weak var pdfView: PDFView?
 
         init(parent: AlbumPDFViewer) { self.parent = parent }
@@ -245,14 +252,20 @@ struct AlbumPDFViewer {
         }
 
         @objc func pageChanged() {
-            guard let view = pdfView, let page = view.currentPage, let doc = view.document else { return }
-            let index = doc.index(for: page)
-            if parent.currentPageIndex != index {
-                // Bounce off this notification callback before mutating state
-                // SwiftUI may already be reading.
-                let binding = parent.$currentPageIndex
-                Task { binding.wrappedValue = index }
+            guard currentIndex() != parent.currentPageIndex else { return }
+            // Bounce off this notification callback before mutating state
+            // SwiftUI may already be reading. The page is read again then: a
+            // swapped document reports page 1 before the kept page shows.
+            Task { [weak self] in
+                guard let self, let index = self.currentIndex(),
+                      self.parent.currentPageIndex != index else { return }
+                self.parent.$currentPageIndex.wrappedValue = index
             }
+        }
+
+        private func currentIndex() -> Int? {
+            guard let view = pdfView, let page = view.currentPage, let doc = view.document else { return nil }
+            return doc.index(for: page)
         }
 
         @objc func selectionChanged() {
@@ -270,9 +283,11 @@ struct AlbumPDFViewer {
         func applyHighlight(_ query: String?) {
             guard let view = pdfView, let doc = view.document else { return }
             guard let query, !query.trimmingCharacters(in: .whitespaces).isEmpty else {
+                appliedHighlight = nil
                 view.highlightedSelections = nil
                 return
             }
+            appliedHighlight = query
             let selections = doc.findString(query, withOptions: [.caseInsensitive, .diacriticInsensitive])
             for selection in selections {
                 #if os(macOS)

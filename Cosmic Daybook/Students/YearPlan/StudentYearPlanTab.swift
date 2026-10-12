@@ -102,6 +102,10 @@ struct StudentYearPlanTab: View {
             viewModel.load(studentID: student.id, context: viewContext)
             await loadNonSchoolDays()
         }
+        // Days off marked elsewhere shade here too, as on the Calendar.
+        .onReceive(NotificationCenter.default.publisher(for: .schoolDayDataDidChange)) { _ in
+            Task { await loadNonSchoolDays() }
+        }
         .sheet(isPresented: $showAddSequenceSheet) {
             AddSequenceSheet(student: student) {
                 viewModel.load(studentID: student.id, context: viewContext)

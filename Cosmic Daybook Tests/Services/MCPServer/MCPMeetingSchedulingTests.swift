@@ -259,7 +259,7 @@ struct MCPMeetingSchedulingTests {
         #expect(booked.first?.date == (try day(Self.tuesday)))
     }
 
-    @Test("Filing one child's meeting does not end a group sitting they are part of")
+    @Test("Filing one child's meeting takes only her off a group sitting; the rest stay booked")
     func filingDoesNotEndGroupSitting() async throws {
         let (tools, context) = try makeTools()
         let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Levi")
@@ -272,7 +272,9 @@ struct MCPMeetingSchedulingTests {
             "date": .string(Self.thursday),
             "reflection": .string("Met on her own.")
         ])
-        #expect(!output.contains("completing the booking"))
+        // Bug hunt 2026-10-11 #27: the booking stays for the children not yet met.
+        #expect(output.hasSuffix("completing the booking made for \(Self.thursday)."))
         #expect(bookings(in: context) == [sitting])
+        #expect(sitting.participantStudentIDs == [noam.id?.uuidString].compactMap { $0 })
     }
 }

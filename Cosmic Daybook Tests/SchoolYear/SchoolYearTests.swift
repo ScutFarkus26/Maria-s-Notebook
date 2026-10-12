@@ -1,5 +1,4 @@
 import Foundation
-import CoreData
 import Testing
 @testable import CosmicDaybook
 
@@ -287,84 +286,5 @@ final class SchoolYearTests {
             store.startDay = 25
             #expect(store.activeRange?.start == store.current.start)
         }
-    }
-
-    // MARK: - Predicate factories (against a real in-memory store)
-
-    @Test("Point-in-time predicate keeps in-range and undated, drops out-of-range")
-    func pointInTimePredicate() throws {
-        let stack = try CoreDataTestHelpers.makeInMemoryStack()
-        let ctx = stack.viewContext
-        let range = DateRange(start: day(2025, 9, 1), end: day(2026, 9, 1))
-
-        let inRange = CDNote(context: ctx); inRange.id = UUID(); inRange.createdAt = day(2025, 10, 1)
-        let outRange = CDNote(context: ctx); outRange.id = UUID(); outRange.createdAt = day(2025, 8, 1)
-        let undated = CDNote(context: ctx); undated.id = UUID(); undated.createdAt = nil
-        #expect(CoreDataTestHelpers.save(ctx))
-
-        let request = CDFetchRequest(CDNote.self)
-        request.predicate = SchoolYearFilter.pointInTime("createdAt", in: range)
-        let ids = Set(try ctx.fetch(request).compactMap(\.id))
-
-        #expect(ids.contains(inRange.id!))
-        #expect(!ids.contains(outRange.id!))
-        #expect(ids.contains(undated.id!)) // fail-open
-    }
-
-    @Test("Span predicate shows open work that overlaps a later year")
-    func spanPredicate() throws {
-        let stack = try CoreDataTestHelpers.makeInMemoryStack()
-        let ctx = stack.viewContext
-        let range = DateRange(start: day(2026, 9, 1), end: day(2027, 9, 1)) // 2026–2027
-
-        // Started last year, still open, touched this year → shows.
-        let spanning = CDWorkModel(context: ctx); spanning.id = UUID()
-        spanning.createdAt = day(2026, 5, 1); spanning.completedAt = nil; spanning.lastTouchedAt = day(2026, 10, 1)
-        // Completed before the range → hidden.
-        let doneEarly = CDWorkModel(context: ctx); doneEarly.id = UUID()
-        doneEarly.createdAt = day(2026, 5, 1); doneEarly.completedAt = day(2026, 6, 1); doneEarly.lastTouchedAt = day(2026, 6, 1)
-        // Open, never touched, created in range → shows.
-        let openInRange = CDWorkModel(context: ctx); openInRange.id = UUID()
-        openInRange.createdAt = day(2026, 10, 1); openInRange.completedAt = nil; openInRange.lastTouchedAt = nil
-        #expect(CoreDataTestHelpers.save(ctx))
-
-        let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = SchoolYearFilter.span(
-            createdAt: "createdAt", completedAt: "completedAt", touchedAt: "lastTouchedAt", in: range
-        )
-        let ids = Set(try ctx.fetch(request).compactMap(\.id))
-
-        #expect(ids.contains(spanning.id!))
-        #expect(ids.contains(openInRange.id!))
-        #expect(!ids.contains(doneEarly.id!))
-    }
-
-    @Test("Roster predicate keeps students active during the range")
-    func rosterPredicate() throws {
-        let stack = try CoreDataTestHelpers.makeInMemoryStack()
-        let ctx = stack.viewContext
-        let range = DateRange(start: day(2025, 9, 1), end: day(2026, 9, 1))
-
-        let active = CDStudent(context: ctx); active.id = UUID()
-        active.dateStarted = day(2024, 9, 1); active.dateWithdrawn = nil
-        let withdrawnEarly = CDStudent(context: ctx); withdrawnEarly.id = UUID()
-        withdrawnEarly.dateStarted = day(2023, 9, 1); withdrawnEarly.dateWithdrawn = day(2024, 6, 1)
-        let joinedMid = CDStudent(context: ctx); joinedMid.id = UUID()
-        joinedMid.dateStarted = day(2025, 10, 1); joinedMid.dateWithdrawn = nil
-        let future = CDStudent(context: ctx); future.id = UUID()
-        future.dateStarted = day(2026, 10, 1); future.dateWithdrawn = nil
-        let undated = CDStudent(context: ctx); undated.id = UUID()
-        undated.dateStarted = nil; undated.dateWithdrawn = nil
-        #expect(CoreDataTestHelpers.save(ctx))
-
-        let request = CDFetchRequest(CDStudent.self)
-        request.predicate = SchoolYearFilter.roster(in: range)
-        let ids = Set(try ctx.fetch(request).compactMap(\.id))
-
-        #expect(ids.contains(active.id!))
-        #expect(ids.contains(joinedMid.id!))
-        #expect(ids.contains(undated.id!)) // fail-open
-        #expect(!ids.contains(withdrawnEarly.id!))
-        #expect(!ids.contains(future.id!))
     }
 }

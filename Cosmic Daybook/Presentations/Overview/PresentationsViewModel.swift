@@ -57,7 +57,7 @@ final class PresentationsViewModel {
     private var lastLessonsHash: Int?
     private var lastWorkModelHash: Int?
     private var lastStudentsHash: Int?
-    /// Order, miss window and test students (`settingsHash`).
+    /// Order and test students (`settingsHash`).
     private var lastSettingsHash: Int?
 
     /// Bumped on every `LessonAssignment` change the view context could see;
@@ -163,7 +163,6 @@ final class PresentationsViewModel {
         viewContext: NSManagedObjectContext,
         calendar: Calendar,
         inboxOrderRaw: String,
-        missWindow: PresentationsMissWindow,
         showTestStudents: Bool,
         testStudentNamesRaw: String,
         lessons: [CDLesson],
@@ -178,7 +177,6 @@ final class PresentationsViewModel {
                 viewContext: viewContext,
                 calendar: calendar,
                 inboxOrderRaw: inboxOrderRaw,
-                missWindow: missWindow,
                 showTestStudents: showTestStudents,
                 testStudentNamesRaw: testStudentNamesRaw,
                 lessons: lessons,
@@ -193,7 +191,6 @@ final class PresentationsViewModel {
         viewContext: NSManagedObjectContext,
         calendar: Calendar,
         inboxOrderRaw: String,
-        missWindow: PresentationsMissWindow,
         showTestStudents: Bool,
         testStudentNamesRaw: String,
         lessons: [CDLesson],
@@ -227,7 +224,7 @@ final class PresentationsViewModel {
         let lHash = computeIDHash(lessons)
         let sHash = computeStudentsHash(students)
         let wHash = computeWorkModelHash(workModels + closedPrecedingWork)
-        let settingsHash = Self.settingsHash(inboxOrderRaw, missWindow, showTestStudents, testStudentNamesRaw)
+        let settingsHash = Self.settingsHash(inboxOrderRaw, showTestStudents, testStudentNamesRaw)
         let coreChanged = laHash != lastLessonAssignmentChangeHash
             || lHash != lastLessonsHash
             || sHash != lastStudentsHash
@@ -307,8 +304,7 @@ final class PresentationsViewModel {
             lessonAssignments: lessonAssignments,
             lessons: lessons,
             workModels: workModels + closedPrecedingWork,
-            inboxOrderRaw: inboxOrderRaw,
-            missWindow: missWindow
+            inboxOrderRaw: inboxOrderRaw
         )
         self.readyLessons = partition.ready
         self.blockedLessons = partition.blocked
@@ -330,8 +326,7 @@ final class PresentationsViewModel {
         lessonAssignments: [CDLessonAssignment],
         lessons: [CDLesson],
         workModels: [CDWorkModel],
-        inboxOrderRaw: String,
-        missWindow: PresentationsMissWindow
+        inboxOrderRaw: String
     ) -> PresentationPartition {
         let allUnscheduled = lessonAssignments.filter { $0.scheduledFor == nil && !$0.isGiven }
         let blockingResults = BlockingAlgorithmEngine.checkBlocking(
@@ -349,13 +344,7 @@ final class PresentationsViewModel {
                 )
             if result.isBlocked { blocked.append(la) } else { ready.append(la) }
         }
-        var ordered = InboxOrderStore.orderedUnscheduled(from: ready, orderRaw: inboxOrderRaw)
-        ordered = ordered.filter { la in
-            guard let threshold = missWindow.threshold else { return true }
-            return la.resolvedStudentIDs.contains { sid in
-                (daysSinceLastLessonByStudent[sid] ?? Int.max) >= threshold
-            }
-        }
+        let ordered = InboxOrderStore.orderedUnscheduled(from: ready, orderRaw: inboxOrderRaw)
         blocked.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
         return PresentationPartition(ready: ordered, blocked: blocked,
                                      blockingResultsMap: blockingResults)

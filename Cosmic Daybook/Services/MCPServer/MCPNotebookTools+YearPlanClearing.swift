@@ -61,7 +61,7 @@ extension MCPNotebookTools {
             ],
             annotations: .destructive,
             handler: { arguments in
-                try clearYearPlan(arguments: arguments, in: context())
+                try undoingOnFailure(context()) { try clearYearPlan(arguments: arguments, in: $0) }
             }
         )
     }
@@ -101,7 +101,6 @@ extension MCPNotebookTools {
 
         let skipped = StudentDeparturePlans.skip(entries: entries)
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The year-plan entries could not be saved.")
         }
         return "Skipped \(skipped) year-plan entr\(skipped == 1 ? "y" : "ies") for \(student.fullName)\(scope). "

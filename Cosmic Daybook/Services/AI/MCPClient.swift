@@ -65,9 +65,25 @@ protocol MCPClientProtocol {
         onText: @escaping @MainActor @Sendable (String) -> Void
     ) async throws -> String
 
-    /// Returns source records collected by the most recent grounded request.
-    /// Providers without local notebook tools return an empty list.
-    func consumeEvidenceSources() async -> [EvidenceReference]
+    // One Ask AI answer: `streamConversation` with the notebook tools
+    // attached, reading the classroom in `tools` and recording the records
+    // they cite in `tools.sources`. Clients without tools answer without them.
+    // swiftlint:disable:next function_parameter_count
+    func streamChat(
+        messages: [[String: String]],
+        systemMessage: String?,
+        temperature: Double,
+        maxTokens: Int,
+        tools: ChatToolContext,
+        onText: @escaping @MainActor @Sendable (String) -> Void
+    ) async throws -> String
+}
+
+/// A model `AIClientRouter` can try: whether it can take a request now, and
+/// why not, in the guide's words.
+protocol RoutableModelClient: MCPClientProtocol {
+    var isAvailable: Bool { get }
+    var unavailabilityReason: String { get }
 }
 
 // MARK: - Default Implementations
@@ -79,8 +95,6 @@ protocol MCPClientProtocol {
 // fullest form runs; only a client with nothing but the short forms loses the
 // system message and token limit.
 extension MCPClientProtocol {
-    func consumeEvidenceSources() async -> [EvidenceReference] { [] }
-
     func generateText(
         prompt: String, systemMessage: String?,
         temperature: Double, maxTokens: Int?
@@ -158,5 +172,24 @@ extension MCPClientProtocol {
         )
         onText(result)
         return result
+    }
+
+    // swiftlint:disable:next function_parameter_count
+    func streamChat(
+        messages: [[String: String]],
+        systemMessage: String?,
+        temperature: Double,
+        maxTokens: Int,
+        tools: ChatToolContext,
+        onText: @escaping @MainActor @Sendable (String) -> Void
+    ) async throws -> String {
+        try await streamConversation(
+            messages: messages,
+            systemMessage: systemMessage,
+            temperature: temperature,
+            maxTokens: maxTokens,
+            timeout: nil,
+            onText: onText
+        )
     }
 }

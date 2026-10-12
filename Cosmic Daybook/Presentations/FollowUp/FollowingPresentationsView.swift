@@ -17,6 +17,7 @@ struct FollowingPresentationsView: View {
 
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
+    @TestStudentVisibility private var testStudents
 
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonPresentation.presentedAt, ascending: true)],
@@ -41,6 +42,8 @@ struct FollowingPresentationsView: View {
         let searchTokens: [String]
         let day: Date
         let lookupChangeToken: Int
+        let showTestStudents: Bool
+        let testStudentNamesRaw: String
     }
 
     private var groupInputs: GroupInputs {
@@ -59,7 +62,23 @@ struct FollowingPresentationsView: View {
             searchText: searchText,
             searchTokens: searchTokens,
             day: AppCalendar.startOfDay(Date()),
-            lookupChangeToken: lookupChangeToken
+            lookupChangeToken: lookupChangeToken,
+            showTestStudents: testStudents.show,
+            testStudentNamesRaw: testStudents.namesRaw
+        )
+    }
+
+    /// Who the groups may name. The class-wide lists (Today, the Follow Up
+    /// screen) show the visible enrolled roster, so a child who left or a
+    /// hidden test student drops out. One child's own page shows hers whatever
+    /// her enrollment, since the guide opened it on purpose.
+    private var visibleStudentsByID: [UUID: CDStudent] {
+        guard studentID == nil else { return dependencies.roster.byID }
+        return Dictionary(
+            testStudents.visible(dependencies.roster.enrolled).compactMap { student in
+                student.id.map { ($0, student) }
+            },
+            uniquingKeysWith: { first, _ in first }
         )
     }
 
@@ -69,7 +88,7 @@ struct FollowingPresentationsView: View {
             rows: rows,
             assignmentByID: FollowingPresentationsService.assignmentsReferenced(by: rows, in: viewContext),
             lessonByID: dependencies.lessonCatalog.byID,
-            studentByID: dependencies.roster.byID,
+            studentByID: visibleStudentsByID,
             studentID: studentID,
             searchText: searchText,
             searchTokens: searchTokens,

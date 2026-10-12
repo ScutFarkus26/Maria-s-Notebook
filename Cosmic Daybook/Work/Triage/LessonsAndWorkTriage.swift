@@ -191,8 +191,7 @@ enum LessonsAndWorkTriage {
     ///
     /// Note on the past: a presentation scheduled for a day that has come and
     /// gone without being given still counts as `.scheduled`, matching today's
-    /// behaviour — the calendar keeps showing it on its day, and "missed" is
-    /// handled separately by `PresentationsMissWindow`. Promoting a missed
+    /// behaviour — the calendar keeps showing it on its day. Promoting a missed
     /// presentation to `.attention` is a reasonable future change, but it is a
     /// behaviour change and belongs in its own commit.
     static func bucket(for presentation: PresentationTriageInput) -> TriageBucket {

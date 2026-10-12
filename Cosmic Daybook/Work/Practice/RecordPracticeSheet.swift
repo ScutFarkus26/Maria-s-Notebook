@@ -53,6 +53,22 @@ struct RecordPracticeSheet: View {
     // Notes
     @State var sessionNotes: String = ""
 
+    /// Children the opener named (the command bar's "Maya practiced the stamp
+    /// game"). Empty from the floating button and File › New.
+    private let initialStudentIDs: Set<UUID>
+
+    /// - Parameters:
+    ///   - lessonID: the lesson to start on; nil starts on the lesson picker.
+    ///   - studentIDs: children to start selected, shown as chips even when
+    ///     they have no open practice work for the lesson.
+    init(lessonID: UUID? = nil, studentIDs: Set<UUID> = []) {
+        _lessonPickerVM = State(initialValue: LessonPickerViewModel(selectedLessonID: lessonID))
+        _lessonSearchFocused = State(initialValue: lessonID == nil)
+        _selectedStudentIDs = State(initialValue: studentIDs)
+        _manuallyAddedStudentIDs = State(initialValue: studentIDs)
+        initialStudentIDs = studentIDs
+    }
+
     // MARK: - Computed
 
     private var selectedLesson: CDLesson? {
@@ -163,11 +179,17 @@ struct RecordPracticeSheet: View {
             }
             .onAppear {
                 lessonPickerVM.configure(lessons: allLessons, students: allStudents)
+                // Started on a lesson with nobody named: select its children
+                // with open practice work, as picking the lesson does.
+                if initialStudentIDs.isEmpty, lessonPickerVM.selectedLessonID != nil, selectedStudentIDs.isEmpty {
+                    selectedStudentIDs = practiceStudentIDs
+                }
             }
             .onChange(of: lessonPickerVM.selectedLessonID) { _, _ in
-                // Pre-select all students with open practice work for this lesson
-                selectedStudentIDs = practiceStudentIDs
-                manuallyAddedStudentIDs = []
+                // Pre-select all students with open practice work for this lesson,
+                // keeping any the sheet was opened with (the command bar's names).
+                selectedStudentIDs = practiceStudentIDs.union(initialStudentIDs)
+                manuallyAddedStudentIDs = initialStudentIDs
                 studentSearchText = ""
             }
         }

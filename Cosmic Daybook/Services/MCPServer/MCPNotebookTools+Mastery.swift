@@ -30,9 +30,10 @@ extension MCPNotebookTools {
             inputSchema: markMasteredSchema,
             annotations: .idempotentWrite,
             handler: { arguments in
-                let modelContext = context()
-                let markings = try makeMarkings(arguments: arguments, in: modelContext)
-                return try apply(markings, in: modelContext)
+                try undoingOnFailure(context()) { modelContext in
+                    let markings = try makeMarkings(arguments: arguments, in: modelContext)
+                    return try apply(markings, in: modelContext)
+                }
             }
         )
     }
@@ -176,10 +177,16 @@ extension MCPNotebookTools {
     private static func apply(
         _ markings: [MasteryMarking], in modelContext: NSManagedObjectContext
     ) throws -> String {
-        let applied = markings.map { ($0, mark($0, in: modelContext)) }
+        var applied: [(MasteryMarking, MarkOutcome)] = []
+        // How many of the marks a finished track's own save has put on disk.
+        var savedCount = 0
+        for marking in markings {
+            let (outcome, saved) = noticingSaves(of: modelContext) { mark(marking, in: modelContext) }
+            applied.append((marking, outcome))
+            if saved { savedCount = applied.count }
+        }
         guard modelContext.safeSave() else {
-            modelContext.rollback()
-            throw MCPToolError("The mastery marks could not be saved, so nothing was marked.")
+            throw MCPToolError(failedSaveMessage(applied, savedCount: savedCount))
         }
         return applied.map { marking, outcome in
             describeMarking(
@@ -187,6 +194,27 @@ extension MCPNotebookTools {
                 alreadyMastered: outcome.alreadyMastered, in: modelContext
             )
         }.joined(separator: "\n")
+    }
+
+    /// The reply when the batch's save fails. Finishing a track saves at once
+    /// (`SequenceTrackService`), taking every mark before it to disk, so those
+    /// are named as kept rather than "nothing was marked".
+    private static func failedSaveMessage(
+        _ applied: [(MasteryMarking, MarkOutcome)], savedCount: Int
+    ) -> String {
+        func list(_ items: ArraySlice<(MasteryMarking, MarkOutcome)>) -> String {
+            items.filter { !$0.1.marked.isEmpty }
+                .map { "\"\($0.0.lesson.name)\" for \($0.1.marked.map(\.fullName).joined(separator: ", "))" }
+                .joined(separator: "; ")
+        }
+        let kept = list(applied.prefix(savedCount))
+        guard !kept.isEmpty else {
+            return "The mastery marks could not be saved, so nothing was marked."
+        }
+        let lost = list(applied.dropFirst(savedCount))
+        return "The mastery marks could not all be saved. These were saved before the failure, "
+            + "because finishing a track saves right away: \(kept)."
+            + (lost.isEmpty ? "" : " These were not marked: \(lost). Try them again.")
     }
 
     /// Who one mark changed, and who was already mastered before it.

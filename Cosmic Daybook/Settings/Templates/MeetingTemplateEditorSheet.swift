@@ -5,7 +5,7 @@ import SwiftUI
 import CoreData
 
 /// The editable copy of a meeting template's fields.
-struct MeetingTemplateDraft {
+nonisolated struct MeetingTemplateDraft: Equatable {
     var name = ""
     var reflectionPrompt = ""
     var focusPrompt = ""

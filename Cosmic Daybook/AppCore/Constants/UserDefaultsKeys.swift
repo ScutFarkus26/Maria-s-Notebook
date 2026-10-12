@@ -117,8 +117,6 @@ nonisolated enum UserDefaultsKeys {
     static let quickCaptureButtonVisible = "QuickCaptureButton.visible"
 
     // MARK: - Lessons
-    /// The guide's hand-ordered curriculum areas, oldest spelling of the key.
-    static let lessonsAreaOrder = "Lessons.AreaOrder"
     /// Which spine the Lessons map is grouped by (a `MapSpine` raw value).
     static let lessonsMapSpine = "Lessons.mapSpine"
 

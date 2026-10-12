@@ -37,6 +37,55 @@ struct SessionWorkAssignmentService {
         return work
     }
 
+    // MARK: - Uniform Mode
+
+    /// Creates one child's follow-up work for a check-in in Uniform mode, with
+    /// its Due Date check-in on `scheduledDate`. Returns nil for an id that
+    /// isn't a uuid.
+    @discardableResult
+    // swiftlint:disable:next function_parameter_count
+    func createUniformWork(
+        session: CDProjectSession,
+        studentID: String,
+        lessonID: UUID,
+        title: String,
+        instructions: String,
+        scheduledDate: Date
+    ) throws -> CDWorkModel? {
+        guard let studentUUID = UUID(uuidString: studentID) else { return nil }
+
+        let repository = WorkRepository(context: context)
+        let workModel = try repository.createWork(
+            studentID: studentUUID,
+            lessonID: lessonID,
+            title: title,
+            kind: .followUpAssignment,
+            presentationID: nil,
+            scheduledDate: scheduledDate
+        )
+        // Link the work to its originating project session so it appears under that
+        // project/session. The project page, the check-in page, project deletion
+        // and the work's cohort all read the type with the id; without it the
+        // work showed on none of them and outlived its project (bug hunt
+        // 2026-10-11 #65; older rows: `repairProjectWorkContextType`).
+        workModel.sourceContextType = .projectSession
+        workModel.sourceContextID = (session.id ?? UUID()).uuidString
+
+        if !instructions.isEmpty {
+            workModel.setLegacyNoteText(instructions, in: context)
+        }
+
+        let checkInService = WorkCheckInService(context: context)
+        try checkInService.createCheckIn(
+            for: workModel,
+            date: scheduledDate,
+            status: .scheduled,
+            purpose: "Due Date",
+            note: ""
+        )
+        return workModel
+    }
+
     /// Records a student's selection for an offered work
     func recordSelection(work: CDWorkModel, studentID: UUID) {
         let idString = studentID.uuidString

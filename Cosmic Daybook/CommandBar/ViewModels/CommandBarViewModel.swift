@@ -2,7 +2,6 @@
 // ViewModel for the natural language command bar
 
 import Foundation
-import CoreData
 
 @Observable
 final class CommandBarViewModel {
@@ -13,6 +12,10 @@ final class CommandBarViewModel {
     // MARK: - State
 
     var isProcessing = false
+    /// A Send is under way: waiting for dictation's last words, then
+    /// organizing. Another Send or Return meanwhile is ignored; it used to
+    /// organize the words twice and put both in Recent.
+    private(set) var isSending = false
     var parsedCommand: ParsedCommand?
     var captureProposal: CaptureProposal?
     var errorMessage: String?
@@ -53,7 +56,27 @@ final class CommandBarViewModel {
     private let commandBarService = CommandBarService()
     let speechService = SpeechRecognitionService()
 
+    /// What the current dictation last put in the field; `nil` until it has
+    /// put anything there.
+    @ObservationIgnored private var lastDictatedText: String?
+
+    init() {
+        speechService.onDictatedText = { [weak self] text in
+            self?.applyDictatedText(text)
+        }
+    }
+
     // MARK: - Public Methods
+
+    /// Sends the field's words to be organized, once any dictation still
+    /// running or finishing has put its last words in.
+    func send(students: [StudentData], lessons: [LessonData]) async {
+        guard !isSending, !isProcessing else { return }
+        isSending = true
+        defer { isSending = false }
+        await finishDictation()
+        await submit(students: students, lessons: lessons)
+    }
 
     func submit(students: [StudentData], lessons: [LessonData]) async {
         let trimmed = inputText.trimmed()
@@ -75,6 +98,9 @@ final class CommandBarViewModel {
             parsedCommand = cmd
         case .capture(let proposal):
             captureProposal = proposal
+            // In Recent from now on, so closing the review without saving
+            // never loses her words (bug hunt 2026-10-11 #47).
+            addToRecent(trimmed)
         case .error(let msg):
             errorMessage = msg
         default:
@@ -82,6 +108,29 @@ final class CommandBarViewModel {
         }
 
         isProcessing = false
+    }
+
+    /// Ends a dictation still running, or waits for one already finishing,
+    /// so its last words (they arrive after the microphone stops) are in the
+    /// field before the text is read.
+    func finishDictation() async {
+        await speechService.finishRecording()
+    }
+
+    /// Starts or stops dictation from the mic button.
+    func toggleDictation() {
+        if !speechService.isRecording { lastDictatedText = nil }
+        speechService.toggleRecording(appendingTo: inputText)
+    }
+
+    /// Puts the dictation's words in the field, unless she has typed or
+    /// picked something since they last went in: her own words win. Without
+    /// this, words arriving after she stopped the mic and typed ", twice"
+    /// wiped what she typed (review (b) 2026-10-11).
+    private func applyDictatedText(_ text: String) {
+        guard inputText == (lastDictatedText ?? speechService.typedBeforeDictation) else { return }
+        inputText = text
+        lastDictatedText = text
     }
 
     func reset() {
@@ -93,25 +142,13 @@ final class CommandBarViewModel {
         commandBarService.reset()
     }
 
-    /// Build a CommandAction from the parsed command, creating any necessary
-    /// Core Data objects (like presentation drafts) using the provided context.
-    func buildAction(
-        from command: ParsedCommand,
-        modelContext: NSManagedObjectContext
-    ) -> CommandAction? {
+    /// The form a one-step command opens. `CommandBarService` sends only work,
+    /// practice and todo commands here; presentations and notes become a
+    /// capture to review.
+    func buildAction(from command: ParsedCommand) -> CommandAction? {
         switch command.intent {
-        case .recordPresentation:
-            guard let lessonID = command.lessonID else {
-                errorMessage = "Choose a lesson before opening the presentation. Nothing was saved."
-                return nil
-            }
-            let draft = PresentationFactory.makeDraft(
-                lessonID: lessonID,
-                studentIDs: command.studentIDs,
-                context: modelContext
-            )
-            modelContext.safeSave()
-            return .openPresentation(draftID: draft.id ?? UUID())
+        case .recordPresentation, .addNote:
+            return nil
 
         case .assignWork:
             return .openWorkItem(
@@ -125,14 +162,6 @@ final class CommandBarViewModel {
                 studentIDs: Set(command.studentIDs)
             )
 
-        case .addNote:
-            let bodyText = command.freeText.isEmpty ? inputText : command.freeText
-            return .openNote(
-                studentIDs: Set(command.studentIDs),
-                bodyText: bodyText,
-                inferredTags: command.inferredTags
-            )
-
         case .addTodo:
             let title = command.freeText.isEmpty ? inputText : command.freeText
             return .openTodo(titleText: title)
@@ -143,6 +172,14 @@ final class CommandBarViewModel {
 
     var captureValidationMessage: String? {
         guard let proposal = captureProposal else { return "There is nothing to review." }
+
+        // A name the organizer couldn't place would otherwise be saved without
+        // her, and what was said about her lost (bug hunt 2026-10-11 #46).
+        if !proposal.unresolvedStudentNames.isEmpty {
+            let names = ListFormatter.localizedString(byJoining: proposal.unresolvedStudentNames.map { "“\($0)”" })
+            return "Choose who \(names) \(proposal.unresolvedStudentNames.count == 1 ? "is" : "are") with Edit, "
+                + "or tap Leave Out."
+        }
 
         if proposal.recordsPresentation {
             if proposal.lessonID == nil { return "Choose the lesson that was given." }
@@ -189,10 +226,6 @@ enum CaptureSaveError: LocalizedError, Equatable {
     case invalid(String)
     case studentMissing
     case lessonMissing
-    case presentationMissing
-    case presentationNotGiven
-    case lessonMismatch
-    case childrenMismatch
     /// The notebook couldn't save; the raw error is in the log.
     case saveFailed
 
@@ -204,14 +237,6 @@ enum CaptureSaveError: LocalizedError, Equatable {
             return "One of these children is no longer in your class. Check the names and try again."
         case .lessonMissing:
             return "Couldn't find that lesson. It may have been deleted. Nothing was saved."
-        case .presentationMissing:
-            return "Couldn't find the presentation you just recorded. Nothing was saved."
-        case .presentationNotGiven:
-            return "That presentation isn't marked as given yet. Nothing was saved."
-        case .lessonMismatch:
-            return "The lesson here doesn't match the presentation you just recorded. Nothing was saved."
-        case .childrenMismatch:
-            return "The children here don't match the presentation you just recorded. Nothing was saved."
         case .saveFailed:
             return "Couldn't save what you wrote. Nothing was changed. Try again."
         }

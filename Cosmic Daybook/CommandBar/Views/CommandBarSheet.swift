@@ -12,10 +12,8 @@ struct CommandBarSheet: View {
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // Callbacks to RootView for opening sheets
-    var onPresentation: (UUID) -> Void
     var onWorkItem: (UUID?, Set<UUID>) -> Void
     var onPractice: ((UUID?, Set<UUID>) -> Void)?
-    var onNote: (Set<UUID>, String, [String]) -> Void
     var onTodo: (String) -> Void
 
     // MARK: - Data
@@ -43,6 +41,24 @@ struct CommandBarSheet: View {
     @Environment(\.isSampleClassroom) private var isSampleClassroom
     @State private var saveErrorMessage: String?
     @FocusState private var isTextFieldFocused: Bool
+    /// Set just before the sheet closes on purpose (Save, a form opening,
+    /// Discard), so the discard question doesn't ask about words being kept.
+    @State private var isClosing = false
+    /// Save or Discard: the sheet dismisses itself once `isClosing` is drawn.
+    /// A form opening doesn't set it: RootView swaps the sheet for the form,
+    /// and a dismiss here would close the form.
+    @State private var isDismissRequested = false
+    /// A form to open once `isClosing` is drawn: RootView swaps this sheet for
+    /// it, which the Mac counts as a programmatic dismiss, so it waits for the
+    /// redraw like Save does (review 2026-10-11 (c) #6).
+    @State private var pendingAction: CommandAction?
+    @State private var isConfirmingCancel = false
+
+    /// Words that closing now would throw away: typed, or organized and not
+    /// yet saved (bug hunt 2026-10-11 #47).
+    private var hasWordsToLose: Bool {
+        !isClosing && (viewModel.captureProposal != nil || !viewModel.inputText.trimmed().isEmpty)
+    }
 
     var body: some View {
         NavigationStack {
@@ -56,10 +72,36 @@ struct CommandBarSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
-                        dismiss()
+                        if hasWordsToLose {
+                            isConfirmingCancel = true
+                        } else {
+                            close()
+                        }
                     }
                 }
             }
+            .confirmationDialog(Self.discardTitle, isPresented: $isConfirmingCancel, titleVisibility: .visible) {
+                Button("Discard", role: .destructive) { close() }
+                Button("Keep Editing", role: .cancel) {}
+            } message: {
+                Text(discardMessage)
+            }
+        }
+        // A swipe down or a click outside asks first too. On the Mac this also
+        // fires for a programmatic dismiss, which `isClosing` lets through.
+        .dismissalConfirmationDialog(Self.discardTitle, shouldPresent: hasWordsToLose) {
+            Button("Discard", role: .destructive) {}
+            Button("Keep Editing", role: .cancel) {}
+        } message: {
+            Text(discardMessage)
+        }
+        // Dismissed only once the view has redrawn with `isClosing` set, so
+        // the question above is already off when the sheet goes.
+        .onChange(of: isDismissRequested) { _, requested in
+            if requested { dismiss() }
+        }
+        .onChange(of: pendingAction) { _, action in
+            if let action { openForm(action) }
         }
         #if os(macOS)
         // Fixed, not min-sized: `contentSection` swaps wholesale (examples →
@@ -77,18 +119,10 @@ struct CommandBarSheet: View {
             viewModel.isSampleClassroom = isSampleClassroom
             isTextFieldFocused = true
         }
-        // Dictated words go after what was typed before the mic was tapped.
-        .onChange(of: viewModel.speechService.transcript) { _, newValue in
-            if !newValue.isEmpty {
-                viewModel.inputText = viewModel.speechService.dictatedText
-            }
-        }
         // Closing mid-dictation would otherwise leave the microphone tap and
         // the recognition task running with nowhere to show the transcript.
         .onDisappear {
-            if viewModel.speechService.isRecording {
-                viewModel.speechService.stopRecording()
-            }
+            viewModel.speechService.stopRecording()
         }
         .alert("Couldn't Save", isPresented: Binding(
             get: { saveErrorMessage != nil },
@@ -130,7 +164,7 @@ struct CommandBarSheet: View {
 
             // Mic button
             Button {
-                viewModel.speechService.toggleRecording(appendingTo: viewModel.inputText)
+                viewModel.toggleDictation()
             } label: {
                 Image(systemName: viewModel.speechService.isRecording ? "mic.fill" : "mic")
                     .font(.system(size: 20, weight: .medium))
@@ -178,6 +212,118 @@ struct CommandBarSheet: View {
         }
     }
 
+    // MARK: - Capture Review
+
+    @ViewBuilder
+    private var captureReviewView: some View {
+        if viewModel.captureProposal != nil {
+            CaptureProposalReviewView(
+                proposal: Binding(
+                    get: { viewModel.captureProposal ?? Self.emptyCaptureProposal },
+                    set: { viewModel.captureProposal = $0 }
+                ),
+                students: students,
+                lessons: allLessons.uniqueByID,
+                validationMessage: viewModel.captureValidationMessage,
+                saveTitle: "Save",
+                onSave: saveReviewedCapture,
+                onStartOver: {
+                    viewModel.reset()
+                    isTextFieldFocused = true
+                }
+            )
+        }
+    }
+
+    private static let emptyCaptureProposal = CaptureProposal(
+        rawText: "",
+        recordsPresentation: false,
+        lessonID: nil,
+        lessonName: nil,
+        groupObservation: "",
+        studentEntries: [],
+        unresolvedStudentNames: [],
+        source: .deterministic
+    )
+
+    private func saveReviewedCapture() {
+        do {
+            let receipt = try viewModel.saveCaptureProposal(
+                context: viewContext,
+                saveCoordinator: saveCoordinator
+            )
+            let recordCount = (receipt.presentationID == nil ? 0 : 1) + receipt.noteCount + receipt.workCount
+            dependencies.toastService.showSuccess(
+                recordCount == 1 ? "Saved" : "Saved \(recordCount) entries"
+            )
+            close()
+        } catch let error as CaptureSaveError {
+            saveErrorMessage = error.errorDescription
+        } catch {
+            Logger.notes.error("Command bar save failed: \(error.localizedDescription, privacy: .public)")
+            saveErrorMessage = CaptureSaveError.saveFailed.errorDescription
+        }
+    }
+
+    // MARK: - Actions
+
+    private func submitCommand() {
+        let speech = viewModel.speechService
+        guard !viewModel.inputText.trimmed().isEmpty || speech.isRecording || speech.isFinishing else { return }
+
+        let studentData = students.compactMap { s -> StudentData? in
+            guard let id = s.id else { return nil }
+            return StudentData(id: id, firstName: s.firstName, lastName: s.lastName, nickname: s.nickname)
+        }
+        let lessonData = allLessons.compactMap { l -> LessonData? in
+            guard let id = l.id else { return nil }
+            return LessonData(id: id, name: l.name, area: l.area, sequence: l.sequence)
+        }
+
+        // Sending while dictating: the last words she said come in first.
+        // A second Return while it waits is ignored.
+        Task {
+            await viewModel.send(students: studentData, lessons: lessonData)
+        }
+    }
+
+    private func executeCommand(_ command: ParsedCommand) {
+        viewModel.addToRecent(viewModel.inputText.trimmed())
+        guard let action = viewModel.buildAction(from: command) else { return }
+
+        // The form that opens takes the words with it.
+        isClosing = true
+        pendingAction = action
+    }
+
+    private func openForm(_ action: CommandAction) {
+        switch action {
+        case .openWorkItem(let lessonID, let studentIDs):
+            onWorkItem(lessonID, studentIDs)
+        case .openPractice(let lessonID, let studentIDs):
+            onPractice?(lessonID, studentIDs)
+        case .openTodo(let titleText):
+            onTodo(titleText)
+        }
+    }
+
+    private func close() {
+        isClosing = true
+        isDismissRequested = true
+    }
+
+    private static let discardTitle = "Discard what you wrote?"
+
+    private var discardMessage: String {
+        viewModel.captureProposal == nil
+            ? "It isn't saved yet."
+            : "Nothing here is saved yet. What you wrote stays in Recent, so you can start again from it."
+    }
+}
+
+// MARK: - Content States
+
+extension CommandBarSheet {
     // MARK: - Examples
 
     private var examplesView: some View {
@@ -322,105 +468,6 @@ struct CommandBarSheet: View {
                 .buttonStyle(.plain)
             }
             .padding(.vertical, 16)
-        }
-    }
-
-    // MARK: - Capture Review
-
-    @ViewBuilder
-    private var captureReviewView: some View {
-        if viewModel.captureProposal != nil {
-            CaptureProposalReviewView(
-                proposal: Binding(
-                    get: { viewModel.captureProposal ?? Self.emptyCaptureProposal },
-                    set: { viewModel.captureProposal = $0 }
-                ),
-                students: students,
-                lessons: allLessons.uniqueByID,
-                mode: .newCapture,
-                validationMessage: viewModel.captureValidationMessage,
-                saveTitle: "Save",
-                onSave: saveReviewedCapture,
-                onStartOver: {
-                    viewModel.reset()
-                    isTextFieldFocused = true
-                }
-            )
-        }
-    }
-
-    private static let emptyCaptureProposal = CaptureProposal(
-        rawText: "",
-        recordsPresentation: false,
-        lessonID: nil,
-        lessonName: nil,
-        groupObservation: "",
-        studentEntries: [],
-        unresolvedStudentNames: [],
-        source: .deterministic
-    )
-
-    private func saveReviewedCapture() {
-        do {
-            let receipt = try viewModel.saveCaptureProposal(
-                context: viewContext,
-                saveCoordinator: saveCoordinator
-            )
-            let recordCount = (receipt.presentationID == nil ? 0 : 1) + receipt.noteCount + receipt.workCount
-            dependencies.toastService.showSuccess(
-                recordCount == 1 ? "Saved" : "Saved \(recordCount) entries"
-            )
-            dismiss()
-        } catch let error as CaptureSaveError {
-            saveErrorMessage = error.errorDescription
-        } catch {
-            Logger.notes.error("Command bar save failed: \(error.localizedDescription, privacy: .public)")
-            saveErrorMessage = CaptureSaveError.saveFailed.errorDescription
-        }
-    }
-
-    // MARK: - Actions
-
-    private func submitCommand() {
-        guard !viewModel.inputText.trimmed().isEmpty else { return }
-
-        // Stop recording if active
-        if viewModel.speechService.isRecording {
-            viewModel.speechService.stopRecording()
-        }
-
-        let studentData = students.compactMap { s -> StudentData? in
-            guard let id = s.id else { return nil }
-            return StudentData(id: id, firstName: s.firstName, lastName: s.lastName, nickname: s.nickname)
-        }
-        let lessonData = allLessons.compactMap { l -> LessonData? in
-            guard let id = l.id else { return nil }
-            return LessonData(id: id, name: l.name, area: l.area, sequence: l.sequence)
-        }
-
-        Task {
-            await viewModel.submit(
-                students: studentData,
-                lessons: lessonData
-            )
-        }
-    }
-
-    private func executeCommand(_ command: ParsedCommand) {
-        viewModel.addToRecent(viewModel.inputText.trimmed())
-        guard let action = viewModel.buildAction(from: command, modelContext: viewContext) else { return }
-
-        switch action {
-        case .openPresentation(let draftID):
-            onPresentation(draftID)
-        case .openWorkItem(let lessonID, let studentIDs):
-            onWorkItem(lessonID, studentIDs)
-        case .openPractice(let lessonID, let studentIDs):
-            onPractice?(lessonID, studentIDs)
-        case .openNote(let studentIDs, let bodyText, let inferredTags):
-            onNote(studentIDs, bodyText, inferredTags)
-        case .openTodo(let titleText):
-            onTodo(titleText)
         }
     }
 }

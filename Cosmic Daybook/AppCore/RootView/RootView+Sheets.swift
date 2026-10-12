@@ -14,6 +14,8 @@ extension RootView {
         case newWorkItem(lessonID: UUID?, studentIDs: Set<UUID>)
         case workDetail(UUID)
         case recordPractice
+        /// Record Practice opened from the command bar, on what it understood.
+        case recordPracticeFor(lessonID: UUID?, studentIDs: Set<UUID>)
         case newTodo(initialTitle: String)
         case search
         case quickNote(QuickNoteParams)
@@ -25,6 +27,7 @@ extension RootView {
             case .newWorkItem: return "newWorkItem"
             case .workDetail(let id): return "workDetail_\(id.uuidString)"
             case .recordPractice: return "recordPractice"
+            case .recordPracticeFor: return "recordPracticeFor"
             case .newTodo: return "newTodo"
             case .search: return "search"
             case .quickNote(let params): return "quickNote_\(params.id.uuidString)"
@@ -69,6 +72,9 @@ extension RootView {
         case .recordPractice:
             RecordPracticeSheet()
                 .largeSheetSizing()
+        case .recordPracticeFor(let lessonID, let studentIDs):
+            RecordPracticeSheet(lessonID: lessonID, studentIDs: studentIDs)
+                .largeSheetSizing()
         case .newTodo(let initialTitle):
             newTodoSheet(initialTitle: initialTitle)
         case .search:
@@ -101,18 +107,11 @@ extension RootView {
 
     private var commandBarSheet: some View {
         CommandBarSheet(
-            onPresentation: { draftID in
-                activeSheet = .presentationDraft(draftID)
-            },
             onWorkItem: { lessonID, studentIDs in
                 activeSheet = .newWorkItem(lessonID: lessonID, studentIDs: studentIDs)
             },
-            onNote: { studentIDs, bodyText, inferredTags in
-                activeSheet = .quickNote(QuickNoteParams(
-                    studentIDs: studentIDs,
-                    bodyText: bodyText,
-                    tags: inferredTags
-                ))
+            onPractice: { lessonID, studentIDs in
+                activeSheet = .recordPracticeFor(lessonID: lessonID, studentIDs: studentIDs)
             },
             onTodo: { titleText in
                 activeSheet = .newTodo(initialTitle: titleText)

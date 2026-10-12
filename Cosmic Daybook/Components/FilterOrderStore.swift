@@ -10,11 +10,9 @@ struct FilterOrderStore {
 
     private static var shared = FilterOrderStore()
 
-    private static let areaOrderKey = UserDefaultsKeys.lessonsAreaOrder
     private static let groupOrderPrefix = "Lessons.SequenceOrder."
     private static let sectionOrderPrefix = "Lessons.SectionOrder." // area+sequence
 
-    private static var cachedAreaOrder: [String]?
     private static var cachedSequenceOrders: [String: [String]] = [:]
     private static var cachedSectionOrders: [String: [String]] = [:]
 
@@ -35,15 +33,11 @@ struct FilterOrderStore {
     // Both screens then read that shortened list back and re-appended the missing
     // sections alphabetically, and the order stayed wrong for the rest of the launch.
 
+    /// The areas in the caller's order, each spelling once. Nothing ever
+    /// saved an area order, so there is no saved one to read; the merge still
+    /// collapses two spellings of one area.
     static func loadAreaOrder(existing: [String]) -> [String] {
-        mergeOrder(saved: savedAreaOrder(), existing: existing)
-    }
-
-    private static func savedAreaOrder() -> [String] {
-        if let cached = cachedAreaOrder { return cached }
-        let saved = shared.defaults.array(forKey: areaOrderKey) as? [String] ?? []
-        cachedAreaOrder = saved
-        return saved
+        mergeOrder(saved: [], existing: existing)
     }
 
     // MARK: Groups (Tracks)
@@ -87,7 +81,6 @@ struct FilterOrderStore {
     // MARK: Cache control
 
     static func resetCache() {
-        cachedAreaOrder = nil
         cachedSequenceOrders.removeAll()
         cachedSectionOrders.removeAll()
         revision += 1

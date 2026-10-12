@@ -31,25 +31,12 @@ extension TodayView {
     }
 
     private func meetingRow(_ meeting: CDScheduledMeeting) -> some View {
-        ScheduledMeetingListRow(
-            studentName: meetingStudentName(for: meeting),
-            onTap: { startMeeting(meeting) }
+        TodayMeetingRow(
+            names: meetingStudentName(for: meeting),
+            children: meetingChildren(for: meeting),
+            onStart: { startMeeting(meeting, with: $0) },
+            onRemove: { clearScheduledMeeting(meeting) }
         )
-        .contextMenu {
-            Button {
-                startMeeting(meeting)
-            } label: {
-                Label("Start Meeting", systemImage: "play.fill")
-            }
-
-            Divider()
-
-            Button(role: .destructive) {
-                clearScheduledMeeting(meeting)
-            } label: {
-                Label("Remove", systemImage: "calendar.badge.minus")
-            }
-        }
     }
 
     // MARK: - Helpers
@@ -61,10 +48,25 @@ extension TodayView {
         )
     }
 
-    func startMeeting(_ meeting: CDScheduledMeeting) {
-        guard let firstID = meeting.allStudentIDs.first.flatMap({ UUID(uuidString: $0) }),
-              let meetingID = meeting.id else { return }
-        selectedMeetingStudentID = firstID
+    /// The children booked into the meeting, by short name, for the pick a
+    /// group booking shows. A child no longer in the notebook is left out;
+    /// when nobody is left, the first one opens (the session says she's gone).
+    func meetingChildren(for meeting: CDScheduledMeeting) -> [TodayMeetingRow.Child] {
+        let ids = meeting.allStudentIDs.compactMap { UUID(uuidString: $0) }
+        let known = ids.compactMap { id in
+            viewModel.meetingStudentsByID[id].map { TodayMeetingRow.Child(id: id, name: $0.shortName) }
+        }
+        if known.isEmpty, let first = ids.first {
+            return [TodayMeetingRow.Child(id: first, name: "")]
+        }
+        return known
+    }
+
+    /// Opens the meeting with one child. Completing it takes only her off a
+    /// group booking (`MeetingScheduler.clearMeeting(id:completedFor:)`).
+    func startMeeting(_ meeting: CDScheduledMeeting, with studentID: UUID) {
+        guard let meetingID = meeting.id else { return }
+        selectedMeetingStudentID = studentID
         selectedMeetingID = meetingID
     }
 
@@ -153,6 +155,56 @@ extension TodayView {
 #elseif os(macOS)
             NSWorkspace.shared.open(url)
 #endif
+        }
+    }
+}
+
+// MARK: - Meeting Row
+
+/// One booking on Today. Tapping a group booking asks which child to meet
+/// first, since the meeting is held with one child at a time; the others
+/// keep the booking until they have met (bug hunt 2026-10-11, #27).
+struct TodayMeetingRow: View {
+    struct Child: Identifiable, Hashable {
+        let id: UUID
+        let name: String
+    }
+
+    let names: String
+    let children: [Child]
+    let onStart: (UUID) -> Void
+    let onRemove: () -> Void
+
+    @State private var isPickingChild = false
+
+    var body: some View {
+        ScheduledMeetingListRow(studentName: names, onTap: start)
+            .contextMenu {
+                Button(action: start) {
+                    Label("Start Meeting", systemImage: "play.fill")
+                }
+
+                Divider()
+
+                Button(role: .destructive, action: onRemove) {
+                    Label("Remove", systemImage: "calendar.badge.minus")
+                }
+            }
+            .confirmationDialog("Who are you meeting with?", isPresented: $isPickingChild, titleVisibility: .visible) {
+                ForEach(children) { child in
+                    Button(child.name) { onStart(child.id) }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Meet one child at a time. The others stay booked until they have met.")
+            }
+    }
+
+    private func start() {
+        if children.count > 1 {
+            isPickingChild = true
+        } else if let only = children.first {
+            onStart(only.id)
         }
     }
 }

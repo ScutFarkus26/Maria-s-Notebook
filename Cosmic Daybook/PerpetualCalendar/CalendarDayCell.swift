@@ -54,6 +54,8 @@ struct CalendarDayCell<Extra: View>: View {
     let onCommit: () -> Void
     @ViewBuilder let extra: () -> Extra
 
+    @FocusState private var isFieldFocused: Bool
+
     init(
         cellID: CellID,
         isToday: Bool,
@@ -102,7 +104,15 @@ struct CalendarDayCell<Extra: View>: View {
                         .font(.system(.caption, design: .rounded))
                         .textFieldStyle(.plain)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .focused($isFieldFocused)
                         .onSubmit(onCommit)
+                        .onAppear { isFieldFocused = true }
+                        // Clicking or tapping away keeps the note too, not only
+                        // Return (2026-10-11 hunt, #41). The grid commits only
+                        // while this day is still the open one.
+                        .onChange(of: isFieldFocused) { wasFocused, isFocused in
+                            if wasFocused && !isFocused { onCommit() }
+                        }
                 } else {
                     Text(displayText)
                         .font(.system(.caption, design: .rounded))

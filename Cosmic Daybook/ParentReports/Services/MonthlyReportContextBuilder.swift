@@ -195,12 +195,22 @@ struct MonthlyReportContextBuilder {
     private func workEvidence(studentID: String, interval: DateInterval) -> [MonthlyReportEvidenceItem] {
         var items: [MonthlyReportEvidenceItem] = []
 
+        // Her own rows and the shared rows she is on. A shared project
+        // follow-up names its first chooser as owner, so reading the owner
+        // alone left it out of everyone else's report (2026-10-11 #76).
+        // `visibleWork` keeps a classmate's linked copy (each copy names the
+        // whole group) out of hers, so a fan-out isn't counted twice.
         let workRequest = CDFetchRequest(CDWorkModel.self)
         workRequest.predicate = NSPredicate(
-            format: "studentID == %@ AND completedAt >= %@ AND completedAt < %@",
-            studentID, interval.start as NSDate, interval.end as NSDate
+            format: "(studentID == %@ OR ANY participants.studentID ==[c] %@) "
+                + "AND completedAt >= %@ AND completedAt < %@",
+            studentID, studentID, interval.start as NSDate, interval.end as NSDate
         )
-        for work in context.safeFetch(workRequest) {
+        let fetched = context.safeFetch(workRequest)
+        let works = UUID(uuidString: studentID).map {
+            WorkGrouping.visibleWork(for: $0, among: fetched, in: context)
+        } ?? fetched
+        for work in works {
             guard let id = work.id?.uuidString,
                   let completedAt = work.completedAt,
                   let worded = Self.closedWorkPhrase(title: work.title, status: work.status) else { continue }
@@ -317,22 +327,27 @@ struct MonthlyReportContextBuilder {
             format: "studentID == %@ AND date >= %@ AND date < %@",
             studentID, interval.start as NSDate, interval.end as NSDate
         )
-        let records = context.safeFetch(request)
+        // One record per school day, as the attendance grid shows it: two
+        // devices marking a day before syncing made two, and the report said
+        // "present 22 of 21 school days" (2026-10-11 #74).
+        let records = context.safeFetch(request).deduplicatedPerStudentDay()
         guard !records.isEmpty else { return nil }
 
         var present = 0
         var absent = 0
         var tardy = 0
         for record in records {
-            switch AttendanceStatus(rawValue: record.statusRaw) {
+            switch record.status {
             case .present:
                 present += 1
             case .tardy, .leftEarly:
                 present += 1
-                tardy += 1
+                // A late arrival, even one who later went home early; leaving
+                // early after arriving on time isn't a tardy.
+                if record.cameLate { tardy += 1 }
             case .absent:
                 absent += 1
-            case .unmarked, .none:
+            case .unmarked:
                 continue
             }
         }

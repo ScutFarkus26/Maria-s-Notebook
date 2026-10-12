@@ -199,7 +199,7 @@ extension MCPNotebookTools {
             ],
             annotations: .write,
             handler: { arguments in
-                try rollingBackOnFailure(context()) { try adjustSupply(arguments: arguments, in: $0) }
+                try undoingOnFailure(context()) { try adjustSupply(arguments: arguments, in: $0) }
             }
         )
     }
@@ -218,11 +218,10 @@ extension MCPNotebookTools {
         }
 
         let before = supply.currentQuantity
-        let delta = Int64(change ?? ((setTo ?? 0) - Int(before)))
+        let (delta, after) = try countChange(change: change, setTo: setTo, from: before)
         guard delta != 0 else {
             return "\(supply.name) is already at \(before) — nothing to record."
         }
-        let after = before + delta
         guard after >= 0 else {
             throw MCPToolError(
                 "That would leave \(supply.name) at \(after). Stock cannot go negative — "
@@ -234,7 +233,6 @@ extension MCPNotebookTools {
         RestockService.setCount(supply, to: Int(after), reason: reason, in: modelContext)
 
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The adjustment could not be saved.")
         }
 
@@ -243,6 +241,31 @@ extension MCPNotebookTools {
         let warning = after == 0 ? " That is the last of it." : ""
         return "[supply id=\(id)] \(supply.name): \(direction), now \(after) "
             + "(\(reason)).\(warning)"
+    }
+
+    /// The move and the new count for a `change` or a `set_to`. A number far
+    /// beyond any shelf is refused: near the limit of a whole number the sum
+    /// overflowed and crashed the Mac app (bug hunt 2026-10-11 #52).
+    private static func countChange(
+        change: Int?, setTo: Int?, from before: Int64
+    ) throws -> (delta: Int64, after: Int64) {
+        let limit = 1_000_000
+        if let change, !(-limit...limit).contains(change) {
+            throw MCPToolError("A change of \(change) is too large. Pass how many were used or "
+                + "received, up to \(limit.formatted()) at a time.")
+        }
+        if let setTo, !(0...limit).contains(setTo) {
+            throw MCPToolError("set_to must be the number on the shelf, from 0 to \(limit.formatted()).")
+        }
+        let tooLarge = MCPToolError("That count is too large to keep. Recount the shelf and pass set_to instead.")
+        guard let setTo else {
+            let (after, overflow) = before.addingReportingOverflow(Int64(change ?? 0))
+            if overflow { throw tooLarge }
+            return (Int64(change ?? 0), after)
+        }
+        let (delta, overflow) = Int64(setTo).subtractingReportingOverflow(before)
+        if overflow { throw tooLarge }
+        return (delta, Int64(setTo))
     }
 
     // MARK: - Marking Levels
@@ -276,7 +299,7 @@ extension MCPNotebookTools {
             ],
             annotations: .idempotentWrite,
             handler: { arguments in
-                try rollingBackOnFailure(context()) { try markSupplies(arguments: arguments, in: $0) }
+                try undoingOnFailure(context()) { try markSupplies(arguments: arguments, in: $0) }
             }
         )
     }
@@ -323,7 +346,6 @@ extension MCPNotebookTools {
             return lines.joined(separator: "\n")
         }
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The levels could not be saved.")
         }
         return "Marked \(lines.count):\n" + lines.joined(separator: "\n")

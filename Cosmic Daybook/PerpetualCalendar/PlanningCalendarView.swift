@@ -84,9 +84,14 @@ struct PlanningCalendarView: View {
                 planningDayCell(cellID: cellID, isToday: isToday, isNonSchool: isNonSchool)
             }
         )
-        .task {
-            nonSchoolCells = await NonSchoolDayCells.load(yearRange: yearRange, context: viewContext)
+        .task { await reloadNonSchoolCells() }
+        // Days off marked elsewhere (Settings, another device, Claude) shade
+        // here too; the shading used to load once (2026-10-11 hunt, #41).
+        .onReceive(NotificationCenter.default.publisher(for: .schoolDayDataDidChange)) { _ in
+            Task { await reloadNonSchoolCells() }
         }
+        // Switching sections keeps a note still being typed.
+        .onDisappear { editor.commitOpenCell(notes: notesLookup, in: viewContext) }
         .sheet(isPresented: $showCalendarSync) {
             CalendarSyncSettingsView()
         }
@@ -196,7 +201,12 @@ private extension PlanningCalendarView {
         editor.beginEditing(cellID, currentText: currentText, notes: notesLookup, in: viewContext)
     }
 
+    /// Return or focus leaving the field; a no-op once another day is open.
     func commitEdit(cellID: CellID) {
-        editor.commit(cellID, notes: notesLookup, in: viewContext)
+        editor.commitIfOpen(cellID, notes: notesLookup, in: viewContext)
+    }
+
+    func reloadNonSchoolCells() async {
+        nonSchoolCells = await NonSchoolDayCells.load(yearRange: yearRange, context: viewContext)
     }
 }

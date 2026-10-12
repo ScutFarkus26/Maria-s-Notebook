@@ -88,25 +88,14 @@ struct ReportGeneratorView: View {
             .onAppear {
                 fetchNoteCount()
             }
-            .onChange(of: selectedDateRange) { _, _ in
-                Task {
-                    fetchNoteCount()
-                }
-            }
+            .onChange(of: selectedDateRange) { _, _ in datesChanged() }
             .onChange(of: customStartDate) { _, _ in
-                if selectedDateRange == .custom {
-                    Task {
-                        fetchNoteCount()
-                    }
-                }
+                if selectedDateRange == .custom { datesChanged() }
             }
             .onChange(of: customEndDate) { _, _ in
-                if selectedDateRange == .custom {
-                    Task {
-                        fetchNoteCount()
-                    }
-                }
+                if selectedDateRange == .custom { datesChanged() }
             }
+            .onChange(of: selectedStyle) { _, _ in clearReport() }
             .sheet(isPresented: $showingPreview) {
                 if let pdfData = generatedPDF {
                     PDFPreviewView(pdfData: pdfData, studentName: student.firstName)
@@ -168,13 +157,14 @@ struct ReportGeneratorView: View {
         .onAppear {
             fetchNoteCount()
         }
-        .onChange(of: selectedDateRange) { _, _ in fetchNoteCount() }
+        .onChange(of: selectedDateRange) { _, _ in datesChanged() }
         .onChange(of: customStartDate) { _, _ in
-            if selectedDateRange == .custom { fetchNoteCount() }
+            if selectedDateRange == .custom { datesChanged() }
         }
         .onChange(of: customEndDate) { _, _ in
-            if selectedDateRange == .custom { fetchNoteCount() }
+            if selectedDateRange == .custom { datesChanged() }
         }
+        .onChange(of: selectedStyle) { _, _ in clearReport() }
         .frame(minWidth: 900, minHeight: 650)
     }
     #endif
@@ -307,6 +297,20 @@ struct ReportGeneratorView: View {
             context: viewContext
         )
         noteCount = notes.count
+    }
+
+    /// A report made with other options goes as soon as one changes, so the preview and
+    /// Share never hand on last month's PDF for this semester (bug hunt 2026-10-11, #30).
+    private func clearReport() {
+        generatedPDF = nil
+        sharedPDFURL = nil
+        errorMessage = nil
+        showingPreview = false
+    }
+
+    private func datesChanged() {
+        clearReport()
+        fetchNoteCount()
     }
 
     private func generateReport() {

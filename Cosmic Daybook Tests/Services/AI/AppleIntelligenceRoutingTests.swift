@@ -204,93 +204,6 @@ struct CaptureProposalTests {
         #expect(note.lessonAssignment?.id == presentationID)
     }
 
-    @Test("Reviewed closeout reuses the already-recorded exact presentation")
-    func reviewedCloseoutReusesRecordedPresentation() throws {
-        let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
-        let firstStudent = CoreDataTestHelpers.seedStudent(
-            in: context,
-            firstName: "Ari",
-            lastName: "Cohen"
-        )
-        let secondStudent = CoreDataTestHelpers.seedStudent(
-            in: context,
-            firstName: "Bina",
-            lastName: "Levy"
-        )
-        let lesson = CoreDataTestHelpers.seedLesson(
-            in: context,
-            name: "Golden Beads",
-            area: "Mathematics",
-            sequence: "Decimal System"
-        )
-        let firstStudentID = try #require(firstStudent.id)
-        let secondStudentID = try #require(secondStudent.id)
-        let lessonID = try #require(lesson.id)
-        let originalPresentedAt = Date(timeIntervalSince1970: 1_720_000_000)
-        let recordedPresentation = PresentationFactory.makePresented(
-            lessonID: lessonID,
-            studentIDs: [firstStudentID, secondStudentID],
-            presentedAt: originalPresentedAt,
-            context: context
-        )
-        let recordedPresentationID = try #require(recordedPresentation.id)
-        try context.save()
-
-        let viewModel = CommandBarViewModel()
-        viewModel.captureProposal = CaptureProposal(
-            rawText: "Ari exchanged independently. Bina is ready for the next lesson.",
-            recordsPresentation: true,
-            lessonID: lessonID,
-            lessonName: lesson.name,
-            groupObservation: "Both children remained engaged throughout the presentation.",
-            studentEntries: [
-                StudentCaptureProposal(
-                    studentID: firstStudentID,
-                    studentName: "Ari Cohen",
-                    observation: "Ari exchanged independently.",
-                    followUp: .practice,
-                    followUpDetail: "Repeat exchanges with a new quantity"
-                ),
-                StudentCaptureProposal(
-                    studentID: secondStudentID,
-                    studentName: "Bina Levy",
-                    observation: "Bina named each hierarchy without prompting.",
-                    followUp: .readyForNextLesson
-                )
-            ],
-            unresolvedStudentNames: [],
-            source: .deterministic
-        )
-        let saveCoordinator = SaveCoordinator()
-        saveCoordinator.suppressAlerts = true
-
-        let receipt = try viewModel.saveCaptureProposal(
-            context: context,
-            saveCoordinator: saveCoordinator,
-            presentedAt: originalPresentedAt.addingTimeInterval(3_600),
-            recordedPresentationID: recordedPresentationID
-        )
-
-        #expect(receipt.presentationID == recordedPresentationID)
-        #expect(receipt.noteCount == 3)
-        #expect(receipt.workCount == 1)
-        #expect(recordedPresentation.presentedAt == originalPresentedAt)
-        #expect(recordedPresentation.isStudentConfirmed(secondStudentID))
-
-        let presentationRequest = CDFetchRequest(CDLessonAssignment.self)
-        #expect(try context.count(for: presentationRequest) == 1)
-
-        let workRequest = CDFetchRequest(CDWorkModel.self)
-        let work = try #require(try context.fetch(workRequest).first)
-        #expect(work.presentationID == recordedPresentationID.uuidString)
-        #expect(work.studentID == firstStudentID.uuidString)
-
-        let noteRequest = CDFetchRequest(CDNote.self)
-        let notes = try context.fetch(noteRequest)
-        #expect(notes.count == 3)
-        #expect(notes.allSatisfy { $0.lessonAssignment?.id == recordedPresentationID })
-    }
-
     @Test("Duplicate synced student rows do not block saving reviewed details")
     func duplicateStudentRowsAreDeduplicatedForSaving() throws {
         let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
@@ -312,14 +225,6 @@ struct CaptureProposalTests {
         duplicate.id = studentID
         duplicate.firstName = student.firstName
         duplicate.lastName = student.lastName
-
-        let presentation = PresentationFactory.makePresented(
-            lessonID: lessonID,
-            studentIDs: [studentID],
-            presentedAt: Date(),
-            context: context
-        )
-        let presentationID = try #require(presentation.id)
         try context.save()
 
         let viewModel = CommandBarViewModel()
@@ -344,122 +249,14 @@ struct CaptureProposalTests {
 
         let receipt = try viewModel.saveCaptureProposal(
             context: context,
-            saveCoordinator: saveCoordinator,
-            recordedPresentationID: presentationID
+            saveCoordinator: saveCoordinator
         )
 
-        #expect(receipt.presentationID == presentationID)
+        #expect(receipt.presentationID != nil)
         #expect(receipt.noteCount == 1)
     }
 
-    @Test("Exact presentation reuse rejects lesson and child mismatches")
-    func exactPresentationReuseRejectsMismatches() throws {
-        let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
-        let recordedStudent = CoreDataTestHelpers.seedStudent(
-            in: context,
-            firstName: "Leah",
-            lastName: "Cohen"
-        )
-        let otherStudent = CoreDataTestHelpers.seedStudent(
-            in: context,
-            firstName: "Maya",
-            lastName: "Levy"
-        )
-        let recordedLesson = CoreDataTestHelpers.seedLesson(
-            in: context,
-            name: "Binomial Cube",
-            area: "Sensorial",
-            sequence: "Cubes"
-        )
-        let otherLesson = CoreDataTestHelpers.seedLesson(
-            in: context,
-            name: "Trinomial Cube",
-            area: "Sensorial",
-            sequence: "Cubes"
-        )
-        let recordedStudentID = try #require(recordedStudent.id)
-        let otherStudentID = try #require(otherStudent.id)
-        let recordedLessonID = try #require(recordedLesson.id)
-        let otherLessonID = try #require(otherLesson.id)
-        let recordedPresentation = PresentationFactory.makePresented(
-            lessonID: recordedLessonID,
-            studentIDs: [recordedStudentID],
-            presentedAt: Date(),
-            context: context
-        )
-        let recordedPresentationID = try #require(recordedPresentation.id)
-        try context.save()
-
-        let viewModel = CommandBarViewModel()
-        let saveCoordinator = SaveCoordinator()
-        saveCoordinator.suppressAlerts = true
-        viewModel.captureProposal = CaptureProposal(
-            rawText: "Leah worked independently.",
-            recordsPresentation: true,
-            lessonID: otherLessonID,
-            lessonName: otherLesson.name,
-            groupObservation: "",
-            studentEntries: [
-                StudentCaptureProposal(
-                    studentID: recordedStudentID,
-                    studentName: "Leah Cohen",
-                    observation: "Leah worked independently."
-                )
-            ],
-            unresolvedStudentNames: [],
-            source: .deterministic
-        )
-
-        do {
-            _ = try viewModel.saveCaptureProposal(
-                context: context,
-                saveCoordinator: saveCoordinator,
-                recordedPresentationID: recordedPresentationID
-            )
-            Issue.record("Expected the reviewed lesson mismatch to be rejected.")
-        } catch {
-            #expect(error.localizedDescription
-                    == "The lesson here doesn't match the presentation you just recorded. Nothing was saved.")
-        }
-
-        viewModel.captureProposal = CaptureProposal(
-            rawText: "Maya worked independently.",
-            recordsPresentation: true,
-            lessonID: recordedLessonID,
-            lessonName: recordedLesson.name,
-            groupObservation: "",
-            studentEntries: [
-                StudentCaptureProposal(
-                    studentID: otherStudentID,
-                    studentName: "Maya Levy",
-                    observation: "Maya worked independently."
-                )
-            ],
-            unresolvedStudentNames: [],
-            source: .deterministic
-        )
-
-        do {
-            _ = try viewModel.saveCaptureProposal(
-                context: context,
-                saveCoordinator: saveCoordinator,
-                recordedPresentationID: recordedPresentationID
-            )
-            Issue.record("Expected the reviewed child mismatch to be rejected.")
-        } catch {
-            #expect(error.localizedDescription
-                    == "The children here don't match the presentation you just recorded. Nothing was saved.")
-        }
-
-        let presentationRequest = CDFetchRequest(CDLessonAssignment.self)
-        let noteRequest = CDFetchRequest(CDNote.self)
-        let workRequest = CDFetchRequest(CDWorkModel.self)
-        #expect(try context.count(for: presentationRequest) == 1)
-        #expect(try context.count(for: noteRequest) == 0)
-        #expect(try context.count(for: workRequest) == 0)
-    }
-
-    @Test("A failed reviewed save rolls back only its notes and follow-up work")
+    @Test("A failed reviewed save rolls back only its presentation, notes and follow-up work")
     func failedReviewedSaveIsAtomic() throws {
         let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
         let student = CoreDataTestHelpers.seedStudent(
@@ -475,13 +272,6 @@ struct CaptureProposalTests {
         )
         let studentID = try #require(student.id)
         let lessonID = try #require(lesson.id)
-        let presentation = PresentationFactory.makePresented(
-            lessonID: lessonID,
-            studentIDs: [studentID],
-            presentedAt: Date(),
-            context: context
-        )
-        let presentationID = try #require(presentation.id)
         try context.save()
 
         // This unrelated invalid edit makes the eventual context save fail. It
@@ -515,8 +305,7 @@ struct CaptureProposalTests {
         do {
             _ = try viewModel.saveCaptureProposal(
                 context: context,
-                saveCoordinator: saveCoordinator,
-                recordedPresentationID: presentationID
+                saveCoordinator: saveCoordinator
             )
             Issue.record("The reviewed save should fail when the context cannot save.")
         } catch let error as CaptureSaveError {
@@ -528,11 +317,11 @@ struct CaptureProposalTests {
 
         let noteRequest = CDFetchRequest(CDNote.self)
         let workRequest = CDFetchRequest(CDWorkModel.self)
+        let presentationRequest = CDFetchRequest(CDLessonAssignment.self)
         #expect(try context.count(for: noteRequest) == 0)
         #expect(try context.count(for: workRequest) == 0)
+        #expect(try context.count(for: presentationRequest) == 0)
         #expect(invalidUnrelatedStudent.isInserted)
         #expect(invalidUnrelatedStudent.value(forKey: "firstName") == nil)
-        #expect(presentation.id == presentationID)
-        #expect(presentation.isPresented)
     }
 }

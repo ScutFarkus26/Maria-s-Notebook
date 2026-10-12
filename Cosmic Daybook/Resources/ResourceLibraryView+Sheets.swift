@@ -40,8 +40,8 @@ extension ResourceLibraryView {
     var bulkTagSheet: some View {
         NavigationStack {
             Form {
-                let noun = selectedResourceIDs.count == 1 ? "Resource" : "Resources"
-                Section("Add Tags to \(selectedResourceIDs.count) \(noun)") {
+                let noun = selectedCount == 1 ? "Resource" : "Resources"
+                Section("Add Tags to \(selectedCount) \(noun)") {
                     TagPicker(selectedTags: $bulkTags)
                 }
             }

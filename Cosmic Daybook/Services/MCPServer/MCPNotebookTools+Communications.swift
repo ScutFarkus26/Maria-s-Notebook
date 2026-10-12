@@ -108,7 +108,7 @@ extension MCPNotebookTools {
             inputSchema: recordCommunicationSchema,
             annotations: .write,
             handler: { arguments in
-                try rollingBackOnFailure(context()) { try recordParentCommunication(arguments: arguments, in: $0) }
+                try undoingOnFailure(context()) { try recordParentCommunication(arguments: arguments, in: $0) }
             }
         )
     }
@@ -191,7 +191,6 @@ extension MCPNotebookTools {
             throw MCPToolError("Nothing to change — pass at least one field.")
         }
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The communication could not be saved.")
         }
         let id = communication.id?.uuidString ?? "unknown"

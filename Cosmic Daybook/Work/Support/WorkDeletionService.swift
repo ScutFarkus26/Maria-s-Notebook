@@ -167,7 +167,7 @@ struct WorkDeletionService {
                     action = .deleteRow
                 } else if let heir = Self.heir(after: studentID, on: member) {
                     action = .promote(to: heir)
-                } else if member.sourceContextType == .projectSession {
+                } else if isOfferedProjectWork(member) {
                     action = .clearOwner
                 } else {
                     throw ServiceError.wouldEmptyRow
@@ -183,6 +183,18 @@ struct WorkDeletionService {
         return WorkRemovalPlan(
             studentID: studentID, group: group, steps: steps, completionRecords: records
         )
+    }
+
+    /// Whether `work` is a choice session's offered row, which may sit with
+    /// nobody on it until a child picks it. Uniform project work carries the
+    /// same `.projectSession` type (bug hunt 2026-10-11 #65), so the session's
+    /// own mode decides; a row whose session isn't here is treated as Uniform.
+    private func isOfferedProjectWork(_ work: CDWorkModel) -> Bool {
+        guard work.sourceContextType == .projectSession,
+              let sessionID = work.sourceContextID.flatMap(UUID.init(uuidString:)),
+              let session = context.object(CDProjectSession.self, id: sessionID)
+        else { return false }
+        return session.assignmentMode == .choice
     }
 
     /// The participant who takes over `studentID`'s row when she leaves it.

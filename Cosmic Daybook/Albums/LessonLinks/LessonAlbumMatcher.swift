@@ -49,7 +49,9 @@ enum LessonAlbumMatcher {
     // MARK: Matching
 
     /// Scores every unlinked lesson against every album outline entry and
-    /// returns the best candidate per lesson, strongest first.
+    /// returns the best candidate per lesson, strongest first. With
+    /// `includeAlreadyLinked`, linked lessons are scored too, leaving out the
+    /// page each is linked to now ("Find a Different Page…").
     ///
     /// `library` must already be indexed — call `ensureIndexed()` first if
     /// there's any chance the guide hasn't opened the Albums section yet.
@@ -70,12 +72,15 @@ enum LessonAlbumMatcher {
             let vector = await library.semantic.queryVector(for: semanticQuery(for: lesson))
 
             var best: BestMatch?
+            let currentLink = lesson.albumLink
             for album in library.albums {
                 let subjectBonus = subjectAffinity(area: lesson.area, subject: album.subject)
                 let similarities = vector.flatMap {
                     library.semantic.normalizedSimilarities(query: $0, albumID: album.id)
                 }
                 for (index, ref) in album.lessons.enumerated() {
+                    if let currentLink, currentLink.albumID == album.id,
+                       currentLink.pageIndex == ref.pageIndex { continue }
                     let lexical: Double = titleSimilarity(name, ref.title)
                     var semantic = 0.0
                     if let similarities, similarities.indices.contains(index) {
@@ -133,9 +138,12 @@ enum LessonAlbumMatcher {
     // MARK: Re-resolution
 
     /// Re-points a lesson's page number after the guide drops in a revised
-    /// PDF whose pagination has shifted. The outline title is the anchor;
-    /// if it's gone, the existing page number is left alone rather than
-    /// guessed at.
+    /// PDF whose pagination has shifted. The outline title is the anchor:
+    /// a link whose page still starts an entry with its title stays put, so
+    /// a title the outline repeats ("Extensions", "Introduction") keeps the
+    /// right one; otherwise it moves to the entry with its title nearest
+    /// the old page. If the title is gone, the page is left alone rather
+    /// than guessed at.
     @discardableResult
     static func reresolvePages(in album: Album, context: NSManagedObjectContext) -> Int {
         let lessons = CDLesson.lessonsInAlbum(album.id, context: context)
@@ -143,11 +151,13 @@ enum LessonAlbumMatcher {
         var moved = 0
         for lesson in lessons {
             guard let title = lesson.albumLessonTitle, !title.isEmpty else { continue }
-            guard let ref = album.lessons.first(where: { $0.title == title }) else { continue }
-            if Int(lesson.albumPageIndex) != ref.pageIndex {
-                lesson.albumPageIndex = Int32(ref.pageIndex)
-                moved += 1
-            }
+            let stored = Int(lesson.albumPageIndex)
+            let entries = album.lessons.filter { $0.title == title }
+            guard !entries.contains(where: { $0.pageIndex == stored }),
+                  let nearest = entries.min(by: { abs($0.pageIndex - stored) < abs($1.pageIndex - stored) })
+            else { continue }
+            lesson.albumPageIndex = Int32(nearest.pageIndex)
+            moved += 1
         }
         if moved > 0 {
             context.safeSave()

@@ -56,6 +56,25 @@ extension ClassAreaChecklistViewModel {
         refreshOtherAreaMatches(context: context)
     }
 
+    // MARK: - Column Order
+
+    /// The roster's birthday order: oldest first, a child with no birthday after
+    /// every child with one, and names (then id) breaking ties so the columns
+    /// hold still from one load to the next. Children with no birthday were
+    /// given the day they were added until 2026-10-05, which sorted them last;
+    /// with none they would otherwise land first, in no fixed order.
+    nonisolated static func rosterOrder(_ lhs: CDStudent, _ rhs: CDStudent) -> Bool {
+        switch (lhs.birthday, rhs.birthday) {
+        case let (left?, right?) where left != right: return left < right
+        case (.some, nil): return true
+        case (nil, .some): return false
+        default: break
+        }
+        if lhs.firstName != rhs.firstName { return lhs.firstName < rhs.firstName }
+        if lhs.lastName != rhs.lastName { return lhs.lastName < rhs.lastName }
+        return (lhs.id?.uuidString ?? "") < (rhs.id?.uuidString ?? "")
+    }
+
     // MARK: - Filter Summary
 
     /// The students the columns are pinned to, in roster order. Empty when unfiltered.

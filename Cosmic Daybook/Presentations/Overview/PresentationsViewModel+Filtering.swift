@@ -102,13 +102,11 @@ extension PresentationsViewModel {
     /// while still fitting two rows of the three-wide grid.
     static let suggestedNextLimit = 5
 
-    /// CDStudent IDs that already have a scheduled (but not yet given) lesson.
+    /// Children already booked for something from today on — the Waiting
+    /// rail's rule, so Suggest and the rail agree on who is booked. A lesson
+    /// missed on a past day isn't a booking.
     private func scheduledStudentIDs(in lessonAssignments: [CDLessonAssignment]) -> Set<UUID> {
-        var ids = Set<UUID>()
-        for la in lessonAssignments where la.scheduledFor != nil && !la.isGiven {
-            ids.formUnion(la.resolvedStudentIDs)
-        }
-        return ids
+        WaitingStudentsOrder.studentIDsWithUpcomingLessons(in: lessonAssignments)
     }
 
     /// Every input to one card's rank, gathered once. The score and the
@@ -129,7 +127,9 @@ extension PresentationsViewModel {
         var changesArea: Bool
 
         var score: Double {
-            let openWorkBoost = max(0.0, 20.0 - Double(fewestOpenWork ?? 0) * 5.0)
+            // No bonus when nobody on the card is left unbooked: nil is "no
+            // child to count", not "a child with no open work".
+            let openWorkBoost = fewestOpenWork.map { max(0.0, 20.0 - Double($0) * 5.0) } ?? 0
             return cappedWait * 10.0 + ageInSchoolDays + openWorkBoost - diversityPenalty
         }
     }

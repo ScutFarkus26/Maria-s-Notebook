@@ -13,6 +13,10 @@ final class SpeechRecognitionService {
     // MARK: - Public State
 
     var isRecording = false
+    /// Stopped listening, waiting for Speech's last words (`finishRecording`):
+    /// the couple of seconds after a stop when `isRecording` is already false
+    /// but the transcript may still change.
+    private(set) var isFinishing = false
     /// What this dictation has heard so far. Cleared when recording starts, so
     /// it only ever holds the current dictation's words.
     var transcript = ""
@@ -28,10 +32,24 @@ final class SpeechRecognitionService {
         Self.appending(transcript, to: typedBeforeDictation)
     }
 
+    /// Called with `dictatedText` each time the current dictation hears more,
+    /// while it is recording or finishing. Called at once, not on the next
+    /// redraw, so the last words are in before a waiting `finishRecording`
+    /// returns (an `onChange` of `transcript` ran after it, with the
+    /// dictation already over).
+    @ObservationIgnored var onDictatedText: ((String) -> Void)?
+
     // MARK: - Private
 
     private var recognitionTask: SFSpeechRecognitionTask?
+    private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var audioEngine: AVAudioEngine?
+    /// Everyone waiting for the last words after the microphone stopped
+    /// (`finishRecording`): the mic button's stop and a Send can both wait.
+    private var finishWaiters: [CheckedContinuation<Void, Never>] = []
+    private var finishTimeout: Task<Void, Never>?
+    /// How long a stop waits for Speech's final words before giving up on them.
+    private static let finishGrace: Duration = .seconds(2)
     private let speechRecognizer = SFSpeechRecognizer(locale: Locale.current)
     /// Identifies the dictation in progress, so a late callback from one that
     /// was already stopped can't change the text or stop the next one.
@@ -79,14 +97,12 @@ final class SpeechRecognitionService {
             return
         }
 
-        // Reset state
-        stopRecording()
-        error = nil
-        transcript = ""
+        let session = beginSession()
 
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         request.requiresOnDeviceRecognition = requiresOnDeviceRecognition
+        recognitionRequest = request
 
         let audioEngine = AVAudioEngine()
         self.audioEngine = audioEngine
@@ -96,8 +112,6 @@ final class SpeechRecognitionService {
 
         Self.installRecognitionTap(on: inputNode, request: request, format: recordingFormat)
 
-        let session = UUID()
-        currentSession = session
         // `@Sendable`, so it carries no main-actor check: the handler can run
         // on the recognizer's queue. Only plain values cross to the main actor.
         recognitionTask = speechRecognizer.recognitionTask(with: request) { @Sendable [weak self] result, error in
@@ -126,6 +140,17 @@ final class SpeechRecognitionService {
         }
     }
 
+    /// A new dictation's bookkeeping: any earlier one torn down, the
+    /// transcript cleared, and the session its callbacks must carry.
+    private func beginSession() -> UUID {
+        stopRecording()
+        error = nil
+        transcript = ""
+        let session = UUID()
+        currentSession = session
+        return session
+    }
+
     private struct RecognitionFailure {
         let domain: String
         let code: Int
@@ -137,6 +162,7 @@ final class SpeechRecognitionService {
 
         if let text {
             transcript = text
+            if !text.isEmpty { onDictatedText?(dictatedText) }
         }
 
         if let failure {
@@ -189,24 +215,81 @@ final class SpeechRecognitionService {
         }
     }
 
+    /// Tears dictation down at once, dropping words not yet transcribed: for
+    /// a sheet closing, or a new dictation starting. A stop the guide asks for
+    /// goes through `finishRecording` instead.
     func stopRecording() {
         currentSession = nil
 
-        audioEngine?.stop()
-        audioEngine?.inputNode.removeTap(onBus: 0)
-        audioEngine = nil
+        stopListening()
+        recognitionRequest = nil
 
         recognitionTask?.cancel()
         recognitionTask = nil
 
         isRecording = false
+        isFinishing = false
+
+        finishTimeout?.cancel()
+        finishTimeout = nil
+        let waiters = finishWaiters
+        finishWaiters = []
+        for waiter in waiters { waiter.resume() }
     }
+
+    /// Stops listening but lets Speech finish the words it has already
+    /// heard. `endAudio()` finishes processing the audio already accepted,
+    /// where `cancel()` dropped the last words (bug hunt 2026-10-11 #53).
+    /// Returns once the final transcript is in, or after `finishGrace` if
+    /// Speech never sends one. Called again while finishing, it waits for
+    /// the same finish: a Send in those seconds used to return at once and
+    /// organize the words heard so far (review (b) 2026-10-11).
+    func finishRecording() async {
+        if !isFinishing {
+            guard isRecording, let session = currentSession else { return }
+            stopListening()
+            recognitionRequest?.endAudio()
+            isRecording = false
+            isFinishing = true
+            finishTimeout = Task { [weak self] in
+                try? await Task.sleep(for: Self.finishGrace)
+                guard let self, self.currentSession == session else { return }
+                self.stopRecording()
+            }
+        }
+        await withCheckedContinuation { continuation in
+            finishWaiters.append(continuation)
+        }
+    }
+
+    private func stopListening() {
+        audioEngine?.stop()
+        audioEngine?.inputNode.removeTap(onBus: 0)
+        audioEngine = nil
+    }
+
+    #if DEBUG
+    /// Puts the service where `startRecording` leaves it once the microphone
+    /// runs, without one, so tests can feed it recognition results.
+    func simulateRecording(appendingTo typedText: String) -> UUID {
+        typedBeforeDictation = typedText
+        let session = beginSession()
+        isRecording = true
+        return session
+    }
+
+    /// A recognition result for `session`, as Speech's callback delivers it.
+    func simulateResult(_ text: String, isFinal: Bool, session: UUID) {
+        handleRecognition(text: text, isFinal: isFinal, failure: nil, session: session)
+    }
+    #endif
 
     /// Starts or stops dictation. `typedText` is what's in the field now; the
     /// dictated words are added after it (read them from `dictatedText`).
+    /// Stopping keeps the last words: they arrive in `transcript` a moment later.
     func toggleRecording(requiresOnDeviceRecognition: Bool = false, appendingTo typedText: String = "") {
         if isRecording {
-            stopRecording()
+            Task { await finishRecording() }
         } else {
             Task {
                 if !permissionGranted {

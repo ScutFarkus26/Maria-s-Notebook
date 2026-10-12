@@ -71,7 +71,10 @@ extension PresentationsViewModel {
         var lastDateByStudent: [UUID: Date] = [:]
         var lastLessonIDByStudent: [UUID: UUID] = [:]
         for la in given {
-            let when = la.presentedAt ?? la.scheduledFor ?? la.createdAt ?? .distantPast
+            // An undated "given earlier" presentation says nothing about when.
+            // Its `createdAt` is the day it was marked, so falling back to it
+            // made a new child's August catch-up read as "taught today".
+            guard let when = la.presentedAt ?? la.scheduledFor else { continue }
             for sid in la.resolvedStudentIDs {
                 if let existing = lastDateByStudent[sid] {
                     if when > existing {

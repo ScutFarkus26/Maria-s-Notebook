@@ -60,6 +60,13 @@ struct StudentObserveWorkspace: View {
         .sheet(isPresented: $showingGuideReview) {
             NavigationStack {
                 StudentInsightsView(student: student)
+                    // A sheet with no close button doesn't close on the Mac
+                    // (Escape needs a cancel or confirm action to press).
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { showingGuideReview = false }
+                        }
+                    }
             }
         }
     }

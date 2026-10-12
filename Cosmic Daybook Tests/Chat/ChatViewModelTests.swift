@@ -8,6 +8,8 @@ import Testing
 private final class AnswerGate {
     private var held: CheckedContinuation<Void, Never>?
     private(set) var answered = false
+    /// The classroom the answer's notebook tools were given.
+    var toolsContext: NSManagedObjectContext?
     var isHolding: Bool { held != nil }
 
     func release() {
@@ -22,8 +24,7 @@ private final class AnswerGate {
 }
 
 /// Stands in for the model: answers once the gate opens, whichever way the
-/// chat asks (today `ChatService` reaches the protocol's non-streaming
-/// fallback, which calls `sendConversation`).
+/// chat asks (`ChatService` calls `streamChat`).
 private struct HeldAnswerClient: MCPClientProtocol {
     let gate: AnswerGate
     func generateText(prompt: String, temperature: Double) async throws -> String { "" }
@@ -44,13 +45,22 @@ private struct HeldAnswerClient: MCPClientProtocol {
         await gate.hold()
         return "Maya had the golden beads on Monday."
     }
+    // swiftlint:disable:next function_parameter_count
+    func streamChat(
+        messages: [[String: String]], systemMessage: String?, temperature: Double,
+        maxTokens: Int, tools: ChatToolContext,
+        onText: @escaping @MainActor @Sendable (String) -> Void
+    ) async throws -> String {
+        gate.toolsContext = tools.context
+        await gate.hold()
+        return "Maya had the golden beads on Monday."
+    }
 }
 
 // Logic-break sweep 2026-09-29, E2. Ask AI's tools read the guide's own
 // notebook even in Sample Class, the saved chat was one for both
 // classrooms, and New Chat mid-answer brought the old chat back when the
-// answer landed. Serialized: `ChatToolContext` is one process-wide value,
-// set by whichever chat answered last.
+// answer landed. Each answer now carries its own classroom (10-11 #53).
 @Suite("Ask AI chat", .serialized)
 @MainActor
 struct ChatViewModelTests {
@@ -124,7 +134,7 @@ struct ChatViewModelTests {
         chat.inputText = "Who is here today?"
         chat.sendMessage()
         #expect(await waitUntil { gate.isHolding })
-        #expect(ChatToolContext.context === stack.viewContext)
+        #expect(gate.toolsContext === stack.viewContext)
         gate.release()
         await chat.waitForSend()
     }

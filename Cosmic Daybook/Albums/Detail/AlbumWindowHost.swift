@@ -10,6 +10,7 @@ struct AlbumWindowHost: View {
     let albumID: String?
 
     @Environment(AlbumLibrary.self) private var library
+    @Environment(\.managedObjectContext) private var context
     @State private var nav: AlbumsNavModel = {
         let model = AlbumsNavModel()
         model.isAlbumWindow = true
@@ -42,9 +43,15 @@ struct AlbumWindowHost: View {
                                                              pageIndex: page - 1, highlight: nil)
                         }
                     }
-            } else if library.state == .loading || library.state == .needsFolder {
+            } else if library.state == .loading || (library.state == .needsFolder && !library.didBootstrap) {
                 ProgressView()
-                    .task { library.bootstrapIfNeeded() }
+            } else if library.state == .needsFolder {
+                // Loaded, and this device has no album folder to read from.
+                ContentUnavailableView(
+                    "No Albums Folder", systemImage: "folder.badge.questionmark",
+                    description: Text("Choose the folder that holds your album PDFs in Albums, "
+                                      + "in the main window, then open the album again.")
+                )
             } else {
                 ContentUnavailableView("Album not found", systemImage: "questionmark.folder")
             }
@@ -52,6 +59,14 @@ struct AlbumWindowHost: View {
         .frame(minWidth: 500, minHeight: 400)
         .environment(nav)
         .environment(intelligence)
+        .task {
+            library.bootstrapIfNeeded()
+            library.repairAlbumIdentities(in: context)
+        }
+        // A renamed or moved PDF keeps its annotations here too, as in the
+        // Albums section (each load sets the flag).
+        .onChange(of: library.state) { library.repairAlbumIdentities(in: context) }
+        .onChange(of: library.needsIdentityRepair) { library.repairAlbumIdentities(in: context) }
     }
 }
 #endif

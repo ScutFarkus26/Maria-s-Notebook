@@ -54,7 +54,7 @@ extension MCPNotebookTools {
             ],
             annotations: .write,
             handler: { arguments in
-                try rollingBackOnFailure(context()) { try addOrderItems(arguments: arguments, in: $0) }
+                try undoingOnFailure(context()) { try addOrderItems(arguments: arguments, in: $0) }
             }
         )
     }
@@ -99,7 +99,6 @@ extension MCPNotebookTools {
 
         if added.isEmpty { MCPCallOutcome.markNothingWritten() }
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The items could not be saved.")
         }
 
@@ -184,7 +183,7 @@ extension MCPNotebookTools {
             ],
             annotations: .idempotentWrite,
             handler: { arguments in
-                try rollingBackOnFailure(context()) { try updateOrderItems(arguments: arguments, in: $0) }
+                try undoingOnFailure(context()) { try updateOrderItems(arguments: arguments, in: $0) }
             }
         )
     }
@@ -213,7 +212,6 @@ extension MCPNotebookTools {
         }
 
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The changes could not be saved.")
         }
         return "Updated \(resolved.count):\n" + resolved.map { orderLine($0.item) }.joined(separator: "\n")

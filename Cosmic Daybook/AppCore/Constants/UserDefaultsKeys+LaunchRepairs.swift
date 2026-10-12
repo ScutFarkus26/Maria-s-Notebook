@@ -15,6 +15,14 @@ nonisolated extension UserDefaultsKeys {
     /// environment; Reset Local Cache clears it, so a fresh download is checked again.
     static var noteScopeIndexRepairDone: String { CloudKitEnvironment.scoped("DataMigrations.noteScopeIndexRepairDone") }
 
+    /// Set once the one-time repair of project check-in work saved with no
+    /// context type has run and saved on this device
+    /// (`DataCleanupService.repairProjectWorkContextTypeIfDue`). Per store
+    /// environment; Reset Local Cache clears it, so a fresh download is checked again.
+    static var projectWorkContextRepairDone: String {
+        CloudKitEnvironment.scoped("DataMigrations.projectWorkContextRepairDone")
+    }
+
     /// How many launches the Keychain refused the retired-keys cleanup
     /// (`RetiredAIKeysCleanup`). Cleared once the cleanup counts as done.
     static let retiredAIKeysRefusals = "Migration.retiredAIKeysRefusals.v1"

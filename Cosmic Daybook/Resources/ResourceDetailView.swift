@@ -478,11 +478,18 @@ struct ResourceDetailView: View {
     }
 
     private func openInDefaultApp() {
-        ResourceDocumentActions.open(resource)
+        ResourceDocumentActions.open(resource) { reportMissingFile($0) }
     }
 
     private func printResource() {
-        ResourceDocumentActions.print(resource)
+        ResourceDocumentActions.print(resource) { reportMissingFile($0) }
+    }
+
+    /// A file that isn't there says so instead of opening to nothing. (This
+    /// screen stamps the resource as viewed when it appears.)
+    private func reportMissingFile(_ outcome: ResourceDocumentActions.Outcome) {
+        guard outcome == .fileMissing else { return }
+        dependencies.toastService.showError(AppErrorMessages.resourceFileUnavailable)
     }
 
     private func deleteResource() {

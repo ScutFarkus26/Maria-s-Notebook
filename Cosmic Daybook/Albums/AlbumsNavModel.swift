@@ -8,7 +8,6 @@ import SwiftUI
 final class AlbumsNavModel {
     var selection: AlbumsSidebarItem? = .library
     var pageTarget: AlbumPageTarget?
-    var showFolderPicker = false
     /// True in a stand-alone album window, where sidebar navigation
     /// doesn't exist and cross-album jumps must open a new window.
     var isAlbumWindow = false

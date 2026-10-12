@@ -31,6 +31,8 @@ extension AlbumLibrary {
     /// text and covers rebuild on demand, and album PDFs reopen when next read. At
     /// `.critical` the page-text and semantic indexes go too, which surfaces as the
     /// normal "still indexing" state until `ensureIndexed()` reloads them from disk.
+    /// A build under way stops at its next album and leaves the index marked
+    /// purged, so the semantic build never gets half the text (`buildIndexes`).
     func releaseMemory(critical: Bool) {
         folds.dropAll()
         // The cached query models (the contextual one is large) reload on the

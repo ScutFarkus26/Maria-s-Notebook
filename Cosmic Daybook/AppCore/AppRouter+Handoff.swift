@@ -11,9 +11,6 @@ extension AppRouter {
     func continueHandoff(to destination: Handoff.Destination) {
         switch destination {
         case .student(let id):
-            #if !os(macOS)
-            selectedNavItem = .students
-            #endif
             requestOpenStudentDetail(id)
         case .lesson(let id):
             navigateToLesson(id)

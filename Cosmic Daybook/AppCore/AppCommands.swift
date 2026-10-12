@@ -28,6 +28,14 @@ final class QuickCaptureActions {
         let recordPractice: () -> Void
         let newTodo: () -> Void
         let newNote: () -> Void
+        /// The command bar; Today's `+` menu offers it beside the five.
+        var openCommandBar: () -> Void = {}
+        /// File › New Lesson… / New Student… / Import Students… and the
+        /// sidebar's menus: this window goes to Lessons or Students and opens
+        /// the sheet there, never another window (`WindowCreateRequests`).
+        var newLesson: () -> Void = {}
+        var newStudent: () -> Void = {}
+        var importStudents: () -> Void = {}
     }
 
     private var handlers: Handlers?
@@ -41,6 +49,27 @@ final class QuickCaptureActions {
     func recordPractice() { handlers?.recordPractice() }
     func newTodo() { handlers?.newTodo() }
     func newNote() { handlers?.newNote() }
+    func openCommandBar() { handlers?.openCommandBar() }
+    func newLesson() { handlers?.newLesson() }
+    func newStudent() { handlers?.newStudent() }
+    func importStudents() { handlers?.importStudents() }
+
+    /// Runs one of the radial menu's five actions in this window.
+    func perform(_ action: PieMenuAction) {
+        switch action {
+        case .newPresentation: newPresentation()
+        case .newWorkItem: newWork()
+        case .recordPractice: recordPractice()
+        case .newTodo: newTodo()
+        case .newNote: newNote()
+        }
+    }
+}
+
+extension EnvironmentValues {
+    /// The enclosing main window's quick-capture actions, for screens inside
+    /// it. Nil outside a main window (a detail window, a preview).
+    @Entry var quickCaptureActions: QuickCaptureActions?
 }
 
 /// A stable, per-window target for the standard Find command.
@@ -87,11 +116,16 @@ struct FileNewCommands: Commands {
             #endif
 
             // Ellipsis per HIG: each of these opens a sheet needing further input.
-            Button("New Lesson…") { AppRouter.shared.requestNewLesson() }
+            // The key window's own, like the quick-capture items below: the
+            // shared router's request was answered by whichever window's
+            // Lessons or Students saw it first, often one behind the key one.
+            Button("New Lesson…") { quickCapture?.newLesson() }
                 .keyboardShortcut("n", modifiers: [.command])
+                .disabled(quickCapture == nil)
 
-            Button("New Student…") { AppRouter.shared.requestNewStudent() }
+            Button("New Student…") { quickCapture?.newStudent() }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
+                .disabled(quickCapture == nil)
 
             Divider()
 

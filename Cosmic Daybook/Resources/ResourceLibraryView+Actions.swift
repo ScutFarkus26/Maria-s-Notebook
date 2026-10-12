@@ -14,6 +14,30 @@ extension ResourceLibraryView {
         ResourceDeletion.delete([resource], context: viewContext, saveCoordinator: dependencies.saveCoordinator)
     }
 
+    /// Opens the resource's file (Share on iPhone and iPad).
+    func openResource(_ resource: CDResource) {
+        ResourceDocumentActions.open(resource) { report($0, for: resource) }
+    }
+
+    func printResource(_ resource: CDResource) {
+        ResourceDocumentActions.print(resource) { report($0, for: resource) }
+    }
+
+    /// A file that opened is stamped as viewed, so Recents lists it as the
+    /// detail screen's does; one that isn't there says so instead of
+    /// opening to nothing.
+    private func report(_ outcome: ResourceDocumentActions.Outcome, for resource: CDResource) {
+        switch outcome {
+        case .shown:
+            resource.lastViewedAt = Date()
+            dependencies.saveCoordinator.save(viewContext, reason: "Resource opened")
+        case .fileMissing:
+            dependencies.toastService.showError(AppErrorMessages.resourceFileUnavailable)
+        case .notShown:
+            break
+        }
+    }
+
     func toggleFavorite(_ resource: CDResource) {
         resource.isFavorite.toggle()
         resource.modifiedAt = Date()

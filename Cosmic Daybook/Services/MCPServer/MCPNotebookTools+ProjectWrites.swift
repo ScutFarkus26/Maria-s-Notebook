@@ -41,7 +41,7 @@ extension MCPNotebookTools {
             ],
             annotations: .idempotentWrite,
             handler: { arguments in
-                try rollingBackOnFailure(context()) { try updateProject(arguments: arguments, in: $0) }
+                try undoingOnFailure(context()) { try updateProject(arguments: arguments, in: $0) }
             }
         )
     }
@@ -96,7 +96,6 @@ extension MCPNotebookTools {
             throw MCPToolError("Nothing to change — pass at least one field.")
         }
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The project could not be saved.")
         }
         let id: String = project.id?.uuidString ?? "unknown"
@@ -134,7 +133,7 @@ extension MCPNotebookTools {
             ],
             annotations: .write,
             handler: { arguments in
-                try addProjectSession(arguments: arguments, in: context())
+                try undoingOnFailure(context()) { try addProjectSession(arguments: arguments, in: $0) }
             }
         )
     }
@@ -160,7 +159,6 @@ extension MCPNotebookTools {
         session.project = project
 
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The session could not be saved.")
         }
         let id: String = session.id?.uuidString ?? "unknown"

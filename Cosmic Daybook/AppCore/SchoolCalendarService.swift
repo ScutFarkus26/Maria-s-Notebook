@@ -274,23 +274,30 @@ public final class SchoolCalendarService {
     /// - For weekdays: toggles a NonSchoolDay record.
     /// - For weekends: toggles a SchoolDayOverride (weekend defaults to non-school; override makes it a school day).
     /// - Returns: The new non-school state after toggling.
+    ///
+    /// Every record on the day is removed, not just the first: two devices
+    /// that each marked the same day leave two rows, and deleting one of them
+    /// left the day as it was, so turning it back on took two taps
+    /// (2026-10-11 hunt, #42). Matched by the day's range, as `SchoolDayChecker`
+    /// reads them.
     @discardableResult
     public func toggleNonSchoolDay(_ date: Date, using context: NSManagedObjectContext) async throws -> Bool {
         let day = cal.startOfDay(for: date)
+        let nextDay = cal.date(byAdding: .day, value: 1, to: day) ?? day.addingTimeInterval(86_400)
+        let onDay = NSPredicate(format: "date >= %@ AND date < %@", day as NSDate, nextDay as NSDate)
         let wd = cal.component(.weekday, from: day)
         let isWeekend = (wd == 1 || wd == 7)
 
         if isWeekend {
             // Weekend logic
             let overrideFetch: NSFetchRequest<CDSchoolDayOverride> = CDFetchRequest(CDSchoolDayOverride.self)
-            overrideFetch.predicate = NSPredicate(format: "date == %@", day as NSDate)
-            overrideFetch.fetchLimit = 1
+            overrideFetch.predicate = onDay
             let overrides: [CDSchoolDayOverride] = try context.fetch(overrideFetch)
 
             let becameNonSchool: Bool
-            if let existing = overrides.first {
+            if !overrides.isEmpty {
                 // Remove override -> weekend becomes non-school again
-                context.delete(existing)
+                for record in overrides { context.delete(record) }
                 becameNonSchool = true
             } else {
                 // Add override -> weekend becomes a school day (non-school = false)
@@ -305,14 +312,13 @@ public final class SchoolCalendarService {
         } else {
             // Weekday logic
             let nsFetch: NSFetchRequest<CDNonSchoolDay> = CDFetchRequest(CDNonSchoolDay.self)
-            nsFetch.predicate = NSPredicate(format: "date == %@", day as NSDate)
-            nsFetch.fetchLimit = 1
+            nsFetch.predicate = onDay
             let items: [CDNonSchoolDay] = try context.fetch(nsFetch)
 
             let isNowNonSchool: Bool
-            if let existing = items.first {
+            if !items.isEmpty {
                 // Remove explicit non-school -> becomes school day
-                context.delete(existing)
+                for item in items { context.delete(item) }
                 isNowNonSchool = false
             } else {
                 // Add explicit non-school for weekday

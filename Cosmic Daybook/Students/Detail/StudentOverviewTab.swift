@@ -166,11 +166,13 @@ struct StudentOverviewTab: View {
                                     onWorkChanged()
                                 },
                                 onSchedule: { w, day in
-                                    // A student's overview has no calendar of
-                                    // its own to move, so the due date is the
-                                    // whole of what scheduling means here.
-                                    w.dueAt = AppCalendar.startOfDay(day)
-                                    if viewContext.safeSave() {
+                                    // The Work grid's own write: the earliest
+                                    // still-scheduled check-in moves to the day
+                                    // (or one is made) and the due date follows.
+                                    // Setting only the due date left nothing on
+                                    // the calendar for that day.
+                                    WorkCheckInService(context: viewContext).scheduleCheck(for: w, on: day)
+                                    if saveCoordinator.save(viewContext, reason: "Schedule work check") {
                                         // Re-fetch so the card's parent-computed attention state
                                         // (derived from dueAt) recomputes deterministically.
                                         onWorkChanged()

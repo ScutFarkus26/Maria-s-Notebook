@@ -236,4 +236,13 @@ enum SettingsCopy {
         static let waiting = "Saved on this device. Your assistants will see it once iCloud is reachable."
         static let notSaved = "Not saved: the Apple Account on this device changed while saving. Type your name again."
     }
+
+    /// The note- and meeting-template editor (`TemplateEditorSheet`).
+    enum TemplateEditor {
+        static let discardTitle = "Discard your changes to this template?"
+        static let discard = "Discard Changes"
+        static let keepEditing = "Keep Editing"
+        static let saveFailedTitle = "Couldn’t Save the Template"
+        static let saveFailed = "Your changes are still here. Try saving again."
+    }
 }

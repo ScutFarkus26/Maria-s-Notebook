@@ -27,10 +27,6 @@ final class StudentDetailViewModel {
     private(set) var plannedLessonIDs: Set<UUID> = []
 
     // MARK: - UI State
-    // UI selection and toast state moved from the view
-    var selectedLessonForGive: CDLesson?
-    var giveStartGiven: Bool = false
-    var selectedLessonAssignmentForDetail: CDLessonAssignment?
     var toastMessage: String?
 
     private let dependencies: AppDependencies
@@ -151,57 +147,6 @@ final class StudentDetailViewModel {
         return WorkGrouping.visibleWork(
             for: studentID, among: viewContext.safeFetch(descriptor), in: viewContext
         )
-    }
-
-    /// Create a draft lesson assignment, reusing existing if available
-    func createDraftLessonAssignment(
-        for lesson: CDLesson, viewContext: NSManagedObjectContext,
-        saveCoordinator: SaveCoordinator
-    ) -> CDLessonAssignment {
-        // Reuse an existing unscheduled entry for this lesson+student if it exists
-        let lessonID = lesson.id ?? UUID()
-        let studentID = student.id ?? UUID()
-        if let existing = lessonAssignments.first(where: {
-            $0.resolvedLessonID == lessonID &&
-            $0.scheduledFor == nil &&
-            !$0.isPresented &&
-            Set($0.resolvedStudentIDs) == Set([studentID])
-        }) {
-            return existing
-        }
-
-        let newLA: CDLessonAssignment
-        if giveStartGiven {
-            newLA = PresentationFactory.makePresented(
-                lessonID: lessonID,
-                studentIDs: [studentID],
-                presentedAt: AppCalendar.startOfDay(Date()),
-                context: viewContext
-            )
-        } else {
-            newLA = PresentationFactory.makeDraft(
-                lessonID: lessonID,
-                studentIDs: [studentID],
-                context: viewContext
-            )
-        }
-        newLA.lesson = lesson
-        // students stored as studentIDs array, already set by PresentationFactory
-        newLA.syncSnapshotsFromRelationships()
-        viewContext.insert(newLA)
-        saveCoordinator.save(viewContext, reason: "Creating draft lesson assignment")
-
-        if giveStartGiven {
-            SequenceTrackService.autoEnrollInTrackIfNeeded(
-                lessonArea: lesson.area,
-                lessonSequence: lesson.sequence,
-                studentIDs: [studentID.uuidString],
-                context: viewContext,
-                saveCoordinator: saveCoordinator
-            )
-        }
-
-        return newLA
     }
 
 }

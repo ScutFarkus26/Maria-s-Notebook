@@ -129,7 +129,9 @@ struct ProjectDetailView: View {
     }
 
     func studentName(for sid: String) -> String {
-        studentsByID[uuidString: sid].map(\.shortName) ?? "Student"
+        if let student = studentsByID[uuidString: sid] { return student.shortName }
+        // A child who has left keeps her name on the work she did.
+        return formerStudentsByID[uuidString: sid]?.shortName ?? "Student"
     }
 
     func workModels(forStudentID sid: String) -> [CDWorkModel] {

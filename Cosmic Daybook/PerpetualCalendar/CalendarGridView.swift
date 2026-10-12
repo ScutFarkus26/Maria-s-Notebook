@@ -12,10 +12,14 @@ struct CalendarGridView<DayContent: View, HeaderTrailing: View>: View {
     @ViewBuilder let headerTrailing: () -> HeaderTrailing
     @ViewBuilder let dayContent: (CellID, Bool, Bool) -> DayContent
 
+    /// The year the header shows. Only the arrows and Today scroll the grid;
+    /// scrolling by hand just updates the label (2026-10-11 hunt, #40: a label
+    /// change scrolled too, so crossing New Year jumped half a year, and the
+    /// first arrow press was swallowed by a leftover suppress flag).
     @State private var displayYear: Int
     @State private var scrollProxy: ScrollViewProxy?
-    @State private var suppressYearScroll = false
     @State private var programmaticScrollInFlight = false
+    @State private var scrollSettleTask: Task<Void, Never>?
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
@@ -58,15 +62,6 @@ struct CalendarGridView<DayContent: View, HeaderTrailing: View>: View {
                     scrollProxy = proxy
                     scrollToCurrentMonth(proxy)
                 }
-                .onChange(of: displayYear) { _, newYear in
-                    if suppressYearScroll {
-                        suppressYearScroll = false
-                        return
-                    }
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        proxy.scrollTo(MonthID(year: newYear, month: 1), anchor: .topLeading)
-                    }
-                }
             }
         }
     }
@@ -107,13 +102,15 @@ struct CalendarGridView<DayContent: View, HeaderTrailing: View>: View {
 
         HStack(spacing: 8) {
             Button {
-                displayYear -= 1
+                showYear(displayYear - 1)
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.body.weight(.medium))
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
+            .disabled(displayYear <= yearRange.lowerBound)
+            .accessibilityLabel("Previous Year")
 
             Text(String(displayYear))
                 .font(.body.weight(.medium))
@@ -121,13 +118,15 @@ struct CalendarGridView<DayContent: View, HeaderTrailing: View>: View {
                 .foregroundStyle(.secondary)
 
             Button {
-                displayYear += 1
+                showYear(displayYear + 1)
             } label: {
                 Image(systemName: "chevron.right")
                     .font(.body.weight(.medium))
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
+            .disabled(displayYear >= yearRange.upperBound)
+            .accessibilityLabel("Next Year")
 
             Button("Today") {
                 scrollToToday()
@@ -204,28 +203,38 @@ struct CalendarGridView<DayContent: View, HeaderTrailing: View>: View {
     // MARK: - Scroll
 
     private func scrollToCurrentMonth(_ proxy: ScrollViewProxy) {
-        let target = todayOffsetTarget()
-        programmaticScrollInFlight = true
-        suppressYearScroll = true
+        beginProgrammaticScroll()
         displayYear = AppCalendar.shared.component(.year, from: Date())
-        proxy.scrollTo(target, anchor: .topLeading)
-        Task {
-            try? await Task.sleep(for: .milliseconds(500))
-            programmaticScrollInFlight = false
-        }
+        proxy.scrollTo(todayOffsetTarget(), anchor: .topLeading)
     }
 
     private func scrollToToday() {
         guard let proxy = scrollProxy else { return }
-        let target = todayOffsetTarget()
-        programmaticScrollInFlight = true
-        suppressYearScroll = true
+        beginProgrammaticScroll()
         displayYear = AppCalendar.shared.component(.year, from: Date())
         withAnimation(.easeInOut(duration: 0.3)) {
-            proxy.scrollTo(target, anchor: .topLeading)
+            proxy.scrollTo(todayOffsetTarget(), anchor: .topLeading)
         }
-        Task {
+    }
+
+    /// The year arrows: show January of `year`.
+    private func showYear(_ year: Int) {
+        guard yearRange.contains(year), let proxy = scrollProxy else { return }
+        beginProgrammaticScroll()
+        displayYear = year
+        withAnimation(.easeInOut(duration: 0.3)) {
+            proxy.scrollTo(MonthID(year: year, month: 1), anchor: .topLeading)
+        }
+    }
+
+    /// Columns appearing during a programmatic scroll don't move the label;
+    /// the latest scroll's settle time wins over an earlier one's.
+    private func beginProgrammaticScroll() {
+        programmaticScrollInFlight = true
+        scrollSettleTask?.cancel()
+        scrollSettleTask = Task {
             try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
             programmaticScrollInFlight = false
         }
     }

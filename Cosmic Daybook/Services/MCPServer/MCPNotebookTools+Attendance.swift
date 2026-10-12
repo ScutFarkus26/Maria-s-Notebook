@@ -187,7 +187,7 @@ extension MCPNotebookTools {
             inputSchema: markAttendanceSchema,
             annotations: .idempotentWrite,
             handler: { arguments in
-                try rollingBackOnFailure(context()) { try markAttendance(arguments: arguments, in: $0) }
+                try undoingOnFailure(context()) { try markAttendance(arguments: arguments, in: $0) }
             }
         )
     }
@@ -306,7 +306,6 @@ extension MCPNotebookTools {
         }
 
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The attendance mark could not be saved.")
         }
 
@@ -381,12 +380,10 @@ extension MCPNotebookTools {
                 lines.append("- \(mark.student.fullName) — \(mark.status.displayName.lowercased())")
             }
         } catch {
-            modelContext.rollback()
             throw (error as? MCPToolError)
                 ?? MCPToolError("Attendance could not be written", underlying: error)
         }
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The attendance marks could not be saved.")
         }
         let tail = "\(marks.count) student(s) marked."

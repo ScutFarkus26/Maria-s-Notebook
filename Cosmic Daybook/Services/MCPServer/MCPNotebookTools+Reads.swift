@@ -261,8 +261,9 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "classroom_snapshot",
             title: "Classroom Snapshot",
-            description: "A prose overview of the classroom right now: roster, recent activity, "
-                + "and open threads. A good first call when orienting to the classroom.",
+            description: "A short orientation: today's date, how many students are enrolled, and the "
+                + "curriculum's areas. It names no children and holds no activity; list_students gives "
+                + "the roster, list_open_follow_ups the open threads, and the other tools the details.",
             inputSchema: ["type": "object", "properties": [:]],
             annotations: .readOnly,
             handler: { _ in

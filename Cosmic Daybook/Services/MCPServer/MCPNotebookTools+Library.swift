@@ -311,6 +311,9 @@ extension MCPNotebookTools {
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
     ) throws -> String {
         let day: Date = AppCalendar.startOfDay(try dayArgument(arguments, "date") ?? Date())
+        // A scope of its own rather than `undoingOnFailure`: a read whose join
+        // can't be saved takes the join back and still answers.
+        let scope = MCPWriteScope(context: modelContext)
         // The app's own fetch: two devices' copies of the day are joined into the
         // one every device keeps, rather than reading or overwriting whichever
         // copy the store returned first.
@@ -318,7 +321,9 @@ extension MCPNotebookTools {
 
         guard let body = arguments["body"]?.stringValue else {
             if modelContext.deletedObjects.contains(where: { $0 is CDDayPad }), !modelContext.safeSave() {
-                modelContext.rollback()
+                scope.undo()
+            } else {
+                scope.commit()
             }
             guard let text = existing.flatMap({ nonEmpty($0.body) }) else {
                 return "The pad for \(dayString(day)) is empty."
@@ -337,9 +342,10 @@ extension MCPNotebookTools {
         pad.modifiedAt = Date()
 
         guard modelContext.safeSave() else {
-            modelContext.rollback()
+            scope.undo()
             throw MCPToolError("The day pad could not be saved.")
         }
+        scope.commit()
         let verb: String = existing == nil ? "Wrote" : "Replaced"
         return "\(verb) the day pad for \(dayString(day))."
     }

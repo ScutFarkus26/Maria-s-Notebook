@@ -56,6 +56,9 @@ nonisolated struct ParsedCommand: Sendable {
     let freeText: String
     let inferredTags: [String]
     let confidence: Double
+    /// Names the parser saw but couldn't settle on one child: a first name
+    /// two children share. The capture review asks who was meant.
+    var unresolvedStudentNames: [String] = []
 
     static let confidenceThreshold: Double = 0.6
 }
@@ -155,6 +158,8 @@ nonisolated struct CaptureProposal: Sendable {
     var lessonName: String?
     var groupObservation: String
     var studentEntries: [StudentCaptureProposal]
+    /// Names the organizer couldn't place on one child. Save waits until the
+    /// guide picks who was meant or leaves the name out.
     var unresolvedStudentNames: [String]
     var source: CaptureProposalSource
     /// The day it happened (start of day): the presentation and the notes are
@@ -162,6 +167,8 @@ nonisolated struct CaptureProposal: Sendable {
     /// (`CaptureDateParser`), today otherwise; she can change it on the review
     /// screen. (The name predates notes using it too.)
     var presentedOn: Date = AppCalendar.startOfDay(Date())
+    /// What was said about each unresolved name, keyed by the name as listed.
+    var unplacedWords: [String: UnplacedStudentWords] = [:]
 
     var studentIDs: [UUID] {
         studentEntries.map(\.studentID)
@@ -178,10 +185,94 @@ nonisolated struct CaptureProposal: Sendable {
     }
 }
 
+/// What the guide said about a child the organizer couldn't place: a first
+/// name two children share, or a name that matched nobody. It is kept with
+/// the name until she picks who was meant, then goes to that child's entry.
+nonisolated struct UnplacedStudentWords: Sendable, Equatable {
+    var observation: String = ""
+    var followUp: CaptureFollowUp = .none
+    var followUpDetail: String = ""
+}
+
+extension CaptureProposal {
+    /// Adds or removes a child the guide picked on the review screen.
+    /// `displayName` is the name her chip shows.
+    ///
+    /// Picking a child settles only the unplaced names she could be ("Etty"
+    /// for Etty D, not "Sarah"), and brings what was said about that name
+    /// into her entry. Taking a child off again leaves the names alone.
+    ///
+    /// A name that matches nobody in `roster` (a misheard "Eddie") can't be
+    /// settled that way. When it is the only name left, the child she picks
+    /// is taken to be who was meant, so what was said about it isn't lost
+    /// to Leave Out (review (b) 2026-10-11). Without a roster no name is
+    /// taken to match nobody.
+    mutating func setStudent(
+        _ student: StudentData, named displayName: String, isSelected: Bool, roster: [StudentData]? = nil
+    ) {
+        guard isSelected else {
+            studentEntries.removeAll { $0.studentID == student.id }
+            return
+        }
+        guard !studentEntries.contains(where: { $0.studentID == student.id }) else { return }
+        var entry = StudentCaptureProposal(studentID: student.id, studentName: displayName)
+        var settled = unresolvedStudentNames.filter { Self.name($0, couldMean: student) }
+        if settled.isEmpty, let roster, unresolvedStudentNames.count == 1, let only = unresolvedStudentNames.first,
+           !roster.contains(where: { Self.name(only, couldMean: $0) }) {
+            settled = [only]
+        }
+        for name in settled {
+            guard let words = unplacedWords.removeValue(forKey: name) else { continue }
+            entry.take(words)
+        }
+        unresolvedStudentNames.removeAll { settled.contains($0) }
+        studentEntries.append(entry)
+        studentEntries.sort { lhs, rhs in
+            lhs.studentName.localizedStandardCompare(rhs.studentName) == .orderedAscending
+        }
+    }
+
+    /// The guide says a name is nobody in her class: it, and what was said
+    /// about it, are left out.
+    mutating func leaveOutUnplacedName(_ name: String) {
+        unresolvedStudentNames.removeAll { $0 == name }
+        unplacedWords[name] = nil
+    }
+
+    /// Whether an unplaced name could be this child: her first name, full
+    /// name, short name ("Etty D", with or without the period) or nickname.
+    static func name(_ name: String, couldMean student: StudentData) -> Bool {
+        var token = name.folded()
+        if token.hasSuffix(".") { token.removeLast() }
+        guard !token.isEmpty else { return false }
+        let first = student.firstName.folded()
+        let last = student.lastName.folded()
+        let nickname = (student.nickname ?? "").folded()
+        let forms = [first, "\(first) \(last)", last.first.map { "\(first) \($0)" } ?? first, nickname]
+        return forms.contains { !$0.isEmpty && $0 == token }
+    }
+}
+
+private extension StudentCaptureProposal {
+    /// Adds what was said about her unplaced name to what her entry already holds.
+    mutating func take(_ words: UnplacedStudentWords) {
+        let said = words.observation.trimmed()
+        if !said.isEmpty {
+            observation = observation.trimmed().isEmpty ? said : "\(observation.trimmed()) \(said)"
+        }
+        if followUp == .none, words.followUp != .none {
+            followUp = words.followUp
+            followUpDetail = words.followUpDetail
+        }
+    }
+}
+
 struct CaptureSaveReceipt: Sendable {
     let presentationID: UUID?
-    let noteCount: Int
+    let noteIDs: [UUID]
     let workCount: Int
+
+    var noteCount: Int { noteIDs.count }
 }
 
 // MARK: - Parse Result
@@ -213,11 +304,10 @@ struct QuickNoteParams: Identifiable {
 
 // MARK: - Command Action
 
-/// The action to execute after a successful parse, used to route to the correct sheet
-enum CommandAction {
-    case openPresentation(draftID: UUID)
+/// The form a one-step command opens. Presentations and notes never come
+/// here: they are organized into a capture to review instead.
+enum CommandAction: Equatable {
     case openWorkItem(lessonID: UUID?, studentIDs: Set<UUID>)
     case openPractice(lessonID: UUID?, studentIDs: Set<UUID>)
-    case openNote(studentIDs: Set<UUID>, bodyText: String, inferredTags: [String])
     case openTodo(titleText: String)
 }

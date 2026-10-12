@@ -2,8 +2,7 @@
 // Pure, Core-Data-free core of the Lesson Recall feature. Given a student's mastered lessons,
 // the curriculum, and existing recall rows, it computes the recall queue collapsed to each
 // strand's "frontier" (the most advanced mastered lesson), the lessons that frontier "covers",
-// the covered-stamp intents to persist when a frontier is confirmed retained, and the
-// drill-down lesson to surface when a frontier comes back shaky/forgotten.
+// and the covered-stamp intents to persist when a frontier is confirmed retained.
 //
 // Kept pure (value types in, value types out, no fetches/writes) so it is exhaustively unit
 // testable — mirroring the purity of BlockingAlgorithmEngine and the SchoolYear math.
@@ -116,29 +115,22 @@ enum RecallFrontierEngine {
             uniquingKeysWith: { first, _ in first }
         )
 
-        // Existing-recall lookups.
+        // Existing-recall lookups. Covered rows don't gate the queue.
         var observedThisYear = Set<String>()
-        var coveredThisYear = Set<String>()
         var lastObserved: [String: Date] = [:]
-        for row in existing {
+        for row in existing where row.source == .observed {
             let k = key(row.studentID, row.lessonID)
-            if row.source == .observed {
-                if row.schoolYearKey == config.schoolYearKey { observedThisYear.insert(k) }
-                if let checkedAt = row.checkedAt {
-                    if let prev = lastObserved[k] { lastObserved[k] = max(prev, checkedAt) }
-                    else { lastObserved[k] = checkedAt }
-                }
-            } else {
-                if row.schoolYearKey == config.schoolYearKey { coveredThisYear.insert(k) }
+            if row.schoolYearKey == config.schoolYearKey { observedThisYear.insert(k) }
+            if let checkedAt = row.checkedAt {
+                lastObserved[k] = max(lastObserved[k] ?? checkedAt, checkedAt)
             }
         }
-        _ = coveredThisYear // reserved for future use (dashboard reads it; queue doesn't gate on it)
 
         // Group a student's mastered lessons into strands keyed by (student, area, sequence).
         struct StrandKey: Hashable { let studentID: String; let area: String; let sequence: String }
         struct MasteredInStrand { let lesson: RecallLesson; let masteredAt: Date? }
         var strands: [StrandKey: [MasteredInStrand]] = [:]
-        for m in mastered {
+        for m in firstMasteries(mastered) {
             guard let lesson = lessonsByID[normalize(m.lessonID)] else { continue }
             guard !lesson.area.isEmpty, !lesson.sequence.isEmpty else { continue }
             let sk = StrandKey(studentID: normalize(m.studentID), area: lesson.area, sequence: lesson.sequence)
@@ -152,7 +144,9 @@ enum RecallFrontierEngine {
             let covered = items
                 .filter { $0.lesson.orderInSequence < maxOrder }
                 .sorted { $0.lesson.orderInSequence < $1.lesson.orderInSequence }
-                .map { RecallCoveredRef(lessonID: $0.lesson.id, name: $0.lesson.name, originalMasteredAt: $0.masteredAt) }
+                .map {
+                    RecallCoveredRef(lessonID: $0.lesson.id, name: $0.lesson.name, originalMasteredAt: $0.masteredAt)
+                }
 
             for frontier in frontiers {
                 let frontierIDStr = normalize(frontier.lesson.id.uuidString)
@@ -195,9 +189,33 @@ enum RecallFrontierEngine {
         }
     }
 
+    /// One mastery per child and lesson: a lesson she was given twice can carry two mastered
+    /// rows (marked on purpose since 10-10), which made two queue entries with the same id and
+    /// doubled "covers N" (bug hunt 2026-10-11, #28). The kept one is the earliest dated
+    /// mastery; an undated row is kept only when none is dated. Input order is kept otherwise.
+    private static func firstMasteries(_ mastered: [RecallMastery]) -> [RecallMastery] {
+        var keptIndex: [String: Int] = [:]
+        var kept: [RecallMastery] = []
+        for m in mastered {
+            let k = key(m.studentID, m.lessonID)
+            guard let index = keptIndex[k] else {
+                keptIndex[k] = kept.count
+                kept.append(m)
+                continue
+            }
+            switch (m.masteredAt, kept[index].masteredAt) {
+            case let (new?, old?) where new < old: kept[index] = m
+            case (.some, nil): kept[index] = m
+            default: break
+            }
+        }
+        return kept
+    }
+
     /// The covered-stamp intents to persist when `entry`'s frontier is confirmed retained.
     /// Skips any lower lesson that already has a recall row this school year (idempotent), so
-    /// re-running a sweep or re-confirming a frontier never duplicates covered records.
+    /// re-running a sweep or re-confirming a frontier never duplicates covered records, and
+    /// names each lower lesson once.
     static func coveredIntents(
         forRetained entry: RecallQueueEntry,
         existing: [RecallExisting],
@@ -210,7 +228,7 @@ enum RecallFrontierEngine {
         let frontierIDStr = normalize(entry.frontierLessonID.uuidString)
         return entry.coveredLessons.compactMap { ref in
             let lessonIDStr = normalize(ref.lessonID.uuidString)
-            guard !seenThisYear.contains(key(entry.studentID, lessonIDStr)) else { return nil }
+            guard seenThisYear.insert(key(entry.studentID, lessonIDStr)).inserted else { return nil }
             return RecallCoveredIntent(
                 studentID: entry.studentID,
                 lessonID: lessonIDStr,
@@ -218,20 +236,5 @@ enum RecallFrontierEngine {
                 originalMasteredAt: ref.originalMasteredAt
             )
         }
-    }
-
-    /// The next lesson *below* `lessonID` within its strand — surfaced for the drill-down when a
-    /// frontier comes back shaky/forgotten. Returns nil if `lessonID` is the lowest rung.
-    static func precedingLesson(
-        below lessonID: UUID,
-        area: String,
-        sequence: String,
-        lessons: [RecallLesson]
-    ) -> RecallLesson? {
-        let strand = lessons
-            .filter { $0.area == area && $0.sequence == sequence }
-            .sorted { $0.orderInSequence < $1.orderInSequence }
-        guard let idx = strand.firstIndex(where: { $0.id == lessonID }), idx > 0 else { return nil }
-        return strand[idx - 1]
     }
 }

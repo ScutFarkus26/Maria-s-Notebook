@@ -55,8 +55,8 @@ struct ProjectEditorSheet: View {
                 HStack {
                     Text("Students Working on This").font(.headline)
                     Spacer()
-                    if !selectedMemberIDs.isEmpty {
-                        Text("\(selectedMemberIDs.count) selected")
+                    if shownSelectedCount > 0 {
+                        Text("\(shownSelectedCount) selected")
                             .font(AppTheme.ScaledFont.captionSemibold)
                             .foregroundStyle(.secondary)
                     }
@@ -111,6 +111,13 @@ struct ProjectEditorSheet: View {
     }
 
     private var isValid: Bool { !title.trimmed().isEmpty }
+
+    /// The selected children this list shows. The member list keeps children
+    /// who have left, and they can't be unticked here, so counting them made
+    /// "6 selected" over five ticks (2026-10-11 #77). They stay on the list.
+    private var shownSelectedCount: Int {
+        selectableStudents.filter { selectedMemberIDs.contains($0.id.uuidString) }.count
+    }
 
     private var selectableStudents: [(id: UUID, student: CDStudent)] {
         students.compactMap { student in

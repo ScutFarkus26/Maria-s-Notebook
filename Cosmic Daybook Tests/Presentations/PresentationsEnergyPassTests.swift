@@ -23,7 +23,6 @@ struct PresentationsEnergyPassTests {
             viewContext: context,
             calendar: AppCalendar.shared,
             inboxOrderRaw: "",
-            missWindow: .all,
             showTestStudents: true,
             testStudentNamesRaw: "",
             lessons: lessons,

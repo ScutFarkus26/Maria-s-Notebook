@@ -39,7 +39,7 @@ extension MCPNotebookTools {
             ],
             annotations: .idempotentWrite,
             handler: { arguments in
-                try reorderLessons(arguments: arguments, in: context())
+                try undoingOnFailure(context()) { try reorderLessons(arguments: arguments, in: $0) }
             }
         )
     }
@@ -78,7 +78,6 @@ extension MCPNotebookTools {
         renumberSequence(ordered)
         rebuildSortIndex(forArea: area, from: lessons)
         guard modelContext.safeSave() else {
-            modelContext.rollback()
             throw MCPToolError("The new order could not be saved.")
         }
 

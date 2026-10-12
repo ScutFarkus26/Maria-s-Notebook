@@ -55,7 +55,22 @@ enum QuietStudentsOrder {
     /// A participant who has finished their part is not counted. The item stays
     /// open for the others, but it is no longer work *that child* is doing, and
     /// `CDWorkModel.isOpen` already draws the line in the same place.
-    static func openStudentIDs(of work: CDWorkModel) -> Set<UUID> {
+    ///
+    /// A set of linked copies (Quick New Work, `assign_work`) is the other
+    /// trap: each copy names every classmate, so read as a shared row it made
+    /// a classmate's copy hers, and she still read as carrying work after hers
+    /// was done.
+    ///
+    /// - Parameter visibility: whose each row is, read per linked group (a
+    ///   copy counts only for its owner, a shared row for everyone on it).
+    ///   Nil reads the row as shared.
+    static func openStudentIDs(of work: CDWorkModel, visibility: WorkVisibility? = nil) -> Set<UUID> {
+        let ids = namedOpenStudentIDs(of: work)
+        guard let visibility else { return ids }
+        return ids.filter { visibility.isVisible(work, to: $0) }
+    }
+
+    private static func namedOpenStudentIDs(of work: CDWorkModel) -> Set<UUID> {
         let owner = UUID(uuidString: work.studentID)
         let participants = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
 
@@ -90,23 +105,41 @@ enum QuietStudentsOrder {
     /// Children with no open work are simply absent from the result, which
     /// `WaitingStudentsOrder` reads as nothing-to-measure and sorts to the top.
     ///
-    /// - Parameter age: school days since that work item was last meaningfully
-    ///   touched. Passed in so the caller can supply the count it has already
-    ///   made rather than have this walk check-ins and notes a second time.
+    /// Work set aside until a later day is planned, not neglected (the triage
+    /// files it under Scheduled), so it doesn't count toward how long a child
+    /// has gone unattended: its last touch is usually weeks back, and it made
+    /// her look long quiet. A child whose open work is all set aside still
+    /// carries work and reads as seen today, the way `WorkAgingPolicy` reads
+    /// resting work as fresh.
+    ///
+    /// - Parameters:
+    ///   - visibility: whose each row is (see `openStudentIDs`).
+    ///   - age: school days since that work item was last meaningfully
+    ///     touched. Passed in so the caller can supply the count it has already
+    ///     made rather than have this walk check-ins and notes a second time.
     static func daysSinceTouchByStudent(
         in works: [CDWorkModel],
+        visibility: WorkVisibility? = nil,
+        asOf now: Date = Date(),
         age: (CDWorkModel) -> Int
     ) -> [UUID: Int] {
+        let today = AppCalendar.startOfDay(now)
         var result: [UUID: Int] = [:]
+        var setAsideOnly = Set<UUID>()
         for work in works {
+            let isSetAside = work.restingUntil.map { AppCalendar.startOfDay($0) > today } ?? false
             let days = max(0, age(work))
-            for id in openStudentIDs(of: work) {
-                if let existing = result[id] {
-                    result[id] = min(existing, days)
-                } else {
-                    result[id] = days
+            for id in openStudentIDs(of: work, visibility: visibility) {
+                if isSetAside {
+                    if result[id] == nil { setAsideOnly.insert(id) }
+                    continue
                 }
+                setAsideOnly.remove(id)
+                result[id] = min(result[id] ?? days, days)
             }
+        }
+        for id in setAsideOnly {
+            result[id] = 0
         }
         return result
     }

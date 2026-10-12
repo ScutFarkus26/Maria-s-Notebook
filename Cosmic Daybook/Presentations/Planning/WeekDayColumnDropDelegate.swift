@@ -147,8 +147,16 @@ struct WeekDayColumnDropDelegate: PresentationDropTarget {
             insertingAt: insertionIndex,
             into: ids.filter { $0 != id }.map(half)
         )
+        // A time the guide set (10:30 through Claude) stays put; only the
+        // dropped card and the ordering slots around it are renumbered.
         return ids.map { itemID in
-            DayHalfPlanner.Placement(id: itemID, period: itemID == id ? inherited : half(itemID))
+            itemID == id
+                ? DayHalfPlanner.Placement(id: itemID, period: inherited)
+                : DayHalfPlanner.Placement(
+                    id: itemID,
+                    period: half(itemID),
+                    keptTime: DayHalfPlanner.keptTime(of: lookup[itemID]?.scheduledFor, using: calendar)
+                )
         }
     }
 }

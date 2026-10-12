@@ -12,8 +12,7 @@ extension CommandBarViewModel {
     func saveCaptureProposal(
         context: NSManagedObjectContext,
         saveCoordinator: SaveCoordinator,
-        presentedAt: Date? = nil,
-        recordedPresentationID: UUID? = nil
+        presentedAt: Date? = nil
     ) throws -> CaptureSaveReceipt {
         guard let proposal = captureProposal else {
             throw CaptureSaveError.invalid("There's nothing to save yet.")
@@ -37,11 +36,16 @@ extension CommandBarViewModel {
                 proposal,
                 students: students,
                 presentedAt: presentedAt,
-                recordedPresentationID: recordedPresentationID,
                 context: context
             )
         }
         addToRecent(proposal.rawText)
+        // The note lists reload on this, as they do for the note editors; a
+        // capture's notes stayed hidden until the next note saved (bug hunt
+        // 2026-10-11 #48). One post for the save, however many notes.
+        if let firstNoteID = receipt.noteIDs.first {
+            NotificationCenter.default.post(name: .noteDidSave, object: firstNoteID)
+        }
         return receipt
     }
 
@@ -92,21 +96,19 @@ extension CommandBarViewModel {
         _ proposal: CaptureProposal,
         students: [CDStudent],
         presentedAt: Date,
-        recordedPresentationID: UUID?,
         context: NSManagedObjectContext
     ) throws -> CaptureSaveReceipt {
         guard proposal.recordsPresentation else {
             let notes = makeStandaloneObservationNotes(proposal: proposal, context: context)
             // "Yesterday Maya…" is a note about yesterday.
             notes.forEach { $0.createdAt = presentedAt }
-            return CaptureSaveReceipt(presentationID: nil, noteCount: notes.count, workCount: 0)
+            return CaptureSaveReceipt(presentationID: nil, noteIDs: notes.compactMap(\.id), workCount: 0)
         }
 
         return try persistPresentationCapture(
             proposal,
             students: students,
             presentedAt: presentedAt,
-            recordedPresentationID: recordedPresentationID,
             context: context
         )
     }
@@ -115,7 +117,6 @@ extension CommandBarViewModel {
         _ proposal: CaptureProposal,
         students: [CDStudent],
         presentedAt: Date,
-        recordedPresentationID: UUID?,
         context: NSManagedObjectContext
     ) throws -> CaptureSaveReceipt {
         guard let lessonID = proposal.lessonID,
@@ -128,7 +129,6 @@ extension CommandBarViewModel {
             studentIDs: proposal.studentIDs,
             students: students,
             presentedAt: presentedAt,
-            recordedPresentationID: recordedPresentationID,
             context: context
         ))
         guard let presentationID = assignment.id else {
@@ -162,7 +162,7 @@ extension CommandBarViewModel {
 
         return CaptureSaveReceipt(
             presentationID: presentationID,
-            noteCount: notes.count,
+            noteIDs: notes.compactMap(\.id),
             workCount: workCount
         )
     }
@@ -173,15 +173,6 @@ extension CommandBarViewModel {
         guard let lessonID = request.lesson.id else {
             throw CaptureSaveError.lessonMissing
         }
-        if let recordedPresentationID = request.recordedPresentationID {
-            return try exactRecordedAssignment(
-                id: recordedPresentationID,
-                lessonID: lessonID,
-                studentIDs: request.studentIDs,
-                context: request.context
-            )
-        }
-
         let assignment = try reusableAssignment(
             lessonID: lessonID,
             studentIDs: request.studentIDs,
@@ -225,7 +216,6 @@ private struct CapturePresentationRequest {
     let studentIDs: [UUID]
     let students: [CDStudent]
     let presentedAt: Date
-    let recordedPresentationID: UUID?
     let context: NSManagedObjectContext
 }
 

@@ -155,13 +155,9 @@ extension ResourceLibraryView {
     var bulkActionBar: some View {
         HStack(spacing: 16) {
             Button {
-                if selectedResourceIDs.count == filteredResources.count {
-                    selectedResourceIDs.removeAll()
-                } else {
-                    selectedResourceIDs = Set(filteredResources.compactMap(\.id))
-                }
+                selectedResourceIDs = resourceSelection.togglingAll()
             } label: {
-                Text(selectedResourceIDs.count == filteredResources.count ? "Deselect All" : "Select All")
+                Text(resourceSelection.allVisibleSelected ? "Deselect All" : "Select All")
                     .font(.caption.weight(.medium))
             }
 
@@ -172,14 +168,14 @@ extension ResourceLibraryView {
             } label: {
                 Label("Favorite", systemImage: SFSymbol.Shape.starFill)
             }
-            .disabled(selectedResourceIDs.isEmpty)
+            .disabled(selectedCount == 0)
 
             Button {
                 showingBulkCategoryPicker = true
             } label: {
                 Label("Categorize", systemImage: "folder")
             }
-            .disabled(selectedResourceIDs.isEmpty)
+            .disabled(selectedCount == 0)
 
             Button {
                 bulkTags = []
@@ -187,14 +183,14 @@ extension ResourceLibraryView {
             } label: {
                 Label("Tag", systemImage: "tag")
             }
-            .disabled(selectedResourceIDs.isEmpty)
+            .disabled(selectedCount == 0)
 
             Button(role: .destructive) {
                 showingBulkDeleteConfirmation = true
             } label: {
                 Label("Delete", systemImage: SFSymbol.Action.trash)
             }
-            .disabled(selectedResourceIDs.isEmpty)
+            .disabled(selectedCount == 0)
         }
         .font(.caption)
         .padding(.horizontal, 24)

@@ -237,6 +237,25 @@ private struct AttendanceEmailPreview: View {
 #if os(macOS)
 public enum MacOSMailSender {
     private static let logger = Logger.attendance
+
+    /// How a compose request ended. Nothing in AppKit reports that Mail sent
+    /// a message: `didShareItems` means only that the message reached Mail
+    /// (its compose window), so a caller that records a send asks the guide.
+    public enum Outcome: Sendable, Equatable {
+        /// The message reached Mail.
+        case handedToMail
+        /// The guide cancelled.
+        case cancelled
+        /// This Mac has no compose-email service.
+        case unavailable
+        /// An error, or no word within 30 seconds: the compose window may
+        /// still have opened.
+        case failed
+    }
+
+    /// Opens the message in Mail; `completion` is true when it reached Mail,
+    /// false otherwise. Callers that record a send use `compose`, which says
+    /// how it ended.
     public static func send(
         to recipient: String?,
         subject: String,
@@ -244,9 +263,22 @@ public enum MacOSMailSender {
         attachmentURL: URL? = nil,
         completion: @escaping (Bool) -> Void
     ) {
+        compose(to: recipient, subject: subject, body: body, attachmentURL: attachmentURL) { outcome in
+            completion(outcome == .handedToMail)
+        }
+    }
+
+    /// Opens the message in Mail and says how the request ended.
+    public static func compose(
+        to recipient: String?,
+        subject: String,
+        body: String,
+        attachmentURL: URL? = nil,
+        completion: @escaping (Outcome) -> Void
+    ) {
         guard let service = NSSharingService(named: .composeEmail) else {
             Task {
-                completion(false)
+                completion(.unavailable)
             }
             return
         }
@@ -268,16 +300,16 @@ public enum MacOSMailSender {
             }
             if !hasCompleted {
                 hasCompleted = true
-                completion(false) // Timeout treated as failure
+                completion(.failed) // No word: the window may still have opened
             }
         }
-        
-        let delegate = SharingDelegate { success in
+
+        let delegate = SharingDelegate { outcome in
             Task {
                 if !hasCompleted {
                     hasCompleted = true
                     timeoutTask.cancel()
-                    completion(success)
+                    completion(outcome)
                 }
             }
         }
@@ -297,15 +329,17 @@ public enum MacOSMailSender {
     }
 
     private final class SharingDelegate: NSObject, NSSharingServiceDelegate {
-        private let completion: (Bool) -> Void
-        init(completion: @escaping (Bool) -> Void) { self.completion = completion }
+        private let completion: (Outcome) -> Void
+        init(completion: @escaping (Outcome) -> Void) { self.completion = completion }
 
         func sharingService(_ sharingService: NSSharingService, didShareItems items: [Any]) {
-            completion(true)
+            completion(.handedToMail)
             clearAssociation(from: sharingService)
         }
         func sharingService(_ sharingService: NSSharingService, didFailToShareItems items: [Any], error: Error) {
-            completion(false)
+            let nsError = error as NSError
+            let cancelled = nsError.domain == NSCocoaErrorDomain && nsError.code == NSUserCancelledError
+            completion(cancelled ? .cancelled : .failed)
             clearAssociation(from: sharingService)
         }
         private func clearAssociation(from service: NSSharingService) {

@@ -6,6 +6,55 @@
 import CoreData
 import SwiftUI
 
+/// One album's part of the Bookmarks, Notes or Highlights list. What the guide
+/// saves syncs to every device, but an album's PDF may not be on this one: its
+/// items still show, under the album's name, and can't be opened here. The
+/// sidebar counts them all, so the screens list them all.
+struct AlbumItemGroup<Item> {
+    let albumID: String
+    let title: String
+    let subject: AlbumSubject
+    /// Nil when the album isn't on this device.
+    let album: Album?
+    let items: [Item]
+
+    /// Albums on this device in library order, then the others by name.
+    static func groups(_ items: [Item], albumID: (Item) -> String, albums: [Album]) -> [AlbumItemGroup] {
+        let byAlbum = Dictionary(grouping: items, by: albumID)
+        let onDevice = albums.compactMap { album -> AlbumItemGroup? in
+            guard let items = byAlbum[album.id] else { return nil }
+            return AlbumItemGroup(albumID: album.id, title: album.title, subject: album.subject,
+                                  album: album, items: items)
+        }
+        let loaded = Set(albums.map(\.id))
+        let elsewhere = byAlbum.filter { !loaded.contains($0.key) }.map { id, items in
+            let title = Album.title(forID: id)
+            return AlbumItemGroup(albumID: id, title: title, subject: AlbumSubject.detect(from: title),
+                                  album: nil, items: items)
+        }
+        return onDevice + elsewhere.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+    }
+}
+
+/// A group's section header: the album's name and subject, and a note when
+/// its PDF isn't on this device.
+private struct AlbumItemGroupHeader<Item>: View {
+    let group: AlbumItemGroup<Item>
+
+    var body: some View {
+        HStack {
+            Label(group.title, systemImage: group.subject.symbol)
+                .foregroundStyle(group.subject.color)
+            if group.album == nil {
+                Spacer()
+                Text("Not on this device")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
 struct AlbumBookmarksView: View {
     @Environment(AlbumLibrary.self) private var library
     @Environment(AlbumsNavModel.self) private var nav
@@ -17,16 +66,13 @@ struct AlbumBookmarksView: View {
     ])
     private var bookmarks: FetchedResults<CDAlbumBookmark>
 
-    private var grouped: [(album: Album, bookmarks: [CDAlbumBookmark])] {
-        library.albums.compactMap { album in
-            let items = bookmarks.filter { $0.albumID == album.id }
-            return items.isEmpty ? nil : (album, items)
-        }
+    private var grouped: [AlbumItemGroup<CDAlbumBookmark>] {
+        AlbumItemGroup.groups(Array(bookmarks), albumID: \.albumID, albums: library.albums)
     }
 
     var body: some View {
         Group {
-            if grouped.isEmpty {
+            if bookmarks.isEmpty {
                 ContentUnavailableView {
                     Label("No Bookmarks Yet", systemImage: "bookmark")
                 } description: {
@@ -34,14 +80,13 @@ struct AlbumBookmarksView: View {
                 }
             } else {
                 List {
-                    ForEach(grouped, id: \.album.id) { group in
+                    ForEach(grouped, id: \.albumID) { group in
                         Section {
-                            ForEach(group.bookmarks) { bookmark in
-                                row(bookmark, album: group.album)
+                            ForEach(group.items) { bookmark in
+                                row(bookmark, in: group)
                             }
                         } header: {
-                            Label(group.album.title, systemImage: group.album.subject.symbol)
-                                .foregroundStyle(group.album.subject.color)
+                            AlbumItemGroupHeader(group: group)
                         }
                     }
                 }
@@ -50,13 +95,15 @@ struct AlbumBookmarksView: View {
         .navigationTitle("Bookmarks")
     }
 
-    private func row(_ bookmark: CDAlbumBookmark, album: Album) -> some View {
+    private func row(_ bookmark: CDAlbumBookmark, in group: AlbumItemGroup<CDAlbumBookmark>) -> some View {
         Button {
+            // An album that isn't on this device has nothing to open.
+            guard group.album != nil else { return }
             nav.jump(albumID: bookmark.albumID, pageIndex: Int(bookmark.pageIndex))
         } label: {
             HStack {
                 Image(systemName: "bookmark.fill")
-                    .foregroundStyle(album.subject.color)
+                    .foregroundStyle(group.subject.color)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(bookmark.lessonTitle)
                         .font(.body.weight(.medium))
@@ -98,16 +145,13 @@ struct AlbumNotesView: View {
     private var notes: FetchedResults<CDAlbumPageNote>
     @State private var editingNote: CDAlbumPageNote?
 
-    private var grouped: [(album: Album, notes: [CDAlbumPageNote])] {
-        library.albums.compactMap { album in
-            let items = notes.filter { $0.albumID == album.id }
-            return items.isEmpty ? nil : (album, items)
-        }
+    private var grouped: [AlbumItemGroup<CDAlbumPageNote>] {
+        AlbumItemGroup.groups(Array(notes), albumID: \.albumID, albums: library.albums)
     }
 
     var body: some View {
         Group {
-            if grouped.isEmpty {
+            if notes.isEmpty {
                 ContentUnavailableView {
                     Label("No Notes Yet", systemImage: "note.text")
                 } description: {
@@ -116,14 +160,13 @@ struct AlbumNotesView: View {
                 }
             } else {
                 List {
-                    ForEach(grouped, id: \.album.id) { group in
+                    ForEach(grouped, id: \.albumID) { group in
                         Section {
-                            ForEach(group.notes) { note in
-                                row(note, album: group.album)
+                            ForEach(group.items) { note in
+                                row(note, in: group)
                             }
                         } header: {
-                            Label(group.album.title, systemImage: group.album.subject.symbol)
-                                .foregroundStyle(group.album.subject.color)
+                            AlbumItemGroupHeader(group: group)
                         }
                     }
                 }
@@ -135,8 +178,9 @@ struct AlbumNotesView: View {
         }
     }
 
-    private func row(_ note: CDAlbumPageNote, album: Album) -> some View {
+    private func row(_ note: CDAlbumPageNote, in group: AlbumItemGroup<CDAlbumPageNote>) -> some View {
         Button {
+            guard group.album != nil else { return }
             nav.jump(albumID: note.albumID, pageIndex: Int(note.pageIndex))
         } label: {
             VStack(alignment: .leading, spacing: 4) {
@@ -186,16 +230,13 @@ struct AlbumHighlightsView: View {
     ])
     private var highlights: FetchedResults<CDAlbumHighlight>
 
-    private var grouped: [(album: Album, highlights: [CDAlbumHighlight])] {
-        library.albums.compactMap { album in
-            let items = highlights.filter { $0.albumID == album.id }
-            return items.isEmpty ? nil : (album, items)
-        }
+    private var grouped: [AlbumItemGroup<CDAlbumHighlight>] {
+        AlbumItemGroup.groups(Array(highlights), albumID: \.albumID, albums: library.albums)
     }
 
     var body: some View {
         Group {
-            if grouped.isEmpty {
+            if highlights.isEmpty {
                 ContentUnavailableView {
                     Label("No Highlights Yet", systemImage: "highlighter")
                 } description: {
@@ -204,14 +245,13 @@ struct AlbumHighlightsView: View {
                 }
             } else {
                 List {
-                    ForEach(grouped, id: \.album.id) { group in
+                    ForEach(grouped, id: \.albumID) { group in
                         Section {
-                            ForEach(group.highlights) { highlight in
-                                row(highlight, album: group.album)
+                            ForEach(group.items) { highlight in
+                                row(highlight, in: group)
                             }
                         } header: {
-                            Label(group.album.title, systemImage: group.album.subject.symbol)
-                                .foregroundStyle(group.album.subject.color)
+                            AlbumItemGroupHeader(group: group)
                         }
                     }
                 }
@@ -220,8 +260,9 @@ struct AlbumHighlightsView: View {
         .navigationTitle("Highlights")
     }
 
-    private func row(_ highlight: CDAlbumHighlight, album: Album) -> some View {
+    private func row(_ highlight: CDAlbumHighlight, in group: AlbumItemGroup<CDAlbumHighlight>) -> some View {
         Button {
+            guard group.album != nil else { return }
             nav.jump(albumID: highlight.albumID, pageIndex: Int(highlight.pageIndex))
         } label: {
             HStack(alignment: .top, spacing: 10) {
@@ -262,6 +303,15 @@ struct AlbumNoteEditorSheet: View {
     @Environment(\.dependencies) private var dependencies
     let note: CDAlbumPageNote
     @State private var text = ""
+    @State private var savedText = ""
+    @State private var showingDiscardDialog = false
+    /// Set once Save or Discard has decided. The sheet closes on the next
+    /// update, when the dismissal question already knows not to ask: on the
+    /// Mac a programmatic dismiss asks it too.
+    @State private var isClosing = false
+
+    private var hasUnsavedChanges: Bool { !isClosing && text != savedText }
+    private var canSave: Bool { !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -273,19 +323,52 @@ struct AlbumNoteEditorSheet: View {
                 .overlay(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium).strokeBorder(.quaternary))
             HStack {
                 Spacer()
-                Button("Cancel") { dismiss() }
+                Button("Cancel") {
+                    if hasUnsavedChanges {
+                        showingDiscardDialog = true
+                    } else {
+                        isClosing = true
+                    }
+                }
                 Button("Save") {
-                    note.text = text
-                    note.modifiedAt = Date()
-                    dependencies.saveCoordinator.save(context, reason: "Save note")
-                    dismiss()
+                    save()
+                    isClosing = true
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
+                // An emptied note is deleted from the list, not saved blank.
+                .disabled(!canSave)
             }
         }
         .padding(20)
         .frame(minWidth: 420, minHeight: 280)
-        .onAppear { text = note.text }
+        .onAppear {
+            text = note.text
+            savedText = note.text
+        }
+        .onChange(of: isClosing) {
+            if isClosing { dismiss() }
+        }
+        // A swipe down (or, on the Mac, closing the sheet) asks before losing
+        // what she typed.
+        .dismissalConfirmationDialog("Save your changes to this note?", shouldPresent: hasUnsavedChanges) {
+            if canSave {
+                Button("Save") { save() }
+            }
+            Button("Discard Changes", role: .destructive) {}
+            Button("Keep Editing", role: .cancel) {}
+        }
+        .confirmationDialog("Discard your changes to this note?", isPresented: $showingDiscardDialog,
+                            titleVisibility: .visible) {
+            Button("Discard Changes", role: .destructive) { isClosing = true }
+            Button("Keep Editing", role: .cancel) {}
+        }
+    }
+
+    private func save() {
+        note.text = text
+        note.modifiedAt = Date()
+        dependencies.saveCoordinator.save(context, reason: "Save note")
+        savedText = text
     }
 }

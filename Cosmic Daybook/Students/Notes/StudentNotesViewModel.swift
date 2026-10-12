@@ -13,21 +13,11 @@ final class StudentNotesViewModel {
 
     var items: [UnifiedNoteItem] = []
 
-    // Pagination support
-    private let pageSize: Int = 30
-    private(set) var displayedItemCount: Int = 0
-    private(set) var hasMoreItems: Bool = true
-
     init(student: CDStudent, viewContext: NSManagedObjectContext, saveCoordinator: SaveCoordinator) {
         self.student = student
         self.viewContext = viewContext
         self.saveCoordinator = saveCoordinator
         fetchAllNotes()
-    }
-
-    func loadInitialPage() {
-        displayedItemCount = min(pageSize, items.count)
-        hasMoreItems = displayedItemCount < items.count
     }
 
     // MARK: - Fetch
@@ -49,8 +39,6 @@ final class StudentNotesViewModel {
         var uniqueMap: [UUID: UnifiedNoteItem] = [:]
         for item in aggregated { uniqueMap[item.id] = item }
         self.items = Array(uniqueMap.values).sorted { $0.date > $1.date }
-
-        loadInitialPage()
     }
 
     // MARK: - Add

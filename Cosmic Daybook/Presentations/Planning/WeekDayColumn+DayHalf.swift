@@ -41,7 +41,15 @@ extension WeekDayColumn {
             movedID,
             to: period,
             in: ordered.compactMap { item in
-                item.id.map { DayHalfPlanner.Placement(id: $0, period: half(of: item) ?? .morning) }
+                // Every other card keeps a time the guide set; the moved one
+                // takes the slot at the end of its new half.
+                item.id.map {
+                    DayHalfPlanner.Placement(
+                        id: $0,
+                        period: half(of: item) ?? .morning,
+                        keptTime: $0 == movedID ? nil : DayHalfPlanner.keptTime(of: item.scheduledFor, using: calendar)
+                    )
+                }
             }
         )
         let times = DayHalfPlanner.times(
