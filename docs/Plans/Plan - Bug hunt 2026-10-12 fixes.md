@@ -232,9 +232,9 @@ Danny was away; these were the run's calls (the Decisions above say how each is 
 
 ## Open questions
 
-- **Reopening closed work doesn't bring back its skipped check-ins (#39).** Closing skips the later check-ins; nothing records which skips it made, so reopening can't tell them from ones you skipped by hand. Fixing it needs a new field (a schema change), so it wasn't done. Until then, re-add a check-in by hand after reopening.
+- **Reopening closed work doesn't bring back its skipped check-ins (#39).** Closing skips the later check-ins; nothing records which skips it made, so reopening can't tell them from ones you skipped by hand. Fixing it needs a new field (a schema change), so it wasn't done. Until then, re-add a check-in by hand after reopening. [Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Decide%20whether%20Cosmic%20Daybook%20should%20get%20a%20schema%20change%20so%20reopening%20closed%20work%20brings%20back%20the%20check-ins%20closing%20skipped)
 
-- **Check-in notes already linked to classmates (#40).** The fix scopes new check-in notes to the copy's owner. Notes written before it keep their links, so they still show on classmates' Notes tabs. A launch repair could unlink them, but it rewrites synced records, so it wasn't done. Say if you want it.
+- **Check-in notes already linked to classmates (#40).** The fix scopes new check-in notes to the copy's owner. Notes written before it keep their links, so they still show on classmates' Notes tabs. A launch repair could unlink them, but it rewrites synced records, so it wasn't done. Say if you want it. [Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Decide%20whether%20Cosmic%20Daybook%20should%20unlink%20classmates%20from%20old%20check-in%20notes%20written%20on%20one%20child%27s%20copy%20of%20shared%20work)
 
 ## Device checks
 
