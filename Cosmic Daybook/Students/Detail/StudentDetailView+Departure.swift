@@ -7,6 +7,15 @@
 import CoreData
 import SwiftUI
 
+/// What a departing child is still committed to, carried into the alert as
+/// its `presenting:` data. The alert's binding used to clear the arrays the
+/// Remove button then read, and SwiftUI doesn't document which runs first,
+/// so Remove From Plans could remove nothing (bug hunt 2026-10-12 #58).
+struct PendingDeparture {
+    let plans: [CDLessonAssignment]
+    let entries: [CDYearPlanEntry]
+}
+
 extension StudentDetailView {
     /// Collects what a child being withdrawn or transferred is still committed
     /// to, stashing it for the alert. Returns true when there is something to
@@ -16,25 +25,13 @@ extension StudentDetailView {
         let plans = StudentDeparturePlans.futurePlans(for: studentID, in: viewContext)
         let entries = StudentDeparturePlans.plannedEntries(for: studentID, in: viewContext)
         guard !plans.isEmpty || !entries.isEmpty else { return false }
-        pendingDeparturePlans = plans
-        pendingDepartureEntries = entries
+        pendingDeparture = PendingDeparture(plans: plans, entries: entries)
+        showsDepartureAlert = true
         return true
     }
 
-    var departureAlertIsPresented: Binding<Bool> {
-        Binding(
-            get: { !pendingDeparturePlans.isEmpty || !pendingDepartureEntries.isEmpty },
-            set: {
-                if !$0 {
-                    pendingDeparturePlans = []
-                    pendingDepartureEntries = []
-                }
-            }
-        )
-    }
-
-    var departureAlertMessage: String {
-        [plannedLessonsParagraph, yearPlanParagraph]
+    func departureAlertMessage(for departure: PendingDeparture) -> String {
+        [plannedLessonsParagraph(departure.plans), yearPlanParagraph(departure.entries)]
             .compactMap { $0 }
             .joined(separator: "\n\n")
     }
@@ -42,10 +39,10 @@ extension StudentDetailView {
     /// The lessons themselves, named — these are the ones that generate work.
     /// Each part is separately typed: one long `+` chain of interpolations and
     /// ternaries costs more than the project's 100 ms type-check budget.
-    private var plannedLessonsParagraph: String? {
-        let count: Int = pendingDeparturePlans.count
+    private func plannedLessonsParagraph(_ plans: [CDLessonAssignment]) -> String? {
+        let count: Int = plans.count
         guard count > 0 else { return nil }
-        let listed: [String] = pendingDeparturePlans.prefix(8)
+        let listed: [String] = plans.prefix(8)
             .map { "• " + StudentDeparturePlans.describe($0, in: viewContext) }
         let more: Int = count - listed.count
         let tail: String = more > 0 ? "\n• and \(more) more" : ""
@@ -59,8 +56,8 @@ extension StudentDetailView {
 
     /// Year-plan entries are counted, not listed: there are routinely dozens,
     /// and unlike the plans above none of them generates anything on its own.
-    private var yearPlanParagraph: String? {
-        let count: Int = pendingDepartureEntries.count
+    private func yearPlanParagraph(_ entries: [CDYearPlanEntry]) -> String? {
+        let count: Int = entries.count
         guard count > 0 else { return nil }
         let noun: String = count == 1 ? "lesson" : "lessons"
         let them: String = count == 1 ? "it" : "them"
@@ -73,19 +70,23 @@ extension StudentDetailView {
 }
 
 extension View {
+    /// Each button reads the departure it was shown, never state the
+    /// binding may already have cleared (G1).
+    // swiftlint:disable:next function_parameter_count
     func departurePlansAlert(
         isPresented: Binding<Bool>,
-        message: String,
-        onRemove: @escaping () -> Void,
+        departure: PendingDeparture?,
+        message: @escaping (PendingDeparture) -> String,
+        onRemove: @escaping (PendingDeparture) -> Void,
         onKeep: @escaping () -> Void,
         onCancel: @escaping () -> Void
     ) -> some View {
-        alert("Still Planned for Lessons", isPresented: isPresented) {
-            Button("Remove From Plans", action: onRemove)
+        alert("Still Planned for Lessons", isPresented: isPresented, presenting: departure) { departure in
+            Button("Remove From Plans") { onRemove(departure) }
             Button("Keep Plans", action: onKeep)
             Button("Cancel", role: .cancel, action: onCancel)
-        } message: {
-            Text(message)
+        } message: { departure in
+            Text(message(departure))
         }
     }
 }

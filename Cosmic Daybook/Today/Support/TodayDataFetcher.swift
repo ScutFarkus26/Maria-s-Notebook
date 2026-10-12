@@ -157,13 +157,13 @@ enum TodayDataFetcher {
             workRequest.relationshipKeyPathsForPrefetching = ["checkIns", "participants"]
             let workItems = try context.fetch(workRequest)
 
-            // Collect student/lesson IDs from work
+            // Collect student/lesson IDs from work: everyone named on a row,
+            // not only its owner, so a shared row's other children are in the
+            // cache when the row is named (bug hunt 2026-10-12, #51).
             var workStudentIDs = Set<UUID>()
             var workLessonIDs = Set<UUID>()
             for work in workItems {
-                if let sid = UUID(uuidString: work.studentID) {
-                    workStudentIDs.insert(sid)
-                }
+                workStudentIDs.formUnion(WorkGrouping.studentIDs(of: work))
                 if let lid = UUID(uuidString: work.lessonID) {
                     workLessonIDs.insert(lid)
                 }

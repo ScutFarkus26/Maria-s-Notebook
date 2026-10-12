@@ -5,10 +5,11 @@
 //  Which record a filed presentation belongs to, and whether the guide has
 //  said why a child is having the lesson again.
 //
-//  Both questions are answered for every filing in a `record_presentation`
-//  call before a single one is written, so a batch that names one child who
-//  already has her lesson on record is refused whole rather than leaving the
-//  rest of the day filed around the refusal.
+//  Both questions are answered for each filing in a `record_presentation`
+//  call after the filings before it are written, so a plan one filing
+//  completes isn't claimed again by the next. A batch that names one child
+//  who already has her lesson on record is still refused whole (nothing is
+//  saved) rather than leaving the rest of the day filed around the refusal.
 //
 
 import CoreData

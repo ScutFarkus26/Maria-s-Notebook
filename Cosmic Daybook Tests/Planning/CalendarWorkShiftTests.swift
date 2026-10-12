@@ -119,6 +119,7 @@ struct CalendarWorkShiftTests {
         let moved = CalendarForwardShiftService.moveForwardOneDay(
             in: context,
             calendar: AppCalendar.shared,
+            from: monday,
             nextSchoolDay: nextWeekday(after:)
         )
 
@@ -145,6 +146,7 @@ struct CalendarWorkShiftTests {
         CalendarForwardShiftService.moveForwardOneDay(
             in: context,
             calendar: AppCalendar.shared,
+            from: friday,
             nextSchoolDay: nextWeekday(after:)
         )
 
@@ -168,6 +170,7 @@ struct CalendarWorkShiftTests {
         let moved = CalendarForwardShiftService.moveForwardOneDay(
             in: context,
             calendar: AppCalendar.shared,
+            from: monday,
             nextSchoolDay: nextWeekday(after:)
         )
 

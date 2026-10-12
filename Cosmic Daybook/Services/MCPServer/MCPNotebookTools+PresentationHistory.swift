@@ -100,7 +100,7 @@ extension MCPNotebookTools {
             return "No presentations\(scopeText) are recorded for \(student.fullName).\(record)"
         }
 
-        let ordinals = repeatOrdinals(matching)
+        let ordinals = repeatOrdinals(Array(shown), for: studentID, in: modelContext)
         let lines = shown.compactMap { assignment -> String? in
             guard let id = assignment.id else { return nil }
             let snapshotTitle = assignment.lessonTitleSnapshot?.trimmed() ?? ""
@@ -124,22 +124,26 @@ extension MCPNotebookTools {
 
     // MARK: - Lessons Given More Than Once
 
-    /// Presentation id → which giving of that lesson it was, oldest first, for
-    /// the lessons this child has had more than once. A lesson with a single
-    /// row is absent, so an ordinary presentation reads as it always has.
+    /// Presentation id → which giving of that lesson it was for this child:
+    /// one more than the days she had it before that row's day.
     ///
-    /// Counted over the rows already fetched, so a narrow `since` window
-    /// numbers the rows it returned rather than paying for a second read of
-    /// the whole record.
-    private static func repeatOrdinals(_ rows: [CDLessonAssignment]) -> [UUID: Int] {
+    /// Counted from the whole record (`PresentationRecordIndex`, read for the
+    /// shown rows' lessons only), not from the rows fetched: a `since` window
+    /// used to number its own rows, so the second giving read as the first
+    /// once the first fell outside it.
+    private static func repeatOrdinals(
+        _ rows: [CDLessonAssignment], for studentID: UUID, in modelContext: NSManagedObjectContext
+    ) -> [UUID: Int] {
+        let student = studentID.uuidString
+        let index = PresentationRecordIndex(
+            lessonIDs: Set(rows.map(\.lessonID)), students: [student], in: modelContext
+        )
         var ordinals: [UUID: Int] = [:]
-        for (_, group) in Dictionary(grouping: rows, by: \.lessonID) where group.count > 1 {
-            let oldestFirst = group.sorted {
-                ($0.presentedAt ?? .distantPast) < ($1.presentedAt ?? .distantPast)
-            }
-            for (offset, assignment) in oldestFirst.enumerated() {
-                if let id = assignment.id { ordinals[id] = offset + 1 }
-            }
+        for row in rows {
+            guard let id = row.id, let presentedAt = row.presentedAt,
+                  let days = index.given(student: student, lesson: row.lessonID)?.days else { continue }
+            let day = AppCalendar.startOfDay(presentedAt)
+            ordinals[id] = days.filter { AppCalendar.startOfDay($0) < day }.count + 1
         }
         return ordinals
     }

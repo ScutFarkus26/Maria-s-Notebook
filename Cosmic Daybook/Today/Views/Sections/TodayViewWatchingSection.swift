@@ -61,7 +61,17 @@ struct TodayWatchingSectionView: View {
     @FetchRequest(sortDescriptors: CDStudent.sortByName, predicate: CDStudent.enrolledPredicate)
     private var enrolledStudents: FetchedResults<CDStudent>
 
+    @TestStudentVisibility private var testStudents
+
     @State private var itemPendingClear: WatchItem?
+
+    /// The children whose watch items show: the enrolled roster, with the
+    /// hidden test students left out (bug hunt 2026-10-12, #51).
+    static func watchedRoster(
+        _ enrolled: some Sequence<CDStudent>, testStudents: TestStudentVisibility.Value
+    ) -> [CDStudent] {
+        testStudents.visible(enrolled)
+    }
 
     /// Everything open across the roster, and the slice raised this week.
     private struct Lists {
@@ -69,8 +79,12 @@ struct TodayWatchingSectionView: View {
         let week: [WatchItem]
     }
 
+    private var watched: [CDStudent] {
+        Self.watchedRoster(enrolledStudents, testStudents: testStudents)
+    }
+
     private var lists: Lists {
-        let roster = Set(enrolledStudents.compactMap(\.id))
+        let roster = Set(watched.compactMap(\.id))
         let open = WatchListBuilder.restricted(
             toRoster: roster,
             WatchListBuilder.build(
@@ -85,7 +99,7 @@ struct TodayWatchingSectionView: View {
 
     private var namesByID: [UUID: String] {
         Dictionary(
-            enrolledStudents.compactMap { student in
+            watched.compactMap { student in
                 student.id.map { ($0, student.shortName) }
             },
             uniquingKeysWith: { first, _ in first }

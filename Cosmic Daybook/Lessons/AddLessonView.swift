@@ -201,36 +201,55 @@ struct AddLessonView: View {
         }
     }
 
+    /// Inserts the lesson, with its sub-area's track, and saves both in one
+    /// save. A name already filed in the sub-area, or a failed save, keeps
+    /// nothing: left in the context, the unsaved lesson made the retry say
+    /// it was already in the curriculum (bug hunt 2026-10-12, #4). The form
+    /// stays as typed either way.
     private func addLesson() {
-        let newLesson: CDLesson
-        do {
-            newLesson = try repository.createLesson(
-                name: name.trimmed(),
-                area: area.trimmed(),
-                sequence: sequence.trimmed(),
-                section: section.trimmed(),
-                writeUp: writeUp,
-                // After the sequence's last lesson, not tied with its first.
-                orderInSequence: repository.nextOrderInSequence(area: area, sequence: sequence),
-                source: source,
-                personalKind: source == .personal ? personalKind : nil,
-                materials: materials,
-                purpose: purpose.trimmed(),
-                ageRange: ageRange.trimmed(),
-                teacherNotes: teacherNotes,
-                lessonFormat: lessonFormat,
-                parentStoryID: lessonFormat == .story ? parentStoryID?.uuidString : nil
-            )
-        } catch let error as LessonRepository.CreationError {
-            // A name already filed in this sub-area. Nothing was inserted, so
-            // the form stays as typed.
-            addProblem = ("Already in the Curriculum", error.errorDescription ?? "")
-            return
-        } catch {
-            Self.logger.warning("Couldn't add lesson: \(error.localizedDescription, privacy: .public)")
-            addProblem = ("Couldn't Add the Lesson", "Couldn't add this lesson. Try again.")
+        var newLesson: CDLesson?
+        var refusal: String?
+        let saved = saveCoordinator.saveEdit(in: viewContext, reason: "Adding lesson") {
+            do {
+                newLesson = try insertLessonAndTrack()
+            } catch let error as LessonRepository.CreationError {
+                refusal = error.errorDescription
+                throw error
+            }
+        }
+        guard saved, let newLesson else {
+            if let refusal {
+                addProblem = (AppErrorMessages.Lessons.alreadyFiledTitle, refusal)
+            } else {
+                addProblem = ("Couldn't Add the Lesson", "Couldn't add this lesson. Try again.")
+            }
             return
         }
+        onLessonCreated?(newLesson)
+        dismiss()
+    }
+
+    /// The new lesson after the sequence's last, and its track if the
+    /// sub-area is one. Throws `LessonRepository.CreationError` for a name
+    /// already in the sub-area, having inserted nothing.
+    private func insertLessonAndTrack() throws -> CDLesson {
+        let newLesson = try repository.createLesson(
+            name: name.trimmed(),
+            area: area.trimmed(),
+            sequence: sequence.trimmed(),
+            section: section.trimmed(),
+            writeUp: writeUp,
+            // After the sequence's last lesson, not tied with its first.
+            orderInSequence: repository.nextOrderInSequence(area: area, sequence: sequence),
+            source: source,
+            personalKind: source == .personal ? personalKind : nil,
+            materials: materials,
+            purpose: purpose.trimmed(),
+            ageRange: ageRange.trimmed(),
+            teacherNotes: teacherNotes,
+            lessonFormat: lessonFormat,
+            parentStoryID: lessonFormat == .story ? parentStoryID?.uuidString : nil
+        )
 
         let areaTrimmed: String = newLesson.area.trimmed()
         let groupTrimmed: String = newLesson.sequence.trimmed()
@@ -252,11 +271,7 @@ struct AddLessonView: View {
                 }
             }
         }
-
-        if repository.save(reason: "Adding lesson") {
-            onLessonCreated?(newLesson)
-            dismiss()
-        }
+        return newLesson
     }
 }
 

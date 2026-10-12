@@ -79,7 +79,9 @@ extension MCPNotebookTools {
             name: "assign_job",
             title: "Assign Classroom Job",
             description: "Give a student a classroom job for a week, or clear the job's roster "
-                + "for that week. The week is keyed to its Monday, so any day in the week works.",
+                + "for that week. The week is keyed to its Monday, so any day in the week works. "
+                + "A retired job, and a child who has left the classroom, are refused, as in the "
+                + "roster screen.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -125,11 +127,7 @@ extension MCPNotebookTools {
             }
 
         if arguments["clear"]?.boolValue == true {
-            existing.forEach { modelContext.delete($0) }
-            guard modelContext.safeSave() else {
-                throw MCPToolError("The roster could not be cleared.")
-            }
-            return "Cleared \(job.name) for the week of \(dayString(weekStart))."
+            return try clearJobWeek(job, existing: existing, weekStart: weekStart, in: modelContext)
         }
 
         let student = try resolveStudentReference(
@@ -139,8 +137,17 @@ extension MCPNotebookTools {
             throw MCPToolError("That student record has no identifier.")
         }
         if existing.contains(where: { $0.studentID == studentID.uuidString }) {
+            MCPCallOutcome.markNothingWritten()
             return "\(student.fullName) already has \(job.name) for the week of \(dayString(weekStart))."
         }
+        // The roster screen offers only active jobs and enrolled children.
+        guard job.isActive else {
+            throw MCPToolError(
+                "\(job.name) is retired, so nobody can be given it — nothing has been changed. "
+                    + "classroom_jobs lists the active jobs."
+            )
+        }
+        try requireEnrolledForPresentation([student], tool: "assign_job", action: "given a classroom job")
         // maxStudents of 0 means the job is uncapped, which is how the roster
         // screen reads it too.
         if job.maxStudents > 0 && existing.count >= job.maxStudents {
@@ -161,6 +168,23 @@ extension MCPNotebookTools {
             throw MCPToolError("The job assignment could not be saved.")
         }
         return "Gave \(job.name) to \(student.fullName) for the week of \(dayString(weekStart))."
+    }
+
+    /// Clearing a week nobody holds changes nothing, so it stays out of the
+    /// write journal (bug hunt 2026-10-12, #20).
+    private static func clearJobWeek(
+        _ job: CDClassroomJob, existing: [CDJobAssignment], weekStart: Date,
+        in modelContext: NSManagedObjectContext
+    ) throws -> String {
+        guard !existing.isEmpty else {
+            MCPCallOutcome.markNothingWritten()
+            return "Nobody has \(job.name) for the week of \(dayString(weekStart)) — nothing to clear."
+        }
+        existing.forEach { modelContext.delete($0) }
+        guard modelContext.safeSave() else {
+            throw MCPToolError("The roster could not be cleared.")
+        }
+        return "Cleared \(job.name) for the week of \(dayString(weekStart))."
     }
 
     private static func resolveJob(

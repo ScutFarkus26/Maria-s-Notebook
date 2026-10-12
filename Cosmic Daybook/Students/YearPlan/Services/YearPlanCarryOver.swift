@@ -129,14 +129,18 @@ enum YearPlanCarryOver {
         for entry in run {
             guard let old = entry.plannedDate.map(AppCalendar.startOfDay) else { continue }
             var landing = previousNew
-            if let previousOld {
-                let gap = SchoolCalendarService.shared
-                    .schoolDaysBetween(start: previousOld, end: old, using: context)
-                if gap > 0 {
-                    landing = YearPlanPacing.advance(
-                        from: previousNew, bySchoolDays: Int64(gap), in: context
-                    )
-                }
+            if let previousOld, old > previousOld {
+                // The school days after the earlier target, up to and including
+                // this one. Counted from the earlier day itself, a target on a
+                // closed day added nothing, and the next day's lesson landed on
+                // top of it (bug hunt 2026-10-12 #57). Two different days stay
+                // two days even when both were closed.
+                let gap = max(1, SchoolCalendarService.shared.schoolDaysBetween(
+                    start: AppCalendar.addingDays(1, to: previousOld),
+                    end: AppCalendar.addingDays(1, to: old),
+                    using: context
+                ))
+                landing = YearPlanPacing.advance(from: previousNew, bySchoolDays: Int64(gap), in: context)
             }
             if landing != old {
                 entry.plannedDate = landing

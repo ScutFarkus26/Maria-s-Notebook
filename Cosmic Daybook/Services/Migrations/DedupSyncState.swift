@@ -127,6 +127,30 @@ nonisolated enum DedupSyncState {
         return settling
     }
 
+    // MARK: - Same-name groups
+
+    /// Whether a same-name lesson group or a same-title track group (two records, two ids, filed
+    /// as one) may be folded on this pass (bug hunt 2026-10-12, #1):
+    /// - Never a group in which two members share an id. Those are copies of one record, which the
+    ///   id pass folds under the guard above. It leaves them alone while a Replace restore may
+    ///   still be arriving, and the name merges used to fold them anyway, keeping the outgoing
+    ///   copy; with one id on both sides the lesson merge also deleted every track step.
+    /// - Only once `tieStillSettling` is false for the whole group: every copy is in iCloud, and
+    ///   none changed there lately or since the last import finished.
+    /// Waiting deletes nothing; a later pass folds the group.
+    static func mayFoldNameGroup(_ group: [NSManagedObject], container: NSPersistentCloudKitContainer?) -> Bool {
+        var ids: Set<UUID> = []
+        for member in group {
+            guard let id = member.value(forKey: "id") as? UUID else { continue }
+            guard ids.insert(id).inserted else {
+                let entity = member.entity.name ?? "record"
+                logger.info("Left \(group.count) same-name copies of one \(entity, privacy: .public) to the id pass")
+                return false
+            }
+        }
+        return !tieStillSettling(group, container: container)
+    }
+
     /// True when none of `objects` (copies of one record) has reached iCloud yet, so the group is
     /// left for a pass after they have.
     static func noCopySent(_ objects: [NSManagedObject], container: NSPersistentCloudKitContainer?) -> Bool {

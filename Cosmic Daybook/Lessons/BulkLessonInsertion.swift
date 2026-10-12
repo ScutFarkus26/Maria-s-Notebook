@@ -11,6 +11,7 @@
 
 import CoreData
 import Foundation
+import OSLog
 
 /// One row of the Bulk Entry grid, trimmed.
 struct BulkLessonDraft {
@@ -22,6 +23,8 @@ struct BulkLessonDraft {
 }
 
 enum BulkLessonInsertion {
+    private static let logger = Logger.lessons
+
     struct Outcome {
         var inserted: [CDLesson] = []
         /// Names refused because the same name was already in that sub-area.
@@ -44,6 +47,58 @@ enum BulkLessonInsertion {
             result[key] = max(result[key] ?? -1, Int(lesson.orderInSequence))
         }
         return result
+    }
+
+    /// The Bulk Entry sheet's Save: inserts the drafts after the lessons on
+    /// file in each sub-area, with the tracks their sub-areas take, and saves
+    /// them in one save. Nil when the save failed, and then nothing from the
+    /// grid stays in the context: left there, the retry found each lesson's
+    /// own unsaved copy and called every row already filed (bug hunt
+    /// 2026-10-12, #4). Other screens' unsaved edits are left alone, and the
+    /// caller shows its own message.
+    static func insertAndSave(
+        _ drafts: [BulkLessonDraft],
+        using repository: LessonRepository,
+        source: LessonSource,
+        personalKind: PersonalLessonKind?,
+        saveCoordinator: SaveCoordinator
+    ) -> Outcome? {
+        let context = repository.context
+        let transaction = ContextMutationTransaction(context: context)
+        let outcome = insert(
+            drafts, using: repository, source: source, personalKind: personalKind,
+            maxOrderBySequence: maxOrders(of: repository.fetchLessons())
+        )
+        guard !outcome.inserted.isEmpty else {
+            transaction.commit()
+            return outcome
+        }
+        addTracks(for: outcome.inserted, in: context)
+        guard saveCoordinator.save(context, reason: "Add lessons", alertOnFailure: false) else {
+            transaction.rollback()
+            return nil
+        }
+        transaction.commit()
+        return outcome
+    }
+
+    /// Creates or updates the track for each new lesson's sub-area that is a
+    /// track (`SequenceTrackService`), once per sub-area.
+    private static func addTracks(for lessons: [CDLesson], in context: NSManagedObjectContext) {
+        var processedSequences: Set<String> = []
+        for lesson in lessons {
+            let area = lesson.area.trimmed()
+            let sequence = lesson.sequence.trimmed()
+            guard !area.isEmpty, !sequence.isEmpty,
+                  processedSequences.insert("\(area)|\(sequence)").inserted,
+                  SequenceTrackService.isTrack(area: area, sequence: sequence, context: context)
+            else { continue }
+            do {
+                _ = try SequenceTrackService.getOrCreateTrack(area: area, sequence: sequence, context: context)
+            } catch {
+                logger.warning("Failed to create/update CDTrackEntity for \(area)/\(sequence): \(error)")
+            }
+        }
     }
 
     /// Creates a lesson per draft through `repository`, numbering each after

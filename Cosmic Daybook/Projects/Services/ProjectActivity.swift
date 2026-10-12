@@ -71,9 +71,17 @@ enum ProjectActivity {
 nonisolated extension CDProject {
     /// True if this project's activity window (creation through its last session
     /// or edit) overlaps `range`. Projects with no creation date fail open.
-    func overlaps(_ range: DateRange) -> Bool {
+    ///
+    /// An open project made before the end of the year being lived in
+    /// (`range` holds `now`) overlaps it however long it has sat: it is still
+    /// open, and the Projects list's Dormant section is exactly the open
+    /// projects untouched this year. Judged by its last touch alone, every
+    /// dormant project fell outside this year's lens, the default, so that
+    /// section could never appear (bug hunt 2026-10-12 #43).
+    func overlaps(_ range: DateRange, asOf now: Date = Date()) -> Bool {
         guard let created = createdAt else { return true }
         if created >= range.end { return false }
+        if isActive && range.contains(now) { return true }
         // One definition of "the last thing that happened", shared with the
         // dormancy rule, so the year lens and the Active/Dormant label can
         // never disagree about when a project was last touched.

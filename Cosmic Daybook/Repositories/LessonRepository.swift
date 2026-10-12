@@ -105,6 +105,25 @@ struct LessonRepository: SavingRepository {
         }
     }
 
+    /// Refuses filing `lesson` as `name` in `area` › `sequence` when another
+    /// lesson there already has that name, with Add Lesson's error. The
+    /// lesson editor's Save and the drag to another sub-area call it before
+    /// writing anything: the pair they used to make unchecked was folded into
+    /// one lesson at the next launch (bug hunt 2026-10-12, #2). A filing that
+    /// keeps the lesson's own name key isn't checked, so an edit to a pair
+    /// filed before this check still saves; parsha lessons are exempt.
+    func refuseDuplicateName(
+        filing lesson: CDLesson, as name: String, area: String, sequence: String
+    ) throws(CreationError) {
+        guard Self.participatesInNameUniqueness(lesson),
+              Self.nameKey(name: name, area: area, sequence: sequence) != Self.nameKey(for: lesson),
+              let existing = existingLesson(named: name, area: area, sequence: sequence, excluding: lesson)
+        else { return }
+        throw .duplicateName(
+            existingID: existing.id, name: name.trimmed(), area: area.trimmed(), sequence: sequence.trimmed()
+        )
+    }
+
     // MARK: - Create
 
     /// Create a new CDLesson.

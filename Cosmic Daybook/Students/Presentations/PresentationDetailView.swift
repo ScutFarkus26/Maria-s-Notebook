@@ -138,9 +138,9 @@ struct PresentationDetailContentView: View {
         #endif
         .workRetractionAlert(
             isPresented: workRetractionAlertIsPresented,
-            message: workRetractionMessage,
-            onRemove: {
-                let plans = vm.pendingWorkRetraction
+            plans: presentedWorkRetraction,
+            message: workRetractionMessage(for:),
+            onRemove: { plans in
                 vm.pendingWorkRetraction = []
                 saveAndDone(retractingWork: plans)
             },

@@ -56,19 +56,26 @@ struct EnergyProfileTests {
     @Test("A cool device does not wait")
     func coolDeviceReturnsImmediately() async {
         let policy = EnergyPolicy(thermalState: .fair, isLowPowerMode: false)
-        await policy.waitUntilMaintenanceAllowed()
-        #expect(policy.waitingTaskCount == 0)
+        var finished = false
+        Task { @MainActor in
+            await policy.waitUntilMaintenanceAllowed()
+            finished = true
+        }
+        #expect(await waitUntil { finished })
     }
 
     @Test("A hot device waits until it cools, however long that takes")
     func hotDeviceWaitsForCooling() async {
         let policy = EnergyPolicy(thermalState: .critical, isLowPowerMode: false)
+        var started = false
         var finished = false
         let waiter = Task { @MainActor in
+            // Set in the same step that starts the wait, so `started` means waiting.
+            started = true
             await policy.waitUntilMaintenanceAllowed()
             finished = true
         }
-        #expect(await waitUntil { policy.waitingTaskCount == 1 })
+        #expect(await waitUntil { started })
 
         // Still hot, just a different reading: keeps waiting.
         policy.simulate(.init(thermalState: .serious, isLowPowerModeEnabled: false))
@@ -78,20 +85,22 @@ struct EnergyProfileTests {
         policy.simulate(.init(thermalState: .nominal, isLowPowerModeEnabled: false))
         await waiter.value
         #expect(finished)
-        #expect(policy.waitingTaskCount == 0)
     }
 
     @Test("Cancelling a waiting task releases it")
     func cancellationReleasesWaiter() async {
         let policy = EnergyPolicy(thermalState: .critical, isLowPowerMode: true)
+        var started = false
         let waiter = Task { @MainActor in
+            started = true
             await policy.waitUntilMaintenanceAllowed()
             return Task.isCancelled
         }
-        #expect(await waitUntil { policy.waitingTaskCount == 1 })
+        #expect(await waitUntil { started })
+        // Still hot: only the cancel can end the wait, and it does.
         waiter.cancel()
         #expect(await waiter.value)
-        #expect(await waitUntil { policy.waitingTaskCount == 0 })
+        #expect(policy.shouldDeferMaintenance)
     }
 
     // MARK: - iPad background backup gap

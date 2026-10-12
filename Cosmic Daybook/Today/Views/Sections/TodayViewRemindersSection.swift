@@ -21,15 +21,41 @@ extension TodayView {
         if TodaySectionVisibility.showsReminders(
             overdue: viewModel.overdueReminders.count,
             dueToday: viewModel.todaysReminders.count,
-            anytime: viewModel.anytimeReminders.count
+            anytime: viewModel.anytimeReminders.count,
+            syncFailed: reminderSyncError != nil
         ) {
             Section {
+                reminderSyncWarningRow
                 overdueRemindersRows
                 todaysRemindersRows
                 anytimeRemindersRows
             } header: {
                 remindersSectionHeader
             }
+        }
+    }
+
+    /// The last sync's failure, already in plain words
+    /// (`AppErrorMessages.syncMessage`); nil while a sync runs.
+    private var reminderSyncError: String? {
+        dependencies.reminderSync.isSyncing ? nil : dependencies.reminderSync.lastSyncError
+    }
+
+    /// The sync failure as a line of its own: the header's warning icon has
+    /// no words on iOS, and with nothing synced it is the whole section.
+    @ViewBuilder
+    private var reminderSyncWarningRow: some View {
+        if let error = reminderSyncError {
+            Label {
+                Text(error)
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.secondary)
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.orange.opacity(UIConstants.OpacityConstants.prominent))
+            }
+            .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
         }
     }
 

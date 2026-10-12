@@ -76,12 +76,16 @@ final class ClassCurriculumMapModel {
 
     // MARK: - Build
 
-    func rebuild(
+    /// `startMonth` and `startDay` are the school-year start (`SchoolYearStore`'s),
+    /// passed in so the view rebuilds when the setting changes.
+    func rebuild( // swiftlint:disable:this function_parameter_count
         store: CurriculumMapStore,
         area: String?,
         sequence: String?,
         granularity: CurriculumGranularity,
         stateFilter: CurriculumCellState?,
+        startMonth: Int,
+        startDay: Int,
         today: Date = Date(),
         calendar: Calendar = AppCalendar.shared
     ) {
@@ -95,7 +99,9 @@ final class ClassCurriculumMapModel {
             .filter(\.isEnrolled)
             .map { student in
                 let year = student.dateStarted.map {
-                    CurriculumTimeline.enrollmentYear(anchor: $0, on: today, calendar: calendar)
+                    CurriculumTimeline.enrollmentYear(
+                        anchor: $0, on: today, startMonth: startMonth, startDay: startDay, calendar: calendar
+                    )
                 } ?? 1
                 return ClassColumn(student: student, year: year)
             }

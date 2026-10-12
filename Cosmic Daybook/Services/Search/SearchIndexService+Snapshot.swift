@@ -28,7 +28,10 @@ import OSLog
 // MARK: - Snapshot
 
 nonisolated struct SearchIndexSnapshot: Codable, Sendable {
-    static let currentVersion = 1
+    /// Bumped whenever an entry's wording changes, so a snapshot holding the
+    /// old wording is rebuilt once. 2: work snippets name the status as the
+    /// app does ("Keep Practicing", not "keepPracticing"; bug hunt 2026-10-12, #60).
+    static let currentVersion = 2
 
     struct Entry: Codable, Sendable, Hashable {
         var result: SearchResult
@@ -380,7 +383,7 @@ extension SearchIndexService {
             guard let id = work.id else { return nil }
             return .init(
                 result: SearchResult(
-                    id: id, entityType: .work, title: work.title, snippet: work.status.rawValue, date: work.createdAt
+                    id: id, entityType: .work, title: work.title, snippet: work.status.displayName, date: work.createdAt
                 ),
                 text: work.title,
                 objectURI: uri

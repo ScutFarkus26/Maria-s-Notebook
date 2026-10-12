@@ -97,7 +97,7 @@ struct MCPDateRangeReadToolsTests {
         let output = try await DateRange.tool(named: "student_observations", in: tools).handler([
             "student_name": .string("Ora")
         ])
-        #expect(output.contains("Notes about Ora (last 30 days):"))
+        #expect(output.contains("Notes about Ora Pardo (last 30 days):"))
         #expect(output.contains("Map work, this week."))
         #expect(!output.contains("two hundred days back"))
     }

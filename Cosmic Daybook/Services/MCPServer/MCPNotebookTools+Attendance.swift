@@ -181,9 +181,10 @@ extension MCPNotebookTools {
             name: "mark_attendance",
             title: "Mark Attendance",
             description: "Mark one student present, absent, late (status tardy) or left early on a day, "
-                + "with an optional absence reason and note. Pass students for several at once, or "
-                + "mark_all_present to mark everyone not named there present. Marks are attributed "
-                + "and sync to the classroom.",
+                + "with an optional absence reason and note. Pass students for several at once, and "
+                + "mark_all_present to mark present everyone else who has no mark yet: a mark "
+                + "already made (by an assistant, say) is kept, and the reply names who kept one. "
+                + "Marks are attributed and sync to the classroom.",
             inputSchema: markAttendanceSchema,
             annotations: .idempotentWrite,
             handler: { arguments in
@@ -225,8 +226,9 @@ extension MCPNotebookTools {
             ],
             "mark_all_present": [
                 "type": "boolean",
-                "description": .string("Mark every enrolled student not named in students "
-                    + "present for the day")
+                "description": .string("Mark present every enrolled student not named in "
+                    + "students (or student_name) who has no mark yet for the day; marks already "
+                    + "made are kept")
             ],
             "date": [
                 "type": "string",
@@ -259,13 +261,13 @@ extension MCPNotebookTools {
                     + "their own call."
             )
         }
-        let marks = try resolveAttendanceMarks(arguments, on: day, in: modelContext)
-        guard !marks.isEmpty else {
+        let batch = try resolveAttendanceBatch(arguments, in: modelContext)
+        guard !batch.named.isEmpty || batch.markRestPresent else {
             throw MCPToolError(
                 "No students to mark — pass student_name, students, or mark_all_present."
             )
         }
-        return try applyAttendanceMarks(marks, on: day, in: modelContext)
+        return try applyAttendanceBatch(batch, on: day, in: modelContext)
     }
 
     private static func markOneStudent(
@@ -314,80 +316,11 @@ extension MCPNotebookTools {
             + "\(dayString(day))\(detail)."
     }
 
-    // MARK: - Marking Several At Once
-
-    /// One resolved (student, status) pair. The whole list is built before the
-    /// first record is touched, so an unknown or ambiguous name fails the call
-    /// with nothing written.
-    private struct AttendanceMark {
-        let student: CDStudent
-        let status: AttendanceStatus
-    }
-
-    private static func attendanceStatus(_ raw: String) throws -> AttendanceStatus {
+    static func attendanceStatus(_ raw: String) throws -> AttendanceStatus {
         guard let status = AttendanceStatus(rawValue: raw) else {
             let allowed = AttendanceStatus.allCases.map(\.rawValue).joined(separator: ", ")
             throw MCPToolError("status must be one of: \(allowed). Got \"\(raw)\".")
         }
         return status
-    }
-
-    private static func resolveAttendanceMarks(
-        _ arguments: [String: JSONValue], on day: Date, in modelContext: NSManagedObjectContext
-    ) throws -> [AttendanceMark] {
-        var marks: [AttendanceMark] = []
-        var named: Set<UUID> = []
-        for (index, entry) in (arguments["students"]?.arrayValue ?? []).enumerated() {
-            guard let item = entry.objectValue else {
-                throw MCPToolError(
-                    "students[\(index)] must be an object with student_name and status."
-                )
-            }
-            let student = try resolveStudentReference(
-                try requireString(item, "student_name"), in: modelContext
-            )
-            let status = try attendanceStatus(try requireString(item, "status"))
-            if let id = student.id { named.insert(id) }
-            marks.append(AttendanceMark(student: student, status: status))
-        }
-        guard arguments["mark_all_present"]?.boolValue == true else { return marks }
-        let roster: [CDStudent] = DataQueryService(context: modelContext).fetchAttendanceRoll(on: day)
-        for student in roster {
-            guard let id = student.id, !named.contains(id) else { continue }
-            marks.append(AttendanceMark(student: student, status: .present))
-        }
-        return marks
-    }
-
-    /// Writes every mark through the same `CDAttendanceStore` the single form
-    /// uses — it is what enforces `ClassroomPermissions` and stamps
-    /// attribution — then saves once. A refusal rolls the whole call back.
-    private static func applyAttendanceMarks(
-        _ marks: [AttendanceMark], on day: Date, in modelContext: NSManagedObjectContext
-    ) throws -> String {
-        let store = CDAttendanceStore(context: modelContext, calendar: AppCalendar.shared)
-        try refuseLockedDay(day, store: store)
-        var lines: [String] = []
-        do {
-            for mark in marks {
-                guard let record = try store.ensureRecord(for: mark.student, on: day) else {
-                    throw MCPToolError(
-                        "Attendance could not be written — this classroom role may not have "
-                            + "permission to mark attendance."
-                    )
-                }
-                store.updateStatus(record, to: mark.status)
-                lines.append("- \(mark.student.fullName) — \(mark.status.displayName.lowercased())")
-            }
-        } catch {
-            throw (error as? MCPToolError)
-                ?? MCPToolError("Attendance could not be written", underlying: error)
-        }
-        guard modelContext.safeSave() else {
-            throw MCPToolError("The attendance marks could not be saved.")
-        }
-        let tail = "\(marks.count) student(s) marked."
-        return (["Attendance for \(dayString(day)):"] + lines.sorted() + [tail])
-            .joined(separator: "\n")
     }
 }

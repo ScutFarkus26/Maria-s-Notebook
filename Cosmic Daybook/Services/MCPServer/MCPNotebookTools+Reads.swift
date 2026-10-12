@@ -178,8 +178,8 @@ extension MCPNotebookTools {
         let scope = window.isSet ? window.phrase(daysBack: daysBack) : " (last \(daysBack) days)"
         guard !shown.isEmpty else {
             return window.isSet
-                ? "No notes about \(student.firstName)\(window.phrase(daysBack: daysBack))."
-                : "No notes about \(student.firstName) in the last \(daysBack) days."
+                ? "No notes about \(student.fullName)\(window.phrase(daysBack: daysBack))."
+                : "No notes about \(student.fullName) in the last \(daysBack) days."
         }
 
         let lines = shown.map { note -> String in
@@ -190,7 +190,7 @@ extension MCPNotebookTools {
         let held = matching.count > shown.count
             ? " (showing \(shown.count) of \(matching.count); raise limit or pass since/until for the rest)"
             : ""
-        return "Notes about \(student.firstName)\(scope)\(held):\n" + lines.joined(separator: "\n")
+        return "Notes about \(student.fullName)\(scope)\(held):\n" + lines.joined(separator: "\n")
     }
 
     // MARK: - Observation Coverage

@@ -162,6 +162,7 @@ extension MCPNotebookTools {
         // so the two paths cannot drift apart.
         let entries = StudentDeparturePlans.plannedEntries(for: studentID, in: modelContext)
         guard !entries.isEmpty else {
+            MCPCallOutcome.markNothingWritten()
             return "\(student.fullName) has no planned year-plan entries to skip."
         }
         let satisfaction = YearPlanSatisfaction.index(for: entries, in: modelContext)

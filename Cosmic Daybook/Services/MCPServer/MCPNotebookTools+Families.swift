@@ -23,7 +23,8 @@ extension MCPNotebookTools {
             name: "list_guardians",
             title: "List Guardians",
             description: "The guardians on file: name, relationship, email, and whether they "
-                + "receive reports. For one student, or the whole class.",
+                + "receive reports. For one student (any child, including one who has left), or "
+                + "the whole class (the children enrolled now, less hidden test students).",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -54,6 +55,11 @@ extension MCPNotebookTools {
         let request = CDFetchRequest(CDGuardian.self)
         if let studentID = student?.id {
             request.predicate = NSPredicate(format: "studentID == %@", studentID.uuidString)
+        } else {
+            // "Email all the parents" means this class's families, not those
+            // of children who have left.
+            let roster = currentRosterIDs(in: modelContext).map(\.uuidString)
+            request.predicate = NSPredicate(format: "studentID IN %@", roster)
         }
         let guardians = modelContext.safeFetch(request)
             .filter { !reportsOnly || $0.receivesReports }

@@ -11,7 +11,7 @@
 //  same definition of "already has it" the regive guard uses.
 //
 //  The wording is deliberately short: the year is dropped for a lesson given
-//  this year, and a lesson given more than once says how many times rather
+//  this school year, and a lesson given more than once says how many times rather
 //  than listing days, because the list is what `student_presentation_history`
 //  is for.
 //
@@ -37,8 +37,8 @@ struct StudentRecordCaption: View {
         .accessibilityLabel(Self.accessibilityText(for: given))
     }
 
-    /// `"had this Mar 11"` this year, `"had this Mar 11, 2025"` in an earlier
-    /// year, `"had this Mar 11 ×2"` when the record holds more than one day,
+    /// `"had this Mar 11"` this school year, `"had this Mar 11, 2025"` in an
+    /// earlier one, `"had this Mar 11 ×2"` when the record holds more than one day,
     /// and `"had this before"` when the only record is an undated mark.
     static func text(for given: PresentationRecordIndex.Given, now: Date = Date()) -> String {
         guard let day = given.days.last else { return "had this before" }
@@ -57,11 +57,17 @@ struct StudentRecordCaption: View {
     }
 
     /// The year is noise for a lesson given this school year and the whole
-    /// point for one given before it.
+    /// point for one given before it. Judged by the configured school year,
+    /// not the calendar year: in September, March was last year (bug hunt
+    /// 2026-10-12, #51).
     private static func dayText(_ day: Date, now: Date) -> String {
-        let calendar = AppCalendar.shared
-        let sameYear = calendar.component(.year, from: day) == calendar.component(.year, from: now)
-        let formatter = sameYear ? DateFormatters.shortMonthDay : DateFormatters.mediumDate
+        let thisYear = SchoolYear.containing(
+            now,
+            startMonth: FloridaGradeCalculator.schoolStartMonth,
+            startDay: FloridaGradeCalculator.schoolStartDay,
+            calendar: AppCalendar.shared
+        )
+        let formatter = thisYear.range.contains(day) ? DateFormatters.shortMonthDay : DateFormatters.mediumDate
         return formatter.string(from: day)
     }
 }

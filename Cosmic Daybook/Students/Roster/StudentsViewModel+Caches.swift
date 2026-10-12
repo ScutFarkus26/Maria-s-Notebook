@@ -25,8 +25,8 @@ extension StudentsViewModel {
     }
 
     /// What `computeDaysSinceLastLessonCache` and `buildTableCaches` read:
-    /// the students (their next lessons), lessons, presented assignments,
-    /// notes and their links, and the school calendar the day count uses.
+    /// the students, lessons, presented and scheduled assignments, notes and
+    /// their links, and the school calendar the day count uses.
     nonisolated static let tableCacheInputEntities: Set<String> = [
         "Student", "Lesson", "LessonAssignment", "Note", "NoteStudentLink",
         "NonSchoolDay", "SchoolDayOverride"
@@ -53,14 +53,37 @@ extension StudentsViewModel {
 
     // MARK: - Next lessons
 
-    /// The lessons some student lists as next, fetched by id — the only
-    /// lessons the next-lesson names look up.
-    static func nextLessons(for students: [CDStudent], in context: NSManagedObjectContext) -> [CDLesson] {
-        let ids = Set(students.flatMap(\.nextLessonUUIDs))
-        guard !ids.isEmpty else { return [] }
-        let request = CDFetchRequest(CDLesson.self)
-        request.predicate = NSPredicate(format: "id IN %@", Array(ids))
-        return context.safeFetch(request)
+    /// Each student's next lesson: the lesson of her earliest scheduled
+    /// presentation. `CDStudent.nextLessons`, which this read before, is
+    /// written only by a restore, so the column was empty or stale (bug hunt
+    /// 2026-10-12, under #58). The attribute stays in the model.
+    static func nextLessonNames(
+        for studentIDs: Set<UUID>, in context: NSManagedObjectContext
+    ) -> [UUID: String] {
+        guard !studentIDs.isEmpty else { return [:] }
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(
+            format: "stateRaw == %@ AND scheduledFor != nil", LessonAssignmentState.scheduled.rawValue
+        )
+        request.sortDescriptors = [NSSortDescriptor(key: "scheduledFor", ascending: true)]
+        var nextLessonID: [UUID: UUID] = [:]
+        for assignment in context.safeFetch(request) {
+            guard let lessonID = assignment.lessonIDUUID else { continue }
+            for studentID in assignment.resolvedStudentIDs
+            where studentIDs.contains(studentID) && nextLessonID[studentID] == nil {
+                nextLessonID[studentID] = lessonID
+            }
+            if nextLessonID.count == studentIDs.count { break }
+        }
+        let lessonIDs = Set(nextLessonID.values)
+        guard !lessonIDs.isEmpty else { return [:] }
+        let lessonRequest = CDFetchRequest(CDLesson.self)
+        lessonRequest.predicate = NSPredicate(format: "id IN %@", Array(lessonIDs))
+        let names: [UUID: String] = Dictionary(
+            context.safeFetch(lessonRequest).compactMap { lesson in lesson.id.map { ($0, lesson.name) } },
+            uniquingKeysWith: { first, _ in first }
+        )
+        return nextLessonID.compactMapValues { names[$0] }
     }
 
     // MARK: - Latest observations

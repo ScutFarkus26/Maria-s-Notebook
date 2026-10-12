@@ -13,10 +13,11 @@
 //  record and name the days she had it, unless the caller says which of the two
 //  this is with `purpose`.
 //
-//  Saying so is not just a password past the guard. `second_pass` flags the
-//  child's previous record `needsAnotherPresentation`, the same bit the recall
-//  queue and the capture review's "re-present" decision set, so the planning
-//  reads that already look for it see the re-teach. Both purposes write a note
+//  Saying so is not just a password past the guard. `second_pass` marks the
+//  child's previous record for re-teaching the way the recall queue and the
+//  capture review's "re-present" decision do (`needsAnotherPresentation` when
+//  she had it alone, her own follow-up row in a group), so the planning reads
+//  that already look for it see the re-teach. Both purposes write a note
 //  line on the new record, which `student_presentation_history` reads back as
 //  "(2nd time; second pass)".
 //
@@ -26,6 +27,7 @@
 
 import CoreData
 import Foundation
+import OSLog
 
 extension MCPNotebookTools {
 
@@ -173,10 +175,13 @@ extension MCPNotebookTools {
         let index: PresentationRecordIndex
     }
 
-    /// Records why the lesson is being given again: a second pass flags each
-    /// conflicting child's most recent record for re-teaching — the same bit
-    /// the recall queue and the capture review's "re-present" set — and either
-    /// purpose opens the new record's notes with its line.
+    /// Records why the lesson is being given again: a second pass marks each
+    /// conflicting child's most recent record for re-teaching the way the
+    /// recall queue, meetings and the capture review's "re-present" do — the
+    /// shared flag when she had it alone, her own follow-up row resolved as
+    /// Re-present when it was a group, so one child's second pass doesn't read
+    /// as the whole group's (bug hunt 2026-10-12, #45) — and either purpose
+    /// opens the new record's notes with its line.
     ///
     /// Idempotent on the note: a record that already opens with a purpose line
     /// keeps the one it has, so re-filing the same account does not stack them.
@@ -190,12 +195,22 @@ extension MCPNotebookTools {
         if purpose == .secondPass {
             let latest = intent.index.latestPresentedAssignmentByLesson[intent.lessonID] ?? [:]
             for conflict in intent.conflicts {
-                guard let studentID = conflict.student.id?.uuidString,
-                      let objectID = latest[studentID],
+                guard let studentID = conflict.student.id,
+                      let objectID = latest[studentID.uuidString],
                       let prior = context.existing(CDLessonAssignment.self, objectID)
                 else { continue }
-                prior.needsAnotherPresentation = true
-                prior.modifiedAt = Date()
+                do {
+                    try MeetingLessonDecisions.flagForAnotherPresentation(
+                        prior, studentID: studentID, context: context
+                    )
+                } catch {
+                    // Only a failed fetch of her row lands here. The plan is
+                    // still filed with its purpose line, which is what the
+                    // history reads back.
+                    Logger.presentations.warning(
+                        "Second pass not marked on the earlier record: \(error.localizedDescription, privacy: .public)"
+                    )
+                }
             }
         }
 

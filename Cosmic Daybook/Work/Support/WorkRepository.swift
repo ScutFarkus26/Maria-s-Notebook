@@ -195,18 +195,4 @@ struct WorkRepository: Repository {
         }
         if status.isClosed { HapticService.shared.notification(.success) }
     }
-
-    // MARK: - Delete
-
-    /// Deletes through `WorkDeletionService`, which also strips the deleted
-    /// owner from surviving linked copies and sweeps the records that key work
-    /// by id string. A bare `context.delete(work)` leaves both behind.
-    func deleteWork(id: UUID) {
-        guard let work = fetchWorkModel(id: id) else { return }
-        do {
-            try WorkDeletionService(context: context).delete([work])
-        } catch {
-            Self.logger.error("Failed to delete work \(id): \(error)")
-        }
-    }
 }

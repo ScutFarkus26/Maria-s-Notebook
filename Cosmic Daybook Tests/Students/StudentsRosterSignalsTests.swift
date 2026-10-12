@@ -89,8 +89,10 @@ struct StudentsRosterSignalsTests {
         #expect(viewModel.signals(for: adaID).presence == .here)
         #expect(viewModel.attendanceTaken)
 
-        // A next-lesson pick and an observation are table inputs.
-        ada.nextLessonUUIDs = [try #require(lesson.id)]
+        // A scheduled presentation (her next lesson) and an observation are table inputs.
+        _ = PresentationFactory.makeScheduled(
+            lesson: lesson, students: [ada], scheduledFor: AppCalendar.addingDays(2, to: Date()), context: context
+        )
         let note = CoreDataTestHelpers.seedNote(in: context, body: "Counted to 100")
         note.scope = .student(adaID)
         #expect(CoreDataTestHelpers.save(context))

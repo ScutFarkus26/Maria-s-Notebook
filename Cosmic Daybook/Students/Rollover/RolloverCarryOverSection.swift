@@ -62,6 +62,8 @@ struct RolloverCarryOverSection: View {
                 get: { viewModel.carryOverLandingDate(store: store, context: viewContext) },
                 set: { viewModel.plan.carryOverLanding = $0 }
             ),
+            // Never into the past, nor before the incoming year (#52).
+            in: viewModel.earliestCarryOverLanding(store: store, context: viewContext)...,
             displayedComponents: .date
         )
     }

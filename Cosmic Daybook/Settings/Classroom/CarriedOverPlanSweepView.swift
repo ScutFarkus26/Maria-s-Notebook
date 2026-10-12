@@ -12,6 +12,7 @@ import CoreData
 struct CarriedOverPlanSweepView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     @TestStudentVisibility private var testStudents
 
@@ -28,6 +29,21 @@ struct CarriedOverPlanSweepView: View {
             .navigationTitle("Carried-Over Year Plans")
             .inlineNavigationTitle()
             .toolbar { toolbarContent }
+        }
+        // A failed save used to leave the sheet as it was with no word of
+        // why; the view model set a message nothing showed (bug hunt
+        // 2026-10-12 #59).
+        .alert(
+            SettingsCopy.CarriedOverSweep.saveFailedTitle,
+            isPresented: Binding(
+                get: { viewModel.applyErrorMessage != nil },
+                set: { if !$0 { viewModel.applyErrorMessage = nil } }
+            ),
+            presenting: viewModel.applyErrorMessage
+        ) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { message in
+            Text(message)
         }
         .onAppear {
             viewModel.load(
@@ -52,7 +68,7 @@ struct CarriedOverPlanSweepView: View {
             switch viewModel.phase {
             case .choose:
                 Button("Apply (\(viewModel.affectedEntries))") {
-                    viewModel.apply(context: viewContext)
+                    viewModel.apply(context: viewContext, saveCoordinator: saveCoordinator)
                 }
                 .disabled(viewModel.affectedEntries == 0)
             case .done:
@@ -188,5 +204,6 @@ struct CarriedOverPlanSweepView: View {
 private struct CarriedOverPlanSweepViewPreview: View {
     var body: some View {
         CarriedOverPlanSweepView()
+            .previewEnvironment()
     }
 }

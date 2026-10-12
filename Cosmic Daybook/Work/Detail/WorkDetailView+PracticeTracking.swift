@@ -17,13 +17,19 @@ extension WorkDetailView {
     /// change instead of on every body pass. `objectsDidChange` on this context
     /// is what the `@FetchRequest` it replaces listened to (edits, saves and
     /// merged remote imports alike).
+    ///
+    /// The children and work items the cards name reload when the ids those
+    /// sessions name change. They reloaded only when the session table grew or
+    /// shrank, so a child added to an existing session never appeared on its
+    /// card (bug hunt 2026-10-12 #42).
     func reloadPracticeSessions() {
         let all = modelContext.safeFetch(CDFetchRequest(CDPracticeSession.self))
         let mine = viewModel.practiceSessions(allSessions: all)
         if mine != practiceSessions { practiceSessions = mine }
-        if practiceSessionTableCount != all.count {
-            practiceSessionTableCount = all.count
-            loadPracticeParticipants()
+        let named = PracticeParticipantIDs(sessions: mine)
+        if practiceParticipantIDs != named {
+            practiceParticipantIDs = named
+            loadPracticeParticipants(named)
         }
     }
 
@@ -32,10 +38,9 @@ extension WorkDetailView {
     /// unpredicated `@FetchRequest` of both whole tables — a live
     /// fetched-results controller per card, per table — and then filter them
     /// down to the two or three rows it actually draws.
-    func loadPracticeParticipants() {
-        let sessions = practiceSessions
-        let studentIDs = Set(sessions.flatMap(\.studentIDsArray).compactMap(UUID.init(uuidString:)))
-        let workIDs = Set(sessions.flatMap(\.workItemIDsArray).compactMap(UUID.init(uuidString:)))
+    func loadPracticeParticipants(_ named: PracticeParticipantIDs) {
+        let studentIDs = named.studentIDs
+        let workIDs = named.workIDs
 
         if studentIDs.isEmpty {
             practiceStudents = []
@@ -205,5 +210,17 @@ extension WorkDetailView {
                 }
             }
         }
+    }
+}
+
+/// The children and work items a work's practice sessions name: what the
+/// practice cards look up, so the lookup reloads when this changes.
+struct PracticeParticipantIDs: Equatable {
+    let studentIDs: Set<UUID>
+    let workIDs: Set<UUID>
+
+    init(sessions: [CDPracticeSession]) {
+        studentIDs = Set(sessions.flatMap(\.studentIDsArray).compactMap(UUID.init(uuidString:)))
+        workIDs = Set(sessions.flatMap(\.workItemIDsArray).compactMap(UUID.init(uuidString:)))
     }
 }

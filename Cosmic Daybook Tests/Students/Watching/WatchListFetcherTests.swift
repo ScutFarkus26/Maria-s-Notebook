@@ -71,11 +71,12 @@ struct WatchListFetcherTests {
         #expect(Set(items.map(\.kind)) == expectedKinds)
     }
 
-    @Test("fetch(for:) gives Alice three rows and Ben none")
+    @Test("One child's rows: Alice has three and Ben none")
     func fetchForStudent() throws {
         let seed = try seed()
-        #expect(WatchListFetcher.fetch(for: seed.alice, in: seed.context).count == 3)
-        #expect(WatchListFetcher.fetch(for: seed.ben, in: seed.context).isEmpty)
+        let everything = WatchListFetcher.fetchAll(in: seed.context)
+        #expect(WatchListBuilder.items(for: seed.alice, in: everything).count == 3)
+        #expect(WatchListBuilder.items(for: seed.ben, in: everything).isEmpty)
     }
 
     @Test("The todo predicate is case-insensitive and agrees with the builder")
@@ -99,7 +100,7 @@ struct WatchListFetcherTests {
             in: seed.context, firstName: "Naomi", lastName: "Levin", enrollmentStatus: .withdrawn
         )
         CoreDataTestHelpers.save(seed.context)
-        let ids = WatchListFetcher.enrolledIDs(in: seed.context)
+        let ids = WatchListFetcher.enrolledIDs(in: seed.context, showTestStudents: true)
         #expect(ids == [seed.alice, seed.ben])
         #expect(!ids.contains(try #require(gone.id)))
     }

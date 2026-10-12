@@ -88,15 +88,17 @@ enum WatchListFetcher {
         )
     }
 
-    /// One child's rows.
-    static func fetch(for studentID: UUID, in context: NSManagedObjectContext) -> [WatchItem] {
-        WatchListBuilder.items(for: studentID, in: fetchAll(in: context))
-    }
-
-    /// The ids of every child currently enrolled.
-    static func enrolledIDs(in context: NSManagedObjectContext) -> Set<UUID> {
+    /// The ids of every child currently enrolled, less the test students the
+    /// guide hides (nil reads her setting). MCP's `watching_only` listed them
+    /// (bug hunt 2026-10-12 #51).
+    static func enrolledIDs(
+        in context: NSManagedObjectContext, showTestStudents: Bool? = nil, testStudentNames: String? = nil
+    ) -> Set<UUID> {
         let request = CDFetchRequest(CDStudent.self)
         request.predicate = CDStudent.enrolledPredicate
-        return Set(context.safeFetch(request).compactMap(\.id))
+        let visible = TestStudentsFilter.filterVisible(
+            context.safeFetch(request), show: showTestStudents, namesRaw: testStudentNames
+        )
+        return Set(visible.compactMap(\.id))
     }
 }

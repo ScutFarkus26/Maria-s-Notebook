@@ -64,14 +64,12 @@ struct RolloverSummary: Equatable {
     /// rollover marks these skipped so they stop accruing behind pace.
     var yearPlanEntriesForDeparting = 0
     /// Entries belonging to children who are staying or being promoted whose
-    /// targets fell in the outgoing year — last year's intentions.
-    var carriedOverEntries = 0
-    /// How many of those the plan re-dates, and how many it skips.
+    /// targets fell in the outgoing year (last year's intentions): how many
+    /// the plan re-dates, and how many it skips.
     var carriedOverToRedate = 0
     var carriedOverToSkip = 0
-    /// How many children carry entries over at all, and how many each choice
-    /// touches — the review states the two actions separately.
-    var carriedOverByStudent = 0
+    /// How many children each choice touches — the review states the two
+    /// actions separately.
     var carriedOverRedateChildren = 0
     var carriedOverSkipChildren = 0
 
@@ -99,11 +97,11 @@ struct RolloverSummary: Equatable {
         for plan: RolloverPlan, students: [CDStudent], context: NSManagedObjectContext, yearStart: Date
     ) {
         for studentID in RolloverService.continuingStudentIDs(in: plan, students: students) {
+            let choice = plan.carryOverChoice(for: studentID)
+            guard choice != .leave else { continue }
             let count = YearPlanCarryOver.entries(for: studentID, in: context, yearStart: yearStart).count
             guard count > 0 else { continue }
-            carriedOverEntries += count
-            carriedOverByStudent += 1
-            switch plan.carryOverChoice(for: studentID) {
+            switch choice {
             case .leave:
                 continue
             case .redate:

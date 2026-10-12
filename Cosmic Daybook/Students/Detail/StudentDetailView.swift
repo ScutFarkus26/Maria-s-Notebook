@@ -47,14 +47,15 @@ struct StudentDetailView: View {
     /// wrong day every year.
     @State private var placeholderBirthday: Date?
     // Not private: StudentDetailView+Departure reads it to decide whether this
-    // edit is a departure, as it does with pendingDeparturePlans.
+    // edit is a departure, as it does with pendingDeparture.
     @State var draftEnrollmentStatus: CDStudent.EnrollmentStatus = .enrolled
     @State private var draftDateWithdrawn: Date?
     @State private var showDeleteAlert = false
-    /// Lessons still planned for a child being withdrawn or transferred,
-    /// held while the guide decides whether to take her off them.
-    @State var pendingDeparturePlans: [CDLessonAssignment] = []
-    @State var pendingDepartureEntries: [CDYearPlanEntry] = []
+    /// What a child being withdrawn or transferred is still planned for, held
+    /// while the guide decides whether to take her off it. The alert presents
+    /// it, and its binding clears only `showsDepartureAlert` (G1, #58).
+    @State var pendingDeparture: PendingDeparture?
+    @State var showsDepartureAlert = false
 
     // The stored key is retained so existing installations migrate cleanly.
     // Its old tab values are translated into the four guide-facing sections.
@@ -249,23 +250,19 @@ struct StudentDetailView: View {
             Handoff.describeStudent(activity, id: id, name: StudentFormatter.displayName(for: student))
         }
         .departurePlansAlert(
-            isPresented: departureAlertIsPresented,
-            message: departureAlertMessage,
-            onRemove: {
-                let plans = pendingDeparturePlans
-                let entries = pendingDepartureEntries
-                pendingDeparturePlans = []
-                pendingDepartureEntries = []
-                commitEdit(retractingPlans: plans, skippingEntries: entries)
+            isPresented: $showsDepartureAlert,
+            departure: pendingDeparture,
+            message: departureAlertMessage(for:),
+            onRemove: { departure in
+                pendingDeparture = nil
+                commitEdit(retractingPlans: departure.plans, skippingEntries: departure.entries)
             },
             onKeep: {
-                pendingDeparturePlans = []
-                pendingDepartureEntries = []
+                pendingDeparture = nil
                 commitEdit(retractingPlans: [], skippingEntries: [])
             },
             onCancel: {
-                pendingDeparturePlans = []
-                pendingDepartureEntries = []
+                pendingDeparture = nil
             }
         )
         .alert("Delete Student?", isPresented: $showDeleteAlert) {

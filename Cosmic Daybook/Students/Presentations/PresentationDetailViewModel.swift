@@ -62,7 +62,13 @@ final class PresentationDetailViewModel {
     var showDeleteAlert: Bool = false
     /// Work this presentation generated for children being taken off it,
     /// held while the guide decides whether to take them off the work too.
+    /// It reaches the alert as its `presenting:` data, and the alert's
+    /// binding clears only `showsWorkRetraction`: SwiftUI doesn't document
+    /// whether the binding is cleared before the button runs, and a binding
+    /// that emptied this left Remove From Work with nothing to remove (bug
+    /// hunt 2026-10-12 #47, the #58 shape).
     var pendingWorkRetraction: [WorkRemovalPlan] = []
+    var showsWorkRetraction = false
     var showingMoveStudentsSheet: Bool = false
     var showingFindStudentsSheet: Bool = false
 
@@ -155,6 +161,12 @@ final class PresentationDetailViewModel {
             || UUID(uuidString: lessonAssignment.lessonID) != editingLessonID
     }
 
+    /// Holds `plans` and raises the alert that asks about them.
+    func offerWorkRetraction(_ plans: [WorkRemovalPlan]) {
+        pendingWorkRetraction = plans
+        showsWorkRetraction = true
+    }
+
     /// Work already generated from this presentation for children the edit
     /// removes from it. Empty when nothing downstream would disagree.
     func workRetractionPlans() -> [WorkRemovalPlan] {
@@ -173,6 +185,12 @@ final class PresentationDetailViewModel {
         retractingWork: [WorkRemovalPlan] = [],
         onDone: (() -> Void)? = nil
     ) {
+        // Everything below lands together or not at all: a failed save used to
+        // leave the retraction's deletes pending in the context, to be saved by
+        // whatever saved next. Only this save's changes are taken back; the
+        // context may hold other screens' unsaved edits.
+        let transaction = ContextMutationTransaction(context: viewContext)
+
         // 0. Take removed children off the work this presentation generated,
         //    when the guide chose to, so the two records keep agreeing.
         if !retractingWork.isEmpty {
@@ -189,29 +207,34 @@ final class PresentationDetailViewModel {
         // 2. Engagement Lifecycle (Record Presentation)
         handleEngagementLifecycle()
 
-        // 3. Persist
-        if saveCoordinator.save(viewContext, reason: "Saving lesson assignment") {
-            // Reset autosave state
-            notesAutosaveTask?.cancel()
-            originalNotes = notes
-            notesDirty = false
-
-            // Auto-populate year plan entries when scheduling
-            if lessonAssignment.state == .scheduled {
-                Task {
-                    await SequenceAutoPopulateService.autoPopulateSequence(
-                        for: lessonAssignment,
-                        scheduledDate: lessonAssignment.scheduledFor ?? Date(),
-                        context: viewContext
-                    )
-                }
-            }
-
-            // Notify system
-            PresentationDetailUtilities.notifyInboxRefresh()
-
-            onDone?()
+        // 3. Persist. The global save alert says what went wrong; the sheet
+        //    stays open with the guide's edits on screen.
+        guard saveCoordinator.save(viewContext, reason: "Saving lesson assignment") else {
+            transaction.rollback()
+            return
         }
+        transaction.commit()
+
+        // Reset autosave state
+        notesAutosaveTask?.cancel()
+        originalNotes = notes
+        notesDirty = false
+
+        // Auto-populate year plan entries when scheduling
+        if lessonAssignment.state == .scheduled {
+            Task {
+                await SequenceAutoPopulateService.autoPopulateSequence(
+                    for: lessonAssignment,
+                    scheduledDate: lessonAssignment.scheduledFor ?? Date(),
+                    context: viewContext
+                )
+            }
+        }
+
+        // Notify system
+        PresentationDetailUtilities.notifyInboxRefresh()
+
+        onDone?()
     }
 
     // Handles recording presentation, mastery updates, and track enrollment.
@@ -257,7 +280,7 @@ final class PresentationDetailViewModel {
                     lessonSequence: lesson.sequence,
                     studentIDs: lessonAssignment.studentIDs,
                     context: viewContext,
-                    saveCoordinator: saveCoordinator
+                    saveChanges: false
                 )
             }
         }
@@ -269,7 +292,7 @@ final class PresentationDetailViewModel {
                     lessonSequence: lesson.sequence,
                     studentIDs: lessonAssignment.studentIDs,
                     context: viewContext,
-                    saveCoordinator: saveCoordinator
+                    saveChanges: false
                 )
             }
         }

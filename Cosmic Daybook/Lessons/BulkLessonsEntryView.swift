@@ -1,6 +1,4 @@
-// swiftlint:disable file_length
 import SwiftUI
-import OSLog
 import CoreData
 
 private struct EntryRow: Identifiable, Hashable {
@@ -14,14 +12,11 @@ private struct EntryRow: Identifiable, Hashable {
 
 // swiftlint:disable:next type_body_length
 public struct BulkLessonsEntryView: View {
-    private static let logger = Logger.lessons
-
     let defaultArea: String?
     let defaultSequence: String?
     var onDone: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
@@ -38,6 +33,8 @@ public struct BulkLessonsEntryView: View {
     /// Names refused because they were already filed in their sub-area — in
     /// the store or earlier in this same grid. Reported after the save.
     @State private var skippedDuplicates: [String] = []
+    /// Save failed; nothing from the grid was kept and the rows stay as typed.
+    @State private var saveFailed = false
 
     public init(
         defaultArea: String? = nil,
@@ -123,6 +120,11 @@ public struct BulkLessonsEntryView: View {
         } message: {
             Text("Skipped, because the same name is already in that sub-area:\n"
                 + skippedDuplicates.joined(separator: "\n"))
+        }
+        .alert(AppErrorMessages.Lessons.bulkSaveFailedTitle, isPresented: $saveFailed) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(AppErrorMessages.Lessons.bulkSaveFailed)
         }
     }
 
@@ -342,60 +344,27 @@ public struct BulkLessonsEntryView: View {
 
         guard !items.isEmpty else { return }
 
-        // The highest orderInSequence in each sub-area, keyed as the Lessons screen groups them
-        // (trimmed, any case), so a new row lands after the lessons already there.
-        let maxOrderBySequence = BulkLessonInsertion.maxOrders(of: repository.fetchLessons())
-
         let drafts = items.map { row in
             BulkLessonDraft(
                 name: row.name, area: row.area, sequence: row.sequence, section: row.section, writeUp: row.writeUp
             )
         }
-        let outcome = BulkLessonInsertion.insert(
+        // A failed save takes the grid's lessons (and their tracks) back out
+        // and keeps the sheet open with the rows as typed, so Save can simply
+        // be tried again.
+        guard let outcome = BulkLessonInsertion.insertAndSave(
             drafts, using: repository, source: batchSource,
             personalKind: batchSource == .personal ? batchPersonalKind : nil,
-            maxOrderBySequence: maxOrderBySequence
-        )
-        let insertedLessons = outcome.inserted
-        let skipped = outcome.skipped
-
-        guard !insertedLessons.isEmpty else {
-            skippedDuplicates = skipped
+            saveCoordinator: saveCoordinator
+        ) else {
+            saveFailed = true
             return
         }
-
-        // A failed save shows the "Couldn't Save" alert and keeps the sheet open
-        // so the batch can be retried instead of being silently dropped.
-        guard saveCoordinator.save(managedObjectContext, reason: "Add lessons") else { return }
-
-        // Automatically create/update CDTrackEntity objects for new area/sequence combinations
-        var processedSequences: Set<String> = []
-        for lesson in insertedLessons {
-            let area = lesson.area.trimmed()
-            let sequence = lesson.sequence.trimmed()
-            guard !area.isEmpty && !sequence.isEmpty else { continue }
-
-            let key = "\(area)|\(sequence)"
-            guard !processedSequences.contains(key) else { continue }
-            processedSequences.insert(key)
-
-            if SequenceTrackService.isTrack(area: area, sequence: sequence, context: viewContext) {
-                do {
-                    _ = try SequenceTrackService.getOrCreateTrack(
-                        area: area,
-                        sequence: sequence,
-                        context: viewContext
-                    )
-                } catch {
-                    Self.logger.warning("Failed to create/update CDTrackEntity for \(area)/\(sequence): \(error)")
-                }
-            }
+        guard !outcome.inserted.isEmpty else {
+            skippedDuplicates = outcome.skipped
+            return
         }
-
-        // Save track updates
-        guard saveCoordinator.save(viewContext, reason: "Update tracks") else { return }
-
-        finish(reporting: skipped)
+        finish(reporting: outcome.skipped)
     }
 
     /// The saved lessons stand either way; when some were skipped the alert

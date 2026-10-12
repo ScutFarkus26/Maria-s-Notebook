@@ -57,6 +57,11 @@ struct WeekPlanSection: View {
     @State var stripSettle = WeekPlanDayWindow.Settle()
     @State var showClearAllConfirmation = false
     @State var selectedGroup: CalendarCheckInGroup?
+    /// A grouped pill for a later day, tapped: whose work to open, since
+    /// there is nothing to log yet.
+    @State var laterPill: CalendarCheckInGroup?
+    /// Move All Forward's counts, while it asks first.
+    @State var pendingShift: CalendarForwardShiftService.Result?
     @State var prompt: WorkCheckInPlanPrompt?
     /// The strip's measured width, which the day columns share between them.
     /// Zero until the first layout, which reads as the minimum column width.
@@ -124,6 +129,9 @@ struct WeekPlanSection: View {
             ) {
                 Task { await refreshCheckIns() }
             }
+            // The card data's own refresh, a later pill's "Open whose work?"
+            // and Move All Forward's question: WeekPlanSection+Data.swift.
+            .weekPlanPrompts(self)
         }
         .sheet(item: $selectedGroup) { group in
             WorkLogSheet(
@@ -198,11 +206,11 @@ struct WeekPlanSection: View {
             }
             Divider()
             Button {
-                Task { await moveAllScheduledForward() }
+                askToMoveAllForward()
             } label: {
-                Label("Move All Forward 1 Day", systemImage: "arrow.right.circle")
+                Label("Move All Forward 1 Day…", systemImage: "arrow.right.circle")
             }
-            .help("Slides every scheduled presentation and work check one school day later.")
+            .help("Slides what the strip shows, from today on, one school day later.")
             Button(role: .destructive) {
                 showClearAllConfirmation = true
             } label: {

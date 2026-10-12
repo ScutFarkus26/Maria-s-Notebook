@@ -25,7 +25,7 @@ extension MCPNotebookTools {
             description: "Book a student conference that has not happened yet. It shows in scheduled_meetings "
                 + "and on the Today agenda, and create_meeting_entry completes it rather than "
                 + "duplicating it. A student holds one booking at a time: booking another day moves the "
-                + "existing one. A day school is not in session is refused.",
+                + "existing one. A day school is not in session is refused, and so is a child who has left.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -63,6 +63,9 @@ extension MCPNotebookTools {
         guard let studentID = student.id else {
             throw MCPToolError("That student record has no identifier.")
         }
+        // Names resolve against every student on file; a child who has left
+        // gets no conference booked on the Today agenda.
+        try requireEnrolledForPresentation([student], tool: "schedule_meeting", action: "booked for a meeting")
         guard let day = try dayArgument(arguments, "date") else {
             throw MCPToolError("A date is required, formatted YYYY-MM-DD.")
         }

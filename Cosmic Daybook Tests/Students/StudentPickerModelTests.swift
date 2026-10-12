@@ -181,7 +181,9 @@ struct StudentPickerModelTests {
 
     @Test("the chip drops the year this year, keeps it for an earlier one, and counts repeats")
     func captionWording() throws {
-        let now = try day("2026-09-11")
+        // May: March is this school year (the year is judged by school year
+        // since the 2026-10-12 hunt, #51), March 2025 an earlier one.
+        let now = try day("2026-05-11")
         let thisYear = try day("2026-03-11")
         let lastYear = try day("2025-03-11")
 

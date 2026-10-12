@@ -15,6 +15,7 @@ struct StudentCurriculumMapView: View {
     let student: CDStudent
 
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
     @State private var store = CurriculumMapStore()
     @State private var model = StudentCurriculumMapModel()
     @State private var settings = CurriculumMapSettings()
@@ -25,6 +26,7 @@ struct StudentCurriculumMapView: View {
     @State var detailTarget: CurriculumCellDetailTarget?
 
     var zoom: CurriculumZoom { CurriculumZoom(rawValue: zoomRaw) ?? .years }
+    private var schoolYear: SchoolYearStore { dependencies.schoolYearStore }
     var granularity: CurriculumGranularity {
         CurriculumGranularity(rawValue: granularityRaw) ?? .keyLessons
     }
@@ -44,6 +46,8 @@ struct StudentCurriculumMapView: View {
         .onChange(of: zoomRaw) { _, _ in rebuild() }
         .onChange(of: granularityRaw) { _, _ in rebuild() }
         .onChange(of: settings.defaultUntouchedDays) { _, _ in rebuild() }
+        .onChange(of: schoolYear.startMonth) { _, _ in rebuild() }
+        .onChange(of: schoolYear.startDay) { _, _ in rebuild() }
         .sheet(item: $detailTarget) { target in
             CurriculumCellDetailSheet(target: target, store: store) { detailTarget = nil }
                 .studentDetailSheetSizing()
@@ -182,7 +186,8 @@ struct StudentCurriculumMapView: View {
     func rebuild() {
         guard let studentID = student.id else { return }
         model.rebuild(
-            studentID: studentID, store: store, settings: settings, zoom: zoom, granularity: granularity
+            studentID: studentID, store: store, settings: settings, zoom: zoom, granularity: granularity,
+            startMonth: schoolYear.startMonth, startDay: schoolYear.startDay
         )
     }
 

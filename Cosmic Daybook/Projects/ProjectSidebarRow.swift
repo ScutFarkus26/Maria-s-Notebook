@@ -10,8 +10,6 @@ import CoreData
 /// Design matches AreaListRow/StudentListRow for visual consistency across the app.
 struct ProjectSidebarRow: View {
     let club: CDProject
-    let isSelected: Bool
-    let lastSessionDate: Date?
     /// Running, quiet since the school year began, or finished — judged from
     /// what has happened to the project, not from the `isActive` flag alone.
     let status: ProjectActivity.Status

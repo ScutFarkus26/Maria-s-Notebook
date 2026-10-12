@@ -48,11 +48,15 @@ enum CaptureFollowUpPersistence {
                     workCount += 1
                 }
             case .represent:
-                // The record she has is the one that did not take: flag it for
-                // re-teaching, the same bit the recall queue sets, so the
-                // planning reads see the second pass and not just a new draft.
-                assignment.needsAnotherPresentation = true
-                assignment.modifiedAt = Date()
+                // The record she has is the one that did not take: filed the
+                // way a meeting's or a recall check's Re-present files it, so
+                // the planning reads see the second pass and not just a new
+                // draft. The shared flag only when she had it alone; in a group
+                // her own row says it, or one child's Re-present read as the
+                // whole group's (bug hunt 2026-10-12, #45).
+                try MeetingLessonDecisions.flagForAnotherPresentation(
+                    assignment, studentID: entry.studentID, context: persistence.context
+                )
                 try createRepresentationIfNeeded(
                     studentID: entry.studentID, lesson: lesson, context: persistence.context
                 )
@@ -123,6 +127,13 @@ enum CaptureFollowUpPersistence {
 
     /// Flags the child's observation on this presentation for the follow-up
     /// inbox, writing the note if the relationship has not caught up yet.
+    ///
+    /// Two observations for one child in one filing are written as one note,
+    /// the entries joined by a blank line (`record_presentation`), so an
+    /// entry's text is matched against each joined piece as well as the whole;
+    /// matching the whole only wrote a second, flagged copy (bug hunt
+    /// 2026-10-12, #51). A piece must match exactly: "Yes." found anywhere
+    /// inside a longer note flagged the wrong one.
     static func markObservationForFollowUp(
         entry: Entry,
         assignment: CDLessonAssignment,
@@ -130,9 +141,11 @@ enum CaptureFollowUpPersistence {
     ) {
         let body = entry.observation.trimmed()
         let notes = (assignment.unifiedNotes?.allObjects as? [CDNote]) ?? []
-        if let note = notes.first(where: {
-            $0.body.trimmed() == body && $0.scope == .student(entry.studentID)
-        }) {
+        let hers = notes.filter { !$0.isDeleted && $0.scope == .student(entry.studentID) }
+        if let note = hers.first(where: { $0.body.trimmed() == body })
+            ?? hers.first(where: { note in
+                !body.isEmpty && note.body.components(separatedBy: "\n\n").contains { $0.trimmed() == body }
+            }) {
             note.needsFollowUp = true
             note.updatedAt = Date()
             return

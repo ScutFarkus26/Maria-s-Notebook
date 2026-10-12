@@ -134,8 +134,12 @@ struct SchedulePresentationSheet: View {
                 Text("Students")
                     .font(.subheadline.weight(.bold))
                 Spacer()
-                if !selectedStudentIDs.isEmpty {
-                    Text("\(selectedStudentIDs.count) selected")
+                // Only the children who can be planned: a child who has left
+                // stays ticked in the set but is never planned (bug hunt
+                // 2026-10-12, #32).
+                let plannableCount = selectedStudents.count
+                if plannableCount > 0 {
+                    Text("\(plannableCount) selected")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

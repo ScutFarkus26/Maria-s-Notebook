@@ -12,6 +12,7 @@ struct CurriculumMapEngineTests {
 
     private let student = UUID()
     private let peer = UUID()
+    private let gregorian = Calendar(identifier: .gregorian)
 
     private func lesson(
         _ name: String, area: String = "Math", sequence: String = "Laws", order: Int,
@@ -239,47 +240,50 @@ struct CurriculumMapEngineTests {
 
     // MARK: - Timeline
 
-    @Test("Enrollment years count whole years from the start date")
+    @Test("Years count school years from the one she started in")
     func enrollmentYears() {
-        let calendar = Calendar(identifier: .gregorian)
         let anchor = day("2025-11-29")
-        #expect(CurriculumTimeline.enrollmentYear(anchor: anchor, on: day("2026-09-09"), calendar: calendar) == 1)
-        #expect(CurriculumTimeline.enrollmentYear(anchor: anchor, on: day("2026-11-28"), calendar: calendar) == 1)
-        #expect(CurriculumTimeline.enrollmentYear(anchor: anchor, on: day("2026-11-29"), calendar: calendar) == 2)
-        #expect(CurriculumTimeline.enrollmentYear(anchor: anchor, on: day("2028-12-01"), calendar: calendar) == 4)
+        func year(_ iso: String) -> Int {
+            CurriculumTimeline.enrollmentYear(
+                anchor: anchor, on: day(iso), startMonth: 8, startDay: 25, calendar: gregorian
+            )
+        }
+        #expect(year("2026-08-24") == 1)
+        #expect(year("2026-08-25") == 2)
+        #expect(year("2026-11-29") == 2)
+        #expect(year("2028-12-01") == 4)
         #expect(CurriculumTimeline.yearBadge(4) == "Year 3+")
         #expect(CurriculumTimeline.yearBadge(2) == "Year 2")
     }
 
-    @Test("A three-year timeline has 36 month columns anchored on the start date")
+    @Test("A three-year timeline has 36 month columns from the start of her first school year")
     func timelineColumns() throws {
-        let calendar = Calendar(identifier: .gregorian)
         let timeline = CurriculumTimeline.make(
-            dateStarted: day("2025-11-29"), fallbackAnchor: nil, today: day("2026-09-09"),
-            zoom: .months, calendar: calendar
+            dateStarted: day("2025-11-29"), fallbackAnchor: nil, today: day("2026-06-09"),
+            zoom: .months, startMonth: 8, startDay: 25, calendar: gregorian
         )
         let december: Int? = timeline.columnIndex(for: day("2025-12-15"))
-        let september: Int? = timeline.columnIndex(for: day("2026-09-09"))
-        let beforeStart: Int? = timeline.columnIndex(for: day("2025-11-01"))
-        let ninth: CurriculumColumn = timeline.columns[9]
+        let june: Int? = timeline.columnIndex(for: day("2026-06-09"))
+        let beforeYear: Int? = timeline.columnIndex(for: day("2025-08-01"))
         let twelfth: CurriculumColumn = timeline.columns[12]
         #expect(timeline.columns.count == 36)
         #expect(timeline.currentYear == 1)
         #expect(!timeline.anchorIsEstimated)
-        #expect(december == 0)
-        #expect(september == 9)
-        #expect(beforeStart == nil)
-        #expect(ninth.year == 1)
+        #expect(timeline.columns[0].start == day("2025-08-25"))
+        #expect(december == 3)
+        #expect(june == 9)
+        #expect(beforeYear == nil)
+        #expect(timeline.columns[11].year == 1)
         #expect(twelfth.year == 2)
+        #expect(twelfth.start == day("2026-08-25"))
         #expect(twelfth.isFuture)
     }
 
     @Test("Without a start date the timeline is anchored on the first record and says so")
     func timelineFallsBackToFirstRecord() {
-        let calendar = Calendar(identifier: .gregorian)
         let timeline = CurriculumTimeline.make(
             dateStarted: nil, fallbackAnchor: day("2026-02-12"), today: day("2026-09-09"),
-            zoom: .years, calendar: calendar
+            zoom: .years, startMonth: 9, startDay: 1, calendar: gregorian
         )
         #expect(timeline.anchorIsEstimated)
         #expect(timeline.columns.count == 3)
@@ -288,10 +292,9 @@ struct CurriculumMapEngineTests {
 
     @Test("A child in her fourth year gets four year columns")
     func fourthYearAddsAColumn() {
-        let calendar = Calendar(identifier: .gregorian)
         let timeline = CurriculumTimeline.make(
             dateStarted: day("2022-09-01"), fallbackAnchor: nil, today: day("2026-09-09"),
-            zoom: .terms, calendar: calendar
+            zoom: .terms, startMonth: 9, startDay: 1, calendar: gregorian
         )
         #expect(timeline.currentYear == 5)
         #expect(timeline.yearCount == 5)

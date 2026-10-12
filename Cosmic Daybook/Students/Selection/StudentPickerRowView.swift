@@ -8,6 +8,9 @@
 //  A child who has left the classroom renders as the same row in grey, with
 //  the reason where the record caption would be and no tick at all, so a
 //  withdrawal reads as a fact about her rather than as a gap in the list.
+//  If she is still ticked (the presentation named her before she left), the
+//  tick shows and a tap takes her off: `StudentPickerModel.toggling` allows
+//  that, and the row used to be disabled outright (bug hunt 2026-10-12 #56).
 //
 
 import SwiftUI
@@ -19,7 +22,15 @@ struct StudentPickerRowView: View {
 
     var body: some View {
         if let block = row.block {
-            blockedRow(block)
+            if isSelected {
+                Button(action: onToggle) { blockedRow(block) }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Takes \(row.candidate.displayName) off. \(block.shortReason)")
+            } else {
+                blockedRow(block)
+                    .disabled(true)
+                    .accessibilityHint(block.shortReason)
+            }
         } else {
             Button(action: onToggle) { selectableRow }
                 .buttonStyle(.plain)
@@ -27,7 +38,7 @@ struct StudentPickerRowView: View {
     }
 
     /// A child who has left: listed so the guide can see why she is not on
-    /// offer, and not selectable.
+    /// offer. Never selectable; the tick shows only while she is still ticked.
     private func blockedRow(_ block: StudentEnrollmentBlock) -> some View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
@@ -38,11 +49,11 @@ struct StudentPickerRowView: View {
             .foregroundStyle(.secondary)
 
             Spacer(minLength: 8)
+
+            tick
         }
         .padding(.vertical, 6)
         .contentShape(Rectangle())
-        .disabled(true)
-        .accessibilityHint(block.shortReason)
     }
 
     private var selectableRow: some View {
@@ -65,14 +76,18 @@ struct StudentPickerRowView: View {
                     .accessibilityLabel(AgeUtils.verboseQuarterAgeString(for: birthday))
             }
 
-            // The tick keeps its slot when a row is unselected, so the ages stay in a column.
-            Image(systemName: "checkmark")
-                .foregroundStyle(Color.accentColor)
-                .opacity(isSelected ? 1 : 0)
-                .accessibilityHidden(!isSelected)
-                .frame(width: 14)
+            tick
         }
         .padding(.vertical, 6)
         .contentShape(Rectangle())
+    }
+
+    /// The tick keeps its slot when a row is unselected, so the ages stay in a column.
+    private var tick: some View {
+        Image(systemName: "checkmark")
+            .foregroundStyle(Color.accentColor)
+            .opacity(isSelected ? 1 : 0)
+            .accessibilityHidden(!isSelected)
+            .frame(width: 14)
     }
 }

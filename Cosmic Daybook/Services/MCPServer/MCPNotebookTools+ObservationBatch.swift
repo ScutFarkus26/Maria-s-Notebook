@@ -137,8 +137,8 @@ extension MCPNotebookTools {
             throw MCPToolError("At least one student name is required.")
         }
         // A name or an id, as update_observation takes: two Ettys can only be
-        // told apart by id.
-        let students = try names.map { try resolveStudentReference($0, in: modelContext) }
+        // told apart by id. One child named twice is one child.
+        let students = try names.map { try resolveStudentReference($0, in: modelContext) }.uniqueByID
         let studentIDs = students.compactMap(\.id)
         guard studentIDs.count == students.count else {
             throw MCPToolError("A matched student record has no identifier.")
@@ -237,6 +237,8 @@ extension MCPNotebookTools {
         if filed > 0, !modelContext.safeSave() {
             throw MCPToolError("The observations could not be saved.")
         }
+        // Every item a duplicate: nothing was filed, so nothing is journaled.
+        if filed == 0 { MCPCallOutcome.markNothingWritten() }
         announceSavedNote(firstFiledID)
         let header = "Filed \(filed) observation(s)"
             + (skipped > 0 ? ", skipped \(skipped) duplicate(s)" : "") + ":"

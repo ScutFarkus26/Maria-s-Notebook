@@ -170,11 +170,3 @@ extension TodayView {
     }
     #endif
 }
-
-// MARK: - Overdue
-//
-// `deadlinesListSection` / `DeadlinesSectionView` is deliberately absent from
-// both orderings. It duplicated the Todos section's own "Overdue" subgroup
-// with a single row whose only action was to navigate away from Today, so it
-// cost a section header and gave the guide nothing she could not already see
-// and act on one section higher up. The view is kept, not placed.

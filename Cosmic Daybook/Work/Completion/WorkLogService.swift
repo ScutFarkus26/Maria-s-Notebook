@@ -11,6 +11,11 @@
 // a closed row are skipped, any note lands on the row as a dated note, and
 // the open todos linked to the row are completed (`linkedWorkItemID`). The
 // whole thing hands back a token the caller can Undo with.
+//
+// A log happens today or earlier. A pill on a later day of the week used to
+// log on its own day: Mastered on Thursday's pill on Monday dated the
+// completion and the note Thursday, and completed Tuesday's and Wednesday's
+// check-ins too (bug hunt 2026-10-12 #37). A later day is logged as today.
 
 import CoreData
 import Foundation
@@ -65,6 +70,9 @@ enum WorkLogService {
     /// Applies every entry, settles the rows' check-ins for `day`, and saves
     /// once. On a failed save the in-memory changes are reverted before the
     /// error is thrown, so nothing half-logged is left in the context.
+    ///
+    /// `day` may be in the past (a check logged late); a day after today is
+    /// logged as today, since nothing has happened on it yet.
     @discardableResult
     static func log(
         _ entries: [Entry],
@@ -74,8 +82,8 @@ enum WorkLogService {
         saveImmediately: Bool = true
     ) throws -> Receipt {
         guard !entries.isEmpty else { throw LogError.nothingToLog }
-        let logDay = AppCalendar.startOfDay(day)
         let now = Date()
+        let logDay = min(AppCalendar.startOfDay(day), AppCalendar.startOfDay(now))
 
         context.processPendingChanges()
         let insertedBefore = context.insertedObjects
@@ -94,7 +102,7 @@ enum WorkLogService {
                 work.status = status
                 if status.isClosed {
                     closed += 1
-                    token.participants += close(work, for: students, on: logDay, note: entry.note, in: context)
+                    token.participants += close(work, for: students, on: logDay, in: context)
                 } else if previous.isClosed {
                     reopened += 1
                     reopen(work, for: students, token: &token)
@@ -133,8 +141,9 @@ enum WorkLogService {
 
     /// Whom a row's log line is about. A linked copy is one child's row, even
     /// though it names her peers; a genuinely shared row (project or
-    /// book-club work) is about everyone on it.
-    private static func studentsLogged(on work: CDWorkModel, in context: NSManagedObjectContext) -> [UUID] {
+    /// book-club work) is about everyone on it. A check-in's note is scoped
+    /// the same way (`CDWorkCheckIn.setLegacyNoteText`).
+    static func studentsLogged(on work: CDWorkModel, in context: NSManagedObjectContext) -> [UUID] {
         let group = WorkGrouping.group(containing: work, in: context)
         if case .shared = group.shape { return group.studentIDs }
         return WorkGrouping.owner(of: work).map { [$0] } ?? []
@@ -145,8 +154,13 @@ enum WorkLogService {
     /// participants are classmates with rows of their own, so they are left
     /// alone; `reopen` clears the same children. Returns the participant
     /// snapshots for the undo token.
+    ///
+    /// The records carry no note: the log's note is the dated work note
+    /// `addNote` files. Both used to be written, so a closing note showed
+    /// twice on the child's Notes tab, in Observations and in chat context
+    /// (bug hunt 2026-10-12 #36).
     private static func close(
-        _ work: CDWorkModel, for students: [UUID], on day: Date, note: String?, in context: NSManagedObjectContext
+        _ work: CDWorkModel, for students: [UUID], on day: Date, in context: NSManagedObjectContext
     ) -> [ParticipantSnapshot] {
         work.completedAt = day
         var snapshots: [ParticipantSnapshot] = []
@@ -157,8 +171,7 @@ enum WorkLogService {
         guard let workID = work.id else { return snapshots }
         for studentID in students {
             _ = try? WorkCompletionService.markCompleted(
-                workID: workID, studentID: studentID, note: note ?? "", at: day,
-                in: context, saveImmediately: false
+                workID: workID, studentID: studentID, at: day, in: context, saveImmediately: false
             )
         }
         return snapshots

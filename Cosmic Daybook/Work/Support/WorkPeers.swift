@@ -109,13 +109,22 @@ enum WorkPeers {
             guard let owner = WorkGrouping.owner(of: row), claimed.insert(owner).inserted else { continue }
             found.append((owner, row))
         }
+        // Then a child who finished her own copy and has none open: she is
+        // done, though a classmate's open copy of linked work still names her.
+        // Claimed after the open rows' passengers, she was listed as working,
+        // with that classmate's age and card (bug hunt 2026-10-12 #38).
+        var finishedIDs: Set<UUID> = []
+        for row in finished {
+            guard let owner = WorkGrouping.owner(of: row), claimed.insert(owner).inserted else { continue }
+            finishedIDs.insert(owner)
+        }
         for row in open {
             for id in WorkGrouping.studentIDs(of: row) where claimed.insert(id).inserted {
                 found.append((id, row))
             }
         }
 
-        let finishedIDs = Set(finished.flatMap(WorkGrouping.studentIDs(of:))).subtracting(claimed)
+        finishedIDs.formUnion(Set(finished.flatMap(WorkGrouping.studentIDs(of:))).subtracting(claimed))
         let names = names(for: Set(found.map(\.studentID)).union(finishedIDs), in: context)
         let ages = ages(of: open, in: context)
 

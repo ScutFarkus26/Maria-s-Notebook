@@ -24,8 +24,10 @@ struct ProjectsRootView: View {
     @FetchRequest(fetchRequest: {
         let request = CDFetchRequest(CDProject.self)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDProject.createdAt, ascending: false)]
-        // Prefetch sessions so lastSessionDate(for:) reads each club's relationship
-        // from the row cache instead of faulting it per sidebar row (N+1).
+        // Prefetch sessions so each row's activity (the year lens and the
+        // Running/Dormant sections, `ProjectActivity.lastActivity`) reads the
+        // club's relationship from the row cache instead of faulting it per
+        // sidebar row (N+1).
         request.relationshipKeyPathsForPrefetching = ["sessions"]
         return request
     }())
@@ -230,8 +232,6 @@ struct ProjectsRootView: View {
     private func clubRow(for club: CDProject) -> some View {
         let row = ProjectSidebarRow(
             club: club,
-            isSelected: club.id?.uuidString == selectedClubIDString,
-            lastSessionDate: lastSessionDate(for: club),
             status: ProjectActivity.status(of: club),
             memberCount: enrolledMemberCount(of: club)
         )
@@ -267,10 +267,6 @@ struct ProjectsRootView: View {
     }
 
     // MARK: - Helpers
-
-    private func lastSessionDate(for club: CDProject) -> Date? {
-        ((club.sessions?.allObjects as? [CDProjectSession]) ?? []).compactMap(\.meetingDate).max()
-    }
 
     private func deleteClub(_ club: CDProject) {
         let wasSelected = selectedClubIDString == club.id?.uuidString

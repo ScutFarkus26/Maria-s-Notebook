@@ -137,6 +137,14 @@ nonisolated struct CurriculumWorkRef: Sendable, Hashable, Identifiable {
     let assignedAt: Date?
     let completedAt: Date?
     let lastTouchedAt: Date?
+    /// The child the row belongs to (`CDWorkModel.studentID`), when it names
+    /// one. Linked copies each list the whole group in `studentIDs`, so only
+    /// this tells a child's own copy from a classmate's.
+    var ownerID: UUID?
+    /// One row carrying several children by construction (project-session
+    /// work), never one of a set of linked copies: it counts for everyone on
+    /// it. `WorkGrouping.areLinkedCopies`' rule.
+    var isSharedRow = false
 
     var isBeyondActive: Bool { statusRaw != WorkStatus.active.rawValue }
 }

@@ -55,16 +55,34 @@ extension MCPNotebookTools {
         )
     }
 
-    /// The area's sub-areas in the map's saved order, plus "Ungrouped" last
-    /// when any lesson is filed without one — the same list the map reorders.
+    /// The area's sub-areas in the map's saved order, with "Ungrouped" where
+    /// the guide placed it when any lesson is filed without one — the same
+    /// list `LessonsRootView.syncReorderableSequences` builds. Appending it
+    /// last instead moved unfiled lessons to the end of the area's
+    /// `sortIndex` on every tool edit (bug hunt 2026-10-12, #28).
     static func orderedSequences(inArea area: String, from lessons: [CDLesson]) -> [String] {
-        var sequences = LessonsViewModel().groups(for: area, lessons: lessons)
+        let sequences = LessonsViewModel().groups(for: area, lessons: lessons)
         let hasUngrouped = lessons.contains { sameFiling($0.area, area) && $0.sequence.trimmed().isEmpty }
-        if hasUngrouped { sequences.append(ungroupedSequenceLabel) }
-        return sequences
+        guard hasUngrouped else { return sequences }
+        return FilterOrderStore.loadSequenceOrder(
+            for: area.trimmed(), existing: sequences + [ungroupedSequenceLabel]
+        )
+        // A sub-area once typed as "ungrouped" folds into the label; spell it one way.
+        .map { isUngroupedLabel($0) ? ungroupedSequenceLabel : $0 }
     }
 
     static let ungroupedSequenceLabel = "Ungrouped"
+
+    static func isUngroupedLabel(_ name: String) -> Bool {
+        sameFiling(name, ungroupedSequenceLabel)
+    }
+
+    /// The `sequence` a sub-area argument stores: "Ungrouped", the label the
+    /// reads print for lessons filed without one, means no sub-area. Taken
+    /// literally it made a real sub-area the reads then hid (#26).
+    static func storedSequence(forArgument name: String) -> String {
+        isUngroupedLabel(name) ? "" : name
+    }
 
     /// The sub-area's spelling as it already exists under the area, if any.
     static func existingSequence(named name: String, inArea area: String, from lessons: [CDLesson]) -> String? {
@@ -72,6 +90,9 @@ extension MCPNotebookTools {
     }
 
     static func resolveSequence(_ name: String, inArea area: String, from lessons: [CDLesson]) throws -> String {
+        if isUngroupedLabel(name), orderedSequences(inArea: area, from: lessons).contains(ungroupedSequenceLabel) {
+            return ungroupedSequenceLabel
+        }
         if let match = existingSequence(named: name, inArea: area, from: lessons) { return match }
         let sequences = LessonsViewModel().groups(for: area, lessons: lessons)
         let listing = sequences.isEmpty
@@ -84,13 +105,16 @@ extension MCPNotebookTools {
 
     /// The lessons filed under one sub-area in their taught order — the sort
     /// every sequence-level screen uses. Pass `ungroupedSequenceLabel` for
-    /// lessons filed with no sub-area.
+    /// lessons filed with no sub-area; it also takes in any sub-area literally
+    /// named "Ungrouped", which `orderedSequences` folds into the label.
     static func lessonsInSequence(
         _ sequence: String, area: String, from lessons: [CDLesson]
     ) -> [CDLesson] {
         lessons.filter { lesson in
             guard sameFiling(lesson.area, area) else { return false }
-            if sequence == ungroupedSequenceLabel { return lesson.sequence.trimmed().isEmpty }
+            if isUngroupedLabel(sequence) {
+                return lesson.sequence.trimmed().isEmpty || isUngroupedLabel(lesson.sequence)
+            }
             return sameFiling(lesson.sequence, sequence)
         }
         .sorted { lhs, rhs in

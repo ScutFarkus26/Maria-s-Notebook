@@ -98,7 +98,8 @@ extension MCPNotebookTools {
             lines.append(areaHeadline(area, summary: summary))
             guard granularity != .area else { continue }
             lines.append(contentsOf: areaLessonLines(
-                shown.filter { sameFiling($0.area, area) }, cells: cells, since: since
+                shown.filter { sameFiling($0.area, area) }, area: area, areaLessons: areaLessons,
+                cells: cells, since: since
             ))
         }
         lines.append("")
@@ -108,18 +109,30 @@ extension MCPNotebookTools {
         return lines.joined(separator: "\n")
     }
 
-    /// One line per lesson in curriculum order; `since` keeps only lessons
+    /// One line per lesson in curriculum order — sub-areas in the album order
+    /// the class map uses (`ClassCurriculumMapModel.orderedSequences`), not
+    /// alphabetically (bug hunt 2026-10-12, #27); `since` keeps only lessons
     /// with activity on or after the day.
     private static func areaLessonLines(
-        _ lessons: [CurriculumLessonRef], cells: [UUID: CurriculumCell], since: Date?
+        _ lessons: [CurriculumLessonRef], area: String, areaLessons: [CurriculumLessonRef],
+        cells: [UUID: CurriculumCell], since: Date?
     ) -> [String] {
+        let sequenceRank: [String: Int] = Dictionary(
+            ClassCurriculumMapModel.orderedSequences(in: area, lessons: areaLessons)
+                .enumerated().map { ($0.element.trimmed().lowercased(), $0.offset) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let rank: (CurriculumLessonRef) -> Int = { sequenceRank[$0.sequence.trimmed().lowercased()] ?? Int.max }
         let rows = lessons
             .filter { lesson in
                 guard let since else { return true }
                 guard let cell = cells[lesson.id], let activity = cell.lastActivity else { return false }
                 return activity >= since
             }
-            .sorted(by: curriculumOrder)
+            .sorted { lhs, rhs in
+                let (left, right) = (rank(lhs), rank(rhs))
+                return left != right ? left < right : curriculumOrder(lhs, rhs)
+            }
         guard !rows.isEmpty else {
             return [since.map { "  (nothing since \(dayString($0)))" } ?? "  (no key lessons filed)"]
         }
@@ -253,21 +266,29 @@ extension MCPNotebookTools {
         return lines.joined(separator: "\n")
     }
 
-    /// A lesson reference first; failing that, an area name.
+    /// An exact area name first, then a lesson reference. Trying the lesson
+    /// first let a partial match win — "Biology" answered for "Introduction to
+    /// Biology" — and swallowed an ambiguous name (bug hunt 2026-10-12, #25).
+    /// An ambiguous lesson name is passed on; a reference matching nothing
+    /// lists the areas.
     private static func resolveMapScope(
         _ reference: String, lessons: [CurriculumLessonRef], in modelContext: NSManagedObjectContext
     ) throws -> (title: String, lessonIDs: [UUID]) {
-        if let lesson = try? resolveLessonReference(reference, in: modelContext), let id = lesson.id {
-            return (describeLesson(lesson), [id])
-        }
         let areas = areasInOrder(lessons)
-        guard let area = areas.first(where: { sameFiling($0, reference) }) else {
+        if UUID(uuidString: reference) == nil, let area = areas.first(where: { sameFiling($0, reference) }) {
+            return ("\(area) (best state across the area)", lessons.filter { sameFiling($0.area, area) }.map(\.id))
+        }
+        let table = allCurriculumLessons(in: modelContext)
+        let token = reference.folded()
+        guard UUID(uuidString: reference) != nil || table.contains(where: { $0.name.folded().contains(token) }) else {
             throw MCPToolError(
                 "\"\(reference)\" is neither a lesson nor an area. Use find_lessons for a lesson; "
                     + "areas are: \(areas.joined(separator: ", "))."
             )
         }
-        return ("\(area) (best state across the area)", lessons.filter { sameFiling($0.area, area) }.map(\.id))
+        let lesson = try LessonReferences(in: modelContext, table: table).resolve(reference)
+        guard let id = lesson.id else { throw MCPToolError("That lesson record has no identifier.") }
+        return (describeLesson(lesson), [id])
     }
 
     // MARK: - Arguments & Ordering

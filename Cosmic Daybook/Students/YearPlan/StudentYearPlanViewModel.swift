@@ -75,9 +75,22 @@ final class StudentYearPlanViewModel {
 
         // 4. Build unified cell lookup
         itemsByCell = buildCells(assignments: unlinkedAssignments)
-        closedDayCount = entriesStillAhead
-            .filter { YearPlanPacing.fallsOnClosedDay($0, in: context) }
-            .count
+        closedDayCount = closedDayEntries(in: context).count
+    }
+
+    /// Planned targets from today on that sit on days the school is closed:
+    /// the ones Readjust moves. Promoted entries are real assignments it
+    /// leaves alone, and a target already past isn't one still ahead, so
+    /// counting either kept the warning up after Readjust (bug hunt
+    /// 2026-10-12 #53).
+    private func closedDayEntries(in context: NSManagedObjectContext) -> [CDYearPlanEntry] {
+        let today = AppCalendar.startOfDay(Date())
+        return entries.filter { entry in
+            guard entry.isPlanned, !entry.isSatisfied(by: satisfaction),
+                  let date = entry.plannedDate, AppCalendar.startOfDay(date) >= today
+            else { return false }
+            return YearPlanPacing.fallsOnClosedDay(entry, in: context)
+        }
     }
 
     /// Lays the entries and the assignments nothing links to onto calendar

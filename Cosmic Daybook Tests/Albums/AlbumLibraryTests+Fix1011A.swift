@@ -43,7 +43,7 @@ struct AlbumLibraryFix1011ATests {
         let build = Task { await library.buildIndexes(policy: hot) }
         // Paused for heat after the first album, as the iPad's first Albums
         // visit can be while shelf downloads finish.
-        #expect(await AlbumTestSupport.waitUntil { hot.waitingTaskCount == 1 })
+        #expect(await AlbumTestSupport.waitUntil { library.indexEnergyWait != nil })
         #expect(library.pageTexts[albums[0].id]?.count == 6)
 
         // What `load(from:)` ends with when another album arrives: a new list
@@ -76,7 +76,7 @@ struct AlbumLibraryFix1011ATests {
         library.albums = albums
         let hot = EnergyPolicy(thermalState: .critical, isLowPowerMode: false)
         let build = Task { await library.buildIndexes(policy: hot) }
-        #expect(await AlbumTestSupport.waitUntil { hot.waitingTaskCount == 1 })
+        #expect(await AlbumTestSupport.waitUntil { library.indexEnergyWait != nil })
 
         // Critical memory pressure drops the first album's text mid-build.
         library.releaseMemory(critical: true)

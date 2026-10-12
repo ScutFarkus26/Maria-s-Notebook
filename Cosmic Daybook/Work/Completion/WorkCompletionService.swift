@@ -1,34 +1,8 @@
 import Foundation
 import CoreData
 
-/// A small service layer that centralizes queries and mutations
-/// around `CDWorkCompletionRecord`.
+/// Writes `CDWorkCompletionRecord`s.
 enum WorkCompletionService {
-    // MARK: - Fetching
-
-    /// Fetch all completion records for a given work ID.
-    /// If `studentID` is provided, the results are filtered to that student.
-    static func records(
-        for workID: UUID, studentID: UUID? = nil,
-        in context: NSManagedObjectContext
-    ) throws -> [CDWorkCompletionRecord] {
-        let request = CDFetchRequest(CDWorkCompletionRecord.self)
-        let workIDString = workID.uuidString
-        if let studentID {
-            let studentIDString = studentID.uuidString
-            request.predicate = NSPredicate(
-                format: "workID == %@ AND studentID == %@",
-                workIDString, studentIDString
-            )
-        } else {
-            request.predicate = NSPredicate(format: "workID == %@", workIDString)
-        }
-        request.sortDescriptors = [NSSortDescriptor(key: "completedAt", ascending: false)]
-        return try context.fetch(request)
-    }
-
-    // MARK: - Mutations
-
     /// Record a completion event for a given work + student.
     /// This preserves history by appending a new record each time.
     /// `saveImmediately: false` lets a caller that writes several things

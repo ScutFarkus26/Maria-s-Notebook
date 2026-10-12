@@ -25,8 +25,8 @@ extension MCPNotebookTools {
             description: "Recorded practice: how long a child worked, how it went, and what the "
                 + "guide noticed — breakthroughs, struggles, asking for help, helping a peer, "
                 + "readiness for a check-in or assessment. Filter to one student, or to sessions "
-                + "carrying a particular signal. Sixty days by default; raise limit or pass "
-                + "since/until (YYYY-MM-DD) to go further back.",
+                + "carrying a particular signal. Sixty days by default; raise days_back (up to 365) "
+                + "or pass since/until (YYYY-MM-DD) to go further back. limit caps how many are listed.",
             inputSchema: practiceSessionsSchema,
             annotations: .readOnly,
             handler: { arguments in

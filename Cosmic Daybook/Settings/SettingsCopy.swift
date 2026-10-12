@@ -245,4 +245,10 @@ enum SettingsCopy {
         static let saveFailedTitle = "Couldn’t Save the Template"
         static let saveFailed = "Your changes are still here. Try saving again."
     }
+
+    /// The carried-over year plans sweep (`CarriedOverPlanSweepView`).
+    enum CarriedOverSweep {
+        static let saveFailedTitle = "Plans Not Changed"
+        static let saveFailed = "Couldn’t save the changes to last year’s plans, so nothing was changed. Try again."
+    }
 }

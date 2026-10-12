@@ -60,13 +60,19 @@ struct MCPToolsFix1011MTests {
     @Test("A refused update_work takes back its own completion, not the guide's edits")
     func refusedUpdateWorkKeepsGuideEdits() async throws {
         let (tools, context) = try makeTools()
-        CoreDataTestHelpers.seedLesson(in: context, name: "Bead Frame", area: "Math", sequence: "Operations")
         let sam = CoreDataTestHelpers.seedStudent(in: context, firstName: "Sam", lastName: "Lee")
+        let ana = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ana", lastName: "Perez")
+        // A row the two share, where completed_by records one child's finish.
+        let row = CoreDataTestHelpers.seedWorkModel(in: context, title: "Bead Frame", studentID: try #require(sam.id))
+        row.id = UUID()
+        for student in [sam, ana] {
+            let participant = CDWorkParticipantEntity(context: context)
+            participant.id = UUID()
+            participant.studentID = try #require(student.id).uuidString
+            participant.work = row
+        }
         CoreDataTestHelpers.save(context)
-        _ = try await call("assign_work", [
-            "lesson": .string("Bead Frame"), "student_names": .array([.string("Sam")])
-        ], in: tools)
-        let workID = try #require(context.safeFetch(CDFetchRequest(CDWorkModel.self)).first?.id)
+        let workID = try #require(row.id)
 
         sam.nickname = "Sammy"
 

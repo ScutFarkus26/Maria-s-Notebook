@@ -35,7 +35,9 @@ import OSLog
 /// records left pointing at nothing.
 struct WorkCascade: Equatable {
     var participants = 0
-    /// Observations written against the work (`unifiedNotes` cascades).
+    /// Notes that go with the work, each counted once: the work's own
+    /// (`unifiedNotes` cascades) and its check-ins' and completion records'
+    /// (each cascades from its record, and the records go too).
     var observations = 0
     var completionRecords = 0
     /// Counted through the relationship and the `workID` string both.
@@ -137,17 +139,31 @@ struct WorkDeletionService {
     }
 
     /// What deleting `work` destroys and what it leaves dangling.
+    ///
+    /// The notes count reaches the check-ins' and completion records' notes
+    /// too: "Delete this work?" counted only the work's own and said less
+    /// than it removed (bug hunt 2026-10-12 #44). A logged note sits on the
+    /// work and on that day's check-in, so notes are counted by identity.
     func cascade(for work: CDWorkModel) -> WorkCascade {
         var cascade = WorkCascade()
         cascade.participants = work.participants?.count ?? 0
-        cascade.observations = ((work.unifiedNotes?.allObjects as? [CDNote]) ?? [])
-            .filter { !$0.body.trimmed().isEmpty }.count
-        cascade.checkIns = Self.checkIns(of: work, in: context).count
+        let checkIns = Self.checkIns(of: work, in: context)
+        cascade.checkIns = checkIns.count
         cascade.steps = work.steps?.count ?? 0
-        guard let workID = work.id?.uuidString else { return cascade }
-        cascade.completionRecords = completionRecords(workID: workID).count
-        cascade.meetingReviews = meetingReviews(workID: workID).count
-        cascade.scheduledMeetings = scheduledMeetings(workID: workID).count
+        var notes = (work.unifiedNotes as? Set<CDNote>) ?? []
+        for checkIn in checkIns {
+            notes.formUnion((checkIn.notes as? Set<CDNote>) ?? [])
+        }
+        if let workID = work.id?.uuidString {
+            let records = completionRecords(workID: workID)
+            for record in records {
+                notes.formUnion((record.notes as? Set<CDNote>) ?? [])
+            }
+            cascade.completionRecords = records.count
+            cascade.meetingReviews = meetingReviews(workID: workID).count
+            cascade.scheduledMeetings = scheduledMeetings(workID: workID).count
+        }
+        cascade.observations = notes.count { !$0.isDeleted && !$0.body.trimmed().isEmpty }
         return cascade
     }
 
@@ -210,26 +226,30 @@ struct WorkDeletionService {
 
     // MARK: - Removal
 
-    /// Takes `studentID` off every row of the group containing `work`,
-    /// following the plan `removalPlan` reports.
+    /// Applies a plan built earlier by `removalPlan`, so what the guide was
+    /// shown is exactly what runs: `studentID` comes off every row of the
+    /// group it was built from.
     ///
     /// Writes no completion; touches no other child's `completedAt`. Her own
     /// completion records on the affected rows are deleted with her.
-    @discardableResult
-    func remove(
-        studentID: UUID,
-        from work: CDWorkModel,
-        persist: (() -> Bool)? = nil
-    ) throws -> WorkRemovalPlan {
-        let plan = try removalPlan(for: studentID, from: work)
-        try apply(plan, persist: persist)
-        return plan
-    }
-
-    /// Applies a plan built earlier by `removalPlan`, so what the guide was
-    /// shown is exactly what runs.
     func apply(_ plan: WorkRemovalPlan, persist: (() -> Bool)? = nil) throws {
         let transaction = ContextMutationTransaction(context: context)
+        applyWithoutSaving(plan)
+
+        let didSave = persist?() ?? context.safeSave()
+        guard didSave else {
+            transaction.rollback()
+            throw ServiceError.saveFailed
+        }
+        transaction.commit()
+        Self.logger.info("Removed a child from \(plan.steps.count) work row(s)")
+    }
+
+    /// The changes `apply` makes, with no transaction and no save, for a
+    /// caller that holds its own `ContextMutationTransaction` around a larger
+    /// edit: transactions don't nest, so one taken here would hide these
+    /// changes from the caller's rollback (`PresentationWorkRetraction`).
+    func applyWithoutSaving(_ plan: WorkRemovalPlan) {
         for step in plan.steps {
             switch step.action {
             case .dropParticipant:
@@ -247,14 +267,6 @@ struct WorkDeletionService {
         for record in plan.completionRecords where !record.isDeleted {
             context.delete(record)
         }
-
-        let didSave = persist?() ?? context.safeSave()
-        guard didSave else {
-            transaction.rollback()
-            throw ServiceError.saveFailed
-        }
-        transaction.commit()
-        Self.logger.info("Removed a child from \(plan.steps.count) work row(s)")
     }
 
     /// Takes `studentID` off every row in `works` that names her, for callers

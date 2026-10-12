@@ -73,7 +73,7 @@ extension PresentationDetailContentView {
         if plans.isEmpty {
             saveAndDone(retractingWork: [])
         } else {
-            vm.pendingWorkRetraction = plans
+            vm.offerWorkRetraction(plans)
         }
     }
 

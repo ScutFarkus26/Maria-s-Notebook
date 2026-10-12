@@ -86,6 +86,7 @@ extension MCPNotebookTools {
         }
         let scope = clearScopeDescription(track: track, before: before)
         guard !entries.isEmpty else {
+            MCPCallOutcome.markNothingWritten()
             let tracks = Set(planned.map(\.sequenceGroupKey)).sorted().map(trackLabel)
             let hint = tracks.isEmpty ? "" : " Planned tracks: \(tracks.joined(separator: ", "))."
             return "\(student.fullName) has no planned year-plan entries\(scope).\(hint)"

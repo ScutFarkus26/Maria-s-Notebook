@@ -42,13 +42,19 @@ struct MCPWriteSafetyTests {
     @Test("update_work: a refused status rolls back the completion recorded before it")
     func updateWorkCompletionRollsBack() async throws {
         let (tools, context) = try makeTools()
-        CoreDataTestHelpers.seedLesson(in: context, name: "Bead Frame", area: "Math", sequence: "Operations")
-        CoreDataTestHelpers.seedStudent(in: context, firstName: "Sam", lastName: "Lee")
+        let sam = CoreDataTestHelpers.seedStudent(in: context, firstName: "Sam", lastName: "Lee")
+        let ana = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ana", lastName: "Perez")
+        // A row the two share, where completed_by records one child's finish.
+        let row = CoreDataTestHelpers.seedWorkModel(in: context, title: "Bead Frame", studentID: try #require(sam.id))
+        row.id = UUID()
+        for student in [sam, ana] {
+            let participant = CDWorkParticipantEntity(context: context)
+            participant.id = UUID()
+            participant.studentID = try #require(student.id).uuidString
+            participant.work = row
+        }
         CoreDataTestHelpers.save(context)
-        _ = try await tool(named: "assign_work", in: tools).handler([
-            "lesson": .string("Bead Frame"), "student_names": .array([.string("Sam")])
-        ])
-        let workID = try #require(context.safeFetch(CDFetchRequest(CDWorkModel.self)).first?.id)
+        let workID = try #require(row.id)
 
         await #expect(throws: MCPToolError.self) {
             _ = try await tool(named: "update_work", in: tools).handler([

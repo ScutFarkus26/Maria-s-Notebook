@@ -21,8 +21,9 @@
 //  The recovery test is mutual naming: two rows are linked copies only if each
 //  one's participants name the other's owner. A one-directional link is not
 //  enough. That matters because deleting one row of a fan-out group leaves the
-//  survivors still naming the deleted child (`WorkRepository.deleteWork` does
-//  not clean up siblings), and the residue looks exactly like a shared row.
+//  survivors still naming the deleted child (only `WorkDeletionService` cleans
+//  up siblings, and older builds deleted without it), and the residue looks
+//  exactly like a shared row.
 //  Failing the mutual test means such a row degrades to `.shared` and is read
 //  as a single row — the conservative answer, and the one that keeps callers
 //  from reaching into records that are no longer part of any group.

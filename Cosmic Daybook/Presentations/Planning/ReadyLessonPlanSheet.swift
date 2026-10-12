@@ -40,10 +40,20 @@ struct ReadyLessonPlanSheet: View {
         )
     }
 
+    /// A child already waiting for the lesson isn't planned for it twice
+    /// (bug hunt 2026-10-12, #32). When every child already is, the guide is
+    /// told so, and told when a chosen reason wasn't added, rather than the
+    /// sheet closing without a word.
     private func save(studentIDs: Set<UUID>, purpose: RepeatPurpose?) {
-        guard PresentationPlanner.planDraft(
+        guard let result = PresentationPlanner.planOrReuse(
             lesson: plan.lesson, studentIDs: studentIDs, purpose: purpose, in: viewContext
-        ) != nil else { return }
+        ) else { return }
+        guard result.isNew else {
+            ToastService.shared.show(
+                PresentationPlanner.alreadyPlannedMessage(purpose: purpose), type: .info, duration: 4
+            )
+            return
+        }
         saveCoordinator.save(viewContext, reason: "Plan presentation")
     }
 }

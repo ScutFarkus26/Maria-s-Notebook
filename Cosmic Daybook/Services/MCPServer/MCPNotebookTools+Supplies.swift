@@ -220,6 +220,7 @@ extension MCPNotebookTools {
         let before = supply.currentQuantity
         let (delta, after) = try countChange(change: change, setTo: setTo, from: before)
         guard delta != 0 else {
+            MCPCallOutcome.markNothingWritten()
             return "\(supply.name) is already at \(before) — nothing to record."
         }
         guard after >= 0 else {

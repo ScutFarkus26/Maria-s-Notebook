@@ -104,7 +104,9 @@ extension MCPNotebookTools {
             description: "File a letter or report home in the student's record — what was "
                 + "written and where it stands. This does not send anything: sending stays in "
                 + "the app so the guide reviews it first. Pass communication_id to update an "
-                + "existing one (for example to mark it sent).",
+                + "existing one (for example to mark it sent). A child has one monthly report "
+                + "per month, and a monthly report needs month: a second is refused (draft one "
+                + "with draft_parent_report, or update the one on file by its id).",
             inputSchema: recordCommunicationSchema,
             annotations: .write,
             handler: { arguments in
@@ -140,7 +142,11 @@ extension MCPNotebookTools {
                 "description": .string("Where it stands. Marking it sent stamps the sent date "
                     + "unless sent_date is given.")
             ],
-            "sent_date": ["type": "string", "description": "The day it went home, YYYY-MM-DD"],
+            "sent_date": [
+                "type": "string",
+                "description": .string("The day it went home, YYYY-MM-DD. It means sent: on its "
+                    + "own it marks the communication sent, and beside any other status it is refused.")
+            ],
             "month": ["type": "string", "description": "The report month it belongs to, YYYY-MM"],
             "notes": ["type": "string", "description": "Private notes for the guide"]
         ]
@@ -151,8 +157,11 @@ extension MCPNotebookTools {
     ) throws -> String {
         let communication: CDParentCommunication
         let verb: String
+        // Where an existing one stood before this call, for the monthly-report guard.
+        var placedBefore: ReportPlacement?
         if let reference = nonEmpty(arguments["communication_id"]?.stringValue) {
             communication = try resolveCommunication(reference, in: modelContext)
+            placedBefore = ReportPlacement(communication)
             verb = "Updated"
         } else {
             communication = try makeCommunication(arguments, in: modelContext)
@@ -176,7 +185,9 @@ extension MCPNotebookTools {
             communication.communicationType = type
             changes.append(type.rawValue)
         }
-        if let monthKey = nonEmpty(arguments["month"]?.stringValue) {
+        if nonEmpty(arguments["month"]?.stringValue) != nil {
+            // Read as the reports read it, so "2026-9" files under 2026-09.
+            let monthKey = try reportMonthArgument(arguments, "month").monthKey
             communication.monthKey = monthKey
             changes.append("month \(monthKey)")
         }
@@ -185,6 +196,7 @@ extension MCPNotebookTools {
             changes.append("notes")
         }
         changes += try applyCommunicationStatus(arguments, to: communication)
+        try refuseSecondMonthlyReport(communication, placedBefore: placedBefore, in: modelContext)
         communication.modifiedAt = Date()
 
         guard !changes.isEmpty else {
@@ -198,16 +210,80 @@ extension MCPNotebookTools {
             + changes.joined(separator: ", ") + "."
     }
 
+    /// What places a communication in the monthly-report queue: whose it is,
+    /// which month, and what kind.
+    private struct ReportPlacement: Equatable {
+        let studentID: String
+        let monthKey: String?
+        let type: CommunicationType
+
+        init(_ communication: CDParentCommunication) {
+            studentID = communication.studentID
+            monthKey = MCPNotebookTools.nonEmpty(communication.monthKey)
+            type = communication.communicationType
+        }
+    }
+
+    /// One child has one monthly report a month: Parent Reports shows one row
+    /// per child, and `draft_parent_report` updates it in place. A second row
+    /// filed here was a report the queue would hide behind the first, so it is
+    /// refused, naming the one on file.
+    ///
+    /// Checked only when the report is new or its month, type or child
+    /// changes: two reports filed for one month before this guard each locked
+    /// the other out of every edit. A monthly report with no month belongs to
+    /// no row of the queue, so a new one (or one turned into a monthly report)
+    /// needs `month`.
+    private static func refuseSecondMonthlyReport(
+        _ communication: CDParentCommunication, placedBefore: ReportPlacement?,
+        in modelContext: NSManagedObjectContext
+    ) throws {
+        guard communication.communicationType == .monthlyReport,
+              placedBefore != ReportPlacement(communication) else { return }
+        guard let monthKey = nonEmpty(communication.monthKey) else {
+            throw MCPToolError(
+                "A monthly report needs the month it belongs to — pass month as YYYY-MM. "
+                    + (placedBefore == nil ? "Nothing was filed." : "Nothing was changed.")
+            )
+        }
+        let request = CDParentCommunication.monthlyReportRequest(
+            studentID: communication.studentID, monthKey: monthKey
+        )
+        request.fetchLimit = 0
+        guard let existing = modelContext.safeFetch(request).first(where: { $0 !== communication }) else {
+            return
+        }
+        let repository = StudentRepository(context: modelContext)
+        let name = UUID(uuidString: communication.studentID)
+            .flatMap { repository.fetchStudent(id: $0) }?.fullName ?? "This child"
+        let id = existing.id?.uuidString ?? "unknown"
+        throw MCPToolError(
+            "\(name) already has a monthly report for \(monthKey) [communication id=\(id)] "
+                + "(\(existing.status.displayName.lowercased())); nothing was filed. Update that one "
+                + "with its communication_id, or draft it with draft_parent_report."
+        )
+    }
+
     /// Marking something sent stamps the date, because a "sent" letter with no
-    /// date reads as unsent everywhere else in the app.
+    /// date reads as unsent everywhere else in the app. `sent_date` means sent:
+    /// on its own it marks the communication sent (it used to leave a draft
+    /// the reply called sent), and beside another status it is refused (it
+    /// used to be dropped).
     private static func applyCommunicationStatus(
         _ arguments: [String: JSONValue], to communication: CDParentCommunication
     ) throws -> [String] {
         let explicitDate = try dayArgument(arguments, "sent_date")
         guard let status = try reportStatusArgument(arguments, "status") else {
             guard let explicitDate else { return [] }
+            communication.status = .sent
             communication.sentAt = explicitDate
-            return ["sent \(dayString(explicitDate))"]
+            return ["marked sent \(dayString(explicitDate))"]
+        }
+        if explicitDate != nil, status != .sent {
+            throw MCPToolError(
+                "sent_date means it went home, but status is \(status.rawValue). Pass status "
+                    + "sent with sent_date, or leave sent_date out."
+            )
         }
         communication.status = status
         guard status == .sent else {

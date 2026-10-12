@@ -96,9 +96,9 @@ struct SchoolYearRolloverView: View {
             switch viewModel.phase {
             case .assign:
                 Button("Review…") { viewModel.phase = .review }
-                    .disabled(viewModel.changeCount == 0)
+                    .disabled(!viewModel.canReview(context: viewContext, store: store))
             case .review:
-                Button("Apply Rollover (\(viewModel.changeCount))") {
+                Button(viewModel.applyButtonTitle) {
                     if viewModel.closesYearInProgress(store: store) {
                         confirmingYearInProgress = true
                     } else {
@@ -279,8 +279,7 @@ private extension SchoolYearRolloverView {
         List {
             Section {
                 Label {
-                    let count = viewModel.appliedChangeCount
-                    Text("Applied \(count) change\(count == 1 ? "" : "s").")
+                    Text(viewModel.appliedSummaryText)
                         .font(AppTheme.ScaledFont.calloutSemibold)
                 } icon: {
                     Image(systemName: "checkmark.circle.fill")

@@ -123,7 +123,8 @@ nonisolated enum CurriculumMapLoader {
             guard let id = work.id, let lessonID = UUID(uuidString: work.lessonID) else { return nil }
             let participants = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
             var studentIDs: [UUID] = participants.compactMap { UUID(uuidString: $0.studentID) }
-            if let owner = UUID(uuidString: work.studentID), !studentIDs.contains(owner) {
+            let owner = UUID(uuidString: work.studentID)
+            if let owner, !studentIDs.contains(owner) {
                 studentIDs.insert(owner, at: 0)
             }
             return CurriculumWorkRef(
@@ -133,7 +134,9 @@ nonisolated enum CurriculumMapLoader {
                 statusRaw: work.statusRaw,
                 assignedAt: work.assignedAt ?? work.createdAt,
                 completedAt: work.completedAt,
-                lastTouchedAt: work.lastTouchedAt
+                lastTouchedAt: work.lastTouchedAt,
+                ownerID: owner,
+                isSharedRow: work.sourceContextType == .projectSession
             )
         }
     }

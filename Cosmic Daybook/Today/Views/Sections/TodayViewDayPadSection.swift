@@ -17,7 +17,7 @@ extension TodayView {
 }
 
 /// Standalone so the day's pad row can be fetched here rather than adding a
-/// property to `TodayViewModel` — the same shape `DeadlinesSectionView` uses.
+/// property to `TodayViewModel`.
 struct DayPadSectionView: View {
     let day: Date
     @Binding var isExpanded: Bool

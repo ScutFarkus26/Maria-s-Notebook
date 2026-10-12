@@ -115,7 +115,9 @@ extension MCPNotebookTools {
                 + "children, take children off, or both — so regrouping never leaves a stale copy "
                 + "in the planning list. Refuses to empty the group (discard_presentation is for "
                 + "that), refuses presentations already given, and refuses to add a withdrawn or "
-                + "transferred child — though taking one off is how a departure is cleaned up.",
+                + "transferred child — though taking one off is how a departure is cleaned up. Adding "
+                + "a child who already has the lesson on record is refused unless purpose says why "
+                + "she is having it again, as schedule_presentation does.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -133,7 +135,8 @@ extension MCPNotebookTools {
                         "type": "array",
                         "items": ["type": "string"],
                         "description": "Children to take off the group"
-                    ]
+                    ],
+                    "purpose": repeatPurposeProperty
                 ],
                 "required": ["presentation_id"]
             ],
@@ -187,6 +190,7 @@ extension MCPNotebookTools {
             return "[presentation id=\(assignment.id?.uuidString ?? "unknown")] Nothing changed: "
                 + changes.joined(separator: ", ") + "."
         }
+        let repeatTail = try recordRepeats(adding, to: assignment, arguments, in: modelContext)
 
         // The same write the detail view's Save and the departure retraction
         // make, including sending a removed child's promoted entry back to planned.
@@ -200,8 +204,38 @@ extension MCPNotebookTools {
             throw MCPToolError("The presentation could not be saved.")
         }
         let id: String = assignment.id?.uuidString ?? "unknown"
-        return "[presentation id=\(id)] \(changes.joined(separator: ", ")). "
+        return "[presentation id=\(id)] \(changes.joined(separator: ", "))\(repeatTail). "
             + "Now: \(presentationSummary(assignment, in: modelContext))"
+    }
+
+    /// The regive guard for the children joining a plan, as
+    /// `schedule_presentation` runs it: a child the record already covers
+    /// for this lesson is refused unless `purpose` says why, and a purpose
+    /// is written down the same way. Runs before the roster is written.
+    /// Returns the receipt's tail.
+    private static func recordRepeats(
+        _ adding: [CDStudent], to assignment: CDLessonAssignment, _ arguments: [String: JSONValue],
+        in modelContext: NSManagedObjectContext
+    ) throws -> String {
+        let purpose = try RepeatPurpose.argument(arguments)
+        let joining = adding.filter { $0.id.map { !assignment.studentIDs.contains($0.uuidString) } ?? false }
+        let lesson = assignment.lesson
+            ?? UUID(uuidString: assignment.lessonID).flatMap { modelContext.object(CDLesson.self, id: $0) }
+        guard !joining.isEmpty, let lesson, let lessonID = lesson.id?.uuidString else { return "" }
+        let day = assignment.scheduledFor ?? Date()
+        let index = PresentationRecordIndex(lessonIDs: [lessonID], in: modelContext)
+        let conflicts = repeatConflicts(lessonID: lessonID, students: joining, before: day, index: index)
+        if !conflicts.isEmpty, purpose == nil {
+            throw refuseRepeat(
+                tool: "update_presentation_roster", lesson: lesson, conflicts: conflicts, of: joining.count
+            )
+        }
+        guard let purpose else { return "" }
+        recordRepeatIntent(
+            RepeatIntent(purpose: purpose, conflicts: conflicts, lessonID: lessonID, index: index),
+            draft: assignment, plannedOn: day, in: modelContext
+        )
+        return repeatReceipt(purpose, conflicts: conflicts.count, of: joining.count)
     }
 
     // MARK: - Shared

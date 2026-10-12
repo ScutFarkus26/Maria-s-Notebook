@@ -238,10 +238,22 @@ extension WeekPlanSection {
 
     // MARK: - Actions
 
-    /// Every pill opens the log sheet — one child or six. A single child used
-    /// to jump straight to the work window, which had no way to log the check.
+    /// Every pill for today or earlier opens the log sheet — one child or six.
+    /// A single child used to jump straight to the work window, which had no
+    /// way to log the check. A pill for a later day has nothing to log yet
+    /// (bug hunt 2026-10-12, #37): it opens the work, asking whose when the
+    /// pill is a group's.
     func openCheckInGroup(_ group: CalendarCheckInGroup) {
-        selectedGroup = group
+        guard !WorkCheckPillActions.canLog(group) else {
+            selectedGroup = group
+            return
+        }
+        let rows = rows(of: group)
+        if rows.count == 1, let workID = rows[0].id {
+            onOpenWork(workID)
+        } else if !rows.isEmpty {
+            laterPill = group
+        }
     }
 
     // MARK: - Logging
@@ -356,23 +368,5 @@ extension WeekPlanSection {
         guard !scheduled.isEmpty else { return }
         for lesson in scheduled { lesson.unschedule() }
         saveCoordinator.save(viewContext, reason: "Clear all scheduled presentations to inbox")
-    }
-
-    /// Slides the whole plan one school day later — presentations and the work
-    /// checks alongside them. See `CalendarForwardShiftService` for the rule.
-    func moveAllScheduledForward() async {
-        let moved = CalendarForwardShiftService.moveForwardOneDay(
-            in: viewContext,
-            calendar: calendar,
-            nextSchoolDay: { day in
-                SchoolCalendarService.shared.nextSchoolDaySync(after: day, using: viewContext)
-            }
-        )
-        guard !moved.isEmpty else { return }
-        saveCoordinator.save(
-            viewContext,
-            reason: "Move all scheduled presentations and work forward one day"
-        )
-        await refreshCheckIns()
     }
 }

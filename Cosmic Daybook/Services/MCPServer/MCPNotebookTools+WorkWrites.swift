@@ -82,7 +82,10 @@ extension MCPNotebookTools {
         let title: String
         let kind: WorkKind?
         let dueDate: Date?
+        /// The asked-for day, or the next school day after it.
         let checkInDate: Date?
+        /// " (… is not a school day, so it moved forward to …)", or empty.
+        let checkInDetour: String
         let checkInPurpose: String
     }
 
@@ -113,6 +116,14 @@ extension MCPNotebookTools {
         guard studentIDs.count == students.count else {
             throw MCPToolError("A matched student record has no identifier.")
         }
+        // A closed day lands on the next open one, as add_check_in_on does.
+        let askedCheckIn = try dayArgument(arguments, "check_in_date").map(AppCalendar.startOfDay)
+        let checkInDate = askedCheckIn.map { YearPlanPacing.schoolDay(onOrAfter: $0, in: modelContext) }
+        var detour = ""
+        if let askedCheckIn, let checkInDate, checkInDate != askedCheckIn {
+            detour = " (\(dayString(askedCheckIn)) is not a school day, so it moved forward to "
+                + "\(dayString(checkInDate)))"
+        }
         return WorkAssignment(
             lesson: lesson,
             lessonID: lessonID,
@@ -121,7 +132,8 @@ extension MCPNotebookTools {
             title: nonEmpty(arguments["title"]?.stringValue) ?? lesson.name,
             kind: try workKindArgument(arguments, "kind"),
             dueDate: try dayArgument(arguments, "due_date"),
-            checkInDate: try dayArgument(arguments, "check_in_date"),
+            checkInDate: checkInDate,
+            checkInDetour: detour,
             checkInPurpose: nonEmpty(arguments["check_in_purpose"]?.stringValue) ?? ""
         )
     }
@@ -142,7 +154,7 @@ extension MCPNotebookTools {
             .joined(separator: " ")
         let who = assignment.students.map(\.fullName).joined(separator: ", ")
         let due = assignment.dueDate.map { ", due \(dayString($0))" } ?? ""
-        let check = assignment.checkInDate.map { ", check-in \(dayString($0))" } ?? ""
+        let check = assignment.checkInDate.map { ", check-in \(dayString($0))\(assignment.checkInDetour)" } ?? ""
         return "Assigned \"\(assignment.title)\" to \(who)\(due)\(check). \(ids)"
     }
 
@@ -211,7 +223,8 @@ extension MCPNotebookTools {
                 + "active and review keep it open; mastered, keepPracticing and incomplete close "
                 + "it, record the completion, mark the day's check-in done and skip later ones, so "
                 + "it leaves the schedule), set or clear its due date, record which student "
-                + "finished it, schedule a new check-in, complete a scheduled check-in, or move a "
+                + "finished a row several children share, schedule a new check-in, complete a scheduled "
+                + "check-in (which also closes the work's linked todos, named in the reply), or move a "
                 + "scheduled check-in to another day. A new or moved check-in goes on every linked "
                 + "copy unless this child only is asked for. A status applies to every linked copy of the work unless "
                 + "students names some of them. Only the fields provided are changed.",
@@ -253,12 +266,16 @@ extension MCPNotebookTools {
             ],
             "completed_by": [
                 "type": "string",
-                "description": .string("A student who has finished their part — records a "
-                    + "completion for that child without closing the whole item")
+                "description": .string("Only for a row several children share: records that child's "
+                    + "finish without closing the item. Refused beside a closing status (the status "
+                    + "records the finish itself); refused on a child's own linked copy or a row with "
+                    + "only one child (log that child's status instead); and a classmate named on a "
+                    + "linked copy is refused with their own copy's id")
             ],
             "complete_check_in_on": [
                 "type": "string",
-                "description": "Mark the check-in scheduled for this day as completed, YYYY-MM-DD"
+                "description": .string("Mark the check-in scheduled for this day as completed, "
+                    + "YYYY-MM-DD. The work's linked todos close with it, and the reply names them")
             ],
             "move_check_in_from": [
                 "type": "string",
@@ -343,33 +360,6 @@ extension MCPNotebookTools {
         }
         return "[work id=\(workID.uuidString)] \(title(of: work)): "
             + changes.joined(separator: ", ") + "."
-    }
-
-    /// Records one child as finished without closing the item for everyone —
-    /// group work is often finished at different times.
-    private static func applyStudentCompletion(
-        _ arguments: [String: JSONValue], to work: CDWorkModel, workID: UUID,
-        in modelContext: NSManagedObjectContext
-    ) throws -> [String] {
-        guard let reference = nonEmpty(arguments["completed_by"]?.stringValue) else { return [] }
-        let student = try resolveStudentReference(reference, in: modelContext)
-        guard let studentID = student.id, involves(studentID, in: work) else {
-            throw MCPToolError("\(student.fullName) is not on this work item.")
-        }
-        do {
-            // Saved with the rest of the call, so a later argument's refusal
-            // undoes this too.
-            try WorkCompletionService.markCompleted(
-                workID: workID, studentID: studentID,
-                note: nonEmpty(arguments["note"]?.stringValue) ?? "",
-                in: modelContext,
-                saveImmediately: false
-            )
-        } catch {
-            throw MCPToolError("That completion could not be recorded", underlying: error)
-        }
-        work.participant(for: studentID)?.completedAt = Date()
-        return ["recorded \(student.fullName) as finished"]
     }
 
     private static func applyDueDate(

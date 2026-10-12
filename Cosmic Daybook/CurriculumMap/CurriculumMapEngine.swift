@@ -7,6 +7,7 @@
 //   not presented  no presentation and no mastery record
 //   presented      a presentation exists
 //   chosen         ≥1 work item or practice session followed the lesson
+//                  (her own copy of linked work, not a classmate's)
 //   repeated       ≥3 practice sessions, or work moved to review / complete
 //   mastered       the mastery record says so, or the guide confirmed
 //                  proficiency on the presentation
@@ -162,9 +163,11 @@ nonisolated enum CurriculumMapEngine {
         var recalls: [CurriculumRecallRef] = []
     }
 
-    /// One pass over every record, bucketing by (child, lesson). Practice
-    /// sessions reach a lesson through the work items they touched; a session
-    /// counts for every child in it, on every lesson those items belong to.
+    /// One pass over every record, bucketing by (child, lesson). Work goes to
+    /// every child it names here and is narrowed to her own rows in
+    /// `finalize`. Practice sessions reach a lesson through the work items
+    /// they touched; a session counts for every child in it, on every lesson
+    /// those items belong to.
     private static func builders(
         input: CurriculumMapInput, only studentID: UUID?, lessons lessonIDs: Set<UUID>? = nil
     ) -> [UUID: [UUID: CellBuilder]] {
@@ -219,7 +222,9 @@ nonisolated enum CurriculumMapEngine {
         return candidateSeen > currentSeen ? candidate : current
     }
 
-    private static func finalize(_ builder: CellBuilder) -> CurriculumCell {
+    private static func finalize(_ bucket: CellBuilder) -> CurriculumCell {
+        var builder = bucket
+        builder.works = ownWork(for: builder.studentID, among: builder.works)
         var cell = CurriculumCell(studentID: builder.studentID, lessonID: builder.lessonID)
         let confirmed = builder.presentations.contains { $0.confirmedStudentIDs.contains(builder.studentID) }
         let isPresented = !builder.presentations.isEmpty || builder.mastery != nil
@@ -251,8 +256,14 @@ nonisolated enum CurriculumMapEngine {
         )
         cell.events = events(for: builder).sorted { $0.date < $1.date }
 
+        // The mastery record's `presentedAt` dates the lesson only when the
+        // cell has no presentation rows at all, dated or not: the checklist's
+        // undated "previously presented" mark stamps it with the day it was
+        // ticked, which beside an undated row would read "presented today".
         var presentedDates = builder.presentations.compactMap(\.presentedAt)
-        if let masteryPresented = builder.mastery?.presentedAt { presentedDates.append(masteryPresented) }
+        if builder.presentations.isEmpty, let masteryPresented = builder.mastery?.presentedAt {
+            presentedDates.append(masteryPresented)
+        }
         cell.firstPresented = presentedDates.min()
         cell.lastPresented = presentedDates.max()
         cell.recall = builder.recalls

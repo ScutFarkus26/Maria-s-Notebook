@@ -328,3 +328,18 @@ extension AppErrorMessages {
         static let guardianNotAnAddress = "That isn't an email address. Check it for typos."
     }
 }
+
+// MARK: - Lessons (bug hunt 2026-10-12)
+
+extension AppErrorMessages {
+    /// What the lesson screens say when a lesson can't be filed or saved.
+    enum Lessons {
+        /// The title over `LessonRepository.CreationError.duplicateName`'s
+        /// message, which names the lesson and its sub-area: Add Lesson, the
+        /// lesson editor's Save and dragging a lesson to another sub-area.
+        static let alreadyFiledTitle = "Already in the Curriculum"
+        /// Bulk Add's Save failed; nothing from the grid was kept.
+        static let bulkSaveFailedTitle = "Couldn't Add the Lessons"
+        static let bulkSaveFailed = "Couldn't save these lessons, so none were added. Try again."
+    }
+}

@@ -174,8 +174,11 @@ struct WorkLogServiceTests {
 
         let records = try completionRecords(for: copies[0], in: room.context)
         #expect(records.count == 1)
-        #expect(records.first?.studentID == room.simma.uuidString)
-        #expect(records.first?.latestUnifiedNoteText == "Needs the trinomial cube again")
+        let record = try #require(records.first)
+        #expect(record.studentID == room.simma.uuidString)
+        // The note is the row's dated note, filed once (bug hunt 2026-10-12 #36).
+        #expect((record.notes?.count ?? 0) == 0)
+        #expect(copies[0].latestUnifiedNoteText == "Needs the trinomial cube again")
         #expect(try completionRecords(for: copies[1], in: room.context).isEmpty)
         #expect(copies[1].status == .active, "the sibling's row is untouched")
     }

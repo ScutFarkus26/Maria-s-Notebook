@@ -22,11 +22,12 @@
 //
 //  Everything that points at the duplicate by id string is repointed at the
 //  survivor — presentations, mastery marks, year-plan entries, work,
-//  notes, recall checks, planning recommendations, resources, stories,
-//  track steps, and the lesson-to-lesson links — and the year-plan entries
+//  notes, recall checks, planning recommendations, resources, stories and
+//  their match reasons, Going Out curriculum links, track steps, and the
+//  lesson-to-lesson links (+LessonLinks) — and the year-plan entries
 //  and marks a child now holds twice for one lesson are folded to one.
-//  `LessonRepository.createLesson` refuses the same name in the same
-//  sub-area, so this should find nothing to do after the first run.
+//  `LessonRepository` refuses the same name in the same sub-area on create,
+//  rename and move (2026-10-12), so this should find nothing to do after that.
 //
 
 import CloudKit
@@ -107,7 +108,7 @@ nonisolated extension DataCleanupService {
         guard !groups.isEmpty else { return 0 }
 
         var removed: Int = 0
-        for group in groups where !DedupSyncState.noCopySent(group, container: container) {
+        for group in groups where DedupSyncState.mayFoldNameGroup(group, container: container) {
             let ordered: [CDLesson] = group.sorted { (lhs: CDLesson, rhs: CDLesson) -> Bool in
                 olderLessonPrecedes(lhs, rhs, container: container)
             }
@@ -191,13 +192,15 @@ nonisolated extension DataCleanupService {
         context.delete(duplicate)
     }
 
-    /// Every record that keys a lesson by its id string, moved from `old` to `new`.
+    /// Every record that keys a lesson by its id string, moved from `old` to `new`. One id on
+    /// both sides moves nothing: it read each track step as its own double (2026-10-12 hunt).
     static func repointLessonReferences(
         from old: UUID,
         to new: UUID,
         container: NSPersistentCloudKitContainer? = nil,
         in context: NSManagedObjectContext
     ) {
+        guard old != new else { return }
         let oldID = old.uuidString
         let newID = new.uuidString
 
@@ -220,29 +223,6 @@ nonisolated extension DataCleanupService {
         repointTrackSteps(from: old, to: new, in: context)
         repointMarks(from: oldID, to: newID, container: container, in: context)
         repointYearPlanEntries(from: oldID, to: newID, container: container, in: context)
-    }
-
-    /// The lesson-to-lesson, resource and story links, which hold ids singly
-    /// or as comma-separated lists.
-    private static func repointLessonLinks(from oldID: String, to newID: String, in context: NSManagedObjectContext) {
-        for lesson in fetch(CDLesson.self, where: "derivedFromLessonID == %@", oldID, in: context) {
-            lesson.derivedFromLessonID = newID
-        }
-        for lesson in fetch(CDLesson.self, where: "parentStoryID == %@", oldID, in: context) {
-            lesson.parentStoryID = newID
-        }
-        for lesson in fetch(CDLesson.self, where: "prerequisiteLessonIDs CONTAINS %@", oldID, in: context) {
-            lesson.prerequisiteLessonIDs = replacing(oldID, with: newID, inList: lesson.prerequisiteLessonIDs)
-        }
-        for lesson in fetch(CDLesson.self, where: "relatedLessonIDs CONTAINS %@", oldID, in: context) {
-            lesson.relatedLessonIDs = replacing(oldID, with: newID, inList: lesson.relatedLessonIDs)
-        }
-        for resource in fetch(CDResource.self, where: "linkedLessonIDs CONTAINS %@", oldID, in: context) {
-            resource.linkedLessonIDs = replacing(oldID, with: newID, inList: resource.linkedLessonIDs)
-        }
-        for story in fetch(CDStory.self, where: "relatedLessonIDsRaw CONTAINS %@", oldID, in: context) {
-            story.relatedLessonIDsRaw = replacing(oldID, with: newID, inList: story.relatedLessonIDsRaw)
-        }
     }
 
     // MARK: - Per-child collapses
@@ -379,20 +359,5 @@ nonisolated extension DataCleanupService {
         let request = CDFetchRequest(T.self)
         request.predicate = NSPredicate(format: format, argument)
         return context.safeFetch(request).filter { !$0.isDeleted }
-    }
-
-    /// Rewrites one id in a comma-separated id list, dropping the double that
-    /// results when both ids were already listed.
-    private static func replacing(_ old: String, with new: String, inList list: String) -> String {
-        var seen: Set<String> = []
-        var kept: [String] = []
-        for piece in list.split(separator: ",") {
-            let trimmed: String = String(piece).trimmed()
-            if trimmed.isEmpty { continue }
-            let isOld: Bool = trimmed.caseInsensitiveCompare(old) == .orderedSame
-            let id: String = isOld ? new : trimmed
-            if seen.insert(id.uppercased()).inserted { kept.append(id) }
-        }
-        return kept.joined(separator: ",")
     }
 }

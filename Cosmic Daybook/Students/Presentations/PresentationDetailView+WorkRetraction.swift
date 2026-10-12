@@ -11,7 +11,7 @@ extension PresentationDetailContentView {
         // naming her. Show what would change and let the guide decide.
         let plans = vm.workRetractionPlans()
         if !plans.isEmpty {
-            vm.pendingWorkRetraction = plans
+            vm.offerWorkRetraction(plans)
             return
         }
         saveAndDone(retractingWork: [])
@@ -37,15 +37,22 @@ extension PresentationDetailContentView {
         }
     }
 
+    /// Clears only the flag: the plans travel with the alert (G1), and each
+    /// button clears them itself.
     var workRetractionAlertIsPresented: Binding<Bool> {
         Binding(
-            get: { !vm.pendingWorkRetraction.isEmpty },
-            set: { if !$0 { vm.pendingWorkRetraction = [] } }
+            get: { vm.showsWorkRetraction },
+            set: { vm.showsWorkRetraction = $0 }
         )
     }
 
-    var workRetractionMessage: String {
-        let lines = PresentationWorkRetraction.describe(vm.pendingWorkRetraction, in: viewContext)
+    /// The plans the alert presents; nil when there are none, so it can't show empty.
+    var presentedWorkRetraction: [WorkRemovalPlan]? {
+        vm.pendingWorkRetraction.isEmpty ? nil : vm.pendingWorkRetraction
+    }
+
+    func workRetractionMessage(for plans: [WorkRemovalPlan]) -> String {
+        let lines = PresentationWorkRetraction.describe(plans, in: viewContext)
         return "This presentation already gave follow-up work to a child you're taking off. "
             + "Take them off that work too?\n\n"
             + lines.map { "• " + $0 }.joined(separator: "\n")
@@ -53,19 +60,24 @@ extension PresentationDetailContentView {
 }
 
 extension View {
+    /// The plans are the alert's `presenting:` data, so each button reads the
+    /// plans it was shown rather than state its binding may already have
+    /// cleared (G1).
+    // swiftlint:disable:next function_parameter_count
     func workRetractionAlert(
         isPresented: Binding<Bool>,
-        message: String,
-        onRemove: @escaping () -> Void,
+        plans: [WorkRemovalPlan]?,
+        message: @escaping ([WorkRemovalPlan]) -> String,
+        onRemove: @escaping ([WorkRemovalPlan]) -> Void,
         onKeep: @escaping () -> Void,
         onCancel: @escaping () -> Void
     ) -> some View {
-        alert("Also Remove From Work?", isPresented: isPresented) {
-            Button("Remove From Work", action: onRemove)
+        alert("Also Remove From Work?", isPresented: isPresented, presenting: plans) { plans in
+            Button("Remove From Work", role: .destructive) { onRemove(plans) }
             Button("Keep the Work", action: onKeep)
             Button("Cancel", role: .cancel, action: onCancel)
-        } message: {
-            Text(message)
+        } message: { plans in
+            Text(message(plans))
         }
     }
 }

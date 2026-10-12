@@ -124,9 +124,10 @@ struct CurriculumCellDetailSheet: View {
             .filter { target.range == nil || inRange($0.masteredAt ?? $0.lastObservedAt) }
     }
 
+    /// Her own rows on each lesson: a classmate's linked copy names her too.
     private var works: [CurriculumWorkRef] {
-        (store.input?.work ?? [])
-            .filter { lessonSet.contains($0.lessonID) && $0.studentIDs.contains(target.studentID) }
+        let onLessons = (store.input?.work ?? []).filter { lessonSet.contains($0.lessonID) }
+        return CurriculumMapEngine.ownWork(for: target.studentID, among: onLessons)
             .filter { work in
                 target.range == nil
                     || inRange(work.assignedAt) || inRange(work.completedAt) || inRange(work.lastTouchedAt)

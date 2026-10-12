@@ -81,6 +81,9 @@ struct LessonDetailView: View {
     @State var resolvedPagesURL: URL?
     @State var importError: String?
     @State var deleteError: String?
+    /// Non-nil while Save is refused: the lesson's sub-area already has one by
+    /// that name (`LessonRepository.CreationError`, Add Lesson's wording).
+    @State var saveRefusal: String?
     /// Shown when a file can't be added in the Sample Class.
     @State var showingSampleClassFileNotice = false
 
@@ -176,6 +179,18 @@ struct LessonDetailView: View {
             Button("OK", role: .cancel) { deleteError = nil }
         } message: {
             Text(deleteError ?? "")
+        }
+        .alert(
+            AppErrorMessages.Lessons.alreadyFiledTitle,
+            isPresented: Binding(
+                get: { saveRefusal != nil },
+                set: { if !$0 { saveRefusal = nil } }
+            ),
+            presenting: saveRefusal
+        ) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { refusal in
+            Text(refusal)
         }
         .alert(LessonAttachmentsSection.sampleClassFilesTitle, isPresented: $showingSampleClassFileNotice) {
             Button("OK", role: .cancel) {}

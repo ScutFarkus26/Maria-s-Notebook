@@ -54,6 +54,24 @@ enum LessonSequenceOrdering {
         return true
     }
 
+    /// A lesson dragged to another sub-area: files it under `sequence` (""
+    /// for Ungrouped) after the last of `targetLessons`, that sub-area's
+    /// lessons. The caller renumbers the area's `sortIndex` and saves.
+    /// Throws, moving nothing, when that sub-area already has a lesson by its
+    /// name (bug hunt 2026-10-12, #2).
+    static func moveToEnd(
+        _ lesson: CDLesson, ofSequence sequence: String, after targetLessons: [CDLesson]
+    ) throws(LessonRepository.CreationError) {
+        if let context = lesson.managedObjectContext {
+            try LessonRepository(context: context).refuseDuplicateName(
+                filing: lesson, as: lesson.name, area: lesson.area, sequence: sequence
+            )
+        }
+        lesson.sequence = sequence
+        let maxOrder = targetLessons.filter { $0 !== lesson }.map(\.orderInSequence).max() ?? -1
+        lesson.orderInSequence = maxOrder + 1
+    }
+
     /// Writes 0, 1, 2… as `orderInSequence`, touching only lessons whose number changes.
     static func renumber(_ ordered: [CDLesson]) {
         for (index, lesson) in ordered.enumerated() where lesson.orderInSequence != Int64(index) {

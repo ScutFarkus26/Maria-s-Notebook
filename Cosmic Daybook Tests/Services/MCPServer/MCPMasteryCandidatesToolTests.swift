@@ -149,7 +149,7 @@ struct MCPMasteryCandidatesToolTests {
 
     // MARK: - What counts as a candidate
 
-    @Test("a confirmed but unmarked child is listed with the day she was confirmed")
+    @Test("a confirmed but unmarked child is listed with the day she last had the lesson")
     func listsConfirmedUnmarkedChild() async throws {
         let (tools, context) = try makeTools()
         let classroom = try seedClassroom(in: context)
@@ -160,7 +160,7 @@ struct MCPMasteryCandidatesToolTests {
         #expect(output.hasPrefix("Mastery candidates (3) — presented, not yet marked, with evidence:"))
         #expect(output.contains("Avital Beyderman:"))
         #expect(output.contains("- [lesson id=\(commutativeID)] The Commutative Law of Multiplication "
-            + "— confirmed ready 2026-03-11"))
+            + "— confirmed ready (last given 2026-03-11)"))
         #expect(output.contains("Nothing has been marked. To confirm these as assessed, call mark_mastered with:"))
 
         let marks = context.safeFetch(CDFetchRequest(CDLessonPresentation.self))
@@ -207,8 +207,8 @@ struct MCPMasteryCandidatesToolTests {
         #expect(output.contains(
             "[lesson id=\(commutativeID)] The Commutative Law of Multiplication — Math › Laws:"
         ))
-        #expect(output.contains("- Avital Beyderman — confirmed ready 2026-03-11"))
-        #expect(output.contains("- Nechama Roth — confirmed ready 2026-03-11"))
+        #expect(output.contains("- Avital Beyderman — confirmed ready (last given 2026-03-11)"))
+        #expect(output.contains("- Nechama Roth — confirmed ready (last given 2026-03-11)"))
     }
 
     @Test("the closing JSON is valid and names the lesson and every child under it")

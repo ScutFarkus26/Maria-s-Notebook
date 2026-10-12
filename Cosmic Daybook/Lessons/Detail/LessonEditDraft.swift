@@ -70,10 +70,17 @@ struct LessonEditDraft: Equatable {
     }
 
     /// Writes the draft to the lesson it came from, trimming the one-line
-    /// fields. Returns false, touching nothing, for any other lesson.
+    /// fields. Returns false, touching nothing, for any other lesson; throws,
+    /// touching nothing, when the new name or sub-area would file it beside a
+    /// lesson of the same name (`LessonRepository.refuseDuplicateName`).
     @discardableResult
-    func apply(to lesson: CDLesson) -> Bool {
+    func apply(to lesson: CDLesson) throws(LessonRepository.CreationError) -> Bool {
         guard belongs(to: lesson) else { return false }
+        if let context = lesson.managedObjectContext {
+            try LessonRepository(context: context).refuseDuplicateName(
+                filing: lesson, as: name.trimmed(), area: area.trimmed(), sequence: sequence.trimmed()
+            )
+        }
         lesson.name = name.trimmed()
         lesson.area = area.trimmed()
         lesson.sequence = sequence.trimmed()

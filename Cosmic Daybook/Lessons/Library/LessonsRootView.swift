@@ -107,6 +107,8 @@ struct LessonsRootView: View {
 
     // MARK: - Editing State
     @State var isEditingMap: Bool = false
+    /// Why a drag to another sub-area was refused (it has a lesson by that name).
+    @State var moveRefusal: String?
 
     // MARK: - Reordering State
     @State var detailPaneDragStartWidth: CGFloat?
@@ -238,6 +240,15 @@ struct LessonsRootView: View {
             )
         }
         .sheet(isPresented: $showingBulkEntry) { BulkLessonsEntryView(defaultArea: selectedArea) }
+        .alert(
+            AppErrorMessages.Lessons.alreadyFiledTitle,
+            isPresented: Binding(get: { moveRefusal != nil }, set: { if !$0 { moveRefusal = nil } }),
+            presenting: moveRefusal
+        ) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { refusal in
+            Text(refusal)
+        }
     }
 
     /// The layout with its loading, refresh and request hooks. Split from

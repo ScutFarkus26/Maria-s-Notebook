@@ -13,8 +13,11 @@ import SwiftUI
 
 struct WorkCheckInFollowUpRow: View {
     let item: WorkCheckInFollowUp
-    /// Everyone on the work, owner first; `departed` styles the name and adds the mark.
+    /// Whose row it is, owner first — the owner alone on a linked copy;
+    /// `departed` styles the name.
     let names: [(name: String, departed: Bool)]
+    /// Classmates named on a linked copy who have copies of their own.
+    var companions: [String] = []
     /// Work title or lesson name, plus the check-in's purpose when it has one.
     let detail: String
     /// The work's open linked todos; the Todos list leaves them out for this row.
@@ -104,13 +107,17 @@ struct WorkCheckInFollowUpRow: View {
             .accessibilityHidden(true)
     }
 
-    /// "Check in with Ora, Naomi" — departed names in tertiary.
+    /// "Check in with Ora K, Naomi L" — departed names in tertiary — and on
+    /// a linked copy "Check in with Maya S · with Eli R, Ana T".
     private var titleLine: Text {
-        names.enumerated().reduce(Text("Check in with ")) { text, pair in
+        let named = names.enumerated().reduce(Text("Check in with ")) { text, pair in
             let (index, entry) = pair
             let name = entry.departed ? Text(entry.name).foregroundStyle(.tertiary) : Text(entry.name)
             return index > 0 ? Text("\(text), \(name)") : Text("\(text)\(name)")
         }
+        guard !companions.isEmpty else { return named }
+        let company = Text(" · with \(companions.joined(separator: ", "))").foregroundStyle(.secondary)
+        return Text("\(named)\(company)")
     }
 
     private var dateChip: some View {
@@ -141,6 +148,7 @@ struct WorkCheckInFollowUpRow: View {
 
     private var accessibilityLabelText: String {
         var label = "Check in with \(names.map(\.name).joined(separator: ", "))"
+        if !companions.isEmpty { label += ", with \(companions.joined(separator: ", "))" }
         if !detail.isEmpty { label += ", \(detail)" }
         label += ", due \(DateFormatters.mediumDate.string(from: item.dueDay))"
         if item.isOverdue { label += ", overdue" }
@@ -189,6 +197,7 @@ extension TodayView {
         WorkCheckInFollowUpRow(
             item: item,
             names: followUpStudentNames(for: item),
+            companions: followUpCompanionNames(for: item),
             detail: followUpDetail(for: item),
             linkedTodos: item.work.id.flatMap { viewModel.linkedTodos.byWork[$0] },
             onComplete: { completeCheckInFollowUp(item) },
@@ -200,16 +209,26 @@ extension TodayView {
         .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
     }
 
-    /// Enrolled children through the view model's cache; departed ones by
-    /// first name from the departed lookup, since the cache never holds them.
+    /// The children the row is about: enrolled ones through the view
+    /// model's cache, departed ones from the departed lookup (the cache never
+    /// holds them), each by short name ("Maya S").
     func followUpStudentNames(for item: WorkCheckInFollowUp) -> [(name: String, departed: Bool)] {
-        item.studentIDs.compactMap { id in
+        item.countedStudentIDs.compactMap { id in
             if item.departedStudentIDs.contains(id) {
                 guard let student = viewModel.departedStudentsByID[id] else { return nil }
-                return (student.firstName, true)
+                return (student.shortName, true)
             }
             guard viewModel.studentsByID[id] != nil else { return nil }
             return (viewModel.displayName(for: id), false)
+        }
+    }
+
+    /// A linked copy's classmates, by short name; a hidden test child or an
+    /// unknown id is left out.
+    private func followUpCompanionNames(for item: WorkCheckInFollowUp) -> [String] {
+        item.companionIDs.compactMap { id in
+            if viewModel.studentsByID[id] != nil { return viewModel.displayName(for: id) }
+            return viewModel.departedStudentsByID[id]?.shortName
         }
     }
 
@@ -219,18 +238,16 @@ extension TodayView {
         return purpose.isEmpty ? name : "\(name) · \(purpose)"
     }
 
-    /// Done means "checked today": the service moves the check-in's date to
-    /// now, so the work calendar shows the day it was checked, not the day it
-    /// was due. That is the existing service rule, kept deliberately.
+    /// Done means "checked today" (`TodayCheckInFollowUpActions.markCheckedIn`).
     func completeCheckInFollowUp(_ item: WorkCheckInFollowUp) {
         do {
-            try WorkCheckInService(context: viewContext).markCompleted(item.checkIn, note: nil, at: Date())
+            try TodayCheckInFollowUpActions.markCheckedIn(item, context: viewContext, saveCoordinator: saveCoordinator)
         } catch {
             Logger.app_.warning("Failed to complete work check-in: \(error.localizedDescription)")
-            toast("Couldn't check that in. Try again.")
+            // The service saves with the global alert off, so this toast is the only word of it.
+            toast(PresentationFailureMessage.message(for: error, fallback: "Couldn't check that in. Try again."))
             return
         }
-        guard saveCoordinator.save(viewContext, reason: "Complete work check-in") else { return }
         viewModel.reload()
         toast("Checked in")
     }
@@ -288,7 +305,8 @@ private struct TodayViewCheckInFollowUpRowsPreview: View {
         return List {
             WorkCheckInFollowUpRow(
                 item: item,
-                names: [("Etty", false), ("Naomi", true)],
+                names: [("Etty D", false)],
+                companions: ["Naomi L", "Ora K"],
                 detail: "Stamp Game Multiplication · Progress Check",
                 onComplete: {}, onOpen: {}, onReschedule: { _ in }
             )

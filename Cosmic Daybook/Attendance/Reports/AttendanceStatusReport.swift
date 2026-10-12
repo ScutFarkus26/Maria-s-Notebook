@@ -75,7 +75,22 @@ struct AttendanceStatusReport: View {
         let start = AppCalendar.startOfDay(startDate)
         let dayAfterEnd = AppCalendar.shared.date(byAdding: .day, value: 1, to: AppCalendar.startOfDay(endDate))
             ?? AppCalendar.startOfDay(endDate)
-        return dependencies.roster.all.filterActive(in: DateRange(start: start, end: dayAfterEnd))
+        return Self.reportStudents(
+            dependencies.roster.all, in: DateRange(start: start, end: dayAfterEnd), testStudents: testStudents
+        )
+    }
+
+    @TestStudentVisibility private var testStudents
+
+    /// The children the report counts: everyone active during `range`, former
+    /// students included, with the hidden test students left out (bug hunt
+    /// 2026-10-12, #51).
+    static func reportStudents(
+        _ roster: [CDStudent], in range: DateRange, testStudents: TestStudentVisibility.Value
+    ) -> [CDStudent] {
+        TestStudentsFilter.filterVisible(
+            roster.filterActive(in: range), show: testStudents.show, namesRaw: testStudents.namesRaw
+        )
     }
 
     // Default range: last 30 days

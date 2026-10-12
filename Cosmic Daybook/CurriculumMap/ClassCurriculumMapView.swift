@@ -11,6 +11,7 @@ import SwiftUI
 struct ClassCurriculumMapView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
+    @Environment(\.dependencies) private var dependencies
     @State private var store = CurriculumMapStore()
     @State private var model = ClassCurriculumMapModel()
     @AppStorage(UserDefaultsKeys.curriculumMapGranularity)
@@ -21,6 +22,8 @@ struct ClassCurriculumMapView: View {
     @State private var rowTarget: ClassRow?
     @State private var cellTarget: CurriculumCellDetailTarget?
     @State private var draftToOpen: CDLessonAssignment?
+
+    private var schoolYear: SchoolYearStore { dependencies.schoolYearStore }
 
     private var granularity: CurriculumGranularity {
         CurriculumGranularity(rawValue: granularityRaw) ?? .keyLessons
@@ -46,6 +49,8 @@ struct ClassCurriculumMapView: View {
         .onChange(of: sequence) { _, _ in rebuild() }
         .onChange(of: granularityRaw) { _, _ in rebuild() }
         .onChange(of: stateFilter) { _, _ in rebuild() }
+        .onChange(of: schoolYear.startMonth) { _, _ in rebuild() }
+        .onChange(of: schoolYear.startDay) { _, _ in rebuild() }
         .sheet(item: $rowTarget) { row in
             ClassCurriculumRowSheet(row: row, model: model, onPlan: plan(lessonID:students:)) { rowTarget = nil }
                 .studentDetailSheetSizing()
@@ -193,22 +198,29 @@ struct ClassCurriculumMapView: View {
 
     private func rebuild() {
         model.rebuild(
-            store: store, area: area, sequence: sequence, granularity: granularity, stateFilter: stateFilter
+            store: store, area: area, sequence: sequence, granularity: granularity, stateFilter: stateFilter,
+            startMonth: schoolYear.startMonth, startDay: schoolYear.startDay
         )
     }
 
     /// The in-app twin of handing names to `schedule_presentation`: a draft
-    /// presentation for the children who have not had the lesson, made the
-    /// way the student detail makes one, opened for the guide to schedule.
+    /// presentation for the children who have not had the lesson, opened for
+    /// the guide to schedule. Children already waiting for it stay on the plan
+    /// they're on, and when they all are, that plan opens instead of a second
+    /// draft (bug hunt 2026-10-12, #32).
     private func plan(lessonID: UUID, students: [CurriculumStudentRef]) {
         guard let lesson = viewContext.object(CDLesson.self, id: lessonID) else { return }
         let cdStudents = students.compactMap { viewContext.object(CDStudent.self, id: $0.id) }
-        guard !cdStudents.isEmpty else { return }
-        let draft = PresentationFactory.makeDraft(lesson: lesson, students: cdStudents, context: viewContext)
-        draft.syncSnapshotsFromRelationships()
-        saveCoordinator.save(viewContext, reason: "Draft presentation from the Three-Year View")
+        guard !cdStudents.isEmpty,
+              let result = PresentationPlanner.planOrReuse(
+                  lesson: lesson, students: cdStudents, purpose: nil, in: viewContext
+              ) else { return }
+        if result.isNew {
+            result.plan.syncSnapshotsFromRelationships()
+            saveCoordinator.save(viewContext, reason: "Draft presentation from the Three-Year View")
+        }
         rowTarget = nil
-        draftToOpen = draft
+        draftToOpen = result.plan
     }
 
     private func watchForChanges() async {

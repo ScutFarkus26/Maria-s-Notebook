@@ -79,9 +79,11 @@ enum TodaySectionVisibility {
     // MARK: Reminders
 
     /// Reminders show when *any* bucket has something, including the undated
-    /// ones — they are still hers, they just do not belong on the fold.
-    static func showsReminders(overdue: Int, dueToday: Int, anytime: Int) -> Bool {
-        overdue > 0 || dueToday > 0 || anytime > 0
+    /// ones — they are still hers, they just do not belong on the fold — and
+    /// when the last sync failed, so the warning still has somewhere to show
+    /// when the failure is why nothing arrived (bug hunt 2026-10-12, #51).
+    static func showsReminders(overdue: Int, dueToday: Int, anytime: Int, syncFailed: Bool = false) -> Bool {
+        overdue > 0 || dueToday > 0 || anytime > 0 || syncFailed
     }
 
     /// The undated pile sits behind a disclosure that is offered only when
@@ -130,10 +132,9 @@ enum TodaySectionVisibility {
     /// is the Next card at the top of the plan, and its "open work to check"
     /// count is Gone quiet's header plus the todo list's due check-ins.
     ///
-    /// The Overdue section is deliberately absent from both orderings. It
-    /// duplicated the Todos section's own "Overdue" subgroup with a single row
-    /// that only navigated away; `DeadlinesSectionView` is kept in the
-    /// codebase, just not placed on Today.
+    /// There is no Overdue section: it duplicated the Todos section's own
+    /// "Overdue" subgroup with a single row that only navigated away, and
+    /// was removed (bug hunt 2026-10-12).
     static let phoneOrder: [TodaySection] = [
         .agenda,
         .meetings,

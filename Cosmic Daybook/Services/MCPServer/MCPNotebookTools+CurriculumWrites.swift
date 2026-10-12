@@ -10,9 +10,10 @@
 //
 //  create_lesson is idempotent on name within a sub-area and never deletes;
 //  a sub-area is created on demand but a top-level area never is.
-//  update_lesson changes only the fields passed. Renames are safe: every
-//  presentation, plan, work item, note and track step references the lesson
-//  by its id, never its name.
+//  update_lesson changes only the fields passed, and refuses a rename or move
+//  that would put two lessons with one name in one sub-area. Renames are
+//  safe: every presentation, plan, work item, note and track step references
+//  the lesson by its id, never its name.
 //
 
 import CoreData
@@ -39,7 +40,8 @@ extension MCPNotebookTools {
                     "area": ["type": "string", "description": "An existing top-level area, e.g. \"Language\""],
                     "sub_area": [
                         "type": "string",
-                        "description": "The sub-area (sequence) within the area, e.g. \"Logical Analysis\""
+                        "description": .string("The sub-area (sequence) within the area, e.g. \"Logical "
+                            + "Analysis\"; \"Ungrouped\" files it with no sub-area")
                     ],
                     "after_lesson": [
                         "type": "string",
@@ -73,7 +75,7 @@ extension MCPNotebookTools {
         let name = try requireString(arguments, "name")
         let lessons = allCurriculumLessons(in: modelContext)
         let area = try resolveArea(try requireString(arguments, "area"), from: lessons)
-        let requestedSequence = try requireString(arguments, "sub_area")
+        let requestedSequence = storedSequence(forArgument: try requireString(arguments, "sub_area"))
         let existingSequence = existingSequence(named: requestedSequence, inArea: area, from: lessons)
         let sequence = existingSequence ?? requestedSequence
 
@@ -100,7 +102,7 @@ extension MCPNotebookTools {
         }
         refreshSequenceTrack(area: area, sequence: sequence, in: modelContext)
 
-        let newSubArea = existingSequence == nil ? " (new sub-area)" : ""
+        let newSubArea = existingSequence == nil && !sequence.isEmpty ? " (new sub-area)" : ""
         return "Added \(describeLesson(lesson)) at position \(insertAt + 1) of \(inSequence.count) "
             + "in \(filingLabel(area: area, sequence: sequence))\(newSubArea)."
     }
@@ -152,8 +154,9 @@ extension MCPNotebookTools {
             title: "Update Lesson",
             description: "Rename a lesson, move it to another sub-area (or area), or change its "
                 + "notes. Only the fields passed change. A move puts the lesson at the end of its "
-                + "new sub-area; use reorder_lessons to place it. Presentations, plans, work and "
-                + "tracks reference the lesson by id, so a rename breaks nothing.",
+                + "new sub-area; use reorder_lessons to place it. A rename or move onto a name the "
+                + "sub-area already has is refused. Presentations, plans, work and tracks reference "
+                + "the lesson by id, so a rename breaks nothing.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -163,7 +166,10 @@ extension MCPNotebookTools {
                         "type": "string",
                         "description": "Move to this existing area (pass sub_area too). Never creates an area."
                     ],
-                    "sub_area": ["type": "string", "description": "Move to this sub-area, created if new"],
+                    "sub_area": [
+                        "type": "string",
+                        "description": "Move to this sub-area, created if new (\"Ungrouped\" means none)"
+                    ],
                     "section": ["type": "string", "description": "Section heading; empty string clears it"],
                     "write_up": ["type": "string", "description": "Replaces the write-up; empty string clears it"],
                     "teacher_notes": ["type": "string", "description": "Replaces the notes; empty string clears"],
@@ -189,22 +195,27 @@ extension MCPNotebookTools {
     ) throws -> String {
         let lesson = try resolveLessonReference(try requireString(arguments, "lesson"), in: modelContext)
         let lessons = allCurriculumLessons(in: modelContext)
+        let newName: String? = nonEmpty(arguments["name"]?.stringValue).flatMap { $0 == lesson.name ? nil : $0 }
+        let move: LessonFiling? = try lessonFilingTarget(arguments, for: lesson, from: lessons)
+        if newName != nil || move != nil {
+            try refuseTwin(
+                of: lesson, named: newName ?? lesson.name,
+                area: move?.area ?? lesson.area, sequence: move?.sequence ?? lesson.sequence, in: modelContext
+            )
+        }
+
         var changes: [String] = []
         changes += applyLessonText(arguments, to: lesson)
         if let isKey = arguments["is_key_lesson"]?.boolValue, isKey != lesson.isKeyLesson {
             lesson.isKeyLesson = isKey
             changes.append(isKey ? "marked as a key lesson" : "no longer a key lesson")
         }
-        changes += try applyLessonFiling(arguments, to: lesson, from: lessons)
-        if let name = nonEmpty(arguments["name"]?.stringValue), name != lesson.name {
-            let twin = lessonsInSequence(lesson.sequence, area: lesson.area, from: lessons).first {
-                $0 != lesson && $0.name.folded() == name.folded()
-            }
-            if let twin {
-                throw MCPToolError("\(describeLesson(twin)) already has that name in the same sub-area.")
-            }
-            changes.append("renamed \"\(lesson.name)\" to \"\(name)\"")
-            lesson.name = name
+        if let move {
+            changes.append(applyLessonFiling(move, to: lesson, from: lessons))
+        }
+        if let newName {
+            changes.append("renamed \"\(lesson.name)\" to \"\(newName)\"")
+            lesson.name = newName
         }
         guard !changes.isEmpty else {
             throw MCPToolError("Nothing to change — pass at least one field.")
@@ -213,6 +224,30 @@ extension MCPNotebookTools {
             throw MCPToolError("The lesson could not be saved.")
         }
         return "Updated \(describeLesson(lesson)): \(changes.joined(separator: "; "))."
+    }
+
+    /// A rename or move that would leave two lessons with one name in one
+    /// sub-area is refused in Add Lesson's words: the launch cleanup reads
+    /// such a pair as one lesson filed twice and merges it away (bug hunt
+    /// 2026-10-12, #2). Checked on the final name and filing, before anything
+    /// changes. Parsha lessons are keyed by week and exempt, as in Add Lesson.
+    /// The lesson editor's own check decides, so a rename that keeps the
+    /// lesson's name key (only its capitals change, say, in a pair filed
+    /// before the check) saves here as it does there.
+    private static func refuseTwin(
+        of lesson: CDLesson, named name: String, area: String, sequence: String,
+        in modelContext: NSManagedObjectContext
+    ) throws {
+        let repository = LessonRepository(context: modelContext)
+        do {
+            try repository.refuseDuplicateName(filing: lesson, as: name, area: area, sequence: sequence)
+        } catch {
+            let sentence: String = error.errorDescription ?? "That name is already in that sub-area."
+            let there: String = repository
+                .existingLesson(named: name, area: area, sequence: sequence, excluding: lesson)
+                .map { " The lesson there: \(describeLesson($0))." } ?? ""
+            throw MCPToolError("\(sentence) Nothing was changed.\(there)")
+        }
     }
 
     /// One free-text lesson field: the tool argument that carries it, the word
@@ -246,30 +281,44 @@ extension MCPNotebookTools {
         return changes
     }
 
-    /// A move mirrors `LessonsRootView.moveLessonToSequence`: the lesson goes
-    /// to the end of its new sub-area and both areas' `sortIndex` are rebuilt.
-    private static func applyLessonFiling(
-        _ arguments: [String: JSONValue], to lesson: CDLesson, from lessons: [CDLesson]
-    ) throws -> [String] {
+    /// Where a move sends a lesson.
+    private struct LessonFiling {
+        let area: String
+        let sequence: String
+    }
+
+    /// The area and sub-area `area` / `sub_area` name, in the spelling the
+    /// curriculum already uses, or nil when they name the lesson's own filing.
+    /// "Ungrouped" means no sub-area (#26).
+    private static func lessonFilingTarget(
+        _ arguments: [String: JSONValue], for lesson: CDLesson, from lessons: [CDLesson]
+    ) throws -> LessonFiling? {
         let areaArgument = nonEmpty(arguments["area"]?.stringValue)
-        let subAreaArgument = nonEmpty(arguments["sub_area"]?.stringValue)
-        guard areaArgument != nil || subAreaArgument != nil else { return [] }
+        let subAreaArgument = nonEmpty(arguments["sub_area"]?.stringValue).map(storedSequence(forArgument:))
+        guard areaArgument != nil || subAreaArgument != nil else { return nil }
         if areaArgument != nil, subAreaArgument == nil {
             throw MCPToolError("Moving a lesson to another area needs sub_area as well.")
         }
         let area = try areaArgument.map { try resolveArea($0, from: lessons) } ?? lesson.area
         let requested = subAreaArgument ?? lesson.sequence
         let sequence = existingSequence(named: requested, inArea: area, from: lessons) ?? requested
-        guard !(sameFiling(area, lesson.area) && sameFiling(sequence, lesson.sequence)) else { return [] }
+        guard !(sameFiling(area, lesson.area) && sameFiling(sequence, lesson.sequence)) else { return nil }
+        return LessonFiling(area: area, sequence: sequence)
+    }
 
+    /// A move mirrors `LessonsRootView.moveLessonToSequence`: the lesson goes
+    /// to the end of its new sub-area and both areas' `sortIndex` are rebuilt.
+    private static func applyLessonFiling(
+        _ move: LessonFiling, to lesson: CDLesson, from lessons: [CDLesson]
+    ) -> String {
         let oldArea = lesson.area
         let from = filingLabel(area: lesson.area, sequence: lesson.sequence)
-        let target = lessonsInSequence(sequence, area: area, from: lessons).filter { $0 != lesson }
-        lesson.area = area
-        lesson.sequence = sequence
+        let target = lessonsInSequence(move.sequence, area: move.area, from: lessons).filter { $0 != lesson }
+        lesson.area = move.area
+        lesson.sequence = move.sequence
         lesson.orderInSequence = (target.map(\.orderInSequence).max() ?? -1) + 1
         rebuildSortIndex(forArea: oldArea, from: lessons)
-        if !sameFiling(oldArea, area) { rebuildSortIndex(forArea: area, from: lessons) }
-        return ["moved from \(from) to \(filingLabel(area: area, sequence: sequence)) (end)"]
+        if !sameFiling(oldArea, move.area) { rebuildSortIndex(forArea: move.area, from: lessons) }
+        return "moved from \(from) to \(filingLabel(area: move.area, sequence: move.sequence)) (end)"
     }
 }

@@ -129,7 +129,7 @@ extension MCPNotebookTools {
                     ],
                     "include_finished": [
                         "type": "boolean",
-                        "description": "Also list sessions that have ended (default false)"
+                        "description": "Also list sessions that have ended or been archived (default false)"
                     ]
                 ]
             ],
@@ -151,7 +151,8 @@ extension MCPNotebookTools {
         let all: [CDBookClubSession] = modelContext.safeFetch(CDFetchRequest(CDBookClubSession.self))
         var kept: [CDBookClubSession] = []
         for session in all {
-            if !includeFinished && session.status == .completed { continue }
+            // Archived is as finished as completed; both stay out unless asked for.
+            if !includeFinished && (session.status == .completed || session.status == .archived) { continue }
             if let studentID, !session.studentIDs.contains(studentID) { continue }
             kept.append(session)
         }
@@ -215,8 +216,10 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "list_reminders",
             title: "List Reminders",
-            description: "The teacher's reminders, including any synced from Apple Reminders. "
-                + "These are separate from todos — list_todos covers the notebook's own list.",
+            description: "The teacher's reminders: ones made in the app, and ones synced from "
+                + "the one Reminders list chosen in Settings (reminders mirrored from a list no "
+                + "longer synced are left out and counted). These are separate from todos — "
+                + "list_todos covers the notebook's own list.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -243,13 +246,25 @@ extension MCPNotebookTools {
         let includeCompleted: Bool = arguments["include_completed"]?.boolValue ?? false
         let limit: Int = intArgument(arguments, "limit", default: 40, range: 1...100)
 
+        // Only the list Settings syncs from, as Today shows it: a reminder
+        // mirrored from a list no longer synced is stale. One with no list is
+        // the notebook's own and always shown.
+        let syncedList: String? = UserDefaults.standard.string(forKey: UserDefaultsKeys.reminderSyncListIdentifier)
         let all: [CDReminder] = modelContext.safeFetch(CDFetchRequest(CDReminder.self))
         var kept: [CDReminder] = []
+        var otherLists = 0
         for reminder in all where includeCompleted || !reminder.isCompleted {
+            if let list = reminder.eventKitCalendarID, list != syncedList {
+                otherLists += 1
+                continue
+            }
             kept.append(reminder)
         }
+        let leftOut: String = otherLists > 0
+            ? "\n(\(otherLists) reminder(s) from Reminders lists no longer synced are left out.)"
+            : ""
         guard !kept.isEmpty else {
-            return includeCompleted ? "No reminders." : "No open reminders."
+            return (includeCompleted ? "No reminders." : "No open reminders.") + leftOut
         }
 
         let sorted: [CDReminder] = kept.sorted {
@@ -275,7 +290,7 @@ extension MCPNotebookTools {
         let more: String = sorted.count > shown.count
             ? "\n(\(sorted.count - shown.count) more not shown.)"
             : ""
-        return "\(sorted.count) reminder(s):\n" + lines.joined(separator: "\n") + more
+        return "\(sorted.count) reminder(s):\n" + lines.joined(separator: "\n") + more + leftOut
     }
 
     // MARK: - Day Pad

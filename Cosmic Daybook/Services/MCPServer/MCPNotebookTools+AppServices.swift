@@ -128,6 +128,7 @@ extension MCPNotebookTools {
                 )
             }
             if !overwrite, !existing.body.trimmed().isEmpty {
+                MCPCallOutcome.markNothingWritten()
                 return "\(name)'s \(month.displayName) report already has a draft [communication id=\(id)]. "
                     + "Pass overwrite: true to replace its text."
             }
@@ -147,6 +148,7 @@ extension MCPNotebookTools {
             )
         }
         guard !draft.narrative.isEmpty else {
+            MCPCallOutcome.markNothingWritten()
             return "No evidence was recorded for \(name) in \(month.displayName) — no presentations, "
                 + "work, observations marked for the report, or attendance — so there is nothing to draft."
         }

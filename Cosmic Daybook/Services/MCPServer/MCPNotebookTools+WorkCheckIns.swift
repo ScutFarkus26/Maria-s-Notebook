@@ -252,18 +252,6 @@ extension MCPNotebookTools {
         return "\(owner ?? "an unowned") linked copy [work id=\(sibling.id?.uuidString ?? "unknown")]"
     }
 
-    // MARK: - Completing
-
-    static func applyCheckInCompletion(
-        _ arguments: [String: JSONValue], to work: CDWorkModel,
-        in modelContext: NSManagedObjectContext
-    ) throws -> [String] {
-        guard let day = try dayArgument(arguments, "complete_check_in_on") else { return [] }
-        let checkIn = try scheduledCheckIn(of: work, on: day, in: modelContext)
-        checkIn.status = .completed
-        return ["completed the check-in on \(dayString(day))"]
-    }
-
     // MARK: - Moving
 
     /// `move_check_in_from` / `move_check_in_to`, required together. Returns

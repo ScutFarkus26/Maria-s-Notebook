@@ -10,7 +10,7 @@
 //  writing: a mastery mark means the guide assessed the child, and no
 //  reading of the record can stand in for that. What this tool does is
 //  gather the evidence the notebook already holds — the guide confirmed her
-//  ready at capture, her practice work came back proficient, a recall check
+//  ready at capture, her practice work closed as Mastered, a recall check
 //  found it retained — rank it, and hand back the exact `mark_mastered`
 //  call, so the guide's yes covers the whole list in one step.
 //
@@ -28,7 +28,8 @@ extension MCPNotebookTools {
             title: "Mastery Candidates",
             description: "Children with a lesson on record that nobody has marked mastered, where "
                 + "the notebook already holds evidence they have it: the guide confirmed them ready "
-                + "at capture, their practice work came back complete or proficient, or a recall "
+                + "at capture, their practice work was closed as Mastered (or Done, on older work; "
+                + "never Keep Practicing or Incomplete), or a recall "
                 + "check found it retained. Strongest evidence first, each line citing what the "
                 + "evidence was. It proposes only and never writes — it closes with the exact "
                 + "mark_mastered call for the list, to make once the guide says they assessed "
@@ -202,7 +203,10 @@ extension MCPNotebookTools {
             var practice: [String: Bool] = [:]
             let works = CDFetchRequest(CDWorkModel.self)
             works.predicate = NSPredicate(format: "kindRaw == %@", WorkKind.practiceLesson.rawValue)
-            for work in modelContext.safeFetch(works) where work.isCompleted || work.status.isClosed {
+            // Only a verdict of Mastered, or a legacy Done with no verdict, is
+            // evidence. Keep Practicing and Incomplete are closed too, but they
+            // say she doesn't have it yet.
+            for work in modelContext.safeFetch(works) where work.status == .mastered || work.status == .done {
                 guard let key = Self.key(work.studentID, work.lessonID) else { continue }
                 if practice[key] == true { continue }
                 practice[key] = work.status == .mastered
@@ -230,10 +234,11 @@ extension MCPNotebookTools {
         ) -> [MasteryEvidenceItem] {
             let key = Self.key(studentID, lessonID)
             var items: [MasteryEvidenceItem] = []
+            // The record keeps no date for the confirmation itself, so the
+            // latest giving is named as that, not as the day she was confirmed.
             if given.confirmed {
-                items.append(MasteryEvidenceItem(
-                    phrase: "confirmed ready" + Self.suffix(given.days.last), weight: 3
-                ))
+                let lastGiven = given.days.last.map { " (last given \(MCPNotebookTools.dayString($0)))" } ?? ""
+                items.append(MasteryEvidenceItem(phrase: "confirmed ready" + lastGiven, weight: 3))
             }
             if let proficient = key.flatMap({ practice[$0] }) {
                 items.append(proficient

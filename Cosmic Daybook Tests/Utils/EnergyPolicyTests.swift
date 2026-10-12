@@ -93,8 +93,9 @@ struct EnergyPolicyTests {
         let coordinator = DeduplicationCoordinator(debounceInterval: .milliseconds(1))
         coordinator.requestDeduplication(policy: policy)
 
-        #expect(await waitUntil { policy.waitingTaskCount == 1 })
-        #expect(coordinator.energyDeferralCount == 1)
+        // The count goes up in the same step that starts the wait.
+        #expect(await waitUntil { coordinator.energyDeferralCount == 1 })
+        for _ in 0..<50 { await Task.yield() }
         #expect(coordinator.runAttemptCount == 0)
     }
 
@@ -103,12 +104,12 @@ struct EnergyPolicyTests {
         let policy = Self.policy(.serious, lowPower: true)
         let coordinator = DeduplicationCoordinator(debounceInterval: .milliseconds(1))
         coordinator.requestDeduplication(policy: policy)
-        #expect(await waitUntil { policy.waitingTaskCount == 1 })
+        #expect(await waitUntil { coordinator.energyDeferralCount == 1 })
 
         // Many debounce intervals later it is still waiting, not running.
         for _ in 0..<50 { await Task.yield() }
         #expect(coordinator.runAttemptCount == 0)
-        #expect(policy.waitingTaskCount == 1)
+        #expect(coordinator.energyDeferralCount == 1)
 
         // Cooling off alone does not clear Low Power Mode.
         policy.simulate(.init(thermalState: .nominal, isLowPowerModeEnabled: true))
@@ -117,7 +118,6 @@ struct EnergyPolicyTests {
 
         policy.simulate(.init(thermalState: .nominal, isLowPowerModeEnabled: false))
         #expect(await waitUntil { coordinator.runAttemptCount == 1 })
-        #expect(policy.waitingTaskCount == 0)
     }
 
     @Test("A fresh request starts the deferral count over")
@@ -130,8 +130,10 @@ struct EnergyPolicyTests {
         coordinator.requestDeduplication(policy: Self.policy(.nominal))
         #expect(coordinator.energyDeferralCount == 0)
         #expect(await waitUntil { coordinator.runAttemptCount >= 1 })
-        // The superseded wait was cancelled, not left suspended.
-        #expect(await waitUntil { hot.waitingTaskCount == 0 })
+        // The superseded request never runs: the hot device cooling later starts nothing more.
+        hot.simulate(.init(thermalState: .nominal, isLowPowerModeEnabled: false))
+        for _ in 0..<50 { await Task.yield() }
+        #expect(coordinator.runAttemptCount == 1)
     }
 
     // MARK: - Album indexing
@@ -145,23 +147,43 @@ struct EnergyPolicyTests {
     @Test("Album indexing waits while hot for as long as it lasts, then continues when cool")
     func albumIndexingPausesWhenHot() async {
         let policy = Self.policy(.critical)
-        let pause = Task { await AlbumLibrary.shared.pauseIndexingWhileDeferred(policy: policy) }
-        #expect(await waitUntil { policy.waitingTaskCount == 1 })
+        var started = false
+        var finished = false
+        let pause = Task { @MainActor in
+            started = true
+            let pauses = await AlbumLibrary.shared.pauseIndexingWhileDeferred(policy: policy)
+            finished = true
+            return pauses
+        }
+        // Past its own check, then given time to finish if it weren't waiting.
+        #expect(await waitUntil { started })
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(!finished)
 
         policy.simulate(.init(thermalState: .fair, isLowPowerModeEnabled: false))
         #expect(await pause.value == 1)
-        #expect(policy.waitingTaskCount == 0)
+        #expect(finished)
     }
 
     @Test("A cancelled indexing pass stops waiting for the device to cool")
     func albumIndexingWaitEndsOnCancel() async {
         let policy = Self.policy(.critical)
-        let pause = Task { await AlbumLibrary.shared.pauseIndexingWhileDeferred(policy: policy) }
-        #expect(await waitUntil { policy.waitingTaskCount == 1 })
+        var started = false
+        var finished = false
+        let pause = Task { @MainActor in
+            started = true
+            let pauses = await AlbumLibrary.shared.pauseIndexingWhileDeferred(policy: policy)
+            finished = true
+            return pauses
+        }
+        #expect(await waitUntil { started })
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(!finished)
 
+        // Still hot: only the cancel can end the wait, and it does.
         pause.cancel()
         _ = await pause.value
-        #expect(await waitUntil { policy.waitingTaskCount == 0 })
+        #expect(finished)
         #expect(policy.shouldDeferMaintenance)
     }
 

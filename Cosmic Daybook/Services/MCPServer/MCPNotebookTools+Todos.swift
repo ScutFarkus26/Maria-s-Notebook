@@ -6,8 +6,7 @@
 //  now" across todos, goals and flagged notes; these two tools are the todo
 //  list itself — filterable, and editable field by field.
 //
-//  Completion stays with `resolve_follow_up`, which refuses recurring todos
-//  because only the app schedules the next occurrence.
+//  Completion stays with `resolve_follow_up`.
 //
 
 import CoreData
@@ -44,30 +43,12 @@ extension MCPNotebookTools {
                 "enum": ["open", "completed", "all"],
                 "description": "Which todos to list (default open)"
             ],
-            "student_name": [
-                "type": "string",
-                "description": "Only todos concerning this student"
-            ],
-            "due_before": [
-                "type": "string",
-                "description": "Only todos due on or before this day, YYYY-MM-DD"
-            ],
-            "due_after": [
-                "type": "string",
-                "description": "Only todos due on or after this day, YYYY-MM-DD"
-            ],
-            "include_someday": [
-                "type": "boolean",
-                "description": "Include someday/maybe items (default true)"
-            ],
-            "tag": [
-                "type": "string",
-                "description": "Only todos carrying this tag"
-            ],
-            "limit": [
-                "type": "integer",
-                "description": "Maximum todos to return, 1-100 (default 40)"
-            ]
+            "student_name": ["type": "string", "description": "Only todos concerning this student"],
+            "due_before": ["type": "string", "description": "Only todos due on or before this day, YYYY-MM-DD"],
+            "due_after": ["type": "string", "description": "Only todos due on or after this day, YYYY-MM-DD"],
+            "include_someday": ["type": "boolean", "description": "Include someday/maybe items (default true)"],
+            "tag": ["type": "string", "description": "Only todos carrying this tag, by name (e.g. \"Urgent\")"],
+            "limit": ["type": "integer", "description": "Maximum todos to return, 1-100 (default 40)"]
         ]
     ]
 
@@ -130,11 +111,13 @@ extension MCPNotebookTools {
             return true
         }
 
+        /// Tags are stored as "name|color" ("Urgent|Red"); Claude passes the
+        /// name it was shown, so the name is what's compared.
         private func hasTag(_ todo: CDTodoItem, _ tag: String) -> Bool {
-            for candidate in todo.tagsArray where candidate.caseInsensitiveCompare(tag) == .orderedSame {
-                return true
+            let wanted: String = TagHelper.tagName(tag).trimmed()
+            return todo.tagsArray.contains { candidate in
+                TagHelper.tagName(candidate).trimmed().caseInsensitiveCompare(wanted) == .orderedSame
             }
-            return false
         }
     }
 
@@ -186,6 +169,11 @@ extension MCPNotebookTools {
         }
         if todo.recurrence != .none {
             details.append("repeats")
+        }
+        // Student tags repeat the names listed next, so only the others print.
+        let tags: [String] = todo.tagsArray.filter { !TagHelper.isStudentTag($0) }.map(TagHelper.tagName)
+        if !tags.isEmpty {
+            details.append("tags \(tags.joined(separator: ", "))")
         }
         let who = todo.studentIDsArray.compactMap { names[$0] }
         if !who.isEmpty {
@@ -250,12 +238,12 @@ extension MCPNotebookTools {
             "clear_due_date": ["type": "boolean", "description": "Remove the due date"],
             "scheduled_date": [
                 "type": "string",
-                "description": "The day the guide means to do it, YYYY-MM-DD"
+                "description": "The day the guide means to do it, YYYY-MM-DD; takes it out of someday"
             ],
             "priority": todoPrioritySchema,
             "is_someday": [
                 "type": "boolean",
-                "description": "Move to (or out of) someday/maybe"
+                "description": "Move to (or out of) someday/maybe; moving in clears the scheduled day"
             ],
             "student_names": [
                 "type": "array",
@@ -288,41 +276,26 @@ extension MCPNotebookTools {
             todo.priority = priority
             changes.append("priority \(priority.rawValue.lowercased())")
         }
-        if let someday = arguments["is_someday"]?.boolValue {
-            todo.isSomeday = someday
-            changes.append(someday ? "moved to someday" : "moved out of someday")
-        }
         changes += try applyTodoStudents(arguments, to: todo, in: modelContext)
         if let linkChange = applyTodoWorkLink(workLink, to: todo) {
             changes.append(linkChange)
         }
 
+        let id = todo.id?.uuidString ?? "unknown"
         guard !changes.isEmpty else {
-            throw MCPToolError("Nothing to change — pass at least one field to update.")
+            // A When field that matched what the todo already had: say so, and
+            // keep the call out of the write journal.
+            guard nonEmpty(arguments["scheduled_date"]?.stringValue) != nil
+                || arguments["is_someday"]?.boolValue != nil else {
+                throw MCPToolError("Nothing to change — pass at least one field to update.")
+            }
+            MCPCallOutcome.markNothingWritten()
+            return "[todo id=\(id)] \(todo.title) is already \(whenState(of: todo)) — nothing changed."
         }
         guard modelContext.safeSave() else {
             throw MCPToolError("The todo could not be updated.")
         }
-        let id = todo.id?.uuidString ?? "unknown"
         return "[todo id=\(id)] \(todo.title): updated \(changes.joined(separator: ", "))."
-    }
-
-    private static func applyTodoDates(
-        _ arguments: [String: JSONValue], to todo: CDTodoItem
-    ) throws -> [String] {
-        var changes: [String] = []
-        if arguments["clear_due_date"]?.boolValue == true {
-            todo.dueDate = nil
-            changes.append("cleared the due date")
-        } else if let due = try dayArgument(arguments, "due_date") {
-            todo.dueDate = due
-            changes.append("due \(dayString(due))")
-        }
-        if let scheduled = try dayArgument(arguments, "scheduled_date") {
-            todo.scheduledDate = scheduled
-            changes.append("scheduled \(dayString(scheduled))")
-        }
-        return changes
     }
 
     /// Replacing the student list also rewrites the student tags, the way the

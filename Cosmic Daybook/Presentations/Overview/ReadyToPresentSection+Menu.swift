@@ -72,15 +72,28 @@ extension ReadyToPresentSection {
             + " will be removed. This cannot be undone."
     }
 
-    func performPendingDeletion() {
-        for assignment in pendingDeletion {
-            PresentationRecordCleanup.prepareToDelete(assignment, in: viewContext)
-            viewContext.delete(assignment)
+    /// `confirmed` is what the dialog was shown for, handed over by the
+    /// dialog itself: its binding may already have cleared `pendingDeletion`
+    /// (G1, bug hunt 2026-10-12).
+    func performPendingDeletion(_ confirmed: [CDLessonAssignment]) {
+        let targets = confirmed.filter { !$0.isDeleted }
+        // A failed save takes back only these deletes, never other screens'
+        // unsaved edits, and says so rather than leaving them pending.
+        let saved = saveCoordinator.saveEdit(in: viewContext, reason: "Delete planned presentations") {
+            for assignment in targets {
+                PresentationRecordCleanup.prepareToDelete(assignment, in: viewContext)
+                viewContext.delete(assignment)
+            }
         }
-        viewContext.safeSave()
+        guard saved else {
+            pendingDeletion = []
+            let subject = targets.count == 1 ? "the planned presentation" : "the planned presentations"
+            dependencies.toastService.showError("Couldn't delete \(subject). Try again.")
+            return
+        }
         // Drop only what was destroyed — right-clicking an unselected card while
         // a selection is live must not throw the rest of the selection away.
-        let deleted = Set(pendingDeletion.compactMap(\.id))
+        let deleted = Set(targets.compactMap(\.id))
         selection.retain(Set(currentlyVisibleAssignments.compactMap(\.id)).subtracting(deleted))
         pendingDeletion = []
     }

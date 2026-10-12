@@ -11,8 +11,8 @@
 //  unless the caller passes `force` (see +ObservationBatch for the guard).
 //  `resolve_follow_up` completes a todo, resolves a goal, or clears an
 //  observation's follow-up flag — the three rows of the app's Watching list
-//  — and refuses recurring todos because only the app schedules the next
-//  occurrence.
+//  — the way that list's Clear does: a repeating todo is completed through
+//  TodoCompletionService, which schedules its next occurrence.
 //
 
 import CoreData
@@ -55,7 +55,7 @@ extension MCPNotebookTools {
             "student_names": [
                 "type": "array",
                 "items": ["type": "string"],
-                "description": "Students this follow-up concerns, if any"
+                "description": "Students this follow-up concerns, if any: names, or ids from list_students"
             ],
             "due_date": [
                 "type": "string",
@@ -70,7 +70,7 @@ extension MCPNotebookTools {
             "is_someday": [
                 "type": "boolean",
                 "description": .string("File it under someday/maybe rather than the "
-                    + "active list (default false)")
+                    + "active list (default false); refused beside scheduled_date")
             ],
             "force": [
                 "type": "boolean",
@@ -86,22 +86,32 @@ extension MCPNotebookTools {
     ) throws -> String {
         let title = try requireString(arguments, "title")
         let names = stringArrayArgument(arguments, "student_names")
-        let students = try names.map { try resolveStudent(named: $0, in: modelContext) }
+        // A name or an id, as create_observation takes (two Ettys), and one
+        // child named twice is one child.
+        let students = try names.map { try resolveStudentReference($0, in: modelContext) }.uniqueByID
         let studentIDs = students.compactMap(\.id)
         guard studentIDs.count == students.count else {
             throw MCPToolError("A matched student record has no identifier.")
         }
         let workLink = try todoWorkLinkChange(arguments, allowClear: false, in: modelContext)
+        let dueDate = try dayArgument(arguments, "due_date")
+        let scheduledDate = try dayArgument(arguments, "scheduled_date")
+        let priority = try todoPriorityArgument(arguments)
+        let isSomeday = arguments["is_someday"]?.boolValue ?? false
+        // As update_todo refuses it: Today and the lists hide someday todos,
+        // so a day on one never showed.
+        if scheduledDate != nil, isSomeday {
+            throw MCPToolError(
+                "Pass scheduled_date or is_someday: true, not both — a follow-up with a day is not "
+                    + "someday. Nothing was added."
+            )
+        }
         if let notice = duplicateFollowUpNotice(
             title: title, studentIDs: studentIDs,
             force: arguments["force"]?.boolValue ?? false, in: modelContext
         ) {
             return notice
         }
-        let dueDate = try dayArgument(arguments, "due_date")
-        let scheduledDate = try dayArgument(arguments, "scheduled_date")
-        let priority = try todoPriorityArgument(arguments)
-        let isSomeday = arguments["is_someday"]?.boolValue ?? false
 
         let todo = CDTodoItem(context: modelContext)
         todo.title = title
@@ -163,7 +173,8 @@ extension MCPNotebookTools {
             title: "Resolve Follow-Up",
             description: "Mark a follow-up done: completes a todo, resolves a student's "
                 + "open goal (focus item), or clears an observation's follow-up flag, by the "
-                + "id shown in list_open_follow_ups.",
+                + "id shown in list_open_follow_ups. A repeating todo is completed and its next "
+                + "occurrence scheduled, as the app does.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -190,21 +201,7 @@ extension MCPNotebookTools {
         }
 
         if let todo = modelContext.object(CDTodoItem.self, id: id) {
-            guard !todo.isCompleted else {
-                return "Follow-up [todo id=\(idString)] \"\(todo.title)\" is already completed."
-            }
-            guard todo.recurrence == .none else {
-                throw MCPToolError(
-                    "\"\(todo.title)\" is a repeating todo; complete it in the app so the next "
-                        + "occurrence is scheduled."
-                )
-            }
-            todo.isCompleted = true
-            todo.completedAt = Date()
-            guard modelContext.safeSave() else {
-                throw MCPToolError("The follow-up could not be saved.")
-            }
-            return "Completed follow-up [todo id=\(idString)] \"\(todo.title)\"."
+            return try completeTodo(todo, idString: idString, in: modelContext)
         }
 
         if let item = modelContext.object(CDStudentFocusItem.self, id: id) {
@@ -218,11 +215,36 @@ extension MCPNotebookTools {
         throw MCPToolError("No follow-up, goal or flagged note with id \(idString) was found.")
     }
 
+    /// Completed the way the Watching list's Clear and Today's checkbox do,
+    /// so a repeating todo gets its next occurrence. The receipt names it.
+    private static func completeTodo(
+        _ todo: CDTodoItem, idString: String, in modelContext: NSManagedObjectContext
+    ) throws -> String {
+        guard !todo.isCompleted else {
+            MCPCallOutcome.markNothingWritten()
+            return "Follow-up [todo id=\(idString)] \"\(todo.title)\" is already completed."
+        }
+        TodoCompletionService.complete(todo)
+        let next = modelContext.insertedObjects
+            .compactMap { $0 as? CDTodoItem }
+            .first { $0 !== todo && $0.title == todo.title && $0.recurrence == todo.recurrence }
+        guard modelContext.safeSave() else {
+            throw MCPToolError("The follow-up could not be saved.")
+        }
+        var receipt = "Completed follow-up [todo id=\(idString)] \"\(todo.title)\"."
+        if let next {
+            let when = (next.scheduledDate ?? next.dueDate).map { " for \(dayString($0))" } ?? ""
+            receipt += " It repeats, so the next one is on the list\(when) [todo id=\(citationID(next.id))]."
+        }
+        return receipt
+    }
+
     /// Resolved outside a meeting, so no resolving meeting is recorded.
     private static func resolveGoal(
         _ item: CDStudentFocusItem, idString: String, in modelContext: NSManagedObjectContext
     ) throws -> String {
         guard item.isActive else {
+            MCPCallOutcome.markNothingWritten()
             return "Goal [focusItem id=\(idString)] \"\(item.text)\" is already "
                 + "\(item.status.rawValue)."
         }
@@ -238,6 +260,7 @@ extension MCPNotebookTools {
         on note: CDNote, idString: String, in modelContext: NSManagedObjectContext
     ) throws -> String {
         guard note.needsFollowUp, let id = note.id else {
+            MCPCallOutcome.markNothingWritten()
             return "The follow-up flag on [note id=\(idString)] is already cleared."
         }
         NoteRepository(context: modelContext).updateNote(id: id, needsFollowUp: false)

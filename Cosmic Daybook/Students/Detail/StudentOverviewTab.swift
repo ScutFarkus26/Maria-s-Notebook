@@ -108,6 +108,24 @@ struct StudentOverviewTab: View {
         return cachedAgeSchoolDays[work.id ?? UUID()] ?? 0
     }
 
+    /// Logs a status from a card's menu. `WorkLogService` leaves the failure
+    /// message to its callers, and this one dropped it, so a failed save
+    /// looked like nothing happened (bug hunt 2026-10-12 #55).
+    private func logWork(_ rows: [CDWorkModel], as status: WorkStatus) {
+        let entries = rows.map { WorkLogService.Entry(work: $0, status: status) }
+        do {
+            try WorkLogService.log(entries, context: viewContext, saveCoordinator: saveCoordinator)
+        } catch {
+            ToastService.shared.showError(
+                PresentationFailureMessage.message(for: error, fallback: "Couldn't log that work. Try again.")
+            )
+            return
+        }
+        // Re-fetch from the source of truth: the "Working on" fetch
+        // excludes closed work, so a just-closed card drops out.
+        onWorkChanged()
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             StudentHeaderView(
@@ -159,11 +177,7 @@ struct StudentOverviewTab: View {
                                     selectedWorkID = w.id ?? UUID()
                                 },
                                 onLog: { rows, status in
-                                    let entries = rows.map { WorkLogService.Entry(work: $0, status: status) }
-                                    _ = try? WorkLogService.log(entries, context: viewContext)
-                                    // Re-fetch from the source of truth: the "Working on" fetch
-                                    // excludes closed work, so a just-closed card drops out.
-                                    onWorkChanged()
+                                    logWork(rows, as: status)
                                 },
                                 onSchedule: { w, day in
                                     // The Work grid's own write: the earliest

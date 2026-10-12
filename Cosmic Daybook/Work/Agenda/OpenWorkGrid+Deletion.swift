@@ -32,9 +32,9 @@ extension OpenWorkGrid {
         pendingDeletion.count > 1 ? "Delete \(pendingDeletion.count) Items" : "Delete"
     }
 
-    /// Says the part that isn't obvious: `unifiedNotes` cascades, so the
-    /// observations written against this work go with it. A guide clearing out
-    /// stale work should not have to discover that afterwards.
+    /// Says the part that isn't obvious: the notes go with the work — its own,
+    /// its check-ins' and its completion records' (`WorkDeletionService.cascade`).
+    /// A guide clearing out stale work should not have to discover that afterwards.
     var deletionMessage: String {
         let service = WorkDeletionService(context: viewContext)
         let cascade = pendingDeletion.reduce(WorkCascade()) { $0 + service.cascade(for: $1) }
@@ -59,18 +59,30 @@ extension OpenWorkGrid {
             + " will be deleted for every child. This can't be undone."
     }
 
-    func performPendingDeletion() {
-        let repository = WorkRepository(context: viewContext)
-        for work in pendingDeletion {
-            guard let id = work.id else { continue }
-            repository.deleteWork(id: id)
+    /// Deletes the cards in one save through `WorkDeletionService`, which also
+    /// strips the deleted owners from surviving linked copies and sweeps the
+    /// records that key work by id string. A failed save is taken back and
+    /// said so; each card used to be deleted and saved on its own, and a
+    /// failure only reached the log (bug hunt 2026-10-12 #44). `confirmed` is
+    /// what the dialog was shown for, handed over by the dialog itself (G1).
+    func performPendingDeletion(_ confirmed: [CDWorkModel]) {
+        let targets = confirmed.filter { !$0.isDeleted }
+        pendingDeletion = []
+        do {
+            try WorkDeletionService(context: viewContext).delete(targets)
+        } catch {
+            ToastService.shared.showError(
+                targets.count > 1
+                    ? "Couldn't delete those work items. Nothing was changed. Try again."
+                    : "Couldn't delete this work. Nothing was changed. Try again."
+            )
+            return
         }
         // Drop only what was destroyed. Right-clicking an unselected card while
         // a selection is live deletes that one card, and clearing the whole
         // selection here would silently throw the rest of it away.
-        let deleted = Set(pendingDeletion.compactMap(\.id))
+        let deleted = Set(targets.compactMap(\.id))
         selection?.retain(Set(works.compactMap(\.id)).subtracting(deleted))
-        pendingDeletion = []
         onDeleted?()
     }
 }

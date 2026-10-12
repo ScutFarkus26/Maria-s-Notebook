@@ -48,11 +48,30 @@ extension SchoolYearRolloverViewModel {
         }
     }
 
-    /// Where a re-dated run starts: the guide's own date if she picked one,
-    /// otherwise the first open day of the year being rolled into.
-    func carryOverLandingDate(store: SchoolYearStore, context: NSManagedObjectContext) -> Date {
-        let asked = plan.carryOverLanding ?? incomingYear(store: store).start
+    /// Where a re-dated run starts: the guide's own date if she picked one
+    /// no earlier than `earliestCarryOverLanding`, otherwise that earliest day.
+    func carryOverLandingDate(
+        store: SchoolYearStore, context: NSManagedObjectContext, today: Date = Date()
+    ) -> Date {
+        let earliest = earliestCarryOverLanding(store: store, context: context, today: today)
+        guard let asked = plan.carryOverLanding, AppCalendar.startOfDay(asked) > earliest else {
+            return earliest
+        }
         return YearPlanPacing.schoolDay(onOrAfter: asked, in: context)
+    }
+
+    /// The first day a re-dated run may start: the first open day of the year
+    /// being rolled into, or of the days after today once that year has begun.
+    /// Since an autumn rollover closes out last year (10-11), the incoming
+    /// year's start was weeks past, and every re-dated entry read "Behind"
+    /// the moment it landed (bug hunt 2026-10-12 #52). The Settings sweep
+    /// starts from tomorrow for the same reason.
+    func earliestCarryOverLanding(
+        store: SchoolYearStore, context: NSManagedObjectContext, today: Date = Date()
+    ) -> Date {
+        let tomorrow = AppCalendar.addingDays(1, to: AppCalendar.startOfDay(today))
+        let start = AppCalendar.startOfDay(incomingYear(store: store, today: today).start)
+        return YearPlanPacing.schoolDay(onOrAfter: max(start, tomorrow), in: context)
     }
 
     /// True once any child has been given a re-date choice — the landing-date
@@ -66,5 +85,49 @@ extension SchoolYearRolloverViewModel {
         RolloverService.summary(
             for: plan, students: students, context: context, carryOverBefore: incomingYear(store: store).start
         )
+    }
+
+    /// Whether there is anything to review: a child changing, or a carried-over
+    /// choice that moves or skips entries. A rollover run only to sort out
+    /// last year's plans used to be stuck on the first step (bug hunt
+    /// 2026-10-12 #54).
+    func canReview(context: NSManagedObjectContext, store: SchoolYearStore) -> Bool {
+        guard changeCount == 0 else { return true }
+        let counts = carryOverCounts(context: context, store: store)
+        return counts.carriedOverToRedate + counts.carriedOverToSkip > 0
+    }
+
+    /// The review step's button: the number of children changing, when any are.
+    var applyButtonTitle: String {
+        changeCount > 0 ? "Apply Rollover (\(changeCount))" : "Apply Rollover"
+    }
+
+    /// The Done screen's line: the children changed and, from the counts taken
+    /// when Apply was pressed, what happened to last year's plans (#54).
+    /// "Applied 3 changes. Re-dated 7 carried-over year-plan entries."
+    var appliedSummaryText: String {
+        let count = appliedChangeCount
+        var sentences: [String] = []
+        if count > 0 || appliedCarryOverParts.isEmpty {
+            sentences.append("Applied \(count) change\(count == 1 ? "" : "s").")
+        }
+        if !appliedCarryOverParts.isEmpty {
+            let joined = appliedCarryOverParts.joined(separator: " and ")
+            sentences.append(joined.prefix(1).uppercased() + joined.dropFirst() + ".")
+        }
+        return sentences.joined(separator: " ")
+    }
+
+    private var appliedCarryOverParts: [String] {
+        let redated = appliedCarryOver.carriedOverToRedate
+        let skipped = appliedCarryOver.carriedOverToSkip
+        var parts: [String] = []
+        if redated > 0 {
+            parts.append("re-dated \(redated) carried-over year-plan \(redated == 1 ? "entry" : "entries")")
+        }
+        if skipped > 0 {
+            parts.append("skipped \(skipped) carried-over year-plan \(skipped == 1 ? "entry" : "entries")")
+        }
+        return parts
     }
 }

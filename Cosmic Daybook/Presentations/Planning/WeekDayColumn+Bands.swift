@@ -224,24 +224,27 @@ extension WeekDayColumn {
 
     /// The pill's right-click menu. Logging a status here is the same write
     /// the sheet makes, without the note; the pill leaves the strip either way.
-    /// Built on every pass of the column, so the status items' row lookup
-    /// waits in `WorkCheckPillStatusMenu` until the menu is shown.
+    /// A pill for a later day offers no logging, only moving and opening
+    /// (bug hunt 2026-10-12, #37). Built on every pass of the column, so the
+    /// row lookups and the school calendar wait in their own views
+    /// (`WorkCheckPillStatusMenu`, …) until the menu is shown.
     @ViewBuilder
     func checkInMenu(_ group: CalendarCheckInGroup) -> some View {
-        Button {
-            onOpenCheckInGroup(group)
-        } label: {
-            Label("Log Check…", systemImage: "square.and.pencil")
+        let canLog = WorkCheckPillActions.canLog(group)
+        if canLog {
+            Button {
+                onOpenCheckInGroup(group)
+            } label: {
+                Label("Log Check…", systemImage: "square.and.pencil")
+            }
+            Divider()
+            WorkCheckPillStatusMenu(group: group, actions: pillActions)
+            Divider()
         }
-        Divider()
-        WorkCheckPillStatusMenu(group: group, actions: pillActions)
-        Divider()
         Menu {
             let ids = group.checkIns.compactMap(\.id)
             Button("Today") { onDropWorkCheckIns(ids, AppCalendar.startOfDay(Date())) }
-            Button("Tomorrow") {
-                onDropWorkCheckIns(ids, AppCalendar.addingDays(1, to: AppCalendar.startOfDay(Date())))
-            }
+            WorkCheckNextSchoolDayButton { day in onDropWorkCheckIns(ids, day) }
             Divider()
             Button("Pick a Day…") { reschedulingGroupID = group.id }
         } label: {
@@ -254,6 +257,9 @@ extension WeekDayColumn {
             } label: {
                 Label("Open Work", systemImage: "arrow.forward.circle")
             }
+        } else if !canLog {
+            Divider()
+            WorkCheckPillOpenWorkMenu(group: group, actions: pillActions)
         }
     }
 

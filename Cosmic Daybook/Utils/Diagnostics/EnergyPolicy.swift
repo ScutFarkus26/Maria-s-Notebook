@@ -181,9 +181,6 @@ final class EnergyPolicy {
         }
     }
 
-    /// Number of tasks currently suspended in `waitUntilMaintenanceAllowed()`.
-    var waitingTaskCount: Int { waiters.count }
-
     // MARK: - Private
 
     private func startObserving() {

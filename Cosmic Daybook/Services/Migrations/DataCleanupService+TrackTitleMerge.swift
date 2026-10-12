@@ -88,7 +88,7 @@ nonisolated extension DataCleanupService {
         guard !groups.isEmpty else { return 0 }
 
         var removed: Int = 0
-        for group in groups where !DedupSyncState.noCopySent(group, container: container) {
+        for group in groups where DedupSyncState.mayFoldNameGroup(group, container: container) {
             let ordered: [CDTrackEntity] = group.sorted { (lhs: CDTrackEntity, rhs: CDTrackEntity) -> Bool in
                 olderTrackPrecedes(lhs, rhs, container: container)
             }

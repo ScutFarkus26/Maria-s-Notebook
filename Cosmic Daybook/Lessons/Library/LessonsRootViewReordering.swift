@@ -3,9 +3,6 @@
 
 import SwiftUI
 import CoreData
-import OSLog
-
-nonisolated private let logger = Logger.lessons
 
 // MARK: - LessonsRootView Reordering Extension
 
@@ -116,17 +113,18 @@ extension LessonsRootView {
 
     // MARK: - Move CDLesson to Different Group
 
+    /// The lesson goes to the end of the sub-area it was dropped on. Refused,
+    /// moving nothing, when that sub-area already has a lesson by its name.
     func moveLessonToSequence(lesson: CDLesson, newSequence: String) {
         let ungroupedLabel = "Ungrouped"
         let actualGroup = (newSequence == ungroupedLabel) ? "" : newSequence
-
-        lesson.sequence = actualGroup
-
-        // Set orderInSequence to end of target sequence
         let targetLessons = lessonsForSequence(newSequence, ungroupedLabel: ungroupedLabel)
-        let maxOrder = targetLessons.map(\.orderInSequence).max() ?? -1
-        lesson.orderInSequence = maxOrder + 1
-
+        do {
+            try LessonSequenceOrdering.moveToEnd(lesson, ofSequence: actualGroup, after: targetLessons)
+        } catch {
+            moveRefusal = error.errorDescription
+            return
+        }
         rebuildSortIndexForArea()
     }
 
@@ -160,59 +158,28 @@ extension LessonsRootView {
     // MARK: - Plan Presentation
 
     func planPresentation(for lesson: CDLesson, studentIDs: Set<UUID>, purpose: RepeatPurpose? = nil) {
-        guard !studentIDs.isEmpty else { return }
-
-        // NOTE: SwiftData #Predicate doesn't support capturing local Array/Set variables,
-        // so we fetch all and filter in memory
-        let allStudents: [CDStudent]
-        do {
-            allStudents = try viewContext.fetch(CDFetchRequest(CDStudent.self))
-        } catch {
-            logger.warning("Failed to fetch students: \(error)")
-            allStudents = []
-        }
-        let students = allStudents.filter {
-            guard let sid = $0.id else { return false }
-            return studentIDs.contains(sid)
-        }
-
-        let lessonIDString = lesson.id?.uuidString ?? ""
-        let draftRaw = LessonAssignmentState.draft.rawValue
-        let existingPredicate = NSPredicate(
-            format: "lessonID == %@ AND stateRaw == %@",
-            lessonIDString as CVarArg,
-            draftRaw as CVarArg
-        )
-        let existingDescriptor = {
-            let r = CDFetchRequest(CDLessonAssignment.self)
-            r.predicate = existingPredicate
-            return r
-        }()
-        let existingAssignments: [CDLessonAssignment]
-        do {
-            existingAssignments = try viewContext.fetch(existingDescriptor)
-        } catch {
-            logger.warning("Failed to fetch existing lesson assignments: \(error)")
-            existingAssignments = []
-        }
-
-        if existingAssignments.contains(where: { Set($0.resolvedStudentIDs) == studentIDs }) {
-            lessonToSchedule = nil
+        defer { lessonToSchedule = nil }
+        guard let result = Self.filePlan(
+            for: lesson, studentIDs: studentIDs, purpose: purpose, in: viewContext
+        ) else { return }
+        guard result.isNew else {
+            ToastService.shared.show(
+                PresentationPlanner.alreadyPlannedMessage(purpose: purpose), type: .info, duration: 4
+            )
             return
         }
-
-        guard lesson.id != nil else {
-            lessonToSchedule = nil
-            return
-        }
-        PresentationPlanner.planDraft(
-            lesson: lesson,
-            students: students,
-            purpose: purpose,
-            in: viewContext
-        )
         saveCoordinator.save(viewContext, reason: "Plan presentation")
+    }
 
-        lessonToSchedule = nil
+    /// Files the draft the schedule sheet asked for through the check every
+    /// planning path shares, so a child already waiting for the lesson stays
+    /// on the plan she's on: planning Maya and Eli when Maya has a draft makes
+    /// one for Eli alone. This path matched only a draft naming exactly the
+    /// same children, and made Maya a second one (bug hunt 2026-10-12, #32).
+    /// Nothing is saved.
+    static func filePlan(
+        for lesson: CDLesson, studentIDs: Set<UUID>, purpose: RepeatPurpose?, in viewContext: NSManagedObjectContext
+    ) -> PresentationPlanner.PlanResult? {
+        PresentationPlanner.planOrReuse(lesson: lesson, studentIDs: studentIDs, purpose: purpose, in: viewContext)
     }
 }

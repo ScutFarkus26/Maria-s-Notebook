@@ -60,3 +60,61 @@ struct WorkCheckPillStatusMenu: View {
         }
     }
 }
+
+extension WorkCheckPillActions {
+    /// Whether a pill's checks can be logged now: on its day or after. A pill
+    /// for a later day can be moved or opened, but logging it then finished
+    /// the work on that future day, or read "Logged" while the pill stayed put
+    /// (bug hunt 2026-10-12, #37).
+    static func canLog(_ group: CalendarCheckInGroup, today: Date = Date()) -> Bool {
+        AppCalendar.startOfDay(group.sortDate) <= AppCalendar.startOfDay(today)
+    }
+}
+
+/// Where a pill's Reschedule › Tomorrow lands, and what the menu calls it:
+/// the next school day after today, so a Friday's check goes to Monday and
+/// says so ("Monday"), the way Today's bump does (bug hunt 2026-10-12, #48).
+enum WorkCheckRescheduleDay {
+    static func next(
+        today: Date, calendar: Calendar, nextSchoolDay: (Date) -> Date
+    ) -> (day: Date, title: String) {
+        let start = calendar.startOfDay(for: today)
+        let day = calendar.startOfDay(for: nextSchoolDay(start))
+        return (day, TodayBumpDay.title(for: day, today: start, calendar: calendar))
+    }
+}
+
+/// The pill menu's "next school day" item. A view of its own so the school
+/// calendar is read only when the menu is shown, not on every pass of the
+/// day column (see `WorkCheckPillStatusMenu`).
+struct WorkCheckNextSchoolDayButton: View {
+    let move: (Date) -> Void
+
+    @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.calendar) private var calendar
+
+    var body: some View {
+        let target = WorkCheckRescheduleDay.next(today: Date(), calendar: calendar) { day in
+            SchoolCalendarService.shared.nextSchoolDaySync(after: day, using: viewContext)
+        }
+        Button(target.title) { move(target.day) }
+    }
+}
+
+/// "Open Work" for each child under a grouped pill, looked up when the menu
+/// is shown. A pill for a later day offers this in place of logging.
+struct WorkCheckPillOpenWorkMenu: View {
+    let group: CalendarCheckInGroup
+    let actions: WorkCheckPillActions
+
+    var body: some View {
+        let children = actions.children(actions.rows(group))
+        Menu {
+            ForEach(children) { child in
+                Button(child.name) { actions.openWork(child.id) }
+            }
+        } label: {
+            Label("Open Work", systemImage: "arrow.forward.circle")
+        }
+    }
+}

@@ -35,9 +35,9 @@ struct WorkDetailView: View {
     /// instead of a live unfiltered `@FetchRequest` over every session whose
     /// transformable ids were decoded per session on every body pass.
     @State var practiceSessions: [CDPracticeSession] = []
-    /// Size of the whole practice-session table at the last load; the
-    /// participant lookup reloads when it moves, as it did on `.count` before.
-    @State var practiceSessionTableCount: Int?
+    /// The ids this work's practice sessions named at the last load; the
+    /// participant lookup reloads when they change.
+    @State var practiceParticipantIDs: PracticeParticipantIDs?
 
     /// The "Next Presentation" card's status. Two assignment fetches, so it is
     /// loaded on appear and when an assignment or work changes rather than on

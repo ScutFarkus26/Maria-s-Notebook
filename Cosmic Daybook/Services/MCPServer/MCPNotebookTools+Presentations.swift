@@ -185,20 +185,26 @@ extension MCPNotebookTools {
         _ filings: [PresentationFiling], in modelContext: NSManagedObjectContext
     ) throws -> String {
         // The record is read once, before anything is resolved or written, so
-        // the guard and the second-pass flag both see it as it stands.
+        // the guard and the second-pass flag both see it as it stands; a lesson
+        // an earlier filing in this call wrote is read again (`fileInOrder`).
         let index = PresentationRecordIndex(
             lessonIDs: Set(filings.map { $0.lessonID.uuidString }), in: modelContext
         )
+        // Filed in date order, so the repeat guard and the plan a giving
+        // claims don't depend on the order the caller listed them in: an
+        // earlier day listed second used to slip past the guard. The receipts
+        // keep the caller's order.
+        let order: [Int] = filings.indices.sorted { lhs, rhs in
+            let left = filings[lhs].presentedAt
+            let right = filings[rhs].presentedAt
+            return left != right ? left < right : lhs < rhs
+        }
         // Every presentation in the call lands, or none does; a refusal or a
         // failed save undoes only this call's rows.
         let filed: [FiledPresentation] = try undoingOnFailure(modelContext) { modelContext in
-            var filed: [FiledPresentation] = []
+            let filed: [FiledPresentation]
             do {
-                let resolved = filings.map { resolve($0, index: index, in: modelContext) }
-                try refuseUnexplainedRepeats(resolved)
-                for item in resolved {
-                    filed.append(try write(item, index: index, in: modelContext))
-                }
+                filed = try fileInOrder(order.map { filings[$0] }, index: index, in: modelContext)
             } catch let error as MCPToolError {
                 throw error
             } catch {
@@ -212,9 +218,53 @@ extension MCPNotebookTools {
         // The note lists wait for this rather than watching the store (#48).
         announceSavedNote(filed.lazy.compactMap(\.firstNoteID).first)
 
-        let receipts = filed.map(receipt(for:))
+        // `fileInOrder` returns one per filing, in the order given, or throws.
+        let receipts: [String] = zip(order, filed)
+            .sorted { lhs, rhs in lhs.0 < rhs.0 }
+            .map { pair in receipt(for: pair.1) }
         guard receipts.count > 1 else { return receipts[0] }
         return "Filed \(receipts.count) presentation(s):\n" + receipts.map { "- \($0)" }.joined(separator: "\n")
+    }
+
+    /// Resolves and writes each filing in turn, so each one sees what the
+    /// filings before it in the call wrote. Deciding them all first let two
+    /// givings of one lesson claim the same waiting plan (the second re-dated
+    /// it, and Monday's giving disappeared) and let a duplicate become two
+    /// records. Now a plan the first completed is no longer waiting, the same
+    /// lesson, children and day filed again updates the record just made, and
+    /// a second giving on another day is a repeat for the guard.
+    ///
+    /// A filing the guard refuses is held back, its new draft removed so no
+    /// later filing takes it for a plan, and the call is refused once every
+    /// filing has been looked at, naming them all; the caller's undo scope
+    /// takes back whatever was written.
+    private static func fileInOrder(
+        _ filings: [PresentationFiling], index: PresentationRecordIndex,
+        in modelContext: NSManagedObjectContext
+    ) throws -> [FiledPresentation] {
+        var filed: [FiledPresentation] = []
+        var refused: [ResolvedFiling] = []
+        var writtenLessons: Set<String> = []
+        for filing in filings {
+            let lessonID = filing.lessonID.uuidString
+            // Unsaved rows are part of the read, so a lesson written earlier in
+            // this call is read again with them.
+            let record = writtenLessons.contains(lessonID)
+                ? PresentationRecordIndex(lessonIDs: [lessonID], in: modelContext)
+                : index
+            let resolved = resolve(filing, index: record, in: modelContext)
+            guard resolved.conflicts.isEmpty || filing.purpose != nil else {
+                if resolved.origin == .newRecord {
+                    modelContext.delete(resolved.assignment)
+                }
+                refused.append(resolved)
+                continue
+            }
+            filed.append(try write(resolved, index: record, in: modelContext))
+            writtenLessons.insert(lessonID)
+        }
+        try refuseUnexplainedRepeats(refused)
+        return filed
     }
 
     /// Writes one presentation, its notes, and the guide's decisions into the

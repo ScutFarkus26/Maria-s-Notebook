@@ -7,8 +7,9 @@
 // from last April. This is the same choice, offered any time from Settings →
 // School Calendar, over the whole roster at once.
 //
-// Nothing is written until Apply, and Apply is a single `safeSave` so the
-// whole sweep is one atomic change.
+// Nothing is written until Apply, and Apply is a single save so the whole
+// sweep is one atomic change. A failed save puts every entry back, leaves the
+// year unswept and says so (bug hunt 2026-10-12 #59).
 
 import CoreData
 import Foundation
@@ -33,6 +34,9 @@ final class CarriedOverPlanSweepViewModel {
     /// never fixed: compressing the spacing to make them fit would rewrite the
     /// guide's pacing behind her back.
     private(set) var pastYearEnd = 0
+    /// Set when Apply's save failed; nothing was changed and the sheet stays
+    /// on the choices so the guide can try again.
+    var applyErrorMessage: String?
 
     /// The boundary the whole sheet is measured against, fixed at load so a
     /// midnight rollover cannot change it under an open sheet.
@@ -97,7 +101,11 @@ final class CarriedOverPlanSweepViewModel {
 
     // MARK: - Applying
 
-    func apply(context: NSManagedObjectContext) {
+    func apply(context: NSManagedObjectContext, saveCoordinator: SaveCoordinator = SaveCoordinator()) {
+        applyErrorMessage = nil
+        // Only the sweep's own changes are undone on a failed save: the
+        // context may hold the guide's other unsaved edits.
+        let transaction = ContextMutationTransaction(context: context)
         var redated = 0
         var skipped = 0
         var children = 0
@@ -122,8 +130,15 @@ final class CarriedOverPlanSweepViewModel {
             }
         }
         if redated > 0 || skipped > 0 {
-            context.safeSave()
+            guard saveCoordinator.save(
+                context, reason: "Sweep carried-over year plans", alertOnFailure: false
+            ) else {
+                transaction.rollback()
+                applyErrorMessage = SettingsCopy.CarriedOverSweep.saveFailed
+                return
+            }
         }
+        transaction.commit()
         redatedEntries = redated
         skippedEntries = skipped
         childrenTouched = children

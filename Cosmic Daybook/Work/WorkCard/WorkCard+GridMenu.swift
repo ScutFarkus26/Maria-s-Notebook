@@ -98,7 +98,7 @@ extension WorkCardGridContent {
 
     // MARK: - Submenus
 
-    /// Today, tomorrow, and — the point of the submenu — any other day.
+    /// Today, the next school day, and — the point of the submenu — any other day.
     ///
     /// This used to be a menu with one item in it, so the only day a card could
     /// name was today; every other day had to be reached by dragging the card
@@ -106,10 +106,7 @@ extension WorkCardGridContent {
     @ViewBuilder
     private func scheduleMenu(_ targets: [CDWorkModel]) -> some View {
         Menu {
-            Button("Today") { schedule(targets, on: AppCalendar.startOfDay(Date())) }
-            Button("Tomorrow") {
-                schedule(targets, on: AppCalendar.addingDays(1, to: AppCalendar.startOfDay(Date())))
-            }
+            WorkCardScheduleDays(context: viewContext) { day in schedule(targets, on: day) }
             Divider()
             Button("Pick a Day…") { isPickingCheckDay = true }
         } label: {
@@ -177,6 +174,23 @@ extension WorkCardGridContent {
             }
         }
         viewContext.safeSave()
+    }
+}
+
+/// The Schedule submenu's fixed days: today, and the next school day, named
+/// as Today names it ("Tomorrow", "Monday"). "Tomorrow" was the calendar's
+/// next day, so on a Friday it put the check on Saturday (bug hunt 2026-10-12
+/// #48). A view of its own, like `WorkCardStatusMenu` below, so the school
+/// calendar is read only when the menu is built for display.
+struct WorkCardScheduleDays: View {
+    let context: NSManagedObjectContext
+    let onSchedule: (Date) -> Void
+
+    var body: some View {
+        let today = AppCalendar.startOfDay(Date())
+        let next = SchoolCalendarService.shared.nextSchoolDaySync(after: today, using: context)
+        Button("Today") { onSchedule(today) }
+        Button(TodayBumpDay.title(for: next, today: today, calendar: AppCalendar.shared)) { onSchedule(next) }
     }
 }
 

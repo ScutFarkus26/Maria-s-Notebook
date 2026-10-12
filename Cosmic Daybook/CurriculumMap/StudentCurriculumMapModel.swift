@@ -45,9 +45,14 @@ struct UntouchedFlag: Hashable {
     let days: Int
     let lastPresented: Date?
     let lastActivity: Date?
+    /// Something in the area was presented, but no presentation carries a
+    /// date (the checklist's "previously presented" marks).
+    var hasUndatedPresentations = false
 
     var text: String {
-        guard let lastPresented else { return "Never presented" }
+        guard let lastPresented else {
+            return hasUndatedPresentations ? "Presented, but no dates on file" : "Never presented"
+        }
         return "No presentation since \(DateFormatters.mediumDate.string(from: lastPresented))"
     }
 }
@@ -64,12 +69,16 @@ final class StudentCurriculumMapModel {
 
     // MARK: - Build
 
-    func rebuild(
+    /// `startMonth` and `startDay` are the school-year start (`SchoolYearStore`'s),
+    /// passed in so the view rebuilds when the setting changes.
+    func rebuild( // swiftlint:disable:this function_parameter_count
         studentID: UUID,
         store: CurriculumMapStore,
         settings: CurriculumMapSettings,
         zoom: CurriculumZoom,
         granularity: CurriculumGranularity,
+        startMonth: Int,
+        startDay: Int,
         today: Date = Date(),
         calendar: Calendar = AppCalendar.shared
     ) {
@@ -81,7 +90,8 @@ final class StudentCurriculumMapModel {
         let cells = store.cells(for: studentID)
         let earliest = cells.values.compactMap { $0.events.first?.date }.min()
         let timeline = CurriculumTimeline.make(
-            dateStarted: student.dateStarted, fallbackAnchor: earliest, today: today, zoom: zoom, calendar: calendar
+            dateStarted: student.dateStarted, fallbackAnchor: earliest, today: today, zoom: zoom,
+            startMonth: startMonth, startDay: startDay, calendar: calendar
         )
         self.timeline = timeline
 
@@ -198,7 +208,8 @@ private struct RowBuilder {
                 lessonIDs: ids,
                 summary: summary,
                 untouched: untouched ? UntouchedFlag(
-                    days: days, lastPresented: summary.lastPresented, lastActivity: summary.lastActivity
+                    days: days, lastPresented: summary.lastPresented, lastActivity: summary.lastActivity,
+                    hasUndatedPresentations: wasPresented(ids)
                 ) : nil,
                 glyphs: glyphs(for: summary.events)
             ))
@@ -267,6 +278,14 @@ private struct RowBuilder {
     }
 
     // MARK: - Helpers
+
+    /// True when any of these lessons has a presentation or mastery record.
+    private func wasPresented(_ lessonIDs: [UUID]) -> Bool {
+        lessonIDs.contains { id in
+            guard let evidence = cells[id]?.evidence else { return false }
+            return !evidence.presentationIDs.isEmpty || !evidence.masteryRecordIDs.isEmpty
+        }
+    }
 
     private func aggregate(for lessonIDs: [UUID]) -> CurriculumAggregate {
         CurriculumMapEngine.aggregate(lessonIDs.compactMap { cells[$0] }, lessonCount: lessonIDs.count)

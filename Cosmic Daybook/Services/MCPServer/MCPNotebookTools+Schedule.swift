@@ -102,11 +102,18 @@ extension MCPNotebookTools {
         if span > maximumScheduleDays {
             sections.append(
                 "(Range truncated to \(maximumScheduleDays) days — ask again from "
-                    + "\(dayString(days.last.map { $0.day.addingTimeInterval(86_400) } ?? end)) "
+                    + "\(dayString(resumeDay(after: days.last?.day) ?? end)) "
                     + "for the rest.)"
             )
         }
         return sections.joined(separator: "\n\n")
+    }
+
+    /// The calendar day after `day`: a day step, not 86,400 seconds, which
+    /// across the November clock change names the same day again. The
+    /// calendar is a seam for the test, which pins a zone that has the change.
+    static func resumeDay(after day: Date?, calendar: Calendar = AppCalendar.shared) -> Date? {
+        day.flatMap { calendar.date(byAdding: .day, value: 1, to: $0) }
     }
 
     private static func scheduledDay(
@@ -132,10 +139,13 @@ extension MCPNotebookTools {
         ]
         // `resolvedWork` reads the relationship or the workID string, so a
         // check-in dropped onto the week plan before the relationship was
-        // always set still names its work here.
+        // always set still names its work here. For one child, only the rows
+        // her own list shows: a classmate's linked copy names her too, but it
+        // is the classmate's (`WorkGrouping.visibleWork`).
         let checkIns = modelContext.safeFetch(checkInRequest).filter { checkIn in
             guard let studentID else { return true }
-            return checkIn.resolvedWork(in: modelContext).map { involves(studentID, in: $0) } ?? false
+            guard let work = checkIn.resolvedWork(in: modelContext) else { return false }
+            return !WorkGrouping.visibleWork(for: studentID, among: [work], in: modelContext).isEmpty
         }
 
         // Calendar events and day notes belong to the classroom as a whole, so a
@@ -183,7 +193,7 @@ extension MCPNotebookTools {
                 let title = nonEmpty(work?.title) ?? "Untitled work"
                 // No work row at all means the check-in outlived its work; say
                 // so rather than printing it as an unassigned plan.
-                let who = work.map { workStudentNames(for: $0, in: modelContext) }
+                let who = work.map { scheduleStudentLabel(for: $0, in: modelContext) }
                     ?? "orphaned check-in, its work no longer exists"
                 // The title, not the stored spelling: see CheckInReason.displayName.
                 let purpose = nonEmpty(checkIn.purpose)
@@ -210,6 +220,23 @@ extension MCPNotebookTools {
         }
 
         return lines.joined(separator: "\n")
+    }
+
+    /// Who a scheduled work row is for. A linked copy is one child's own row
+    /// that names her classmates, so it reads as hers ("Maya Soto's copy (with
+    /// Eli Ross)") rather than as one item for all of them; a shared row or a
+    /// single child's row lists everyone on it, as before.
+    private static func scheduleStudentLabel(
+        for work: CDWorkModel, in modelContext: NSManagedObjectContext
+    ) -> String {
+        let everyone = workStudentIDs(for: work)
+        guard let owner = WorkGrouping.owner(of: work), everyone.count > 1,
+              WorkGrouping.group(containing: work, in: modelContext).members.count > 1 else {
+            return workStudentNames(for: work, in: modelContext)
+        }
+        let others = everyone.filter { $0 != owner }
+        return "\(studentNames(for: [owner], in: modelContext))'s copy "
+            + "(with \(studentNames(for: others, in: modelContext)))"
     }
 
     /// Perpetual-calendar notes are stored as year/month/day integers rather

@@ -279,7 +279,8 @@ final class TodayViewModel {
         let departed = cacheManager.departedStudents(context: context)
         let followUps = TodayFollowUpLoader.build(
             fetch: workFetch, day: day, nextDay: nextDay,
-            studentsByID: studentsByID, departedStudentsByID: departed, levelFilter: levelFilter
+            studentsByID: studentsByID, departedStudentsByID: departed, levelFilter: levelFilter,
+            context: context
         )
 
         // 3. Fetch completed work

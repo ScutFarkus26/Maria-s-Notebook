@@ -16,6 +16,27 @@ struct MCPCurriculumMapToolsTests {
         try #require(tools.first { $0.name == name })
     }
 
+    /// The "Year N" badge the tools should print today for a child who
+    /// started in the school year beginning in `beginYear`, counted here by
+    /// hand from begin years (not through `CurriculumTimeline`, which the
+    /// tools use), by the configured start, so the expectations follow the
+    /// rule and don't drift when a new school year begins.
+    private func yearBadge(startedInSchoolYearBeginning beginYear: Int) -> String {
+        let defaults = UserDefaults.standard
+        let month = defaults.object(forKey: UserDefaultsKeys.schoolYearStartMonth) as? Int ?? 9
+        let startDay = defaults.object(forKey: UserDefaultsKeys.schoolYearStartDay) as? Int ?? 1
+        let current = SchoolYear.containing(
+            Date(), startMonth: month, startDay: startDay, calendar: AppCalendar.shared
+        ).beginYear
+        let year = current - beginYear + 1
+        return year > 3 ? "Year 3+" : "Year \(year)"
+    }
+
+    /// Ora started 2025-11-29: the school year beginning in 2025.
+    private var oraYear: String { yearBadge(startedInSchoolYearBeginning: 2025) }
+    /// Dalia started 2024-09-01: the school year beginning in 2024.
+    private var daliaYear: String { yearBadge(startedInSchoolYearBeginning: 2024) }
+
     private func day(_ iso: String) -> Date {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -71,7 +92,7 @@ struct MCPCurriculumMapToolsTests {
         let output = try await tool(named: "student_curriculum_map", in: tools).handler([
             "student_name": .string("Ora")
         ])
-        #expect(output.contains("Ora Pardo — Year 1 (started 2025-11-29)"))
+        #expect(output.contains("Ora Pardo — \(oraYear) (started 2025-11-29)"))
         #expect(output.contains("Great Lessons:"))
         #expect(output.contains("Coming of the Universe: no lesson tagged"))
         #expect(output.contains("Math: 1 of 3 presented; last presentation 2026-02-12"))
@@ -126,8 +147,8 @@ struct MCPCurriculumMapToolsTests {
         ])
         #expect(output.contains("2 enrolled child(ren)"))
         #expect(output.contains("Not yet presented (2):"))
-        #expect(output.contains("Dalia Singer (Year 3)"))
-        #expect(output.contains("Ora Pardo (Year 1)"))
+        #expect(output.contains("Dalia Singer (\(daliaYear))"))
+        #expect(output.contains("Ora Pardo (\(oraYear))"))
         #expect(output.contains("Mastered (0):\n  none"))
         // Oldest cohort first.
         let dalia = try #require(output.range(of: "Dalia Singer"))
@@ -144,7 +165,7 @@ struct MCPCurriculumMapToolsTests {
         let math = try await map.handler(["lesson_or_area": .string("math")])
         #expect(math.contains("Math (best state across the area)"))
         #expect(math.contains("Chosen (1):"))
-        #expect(math.contains("Ora Pardo (Year 1, last presentation 2026-02-12)"))
+        #expect(math.contains("Ora Pardo (\(oraYear), last presentation 2026-02-12)"))
 
         let filtered = try await map.handler(["lesson_or_area": .string("Biology"), "state": .string("notPresented")])
         #expect(filtered.contains("Not yet presented (1):"))

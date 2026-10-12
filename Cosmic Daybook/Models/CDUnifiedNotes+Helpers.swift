@@ -136,21 +136,21 @@ nonisolated extension CDWorkCheckIn {
         CDNote.legacyFieldBody(in: (notes?.allObjects as? [CDNote]) ?? [])
     }
 
+    /// A new note is about the children the work's log is about
+    /// (`WorkLogService.studentsLogged`): a linked copy's owner, or everyone
+    /// on a genuinely shared row. It used to name every participant, so a
+    /// note on one child's copy showed on each classmate's Notes tab (bug hunt
+    /// 2026-10-12 #40). A note already written keeps its scope when edited.
+    /// Main actor: telling a linked copy from a shared row reads the group.
+    @MainActor
     @discardableResult
     func setLegacyNoteText(_ text: String?, in context: NSManagedObjectContext) -> Bool {
         let scope: NoteScope
-        if let work {
-            let parts = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
-            let studentUUIDs = parts.compactMap { UUID(uuidString: $0.studentID) }
-            if studentUUIDs.count == 1, let only = studentUUIDs.first {
-                scope = .student(only)
-            } else if studentUUIDs.count > 1 {
-                scope = .students(studentUUIDs)
-            } else if let studentUUID = UUID(uuidString: work.studentID) {
-                scope = .student(studentUUID)
-            } else {
-                scope = .all
-            }
+        if let work = resolvedWork(in: context) {
+            let logged = WorkLogService.studentsLogged(on: work, in: context)
+            // A row naming no owner (unclaimed project work) falls back to
+            // whoever is on it.
+            scope = NoteScope.forSelection(Set(logged), fallback: WorkGrouping.studentIDs(of: work))
         } else {
             scope = .all
         }

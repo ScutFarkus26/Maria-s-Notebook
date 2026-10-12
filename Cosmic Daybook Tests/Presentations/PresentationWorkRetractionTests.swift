@@ -74,8 +74,11 @@ struct PresentationWorkRetractionTests {
             forRemoving: [naomi], from: fixture.assignment, in: fixture.context
         )
         // Her row is single-child: taking her off would empty it, so it is
-        // reported as untouched rather than deleted behind the guide's back.
-        #expect(plans.isEmpty)
+        // offered for deletion (bug hunt 2026-10-12 #47) — named in the
+        // alert, and nothing is touched until the guide chooses.
+        #expect(plans.count == 1)
+        #expect(plans.first?.steps.map(\.action) == [.deleteRow])
+        #expect(plans.first?.steps.first?.work === works[0])
         #expect(works.allSatisfy { !$0.isDeleted })
     }
 
@@ -94,10 +97,13 @@ struct PresentationWorkRetractionTests {
         let plans = PresentationWorkRetraction.plans(
             forRemoving: [naomi], from: fixture.assignment, in: fixture.context
         )
-        #expect(plans.count == 1)
-        #expect(plans[0].steps.map(\.action) == [.dropParticipant])
+        // Her own single-child row is offered for deletion too (bug hunt
+        // 2026-10-12 #47); Ora's row only loses her.
+        #expect(plans.count == 2)
+        let orasPlan = plans.first { plan in plan.works.contains { $0 === orasRow } }
+        #expect(orasPlan?.steps.map(\.action) == [.dropParticipant])
         let lines = PresentationWorkRetraction.describe(plans, in: fixture.context)
-        #expect(lines == ["Child 1 T comes off “Define commutative property”"])
+        #expect(lines.contains("Child 1 T comes off “Define commutative property”"))
 
         try PresentationWorkRetraction.apply(plans, in: fixture.context)
         CoreDataTestHelpers.save(fixture.context)

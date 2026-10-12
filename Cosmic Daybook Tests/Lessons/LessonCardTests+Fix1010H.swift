@@ -23,11 +23,11 @@ struct LessonCardFix1010HTests {
         draft.name = "Golden Beads, revised"
         draft.writeUp = "New notes for A"
 
-        #expect(!draft.apply(to: lessonB))
+        #expect(try !draft.apply(to: lessonB))
         #expect(lessonB.name == "Bank Game")
         #expect(lessonB.writeUp == "B's write-up")
 
-        #expect(draft.apply(to: lessonA))
+        #expect(try draft.apply(to: lessonA))
         #expect(lessonA.name == "Golden Beads, revised")
         #expect(lessonA.writeUp == "New notes for A")
     }
@@ -44,7 +44,7 @@ struct LessonCardFix1010HTests {
         draft.name = "  Renamed  "
         draft.source = .album
         draft.isKeyLesson = true
-        #expect(draft.apply(to: lesson))
+        #expect(try draft.apply(to: lesson))
         #expect(lesson.name == "Renamed")
 
         onDisk.restore(lesson)

@@ -302,20 +302,7 @@ final class StudentsViewModel {
         let days = computeDaysSinceLastLessonCache(for: students, using: viewContext, calendar: calendar)
         if days != cachedDaysSinceLastLesson { cachedDaysSinceLastLesson = days }
 
-        let lessons = Self.nextLessons(for: students, in: viewContext)
-        let lessonNames: [UUID: String] = Dictionary(
-            lessons.compactMap { lesson in lesson.id.map { ($0, lesson.name) } },
-            uniquingKeysWith: { first, _ in first }
-        )
-        let nextNames = Dictionary(
-            students.compactMap { student -> (UUID, String)? in
-                guard let studentID = student.id,
-                      let name = student.nextLessonUUIDs.lazy.compactMap({ lessonNames[$0] }).first
-                else { return nil }
-                return (studentID, name)
-            },
-            uniquingKeysWith: { first, _ in first }
-        )
+        let nextNames = Self.nextLessonNames(for: Set(students.compactMap(\.id)), in: viewContext)
         if nextNames != cachedNextLessonNames { cachedNextLessonNames = nextNames }
 
         let latest = Self.latestObservationDates(for: Set(students.compactMap(\.id)), in: viewContext)

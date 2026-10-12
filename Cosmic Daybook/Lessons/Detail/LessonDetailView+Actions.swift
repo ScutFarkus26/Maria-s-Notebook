@@ -14,7 +14,16 @@ extension LessonDetailView {
     /// again (the save alert says what happened).
     func saveEdits() {
         let onDisk = LessonEditDraft(lesson: lesson)
-        guard draft.apply(to: lesson) else {
+        let applied: Bool
+        do {
+            applied = try draft.apply(to: lesson)
+        } catch {
+            // A name its sub-area already has: nothing was written, and the
+            // form stays open with her text so she can choose another.
+            saveRefusal = error.errorDescription
+            return
+        }
+        guard applied else {
             Self.logger.warning("Edit draft belonged to another lesson; nothing saved")
             isEditing = false
             return

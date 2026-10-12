@@ -213,6 +213,13 @@ extension MCPNotebookTools {
     ) throws -> [String] {
         var changes: [String] = []
         if let status = try goingOutStatusArgument(arguments, "status") {
+            // The app's Completed button stamps the day it happened; a date
+            // given in this call (actual_date) or already on file is kept.
+            if status == .completed, goingOut.status != .completed, goingOut.actualDate == nil {
+                let today = AppCalendar.startOfDay(Date())
+                goingOut.actualDate = today
+                changes.append("happened \(dayString(today))")
+            }
             goingOut.status = status
             changes.append(status.rawValue)
         }
