@@ -21,6 +21,9 @@ struct WorksAgendaView: View {
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.calendar) var calendar
     @Environment(\.appRouter) var appRouter
+    /// This window's Go › Lessons & Work lens; the router's is for callers
+    /// with no window.
+    @Environment(\.windowSectionRequests) var windowSectionRequests
     @Environment(\.quickCaptureActions) var quickCapture
     @Environment(\.dependencies) var dependencies
     @Environment(SaveCoordinator.self) var saveCoordinator
@@ -241,6 +244,9 @@ struct WorksAgendaView: View {
             }
         }
         .onChange(of: appRouter.lessonsAndWorkRequest?.id) { _, _ in
+            consumeWorkspaceRequestIfNeeded()
+        }
+        .onChange(of: windowSectionRequests?.lessonsAndWork?.id) { _, _ in
             consumeWorkspaceRequestIfNeeded()
         }
         .onDisappear {

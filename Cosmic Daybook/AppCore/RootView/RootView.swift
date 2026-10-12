@@ -6,6 +6,7 @@
 // - RootView+NavigationItem.swift - NavigationItem, legacy Tab, selection restore
 // - RootView+NavigationGroup.swift - The sidebar / tab grouping table
 // - RootView+Chrome.swift - Phone context bar, search / sync overlay, warning banners
+// - RootView+WindowActions.swift - This window's File > New and Go menu handlers
 // - RootView/RootSidebar.swift - macOS / visionOS sidebar
 // - RootView/RootAdaptiveTabs.swift - iPhone tab bar / iPad sidebar
 // - RootView/RootDetailContent.swift - Detail content routing
@@ -40,8 +41,9 @@ struct RootView: View {
     #endif
     @State var activeSheet: ActiveSheet?
     @State private var focusedSearchAction = FocusedSearchAction()
-    @State private var quickCaptureActions = QuickCaptureActions()
-    @State private var createRequests = WindowCreateRequests()
+    @State var quickCaptureActions = QuickCaptureActions()
+    @State var createRequests = WindowCreateRequests()
+    @State var sectionRequests = WindowSectionRequests()
     @State var selectedNavItem: NavigationItem = .today
     @AppStorage(UserDefaultsKeys.quickCaptureButtonVisible)
     private var isQuickCaptureButtonVisible = true
@@ -96,6 +98,8 @@ struct RootView: View {
         // This window's New Lesson / New Student, for its own Lessons and
         // Students; the router's are seen by every window.
         .environment(\.windowCreateRequests, createRequests)
+        // And its Go menu lens for Lessons & Work.
+        .environment(\.windowSectionRequests, sectionRequests)
         .onChange(of: quickCaptureInputs) {
             installQuickCaptureHandlers()
         }
@@ -233,34 +237,9 @@ struct RootView: View {
         [ObjectIdentifier(viewContext), ObjectIdentifier(dependencies)]
     }
 
-    /// File > New's quick-capture actions — the radial menu's set.
-    private func installQuickCaptureHandlers() {
-        quickCaptureActions.setHandlers(QuickCaptureActions.Handlers(
-            newPresentation: { createPresentationDraft() },
-            newWork: { activeSheet = .newWorkItem(lessonID: nil, studentIDs: []) },
-            recordPractice: { activeSheet = .recordPractice },
-            newTodo: { activeSheet = .newTodo(initialTitle: "") },
-            newNote: { activeSheet = .quickNote(QuickNoteParams()) },
-            openCommandBar: { activeSheet = .commandBar },
-            newLesson: { askInThisWindow(.newLesson(defaultArea: nil, defaultSequence: nil)) },
-            newStudent: { askInThisWindow(.newStudent) },
-            importStudents: { askInThisWindow(.importStudents) }
-        ))
-    }
-
-    /// Goes to the section that answers `request` in this window and leaves
-    /// the request for that section's screen, which opens its sheet on appear
-    /// or, already on screen, at once.
-    private func askInThisWindow(_ request: WindowCreateRequests.Request) {
-        createRequests.ask(request)
-        if selectedNavItem != request.answeringSection {
-            selectedNavItem = request.answeringSection
-        }
-    }
-
     /// Creates a presentation draft and opens its editor sheet. Shared by the
     /// iOS toolbar trigger, the radial quick-command menu, and File > New.
-    private func createPresentationDraft() {
+    func createPresentationDraft() {
         let draft = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [], context: viewContext)
         dependencies.saveCoordinator.save(viewContext, reason: "Create presentation draft")
         if let draftID = draft.id {

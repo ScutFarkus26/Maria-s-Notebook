@@ -36,6 +36,10 @@ final class QuickCaptureActions {
         var newLesson: () -> Void = {}
         var newStudent: () -> Void = {}
         var importStudents: () -> Void = {}
+        /// The Go menu: this window switches section, never another window
+        /// (`WindowSectionRequests`). Lessons & Work takes the lens to open on.
+        var goTo: (RootView.NavigationItem) -> Void = { _ in }
+        var openLessonsAndWork: (AppRouter.LessonsAndWorkRequest) -> Void = { _ in }
     }
 
     private var handlers: Handlers?
@@ -53,6 +57,10 @@ final class QuickCaptureActions {
     func newLesson() { handlers?.newLesson() }
     func newStudent() { handlers?.newStudent() }
     func importStudents() { handlers?.importStudents() }
+    func go(to item: RootView.NavigationItem) { handlers?.goTo(item) }
+    func openLessonsAndWork(_ request: AppRouter.LessonsAndWorkRequest) {
+        handlers?.openLessonsAndWork(request)
+    }
 
     /// Runs one of the radial menu's five actions in this window.
     func perform(_ action: PieMenuAction) {

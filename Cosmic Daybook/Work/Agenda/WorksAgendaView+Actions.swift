@@ -126,8 +126,11 @@ extension WorksAgendaView {
     /// A caller asking for a particular record only has to get it into the
     /// workspace — the partition already knows which half holds it and which
     /// state it is in, so the requested scope is a fallback, not an instruction.
+    /// This window's own request (the Go menu) comes first, else the router's.
     func consumeWorkspaceRequestIfNeeded() {
-        guard let request = appRouter.consumeLessonsAndWorkRequest() else { return }
+        guard let request = windowSectionRequests?.consumeLessonsAndWork()
+            ?? appRouter.consumeLessonsAndWorkRequest()
+        else { return }
         focusedPresentationID = request.presentationID
         focusedWorkID = request.workID
 

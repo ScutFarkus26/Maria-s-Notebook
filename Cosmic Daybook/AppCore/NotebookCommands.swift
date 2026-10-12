@@ -25,7 +25,8 @@ struct NotebookCommands: Commands {
     #if os(macOS)
     @Environment(\.openSettings) private var openSettings
     #endif
-    /// The key main window's actions, so Import Students… opens in that window.
+    /// The key main window's actions, so Import Students… and the Go menu act
+    /// in that window.
     @FocusedValue(\.quickCapture) private var quickCapture
 
     var body: some Commands {
@@ -92,30 +93,41 @@ struct NotebookCommands: Commands {
         }
 
         // 4. GO MENU (Navigation)
-        // Dedicated menu for navigating between app sections
+        // Dedicated menu for navigating between app sections. The key main
+        // window's own, like File › New: the shared router's switch was seen
+        // by every window, so with two open a background one could move.
         CommandMenu("Go") {
             // Same order as the sidebar, most-used first. Each destination
             // in a collapsed group opens that group when chosen here.
-            Button("Today") { appRouter.navigateTo(.today) }
+            Button("Today") { quickCapture?.go(to: .today) }
                 .keyboardShortcut("1", modifiers: .command)
+                .disabled(quickCapture == nil)
 
-            Button("Attendance") { appRouter.navigateTo(.attendance) }
+            Button("Attendance") { quickCapture?.go(to: .attendance) }
                 .keyboardShortcut("2", modifiers: .command)
+                .disabled(quickCapture == nil)
 
-            Button("Students") { appRouter.navigateTo(.students) }
+            Button("Students") { quickCapture?.go(to: .students) }
                 .keyboardShortcut("3", modifiers: .command)
+                .disabled(quickCapture == nil)
 
-            Button("Lessons & Work") { appRouter.navigateToLessonsAndWork(.attention, preferredKind: .work) }
-                .keyboardShortcut("4", modifiers: .command)
+            Button("Lessons & Work") {
+                quickCapture?.openLessonsAndWork(.init(scope: .attention, preferredKind: .work))
+            }
+            .keyboardShortcut("4", modifiers: .command)
+            .disabled(quickCapture == nil)
 
-            Button("Lessons") { appRouter.navigateTo(.lessons) }
+            Button("Lessons") { quickCapture?.go(to: .lessons) }
                 .keyboardShortcut("5", modifiers: .command)
+                .disabled(quickCapture == nil)
 
-            Button("Notes") { appRouter.navigateTo(.notes) }
+            Button("Notes") { quickCapture?.go(to: .notes) }
                 .keyboardShortcut("6", modifiers: .command)
+                .disabled(quickCapture == nil)
 
-            Button("Todos") { appRouter.navigateTo(.todos) }
+            Button("Todos") { quickCapture?.go(to: .todos) }
                 .keyboardShortcut("7", modifiers: .command)
+                .disabled(quickCapture == nil)
         }
 
         // 5. HELP & TROUBLESHOOTING (Help Menu)
