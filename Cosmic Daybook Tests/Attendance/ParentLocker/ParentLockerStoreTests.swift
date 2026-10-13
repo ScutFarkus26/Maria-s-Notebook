@@ -43,7 +43,8 @@ struct ParentLockerStoreTests {
     @Test("A day reads the method, arrival closed, the ParentLocker send and each child's mark")
     func dayReads() throws {
         let room = try classroom(try CoreDataTestHelpers.makeContext())
-        let store = ParentLockerCoreDataStore(context: room.context)
+        let recorded = Counter()
+        let store = ParentLockerCoreDataStore(context: room.context, sendRecorded: { _ in recorded.count += 1 })
         var day = store.day(morning, withChildren: true)
         #expect(day.method == .parentLocker)
         #expect(day.site == AttendanceEmailLog.defaultParentLockerSite)
@@ -55,18 +56,65 @@ struct ParentLockerStoreTests {
         #expect(day.marks[room.juneID]?.absenceReasonRaw == AttendanceDeduplication.automaticAbsenceRaw)
         #expect(Set(day.children.map(\.id)) == [room.wrenID, room.juneID])
         #expect(day.name(of: room.juneID) == "Juniper A")
+        #expect(day.everyoneMarked)
+        #expect(day.deadlineMinutes == AttendanceEmailLog.defaultDeadlineMinutes)
 
         // An email send isn't a ParentLocker send.
         AttendanceEmailLog.recordSend(on: morning, role: .leadGuide, in: room.context)
         try room.context.save()
         #expect(!store.day(morning, withChildren: false).sentToParentLocker)
+        #expect(recorded.count == 0)
         #expect(store.recordSend(on: morning))
+        #expect(recorded.count == 1, "the 9:00 reminder is rebuilt after a ParentLocker send")
         day = store.day(morning, withChildren: false)
         #expect(day.sentToParentLocker)
         #expect(day.children.isEmpty, "the cheap read leaves out the roll")
         #expect(AttendanceEmailLog.sends(on: morning, in: room.context).map(\.channelRaw).sorted() == [
             AttendanceSendMethod.email.rawValue, AttendanceSendMethod.parentLocker.rawValue
         ])
+    }
+
+    @Test("The roll isn't all marked while a child has no mark; the due time is the guide's")
+    func everyoneMarkedAndDueTime() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let wren = CoreDataTestHelpers.seedStudent(in: context, firstName: "Wren", lastName: "Halloway")
+        _ = CoreDataTestHelpers.seedStudent(in: context, firstName: "Juniper", lastName: "Ashby")
+        var settings = AttendanceEmailLog.Settings(
+            isEnabled: true, toAddresses: "", nameOrder: .firstLast, groupByLevel: false
+        )
+        settings.sendMethod = .parentLocker
+        settings.deadlineMinutes = 8 * 60 + 45
+        AttendanceEmailLog.saveSettings(settings, role: .leadGuide, in: context)
+        let attendance = CDAttendanceStore(context: context, role: .leadGuide)
+        let record = try #require(try attendance.ensureRecord(for: wren, on: morning))
+        attendance.updateStatus(record, to: .present)
+        try context.save()
+
+        let day = ParentLockerCoreDataStore(context: context).day(morning, withChildren: true)
+        #expect(day.children.count == 2)
+        #expect(!day.everyoneMarked)
+        #expect(day.deadlineMinutes == 525)
+        #expect(day.deadline(on: morning, calendar: AppCalendar.shared) == morning.addingTimeInterval(45 * 60))
+    }
+
+    @Test("The Daybook Assistant is an assistant here whatever its membership says; the notebook reads it")
+    func assistantRole() throws {
+        #expect(ParentLockerCoreDataStore.appRole == nil, "the notebook reads its membership")
+        let room = try classroom(try CoreDataTestHelpers.makeContext())
+        // No membership row: the notebook's default is lead guide.
+        #expect(ParentLockerCoreDataStore(context: room.context).role == .leadGuide)
+
+        let recorded = Counter()
+        let assistant = ParentLockerCoreDataStore(
+            context: room.context, sendRecorded: { _ in recorded.count += 1 }, fixedRole: .assistant
+        )
+        #expect(assistant.day(morning, withChildren: false).role == .assistant)
+        #expect(!assistant.writeMatches([room.wrenID: "40001"]))
+        #expect(room.wren.parentLockerID == nil)
+        #expect(assistant.recordSend(on: morning))
+        #expect(AttendanceEmailLog.sends(on: morning, in: room.context).first?.sentBy
+            == CDClassroomMembership.ClassroomRole.assistant.rawValue)
+        #expect(recorded.count == 1)
     }
 
     @Test("Saved records map back to their children, on the day asked only")
@@ -168,6 +216,12 @@ struct ParentLockerStoreTests {
         #expect(sync.localDue == morning.addingTimeInterval(ParentLockerSync.localQuiet))
         #expect(sync.localChanges.keys.contains(room.juneID))
     }
+}
+
+/// How many times a hook ran.
+@MainActor
+private final class Counter {
+    var count = 0
 }
 
 /// What the save observer saw, handed from the posting thread.

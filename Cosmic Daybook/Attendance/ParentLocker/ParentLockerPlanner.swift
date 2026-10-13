@@ -10,7 +10,8 @@ import Foundation
 ///   picked in the Notes box (Close Arrival's automatic absence with an empty
 ///   one), and Left Early as Present (Late when the child arrived late) with
 ///   "Left early at 1:30 PM". Unmarked sends nothing, and the Notes box is
-///   written only when there is something to say.
+///   written only when there is something to say, or to clear what the app
+///   wrote there for an earlier mark (never anyone else's words).
 /// - A child is matched by the stored `parentLockerID`, else by name, and a
 ///   name match counts only when exactly one child fits on both sides.
 /// - ParentLocker children who aren't matched, and classes holding none of
@@ -107,6 +108,20 @@ nonisolated enum ParentLockerPlanner {
         case .other: "Other"
         }
     }
+
+    /// Whether a Notes box holds exactly what the app writes there: a
+    /// reason's word ("Sick") or a left-early line ("Left early at 1:30 PM").
+    /// Only such text is cleared when the mark changes to one with nothing to
+    /// say; anyone else's words in the box are left as they are.
+    static func isAppNote(_ comment: String) -> Bool {
+        let text = comment.trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.hasPrefix("Left early") || reasonWords.contains(text)
+    }
+
+    /// Every reason's word (a test keeps it in step with `AbsenceReason.given`).
+    private static let reasonWords = Set(
+        [AbsenceReason.sick, .vacation, .appointment, .family, .other].compactMap(reasonText)
+    )
 
     /// "1:30 PM", in this device's time zone and locale.
     static func defaultTimeText(_ date: Date) -> String {
@@ -246,11 +261,15 @@ nonisolated enum ParentLockerPlanner {
         case .nothing:
             let holdsMark = student.isConfirmed && student.currentMarkID != nil
             builder.skip(childID, holdsMark ? .cantClear(currentMark: student.currentMarkName) : .unmarked)
-        case .send(let type, let comment):
+        case .send(let type, let wantedComment):
             guard let mark = ParentLockerMark.find(type, in: marks) else {
                 builder.skip(childID, .noSuchMark(type))
                 return nil
             }
+            // Nothing to say, but the box still holds what the app wrote for
+            // an earlier mark ("Sick" before Late, "Left early at…" before
+            // Back in Class): it's cleared, so the office doesn't read it.
+            let comment = wantedComment ?? (isAppNote(student.comment) ? "" : nil)
             let sameMark = student.isConfirmed && student.currentMarkID == mark.id
             if student.isLocked {
                 if sameMark {

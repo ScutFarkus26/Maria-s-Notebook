@@ -32,6 +32,9 @@ nonisolated final class FakeParentLockerSecrets: ParentLockerSecrets {
     private struct Items {
         var credential: ParentLockerKeychain.Credential?
         var cookies: [ParentLockerCookie] = []
+        /// The Keychain's answer to reading or deleting the password, when it
+        /// isn't the item itself (locked since restart, say).
+        var trouble: ParentLockerKeychain.KeychainError?
     }
 
     private let items = Mutex(Items())
@@ -47,12 +50,30 @@ nonisolated final class FakeParentLockerSecrets: ParentLockerSecrets {
 
     var savedCookies: [ParentLockerCookie] { items.withLock { $0.cookies } }
 
-    func credential(site: String) throws -> ParentLockerKeychain.Credential? { items.withLock { $0.credential } }
-    func hasPassword(site: String) throws -> Bool { items.withLock { $0.credential != nil } }
+    /// From now on, reading or deleting the password fails with `trouble`.
+    func fail(with trouble: ParentLockerKeychain.KeychainError?) { items.withLock { $0.trouble = trouble } }
+
+    func credential(site: String) throws -> ParentLockerKeychain.Credential? {
+        try items.withLock { items in
+            if let trouble = items.trouble { throw trouble }
+            return items.credential
+        }
+    }
+    func hasPassword(site: String) throws -> Bool {
+        try items.withLock { items in
+            if let trouble = items.trouble { throw trouble }
+            return items.credential != nil
+        }
+    }
     func savePassword(_ credential: ParentLockerKeychain.Credential, site: String) throws {
         items.withLock { $0.credential = credential }
     }
-    func deletePassword(site: String) throws { items.withLock { $0.credential = nil } }
+    func deletePassword(site: String) throws {
+        try items.withLock { items in
+            if let trouble = items.trouble { throw trouble }
+            items.credential = nil
+        }
+    }
     func cookies(site: String) throws -> [ParentLockerCookie] { items.withLock { $0.cookies } }
     func saveCookies(_ cookies: [ParentLockerCookie], site: String) throws { items.withLock { $0.cookies = cookies } }
     func deleteCookies(site: String) throws { items.withLock { $0.cookies = [] } }
@@ -284,6 +305,7 @@ struct ParentLockerTestDevice {
         secrets: FakeParentLockerSecrets = FakeParentLockerSecrets(),
         unsent: ParentLockerMemoryUnsentStore = ParentLockerMemoryUnsentStore(),
         importsExpected: Bool = false,
+        returnNeedsAbsence: Bool = false,
         inForeground: @escaping @MainActor () -> Bool = { true },
         arrivalClosed: Bool = true,
         sent: Bool = false,
@@ -305,6 +327,7 @@ struct ParentLockerTestDevice {
         dependencies.background = background
         dependencies.isInForeground = inForeground
         dependencies.importsExpected = importsExpected
+        dependencies.returnNeedsAbsence = returnNeedsAbsence
         sync = ParentLockerSync(dependencies: dependencies)
         sync.start(watching: nil)
     }

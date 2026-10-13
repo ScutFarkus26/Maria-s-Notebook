@@ -87,7 +87,8 @@ private struct ParentLockerPreviewSheet: View {
             }
             HStack {
                 Button(sync.isSignedIn ? "Sign Out" : "Sign In") {
-                    if sync.isSignedIn { sync.signOut() } else { showsSignIn = true }
+                    guard sync.isSignedIn else { return showsSignIn = true }
+                    do { try sync.signOut() } catch { text = ParentLockerSignInSheet.signOutFailed }
                 }
                 Spacer()
                 Button("Preview Again") { Task { await preview() } }

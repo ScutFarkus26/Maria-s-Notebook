@@ -93,4 +93,42 @@ nonisolated extension ParentLockerPlanner {
             .split(whereSeparator: \.isWhitespace)
             .joined(separator: " ")
     }
+
+    // MARK: - What ParentLocker held
+
+    /// What `rosters` hold for each matched child, by child.
+    static func seen(matches: [UUID: Match], rosters: [ParentLockerRoster]) -> [UUID: ParentLockerSeen] {
+        var childByStudent: [String: UUID] = [:]
+        for (childID, match) in matches {
+            if case .matched(let studentID, _) = match { childByStudent[studentID] = childID }
+        }
+        var seen: [UUID: ParentLockerSeen] = [:]
+        for roster in rosters {
+            for student in roster.students {
+                guard let childID = childByStudent[student.studentID] else { continue }
+                seen[childID, default: ParentLockerSeen()].rows[roster.course.courseID] = student.seenRow
+            }
+        }
+        return seen
+    }
+
+    /// The children among `imported` (changes synced in from another device)
+    /// whose ParentLocker rows have changed since this device last saw them
+    /// (`before`, taken when the change was noted): someone saved them since,
+    /// most likely the device that made the change, maybe with a newer mark
+    /// than the one that synced in here. They're left to that device. A child
+    /// this device never saw counts as changed when ParentLocker holds a
+    /// saved mark for them; with none, nothing newer can be overwritten.
+    static func changedElsewhere(
+        _ imported: Set<UUID>, before: [UUID: ParentLockerSeen], now: [UUID: ParentLockerSeen]
+    ) -> Set<UUID> {
+        imported.filter { child in
+            // Not on the rosters: the plan reports them as unmatched.
+            guard let current = now[child] else { return false }
+            let seenRows = before[child]?.rows ?? [:]
+            let classes = Set(seenRows.keys).intersection(current.rows.keys)
+            guard !classes.isEmpty else { return current.holdsMark }
+            return classes.contains { seenRows[$0] != current.rows[$0] }
+        }
+    }
 }

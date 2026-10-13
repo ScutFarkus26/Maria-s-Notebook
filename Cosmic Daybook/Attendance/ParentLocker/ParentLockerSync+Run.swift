@@ -5,28 +5,6 @@ import OSLog
 // itself only in front), the classes' rosters, the plan, the saves, and what
 // it leaves owed when something stops it.
 
-/// Why a run stopped before reaching ParentLocker.
-nonisolated enum ParentLockerSyncStop: Error, Equatable {
-    /// No password saved for the site: never signed in here, or signed out.
-    case signedOut
-    /// Signed out while in the background, where the web view can't sign in.
-    case notSentYet
-    /// ParentLocker didn't take the saved password.
-    case passwordRefused
-    /// ParentLocker wants something only a person can do.
-    case needsYou
-    /// The Keychain wouldn't read or save the sign-in.
-    case keychain
-}
-
-/// A send or preview that didn't happen, in plain words, for the screen or
-/// MCP that asked; `details` (the site's own text, a host) for a Details
-/// disclosure at most.
-nonisolated struct ParentLockerSendFailure: Error, Equatable, Sendable {
-    let message: String
-    var details: String?
-}
-
 /// What one run found and did.
 private struct ParentLockerRunResult {
     let plan: ParentLockerPlanner.Plan
@@ -45,6 +23,8 @@ extension ParentLockerSync {
         let started = clock.now
         let day = store.day(job.day, withChildren: true)
         if let refusal = refusal(of: job, on: day) { return .failure(refusal) }
+        // The check after the due time goes once a day, sent or not.
+        if job.reason == .deadline { backstopDay = job.day }
         let previous = status
         if !job.preview { status.state = .sending }
         do {
@@ -53,7 +33,7 @@ extension ParentLockerSync {
             }
             return .success(finish(job, day: day, result: result, started: started, previous: previous))
         } catch {
-            let failure = Self.failureStatus(for: error, lastSyncAt: previous.lastSyncAt)
+            let failure = ParentLockerStatus.failure(for: error, lastSyncAt: previous.lastSyncAt)
             if job.preview { status = previous } else { failed(job, error: error, failure: failure) }
             return .failure(ParentLockerSendFailure(
                 message: failure.message ?? ParentLockerError.unreachable.errorDescription ?? "",
@@ -66,8 +46,9 @@ extension ParentLockerSync {
 
     /// The rules a run checks against the day as it is now: ParentLocker
     /// picked (a preview reads either way), and for the sync's own runs today,
-    /// a school day and past "after"; the backstop only on the guide's device
-    /// while nothing is recorded. A run that may not go drops the children it
+    /// a school day and past "after"; the backstops only on the guide's device
+    /// while nothing is recorded, the one after the due time only once
+    /// everyone is marked. A run that may not go drops the children it
     /// carried (the whole-class send at Close Arrival covers them) and says why.
     private func refusal(of job: ParentLockerJob, on day: ParentLockerDay) -> ParentLockerSendFailure? {
         if job.preview { return nil }
@@ -90,11 +71,18 @@ extension ParentLockerSync {
             drop(job)
             if !day.isAfter { status.state = .waitingForArrival }
             return ParentLockerSendFailure(message: "Nothing goes to ParentLocker until arrival closes.")
-        case .backstop:
-            guard !isToday(job.day) || day.role != .leadGuide || !day.arrivalClosed || day.sentToParentLocker
-            else { return nil }
-            return ParentLockerSendFailure(message: "The day was already sent.")
+        case .backstop, .deadline:
+            return backstopRefusal(of: job, on: day)
         }
+    }
+
+    /// The guide's backstops go only from the guide's device, today, while
+    /// nothing is recorded: after arrival closed, or after the due time once
+    /// everyone is marked.
+    private func backstopRefusal(of job: ParentLockerJob, on day: ParentLockerDay) -> ParentLockerSendFailure? {
+        let waiting = job.reason == .backstop ? day.arrivalClosed : day.isSchoolDay && day.everyoneMarked
+        guard !isToday(job.day) || day.role != .leadGuide || day.sentToParentLocker || !waiting else { return nil }
+        return ParentLockerSendFailure(message: "The day was already sent, or isn't taken yet.")
     }
 
     private func drop(_ job: ParentLockerJob) {
@@ -182,11 +170,12 @@ extension ParentLockerSync {
         for course in courses {
             rosters.append(try await transport.roster(course: course, date: job.day))
         }
+        let matches = ParentLockerPlanner.match(children: day.children, rosters: rosters)
+        let only = childrenToCompare(job, matches: matches, rosters: rosters)
         let plan = ParentLockerPlanner.plan(
-            children: day.children, marks: day.marks, rosters: rosters, only: job.children,
+            children: day.children, marks: day.marks, rosters: rosters, only: only,
             day: job.day, calendar: dependencies.calendar
         )
-        let matches = ParentLockerPlanner.match(children: day.children, rosters: rosters)
         let wasPreview = job.preview || !dependencies.policy.allowsSaving
         var conflicts: [String] = []
         var saved = 0
@@ -194,6 +183,7 @@ extension ParentLockerSync {
             for batch in plan.batches {
                 let reply = try await transport.save(batch: batch)
                 saved += batch.entries.count
+                if isToday(job.day) { noteSaved(batch, reply: reply) }
                 conflicts += reply.conflicts.filter { !$0.alreadyEqual }.map { conflict in
                     Self.conflictLine(conflict, batch: batch, rosters: rosters, day: day)
                 }
@@ -210,6 +200,44 @@ extension ParentLockerSync {
         )
     }
 
+    /// The children `job` compares, once today's rosters are in (which also
+    /// become what this device last saw): an imported change whose child
+    /// ParentLocker no longer holds as this device last saw them is left to
+    /// the device that made it, which has saved since, maybe with a newer
+    /// mark than the one that synced in here.
+    private func childrenToCompare(
+        _ job: ParentLockerJob, matches: [UUID: ParentLockerPlanner.Match], rosters: [ParentLockerRoster]
+    ) -> Set<UUID>? {
+        guard isToday(job.day) else { return job.children }
+        rollOwedDay(to: job.day)
+        let seen = ParentLockerPlanner.seen(matches: matches, rosters: rosters)
+        lastSeen.merge(seen) { $1 }
+        guard var only = job.children, !job.imported.isEmpty else { return job.children }
+        let elsewhere = ParentLockerPlanner.changedElsewhere(job.imported, before: job.importedBaseline, now: seen)
+        if !elsewhere.isEmpty {
+            Self.logger.info("ParentLocker: \(elsewhere.count, privacy: .public) synced-in changes left to others")
+        }
+        only.subtract(elsewhere)
+        return only
+    }
+
+    /// What ParentLocker holds after a save: what was sent, except where
+    /// someone else's mark stood (the Notes box as it was).
+    private func noteSaved(_ batch: ParentLockerPlanner.Batch, reply: ParentLockerSaveReply) {
+        let courseID = batch.course.courseID
+        for entry in batch.entries {
+            var row = ParentLockerSeen.Row(
+                markID: entry.attendance["attendance_code"]?["id"]?.nonEmptyID,
+                comment: entry.attendance["comment"]?.stringValue ?? ""
+            )
+            if let conflict = reply.conflicts.first(where: { $0.studentID == entry.studentID && !$0.alreadyEqual }) {
+                let before = lastSeen[entry.childID]?.rows[courseID]?.comment ?? ""
+                row = ParentLockerSeen.Row(markID: conflict.currentMarkID, comment: before)
+            }
+            lastSeen[entry.childID, default: ParentLockerSeen()].rows[courseID] = row
+        }
+    }
+
     /// The classes to read: those that take attendance once a day (so a
     /// class's mark is the child's day). Today, one the office doesn't
     /// expect attendance in is left alone too. Returns the rest in words.
@@ -220,9 +248,9 @@ extension ParentLockerSync {
         var leftAlone: [String] = []
         for course in courses {
             if !course.isDailyAttendance || !course.hasAttendance {
-                leftAlone.append("\(course.name) doesn't take attendance once a day.")
+                leftAlone.append("Skipped \(course.name): it doesn't take daily attendance.")
             } else if isToday, course.reportStatus == "not_expected" {
-                leftAlone.append("\(course.name) doesn't expect attendance today.")
+                leftAlone.append("Skipped \(course.name): no attendance is expected today.")
             } else {
                 load.append(course)
             }
@@ -255,8 +283,8 @@ extension ParentLockerSync {
         }
         let matchedAny = result.matches.values.contains { if case .matched = $0 { true } else { false } }
         if !result.wasPreview {
-            // The backstop records only while nobody else has (one may have synced in meanwhile).
-            let recordedMeanwhile = job.reason == .backstop
+            // A backstop records only while nobody else has (one may have synced in meanwhile).
+            let recordedMeanwhile = (job.reason == .backstop || job.reason == .deadline)
                 && store.day(job.day, withChildren: false).sentToParentLocker
             if job.isWholeClass, matchedAny, !recordedMeanwhile {
                 _ = store.recordSend(on: job.day)
@@ -295,29 +323,6 @@ extension ParentLockerSync {
             if let pending = retry, isSameDay(pending.job.day, job.day) { retry = nil }
         }
         saveOwed()
-    }
-
-    /// What a run that didn't get through leaves on the line.
-    nonisolated static func failureStatus(for error: Error, lastSyncAt: Date?) -> ParentLockerStatus {
-        let state: ParentLockerStatus.State
-        var details: String?
-        switch error {
-        case ParentLockerError.unreachable: state = .retrying
-        case ParentLockerSyncStop.signedOut: state = .signedOut
-        case ParentLockerSyncStop.notSentYet: state = .notSentYet
-        case ParentLockerSyncStop.passwordRefused: state = .passwordRefused
-        case ParentLockerSyncStop.needsYou: state = .needsYou
-        case ParentLockerSyncStop.keychain: state = .keychainTrouble
-        case ParentLockerError.refused(let message):
-            state = .refused
-            details = message
-        default:
-            // The page changed, a redirect off the site, or a sign-in the
-            // requests still can't use: nothing to retry until someone looks.
-            state = .pageChanged
-            details = (error as? ParentLockerError)?.details
-        }
-        return ParentLockerStatus(state: state, lastSyncAt: lastSyncAt, details: details)
     }
 
     /// A run that didn't get through: retry what can be, owe the rest, and

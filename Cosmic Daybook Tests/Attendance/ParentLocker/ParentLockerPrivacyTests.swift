@@ -135,10 +135,10 @@ struct ParentLockerPrivacyTests {
         ]
         let guide = ParentLockerStatus.problems(for: skipped, names: { names[$0] ?? "" }, isGuide: true)
         #expect(guide == [
-            "Ada F isn't matched to a child in ParentLocker yet. Match them in Settings › Match Names.",
+            "Ada F isn't matched to a child in ParentLocker yet. Match them in Settings › Messages › Match Names.",
             "The office already marked Maya S Absent.",
-            "Etty R is still Present in ParentLocker. ParentLocker can't clear a mark; " +
-                "mark her Late or Absent if that's right."
+            "Etty R is still Present in ParentLocker, which can't remove a mark. " +
+                "If that's wrong, give Etty R the right mark here."
         ])
         let assistant = ParentLockerStatus.problems(
             for: [
@@ -150,5 +150,54 @@ struct ParentLockerPrivacyTests {
         #expect(assistant == [
             "2 children aren't matched in ParentLocker yet: Ada F, Etty R. Your guide can match them in Settings."
         ])
+    }
+
+    @Test("Why a run stopped, a test copy, the Keychain and Match Names read as plain sentences")
+    func plainSentences() {
+        #expect(ParentLockerSyncStop.passwordRefused.message
+            == "ParentLocker didn't take your saved password. Sign in again.")
+        #expect(ParentLockerSyncStop.keychain.message
+            == "Couldn't use your saved ParentLocker sign-in on this device. Restart the device and try again.")
+        // The screens that pass a stop through `AppErrorMessages` get the same sentence.
+        let stops: [ParentLockerSyncStop] = [.signedOut, .notSentYet, .passwordRefused, .needsYou, .keychain]
+        for stop in stops {
+            #expect(AppErrorMessages.userMessage(for: stop, context: "reading ParentLocker") == stop.message)
+            #expect(ParentLockerStatus.failure(for: stop, lastSyncAt: nil).message == stop.message)
+        }
+        #expect(ParentLockerStatus(state: .previewed).message
+            == "This test copy of the app only previews. Nothing was sent to ParentLocker.")
+        #expect(ParentLockerKeychain.KeychainError.read(-25_308).errorDescription
+            == "Couldn't read your saved ParentLocker sign-in on this device. Restart the device and try again.")
+        #expect(ParentLockerKeychain.KeychainError.write(-25_308).errorDescription
+            == "Couldn't save your ParentLocker sign-in on this device. Try again.")
+        #expect(ParentLockerSignInError.unreachable.errorDescription
+            == "Couldn't reach ParentLocker. Check you're online and try again.")
+
+        #expect(ParentLockerMatchView.refusal(policy: .previewOnly, role: .leadGuide)
+            == "This test copy of the app only previews, so the match wasn't saved.")
+        #expect(ParentLockerMatchView.refusal(policy: .live, role: .assistant) == "Only the guide can match names.")
+        #expect(ParentLockerMatchView.refusal(policy: .live, role: .leadGuide) == nil)
+        #expect(ParentLockerMatchView.saveFailed == "Couldn't save the match. Try again.")
+    }
+
+    @Test("A report says which classes it skipped and why, and when none holds the children")
+    func reportWording() {
+        let art = ParentLockerCourse(
+            courseID: 1, name: "Art", period: 2, attendanceReportID: "9", isDailyAttendance: false
+        )
+        let chess = ParentLockerCourse(courseID: 2, name: "Chess", period: 3, attendanceReportID: "8",
+                                       reportStatus: "not_expected")
+        let (load, skipped) = ParentLockerSync.coursesToLoad([art, chess, FakeParentLocker.middle], isToday: true)
+        #expect(load == [FakeParentLocker.middle])
+        #expect(skipped == [
+            "Skipped Art: it doesn't take daily attendance.", "Skipped Chess: no attendance is expected today."
+        ])
+        let report = ParentLockerReport(
+            day: ParentLockerTestDevice.morning, wasPreview: true, classes: [], problems: [],
+            classesLeftAlone: skipped, savedCount: 0
+        )
+        #expect(report.text.contains("None of your ParentLocker classes has any of these children."))
+        #expect(report.text.contains("\nSkipped Art: it doesn't take daily attendance."))
+        #expect(!report.text.contains("Left alone"))
     }
 }

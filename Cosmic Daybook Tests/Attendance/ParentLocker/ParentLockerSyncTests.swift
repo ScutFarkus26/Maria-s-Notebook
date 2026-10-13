@@ -37,7 +37,11 @@ struct ParentLockerSyncTests {
         let device = Device(site: site, clock: clock, arrivalClosed: false)
         device.marks([Device.wren: Device.mark(.present)])
         device.imports([Device.june: Device.mark(.tardy)])
-        #expect(device.sync.nextWake == nil)
+        #expect(device.sync.localDue == nil)
+        #expect(device.sync.importedDue == nil)
+        // Only the guide's check a minute after the 9:00 due time waits.
+        #expect(device.sync.nextWake == device.sync.deadlineDue)
+        #expect(device.sync.deadlineDue == Device.morning.addingTimeInterval(3600 + ParentLockerSync.backstopWait))
         clock.advance(by: 120)
         await device.sync.runDue()
         #expect(site.requests.isEmpty)
@@ -202,7 +206,7 @@ struct ParentLockerSyncTests {
         settled(device)
         device.store.state.marks[Device.wren] = Device.mark(.tardy)
         await device.sync.runDue()
-        #expect(device.sync.nextWake == nil)
+        #expect(device.sync.nextWake == Device.morning.addingTimeInterval(ParentLockerSync.importWaitLimit))
         #expect(site.requests.isEmpty)
 
         device.sync.importFinished()

@@ -16,6 +16,9 @@ nonisolated struct ParentLockerDay: Sendable, Equatable {
     var arrivalClosed = false
     /// A send by ParentLocker is recorded for the day.
     var sentToParentLocker = false
+    /// When the day's attendance is due, in minutes after midnight
+    /// (`AttendanceEmailLog.Settings.deadlineMinutes`).
+    var deadlineMinutes = AttendanceEmailLog.defaultDeadlineMinutes
     /// The day's roll.
     var children: [ParentLockerPlanner.Child] = []
     /// Each child's mark, from the record that wins among the day's duplicates.
@@ -24,6 +27,18 @@ nonisolated struct ParentLockerDay: Sendable, Equatable {
     /// Live updates start once arrival has closed or the day has been sent
     /// (plan "ParentLocker attendance", What counts as "after").
     var isAfter: Bool { arrivalClosed || sentToParentLocker }
+
+    /// Everyone on the roll has a mark to send: the class has been taken,
+    /// though maybe closed with nobody left to mark (which writes no
+    /// automatic absence). Read with the children only.
+    var everyoneMarked: Bool {
+        !children.isEmpty && children.allSatisfy { ParentLockerPlanner.wanted(for: marks[$0.id]) != .nothing }
+    }
+
+    /// When `day`'s attendance is due.
+    func deadline(on day: Date, calendar: Calendar) -> Date? {
+        calendar.date(byAdding: .minute, value: deadlineMinutes, to: calendar.startOfDay(for: day))
+    }
 
     /// "Maya S", for the status line's problems; "a child" for one not on the roll.
     func name(of childID: UUID) -> String {
@@ -58,13 +73,47 @@ final class ParentLockerCoreDataStore: ParentLockerStore {
     /// Saves `context`; `created` are the records the save adds (the
     /// Assistant files them into the classroom share, `AssistantSave`).
     typealias Save = @MainActor (_ context: NSManagedObjectContext, _ created: [NSManagedObject]) -> Bool
+    /// Hears that the day's ParentLocker send was recorded and saved.
+    typealias SendRecorded = @MainActor (_ context: NSManagedObjectContext) -> Void
+
+    /// The 9:00 reminder follows a send made with the attendance screen
+    /// closed too (Close Arrival's, the backstop's, Siri's or Claude's): it's
+    /// withdrawn once the day is sent.
+    static let rescheduleReminder: SendRecorded = { context in
+        Task { await FrontDeskEmailReminder.reschedule(in: context) }
+    }
+
+    /// The Daybook Assistant is only ever an assistant here, whatever its
+    /// membership rows say: with none yet, `currentRole` reads the notebook's
+    /// default of lead guide, and the Assistant must never write matches, run
+    /// the guide's backstop, or file its send record as the guide's.
+    #if ASSISTANT_APP
+    static let appRole: CDClassroomMembership.ClassroomRole? = .assistant
+    #else
+    static let appRole: CDClassroomMembership.ClassroomRole? = nil
+    #endif
 
     let context: NSManagedObjectContext
     private let save: Save
+    private let sendRecorded: SendRecorded
+    /// This device's role when the app fixes it (`appRole`); nil reads the membership.
+    private let fixedRole: CDClassroomMembership.ClassroomRole?
 
-    init(context: NSManagedObjectContext, save: @escaping Save = { context, _ in context.safeSave() }) {
+    init(
+        context: NSManagedObjectContext,
+        save: @escaping Save = { context, _ in context.safeSave() },
+        sendRecorded: @escaping SendRecorded = ParentLockerCoreDataStore.rescheduleReminder,
+        fixedRole: CDClassroomMembership.ClassroomRole? = ParentLockerCoreDataStore.appRole
+    ) {
         self.context = context
         self.save = save
+        self.sendRecorded = sendRecorded
+        self.fixedRole = fixedRole
+    }
+
+    /// Who this device is, for ParentLocker.
+    var role: CDClassroomMembership.ClassroomRole {
+        fixedRole ?? CDClassroomMembership.currentRole(in: context)
     }
 
     func day(_ day: Date, withChildren: Bool) -> ParentLockerDay {
@@ -74,11 +123,12 @@ final class ParentLockerCoreDataStore: ParentLockerStore {
         var result = ParentLockerDay(
             method: settings?.sendMethod ?? .email,
             site: AttendanceEmailLog.parentLockerHost(settings?.parentLockerSite),
-            role: CDClassroomMembership.currentRole(in: context),
-            isSchoolDay: SchoolDayChecker.isSchoolDay(start, using: context),
+            role: role,
+            isSchoolDay: isSchoolDay(start),
             arrivalClosed: records.contains(where: AttendanceDeduplication.isAutomaticAbsence),
             sentToParentLocker: AttendanceEmailLog.sends(on: start, in: context)
-                .contains { AttendanceSendMethod(stored: $0.channelRaw) == .parentLocker }
+                .contains { AttendanceSendMethod(stored: $0.channelRaw) == .parentLocker },
+            deadlineMinutes: settings?.deadlineMinutes ?? AttendanceEmailLog.defaultDeadlineMinutes
         )
         guard withChildren else { return result }
         result.children = roll(on: start, recordStudentIDs: Set(records.map(\.studentID)))
@@ -105,13 +155,14 @@ final class ParentLockerCoreDataStore: ParentLockerStore {
     }
 
     func recordSend(on day: Date) -> Bool {
-        let role = CDClassroomMembership.currentRole(in: context)
         let send = AttendanceEmailLog.recordSend(on: day, role: role, channel: .parentLocker, in: context)
-        return save(context, [send])
+        guard save(context, [send]) else { return false }
+        sendRecorded(context)
+        return true
     }
 
     func writeMatches(_ matches: [UUID: String?]) -> Bool {
-        guard !matches.isEmpty, CDClassroomMembership.currentRole(in: context) == .leadGuide else { return false }
+        guard !matches.isEmpty, role == .leadGuide else { return false }
         let request = CDFetchRequest(CDStudent.self)
         request.predicate = NSPredicate(format: "id IN %@", Array(matches.keys))
         var changed = false
@@ -128,6 +179,18 @@ final class ParentLockerCoreDataStore: ParentLockerStore {
     }
 
     // MARK: - Reads
+
+    /// Whether `start` is a school day by the guide's calendar. In the
+    /// Assistant, by the classroom share's days off alone, as Siri reads it
+    /// (`SiriHost.isSchoolDay`): the private store can hold a notebook of her
+    /// own, whose days off aren't the class's.
+    private func isSchoolDay(_ start: Date) -> Bool {
+        #if ASSISTANT_APP
+        SiriHost.isSchoolDay(start, in: context)
+        #else
+        SchoolDayChecker.isSchoolDay(start, using: context)
+        #endif
+    }
 
     /// The day's records, every copy (the dedup reads them all).
     private func records(on start: Date) -> [CDAttendanceRecord] {

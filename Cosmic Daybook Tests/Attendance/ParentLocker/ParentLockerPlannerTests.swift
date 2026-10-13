@@ -245,3 +245,77 @@ struct ParentLockerPlannerTests {
         #expect(plan.upToDate == [Self.tamsin.id])
     }
 }
+
+// MARK: - Notes the app wrote before
+
+extension ParentLockerPlannerTests {
+
+    /// A child matched by ID, and their row as ParentLocker holds it.
+    private static func row(
+        _ studentID: Int, mark: String, comment: String
+    ) -> (child: Child, student: ParentLockerRosterStudent?) {
+        let child = Child(id: UUID(), firstName: "Child", lastName: "\(studentID)", parentLockerID: "\(studentID)")
+        let student = ParentLockerRosterStudent(json: .object([
+            "student_id": .int(studentID), "first_name": .string("Child"), "last_name": .string("\(studentID)"),
+            "attendance": .object([
+                "attendance_code_id": .string(mark), "attendance_code": .object(["id": .string(mark)]),
+                "comment": .string(comment), "confirmed": .bool(true)
+            ])
+        ]))
+        return (child, student)
+    }
+
+    @Test("A mark with nothing to say clears the box only when it holds what the app wrote")
+    func clearsAppNotes() throws {
+        let sickThenLate = Self.row(50001, mark: "703", comment: "Sick")
+        let backInClass = Self.row(50002, mark: "701", comment: "Left early at 1:30 PM")
+        let theirWords = Self.row(50003, mark: "703", comment: "Grandma is visiting")
+        let reasonDropped = Self.row(50004, mark: "703", comment: "Appointment")
+        let stillSick = Self.row(50005, mark: "703", comment: "Sick")
+        let rows = [sickThenLate, backInClass, theirWords, reasonDropped, stillSick]
+        let course = ParentLockerCourse(courseID: 5101, name: "Girls Middle School", period: 1, attendanceReportID: "1")
+        let roster = ParentLockerRoster(
+            course: course, students: rows.compactMap(\.student),
+            marks: [
+                ParentLockerMark(id: "701", name: "Present", type: "present"),
+                ParentLockerMark(id: "702", name: "Late", type: "late"),
+                ParentLockerMark(id: "703", name: "Absent", type: "absent")
+            ]
+        )
+        let marks: [UUID: DayMark] = [
+            sickThenLate.child.id: Self.mark(.tardy),
+            backInClass.child.id: Self.mark(.present),
+            theirWords.child.id: Self.mark(.tardy),
+            reasonDropped.child.id: Self.mark(.absent),
+            stillSick.child.id: Self.mark(.absent, reason: "sick")
+        ]
+        let plan = Planner.plan(children: rows.map(\.child), marks: marks, rosters: [roster], day: day)
+        let entries = try #require(plan.batches.first?.entries)
+        let sent = Dictionary(uniqueKeysWithValues: entries.map { ($0.childID, $0) })
+
+        #expect(sent[sickThenLate.child.id]?.comment == "")
+        #expect(sent[sickThenLate.child.id]?.attendance["comment"] == .string(""))
+        // Back in Class: the same Present, so only the box changes.
+        #expect(sent[backInClass.child.id]?.type == .present)
+        #expect(sent[backInClass.child.id]?.comment == "")
+        #expect(sent[reasonDropped.child.id]?.comment == "")
+        // Someone else's words stay.
+        #expect(sent[theirWords.child.id]?.comment == nil)
+        #expect(sent[theirWords.child.id]?.attendance["comment"] == .string("Grandma is visiting"))
+        #expect(sent[stillSick.child.id] == nil)
+        #expect(plan.upToDate == [stillSick.child.id])
+        #expect(entries.count == 4)
+    }
+
+    @Test("Only the app's own words count as its notes: every reason, and a left-early line")
+    func appNotes() {
+        for reason in AbsenceReason.given {
+            #expect(Planner.isAppNote(Planner.reasonText(reason) ?? "-"))
+        }
+        #expect(Planner.isAppNote("Left early at 1:30 PM"))
+        #expect(Planner.isAppNote("Left early"))
+        for theirs in ["", "sick", "Sick with a cold", "Other plans", "Picked up by Grandma"] {
+            #expect(!Planner.isAppNote(theirs))
+        }
+    }
+}

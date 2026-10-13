@@ -15,7 +15,8 @@ import AppKit
 ///   object IDs leave the posting thread; the sync reads the records on the
 ///   main actor, and only when they're today's.
 /// - **CloudKit imports that finish**, which release the catch-up.
-/// - **The app coming back** to the front (the Mac app becoming active).
+/// - **The app coming back** to the front, and on the Mac going away, so a
+///   switch between apps doesn't count as a return (`appBecameActive`).
 ///
 /// Nothing polls. Every observer goes when the watcher does.
 @MainActor
@@ -42,8 +43,15 @@ final class ParentLockerWatcher {
             }
         ]
         tokens.append(center.addObserver(forName: Self.becameActive, object: nil, queue: .main) { [weak sync] _ in
-            MainActor.assumeIsolated { sync?.appReturned() }
+            MainActor.assumeIsolated { sync?.appBecameActive() }
         })
+        #if canImport(AppKit) && !canImport(UIKit)
+        tokens.append(center.addObserver(
+            forName: NSApplication.didResignActiveNotification, object: nil, queue: .main
+        ) { [weak sync] _ in
+            MainActor.assumeIsolated { sync?.appResigned() }
+        })
+        #endif
         self.tokens = tokens
     }
 

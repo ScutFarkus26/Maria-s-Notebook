@@ -2,8 +2,8 @@ import Foundation
 import CoreData
 
 // What starts a live update: a save of the day's attendance (this device's
-// or one synced in), the first import after launch or a return, and the
-// guide's backstop. Nothing is noted before "after".
+// or one synced in), the first import after launch or a return (or 20 s
+// without one), and the guide's backstops. Nothing is noted before "after".
 
 extension ParentLockerSync {
 
@@ -24,14 +24,23 @@ extension ParentLockerSync {
         let state = store.day(day, withChildren: false)
         guard state.method == .parentLocker, state.isSchoolDay else { return }
         considerBackstop(state, on: day)
-        guard state.isAfter else { return }
+        considerDeadline(state, on: day)
+        guard state.isAfter else { return reschedule() }
         rollOwedDay(to: day)
         let now = clock.now
         if imported {
-            importedChildren.formUnion(children.subtracting(localChanges.keys))
+            // What this device last saw of each, kept from before the change
+            // arrived: ParentLocker holding anything else by the time it goes
+            // means its own device has saved it since.
+            let fresh = children.subtracting(localChanges.keys)
+            for child in fresh.subtracting(importedChildren) { importedBaseline[child] = lastSeen[child] }
+            importedChildren.formUnion(fresh)
             if importedDue == nil, !importedChildren.isEmpty { importedDue = now.addingTimeInterval(Self.importedWait) }
         } else {
-            for child in children { localChanges[child] = now }
+            for child in children {
+                localChanges[child] = now
+                importedBaseline[child] = nil
+            }
             importedChildren.subtract(children)
             localDue = now.addingTimeInterval(Self.localQuiet)
             // A whole-class send owed after a failure goes with the next change.
@@ -48,18 +57,59 @@ extension ParentLockerSync {
               !state.sentToParentLocker, isSignedIn, isToday(day), wholeClass == nil,
               backstopDay.map({ !isSameDay($0, day) }) ?? true else { return }
         backstopDay = day
+        deadlineDue = nil
         wholeClass = ParentLockerWholeClass(reason: .backstop, due: clock.now.addingTimeInterval(Self.backstopWait))
     }
 
-    /// A CloudKit import finished: the catch-up waiting on it goes.
+    /// The guide's backstop at the day's due time: Close Arrival with nobody
+    /// left to mark writes no automatic absence, so a phone that closed it
+    /// without being signed in leaves nothing that says arrival closed. A
+    /// minute after the due time (or after now, when that's later) one of the
+    /// guide's signed-in devices checks, and sends the whole class if
+    /// everyone is marked and still nothing is recorded (`.deadline`).
+    func considerDeadline(_ state: ParentLockerDay, on day: Date) {
+        guard deadlineDue == nil, state.role == .leadGuide, state.method == .parentLocker, state.isSchoolDay,
+              !state.sentToParentLocker, isSignedIn, isToday(day), wholeClass == nil,
+              backstopDay.map({ !isSameDay($0, day) }) ?? true,
+              let deadline = state.deadline(on: day, calendar: dependencies.calendar) else { return }
+        deadlineDue = max(deadline, clock.now).addingTimeInterval(Self.backstopWait)
+    }
+
+    /// The catch-up waits for the first CloudKit import, but no longer than
+    /// `importWaitLimit`: with nothing new in CloudKit, none may come. Signed
+    /// out, there's nothing to catch up (signing in releases it).
+    func waitForImport() {
+        awaitingImport = dependencies.importsExpected && isSignedIn
+        importWaitEnds = awaitingImport ? clock.now.addingTimeInterval(Self.importWaitLimit) : nil
+        if awaitingImport { reschedule() } else { releaseCatchUp() }
+    }
+
+    /// A CloudKit import finished, or the wait for one ran out: the catch-up
+    /// waiting on it goes.
     func importFinished() {
         guard awaitingImport else { return }
         awaitingImport = false
+        importWaitEnds = nil
         releaseCatchUp()
     }
 
-    /// Back to the app (or the Mac app made active): the sign-in is read
-    /// again, and what's owed waits for the first import, then goes.
+    /// The Mac app went to the background.
+    func appResigned() {
+        resignedAt = clock.now
+    }
+
+    /// The app became active. On the Mac that happens at every switch
+    /// between apps, so only a return after `returnAbsence` away counts there.
+    func appBecameActive() {
+        defer { resignedAt = nil }
+        if dependencies.returnNeedsAbsence {
+            guard let resignedAt, clock.now.timeIntervalSince(resignedAt) >= Self.returnAbsence else { return }
+        }
+        appReturned()
+    }
+
+    /// Back to the app: the sign-in is read again, and what's owed waits for
+    /// the first import, then goes.
     func appReturned() {
         refreshSignIn()
         // Changes still owed from before (a failed send) wait for the import
@@ -68,8 +118,7 @@ extension ParentLockerSync {
             catchUpChildren.formUnion(localChanges.keys)
             localChanges = [:]
         }
-        awaitingImport = dependencies.importsExpected
-        if !awaitingImport { releaseCatchUp() }
+        waitForImport()
         refreshStatus()
     }
 
@@ -86,7 +135,10 @@ extension ParentLockerSync {
         }
         if wholeClass != nil, wholeClass?.due == nil { wholeClass?.due = now }
         let state = store.day(now, withChildren: false)
-        if state.method == .parentLocker, state.isSchoolDay { considerBackstop(state, on: now) }
+        if state.method == .parentLocker, state.isSchoolDay {
+            considerBackstop(state, on: now)
+            considerDeadline(state, on: now)
+        }
         reschedule()
     }
 }

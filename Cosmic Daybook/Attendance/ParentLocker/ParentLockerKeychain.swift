@@ -42,10 +42,9 @@ nonisolated enum ParentLockerKeychain {
         var errorDescription: String? {
             switch self {
             case .read:
-                "Couldn't read your ParentLocker sign-in from this device's keychain. " +
-                    "Restart the device and try again."
+                "Couldn't read your saved ParentLocker sign-in on this device. Restart the device and try again."
             case .write:
-                "Couldn't save your ParentLocker sign-in in this device's keychain. Try again."
+                "Couldn't save your ParentLocker sign-in on this device. Try again."
             }
         }
     }

@@ -50,19 +50,19 @@ nonisolated struct ParentLockerStatus: Sendable, Equatable {
     var message: String? {
         switch state {
         case .off, .idle: nil
-        case .signedOut: "Sign in to ParentLocker to send attendance."
+        case .signedOut: ParentLockerSyncStop.signedOut.message
         case .waitingForArrival: "Attendance goes to ParentLocker when arrival closes."
         case .sending: "Sending to ParentLocker…"
         case .upToDate: "Up to date in ParentLocker."
         case .retrying: ParentLockerError.unreachable.errorDescription
         case .gaveUp: "Couldn't reach ParentLocker. It'll try again after the next change, or use Send Now."
-        case .notSentYet: "Couldn't send to ParentLocker yet. It'll send when you open the app."
-        case .passwordRefused: "ParentLocker didn't take your saved password. Sign in again."
-        case .needsYou: "ParentLocker needs you to sign in again."
+        case .notSentYet: ParentLockerSyncStop.notSentYet.message
+        case .passwordRefused: ParentLockerSyncStop.passwordRefused.message
+        case .needsYou: ParentLockerSyncStop.needsYou.message
         case .pageChanged: ParentLockerError.pageChanged.errorDescription
         case .refused: ParentLockerError.refused(message: "").errorDescription
-        case .keychainTrouble: ParentLockerKeychain.KeychainError.read(0).errorDescription
-        case .previewed: "Preview only: this build reads ParentLocker but doesn't send to it."
+        case .keychainTrouble: ParentLockerSyncStop.keychain.message
+        case .previewed: "This test copy of the app only previews. Nothing was sent to ParentLocker."
         }
     }
 
@@ -88,6 +88,69 @@ nonisolated struct ParentLockerStatus: Sendable, Equatable {
             !problems.isEmpty
         }
     }
+}
+
+// MARK: - Why a run stopped
+
+/// Why a run stopped before reaching ParentLocker, each with its sentence for
+/// the screens (the line, the sign-in sheet, Match Names).
+nonisolated enum ParentLockerSyncStop: Error, Equatable, LocalizedError {
+    /// No password saved for the site: never signed in here, or signed out.
+    case signedOut
+    /// Signed out while in the background, where the web view can't sign in.
+    case notSentYet
+    /// ParentLocker didn't take the saved password.
+    case passwordRefused
+    /// ParentLocker wants something only a person can do.
+    case needsYou
+    /// The Keychain wouldn't read or save the sign-in.
+    case keychain
+
+    var message: String {
+        switch self {
+        case .signedOut: "Sign in to ParentLocker to send attendance."
+        case .notSentYet: "Couldn't send to ParentLocker yet. It'll send when you open the app."
+        case .passwordRefused: "ParentLocker didn't take your saved password. Sign in again."
+        case .needsYou: "ParentLocker needs you to sign in again."
+        case .keychain:
+            "Couldn't use your saved ParentLocker sign-in on this device. Restart the device and try again."
+        }
+    }
+
+    var errorDescription: String? { message }
+}
+
+nonisolated extension ParentLockerStatus {
+    /// What a run that didn't get through leaves on the line.
+    static func failure(for error: Error, lastSyncAt: Date?) -> ParentLockerStatus {
+        let state: State
+        var details: String?
+        switch error {
+        case ParentLockerError.unreachable: state = .retrying
+        case ParentLockerSyncStop.signedOut: state = .signedOut
+        case ParentLockerSyncStop.notSentYet: state = .notSentYet
+        case ParentLockerSyncStop.passwordRefused: state = .passwordRefused
+        case ParentLockerSyncStop.needsYou: state = .needsYou
+        case ParentLockerSyncStop.keychain: state = .keychainTrouble
+        case ParentLockerError.refused(let message):
+            state = .refused
+            details = message
+        default:
+            // The page changed, a redirect off the site, or a sign-in the
+            // requests still can't use: nothing to retry until someone looks.
+            state = .pageChanged
+            details = (error as? ParentLockerError)?.details
+        }
+        return ParentLockerStatus(state: state, lastSyncAt: lastSyncAt, details: details)
+    }
+}
+
+/// A send or preview that didn't happen, in plain words, for the screen or
+/// MCP that asked; `details` (the site's own text, a host) for a Details
+/// disclosure at most.
+nonisolated struct ParentLockerSendFailure: Error, Equatable, Sendable {
+    let message: String
+    var details: String?
 }
 
 // MARK: - Problems in words
@@ -116,8 +179,8 @@ nonisolated extension ParentLockerStatus {
                 lines.append("\(name) has a mark this version of the app can't send. Update the app.")
             case .cantClear(let current):
                 lines.append(
-                    "\(name) is still \(current ?? "marked") in ParentLocker. " +
-                        "ParentLocker can't clear a mark; mark her Late or Absent if that's right."
+                    "\(name) is still \(current ?? "marked") in ParentLocker, which can't remove a mark. " +
+                        "If that's wrong, give \(name) the right mark here."
                 )
             case .locked(let current):
                 lines.append("The office already marked \(name)" + (current.map { " \($0)." } ?? "."))
@@ -130,7 +193,9 @@ nonisolated extension ParentLockerStatus {
                 ? "\(unmatched[0]) isn't matched to a child in ParentLocker yet."
                 : "\(unmatched.count) children aren't matched in ParentLocker yet: "
                     + unmatched.joined(separator: ", ") + "."
-            let fix = isGuide ? " Match them in Settings › Match Names." : " Your guide can match them in Settings."
+            let fix = isGuide
+                ? " Match them in Settings › Messages › Match Names."
+                : " Your guide can match them in Settings."
             lines.insert(who + fix, at: 0)
         }
         if pageChanged, let text = ParentLockerError.pageChanged.errorDescription { lines.append(text) }
@@ -170,7 +235,8 @@ nonisolated struct ParentLockerReport: Sendable, Equatable {
     let wasPreview: Bool
     var classes: [ClassReport]
     var problems: [String]
-    /// Classes the account lists that the app left alone, and why.
+    /// Classes the account lists that the app left alone, each a sentence
+    /// saying why ("Skipped Art: it doesn't take daily attendance.").
     var classesLeftAlone: [String]
     /// Children whose marks were saved.
     var savedCount: Int
@@ -181,7 +247,7 @@ nonisolated struct ParentLockerReport: Sendable, Equatable {
         var lines = [wasPreview
             ? "ParentLocker preview for \(date) (nothing was sent):"
             : "Sent to ParentLocker for \(date): \(savedCount == 1 ? "1 child" : "\(savedCount) children") changed."]
-        if classes.isEmpty { lines.append("None of the account's classes holds this class's children.") }
+        if classes.isEmpty { lines.append("None of your ParentLocker classes has any of these children.") }
         for item in classes {
             let count = item.changes.count
             let verb = wasPreview ? "send" : "change"
@@ -193,7 +259,7 @@ nonisolated struct ParentLockerReport: Sendable, Equatable {
                 lines.append("  Already in ParentLocker: " + item.alreadyIn.joined(separator: ", "))
             }
         }
-        lines.append(contentsOf: classesLeftAlone.map { "Left alone: \($0)" })
+        lines.append(contentsOf: classesLeftAlone)
         lines.append(contentsOf: problems)
         return lines.joined(separator: "\n")
     }

@@ -13,9 +13,11 @@ extension ParentLockerSync {
         var dues: [Date] = []
         if let retry { dues.append(retry.due) }
         if let due = wholeClass?.due { dues.append(due) }
+        if awaitingImport, let importWaitEnds { dues.append(importWaitEnds) }
         if !holdsLiveUpdates {
             if let localDue { dues.append(localDue) }
             if let importedDue { dues.append(importedDue) }
+            if wholeClass == nil, let deadlineDue { dues.append(deadlineDue) }
         }
         return dues.min()
     }
@@ -39,14 +41,17 @@ extension ParentLockerSync {
 
     /// Runs everything due now, one run at a time. Tests call it after moving the clock.
     func runDue() async {
+        // No import came in time: the catch-up goes without it.
+        if awaitingImport, let ends = importWaitEnds, ends <= clock.now { importFinished() }
         while activeRun == nil, let job = takeDueJob(at: clock.now) {
             await run(job)
         }
     }
 
     /// The run due at `now`, taken off the schedule: a retry, then a
-    /// whole-class send (which covers every child owed), then the children
-    /// whose waits are up.
+    /// whole-class send (which covers every child owed), then the guide's
+    /// check after the due time, then the children whose waits are up (those
+    /// synced in carrying what this device had seen of them).
     func takeDueJob(at now: Date) -> ParentLockerJob? {
         rollOwedDay(to: now)
         let day = today
@@ -58,6 +63,7 @@ extension ParentLockerSync {
             wholeClass = nil
             localDue = nil
             importedChildren = []
+            importedBaseline = [:]
             importedDue = nil
             let reason: ParentLockerJob.Reason = switch whole.reason {
             case .closeArrival: .closeArrival
@@ -67,17 +73,25 @@ extension ParentLockerSync {
             return ParentLockerJob(day: day, children: nil, reason: reason)
         }
         guard !holdsLiveUpdates else { return nil }
-        var children = Set<UUID>()
+        if wholeClass == nil, let due = deadlineDue, due <= now {
+            deadlineDue = nil
+            return ParentLockerJob(day: day, children: nil, reason: .deadline)
+        }
+        var job = ParentLockerJob(day: day, children: [], reason: .live)
         if let due = localDue, due <= now {
-            children.formUnion(localChanges.keys)
+            job.children?.formUnion(localChanges.keys)
             localDue = nil
         }
         if let due = importedDue, due <= now {
-            children.formUnion(importedChildren)
+            // A child this device changed too goes as its own change.
+            job.imported = importedChildren.subtracting(localChanges.keys)
+            job.importedBaseline = importedBaseline.filter { job.imported.contains($0.key) }
+            job.children?.formUnion(importedChildren)
             importedChildren = []
+            importedBaseline = [:]
             importedDue = nil
         }
-        return children.isEmpty ? nil : ParentLockerJob(day: day, children: children, reason: .live)
+        return job.children?.isEmpty == false ? job : nil
     }
 
     /// Runs `job` once whatever is running has finished, then schedules what's next.
@@ -123,10 +137,14 @@ extension ParentLockerSync {
             localDue = nil
             catchUpChildren = []
             importedChildren = []
+            importedBaseline = [:]
             importedDue = nil
             wholeClass = nil
             retry = nil
+            deadlineDue = nil
         }
+        // What ParentLocker held is a day's: none of it says anything about this one.
+        lastSeen = [:]
         owedDay = dependencies.calendar.startOfDay(for: day)
     }
 
@@ -159,7 +177,8 @@ extension ParentLockerSync {
 
 /// One run of the sync: the whole class or some children, for a day.
 nonisolated struct ParentLockerJob: Sendable, Equatable {
-    enum Reason: Sendable, Equatable { case live, closeArrival, backstop, owed, sendNow, request }
+    /// `.deadline` is the guide's check after the day's due time.
+    enum Reason: Sendable, Equatable { case live, closeArrival, backstop, deadline, owed, sendNow, request }
     var day: Date
     /// Nil for the whole class.
     var children: Set<UUID>?
@@ -167,6 +186,10 @@ nonisolated struct ParentLockerJob: Sendable, Equatable {
     var preview = false
     /// Retries already made.
     var attempt = 0
+    /// Of `children`, those whose change synced in from another device, and
+    /// what this device had seen of them in ParentLocker when it arrived.
+    var imported: Set<UUID> = []
+    var importedBaseline: [UUID: ParentLockerSeen] = [:]
 
     var isWholeClass: Bool { children == nil }
 }

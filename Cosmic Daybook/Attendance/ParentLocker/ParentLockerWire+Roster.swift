@@ -55,6 +55,33 @@ nonisolated struct ParentLockerRosterStudent: Sendable, Equatable {
         if let comment { fields["comment"] = .string(comment) }
         return .object(fields)
     }
+
+    /// The row as this device saw it: the saved mark (none until someone
+    /// takes attendance) and the Notes box.
+    var seenRow: ParentLockerSeen.Row {
+        ParentLockerSeen.Row(markID: isConfirmed ? currentMarkID : nil, comment: comment)
+    }
+}
+
+/// What ParentLocker held for one child when this device last looked, per
+/// class the child is on, from a roster it loaded or a save it made. An
+/// imported change goes over ParentLocker's mark only while ParentLocker
+/// still holds this: anything else means another device has saved the child
+/// since, most likely the one that made the change, with a newer mark than
+/// the one that synced in here (`ParentLockerPlanner.changedElsewhere`).
+nonisolated struct ParentLockerSeen: Sendable, Equatable {
+    struct Row: Sendable, Equatable {
+        /// The saved mark's id; nil when nobody has saved one.
+        let markID: String?
+        /// The Notes box.
+        let comment: String
+    }
+
+    /// By the class's `course_id`.
+    var rows: [Int: Row] = [:]
+
+    /// Whether ParentLocker holds a saved mark for the child in any class.
+    var holdsMark: Bool { rows.values.contains { $0.markID != nil } }
 }
 
 /// A class's roster for a day (`action: "course_roster"`).

@@ -24,7 +24,7 @@ nonisolated enum ParentLockerSignInError: Error, Equatable, LocalizedError {
         case .passwordRefused: "ParentLocker didn't take that email and password. Check them and try again."
         case .needsYou: "ParentLocker needs you to finish signing in on its page."
         case .offSite, .pageChanged: ParentLockerError.pageChanged.errorDescription
-        case .unreachable: "Couldn't reach ParentLocker. Check the connection and try again."
+        case .unreachable: "Couldn't reach ParentLocker. Check you're online and try again."
         case .cancelled: nil
         }
     }
@@ -52,7 +52,9 @@ nonisolated enum ParentLockerSignInError: Error, Equatable, LocalizedError {
 /// - The password goes into the form only as an argument to
 ///   `callAsyncJavaScript`, never in script text, and only on https, on the
 ///   exact site host, into `#login-form`. The script checks the page's own
-///   location again before filling.
+///   location again before filling, and that the form posts to https on the
+///   same host.
+/// - After `cancel()`, nothing more is filled, and no cookies are handed back.
 /// - A main-frame navigation anywhere but https on the site's host is
 ///   refused, and while the sign-in runs by itself it stops the sign-in.
 /// - The web view is shown only when ParentLocker asks for something more
@@ -87,9 +89,13 @@ final class ParentLockerSignIn: NSObject, WKNavigationDelegate {
     @ObservationIgnored private var waiter: (after: Int, continuation: CheckedContinuation<Void, Error>)?
     @ObservationIgnored private var timeoutTask: Task<Void, Never>?
     @ObservationIgnored private var pendingFailure: ParentLockerSignInError?
+    /// The person closed the sheet: every step after checks this.
+    @ObservationIgnored private(set) var isCancelled = false
 
     /// How long a page may take before the sign-in gives up.
     nonisolated static let pageTimeout: TimeInterval = 30
+    /// How long ParentLocker's own page waits for the person on each page.
+    nonisolated static let personTimeout: TimeInterval = 600
     nonisolated static let attendancePath = "/sis/newattendance.php"
 
     private static let logger = Logger.attendance
@@ -106,6 +112,7 @@ final class ParentLockerSignIn: NSObject, WKNavigationDelegate {
     func run(
         _ credential: ParentLockerKeychain.Credential, showsPagesWhenAsked: Bool
     ) async throws -> [ParentLockerCookie] {
+        guard !isCancelled else { throw ParentLockerSignInError.cancelled }
         phase = .signingIn
         let webView = makeWebView()
         self.webView = webView
@@ -115,7 +122,7 @@ final class ParentLockerSignIn: NSObject, WKNavigationDelegate {
             if page == .other { page = try await load(path: "/") }
             if page == .signIn {
                 let seen = loadsFinished
-                guard try await fill(credential, in: webView) else { throw ParentLockerSignInError.pageChanged }
+                guard try await fill(credential) else { throw ParentLockerSignInError.pageChanged }
                 try await waitForPage(after: seen, timeout: Self.pageTimeout)
                 page = try await readPage()
                 if page == .other { page = try await load(path: Self.attendancePath) }
@@ -128,12 +135,14 @@ final class ParentLockerSignIn: NSObject, WKNavigationDelegate {
             }
             guard page == .attendance else { throw ParentLockerSignInError.offSite }
             let cookies = await siteCookies(in: webView)
+            try checkCancelled()
             Self.logger.info("ParentLocker sign-in: done (\(cookies.count, privacy: .public) cookies)")
             phase = .finished
             return cookies
         } catch {
             phase = .idle
-            let failure = error as? ParentLockerSignInError ?? .unreachable
+            // A script cut short by the cancel fails with WebKit's own error.
+            let failure = isCancelled ? .cancelled : error as? ParentLockerSignInError ?? .unreachable
             Self.logger.error("ParentLocker sign-in: stopped (\(String(describing: failure), privacy: .public))")
             throw failure
         }
@@ -141,9 +150,15 @@ final class ParentLockerSignIn: NSObject, WKNavigationDelegate {
 
     /// The person closed the sheet: the sign-in stops and the web view goes.
     func cancel() {
+        isCancelled = true
         fail(.cancelled)
         release()
         phase = .idle
+    }
+
+    /// Throws once the person has cancelled: after every wait.
+    private func checkCancelled() throws {
+        if isCancelled { throw ParentLockerSignInError.cancelled }
     }
 
     // MARK: - Pages
@@ -175,6 +190,7 @@ final class ParentLockerSignIn: NSObject, WKNavigationDelegate {
         return parts.url
     }
 
+    /// After a cancel the web view is gone, so this and `readPage` stop there.
     private func load(path: String) async throws -> Page {
         guard let webView, let url = url(path: path) else { throw ParentLockerSignInError.cancelled }
         let seen = loadsFinished
@@ -183,10 +199,11 @@ final class ParentLockerSignIn: NSObject, WKNavigationDelegate {
         return try await readPage()
     }
 
-    /// Waits for each page the person moves to until the attendance page loads.
+    /// Waits for each page the person moves to until the attendance page
+    /// loads, or until they've left a page alone for `personTimeout`.
     private func waitForAttendancePage() async throws -> Page {
         while true {
-            try await waitForPage(after: loadsFinished, timeout: nil)
+            try await waitForPage(after: loadsFinished, timeout: Self.personTimeout, onTimeout: .needsYou)
             let page = try await readPage()
             if page == .attendance { return page }
         }
@@ -197,19 +214,28 @@ final class ParentLockerSignIn: NSObject, WKNavigationDelegate {
         let result = try await webView.callAsyncJavaScript(
             Self.readPageScript, arguments: ["host": host], in: nil, contentWorld: .defaultClient
         )
+        try checkCancelled()
         let page = (result as? String).flatMap(Page.init(rawValue:)) ?? .other
         if page == .offSite { throw ParentLockerSignInError.offSite }
         return page
     }
 
-    /// Fills and submits the site's form. False when the page has no form to fill.
-    private func fill(_ credential: ParentLockerKeychain.Credential, in webView: WKWebView) async throws -> Bool {
+    /// Fills and submits the site's form in the sign-in's own web view, never
+    /// once the person has cancelled. False when the page has no form to fill.
+    private func fill(_ credential: ParentLockerKeychain.Credential) async throws -> Bool {
+        try checkCancelled()
+        guard let webView else { throw ParentLockerSignInError.cancelled }
         guard Self.isOnSite(webView.url, host: host) else { throw ParentLockerSignInError.offSite }
         let result = try await webView.callAsyncJavaScript(
             Self.fillScript, arguments: Self.fillArguments(credential, host: host),
             in: nil, contentWorld: .defaultClient
         )
-        return (result as? String) == "submitted"
+        try checkCancelled()
+        switch result as? String {
+        case "submitted": return true
+        case "offsite": throw ParentLockerSignInError.offSite
+        default: return false
+        }
     }
 
     private func siteCookies(in webView: WKWebView) async -> [ParentLockerCookie] {
@@ -219,7 +245,10 @@ final class ParentLockerSignIn: NSObject, WKNavigationDelegate {
 
     // MARK: - Waiting for a page, without polling
 
-    private func waitForPage(after seen: Int, timeout: TimeInterval?) async throws {
+    private func waitForPage(
+        after seen: Int, timeout: TimeInterval, onTimeout: ParentLockerSignInError = .unreachable
+    ) async throws {
+        try checkCancelled()
         if let failure = pendingFailure {
             pendingFailure = nil
             throw failure
@@ -227,13 +256,13 @@ final class ParentLockerSignIn: NSObject, WKNavigationDelegate {
         if loadsFinished > seen { return }
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             waiter = (seen, continuation)
-            guard let timeout else { return }
             timeoutTask = Task { [weak self] in
                 try? await Task.sleep(for: .seconds(timeout))
                 guard !Task.isCancelled else { return }
-                self?.fail(.unreachable)
+                self?.fail(onTimeout)
             }
         }
+        try checkCancelled()
     }
 
     private func pageFinished() {
@@ -300,8 +329,11 @@ final class ParentLockerSignIn: NSObject, WKNavigationDelegate {
         if error.domain == "WebKitErrorDomain", error.code == 102 { return }
         fail(.unreachable)
     }
+}
 
-    // MARK: - Rules and scripts
+// MARK: - Rules and scripts
+
+extension ParentLockerSignIn {
 
     /// Only https on exactly the site's host.
     nonisolated static func isOnSite(_ url: URL?, host: String) -> Bool {
@@ -329,13 +361,22 @@ final class ParentLockerSignIn: NSObject, WKNavigationDelegate {
 
     /// Fills `#login-form` from its arguments and submits it as the button
     /// would, with "remember me" on and the attendance page to return to. It
-    /// fills nothing unless the page is https on the site's host.
+    /// fills nothing unless the page is https on the site's host and the form
+    /// posts there too (read from the attribute: a field named "action"
+    /// would hide the property).
     nonisolated static let fillScript = """
         if (location.protocol !== 'https:' || location.hostname.toLowerCase() !== host) { return 'offsite'; }
         const form = document.getElementById('login-form');
         const user = form && form.querySelector('[name="user"]');
         const pass = form && form.querySelector('[name="pass"]');
         if (!user || !pass) { return 'noform'; }
+        let target;
+        try {
+            target = new URL(form.getAttribute('action') || location.href, location.href);
+        } catch (e) {
+            return 'offsite';
+        }
+        if (target.protocol !== 'https:' || target.hostname.toLowerCase() !== host) { return 'offsite'; }
         const put = (field, value) => {
             field.value = value;
             field.dispatchEvent(new Event('input', { bubbles: true }));

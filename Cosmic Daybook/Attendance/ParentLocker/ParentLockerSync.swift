@@ -16,11 +16,18 @@ import OSLog
 ///   device after 4 s of quiet, one synced in from another after 60 s (the
 ///   backstop for a phone that's offline or not signed in), each compared
 ///   with ParentLocker and saved only where it differs.
+/// - **An imported change goes only over what this device last saw** in
+///   ParentLocker for that child (`lastSeen`); anything else there was saved
+///   since by another device, maybe with a newer mark, and is left to it.
 /// - **The guide's backstop:** arrival closed with no ParentLocker send
 ///   recorded within 60 s, and one of the guide's signed-in devices sends
-///   the whole class and records it.
+///   the whole class and records it. Likewise a minute after the day's due
+///   time, when everyone is marked and nothing was sent (a Close Arrival
+///   with nobody left to mark leaves no automatic absence to see).
 /// - **On launch and on the way back** the changes this device still owes go
-///   once the first CloudKit import is in, so they're compared with fresh marks.
+///   once the first CloudKit import is in, so they're compared with fresh
+///   marks, or after 20 s without one. On the Mac only a return after a
+///   minute away counts, not every switch between apps.
 /// - Failures retry after 30 s, 2 min and 5 min, then wait. Nothing polls:
 ///   one task sleeps until the next thing is due, on an injected clock.
 ///
@@ -40,6 +47,11 @@ final class ParentLockerSync {
     nonisolated static let importedWait: TimeInterval = 60
     nonisolated static let backstopWait: TimeInterval = 60
     nonisolated static let retryWaits: [TimeInterval] = [30, 120, 300]
+    /// How long the catch-up waits for a CloudKit import that may never come.
+    nonisolated static let importWaitLimit: TimeInterval = 20
+    /// How long the Mac app must have been in the background for its return
+    /// to count as one.
+    nonisolated static let returnAbsence: TimeInterval = 60
     /// How long Close Arrival's Undo stays offered when the screen doesn't say.
     nonisolated static let closeArrivalUndoWindow: TimeInterval = 6
 
@@ -70,6 +82,14 @@ final class ParentLockerSync {
         /// Whether CloudKit imports will come: false for a stack without
         /// CloudKit, where the catch-up needn't wait for one.
         var importsExpected = true
+        /// Whether becoming active counts as a return only after
+        /// `returnAbsence` away: on the Mac, which becomes active at every
+        /// switch between apps.
+        #if os(macOS)
+        var returnNeedsAbsence = true
+        #else
+        var returnNeedsAbsence = false
+        #endif
         var calendar: Calendar = AppCalendar.shared
     }
 
@@ -97,14 +117,27 @@ final class ParentLockerSync {
     /// Owed from before launch or the trip away: held until the first import.
     @ObservationIgnored var catchUpChildren: Set<UUID> = []
     @ObservationIgnored var importedChildren: Set<UUID> = []
+    /// What this device had seen of each imported child in ParentLocker when
+    /// the change was noted (none: never seen).
+    @ObservationIgnored var importedBaseline: [UUID: ParentLockerSeen] = [:]
     @ObservationIgnored var importedDue: Date?
+    /// What ParentLocker held for each child when this device last looked:
+    /// today's rosters and saves.
+    @ObservationIgnored var lastSeen: [UUID: ParentLockerSeen] = [:]
     @ObservationIgnored var wholeClass: ParentLockerWholeClass?
     @ObservationIgnored var retry: (job: ParentLockerJob, due: Date)?
     @ObservationIgnored var awaitingImport = false
+    /// When the catch-up stops waiting for the import.
+    @ObservationIgnored var importWaitEnds: Date?
+    /// When the Mac app last went to the background.
+    @ObservationIgnored var resignedAt: Date?
     /// The day the owed changes are for: today when they were made.
     @ObservationIgnored var owedDay: Date?
     /// The day the guide's backstop last went or was scheduled.
     @ObservationIgnored var backstopDay: Date?
+    /// When the guide's device checks, after the day's due time, whether the
+    /// class was taken but never sent.
+    @ObservationIgnored var deadlineDue: Date?
 
     @ObservationIgnored var wakeTask: Task<Void, Never>?
     @ObservationIgnored var activeRun: Task<Result<ParentLockerReport, ParentLockerSendFailure>, Never>?
@@ -143,9 +176,8 @@ final class ParentLockerSync {
         Self.current = self
         refreshSignIn()
         loadOwed()
-        awaitingImport = dependencies.importsExpected
         if let context { watcher = ParentLockerWatcher(context: context, sync: self) }
-        if !awaitingImport { releaseCatchUp() }
+        waitForImport()
         refreshStatus()
     }
 
@@ -243,17 +275,32 @@ final class ParentLockerSync {
 
     /// Sign Out: deletes the password everywhere it synced (so the person's
     /// other devices sign out on their next check) and this device's cookies.
-    func signOut() {
-        try? dependencies.secrets.deletePassword(site: site)
+    /// Throws, still signed in, when the Keychain won't delete the password:
+    /// it would stay on the person's other devices.
+    func signOut() throws {
+        do {
+            try dependencies.secrets.deletePassword(site: site)
+        } catch {
+            Self.logger.error("ParentLocker: Sign Out failed (\(String(describing: error), privacy: .public))")
+            throw error
+        }
         Self.logger.info("ParentLocker: signed out")
         signedOutHere()
     }
 
     /// Reads whether a password is saved for the site. One deleted on another
-    /// device (Sign Out there) takes this device's cookies with it.
+    /// device (Sign Out there) takes this device's cookies with it. Only a
+    /// password that isn't there signs out: a Keychain that can't be read
+    /// right now (the device locked since restart, say) leaves things as they are.
     func refreshSignIn() {
         let site = site
-        let hasPassword = (try? dependencies.secrets.hasPassword(site: site)) ?? false
+        let hasPassword: Bool
+        do {
+            hasPassword = try dependencies.secrets.hasPassword(site: site)
+        } catch {
+            Self.logger.error("ParentLocker: unreadable sign-in (\(String(describing: error), privacy: .public))")
+            return
+        }
         if !hasPassword {
             if isSignedIn { signedOutHere() } else { try? dependencies.secrets.deleteCookies(site: site) }
         }
@@ -288,7 +335,10 @@ final class ParentLockerSync {
         localDue = nil
         catchUpChildren = []
         importedChildren = []
+        importedBaseline = [:]
         importedDue = nil
+        lastSeen = [:]
+        deadlineDue = nil
         retry = nil
         saveOwed()
         status = ParentLockerStatus(state: .signedOut)

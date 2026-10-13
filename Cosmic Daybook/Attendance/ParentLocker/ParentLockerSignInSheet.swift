@@ -71,6 +71,8 @@ struct ParentLockerSignInSheet: View {
         #if os(macOS)
         .frame(minWidth: 420, minHeight: 360)
         #endif
+        // However the sheet goes (a swipe down too), a sign-in under way stops.
+        .onDisappear { session?.cancel() }
     }
 
     /// Above the fields: the school's site, small, and that this happens
@@ -116,11 +118,27 @@ struct ParentLockerSignInSheet: View {
     private var signedIn: some View {
         Section {
             Label("Signed in to ParentLocker", systemImage: "checkmark.circle.fill")
-            Button("Sign Out", role: .destructive) { sync.signOut() }
+            Button("Sign Out", role: .destructive, action: signOut)
+            if let errorText {
+                Text(errorText)
+                    .foregroundStyle(.red)
+            }
         } footer: {
             Text("Signing out here signs you out on your other devices too.")
         }
     }
+
+    /// Shows signed out only once the saved password is really gone.
+    private func signOut() {
+        do {
+            try sync.signOut()
+            errorText = nil
+        } catch {
+            errorText = Self.signOutFailed
+        }
+    }
+
+    nonisolated static let signOutFailed = "Couldn't sign out of ParentLocker on this device. Try again."
 
     @ViewBuilder
     private var fields: some View {
@@ -174,6 +192,8 @@ struct ParentLockerSignInSheet: View {
             defer { session = nil }
             do {
                 let cookies = try await attempt.run(credential, showsPagesWhenAsked: true)
+                // Closed while the last page loaded: nothing is kept.
+                guard !attempt.isCancelled else { return }
                 try await sync.completeSignIn(credential, cookies: cookies, site: attempt.host)
                 password = ""
                 dismiss()
