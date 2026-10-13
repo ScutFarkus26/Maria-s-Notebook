@@ -11,7 +11,7 @@ Attendance goes to the school's ParentLocker site (`yyli.parentlocker.com`) from
 
 ## The site's requests (read 2026-10-12 from the real page)
 
-- **Course list:** `GET /sis/newattendance.php`. The page carries `var courses = [...]` and `var additional_courses = [...]`. Only daily-attendance classes are used, and `attendance_report_id` comes from here.
+- **Course list:** `GET /sis/newattendance.php`, or `?date=YYYY-M-D` for another day (the page's own date picker does this; checked 2026-10-13, and a past day carries its own report ids while a future day shows today's). The page carries `var courses = [...]` and `var additional_courses = [...]`. Only daily-attendance classes are used, and `attendance_report_id` comes from here, sent back exactly as it came (a string). Status is `submitted`, `not_submitted` or `not_expected`.
 - **A class:** `POST /sis/newattendance.php`, JSON `{action: "course_roster", course_id, period, date}`. Dates are `YYYY-M-D`, with no leading zeros.
 - **Save:** `POST /sis/newattendance.php`, JSON `{action: "save", students: [the roster's attendance objects], attendance_report_id, date}`. Only `attendance_code`, `confirmed` and `comment` are changed. The reply carries `error`, `updated` and `conflicts`.
 - **Marks** are looked up by their `type` (`present`, `late`, `absent`), never by id. A mark can be changed but never cleared. Rows "Locked by Admin" are never changed.
@@ -20,7 +20,10 @@ Attendance goes to the school's ParentLocker site (`yyli.parentlocker.com`) from
 ## Rules
 
 - **The password** lives only in the Keychain: an internet-password item, synchronizable, `AfterFirstUnlock`, data-protection keychain on the Mac. It is never in Core Data, backups, preferences, logs, status or error text, or MCP replies. It is passed to the sign-in page as a `callAsyncJavaScript` argument, and only on `https` and the exact site host.
+- **A refused saved password is never retried by itself:** the refusal is remembered (by the password item's modification date) until a new password is saved, so a changed password can't lock the school account.
 - **The site's cookies** are a `ThisDeviceOnly` Keychain item. Requests use an ephemeral `URLSession` with cookie handling off, and refuse any redirect to another host.
+- **"Not matched" is stored** as `parentLockerID = "none"`; name matching never overrides it, and one ParentLocker child is never matched to two notebook children.
+- **Days after today are never sent**, by any path.
 - **Debug builds and test runs never save** to ParentLocker and never record a ParentLocker send (`ParentLockerSavePolicy`). Only Release and TestFlight builds do.
 - **Never run a schema-18-or-later Debug build of the notebook on the Mac to check ParentLocker.** It opens the live notebook. Use the iPhone simulator: a Debug build launched with `-ParentLockerPreview YES` shows the sign-in sheet if needed, then today's preview, and saves nothing.
 

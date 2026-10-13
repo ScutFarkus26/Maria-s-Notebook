@@ -358,11 +358,12 @@ extension AssistantArrivalBar {
 
     /// The moment Close Arrival & Send's Undo stops being offered: when the
     /// class goes.
-    /// MERGE (bug check 2026-10-13, D2): point this one line at the sync's
-    /// "Undo ends at" (agent S's read-only value on `ParentLockerSync`) once
-    /// it lands; until then, Close Arrival's own Undo window, from the close.
+    /// When this Undo stops being safe (bug check 2026-10-13, D2): the
+    /// sync's "Undo ends at", when the send goes; without one, Close
+    /// Arrival's own Undo window from the close.
     private func undoEnds(for undo: ArrivalUndo) -> Date {
-        undo.closedAt.addingTimeInterval(ParentLockerSync.closeArrivalUndoWindow)
+        bootstrapper.parentLockerForScreens?.undoEndsAt
+            ?? undo.closedAt.addingTimeInterval(ParentLockerSync.closeArrivalUndoWindow)
     }
 
     /// Waits out Close Arrival & Send's Undo, then hides it (signed in: the

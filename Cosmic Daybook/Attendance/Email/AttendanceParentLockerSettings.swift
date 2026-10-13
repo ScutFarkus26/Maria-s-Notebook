@@ -56,13 +56,16 @@ struct AttendanceParentLockerSettings: View {
 
     private func signInRow(_ sync: ParentLockerSync) -> some View {
         LabeledContent("Your ParentLocker sign-in") {
+            // Signed in and working, or ParentLocker refused the saved
+            // password (the sheet then asks for it again), or not signed in.
+            let working = sync.isSignedIn && !sync.savedPasswordRefused
             HStack(spacing: 8) {
                 Label(
-                    sync.isSignedIn ? "Signed in" : "Not signed in",
-                    systemImage: sync.isSignedIn ? "checkmark.circle.fill" : "person.crop.circle.badge.questionmark"
+                    sync.savedPasswordRefused ? "Sign in again" : working ? "Signed in" : "Not signed in",
+                    systemImage: working ? "checkmark.circle.fill" : "person.crop.circle.badge.questionmark"
                 )
-                .foregroundStyle(sync.isSignedIn ? Color.green : Color.secondary)
-                Button(sync.isSignedIn ? "Sign Out…" : "Sign In…") { showsSignIn = true }
+                .foregroundStyle(working ? Color.green : Color.secondary)
+                Button(working ? "Sign Out…" : "Sign In…") { showsSignIn = true }
             }
         }
     }

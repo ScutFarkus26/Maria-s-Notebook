@@ -358,10 +358,8 @@ extension ParentLockerSync {
     private func makeReport(
         _ job: ParentLockerJob, day: ParentLockerDay, result: ParentLockerRunResult
     ) -> ParentLockerReport {
-        var childByStudent: [String: UUID] = [:]
-        for (childID, match) in result.matches {
-            if case .matched(let studentID, _) = match { childByStudent[studentID] = childID }
-        }
+        // One ParentLocker child is never reported as two of ours (A2).
+        let childByStudent = ParentLockerPlanner.childByStudentID(result.matches)
         let classes = result.rosters.compactMap { roster -> ParentLockerReport.ClassReport? in
             let ours = roster.students.compactMap { childByStudent[$0.studentID] }
             guard !ours.isEmpty else { return nil }
