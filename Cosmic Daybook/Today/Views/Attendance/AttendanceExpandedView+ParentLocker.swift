@@ -4,12 +4,23 @@
 // Arrival's Undo has gone; Undo stops it), Send Now, and the sign-in sheet
 // for a device that isn't signed in yet.
 
+import CoreData
 import SwiftUI
 
 extension AttendanceExpandedView {
 
-    /// How the guide sends the day's attendance.
-    var sendMethod: AttendanceSendMethod { AttendanceSendMethod(stored: sendMethodRaw) }
+    /// How the guide sends the day's attendance, as the shared settings row
+    /// holds it: what the sync, the reminder, MCP and the assistants read.
+    /// Not the synced preference, which reaches the row only after Settings
+    /// writes it: a screen reading the preference offered Close Arrival &
+    /// Send while the sync still saw email, and sent nothing (bug check
+    /// 2026-10-13, C1).
+    var sendMethod: AttendanceSendMethod { loadedSendMethod ?? Self.sendMethod(in: viewContext) }
+
+    /// The method in the shared settings row; email before there is one.
+    static func sendMethod(in context: NSManagedObjectContext) -> AttendanceSendMethod {
+        AttendanceEmailLog.settings(in: context)?.sendMethod ?? .email
+    }
 
     /// The sync for this class; none in the Sample Class.
     var parentLocker: ParentLockerSync? { ParentLockerSync.current(for: viewContext) }
@@ -142,7 +153,9 @@ extension AttendanceExpandedView {
     var parentLockerFollowUps: ParentLockerFollowUps {
         ParentLockerFollowUps(
             sync: parentLocker,
+            context: viewContext,
             showingSignIn: $showingParentLockerSignIn,
+            sendMethod: $loadedSendMethod,
             onSynced: parentLockerSynced
         )
     }
@@ -152,13 +165,21 @@ extension AttendanceExpandedView {
 /// one line there.
 struct ParentLockerFollowUps: ViewModifier {
     let sync: ParentLockerSync?
+    let context: NSManagedObjectContext
     @Binding var showingSignIn: Bool
+    /// The roll's method, followed as the shared settings row changes: an
+    /// edit in Settings (the Mac's own window, beside the roll) or one synced
+    /// in from the guide's other devices.
+    @Binding var sendMethod: AttendanceSendMethod?
     let onSynced: () -> Void
 
     func body(content: Content) -> some View {
         content
             .sheet(isPresented: $showingSignIn) {
                 if let sync { ParentLockerSignInSheet(sync: sync) }
+            }
+            .onPresentationDataChangeWhenVisible(of: ["AttendanceEmailSettings"], in: context, catchUpOnAppear: false) {
+                sendMethod = AttendanceExpandedView.sendMethod(in: context)
             }
             .onChange(of: sync?.status.lastSyncAt) { _, synced in
                 if synced != nil { onSynced() }

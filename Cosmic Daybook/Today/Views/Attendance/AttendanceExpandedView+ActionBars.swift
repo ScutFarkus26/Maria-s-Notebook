@@ -75,8 +75,9 @@ extension AttendanceExpandedView {
                     Label("Absence Report", systemImage: "chart.bar.doc.horizontal")
                 }
 
-                // ParentLocker: Send Now, Mark as Sent, Sign In
-                if sendsToParentLocker {
+                // ParentLocker: Send Now, Mark as Sent, Sign In; not ahead of
+                // the day, which can't be sent yet
+                if sendsToParentLocker, !viewModel.isFuture {
                     Divider()
                     parentLockerMenuItems
                         .disabled(isNonSchoolDay)

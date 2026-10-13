@@ -74,10 +74,14 @@ extension AttendanceEmail {
     /// devices, and not during a first download (the share's row may be on its
     /// way). Returns whether anything changed; the caller saves.
     @discardableResult
-    static func shareSettings(in context: NSManagedObjectContext) -> Bool {
-        guard !FirstDownloadGate.isPending() else { return false }
+    static func shareSettings(
+        in context: NSManagedObjectContext,
+        settings: AttendanceEmailLog.Settings = AttendanceEmail.storedSettings(),
+        firstDownloadPending: Bool = FirstDownloadGate.isPending()
+    ) -> Bool {
+        guard !firstDownloadPending else { return false }
         return AttendanceEmailLog.saveSettings(
-            storedSettings(), role: CDClassroomMembership.currentRole(in: context), in: context
+            settings, role: CDClassroomMembership.currentRole(in: context), in: context
         )
     }
 
