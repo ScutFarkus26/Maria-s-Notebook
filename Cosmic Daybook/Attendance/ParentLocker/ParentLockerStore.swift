@@ -16,6 +16,10 @@ nonisolated struct ParentLockerDay: Sendable, Equatable {
     var arrivalClosed = false
     /// A send by ParentLocker is recorded for the day.
     var sentToParentLocker = false
+    /// ParentLocker said it isn't expecting the class's attendance that day
+    /// (`AttendanceEmailLog.isNotExpected`), on this device or another. Not
+    /// a send: the day isn't "after" for it.
+    var notExpected = false
     /// When the day's attendance is due, in minutes after midnight
     /// (`AttendanceEmailLog.Settings.deadlineMinutes`).
     var deadlineMinutes = AttendanceEmailLog.defaultDeadlineMinutes
@@ -28,11 +32,13 @@ nonisolated struct ParentLockerDay: Sendable, Equatable {
     /// (plan "ParentLocker attendance", What counts as "after").
     var isAfter: Bool { arrivalClosed || sentToParentLocker }
 
-    /// Everyone on the roll has a mark to send: the class has been taken,
-    /// though maybe closed with nobody left to mark (which writes no
-    /// automatic absence). Read with the children only.
+    /// Everyone on the roll who goes to ParentLocker has a mark to send: the
+    /// class has been taken, though maybe closed with nobody left to mark
+    /// (which writes no automatic absence). The guide's "Not matched"
+    /// children never go there, so they aren't waited for, as
+    /// `unmarkedChildren` leaves them out. Read with the children only.
     var everyoneMarked: Bool {
-        !children.isEmpty && children.allSatisfy { ParentLockerPlanner.wanted(for: marks[$0.id]) != .nothing }
+        children.contains { !Self.isLeftOut($0) } && unmarkedChildren.isEmpty
     }
 
     /// Someone on the roll has a mark to send. Reset Day leaves nobody: a
@@ -46,10 +52,12 @@ nonisolated struct ParentLockerDay: Sendable, Equatable {
     /// guide left out of ParentLocker ("Not matched"), who never go there.
     /// Read with the children only.
     var unmarkedChildren: [ParentLockerPlanner.Child] {
-        children.filter { child in
-            ParentLockerPlanner.wanted(for: marks[child.id]) == .nothing
-                && !(child.parentLockerID.map(ParentLockerPlanner.isNotMatched) ?? false)
-        }
+        children.filter { ParentLockerPlanner.wanted(for: marks[$0.id]) == .nothing && !Self.isLeftOut($0) }
+    }
+
+    /// The guide left the child out of ParentLocker ("Not matched").
+    private static func isLeftOut(_ child: ParentLockerPlanner.Child) -> Bool {
+        child.parentLockerID.map(ParentLockerPlanner.isNotMatched) ?? false
     }
 
     /// Their names as the class reads them ("Maya S"), in name order.
@@ -70,6 +78,17 @@ nonisolated struct ParentLockerDay: Sendable, Equatable {
     }
 }
 
+extension AttendanceRow {
+    /// Still to be marked before the day goes to ParentLocker: unmarked, and
+    /// not one the guide left out of ParentLocker ("Not matched"), who never
+    /// goes there. The screens count as the sync does
+    /// (`ParentLockerDay.unmarkedChildren`), so they offer Send when the line
+    /// says everyone's marked.
+    var waitsForParentLocker: Bool {
+        status == .unmarked && !(student.parentLockerID.map(ParentLockerPlanner.isNotMatched) ?? false)
+    }
+}
+
 /// What the sync reads from the notebook and writes back. The apps use
 /// `ParentLockerCoreDataStore`; the tests a fake.
 @MainActor
@@ -86,8 +105,9 @@ protocol ParentLockerStore: AnyObject {
     func marks(of children: Set<UUID>, on day: Date) -> [UUID: ParentLockerPlanner.DayMark]
     /// Records that `day` went to ParentLocker. Returns whether it saved.
     func recordSend(on day: Date) -> Bool
-    /// ParentLocker expects no attendance from the class on `day`: this
-    /// device's reminder for it is withdrawn (`FrontDeskEmailReminder`).
+    /// ParentLocker expects no attendance from the class on `day`: noted in
+    /// the classroom share once, so every device's reminder for it is
+    /// withdrawn (`FrontDeskEmailReminder`) and every device's line says so.
     func noteNotExpected(on day: Date)
     /// Stores ParentLocker ids on the children (nil clears one, and
     /// `ParentLockerPlanner.notMatchedID` is "Not matched"); a picked id is
@@ -152,14 +172,16 @@ final class ParentLockerCoreDataStore: ParentLockerStore {
         let start = AppCalendar.startOfDay(day)
         let records = records(on: start)
         let settings = AttendanceEmailLog.settings(in: context)
+        // The day's sends and its "not expected" note, in one read.
+        let channels = AttendanceEmailLog.channels(on: start, in: context)
         var result = ParentLockerDay(
             method: settings?.sendMethod ?? .email,
             site: AttendanceEmailLog.parentLockerHost(settings?.parentLockerSite),
             role: role,
             isSchoolDay: isSchoolDay(start),
             arrivalClosed: records.contains(where: AttendanceDeduplication.isAutomaticAbsence),
-            sentToParentLocker: AttendanceEmailLog.sends(on: start, in: context)
-                .contains { AttendanceSendMethod(stored: $0.channelRaw) == .parentLocker },
+            sentToParentLocker: channels.contains(AttendanceSendMethod.parentLocker.rawValue),
+            notExpected: channels.contains(AttendanceEmailLog.notExpectedChannel),
             deadlineMinutes: settings?.deadlineMinutes ?? AttendanceEmailLog.defaultDeadlineMinutes
         )
         guard withChildren else { return result }
@@ -198,8 +220,11 @@ final class ParentLockerCoreDataStore: ParentLockerStore {
         return true
     }
 
+    /// Once a day: a second run that finds it again notes nothing.
     func noteNotExpected(on day: Date) {
-        FrontDeskEmailReminder.noteNotExpected(on: day)
+        guard !AttendanceEmailLog.isNotExpected(on: day, in: context) else { return }
+        let note = AttendanceEmailLog.recordNotExpected(on: day, role: role, in: context)
+        guard save(context, [note]) else { return }
         sendRecorded(context)
     }
 

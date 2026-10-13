@@ -107,6 +107,16 @@ extension AttendanceEmail {
         }
     }
 
+    /// The shared row Settings shows (`shownSettings`): nil before there is
+    /// one, and while the only one is the launch's own, this device's
+    /// preferences as they stood (`AttendanceEmailLog.saveSettingsIfMissing`),
+    /// so an edit put off over it (`shareEdit`) shows as made. The Sample
+    /// Class shows its own row whatever its date.
+    static func shownRow(in context: NSManagedObjectContext, isSampleClass: Bool) -> AttendanceEmailLog.Settings? {
+        if !isSampleClass, AttendanceSettingsPendingWrite.rowStamp(in: context)?.isLaunchSeed == true { return nil }
+        return AttendanceEmailLog.settings(in: context)
+    }
+
     /// What Settings shows. The method, the ParentLocker address and the due
     /// time as the shared row holds them, which is what the roll, the sync,
     /// the reminder, MCP and the assistants read; this device's preferences
@@ -133,9 +143,12 @@ extension AttendanceEmail {
     /// with the edit.
     /// - Only the lead guide's devices write the row.
     /// - During a first download the share's row may be on its way, so the
-    ///   row's write is put off (`AttendanceSettingsPendingWrite`). A write
-    ///   put off earlier goes in with the next one, if the row hasn't changed
-    ///   since.
+    ///   row's write is put off (`AttendanceSettingsPendingWrite`). So may it
+    ///   while the only row is the launch's own (`isLaunchSeed`): stamped
+    ///   now, that row and its stale defaults outranked the guide's row
+    ///   arriving later, written earlier on his Mac (review of the afternoon
+    ///   fixes, H1). A write put off earlier goes in with the next one, or
+    ///   as Settings next opens, if the row hasn't changed since.
     /// - The Sample Class changes its own row only: never the preferences or
     ///   a pending write.
     ///
@@ -158,7 +171,7 @@ extension AttendanceEmail {
         let earlier = AttendanceSettingsPendingWrite.load(from: device.defaults)
             .flatMap { $0.row == row ? $0.edit : nil }
         let owed = (earlier ?? AttendanceSettingsEdit()).merged(with: edit)
-        guard !firstDownloadPending else {
+        guard !firstDownloadPending, row?.isLaunchSeed != true else {
             AttendanceSettingsPendingWrite(edit: owed, row: row).save(to: device.defaults)
             return false
         }
@@ -185,16 +198,18 @@ extension AttendanceEmail {
         AttendanceSettingsPendingWrite.clear(in: device.defaults)
         guard CDClassroomMembership.currentRole(in: context) == .leadGuide,
               pending.row == AttendanceSettingsPendingWrite.rowStamp(in: context) else { return false }
-        return writeEdit(pending.edit, in: context, device: device)
+        return writeEdit(pending.edit, in: context, device: device, overLaunchSeed: pending.row?.isLaunchSeed == true)
     }
 
     /// `edit` onto the newest row, or with none yet onto this device's
-    /// settings, saved.
+    /// settings, saved. Over the launch's own row, onto this device's
+    /// settings as they are now: that row is only what they were at launch.
     private static func writeEdit(
-        _ edit: AttendanceSettingsEdit, in context: NSManagedObjectContext, device: DeviceSettings
+        _ edit: AttendanceSettingsEdit, in context: NSManagedObjectContext, device: DeviceSettings,
+        overLaunchSeed: Bool = false
     ) -> Bool {
         let preferences = device.stored()
-        let base = AttendanceEmailLog.settings(in: context) ?? preferences
+        let base = overLaunchSeed ? preferences : AttendanceEmailLog.settings(in: context) ?? preferences
         let role = CDClassroomMembership.currentRole(in: context)
         let settings = edit.applied(to: base, emailOn: preferences.isEnabled)
         guard AttendanceEmailLog.saveSettings(settings, role: role, in: context) else { return false }

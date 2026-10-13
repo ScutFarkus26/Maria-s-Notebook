@@ -10,7 +10,9 @@ import OSLog
 ///   half-taken class. Close Arrival & Send made here, or a whole-class send
 ///   started here, keeps the day "after" on this device until its Undo,
 ///   whatever the automatic absences say since. A change made before "after"
-///   isn't dropped: it goes once the day is, as one synced in does.
+///   isn't dropped: this device's own goes as its own once the day is (a
+///   minute after another device closed arrival, so that device's send has
+///   gone first), and is kept across launches; one synced in goes as such.
 /// - **Close Arrival & Send** (`closeArrivalSend`) sends the whole class once
 ///   Close Arrival's Undo has gone (`undoEndsAt`), never earlier, a sign-in
 ///   meanwhile included; Undo (`cancelCloseArrivalSend`) stops it. **Send
@@ -123,7 +125,8 @@ final class ParentLockerSync {
     var savedPasswordRefused = false
     /// ParentLocker wanted something only a person can do when the app
     /// signed in by itself (new terms, a reset), and nobody has signed in
-    /// through the sheet since: the app doesn't sign in by itself meanwhile.
+    /// since, through the sheet or with a new password saved on another of
+    /// the person's devices: the app doesn't sign in by itself meanwhile.
     var signInNeedsYou = false
 
     /// The screens' question: not signed in, signed in with a password
@@ -167,10 +170,22 @@ final class ParentLockerSync {
     /// Today's marks as this device last read them, for `importedBefore`;
     /// nil when it hasn't read them today.
     @ObservationIgnored var knownMarks: [UUID: ParentLockerPlanner.DayMark]?
-    /// Changes made before "after", here or synced in: nothing goes for them
-    /// yet. Once the day is "after" here they go as changes synced in do
+    /// The day `knownMarks` were read for.
+    @ObservationIgnored var knownMarksDay: Date?
+    /// Changes synced in before "after": nothing goes for them yet. Once the
+    /// day is "after" here they go as changes synced in do
     /// (`releaseEarlyChanges`), or with this device's own whole-class send.
     @ObservationIgnored var earlyChanges: Set<UUID> = []
+    /// This device's own changes made before "after", kept with what's owed
+    /// across launches. Once the day is "after" here they go as this
+    /// device's own changes, over whatever ParentLocker holds then
+    /// (`earlyLocalDue`), or with its own whole-class send.
+    @ObservationIgnored var earlyLocal: Set<UUID> = []
+    /// When `earlyLocal` goes, once the day is "after": a minute after
+    /// another device's Close Arrival was seen here, so that device's send,
+    /// made from a view without these marks, has landed first; seconds
+    /// after, once the day's send is recorded.
+    @ObservationIgnored var earlyLocalDue: Date?
     @ObservationIgnored var wholeClass: ParentLockerWholeClass?
     /// Today's retry. Another day's (Send Now, MCP) has its own slot, so it
     /// never takes today's place.
@@ -190,6 +205,14 @@ final class ParentLockerSync {
     /// The day the guide's backstop last went or was scheduled (cleared when
     /// one is refused, so the next can come).
     @ObservationIgnored var backstopDay: Date?
+    /// The sign-in sheet closed without a sign-in: the send owed since
+    /// doesn't ask for one again by itself each time a change takes it and
+    /// it fails again. Close Arrival & Send, Send Now, Undo, a sign-in and a
+    /// new day clear it.
+    @ObservationIgnored var signInDeclined = false
+    /// When the saved password was saved, as ParentLocker wanted a person at
+    /// its sign-in (`signInNeedsYou`): a newer one clears that.
+    @ObservationIgnored var needsYouPassword: Date?
     /// When the guide's device checks, after the day's due time, whether the
     /// class was taken but never sent.
     @ObservationIgnored var deadlineDue: Date?
@@ -287,9 +310,28 @@ final class ParentLockerSync {
         if wholeClass?.reason == .backstop { backstopDay = nil }
         wholeClass = ParentLockerWholeClass(reason: .closeArrival, due: needsSignIn ? nil : undoEnds)
         awaitsSignIn = needsSignIn
+        signInDeclined = false
         arrivalClosedHere = true
         saveOwed()
         reschedule()
+    }
+
+    /// Siri's Close Arrival on a device that's signed in: Close Arrival &
+    /// Send with no Undo window to wait out, so the class goes now. It goes
+    /// as a Close Arrival & Send, never a Send Now, so a failed send's retry
+    /// (and the send owed once the retries run out) stays one, and Siri's
+    /// "Undo that" (`cancelCloseArrivalSend`) stops it (review of the
+    /// afternoon fixes, H2). Returns how it went. On a device that needs a
+    /// sign-in it waits for one, as Close Arrival & Send does.
+    @discardableResult
+    func closeArrivalSendNow(on day: Date) async -> ParentLockerStatus {
+        guard isToday(day) else { return status }
+        closeArrivalSend(on: day, after: 0)
+        guard wholeClass?.reason == .closeArrival, wholeClass?.due != nil else {
+            return ParentLockerStatus(state: .waitingForSignIn)
+        }
+        wholeClass = nil
+        return await run(wholeClassJob(.closeArrival)).status
     }
 
     /// Close Arrival's Undo: the pending send doesn't go, and arrival is open
@@ -305,6 +347,7 @@ final class ParentLockerSync {
         if waiting { wholeClass = nil }
         if retrying { retry = nil }
         awaitsSignIn = false
+        signInDeclined = false
         arrivalReopenedHere()
         reschedule()
     }
@@ -315,6 +358,8 @@ final class ParentLockerSync {
     func arrivalReopenedHere() {
         arrivalClosedHere = false
         undoEndsAt = nil
+        // Its own changes from before wait for "after" again.
+        earlyLocalDue = nil
         saveOwed()
     }
 
@@ -326,6 +371,8 @@ final class ParentLockerSync {
     /// sign in (bug hunt 2026-10-13 afternoon, L6).
     @discardableResult
     func sendNow(day: Date) async -> ParentLockerStatus {
+        // Asked for now: it may ask for a sign-in again if it needs one.
+        if isToday(day) { signInDeclined = false }
         guard needsSignIn, !isAhead(day) else { return await run(askedJob(day, reason: .sendNow)).status }
         if isToday(day) { sendAfterSignIn() }
         return ParentLockerStatus(state: .waitingForSignIn)
@@ -343,42 +390,7 @@ final class ParentLockerSync {
     /// before it, which it settles once it reaches ParentLocker.
     private func askedJob(_ day: Date, reason: ParentLockerJob.Reason, preview: Bool = false) -> ParentLockerJob {
         var job = ParentLockerJob(day: day, children: nil, reason: reason, preview: preview)
-        if isToday(day) { job.settles = importedChildren.union(earlyChanges) }
+        if isToday(day) { job.settles = importedChildren.union(earlyChanges).union(earlyLocal) }
         return job
-    }
-}
-
-/// A whole-class send owed: why, and when it goes (nil: owed, waiting for the
-/// next change, a return to the app, a sign-in or Send Now).
-nonisolated struct ParentLockerWholeClass: Sendable, Equatable {
-    /// `.sendNow`: Send Now made while this device needed a sign-in.
-    enum Reason: Sendable, Equatable { case closeArrival, backstop, owed, sendNow }
-    var reason: Reason
-    var due: Date?
-    /// Tries already made: a send that failed, or one owed from before
-    /// launch, goes as a retry (`ParentLockerJob.comparesWithLastSeen`).
-    var attempt = 0
-
-    init(reason: Reason, due: Date?, attempt: Int = 0) {
-        self.reason = reason
-        self.due = due
-        self.attempt = attempt
-    }
-
-    /// A failed whole-class `job`, owed until it can go again: Close Arrival
-    /// & Send's stays one, so its Undo can still take it back (bug hunt
-    /// 2026-10-13 afternoon, H2); any other is a send owed.
-    init(retrying job: ParentLockerJob) {
-        self.init(reason: job.reason == .closeArrival ? .closeArrival : .owed, due: nil, attempt: 1)
-    }
-
-    /// The run it makes.
-    var jobReason: ParentLockerJob.Reason {
-        switch reason {
-        case .closeArrival: .closeArrival
-        case .backstop: .backstop
-        case .owed: .owed
-        case .sendNow: .sendNow
-        }
     }
 }

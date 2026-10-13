@@ -22,30 +22,32 @@ extension ParentLockerSync {
     }
 
     /// Children whose marks on `day` changed. Before "after" they're kept,
-    /// unscheduled, and go once the day is (`releaseEarlyChanges`).
+    /// unscheduled, and go once the day is (`releaseEarlyChanges`); this
+    /// device's own are kept with what's owed, across launches too.
     func noteChanges(_ children: Set<UUID>, imported: Bool, on day: Date) {
         guard !children.isEmpty, isSignedIn, isToday(day) else { return }
         let state = store.day(day, withChildren: false)
         guard state.method == .parentLocker, state.isSchoolDay else { return }
         // A new day's first change rolls first, so it never clears the
         // backstop it schedules (bug hunt 2026-10-13 afternoon, H3).
-        rollOwedDay(to: day)
+        rollOwedDay(to: day, changing: children)
         rememberMarksBefore(children, on: day)
         considerBackstop(state, on: day)
         considerDeadline(state, on: day)
         guard isAfter(state, on: day) else {
-            earlyChanges.formUnion(children)
+            noteEarly(children, imported: imported, on: day)
             refreshStatus(state)
             return reschedule()
         }
-        releaseEarlyChanges(on: day)
+        releaseEarlyChanges(on: day, sent: state.sentToParentLocker)
         let now = clock.now
         if imported {
             // What this device last saw of each, kept from before the change
             // arrived: ParentLocker holding anything else by the time it goes
             // means its own device has saved it since. Nothing seen of a child
             // yet today (just after a launch): what ParentLocker holds now.
-            let fresh = children.subtracting(localChanges.keys)
+            // A child with a change of this device's own still to go is its.
+            let fresh = children.subtracting(localChanges.keys).subtracting(earlyLocal)
             let arrived = fresh.subtracting(importedChildren)
             for child in arrived { importedBaseline[child] = lastSeen[child] }
             importedChildren.formUnion(fresh)
@@ -54,6 +56,7 @@ extension ParentLockerSync {
         } else {
             for child in children { localChanges[child] = now }
             forgetImported(children)
+            forgetEarlyLocal(children)
             localDue = now.addingTimeInterval(Self.localQuiet)
             // A whole-class send owed after a failure goes with the next change.
             releaseWholeClass(at: now.addingTimeInterval(Self.localQuiet))
@@ -62,20 +65,58 @@ extension ParentLockerSync {
         reschedule()
     }
 
-    /// Changes made before "after", here or synced in, go now the day is
-    /// "after" here, as changes synced in do: over what this device last saw
-    /// of each in ParentLocker, read now when it has seen nothing, so a mark
-    /// another device saved since is left to it. Before, a mark made seconds
-    /// before another device closed arrival was never sent (bug hunt
-    /// 2026-10-13 afternoon, H4).
-    func releaseEarlyChanges(on day: Date) {
-        let early = earlyChanges.subtracting(localChanges.keys).subtracting(importedChildren)
+    /// Changes made before "after", kept until it: this device's own (saved
+    /// with what's owed) and those synced in, each the newer word on its
+    /// child, as after "after".
+    private func noteEarly(_ children: Set<UUID>, imported: Bool, on day: Date) {
+        if imported {
+            earlyChanges.formUnion(children.subtracting(earlyLocal))
+        } else {
+            keepEarlyLocal(children, marks: store.marks(of: children, on: day))
+            earlyChanges.subtract(children)
+            saveOwed()
+        }
+    }
+
+    /// This device's own `children`, changed before "after", owed while
+    /// their mark here (`marks`) has something to send. One left unmarked
+    /// (an Undo's) has nothing, and ParentLocker can't clear a mark anyway.
+    func keepEarlyLocal(_ children: Set<UUID>, marks: [UUID: ParentLockerPlanner.DayMark]) {
+        let nothing = children.filter { ParentLockerPlanner.wanted(for: marks[$0]) == .nothing }
+        earlyLocal.formUnion(children.subtracting(nothing))
+        forgetEarlyLocal(nothing)
+    }
+
+    /// Changes made before "after" go now the day is "after" here (review of
+    /// the afternoon fixes, H4):
+    /// - **This device's own** go as its own changes, over whatever
+    ///   ParentLocker holds: the guide's mark made at 8:44:50 is newer than
+    ///   the absence a phone that hadn't seen it sends at 8:45. With the
+    ///   day's send not yet recorded (another device's Close Arrival seen
+    ///   here), they wait a minute, so that send lands first; once it is,
+    ///   seconds. Taken over what this device last saw, as before, one was
+    ///   judged changed by someone else and never went.
+    /// - **Those synced in** go as changes synced in do: over what this
+    ///   device last saw of each in ParentLocker, read now when it has seen
+    ///   nothing, so a mark another device saved since is left to it.
+    func releaseEarlyChanges(on day: Date, sent: Bool) {
+        if !earlyLocal.isEmpty, earlyLocalDue == nil {
+            earlyLocalDue = clock.now.addingTimeInterval(sent ? Self.localQuiet : Self.importedWait)
+        }
+        let early = earlyChanges.subtracting(localChanges.keys).subtracting(earlyLocal).subtracting(importedChildren)
         earlyChanges = []
         guard !early.isEmpty else { return }
         for child in early { importedBaseline[child] = lastSeen[child] }
         importedChildren.formUnion(early)
         loadBaseline(for: early.filter { lastSeen[$0] == nil && !baselineRead.contains($0) }, on: day)
         if importedDue == nil { importedDue = clock.now.addingTimeInterval(Self.importedWait) }
+    }
+
+    /// This device's own early changes `children`, now covered: by a newer
+    /// change of its own, or a whole-class send.
+    func forgetEarlyLocal(_ children: Set<UUID>) {
+        earlyLocal.subtract(children)
+        if earlyLocal.isEmpty { earlyLocalDue = nil }
     }
 
     /// The guide's backstop: arrival closed somewhere and no ParentLocker send
@@ -190,21 +231,28 @@ extension ParentLockerSync {
 
     /// The owed changes go now (after the import, or a sign-in), and a
     /// guide's device that finds arrival closed with nothing sent backs up.
+    /// Changes owed from before "after" that it hasn't reached yet wait for
+    /// it again (review of the afternoon fixes, H4).
     func releaseCatchUp() {
         guard isSignedIn else { return }
         let now = clock.now
         rollOwedDay(to: now)
+        let state = store.day(now, withChildren: false)
+        let follows = state.method == .parentLocker && state.isSchoolDay
         if !catchUpChildren.isEmpty {
-            for child in catchUpChildren where localChanges[child] == nil { localChanges[child] = now }
+            if follows, !isAfter(state, on: now) {
+                earlyLocal.formUnion(catchUpChildren)
+            } else {
+                for child in catchUpChildren where localChanges[child] == nil { localChanges[child] = now }
+                localDue = now
+            }
             catchUpChildren = []
-            localDue = now
         }
         releaseWholeClass(at: now)
-        let state = store.day(now, withChildren: false)
-        if state.method == .parentLocker, state.isSchoolDay {
+        if follows {
             considerBackstop(state, on: now)
             considerDeadline(state, on: now)
-            if isAfter(state, on: now) { releaseEarlyChanges(on: now) }
+            if isAfter(state, on: now) { releaseEarlyChanges(on: now, sent: state.sentToParentLocker) }
         }
         reschedule()
     }
@@ -240,6 +288,7 @@ extension ParentLockerSync {
     /// Today's marks as this device has just read them in full.
     func rememberMarks(_ day: ParentLockerDay) {
         knownMarks = day.marks
+        knownMarksDay = today
     }
 
     /// Keeps the mark each of `children` had here before its first change

@@ -271,11 +271,14 @@ final class FakeParentLockerStore: ParentLockerStore {
 
     var site: String { state.site }
 
-    /// The day as `state` holds it; a send recorded counts for its own day only.
+    /// The day as `state` holds it; a send recorded, or a day ParentLocker
+    /// isn't expecting, counts for its own day only.
     func day(_ day: Date, withChildren: Bool) -> ParentLockerDay {
         var result = state
         result.sentToParentLocker = state.sentToParentLocker
             || recordedSends.contains { AppCalendar.shared.isDate($0, inSameDayAs: day) }
+        result.notExpected = state.notExpected
+            || notExpectedDays.contains { AppCalendar.shared.isDate($0, inSameDayAs: day) }
         if !withChildren {
             result.children = []
             result.marks = [:]

@@ -64,10 +64,11 @@ struct AssistantParentLockerRow: View {
 
     /// The status the line shows. Beside Send to ParentLocker, "Attendance
     /// goes to ParentLocker when arrival closes" would point at a Close
-    /// Arrival that isn't there (everyone's marked), so it says nothing
-    /// (bug hunt 2026-10-13 afternoon, M2); the children's lines stay.
+    /// Arrival that isn't there (everyone's marked), and "Everyone's marked.
+    /// Send it to ParentLocker." at the button right above it, so it says
+    /// nothing (bug hunt 2026-10-13 afternoon, M2); the children's lines stay.
     static func shownStatus(offersSend: Bool, status: ParentLockerStatus) -> ParentLockerStatus {
-        guard offersSend, status.state == .waitingForArrival else { return status }
+        guard offersSend, status.state == .waitingForArrival || status.state == .readyToSend else { return status }
         return ParentLockerStatus(state: .idle, problems: status.problems, lastSyncAt: status.lastSyncAt)
     }
 

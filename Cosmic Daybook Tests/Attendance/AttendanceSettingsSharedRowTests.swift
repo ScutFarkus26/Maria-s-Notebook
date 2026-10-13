@@ -15,7 +15,7 @@ import Testing
 /// This device's side of the settings, kept inside the test: the
 /// preferences it reads, what it copies into them, and its own defaults
 /// for a pending write. The real preferences are never touched.
-private final class SettingsDevice {
+final class AttendanceSettingsTestDevice {
     var preferences: AttendanceEmailLog.Settings
     private(set) var written: [String: Any] = [:]
     let defaults: UserDefaults
@@ -42,7 +42,7 @@ private final class SettingsDevice {
 @MainActor
 struct AttendanceSettingsSharedRowTests {
 
-    private static let emailSettings = AttendanceEmailLog.Settings(
+    static let emailSettings = AttendanceEmailLog.Settings(
         isEnabled: true, toAddresses: "office@school.org", nameOrder: .firstLast, groupByLevel: false
     )
 
@@ -57,7 +57,7 @@ struct AttendanceSettingsSharedRowTests {
     private static let earlier = Date(timeIntervalSinceReferenceDate: 813_000_000)
 
     /// Another context on the same store, as the guide's other devices and the assistants read it.
-    private func reader(for context: NSManagedObjectContext) -> NSManagedObjectContext {
+    func reader(for context: NSManagedObjectContext) -> NSManagedObjectContext {
         let other = NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)
         other.persistentStoreCoordinator = context.persistentStoreCoordinator
         return other
@@ -73,7 +73,7 @@ struct AttendanceSettingsSharedRowTests {
         ))
         #expect(CoreDataTestHelpers.save(guide))
         // iCloud hasn't brought this iPad's preferences up to date: they still say email.
-        let device = try SettingsDevice(preferences: Self.emailSettings)
+        let device = try AttendanceSettingsTestDevice(preferences: Self.emailSettings)
 
         #expect(!AttendanceEmail.writePendingEdit(
             in: guide, isSampleClass: false, device: device.settings, firstDownloadPending: false
@@ -99,7 +99,7 @@ struct AttendanceSettingsSharedRowTests {
         row.toAddresses = "new-office@school.org"
         #expect(AttendanceEmailLog.saveSettings(row, role: .leadGuide, now: Self.earlier, in: guide))
         #expect(CoreDataTestHelpers.save(guide))
-        let device = try SettingsDevice(preferences: Self.emailSettings)
+        let device = try AttendanceSettingsTestDevice(preferences: Self.emailSettings)
 
         #expect(AttendanceEmail.shareEdit(
             AttendanceSettingsEdit(deadlineMinutes: 8 * 60 + 30),
@@ -121,7 +121,7 @@ struct AttendanceSettingsSharedRowTests {
         let guide = try CoreDataTestHelpers.makeContext()
         #expect(AttendanceEmailLog.saveSettings(Self.emailSettings, role: .leadGuide, now: Self.earlier, in: guide))
         #expect(CoreDataTestHelpers.save(guide))
-        let device = try SettingsDevice(preferences: Self.emailSettings)
+        let device = try AttendanceSettingsTestDevice(preferences: Self.emailSettings)
 
         // Settings is open: the guide types a new address for the email,
         // and starts on a ParentLocker address.
@@ -179,7 +179,7 @@ struct AttendanceSettingsSharedRowTests {
         #expect(AttendanceEmailLog.settings(in: context)?.sendMethod == .parentLocker)
 
         // The next edit keeps the guide's row, and only it.
-        let device = try SettingsDevice(preferences: Self.emailSettings)
+        let device = try AttendanceSettingsTestDevice(preferences: Self.emailSettings)
         #expect(AttendanceEmail.shareEdit(
             AttendanceSettingsEdit(deadlineMinutes: 8 * 60 + 50),
             in: context, isSampleClass: false, device: device.settings, firstDownloadPending: false
@@ -191,7 +191,7 @@ struct AttendanceSettingsSharedRowTests {
     @Test("The Sample Class changes its own row only: never the preferences or a pending write")
     func sampleClassNeverWritesThePreferences() throws {
         let sample = try CoreDataTestHelpers.makeContext()
-        let device = try SettingsDevice(preferences: Self.emailSettings)
+        let device = try AttendanceSettingsTestDevice(preferences: Self.emailSettings)
 
         // Even while the guide's own class is still downloading.
         #expect(AttendanceEmail.shareEdit(
@@ -221,7 +221,7 @@ struct AttendanceSettingsSharedRowTests {
         let guide = try CoreDataTestHelpers.makeContext()
         #expect(AttendanceEmailLog.saveSettings(Self.emailSettings, role: .leadGuide, now: Self.earlier, in: guide))
         #expect(CoreDataTestHelpers.save(guide))
-        let device = try SettingsDevice(preferences: Self.emailSettings)
+        let device = try AttendanceSettingsTestDevice(preferences: Self.emailSettings)
 
         // Picked during a first download: the row waits, the preference doesn't.
         #expect(!AttendanceEmail.shareEdit(
@@ -263,7 +263,7 @@ struct AttendanceSettingsSharedRowTests {
         let guide = try CoreDataTestHelpers.makeContext()
         #expect(AttendanceEmailLog.saveSettings(Self.emailSettings, role: .leadGuide, in: guide))
         #expect(CoreDataTestHelpers.save(guide))
-        let device = try SettingsDevice(preferences: Self.emailSettings)
+        let device = try AttendanceSettingsTestDevice(preferences: Self.emailSettings)
 
         #expect(AttendanceEmail.shareEdit(
             AttendanceSettingsEdit(sendMethod: .parentLocker),
@@ -290,7 +290,7 @@ struct AttendanceSettingsSharedRowTests {
         #expect(AttendanceEmailLog.saveSettings(Self.emailSettings, role: .leadGuide, in: context))
         CoreDataTestHelpers.seedClassroomMembership(in: context, role: .assistant)
         #expect(CoreDataTestHelpers.save(context))
-        let device = try SettingsDevice(preferences: Self.emailSettings)
+        let device = try AttendanceSettingsTestDevice(preferences: Self.emailSettings)
 
         #expect(!AttendanceEmail.shareEdit(
             AttendanceSettingsEdit(sendMethod: .parentLocker),

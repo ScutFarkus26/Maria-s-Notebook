@@ -52,9 +52,13 @@ struct AttendanceParentLockerSettings: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .sheet(isPresented: $showsSignIn) {
+        .sheet(isPresented: $showsSignIn, onDismiss: {
+            // Closed without signing in: a send waiting for it doesn't ask
+            // again by itself, and a Send Now waiting for it is dropped.
+            if let sync, sync.needsSignIn { sync.signInDismissed() }
+        }, content: {
             if let sync { ParentLockerSignInSheet(sync: sync) }
-        }
+        })
     }
 
     private func signInRow(_ sync: ParentLockerSync) -> some View {

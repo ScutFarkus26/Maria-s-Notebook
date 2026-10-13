@@ -37,7 +37,8 @@ public struct AttendanceEmailSettingsView: View {
     @SyncedAppStorage(AttendanceEmailPrefs.parentLockerSiteKey) private var parentLockerSite: String = ""
     @State private var notificationsDenied = false
     /// The shared settings row as last read: as the screen opens, after each
-    /// write here, and as a change arrives. Nil before the share has one.
+    /// write here, and as a change arrives. Nil before the share has one,
+    /// and while it holds only the launch's own (`AttendanceEmail.shownRow`).
     @State private var sharedRow: AttendanceEmailLog.Settings?
     /// What was typed here and not yet written.
     @State private var drafts = AttendanceSettingsDrafts()
@@ -176,7 +177,7 @@ public struct AttendanceEmailSettingsView: View {
             // A change synced in (or made in another window) only shows
             // here: it is never taken for an edit.
             .onPresentationDataChange(of: ["AttendanceEmailSettings"], in: viewContext) { _ in
-                sharedRow = AttendanceEmailLog.settings(in: viewContext)
+                sharedRow = AttendanceEmail.shownRow(in: viewContext, isSampleClass: isSampleClassroom)
             }
             .onChange(of: reminderOn) { reminderChanged() }
             .onChange(of: reminderLead) { reminderChanged() }
@@ -311,14 +312,14 @@ extension AttendanceEmailSettingsView {
         if AttendanceEmail.writePendingEdit(in: viewContext, isSampleClass: isSampleClassroom) {
             Self.followShare(in: viewContext)
         }
-        sharedRow = AttendanceEmailLog.settings(in: viewContext)
+        sharedRow = AttendanceEmail.shownRow(in: viewContext, isSampleClass: isSampleClassroom)
     }
 
     /// An edit made here goes into the share now (`AttendanceEmail.shareEdit`).
     private func share(_ edit: AttendanceSettingsEdit) {
         guard !edit.isEmpty else { return }
         AttendanceEmail.shareEdit(edit, in: viewContext, isSampleClass: isSampleClassroom)
-        sharedRow = AttendanceEmailLog.settings(in: viewContext)
+        sharedRow = AttendanceEmail.shownRow(in: viewContext, isSampleClass: isSampleClassroom)
         // The Sample Class has no ParentLocker, and its row is no reason to
         // rebuild the guide's reminder.
         guard !isSampleClassroom else { return }

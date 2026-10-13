@@ -44,6 +44,12 @@ final class FakeParentLockerSender: AssistantParentLockerSending {
         closedDays.append(day)
         undoWindows.append(undoWindow)
     }
+
+    /// Siri's Close Arrival & Send, signed in: a send of the day.
+    func closeArrivalSendNow(on day: Date) async -> ParentLockerStatus {
+        sentDays.append(day)
+        return ParentLockerStatus(state: endsOn)
+    }
 }
 
 /// The guide's settings in the share, as the notebook writes them.
@@ -321,7 +327,9 @@ extension AssistantSiriTests {
 
     @Test("Nothing Siri says about ParentLocker carries a web address or technical words")
     func siriParentLockerWordsArePlain() {
-        let outcomes: [AssistantParentLockerAfterClose] = [.notPicked, .sent, .previewed, .notSignedIn, .notSentYet]
+        let outcomes: [AssistantParentLockerAfterClose] = [
+            .notPicked, .sent, .previewed, .notSignedIn, .notSentYet, .notExpected
+        ]
         for outcome in outcomes {
             let text = AssistantSiriCommands.closedDialog(marked: 3, parentLocker: outcome).lowercased()
             for word in ["http", ".com", "cookie", "error", "keychain", "server", "request"] {
