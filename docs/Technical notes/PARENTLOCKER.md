@@ -24,6 +24,9 @@ Attendance goes to the school's ParentLocker site (`yyli.parentlocker.com`) from
 - **The site's cookies** are a `ThisDeviceOnly` Keychain item. Requests use an ephemeral `URLSession` with cookie handling off, and refuse any redirect to another host.
 - **"Not matched" is stored** as `parentLockerID = "none"`; name matching never overrides it, and one ParentLocker child is never matched to two notebook children.
 - **Days after today are never sent**, by any path.
+- **A day ParentLocker isn't expecting** (every class `not_expected`) is recorded as a `CDAttendanceEmailSend` with `channelRaw = "notExpected"`, with no schema change. The reminder and the status line read it, on every device. `sends`, `latestSend`, the summaries, MCP and the "after" rule leave it out, so nothing ever shows it as sent. (Assistant builds older than schema 18 read it as an email that went, so every phone is updated before switching.)
+- **Send Now with children unmarked** sends the marked ones and records nothing; the screens and the Shortcut ask first and name them. "Not matched" children never count as unmarked.
+- **Settings reads the shared row** for the method and site. An edit writes only that field, and only from the person's own action. A device that's behind never pushes an old value; the launch seed is dated `.distantPast`.
 - **Debug builds and test runs never save** to ParentLocker and never record a ParentLocker send (`ParentLockerSavePolicy`). Only Release and TestFlight builds do.
 - **Never run a schema-18-or-later Debug build of the notebook on the Mac to check ParentLocker.** It opens the live notebook. Use the iPhone simulator: a Debug build launched with `-ParentLockerPreview YES` shows the sign-in sheet if needed, then today's preview, and saves nothing.
 

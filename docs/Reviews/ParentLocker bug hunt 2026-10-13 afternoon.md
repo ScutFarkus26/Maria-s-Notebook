@@ -1,6 +1,7 @@
 # ParentLocker bug hunt 2026-10-13 (afternoon)
 
 > **Done 2026-10-13.** Read-only hunt of the ParentLocker work on main 3ba3c2f8, the whole feature and both rounds of fixes, asked for by Danny ("bug hunt the parentlocker changes") with TestFlight on hold.
+> **All 23 fixed** (see <../Plans/Plan - ParentLocker bug hunt afternoon fixes.md>, Progress): by four agents, then a review round that closed 3 partial fixes, the joins between agents and 6 new bugs.
 > In short: four Opus reviewers came at it from new angles (a real day across five devices, a fresh line-by-line read of the engine, data and sync, and screens and words). They found 23 distinct bugs, 5 of them high. None repeats the morning's 19 or its 5 follow-ups. Five of them sit in this morning's fixes.
 
 **How it was checked:** each reviewer read the code against `docs/Technical notes/PARENTLOCKER.md`, the plan's Decisions and the earlier reports. The main session confirmed H1 and H3 in the code: Settings' repair writes the preference over the row with no newer-check, and `noteChanges` schedules the backstop before `rollOwedDay` clears it. Three reviewers found H1 on their own, and two found M6. The rest rest on each reviewer's file:line and scenario. Every fix starts with a failing test.
