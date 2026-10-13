@@ -17,9 +17,14 @@ The school now takes attendance in ParentLocker instead of by email. When it's d
 Build board: https://claude.ai/artifact/WAKaFZGNPQsfKD4A5GbqsM (a new milestone per phase).
 - [x] Phase 1: Schema 18 and the shared pieces (session: here, agent `feature-phase-deep`, Opus high) · est. ~2–3% weekly · started at 54% · cost <1% (54→54) · 3574a866. iOS, macOS and Assistant build with no warnings; notebook 102 tests in 18 suites and Assistant 18 in 3 pass. Differed: `canSend` still means "the email can go", and the new `canSendAttendance` is method-aware (Phase 4 switches three Assistant spots to it); the site is cleaned to a bare host; the Development schema run was done after the agent, on a new simulator Danny signed in to his test Apple ID (C0EDC79D, iPhone 17 Pro, leased to the scratchpad), and all four fields were confirmed in the Development Console on 2026-10-12; the agent was stopped once by a session restart and resumed.
 - [x] Phase 2a: Talking to ParentLocker: wire, planner, requests, Keychain (session: here, agent `feature-phase-deep`, Opus high) · est. ~2–3% weekly · started at 54% · cost ~2% (54→56, including the schema run and Console check) · 9254907a, 455b17b4. Nine engine files, 40 tests in 5 suites pass; Assistant, iOS and macOS build with no warnings. Differed (accepted): a child who came late and then left early goes as Late with "Left early at …", so the Late isn't overwritten; the transport follows no redirects (on-site = signed out, off-site = refused); cookies are a Codable struct of their properties; the redirect check uses the completion-handler form (Swift 6.4 crashes compiling the async one); the planner words absence reasons itself, with a test keeping them in step with `AbsenceReason.displayName`. To settle in the live check: whether a save's `attendance_report_id` comes from the roster reply or the course list (the planner prefers the reply's).
-- [ ] Phase 2b: Sign-in and the live sync, then a read-only live check with Danny (session: here, agent `feature-phase-deep`, Opus xhigh) · est. ~4–5% weekly · started at 56%
-- [ ] Phase 3: The notebook's screens, MCP and Shortcuts (session: here, agent `feature-phase`) ‖ Phase 4 · est. ~2–3% weekly
-- [ ] Phase 4: The Assistant's screens (session: here, agent `feature-phase`) ‖ Phase 3 · est. ~1.5–2% weekly
+- [x] Phase 2b: Sign-in and the live sync, then a read-only live check with Danny (session: here, agent `feature-phase-deep`, Opus xhigh) · est. ~4–5% weekly · started at 56% · cost ~3% (56→59, live check included) · 86a6652d, 0571a255, 0e5eb1c6. 69 ParentLocker tests in 9 suites pass; notebook iOS and macOS, Assistant Debug and Release build; efficiency audit clean. Differed (accepted): the password is saved only after ParentLocker accepts it; only daily-attendance classes are read, and on today a "not expected" class is skipped; a whole-class send with no matched child records nothing. **Live check, 2026-10-12, on the iPhone simulator, not the Mac:** a schema-18 build would have opened the live notebook, and the installed copy couldn't have opened it afterward. Danny signed in himself; it read both classes (6 and 17 children) and stayed signed in after a relaunch; nothing was saved.
+  - **More than one sign-in at a time is fine.** The browser stayed signed in alongside the simulator. The browser's earlier sign-out was its own session timing out after a few hours.
+  - **The save's `attendance_report_id` comes from the course list;** the roster reply has none.
+  - **Matching against the real 23 children** (read through MCP, compared by hand): every child matches except "Toba (Aliza)". A bracketed second name now counts (0e5eb1c6, with a test).
+  - **Not checked live:** signing back in after a real expiry. The unit tests cover it, and it's a device check in Phase 6.
+  - **Left for the Phase 5 review:** a device that hasn't yet received another device's change can still send its own older mark for that child, because ParentLocker carries no time to compare against.
+- [ ] Phase 3: The notebook's screens, MCP and Shortcuts (session: here, agent `feature-phase`) ‖ Phase 4 · est. ~2–3% weekly · started at 59%
+- [ ] Phase 4: The Assistant's screens (session: here, agent `feature-phase`) ‖ Phase 3 · est. ~1.5–2% weekly · started at 59%
 - [ ] Phase 5: Combine, review, full builds, whole suites, simulator look, merge (session: here) · est. ~3–4% weekly
 - [ ] Phase 6: Danny's steps, as Tide rows (no session)
 
@@ -337,10 +342,15 @@ Checked 2026-10-12 against Xcode 27.0 (27A266a). Xcode 27.1 RC and 27.2 beta 2 e
 - **Steps:**
   - Merge Phases 3 and 4.
   - A review of the whole diff by an Opus `Plan` agent, aimed at privacy, live-update races and the save policy. Fix what holds up with a fresh small agent or here.
+  - **A plain-English pass** (Danny, 2026-10-12: "check and update all language the user sees to be in plain English"). Read every word the feature shows in both apps, and fix what isn't plain:
+    - Where to look: the sign-in sheet, the status line and its problems, Match Names, the Settings group, the attendance buttons and menus, the Assistant's rows, the reminders, Siri's replies, the MCP tool's text and the preview.
+    - The rules are the project's Plain English rules (`docs/Plans/Plan - Plain English messages.md`, `AppErrorMessages`): say what happened and what to do, in everyday words, with no codes, hosts, cookie or HTTP words, or type names.
+    - The pass is done when a test or a read-through lists every string, and each one is plain.
   - Full builds: notebook iOS, macOS and Release, and the Assistant Debug and Release.
   - Whole suites once (notebook, then Assistant) on the leased simulator with `-parallel-testing-enabled NO` (1 simulator each).
   - A simulator look at Settings and the attendance line on iPhone.
   - Docs: a new `docs/Technical notes/PARENTLOCKER.md` (the site's requests, the guards, how to check the page still works) and a `Cosmic Daybook/CLAUDE.md` line.
+  - Delete the live-check simulator's copy of the notebook and its saved ParentLocker sign-in (uninstall the app from this checkout's simulator).
   - Squash to main, push, `docs-index`, and close-out.
 - **Cost:** ~3–4%.
 - **Done when:**
@@ -360,6 +370,7 @@ Checked 2026-10-12 against Xcode 27.0 (27A266a). Xcode 27.1 RC and 27.2 beta 2 e
   - Match Names.
   - One morning: take attendance, Close Arrival & Send, and check ParentLocker.
   - Mark a child late later and see it change on the site.
+  - Over the next days, ParentLocker never asks anyone to sign in again (the app signs back in by itself after a real expiry).
   - Each assistant signs in once on her phone.
 
 ## Starting a phase
