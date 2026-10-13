@@ -15,7 +15,7 @@ The school now takes attendance in ParentLocker instead of by email. When it's d
 
 ## Progress
 Build board: https://claude.ai/artifact/WAKaFZGNPQsfKD4A5GbqsM (a new milestone per phase).
-- [x] Phase 1: Schema 18 and the shared pieces (session: here, agent `feature-phase-deep`, Opus high) · est. ~2–3% weekly · started at 54% · cost <1% (54→54) · 3574a866. iOS, macOS and Assistant build with no warnings; notebook 102 tests in 18 suites and Assistant 18 in 3 pass. Differed: `canSend` still means "the email can go", and the new `canSendAttendance` is method-aware (Phase 4 switches three Assistant spots to it); the site is cleaned to a bare host; the Development schema run moved to Phase 5, because the test-account simulator it used is gone and signing a simulator in needs Danny's test Apple ID; the agent was stopped once by a session restart and resumed.
+- [x] Phase 1: Schema 18 and the shared pieces (session: here, agent `feature-phase-deep`, Opus high) · est. ~2–3% weekly · started at 54% · cost <1% (54→54) · 3574a866. iOS, macOS and Assistant build with no warnings; notebook 102 tests in 18 suites and Assistant 18 in 3 pass. Differed: `canSend` still means "the email can go", and the new `canSendAttendance` is method-aware (Phase 4 switches three Assistant spots to it); the site is cleaned to a bare host; the Development schema run was done after the agent, on a new simulator Danny signed in to his test Apple ID (C0EDC79D, iPhone 17 Pro, leased to the scratchpad), and all four fields were confirmed in the Development Console on 2026-10-12; the agent was stopped once by a session restart and resumed.
 - [ ] Phase 2a: Talking to ParentLocker: wire, planner, requests, Keychain (session: here, agent `feature-phase-deep`, Opus high) · est. ~2–3% weekly · started at 54%
 - [ ] Phase 2b: Sign-in and the live sync, then a read-only live check with Danny (session: here, agent `feature-phase-deep`, Opus xhigh) · est. ~4–5% weekly
 - [ ] Phase 3: The notebook's screens, MCP and Shortcuts (session: here, agent `feature-phase`) ‖ Phase 4 · est. ~2–3% weekly
@@ -340,7 +340,6 @@ Checked 2026-10-12 against Xcode 27.0 (27A266a). Xcode 27.1 RC and 27.2 beta 2 e
   - Full builds: notebook iOS, macOS and Release, and the Assistant Debug and Release.
   - Whole suites once (notebook, then Assistant) on the leased simulator with `-parallel-testing-enabled NO` (1 simulator each).
   - A simulator look at Settings and the attendance line on iPhone.
-  - The Development schema run (moved from Phase 1): Danny signs the leased simulator in to his test Apple ID (Claude never types it), then one Debug Development `-InitializeCloudKitSchema` run there, and the four fields confirmed in the Development Console.
   - Docs: a new `docs/Technical notes/PARENTLOCKER.md` (the site's requests, the guards, how to check the page still works) and a `Cosmic Daybook/CLAUDE.md` line.
   - Squash to main, push, `docs-index`, and close-out.
 - **Cost:** ~3–4%.
