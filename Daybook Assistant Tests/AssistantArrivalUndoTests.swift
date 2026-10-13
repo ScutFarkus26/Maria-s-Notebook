@@ -23,31 +23,30 @@ struct AssistantArrivalUndoTests {
         let undo = try #require(AssistantArrivalBar.undo(afterClosing: 3, queuedSend: true, signedIn: false))
         #expect(!undo.sendsToParentLocker, "nothing goes until she signs in, so the Undo doesn't time out")
         #expect(undo.stopsSend, "Undo still takes back the send waiting for the sign-in")
-        #expect(AssistantArrivalBar.afterUndoWindow(signedIn: false) == .askToSignIn)
+        #expect(AssistantArrivalBar.afterUndoWindow(signedIn: false) == .keepUndo)
+        // The sheet waits out the Undo's moment (`signInPrompt`, bug hunt
+        // 2026-10-13 afternoon, L2, in AssistantParentLockerAfternoonTests).
+        let now = Date(timeIntervalSinceReferenceDate: 800_000_000)
+        let undoEnds = now.addingTimeInterval(ParentLockerSync.closeArrivalUndoWindow)
+        #expect(AssistantArrivalBar.signInPrompt(
+            awaitsSignIn: true, needsSignIn: true, undoEndsAt: undoEnds, asked: false, now: now
+        ) == .at(undoEnds))
     }
 
     // Review of the bug-check fixes, D2: on a phone not signed in the Undo
-    // never went, and every return to the screen opened the sign-in again.
-    @Test("Not signed in: the sign-in opens once, and the Undo goes once the day is sent or after two minutes")
+    // never went.
+    @Test("Not signed in: the Undo goes once the day is sent or after two minutes")
     func notSignedInUndoEnds() throws {
         typealias Bar = AssistantArrivalBar
         let closedAt = Date(timeIntervalSinceReferenceDate: 800_000_000)
         let later = closedAt.addingTimeInterval(10)
-        #expect(Bar.afterUndoWindow(signedIn: false, closedAt: closedAt, now: later) == .askToSignIn)
-        #expect(Bar.afterUndoWindow(signedIn: false, askedToSignIn: true, closedAt: closedAt, now: later) == .keepUndo,
-                "a return to the screen doesn't ask again")
-        #expect(Bar.afterUndoWindow(signedIn: false, daySent: true, askedToSignIn: true, closedAt: closedAt, now: later)
+        #expect(Bar.afterUndoWindow(signedIn: false, closedAt: closedAt, now: later) == .keepUndo)
+        #expect(Bar.afterUndoWindow(signedIn: false, daySent: true, closedAt: closedAt, now: later)
                 == .hideUndo, "the guide's backstop sent the day")
         let limit = closedAt.addingTimeInterval(Bar.unsentUndoLimit)
-        #expect(Bar.afterUndoWindow(signedIn: false, askedToSignIn: true, closedAt: closedAt, now: limit) == .hideUndo)
+        #expect(Bar.afterUndoWindow(signedIn: false, closedAt: closedAt, now: limit) == .hideUndo)
         #expect(Bar.unsentUndoLimit > ParentLockerSync.backstopWait)
         #expect(Bar.afterUndoWindow(signedIn: true, closedAt: closedAt, now: later) == .hideUndo)
-
-        var undo = try #require(Bar.undo(afterClosing: 3, queuedSend: true, signedIn: false))
-        #expect(!undo.askedToSignIn)
-        let id = undo.id
-        undo.askedToSignIn = true
-        #expect(undo.id == id, "asking doesn't make it a new Undo, so the watch doesn't start over")
     }
 
     @Test("A plain Close Arrival's Undo has no send to stop")

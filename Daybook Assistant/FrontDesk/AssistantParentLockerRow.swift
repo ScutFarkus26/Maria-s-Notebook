@@ -9,7 +9,9 @@ import SwiftUI
 ///
 /// With everyone marked and the day not sent, there's no Close Arrival to
 /// send it, so **Send to ParentLocker** is offered instead, as Email the
-/// Front Desk is (it signs in first on an iPhone that isn't).
+/// Front Desk is. On an iPhone that isn't signed in, the one tap asks for
+/// today's send and opens the sign-in; the send goes once she signs in (bug
+/// hunt 2026-10-13 afternoon, L6).
 struct AssistantParentLockerRow: View {
     let status: ParentLockerStatus
     /// The day's send as `AttendanceEmailLog.Send.summary` words it; nil
@@ -19,6 +21,8 @@ struct AssistantParentLockerRow: View {
     let isSending: Bool
     /// Everyone's marked and nobody has sent the day: offer the send.
     var offersSend = false
+    /// What the last Send Now of another day came to, when it didn't go (L1).
+    var sendNowMessage: String?
     let onSendNow: () -> Void
     let onSignIn: () -> Void
 
@@ -27,9 +31,10 @@ struct AssistantParentLockerRow: View {
     static let notSentLine = "Not sent to ParentLocker yet"
 
     var body: some View {
+        let shown = Self.shownStatus(offersSend: offersSend, status: status)
         VStack(spacing: 4) {
             if offersSend {
-                Button(action: isSignedIn ? onSendNow : onSignIn) {
+                Button(action: onSendNow) {
                     Label("Send to ParentLocker", systemImage: "paperplane.fill")
                         .font(.subheadline.weight(.semibold))
                 }
@@ -38,17 +43,53 @@ struct AssistantParentLockerRow: View {
                 .controlSize(.small)
                 .disabled(isSending)
                 .accessibilityHint(
-                    isSignedIn ? "Sends the day's attendance to ParentLocker" : "Opens Sign In to ParentLocker"
+                    isSignedIn
+                        ? "Sends the day's attendance to ParentLocker"
+                        : "Opens Sign In to ParentLocker, then sends the day's attendance"
                 )
             }
-            if !offersSend || status.line(sentSummary: sentSummary) != nil {
-                statusMenu
+            if Self.showsStatusMenu(offersSend: offersSend, status: status, sentSummary: sentSummary) {
+                statusMenu(shown)
+            }
+            if let sendNowMessage {
+                Text(sendNowMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+                    .multilineTextAlignment(.center)
+                    .transition(.opacity)
             }
         }
         .transition(.opacity)
     }
 
-    private var statusMenu: some View {
+    /// The status the line shows. Beside Send to ParentLocker, "Attendance
+    /// goes to ParentLocker when arrival closes" would point at a Close
+    /// Arrival that isn't there (everyone's marked), so it says nothing
+    /// (bug hunt 2026-10-13 afternoon, M2); the children's lines stay.
+    static func shownStatus(offersSend: Bool, status: ParentLockerStatus) -> ParentLockerStatus {
+        guard offersSend, status.state == .waitingForArrival else { return status }
+        return ParentLockerStatus(state: .idle, problems: status.problems, lastSyncAt: status.lastSyncAt)
+    }
+
+    /// Whether the status line shows: always, except beside Send to
+    /// ParentLocker with nothing to say.
+    static func showsStatusMenu(offersSend: Bool, status: ParentLockerStatus, sentSummary: String?) -> Bool {
+        let shown = shownStatus(offersSend: offersSend, status: status)
+        return !offersSend || shown.line(sentSummary: sentSummary) != nil || !shown.problems.isEmpty
+    }
+
+    /// What a Send Now of another day says when it didn't go, or found
+    /// something it couldn't send (bug hunt 2026-10-13 afternoon, L1): the
+    /// line is today's, so without this it said nothing. Nil when it went,
+    /// which the line shows ("Sent to ParentLocker 8:47 AM by you").
+    static func pastDayMessage(after status: ParentLockerStatus) -> String? {
+        switch status.state {
+        case .upToDate, .idle, .off, .sending, .waitingForArrival: status.problems.first
+        default: status.message ?? status.problems.first
+        }
+    }
+
+    private func statusMenu(_ status: ParentLockerStatus) -> some View {
         Menu {
             if !status.problems.isEmpty {
                 Section {

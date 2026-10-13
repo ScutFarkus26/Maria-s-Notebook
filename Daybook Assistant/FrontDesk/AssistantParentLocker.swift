@@ -34,12 +34,17 @@ extension AssistantFrontDesk {
 
 // MARK: - Sending after Siri closes arrival
 
-/// What Siri's Close Arrival needs of the sync, so tests can stand in for it.
+/// What Siri's Close Arrival and its Undo, and the bar's Send Now, need of
+/// the sync, so tests can stand in for it.
 @MainActor
 protocol AssistantParentLockerSending: AnyObject {
     var isSignedIn: Bool { get }
+    /// Not signed in, or signed in with a password ParentLocker refused.
+    var needsSignIn: Bool { get }
     func sendNow(day: Date) async -> ParentLockerStatus
     func closeArrivalSend(on day: Date, after undoWindow: TimeInterval)
+    func cancelCloseArrivalSend()
+    func unmarkedNames(on day: Date) -> [String]
 }
 
 extension ParentLockerSync: AssistantParentLockerSending {}
@@ -78,7 +83,9 @@ extension AssistantSiriCommands {
             ParentLockerSync.oweCloseArrivalSend(on: session.today, in: unsent)
             return .notSentYet
         }
-        guard sync.isSignedIn else {
+        // A password ParentLocker refused is never tried again by itself
+        // (bug hunt 2026-10-13 afternoon, L5): it needs her sign-in too.
+        guard !sync.needsSignIn else {
             // Siri offers no Undo, so nothing to wait out.
             sync.closeArrivalSend(on: session.today, after: 0)
             return .notSignedIn
@@ -87,6 +94,25 @@ extension AssistantSiriCommands {
         case .upToDate: return .sent
         case .previewed: return .previewed
         default: return .notSentYet
+        }
+    }
+
+    /// Siri's Undo of its Close Arrival: the send it left waiting doesn't go
+    /// (bug hunt 2026-10-13 afternoon, H2). The running sync's Close Arrival
+    /// & Send is cancelled, and arrival is open again there; with no sync
+    /// running (the app launched for Siri alone), the send kept in `unsent`
+    /// for launch and its "arrival closed here" go, so a later sign-in never
+    /// sends the reopened class. A class that has already gone stays gone:
+    /// ParentLocker can't take a mark back (`SiriAttendance.undoLast` says so).
+    static func undoCloseSend(
+        on day: Date, sync: (any AssistantParentLockerSending)?,
+        unsent: any ParentLockerUnsentStore = ParentLockerSync.defaultUnsentStore()
+    ) {
+        guard !AssistantSampleClass.isRequested else { return }
+        if let sync {
+            sync.cancelCloseArrivalSend()
+        } else {
+            ParentLockerSync.cancelOwedCloseArrivalSend(on: day, in: unsent)
         }
     }
 
@@ -106,5 +132,46 @@ extension AssistantSiriCommands {
         case .notSentYet:
             closed + " Attendance hasn't gone to ParentLocker yet. Open the Assistant to send it."
         }
+    }
+}
+
+// MARK: - Send Now on screen
+
+/// What the bar's Send Now (and Send to ParentLocker) does first.
+enum AssistantParentLockerSendStep: Equatable {
+    /// Children aren't marked yet: ask first, naming them (bug hunt
+    /// 2026-10-13 afternoon, M4). The sync sends the marked ones and doesn't
+    /// count the day as sent.
+    case ask(unmarked: [String])
+    case send
+    /// Not signed in, today: the sync keeps the send for once she signs in,
+    /// and the sign-in opens, so one tap is enough (L6).
+    case sendAfterSignIn
+    /// Not signed in, another day: only the sign-in. A send waiting for a
+    /// sign-in is for today only.
+    case signIn
+
+    /// The first step of a send of `day`. `unmarkedConfirmed`: she has
+    /// answered the question about the unmarked children.
+    static func first(
+        on day: Date, isToday: Bool, unmarkedConfirmed: Bool, sync: any AssistantParentLockerSending
+    ) -> Self {
+        if !unmarkedConfirmed {
+            let unmarked = sync.unmarkedNames(on: day)
+            if !unmarked.isEmpty { return .ask(unmarked: unmarked) }
+        }
+        guard sync.needsSignIn else { return .send }
+        return isToday ? .sendAfterSignIn : .signIn
+    }
+
+    /// The question's title: "Ari isn't marked yet", "3 children aren't marked yet".
+    static func question(unmarked: [String]) -> String {
+        unmarked.count == 1 ? "\(unmarked[0]) isn't marked yet" : "\(unmarked.count) children aren't marked yet"
+    }
+
+    /// The question's words, naming them.
+    static func questionMessage(unmarked: [String]) -> String {
+        "\(unmarked.formatted(.list(type: .and))) \(unmarked.count == 1 ? "isn't" : "aren't") marked. "
+            + "Everyone else goes to ParentLocker now. Mark them and send again to finish the day."
     }
 }
