@@ -353,7 +353,7 @@ Checked 2026-10-12 against Xcode 27.0 (27A266a). Xcode 27.1 RC and 27.2 beta 2 e
     - The pass is done when a test or a read-through lists every string, and each one is plain.
   - Full builds: notebook iOS, macOS and Release, and the Assistant Debug and Release.
   - Whole suites once (notebook, then Assistant) on the leased simulator with `-parallel-testing-enabled NO` (1 simulator each).
-  - A simulator look at Settings and the attendance line on iPhone.
+  - A simulator look at Settings and the attendance line on iPhone, and at the **sign-in sheet on the iPhone SE (3rd generation)**, at the default and largest text sizes with the keyboard up (Danny, 2026-10-12: "Make sure the sign in sheet looks good on an iphone se 3rd gen"). Phase 4 checks it first; this is the check after everything is combined.
   - Docs: a new `docs/Technical notes/PARENTLOCKER.md` (the site's requests, the guards, how to check the page still works) and a `Cosmic Daybook/CLAUDE.md` line.
   - Delete the live-check simulator's copy of the notebook and its saved ParentLocker sign-in (uninstall the app from this checkout's simulator).
   - Squash to main, push, `docs-index`, and close-out.
