@@ -99,7 +99,15 @@ nonisolated public enum BackupWriter {
     /// - v39: `SupplyTransaction` entries carry `changedByID` (schema 17), who
     ///   set a staple's level, so its history names them as they go by now.
     ///   Purely additive; restoring an older backup leaves a line's own value.
-    public static let formatVersion: Int = 39
+    /// - v40: how attendance goes to the school (schema 18).
+    ///   `AttendanceEmailSettings` entries carry `sendMethodRaw` and
+    ///   `parentLockerSite`, `AttendanceEmailSend` entries `channelRaw`, and
+    ///   `Student` entries `parentLockerID`, a child's match on the school's
+    ///   ParentLocker site. Purely additive; an older backup's settings and
+    ///   sends restore as email, and a record keeps its own values. The
+    ///   ParentLocker password and sign-in cookies live only in the Keychain
+    ///   and never go into a backup.
+    public static let formatVersion: Int = 40
 
     public enum WriterError: LocalizedError {
         case entityEncodingFailed(entityName: String, underlying: Error)

@@ -17,6 +17,10 @@ nonisolated public class CDStudent: NSManagedObject {
     @NSManaged public var dateWithdrawn: Date?
     @NSManaged public var previousLevelRaw: String?
     @NSManaged public var dateLastPromoted: Date?
+    /// The child's `student_id` on the school's ParentLocker site, stored once
+    /// matched by name so later sends go by ID and survive a rename (schema
+    /// 18). Only the guide's devices write it.
+    @NSManaged public var parentLockerID: String?
     @NSManaged public var modifiedAt: Date?
 
     // Schema 9 removed the `trackEnrollments` relationship: it pulled a

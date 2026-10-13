@@ -1,9 +1,26 @@
 import Foundation
 import CoreData
 
+/// How the day's attendance goes to the school (schema 18): the front-desk
+/// email, or the school's ParentLocker site. The guide picks one in Settings;
+/// it travels in the shared settings row, and each send records the one it
+/// went by. Raw values are stored: never rename a case.
+nonisolated enum AttendanceSendMethod: String, CaseIterable, Sendable {
+    case email
+    case parentLocker
+
+    /// A stored value, or email for a row written before schema 18 (or a
+    /// value this build doesn't know).
+    init(stored raw: String?) {
+        self = raw.flatMap(AttendanceSendMethod.init(rawValue:)) ?? .email
+    }
+}
+
 /// The front-desk attendance email's two shared records: the day's email went
 /// (`CDAttendanceEmailSend`), and the guide's settings it is written from
-/// (`CDAttendanceEmailSettings`).
+/// (`CDAttendanceEmailSettings`). Since schema 18 they also carry the
+/// ParentLocker method: which way the guide picked, and which way each send
+/// went.
 ///
 /// Both live in the classroom share (schema 12), so the notebook and the
 /// Daybook Assistant read the same ones: whoever finishes the roll can send
@@ -50,8 +67,27 @@ enum AttendanceEmailLog {
         return [deadline.addingTimeInterval(-Double(dueWindowMinutes) * 60), deadline]
     }
 
-    /// What an email is written from.
+    /// The school's ParentLocker site until the guide sets another.
+    nonisolated static let defaultParentLockerSite = "yyli.parentlocker.com"
+
+    /// The host part of what the guide typed for the ParentLocker site:
+    /// lowercased, without a scheme, path or spaces. Blank reads as the
+    /// default, so a cleared field never leaves the app without a site.
+    nonisolated static func parentLockerHost(_ typed: String?) -> String {
+        var host = (typed ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        for scheme in ["https://", "http://"] where host.hasPrefix(scheme) {
+            host.removeFirst(scheme.count)
+        }
+        host = String(host.prefix { $0 != "/" && $0 != "?" && $0 != "#" })
+        return host.isEmpty ? defaultParentLockerSite : host
+    }
+
+    /// What the day's attendance is sent by, and what an email is written from.
     struct Settings: Equatable, Sendable {
+        /// Whether the guide has the email turned on. With ParentLocker picked
+        /// the shared row always holds false (`shared`), so an Assistant build
+        /// from before schema 18, which knows only this, stops offering the
+        /// email; the guide's own switch stays in the notebook's preferences.
         var isEnabled: Bool
         /// The recipients, ", " between (`AttendanceEmail.sharedAddressLine`);
         /// a row written before 2026-10-10 has them as typed.
@@ -60,11 +96,31 @@ enum AttendanceEmailLog {
         var groupByLevel: Bool
         /// When the front desk needs it by, in minutes after midnight.
         var deadlineMinutes: Int = AttendanceEmailLog.defaultDeadlineMinutes
+        /// How the day's attendance goes to the school (schema 18).
+        var sendMethod: AttendanceSendMethod = .email
+        /// The ParentLocker host (schema 18), as `parentLockerHost` reads it.
+        var parentLockerSite: String = AttendanceEmailLog.defaultParentLockerSite
 
         var recipients: [String] { AttendanceEmail.parseRecipients(from: toAddresses) }
 
-        /// Turned on, with someone to send to.
-        var canSend: Bool { isEnabled && !recipients.isEmpty }
+        /// The email can go: email is the method, turned on, with someone to
+        /// send to. The email's own buttons ask this.
+        var canSend: Bool { sendMethod == .email && isEnabled && !recipients.isEmpty }
+
+        /// The day's attendance has somewhere to go by the method picked:
+        /// ParentLocker, or an email that `canSend`. What the reminder asks.
+        /// Whether this device is signed in to ParentLocker is its own
+        /// question: the reminder rings either way, since someone must send.
+        var canSendAttendance: Bool { sendMethod == .parentLocker || canSend }
+
+        /// The settings as the shared row holds them: with ParentLocker picked
+        /// the email reads as off (see `isEnabled`), and the site as its host.
+        var shared: Settings {
+            var row = self
+            if sendMethod == .parentLocker { row.isEnabled = false }
+            row.parentLockerSite = AttendanceEmailLog.parentLockerHost(parentLockerSite)
+            return row
+        }
 
         /// The day's email, ready for Mail.
         func draft(
@@ -92,6 +148,8 @@ enum AttendanceEmailLog {
         let sentByID: String?
         let sentByName: String?
         let wasConfirmedByHand: Bool
+        /// Which way it went; a send recorded before schema 18 was an email.
+        let channel: AttendanceSendMethod
 
         init(_ record: CDAttendanceEmailSend) {
             sentAt = record.sentAt ?? .distantPast
@@ -99,6 +157,7 @@ enum AttendanceEmailLog {
             sentByID = record.sentByID
             sentByName = record.sentByName
             wasConfirmedByHand = record.wasConfirmedByHand
+            channel = AttendanceSendMethod(stored: record.channelRaw)
         }
 
         /// Who sent it, as the viewer should read it: "you", an assistant's
@@ -135,16 +194,22 @@ enum AttendanceEmailLog {
             }
         }
 
-        /// "Sent 8:42 AM by Sarah", or "Marked sent …" when Mail couldn't
-        /// confirm it, with "(late)" after the day's deadline. The date shows
-        /// too when it went on another day than the one it reports.
+        /// "Emailed 8:42 AM by Sarah" or "Sent to ParentLocker 8:47 AM by
+        /// Sarah", or "Marked sent …" when it couldn't be confirmed and the
+        /// sender said it went, with "(late)" after the day's deadline. The
+        /// date shows too when it went on another day than the one it reports.
         func summary(
             senderName: String, for day: Date, deadlineMinutes: Int? = nil, calendar: Calendar = .current
         ) -> String {
             let when = calendar.isDate(sentAt, inSameDayAs: day)
                 ? sentAt.formatted(date: .omitted, time: .shortened)
                 : sentAt.formatted(.dateTime.month(.abbreviated).day().hour().minute())
-            let verb = wasConfirmedByHand ? "Marked sent" : "Sent"
+            let verb = switch (channel, wasConfirmedByHand) {
+            case (.email, false): "Emailed"
+            case (.email, true): "Marked sent"
+            case (.parentLocker, false): "Sent to ParentLocker"
+            case (.parentLocker, true): "Marked sent to ParentLocker"
+            }
             let late = deadlineMinutes
                 .flatMap { calendar.date(byAdding: .minute, value: $0, to: calendar.startOfDay(for: day)) }
                 .map { sentAt > $0 } ?? false
@@ -173,12 +238,14 @@ enum AttendanceEmailLog {
         return context.safeFetchFirst(request).map(Send.init)
     }
 
-    /// Records that `day`'s email went, stamped with who this device is. The
-    /// caller saves, and in the Assistant puts the new record into the share.
+    /// Records that `day`'s attendance went, by `channel` (the email unless
+    /// said), stamped with who this device is. The caller saves, and in the
+    /// Assistant puts the new record into the share.
     @discardableResult
     static func recordSend(
         on day: Date,
         role: CDClassroomMembership.ClassroomRole,
+        channel: AttendanceSendMethod = .email,
         confirmedByHand: Bool = false,
         now: Date = Date(),
         in context: NSManagedObjectContext
@@ -194,10 +261,11 @@ enum AttendanceEmailLog {
         // set in the classroom's list (`ClassroomNames`), else "your guide".
         send.sentByName = role == .assistant ? ClassroomIdentity.displayName : nil
         send.wasConfirmedByHand = confirmedByHand
+        send.channelRaw = channel.rawValue
         return send
     }
 
-    /// The day's send as someone outside the classroom reads it ("Sent
+    /// The day's send as someone outside the classroom reads it ("Emailed
     /// 8:42 AM by Sarah (late)", the guide's own "by the guide"), for MCP. An
     /// assistant is named as she goes by now (the classroom's list, by the
     /// send's record name, so a rename reaches old sends), then by the name
@@ -213,7 +281,8 @@ enum AttendanceEmailLog {
     // MARK: - Settings
 
     /// The guide's settings as the share carries them, or nil before the guide
-    /// has sent them (an older notebook, or before the first sync).
+    /// has sent them (an older notebook, or before the first sync). A row from
+    /// before schema 18 reads as email, at the default ParentLocker site.
     static func settings(in context: NSManagedObjectContext) -> Settings? {
         newestSettingsRow(in: context).map { row in
             Settings(
@@ -221,13 +290,16 @@ enum AttendanceEmailLog {
                 toAddresses: row.toAddresses ?? "",
                 nameOrder: row.nameOrderRaw.flatMap(AttendanceEmailNameOrder.init(rawValue:)) ?? .firstLast,
                 groupByLevel: row.groupByLevel,
-                deadlineMinutes: Int(row.deadlineMinutes)
+                deadlineMinutes: Int(row.deadlineMinutes),
+                sendMethod: AttendanceSendMethod(stored: row.sendMethodRaw),
+                parentLockerSite: parentLockerHost(row.parentLockerSite)
             )
         }
     }
 
-    /// Writes the guide's settings into the share. Only the lead guide may,
-    /// and nothing is written when they already match. Returns whether
+    /// Writes the guide's settings into the share, as `Settings.shared` holds
+    /// them (with ParentLocker picked, the email off). Only the lead guide
+    /// may, and nothing is written when they already match. Returns whether
     /// anything changed; the caller saves.
     @discardableResult
     static func saveSettings(
@@ -237,6 +309,7 @@ enum AttendanceEmailLog {
         in context: NSManagedObjectContext
     ) -> Bool {
         guard role == .leadGuide else { return false }
+        let settings = settings.shared
         let request = CDFetchRequest(CDAttendanceEmailSettings.self)
         request.sortDescriptors = [NSSortDescriptor(key: "modifiedAt", ascending: false)]
         let rows = context.safeFetch(request)
@@ -257,6 +330,8 @@ enum AttendanceEmailLog {
         row.nameOrderRaw = settings.nameOrder.rawValue
         row.groupByLevel = settings.groupByLevel
         row.deadlineMinutes = Int32(settings.deadlineMinutes)
+        row.sendMethodRaw = settings.sendMethod.rawValue
+        row.parentLockerSite = settings.parentLockerSite
         row.modifiedAt = now
         return true
     }

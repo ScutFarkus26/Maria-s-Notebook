@@ -23,6 +23,13 @@ nonisolated public class CDAttendanceEmailSettings: NSManagedObject {
     /// When the front desk needs it by, in minutes after midnight (9:00 = 540).
     @NSManaged public var deadlineMinutes: Int32
     @NSManaged public var modifiedAt: Date?
+    /// How the day's attendance goes to the school: `AttendanceSendMethod` raw
+    /// value, "email" or "parentLocker" (schema 18). A row written before then
+    /// reads as email.
+    @NSManaged public var sendMethodRaw: String
+    /// The school's ParentLocker host ("yyli.parentlocker.com"); nil reads as
+    /// `AttendanceEmailLog.defaultParentLockerSite` (schema 18).
+    @NSManaged public var parentLockerSite: String?
 
     @discardableResult
     convenience init(context: NSManagedObjectContext) {

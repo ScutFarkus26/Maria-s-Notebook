@@ -4,10 +4,11 @@ import UserNotifications
 import OSLog
 
 /// "Front desk email": on school days when nobody has sent the day's
-/// attendance email yet, a notification a few minutes before the guide's
-/// deadline (10 before 9:00 unless changed) and a firmer one at the deadline.
-/// A tap opens the attendance screen with the email ready. It never sends
-/// anything itself.
+/// attendance yet, a notification a few minutes before the guide's deadline
+/// (10 before 9:00 unless changed) and a firmer one at the deadline, worded
+/// for the way the guide picked: the front-desk email, or ParentLocker
+/// (schema 18; "Attendance due in ParentLocker at 9:00 AM"). A tap opens the
+/// attendance screen with the email ready. It never sends anything itself.
 ///
 /// Compiled into both apps. The deadline is the guide's, from the classroom
 /// share (`AttendanceEmailLog.Settings.deadlineMinutes`); the switch and the
@@ -115,27 +116,31 @@ enum FrontDeskEmailReminder {
     }
 
     /// Replaces this device's pending reminders with the ones that should be
-    /// there now. Nothing is scheduled while the guide's email isn't set up
-    /// (no settings in the share, turned off, or no one to send to).
+    /// there now. Nothing is scheduled while the guide hasn't set up a way to
+    /// send (no settings in the share, or the email picked but turned off or
+    /// with no one to send to).
     static func reschedule(
         in context: NSManagedObjectContext,
         now: Date = Date(),
-        center: any ReminderCenter = SystemReminderCenter()
+        center: any ReminderCenter = SystemReminderCenter(),
+        defaults: UserDefaults = .standard
     ) async {
         await runs.run(for: context) {
-            let requests = await wantedRequests(in: context, now: now, center: center)
+            let requests = await wantedRequests(in: context, now: now, center: center, defaults: defaults)
             await ReminderRuns.replace(where: isReminder, with: requests, center: center, logger: logger)
         }
     }
 
-    /// The requests that should be pending now: none while the email isn't
-    /// set up, the switch is off, or notifications aren't allowed.
+    /// The requests that should be pending now: none while there's no way to
+    /// send, the switch is off, or notifications aren't allowed.
     private static func wantedRequests(
         in context: NSManagedObjectContext,
         now: Date,
-        center: any ReminderCenter
+        center: any ReminderCenter,
+        defaults: UserDefaults
     ) async -> [UNNotificationRequest] {
-        guard isEnabled(), let settings = AttendanceEmailLog.settings(in: context), settings.canSend else { return [] }
+        guard isEnabled(defaults), let settings = AttendanceEmailLog.settings(in: context),
+              settings.canSendAttendance else { return [] }
         let status = await center.authorizationStatus()
         guard status == .authorized || status == .provisional else { return [] }
 
@@ -144,15 +149,7 @@ enum FrontDeskEmailReminder {
         guard let end = calendar.date(byAdding: .day, value: daysAhead * 3, to: start) else { return [] }
         let nonSchoolDays = SchoolDayChecker.nonSchoolDaySet(in: start..<end, using: context, calendar: calendar)
         let sentToday = AttendanceEmailLog.latestSend(on: start, in: context) != nil
-        let deadline = settings.deadlineMinutes
-        let dueAt = timeString(deadline)
-        let kinds = [
-            Kind(suffix: "soon", minutes: deadline - leadMinutes(), title: "Front desk email due at \(dueAt)",
-                 body: "Today's attendance hasn't been emailed to the front desk yet."),
-            Kind(suffix: "due", minutes: deadline, title: "Front desk email is late",
-                 body: "It was due at \(dueAt). Close arrival and email the front desk.")
-        ]
-        return kinds.flatMap { kind in
+        return kinds(for: settings, leadMinutes: leadMinutes(defaults)).flatMap { kind in
             fireDates(
                 from: now, minutes: kind.minutes, nonSchoolDays: nonSchoolDays,
                 todayIsDone: sentToday, calendar: calendar
@@ -170,11 +167,35 @@ enum FrontDeskEmailReminder {
     }
 
     /// One of the day's two reminders: before the deadline, and at it.
-    private struct Kind {
+    struct Kind: Equatable {
         let suffix: String
         let minutes: Int
         let title: String
         let body: String
+    }
+
+    /// The day's two reminders, worded for the way the guide picked. Any
+    /// send of the day withdraws today's, whichever way it went.
+    static func kinds(for settings: AttendanceEmailLog.Settings, leadMinutes: Int) -> [Kind] {
+        let deadline = settings.deadlineMinutes
+        let dueAt = timeString(deadline)
+        switch settings.sendMethod {
+        case .email:
+            return [
+                Kind(suffix: "soon", minutes: deadline - leadMinutes, title: "Front desk email due at \(dueAt)",
+                     body: "Today's attendance hasn't been emailed to the front desk yet."),
+                Kind(suffix: "due", minutes: deadline, title: "Front desk email is late",
+                     body: "It was due at \(dueAt). Close arrival and email the front desk.")
+            ]
+        case .parentLocker:
+            return [
+                Kind(suffix: "soon", minutes: deadline - leadMinutes,
+                     title: "Attendance due in ParentLocker at \(dueAt)",
+                     body: "Today's attendance hasn't been sent to ParentLocker yet."),
+                Kind(suffix: "due", minutes: deadline, title: "ParentLocker attendance is late",
+                     body: "It was due at \(dueAt). Close arrival and send it to ParentLocker.")
+            ]
+        }
     }
 
     /// "9:00 AM" for minutes after midnight.
