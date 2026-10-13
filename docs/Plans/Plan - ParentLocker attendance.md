@@ -426,7 +426,23 @@ Read the plan usage (`get_usage`) and note the weekly % used next to the phase u
 
 ## Decided during the run
 
-(Filled in by the autonomous run.)
+- **Phase 5 review** (an Opus reviewer, read-only): 12 real bugs and 14 phrases that weren't plain, out of about 115 strings checked. All fixed:
+  - 3 in the screens by the main session (3e937689): Mark as Sent records nothing in a test copy; the Assistant's send goes a second after its Undo; plainer words.
+  - 9, with the rest of the wording, in the engine by a deep fix agent (6b48ccad):
+    - a per-child "last seen in ParentLocker" check, so a synced-in change never overwrites a newer mark
+    - the guide's backstop a minute after the due time when everyone was marked and nothing was sent
+    - Notes the app wrote are cleared when the new mark has none
+    - Match Names is gated by the save policy
+    - the catch-up gives up waiting for an import after 20 s, and on the Mac only a return after a minute away counts
+    - the Assistant always counts as an assistant here
+    - a recorded send reschedules the reminder
+    - cancelling a sign-in stops it
+    - only "no item" counts as signed out, and a failed Sign Out says so
+    - the Assistant's school days come from the class share
+
+  Every targeted test was seen failing with its fix undone.
+- **The Assistant's Release build warns at `AssistantSampleClass.swift:177`** ("will never be executed"). That warning was there before this work, in a file it doesn't touch; it's left alone and noted for Danny.
+- **The live-check simulator was cleaned:** the app uninstalled and its keychain reset, so the ParentLocker password Danny typed there is gone.
 
 ## Open questions
 
