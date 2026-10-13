@@ -272,8 +272,25 @@ final class FakeParentLockerStore: ParentLockerStore {
         return true
     }
 
+    /// Stores the matches on the children, as the real store does: a pick
+    /// clears that ParentLocker child from whoever else held it.
     func writeMatches(_ matches: [UUID: String?]) -> Bool {
         writtenMatches.append(matches)
+        let picked = Set(matches.values.compactMap { $0 }.filter { !ParentLockerPlanner.isNotMatched($0) })
+        state.children = state.children.map { child in
+            let stored: String?
+            if let wanted = matches[child.id] {
+                stored = wanted
+            } else if let held = child.parentLockerID, picked.contains(held) {
+                stored = nil
+            } else {
+                return child
+            }
+            return ParentLockerPlanner.Child(
+                id: child.id, firstName: child.firstName, lastName: child.lastName,
+                nickname: child.nickname, parentLockerID: stored
+            )
+        }
         return true
     }
 }
