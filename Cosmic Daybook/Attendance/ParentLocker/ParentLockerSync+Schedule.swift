@@ -26,12 +26,13 @@ extension ParentLockerSync {
         wholeClass?.reason == .closeArrival && wholeClass?.due != nil
     }
 
-    /// Sleeps until `nextWake`, once. A run in progress reschedules when it ends.
+    /// Sleeps until `nextWake`, once. A run in progress reschedules when it
+    /// ends; a stopped sync schedules nothing.
     func reschedule() {
         wakeTask?.cancel()
         wakeTask = nil
         defer { updateBackgroundHold(force: false) }
-        guard activeRun == nil, let wake = nextWake else { return }
+        guard !isStopped, activeRun == nil, let wake = nextWake else { return }
         let clock = clock
         wakeTask = Task { [weak self] in
             do { try await clock.sleep(until: wake) } catch { return }
@@ -96,23 +97,23 @@ extension ParentLockerSync {
 
     /// Runs `job` once whatever is running has finished, then schedules what's next.
     @discardableResult
-    func run(_ job: ParentLockerJob) async -> Result<ParentLockerReport, ParentLockerSendFailure> {
+    func run(_ job: ParentLockerJob) async -> ParentLockerRunOutcome {
         while let running = activeRun { _ = await running.value }
         let task = Task { await self.perform(job) }
         activeRun = task
         updateBackgroundHold(force: true)
-        let report = await task.value
+        let outcome = await task.value
         activeRun = nil
         reschedule()
-        return report
+        return outcome
     }
 
     /// Holds a background-task window while a run is going or a send is due
     /// within seconds (a local change, Close Arrival's), so a phone locked
-    /// right after still sends.
+    /// right after still sends. Never once the sync is stopped.
     func updateBackgroundHold(force: Bool) {
-        let wanted = force || activeRun != nil || localDue != nil
-            || (wholeClass?.reason == .closeArrival && wholeClass?.due != nil)
+        let wanted = !isStopped && (force || activeRun != nil || localDue != nil
+            || (wholeClass?.reason == .closeArrival && wholeClass?.due != nil))
         guard wanted != holdsBackground else { return }
         holdsBackground = wanted
         if wanted { dependencies.background.begin() } else { dependencies.background.end() }
@@ -123,6 +124,9 @@ extension ParentLockerSync {
     var today: Date { dependencies.calendar.startOfDay(for: clock.now) }
 
     func isToday(_ day: Date) -> Bool { isSameDay(day, clock.now) }
+
+    /// A day that hasn't come yet.
+    func isAhead(_ day: Date) -> Bool { dependencies.calendar.startOfDay(for: day) > today }
 
     func isSameDay(_ lhs: Date, _ rhs: Date) -> Bool {
         dependencies.calendar.isDate(lhs, inSameDayAs: rhs)
@@ -142,6 +146,7 @@ extension ParentLockerSync {
             wholeClass = nil
             retry = nil
             deadlineDue = nil
+            arrivalClosedHere = false
         }
         // What ParentLocker held is a day's: none of it says anything about this one.
         lastSeen = [:]
@@ -155,7 +160,8 @@ extension ParentLockerSync {
         dependencies.unsent.save(ParentLockerUnsent(
             day: AppCalendar.dayID(owedDay),
             children: Set(localChanges.keys).union(catchUpChildren),
-            wholeClass: wholeClass != nil
+            wholeClass: wholeClass != nil,
+            arrivalClosed: arrivalClosedHere
         ))
     }
 
@@ -164,7 +170,54 @@ extension ParentLockerSync {
         guard saved.day == AppCalendar.dayID(today) else { return dependencies.unsent.save(nil) }
         owedDay = today
         catchUpChildren = saved.children
+        arrivalClosedHere = saved.arrivalClosed
         if saved.wholeClass, wholeClass == nil { wholeClass = ParentLockerWholeClass(reason: .owed, due: nil) }
+    }
+
+    /// What a run that reached ParentLocker settles: the changes made before
+    /// it started (one made since goes on its own), a whole-class send owed,
+    /// and a retry it covers.
+    func settleOwed(after job: ParentLockerJob, startedAt started: Date) {
+        guard isToday(job.day) else { return }
+        let settled = job.children ?? Set(localChanges.keys)
+        for child in settled where (localChanges[child] ?? .distantFuture) <= started {
+            localChanges[child] = nil
+        }
+        if job.isWholeClass {
+            catchUpChildren = []
+            if wholeClass?.reason == .owed { wholeClass = nil }
+            if let pending = retry, isSameDay(pending.job.day, job.day) { retry = nil }
+        }
+        saveOwed()
+    }
+
+    /// Keeps a failed run's work for the next change, the return to the app
+    /// or Send Now. This device's own changes stay owed anyway (they're
+    /// cleared only on success); an imported one is left to its own device.
+    func owe(_ job: ParentLockerJob) {
+        guard job.isWholeClass, isToday(job.day), job.reason != .request || !job.preview else { return }
+        if wholeClass == nil { wholeClass = ParentLockerWholeClass(reason: .owed, due: nil) }
+        saveOwed()
+    }
+
+    /// Where what's owed is kept: the app's preferences in a build that
+    /// saves, memory otherwise (`ParentLockerDefaultsUnsentStore`).
+    nonisolated static func defaultUnsentStore() -> any ParentLockerUnsentStore {
+        ParentLockerSavePolicy.current.allowsSaving
+            ? ParentLockerDefaultsUnsentStore() : ParentLockerMemoryUnsentStore()
+    }
+
+    /// Close Arrival & Send made while the class's sync isn't running (Siri,
+    /// with the app launched for the intent alone): the whole-class send is
+    /// kept owed for `day`, with arrival closed, and the sync sends it when
+    /// it starts and is signed in.
+    nonisolated static func oweCloseArrivalSend(on day: Date, in unsent: any ParentLockerUnsentStore) {
+        let id = AppCalendar.dayID(day)
+        var owed = unsent.load().flatMap { $0.day == id ? $0 : nil }
+            ?? ParentLockerUnsent(day: id, children: [], wholeClass: false)
+        owed.wholeClass = true
+        owed.arrivalClosed = true
+        unsent.save(owed)
     }
 
     func makeTransport(site: String, cookies: [ParentLockerCookie]) -> any ParentLockerTransport {
@@ -192,6 +245,26 @@ nonisolated struct ParentLockerJob: Sendable, Equatable {
     var importedBaseline: [UUID: ParentLockerSeen] = [:]
 
     var isWholeClass: Bool { children == nil }
+}
+
+/// What one run found and did.
+struct ParentLockerRunResult {
+    let plan: ParentLockerPlanner.Plan
+    let rosters: [ParentLockerRoster]
+    let matches: [UUID: ParentLockerPlanner.Match]
+    let leftAlone: [String]
+    let conflicts: [String]
+    let savedCount: Int
+    let wasPreview: Bool
+    /// Children left to another device, which saved them in ParentLocker
+    /// since this device last looked.
+    let leftToOthers: Set<UUID>
+}
+
+/// How one run went: what it sent (or why not), and the status it ends on.
+nonisolated struct ParentLockerRunOutcome: Sendable {
+    let result: Result<ParentLockerReport, ParentLockerSendFailure>
+    let status: ParentLockerStatus
 }
 
 /// A whole-class send owed: why, and when it goes (nil: owed, waiting for the

@@ -61,9 +61,11 @@ struct ParentLockerSyncTests {
 
         let guide = Device(site: site, clock: clock)
         guide.imports(closed)
+        // With nothing seen of them today, it reads the class lists, and only reads.
+        await guide.sync.baselineTask?.value
         clock.advance(by: 59)
         await guide.sync.runDue()
-        #expect(site.requests.isEmpty)
+        #expect(saves.isEmpty)
         clock.advance(by: 1)
         await guide.sync.runDue()
         #expect(saves == ["save 5101"])
@@ -155,9 +157,11 @@ struct ParentLockerSyncTests {
         // Another device marked Wren late and has sent it.
         site.setMark(40001, "702")
         device.imports([Device.wren: Device.mark(.tardy)])
+        await device.sync.baselineTask?.value
         clock.advance(by: 59)
         await device.sync.runDue()
-        #expect(site.requests.isEmpty)
+        #expect(saves.isEmpty)
+        site.requests = []
         clock.advance(by: 1)
         await device.sync.runDue()
         #expect(site.requests.contains("courses"))

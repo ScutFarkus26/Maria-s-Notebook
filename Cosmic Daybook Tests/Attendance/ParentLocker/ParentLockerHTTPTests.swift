@@ -43,7 +43,7 @@ struct ParentLockerHTTPTests {
     func coursesFromPage() async throws {
         let html = try ParentLockerFixtures.data("page.html")
         Stub.reset { _ in Self.page(html) }
-        let courses = try await transport().courses()
+        let courses = try await transport().courses(on: nil)
 
         #expect(courses.map(\.courseID) == [5101, 5102, 5103])
         #expect(courses.map(\.name) == ["Girls Middle School", "Upper Elementary Girls", "Study Hall; Room [4]"])
@@ -65,7 +65,7 @@ struct ParentLockerHTTPTests {
     func signedOutPage() async throws {
         let html = try ParentLockerFixtures.data("signin.html")
         Stub.reset { _ in Self.page(html) }
-        await #expect(throws: ParentLockerError.signedOut) { try await transport().courses() }
+        await #expect(throws: ParentLockerError.signedOut) { try await transport().courses(on: nil) }
         await #expect(throws: ParentLockerError.signedOut) {
             try await transport().roster(course: ParentLockerFixtures.middleSchool, date: Date())
         }
@@ -77,7 +77,7 @@ struct ParentLockerHTTPTests {
         Stub.reset { request in
             request.url?.path == "/login.php" ? Self.page(Data()) : .redirect(to: login, headers: [:])
         }
-        await #expect(throws: ParentLockerError.signedOut) { try await transport().courses() }
+        await #expect(throws: ParentLockerError.signedOut) { try await transport().courses(on: nil) }
         #expect(!Stub.seen.contains { $0.url.path == "/login.php" })
     }
 
@@ -85,11 +85,11 @@ struct ParentLockerHTTPTests {
     func pageChanged() async throws {
         let html = try ParentLockerFixtures.data("changed.html")
         Stub.reset { _ in Self.page(html) }
-        await #expect(throws: ParentLockerError.pageChanged) { try await transport().courses() }
+        await #expect(throws: ParentLockerError.pageChanged) { try await transport().courses(on: nil) }
         Stub.reset { _ in Self.page(Data(), status: 404) }
-        await #expect(throws: ParentLockerError.pageChanged) { try await transport().courses() }
+        await #expect(throws: ParentLockerError.pageChanged) { try await transport().courses(on: nil) }
         Stub.reset { _ in Self.page(Data(), status: 503) }
-        await #expect(throws: ParentLockerError.unreachable) { try await transport().courses() }
+        await #expect(throws: ParentLockerError.unreachable) { try await transport().courses(on: nil) }
     }
 
     // MARK: - Redirects and cookies
@@ -101,7 +101,7 @@ struct ParentLockerHTTPTests {
             request.url?.host == Self.host ? .redirect(to: evil, headers: [:]) : Self.page(Data("gotcha".utf8))
         }
         await #expect(throws: ParentLockerError.redirectedOffSite(host: "collector.example")) {
-            try await transport().courses()
+            try await transport().courses(on: nil)
         }
         #expect(Stub.seen.allSatisfy { $0.url.host == Self.host })
     }
@@ -115,7 +115,7 @@ struct ParentLockerHTTPTests {
             Self.page(html, headers: ["Set-Cookie": "PHPSESSID=session-2; Path=/; Secure; HttpOnly"])
         }
         let transport = transport()
-        _ = try await transport.courses()
+        _ = try await transport.courses(on: nil)
         #expect((HTTPCookieStorage.shared.cookies(for: url) ?? []).count == before.count)
         #expect(!(HTTPCookieStorage.shared.cookies ?? []).contains { $0.value == "session-2" })
         #expect(transport.cookies.contains { $0.value == "session-2" })
@@ -129,7 +129,7 @@ struct ParentLockerHTTPTests {
         }
         let heard = Mutex<[[ParentLockerCookie]]>([])
         let transport = transport { jar in heard.withLock { $0.append(jar) } }
-        _ = try await transport.courses()
+        _ = try await transport.courses(on: nil)
 
         let session = transport.cookies.filter { $0.name == "PHPSESSID" }
         #expect(session.map(\.value) == ["session-2"])
@@ -138,7 +138,7 @@ struct ParentLockerHTTPTests {
         #expect(heard.withLock { $0 }.last == transport.cookies)
 
         // The same cookie again changes nothing, so nothing is passed on.
-        _ = try await transport.courses()
+        _ = try await transport.courses(on: nil)
         #expect(heard.withLock { $0 }.count == 1)
 
         // An expired one is the site deleting it.
@@ -146,7 +146,7 @@ struct ParentLockerHTTPTests {
             Self.page(html, headers: ["Set-Cookie": "plRemember=gone; Domain=.parentlocker.test; Path=/; " +
                 "Expires=Thu, 01 Jan 1970 00:00:00 GMT"])
         }
-        _ = try await transport.courses()
+        _ = try await transport.courses(on: nil)
         #expect(!transport.cookies.contains { $0.name == "plRemember" })
         #expect(heard.withLock { $0 }.count == 2)
     }
@@ -156,7 +156,7 @@ struct ParentLockerHTTPTests {
         let login = try #require(URL(string: "https://\(Self.host)/login.php"))
         Stub.reset { _ in .redirect(to: login, headers: ["Set-Cookie": "PHPSESSID=expired-1; Path=/"]) }
         let transport = transport()
-        await #expect(throws: ParentLockerError.signedOut) { try await transport.courses() }
+        await #expect(throws: ParentLockerError.signedOut) { try await transport.courses(on: nil) }
         #expect(transport.cookies.first { $0.name == "PHPSESSID" }?.value == "expired-1")
     }
 

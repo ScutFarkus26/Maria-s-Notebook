@@ -17,6 +17,9 @@ struct ParentLockerSignInSheet: View {
     @State private var email = ""
     @State private var password = ""
     @State private var session: ParentLockerSignIn?
+    /// The sign-in under way: closing the sheet cancels it, the final check
+    /// of the class list included, so nothing is kept.
+    @State private var signInTask: Task<Void, Never>?
     @State private var errorText: String?
 
     nonisolated static let title = "Sign in to ParentLocker"
@@ -42,7 +45,7 @@ struct ParentLockerSignInSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                if sync.isSignedIn, session == nil {
+                if showsSignedIn {
                     signedIn
                 } else {
                     fields
@@ -58,13 +61,13 @@ struct ParentLockerSignInSheet: View {
                 }
             }
             .formStyle(.grouped)
-            .navigationTitle(sync.isSignedIn && session == nil ? "ParentLocker" : Self.title)
+            .navigationTitle(showsSignedIn ? "ParentLocker" : Self.title)
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(sync.isSignedIn && session == nil ? "Done" : "Cancel") { close() }
+                    Button(showsSignedIn ? "Done" : "Cancel") { close() }
                 }
             }
         }
@@ -72,7 +75,13 @@ struct ParentLockerSignInSheet: View {
         .frame(minWidth: 420, minHeight: 360)
         #endif
         // However the sheet goes (a swipe down too), a sign-in under way stops.
-        .onDisappear { session?.cancel() }
+        .onDisappear { stopSigningIn() }
+    }
+
+    /// Signed in, with a password ParentLocker still takes: otherwise (it
+    /// refused the saved one) the fields show, to sign in again.
+    private var showsSignedIn: Bool {
+        sync.isSignedIn && !sync.savedPasswordRefused && session == nil
     }
 
     /// Above the fields: the school's site, small, and that this happens
@@ -188,26 +197,36 @@ struct ParentLockerSignInSheet: View {
         )
         let attempt = ParentLockerSignIn(site: sync.site)
         session = attempt
-        Task {
-            defer { session = nil }
+        signInTask = Task {
+            defer {
+                session = nil
+                signInTask = nil
+            }
             do {
                 let cookies = try await attempt.run(credential, showsPagesWhenAsked: true)
                 // Closed while the last page loaded: nothing is kept.
-                guard !attempt.isCancelled else { return }
+                guard !attempt.isCancelled, !Task.isCancelled else { return }
                 try await sync.completeSignIn(credential, cookies: cookies, site: attempt.host)
                 password = ""
                 dismiss()
             } catch ParentLockerSignInError.cancelled {
                 return
             } catch {
+                // Closed meanwhile: a cancelled request says nothing to anyone.
+                guard !attempt.isCancelled, !Task.isCancelled else { return }
                 errorText = AppErrorMessages.userMessage(for: error, context: "signing in to ParentLocker")
             }
         }
     }
 
     private func close() {
-        session?.cancel()
+        stopSigningIn()
         dismiss()
+    }
+
+    private func stopSigningIn() {
+        session?.cancel()
+        signInTask?.cancel()
     }
 }
 

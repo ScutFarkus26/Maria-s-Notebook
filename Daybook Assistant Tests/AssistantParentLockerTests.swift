@@ -5,12 +5,15 @@ import UserNotifications
 @testable import Daybook_Assistant
 
 /// Stands in for the class's ParentLocker sync: signed in or not, and the
-/// status a Send Now ends on. Remembers each day it was asked to send.
+/// status a Send Now ends on. Remembers each day it was asked to send, and
+/// each Close Arrival & Send left waiting, with its Undo window.
 @MainActor
 final class FakeParentLockerSender: AssistantParentLockerSending {
     var isSignedIn: Bool
     var endsOn: ParentLockerStatus.State
     private(set) var sentDays: [Date] = []
+    private(set) var closedDays: [Date] = []
+    private(set) var undoWindows: [TimeInterval] = []
 
     init(isSignedIn: Bool = true, endsOn: ParentLockerStatus.State = .upToDate) {
         self.isSignedIn = isSignedIn
@@ -20,6 +23,11 @@ final class FakeParentLockerSender: AssistantParentLockerSending {
     func sendNow(day: Date) async -> ParentLockerStatus {
         sentDays.append(day)
         return ParentLockerStatus(state: endsOn)
+    }
+
+    func closeArrivalSend(on day: Date, after undoWindow: TimeInterval) {
+        closedDays.append(day)
+        undoWindows.append(undoWindow)
     }
 }
 
@@ -224,6 +232,46 @@ extension AssistantSiriTests {
         #expect(AssistantSiriCommands.closedDialog(marked: 2, parentLocker: outcome)
             == "Arrival is closed. 2 children are marked absent. Attendance hasn't gone to ParentLocker yet. "
                 + "Open the Assistant and sign in to ParentLocker to send it.")
+    }
+
+    @Test("Siri's Close Arrival on an iPhone not signed in leaves the class waiting to send once she signs in")
+    func siriCloseArrivalWaitsForSignIn() async throws {
+        let (siri, day) = try await Self.closedClass(.parentLocker)
+        defer { Self.forgetClose(on: day) }
+        let sync = FakeParentLockerSender(isSignedIn: false)
+        #expect(await AssistantSiriCommands.sendAfterClose(siri, sync: sync) == .notSignedIn)
+        #expect(sync.closedDays == [siri.today])
+        #expect(sync.undoWindows == [0], "Siri offers no Undo")
+        #expect(sync.sentDays.isEmpty)
+    }
+
+    @Test("Siri's Close Arrival with the class's sync not running keeps the send for it to make at launch")
+    func siriCloseArrivalOwedForLaunch() async throws {
+        let (siri, day) = try await Self.closedClass(.parentLocker)
+        defer { Self.forgetClose(on: day) }
+        let unsent = ParentLockerMemoryUnsentStore(ParentLockerUnsent(
+            day: AppCalendar.dayID(siri.today), children: [UUID()], wholeClass: false
+        ))
+        #expect(await AssistantSiriCommands.sendAfterClose(siri, sync: nil, unsent: unsent) == .notSentYet)
+        let owed = try #require(unsent.load())
+        #expect(owed.day == AppCalendar.dayID(siri.today))
+        #expect(owed.wholeClass)
+        #expect(owed.arrivalClosed)
+        #expect(owed.children.count == 1, "what was owed before stays owed")
+    }
+
+    @Test("Siri's Close Arrival sends while the join screen's sample is open: Siri marks the real class")
+    func siriCloseArrivalUnderTheSample() async throws {
+        let (siri, day) = try await Self.closedClass(.parentLocker)
+        let wasChosen = AssistantSampleClass.isChosen
+        AssistantSampleClass.isChosen = true
+        defer {
+            AssistantSampleClass.isChosen = wasChosen
+            Self.forgetClose(on: day)
+        }
+        let sync = FakeParentLockerSender()
+        #expect(await AssistantSiriCommands.sendAfterClose(siri, sync: sync) == .sent)
+        #expect(sync.sentDays == [siri.today])
     }
 
     @Test("Siri's Close Arrival says it couldn't send yet when ParentLocker can't be reached or the sync isn't running")
