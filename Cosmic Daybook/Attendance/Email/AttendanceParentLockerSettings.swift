@@ -6,11 +6,12 @@ import SwiftUI
 /// of the sign-in shows here but whether there is one. Notebook only.
 struct AttendanceParentLockerSettings: View {
 
-    /// The school's ParentLocker address, as the guide typed it.
+    /// The school's ParentLocker address: the shared row's, or what's being typed.
     @Binding var site: String
-    /// Return in the address field: the site goes into the share now, rather
-    /// than when typing pauses.
-    var onSubmitSite: () -> Void = {}
+    /// Puts the typed address into the share: on Return, and before the
+    /// sign-in sheet opens, so the sheet signs in to the address shown (bug
+    /// hunt 2026-10-13 afternoon, L3). Typing alone writes nothing.
+    var commitSite: () -> Void = {}
 
     @Environment(\.managedObjectContext) private var viewContext
     @State private var showsSignIn = false
@@ -18,11 +19,13 @@ struct AttendanceParentLockerSettings: View {
     var body: some View {
         let sync = ParentLockerSync.current(for: viewContext)
         VStack(alignment: .leading, spacing: 12) {
-            LabeledContent("School's ParentLocker address") {
+            AttendanceSettingRow(
+                "School's ParentLocker address", stacksWhenCompact: true, stacksWhenNarrow: false
+            ) { _ in
                 TextField(AttendanceEmailLog.defaultParentLockerSite, text: $site)
                     .textFieldStyle(.roundedBorder)
                     .autocorrectionDisabled(true)
-                    .onSubmit(onSubmitSite)
+                    .onSubmit(commitSite)
                     #if os(iOS)
                     .keyboardType(.URL)
                     .textInputAutocapitalization(.never)
@@ -55,25 +58,147 @@ struct AttendanceParentLockerSettings: View {
     }
 
     private func signInRow(_ sync: ParentLockerSync) -> some View {
-        LabeledContent("Your ParentLocker sign-in") {
-            // Signed in and working, or ParentLocker refused the saved
-            // password (the sheet then asks for it again), or not signed in.
-            let working = sync.isSignedIn && !sync.savedPasswordRefused
-            HStack(spacing: 8) {
-                Label(
-                    sync.savedPasswordRefused ? "Sign in again" : working ? "Signed in" : "Not signed in",
-                    systemImage: working ? "checkmark.circle.fill" : "person.crop.circle.badge.questionmark"
-                )
-                .foregroundStyle(working ? Color.green : Color.secondary)
-                Button(working ? "Sign Out…" : "Sign In…") { showsSignIn = true }
+        // Signed in and working, or not: never signed in here, ParentLocker
+        // refused the saved password, or it asks for a sign-in again (new
+        // terms, a reset): then the button is Sign In.
+        let working = !sync.needsSignIn
+        let status = Label(
+            Self.signInTitle(isSignedIn: sync.isSignedIn, needsSignIn: sync.needsSignIn),
+            systemImage: working ? "checkmark.circle.fill" : "person.crop.circle.badge.questionmark"
+        )
+        .foregroundStyle(working ? Color.green : Color.secondary)
+        let button = Button(Self.signInButtonTitle(needsSignIn: sync.needsSignIn)) {
+            commitSite()
+            showsSignIn = true
+        }
+        return AttendanceSettingRow("Your ParentLocker sign-in", stacksWhenCompact: true) { _ in
+            // Side by side when they fit, else the button under the words.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) { status; button }
+                VStack(alignment: .leading, spacing: 6) { status; button }
             }
         }
+    }
+
+    /// What the sign-in row says (bug hunt 2026-10-13 afternoon, M9): signed
+    /// in and working; signed in, but ParentLocker needs a sign-in again
+    /// (`needsSignIn`: it refused the saved password, or asks again after new
+    /// terms or a reset); or not signed in.
+    static func signInTitle(isSignedIn: Bool, needsSignIn: Bool) -> String {
+        guard needsSignIn else { return "Signed in" }
+        return isSignedIn ? "Sign in again" : "Not signed in"
+    }
+
+    /// The row's button: Sign In whenever ParentLocker needs one.
+    static func signInButtonTitle(needsSignIn: Bool) -> String {
+        needsSignIn ? "Sign In…" : "Sign Out…"
     }
 
     static let footnote = "Sign in once with your own ParentLocker account; it covers your other devices too. "
         + "Each assistant signs in once on her phone with her own. Close Arrival & Send sends the class, and "
         + "later changes follow by themselves. Match Names lists any child the app couldn't find "
         + "in ParentLocker by name."
+}
+
+/// "Send attendance by": ParentLocker or the front-desk email. A menu beside
+/// its name; above it, where the menu's own button clipped its words at the
+/// largest text sizes (L7), a menu whose words wrap.
+struct AttendanceSendMethodPicker: View {
+    @Binding var method: AttendanceSendMethod
+
+    private static let title = "Send attendance by"
+
+    private static func name(_ method: AttendanceSendMethod) -> String {
+        switch method {
+        case .parentLocker: "ParentLocker"
+        case .email: "Email to the front desk"
+        }
+    }
+
+    private var choices: some View {
+        Picker(Self.title, selection: $method) {
+            ForEach([AttendanceSendMethod.parentLocker, .email], id: \.self) { method in
+                Text(Self.name(method)).tag(method)
+            }
+        }
+        .labelsHidden()
+    }
+
+    var body: some View {
+        AttendanceSettingRow(Self.title) { stacked in
+            if stacked {
+                Menu {
+                    choices.pickerStyle(.inline)
+                } label: {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(Self.name(method))
+                            .multilineTextAlignment(.leading)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .imageScale(.small)
+                    }
+                }
+            } else {
+                choices.fixedSize()
+            }
+        }
+    }
+}
+
+/// A setting's name beside its control, or above it where beside it the
+/// control ran off an iPhone's screen (bug hunt 2026-10-13 afternoon, L7):
+/// at the accessibility text sizes, and whenever the two don't fit side by
+/// side. `stacksWhenCompact` puts it above on an iPhone at every size, for a
+/// field too cramped beside its name on an iPhone SE. The control is told
+/// which, so it can lay itself out to fit.
+struct AttendanceSettingRow<Control: View>: View {
+    let title: String
+    let stacksWhenCompact: Bool
+    /// Off for a text field, whose width changes as it's typed in: the row
+    /// would move it mid-word, and the keyboard would go.
+    let stacksWhenNarrow: Bool
+    let control: (_ stacked: Bool) -> Control
+
+    @Environment(\.dynamicTypeSize) private var typeSize
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    #endif
+
+    init(
+        _ title: String, stacksWhenCompact: Bool = false, stacksWhenNarrow: Bool = true,
+        @ViewBuilder control: @escaping (_ stacked: Bool) -> Control
+    ) {
+        self.title = title
+        self.stacksWhenCompact = stacksWhenCompact
+        self.stacksWhenNarrow = stacksWhenNarrow
+        self.control = control
+    }
+
+    private var stacked: Bool {
+        #if os(iOS)
+        if stacksWhenCompact, sizeClass == .compact { return true }
+        #endif
+        return typeSize.isAccessibilitySize
+    }
+
+    var body: some View {
+        if stacked {
+            stackedRow
+        } else if stacksWhenNarrow {
+            ViewThatFits(in: .horizontal) {
+                LabeledContent(title) { control(false) }
+                stackedRow
+            }
+        } else {
+            LabeledContent(title) { control(false) }
+        }
+    }
+
+    private var stackedRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+            control(true)
+        }
+    }
 }
 
 // The `#Preview` closure is expanded and type-checked in every compiler job
