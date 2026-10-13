@@ -54,6 +54,8 @@ public final class SyncedPreferencesStore {
         "AttendanceEmail.nameOrder",
         "AttendanceEmail.groupByLevel",
         "AttendanceEmail.deadlineMinutes",
+        "AttendanceEmail.sendMethod",
+        "AttendanceEmail.parentLockerSite",
 
         // Attendance
         "Attendance.sortKey",

@@ -45,6 +45,7 @@ extension AttendanceExpandedView {
         AttendanceArrivalControl(
             viewModel: viewModel,
             isEditing: isEditing,
+            sendsToParentLocker: sendsToParentLocker && viewModel.isToday,
             onClose: closeArrival,
             onReopen: {
                 withAnimation(.smooth(duration: 0.3)) { viewModel.reopenArrival() }
@@ -62,11 +63,15 @@ extension AttendanceExpandedView {
         let model = viewModel
         let coordinator = saveCoordinator
         let onChange = onChange
+        // With ParentLocker picked, Close Arrival & Send: the class goes once
+        // this toast's Undo has gone, and Undo stops it.
+        var cancelSend: (() -> Void)?
         dependencies.toastService.show(
-            count == 1 ? "Marked 1 absent" : "Marked \(count) absent",
+            closeArrivalToast(count: count),
             undoAction: {
                 // Toast buttons fire on the main actor; this only borrows that.
                 MainActor.assumeIsolated {
+                    cancelSend?()
                     withAnimation(.smooth(duration: 0.3)) {
                         _ = model.undoCloseArrival(undo, modelContext: context)
                     }
@@ -75,6 +80,7 @@ extension AttendanceExpandedView {
                 }
             }
         )
+        cancelSend = sendAfterClosingArrival()
     }
 
     // MARK: - Reset

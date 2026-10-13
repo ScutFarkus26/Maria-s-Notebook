@@ -65,6 +65,7 @@ The primary entity representing a student in the classroom.
 | `nextLessons` | [String] | Upcoming lesson IDs (stored as UUID strings) |
 | `manualOrder` | Int | Manual sort order |
 | `dateStarted` | Date? | When student enrolled |
+| `parentLockerID` | String? | The child's `student_id` on the school's ParentLocker site, stored once matched by name (schema 18); written only on the guide's devices |
 | `modifiedAt` | Date | Last modification timestamp |
 
 **Computed Properties:**
@@ -543,7 +544,7 @@ Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-02 so that file keeps 
 
 Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-04 so that file keeps only a pointer and the few rules a session needs before touching this area. These are still rules: follow them.
 
-**89 entities** defined in `CosmicDaybook.xcdatamodeld` (schema 17): 70 private-only, 11 in the classroom share (schema 16 added `ClassroomPerson`, the shared list of names people set for themselves; `Sharing/ClassroomNames.swift`; schema 17 added `SupplyTransaction.changedByID`, who changed a staple's level, so its history line shows that person's current name), 8 dormant tombstones.
+**89 entities** defined in `CosmicDaybook.xcdatamodeld` (schema 18): 70 private-only, 11 in the classroom share (schema 16 added `ClassroomPerson`, the shared list of names people set for themselves; `Sharing/ClassroomNames.swift`; schema 17 added `SupplyTransaction.changedByID`, who changed a staple's level, so its history line shows that person's current name; schema 18 added how attendance goes to the school, `AttendanceEmailSettings.sendMethodRaw` and `parentLockerSite`, the channel of each send, `AttendanceEmailSend.channelRaw`, and the child's ParentLocker match, `Student.parentLockerID`), 8 dormant tombstones.
 
 **Core Models:**
 
@@ -558,7 +559,7 @@ Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-04 so that file keeps 
 | AttendanceRecord | `CDAttendanceRecord` | Daily attendance tracking; `leavesAt` (schema 13) is a planned early pickup, not a mark; `returnedAt` + `statusBeforeLeavingRaw` (schema 14) record a child who left early and came back |
 | ClassroomMembership | `CDClassroomMembership` | This device's role and the pinned classroom share zone (private only) |
 | AttendanceDayLock | `CDAttendanceDayLock` | A day the lead guide locked (shared); read and written through `AttendanceDayLocks` |
-| AttendanceEmailSend / AttendanceEmailSettings | `CDAttendanceEmailSend` / `CDAttendanceEmailSettings` | The front-desk attendance email: who sent a day's, and the guide's settings for it (shared, schema 12); read and written through `AttendanceEmailLog` |
+| AttendanceEmailSend / AttendanceEmailSettings | `CDAttendanceEmailSend` / `CDAttendanceEmailSettings` | The day's attendance going to the school: who sent a day's, and the guide's settings for it (shared, schema 12). Schema 18: `sendMethodRaw` (`email` or `parentLocker`, default `email`) and `parentLockerSite` on the settings, `channelRaw` (default `email`) on each send; picking ParentLocker also writes `isEnabled = false`, so Assistant builds from before schema 18 stop offering the email. Read and written through `AttendanceEmailLog` |
 
 **Core Data Patterns:**
 - Entity classes use `CD` prefix (e.g., `CDStudent`, `CDLesson`)

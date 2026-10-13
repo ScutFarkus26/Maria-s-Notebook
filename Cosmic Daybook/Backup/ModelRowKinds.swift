@@ -210,18 +210,24 @@ public enum SupplyTransactionBackupRow: ModelRowKind {
 
 public typealias AttendanceEmailSendDTO = ModelRow<AttendanceEmailSendBackupRow>
 
-/// One front-desk attendance email that went (format v34+). Nothing older
-/// reads it, so nothing needs filling.
+/// One send of the day's attendance (format v34+). Nothing older reads it, so
+/// nothing needs filling. Which way it went (`channelRaw`, format v40) is
+/// missing from older backups' rows: a new record reads as email (the model's
+/// default), and one already in the store keeps its own.
 public enum AttendanceEmailSendBackupRow: ModelRowKind {
-    public static let spec = ModelRowSpec("AttendanceEmailSend")
+    public static let spec = ModelRowSpec("AttendanceEmailSend", addedLater: ["channelRaw"])
 }
 
 public typealias AttendanceEmailSettingsDTO = ModelRow<AttendanceEmailSettingsBackupRow>
 
 /// The guide's front-desk email settings as the classroom share carries them
-/// (format v34+); the preferences they're copied from travel too.
+/// (format v34+); the preferences they're copied from travel too. The method
+/// and ParentLocker site (format v40) are missing from older backups' rows: a
+/// new record reads as email at the default site, and one already in the
+/// store keeps its own (`sendMethodRaw` here, `parentLockerSite` through
+/// `BackupFieldsAddedLater`).
 public enum AttendanceEmailSettingsBackupRow: ModelRowKind {
-    public static let spec = ModelRowSpec("AttendanceEmailSettings")
+    public static let spec = ModelRowSpec("AttendanceEmailSettings", addedLater: ["sendMethodRaw"])
 }
 
 public typealias ClassroomPersonDTO = ModelRow<ClassroomPersonBackupRow>

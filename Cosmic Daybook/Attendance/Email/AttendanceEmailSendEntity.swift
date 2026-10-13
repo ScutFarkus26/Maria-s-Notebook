@@ -23,6 +23,9 @@ nonisolated public class CDAttendanceEmailSend: NSManagedObject {
     /// Set when Mail couldn't say it sent and the sender said it did (or the
     /// front desk was told another way).
     @NSManaged public var wasConfirmedByHand: Bool
+    /// How it went: `AttendanceSendMethod` raw value, "email" or
+    /// "parentLocker" (schema 18). A send recorded before then reads as email.
+    @NSManaged public var channelRaw: String
 
     @discardableResult
     convenience init(context: NSManagedObjectContext) {

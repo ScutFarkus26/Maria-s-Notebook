@@ -36,6 +36,9 @@ extension BackupEntityImporter {
             student.dateWithdrawn = dto.dateWithdrawn
             student.previousLevelRaw = dto.previousLevelRaw
             student.dateLastPromoted = dto.dateLastPromoted
+            // An older backup (before v40) has none: `BackupFieldsAddedLater`
+            // puts the record's own match back.
+            student.parentLockerID = dto.parentLockerID
             // Preserve the original modification time (awakeFromInsert stamped "now");
             // older backups lack the field, so those keep the import-time stamp.
             if let v = dto.modifiedAt { student.modifiedAt = v }

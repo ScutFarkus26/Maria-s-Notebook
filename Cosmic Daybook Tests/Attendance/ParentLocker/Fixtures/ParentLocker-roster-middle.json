@@ -1,0 +1,288 @@
+{
+ "students": [
+  {
+   "student_id": 40001,
+   "first_name": "Wren",
+   "last_name": "Halloway",
+   "alternate_name": "",
+   "grade": "7",
+   "attendance": {
+    "attendance_code": {
+     "id": "",
+     "is_excused": "",
+     "name": "",
+     "type": ""
+    },
+    "attendance_code_id": "",
+    "comment": "",
+    "confirmed": false,
+    "course_id": 5101,
+    "date": "2026-10-12",
+    "is_locked": false,
+    "is_locked_title": "",
+    "major": "",
+    "minor": "",
+    "period": 1,
+    "student_id": 40001,
+    "expected_attendance_code_id": "",
+    "expected_start": "",
+    "in_school": {
+     "status": "unknown",
+     "since": null
+    }
+   }
+  },
+  {
+   "student_id": 40002,
+   "first_name": "Juniper",
+   "last_name": "Ashby",
+   "alternate_name": "June",
+   "grade": "7",
+   "attendance": {
+    "attendance_code": {
+     "id": "",
+     "is_excused": "",
+     "name": "",
+     "type": ""
+    },
+    "attendance_code_id": "",
+    "comment": "",
+    "confirmed": false,
+    "course_id": 5101,
+    "date": "2026-10-12",
+    "is_locked": false,
+    "is_locked_title": "",
+    "major": "",
+    "minor": "",
+    "period": 1,
+    "student_id": 40002,
+    "expected_attendance_code_id": "",
+    "expected_start": "",
+    "in_school": {
+     "status": "unknown",
+     "since": null
+    }
+   }
+  },
+  {
+   "student_id": 40003,
+   "first_name": "Marisol",
+   "last_name": "Peña",
+   "alternate_name": "",
+   "grade": "7",
+   "attendance": {
+    "attendance_code": {
+     "id": "701",
+     "is_excused": "0",
+     "name": "Present",
+     "type": "present"
+    },
+    "attendance_code_id": "701",
+    "comment": "bus was late",
+    "confirmed": true,
+    "course_id": 5101,
+    "date": "2026-10-12",
+    "is_locked": false,
+    "is_locked_title": "",
+    "major": "",
+    "minor": "",
+    "period": 1,
+    "student_id": 40003,
+    "expected_attendance_code_id": "",
+    "expected_start": "",
+    "in_school": {
+     "status": "unknown",
+     "since": null
+    }
+   }
+  },
+  {
+   "student_id": 40004,
+   "first_name": "Ada",
+   "last_name": "Fern",
+   "alternate_name": "",
+   "grade": "7",
+   "attendance": {
+    "attendance_code": {
+     "id": "",
+     "is_excused": "",
+     "name": "",
+     "type": ""
+    },
+    "attendance_code_id": "",
+    "comment": "",
+    "confirmed": false,
+    "course_id": 5101,
+    "date": "2026-10-12",
+    "is_locked": false,
+    "is_locked_title": "",
+    "major": "",
+    "minor": "",
+    "period": 1,
+    "student_id": 40004,
+    "expected_attendance_code_id": "",
+    "expected_start": "",
+    "in_school": {
+     "status": "unknown",
+     "since": null
+    }
+   }
+  },
+  {
+   "student_id": 40005,
+   "first_name": "Ada",
+   "last_name": "Fern",
+   "alternate_name": "",
+   "grade": "7",
+   "attendance": {
+    "attendance_code": {
+     "id": "",
+     "is_excused": "",
+     "name": "",
+     "type": ""
+    },
+    "attendance_code_id": "",
+    "comment": "",
+    "confirmed": false,
+    "course_id": 5101,
+    "date": "2026-10-12",
+    "is_locked": false,
+    "is_locked_title": "",
+    "major": "",
+    "minor": "",
+    "period": 1,
+    "student_id": 40005,
+    "expected_attendance_code_id": "",
+    "expected_start": "",
+    "in_school": {
+     "status": "unknown",
+     "since": null
+    }
+   }
+  },
+  {
+   "student_id": 40006,
+   "first_name": "Tamsin",
+   "last_name": "Okafor",
+   "alternate_name": "",
+   "grade": "7",
+   "attendance": {
+    "attendance_code": {
+     "id": "703",
+     "is_excused": "0",
+     "name": "Absent",
+     "type": "absent"
+    },
+    "attendance_code_id": "703",
+    "comment": "",
+    "confirmed": true,
+    "course_id": 5101,
+    "date": "2026-10-12",
+    "is_locked": "1",
+    "is_locked_title": "Locked by Admin",
+    "major": "",
+    "minor": "",
+    "period": 1,
+    "student_id": 40006,
+    "expected_attendance_code_id": "",
+    "expected_start": "",
+    "in_school": {
+     "status": "unknown",
+     "since": null
+    }
+   }
+  },
+  {
+   "student_id": 40007,
+   "first_name": "Pippa",
+   "last_name": "Lindqvist",
+   "alternate_name": "",
+   "grade": "7",
+   "attendance": {
+    "attendance_code": {
+     "id": "",
+     "is_excused": "",
+     "name": "",
+     "type": ""
+    },
+    "attendance_code_id": "",
+    "comment": "",
+    "confirmed": false,
+    "course_id": 5101,
+    "date": "2026-10-12",
+    "is_locked": false,
+    "is_locked_title": "",
+    "major": "",
+    "minor": "",
+    "period": 1,
+    "student_id": 40007,
+    "expected_attendance_code_id": "",
+    "expected_start": "",
+    "in_school": {
+     "status": "unknown",
+     "since": null
+    }
+   }
+  }
+ ],
+ "attendance_settings": [
+  {
+   "id": "701",
+   "name": "Present",
+   "type": "present",
+   "is_excused": "0",
+   "is_hidden": "0",
+   "deleted_at": null,
+   "list_order": "1",
+   "is_default": "1",
+   "legacy_status": "P"
+  },
+  {
+   "id": "702",
+   "name": "Late",
+   "type": "late",
+   "is_excused": "0",
+   "is_hidden": "0",
+   "deleted_at": null,
+   "list_order": "2",
+   "is_default": "0",
+   "legacy_status": "T"
+  },
+  {
+   "id": "703",
+   "name": "Absent",
+   "type": "absent",
+   "is_excused": "0",
+   "is_hidden": "0",
+   "deleted_at": null,
+   "list_order": "3",
+   "is_default": "0",
+   "legacy_status": "A"
+  },
+  {
+   "id": "699",
+   "name": "Absent (old)",
+   "type": "absent",
+   "is_excused": "0",
+   "is_hidden": "0",
+   "deleted_at": "2025-06-01 00:00:00",
+   "list_order": "0",
+   "is_default": "0",
+   "legacy_status": "A"
+  },
+  {
+   "id": "704",
+   "name": "Tardy (hidden)",
+   "type": "late",
+   "is_excused": "0",
+   "is_hidden": "1",
+   "deleted_at": null,
+   "list_order": "0",
+   "is_default": "0",
+   "legacy_status": "T"
+  }
+ ],
+ "is_today": true,
+ "isDailyAttendance": true,
+ "error": false
+}

@@ -74,7 +74,7 @@ enum SettingsCopy {
             case .classroomSharing: return "Classroom sharing"
             case .ageIndicators: return "Age indicators"
             case .quickCapture: return "Quick capture"
-            case .attendanceEmail: return "Attendance email"
+            case .attendanceEmail: return "Attendance to the School"
             case .parentReports: return "Parent reports"
             case .orderRequests: return "Order requests"
             case .noteTemplates: return "Note templates"
@@ -148,7 +148,8 @@ enum SettingsCopy {
             case .quickCapture:
                 return ["Floating button", "Show the floating button", "Pie menu", "Quick actions"]
             case .attendanceEmail:
-                return ["Email", "Send to", "From", "Name order", "Group by level", "Front desk", "Deadline", "Remind me"]
+                return ["Email", "Send to", "From", "Name order", "Group by level", "Front desk", "Deadline",
+                        "Remind me", "ParentLocker", "Send attendance by", "Sign in", "Sign out", "Match Names"]
             case .parentReports:
                 return ["Monthly reminder", "Reports"]
             case .orderRequests:

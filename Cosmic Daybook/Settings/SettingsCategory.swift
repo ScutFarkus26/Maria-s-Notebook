@@ -84,7 +84,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         case .schoolYear: return "Days off, year start, rollover"
         case .classroom: return "Sharing with your assistant"
         case .lookAndFeel: return "Age colors, quick capture"
-        case .messages: return "Attendance email, parent reports, orders"
+        case .messages: return "Attendance, parent reports, orders"
         case .templates: return "Note, meeting and to-do templates"
         case .connections: return "Calendar and Reminders"
         case .intelligence:

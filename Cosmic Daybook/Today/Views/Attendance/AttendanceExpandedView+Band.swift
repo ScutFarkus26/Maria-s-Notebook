@@ -12,9 +12,10 @@ extension AttendanceExpandedView {
     /// "17 of 22 here" large, the rest small under it; on the right, where
     /// arrival stands and the one button the moment calls for (Close Arrival
     /// & Email… near the due time, Close Arrival… before it, Email Front
-    /// Desk once everyone's marked, and nothing once it has gone). Under
-    /// them, the children not in yet, each a click from present, and the
-    /// day's pickups, departures and returns.
+    /// Desk once everyone's marked, and nothing once it has gone; with
+    /// ParentLocker picked, Close Arrival & Send… and Send to ParentLocker).
+    /// Under them, ParentLocker's line, the children not in yet, each a click
+    /// from present, and the day's pickups, departures and returns.
     @ViewBuilder
     var arrivalBand: some View {
         if !isCompact, !viewModel.rows.isEmpty {
@@ -31,6 +32,7 @@ extension AttendanceExpandedView {
                     if !hostsToolbar { inlineControls }
                     bandActions
                 }
+                parentLockerLine(showsProblems: true)
                 if !notInYet.isEmpty { notInYetRow }
                 if !dayEvents.isEmpty { dayEventsRow }
             }
@@ -118,8 +120,11 @@ extension AttendanceExpandedView {
     }
 
     private var emailIsOpen: Bool {
-        emailEnabled && !isNonSchoolDay && frontDeskSend == nil
+        emailIsOn && !isNonSchoolDay && frontDeskSend == nil
     }
+
+    /// The day still has to go, by whichever way the guide picked.
+    private var attendanceIsOpen: Bool { emailIsOpen || parentLockerIsOpen }
 
     @ViewBuilder
     private func primaryAction(_ urgency: AttendanceEmailLog.Urgency) -> some View {
@@ -132,6 +137,12 @@ extension AttendanceExpandedView {
                 .buttonStyle(.borderedProminent)
                 .tint(overdue ? .orange : nil)
                 .keyboardShortcut(.return, modifiers: .command)
+            } else if viewModel.phase == .arrival, sendsToParentLocker, viewModel.isToday {
+                Button("Close Arrival & Send…", systemImage: "paperplane") { confirmingClose = true }
+                    .buttonStyle(.borderedProminent)
+                    .tint(overdue && parentLockerIsOpen ? .orange : nil)
+                    .keyboardShortcut(.return, modifiers: .command)
+                    .help("Marks everyone not in yet absent, then sends the class to ParentLocker")
             } else if viewModel.phase == .arrival {
                 Button("Close Arrival…") { confirmingClose = true }
                     .buttonStyle(.borderedProminent)
@@ -143,6 +154,8 @@ extension AttendanceExpandedView {
             }
         } else if emailIsOpen, !viewModel.isFuture, !viewModel.rows.isEmpty {
             frontDeskSendButton(overdue: overdue, prominent: urgency != .none || isRollComplete)
+        } else if parentLockerIsOpen, !viewModel.isFuture, !viewModel.rows.isEmpty {
+            parentLockerSendButton(overdue: overdue, prominent: urgency != .none || isRollComplete)
         }
     }
 
@@ -189,7 +202,7 @@ extension AttendanceExpandedView {
             } else if viewModel.isToday {
                 arrivalOpenLine(urgency)
             }
-            if let frontDeskSend {
+            if let frontDeskSend, !sendsToParentLocker {
                 Menu {
                     Button("Send Again", systemImage: SFSymbol.Communication.envelope, action: prepareAttendanceEmail)
                 } label: {
@@ -210,17 +223,17 @@ extension AttendanceExpandedView {
     @ViewBuilder
     private func arrivalOpenLine(_ urgency: AttendanceEmailLog.Urgency) -> some View {
         switch urgency {
-        case .due(let deadline) where emailIsOpen:
+        case .due(let deadline) where attendanceIsOpen:
             TimelineView(.periodic(from: .now, by: 60)) { _ in
                 let minutes = max(1, Int(ceil(deadline.timeIntervalSinceNow / 60)))
                 Label(
-                    "Arrival open · front desk email due \(AttendanceClock.string(deadline)) · \(minutes) min",
+                    "Arrival open · \(dueWhat) due \(AttendanceClock.string(deadline)) · \(minutes) min",
                     systemImage: "clock"
                 )
                 .foregroundStyle(Color.lateAmber)
             }
-        case .overdue(let deadline) where emailIsOpen:
-            Label("Arrival open · front desk email was due \(AttendanceClock.string(deadline))",
+        case .overdue(let deadline) where attendanceIsOpen:
+            Label("Arrival open · \(dueWhat) was due \(AttendanceClock.string(deadline))",
                   systemImage: "exclamationmark.circle")
                 .foregroundStyle(.orange)
         default:
@@ -270,69 +283,6 @@ extension AttendanceExpandedView {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Not in yet")
-    }
-
-    // MARK: - The day's comings and goings
-
-    /// "Dalia S leaves 2:30", "Maya S left 12:30", "Etty K back 12:40", in
-    /// the order they happen.
-    var dayEvents: [AttendanceDayEvent] {
-        viewModel.rows.flatMap { row -> [AttendanceDayEvent] in
-            let name = row.student.shortName
-            var events: [AttendanceDayEvent] = []
-            if let leaves = AttendanceRules.pendingPickup(row) {
-                events.append(AttendanceDayEvent(id: "\(row.id)-leaving", time: leaves,
-                                       text: "\(name) leaves \(AttendanceClock.string(leaves))", kind: .leaving))
-            }
-            if row.status == .leftEarly, let left = row.leftAt {
-                events.append(AttendanceDayEvent(id: "\(row.id)-left", time: left,
-                                       text: "\(name) left \(AttendanceClock.string(left))", kind: .left))
-            }
-            if AttendanceRules.tripText(row) != nil, let back = row.returnedAt {
-                events.append(AttendanceDayEvent(id: "\(row.id)-back", time: back,
-                                       text: "\(name) back \(AttendanceClock.string(back))", kind: .back))
-            }
-            return events
-        }
-        .sorted { $0.time < $1.time }
-    }
-
-    private var dayEventsRow: some View {
-        HStack(spacing: AppTheme.Spacing.small) {
-            Text(viewModel.isToday ? "Today" : "That day")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            ScrollView(.horizontal) {
-                HStack(spacing: 6) {
-                    ForEach(dayEvents) { event in
-                        Label(event.text, systemImage: Self.symbol(for: event.kind))
-                            .font(.caption.weight(.medium))
-                            .monospacedDigit()
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 4)
-                            .background(Self.tint(for: event.kind).opacity(0.14), in: Capsule())
-                            .foregroundStyle(Self.tint(for: event.kind))
-                    }
-                }
-            }
-            .scrollIndicators(.never)
-        }
-    }
-
-    private static func symbol(for kind: AttendanceDayEvent.Kind) -> String {
-        switch kind {
-        case .leaving: return "figure.walk.departure"
-        case .left: return "arrow.right"
-        case .back: return "arrow.uturn.backward"
-        }
-    }
-
-    private static func tint(for kind: AttendanceDayEvent.Kind) -> Color {
-        switch kind {
-        case .leaving: return .purple
-        case .left: return .secondary
-        case .back: return .green
-        }
     }
 
     // MARK: - Locked
@@ -387,14 +337,4 @@ extension AttendanceExpandedView {
     private func hint(_ key: String, _ meaning: String) -> Text {
         Text("\(Text(key).bold().foregroundStyle(.primary)) \(meaning)")
     }
-}
-
-/// One pickup, departure or return on the day on screen.
-struct AttendanceDayEvent: Identifiable {
-    enum Kind { case leaving, left, back }
-
-    let id: String
-    let time: Date
-    let text: String
-    let kind: Kind
 }

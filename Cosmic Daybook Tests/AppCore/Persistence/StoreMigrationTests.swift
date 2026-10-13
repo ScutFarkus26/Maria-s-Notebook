@@ -58,7 +58,7 @@ struct StoreMigrationTests {
     ]
     private static let attributesAddedLater: [String: Set<String>] = [
         "Lesson": ["albumID", "albumPageIndex", "isKeyLesson"],
-        "Student": ["dateLastPromoted"],
+        "Student": ["dateLastPromoted", "parentLockerID"],
         "Supply": [
             "levelRaw", "sourceRaw", "urlString", "levelChangedAt", "levelChangedByID", "levelChangedByName"
         ]

@@ -5,9 +5,9 @@ import UserNotifications
 
 /// The Assistant's one settings screen, behind the person button: whose
 /// classroom this is and since when, what the tiles mean, which way the grid
-/// runs and whether it's split by level, her name, the arrival, front-desk
-/// email and early-pickup reminders, the background, the bells, and the way
-/// out.
+/// runs and whether it's split by level, her name, her ParentLocker sign-in
+/// (once the guide picks ParentLocker), the arrival, front-desk and
+/// early-pickup reminders, the background, the bells, and the way out.
 ///
 /// The guide's name comes from the share's owner identity at display time.
 /// Apple's terms allow showing it to participants but never storing it, and
@@ -44,6 +44,9 @@ struct AssistantClassroomSheet: View {
                 keySection
                 orderSection
                 nameSection
+                if let sync = bootstrapper.parentLockerForScreens, sendsToParentLocker {
+                    AssistantParentLockerSection(sync: sync)
+                }
                 reminderSection
                 backgroundSection
                 bellsSection
@@ -188,7 +191,7 @@ struct AssistantClassroomSheet: View {
                 )
             }
             if let dueAt = frontDeskDueAt {
-                Toggle("Front desk email reminder", isOn: $frontDeskOn)
+                Toggle(sendsToParentLocker ? "ParentLocker reminder" : "Front desk email reminder", isOn: $frontDeskOn)
                 if frontDeskOn {
                     Picker("Remind me", selection: $frontDeskLead) {
                         ForEach(FrontDeskEmailReminder.leadChoices, id: \.self) { minutes in
@@ -229,7 +232,8 @@ struct AssistantClassroomSheet: View {
         }
         if let dueAt = frontDeskDueAt {
             let nudge = " If no one has sent it, a reminder \(frontDeskLead) min before and at \(dueAt)."
-            lines.append("Front desk: attendance is due by \(dueAt)." + (frontDeskOn ? nudge : ""))
+            let place = sendsToParentLocker ? "ParentLocker" : "Front desk"
+            lines.append("\(place): attendance is due by \(dueAt)." + (frontDeskOn ? nudge : ""))
         }
         if pickupOn {
             lines.append("Early pickups: hold a child's name and choose Leaving Early… "
@@ -239,11 +243,17 @@ struct AssistantClassroomSheet: View {
     }
 
     /// The guide's due time ("9:00 AM"), once the guide has set up the
-    /// front-desk email in the notebook.
+    /// front-desk email or picked ParentLocker in the notebook.
     private var frontDeskDueAt: String? {
         guard let context = bootstrapper.coreDataStack?.viewContext,
-              let settings = AttendanceEmailLog.settings(in: context), settings.canSend else { return nil }
+              let settings = AttendanceEmailLog.settings(in: context), settings.canSendAttendance else { return nil }
         return FrontDeskEmailReminder.timeString(settings.deadlineMinutes)
+    }
+
+    /// The guide picked ParentLocker as the way attendance goes.
+    private var sendsToParentLocker: Bool {
+        guard let context = bootstrapper.coreDataStack?.viewContext else { return false }
+        return AttendanceEmailLog.settings(in: context)?.sendMethod == .parentLocker
     }
 
     private var frontDeskIsSetUp: Bool { frontDeskDueAt != nil }

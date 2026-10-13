@@ -6,18 +6,24 @@ import CoreData
 // MARK: - Symbols and the email
 
 /// The tile symbols worth knowing on day one, drawn by the tile key's own
-/// tile, and the front-desk email: where its button appears and what "sent"
-/// looks like.
+/// tile, and the front-desk email (or ParentLocker, once the guide picks it):
+/// where its button appears and what "sent" looks like.
 struct AssistantSetupSymbolsPage: View {
     @Environment(AssistantBootstrapper.self) private var bootstrapper
     let onContinue: () -> Void
 
-    /// The guide's due time ("9:00 AM"), once the email's settings have
-    /// arrived from the notebook.
+    /// The guide's due time ("9:00 AM"), once the email's settings (or
+    /// ParentLocker, picked) have arrived from the notebook.
     private var dueAt: String? {
         guard let context = bootstrapper.coreDataStack?.viewContext,
-              let settings = AttendanceEmailLog.settings(in: context), settings.canSend else { return nil }
+              let settings = AttendanceEmailLog.settings(in: context), settings.canSendAttendance else { return nil }
         return FrontDeskEmailReminder.timeString(settings.deadlineMinutes)
+    }
+
+    /// The guide picked ParentLocker: the card shows Close Arrival & Send.
+    private var sendsToParentLocker: Bool {
+        guard let context = bootstrapper.coreDataStack?.viewContext else { return false }
+        return AttendanceEmailLog.settings(in: context)?.sendMethod == .parentLocker
     }
 
     var body: some View {
@@ -88,9 +94,11 @@ struct AssistantSetupSymbolsPage: View {
     private var emailCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
-                Text("The front-desk email")
+                Text(sendsToParentLocker ? "Sending to ParentLocker" : "The front-desk email")
                     .font(.body.weight(.semibold))
-                Text(dueAt == nil
+                Text(sendsToParentLocker
+                    ? "Close Arrival & Send sends the class to ParentLocker. Later changes follow by themselves."
+                    : dueAt == nil
                     ? "If your guide sets it up, the morning's attendance email is one tap once arrival closes, "
                         + "written the way they want it."
                     : "One tap once arrival closes, written the way your guide set it up.")
@@ -99,13 +107,16 @@ struct AssistantSetupSymbolsPage: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             VStack(spacing: 6) {
-                Label("Close Arrival & Email", systemImage: "envelope.fill")
+                Label(
+                    sendsToParentLocker ? "Close Arrival & Send" : "Close Arrival & Email",
+                    systemImage: sendsToParentLocker ? "paperplane.fill" : "envelope.fill"
+                )
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 9)
                     .background(Color.accentColor, in: Capsule())
-                Text("Due at the front desk by \(dueAt ?? "9:00 AM")")
+                Text("Due \(sendsToParentLocker ? "in ParentLocker" : "at the front desk") by \(dueAt ?? "9:00 AM")")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -115,7 +126,9 @@ struct AssistantSetupSymbolsPage: View {
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .accessibilityHidden(true)
             Label {
-                Text("Front desk: Sent 8:42 by \(ClassroomIdentity.displayName ?? "you")")
+                Text(sendsToParentLocker
+                    ? "Sent to ParentLocker 8:42 AM by \(ClassroomIdentity.displayName ?? "you")"
+                    : "Front desk: Sent 8:42 by \(ClassroomIdentity.displayName ?? "you")")
             } icon: {
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
             }
@@ -145,6 +158,14 @@ struct AssistantSetupDonePage: View {
 
     private var name: String { ClassroomIdentity.displayName ?? "" }
 
+    /// With ParentLocker picked: she signs in once, in Classroom.
+    static let parentLockerLine = "Sign in to ParentLocker once to send attendance."
+
+    private var sendsToParentLocker: Bool {
+        guard let context = bootstrapper.coreDataStack?.viewContext else { return false }
+        return AttendanceEmailLog.settings(in: context)?.sendMethod == .parentLocker
+    }
+
     var body: some View {
         AssistantOnboardingPage(
             systemImage: "checkmark.seal.fill",
@@ -161,6 +182,12 @@ struct AssistantSetupDonePage: View {
                     value: reminderOn ? FrontDeskEmailReminder.timeString(reminderMinutes) : "Off"
                 )
                 summary("Background", value: AssistantWallpaper.resolved(wallpaperRaw).title)
+            }
+            if sendsToParentLocker {
+                Text(Self.parentLockerLine)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Text("Change any of this in Classroom: the person button above the grid.")
                 .font(.footnote)

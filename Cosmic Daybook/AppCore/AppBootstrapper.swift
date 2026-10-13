@@ -81,6 +81,10 @@ final class AppBootstrapper {
         let totalElapsed = Self.formatSeconds(Date().timeIntervalSince(startTime))
         Self.logger.info("Bootstrap: Initial phase complete in \(totalElapsed)")
         LaunchSignposts.end("Bootstrap", bootstrapInterval)
+        // Attendance to ParentLocker, when the guide picked it: before the
+        // first screens, which show its line (one Keychain read; it sends
+        // nothing until arrival closes).
+        Self.startParentLockerSync(on: coreDataStack)
         state = .ready
         LaunchSignposts.event("UIReady")
 

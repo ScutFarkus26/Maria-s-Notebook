@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html ng-app="attendanceApp"><head><title>Attendance</title>
+<script src="/js/angular.min.js"></script>
+<script type="text/javascript">
+    var user_id = 9001;
+    var courses = [{"course_id":5101,"course_name":"Girls Middle School","period":1,"attendance_report_id":"880001","attendance_report_status":"","isDailyAttendance":true,"hasAttendance":true},{"course_id":"5102","course_name":"Upper Elementary Girls","period":"1","attendance_report_id":880002,"attendance_report_status":"submitted","isDailyAttendance":1,"hasAttendance":true}];
+    var additional_courses = [{"course_id":5103,"course_name":"Study Hall; Room [4]","period":3,"attendance_report_id":"880003","attendance_report_status":"not_expected","isDailyAttendance":false,"hasAttendance":false},{"course_id":5101,"course_name":"Girls Middle School","period":1,"attendance_report_id":"880001","attendance_report_status":"","isDailyAttendance":true,"hasAttendance":true}];
+    var coursesLoaded = false;
+</script></head>
+<body><div ng-controller="AttendanceCtrl">Take attendance</div></body></html>

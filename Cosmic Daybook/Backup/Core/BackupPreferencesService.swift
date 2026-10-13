@@ -38,6 +38,8 @@ nonisolated enum BackupPreferencesService {
         "AttendanceEmail.nameOrder",
         "AttendanceEmail.groupByLevel",
         "AttendanceEmail.deadlineMinutes",
+        "AttendanceEmail.sendMethod",
+        "AttendanceEmail.parentLockerSite",
         "Attendance.sortKey",
         "Attendance.groupsByLevel",
         // Order requests (synced)

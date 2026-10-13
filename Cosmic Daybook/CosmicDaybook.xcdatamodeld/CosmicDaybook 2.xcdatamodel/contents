@@ -16,6 +16,7 @@
         <attribute name="previousLevelRaw" optional="YES" attributeType="String"/>
         <attribute name="dateLastPromoted" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="parentLockerID" optional="YES" attributeType="String"/>
         <fetchIndex name="byName">
             <fetchIndexElement property="firstName" type="Binary" order="ascending"/>
             <fetchIndexElement property="lastName" type="Binary" order="ascending"/>
@@ -763,6 +764,7 @@
         <attribute name="sentByID" optional="YES" attributeType="String"/>
         <attribute name="sentByName" optional="YES" attributeType="String"/>
         <attribute name="wasConfirmedByHand" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="channelRaw" attributeType="String" defaultValueString="email"/>
         <fetchIndex name="byDate">
             <fetchIndexElement property="date" type="Binary" order="ascending"/>
         </fetchIndex>
@@ -776,6 +778,8 @@
         <attribute name="groupByLevel" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="deadlineMinutes" attributeType="Integer 32" defaultValueString="540" usesScalarValueType="YES"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="sendMethodRaw" attributeType="String" defaultValueString="email"/>
+        <attribute name="parentLockerSite" optional="YES" attributeType="String"/>
     </entity>
     <!-- ==================== GoingOut ==================== -->
     <entity name="GoingOut" representedClassName="CDGoingOut" syncable="YES">

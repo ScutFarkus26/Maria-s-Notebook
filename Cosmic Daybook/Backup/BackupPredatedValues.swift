@@ -33,6 +33,9 @@ nonisolated enum BackupFieldsAddedLater {
             "returnedAt": 36, "statusBeforeLeavingRaw": 36
         ],
         "OrderItem": ["supplyID": 37, "addedByID": 37],
+        // How attendance goes to the school (schema 18). The two non-optional
+        // fields with an "email" default are `addedLater` in their row specs.
+        "AttendanceEmailSettings": ["parentLockerSite": 40],
         "ScheduledMeeting": ["purpose": 24],
         // Lesson, Student, Note, LessonPresentation, TodoItem and Document
         // fields that joined during v17–v19 (June to August 2026, no bumps).
@@ -40,7 +43,10 @@ nonisolated enum BackupFieldsAddedLater {
             "parshaKey": 20, "greatLessonRaw": 20, "derivedFromLessonID": 20, "parentStoryID": 20,
             "albumID": 22, "albumLessonTitle": 22
         ],
-        "Student": ["nickname": 20, "dateWithdrawn": 20, "previousLevelRaw": 20, "dateLastPromoted": 20],
+        "Student": [
+            "nickname": 20, "dateWithdrawn": 20, "previousLevelRaw": 20, "dateLastPromoted": 20,
+            "parentLockerID": 40
+        ],
         "Note": [
             "reportedBy": 20, "reporterName": 20, "communityTopicID": 20, "schoolDayOverrideID": 20,
             "studentTrackEnrollmentID": 20, "goingOutID": 20

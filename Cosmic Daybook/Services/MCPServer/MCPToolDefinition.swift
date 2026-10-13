@@ -23,7 +23,8 @@ nonisolated struct MCPToolAnnotations: Sendable, Equatable {
     let destructiveHint: Bool
     /// Calling twice with the same arguments leaves the same state.
     let idempotentHint: Bool
-    /// Always false here: every tool reads the local notebook.
+    /// The tool reaches outside the notebook. False everywhere but
+    /// `send_attendance_to_school`, which sends to the school's ParentLocker site.
     let openWorldHint: Bool
 
     /// Reads only.
@@ -41,6 +42,11 @@ nonisolated struct MCPToolAnnotations: Sendable, Equatable {
     /// Deletes or retires rows.
     static let destructive = MCPToolAnnotations(
         readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false
+    )
+    /// Sends to a site outside the notebook (the school's ParentLocker) and
+    /// records that it went; a second call records another send.
+    static let outwardSend = MCPToolAnnotations(
+        readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true
     )
 
     /// The object `tools/list` carries for this tool.

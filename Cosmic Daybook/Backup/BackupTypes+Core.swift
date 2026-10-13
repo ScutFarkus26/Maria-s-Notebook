@@ -33,6 +33,9 @@ nonisolated public struct StudentDTO: Codable, Sendable {
     // Promotion record (optional for compatibility with older backups that predate them).
     public var previousLevelRaw: String?
     public var dateLastPromoted: Date?
+    /// The child's match on the school's ParentLocker site (format v40+).
+    /// Optional so older backups decode; restoring one keeps the record's own.
+    public var parentLockerID: String?
 }
 
 nonisolated public struct LessonDTO: Codable, Sendable {

@@ -80,7 +80,11 @@ extension AttendanceExpandedView {
             Divider()
             Button("Tardy Report", systemImage: "chart.bar.doc.horizontal") { showingTardyReport = true }
             Button("Absence Report", systemImage: "chart.bar.doc.horizontal") { showingAbsenceReport = true }
-            if emailEnabled, !isNonSchoolDay {
+            if sendsToParentLocker, !isNonSchoolDay {
+                Divider()
+                parentLockerMenuItems
+            }
+            if emailIsOn, !isNonSchoolDay {
                 Divider()
                 Button(
                     frontDeskSend == nil ? "Email Front Desk" : "Email Front Desk Again",
@@ -96,7 +100,9 @@ extension AttendanceExpandedView {
         } label: {
             Label("More", systemImage: "ellipsis.circle")
         }
-        .help("Reset, reports and the front-desk email")
+        .help(sendsToParentLocker
+            ? "Reset, reports and sending to ParentLocker"
+            : "Reset, reports and the front-desk email")
     }
 
     // MARK: - Closing arrival
@@ -109,6 +115,7 @@ extension AttendanceExpandedView {
             confirmingCloseAndEmail: $confirmingCloseAndEmail,
             unmarkedNames: viewModel.unmarkedNames,
             isLate: viewModel.phase == .late,
+            sendsToParentLocker: sendsToParentLocker && viewModel.isToday,
             onClose: { viewModel.phase == .late ? markRestAbsent() : closeArrival() },
             onCloseAndEmail: {
                 closeArrival()
@@ -133,11 +140,15 @@ struct CloseArrivalDialogs: ViewModifier {
     @Binding var confirmingCloseAndEmail: Bool
     let unmarkedNames: [String]
     let isLate: Bool
+    /// Close Arrival & Send: closing sends the class to ParentLocker.
+    let sendsToParentLocker: Bool
     let onClose: () -> Void
     let onCloseAndEmail: () -> Void
 
     private var count: Int { unmarkedNames.count }
     private var names: String { unmarkedNames.formatted(.list(type: .and)) }
+    /// Closing arrival here sends the class.
+    private var sends: Bool { sendsToParentLocker && !isLate }
 
     func body(content: Content) -> some View {
         content
@@ -145,9 +156,10 @@ struct CloseArrivalDialogs: ViewModifier {
                 count == 1 ? "Mark 1 child absent?" : "Mark \(count) children absent?",
                 isPresented: $confirmingClose, titleVisibility: .visible
             ) {
-                Button("Mark \(count) Absent", role: .destructive, action: onClose)
+                Button("Mark \(count) Absent" + (sends ? " & Send" : ""), role: .destructive, action: onClose)
             } message: {
-                Text(isLate ? "\(names)." : "\(names). After this, a child who comes in is marked late.")
+                Text(isLate ? "\(names)." : "\(names). After this, a child who comes in is marked late."
+                    + (sends ? " Then the class goes to ParentLocker." : ""))
             }
             .confirmationDialog(
                 "Close arrival and email the front desk?",

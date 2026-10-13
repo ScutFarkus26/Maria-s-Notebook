@@ -84,12 +84,12 @@ struct AttendanceEmailLogTests {
         let sameDay = monday.addingTimeInterval(8 * 3_600 + 42 * 60)
         let record = AttendanceEmailLog.recordSend(on: monday, role: .assistant, now: sameDay, in: ctx)
         let time = sameDay.formatted(date: .omitted, time: .shortened)
-        #expect(AttendanceEmailLog.Send(record).summary(senderName: "Sarah", for: monday) == "Sent \(time) by Sarah")
+        #expect(AttendanceEmailLog.Send(record).summary(senderName: "Sarah", for: monday) == "Emailed \(time) by Sarah")
 
         record.wasConfirmedByHand = true
         record.sentAt = try day("2026-10-13").addingTimeInterval(10 * 3_600)
         let summary = AttendanceEmailLog.Send(record).summary(senderName: "you", for: monday)
-        #expect(summary.hasPrefix("Marked sent "))
+        #expect(summary.hasPrefix("Marked as sent "))
         #expect(summary.hasSuffix(" by you"))
         #expect(summary.contains("13"), "another day's send carries its date: \(summary)")
     }

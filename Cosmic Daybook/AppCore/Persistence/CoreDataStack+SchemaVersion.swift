@@ -112,7 +112,13 @@ nonisolated extension CoreDataStack {
     ///   level, by CloudKit record name, so its history names them as they go
     ///   by now, not only as stamped in `reason` (`RestockHistoryLine`).
     ///   Additive optional String, default empty.
-    nonisolated static let currentSchemaVersion = 17
+    /// - `18` — how the day's attendance goes to the school (shared):
+    ///   `AttendanceEmailSettings.sendMethodRaw` ("email" or "parentLocker",
+    ///   default "email") and `parentLockerSite`, `AttendanceEmailSend.channelRaw`
+    ///   (default "email"), and `Student.parentLockerID`, a child's match on the
+    ///   school's ParentLocker site. Additive attributes, each optional or with
+    ///   a default.
+    nonisolated static let currentSchemaVersion = 18
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"

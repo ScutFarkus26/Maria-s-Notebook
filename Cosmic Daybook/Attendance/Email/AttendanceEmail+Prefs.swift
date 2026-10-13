@@ -15,6 +15,12 @@ public enum AttendanceEmailPrefs {
     public static let groupByLevelKey = "AttendanceEmail.groupByLevel"
     /// When the front desk needs it by, minutes after midnight; shared with the assistants.
     public static let deadlineKey = "AttendanceEmail.deadlineMinutes"
+    /// How attendance goes to the school: an `AttendanceSendMethod` raw value
+    /// (schema 18); shared with the assistants. Unset reads as email.
+    public static let sendMethodKey = "AttendanceEmail.sendMethod"
+    /// The school's ParentLocker host; shared with the assistants. Unset reads
+    /// as `AttendanceEmailLog.defaultParentLockerSite`.
+    public static let parentLockerSiteKey = "AttendanceEmail.parentLockerSite"
 }
 
 /// The guide's stored preferences, and prefilled mail senders built from them.
@@ -44,7 +50,8 @@ extension AttendanceEmail {
     /// The guide's settings as the classroom share carries them. The switch
     /// reads as on until turned off, as the settings screen shows it. The
     /// recipients go as the addresses joined with ", " (`sharedAddressLine`),
-    /// which every Assistant build reads, however they were typed.
+    /// which every Assistant build reads, however they were typed. The method
+    /// reads as email until the guide picks ParentLocker.
     static func storedSettings(from store: SyncedPreferencesStore = .shared) -> AttendanceEmailLog.Settings {
         AttendanceEmailLog.Settings(
             isEnabled: store.get(key: AttendanceEmailPrefs.enabledKey) as? Bool ?? true,
@@ -53,7 +60,11 @@ extension AttendanceEmail {
                 .flatMap(AttendanceEmailNameOrder.init(rawValue:)) ?? .firstLast,
             groupByLevel: store.bool(forKey: AttendanceEmailPrefs.groupByLevelKey),
             deadlineMinutes: store.get(key: AttendanceEmailPrefs.deadlineKey) as? Int
-                ?? AttendanceEmailLog.defaultDeadlineMinutes
+                ?? AttendanceEmailLog.defaultDeadlineMinutes,
+            sendMethod: AttendanceSendMethod(stored: store.string(forKey: AttendanceEmailPrefs.sendMethodKey)),
+            parentLockerSite: AttendanceEmailLog.parentLockerHost(
+                store.string(forKey: AttendanceEmailPrefs.parentLockerSiteKey)
+            )
         )
     }
 

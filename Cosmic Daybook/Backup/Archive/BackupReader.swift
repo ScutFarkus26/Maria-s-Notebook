@@ -69,8 +69,9 @@ nonisolated public enum BackupReader {
     /// attendance entries; v36 `returnedAt` and `statusBeforeLeavingRaw` on
     /// attendance entries; v37 Restock's levels, sources and who-and-when on
     /// supplies and order items; v38 the names people set for themselves; v39
-    /// who set each staple's level in its history.
-    public static let supportedFormatVersions: ClosedRange<Int> = 17...39
+    /// who set each staple's level in its history; v40 how attendance goes to
+    /// the school (email or ParentLocker) and each child's ParentLocker match.
+    public static let supportedFormatVersions: ClosedRange<Int> = 17...40
 
     // MARK: - Public API
 
