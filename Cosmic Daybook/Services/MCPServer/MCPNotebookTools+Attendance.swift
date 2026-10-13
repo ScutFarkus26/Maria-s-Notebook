@@ -58,10 +58,26 @@ extension MCPNotebookTools {
             lines.append("  School is not in session that day.")
         }
         lines.append(contentsOf: statusLines(from: grouped))
-        if let sent = AttendanceEmailLog.thirdPersonSummary(on: day, in: modelContext) {
+        let sent = AttendanceEmailLog.thirdPersonSummary(on: day, in: modelContext)
+        if AttendanceEmailLog.settings(in: modelContext)?.sendMethod == .parentLocker {
+            lines += parentLockerLines(on: day, sent: sent, nonSchoolDay: nonSchoolDay, in: modelContext)
+        } else if let sent {
             lines.append("  Front desk email: " + sent)
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// With ParentLocker picked: whether the day went, and for today where
+    /// this Mac's sending stands, with each child it left alone.
+    private static func parentLockerLines(
+        on day: Date, sent: String?, nonSchoolDay: Bool, in modelContext: NSManagedObjectContext
+    ) -> [String] {
+        var lines = ["  ParentLocker: " + (sent ?? (nonSchoolDay ? "nothing to send" : "not sent yet"))]
+        guard AppCalendar.shared.isDateInToday(day),
+              let status = ParentLockerSync.current(for: modelContext)?.status else { return lines }
+        if let message = status.message { lines.append("  ParentLocker on this Mac: " + message) }
+        lines.append(contentsOf: status.problems.map { "  - " + $0 })
+        return lines
     }
 
     private static func namesByStatus(

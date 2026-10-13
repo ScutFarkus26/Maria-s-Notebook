@@ -8,6 +8,8 @@
 //  outright (remove_student_from_work is the one exception, and it refuses
 //  until the guide has seen exactly what it will change), and
 //  record_parent_communication files a letter without sending it.
+//  send_attendance_to_school is the one tool that reaches outside the
+//  notebook: it sends the day's attendance to the school's ParentLocker site.
 //
 //  Tools are grouped below only to keep this list readable; the order is what
 //  the client sees in tools/list. Each domain's implementation lives in its
@@ -148,6 +150,7 @@ enum MCPNotebookTools {
             attendanceForDayTool(context: context),
             studentAttendanceTool(context: context),
             markAttendanceTool(context: context),
+            sendAttendanceToSchoolTool(),
             listOpenFollowUpsTool(context: context),
             listTodosTool(context: context),
             addFollowUpTool(context: context),

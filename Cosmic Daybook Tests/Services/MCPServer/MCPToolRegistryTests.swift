@@ -14,7 +14,7 @@ struct MCPToolRegistryTests {
         let tools = MCPNotebookTools.makeTools(context: { context })
 
         let names: [String] = tools.map(\.name)
-        #expect(names.count == 91)
+        #expect(names.count == 92)
         #expect(Set(names).count == names.count)
 
         let encoder = JSONEncoder()
@@ -29,7 +29,7 @@ struct MCPToolRegistryTests {
             "list_lessons_by_area", "create_lesson", "update_lesson", "reorder_lessons",
             "discard_presentation", "update_presentation_roster", "clear_year_plan",
             "student_curriculum_map", "class_curriculum_map", "students_pending",
-            "students_ready", "mastery_candidates", "data_checks"
+            "students_ready", "mastery_candidates", "data_checks", "send_attendance_to_school"
         ]
         #expect(added.isSubset(of: Set(names)))
     }
@@ -53,7 +53,9 @@ struct MCPToolRegistryTests {
         // deletes and retirements
         "clear_year_plan", "discard_presentation", "remove_student_from_work",
         "skip_year_plan_entries",
-        "create_backup", "draft_parent_report"
+        "create_backup", "draft_parent_report",
+        // sends outside the notebook
+        "send_attendance_to_school"
     ]
 
     /// The tools that delete or retire rows.
@@ -62,7 +64,11 @@ struct MCPToolRegistryTests {
         "skip_year_plan_entries"
     ]
 
-    @Test("Annotations classify every tool, and nothing reaches outside the notebook")
+    /// The tools that reach outside the notebook: only the send to the
+    /// school's ParentLocker site (plan "ParentLocker attendance").
+    private static let openWorldTools: Set<String> = ["send_attendance_to_school"]
+
+    @Test("Annotations classify every tool, and only the school send reaches outside the notebook")
     func annotationsClassifyEveryTool() throws {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
         let context = stack.viewContext
@@ -75,12 +81,13 @@ struct MCPToolRegistryTests {
         #expect(destructive == Self.destructiveTools)
         #expect(Self.destructiveTools.isSubset(of: Self.writingTools))
 
-        for tool in tools {
-            #expect(!tool.annotations.openWorldHint, "\(tool.name) only reads the local notebook")
-            if tool.annotations.readOnlyHint {
-                #expect(tool.annotations.idempotentHint, "\(tool.name) reads, so it is idempotent")
-                #expect(!tool.annotations.destructiveHint, "\(tool.name) reads, so it destroys nothing")
-            }
+        let openWorld = Set(tools.filter(\.annotations.openWorldHint).map(\.name))
+        #expect(openWorld == Self.openWorldTools)
+        #expect(Self.openWorldTools.isSubset(of: Self.writingTools))
+
+        for tool in tools where tool.annotations.readOnlyHint {
+            #expect(tool.annotations.idempotentHint, "\(tool.name) reads, so it is idempotent")
+            #expect(!tool.annotations.destructiveHint, "\(tool.name) reads, so it destroys nothing")
         }
     }
 }
