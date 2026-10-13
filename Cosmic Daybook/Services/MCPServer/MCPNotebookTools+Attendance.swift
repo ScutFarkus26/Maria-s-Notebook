@@ -72,7 +72,11 @@ extension MCPNotebookTools {
     private static func parentLockerLines(
         on day: Date, sent: String?, nonSchoolDay: Bool, in modelContext: NSManagedObjectContext
     ) -> [String] {
-        var lines = ["  ParentLocker: " + (sent ?? (nonSchoolDay ? "nothing to send" : "not sent yet"))]
+        // A day ParentLocker isn't expecting is no send: said as such.
+        let unsent = nonSchoolDay ? "nothing to send"
+            : AttendanceEmailLog.isNotExpected(on: day, in: modelContext) ? "not expecting attendance that day"
+            : "not sent yet"
+        var lines = ["  ParentLocker: " + (sent ?? unsent)]
         guard AppCalendar.shared.isDateInToday(day),
               let status = ParentLockerSync.current(for: modelContext)?.status else { return lines }
         if let message = status.message { lines.append("  ParentLocker on this Mac: " + message) }

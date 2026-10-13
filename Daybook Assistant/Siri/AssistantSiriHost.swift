@@ -59,9 +59,12 @@ enum SiriHost {
     /// Siri's Undo of a Close Arrival: this phone no longer counts the day
     /// as closed here, and goes by the records again, as the grid's Undo
     /// does. It used to reopen on purpose, so a Close Arrival the guide made
-    /// afterwards was ignored here.
+    /// afterwards was ignored here. The ParentLocker send Siri's Close
+    /// Arrival left waiting doesn't go either (bug hunt 2026-10-13
+    /// afternoon, H2; `AssistantSiriCommands.undoCloseSend`).
     static func closeArrivalUndone(on day: Date) {
         AttendanceLatePhase.setLate(false, on: day)
+        AssistantSiriCommands.undoCloseSend(on: day, sync: ParentLockerSync.current)
     }
 
     /// Whether `day` is a school day by the guide's calendar: the classroom

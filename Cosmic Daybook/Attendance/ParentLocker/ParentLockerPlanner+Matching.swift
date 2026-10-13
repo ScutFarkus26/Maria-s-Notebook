@@ -151,6 +151,29 @@ nonisolated extension ParentLockerPlanner {
         return seen
     }
 
+    /// Whether ParentLocker still holds, in every class, what `earlier` (the
+    /// child's mark here before a change synced in) would send: nobody has
+    /// saved the child there since that mark. For a change measured by no
+    /// row seen as it arrived (bug hunt 2026-10-13 afternoon, M5). A mark this
+    /// build can't send, or no row at all, says nothing.
+    static func holdsEarlierMark(
+        _ earlier: DayMark?, now current: ParentLockerSeen?, rosters: [ParentLockerRoster]
+    ) -> Bool {
+        guard let current, !current.rows.isEmpty else { return false }
+        let wanted = wanted(for: earlier)
+        return current.rows.allSatisfy { courseID, row in
+            switch wanted {
+            case .nothing:
+                return row.markID == nil
+            case .unknown:
+                return false
+            case .send(let type, _):
+                let marks = rosters.first { $0.course.courseID == courseID }?.marks ?? []
+                return row.markID != nil && row.markID == ParentLockerMark.find(type, in: marks)?.id
+            }
+        }
+    }
+
     /// The children among `imported` (changes synced in from another device)
     /// whose ParentLocker rows have changed since this device last saw them
     /// (`before`, taken when the change was noted): someone saved them since,

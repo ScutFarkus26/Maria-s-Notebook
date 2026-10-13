@@ -50,6 +50,16 @@ nonisolated struct SiriAttendanceChange: Codable, Sendable {
         return "Done. \(name) isn't marked \(mark.to.spokenWord) anymore."
     }
 
+    /// `undoneDialog`, and for a Close Arrival undone once today's attendance
+    /// went to ParentLocker, which can't take a mark back, that its absences
+    /// stay there (bug hunt 2026-10-13 afternoon, H2).
+    func undoneDialog(sentToParentLocker: Bool) -> String {
+        closedArrival && sentToParentLocker ? undoneDialog + " " + Self.parentLockerKeepsAbsences : undoneDialog
+    }
+
+    static let parentLockerKeepsAbsences = "ParentLocker already has today's attendance, so it keeps those "
+        + "absences. Change them in ParentLocker, or mark the children here."
+
     /// What Siri says when someone has changed these marks since, so Undo
     /// left them: "Maya Stone's mark has changed since then, so I left it alone."
     var changedSinceDialog: String {

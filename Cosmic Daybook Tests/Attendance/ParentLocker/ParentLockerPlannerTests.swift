@@ -88,8 +88,8 @@ struct ParentLockerPlannerTests {
               wanted: .send(.absent, comment: "Family")),
         .init(name: "Absent, other", mark: mark(.absent, reason: "other"), wanted: .send(.absent, comment: "Other")),
         .init(name: "Absent, no reason: Notes left alone", mark: mark(.absent), wanted: .send(.absent, comment: nil)),
-        .init(name: "Close Arrival's absence: an empty Notes box", mark: mark(.absent, reason: "closeArrival"),
-              wanted: .send(.absent, comment: "")),
+        .init(name: "Close Arrival's absence: Notes left to the office", mark: mark(.absent, reason: "closeArrival"),
+              wanted: .send(.absent, comment: nil)),
         .init(name: "Left early after arriving on time", mark: mark(.leftEarly, leftAt: leftAt, before: .present),
               wanted: .send(.present, comment: "Left early at 1:30 PM")),
         .init(name: "Left early after arriving late", mark: mark(.leftEarly, leftAt: leftAt, before: .tardy),
@@ -161,7 +161,8 @@ struct ParentLockerPlannerTests {
         #expect(upper.attendanceReportID == "880002")
         #expect(upper.entries.map(\.childID) == [Self.wrenCalloway.id, Self.saoirse.id, Self.bea.id])
         #expect(upper.entries.map(\.type) == [.absent, .present, .late])
-        #expect(upper.entries.map(\.comment) == ["", nil, "Left early at 1:30 PM"])
+        // Close Arrival's absence leaves the Notes box as the office has it.
+        #expect(upper.entries.map(\.comment) == [nil, nil, "Left early at 1:30 PM"])
     }
 
     @Test("A class's day: who was left alone and why, and the matches to keep")

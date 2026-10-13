@@ -7,9 +7,9 @@ import Foundation
 ///
 /// The rules (plan "ParentLocker attendance", Marks and matching):
 /// - Here goes as Present, Late as Late, Absent as Absent with only the reason
-///   picked in the Notes box (Close Arrival's automatic absence with an empty
-///   one), and Left Early as Present (Late when the child arrived late) with
-///   "Left early at 1:30 PM". Unmarked sends nothing, and the Notes box is
+///   picked in the Notes box (Close Arrival's automatic absence with none, so
+///   the office's note stays), and Left Early as Present (Late when the child
+///   arrived late) with "Left early at 1:30 PM". Unmarked sends nothing, and the Notes box is
 ///   written only when there is something to say, or to clear what the app
 ///   wrote there for an earlier mark (never anyone else's words).
 /// - A child is matched by the stored `parentLockerID`, else by name, and a
@@ -83,9 +83,9 @@ nonisolated enum ParentLockerPlanner {
         case .tardy:
             return .send(.late, comment: nil)
         case .absent:
-            if mark.absenceReasonRaw == AttendanceDeduplication.automaticAbsenceRaw {
-                return .send(.absent, comment: "")
-            }
+            // Close Arrival's automatic absence reads as no reason: the office's
+            // or a parent's words in the box stay (bug hunt 2026-10-13
+            // afternoon, M6), and only the app's own are cleared (`isAppNote`).
             return .send(.absent, comment: reasonText(AbsenceReason(rawValue: mark.absenceReasonRaw) ?? .none))
         case .leftEarly:
             let arrivedLate = mark.statusBeforeLeavingRaw == AttendanceStatus.tardy.rawValue

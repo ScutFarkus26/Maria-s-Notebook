@@ -131,6 +131,11 @@
 		EB7C0A1E2D3F4A5B6C7D001E /* ParentLockerSync+Changes.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7C0A1E2D3F4A5B6C7D001D /* ParentLockerSync+Changes.swift */; };
 		EB7C0A1E2D3F4A5B6C7D0020 /* ParentLockerSync+Schedule.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7C0A1E2D3F4A5B6C7D001F /* ParentLockerSync+Schedule.swift */; };
 		EB7C0A1E2D3F4A5B6C7D0022 /* ParentLockerSync+Run.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7C0A1E2D3F4A5B6C7D0021 /* ParentLockerSync+Run.swift */; };
+		EB7C0A1E2D3F4A5B6C7D0042 /* ParentLockerSync+SignIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7C0A1E2D3F4A5B6C7D0041 /* ParentLockerSync+SignIn.swift */; };
+		EB7C0A1E2D3F4A5B6C7D0044 /* ParentLockerSync+LastSeen.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7C0A1E2D3F4A5B6C7D0043 /* ParentLockerSync+LastSeen.swift */; };
+		EB7C0A1E2D3F4A5B6C7D0046 /* ParentLockerSync+Report.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7C0A1E2D3F4A5B6C7D0045 /* ParentLockerSync+Report.swift */; };
+		EB7C0A1E2D3F4A5B6C7D0048 /* ParentLockerJob.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7C0A1E2D3F4A5B6C7D0047 /* ParentLockerJob.swift */; };
+		EB7C0A1E2D3F4A5B6C7D004A /* AttendanceEmailLog+Sends.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7C0A1E2D3F4A5B6C7D0049 /* AttendanceEmailLog+Sends.swift */; };
 		EB7C0A1E2D3F4A5B6C7D0024 /* ParentLockerWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7C0A1E2D3F4A5B6C7D0023 /* ParentLockerWatcher.swift */; };
 		EB7C0A1E2D3F4A5B6C7D0026 /* ParentLockerSignIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7C0A1E2D3F4A5B6C7D0025 /* ParentLockerSignIn.swift */; };
 		EB7C0A1E2D3F4A5B6C7D0028 /* ParentLockerSignInSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7C0A1E2D3F4A5B6C7D0027 /* ParentLockerSignInSheet.swift */; };
@@ -284,6 +289,11 @@
 		EB7C0A1E2D3F4A5B6C7D001D /* ParentLockerSync+Changes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ParentLockerSync+Changes.swift"; path = "Cosmic Daybook/Attendance/ParentLocker/ParentLockerSync+Changes.swift"; sourceTree = SOURCE_ROOT; };
 		EB7C0A1E2D3F4A5B6C7D001F /* ParentLockerSync+Schedule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ParentLockerSync+Schedule.swift"; path = "Cosmic Daybook/Attendance/ParentLocker/ParentLockerSync+Schedule.swift"; sourceTree = SOURCE_ROOT; };
 		EB7C0A1E2D3F4A5B6C7D0021 /* ParentLockerSync+Run.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ParentLockerSync+Run.swift"; path = "Cosmic Daybook/Attendance/ParentLocker/ParentLockerSync+Run.swift"; sourceTree = SOURCE_ROOT; };
+		EB7C0A1E2D3F4A5B6C7D0041 /* ParentLockerSync+SignIn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ParentLockerSync+SignIn.swift"; path = "Cosmic Daybook/Attendance/ParentLocker/ParentLockerSync+SignIn.swift"; sourceTree = SOURCE_ROOT; };
+		EB7C0A1E2D3F4A5B6C7D0043 /* ParentLockerSync+LastSeen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ParentLockerSync+LastSeen.swift"; path = "Cosmic Daybook/Attendance/ParentLocker/ParentLockerSync+LastSeen.swift"; sourceTree = SOURCE_ROOT; };
+		EB7C0A1E2D3F4A5B6C7D0045 /* ParentLockerSync+Report.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ParentLockerSync+Report.swift"; path = "Cosmic Daybook/Attendance/ParentLocker/ParentLockerSync+Report.swift"; sourceTree = SOURCE_ROOT; };
+		EB7C0A1E2D3F4A5B6C7D0047 /* ParentLockerJob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ParentLockerJob.swift; path = "Cosmic Daybook/Attendance/ParentLocker/ParentLockerJob.swift"; sourceTree = SOURCE_ROOT; };
+		EB7C0A1E2D3F4A5B6C7D0049 /* AttendanceEmailLog+Sends.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AttendanceEmailLog+Sends.swift"; path = "Cosmic Daybook/Attendance/Email/AttendanceEmailLog+Sends.swift"; sourceTree = SOURCE_ROOT; };
 		EB7C0A1E2D3F4A5B6C7D0023 /* ParentLockerWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ParentLockerWatcher.swift; path = "Cosmic Daybook/Attendance/ParentLocker/ParentLockerWatcher.swift"; sourceTree = SOURCE_ROOT; };
 		EB7C0A1E2D3F4A5B6C7D0025 /* ParentLockerSignIn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ParentLockerSignIn.swift; path = "Cosmic Daybook/Attendance/ParentLocker/ParentLockerSignIn.swift"; sourceTree = SOURCE_ROOT; };
 		EB7C0A1E2D3F4A5B6C7D0027 /* ParentLockerSignInSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ParentLockerSignInSheet.swift; path = "Cosmic Daybook/Attendance/ParentLocker/ParentLockerSignInSheet.swift"; sourceTree = SOURCE_ROOT; };
@@ -532,6 +542,11 @@
 				EB7C0A1E2D3F4A5B6C7D001D /* ParentLockerSync+Changes.swift */,
 				EB7C0A1E2D3F4A5B6C7D001F /* ParentLockerSync+Schedule.swift */,
 				EB7C0A1E2D3F4A5B6C7D0021 /* ParentLockerSync+Run.swift */,
+				EB7C0A1E2D3F4A5B6C7D0041 /* ParentLockerSync+SignIn.swift */,
+				EB7C0A1E2D3F4A5B6C7D0043 /* ParentLockerSync+LastSeen.swift */,
+				EB7C0A1E2D3F4A5B6C7D0045 /* ParentLockerSync+Report.swift */,
+				EB7C0A1E2D3F4A5B6C7D0047 /* ParentLockerJob.swift */,
+				EB7C0A1E2D3F4A5B6C7D0049 /* AttendanceEmailLog+Sends.swift */,
 				EB7C0A1E2D3F4A5B6C7D0023 /* ParentLockerWatcher.swift */,
 				EB7C0A1E2D3F4A5B6C7D0025 /* ParentLockerSignIn.swift */,
 				EB7C0A1E2D3F4A5B6C7D0027 /* ParentLockerSignInSheet.swift */,
@@ -851,6 +866,11 @@
 				EB7C0A1E2D3F4A5B6C7D001E /* ParentLockerSync+Changes.swift in Sources */,
 				EB7C0A1E2D3F4A5B6C7D0020 /* ParentLockerSync+Schedule.swift in Sources */,
 				EB7C0A1E2D3F4A5B6C7D0022 /* ParentLockerSync+Run.swift in Sources */,
+				EB7C0A1E2D3F4A5B6C7D0042 /* ParentLockerSync+SignIn.swift in Sources */,
+				EB7C0A1E2D3F4A5B6C7D0044 /* ParentLockerSync+LastSeen.swift in Sources */,
+				EB7C0A1E2D3F4A5B6C7D0046 /* ParentLockerSync+Report.swift in Sources */,
+				EB7C0A1E2D3F4A5B6C7D0048 /* ParentLockerJob.swift in Sources */,
+				EB7C0A1E2D3F4A5B6C7D004A /* AttendanceEmailLog+Sends.swift in Sources */,
 				EB7C0A1E2D3F4A5B6C7D0024 /* ParentLockerWatcher.swift in Sources */,
 				EB7C0A1E2D3F4A5B6C7D0026 /* ParentLockerSignIn.swift in Sources */,
 				EB7C0A1E2D3F4A5B6C7D0028 /* ParentLockerSignInSheet.swift in Sources */,

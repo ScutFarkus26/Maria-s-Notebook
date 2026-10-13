@@ -2,6 +2,7 @@
 // The front-desk attendance email: sending it, recording that it went, and
 // the reminder's tap.
 
+import CoreData
 import SwiftUI
 #if os(iOS)
 import MessageUI
@@ -15,7 +16,14 @@ extension AttendanceExpandedView {
     }
 
     /// When the front desk needs it by: the guide's setting.
-    var deadlineMinutes: Int { AttendanceEmail.storedSettings().deadlineMinutes }
+    var deadlineMinutes: Int { Self.deadlineMinutes(in: viewContext) }
+
+    /// The due time as the shared settings row holds it, where the reminder,
+    /// the sync and the assistants read it, not this device's synced
+    /// preference, which can lag behind it; 9:00 before there is a row.
+    static func deadlineMinutes(in context: NSManagedObjectContext) -> Int {
+        AttendanceEmailLog.settings(in: context)?.deadlineMinutes ?? AttendanceEmailLog.defaultDeadlineMinutes
+    }
 
     /// The two moments the control changes: half an hour before the due
     /// time, and at it. It's redrawn then and at no other time.
@@ -51,16 +59,32 @@ extension AttendanceExpandedView {
 
     /// On iPhone, where the email is otherwise in the overflow menu: its own
     /// row once everyone's marked, the due time is near, or it has gone.
-    /// With ParentLocker picked, ParentLocker's line in its place.
+    /// With ParentLocker picked, ParentLocker's line in its place, and Send
+    /// to ParentLocker beside it once everyone's marked and nothing has gone,
+    /// as the Mac and iPad have (bug hunt 2026-10-13 afternoon, M2).
     @ViewBuilder
     var compactFrontDeskRow: some View {
         #if os(iOS)
-        let near = AttendanceEmailLog.urgency(for: date, deadlineMinutes: deadlineMinutes) != .none
-        if hSizeClass == .compact, sendsToParentLocker {
-            parentLockerLine(showsProblems: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, AppTheme.Spacing.compact)
-                .padding(.bottom, AppTheme.Spacing.small)
+        let urgency = AttendanceEmailLog.urgency(for: date, deadlineMinutes: deadlineMinutes)
+        let near = urgency != .none
+        if hSizeClass == .compact, sendsToParentLocker, !viewModel.isFuture {
+            HStack(spacing: AppTheme.Spacing.small) {
+                parentLockerLine(showsProblems: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                // A child left out of ParentLocker isn't waited for, as the
+                // line doesn't (`AttendanceRow.waitsForParentLocker`).
+                if Self.compactRowOffersSend(
+                    isOpen: parentLockerIsOpen, isFuture: viewModel.isFuture,
+                    isRollComplete: !viewModel.rows.isEmpty && !viewModel.rows.contains(where: \.waitsForParentLocker)
+                ) {
+                    let overdue = if case .overdue = urgency { true } else { false }
+                    parentLockerSendButton(overdue: overdue, prominent: true)
+                        .controlSize(.small)
+                        .fixedSize()
+                }
+            }
+            .padding(.horizontal, AppTheme.Spacing.compact)
+            .padding(.bottom, AppTheme.Spacing.small)
         } else if hSizeClass == .compact, emailIsOn, !isNonSchoolDay, frontDeskSend != nil || isRollComplete || near {
             HStack {
                 Spacer(minLength: 0)
@@ -71,6 +95,31 @@ extension AttendanceExpandedView {
             .padding(.bottom, AppTheme.Spacing.small)
         }
         #endif
+    }
+
+    /// Whether the iPhone's row offers Send to ParentLocker: the day is
+    /// still open, has come, and everyone on it is marked.
+    static func compactRowOffersSend(isOpen: Bool, isFuture: Bool, isRollComplete: Bool) -> Bool {
+        isOpen && !isFuture && isRollComplete
+    }
+
+    /// What the 9:00 reminder's tap does on the roll.
+    enum ReminderTap: Equatable {
+        /// Asks whether to send today's attendance to ParentLocker.
+        case offerParentLocker
+        /// Opens today's email.
+        case openEmail
+        case nothing
+    }
+
+    /// The reminder's tap: with ParentLocker picked, offers Send while today
+    /// is open (bug hunt 2026-10-13 afternoon, M2); with the email, opens it
+    /// unless it has gone.
+    static func reminderTap(
+        sendsToParentLocker: Bool, parentLockerIsOpen: Bool, emailIsOpen: Bool
+    ) -> ReminderTap {
+        if sendsToParentLocker { return parentLockerIsOpen ? .offerParentLocker : .nothing }
+        return emailIsOpen ? .openEmail : .nothing
     }
 
     /// Who sent the day's email, as this screen reads it ("you" for the
@@ -172,7 +221,9 @@ extension AttendanceExpandedView {
     }
 
     /// The "did it go?" question and the reminder's tap, which opens today's
-    /// email unless it has gone since.
+    /// email unless it has gone since, or with ParentLocker picked offers to
+    /// send it there. The day's send is read from the store: the tap can
+    /// come as the roll appears, before it has loaded.
     var frontDeskFollowUps: FrontDeskFollowUps {
         FrontDeskFollowUps(
             askingWhetherSent: $askingWhetherSent,
@@ -180,10 +231,17 @@ extension AttendanceExpandedView {
             unmarkedNames: viewModel.unmarkedNames,
             onMarkRestAbsent: markRestAbsentAndEmail,
             onSent: { recordFrontDeskSend(confirmedByHand: true) },
-            onReminderTap: {
+            onReminderTap: { asker in
                 guard FrontDeskEmailReminder.isEmailRequested, Calendar.current.isDateInToday(date) else { return }
                 FrontDeskEmailReminder.isEmailRequested = false
-                if emailIsOn, !isNonSchoolDay, frontDeskSend == nil { prepareAttendanceEmail() }
+                let open = !isNonSchoolDay && AttendanceEmailLog.latestSend(on: date, in: viewContext) == nil
+                switch Self.reminderTap(
+                    sendsToParentLocker: sendsToParentLocker, parentLockerIsOpen: open, emailIsOpen: emailIsOn && open
+                ) {
+                case .offerParentLocker: offerParentLockerSend(asking: asker)
+                case .openEmail: prepareAttendanceEmail()
+                case .nothing: break
+                }
             }
         )
     }
@@ -197,7 +255,11 @@ struct FrontDeskFollowUps: ViewModifier {
     let unmarkedNames: [String]
     let onMarkRestAbsent: () -> Void
     let onSent: () -> Void
-    let onReminderTap: () -> Void
+    /// Handed the roll's ParentLocker asker, which `ParentLockerFollowUps`
+    /// (outside this one) puts in the environment.
+    let onReminderTap: (ParentLockerSendAsker?) -> Void
+
+    @Environment(ParentLockerSendAsker.self) private var asker: ParentLockerSendAsker?
 
     func body(content: Content) -> some View {
         content
@@ -213,8 +275,10 @@ struct FrontDeskFollowUps: ViewModifier {
             } message: {
                 Text("\(unmarkedNames.formatted(.list(type: .and))). The front desk gets the email with them absent.")
             }
-            .onReceive(NotificationCenter.default.publisher(for: .frontDeskEmailRequested)) { _ in onReminderTap() }
-            .onAppear(perform: onReminderTap)
+            .onReceive(NotificationCenter.default.publisher(for: .frontDeskEmailRequested)) { _ in
+                onReminderTap(asker)
+            }
+            .onAppear { onReminderTap(asker) }
     }
 
     private var restAbsentTitle: String {

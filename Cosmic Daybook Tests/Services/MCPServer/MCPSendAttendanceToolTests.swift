@@ -97,6 +97,23 @@ struct MCPSendAttendanceToolTests {
         #expect(again.contains("0 children changed"))
     }
 
+    @Test("A send with a child unmarked sends the rest, lists who's unmarked, and doesn't record the day")
+    func unmarkedChildListed() async throws {
+        var marks = Self.marks
+        marks[Device.bea] = nil
+        let device = Device(site: site, clock: clock, marks: marks)
+        let (reply, _) = try await call(["date": "2026-10-12"], sync: device.sync)
+
+        #expect(reply.contains("4 children changed"))
+        #expect(reply.contains("Not marked yet, so not sent: Bea M."))
+        #expect(reply.contains("isn't recorded as sent"))
+        #expect(site.mark(41004) == nil)
+        #expect(device.store.recordedSends.isEmpty)
+
+        let (preview, _) = try await call(["date": "2026-10-12", "preview": true], sync: device.sync)
+        #expect(preview.contains("Not marked yet, so not sent: Bea M."))
+    }
+
     @Test("A Debug build only previews, and the call says so and writes nothing")
     func previewOnlyBuild() async throws {
         let device = device(policy: .previewOnly)

@@ -2,9 +2,9 @@ import Foundation
 import OSLog
 
 // One run of the sync: whether it may go, the sign-in (signing back in by
-// itself only in front, and never with a password ParentLocker refused), the
-// classes' rosters, the plan, the saves, and what it leaves owed when
-// something stops it.
+// itself only in front, and never with a password ParentLocker refused or
+// while ParentLocker wants a person to sign in), the classes' rosters, the
+// plan, the saves, and what it leaves owed when something stops it.
 
 extension ParentLockerSync {
 
@@ -19,6 +19,7 @@ extension ParentLockerSync {
         let started = clock.now
         let isTodays = isToday(job.day)
         let day = store.day(job.day, withChildren: true)
+        if isTodays { rememberMarks(day) }
         if let refusal = refusal(of: job, on: day) {
             return ParentLockerRunOutcome(
                 result: .failure(refusal), status: isTodays ? status : ParentLockerStatus(state: .off)
@@ -92,7 +93,7 @@ extension ParentLockerSync {
         case .live, .owed:
             let after = isAfter(day, on: job.day)
             guard !isToday(job.day) || !day.isSchoolDay || !after else { return nil }
-            drop(job)
+            if isToday(job.day), day.isSchoolDay { keepUntilAfter(job, marks: day.marks) } else { drop(job) }
             if !after { status.state = .waitingForArrival }
             return ParentLockerSendFailure(message: "Nothing goes to ParentLocker until arrival closes.")
         case .backstop, .deadline:
@@ -103,17 +104,35 @@ extension ParentLockerSync {
     /// The guide's backstops go only from the guide's device, today, while
     /// nothing is recorded: after arrival closed, or after the due time once
     /// everyone is marked. A backstop that doesn't go leaves the day free for
-    /// the next one: arrival may close again after an Undo.
+    /// the next one: arrival may close again after an Undo. Changes made
+    /// before "after" go by themselves once the day is.
     private func backstopRefusal(of job: ParentLockerJob, on day: ParentLockerDay) -> ParentLockerSendFailure? {
         let waiting = job.reason == .backstop ? day.arrivalClosed : day.isSchoolDay && day.everyoneMarked
         guard !isToday(job.day) || day.role != .leadGuide || day.sentToParentLocker || !waiting else { return nil }
         if job.reason == .backstop, let backstopDay, isSameDay(backstopDay, job.day) { self.backstopDay = nil }
+        if isToday(job.day), isAfter(day, on: job.day) {
+            releaseEarlyChanges(on: job.day, sent: day.sentToParentLocker)
+        }
         return ParentLockerSendFailure(message: "The day was already sent, or isn't taken yet.")
     }
 
     private func drop(_ job: ParentLockerJob) {
         guard let children = job.children else { return }
         for child in children { localChanges[child] = nil }
+        saveOwed()
+    }
+
+    /// Today's changes refused because the day isn't "after" here any more
+    /// (Undo, Reopen Arrival): kept until it is again, as changes made
+    /// before it are (review of the afternoon fixes, H4), this device's own
+    /// with what's owed while they have a mark to send (`marks`).
+    private func keepUntilAfter(_ job: ParentLockerJob, marks: [UUID: ParentLockerPlanner.DayMark]) {
+        guard let children = job.children else { return }
+        let own = children.subtracting(job.imported)
+        for child in own { localChanges[child] = nil }
+        keepEarlyLocal(own, marks: marks)
+        earlyLocalDue = nil
+        earlyChanges.formUnion(job.imported.subtracting(earlyLocal))
         saveOwed()
     }
 
@@ -151,7 +170,11 @@ extension ParentLockerSync {
     /// sight, and keeps the new cookies. Never with a password ParentLocker
     /// refused: that one waits until a new one is saved, here or on another
     /// of the person's devices, so the school's site doesn't see it again and
-    /// again. Only in front: the web view stalls in the background.
+    /// again. Never while ParentLocker wants a person at its sign-in (new
+    /// terms, a reset) either: only a sign-in through the sheet, or a newer
+    /// password saved on another of the person's devices, clears that (bug
+    /// hunt 2026-10-13 afternoon, M9). Only in front: the web view stalls in
+    /// the background.
     private func signInAgain(site: String) async throws -> [ParentLockerCookie] {
         let credential: ParentLockerKeychain.Credential?
         let saved: Date?
@@ -167,6 +190,8 @@ extension ParentLockerSync {
             savedPasswordRefused = true
             throw ParentLockerSyncStop.passwordRefused
         }
+        if signInNeedsYou, needsYouPassword != password { signInNeedsYou = false }
+        guard !signInNeedsYou else { throw ParentLockerSyncStop.needsYou }
         guard dependencies.isInForeground() else { throw ParentLockerSyncStop.notSentYet }
         let cookies: [ParentLockerCookie]
         do {
@@ -176,6 +201,10 @@ extension ParentLockerSync {
                 Self.logger.error("ParentLocker: the saved password was refused; it won't be tried again")
                 dependencies.refusals.setRefused(password, site: site)
                 savedPasswordRefused = true
+            } else if error == .needsYou {
+                Self.logger.error("ParentLocker: the sign-in wants a person; it won't be tried again by itself")
+                signInNeedsYou = true
+                needsYouPassword = password
             }
             throw error.syncError
         }
@@ -208,9 +237,8 @@ extension ParentLockerSync {
         _ job: ParentLockerJob, day: ParentLockerDay, transport: any ParentLockerTransport
     ) async throws -> ParentLockerRunResult {
         let today = isToday(job.day)
-        let (courses, leftAlone) = Self.coursesToLoad(
-            try await transport.courses(on: today ? nil : job.day), isToday: today
-        )
+        let listed = try await transport.courses(on: today ? nil : job.day)
+        let (courses, leftAlone) = Self.coursesToLoad(listed, isToday: today)
         var rosters: [ParentLockerRoster] = []
         for course in courses {
             rosters.append(try await transport.roster(course: course, date: job.day))
@@ -241,38 +269,9 @@ extension ParentLockerSync {
             """)
         return ParentLockerRunResult(
             plan: plan, rosters: rosters, matches: matches, leftAlone: leftAlone,
-            conflicts: conflicts, savedCount: saved, wasPreview: wasPreview, leftToOthers: leftToOthers
+            conflicts: conflicts, savedCount: saved, wasPreview: wasPreview, leftToOthers: leftToOthers,
+            notExpected: today && Self.expectsNoAttendance(listed)
         )
-    }
-
-    /// The classes to read: those that take attendance once a day (so a
-    /// class's mark is the child's day). Today, one the office doesn't
-    /// expect attendance in is left alone too. Returns the rest in words.
-    nonisolated static func coursesToLoad(
-        _ courses: [ParentLockerCourse], isToday: Bool
-    ) -> (load: [ParentLockerCourse], leftAlone: [String]) {
-        var load: [ParentLockerCourse] = []
-        var leftAlone: [String] = []
-        for course in courses {
-            if !course.isDailyAttendance || !course.hasAttendance {
-                leftAlone.append("Skipped \(course.name): it doesn't take daily attendance.")
-            } else if isToday, course.reportStatus == "not_expected" {
-                leftAlone.append("Skipped \(course.name): no attendance is expected today.")
-            } else {
-                load.append(course)
-            }
-        }
-        return (load, leftAlone)
-    }
-
-    private static func conflictLine(
-        _ conflict: ParentLockerSaveReply.Conflict, batch: ParentLockerPlanner.Batch,
-        rosters: [ParentLockerRoster], day: ParentLockerDay
-    ) -> String {
-        let childID = batch.entries.first { $0.studentID == conflict.studentID }?.childID
-        let marks = rosters.first { $0.course == batch.course }?.marks ?? []
-        let current = marks.first { $0.id == conflict.currentMarkID }?.name
-        return ParentLockerStatus.conflictLine(name: childID.map(day.name(of:)) ?? "a child", currentMark: current)
     }
 
     // MARK: - After a run
@@ -291,16 +290,17 @@ extension ParentLockerSync {
             if isToday(job.day) { status = previous }
             return (report, previous)
         }
+        if result.notExpected { return (report, finishNotExpected(job, result: result, started: started)) }
         let matchedAny = result.matches.values.contains { if case .matched = $0 { true } else { false } }
         if !result.wasPreview {
-            if job.isWholeClass, matchedAny, recordsSend(job, result: result) {
+            if job.isWholeClass, matchedAny, recordsSend(job, day: day, result: result) {
                 _ = store.recordSend(on: job.day)
             }
             if day.role == .leadGuide, !result.plan.newMatches.isEmpty {
                 _ = store.writeMatches(result.plan.newMatches.mapValues { Optional($0) })
             }
         }
-        settleOwed(after: job, startedAt: started)
+        settleOwed(after: job, startedAt: started, leftToOthers: result.leftToOthers)
         var problems = report.problems
         if job.isWholeClass, !matchedAny {
             problems.insert(
@@ -316,14 +316,31 @@ extension ParentLockerSync {
         return (report, ended)
     }
 
+    /// Every class ParentLocker lists today said it isn't expecting
+    /// attendance: nothing went and nothing is recorded, the line says so
+    /// (not "none of the class found" and "aren't matched"), and the day's
+    /// reminder is withdrawn (bug hunt 2026-10-13 afternoon, M8).
+    private func finishNotExpected(
+        _ job: ParentLockerJob, result: ParentLockerRunResult, started: Date
+    ) -> ParentLockerStatus {
+        if !result.wasPreview { store.noteNotExpected(on: job.day) }
+        settleOwed(after: job, startedAt: started)
+        let ended = ParentLockerStatus(state: .notExpected, lastSyncAt: clock.now)
+        if isToday(job.day) { status = ended }
+        return ended
+    }
+
     /// The day's send is recorded once, whatever sent it, so a day sent on
-    /// time stays on time (a record synced in meanwhile counts). A backstop
-    /// that found every child saved by someone else since leaves the record
-    /// to them: theirs is on its way.
-    private func recordsSend(_ job: ParentLockerJob, result: ParentLockerRunResult) -> Bool {
+    /// time stays on time (a record synced in meanwhile counts). A send
+    /// someone asked for (Send Now, the Shortcut, MCP) with children still
+    /// unmarked sends the rest but doesn't count as the day's (bug hunt
+    /// 2026-10-13 afternoon, M4). A backstop, or a retry, that found every
+    /// child saved by someone else since leaves the record to them: theirs
+    /// is on its way.
+    private func recordsSend(_ job: ParentLockerJob, day: ParentLockerDay, result: ParentLockerRunResult) -> Bool {
         guard !store.day(job.day, withChildren: false).sentToParentLocker else { return false }
-        let isBackstop = job.reason == .backstop || job.reason == .deadline
-        return !(isBackstop && result.savedCount == 0 && !result.leftToOthers.isEmpty)
+        if job.reason == .sendNow || job.reason == .request, !day.unmarkedChildren.isEmpty { return false }
+        return !(job.comparesWithLastSeen && result.savedCount == 0 && !result.leftToOthers.isEmpty)
     }
 
     /// A run that didn't get through: retry what can be, owe the rest, and
@@ -343,7 +360,10 @@ extension ParentLockerSync {
             }
             var again = job
             again.attempt += 1
-            retry = (again, clock.now.addingTimeInterval(Self.retryWaits[job.attempt]))
+            let next = (again, clock.now.addingTimeInterval(Self.retryWaits[job.attempt]))
+            // Another day's retry has its own slot: it never takes today's
+            // place (bug hunt 2026-10-13 afternoon, L8).
+            if isTodays { retry = next } else { otherDayRetry = next }
         case .signedOut:
             signedOutHere()
         case .passwordRefused:
@@ -352,36 +372,14 @@ extension ParentLockerSync {
         default:
             owe(job)
         }
-        return ended
-    }
-
-    // MARK: - Report
-
-    private func makeReport(
-        _ job: ParentLockerJob, day: ParentLockerDay, result: ParentLockerRunResult
-    ) -> ParentLockerReport {
-        // One ParentLocker child is never reported as two of ours (A2).
-        let childByStudent = ParentLockerPlanner.childByStudentID(result.matches)
-        let classes = result.rosters.compactMap { roster -> ParentLockerReport.ClassReport? in
-            let ours = roster.students.compactMap { childByStudent[$0.studentID] }
-            guard !ours.isEmpty else { return nil }
-            let batch = result.plan.batches.first { $0.course == roster.course }
-            let changes = (batch?.entries ?? []).map { entry in
-                ParentLockerReport.Change(
-                    name: day.name(of: entry.childID),
-                    mark: ParentLockerMark.find(entry.type, in: roster.marks)?.name ?? entry.type.rawValue.capitalized,
-                    note: entry.comment.flatMap { $0.isEmpty ? nil : $0 }
-                )
-            }
-            let alreadyIn = ours.filter { result.plan.upToDate.contains($0) }.map(day.name(of:))
-            return ParentLockerReport.ClassReport(name: roster.course.name, changes: changes, alreadyIn: alreadyIn)
+        // A send someone asked for, still owed, waits for the sign-in it
+        // needs. Not once the sheet was closed without one: each change
+        // takes the send owed and it fails again, and the sign-in opened
+        // after every mark (review of the afternoon fixes).
+        if isTodays, needsSignIn, wholeClass != nil, !signInDeclined,
+           job.reason == .closeArrival || job.reason == .sendNow {
+            awaitsSignIn = true
         }
-        let problems = ParentLockerStatus.problems(
-            for: result.plan.skipped, names: day.name(of:), isGuide: day.role == .leadGuide
-        ) + result.conflicts
-        return ParentLockerReport(
-            day: job.day, wasPreview: result.wasPreview, classes: classes, problems: problems,
-            classesLeftAlone: result.leftAlone, savedCount: result.savedCount
-        )
+        return ended
     }
 }

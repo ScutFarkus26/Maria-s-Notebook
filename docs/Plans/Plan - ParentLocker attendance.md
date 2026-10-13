@@ -444,6 +444,11 @@ Read the plan usage (`get_usage`) and note the weekly % used next to the phase u
 - **The Assistant's Release build warns at `AssistantSampleClass.swift:177`** ("will never be executed"). That warning was there before this work, in a file it doesn't touch; it's left alone and noted for Danny.
 - **Flaky Assistant tests:** in the first whole run, `UnsentChangesKeepAliveTests` › "Siri waits for its marks to go into the share" and "An attach that never finishes…" failed; they passed alone, with the ParentLocker tests, and in a whole rerun. They're timing-sensitive Siri tests, not ParentLocker's, and are left as a Tide row.
 - **The main checkout has a stale staged change** to `Daybook Assistant/Siri/AssistantAttendanceIntents.swift` (it undoes 043cdd7b; the file is dated Oct 7), left by an earlier move of main. It wasn't touched. Main was moved with `update-ref`, so that checkout's files are behind main.
+- **Phase 9 so far (2026-10-13):**
+  - **Schema 18 is in CloudKit Production.** Deployed after Danny signed in to the developer account again in the browser pane. The deploy preview showed exactly the four fields on three types, plus CloudKit's companion fields and indexes, and Production then listed all four.
+  - **The notebook's iOS archive 1.1 (300000000017) is built from 3ba3c2f8 but not uploaded.** The upload stopped at "Failed to Use Accounts": Xcode's App Store Connect sign-in had lapsed overnight.
+  - **TestFlight is on hold** (Danny: "don't send to testflight yet"). The Mac roll-out was stopped mid-archive and nothing went up. `LAST_BUILD` is unchanged at 16 for the notebook and 18 for the Assistant.
+  - **A fresh bug hunt has started** at Danny's request ("bug hunt the parentlocker changes"). Four Opus reviewers come at it from new angles: a real morning end to end, a fresh line-by-line read of the engine, data and sync and backup and MCP, and screens and words.
 - **The live-check simulator was cleaned:** the app uninstalled and its keychain reset, so the ParentLocker password Danny typed there is gone.
 
 ## Open questions

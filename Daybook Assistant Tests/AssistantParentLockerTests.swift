@@ -4,21 +4,36 @@ import Testing
 import UserNotifications
 @testable import Daybook_Assistant
 
-/// Stands in for the class's ParentLocker sync: signed in or not, and the
-/// status a Send Now ends on. Remembers each day it was asked to send, and
-/// each Close Arrival & Send left waiting, with its Undo window.
+/// Stands in for the class's ParentLocker sync: signed in or not (or with a
+/// password ParentLocker refused), the children it finds unmarked, and the
+/// status a Send Now ends on. Remembers each day it was asked to send, each
+/// Close Arrival & Send left waiting, with its Undo window, and each Undo.
 @MainActor
 final class FakeParentLockerSender: AssistantParentLockerSending {
     var isSignedIn: Bool
+    var passwordRefused: Bool
+    var needsSignIn: Bool { !isSignedIn || passwordRefused }
+    var awaitsSignIn = false
     var endsOn: ParentLockerStatus.State
+    var unmarked: [String]
     private(set) var sentDays: [Date] = []
     private(set) var closedDays: [Date] = []
     private(set) var undoWindows: [TimeInterval] = []
+    private(set) var cancels = 0
 
-    init(isSignedIn: Bool = true, endsOn: ParentLockerStatus.State = .upToDate) {
+    init(
+        isSignedIn: Bool = true, passwordRefused: Bool = false,
+        endsOn: ParentLockerStatus.State = .upToDate, unmarked: [String] = []
+    ) {
         self.isSignedIn = isSignedIn
+        self.passwordRefused = passwordRefused
         self.endsOn = endsOn
+        self.unmarked = unmarked
     }
+
+    func unmarkedNames(on day: Date) -> [String] { unmarked }
+
+    func cancelCloseArrivalSend() { cancels += 1 }
 
     func sendNow(day: Date) async -> ParentLockerStatus {
         sentDays.append(day)
@@ -28,6 +43,12 @@ final class FakeParentLockerSender: AssistantParentLockerSending {
     func closeArrivalSend(on day: Date, after undoWindow: TimeInterval) {
         closedDays.append(day)
         undoWindows.append(undoWindow)
+    }
+
+    /// Siri's Close Arrival & Send, signed in: a send of the day.
+    func closeArrivalSendNow(on day: Date) async -> ParentLockerStatus {
+        sentDays.append(day)
+        return ParentLockerStatus(state: endsOn)
     }
 }
 
@@ -306,7 +327,9 @@ extension AssistantSiriTests {
 
     @Test("Nothing Siri says about ParentLocker carries a web address or technical words")
     func siriParentLockerWordsArePlain() {
-        let outcomes: [AssistantParentLockerAfterClose] = [.notPicked, .sent, .previewed, .notSignedIn, .notSentYet]
+        let outcomes: [AssistantParentLockerAfterClose] = [
+            .notPicked, .sent, .previewed, .notSignedIn, .notSentYet, .notExpected
+        ]
         for outcome in outcomes {
             let text = AssistantSiriCommands.closedDialog(marked: 3, parentLocker: outcome).lowercased()
             for word in ["http", ".com", "cookie", "error", "keychain", "server", "request"] {
