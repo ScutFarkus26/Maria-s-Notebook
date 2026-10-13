@@ -20,7 +20,7 @@ struct AssistantParentLockerSection: View {
                 showingSignIn = true
             } label: {
                 LabeledContent("ParentLocker") {
-                    Text(sync.isSignedIn ? "Signed in" : "Sign In")
+                    Text(sync.isSignedIn ? "Signed in" : "Not signed in")
                         .foregroundStyle(sync.isSignedIn ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint))
                 }
             }

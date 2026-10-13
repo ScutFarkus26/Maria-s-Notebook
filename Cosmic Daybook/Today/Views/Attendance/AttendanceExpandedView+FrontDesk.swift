@@ -90,6 +90,13 @@ extension AttendanceExpandedView {
     /// hand), in the classroom share, so the assistants see it; then today's
     /// reminder is withdrawn.
     func recordFrontDeskSend(confirmedByHand: Bool) {
+        // A test copy never records a ParentLocker send: on the live store it
+        // would silence the 9:00 reminder and start every Release device's
+        // live updates (`ParentLockerSavePolicy`).
+        if sendsToParentLocker, !ParentLockerSavePolicy.current.allowsSaving {
+            onToast("This test copy of the app doesn't record ParentLocker sends.")
+            return
+        }
         AttendanceEmailLog.recordSend(
             on: date, role: CDClassroomMembership.currentRole(in: viewContext),
             channel: sendsToParentLocker ? .parentLocker : .email,

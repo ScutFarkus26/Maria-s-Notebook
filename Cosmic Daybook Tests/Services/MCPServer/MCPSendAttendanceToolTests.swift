@@ -118,7 +118,7 @@ struct MCPSendAttendanceToolTests {
         #expect(device.store.recordedSends.isEmpty)
 
         let notRunning = await failure(["date": "2026-10-12"], sync: nil)
-        #expect(notRunning?.contains("hasn't started") == true)
+        #expect(notRunning?.contains("isn't running yet") == true)
     }
 
     // MARK: - attendance_for_day

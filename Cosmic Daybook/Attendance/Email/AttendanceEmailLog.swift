@@ -195,7 +195,7 @@ enum AttendanceEmailLog {
         }
 
         /// "Emailed 8:42 AM by Sarah" or "Sent to ParentLocker 8:47 AM by
-        /// Sarah", or "Marked sent …" when it couldn't be confirmed and the
+        /// Sarah", or "Marked as sent …" when it couldn't be confirmed and the
         /// sender said it went, with "(late)" after the day's deadline. The
         /// date shows too when it went on another day than the one it reports.
         func summary(
@@ -206,9 +206,9 @@ enum AttendanceEmailLog {
                 : sentAt.formatted(.dateTime.month(.abbreviated).day().hour().minute())
             let verb = switch (channel, wasConfirmedByHand) {
             case (.email, false): "Emailed"
-            case (.email, true): "Marked sent"
+            case (.email, true): "Marked as sent"
             case (.parentLocker, false): "Sent to ParentLocker"
-            case (.parentLocker, true): "Marked sent to ParentLocker"
+            case (.parentLocker, true): "Marked as sent to ParentLocker"
             }
             let late = deadlineMinutes
                 .flatMap { calendar.date(byAdding: .minute, value: $0, to: calendar.startOfDay(for: day)) }

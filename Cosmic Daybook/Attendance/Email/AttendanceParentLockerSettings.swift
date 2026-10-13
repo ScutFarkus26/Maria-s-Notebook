@@ -64,8 +64,8 @@ struct AttendanceParentLockerSettings: View {
     }
 
     static let footnote = "Sign in once with your own ParentLocker account; it covers your other devices too. "
-        + "Each assistant signs in once on her phone with her own. Close Arrival sends the class, and "
-        + "every change after that follows by itself. Match Names lists any child the app couldn't find "
+        + "Each assistant signs in once on her phone with her own. Close Arrival & Send sends the class, and "
+        + "later changes follow by themselves. Match Names lists any child the app couldn't find "
         + "in ParentLocker by name."
 }
 

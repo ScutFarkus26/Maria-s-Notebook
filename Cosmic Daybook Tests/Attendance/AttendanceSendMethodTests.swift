@@ -75,7 +75,7 @@ struct AttendanceSendMethodTests {
 
         record.wasConfirmedByHand = true
         #expect(AttendanceEmailLog.Send(record).summary(senderName: "Sarah", for: monday)
-            == "Marked sent to ParentLocker \(time) by Sarah")
+            == "Marked as sent to ParentLocker \(time) by Sarah")
 
         let email = AttendanceEmailLog.recordSend(on: monday, role: .assistant, now: at, in: ctx)
         #expect(email.channelRaw == "email")

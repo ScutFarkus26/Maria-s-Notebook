@@ -89,7 +89,7 @@ struct AttendanceEmailLogTests {
         record.wasConfirmedByHand = true
         record.sentAt = try day("2026-10-13").addingTimeInterval(10 * 3_600)
         let summary = AttendanceEmailLog.Send(record).summary(senderName: "you", for: monday)
-        #expect(summary.hasPrefix("Marked sent "))
+        #expect(summary.hasPrefix("Marked as sent "))
         #expect(summary.hasSuffix(" by you"))
         #expect(summary.contains("13"), "another day's send carries its date: \(summary)")
     }

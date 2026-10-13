@@ -57,7 +57,7 @@ extension MCPNotebookTools {
     ) async throws -> String {
         if preview { MCPCallOutcome.markNothingWritten() }
         guard let sync else {
-            throw MCPToolError("The app's ParentLocker sending hasn't started. Open the notebook and try again.")
+            throw MCPToolError("ParentLocker sending isn't running yet. Open Cosmic Daybook and try again.")
         }
         switch await sync.send(day: day, preview: preview) {
         case .success(let report):

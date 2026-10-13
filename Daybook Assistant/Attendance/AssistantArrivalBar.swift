@@ -322,7 +322,8 @@ struct AssistantArrivalBar: View {
         }
         // A locked day, say, stays open: nothing to send.
         guard let sync, viewModel.phase == .late else { return }
-        sync.closeArrivalSend(on: viewModel.date)
+        // A second after the Undo goes, so a last-instant Undo still stops it.
+        sync.closeArrivalSend(on: viewModel.date, after: ParentLockerSync.closeArrivalUndoWindow + 1)
         if !sync.isSignedIn { showingSignIn = true }
     }
 }
