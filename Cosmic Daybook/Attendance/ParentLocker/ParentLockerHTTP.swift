@@ -61,18 +61,27 @@ nonisolated final class ParentLockerHTTP: ParentLockerTransport {
     var cookies: [ParentLockerCookie] { jar.withLock { $0 } }
 
     /// The attendance page: `https://<host>/sis/newattendance.php`.
-    var attendancePageURL: URL {
+    var attendancePageURL: URL { attendancePageURL(on: nil) }
+
+    /// The attendance page for `day`: `…/newattendance.php?date=YYYY-M-D`,
+    /// which lists that day's own report ids (checked on the live page
+    /// 2026-10-13); today's without one.
+    func attendancePageURL(on day: Date?) -> URL {
         var parts = URLComponents()
         parts.scheme = "https"
         parts.host = host
         parts.path = "/sis/newattendance.php"
+        if let day {
+            let date = ParentLockerPlanner.dateText(day, calendar: calendar)
+            parts.queryItems = [URLQueryItem(name: "date", value: date)]
+        }
         return parts.url ?? URL(fileURLWithPath: "/")
     }
 
     // MARK: - ParentLockerTransport
 
     func courses(on day: Date?) async throws -> [ParentLockerCourse] {
-        var request = URLRequest(url: attendancePageURL)
+        var request = URLRequest(url: attendancePageURL(on: day))
         request.setValue("text/html", forHTTPHeaderField: "Accept")
         let data = try await send(request, label: "page")
         let html = Self.text(of: data)
@@ -97,10 +106,15 @@ nonisolated final class ParentLockerHTTP: ParentLockerTransport {
     }
 
     func save(batch: ParentLockerPlanner.Batch) async throws -> ParentLockerSaveReply {
+        // Without the day's report id there is nothing to save into.
+        guard let reportID = Self.reportID(for: batch) else {
+            Self.logger.error("ParentLocker save: the class came without a report id")
+            throw ParentLockerError.pageChanged
+        }
         let body: [String: ParentLockerJSON] = [
             "action": .string("save"),
             "students": .array(batch.students),
-            "attendance_report_id": .string(batch.attendanceReportID),
+            "attendance_report_id": reportID,
             "date": .string(batch.date)
         ]
         let reply = try ParentLockerSaveReply(reply: try await post(body, label: "save"))
@@ -109,6 +123,16 @@ nonisolated final class ParentLockerHTTP: ParentLockerTransport {
             \(reply.conflicts.count, privacy: .public) conflicts
             """)
         return reply
+    }
+
+    /// The save's `attendance_report_id`, sent back exactly as the page gave
+    /// it (a string at this school, a number if that ever changes): the
+    /// class's own when the batch uses it, else the roster's. Nil when there
+    /// is none (missing, null, empty or "0").
+    static func reportID(for batch: ParentLockerPlanner.Batch) -> ParentLockerJSON? {
+        guard let id = ParentLockerJSON.string(batch.attendanceReportID).nonEmptyID else { return nil }
+        let given = batch.course.attendanceReport
+        return given.stringValue == id ? given : .string(id)
     }
 
     // MARK: - Requests

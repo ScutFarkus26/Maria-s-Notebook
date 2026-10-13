@@ -183,6 +183,10 @@ struct ParentLockerSyncProblemsTests {
         #expect(try secrets.credential(site: FakeParentLocker.host)?.email == "guide@school.test")
         #expect(secrets.savedCookies.map(\.value) == ["good"])
         #expect(device.sync.isSignedIn)
+        // It goes once Close Arrival's Undo has passed, never sooner.
+        await device.sync.runDue()
+        #expect(saves.isEmpty)
+        clock.advance(by: ParentLockerSync.closeArrivalUndoWindow)
         await device.sync.runDue()
         #expect(saves == ["save 5101", "save 5102"])
         #expect(device.store.recordedSends.count == 1)

@@ -7,18 +7,23 @@ import OSLog
 /// "ParentLocker attendance", Sending at Close Arrival, then live):
 /// - **Nothing before "after".** Nothing goes until arrival has closed or the
 ///   day's ParentLocker send is recorded, so the office never sees a
-///   half-taken class.
+///   half-taken class. Close Arrival & Send made here, or a whole-class send
+///   started here, keeps the day "after" on this device until its Undo,
+///   whatever the automatic absences say since.
 /// - **Close Arrival & Send** (`closeArrivalSend`) sends the whole class once
-///   Close Arrival's Undo has gone; Undo (`cancelCloseArrivalSend`) stops it.
-///   **Send Now** and MCP (`sendNow`, `send(day:preview:)`) send a whole day
-///   at once. A whole-class send records the day's send.
+///   Close Arrival's Undo has gone (`undoEndsAt`), never earlier, a sign-in
+///   meanwhile included; Undo (`cancelCloseArrivalSend`) stops it. **Send
+///   Now** and MCP (`sendNow`, `send(day:preview:)`) send a whole day at
+///   once, never one that hasn't come yet; another day's leaves today's line
+///   alone. A whole-class send records the day's send if none is yet.
 /// - **Then each change goes live, one child at a time:** one made on this
 ///   device after 4 s of quiet, one synced in from another after 60 s (the
 ///   backstop for a phone that's offline or not signed in), each compared
 ///   with ParentLocker and saved only where it differs.
 /// - **An imported change goes only over what this device last saw** in
-///   ParentLocker for that child (`lastSeen`); anything else there was saved
-///   since by another device, maybe with a newer mark, and is left to it.
+///   ParentLocker for that child (`lastSeen`, read as it arrives when there's
+///   nothing yet); anything else there was saved since by another device,
+///   maybe with a newer mark, and is left to it. The guide's backstops too.
 /// - **The guide's backstop:** arrival closed with no ParentLocker send
 ///   recorded within 60 s, and one of the guide's signed-in devices sends
 ///   the whole class and records it. Likewise a minute after the day's due
@@ -29,7 +34,9 @@ import OSLog
 ///   marks, or after 20 s without one. On the Mac only a return after a
 ///   minute away counts, not every switch between apps.
 /// - Failures retry after 30 s, 2 min and 5 min, then wait. Nothing polls:
-///   one task sleeps until the next thing is due, on an injected clock.
+///   one task sleeps until the next thing is due, on an injected clock. A
+///   saved password ParentLocker refused isn't tried again by itself until a
+///   new one is saved.
 ///
 /// Live updates run only while ParentLocker is the method, this device is
 /// signed in, the day is a school day and today, and the day is past
@@ -76,6 +83,10 @@ final class ParentLockerSync {
         var clock: any ParentLockerClock = ParentLockerSystemClock()
         var policy: ParentLockerSavePolicy = .current
         var unsent: any ParentLockerUnsentStore = ParentLockerSync.defaultUnsentStore()
+        /// The saved password ParentLocker refused, remembered across launches
+        /// in a build that saves.
+        var refusals: any ParentLockerRefusalStore = ParentLockerSavePolicy.current.allowsSaving
+            ? ParentLockerDefaultsRefusalStore() : ParentLockerMemoryRefusalStore()
         var background: any ParentLockerBackgroundWork = ParentLockerSystemBackgroundWork()
         var isInForeground: @MainActor () -> Bool = { ParentLockerAppState.isInForeground() }
         /// Whether CloudKit imports will come: false for a stack without
@@ -105,7 +116,7 @@ final class ParentLockerSync {
     private(set) var undoEndsAt: Date?
     /// ParentLocker refused the saved password, and no new one has been
     /// saved since: the app doesn't sign in with it by itself (Sign In again).
-    private(set) var savedPasswordRefused = false
+    var savedPasswordRefused = false
 
     /// The sync the app started, for the screens, intents and MCP that
     /// aren't handed one.
@@ -139,7 +150,12 @@ final class ParentLockerSync {
     @ObservationIgnored var resignedAt: Date?
     /// The day the owed changes are for: today when they were made.
     @ObservationIgnored var owedDay: Date?
-    /// The day the guide's backstop last went or was scheduled.
+    /// Close Arrival & Send was made here today, or a whole-class send
+    /// started: today is "after" on this device whatever the automatic
+    /// absences say now. Only that Close Arrival's Undo clears it.
+    @ObservationIgnored var arrivalClosedHere = false
+    /// The day the guide's backstop last went or was scheduled (cleared when
+    /// one is refused, so the next can come).
     @ObservationIgnored var backstopDay: Date?
     /// When the guide's device checks, after the day's due time, whether the
     /// class was taken but never sent.
@@ -149,18 +165,15 @@ final class ParentLockerSync {
     /// Reading the class lists for changes synced in with nothing seen to
     /// measure them by (`loadBaseline`).
     @ObservationIgnored var baselineTask: Task<Void, Never>?
-    @ObservationIgnored var activeRun: Task<Result<ParentLockerReport, ParentLockerSendFailure>, Never>?
+    /// The children `baselineTask` is reading for.
+    @ObservationIgnored var baselineWaiting: Set<UUID> = []
+    @ObservationIgnored var activeRun: Task<ParentLockerRunOutcome, Never>?
     @ObservationIgnored private var watcher: ParentLockerWatcher?
     @ObservationIgnored var holdsBackground = false
+    /// Stopped: nothing more is scheduled, and no background window is held.
+    @ObservationIgnored var isStopped = false
 
     static let logger = Logger.attendance
-
-    /// Where what's owed is kept: the app's preferences in a build that
-    /// saves, memory otherwise (`ParentLockerDefaultsUnsentStore`).
-    nonisolated static func defaultUnsentStore() -> any ParentLockerUnsentStore {
-        ParentLockerSavePolicy.current.allowsSaving
-            ? ParentLockerDefaultsUnsentStore() : ParentLockerMemoryUnsentStore()
-    }
 
     init(dependencies: Dependencies) {
         self.dependencies = dependencies
@@ -178,8 +191,11 @@ final class ParentLockerSync {
         self.init(dependencies: dependencies)
     }
 
+    /// A sync let go without `stop()`: its iPhone background window goes
+    /// with `dependencies.background`, whose own deinit ends it.
     deinit {
         wakeTask?.cancel()
+        baselineTask?.cancel()
     }
 
     // MARK: - Starting and stopping
@@ -189,6 +205,7 @@ final class ParentLockerSync {
     /// `context`'s saves, CloudKit's imports and the app coming and going.
     /// Pass nil to watch nothing (tests drive the sync by hand).
     func start(watching context: NSManagedObjectContext?) {
+        isStopped = false
         Self.current = self
         refreshSignIn()
         loadOwed()
@@ -198,10 +215,14 @@ final class ParentLockerSync {
     }
 
     /// Stops watching and drops anything scheduled (what's owed stays saved).
+    /// A stopped sync schedules nothing more and lets the iPhone's background
+    /// window go, so the window can't outlive it.
     func stop() {
+        isStopped = true
         watcher = nil
         wakeTask?.cancel()
         wakeTask = nil
+        baselineTask?.cancel()
         if Self.current === self { Self.current = nil }
         updateBackgroundHold(force: false)
     }
@@ -209,41 +230,51 @@ final class ParentLockerSync {
     // MARK: - Close Arrival, Send Now, MCP
 
     /// Close Arrival & Send: the whole class goes once `undoWindow` has passed
-    /// without `cancelCloseArrivalSend`. Changes made meanwhile wait for it.
-    /// Today only; other days go through Send Now.
-    /// On a device not signed in, the send waits for the sign-in sheet (and
-    /// the guide's backstop covers it if nobody signs in).
+    /// without `cancelCloseArrivalSend`. Changes made meanwhile wait for it,
+    /// and a child marked Late meanwhile doesn't stop it: arrival stays
+    /// closed here until that Undo. Today only; other days go through Send
+    /// Now. On a device not signed in, the send waits for the sign-in sheet,
+    /// and goes no earlier than the Undo's end (the guide's backstop covers
+    /// it if nobody signs in).
     func closeArrivalSend(on day: Date, after undoWindow: TimeInterval = closeArrivalUndoWindow) {
         guard isToday(day) else { return }
         rollOwedDay(to: day)
-        wholeClass = ParentLockerWholeClass(
-            reason: .closeArrival, due: isSignedIn ? clock.now.addingTimeInterval(undoWindow) : nil
-        )
+        let undoEnds = clock.now.addingTimeInterval(undoWindow)
+        undoEndsAt = undoEnds
+        // A backstop this takes the place of didn't go: the day stays open to the next.
+        if wholeClass?.reason == .backstop { backstopDay = nil }
+        wholeClass = ParentLockerWholeClass(reason: .closeArrival, due: isSignedIn ? undoEnds : nil)
+        arrivalClosedHere = true
         saveOwed()
         reschedule()
     }
 
-    /// Close Arrival's Undo: the pending send doesn't go. ParentLocker can't
-    /// take a mark back, so this is the last moment it can be stopped.
+    /// Close Arrival's Undo: the pending send doesn't go, and arrival is open
+    /// again here. ParentLocker can't take a mark back, so this is the last
+    /// moment it can be stopped.
     func cancelCloseArrivalSend() {
         guard wholeClass?.reason == .closeArrival else { return }
         wholeClass = nil
+        arrivalClosedHere = false
+        undoEndsAt = nil
         saveOwed()
         reschedule()
     }
 
-    /// Send Now: the whole class for `day`, now. Records the day's send.
+    /// Send Now: the whole class for `day`, now. Records the day's send,
+    /// unless it's recorded already. Returns how this send went (for another
+    /// day, only here: the line is today's).
     @discardableResult
     func sendNow(day: Date) async -> ParentLockerStatus {
-        await run(ParentLockerJob(day: day, children: nil, reason: .sendNow))
-        return status
+        await run(ParentLockerJob(day: day, children: nil, reason: .sendNow)).status
     }
 
     /// A whole day for MCP and the Debug preview: `preview` reads and plans
     /// only, whatever the method; otherwise it sends and records the send, as
-    /// Send Now does. The failure says why in plain words.
+    /// Send Now does. Never a day that hasn't come yet. The failure says why
+    /// in plain words.
     func send(day: Date, preview: Bool) async -> Result<ParentLockerReport, ParentLockerSendFailure> {
-        await run(ParentLockerJob(day: day, children: nil, reason: .request, preview: preview))
+        await run(ParentLockerJob(day: day, children: nil, reason: .request, preview: preview)).result
     }
 
     // MARK: - Signing in and out
@@ -275,16 +306,19 @@ final class ParentLockerSync {
         let transport = makeTransport(site: site, cookies: cookies)
         do {
             _ = try await transport.courses(on: nil)
+            // Cancelled while the class list loaded (the sheet closed): nothing is kept.
+            if Task.isCancelled { throw ParentLockerSignInError.cancelled }
         } catch {
             try? secrets.deleteCookies(site: site)
             throw error
         }
         try secrets.savePassword(credential, site: site)
+        forgetRefusedPassword()
         Self.logger.info("ParentLocker: signed in")
         isSignedIn = true
         status.state = .idle
         status.details = nil
-        if wholeClass != nil, wholeClass?.due == nil { wholeClass?.due = clock.now }
+        releaseWholeClass(at: clock.now)
         releaseCatchUp()
         refreshStatus()
     }
@@ -321,31 +355,27 @@ final class ParentLockerSync {
             if isSignedIn { signedOutHere() } else { try? dependencies.secrets.deleteCookies(site: site) }
         }
         isSignedIn = hasPassword
+        savedPasswordRefused = hasPassword && refusalStands(site: site)
     }
 
-    /// Brings the line up to date with the day while nothing is under way:
-    /// off, signed out, waiting for arrival, or as the last run left it (a
-    /// run from another day says nothing about this one).
-    func refreshStatus() {
-        let state = store.day(today, withChildren: false)
-        guard state.method == .parentLocker else { return status = ParentLockerStatus(state: .off) }
-        guard isSignedIn else { return status = ParentLockerStatus(state: .signedOut) }
-        let quiet: ParentLockerStatus.State = state.isAfter || !state.isSchoolDay ? .idle : .waitingForArrival
-        let ranToday = status.lastSyncAt.map(isToday) ?? false
-        switch status.state {
-        case .off, .signedOut, .waitingForArrival, .idle:
-            status.state = quiet
-        case .upToDate, .previewed, .retrying, .gaveUp:
-            if !ranToday { status = ParentLockerStatus(state: quiet) }
-        default:
-            break
-        }
+    /// Whether the saved password is the one ParentLocker refused: none saved since.
+    private func refusalStands(site: String) -> Bool {
+        guard let refused = dependencies.refusals.refused(site: site),
+              let saved = try? dependencies.secrets.passwordModified(site: site) else { return false }
+        return saved == refused
+    }
+
+    /// A password ParentLocker took, or a new one saved: none is refused.
+    func forgetRefusedPassword() {
+        dependencies.refusals.setRefused(nil, site: site)
+        savedPasswordRefused = false
     }
 
     /// Signed out, here or by Sign Out on another device: this device's
     /// cookies go, and nothing is owed any more.
     func signedOutHere() {
         try? dependencies.secrets.deleteCookies(site: site)
+        forgetRefusedPassword()
         isSignedIn = false
         localChanges = [:]
         localDue = nil
