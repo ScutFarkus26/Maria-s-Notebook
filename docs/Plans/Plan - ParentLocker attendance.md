@@ -1,6 +1,6 @@
 # ParentLocker attendance
 
-> **Working on it.** On main after Phase 5; Phases 7–9 (bug check, fixes, TestFlight) run autonomously. Written 2026-10-12 on branch `claude/parentlocker-attendance-integration-36de87`, from Danny's "My school just asked me to take attendance through yyli.parentlocker.com."
+> **Done 2026-10-13** (main 020ef75b). On TestFlight: Cosmic Daybook 1.1 (300000000018) for iPhone/iPad and Mac, and Daybook Assistant 1.1 (019) in the Assistants group. Danny's steps are listed under Phase 6.
 > In short: Close Arrival sends the class's attendance from the notebook or the Daybook Assistant to the school's ParentLocker site, every later change follows within seconds, through each person's own ParentLocker sign-in, made once and kept privately in their iCloud Keychain; the front-desk email stays as a choice in Settings.
 
 **Runs autonomously from Phase 5 on** (Danny, 2026-10-12, at bedtime): "After this is pushed to main I'd like a final bug check on the latest changes. /plan-efficiently to fix the bugs. then push to main, close out, and send to testflight. do this all autonomously." And: "my dev account is in the browser if you need to deploy anything." Decisions that come up are made by the main session from the project's rules and this plan, and listed under "Decided during the run" for Danny to read afterward. Danny also said: "assistant app should be added to the assistants group for testing." Never: lose data, touch the live notebook (no schema-18 build opens it; no Mac app launch), type a password, add the notebook's build to any TestFlight group, or register a device.
@@ -35,7 +35,11 @@ Build board: https://claude.ai/artifact/WAKaFZGNPQsfKD4A5GbqsM (a new milestone 
 - [x] Phase 5: Combine, review, full builds, whole suites, simulator look, merge (session: here) · est. ~3–4% weekly · started at 61% · cost ~1% (61→62). Review and plain-English pass: 12 bugs and 14 phrases, all fixed (see Decided during the run). Five builds clean (notebook iOS, macOS, Release; Assistant Debug and Release); the only warning is the existing one at `AssistantSampleClass.swift:177`. Whole suites: notebook 3,657 tests in 604 suites pass; Assistant 323 in 48 pass. Its first run failed 2 Siri keep-alive tests in `UnsentChangesKeepAliveTests` (timing); they passed alone, together with the ParentLocker tests, and in a whole rerun. The simulator look was the Phase 4 iPhone SE screenshots; Settings on iPhone is left for the Phase 6 device check. Squashed to main and pushed; the unsquashed history is on `parentlocker-attendance-unsquashed`.
 - [x] Phase 7: Final bug check of the whole ParentLocker diff on main (session: here, Opus `Plan` reviewers, read-only) · est. ~2–3% weekly · started at 62% · four Opus reviewers; 19 distinct findings (6 high), written up in `docs/Reviews/ParentLocker bug check 2026-10-13.md`. A1 was checked live, read-only: a past day's own report ids come from `?date=`.
 - [x] Phase 8: Fix the findings, planned with /plan-efficiently into its own plan, `docs/Plans/Plan - ParentLocker bug check fixes.md` (session: here, agents sized to the findings) · est. 8–12% · cost ~3% (62→65). All 19, then 5 more from the fixes' review, then a latent Assistant test hang the work exposed (see that plan's Progress). Squashed to main with this plan's close-out.
-- [ ] Phase 9: Push to main, deploy schema 18 to CloudKit Production (Danny's signed-in developer account in the browser pane; allowed by Danny), close out, and send the notebook and the Assistant to TestFlight with the `roll-out` skill (the Assistant's build added to the Assistants group, per Danny; the notebook's uploaded only) (session: here) · est. ~2–3% weekly · started at 65%
+- [x] Phase 9: Push to main, deploy schema 18 to CloudKit Production (Danny's signed-in developer account in the browser pane; allowed by Danny), close out, and send the notebook and the Assistant to TestFlight with the `roll-out` skill (the Assistant's build added to the Assistants group, per Danny; the notebook's uploaded only) (session: here) · est. ~2–3% weekly · started at 65% · done 2026-10-13. Schema 18 deployed to Production and checked. Uploads (from main 020ef75b, after a further bug hunt Danny asked for and its fixes, see <Plan - ParentLocker bug hunt afternoon fixes.md>):
+  - Cosmic Daybook 1.1 (300000000018) for iOS and Mac. 300000000017 was already in App Store Connect, so `LAST_BUILD` is now 18.
+  - Daybook Assistant 1.1 (019), added to the Assistants group with a "What to Test" note Danny approved. It was in Testing at once.
+
+  Xcode's App Store Connect sign-in had lapsed overnight; Danny signed in again in the afternoon.
 - [ ] Phase 6: Danny's steps, as Tide rows (no session)
 
 ## Cost
@@ -400,7 +404,26 @@ Checked 2026-10-12 against Xcode 27.0 (27A266a). Xcode 27.1 RC and 27.2 beta 2 e
   - The Assistant's build is in the Assistants group.
   - The Tide rows exist.
 
-## Phase 6: Danny's steps (Tide rows in `Areas/App Development/Cosmic Daybook/To do.md` and the Assistant's list)
+## Phase 6: Danny's steps
+
+**To add to Tide** (`Areas/App Development/Cosmic Daybook/To do.md`). Tide wasn't reachable at close-out on 2026-10-13, so these wait for the next session with Tide open.
+- **Release:**
+  - Install the notebook everywhere together: TestFlight 1.1 (300000000018) on the iPad and iPhone, and the Mac's Release copy (`Scripts/install_release.sh`).
+  - Every assistant installs Daybook Assistant 1.1 (019) before Settings is switched to ParentLocker. Older Assistant builds would read a "not expected" day as an email that went.
+- **Check on a device:**
+  - Settings › Messages › Attendance to the School → ParentLocker; sign in once; Match Names, which should match all 23, with "Toba (Aliza)" matched by her bracketed name.
+  - One morning: Close Arrival & Send, then check ParentLocker.
+  - Mark a child late afterward and see it change on the site.
+  - An early pickup shows Present with "Left early at …".
+  - Over the next days, nobody is asked to sign in again.
+  - Each assistant signs in once on her phone; Siri's "Close arrival" sends.
+  - The notebook iPhone's front-desk row with its Send button.
+  - The Mac toolbar's ⋯ › Send Now asks before sending with children unmarked.
+- **Build & fix:**
+  - At the largest text size, Settings' shared link row (`SettingsLinkRow`, Match Names) wraps letter by letter.
+  - The main checkout has a stale staged change to `Daybook Assistant/Siri/AssistantAttendanceIntents.swift`, left by an earlier move of main. Clear it.
+
+## Phase 6 (original list) (Tide rows in `Areas/App Development/Cosmic Daybook/To do.md` and the Assistant's list)
 - **Release** (Phase 9 does the schema deploy and the upload; Danny does the rest):
   - Install the notebook everywhere together: the Mac's Release copy (`Scripts/install_release.sh`) and TestFlight on the iPad and iPhone.
   - **Every phone gets the update before switching to ParentLocker.**
