@@ -23,11 +23,20 @@ nonisolated extension DataCleanupService {
         if canonical.firstName.isEmpty { canonical.firstName = duplicate.firstName }
         if canonical.lastName.isEmpty { canonical.lastName = duplicate.lastName }
         if canonical.nickname == nil { canonical.nickname = duplicate.nickname }
+        // The ParentLocker match (schema 18): a copy that was matched keeps
+        // the child matched, so sends still go by ID.
+        if canonical.parentLockerID?.isEmpty ?? true, let matched = duplicate.parentLockerID, !matched.isEmpty {
+            canonical.parentLockerID = matched
+        }
         if canonical.dateStarted == nil { canonical.dateStarted = duplicate.dateStarted }
         if canonical.previousLevelRaw == nil { canonical.previousLevelRaw = duplicate.previousLevelRaw }
         if canonical.dateLastPromoted == nil { canonical.dateLastPromoted = duplicate.dateLastPromoted }
         if canonical.manualOrder == 0 && duplicate.manualOrder != 0 { canonical.manualOrder = duplicate.manualOrder }
+        mergeStudentLinks(canonical: canonical, duplicate: duplicate)
+    }
 
+    /// The duplicate's next lessons and documents, onto the canonical copy.
+    private static func mergeStudentLinks(canonical: CDStudent, duplicate: CDStudent) {
         // nextLessons is a Transformable [String] stored as NSObject
         let canonicalNext = canonical.nextLessonsArray
         let duplicateNext = duplicate.nextLessonsArray
