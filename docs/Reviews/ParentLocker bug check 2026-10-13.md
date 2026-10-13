@@ -1,6 +1,7 @@
 # ParentLocker bug check 2026-10-13
 
 > **Done 2026-10-13.** Read-only check of the ParentLocker work on main (55117e19, the diff from 043cdd7b), asked for by Danny ("After this is pushed to main I'd like a final bug check on the latest changes").
+> **All 19 fixed**, with tests that fail first, on main with the fixes plan (see <../Plans/Plan - ParentLocker bug check fixes.md>, Progress); a review of the fixes found 5 more, also fixed.
 > In short: four Opus reviewers, split by area, found 19 distinct bugs. None of them repeats the 12 the Phase 5 review found and fixed. The fixes are in <../Plans/Plan - ParentLocker bug check fixes.md>.
 
 **How it was checked:** each reviewer read its area's code against the plan's Decisions and `docs/Technical notes/PARENTLOCKER.md`. The main session checked findings against the code: B1 and C1 by reading it, and A1 against the live site, read-only in the browser pane. On 2026-10-13, `newattendance.php?date=2026-10-9` carried that day's own report ids (5842820 and 5842824, against today's 5902205 and 5902217); report ids are strings; a day nobody has taken yet already has one, with status `not_submitted`; and a future date shows today's. Every other finding is taken as confirmed by its reviewer's file:line and scenario, and each fix starts with a test that fails.

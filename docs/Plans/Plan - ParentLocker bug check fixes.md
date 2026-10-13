@@ -1,6 +1,6 @@
 # ParentLocker bug check fixes
 
-> **Working on it.** Written 2026-10-13 from <../Reviews/ParentLocker bug check 2026-10-13.md> (19 findings in the ParentLocker work on main 55117e19); Phase 8 of <Plan - ParentLocker attendance.md>.
+> **Done 2026-10-13** (main, see the parent plan's Phase 8). Written 2026-10-13 from <../Reviews/ParentLocker bug check 2026-10-13.md> (19 findings in the ParentLocker work on main 55117e19); Phase 8 of <Plan - ParentLocker attendance.md>.
 > In short: three agents in their own worktrees fix the 19 findings, each with a test that fails first. Then one review, full builds and both whole suites, and it lands on main. Then the parent plan's Phase 9: Production schema, close-out, TestFlight.
 
 **Runs autonomously** (Danny, 2026-10-12): "After this is pushed to main I'd like a final bug check on the latest changes. /plan-efficiently to fix the bugs. then push to main, close out, and send to testflight. do this all autonomously." No approval stop. The parent plan's "Never" list applies: no data loss, the live notebook is never opened by a schema-18 build, no passwords typed, and the notebook's build goes to no TestFlight group.
@@ -15,7 +15,16 @@ Build board: https://claude.ai/artifact/WAKaFZGNPQsfKD4A5GbqsM (milestone 15).
   - **S** (e31ad473, tests first in 2a4250a3: 21 failed before): B1–B7, D3, C2, A1, C3, A3, A4, D1, D4. 109 notebook tests in 13 suites and 34 Assistant tests pass. Three earlier tests were changed for B4 and B5. It took 4.7 hours, mostly in the build queue.
   - **M** (a3fa128d): A2/C4 and A5. 100 + 9 tests pass. Differed: a ParentLocker child claimed twice goes to neither child; Match Names gained "Choose a child" and a "Not sent" section.
   - **U** (bedc8875): C1, C2's screen side and D2. 22 + 12 tests pass. Differed: the site field is written on a pause, on Return and when Settings closes, not on every keystroke; a new `stopsSend` lets Undo cancel a queued send on a phone that isn't signed in.
-- [ ] Phase 2: Combine, one review, full builds, whole suites, land on main (session: here) · est. ~2–3% weekly · started at 64%
+- [x] Phase 2: Combine, one review, full builds, whole suites, land on main (session: here) · est. ~2–3% weekly · started at 64% · cost ~1% (64→65). The review answered all 19 fixed (A4 partly: the id goes back exactly as given when the roster's equals the class's) and found 5 new bugs, none high. A fix agent fixed all 5 with tests (2090388a):
+  - each child's class lists are read once a day, never alongside a run
+  - the Assistant's Undo ends on sign-in, on a recorded send, or after 2 minutes
+  - Reset Day stops a waiting Close Arrival & Send
+  - Settings puts the shared method right when it opens
+  - a refused password asks to sign in
+
+  **The Assistant's whole suite then hung** in "Assistant share attacher", every time. A debugging agent found the cause (e52991b0): Siri's name suggestions opened the simulator's real iCloud store during tests, and with no iCloud account its filing hold stuck "on". It was latent since 50562549. This work only changed its timing: the simulator's store had moved to schema 18, so the pre-ParentLocker build refused that store and never hit the hold. Fixed by refusing that store in hosted test runs, with a test.
+
+  Final results: five builds clean; notebook whole suite 3,694 tests in 609 suites pass; Assistant whole suite 331 in 50 pass three runs in a row.
 
 ## Cost
 
