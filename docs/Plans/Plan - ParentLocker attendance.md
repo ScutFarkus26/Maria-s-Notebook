@@ -1,6 +1,6 @@
 # ParentLocker attendance
 
-> **Done 2026-10-13** (main 020ef75b). On TestFlight: Cosmic Daybook 1.1 (300000000018) for iPhone/iPad and Mac, and Daybook Assistant 1.1 (019) in the Assistants group. Danny's steps are listed under Phase 6.
+> **Done 2026-10-13** (main 020ef75b). On TestFlight: Cosmic Daybook 1.1 (300000000018) for iPhone/iPad and Mac, and Daybook Assistant 1.1 (019) in the Assistants group. Danny's steps are rows in Tide, linked under Phase 6.
 > In short: Close Arrival sends the class's attendance from the notebook or the Daybook Assistant to the school's ParentLocker site, every later change follows within seconds, through each person's own ParentLocker sign-in, made once and kept privately in their iCloud Keychain; the front-desk email stays as a choice in Settings.
 
 **Runs autonomously from Phase 5 on** (Danny, 2026-10-12, at bedtime): "After this is pushed to main I'd like a final bug check on the latest changes. /plan-efficiently to fix the bugs. then push to main, close out, and send to testflight. do this all autonomously." And: "my dev account is in the browser if you need to deploy anything." Decisions that come up are made by the main session from the project's rules and this plan, and listed under "Decided during the run" for Danny to read afterward. Danny also said: "assistant app should be added to the assistants group for testing." Never: lose data, touch the live notebook (no schema-18 build opens it; no Mac app launch), type a password, add the notebook's build to any TestFlight group, or register a device.
@@ -406,22 +406,15 @@ Checked 2026-10-12 against Xcode 27.0 (27A266a). Xcode 27.1 RC and 27.2 beta 2 e
 
 ## Phase 6: Danny's steps
 
-**To add to Tide** (`Areas/App Development/Cosmic Daybook/To do.md`). Tide wasn't reachable at close-out on 2026-10-13, so these wait for the next session with Tide open.
-- **Release:**
-  - Install the notebook everywhere together: TestFlight 1.1 (300000000018) on the iPad and iPhone, and the Mac's Release copy (`Scripts/install_release.sh`).
-  - Every assistant installs Daybook Assistant 1.1 (019) before Settings is switched to ParentLocker. Older Assistant builds would read a "not expected" day as an email that went.
-- **Check on a device:**
-  - Settings › Messages › Attendance to the School → ParentLocker; sign in once; Match Names, which should match all 23, with "Toba (Aliza)" matched by her bracketed name.
-  - One morning: Close Arrival & Send, then check ParentLocker.
-  - Mark a child late afterward and see it change on the site.
-  - An early pickup shows Present with "Left early at …".
-  - Over the next days, nobody is asked to sign in again.
-  - Each assistant signs in once on her phone; Siri's "Close arrival" sends.
-  - The notebook iPhone's front-desk row with its Send button.
-  - The Mac toolbar's ⋯ › Send Now asks before sending with children unmarked.
-- **Build & fix:**
-  - At the largest text size, Settings' shared link row (`SettingsLinkRow`, Match Names) wraps letter by letter.
-  - The main checkout has a stale staged change to `Daybook Assistant/Siri/AssistantAttendanceIntents.swift`, left by an earlier move of main. Clear it.
+Danny's steps are rows in Tide (Cosmic Daybook › To do), added 2026-10-13:
+- Every assistant has Daybook Assistant 1.1 (019) before switching to ParentLocker: [Release](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Make%20sure%20every%20assistant%20has%20Daybook%20Assistant%201.1%20%28019%29%20before%20switching%20attendance%20to%20ParentLocker). Installing the notebook everywhere is the existing Release row "Roll out main (ba5c5e15 or later)…", which TestFlight 300000000018 now covers.
+- Switch to ParentLocker, sign in once, check Match Names: [Check](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Switch%20Attendance%20to%20the%20School%20to%20ParentLocker%20in%20Settings%2C%20sign%20in%20once%2C%20and%20check%20Match%20Names%20finds%20all%2023%20children).
+- One morning with Close Arrival & Send, a late arrival and an early pickup: [Check](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Take%20one%20morning%27s%20attendance%20with%20Close%20Arrival%20%26%20Send%2C%20then%20check%20the%20class%20in%20ParentLocker).
+- Each assistant signs in once and tries Siri: [Check](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Have%20each%20assistant%20sign%20in%20to%20ParentLocker%20once%20in%20the%20Assistant%27s%20Classroom%20sheet%20and%20try%20Siri%27s%20%22Close%20arrival%22).
+- The iPhone's Send button and the Mac's Send Now question: [Check](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Check%20the%20iPhone%27s%20front-desk%20row%20shows%20Send%20to%20ParentLocker%2C%20and%20the%20Mac%27s%20%E2%8B%AF%20Send%20Now%20asks%20about%20unmarked%20children%20first).
+- After a week, nobody was asked to sign in again (starts Oct 20): [Check](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20a%20week%20on%20ParentLocker%2C%20check%20nobody%20was%20asked%20to%20sign%20in%20to%20ParentLocker%20again).
+- The Match Names row wrapping at the largest text: [Build & fix](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Ask%20Claude%20to%20fix%20Settings%27%20Match%20Names%20row%20wrapping%20letter%20by%20letter%20at%20the%20largest%20text%20size).
+- The main folder's stale staged change: [Build & fix](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Ask%20Claude%20to%20clear%20the%20stale%20staged%20change%20to%20AssistantAttendanceIntents.swift%20in%20the%20main%20Maria%27s%20Notebook%20folder).
 
 ## Phase 6 (original list) (Tide rows in `Areas/App Development/Cosmic Daybook/To do.md` and the Assistant's list)
 - **Release** (Phase 9 does the schema deploy and the upload; Danny does the rest):
