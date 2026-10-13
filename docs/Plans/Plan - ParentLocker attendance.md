@@ -1,6 +1,6 @@
 # ParentLocker attendance
 
-> **Not started.** Written 2026-10-12 on branch `claude/parentlocker-attendance-integration-36de87`, from Danny's "My school just asked me to take attendance through yyli.parentlocker.com."
+> **Working on it.** On main after Phase 5; Phases 7–9 (bug check, fixes, TestFlight) run autonomously. Written 2026-10-12 on branch `claude/parentlocker-attendance-integration-36de87`, from Danny's "My school just asked me to take attendance through yyli.parentlocker.com."
 > In short: Close Arrival sends the class's attendance from the notebook or the Daybook Assistant to the school's ParentLocker site, every later change follows within seconds, through each person's own ParentLocker sign-in, made once and kept privately in their iCloud Keychain; the front-desk email stays as a choice in Settings.
 
 **Runs autonomously from Phase 5 on** (Danny, 2026-10-12, at bedtime): "After this is pushed to main I'd like a final bug check on the latest changes. /plan-efficiently to fix the bugs. then push to main, close out, and send to testflight. do this all autonomously." And: "my dev account is in the browser if you need to deploy anything." Decisions that come up are made by the main session from the project's rules and this plan, and listed under "Decided during the run" for Danny to read afterward. Danny also said: "assistant app should be added to the assistants group for testing." Never: lose data, touch the live notebook (no schema-18 build opens it; no Mac app launch), type a password, add the notebook's build to any TestFlight group, or register a device.
@@ -32,8 +32,8 @@ Build board: https://claude.ai/artifact/WAKaFZGNPQsfKD4A5GbqsM (a new milestone 
   - Siri sends at once and waits, so it can say whether it worked.
   - After Close Arrival & Send, Undo disappears after 6 seconds.
   - The sheet's title is "ParentLocker" once signed in.
-- [ ] Phase 5: Combine, review, full builds, whole suites, simulator look, merge (session: here) · est. ~3–4% weekly · started at 61%
-- [ ] Phase 7: Final bug check of the whole ParentLocker diff on main (session: here, Opus `Plan` reviewers, read-only) · est. ~2–3% weekly
+- [x] Phase 5: Combine, review, full builds, whole suites, simulator look, merge (session: here) · est. ~3–4% weekly · started at 61% · cost ~1% (61→62). Review and plain-English pass: 12 bugs and 14 phrases, all fixed (see Decided during the run). Five builds clean (notebook iOS, macOS, Release; Assistant Debug and Release); the only warning is the existing one at `AssistantSampleClass.swift:177`. Whole suites: notebook 3,657 tests in 604 suites pass; Assistant 323 in 48 pass. Its first run failed 2 Siri keep-alive tests in `UnsentChangesKeepAliveTests` (timing); they passed alone, together with the ParentLocker tests, and in a whole rerun. The simulator look was the Phase 4 iPhone SE screenshots; Settings on iPhone is left for the Phase 6 device check. Squashed to main and pushed; the unsquashed history is on `parentlocker-attendance-unsquashed`.
+- [ ] Phase 7: Final bug check of the whole ParentLocker diff on main (session: here, Opus `Plan` reviewers, read-only) · est. ~2–3% weekly · started at 62%
 - [ ] Phase 8: Fix the findings, planned with /plan-efficiently into its own plan, `docs/Plans/Plan - ParentLocker bug check fixes.md` (session: here, agents sized to the findings) · est. sized when planned
 - [ ] Phase 9: Push to main, deploy schema 18 to CloudKit Production (Danny's signed-in developer account in the browser pane; allowed by Danny), close out, and send the notebook and the Assistant to TestFlight with the `roll-out` skill (the Assistant's build added to the Assistants group, per Danny; the notebook's uploaded only) (session: here) · est. ~2–3% weekly
 - [ ] Phase 6: Danny's steps, as Tide rows (no session)
@@ -442,6 +442,8 @@ Read the plan usage (`get_usage`) and note the weekly % used next to the phase u
 
   Every targeted test was seen failing with its fix undone.
 - **The Assistant's Release build warns at `AssistantSampleClass.swift:177`** ("will never be executed"). That warning was there before this work, in a file it doesn't touch; it's left alone and noted for Danny.
+- **Flaky Assistant tests:** in the first whole run, `UnsentChangesKeepAliveTests` › "Siri waits for its marks to go into the share" and "An attach that never finishes…" failed; they passed alone, with the ParentLocker tests, and in a whole rerun. They're timing-sensitive Siri tests, not ParentLocker's, and are left as a Tide row.
+- **The main checkout has a stale staged change** to `Daybook Assistant/Siri/AssistantAttendanceIntents.swift` (it undoes 043cdd7b; the file is dated Oct 7), left by an earlier move of main. It wasn't touched. Main was moved with `update-ref`, so that checkout's files are behind main.
 - **The live-check simulator was cleaned:** the app uninstalled and its keychain reset, so the ParentLocker password Danny typed there is gone.
 
 ## Open questions
