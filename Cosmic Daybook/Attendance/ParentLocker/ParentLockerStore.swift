@@ -35,6 +35,13 @@ nonisolated struct ParentLockerDay: Sendable, Equatable {
         !children.isEmpty && children.allSatisfy { ParentLockerPlanner.wanted(for: marks[$0.id]) != .nothing }
     }
 
+    /// Someone on the roll has a mark to send. Reset Day leaves nobody: a
+    /// Close Arrival & Send waiting then has nothing to send. Read with the
+    /// children only.
+    var anyoneMarked: Bool {
+        children.contains { ParentLockerPlanner.wanted(for: marks[$0.id]) != .nothing }
+    }
+
     /// When `day`'s attendance is due.
     func deadline(on day: Date, calendar: Calendar) -> Date? {
         calendar.date(byAdding: .minute, value: deadlineMinutes, to: calendar.startOfDay(for: day))

@@ -84,8 +84,10 @@ extension ParentLockerSync {
         case .sendNow, .request:
             return nil
         case .closeArrival:
-            // Arrival reopened another way before the send went.
-            guard !isAfter(day, on: job.day) else { return nil }
+            // Arrival reopened another way before the send went, or Reset Day
+            // (here or synced in) cleared every mark: arrival is open here again.
+            if isAfter(day, on: job.day), day.anyoneMarked { return nil }
+            if isToday(job.day), !day.sentToParentLocker { arrivalReopenedHere() }
             return ParentLockerSendFailure(message: "Arrival was reopened, so nothing was sent.")
         case .live, .owed:
             let after = isAfter(day, on: job.day)

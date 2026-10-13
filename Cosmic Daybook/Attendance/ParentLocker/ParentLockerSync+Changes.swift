@@ -41,7 +41,7 @@ extension ParentLockerSync {
             let arrived = fresh.subtracting(importedChildren)
             for child in arrived { importedBaseline[child] = lastSeen[child] }
             importedChildren.formUnion(fresh)
-            loadBaseline(for: arrived.filter { lastSeen[$0] == nil }, on: day)
+            loadBaseline(for: arrived.filter { lastSeen[$0] == nil && !baselineRead.contains($0) }, on: day)
             if importedDue == nil, !importedChildren.isEmpty { importedDue = now.addingTimeInterval(Self.importedWait) }
         } else {
             for child in children {
@@ -252,7 +252,8 @@ extension ParentLockerSync {
     /// today (just after a launch): the class lists are read now, read only,
     /// so each change is measured against what ParentLocker holds as it
     /// arrives. Without that, any mark there (the morning's send) would read
-    /// as another device's newer one, and the change would never go.
+    /// as another device's newer one, and the change would never go. Each
+    /// child is read for at most once a day (`baselineRead`).
     func loadBaseline(for children: Set<UUID>, on day: Date) {
         let waiting = children.subtracting(baselineWaiting)
         guard !waiting.isEmpty, !isStopped else { return }
@@ -265,21 +266,30 @@ extension ParentLockerSync {
     }
 
     /// Reads the class lists and fills what this device saw, never over what
-    /// a save since has set, then the baselines still waiting for it.
+    /// a save since has set, then the baselines still waiting for it. Never
+    /// alongside a run: with no saved cookies both would sign in, and a wrong
+    /// password would be tried twice before its refusal was remembered. A run
+    /// that read the lists meanwhile leaves nothing to read.
     private func fillBaseline(for children: Set<UUID>, on day: Date) async {
         defer { baselineWaiting.subtract(children) }
-        let rosters: [ParentLockerRoster]
-        do {
-            rosters = try await loadRosters(day: day)
-        } catch {
-            Self.logger.info("ParentLocker: couldn't read the class lists for changes synced in")
-            return
-        }
-        guard let owedDay, isSameDay(owedDay, day) else { return }
-        let state = store.day(day, withChildren: true)
-        let matches = ParentLockerPlanner.match(children: state.children, rosters: rosters)
-        for (child, seen) in ParentLockerPlanner.seen(matches: matches, rosters: rosters) where lastSeen[child] == nil {
-            lastSeen[child] = seen
+        await waitForActiveRun()
+        guard !Task.isCancelled, !isStopped, let owedDay, isSameDay(owedDay, day) else { return }
+        if children.contains(where: { lastSeen[$0] == nil }) {
+            readingBaseline = true
+            defer { readingBaseline = false }
+            let rosters: [ParentLockerRoster]
+            do {
+                rosters = try await loadRosters(day: day)
+            } catch {
+                Self.logger.info("ParentLocker: couldn't read the class lists for changes synced in")
+                return
+            }
+            guard let stillOwed = self.owedDay, isSameDay(stillOwed, day) else { return }
+            baselineRead.formUnion(children)
+            let state = store.day(day, withChildren: true)
+            let matches = ParentLockerPlanner.match(children: state.children, rosters: rosters)
+            let seen = ParentLockerPlanner.seen(matches: matches, rosters: rosters)
+            for (child, rows) in seen where lastSeen[child] == nil { lastSeen[child] = rows }
         }
         for child in children where importedChildren.contains(child) && importedBaseline[child] == nil {
             importedBaseline[child] = lastSeen[child]

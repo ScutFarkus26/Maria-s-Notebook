@@ -26,6 +26,30 @@ struct AssistantArrivalUndoTests {
         #expect(AssistantArrivalBar.afterUndoWindow(signedIn: false) == .askToSignIn)
     }
 
+    // Review of the bug-check fixes, D2: on a phone not signed in the Undo
+    // never went, and every return to the screen opened the sign-in again.
+    @Test("Not signed in: the sign-in opens once, and the Undo goes once the day is sent or after two minutes")
+    func notSignedInUndoEnds() throws {
+        typealias Bar = AssistantArrivalBar
+        let closedAt = Date(timeIntervalSinceReferenceDate: 800_000_000)
+        let later = closedAt.addingTimeInterval(10)
+        #expect(Bar.afterUndoWindow(signedIn: false, closedAt: closedAt, now: later) == .askToSignIn)
+        #expect(Bar.afterUndoWindow(signedIn: false, askedToSignIn: true, closedAt: closedAt, now: later) == .keepUndo,
+                "a return to the screen doesn't ask again")
+        #expect(Bar.afterUndoWindow(signedIn: false, daySent: true, askedToSignIn: true, closedAt: closedAt, now: later)
+                == .hideUndo, "the guide's backstop sent the day")
+        let limit = closedAt.addingTimeInterval(Bar.unsentUndoLimit)
+        #expect(Bar.afterUndoWindow(signedIn: false, askedToSignIn: true, closedAt: closedAt, now: limit) == .hideUndo)
+        #expect(Bar.unsentUndoLimit > ParentLockerSync.backstopWait)
+        #expect(Bar.afterUndoWindow(signedIn: true, closedAt: closedAt, now: later) == .hideUndo)
+
+        var undo = try #require(Bar.undo(afterClosing: 3, queuedSend: true, signedIn: false))
+        #expect(!undo.askedToSignIn)
+        let id = undo.id
+        undo.askedToSignIn = true
+        #expect(undo.id == id, "asking doesn't make it a new Undo, so the watch doesn't start over")
+    }
+
     @Test("A plain Close Arrival's Undo has no send to stop")
     func plainCloseArrival() throws {
         let undo = try #require(AssistantArrivalBar.undo(afterClosing: 2, queuedSend: false, signedIn: true))

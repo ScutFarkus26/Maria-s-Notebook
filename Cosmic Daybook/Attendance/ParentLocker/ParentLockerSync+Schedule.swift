@@ -95,10 +95,19 @@ extension ParentLockerSync {
         return job.children?.isEmpty == false ? job : nil
     }
 
-    /// Runs `job` once whatever is running has finished, then schedules what's next.
+    /// Runs `job` once whatever is running has finished (another run, or a
+    /// read of the class lists for changes synced in), then schedules what's next.
     @discardableResult
     func run(_ job: ParentLockerJob) async -> ParentLockerRunOutcome {
-        while let running = activeRun { _ = await running.value }
+        while true {
+            if activeRun != nil {
+                await waitForActiveRun()
+            } else if readingBaseline, let reading = baselineTask {
+                await reading.value
+            } else {
+                break
+            }
+        }
         let task = Task { await self.perform(job) }
         activeRun = task
         updateBackgroundHold(force: true)
@@ -106,6 +115,16 @@ extension ParentLockerSync {
         activeRun = nil
         reschedule()
         return outcome
+    }
+
+    /// Returns once no run is going. Awaiting a run that has finished
+    /// returns at once, without letting its own caller clear `activeRun`:
+    /// a waiter that only awaited again would spin on the main actor forever.
+    func waitForActiveRun() async {
+        while let running = activeRun {
+            _ = await running.value
+            if activeRun == running { await Task.yield() }
+        }
     }
 
     /// Holds a background-task window while a run is going or a send is due
@@ -150,6 +169,7 @@ extension ParentLockerSync {
         }
         // What ParentLocker held is a day's: none of it says anything about this one.
         lastSeen = [:]
+        baselineRead = []
         owedDay = dependencies.calendar.startOfDay(for: day)
     }
 
@@ -172,6 +192,27 @@ extension ParentLockerSync {
         catchUpChildren = saved.children
         arrivalClosedHere = saved.arrivalClosed
         if saved.wholeClass, wholeClass == nil { wholeClass = ParentLockerWholeClass(reason: .owed, due: nil) }
+    }
+
+    /// Signed out, here or by Sign Out on another device: this device's
+    /// cookies go, and nothing is owed any more.
+    func signedOutHere() {
+        try? dependencies.secrets.deleteCookies(site: site)
+        forgetRefusedPassword()
+        isSignedIn = false
+        localChanges = [:]
+        localDue = nil
+        catchUpChildren = []
+        importedChildren = []
+        importedBaseline = [:]
+        importedDue = nil
+        lastSeen = [:]
+        baselineRead = []
+        deadlineDue = nil
+        retry = nil
+        saveOwed()
+        status = ParentLockerStatus(state: .signedOut)
+        reschedule()
     }
 
     /// What a run that reached ParentLocker settles: the changes made before

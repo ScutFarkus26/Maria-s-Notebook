@@ -56,6 +56,58 @@ struct AttendanceParentLockerScreenTests {
         #expect(AttendanceEmailLog.settings(in: other)?.sendMethod == .parentLocker)
     }
 
+    // Review of the bug-check fixes: a method change whose write was skipped
+    // (during a first download, say) left the share on the old method for good.
+    @Test("Opening Settings puts the share's method and site right, keeping its other fields")
+    func settingsRepairsTheSharedMethod() throws {
+        typealias Screen = AttendanceEmailSettingsView
+        let stack = try CoreDataTestHelpers.makeInMemoryStack()
+        let guide = stack.viewContext
+        var newer = Self.emailSettings
+        newer.toAddresses = "new-office@school.org"
+        #expect(AttendanceEmailLog.saveSettings(newer, role: .leadGuide, in: guide))
+        #expect(CoreDataTestHelpers.save(guide))
+
+        // This device's preferences: ParentLocker, and older recipients.
+        var preferences = Self.emailSettings
+        preferences.toAddresses = "old-office@school.org"
+        preferences.sendMethod = .parentLocker
+        preferences.parentLockerSite = "https://School.ParentLocker.com/sis"
+        #expect(!Screen.repairSharedMethodNow(
+            in: guide, settings: preferences, firstDownloadPending: true
+        ), "not during a first download")
+        #expect(AttendanceEmailLog.settings(in: guide)?.sendMethod == .email)
+
+        #expect(Screen.repairSharedMethodNow(in: guide, settings: preferences, firstDownloadPending: false))
+        let other = NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)
+        other.persistentStoreCoordinator = guide.persistentStoreCoordinator
+        let row = try #require(AttendanceEmailLog.settings(in: other))
+        #expect(row.sendMethod == .parentLocker)
+        #expect(row.parentLockerSite == "school.parentlocker.com")
+        #expect(!row.isEnabled, "with ParentLocker picked the email reads as off")
+        #expect(row.toAddresses == "new-office@school.org", "the row's other fields stay")
+        #expect(!Screen.repairSharedMethodNow(in: guide, settings: preferences, firstDownloadPending: false),
+                "nothing to put right the second time")
+
+        // Back to email: the email's switch comes from the preferences too.
+        preferences.sendMethod = .email
+        #expect(Screen.repairSharedMethodNow(in: guide, settings: preferences, firstDownloadPending: false))
+        #expect(AttendanceEmailLog.settings(in: guide)?.sendMethod == .email)
+        #expect(AttendanceEmailLog.settings(in: guide)?.isEnabled == true)
+    }
+
+    @Test("An assistant's notebook never puts the share's method right")
+    func assistantNeverRepairs() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        #expect(AttendanceEmailLog.saveSettings(Self.emailSettings, role: .leadGuide, in: context))
+        CoreDataTestHelpers.seedClassroomMembership(in: context, role: .assistant)
+        #expect(CoreDataTestHelpers.save(context))
+        var preferences = Self.emailSettings
+        preferences.sendMethod = .parentLocker
+        #expect(!AttendanceEmail.repairSharedMethod(in: context, settings: preferences, firstDownloadPending: false))
+        #expect(AttendanceEmailLog.settings(in: context)?.sendMethod == .email)
+    }
+
     // MARK: - C2: Mark as Sent on a future day
 
     @Test("Mark as Sent refuses a ParentLocker send for a day that hasn't come")

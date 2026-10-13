@@ -85,6 +85,36 @@ extension AttendanceEmail {
         )
     }
 
+    /// Settings opening on the guide's device: when the share's method or
+    /// ParentLocker site isn't what this device's preferences say (an edit
+    /// whose write was skipped during a first download, say), the row takes
+    /// the preferences' method and site (and, with the method, whether the
+    /// email is on). The row's other fields stay: this device's may be behind
+    /// an edit made on another of the guide's devices (2026-10-05). With no
+    /// row yet, this device's settings go in whole. Not during a first
+    /// download. Returns whether anything changed; the caller saves.
+    @discardableResult
+    static func repairSharedMethod(
+        in context: NSManagedObjectContext,
+        settings: AttendanceEmailLog.Settings = AttendanceEmail.storedSettings(),
+        firstDownloadPending: Bool = FirstDownloadGate.isPending()
+    ) -> Bool {
+        guard !firstDownloadPending else { return false }
+        let role = CDClassroomMembership.currentRole(in: context)
+        guard let row = AttendanceEmailLog.settings(in: context) else {
+            return AttendanceEmailLog.saveSettings(settings, role: role, in: context)
+        }
+        let wanted = settings.shared
+        guard row.sendMethod != wanted.sendMethod || row.parentLockerSite != wanted.parentLockerSite else {
+            return false
+        }
+        var repaired = row
+        if row.sendMethod != wanted.sendMethod { repaired.isEnabled = settings.isEnabled }
+        repaired.sendMethod = wanted.sendMethod
+        repaired.parentLockerSite = wanted.parentLockerSite
+        return AttendanceEmailLog.saveSettings(repaired, role: role, in: context)
+    }
+
     /// The launch's write: the guide's settings go into the share only when it
     /// has none yet (an older notebook, a first launch since schema 12). Never
     /// over a row already there: this device's preferences may not have caught

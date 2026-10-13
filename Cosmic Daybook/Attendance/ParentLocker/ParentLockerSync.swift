@@ -118,6 +118,11 @@ final class ParentLockerSync {
     /// saved since: the app doesn't sign in with it by itself (Sign In again).
     var savedPasswordRefused = false
 
+    /// The screens' question: not signed in, or signed in with a password
+    /// ParentLocker refused. Either way Close Arrival & Send and Send Now
+    /// open the sign-in sheet, and the menus offer Sign In.
+    var needsSignIn: Bool { !isSignedIn || savedPasswordRefused }
+
     /// The sync the app started, for the screens, intents and MCP that
     /// aren't handed one.
     static private(set) weak var current: ParentLockerSync?
@@ -167,6 +172,13 @@ final class ParentLockerSync {
     @ObservationIgnored var baselineTask: Task<Void, Never>?
     /// The children `baselineTask` is reading for.
     @ObservationIgnored var baselineWaiting: Set<UUID> = []
+    /// The children the class lists were read for today: each at most once a
+    /// day, since one ParentLocker doesn't hold (not matched, or in a class it
+    /// leaves alone) never gets a `lastSeen` to stop the next read.
+    @ObservationIgnored var baselineRead: Set<UUID> = []
+    /// The class lists are being read for `baselineTask`: a run waits for it,
+    /// as the read waits for a run, so the two never sign in at once.
+    @ObservationIgnored var readingBaseline = false
     @ObservationIgnored var activeRun: Task<ParentLockerRunOutcome, Never>?
     @ObservationIgnored private var watcher: ParentLockerWatcher?
     @ObservationIgnored var holdsBackground = false
@@ -255,10 +267,17 @@ final class ParentLockerSync {
     func cancelCloseArrivalSend() {
         guard wholeClass?.reason == .closeArrival else { return }
         wholeClass = nil
+        arrivalReopenedHere()
+        reschedule()
+    }
+
+    /// Arrival is open again here (Close Arrival's Undo, or a Close Arrival &
+    /// Send refused because the day was reset since): the lasting "arrival
+    /// closed here" mark and Undo's end go.
+    func arrivalReopenedHere() {
         arrivalClosedHere = false
         undoEndsAt = nil
         saveOwed()
-        reschedule()
     }
 
     /// Send Now: the whole class for `day`, now. Records the day's send,
@@ -369,25 +388,5 @@ final class ParentLockerSync {
     func forgetRefusedPassword() {
         dependencies.refusals.setRefused(nil, site: site)
         savedPasswordRefused = false
-    }
-
-    /// Signed out, here or by Sign Out on another device: this device's
-    /// cookies go, and nothing is owed any more.
-    func signedOutHere() {
-        try? dependencies.secrets.deleteCookies(site: site)
-        forgetRefusedPassword()
-        isSignedIn = false
-        localChanges = [:]
-        localDue = nil
-        catchUpChildren = []
-        importedChildren = []
-        importedBaseline = [:]
-        importedDue = nil
-        lastSeen = [:]
-        deadlineDue = nil
-        retry = nil
-        saveOwed()
-        status = ParentLockerStatus(state: .signedOut)
-        reschedule()
     }
 }

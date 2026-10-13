@@ -62,7 +62,8 @@ extension AttendanceExpandedView {
     func sendAfterClosingArrival() -> (() -> Void)? {
         guard sendsToParentLocker, viewModel.isToday, let sync = parentLocker else { return nil }
         sync.closeArrivalSend(on: date, after: undoWindow)
-        if !sync.isSignedIn { showingParentLockerSignIn = true }
+        // Not signed in, or the saved password was refused: sign in again.
+        if sync.needsSignIn { showingParentLockerSignIn = true }
         return { sync.cancelCloseArrivalSend() }
     }
 
@@ -103,7 +104,7 @@ extension AttendanceExpandedView {
     /// sheet first.
     func sendToParentLockerNow() {
         guard let sync = parentLocker else { return }
-        guard sync.isSignedIn else {
+        guard !sync.needsSignIn else {
             showingParentLockerSignIn = true
             return
         }
@@ -124,7 +125,8 @@ extension AttendanceExpandedView {
     }
 
     /// The ⋯ menu's ParentLocker items: Send Now, Mark as Sent for a day
-    /// taken on the site by hand, and Sign In while not signed in.
+    /// taken on the site by hand, and Sign In while not signed in (or the
+    /// saved password was refused).
     @ViewBuilder
     var parentLockerMenuItems: some View {
         Section("ParentLocker") {
@@ -133,7 +135,7 @@ extension AttendanceExpandedView {
             if frontDeskSend == nil {
                 Button("Mark as Sent", systemImage: "checkmark.circle") { recordFrontDeskSend(confirmedByHand: true) }
             }
-            if parentLocker?.isSignedIn == false {
+            if parentLocker?.needsSignIn == true {
                 Button("Sign In to ParentLocker…", systemImage: "person.crop.circle") {
                     showingParentLockerSignIn = true
                 }

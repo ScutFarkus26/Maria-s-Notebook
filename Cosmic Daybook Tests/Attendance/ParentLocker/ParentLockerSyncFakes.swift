@@ -154,6 +154,9 @@ final class FakeParentLocker {
     var goodCookie = "good"
     var password = "made-up-password"
     var signIns = 0
+    /// How many times the sign-in form lets other work run before it
+    /// answers, as the real web view does.
+    var signInYields = 0
     /// What the next saves report as changed by someone else.
     var conflicts: [ParentLockerSaveReply.Conflict] = []
 
@@ -363,7 +366,10 @@ struct ParentLockerTestDevice {
         var dependencies = ParentLockerSync.Dependencies(store: store)
         dependencies.secrets = secrets
         dependencies.makeTransport = { _, cookies, _ in FakeParentLockerTransport(site: site, cookies: cookies) }
-        dependencies.signIn = { credential, _ in try site.signIn(credential) }
+        dependencies.signIn = { credential, _ in
+            for _ in 0..<site.signInYields { await Task.yield() }
+            return try site.signIn(credential)
+        }
         dependencies.clock = clock
         dependencies.policy = policy
         dependencies.unsent = unsent

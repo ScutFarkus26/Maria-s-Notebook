@@ -170,6 +170,9 @@ public struct AttendanceEmailSettingsView: View {
     public var body: some View {
         platformBody
             .task(id: changeSignature) { await applyChanges() }
+            // A method or site that never reached the share (bug check
+            // 2026-10-13 review, C1): put right as Settings opens.
+            .onAppear { Self.repairSharedMethodNow(in: viewContext) }
             // Closing Settings cancels the pause above: an edit made here
             // goes into the share as the screen closes.
             .onDisappear {
@@ -318,6 +321,25 @@ extension AttendanceEmailSettingsView {
             sync.refreshSignIn()
             sync.refreshStatus()
         }
+    }
+
+    /// The share's method and site put right from this device's preferences,
+    /// saved, and this device's ParentLocker line with them
+    /// (`AttendanceEmail.repairSharedMethod`). Returns whether anything was written.
+    @discardableResult
+    static func repairSharedMethodNow(
+        in context: NSManagedObjectContext,
+        settings: AttendanceEmailLog.Settings = AttendanceEmail.storedSettings(),
+        firstDownloadPending: Bool = FirstDownloadGate.isPending()
+    ) -> Bool {
+        guard AttendanceEmail.repairSharedMethod(
+            in: context, settings: settings, firstDownloadPending: firstDownloadPending
+        ), context.safeSave() else { return false }
+        if let sync = ParentLockerSync.current(for: context) {
+            sync.refreshSignIn()
+            sync.refreshStatus()
+        }
+        return true
     }
 
     /// The guide's settings into the share, saved (`AttendanceEmail.shareSettings`:
