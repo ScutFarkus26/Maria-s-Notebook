@@ -167,8 +167,9 @@ struct ParentLockerAfternoonSendingTests {
         await FrontDeskEmailReminder.reschedule(in: context, now: now, center: center, defaults: defaults)
         #expect(center.pending.keys.contains { $0.contains(today) })
 
-        FrontDeskEmailReminder.noteNotExpected(on: now, defaults: defaults)
-        #expect(FrontDeskEmailReminder.isNotExpected(now, defaults: defaults))
+        AttendanceEmailLog.recordNotExpected(on: now, role: .leadGuide, in: context)
+        #expect(CoreDataTestHelpers.save(context))
+        #expect(AttendanceEmailLog.isNotExpected(on: now, in: context))
         await FrontDeskEmailReminder.reschedule(in: context, now: now, center: center, defaults: defaults)
         #expect(!center.pending.keys.contains { $0.contains(today) })
         #expect(!center.pending.isEmpty, "the days after still ring")

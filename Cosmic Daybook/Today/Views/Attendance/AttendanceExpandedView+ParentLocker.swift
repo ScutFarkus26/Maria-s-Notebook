@@ -188,13 +188,16 @@ extension AttendanceExpandedView {
 
     /// What Send Now's toast says about how the send ended. A run that ends
     /// with nothing to say of its own ("None of the class's children were
-    /// found in ParentLocker…") gives its first problem (M3).
+    /// found in ParentLocker…") gives its first problem (M3). A day
+    /// ParentLocker isn't expecting is no failure: it says so plainly.
     static func sendNowToast(for status: ParentLockerStatus) -> SendNowToast? {
         switch status.state {
         case .upToDate:
             return .success("Sent to ParentLocker")
         case .previewed:
             return .info("This test copy of the app only previews. Nothing was sent to ParentLocker.")
+        case .notExpected:
+            return .info(ParentLockerStatus.notExpectedLine)
         default:
             if let message = status.message { return .error(message) }
             return status.problems.first.map(SendNowToast.error)

@@ -93,7 +93,7 @@ extension ParentLockerSync {
         case .live, .owed:
             let after = isAfter(day, on: job.day)
             guard !isToday(job.day) || !day.isSchoolDay || !after else { return nil }
-            drop(job)
+            if isToday(job.day), day.isSchoolDay { keepUntilAfter(job, marks: day.marks) } else { drop(job) }
             if !after { status.state = .waitingForArrival }
             return ParentLockerSendFailure(message: "Nothing goes to ParentLocker until arrival closes.")
         case .backstop, .deadline:
@@ -110,13 +110,29 @@ extension ParentLockerSync {
         let waiting = job.reason == .backstop ? day.arrivalClosed : day.isSchoolDay && day.everyoneMarked
         guard !isToday(job.day) || day.role != .leadGuide || day.sentToParentLocker || !waiting else { return nil }
         if job.reason == .backstop, let backstopDay, isSameDay(backstopDay, job.day) { self.backstopDay = nil }
-        if isToday(job.day), isAfter(day, on: job.day) { releaseEarlyChanges(on: job.day) }
+        if isToday(job.day), isAfter(day, on: job.day) {
+            releaseEarlyChanges(on: job.day, sent: day.sentToParentLocker)
+        }
         return ParentLockerSendFailure(message: "The day was already sent, or isn't taken yet.")
     }
 
     private func drop(_ job: ParentLockerJob) {
         guard let children = job.children else { return }
         for child in children { localChanges[child] = nil }
+        saveOwed()
+    }
+
+    /// Today's changes refused because the day isn't "after" here any more
+    /// (Undo, Reopen Arrival): kept until it is again, as changes made
+    /// before it are (review of the afternoon fixes, H4), this device's own
+    /// with what's owed while they have a mark to send (`marks`).
+    private func keepUntilAfter(_ job: ParentLockerJob, marks: [UUID: ParentLockerPlanner.DayMark]) {
+        guard let children = job.children else { return }
+        let own = children.subtracting(job.imported)
+        for child in own { localChanges[child] = nil }
+        keepEarlyLocal(own, marks: marks)
+        earlyLocalDue = nil
+        earlyChanges.formUnion(job.imported.subtracting(earlyLocal))
         saveOwed()
     }
 
@@ -155,9 +171,10 @@ extension ParentLockerSync {
     /// refused: that one waits until a new one is saved, here or on another
     /// of the person's devices, so the school's site doesn't see it again and
     /// again. Never while ParentLocker wants a person at its sign-in (new
-    /// terms, a reset) either: only the sign-in sheet clears that (bug hunt
-    /// 2026-10-13 afternoon, M9). Only in front: the web view stalls in the
-    /// background.
+    /// terms, a reset) either: only a sign-in through the sheet, or a newer
+    /// password saved on another of the person's devices, clears that (bug
+    /// hunt 2026-10-13 afternoon, M9). Only in front: the web view stalls in
+    /// the background.
     private func signInAgain(site: String) async throws -> [ParentLockerCookie] {
         let credential: ParentLockerKeychain.Credential?
         let saved: Date?
@@ -173,6 +190,7 @@ extension ParentLockerSync {
             savedPasswordRefused = true
             throw ParentLockerSyncStop.passwordRefused
         }
+        if signInNeedsYou, needsYouPassword != password { signInNeedsYou = false }
         guard !signInNeedsYou else { throw ParentLockerSyncStop.needsYou }
         guard dependencies.isInForeground() else { throw ParentLockerSyncStop.notSentYet }
         let cookies: [ParentLockerCookie]
@@ -186,6 +204,7 @@ extension ParentLockerSync {
             } else if error == .needsYou {
                 Self.logger.error("ParentLocker: the sign-in wants a person; it won't be tried again by itself")
                 signInNeedsYou = true
+                needsYouPassword = password
             }
             throw error.syncError
         }
@@ -281,7 +300,7 @@ extension ParentLockerSync {
                 _ = store.writeMatches(result.plan.newMatches.mapValues { Optional($0) })
             }
         }
-        settleOwed(after: job, startedAt: started)
+        settleOwed(after: job, startedAt: started, leftToOthers: result.leftToOthers)
         var problems = report.problems
         if job.isWholeClass, !matchedAny {
             problems.insert(
@@ -353,8 +372,12 @@ extension ParentLockerSync {
         default:
             owe(job)
         }
-        // A send someone asked for, still owed, waits for the sign-in it needs.
-        if isTodays, needsSignIn, wholeClass != nil, job.reason == .closeArrival || job.reason == .sendNow {
+        // A send someone asked for, still owed, waits for the sign-in it
+        // needs. Not once the sheet was closed without one: each change
+        // takes the send owed and it fails again, and the sign-in opened
+        // after every mark (review of the afternoon fixes).
+        if isTodays, needsSignIn, wholeClass != nil, !signInDeclined,
+           job.reason == .closeArrival || job.reason == .sendNow {
             awaitsSignIn = true
         }
         return ended

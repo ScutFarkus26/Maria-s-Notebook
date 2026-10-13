@@ -22,6 +22,7 @@ extension ParentLockerSync {
     private var liveWakes: [Date] {
         var dues: [Date] = []
         if let localDue { dues.append(localDue) }
+        if let earlyLocalDue, !earlyLocal.isEmpty { dues.append(earlyLocalDue) }
         if let importedDue, !readyImported.isEmpty { dues.append(importedDue) }
         if wholeClass == nil, let deadlineDue { dues.append(deadlineDue) }
         return dues
@@ -87,18 +88,25 @@ extension ParentLockerSync {
     /// goes: it settles them once it reaches ParentLocker, and one refused
     /// (the day sent elsewhere since) leaves them to go by themselves (bug
     /// hunt 2026-10-13 afternoon, H4).
-    private func wholeClassJob(_ reason: ParentLockerJob.Reason, attempt: Int = 0) -> ParentLockerJob {
+    func wholeClassJob(_ reason: ParentLockerJob.Reason, attempt: Int = 0) -> ParentLockerJob {
         var job = ParentLockerJob(day: today, children: nil, reason: reason, attempt: attempt)
-        job.settles = importedChildren.union(earlyChanges)
+        job.settles = importedChildren.union(earlyChanges).union(earlyLocal)
         return job
     }
 
-    /// This device's changes whose 4 s are up, and those synced in whose 60 s
-    /// are, each carrying what this device had seen of them in ParentLocker
-    /// or, with nothing seen, its mark here from before the change. A child
-    /// this device changed too goes as its own change.
+    /// This device's changes whose 4 s are up (and its own from before
+    /// "after" whose wait is), and those synced in whose 60 s are, each
+    /// carrying what this device had seen of them in ParentLocker or, with
+    /// nothing seen, its mark here from before the change. A child this
+    /// device changed too goes as its own change.
     private func liveJob(at now: Date) -> ParentLockerJob? {
         var job = ParentLockerJob(day: today, children: [], reason: .live)
+        if let due = earlyLocalDue, due <= now {
+            // Owed as this device's own from here on: kept until they reach ParentLocker.
+            for child in earlyLocal where localChanges[child] == nil { localChanges[child] = now }
+            job.children?.formUnion(earlyLocal)
+            forgetEarlyLocal(earlyLocal)
+        }
         if let due = localDue, due <= now {
             job.children?.formUnion(localChanges.keys)
             localDue = nil
@@ -182,7 +190,8 @@ extension ParentLockerSync {
 
     /// What's owed is for one day: a new day drops yesterday's (past days go
     /// only by Send Now or MCP; another day's retry keeps its own slot).
-    func rollOwedDay(to day: Date) {
+    /// `changing`: the children whose change, already saved, rolled it.
+    func rollOwedDay(to day: Date, changing children: Set<UUID> = []) {
         if let owedDay, isSameDay(owedDay, day) { return }
         if owedDay != nil {
             localChanges = [:]
@@ -191,17 +200,34 @@ extension ParentLockerSync {
             forgetImported(importedChildren)
             importedBefore = [:]
             earlyChanges = []
+            forgetEarlyLocal(earlyLocal)
             knownMarks = nil
             wholeClass = nil
             retry = nil
             deadlineDue = nil
             arrivalClosedHere = false
             awaitsSignIn = false
+            signInDeclined = false
         }
         // What ParentLocker held is a day's: none of it says anything about this one.
         lastSeen = [:]
         baselineRead = []
         owedDay = dependencies.calendar.startOfDay(for: day)
+        rememberNewDaysMarks(day, changing: children)
+    }
+
+    /// The new day's marks as they stand, for the changes synced in from now
+    /// on (`importedBefore`), unless this device read them today already. A
+    /// phone suspended over midnight never heard `.NSCalendarDayChanged`, so
+    /// its first change of the day had nothing to measure by (review of the
+    /// afternoon fixes, M5). The children whose change rolled the day count
+    /// as unmarked before it: this device saw nothing of them today.
+    private func rememberNewDaysMarks(_ day: Date, changing children: Set<UUID>) {
+        guard isSignedIn, !(knownMarksDay.map { isSameDay($0, day) } ?? false) else { return }
+        var marks = store.day(day, withChildren: true).marks
+        for child in children { marks[child] = nil }
+        knownMarks = marks
+        knownMarksDay = dependencies.calendar.startOfDay(for: day)
     }
 
     // MARK: - Owed, kept across launches
@@ -210,7 +236,7 @@ extension ParentLockerSync {
         guard let owedDay else { return dependencies.unsent.save(nil) }
         dependencies.unsent.save(ParentLockerUnsent(
             day: AppCalendar.dayID(owedDay),
-            children: Set(localChanges.keys).union(catchUpChildren),
+            children: Set(localChanges.keys).union(catchUpChildren).union(earlyLocal),
             wholeClass: wholeClass != nil,
             arrivalClosed: arrivalClosedHere
         ))
@@ -246,6 +272,7 @@ extension ParentLockerSync {
         forgetImported(importedChildren)
         importedBefore = [:]
         earlyChanges = []
+        forgetEarlyLocal(earlyLocal)
         lastSeen = [:]
         baselineRead = []
         deadlineDue = nil
@@ -260,8 +287,10 @@ extension ParentLockerSync {
     /// it started (one made since goes on its own), a whole-class send owed
     /// or waiting for a sign-in, what a whole-class send covered (changes
     /// synced in, or made before "after", noted before it was taken), and a
-    /// retry it covers.
-    func settleOwed(after job: ParentLockerJob, startedAt started: Date) {
+    /// retry it covers. This device's own changes from before "after" that
+    /// it left to another device (`leftToOthers`, a backstop's) aren't
+    /// covered: they still go as this device's own.
+    func settleOwed(after job: ParentLockerJob, startedAt started: Date, leftToOthers: Set<UUID> = []) {
         if job.isWholeClass, let pending = otherDayRetry, isSameDay(pending.job.day, job.day) { otherDayRetry = nil }
         guard isToday(job.day) else { return }
         let settled = job.children ?? Set(localChanges.keys)
@@ -279,6 +308,7 @@ extension ParentLockerSync {
             if let pending = retry, isSameDay(pending.job.day, job.day) { retry = nil }
             forgetImported(job.settles)
             earlyChanges.subtract(job.settles)
+            forgetEarlyLocal(job.settles.subtracting(leftToOthers))
         }
         saveOwed()
     }
@@ -337,42 +367,6 @@ extension ParentLockerSync {
         let secrets = dependencies.secrets
         return dependencies.makeTransport(site, cookies) { changed in
             try? secrets.saveCookies(changed, site: site)
-        }
-    }
-}
-
-/// One run of the sync: the whole class or some children, for a day.
-nonisolated struct ParentLockerJob: Sendable, Equatable {
-    /// `.deadline` is the guide's check after the day's due time.
-    enum Reason: Sendable, Equatable { case live, closeArrival, backstop, deadline, owed, sendNow, request }
-    var day: Date
-    /// Nil for the whole class.
-    var children: Set<UUID>?
-    var reason: Reason
-    var preview = false
-    /// Retries already made.
-    var attempt = 0
-    /// Of `children`, those whose change synced in from another device, and
-    /// what this device had seen of them in ParentLocker when it arrived, or
-    /// with nothing seen, their mark here from before the change.
-    var imported: Set<UUID> = []
-    var importedBaseline: [UUID: ParentLockerSeen] = [:]
-    var importedBefore: [UUID: ParentLockerPlanner.DayMark?] = [:]
-    /// For a whole-class send: the changes synced in, or made before
-    /// "after", it covers once it reaches ParentLocker.
-    var settles: Set<UUID> = []
-
-    var isWholeClass: Bool { children == nil }
-
-    /// Goes only over what this device last saw of each child in
-    /// ParentLocker, leaving one saved since to the device that saved it: the
-    /// guide's backstops, a whole-class retry and a whole-class send owed
-    /// from before, which may come from a device that hasn't caught up (bug
-    /// hunt 2026-10-13 afternoon, H5).
-    var comparesWithLastSeen: Bool {
-        switch reason {
-        case .backstop, .deadline, .owed: true
-        default: isWholeClass && attempt > 0
         }
     }
 }

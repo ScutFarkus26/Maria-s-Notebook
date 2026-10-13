@@ -100,6 +100,10 @@ struct AttendanceSettingsPendingWrite: Equatable {
     struct RowStamp: Equatable, Sendable {
         let id: UUID?
         let modifiedAt: Date?
+
+        /// The launch's own row (`AttendanceEmailLog.saveSettingsIfMissing`):
+        /// the guide's own row may still be on its way to this device.
+        var isLaunchSeed: Bool { modifiedAt == AttendanceEmailLog.launchSeedStamp }
     }
 
     var edit: AttendanceSettingsEdit

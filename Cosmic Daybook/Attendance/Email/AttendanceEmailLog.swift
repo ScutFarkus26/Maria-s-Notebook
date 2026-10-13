@@ -217,67 +217,6 @@ enum AttendanceEmailLog {
         }
     }
 
-    // MARK: - Sends
-
-    /// The day's sends, newest first.
-    static func sends(on day: Date, in context: NSManagedObjectContext) -> [CDAttendanceEmailSend] {
-        let request = CDFetchRequest(CDAttendanceEmailSend.self)
-        request.predicate = NSPredicate(format: "date == %@", AppCalendar.startOfDay(day) as NSDate)
-        request.sortDescriptors = [NSSortDescriptor(key: "sentAt", ascending: false)]
-        scopeToClassroom(request, in: context)
-        return context.safeFetch(request)
-    }
-
-    /// The newest send for `day`, if the email has gone.
-    static func latestSend(on day: Date, in context: NSManagedObjectContext) -> Send? {
-        let request = CDFetchRequest(CDAttendanceEmailSend.self)
-        request.predicate = NSPredicate(format: "date == %@", AppCalendar.startOfDay(day) as NSDate)
-        request.sortDescriptors = [NSSortDescriptor(key: "sentAt", ascending: false)]
-        request.fetchLimit = 1
-        scopeToClassroom(request, in: context)
-        return context.safeFetchFirst(request).map(Send.init)
-    }
-
-    /// Records that `day`'s attendance went, by `channel` (the email unless
-    /// said), stamped with who this device is. The caller saves, and in the
-    /// Assistant puts the new record into the share.
-    @discardableResult
-    static func recordSend(
-        on day: Date,
-        role: CDClassroomMembership.ClassroomRole,
-        channel: AttendanceSendMethod = .email,
-        confirmedByHand: Bool = false,
-        now: Date = Date(),
-        in context: NSManagedObjectContext
-    ) -> CDAttendanceEmailSend {
-        let send = CDAttendanceEmailSend(context: context)
-        if let store = destinationStore(for: role, in: context) { context.assign(send, to: store) }
-        send.date = AppCalendar.startOfDay(day)
-        send.sentAt = now
-        send.sentBy = role.rawValue
-        send.sentByID = ClassroomIdentity.currentUserRecordName
-        // Only assistants carry a name, as on their marks: the guide's sends
-        // read as "you" on the guide's devices and, on theirs, as the name he
-        // set in the classroom's list (`ClassroomNames`), else "your guide".
-        send.sentByName = role == .assistant ? ClassroomIdentity.displayName : nil
-        send.wasConfirmedByHand = confirmedByHand
-        send.channelRaw = channel.rawValue
-        return send
-    }
-
-    /// The day's send as someone outside the classroom reads it ("Emailed
-    /// 8:42 AM by Sarah (late)", the guide's own "by the guide"), for MCP. An
-    /// assistant is named as she goes by now (the classroom's list, by the
-    /// send's record name, so a rename reaches old sends), then by the name
-    /// stamped on the send, then "an assistant".
-    static func thirdPersonSummary(on day: Date, in context: NSManagedObjectContext) -> String? {
-        guard let send = latestSend(on: day, in: context) else { return nil }
-        let name = send.sentBy == .leadGuide
-            ? "the guide"
-            : (ClassroomNames.name(forRecordName: send.sentByID, in: context) ?? send.sentByName ?? "an assistant")
-        return send.summary(senderName: name, for: day, deadlineMinutes: settings(in: context)?.deadlineMinutes)
-    }
-
     // MARK: - Settings
 
     /// The guide's settings as the share carries them, or nil before the guide
@@ -355,8 +294,12 @@ enum AttendanceEmailLog {
         let request = CDFetchRequest(CDAttendanceEmailSettings.self)
         request.fetchLimit = 1
         guard context.safeFetchFirst(request) == nil else { return false }
-        return saveSettings(settings, role: role, now: .distantPast, in: context)
+        return saveSettings(settings, role: role, now: launchSeedStamp, in: context)
     }
+
+    /// The `modifiedAt` of the launch's own row (`saveSettingsIfMissing`):
+    /// this device's preferences as they stood, not the guide's choice.
+    nonisolated static let launchSeedStamp = Date.distantPast
 
     private static func newestSettingsRow(in context: NSManagedObjectContext) -> CDAttendanceEmailSettings? {
         let request = CDFetchRequest(CDAttendanceEmailSettings.self)
@@ -374,7 +317,7 @@ enum AttendanceEmailLog {
     /// settings and sends, which would send her email to the wrong people or
     /// say it had gone. The notebook reads both stores (the guide's own
     /// records live in the private store); a single store reads everything.
-    private static func scopeToClassroom<T>(_ request: NSFetchRequest<T>, in context: NSManagedObjectContext) {
+    static func scopeToClassroom<T>(_ request: NSFetchRequest<T>, in context: NSManagedObjectContext) {
         #if ASSISTANT_APP
         let shared = context.persistentStoreCoordinator?.persistentStores.first {
             $0.configurationName == CoreDataStack.sharedConfiguration
@@ -387,7 +330,7 @@ enum AttendanceEmailLog {
     /// store and join the share from there (`SharedStoreOrphanGuard`); an
     /// assistant's go straight into the shared store, as her marks do
     /// (`CDAttendanceStore`). Nil with a single store (tests, Sample Class).
-    private static func destinationStore(
+    static func destinationStore(
         for role: CDClassroomMembership.ClassroomRole,
         in context: NSManagedObjectContext
     ) -> NSPersistentStore? {

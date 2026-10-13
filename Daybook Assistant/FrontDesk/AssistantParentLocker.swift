@@ -20,8 +20,11 @@ extension AssistantFrontDesk {
 
     /// Whether the line offers Send to ParentLocker: everyone's marked, so
     /// there's no Close Arrival to send the day, and nobody has sent it.
+    /// A child left out of ParentLocker ("Not matched") isn't waited for,
+    /// as the sync's line doesn't (`AttendanceRow.waitsForParentLocker`).
     func offersParentLockerSend(by viewModel: AssistantAttendanceViewModel) -> Bool {
-        offersParentLocker(by: viewModel) && latestSend == nil && viewModel.unmarkedCount == 0
+        offersParentLocker(by: viewModel) && latestSend == nil
+            && !viewModel.rows.contains(where: \.waitsForParentLocker)
     }
 
     /// Whether Close Arrival sends the class to ParentLocker as well: picked,
@@ -43,6 +46,7 @@ protocol AssistantParentLockerSending: AnyObject {
     var needsSignIn: Bool { get }
     func sendNow(day: Date) async -> ParentLockerStatus
     func closeArrivalSend(on day: Date, after undoWindow: TimeInterval)
+    func closeArrivalSendNow(on day: Date) async -> ParentLockerStatus
     func cancelCloseArrivalSend()
     func unmarkedNames(on day: Date) -> [String]
 }
@@ -60,17 +64,21 @@ enum AssistantParentLockerAfterClose: Equatable {
     case notSignedIn
     /// It couldn't reach ParentLocker, or the class's sync wasn't running.
     case notSentYet
+    /// ParentLocker isn't expecting the class's attendance today.
+    case notExpected
 }
 
 extension AssistantSiriCommands {
 
     /// After Siri closes arrival: sends the whole class to ParentLocker when
     /// the guide picked it and this iPhone is signed in, and says how it went.
-    /// Not signed in, the send waits for her to sign in (or the guide's
-    /// backstop), as Close Arrival & Send does on screen. `sync` is the
-    /// class's (`ParentLockerSync.current`); nil when it isn't running (the
-    /// app launched for Siri alone), when the send is kept in `unsent` for
-    /// the sync to make once it starts.
+    /// It goes as Close Arrival & Send's, so a send that fails and waits to
+    /// try again is still one Siri's "Undo that" stops (review of the
+    /// afternoon fixes, H2). Not signed in, the send waits for her to sign
+    /// in (or the guide's backstop), as Close Arrival & Send does on screen.
+    /// `sync` is the class's (`ParentLockerSync.current`); nil when it isn't
+    /// running (the app launched for Siri alone), when the send is kept in
+    /// `unsent` for the sync to make once it starts.
     static func sendAfterClose(
         _ session: SiriAttendance, sync: (any AssistantParentLockerSending)?,
         unsent: any ParentLockerUnsentStore = ParentLockerSync.defaultUnsentStore()
@@ -90,9 +98,10 @@ extension AssistantSiriCommands {
             sync.closeArrivalSend(on: session.today, after: 0)
             return .notSignedIn
         }
-        switch await sync.sendNow(day: session.today).state {
+        switch await sync.closeArrivalSendNow(on: session.today).state {
         case .upToDate: return .sent
         case .previewed: return .previewed
+        case .notExpected: return .notExpected
         default: return .notSentYet
         }
     }
@@ -131,6 +140,8 @@ extension AssistantSiriCommands {
                 + "Open the Assistant and sign in to ParentLocker to send it."
         case .notSentYet:
             closed + " Attendance hasn't gone to ParentLocker yet. Open the Assistant to send it."
+        case .notExpected:
+            closed + " " + ParentLockerStatus.notExpectedLine
         }
     }
 }

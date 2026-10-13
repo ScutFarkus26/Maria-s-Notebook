@@ -33,9 +33,13 @@ struct AssistantParentLockerSection: View {
                 Text(sync.needsSignIn ? Self.signedOutFooter : Self.signedInFooter)
             }
         }
-        .sheet(isPresented: $showingSignIn) {
+        .sheet(isPresented: $showingSignIn, onDismiss: {
+            // Closed without signing in: a send waiting for it doesn't ask
+            // again by itself, and a Send Now waiting for it is dropped.
+            if sync.needsSignIn { sync.signInDismissed() }
+        }, content: {
             ParentLockerSignInSheet(sync: sync)
-        }
+        })
     }
 
     /// The row's value. A password ParentLocker refused isn't a sign-in

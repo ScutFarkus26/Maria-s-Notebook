@@ -71,8 +71,11 @@ extension AttendanceExpandedView {
             HStack(spacing: AppTheme.Spacing.small) {
                 parentLockerLine(showsProblems: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                // A child left out of ParentLocker isn't waited for, as the
+                // line doesn't (`AttendanceRow.waitsForParentLocker`).
                 if Self.compactRowOffersSend(
-                    isOpen: parentLockerIsOpen, isFuture: viewModel.isFuture, isRollComplete: isRollComplete
+                    isOpen: parentLockerIsOpen, isFuture: viewModel.isFuture,
+                    isRollComplete: !viewModel.rows.isEmpty && !viewModel.rows.contains(where: \.waitsForParentLocker)
                 ) {
                     let overdue = if case .overdue = urgency { true } else { false }
                     parentLockerSendButton(overdue: overdue, prominent: true)

@@ -49,6 +49,7 @@ extension ParentLockerSync {
         isSignedIn = true
         signInNeedsYou = false
         awaitsSignIn = false
+        signInDeclined = false
         status.state = .idle
         status.details = nil
         // This device's changes that failed for want of the sign-in go now.
@@ -62,12 +63,14 @@ extension ParentLockerSync {
     }
 
     /// The sign-in sheet closed. Nothing asks for a sign-in again by itself,
-    /// and a Send Now that was waiting for it doesn't go: the person decided
-    /// against it. Close Arrival & Send's stays owed, for a later sign-in or
-    /// the guide's backstop. Safe to call however the sheet closed: a
-    /// sign-in has already released what waited.
+    /// not even as each change takes the send owed and it fails again
+    /// (`signInDeclined`), and a Send Now that was waiting for it doesn't
+    /// go: the person decided against it. Close Arrival & Send's stays owed,
+    /// for a later sign-in or the guide's backstop. Safe to call however the
+    /// sheet closed: a sign-in has already released what waited.
     func signInDismissed() {
         awaitsSignIn = false
+        signInDeclined = true
         guard wholeClass?.reason == .sendNow, wholeClass?.due == nil else { return }
         wholeClass = nil
         saveOwed()
@@ -82,6 +85,7 @@ extension ParentLockerSync {
         if wholeClass?.reason == .backstop { backstopDay = nil }
         if wholeClass?.reason != .closeArrival { wholeClass = ParentLockerWholeClass(reason: .sendNow, due: nil) }
         awaitsSignIn = true
+        signInDeclined = false
         saveOwed()
         reschedule()
     }
@@ -105,6 +109,9 @@ extension ParentLockerSync {
     /// device (Sign Out there) takes this device's cookies with it. Only a
     /// password that isn't there signs out: a Keychain that can't be read
     /// right now (the device locked since restart, say) leaves things as they are.
+    /// A newer password, saved here or on another of the person's devices,
+    /// clears a refusal, and a sign-in ParentLocker wanted a person for: that
+    /// person has signed in (review of the afternoon fixes, M9).
     func refreshSignIn() {
         let site = site
         let hasPassword: Bool
@@ -119,6 +126,10 @@ extension ParentLockerSync {
         }
         isSignedIn = hasPassword
         savedPasswordRefused = hasPassword && refusalStands(site: site)
+        if signInNeedsYou, hasPassword, let saved = try? dependencies.secrets.passwordModified(site: site),
+           saved != needsYouPassword {
+            signInNeedsYou = false
+        }
     }
 
     /// Whether the saved password is the one ParentLocker refused: none saved since.

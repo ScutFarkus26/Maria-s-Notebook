@@ -46,6 +46,10 @@ nonisolated struct ParentLockerStatus: Sendable, Equatable {
         case previewed
     }
 
+    /// What every screen, Siri and the Shortcut say on a day ParentLocker
+    /// isn't expecting the class's attendance.
+    static let notExpectedLine = "ParentLocker isn't expecting attendance today."
+
     var state: State = .off
     /// Plain lines about particular children: locked by the office, can't be
     /// cleared, not matched yet, changed by someone else.
@@ -62,7 +66,7 @@ nonisolated struct ParentLockerStatus: Sendable, Equatable {
         case .signedOut: ParentLockerSyncStop.signedOut.message
         case .waitingForArrival: "Attendance goes to ParentLocker when arrival closes."
         case .readyToSend: "Everyone's marked. Send it to ParentLocker."
-        case .notExpected: "ParentLocker isn't expecting attendance today."
+        case .notExpected: Self.notExpectedLine
         case .waitingForSignIn: ParentLockerSyncStop.signInToSend
         case .sending: "Sending to ParentLocker…"
         case .upToDate: "Up to date in ParentLocker."

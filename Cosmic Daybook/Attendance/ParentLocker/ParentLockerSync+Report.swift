@@ -42,6 +42,8 @@ extension ParentLockerSync {
         case .off, .signedOut, .waitingForArrival, .readyToSend, .idle: ranToday
         case .upToDate, .previewed, .notExpected: ranToday ? nil : false
         case .retrying, .gaveUp, .notSentYet: ranToday && owesWork ? nil : false
+        // Signed in again since, here or with a password saved elsewhere.
+        case .passwordRefused, .needsYou: false
         default: nil
         }
     }
@@ -56,14 +58,16 @@ extension ParentLockerSync {
     /// Something is still to go: a retry, a whole-class send, or changes.
     var owesWork: Bool {
         retry != nil || wholeClass != nil || !localChanges.isEmpty || !catchUpChildren.isEmpty
-            || !importedChildren.isEmpty
+            || !importedChildren.isEmpty || earlyLocalDue != nil
     }
 
-    /// The line while nothing is under way: quiet once the day is "after"
-    /// (or not a school day); before, waiting for arrival, or, with everyone
-    /// marked and so no Close Arrival to tap, ready to send (bug hunt
-    /// 2026-10-13 afternoon, M2).
+    /// The line while nothing is under way: on a day ParentLocker isn't
+    /// expecting, that, as any device of the class found it; quiet once the
+    /// day is "after" (or not a school day); before, waiting for arrival,
+    /// or, with everyone marked and so no Close Arrival to tap, ready to send
+    /// (bug hunt 2026-10-13 afternoon, M2, M8).
     private func quietState(_ state: ParentLockerDay) -> ParentLockerStatus.State {
+        if state.notExpected, state.isSchoolDay { return .notExpected }
         guard state.isSchoolDay, !isAfter(state, on: today) else { return .idle }
         let marked = state.children.isEmpty ? store.day(today, withChildren: true) : state
         return marked.everyoneMarked ? .readyToSend : .waitingForArrival

@@ -51,19 +51,36 @@ struct SendAttendanceIntent: AppIntent {
     }
 
     /// What the action says: what went, that nothing needed to, or why it
-    /// didn't go, in plain words (the sync words its failures).
+    /// didn't go, in plain words (the sync words its failures). After a send
+    /// with children unmarked, who they are, and that the day isn't recorded
+    /// as sent (review of the afternoon fixes).
     static func reply(to result: Result<ParentLockerReport, ParentLockerSendFailure>) -> String {
         switch result {
         case .success(let report) where report.wasPreview:
             return "This test copy of the app only previews. Nothing was sent to ParentLocker."
+        case .success(let report) where report.notExpected:
+            return ParentLockerStatus.notExpectedLine
         case .success(let report) where report.savedCount == 0:
-            return "ParentLocker already has today's attendance." + firstProblem(report)
+            let already = report.waitsForMarks
+                ? "ParentLocker already has everyone who's marked." : "ParentLocker already has today's attendance."
+            return already + unmarkedLine(report) + firstProblem(report)
         case .success(let report):
             let children = report.savedCount == 1 ? "1 child" : "\(report.savedCount) children"
-            return "Sent today's attendance to ParentLocker: \(children) updated." + firstProblem(report)
+            return "Sent today's attendance to ParentLocker: \(children) updated."
+                + unmarkedLine(report) + firstProblem(report)
         case .failure(let failure):
             return failure.message
         }
+    }
+
+    /// The children a send left out for want of a mark: up to three by name,
+    /// more as a count ("Bea M isn't marked yet, so today isn't recorded as
+    /// sent."). Nothing when the day counts as sent.
+    private static func unmarkedLine(_ report: ParentLockerReport) -> String {
+        guard report.waitsForMarks, !report.unmarked.isEmpty else { return "" }
+        let count = report.unmarked.count
+        let who = count <= 3 ? report.unmarked.formatted(.list(type: .and)) : "\(count) children"
+        return " \(who) \(count == 1 ? "isn't" : "aren't") marked yet, so today isn't recorded as sent."
     }
 
     /// The first child it left alone, and why ("The office already marked Maya S Absent.").
