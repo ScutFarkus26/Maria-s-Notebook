@@ -67,6 +67,7 @@ extension CosmicDaybookApp {
                 .environment(AlbumLibrary.shared)
                 .syncingFromICloudOverlay()
                 .continuesHandoff(router: appRouter)
+                .parentLockerPreviewOnLaunch(context: notebook.coreDataStack.viewContext)
         }
     }
 
