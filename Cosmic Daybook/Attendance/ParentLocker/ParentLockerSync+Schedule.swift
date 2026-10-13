@@ -261,6 +261,23 @@ extension ParentLockerSync {
         unsent.save(owed)
     }
 
+    /// Siri's undo of a Close Arrival made while the class's sync isn't
+    /// running: the whole-class send kept owed for `day`, and its "arrival
+    /// closed", are taken back, so a later sign-in never sends a reopened
+    /// class (bug hunt 2026-10-13 afternoon, H2).
+    nonisolated static func cancelOwedCloseArrivalSend(on day: Date, in unsent: any ParentLockerUnsentStore) {
+        guard var owed = unsent.load(), owed.day == AppCalendar.dayID(day) else { return }
+        owed.wholeClass = false
+        owed.arrivalClosed = false
+        unsent.save(owed.isEmpty ? nil : owed)
+    }
+
+    /// The children on `day`'s roll with no mark yet, by name, for a screen
+    /// or the Shortcut to ask about before a send (bug hunt 2026-10-13
+    /// afternoon, M4). Phase 0 placeholder of its fixes plan; the engine
+    /// fills it in.
+    func unmarkedNames(on day: Date) -> [String] { [] }
+
     func makeTransport(site: String, cookies: [ParentLockerCookie]) -> any ParentLockerTransport {
         let secrets = dependencies.secrets
         return dependencies.makeTransport(site, cookies) { changed in

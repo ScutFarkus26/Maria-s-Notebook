@@ -1,6 +1,6 @@
 # ParentLocker bug hunt afternoon fixes
 
-> **Not started.** Written 2026-10-13 from <../Reviews/ParentLocker bug hunt 2026-10-13 afternoon.md> (23 findings in the ParentLocker work on main 3ba3c2f8). Danny: "Fix all 23."
+> **Working on it.** Written 2026-10-13 from <../Reviews/ParentLocker bug hunt 2026-10-13 afternoon.md> (23 findings in the ParentLocker work on main 3ba3c2f8). Danny: "Fix all 23."
 > In short: the main session adds the shared hooks as placeholders, then four agents in their own worktrees fix the 23 findings, each with a test that fails first. Then a review, full builds and both whole suites, and it lands on main. TestFlight stays on hold until Danny says go.
 
 ## Goal
@@ -17,8 +17,8 @@ On main, built, both whole suites passing.
 
 ## Progress
 Build board: https://claude.ai/artifact/WAKaFZGNPQsfKD4A5GbqsM (milestone 16).
-- [ ] Phase 0: Shared hooks as placeholders, so the agents never wait on each other (session: here) · est. ~0.5% weekly
-- [ ] Phase 1: Agents E ‖ H ‖ A, then N as soon as one finishes; each in its own worktree with Phase 0 merged (session: here) · est. ~5–7% weekly
+- [x] Phase 0: Shared hooks as placeholders, so the agents never wait on each other (session: here) · est. ~0.5% weekly · started at 67% · `awaitsSignIn`, a working `cancelOwedCloseArrivalSend(on:in:)` and an empty `unmarkedNames(on:)`; notebook iOS and the Assistant build
+- [ ] Phase 1: Agents E ‖ H ‖ A, then N as soon as one finishes; each in its own worktree with Phase 0 merged (session: here) · est. ~5–7% weekly · started at 67%
 - [ ] Phase 2: Combine, check every test fails on the old code, review, five builds, whole suites (the Assistant's three times), land on main (session: here) · est. ~1–2% weekly
 
 ## Cost

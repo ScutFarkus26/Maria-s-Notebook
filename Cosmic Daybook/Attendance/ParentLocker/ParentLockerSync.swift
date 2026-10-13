@@ -122,6 +122,10 @@ final class ParentLockerSync {
     /// ParentLocker refused. Either way Close Arrival & Send and Send Now
     /// open the sign-in sheet, and the menus offer Sign In.
     var needsSignIn: Bool { !isSignedIn || savedPasswordRefused }
+    /// A whole-class send is waiting for a sign-in, today only, so a screen
+    /// can prompt for one (bug hunt 2026-10-13 afternoon, L2/L6). Phase 0
+    /// placeholder of its fixes plan; the engine sets it.
+    var awaitsSignIn = false
 
     /// The sync the app started, for the screens, intents and MCP that
     /// aren't handed one.
