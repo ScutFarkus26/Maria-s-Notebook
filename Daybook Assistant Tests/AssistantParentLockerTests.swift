@@ -131,6 +131,25 @@ struct AssistantParentLockerTests {
         #expect(ArrivalUndo(count: 2, sendsToParentLocker: true).sendsToParentLocker)
     }
 
+    @Test("The sign-in sheet's words are plain, and the password line says where it lives")
+    func signInWordsArePlain() {
+        typealias Sheet = ParentLockerSignInSheet
+        let sheet = [Sheet.title, Sheet.onceLine, Sheet.noticeTitle]
+        let lines = sheet + Sheet.notice.map(\.text)
+            + [AssistantParentLockerSection.signedInFooter, AssistantParentLockerSection.signedOutFooter,
+               AssistantParentLockerRow.notSentLine]
+        for line in lines {
+            for word in ["http", "cookie", "error", "server", "request", "token", "session"] {
+                #expect(!line.lowercased().contains(word), "\(line) says \(word)")
+            }
+        }
+        #expect(ParentLockerSignInSheet.notice.contains {
+            $0.text == "Your password is saved in your iCloud Keychain, which Apple encrypts. "
+                + "Only your own devices can read it. It's never stored in the app or its backups, "
+                + "and none of your co-workers can see it or use it."
+        })
+    }
+
     @Test("With ParentLocker picked, the reminder's permission is asked as for the email")
     func reminderPermissionFollowsParentLocker() async throws {
         let defaults = UserDefaults.standard
