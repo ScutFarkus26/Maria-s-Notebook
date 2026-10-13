@@ -2,9 +2,10 @@ import SwiftUI
 import CoreData
 
 // The ParentLocker live check without Settings (plan "ParentLocker
-// attendance", Phase 2b): launch the notebook's Debug Mac app with
-// `-ParentLockerPreview YES` and, once the notebook is open, a sheet signs in
-// if this Mac isn't yet, then shows today's preview: each class, the
+// attendance", Phase 2b): launch a Debug build with `-ParentLockerPreview YES`
+// on a simulator (a Mac build opens the live notebook) and, once the notebook
+// is open, a sheet signs in if this device isn't yet, then shows today's
+// preview: each class, the
 // children matched, the marks it would send and what it leaves alone. The
 // same text goes to standard output, for a run from Terminal. Read only: a
 // Debug build never saves to ParentLocker (`ParentLockerSavePolicy`) and a
@@ -12,9 +13,11 @@ import CoreData
 // compile none of it.
 
 extension View {
-    /// Shows the ParentLocker preview on launch when asked for (Debug, Mac only).
+    /// Shows the ParentLocker preview on launch when asked for (Debug only). On
+    /// a Mac it opens the live notebook, so the live check runs on a simulator:
+    /// a schema-18 build must not open the live store before the roll-out.
     func parentLockerPreviewOnLaunch(context: NSManagedObjectContext) -> some View {
-        #if DEBUG && os(macOS)
+        #if DEBUG
         modifier(ParentLockerPreviewLaunch(context: context))
         #else
         self
@@ -22,7 +25,7 @@ extension View {
     }
 }
 
-#if DEBUG && os(macOS)
+#if DEBUG
 
 /// Opens the preview sheet once per process, on the first window.
 private struct ParentLockerPreviewLaunch: ViewModifier {
@@ -94,7 +97,9 @@ private struct ParentLockerPreviewSheet: View {
             }
         }
         .padding()
+        #if os(macOS)
         .frame(minWidth: 560, minHeight: 460)
+        #endif
         .sheet(isPresented: $showsSignIn) { ParentLockerSignInSheet(sync: sync) }
         .task {
             if sync.isSignedIn { await preview() } else { showsSignIn = true }

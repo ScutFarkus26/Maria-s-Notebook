@@ -41,6 +41,18 @@ struct ParentLockerMatchingTests {
         #expect(match([byFirst])[byFirst.id] == .matched(studentID: "40002", byName: true))
     }
 
+    @Test("A second name in brackets counts: \"Rosa (Lina)\" is Rosa or Lina")
+    func bracketedSecondName() throws {
+        let json = #"{"student_id": 40099, "first_name": "Rosa (Lina)", "last_name": "Marsh", "alternate_name": ""}"#
+        let decoded = try JSONDecoder().decode(ParentLockerJSON.self, from: Data(json.utf8))
+        let student = try #require(ParentLockerRosterStudent(json: decoded))
+        #expect(Planner.namesFit(Child(id: UUID(), firstName: "Rosa", lastName: "Marsh"), student))
+        #expect(Planner.namesFit(Child(id: UUID(), firstName: "Lina", lastName: "Marsh"), student))
+        #expect(Planner.namesFit(Child(id: UUID(), firstName: "Rosa (Lina)", lastName: "Marsh"), student))
+        #expect(!Planner.namesFit(Child(id: UUID(), firstName: "Rosa", lastName: "Marshall"), student))
+        #expect(Planner.firstNames("Rosa (Lina) Mae") == ["rosa (lina) mae", "rosa mae", "rosa", "lina", "mae"])
+    }
+
     @Test("The same first name twice is told apart by last name")
     func sameFirstNameTwice() {
         let halloway = Child(id: UUID(), firstName: "Wren", lastName: "Halloway")

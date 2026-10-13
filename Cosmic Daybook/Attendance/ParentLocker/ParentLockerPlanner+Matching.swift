@@ -72,9 +72,19 @@ nonisolated extension ParentLockerPlanner {
         guard !last.isEmpty, last == normalizedName(student.lastName) else { return false }
         let ours = Set([child.firstName, child.nickname ?? ""].map(normalizedName)).subtracting([""])
         let alternate = normalizedName(student.alternateName)
-        let theirs = Set([normalizedName(student.firstName), alternate]).subtracting([""])
+        let theirs = firstNames(student.firstName).union([alternate]).subtracting([""])
         if !ours.isDisjoint(with: theirs) { return true }
         return ours.contains { "\($0) \(last)" == alternate }
+    }
+
+    /// ParentLocker's first name as the names it stands for. The school writes
+    /// a second name in brackets ("Toba (Aliza)", checked on the real roster
+    /// 2026-10-12), so the whole name, each part and the name without the
+    /// bracketed part all count.
+    static func firstNames(_ name: String) -> Set<String> {
+        let pieces = name.split(omittingEmptySubsequences: false) { $0 == "(" || $0 == ")" }.map(String.init)
+        let outside = pieces.enumerated().filter { $0.offset.isMultiple(of: 2) }.map(\.element).joined(separator: " ")
+        return Set(([name, outside] + pieces).map(normalizedName)).subtracting([""])
     }
 
     /// A name as matching reads it: lowercased, without accents, single-spaced.
