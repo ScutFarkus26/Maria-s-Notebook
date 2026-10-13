@@ -9,7 +9,8 @@ import OSLog
 ///   day's ParentLocker send is recorded, so the office never sees a
 ///   half-taken class. Close Arrival & Send made here, or a whole-class send
 ///   started here, keeps the day "after" on this device until its Undo,
-///   whatever the automatic absences say since.
+///   whatever the automatic absences say since. A change made before "after"
+///   isn't dropped: it goes once the day is, as one synced in does.
 /// - **Close Arrival & Send** (`closeArrivalSend`) sends the whole class once
 ///   Close Arrival's Undo has gone (`undoEndsAt`), never earlier, a sign-in
 ///   meanwhile included; Undo (`cancelCloseArrivalSend`) stops it. **Send
@@ -31,9 +32,12 @@ import OSLog
 ///   with nobody left to mark leaves no automatic absence to see).
 /// - **On launch and on the way back** the changes this device still owes go
 ///   once the first CloudKit import is in, so they're compared with fresh
-///   marks, or after 20 s without one. On the Mac only a return after a
-///   minute away counts, not every switch between apps.
-/// - Failures retry after 30 s, 2 min and 5 min, then wait. Nothing polls:
+///   marks, or after 20 s without one; a retry due meanwhile waits with
+///   them. On the Mac only a return after a minute away counts, not every
+///   switch between apps. At midnight what's owed goes, and the line moves on.
+/// - Failures retry after 30 s, 2 min and 5 min, then wait; a whole-class
+///   retry, like the backstop, goes only over what this device last saw in
+///   ParentLocker, and another day's retry never takes today's. Nothing polls:
 ///   one task sleeps until the next thing is due, on an injected clock. A
 ///   saved password ParentLocker refused isn't tried again by itself until a
 ///   new one is saved.
@@ -117,14 +121,21 @@ final class ParentLockerSync {
     /// ParentLocker refused the saved password, and no new one has been
     /// saved since: the app doesn't sign in with it by itself (Sign In again).
     var savedPasswordRefused = false
+    /// ParentLocker wanted something only a person can do when the app
+    /// signed in by itself (new terms, a reset), and nobody has signed in
+    /// through the sheet since: the app doesn't sign in by itself meanwhile.
+    var signInNeedsYou = false
 
-    /// The screens' question: not signed in, or signed in with a password
-    /// ParentLocker refused. Either way Close Arrival & Send and Send Now
-    /// open the sign-in sheet, and the menus offer Sign In.
-    var needsSignIn: Bool { !isSignedIn || savedPasswordRefused }
+    /// The screens' question: not signed in, signed in with a password
+    /// ParentLocker refused, or ParentLocker wants a person to sign in (new
+    /// terms, a reset). Either way Close Arrival & Send and Send Now open the
+    /// sign-in sheet, and the menus offer Sign In.
+    var needsSignIn: Bool { !isSignedIn || savedPasswordRefused || signInNeedsYou }
     /// A whole-class send is waiting for a sign-in, today only, so a screen
-    /// can prompt for one (bug hunt 2026-10-13 afternoon, L2/L6). Phase 0
-    /// placeholder of its fixes plan; the engine sets it.
+    /// can prompt for one (bug hunt 2026-10-13 afternoon, L2/L6): Close
+    /// Arrival & Send or Send Now made while `needsSignIn`, or one refused
+    /// for want of a sign-in. A sign-in, the sheet closing
+    /// (`signInDismissed`), Undo and a new day clear it.
     var awaitsSignIn = false
 
     /// The sync the app started, for the screens, intents and MCP that
@@ -150,8 +161,21 @@ final class ParentLockerSync {
     /// What ParentLocker held for each child when this device last looked:
     /// today's rosters and saves.
     @ObservationIgnored var lastSeen: [UUID: ParentLockerSeen] = [:]
+    /// Each child synced in with no row seen to measure the change by: their
+    /// mark here from before it (nil: unmarked), when this device knew it.
+    @ObservationIgnored var importedBefore: [UUID: ParentLockerPlanner.DayMark?] = [:]
+    /// Today's marks as this device last read them, for `importedBefore`;
+    /// nil when it hasn't read them today.
+    @ObservationIgnored var knownMarks: [UUID: ParentLockerPlanner.DayMark]?
+    /// Changes made before "after", here or synced in: nothing goes for them
+    /// yet. Once the day is "after" here they go as changes synced in do
+    /// (`releaseEarlyChanges`), or with this device's own whole-class send.
+    @ObservationIgnored var earlyChanges: Set<UUID> = []
     @ObservationIgnored var wholeClass: ParentLockerWholeClass?
+    /// Today's retry. Another day's (Send Now, MCP) has its own slot, so it
+    /// never takes today's place.
     @ObservationIgnored var retry: (job: ParentLockerJob, due: Date)?
+    @ObservationIgnored var otherDayRetry: (job: ParentLockerJob, due: Date)?
     @ObservationIgnored var awaitingImport = false
     /// When the catch-up stops waiting for the import.
     @ObservationIgnored var importWaitEnds: Date?
@@ -218,13 +242,15 @@ final class ParentLockerSync {
 
     /// Starts following the class: reads the sign-in, picks up what this
     /// device still owes (sent once the first import is in), and watches
-    /// `context`'s saves, CloudKit's imports and the app coming and going.
-    /// Pass nil to watch nothing (tests drive the sync by hand).
+    /// `context`'s saves, CloudKit's imports, a new day and the app coming
+    /// and going. Pass nil to watch nothing (tests drive the sync by hand).
     func start(watching context: NSManagedObjectContext?) {
         isStopped = false
         Self.current = self
         refreshSignIn()
         loadOwed()
+        // Today's marks as they stand, for the changes synced in from here on.
+        if isSignedIn { rememberMarks(store.day(today, withChildren: true)) }
         if let context { watcher = ParentLockerWatcher(context: context, sync: self) }
         waitForImport()
         refreshStatus()
@@ -249,9 +275,9 @@ final class ParentLockerSync {
     /// without `cancelCloseArrivalSend`. Changes made meanwhile wait for it,
     /// and a child marked Late meanwhile doesn't stop it: arrival stays
     /// closed here until that Undo. Today only; other days go through Send
-    /// Now. On a device not signed in, the send waits for the sign-in sheet,
-    /// and goes no earlier than the Undo's end (the guide's backstop covers
-    /// it if nobody signs in).
+    /// Now. On a device that needs a sign-in, the send waits for one
+    /// (`awaitsSignIn`), and goes no earlier than the Undo's end (the guide's
+    /// backstop covers it if nobody signs in).
     func closeArrivalSend(on day: Date, after undoWindow: TimeInterval = closeArrivalUndoWindow) {
         guard isToday(day) else { return }
         rollOwedDay(to: day)
@@ -259,7 +285,8 @@ final class ParentLockerSync {
         undoEndsAt = undoEnds
         // A backstop this takes the place of didn't go: the day stays open to the next.
         if wholeClass?.reason == .backstop { backstopDay = nil }
-        wholeClass = ParentLockerWholeClass(reason: .closeArrival, due: isSignedIn ? undoEnds : nil)
+        wholeClass = ParentLockerWholeClass(reason: .closeArrival, due: needsSignIn ? nil : undoEnds)
+        awaitsSignIn = needsSignIn
         arrivalClosedHere = true
         saveOwed()
         reschedule()
@@ -267,10 +294,17 @@ final class ParentLockerSync {
 
     /// Close Arrival's Undo: the pending send doesn't go, and arrival is open
     /// again here. ParentLocker can't take a mark back, so this is the last
-    /// moment it can be stopped.
+    /// moment it can be stopped. That covers a send that failed and waits to
+    /// try again (its retry, or the send owed once the retries ran out),
+    /// which would otherwise send the reopened class (bug hunt 2026-10-13
+    /// afternoon, H2).
     func cancelCloseArrivalSend() {
-        guard wholeClass?.reason == .closeArrival else { return }
-        wholeClass = nil
+        let waiting = wholeClass?.reason == .closeArrival
+        let retrying = retry.map { $0.job.reason == .closeArrival && isToday($0.job.day) } ?? false
+        guard waiting || retrying else { return }
+        if waiting { wholeClass = nil }
+        if retrying { retry = nil }
+        awaitsSignIn = false
         arrivalReopenedHere()
         reschedule()
     }
@@ -285,11 +319,16 @@ final class ParentLockerSync {
     }
 
     /// Send Now: the whole class for `day`, now. Records the day's send,
-    /// unless it's recorded already. Returns how this send went (for another
-    /// day, only here: the line is today's).
+    /// unless it's recorded already or someone on the roll is still unmarked.
+    /// Returns how this send went (for another day, only here: the line is
+    /// today's). On a device that needs a sign-in, today's waits for one and
+    /// goes once it's made, with no second tap; another day's just says to
+    /// sign in (bug hunt 2026-10-13 afternoon, L6).
     @discardableResult
     func sendNow(day: Date) async -> ParentLockerStatus {
-        await run(ParentLockerJob(day: day, children: nil, reason: .sendNow)).status
+        guard needsSignIn, !isAhead(day) else { return await run(askedJob(day, reason: .sendNow)).status }
+        if isToday(day) { sendAfterSignIn() }
+        return ParentLockerStatus(state: .waitingForSignIn)
     }
 
     /// A whole day for MCP and the Debug preview: `preview` reads and plans
@@ -297,100 +336,49 @@ final class ParentLockerSync {
     /// Send Now does. Never a day that hasn't come yet. The failure says why
     /// in plain words.
     func send(day: Date, preview: Bool) async -> Result<ParentLockerReport, ParentLockerSendFailure> {
-        await run(ParentLockerJob(day: day, children: nil, reason: .request, preview: preview)).result
+        await run(askedJob(day, reason: .request, preview: preview)).result
     }
 
-    // MARK: - Signing in and out
+    /// A whole day someone asked for. Today's covers the changes noted
+    /// before it, which it settles once it reaches ParentLocker.
+    private func askedJob(_ day: Date, reason: ParentLockerJob.Reason, preview: Bool = false) -> ParentLockerJob {
+        var job = ParentLockerJob(day: day, children: nil, reason: reason, preview: preview)
+        if isToday(day) { job.settles = importedChildren.union(earlyChanges) }
+        return job
+    }
+}
 
-    /// The site the guide picked.
-    var site: String { store.site }
+/// A whole-class send owed: why, and when it goes (nil: owed, waiting for the
+/// next change, a return to the app, a sign-in or Send Now).
+nonisolated struct ParentLockerWholeClass: Sendable, Equatable {
+    /// `.sendNow`: Send Now made while this device needed a sign-in.
+    enum Reason: Sendable, Equatable { case closeArrival, backstop, owed, sendNow }
+    var reason: Reason
+    var due: Date?
+    /// Tries already made: a send that failed, or one owed from before
+    /// launch, goes as a retry (`ParentLockerJob.comparesWithLastSeen`).
+    var attempt = 0
 
-    /// Signs in through ParentLocker's own form, out of sight, and keeps the
-    /// sign-in (`completeSignIn`).
-    func signIn(email: String, password: String) async throws {
-        let credential = ParentLockerKeychain.Credential(
-            email: email.trimmingCharacters(in: .whitespacesAndNewlines), password: password
-        )
-        let site = site
-        let cookies = try await dependencies.signIn(credential, site)
-        try await completeSignIn(credential, cookies: cookies, site: site)
+    init(reason: Reason, due: Date?, attempt: Int = 0) {
+        self.reason = reason
+        self.due = due
+        self.attempt = attempt
     }
 
-    /// Keeps a sign-in the site's form accepted: first proves the attendance
-    /// page loads with these cookies, then saves the password (synced to the
-    /// person's own devices) and the cookies (this device only), and sends
-    /// anything owed. The password is saved only once ParentLocker took it,
-    /// so a mistyped one never replaces a working one on the other devices.
-    func completeSignIn(
-        _ credential: ParentLockerKeychain.Credential, cookies: [ParentLockerCookie], site: String
-    ) async throws {
-        let secrets = dependencies.secrets
-        try secrets.saveCookies(cookies, site: site)
-        let transport = makeTransport(site: site, cookies: cookies)
-        do {
-            _ = try await transport.courses(on: nil)
-            // Cancelled while the class list loaded (the sheet closed): nothing is kept.
-            if Task.isCancelled { throw ParentLockerSignInError.cancelled }
-        } catch {
-            try? secrets.deleteCookies(site: site)
-            throw error
+    /// A failed whole-class `job`, owed until it can go again: Close Arrival
+    /// & Send's stays one, so its Undo can still take it back (bug hunt
+    /// 2026-10-13 afternoon, H2); any other is a send owed.
+    init(retrying job: ParentLockerJob) {
+        self.init(reason: job.reason == .closeArrival ? .closeArrival : .owed, due: nil, attempt: 1)
+    }
+
+    /// The run it makes.
+    var jobReason: ParentLockerJob.Reason {
+        switch reason {
+        case .closeArrival: .closeArrival
+        case .backstop: .backstop
+        case .owed: .owed
+        case .sendNow: .sendNow
         }
-        try secrets.savePassword(credential, site: site)
-        forgetRefusedPassword()
-        Self.logger.info("ParentLocker: signed in")
-        isSignedIn = true
-        status.state = .idle
-        status.details = nil
-        releaseWholeClass(at: clock.now)
-        releaseCatchUp()
-        refreshStatus()
-    }
-
-    /// Sign Out: deletes the password everywhere it synced (so the person's
-    /// other devices sign out on their next check) and this device's cookies.
-    /// Throws, still signed in, when the Keychain won't delete the password:
-    /// it would stay on the person's other devices.
-    func signOut() throws {
-        do {
-            try dependencies.secrets.deletePassword(site: site)
-        } catch {
-            Self.logger.error("ParentLocker: Sign Out failed (\(String(describing: error), privacy: .public))")
-            throw error
-        }
-        Self.logger.info("ParentLocker: signed out")
-        signedOutHere()
-    }
-
-    /// Reads whether a password is saved for the site. One deleted on another
-    /// device (Sign Out there) takes this device's cookies with it. Only a
-    /// password that isn't there signs out: a Keychain that can't be read
-    /// right now (the device locked since restart, say) leaves things as they are.
-    func refreshSignIn() {
-        let site = site
-        let hasPassword: Bool
-        do {
-            hasPassword = try dependencies.secrets.hasPassword(site: site)
-        } catch {
-            Self.logger.error("ParentLocker: unreadable sign-in (\(String(describing: error), privacy: .public))")
-            return
-        }
-        if !hasPassword {
-            if isSignedIn { signedOutHere() } else { try? dependencies.secrets.deleteCookies(site: site) }
-        }
-        isSignedIn = hasPassword
-        savedPasswordRefused = hasPassword && refusalStands(site: site)
-    }
-
-    /// Whether the saved password is the one ParentLocker refused: none saved since.
-    private func refusalStands(site: String) -> Bool {
-        guard let refused = dependencies.refusals.refused(site: site),
-              let saved = try? dependencies.secrets.passwordModified(site: site) else { return false }
-        return saved == refused
-    }
-
-    /// A password ParentLocker took, or a new one saved: none is refused.
-    func forgetRefusedPassword() {
-        dependencies.refusals.setRefused(nil, site: site)
-        savedPasswordRefused = false
     }
 }

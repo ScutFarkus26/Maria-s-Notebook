@@ -58,6 +58,20 @@ enum FrontDeskEmailReminder {
         defaults.object(forKey: leadKey) as? Int ?? defaultLeadMinutes
     }
 
+    /// The day ParentLocker last said it isn't expecting the class's
+    /// attendance (`AppCalendar.dayID`), this device's own: its sync read it.
+    static let notExpectedKey = "FrontDeskEmailReminder.notExpectedDay"
+
+    /// ParentLocker isn't expecting attendance on `day`: like a send, it
+    /// withdraws that day's reminder here (bug hunt 2026-10-13 afternoon, M8).
+    static func noteNotExpected(on day: Date, defaults: UserDefaults = .standard) {
+        defaults.set(AppCalendar.dayID(day), forKey: notExpectedKey)
+    }
+
+    static func isNotExpected(_ day: Date, defaults: UserDefaults = .standard) -> Bool {
+        defaults.string(forKey: notExpectedKey) == AppCalendar.dayID(day)
+    }
+
     /// Whether a delivered notification is one of these.
     nonisolated static func isReminder(_ identifier: String) -> Bool {
         identifier.hasPrefix(idPrefix)
@@ -148,11 +162,13 @@ enum FrontDeskEmailReminder {
         let start = calendar.startOfDay(for: now)
         guard let end = calendar.date(byAdding: .day, value: daysAhead * 3, to: start) else { return [] }
         let nonSchoolDays = SchoolDayChecker.nonSchoolDaySet(in: start..<end, using: context, calendar: calendar)
-        let sentToday = AttendanceEmailLog.latestSend(on: start, in: context) != nil
+        // Sent, or a day ParentLocker isn't expecting: nothing is due today.
+        let todayIsDone = AttendanceEmailLog.latestSend(on: start, in: context) != nil
+            || (settings.sendMethod == .parentLocker && isNotExpected(start, defaults: defaults))
         return kinds(for: settings, leadMinutes: leadMinutes(defaults)).flatMap { kind in
             fireDates(
                 from: now, minutes: kind.minutes, nonSchoolDays: nonSchoolDays,
-                todayIsDone: sentToday, calendar: calendar
+                todayIsDone: todayIsDone, calendar: calendar
             ).map { date in
                 let content = UNMutableNotificationContent()
                 content.title = kind.title
@@ -192,8 +208,10 @@ enum FrontDeskEmailReminder {
                 Kind(suffix: "soon", minutes: deadline - leadMinutes,
                      title: "Attendance due in ParentLocker at \(dueAt)",
                      body: "Today's attendance hasn't been sent to ParentLocker yet."),
+                // Not "close arrival": with everyone marked there's none to
+                // close, only Send (bug hunt 2026-10-13 afternoon, M2).
                 Kind(suffix: "due", minutes: deadline, title: "ParentLocker attendance is late",
-                     body: "It was due at \(dueAt). Close arrival and send it to ParentLocker.")
+                     body: "It was due at \(dueAt). Open attendance and send it to ParentLocker.")
             ]
         }
     }

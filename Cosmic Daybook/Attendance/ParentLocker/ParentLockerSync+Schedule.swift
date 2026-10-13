@@ -10,21 +10,30 @@ extension ParentLockerSync {
     /// When the next thing is due. A Close Arrival send waiting out its
     /// Undo holds the live updates: it covers them.
     var nextWake: Date? {
-        var dues: [Date] = []
-        if let retry { dues.append(retry.due) }
-        if let due = wholeClass?.due { dues.append(due) }
+        var dues = [retry?.due, otherDayRetry?.due, wholeClass?.due].compactMap(\.self)
         if awaitingImport, let importWaitEnds { dues.append(importWaitEnds) }
-        if !holdsLiveUpdates {
-            if let localDue { dues.append(localDue) }
-            if let importedDue { dues.append(importedDue) }
-            if wholeClass == nil, let deadlineDue { dues.append(deadlineDue) }
-        }
+        if !holdsLiveUpdates { dues += liveWakes }
         return dues.min()
+    }
+
+    /// When the live updates and the guide's check after the due time are
+    /// due. Changes synced in whose class lists are still being read wait
+    /// for them.
+    private var liveWakes: [Date] {
+        var dues: [Date] = []
+        if let localDue { dues.append(localDue) }
+        if let importedDue, !readyImported.isEmpty { dues.append(importedDue) }
+        if wholeClass == nil, let deadlineDue { dues.append(deadlineDue) }
+        return dues
     }
 
     var holdsLiveUpdates: Bool {
         wholeClass?.reason == .closeArrival && wholeClass?.due != nil
     }
+
+    /// The changes synced in that can go: not those whose class lists are
+    /// being read as they arrived (bug hunt 2026-10-13 afternoon, M5).
+    var readyImported: Set<UUID> { importedChildren.subtracting(baselineWaiting) }
 
     /// Sleeps until `nextWake`, once. A run in progress reschedules when it
     /// ends; a stopped sync schedules nothing.
@@ -49,50 +58,70 @@ extension ParentLockerSync {
         }
     }
 
-    /// The run due at `now`, taken off the schedule: a retry, then a
-    /// whole-class send (which covers every child owed), then the guide's
-    /// check after the due time, then the children whose waits are up (those
-    /// synced in carrying what this device had seen of them).
+    /// The run due at `now`, taken off the schedule: a retry (today's, then
+    /// another day's), then a whole-class send, then the guide's check after
+    /// the due time, then the children whose waits are up.
     func takeDueJob(at now: Date) -> ParentLockerJob? {
         rollOwedDay(to: now)
-        let day = today
         if let pending = retry, pending.due <= now {
             retry = nil
             return pending.job
         }
+        if let pending = otherDayRetry, pending.due <= now {
+            otherDayRetry = nil
+            return pending.job
+        }
         if let whole = wholeClass, let due = whole.due, due <= now {
             wholeClass = nil
-            localDue = nil
-            importedChildren = []
-            importedBaseline = [:]
-            importedDue = nil
-            let reason: ParentLockerJob.Reason = switch whole.reason {
-            case .closeArrival: .closeArrival
-            case .backstop: .backstop
-            case .owed: .owed
-            }
-            return ParentLockerJob(day: day, children: nil, reason: reason)
+            return wholeClassJob(whole.jobReason, attempt: whole.attempt)
         }
         guard !holdsLiveUpdates else { return nil }
         if wholeClass == nil, let due = deadlineDue, due <= now {
             deadlineDue = nil
-            return ParentLockerJob(day: day, children: nil, reason: .deadline)
+            return wholeClassJob(.deadline)
         }
-        var job = ParentLockerJob(day: day, children: [], reason: .live)
+        return liveJob(at: now)
+    }
+
+    /// Today's whole class. The changes noted before it aren't dropped as it
+    /// goes: it settles them once it reaches ParentLocker, and one refused
+    /// (the day sent elsewhere since) leaves them to go by themselves (bug
+    /// hunt 2026-10-13 afternoon, H4).
+    private func wholeClassJob(_ reason: ParentLockerJob.Reason, attempt: Int = 0) -> ParentLockerJob {
+        var job = ParentLockerJob(day: today, children: nil, reason: reason, attempt: attempt)
+        job.settles = importedChildren.union(earlyChanges)
+        return job
+    }
+
+    /// This device's changes whose 4 s are up, and those synced in whose 60 s
+    /// are, each carrying what this device had seen of them in ParentLocker
+    /// or, with nothing seen, its mark here from before the change. A child
+    /// this device changed too goes as its own change.
+    private func liveJob(at now: Date) -> ParentLockerJob? {
+        var job = ParentLockerJob(day: today, children: [], reason: .live)
         if let due = localDue, due <= now {
             job.children?.formUnion(localChanges.keys)
             localDue = nil
         }
         if let due = importedDue, due <= now {
-            // A child this device changed too goes as its own change.
-            job.imported = importedChildren.subtracting(localChanges.keys)
+            let ready = readyImported
+            job.imported = ready.subtracting(localChanges.keys)
             job.importedBaseline = importedBaseline.filter { job.imported.contains($0.key) }
-            job.children?.formUnion(importedChildren)
-            importedChildren = []
-            importedBaseline = [:]
-            importedDue = nil
+            job.importedBefore = importedBefore.filter { job.imported.contains($0.key) }
+            job.children?.formUnion(ready)
+            forgetImported(ready)
         }
         return job.children?.isEmpty == false ? job : nil
+    }
+
+    /// Changes synced in that went, or that a whole-class send covered.
+    func forgetImported(_ children: Set<UUID>) {
+        importedChildren.subtract(children)
+        for child in children {
+            importedBaseline[child] = nil
+            importedBefore[child] = nil
+        }
+        if importedChildren.isEmpty { importedDue = nil }
     }
 
     /// Runs `job` once whatever is running has finished (another run, or a
@@ -152,20 +181,22 @@ extension ParentLockerSync {
     }
 
     /// What's owed is for one day: a new day drops yesterday's (past days go
-    /// only by Send Now or MCP).
+    /// only by Send Now or MCP; another day's retry keeps its own slot).
     func rollOwedDay(to day: Date) {
         if let owedDay, isSameDay(owedDay, day) { return }
         if owedDay != nil {
             localChanges = [:]
             localDue = nil
             catchUpChildren = []
-            importedChildren = []
-            importedBaseline = [:]
-            importedDue = nil
+            forgetImported(importedChildren)
+            importedBefore = [:]
+            earlyChanges = []
+            knownMarks = nil
             wholeClass = nil
             retry = nil
             deadlineDue = nil
             arrivalClosedHere = false
+            awaitsSignIn = false
         }
         // What ParentLocker held is a day's: none of it says anything about this one.
         lastSeen = [:]
@@ -185,13 +216,21 @@ extension ParentLockerSync {
         ))
     }
 
+    /// What this device still owes from before launch. A whole-class send
+    /// goes as a retry, over only what this device sees in ParentLocker by
+    /// then (`ParentLockerJob.comparesWithLastSeen`): the others may have
+    /// sent the class meanwhile, with newer marks. One made with arrival
+    /// closed here stays a Close Arrival & Send, which its Undo still stops.
     func loadOwed() {
         guard let saved = dependencies.unsent.load() else { return }
         guard saved.day == AppCalendar.dayID(today) else { return dependencies.unsent.save(nil) }
         owedDay = today
         catchUpChildren = saved.children
         arrivalClosedHere = saved.arrivalClosed
-        if saved.wholeClass, wholeClass == nil { wholeClass = ParentLockerWholeClass(reason: .owed, due: nil) }
+        if saved.wholeClass, wholeClass == nil {
+            let reason: ParentLockerWholeClass.Reason = saved.arrivalClosed ? .closeArrival : .owed
+            wholeClass = ParentLockerWholeClass(reason: reason, due: nil, attempt: 1)
+        }
     }
 
     /// Signed out, here or by Sign Out on another device: this device's
@@ -200,25 +239,30 @@ extension ParentLockerSync {
         try? dependencies.secrets.deleteCookies(site: site)
         forgetRefusedPassword()
         isSignedIn = false
+        signInNeedsYou = false
         localChanges = [:]
         localDue = nil
         catchUpChildren = []
-        importedChildren = []
-        importedBaseline = [:]
-        importedDue = nil
+        forgetImported(importedChildren)
+        importedBefore = [:]
+        earlyChanges = []
         lastSeen = [:]
         baselineRead = []
         deadlineDue = nil
         retry = nil
+        otherDayRetry = nil
         saveOwed()
         status = ParentLockerStatus(state: .signedOut)
         reschedule()
     }
 
     /// What a run that reached ParentLocker settles: the changes made before
-    /// it started (one made since goes on its own), a whole-class send owed,
-    /// and a retry it covers.
+    /// it started (one made since goes on its own), a whole-class send owed
+    /// or waiting for a sign-in, what a whole-class send covered (changes
+    /// synced in, or made before "after", noted before it was taken), and a
+    /// retry it covers.
     func settleOwed(after job: ParentLockerJob, startedAt started: Date) {
+        if job.isWholeClass, let pending = otherDayRetry, isSameDay(pending.job.day, job.day) { otherDayRetry = nil }
         guard isToday(job.day) else { return }
         let settled = job.children ?? Set(localChanges.keys)
         for child in settled where (localChanges[child] ?? .distantFuture) <= started {
@@ -226,8 +270,15 @@ extension ParentLockerSync {
         }
         if job.isWholeClass {
             catchUpChildren = []
-            if wholeClass?.reason == .owed { wholeClass = nil }
+            // Nothing of this device's own left to wait 4 s for: the send covered it.
+            if localChanges.isEmpty { localDue = nil }
+            if wholeClass != nil, wholeClass?.due == nil {
+                wholeClass = nil
+                awaitsSignIn = false
+            }
             if let pending = retry, isSameDay(pending.job.day, job.day) { retry = nil }
+            forgetImported(job.settles)
+            earlyChanges.subtract(job.settles)
         }
         saveOwed()
     }
@@ -235,9 +286,10 @@ extension ParentLockerSync {
     /// Keeps a failed run's work for the next change, the return to the app
     /// or Send Now. This device's own changes stay owed anyway (they're
     /// cleared only on success); an imported one is left to its own device.
+    /// A Close Arrival & Send stays one, so its Undo still stops it.
     func owe(_ job: ParentLockerJob) {
         guard job.isWholeClass, isToday(job.day), job.reason != .request || !job.preview else { return }
-        if wholeClass == nil { wholeClass = ParentLockerWholeClass(reason: .owed, due: nil) }
+        if wholeClass == nil { wholeClass = ParentLockerWholeClass(retrying: job) }
         saveOwed()
     }
 
@@ -272,11 +324,14 @@ extension ParentLockerSync {
         unsent.save(owed.isEmpty ? nil : owed)
     }
 
-    /// The children on `day`'s roll with no mark yet, by name, for a screen
-    /// or the Shortcut to ask about before a send (bug hunt 2026-10-13
-    /// afternoon, M4). Phase 0 placeholder of its fixes plan; the engine
-    /// fills it in.
-    func unmarkedNames(on day: Date) -> [String] { [] }
+    /// The children on `day`'s roll with no mark yet, as the class reads them
+    /// ("Maya S"), for a screen or the Shortcut to ask about before a send:
+    /// a send goes without them and doesn't count as the day's (bug hunt
+    /// 2026-10-13 afternoon, M4). The guide's "Not matched" children never
+    /// go to ParentLocker, so they aren't asked about.
+    func unmarkedNames(on day: Date) -> [String] {
+        store.day(day, withChildren: true).unmarkedNames
+    }
 
     func makeTransport(site: String, cookies: [ParentLockerCookie]) -> any ParentLockerTransport {
         let secrets = dependencies.secrets
@@ -298,37 +353,26 @@ nonisolated struct ParentLockerJob: Sendable, Equatable {
     /// Retries already made.
     var attempt = 0
     /// Of `children`, those whose change synced in from another device, and
-    /// what this device had seen of them in ParentLocker when it arrived.
+    /// what this device had seen of them in ParentLocker when it arrived, or
+    /// with nothing seen, their mark here from before the change.
     var imported: Set<UUID> = []
     var importedBaseline: [UUID: ParentLockerSeen] = [:]
+    var importedBefore: [UUID: ParentLockerPlanner.DayMark?] = [:]
+    /// For a whole-class send: the changes synced in, or made before
+    /// "after", it covers once it reaches ParentLocker.
+    var settles: Set<UUID> = []
 
     var isWholeClass: Bool { children == nil }
-}
 
-/// What one run found and did.
-struct ParentLockerRunResult {
-    let plan: ParentLockerPlanner.Plan
-    let rosters: [ParentLockerRoster]
-    let matches: [UUID: ParentLockerPlanner.Match]
-    let leftAlone: [String]
-    let conflicts: [String]
-    let savedCount: Int
-    let wasPreview: Bool
-    /// Children left to another device, which saved them in ParentLocker
-    /// since this device last looked.
-    let leftToOthers: Set<UUID>
-}
-
-/// How one run went: what it sent (or why not), and the status it ends on.
-nonisolated struct ParentLockerRunOutcome: Sendable {
-    let result: Result<ParentLockerReport, ParentLockerSendFailure>
-    let status: ParentLockerStatus
-}
-
-/// A whole-class send owed: why, and when it goes (nil: owed, waiting for the
-/// next change, a return to the app or Send Now).
-nonisolated struct ParentLockerWholeClass: Sendable, Equatable {
-    enum Reason: Sendable, Equatable { case closeArrival, backstop, owed }
-    var reason: Reason
-    var due: Date?
+    /// Goes only over what this device last saw of each child in
+    /// ParentLocker, leaving one saved since to the device that saved it: the
+    /// guide's backstops, a whole-class retry and a whole-class send owed
+    /// from before, which may come from a device that hasn't caught up (bug
+    /// hunt 2026-10-13 afternoon, H5).
+    var comparesWithLastSeen: Bool {
+        switch reason {
+        case .backstop, .deadline, .owed: true
+        default: isWholeClass && attempt > 0
+        }
+    }
 }

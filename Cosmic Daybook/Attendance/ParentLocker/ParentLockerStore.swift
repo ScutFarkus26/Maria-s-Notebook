@@ -42,6 +42,22 @@ nonisolated struct ParentLockerDay: Sendable, Equatable {
         children.contains { ParentLockerPlanner.wanted(for: marks[$0.id]) != .nothing }
     }
 
+    /// The children on the roll with no mark to send yet, but for those the
+    /// guide left out of ParentLocker ("Not matched"), who never go there.
+    /// Read with the children only.
+    var unmarkedChildren: [ParentLockerPlanner.Child] {
+        children.filter { child in
+            ParentLockerPlanner.wanted(for: marks[child.id]) == .nothing
+                && !(child.parentLockerID.map(ParentLockerPlanner.isNotMatched) ?? false)
+        }
+    }
+
+    /// Their names as the class reads them ("Maya S"), in name order.
+    var unmarkedNames: [String] {
+        unmarkedChildren.map { CDStudent.shortName(firstName: $0.firstName, lastName: $0.lastName) }
+            .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+
     /// When `day`'s attendance is due.
     func deadline(on day: Date, calendar: Calendar) -> Date? {
         calendar.date(byAdding: .minute, value: deadlineMinutes, to: calendar.startOfDay(for: day))
@@ -65,8 +81,14 @@ protocol ParentLockerStore: AnyObject {
     var site: String { get }
     /// The children whose records on `day` are among `records`.
     func children(inRecords records: [NSManagedObjectID], on day: Date) -> Set<UUID>
+    /// The marks of `children` on `day` as they are now, one per child
+    /// (`ParentLockerPlanner.dayMarks`); a child with no record has none.
+    func marks(of children: Set<UUID>, on day: Date) -> [UUID: ParentLockerPlanner.DayMark]
     /// Records that `day` went to ParentLocker. Returns whether it saved.
     func recordSend(on day: Date) -> Bool
+    /// ParentLocker expects no attendance from the class on `day`: this
+    /// device's reminder for it is withdrawn (`FrontDeskEmailReminder`).
+    func noteNotExpected(on day: Date)
     /// Stores ParentLocker ids on the children (nil clears one, and
     /// `ParentLockerPlanner.notMatchedID` is "Not matched"); a picked id is
     /// cleared from any other child who held it. Only the lead guide's
@@ -82,12 +104,13 @@ final class ParentLockerCoreDataStore: ParentLockerStore {
     /// Saves `context`; `created` are the records the save adds (the
     /// Assistant files them into the classroom share, `AssistantSave`).
     typealias Save = @MainActor (_ context: NSManagedObjectContext, _ created: [NSManagedObject]) -> Bool
-    /// Hears that the day's ParentLocker send was recorded and saved.
+    /// Hears that the day's ParentLocker send was recorded and saved, or that
+    /// ParentLocker isn't expecting the day's attendance.
     typealias SendRecorded = @MainActor (_ context: NSManagedObjectContext) -> Void
 
     /// The 9:00 reminder follows a send made with the attendance screen
     /// closed too (Close Arrival's, the backstop's, Siri's or Claude's): it's
-    /// withdrawn once the day is sent.
+    /// withdrawn once the day is sent, or ParentLocker says it expects none.
     static let rescheduleReminder: SendRecorded = { context in
         Task { await FrontDeskEmailReminder.reschedule(in: context) }
     }
@@ -163,11 +186,21 @@ final class ParentLockerCoreDataStore: ParentLockerStore {
         return Set(context.safeFetch(request).compactMap { UUID(uuidString: $0.studentID) })
     }
 
+    func marks(of children: Set<UUID>, on day: Date) -> [UUID: ParentLockerPlanner.DayMark] {
+        guard !children.isEmpty else { return [:] }
+        return ParentLockerPlanner.dayMarks(on: day, for: children, in: context)
+    }
+
     func recordSend(on day: Date) -> Bool {
         let send = AttendanceEmailLog.recordSend(on: day, role: role, channel: .parentLocker, in: context)
         guard save(context, [send]) else { return false }
         sendRecorded(context)
         return true
+    }
+
+    func noteNotExpected(on day: Date) {
+        FrontDeskEmailReminder.noteNotExpected(on: day)
+        sendRecorded(context)
     }
 
     func writeMatches(_ matches: [UUID: String?]) -> Bool {

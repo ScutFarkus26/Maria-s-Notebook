@@ -16,6 +16,15 @@ nonisolated struct ParentLockerStatus: Sendable, Equatable {
         case signedOut
         /// Nothing goes before arrival closes.
         case waitingForArrival
+        /// Everyone's marked but arrival never closed, so there's no Close
+        /// Arrival to tap: Send to ParentLocker sends the day.
+        case readyToSend
+        /// Every class ParentLocker lists for today says it isn't expecting
+        /// attendance: nothing goes, and nothing is due.
+        case notExpected
+        /// A send asked for while this device needs a sign-in: today's waits
+        /// for one, another day's didn't go. Only a Send Now's answer says it.
+        case waitingForSignIn
         case sending
         case upToDate
         /// Couldn't reach ParentLocker; a retry is scheduled.
@@ -52,6 +61,9 @@ nonisolated struct ParentLockerStatus: Sendable, Equatable {
         case .off, .idle: nil
         case .signedOut: ParentLockerSyncStop.signedOut.message
         case .waitingForArrival: "Attendance goes to ParentLocker when arrival closes."
+        case .readyToSend: "Everyone's marked. Send it to ParentLocker."
+        case .notExpected: "ParentLocker isn't expecting attendance today."
+        case .waitingForSignIn: ParentLockerSyncStop.signInToSend
         case .sending: "Sending to ParentLocker…"
         case .upToDate: "Up to date in ParentLocker."
         case .retrying: ParentLockerError.unreachable.errorDescription
@@ -118,6 +130,9 @@ nonisolated enum ParentLockerSyncStop: Error, Equatable, LocalizedError {
     }
 
     var errorDescription: String? { message }
+
+    /// What a send asked for while this device needs a sign-in answers.
+    static let signInToSend = "Sign in to ParentLocker to send."
 }
 
 nonisolated extension ParentLockerStatus {
@@ -241,6 +256,13 @@ nonisolated struct ParentLockerReport: Sendable, Equatable {
     var classesLeftAlone: [String]
     /// Children whose marks were saved.
     var savedCount: Int
+    /// The children on the roll with no mark yet ("Maya S"), not sent.
+    var unmarked: [String] = []
+    /// The day isn't recorded as sent: a send asked for with children still
+    /// unmarked counts only once everyone is.
+    var waitsForMarks = false
+    /// ParentLocker expects no attendance from any of the classes that day.
+    var notExpected = false
 
     /// The report as plain text: a heading, then each class.
     var text: String {
@@ -248,7 +270,11 @@ nonisolated struct ParentLockerReport: Sendable, Equatable {
         var lines = [wasPreview
             ? "ParentLocker preview for \(date) (nothing was sent):"
             : "Sent to ParentLocker for \(date): \(savedCount == 1 ? "1 child" : "\(savedCount) children") changed."]
-        if classes.isEmpty { lines.append("None of your ParentLocker classes has any of these children.") }
+        if notExpected {
+            lines.append("ParentLocker isn't expecting attendance from your classes that day.")
+        } else if classes.isEmpty {
+            lines.append("None of your ParentLocker classes has any of these children.")
+        }
         for item in classes {
             let count = item.changes.count
             let verb = wasPreview ? "send" : "change"
@@ -259,6 +285,12 @@ nonisolated struct ParentLockerReport: Sendable, Equatable {
             if !item.alreadyIn.isEmpty {
                 lines.append("  Already in ParentLocker: " + item.alreadyIn.joined(separator: ", "))
             }
+        }
+        if !unmarked.isEmpty {
+            lines.append("Not marked yet, so not sent: " + unmarked.joined(separator: ", ") + ".")
+        }
+        if waitsForMarks {
+            lines.append("The day isn't recorded as sent until everyone is marked and it's sent again.")
         }
         lines.append(contentsOf: classesLeftAlone)
         lines.append(contentsOf: problems)

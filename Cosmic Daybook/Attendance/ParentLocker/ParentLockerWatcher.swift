@@ -17,6 +17,8 @@ import AppKit
 /// - **CloudKit imports that finish**, which release the catch-up.
 /// - **The app coming back** to the front, and on the Mac going away, so a
 ///   switch between apps doesn't count as a return (`appBecameActive`).
+/// - **A new day** (`.NSCalendarDayChanged`), so yesterday's work goes and
+///   the line moves on even on a Mac left open all night (`dayChanged`).
 ///
 /// Nothing polls. Every observer goes when the watcher does.
 @MainActor
@@ -44,6 +46,9 @@ final class ParentLockerWatcher {
         ]
         tokens.append(center.addObserver(forName: Self.becameActive, object: nil, queue: .main) { [weak sync] _ in
             MainActor.assumeIsolated { sync?.appBecameActive() }
+        })
+        tokens.append(center.addObserver(forName: .NSCalendarDayChanged, object: nil, queue: .main) { [weak sync] _ in
+            MainActor.assumeIsolated { sync?.dayChanged() }
         })
         #if canImport(AppKit) && !canImport(UIKit)
         tokens.append(center.addObserver(
