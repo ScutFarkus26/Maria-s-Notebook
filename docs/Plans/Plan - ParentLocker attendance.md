@@ -3,6 +3,8 @@
 > **Not started.** Written 2026-10-12 on branch `claude/parentlocker-attendance-integration-36de87`, from Danny's "My school just asked me to take attendance through yyli.parentlocker.com."
 > In short: Close Arrival sends the class's attendance from the notebook or the Daybook Assistant to the school's ParentLocker site, every later change follows within seconds, through each person's own ParentLocker sign-in, made once and kept privately in their iCloud Keychain; the front-desk email stays as a choice in Settings.
 
+**Runs autonomously from Phase 5 on** (Danny, 2026-10-12, at bedtime): "After this is pushed to main I'd like a final bug check on the latest changes. /plan-efficiently to fix the bugs. then push to main, close out, and send to testflight. do this all autonomously." And: "my dev account is in the browser if you need to deploy anything." Decisions that come up are made by the main session from the project's rules and this plan, and listed under "Decided during the run" for Danny to read afterward. Never: lose data, touch the live notebook (no schema-18 build opens it; no Mac app launch), type a password, add a build to a TestFlight group, or register a device.
+
 ## Goal
 
 The school now takes attendance in ParentLocker instead of by email. When it's done:
@@ -26,6 +28,9 @@ Build board: https://claude.ai/artifact/WAKaFZGNPQsfKD4A5GbqsM (a new milestone 
 - [ ] Phase 3: The notebook's screens, MCP and Shortcuts (session: here, agent `feature-phase`) ‖ Phase 4 · est. ~2–3% weekly · started at 59%
 - [ ] Phase 4: The Assistant's screens (session: here, agent `feature-phase`) ‖ Phase 3 · est. ~1.5–2% weekly · started at 59%
 - [ ] Phase 5: Combine, review, full builds, whole suites, simulator look, merge (session: here) · est. ~3–4% weekly
+- [ ] Phase 7: Final bug check of the whole ParentLocker diff on main (session: here, Opus `Plan` reviewers, read-only) · est. ~2–3% weekly
+- [ ] Phase 8: Fix the findings, planned with /plan-efficiently into its own plan, `docs/Plans/Plan - ParentLocker bug check fixes.md` (session: here, agents sized to the findings) · est. sized when planned
+- [ ] Phase 9: Push to main, deploy schema 18 to CloudKit Production (Danny's signed-in developer account in the browser pane; allowed by Danny), close out, and send the notebook and the Assistant to TestFlight with the `roll-out` skill (upload only; no group) (session: here) · est. ~2–3% weekly
 - [ ] Phase 6: Danny's steps, as Tide rows (no session)
 
 ## Cost
@@ -360,10 +365,35 @@ Checked 2026-10-12 against Xcode 27.0 (27A266a). Xcode 27.1 RC and 27.2 beta 2 e
   - It is on main and pushed.
 - **Hand off:** no.
 
+## Phase 7: Final bug check
+- **Who:** main session, sending three or four Opus `Plan` reviewers, read-only and split by area: engine and privacy; live updates and races; the notebook's screens and MCP; the Assistant.
+- **Steps:**
+  - Each reviewer reads the diff from `043cdd7b` to main's head, plus the plan's Decisions.
+  - Each reports real bugs only, as numbered findings with file:line and a concrete failure.
+  - The main session checks each finding against the code and writes the confirmed ones to `docs/Reviews/ParentLocker bug check 2026-10-13.md`.
+- **Done when:** the report is committed, with every finding marked confirmed or dropped, and why.
+
+## Phase 8: Fix the findings
+- **Who:** the main session runs /plan-efficiently on the report and writes `docs/Plans/Plan - ParentLocker bug check fixes.md`, then carries it out. Agents are sized to the findings; at most three run at once. Each finding gets a failing test first where one can be written.
+- **Done when:** every confirmed finding is fixed or answered, all builds are clean, both whole suites pass, and the work is on main and pushed.
+- **If a fix changes the model:** run the Development schema again on the test-account simulator (C0EDC79D), as in Phase 1, before Phase 9.
+
+## Phase 9: Push, Production schema, close-out, TestFlight
+- **Who:** main session.
+- **Steps:**
+  1. **Make sure main is pushed.**
+  2. **Deploy schema 18 to Production** in the CloudKit Console (Danny's developer account, already signed in to the browser pane): Development → Deploy Schema Changes. It's additive, and it has to happen before any TestFlight copy runs. Then confirm the four fields under Production. If the browser is signed out, stop here: don't upload, and add Tide rows instead.
+  3. **Close out:** tick the plan, set the status line to Done with main's commit, run `docs-index`, mark the board's plan done (`board-touch --done`), add Tide rows for Phase 6 (see below), and write memory.
+  4. **TestFlight:** run the `roll-out` skill for the notebook (iPhone/iPad and Mac) and the Daybook Assistant, upload only. Adding a build to a TestFlight group happens only when Danny names the group.
+- **Done when:**
+  - Production shows the four fields.
+  - Both apps' builds are uploaded to App Store Connect, with their build numbers recorded here.
+  - The Tide rows exist.
+
 ## Phase 6: Danny's steps (Tide rows in `Areas/App Development/Cosmic Daybook/To do.md` and the Assistant's list)
-- **Release:**
-  - Deploy schema 18 to Production.
-  - Roll out the notebook and the Assistant together.
+- **Release** (Phase 9 does the schema deploy and the upload; Danny does the rest):
+  - Add the Assistant build to the Assistants group in TestFlight when ready (it's an internal-only hold until Danny says).
+  - Install the notebook everywhere together: the Mac's Release copy (`Scripts/install_release.sh`) and TestFlight on the iPad and iPhone.
   - **Every phone gets the update before switching to ParentLocker.**
 - **Check on a device:**
   - Settings › Messages → ParentLocker, and sign in once.
@@ -384,6 +414,10 @@ Read the plan usage (`get_usage`) and note the weekly % used next to the phase u
 5. Make every "not verified", "for your review" or "check on a device" item from this phase a row in the app's list in Tide (`add_action`), skipping ones already there. The repo line keeps one plain sentence plus the row's `tide://` link.
 6. Run /close-out. It sets the plan's status line and runs `docs-index`.
 7. If the next phase is a fresh session, print its starter prompt.
+
+## Decided during the run
+
+(Filled in by the autonomous run.)
 
 ## Open questions
 
