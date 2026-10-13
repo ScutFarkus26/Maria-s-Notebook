@@ -13,6 +13,13 @@ import SwiftUI
 /// who's missing. After closing, an amber "Late" capsule says what a tap now
 /// does, and its menu reopens arrival.
 ///
+/// When the guide picked ParentLocker, today's Close Arrival is **Close
+/// Arrival & Send**: the class goes to ParentLocker once the Undo's moment
+/// has passed (`ParentLockerSync.closeArrivalUndoWindow`), and the Undo
+/// stops the send as well, since ParentLocker can't take a mark back. The
+/// Undo goes when the send does. On an iPhone not signed in, arrival still
+/// closes and the one-time sign-in opens; the send waits for it.
+///
 /// Its top edge fills green as children come in (gray for the absent), so
 /// how close the class is shows without reading. A child back after days
 /// away gets "Welcome back, Maya" beside the arrival control for a few
@@ -34,7 +41,10 @@ struct AssistantArrivalBar: View {
     @State private var welcomeLine: String?
     /// Bumped at the moments the email falls due and goes late.
     @State private var dueTicks = 0
+    /// Close Arrival & Send on an iPhone not signed in to ParentLocker.
+    @State private var showingSignIn = false
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(AssistantBootstrapper.self) private var bootstrapper
 
     /// Side by side normally; stacked at accessibility sizes, where the count
     /// and the button won't both fit on one line.
@@ -88,7 +98,8 @@ struct AssistantArrivalBar: View {
             // Arrival & Email, rather than an email that leaves them out.
             guard asks else { return }
             viewModel.asksToCloseAndEmail = false
-            emailAfterClose = true
+            // With ParentLocker picked, the question is Close Arrival & Send's.
+            emailAfterClose = !viewModel.frontDesk.sendsToParentLocker
             confirmingClose = true
         }
         .onChange(of: viewModel.completions) {
@@ -128,7 +139,7 @@ struct AssistantArrivalBar: View {
                 }
             }
             // From the email button too, for a day someone else sends it.
-            Button("Mark \(unmarkedNames.count) Absent", role: .destructive) {
+            Button(closeButtonTitle, role: .destructive) {
                 closeArrival()
             }
         } message: {
@@ -136,6 +147,19 @@ struct AssistantArrivalBar: View {
         }
         .onChange(of: confirmingClose) { _, showing in
             if !showing { emailAfterClose = false }
+        }
+        .task(id: undo?.id) {
+            // Once the class has gone to ParentLocker, Undo can't take it
+            // back, so it goes with the send.
+            guard let id = undo?.id, undo?.sendsToParentLocker == true,
+                  (try? await Task.sleep(for: .seconds(ParentLockerSync.closeArrivalUndoWindow))) != nil,
+                  undo?.id == id else { return }
+            withAnimation(.smooth(duration: 0.3)) { undo = nil }
+        }
+        .sheet(isPresented: $showingSignIn) {
+            if let sync = bootstrapper.parentLockerForScreens {
+                ParentLockerSignInSheet(sync: sync)
+            }
         }
     }
 
@@ -154,6 +178,7 @@ struct AssistantArrivalBar: View {
                 HStack(spacing: 12) {
                     Text("Marked \(undo.count) absent")
                     Button("Undo") {
+                        if undo.sendsToParentLocker { bootstrapper.parentLockerForScreens?.cancelCloseArrivalSend() }
                         withAnimation(.smooth(duration: 0.3)) {
                             viewModel.returnToArrival(undo: true)
                             self.undo = nil
@@ -234,7 +259,7 @@ struct AssistantArrivalBar: View {
                 // With nobody left to mark (reopened while Close Arrival's
                 // absences stand), it goes straight back to Late: there's
                 // no one to ask about.
-                Button("Close Arrival") {
+                Button(sendsOnClose ? "Close Arrival & Send" : "Close Arrival") {
                     if unmarkedNames.isEmpty { closeArrival() } else { confirmingClose = true }
                 }
                 .font(.subheadline.weight(.semibold))
@@ -275,11 +300,30 @@ struct AssistantArrivalBar: View {
         unmarkedNames.count == 1 ? "Mark 1 child absent?" : "Mark \(unmarkedNames.count) children absent?"
     }
 
+    /// Close Arrival sends the class to ParentLocker too.
+    private var sendsOnClose: Bool {
+        viewModel.frontDesk.closesWithSend(by: viewModel, hasSync: bootstrapper.parentLockerForScreens != nil)
+    }
+
+    /// The question's plain close: "Mark 3 Absent", or "Mark 3 Absent & Send".
+    private var closeButtonTitle: String {
+        Self.closeButtonTitle(unmarked: unmarkedNames.count, sends: sendsOnClose)
+    }
+
+    static func closeButtonTitle(unmarked: Int, sends: Bool) -> String {
+        "Mark \(unmarked) Absent" + (sends ? " & Send" : "")
+    }
+
     private func closeArrival() {
+        let sync = sendsOnClose ? bootstrapper.parentLockerForScreens : nil
         withAnimation(.smooth(duration: 0.3)) {
             let count = viewModel.beginLate()
-            undo = count > 0 ? ArrivalUndo(count: count) : nil
+            undo = count > 0 ? ArrivalUndo(count: count, sendsToParentLocker: sync != nil) : nil
         }
+        // A locked day, say, stays open: nothing to send.
+        guard let sync, viewModel.phase == .late else { return }
+        sync.closeArrivalSend(on: viewModel.date)
+        if !sync.isSignedIn { showingSignIn = true }
     }
 }
 
@@ -287,4 +331,6 @@ struct AssistantArrivalBar: View {
 struct ArrivalUndo: Equatable {
     let id = UUID()
     let count: Int
+    /// Close Arrival & Send: the Undo stops the send too, until it goes.
+    var sendsToParentLocker = false
 }

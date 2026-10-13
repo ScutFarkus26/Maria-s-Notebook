@@ -8,7 +8,9 @@ import CoreData
 // MARK: - Close arrival
 
 /// The Close Arrival button by voice: everyone still unmarked is marked absent, and
-/// from then on "Mark Maya here" marks late.
+/// from then on "Mark Maya here" marks late. With ParentLocker picked and this
+/// iPhone signed in, the class goes to ParentLocker too (Close Arrival &
+/// Send); otherwise Siri says it closed arrival but the send hasn't gone yet.
 struct CloseArrivalIntent: AppIntent {
     static let title: LocalizedStringResource = "Close Arrival"
     static let description = IntentDescription(
@@ -38,13 +40,12 @@ struct CloseArrivalIntent: AppIntent {
         let count = try await SiriAttendance.plainly("closing arrival") {
             try await AssistantSiriCommands.closeArrival(session)
         }
+        let parentLocker = await AssistantSiriCommands.sendAfterClose(session, sync: ParentLockerSync.current)
+        let full = AssistantSiriCommands.closedDialog(marked: count, parentLocker: parentLocker)
         if count == 0 {
-            return .result(dialog: "Arrival is closed. Everyone was already marked.")
+            return .result(dialog: "\(full)")
         }
-        return .result(dialog: IntentDialog(
-            full: "Arrival is closed. \(count) \(count == 1 ? "child is" : "children are") marked absent.",
-            supporting: "\(count) absent"
-        ))
+        return .result(dialog: IntentDialog(full: "\(full)", supporting: "\(count) absent"))
     }
 }
 

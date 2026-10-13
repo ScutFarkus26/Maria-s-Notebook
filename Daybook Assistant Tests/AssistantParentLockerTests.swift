@@ -1,0 +1,250 @@
+import Foundation
+import CoreData
+import Testing
+import UserNotifications
+@testable import Daybook_Assistant
+
+/// Stands in for the class's ParentLocker sync: signed in or not, and the
+/// status a Send Now ends on. Remembers each day it was asked to send.
+@MainActor
+final class FakeParentLockerSender: AssistantParentLockerSending {
+    var isSignedIn: Bool
+    var endsOn: ParentLockerStatus.State
+    private(set) var sentDays: [Date] = []
+
+    init(isSignedIn: Bool = true, endsOn: ParentLockerStatus.State = .upToDate) {
+        self.isSignedIn = isSignedIn
+        self.endsOn = endsOn
+    }
+
+    func sendNow(day: Date) async -> ParentLockerStatus {
+        sentDays.append(day)
+        return ParentLockerStatus(state: endsOn)
+    }
+}
+
+/// The guide's settings in the share, as the notebook writes them.
+@MainActor
+enum ParentLockerTestSettings {
+    static func pick(_ method: AttendanceSendMethod, in context: NSManagedObjectContext) {
+        let settings = AttendanceEmailLog.Settings(
+            isEnabled: method == .email,
+            toAddresses: method == .email ? "office@example.com" : "",
+            nameOrder: .firstLast,
+            groupByLevel: false,
+            sendMethod: method
+        )
+        AttendanceEmailLog.saveSettings(settings, role: .leadGuide, in: context)
+        _ = context.safeSave()
+    }
+}
+
+// The Assistant's ParentLocker screens (plan "ParentLocker attendance",
+// Phase 4): with ParentLocker picked the email steps aside, Close Arrival
+// sends today, and everyone marked with nothing sent offers the send.
+@Suite("Assistant ParentLocker")
+@MainActor
+struct AssistantParentLockerTests {
+
+    /// A class of two, Ari and Maya, on `day`, with `method` picked.
+    private func classOfTwo(
+        _ method: AttendanceSendMethod?, on day: Date = Date()
+    ) throws -> (CoreDataStack, AssistantAttendanceViewModel) {
+        let stack = try AssistantTestSupport.makeStack()
+        let context = stack.viewContext
+        AssistantTestSupport.student("Ari", "Cedar", in: context)
+        AssistantTestSupport.student("Maya", "Stone", in: context)
+        #expect(context.safeSave())
+        if let method { ParentLockerTestSettings.pick(method, in: context) }
+        return (stack, AssistantTestSupport.viewModel(stack, on: day))
+    }
+
+    @Test("With ParentLocker picked, the email isn't offered and today's Close Arrival sends")
+    func parentLockerReplacesTheEmail() throws {
+        let (_, viewModel) = try classOfTwo(.parentLocker)
+        let frontDesk = viewModel.frontDesk
+        #expect(frontDesk.sendsToParentLocker)
+        #expect(!frontDesk.isOffered(by: viewModel))
+        #expect(frontDesk.offersParentLocker(by: viewModel))
+        #expect(!frontDesk.offersCloseAndEmail(by: viewModel))
+        #expect(frontDesk.closesWithSend(by: viewModel, hasSync: true))
+        // The Sample Class runs no sync: a plain Close Arrival there.
+        #expect(!frontDesk.closesWithSend(by: viewModel, hasSync: false))
+        #expect(frontDesk.draft(for: viewModel.rows) == nil)
+    }
+
+    @Test("With email picked, nothing about ParentLocker shows")
+    func emailStaysAsItWas() throws {
+        let (_, viewModel) = try classOfTwo(.email)
+        let frontDesk = viewModel.frontDesk
+        #expect(!frontDesk.sendsToParentLocker)
+        #expect(frontDesk.isOffered(by: viewModel))
+        #expect(!frontDesk.offersParentLocker(by: viewModel))
+        #expect(!frontDesk.offersParentLockerSend(by: viewModel))
+        #expect(!frontDesk.closesWithSend(by: viewModel, hasSync: true))
+    }
+
+    @Test("Before the guide sets anything up, nothing is offered")
+    func nothingSetUp() throws {
+        let (_, viewModel) = try classOfTwo(nil)
+        #expect(!viewModel.frontDesk.offersParentLocker(by: viewModel))
+        #expect(!viewModel.frontDesk.closesWithSend(by: viewModel, hasSync: true))
+    }
+
+    @Test("Another day's Close Arrival doesn't send; that day goes by Send Now")
+    func onlyTodaySendsOnClose() throws {
+        let lastWeek = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        let (_, viewModel) = try classOfTwo(.parentLocker, on: lastWeek)
+        #expect(!viewModel.isToday)
+        #expect(!viewModel.frontDesk.closesWithSend(by: viewModel, hasSync: true))
+    }
+
+    @Test("Send to ParentLocker is offered once everyone's marked and nobody has sent the day")
+    func sendOfferedWhenEveryoneIsMarked() throws {
+        let (stack, viewModel) = try classOfTwo(.parentLocker)
+        #expect(viewModel.unmarkedCount == 2)
+        #expect(!viewModel.frontDesk.offersParentLockerSend(by: viewModel))
+
+        for row in viewModel.rows { viewModel.tap(row) }
+        viewModel.load()
+        #expect(viewModel.unmarkedCount == 0)
+        #expect(viewModel.frontDesk.offersParentLockerSend(by: viewModel))
+
+        let send = AttendanceEmailLog.recordSend(
+            on: viewModel.date, role: .assistant, channel: .parentLocker, in: stack.viewContext
+        )
+        #expect(AssistantSave.save(stack.viewContext, container: nil, created: [send]))
+        viewModel.load()
+        #expect(viewModel.frontDesk.latestSend?.channel == .parentLocker)
+        #expect(!viewModel.frontDesk.offersParentLockerSend(by: viewModel))
+    }
+
+    @Test("The close question's button says it sends when it does")
+    func closeButtonTitle() {
+        #expect(AssistantArrivalBar.closeButtonTitle(unmarked: 3, sends: true) == "Mark 3 Absent & Send")
+        #expect(AssistantArrivalBar.closeButtonTitle(unmarked: 1, sends: false) == "Mark 1 Absent")
+    }
+
+    @Test("A Close Arrival & Send's Undo is marked to stop the send")
+    func undoCarriesTheSend() {
+        #expect(!ArrivalUndo(count: 2).sendsToParentLocker)
+        #expect(ArrivalUndo(count: 2, sendsToParentLocker: true).sendsToParentLocker)
+    }
+
+    @Test("With ParentLocker picked, the reminder's permission is asked as for the email")
+    func reminderPermissionFollowsParentLocker() async throws {
+        let defaults = UserDefaults.standard
+        let key = FrontDeskEmailReminder.enabledKey
+        let before = defaults.object(forKey: key)
+        defaults.set(true, forKey: key)
+        defer { defaults.set(before, forKey: key) }
+
+        func requests(_ method: AttendanceSendMethod?) async throws -> Int {
+            let (stack, _) = try classOfTwo(method)
+            let center = FakeReminderCenter()
+            center.status = .notDetermined
+            await ArrivalReminderFollower.askPermission(
+                in: stack.viewContext, setupDone: true, isSample: false, center: center
+            )
+            return center.authorizationRequests
+        }
+        let withNothing = try await requests(nil)
+        #expect(try await requests(.parentLocker) == withNothing + 1)
+        #expect(try await requests(.email) == withNothing + 1)
+    }
+}
+
+// MARK: - Siri's Close Arrival
+
+// In `AssistantSiriTests`, so they run one at a time with it: closing
+// arrival writes the app's own Late and Siri memories.
+extension AssistantSiriTests {
+
+    private static let parentLockerMonday = "2031-01-06"
+
+    private static func closedClass(
+        _ method: AttendanceSendMethod
+    ) async throws -> (SiriAttendance, Date) {
+        let day = try AssistantTestSupport.day(Self.parentLockerMonday)
+        let stack = try AssistantTestSupport.makeStack()
+        let context = stack.viewContext
+        AssistantTestSupport.student("Ari", "Cedar", in: context)
+        AssistantTestSupport.student("Maya", "Stone", in: context)
+        #expect(context.safeSave())
+        ParentLockerTestSettings.pick(method, in: context)
+        let siri = SiriAttendance(stack: stack, role: .assistant, today: day.addingTimeInterval(9 * 3_600))
+        #expect(try await AssistantSiriCommands.closeArrival(siri) == 2)
+        return (siri, day)
+    }
+
+    private static func forgetClose(on day: Date) {
+        SiriAttendanceChange.forget()
+        AttendanceLatePhase.setLate(false, on: day)
+    }
+
+    @Test("Siri's Close Arrival sends the class when ParentLocker is picked and the iPhone is signed in")
+    func siriCloseArrivalSends() async throws {
+        let (siri, day) = try await Self.closedClass(.parentLocker)
+        defer { Self.forgetClose(on: day) }
+        let sync = FakeParentLockerSender()
+        let outcome = await AssistantSiriCommands.sendAfterClose(siri, sync: sync)
+        #expect(outcome == .sent)
+        #expect(sync.sentDays == [siri.today])
+        #expect(AssistantSiriCommands.closedDialog(marked: 2, parentLocker: outcome)
+            == "Arrival is closed. 2 children are marked absent. Attendance went to ParentLocker.")
+    }
+
+    @Test("Siri's Close Arrival says plainly it couldn't send when the iPhone isn't signed in")
+    func siriCloseArrivalNotSignedIn() async throws {
+        let (siri, day) = try await Self.closedClass(.parentLocker)
+        defer { Self.forgetClose(on: day) }
+        let sync = FakeParentLockerSender(isSignedIn: false)
+        let outcome = await AssistantSiriCommands.sendAfterClose(siri, sync: sync)
+        #expect(outcome == .notSignedIn)
+        #expect(sync.sentDays.isEmpty)
+        #expect(AssistantSiriCommands.closedDialog(marked: 2, parentLocker: outcome)
+            == "Arrival is closed. 2 children are marked absent. Attendance hasn't gone to ParentLocker yet. "
+                + "Open the Assistant and sign in to ParentLocker to send it.")
+    }
+
+    @Test("Siri's Close Arrival says it couldn't send yet when ParentLocker can't be reached or the sync isn't running")
+    func siriCloseArrivalNotSentYet() async throws {
+        let (siri, day) = try await Self.closedClass(.parentLocker)
+        defer { Self.forgetClose(on: day) }
+        for state in [ParentLockerStatus.State.retrying, .notSentYet, .passwordRefused, .pageChanged] {
+            let outcome = await AssistantSiriCommands.sendAfterClose(siri, sync: FakeParentLockerSender(endsOn: state))
+            #expect(outcome == .notSentYet, "after \(state)")
+        }
+        #expect(await AssistantSiriCommands.sendAfterClose(siri, sync: nil) == .notSentYet)
+        #expect(await AssistantSiriCommands.sendAfterClose(siri, sync: FakeParentLockerSender(endsOn: .previewed))
+            == .previewed)
+        #expect(AssistantSiriCommands.closedDialog(marked: 1, parentLocker: .notSentYet)
+            == "Arrival is closed. 1 child is marked absent. Attendance hasn't gone to ParentLocker yet. "
+                + "Open the Assistant to send it.")
+    }
+
+    @Test("With email picked, Siri's Close Arrival says what it always did and sends nothing")
+    func siriCloseArrivalByEmail() async throws {
+        let (siri, day) = try await Self.closedClass(.email)
+        defer { Self.forgetClose(on: day) }
+        let sync = FakeParentLockerSender()
+        let outcome = await AssistantSiriCommands.sendAfterClose(siri, sync: sync)
+        #expect(outcome == .notPicked)
+        #expect(sync.sentDays.isEmpty)
+        #expect(AssistantSiriCommands.closedDialog(marked: 2, parentLocker: outcome)
+            == "Arrival is closed. 2 children are marked absent.")
+        #expect(AssistantSiriCommands.closedDialog(marked: 0, parentLocker: outcome)
+            == "Arrival is closed. Everyone was already marked.")
+    }
+
+    @Test("Nothing Siri says about ParentLocker carries a web address or technical words")
+    func siriParentLockerWordsArePlain() {
+        let outcomes: [AssistantParentLockerAfterClose] = [.notPicked, .sent, .previewed, .notSignedIn, .notSentYet]
+        for outcome in outcomes {
+            let text = AssistantSiriCommands.closedDialog(marked: 3, parentLocker: outcome).lowercased()
+            for word in ["http", ".com", "cookie", "error", "keychain", "server", "request"] {
+                #expect(!text.contains(word), "\(outcome) says \(word)")
+            }
+        }
+    }
+}

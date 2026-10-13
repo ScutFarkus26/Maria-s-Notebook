@@ -241,7 +241,7 @@ struct ArrivalReminderFollower: ViewModifier {
             await EarlyPickupReminder.requestPermissionIfNeeded(center: center)
         }
         guard !isSample else { return }
-        if FrontDeskEmailReminder.isEnabled(), AttendanceEmailLog.settings(in: context)?.canSend == true {
+        if FrontDeskEmailReminder.isEnabled(), AttendanceEmailLog.settings(in: context)?.canSendAttendance == true {
             _ = await FrontDeskEmailReminder.requestPermission(center: center)
         }
     }

@@ -81,6 +81,9 @@ final class AssistantBootstrapper {
     /// The history trim's export recorder, and whether this launch trimmed.
     @ObservationIgnored var exportRecorder: Task<Void, Never>?
     @ObservationIgnored var historyTrimmed = false
+    /// The class's ParentLocker sync, on the real stack only
+    /// (`startParentLocker`); the screens read it through `parentLockerForScreens`.
+    var parentLocker: ParentLockerSync?
 
     init(
         fetchAccountStatus: @escaping @MainActor () async throws -> CKAccountStatus = {
@@ -147,6 +150,7 @@ final class AssistantBootstrapper {
         removedFromClass = false
 
         refreshMembership()
+        startParentLocker(on: stack)
         // Where each name row lives, for the screens' reads: a new stack has
         // new stores and new object IDs. Asked of CloudKit off the main thread.
         let viewContext = stack.viewContext

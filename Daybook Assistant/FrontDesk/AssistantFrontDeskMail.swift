@@ -69,20 +69,24 @@ struct AssistantFrontDeskMail: ViewModifier {
 
     /// A tapped reminder: today's email, unless it has gone since. With
     /// children still unmarked, the bar asks its Mark N Absent & Email
-    /// question first (`reminderAction`).
+    /// question first (`reminderAction`). With ParentLocker picked there's
+    /// no email: the bar asks Close Arrival & Send's question, or, with
+    /// everyone marked, its line offers Send to ParentLocker.
     private func openForReminder() {
         guard FrontDeskEmailReminder.isEmailRequested, let viewModel else { return }
         FrontDeskEmailReminder.isEmailRequested = false
         viewModel.load(Date())
+        let frontDesk = viewModel.frontDesk
         let action = Self.reminderAction(
-            alreadySent: viewModel.frontDesk.latestSend != nil,
-            isOffered: viewModel.frontDesk.isOffered(by: viewModel),
+            alreadySent: frontDesk.latestSend != nil,
+            isOffered: frontDesk.sendsToParentLocker
+                ? frontDesk.offersParentLocker(by: viewModel) : frontDesk.isOffered(by: viewModel),
             unmarked: viewModel.unmarkedCount,
             canClose: viewModel.canMark && viewModel.phase == .arrival
         )
         switch action {
         case .nothing: break
-        case .openEmail: open()
+        case .openEmail: if !frontDesk.sendsToParentLocker { open() }
         case .askToClose: viewModel.asksToCloseAndEmail = true
         }
     }

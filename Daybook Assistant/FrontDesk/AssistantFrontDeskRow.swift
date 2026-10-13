@@ -16,7 +16,9 @@ import SwiftUI
 /// Send Again.
 ///
 /// Only when the guide has set the email up in the notebook, and never on a
-/// day off or a day ahead.
+/// day off or a day ahead. When the guide picked ParentLocker instead, the
+/// ParentLocker line takes its place (`AssistantParentLockerRow`), with Send
+/// Now for the day on screen.
 struct AssistantFrontDeskRow: View {
     let viewModel: AssistantAttendanceViewModel
     let onSend: () -> Void
@@ -26,6 +28,8 @@ struct AssistantFrontDeskRow: View {
 
     /// Bumped at the moments the line changes, to redraw it then.
     @State private var changes = 0
+    @State private var showingSignIn = false
+    @State private var isSendingNow = false
 
     private var frontDesk: AssistantFrontDesk { viewModel.frontDesk }
     private var deadlineMinutes: Int { frontDesk.deadlineMinutes }
@@ -37,7 +41,9 @@ struct AssistantFrontDeskRow: View {
     }
 
     var body: some View {
-        if frontDesk.isOffered(by: viewModel) {
+        if frontDesk.offersParentLocker(by: viewModel), let sync = bootstrapper.parentLockerForScreens {
+            parentLockerRow(sync)
+        } else if frontDesk.isOffered(by: viewModel) {
             content(urgency: urgency)
                 .animation(.smooth(duration: 0.3), value: frontDesk.latestSend)
                 // Redrawn only at the two moments the line changes: half an
@@ -143,7 +149,8 @@ struct AssistantFrontDeskRow: View {
         return false
     }
 
-    private func sentLine(_ send: AttendanceEmailLog.Send) -> some View {
+    /// "Emailed 8:42 AM by Sarah", "Sent to ParentLocker 8:47 AM by you".
+    private func summary(of send: AttendanceEmailLog.Send) -> String {
         let name = send.senderName(
             viewerRole: .assistant,
             myRecordName: ClassroomIdentity.currentUserRecordName,
@@ -151,7 +158,11 @@ struct AssistantFrontDeskRow: View {
             guideName: bootstrapper.guideName,
             names: viewModel.names
         )
-        let summary = send.summary(senderName: name, for: viewModel.date, deadlineMinutes: deadlineMinutes)
+        return send.summary(senderName: name, for: viewModel.date, deadlineMinutes: deadlineMinutes)
+    }
+
+    private func sentLine(_ send: AttendanceEmailLog.Send) -> some View {
+        let summary = summary(of: send)
         return Menu {
             Button("Send Again", systemImage: "envelope", action: onSend)
         } label: {
@@ -167,5 +178,43 @@ struct AssistantFrontDeskRow: View {
         }
         .accessibilityHint("Opens Send Again")
         .transition(.opacity)
+    }
+}
+
+// MARK: - ParentLocker
+
+extension AssistantFrontDeskRow {
+
+    /// The status line and Send Now. The engine's status is today's, so
+    /// another day shows only whether it was sent.
+    fileprivate func parentLockerRow(_ sync: ParentLockerSync) -> some View {
+        AssistantParentLockerRow(
+            status: viewModel.isToday ? sync.status : ParentLockerStatus(state: .idle),
+            sentSummary: frontDesk.latestSend.map(summary(of:)),
+            isSignedIn: sync.isSignedIn,
+            isSending: isSendingNow || sync.status.state == .sending,
+            offersSend: frontDesk.offersParentLockerSend(by: viewModel),
+            onSendNow: { sendNow(sync) },
+            onSignIn: { showingSignIn = true }
+        )
+        .animation(.smooth(duration: 0.3), value: frontDesk.latestSend)
+        // The sync records the day's send itself: the line reads it again
+        // after each run that reached ParentLocker.
+        .onChange(of: sync.status.lastSyncAt) { frontDesk.load(viewModel.date) }
+        .sheet(isPresented: $showingSignIn) {
+            ParentLockerSignInSheet(sync: sync)
+        }
+    }
+
+    /// Send Now: the whole class for the day on screen.
+    fileprivate func sendNow(_ sync: ParentLockerSync) {
+        let day = viewModel.date
+        isSendingNow = true
+        Task {
+            await sync.sendNow(day: day)
+            isSendingNow = false
+            // The day on screen now, which she may have stepped away from.
+            frontDesk.load(viewModel.date)
+        }
     }
 }
