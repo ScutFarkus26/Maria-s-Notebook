@@ -305,7 +305,8 @@ struct SiriAttendance {
         if change.closedArrival { undoCloseArrival() }
         // An undo is not itself undoable: "Undo that" twice shouldn't flip back.
         SiriAttendanceChange.forget()
-        return change.undoneDialog
+        let sent = AttendanceEmailLog.latestSend(on: today, in: context)?.channel == .parentLocker
+        return change.undoneDialog(sentToParentLocker: sent)
     }
 
     /// Puts one remembered mark back, if nothing has changed it since: the

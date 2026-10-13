@@ -2,7 +2,9 @@ import Foundation
 
 // Close Arrival & Send's Undo, as values: what it stops, how long a phone
 // not signed in keeps it, and what happens once its moment has passed
-// (`AssistantArrivalBar.watchUndo` follows them on screen).
+// (`AssistantArrivalBar.watchUndo` follows them on screen). Also when the
+// sign-in opens for a send waiting on it (`watchSignIn`), which follows the
+// sync rather than the Undo.
 
 extension AssistantArrivalBar {
 
@@ -24,21 +26,40 @@ extension AssistantArrivalBar {
     enum AfterUndoWindow: Equatable {
         /// The class has gone to ParentLocker: Undo can't take it back.
         case hideUndo
-        /// Nothing has gone (not signed in): the sign-in opens, once, and the Undo stays.
-        case askToSignIn
-        /// Nothing has gone, and she was asked: the Undo stays until the limit.
+        /// Nothing has gone (not signed in): the Undo stays until the limit.
         case keepUndo
     }
 
     /// Signed in, the day read as sent to ParentLocker (by anyone), or the
     /// Undo kept `unsentUndoLimit` since arrival closed: it goes. Otherwise
-    /// the sign-in opens once per close.
+    /// it stays, and the sign-in opens by itself (`signInPrompt`).
     static func afterUndoWindow(
-        signedIn: Bool, daySent: Bool = false, askedToSignIn: Bool = false,
-        closedAt: Date = Date(), now: Date = Date()
+        signedIn: Bool, daySent: Bool = false, closedAt: Date = Date(), now: Date = Date()
     ) -> AfterUndoWindow {
-        if signedIn || daySent || now.timeIntervalSince(closedAt) >= unsentUndoLimit { return .hideUndo }
-        return askedToSignIn ? .keepUndo : .askToSignIn
+        signedIn || daySent || now.timeIntervalSince(closedAt) >= unsentUndoLimit ? .hideUndo : .keepUndo
+    }
+
+    /// When the sign-in opens by itself.
+    enum SignInPrompt: Equatable {
+        case none
+        case now
+        /// Once Close Arrival & Send's Undo has had its moment, so the sheet
+        /// never covers it.
+        case at(Date)
+    }
+
+    /// The sign-in opens for a whole-class send waiting on it (Close Arrival
+    /// & Send, Send to ParentLocker), once per send, after the Undo's
+    /// moment (bug check 2026-10-13, D2). It follows the sync's waiting send,
+    /// not the Undo (bug hunt 2026-10-13 afternoon, L2): the Undo goes when
+    /// the app leaves the foreground, so a phone locked during it never
+    /// asked. `asked`: the sheet closed without a sign-in while this send waited.
+    static func signInPrompt(
+        awaitsSignIn: Bool, needsSignIn: Bool, undoEndsAt: Date?, asked: Bool, now: Date
+    ) -> SignInPrompt {
+        guard awaitsSignIn, needsSignIn, !asked else { return .none }
+        if let undoEndsAt, undoEndsAt > now { return .at(undoEndsAt) }
+        return .now
     }
 }
 
@@ -54,7 +75,4 @@ struct ArrivalUndo: Equatable {
     var stopsSend = false
     /// When arrival closed: the Undo's moment counts from here.
     var closedAt = Date()
-    /// The sign-in sheet has opened for this close: a return to the screen
-    /// doesn't open it again.
-    var askedToSignIn = false
 }

@@ -20,22 +20,30 @@ struct AssistantParentLockerSection: View {
                 showingSignIn = true
             } label: {
                 LabeledContent("ParentLocker") {
-                    Text(sync.isSignedIn ? "Signed in" : "Not signed in")
-                        .foregroundStyle(sync.isSignedIn ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint))
+                    Text(Self.signInLabel(isSignedIn: sync.isSignedIn, needsSignIn: sync.needsSignIn))
+                        .foregroundStyle(sync.needsSignIn ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
                 }
             }
             .foregroundStyle(.primary)
-            .accessibilityHint(sync.isSignedIn ? "Opens Sign Out" : "Opens Sign In to ParentLocker")
+            .accessibilityHint(sync.needsSignIn ? "Opens Sign In to ParentLocker" : "Opens Sign Out")
         } footer: {
             if let trouble = troubleLine {
                 Text(trouble).foregroundStyle(.orange)
             } else {
-                Text(sync.isSignedIn ? Self.signedInFooter : Self.signedOutFooter)
+                Text(sync.needsSignIn ? Self.signedOutFooter : Self.signedInFooter)
             }
         }
         .sheet(isPresented: $showingSignIn) {
             ParentLockerSignInSheet(sync: sync)
         }
+    }
+
+    /// The row's value. A password ParentLocker refused isn't a sign-in
+    /// that works, so it says to sign in again (bug hunt 2026-10-13
+    /// afternoon, L4), as the menus offer Sign In then.
+    static func signInLabel(isSignedIn: Bool, needsSignIn: Bool) -> String {
+        guard needsSignIn else { return "Signed in" }
+        return isSignedIn ? "Sign in again" : "Not signed in"
     }
 
     /// What only she can fix: a password ParentLocker no longer takes, or
