@@ -25,9 +25,14 @@ Build board: https://claude.ai/artifact/WAKaFZGNPQsfKD4A5GbqsM (a new milestone 
   - **Matching against the real 23 children** (read through MCP, compared by hand): every child matches except "Toba (Aliza)". A bracketed second name now counts (0e5eb1c6, with a test).
   - **Not checked live:** signing back in after a real expiry. The unit tests cover it, and it's a device check in Phase 6.
   - **Left for the Phase 5 review:** a device that hasn't yet received another device's change can still send its own older mark for that child, because ParentLocker carries no time to compare against.
-- [ ] Phase 3: The notebook's screens, MCP and Shortcuts (session: here, agent `feature-phase`) ‖ Phase 4 · est. ~2–3% weekly · started at 59%
-- [ ] Phase 4: The Assistant's screens (session: here, agent `feature-phase`) ‖ Phase 3 · est. ~1.5–2% weekly · started at 59%
-- [ ] Phase 5: Combine, review, full builds, whole suites, simulator look, merge (session: here) · est. ~3–4% weekly
+- [x] Phase 3: The notebook's screens, MCP and Shortcuts (session: here, agent `feature-phase`) ‖ Phase 4 · est. ~2–3% weekly · started at 59% · 4115b51a, 5c69e0cf. Notebook iOS and macOS build; 88 tests in 12 suites, then `SettingsSearchTests` again (a search for "PARENT" now finds ParentLocker first; the test searches "PARENT REPORTS"); registry at 92 tools with the open-world set pinned. Differed: also touched `AttendanceArrivalControl`, `AttendanceExpandedView` and `+Undoable`; `MacOSMailSender` and the comings-and-goings row moved to files of their own (SwiftLint's 400-line limit); Mark as Sent records a ParentLocker send when ParentLocker is picked; Settings has an editable address while the sheet only shows it.
+- [x] Phase 4: The Assistant's screens (session: here, agent `feature-phase`) ‖ Phase 3 · est. ~1.5–2% weekly · started at 59% · 1b6a2a26, 38d6c06d. Phases 3 and 4 together: 59→61%. Assistant builds; 50 tests in 6 suites plus onboarding 14 in 2. The sign-in sheet was checked on the iPhone SE (3rd gen, iOS 26.5) at default and the largest text, with the keyboard up: nothing clipped; at the largest size Sign In needs one scroll. Screenshots sent to Danny. Differed (accepted):
+  - The sheet's third line also mentions the left-early time, which is sent too.
+  - "Send to ParentLocker" shows when everyone is marked and nothing has been sent, since there's no Close Arrival button then.
+  - Siri sends at once and waits, so it can say whether it worked.
+  - After Close Arrival & Send, Undo disappears after 6 seconds.
+  - The sheet's title is "ParentLocker" once signed in.
+- [ ] Phase 5: Combine, review, full builds, whole suites, simulator look, merge (session: here) · est. ~3–4% weekly · started at 61%
 - [ ] Phase 7: Final bug check of the whole ParentLocker diff on main (session: here, Opus `Plan` reviewers, read-only) · est. ~2–3% weekly
 - [ ] Phase 8: Fix the findings, planned with /plan-efficiently into its own plan, `docs/Plans/Plan - ParentLocker bug check fixes.md` (session: here, agents sized to the findings) · est. sized when planned
 - [ ] Phase 9: Push to main, deploy schema 18 to CloudKit Production (Danny's signed-in developer account in the browser pane; allowed by Danny), close out, and send the notebook and the Assistant to TestFlight with the `roll-out` skill (the Assistant's build added to the Assistants group, per Danny; the notebook's uploaded only) (session: here) · est. ~2–3% weekly
