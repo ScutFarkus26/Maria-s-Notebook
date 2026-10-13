@@ -7,6 +7,15 @@ import SwiftUI
 /// Settings › Messages › Attendance to the School: how the day's attendance
 /// goes (ParentLocker, or the front-desk email), that method's settings, and
 /// the due time with this device's reminder.
+///
+/// The method, the ParentLocker address and the due time show as the shared
+/// settings row holds them, which is what everything else reads; the email's
+/// own fields as this device's preferences hold them, which the notebook's
+/// own email is written from (`AttendanceEmail.shownSettings`). Only the
+/// person's own actions write, each only the field it changed
+/// (`AttendanceEmail.shareEdit`), so a device whose preferences are behind
+/// the share, or a change synced in while Settings is open, never switches
+/// the class back to email (bug hunt 2026-10-13 afternoon, H1).
 /// - CDNote: The "Preferred 'From' Address" applies to iOS only;
 ///   macOS always uses the default Mail account.
 public struct AttendanceEmailSettingsView: View {
@@ -19,50 +28,77 @@ public struct AttendanceEmailSettingsView: View {
     // The reminder is this device's own, not synced: whoever wants it turns it on.
     @AppStorage(FrontDeskEmailReminder.enabledKey) private var reminderOn = FrontDeskEmailReminder.isOnByDefault
     @AppStorage(FrontDeskEmailReminder.leadKey) private var reminderLead = FrontDeskEmailReminder.defaultLeadMinutes
+    // This device's copies of the shared choices: shown only before the
+    // share has a settings row.
     @SyncedAppStorage(AttendanceEmailPrefs.deadlineKey)
     private var deadlineMinutes: Int = AttendanceEmailLog.defaultDeadlineMinutes
-    // Shared with the assistants, as the email's settings are (schema 18).
     @SyncedAppStorage(AttendanceEmailPrefs.sendMethodKey)
     private var sendMethodRaw: String = AttendanceSendMethod.email.rawValue
     @SyncedAppStorage(AttendanceEmailPrefs.parentLockerSiteKey) private var parentLockerSite: String = ""
     @State private var notificationsDenied = false
-    /// The settings as last seen here: what the screen opened with, then each edit.
-    @State private var seenSignature: String?
-    /// The method as last seen here; a new one reaches the share at once.
-    @State private var seenMethod: String?
-    /// Something was edited on this screen, so closing it writes the share
-    /// again (an untouched screen writes nothing; see `applyChanges`).
-    @State private var editedHere = false
+    /// The shared settings row as last read: as the screen opens, after each
+    /// write here, and as a change arrives. Nil before the share has one.
+    @State private var sharedRow: AttendanceEmailLog.Settings?
+    /// What was typed here and not yet written.
+    @State private var drafts = AttendanceSettingsDrafts()
+    /// The pause typing waits for before `drafts.paused` is written.
+    @State private var pause: Task<Void, Never>?
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.isSampleClassroom) private var isSampleClassroom
 
     public init() {}
 
-    /// SyncedAppStorage stores primitives, so the picker reads and writes the raw value.
-    private var nameOrder: Binding<AttendanceEmailNameOrder> {
-        Binding(
-            get: { AttendanceEmailNameOrder(rawValue: nameOrderRaw) ?? .firstLast },
-            set: { nameOrderRaw = $0.rawValue }
+    /// What the screen shows (see the type's note).
+    private var shown: AttendanceEmailLog.Settings {
+        AttendanceEmail.shownSettings(
+            row: sharedRow,
+            preferences: AttendanceEmailLog.Settings(
+                isEnabled: enabled,
+                toAddresses: toAddress,
+                nameOrder: AttendanceEmailNameOrder(rawValue: nameOrderRaw) ?? .firstLast,
+                groupByLevel: groupByLevel,
+                deadlineMinutes: deadlineMinutes,
+                sendMethod: AttendanceSendMethod(stored: sendMethodRaw),
+                parentLockerSite: AttendanceEmailLog.parentLockerHost(parentLockerSite)
+            ),
+            isSampleClass: isSampleClassroom
         )
     }
+
+    // The controls: each one's setter is an edit, and the only way one is made.
 
     private var sendMethod: Binding<AttendanceSendMethod> {
+        Binding(get: { shown.sendMethod }, set: { share(AttendanceSettingsEdit(sendMethod: $0)) })
+    }
+
+    private var emailOn: Binding<Bool> {
+        Binding(get: { shown.isEnabled }, set: { share(AttendanceSettingsEdit(isEnabled: $0)) })
+    }
+
+    private var nameOrder: Binding<AttendanceEmailNameOrder> {
+        Binding(get: { shown.nameOrder }, set: { share(AttendanceSettingsEdit(nameOrder: $0)) })
+    }
+
+    private var groupsByLevel: Binding<Bool> {
+        Binding(get: { shown.groupByLevel }, set: { share(AttendanceSettingsEdit(groupByLevel: $0)) })
+    }
+
+    private var recipients: Binding<String> {
         Binding(
-            get: { AttendanceSendMethod(stored: sendMethodRaw) },
-            set: { sendMethodRaw = $0.rawValue }
+            get: { drafts.paused.toAddresses ?? shown.toAddresses },
+            set: { typed(AttendanceSettingsEdit(toAddresses: $0)) }
         )
     }
 
-    private var sendsToParentLocker: Bool { sendMethod.wrappedValue == .parentLocker }
+    /// The ParentLocker address: typing changes only the draft (L3).
+    private var site: Binding<String> {
+        Binding(get: { drafts.site ?? shown.parentLockerSite }, set: { drafts.site = $0 })
+    }
+
+    private var sendsToParentLocker: Bool { shown.sendMethod == .parentLocker }
 
     private var methodPicker: some View {
-        LabeledContent("Send attendance by") {
-            Picker("Send attendance by", selection: sendMethod) {
-                Text("ParentLocker").tag(AttendanceSendMethod.parentLocker)
-                Text("Email to the front desk").tag(AttendanceSendMethod.email)
-            }
-            .labelsHidden()
-            .fixedSize()
-        }
+        AttendanceSendMethodPicker(method: sendMethod)
     }
 
     private var nameOrderPicker: some View {
@@ -87,10 +123,11 @@ public struct AttendanceEmailSettingsView: View {
     /// when notifications are off.
     private var reminderRows: some View {
         VStack(alignment: .leading, spacing: 8) {
-            DatePicker(
-                sendsToParentLocker ? "Due in ParentLocker by" : "Due at the front desk by",
-                selection: deadlineTime, displayedComponents: .hourAndMinute
-            )
+            let due = sendsToParentLocker ? "Due in ParentLocker by" : "Due at the front desk by"
+            AttendanceSettingRow(due) { _ in
+                DatePicker(due, selection: deadlineTime, displayedComponents: .hourAndMinute)
+                    .labelsHidden()
+            }
             Toggle("Remind me if it hasn't gone", isOn: $reminderOn)
             if reminderOn {
                 Picker("Remind me", selection: $reminderLead) {
@@ -122,70 +159,34 @@ public struct AttendanceEmailSettingsView: View {
     private var deadlineTime: Binding<Date> {
         Binding(
             get: {
+                let minutes = drafts.paused.deadlineMinutes ?? shown.deadlineMinutes
                 let midnight = Calendar.current.startOfDay(for: Date())
-                return Calendar.current.date(byAdding: .minute, value: deadlineMinutes, to: midnight) ?? Date()
+                return Calendar.current.date(byAdding: .minute, value: minutes, to: midnight) ?? Date()
             },
             set: { date in
                 let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
-                deadlineMinutes = (parts.hour ?? 9) * 60 + (parts.minute ?? 0)
+                typed(AttendanceSettingsEdit(deadlineMinutes: (parts.hour ?? 9) * 60 + (parts.minute ?? 0)))
             }
         )
     }
 
-    /// Carries the settings to the assistants (after typing pauses, not per
-    /// keystroke: each write is a CloudKit upload) and rebuilds the reminder.
-    private func applyChanges() async {
-        // Only an edit writes. The screen opening, or reappearing with its
-        // state kept (a Mac Settings pane), runs this too with the settings
-        // unchanged; this device's stored settings may be behind an edit made
-        // on another of the guide's devices, so those write nothing (2026-10-05).
-        let signature = changeSignature
-        guard let seen = seenSignature, seen != signature else {
-            seenSignature = signature
-            seenMethod = sendMethodRaw
-            return
-        }
-        seenSignature = signature
-        editedHere = true
-        // A new method reaches the share now, not after the pause: the roll,
-        // the sync, the reminder, MCP and the assistants all read it there,
-        // and a pause cut short by closing Settings left them on the old one
-        // (bug check 2026-10-13, C1). The site waits for typing to pause (or
-        // Return, or closing): each half-typed host would sign this device out.
-        if seenMethod != sendMethodRaw {
-            seenMethod = sendMethodRaw
-            Self.shareNow(in: viewContext)
-        }
-        guard (try? await Task.sleep(for: .seconds(1.5))) != nil else { return }
-        Self.shareAndRefresh(in: viewContext)
-        if reminderOn { notificationsDenied = !(await FrontDeskEmailReminder.requestPermission()) }
-        await FrontDeskEmailReminder.reschedule(in: viewContext)
-    }
-
-    private var changeSignature: String {
-        "\(enabled)|\(toAddress)|\(nameOrderRaw)|\(groupByLevel)|\(deadlineMinutes)|\(reminderOn)|\(reminderLead)"
-            + "|\(sendMethodRaw)|\(parentLockerSite)"
-    }
-
     public var body: some View {
         platformBody
-            .task(id: changeSignature) { await applyChanges() }
-            // A method or site that never reached the share (bug check
-            // 2026-10-13 review, C1): put right as Settings opens.
-            .onAppear { Self.repairSharedMethodNow(in: viewContext) }
-            // Closing Settings cancels the pause above: an edit made here
-            // goes into the share as the screen closes.
-            .onDisappear {
-                guard editedHere else { return }
-                editedHere = false
-                Self.shareNow(in: viewContext)
+            .onAppear(perform: opened)
+            // A change synced in (or made in another window) only shows
+            // here: it is never taken for an edit.
+            .onPresentationDataChange(of: ["AttendanceEmailSettings"], in: viewContext) { _ in
+                sharedRow = AttendanceEmailLog.settings(in: viewContext)
             }
+            .onChange(of: reminderOn) { reminderChanged() }
+            .onChange(of: reminderLead) { reminderChanged() }
+            .onDisappear(perform: closed)
     }
 
     /// Says which of the typed entries aren't addresses, and get no email.
     @ViewBuilder
     private var leftOutNote: some View {
-        if let note = AttendanceEmail.leftOutNote(for: toAddress) {
+        if let note = AttendanceEmail.leftOutNote(for: recipients.wrappedValue) {
             Text(note)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -197,10 +198,7 @@ public struct AttendanceEmailSettingsView: View {
             methodPicker
             Divider()
             if sendsToParentLocker {
-                AttendanceParentLockerSettings(site: $parentLockerSite) {
-                    editedHere = false
-                    Self.shareNow(in: viewContext)
-                }
+                AttendanceParentLockerSettings(site: site, commitSite: commitSite)
                 Divider()
                 #if !os(macOS)
                 Text("Deadline")
@@ -219,11 +217,11 @@ public struct AttendanceEmailSettingsView: View {
         #if os(macOS)
         VStack(alignment: .leading, spacing: 12) {
             LabeledContent("Attendance email") {
-                Toggle("Enabled", isOn: $enabled)
+                Toggle("Enabled", isOn: emailOn)
                     .labelsHidden()
             }
             LabeledContent("Send to") {
-                TextField("Email addresses", text: $toAddress)
+                TextField("Email addresses", text: recipients)
                     .frame(minWidth: 260)
             }
             leftOutNote
@@ -238,7 +236,7 @@ public struct AttendanceEmailSettingsView: View {
                     .frame(maxWidth: 260)
             }
             LabeledContent("Group by level") {
-                Toggle("Group by level", isOn: $groupByLevel)
+                Toggle("Group by level", isOn: groupsByLevel)
                     .labelsHidden()
             }
             groupingFootnote
@@ -253,9 +251,9 @@ public struct AttendanceEmailSettingsView: View {
         // inside the settings ScrollView, and a nested Form scrolls its own sections
         // out of reach — which is how Report Format went missing.
         VStack(alignment: .leading, spacing: 12) {
-            Toggle("Show the attendance email button", isOn: $enabled)
+            Toggle("Show the attendance email button", isOn: emailOn)
 
-            TextField("Send To", text: $toAddress)
+            TextField("Send To", text: recipients)
                 .textFieldStyle(.roundedBorder)
                 #if os(iOS)
                 .textContentType(.emailAddress)
@@ -289,7 +287,7 @@ public struct AttendanceEmailSettingsView: View {
                 .font(.subheadline.weight(.semibold))
             nameOrderPicker
                 .pickerStyle(.segmented)
-            Toggle("Group by Level", isOn: $groupByLevel)
+            Toggle("Group by Level", isOn: groupsByLevel)
             groupingFootnote
 
             Divider()
@@ -302,59 +300,74 @@ public struct AttendanceEmailSettingsView: View {
     }
 }
 
+// MARK: - Writes
+
 extension AttendanceEmailSettingsView {
 
-    /// Writes the settings into the share and saves, now, then brings this
-    /// device's ParentLocker sign-in and line (a new site or method) and the
-    /// reminder up to date with them. The reminder's rebuild runs in a task
-    /// of its own, which finishes even when Settings has closed.
-    static func shareNow(in context: NSManagedObjectContext) {
-        shareAndRefresh(in: context)
+    /// Settings opening: the shared row as it is, after a write this device
+    /// put off during a first download, if it's still owed
+    /// (`AttendanceEmail.writePendingEdit`). Nothing else is written here.
+    private func opened() {
+        if AttendanceEmail.writePendingEdit(in: viewContext, isSampleClass: isSampleClassroom) {
+            Self.followShare(in: viewContext)
+        }
+        sharedRow = AttendanceEmailLog.settings(in: viewContext)
+    }
+
+    /// An edit made here goes into the share now (`AttendanceEmail.shareEdit`).
+    private func share(_ edit: AttendanceSettingsEdit) {
+        guard !edit.isEmpty else { return }
+        AttendanceEmail.shareEdit(edit, in: viewContext, isSampleClass: isSampleClassroom)
+        sharedRow = AttendanceEmailLog.settings(in: viewContext)
+        // The Sample Class has no ParentLocker, and its row is no reason to
+        // rebuild the guide's reminder.
+        guard !isSampleClassroom else { return }
+        Self.followShare(in: viewContext)
+    }
+
+    /// Typing in the email's addresses or picking the due time: written once
+    /// it pauses, since each write is a CloudKit upload.
+    private func typed(_ edit: AttendanceSettingsEdit) {
+        drafts.paused = drafts.paused.merged(with: edit)
+        pause?.cancel()
+        pause = Task {
+            guard (try? await Task.sleep(for: .seconds(1.5))) != nil else { return }
+            share(drafts.takePaused())
+        }
+    }
+
+    /// Return in the address field, or the sign-in sheet about to open: the
+    /// typed address goes in now, so the sheet signs in to it (L3).
+    private func commitSite() {
+        share(drafts.takeSite(shown: shown.parentLockerSite))
+    }
+
+    /// Settings closing, which cancels the pause: what was typed here and
+    /// not yet written goes in, and nothing else.
+    private func closed() {
+        pause?.cancel()
+        pause = nil
+        share(drafts.takeAll(shownSite: shown.parentLockerSite))
+    }
+
+    /// This device's reminder: its switch or how long before changed here.
+    private func reminderChanged() {
+        Task {
+            if reminderOn { notificationsDenied = !(await FrontDeskEmailReminder.requestPermission()) }
+            await FrontDeskEmailReminder.reschedule(in: viewContext)
+        }
+    }
+
+    /// After the share's settings changed here: this device's ParentLocker
+    /// sign-in and line (a new site or method) and the reminder follow. The
+    /// reminder's rebuild runs in a task of its own, which finishes even
+    /// when Settings has closed.
+    static func followShare(in context: NSManagedObjectContext) {
+        if let sync = ParentLockerSync.current(for: context) {
+            sync.refreshSignIn()
+            sync.refreshStatus()
+        }
         Task { await FrontDeskEmailReminder.reschedule(in: context) }
-    }
-
-    /// `shareNow` without the reminder, for the pause's write, which asks
-    /// for notifications before it rebuilds the reminder.
-    static func shareAndRefresh(in context: NSManagedObjectContext) {
-        shareSettingsNow(in: context)
-        if let sync = ParentLockerSync.current(for: context) {
-            sync.refreshSignIn()
-            sync.refreshStatus()
-        }
-    }
-
-    /// The share's method and site put right from this device's preferences,
-    /// saved, and this device's ParentLocker line with them
-    /// (`AttendanceEmail.repairSharedMethod`). Returns whether anything was written.
-    @discardableResult
-    static func repairSharedMethodNow(
-        in context: NSManagedObjectContext,
-        settings: AttendanceEmailLog.Settings = AttendanceEmail.storedSettings(),
-        firstDownloadPending: Bool = FirstDownloadGate.isPending()
-    ) -> Bool {
-        guard AttendanceEmail.repairSharedMethod(
-            in: context, settings: settings, firstDownloadPending: firstDownloadPending
-        ), context.safeSave() else { return false }
-        if let sync = ParentLockerSync.current(for: context) {
-            sync.refreshSignIn()
-            sync.refreshStatus()
-        }
-        return true
-    }
-
-    /// The guide's settings into the share, saved (`AttendanceEmail.shareSettings`:
-    /// the lead guide's devices only, and not during a first download).
-    /// Returns whether anything was written.
-    @discardableResult
-    static func shareSettingsNow(
-        in context: NSManagedObjectContext,
-        settings: AttendanceEmailLog.Settings = AttendanceEmail.storedSettings(),
-        firstDownloadPending: Bool = FirstDownloadGate.isPending()
-    ) -> Bool {
-        guard AttendanceEmail.shareSettings(
-            in: context, settings: settings, firstDownloadPending: firstDownloadPending
-        ) else { return false }
-        return context.safeSave()
     }
 }
 

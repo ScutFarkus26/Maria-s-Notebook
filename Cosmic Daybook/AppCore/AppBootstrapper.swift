@@ -219,9 +219,11 @@ final class AppBootstrapper {
 
             // The front-desk email's settings travel to the assistants in the
             // classroom share (schema 12). Written here only when the share has
-            // none yet; after that only the settings screen's edits change them.
-            // This device's preferences may not have caught up with an edit made
-            // on another of the guide's devices.
+            // none yet, and dated in the distant past, so the guide's own row
+            // wins when it arrives after a new device's first download; after
+            // that only the settings screen's edits change them. This device's
+            // preferences may not have caught up with an edit made on another
+            // of the guide's devices.
             AttendanceEmail.shareSettingsIfMissing(in: viewContext)
         }
 

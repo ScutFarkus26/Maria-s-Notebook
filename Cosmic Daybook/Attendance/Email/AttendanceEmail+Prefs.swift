@@ -68,53 +68,6 @@ extension AttendanceEmail {
         )
     }
 
-    /// Copies the guide's settings into the classroom share, so an
-    /// assistant's email goes to the same people in the same format: the
-    /// settings screen's write, after an edit. Only on the lead guide's
-    /// devices, and not during a first download (the share's row may be on its
-    /// way). Returns whether anything changed; the caller saves.
-    @discardableResult
-    static func shareSettings(
-        in context: NSManagedObjectContext,
-        settings: AttendanceEmailLog.Settings = AttendanceEmail.storedSettings(),
-        firstDownloadPending: Bool = FirstDownloadGate.isPending()
-    ) -> Bool {
-        guard !firstDownloadPending else { return false }
-        return AttendanceEmailLog.saveSettings(
-            settings, role: CDClassroomMembership.currentRole(in: context), in: context
-        )
-    }
-
-    /// Settings opening on the guide's device: when the share's method or
-    /// ParentLocker site isn't what this device's preferences say (an edit
-    /// whose write was skipped during a first download, say), the row takes
-    /// the preferences' method and site (and, with the method, whether the
-    /// email is on). The row's other fields stay: this device's may be behind
-    /// an edit made on another of the guide's devices (2026-10-05). With no
-    /// row yet, this device's settings go in whole. Not during a first
-    /// download. Returns whether anything changed; the caller saves.
-    @discardableResult
-    static func repairSharedMethod(
-        in context: NSManagedObjectContext,
-        settings: AttendanceEmailLog.Settings = AttendanceEmail.storedSettings(),
-        firstDownloadPending: Bool = FirstDownloadGate.isPending()
-    ) -> Bool {
-        guard !firstDownloadPending else { return false }
-        let role = CDClassroomMembership.currentRole(in: context)
-        guard let row = AttendanceEmailLog.settings(in: context) else {
-            return AttendanceEmailLog.saveSettings(settings, role: role, in: context)
-        }
-        let wanted = settings.shared
-        guard row.sendMethod != wanted.sendMethod || row.parentLockerSite != wanted.parentLockerSite else {
-            return false
-        }
-        var repaired = row
-        if row.sendMethod != wanted.sendMethod { repaired.isEnabled = settings.isEnabled }
-        repaired.sendMethod = wanted.sendMethod
-        repaired.parentLockerSite = wanted.parentLockerSite
-        return AttendanceEmailLog.saveSettings(repaired, role: role, in: context)
-    }
-
     /// The launch's write: the guide's settings go into the share only when it
     /// has none yet (an older notebook, a first launch since schema 12). Never
     /// over a row already there: this device's preferences may not have caught
@@ -130,6 +83,122 @@ extension AttendanceEmail {
         return AttendanceEmailLog.saveSettingsIfMissing(
             settings, role: CDClassroomMembership.currentRole(in: context), in: context
         )
+    }
+
+    // MARK: - Settings' writes (bug hunt 2026-10-13 afternoon, H1)
+
+    /// This device's side of the guide's settings: its synced preferences
+    /// (which the notebook's own email is written from) and where a write the
+    /// share still owes is kept. Tests pass their own.
+    struct DeviceSettings {
+        /// The guide's preferences, as `storedSettings` reads them.
+        var stored: () -> AttendanceEmailLog.Settings
+        /// Copies a value into the guide's preferences.
+        var setPreference: (_ key: String, _ value: Any) -> Void
+        /// Where a pending write is kept: this device's own defaults.
+        var defaults: UserDefaults
+
+        static var thisDevice: Self {
+            Self(
+                stored: { AttendanceEmail.storedSettings() },
+                setPreference: { key, value in _ = SyncedPreferencesStore.shared.set(value, forKey: key) },
+                defaults: .standard
+            )
+        }
+    }
+
+    /// What Settings shows. The method, the ParentLocker address and the due
+    /// time as the shared row holds them, which is what the roll, the sync,
+    /// the reminder, MCP and the assistants read; this device's preferences
+    /// only before there is a row. The email's own fields as this device's
+    /// preferences hold them, which the notebook's email is written from; in
+    /// the Sample Class as its row holds them, since nothing there writes the
+    /// preferences.
+    static func shownSettings(
+        row: AttendanceEmailLog.Settings?, preferences: AttendanceEmailLog.Settings, isSampleClass: Bool
+    ) -> AttendanceEmailLog.Settings {
+        guard let row else { return preferences }
+        var shown = isSampleClass ? row : preferences
+        shown.sendMethod = row.sendMethod
+        shown.parentLockerSite = row.parentLockerSite
+        shown.deadlineMinutes = row.deadlineMinutes
+        return shown
+    }
+
+    /// Settings' write: `edit`'s fields, and only those, go onto the shared
+    /// row as it stands, saved, then into the guide's preferences. A device
+    /// whose preferences are behind the share (iCloud hasn't caught up)
+    /// changes only what was just changed there, so a new due time keeps the
+    /// class's method. With no row yet, this device's settings go in whole,
+    /// with the edit.
+    /// - Only the lead guide's devices write the row.
+    /// - During a first download the share's row may be on its way, so the
+    ///   row's write is put off (`AttendanceSettingsPendingWrite`). A write
+    ///   put off earlier goes in with the next one, if the row hasn't changed
+    ///   since.
+    /// - The Sample Class changes its own row only: never the preferences or
+    ///   a pending write.
+    ///
+    /// Returns whether the row was written and saved.
+    @discardableResult
+    static func shareEdit(
+        _ edit: AttendanceSettingsEdit,
+        in context: NSManagedObjectContext,
+        isSampleClass: Bool,
+        device: DeviceSettings = .thisDevice,
+        firstDownloadPending: Bool = FirstDownloadGate.isPending()
+    ) -> Bool {
+        guard !edit.isEmpty else { return false }
+        guard !isSampleClass else { return writeEdit(edit, in: context, device: device) }
+        defer {
+            for (key, value) in edit.preferenceValues { device.setPreference(key, value) }
+        }
+        guard CDClassroomMembership.currentRole(in: context) == .leadGuide else { return false }
+        let row = AttendanceSettingsPendingWrite.rowStamp(in: context)
+        let earlier = AttendanceSettingsPendingWrite.load(from: device.defaults)
+            .flatMap { $0.row == row ? $0.edit : nil }
+        let owed = (earlier ?? AttendanceSettingsEdit()).merged(with: edit)
+        guard !firstDownloadPending else {
+            AttendanceSettingsPendingWrite(edit: owed, row: row).save(to: device.defaults)
+            return false
+        }
+        AttendanceSettingsPendingWrite.clear(in: device.defaults)
+        return writeEdit(owed, in: context, device: device)
+    }
+
+    /// Settings opening: the one write this device still owes the share (an
+    /// edit put off during a first download) goes in, but only onto the row
+    /// it was made against, unchanged since. Otherwise that row's values
+    /// stand and the edit is dropped. Nothing else is written here: this
+    /// device's preferences may be behind the share, and copying them over it
+    /// switched the whole class back to email. Never in the Sample Class.
+    /// Returns whether the row was written and saved.
+    @discardableResult
+    static func writePendingEdit(
+        in context: NSManagedObjectContext,
+        isSampleClass: Bool,
+        device: DeviceSettings = .thisDevice,
+        firstDownloadPending: Bool = FirstDownloadGate.isPending()
+    ) -> Bool {
+        guard !isSampleClass, !firstDownloadPending,
+              let pending = AttendanceSettingsPendingWrite.load(from: device.defaults) else { return false }
+        AttendanceSettingsPendingWrite.clear(in: device.defaults)
+        guard CDClassroomMembership.currentRole(in: context) == .leadGuide,
+              pending.row == AttendanceSettingsPendingWrite.rowStamp(in: context) else { return false }
+        return writeEdit(pending.edit, in: context, device: device)
+    }
+
+    /// `edit` onto the newest row, or with none yet onto this device's
+    /// settings, saved.
+    private static func writeEdit(
+        _ edit: AttendanceSettingsEdit, in context: NSManagedObjectContext, device: DeviceSettings
+    ) -> Bool {
+        let preferences = device.stored()
+        let base = AttendanceEmailLog.settings(in: context) ?? preferences
+        let role = CDClassroomMembership.currentRole(in: context)
+        let settings = edit.applied(to: base, emailOn: preferences.isEnabled)
+        guard AttendanceEmailLog.saveSettings(settings, role: role, in: context) else { return false }
+        return context.safeSave()
     }
 
     /// Builds the body using the teacher's stored name-order and grouping preferences.

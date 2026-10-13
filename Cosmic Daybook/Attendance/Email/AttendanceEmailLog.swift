@@ -340,20 +340,22 @@ enum AttendanceEmailLog {
     /// yet. The launch's write: once a row exists, only the settings screen's
     /// edits change it (`saveSettings`), since a launch copied this device's
     /// preferences, which iCloud may not have brought up to date yet, over a
-    /// newer edit made on another of the guide's devices (2026-10-05).
+    /// newer edit made on another of the guide's devices (2026-10-05). It is
+    /// dated `.distantPast`: a new device's first download can finish before
+    /// the guide's row comes from the share, and the newest row wins, so these
+    /// defaults must never outrank it (bug hunt 2026-10-13 afternoon, H1).
     /// Returns whether it wrote; the caller saves.
     @discardableResult
     static func saveSettingsIfMissing(
         _ settings: Settings,
         role: CDClassroomMembership.ClassroomRole,
-        now: Date = Date(),
         in context: NSManagedObjectContext
     ) -> Bool {
         guard role == .leadGuide else { return false }
         let request = CDFetchRequest(CDAttendanceEmailSettings.self)
         request.fetchLimit = 1
         guard context.safeFetchFirst(request) == nil else { return false }
-        return saveSettings(settings, role: role, now: now, in: context)
+        return saveSettings(settings, role: role, now: .distantPast, in: context)
     }
 
     private static func newestSettingsRow(in context: NSManagedObjectContext) -> CDAttendanceEmailSettings? {
