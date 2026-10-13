@@ -231,6 +231,10 @@ Rules: `docs/Technical notes/MCP_SERVER.md`. Every write goes through the servic
 
 Rules: `docs/Technical notes/RESTOCK.md`. `RestockService` is the only writer; a need's stage is derived, never stored.
 
+## ParentLocker (attendance to the school)
+
+Rules: `docs/Technical notes/PARENTLOCKER.md`. The password stays in the Keychain only; Debug builds and test runs never save to ParentLocker (`ParentLockerSavePolicy`); check it on a simulator with `-ParentLockerPreview YES`, never with a Debug build on the Mac (it opens the live notebook).
+
 ## Backup System
 
 Format v40; rules: `docs/Technical notes/BACKUP_SYSTEM.md`. A new entity or attribute needs a line in `Backup/BackupEntityTable.swift` and a format-version bump; merge restore is an upsert, never delete and reinsert.
