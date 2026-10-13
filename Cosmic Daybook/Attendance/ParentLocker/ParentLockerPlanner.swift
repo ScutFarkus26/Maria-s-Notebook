@@ -13,7 +13,9 @@ import Foundation
 ///   written only when there is something to say, or to clear what the app
 ///   wrote there for an earlier mark (never anyone else's words).
 /// - A child is matched by the stored `parentLockerID`, else by name, and a
-///   name match counts only when exactly one child fits on both sides.
+///   name match counts only when exactly one child fits on both sides. A
+///   stored "Not matched" (`notMatchedID`) is never matched or sent, and a
+///   ParentLocker child two of ours claim is sent for neither.
 /// - ParentLocker children who aren't matched, and classes holding none of
 ///   the notebook's children, are never touched. Neither are rows the office
 ///   locked, and a mark can't be cleared, only changed.
@@ -163,6 +165,8 @@ nonisolated enum ParentLockerPlanner {
     enum SkipReason: Sendable, Equatable {
         /// No ParentLocker child fits (or the stored one isn't on the rosters).
         case unmatched
+        /// The guide picked "Not matched": left out on purpose, said nowhere.
+        case leftOut
         /// More than one ParentLocker child fits, or one fits more than one of ours.
         case ambiguous(studentIDs: [String])
         /// Unmarked here and in ParentLocker: nothing to do.
@@ -212,14 +216,21 @@ nonisolated enum ParentLockerPlanner {
     ) -> Plan {
         var builder = PlanBuilder()
         let matches = match(children: children, rosters: rosters)
+        // Matching gives a ParentLocker child to one notebook child at most;
+        // should two ever claim one, neither is sent.
+        let unique = childByStudentID(matches)
         var childByStudentID: [String: UUID] = [:]
         for child in children where only?.contains(child.id) ?? true {
             switch matches[child.id] ?? .unmatched {
+            case .matched(let studentID, _) where unique[studentID] != child.id:
+                builder.skip(child.id, .ambiguous(studentIDs: [studentID]))
             case .matched(let studentID, let byName):
                 childByStudentID[studentID] = child.id
                 if byName { builder.newMatches[child.id] = studentID }
             case .unmatched:
                 builder.skip(child.id, .unmatched)
+            case .leftOut:
+                builder.skip(child.id, .leftOut)
             case .ambiguous(let ids):
                 builder.skip(child.id, .ambiguous(studentIDs: ids))
             }

@@ -158,8 +158,9 @@ nonisolated struct ParentLockerSendFailure: Error, Equatable, Sendable {
 nonisolated extension ParentLockerStatus {
 
     /// The lines for what a plan left alone, children named as the class
-    /// reads them ("Maya S"). Unmarked children say nothing; children not
-    /// matched yet are gathered into one line.
+    /// reads them ("Maya S"). Unmarked children and those the guide left out
+    /// ("Not matched") say nothing; children not matched yet are gathered
+    /// into one line.
     static func problems(
         for skipped: [ParentLockerPlanner.Skip],
         names: (UUID) -> String,
@@ -171,7 +172,7 @@ nonisolated extension ParentLockerStatus {
         for skip in skipped {
             let name = names(skip.childID)
             switch skip.reason {
-            case .unmarked:
+            case .unmarked, .leftOut:
                 continue
             case .unmatched, .ambiguous:
                 unmatched.append(name)

@@ -119,15 +119,20 @@ nonisolated struct ParentLockerRoster: Sendable, Equatable {
         attendanceReportID = json["attendance_report_id"]?.nonEmptyID
     }
 
-    /// A reply's `error`: text that says something, or "error" for a bare true.
+    /// A reply's `error`: text that says something, or "error" for a bare
+    /// true, a non-zero number, or a list or object with something in it.
+    /// Nothing, false, zero and an empty list or object are no error.
     static func errorText(_ value: ParentLockerJSON?) -> String? {
         switch value {
         case .string(let text):
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
             return trimmed.isEmpty || trimmed == "0" || trimmed.lowercased() == "false" ? nil : trimmed
         case .bool(true): return "error"
-        case .object, .array: return value?.stringValue ?? "error"
-        default: return nil
+        case .int(let number): return number == 0 ? nil : "error \(number)"
+        case .double(let number): return number == 0 ? nil : "error"
+        case .array(let items): return items.isEmpty ? nil : "error"
+        case .object(let fields): return fields.isEmpty ? nil : "error"
+        case .bool(false), .null, nil: return nil
         }
     }
 }

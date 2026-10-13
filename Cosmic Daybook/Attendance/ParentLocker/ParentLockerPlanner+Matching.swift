@@ -13,9 +13,36 @@ nonisolated extension ParentLockerPlanner {
         /// time rather than from the stored match.
         case matched(studentID: String, byName: Bool)
         case unmatched
+        /// The guide picked "Not matched" in Match Names (`notMatchedID`):
+        /// never matched by name, never sent, and nothing to ask about.
+        case leftOut
         /// The ParentLocker children who fit, when more than one does (or the
         /// one who does also fits another notebook child).
         case ambiguous([String])
+    }
+
+    /// The stored `parentLockerID` for "Not matched": the guide said this
+    /// child has no ParentLocker child. No schema change: ParentLocker's own
+    /// ids are numbers, so this can't be one of them.
+    static let notMatchedID = "none"
+
+    /// Whether a stored `parentLockerID` is "Not matched".
+    static func isNotMatched(_ stored: String) -> Bool {
+        stored.trimmingCharacters(in: .whitespaces).lowercased() == notMatchedID
+    }
+
+    /// The ParentLocker children matched to exactly one notebook child, and
+    /// who. An id two children claim goes to neither: one child's mark must
+    /// never land on another.
+    static func childByStudentID(_ matches: [UUID: Match]) -> [String: UUID] {
+        var result: [String: UUID] = [:]
+        var claimedTwice: Set<String> = []
+        for (childID, match) in matches {
+            guard case .matched(let studentID, _) = match else { continue }
+            if result.updateValue(childID, forKey: studentID) != nil { claimedTwice.insert(studentID) }
+        }
+        for studentID in claimedTwice { result[studentID] = nil }
+        return result
     }
 
     /// Every child's match against the children on `rosters`.
@@ -25,23 +52,10 @@ nonisolated extension ParentLockerPlanner {
             people[student.studentID] = student
         }
 
-        var result: [UUID: Match] = [:]
-        // Stored matches first; the ids they hold are taken.
-        var taken: Set<String> = []
-        var byName: [Child] = []
-        for child in children {
-            if let stored = child.parentLockerID?.trimmingCharacters(in: .whitespaces), !stored.isEmpty {
-                if people[stored] != nil {
-                    result[child.id] = .matched(studentID: stored, byName: false)
-                    taken.insert(stored)
-                } else {
-                    result[child.id] = .unmatched
-                }
-            } else {
-                byName.append(child)
-            }
-        }
-
+        // Stored matches first; the ids they hold on the rosters are taken.
+        var result = storedMatches(children: children, people: people)
+        let byName = children.filter { result[$0.id] == nil }
+        let taken = Set(children.compactMap { $0.parentLockerID?.trimmingCharacters(in: .whitespaces) })
         let open = people.values.filter { !taken.contains($0.studentID) }
         var fits: [UUID: [String]] = [:]
         var fitBy: [String: Int] = [:]
@@ -58,6 +72,34 @@ nonisolated extension ParentLockerPlanner {
                 result[child.id] = .matched(studentID: only, byName: true)
             } else {
                 result[child.id] = .ambiguous(ids)
+            }
+        }
+        return result
+    }
+
+    /// The match of each child with a stored `parentLockerID`. "Not matched"
+    /// is left out. An id two children hold (picked twice, or a duplicated
+    /// student) matches neither, and is still taken: no one gets it by name.
+    private static func storedMatches(
+        children: [Child], people: [String: ParentLockerRosterStudent]
+    ) -> [UUID: Match] {
+        var result: [UUID: Match] = [:]
+        var stored: [UUID: String] = [:]
+        var holders: [String: Int] = [:]
+        for child in children {
+            guard let id = child.parentLockerID?.trimmingCharacters(in: .whitespaces), !id.isEmpty else { continue }
+            if isNotMatched(id) {
+                result[child.id] = .leftOut
+            } else {
+                stored[child.id] = id
+                holders[id, default: 0] += 1
+            }
+        }
+        for (childID, id) in stored {
+            if people[id] == nil {
+                result[childID] = .unmatched
+            } else {
+                result[childID] = holders[id] == 1 ? .matched(studentID: id, byName: false) : .ambiguous([id])
             }
         }
         return result
@@ -98,10 +140,7 @@ nonisolated extension ParentLockerPlanner {
 
     /// What `rosters` hold for each matched child, by child.
     static func seen(matches: [UUID: Match], rosters: [ParentLockerRoster]) -> [UUID: ParentLockerSeen] {
-        var childByStudent: [String: UUID] = [:]
-        for (childID, match) in matches {
-            if case .matched(let studentID, _) = match { childByStudent[studentID] = childID }
-        }
+        let childByStudent = childByStudentID(matches)
         var seen: [UUID: ParentLockerSeen] = [:]
         for roster in rosters {
             for student in roster.students {
