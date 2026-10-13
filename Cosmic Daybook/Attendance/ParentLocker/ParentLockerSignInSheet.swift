@@ -78,10 +78,11 @@ struct ParentLockerSignInSheet: View {
         .onDisappear { stopSigningIn() }
     }
 
-    /// Signed in, with a password ParentLocker still takes: otherwise (it
-    /// refused the saved one) the fields show, to sign in again.
+    /// Signed in, with a password ParentLocker still takes and nothing it
+    /// wants done first: otherwise (it refused the saved one, or asks for
+    /// new terms or a reset) the fields show, to sign in again.
     private var showsSignedIn: Bool {
-        sync.isSignedIn && !sync.savedPasswordRefused && session == nil
+        !sync.needsSignIn && session == nil
     }
 
     /// Above the fields: the school's site, small, and that this happens

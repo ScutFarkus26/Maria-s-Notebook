@@ -276,7 +276,8 @@ struct ParentLockerFollowUps: ViewModifier {
                 Text(question.message)
             }
             .sheet(isPresented: $showingSignIn, onDismiss: {
-                // MERGE (agent E, L6): if let sync, sync.needsSignIn { sync.signInDismissed() }
+                // Closed without signing in: a waiting Send Now is dropped (L6).
+                if let sync, sync.needsSignIn { sync.signInDismissed() }
             }, content: {
                 if let sync { ParentLockerSignInSheet(sync: sync) }
             })

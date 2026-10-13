@@ -83,6 +83,6 @@ extension AssistantArrivalBar {
     func signInClosed() {
         guard let sync = bootstrapper.parentLockerForScreens, sync.needsSignIn else { return }
         askedToSignIn = sync.awaitsSignIn
-        // MERGE (agent E's sign-in dismissal hook; wire at merge): sync.signInDismissed()
+        sync.signInDismissed()
     }
 }
