@@ -1,6 +1,6 @@
 # ParentLocker bug check fixes
 
-> **Done 2026-10-13** (main, see the parent plan's Phase 8). Written 2026-10-13 from <../Reviews/ParentLocker bug check 2026-10-13.md> (19 findings in the ParentLocker work on main 55117e19); Phase 8 of <Plan - ParentLocker attendance.md>.
+> **Done 2026-10-13** (3ba3c2f8). Written 2026-10-13 from <../Reviews/ParentLocker bug check 2026-10-13.md> (19 findings in the ParentLocker work on main 55117e19); Phase 8 of <Plan - ParentLocker attendance.md>.
 > In short: three agents in their own worktrees fix the 19 findings, each with a test that fails first. Then one review, full builds and both whole suites, and it lands on main. Then the parent plan's Phase 9: Production schema, close-out, TestFlight.
 
 **Runs autonomously** (Danny, 2026-10-12): "After this is pushed to main I'd like a final bug check on the latest changes. /plan-efficiently to fix the bugs. then push to main, close out, and send to testflight. do this all autonomously." No approval stop. The parent plan's "Never" list applies: no data loss, the live notebook is never opened by a schema-18 build, no passwords typed, and the notebook's build goes to no TestFlight group.

@@ -1,6 +1,6 @@
 # ParentLocker bug hunt afternoon fixes
 
-> **Done 2026-10-13** (main, the squash after 3ba3c2f8). Written 2026-10-13 from <../Reviews/ParentLocker bug hunt 2026-10-13 afternoon.md> (23 findings in the ParentLocker work on main 3ba3c2f8). Danny: "Fix all 23."
+> **Done 2026-10-13** (020ef75b). Written 2026-10-13 from <../Reviews/ParentLocker bug hunt 2026-10-13 afternoon.md> (23 findings in the ParentLocker work on main 3ba3c2f8). Danny: "Fix all 23."
 > In short: the main session adds the shared hooks as placeholders, then four agents in their own worktrees fix the 23 findings, each with a test that fails first. Then a review, full builds and both whole suites, and it lands on main. TestFlight stays on hold until Danny says go.
 
 ## Goal
