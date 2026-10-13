@@ -5,8 +5,9 @@ import Foundation
 /// save. `ParentLockerHTTP` makes them over the network with the person's
 /// sign-in cookies; tests use a fake. Each throws a `ParentLockerError`.
 nonisolated protocol ParentLockerTransport: Sendable {
-    /// The teacher's classes, read from the attendance page.
-    func courses() async throws -> [ParentLockerCourse]
+    /// The teacher's classes, read from the attendance page: today's, or
+    /// with `day`, that day's, which carry that day's report ids.
+    func courses(on day: Date?) async throws -> [ParentLockerCourse]
     /// A class's roster and marks for `date`.
     func roster(course: ParentLockerCourse, date: Date) async throws -> ParentLockerRoster
     /// Saves one class's changes.

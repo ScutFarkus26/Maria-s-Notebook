@@ -1,3 +1,4 @@
+import CoreData
 import Foundation
 import SwiftUI
 
@@ -27,6 +28,11 @@ public struct AttendanceEmailSettingsView: View {
     @State private var notificationsDenied = false
     /// The settings as last seen here: what the screen opened with, then each edit.
     @State private var seenSignature: String?
+    /// The method as last seen here; a new one reaches the share at once.
+    @State private var seenMethod: String?
+    /// Something was edited on this screen, so closing it writes the share
+    /// again (an untouched screen writes nothing; see `applyChanges`).
+    @State private var editedHere = false
     @Environment(\.managedObjectContext) private var viewContext
 
     public init() {}
@@ -136,16 +142,22 @@ public struct AttendanceEmailSettingsView: View {
         let signature = changeSignature
         guard let seen = seenSignature, seen != signature else {
             seenSignature = signature
+            seenMethod = sendMethodRaw
             return
         }
         seenSignature = signature
-        guard (try? await Task.sleep(for: .seconds(1.5))) != nil else { return }
-        if AttendanceEmail.shareSettings(in: viewContext) { viewContext.safeSave() }
-        // A new site or method: the sign-in and the line follow it.
-        if let sync = ParentLockerSync.current(for: viewContext) {
-            sync.refreshSignIn()
-            sync.refreshStatus()
+        editedHere = true
+        // A new method reaches the share now, not after the pause: the roll,
+        // the sync, the reminder, MCP and the assistants all read it there,
+        // and a pause cut short by closing Settings left them on the old one
+        // (bug check 2026-10-13, C1). The site waits for typing to pause (or
+        // Return, or closing): each half-typed host would sign this device out.
+        if seenMethod != sendMethodRaw {
+            seenMethod = sendMethodRaw
+            Self.shareNow(in: viewContext)
         }
+        guard (try? await Task.sleep(for: .seconds(1.5))) != nil else { return }
+        Self.shareAndRefresh(in: viewContext)
         if reminderOn { notificationsDenied = !(await FrontDeskEmailReminder.requestPermission()) }
         await FrontDeskEmailReminder.reschedule(in: viewContext)
     }
@@ -158,6 +170,16 @@ public struct AttendanceEmailSettingsView: View {
     public var body: some View {
         platformBody
             .task(id: changeSignature) { await applyChanges() }
+            // A method or site that never reached the share (bug check
+            // 2026-10-13 review, C1): put right as Settings opens.
+            .onAppear { Self.repairSharedMethodNow(in: viewContext) }
+            // Closing Settings cancels the pause above: an edit made here
+            // goes into the share as the screen closes.
+            .onDisappear {
+                guard editedHere else { return }
+                editedHere = false
+                Self.shareNow(in: viewContext)
+            }
     }
 
     /// Says which of the typed entries aren't addresses, and get no email.
@@ -175,7 +197,10 @@ public struct AttendanceEmailSettingsView: View {
             methodPicker
             Divider()
             if sendsToParentLocker {
-                AttendanceParentLockerSettings(site: $parentLockerSite)
+                AttendanceParentLockerSettings(site: $parentLockerSite) {
+                    editedHere = false
+                    Self.shareNow(in: viewContext)
+                }
                 Divider()
                 #if !os(macOS)
                 Text("Deadline")
@@ -276,6 +301,63 @@ public struct AttendanceEmailSettingsView: View {
         #endif
     }
 }
+
+extension AttendanceEmailSettingsView {
+
+    /// Writes the settings into the share and saves, now, then brings this
+    /// device's ParentLocker sign-in and line (a new site or method) and the
+    /// reminder up to date with them. The reminder's rebuild runs in a task
+    /// of its own, which finishes even when Settings has closed.
+    static func shareNow(in context: NSManagedObjectContext) {
+        shareAndRefresh(in: context)
+        Task { await FrontDeskEmailReminder.reschedule(in: context) }
+    }
+
+    /// `shareNow` without the reminder, for the pause's write, which asks
+    /// for notifications before it rebuilds the reminder.
+    static func shareAndRefresh(in context: NSManagedObjectContext) {
+        shareSettingsNow(in: context)
+        if let sync = ParentLockerSync.current(for: context) {
+            sync.refreshSignIn()
+            sync.refreshStatus()
+        }
+    }
+
+    /// The share's method and site put right from this device's preferences,
+    /// saved, and this device's ParentLocker line with them
+    /// (`AttendanceEmail.repairSharedMethod`). Returns whether anything was written.
+    @discardableResult
+    static func repairSharedMethodNow(
+        in context: NSManagedObjectContext,
+        settings: AttendanceEmailLog.Settings = AttendanceEmail.storedSettings(),
+        firstDownloadPending: Bool = FirstDownloadGate.isPending()
+    ) -> Bool {
+        guard AttendanceEmail.repairSharedMethod(
+            in: context, settings: settings, firstDownloadPending: firstDownloadPending
+        ), context.safeSave() else { return false }
+        if let sync = ParentLockerSync.current(for: context) {
+            sync.refreshSignIn()
+            sync.refreshStatus()
+        }
+        return true
+    }
+
+    /// The guide's settings into the share, saved (`AttendanceEmail.shareSettings`:
+    /// the lead guide's devices only, and not during a first download).
+    /// Returns whether anything was written.
+    @discardableResult
+    static func shareSettingsNow(
+        in context: NSManagedObjectContext,
+        settings: AttendanceEmailLog.Settings = AttendanceEmail.storedSettings(),
+        firstDownloadPending: Bool = FirstDownloadGate.isPending()
+    ) -> Bool {
+        guard AttendanceEmail.shareSettings(
+            in: context, settings: settings, firstDownloadPending: firstDownloadPending
+        ) else { return false }
+        return context.safeSave()
+    }
+}
+
 // The `#Preview` closure is expanded and type-checked in every compiler job
 // for the module; a private view is checked once, in this file's job.
 private struct AttendanceEmailPreview: View {

@@ -3,15 +3,20 @@ import SwiftUI
 /// Match Names (notebook only; Phase 3 places it in Settings): the class's
 /// children beside ParentLocker's, with the ones the app couldn't match by
 /// name first. Picking the right ParentLocker child stores it on the student
-/// (`parentLockerID`), so later syncs go by ID and survive a rename; only the
-/// lead guide's devices write it, and a test copy of the app (a Debug build)
-/// never does (`ParentLockerSavePolicy`). Reads ParentLocker, never saves to it.
+/// (`parentLockerID`), so later syncs go by ID and survive a rename, and
+/// takes that ParentLocker child from whoever held it; "Not matched" stores
+/// `ParentLockerPlanner.notMatchedID`, which leaves the child out for good.
+/// Only the lead guide's devices write it, and a test copy of the app (a
+/// Debug build) never does (`ParentLockerSavePolicy`). Reads ParentLocker,
+/// never saves to it.
 struct ParentLockerMatchView: View {
 
     let sync: ParentLockerSync
 
     @State private var rows: [Row] = []
     @State private var people: [Person] = []
+    /// The rosters read on opening, to match again after each pick.
+    @State private var rosters: [ParentLockerRoster] = []
     @State private var isLoading = true
     @State private var errorText: String?
     /// Why the last pick wasn't saved.
@@ -21,9 +26,13 @@ struct ParentLockerMatchView: View {
     struct Row: Identifiable, Equatable {
         let id: UUID
         let name: String
+        /// The ParentLocker child, `notMatchedID` when left out, nil when unsure.
         var studentID: String?
-        /// Neither a stored ID nor exactly one name matched.
+        /// Neither a stored ID nor exactly one name matched, and the guide
+        /// hasn't left them out.
         let needsYou: Bool
+
+        var isLeftOut: Bool { studentID == ParentLockerPlanner.notMatchedID }
     }
 
     /// A ParentLocker child, as the picker lists them.
@@ -47,11 +56,25 @@ struct ParentLockerMatchView: View {
                     } header: {
                         Text("Not matched yet")
                     } footer: {
-                        Text("Pick the ParentLocker child for each. Children left unmatched aren't sent.")
+                        Text("Pick the ParentLocker child for each, or Not matched to leave them out. "
+                            + "Children who aren't matched aren't sent.")
                     }
                 }
-                Section("Matched") {
-                    ForEach(rows.filter { !$0.needsYou }) { row in picker(for: row) }
+                let matched = rows.filter { !$0.needsYou && !$0.isLeftOut }
+                if !matched.isEmpty {
+                    Section("Matched") {
+                        ForEach(matched) { row in picker(for: row) }
+                    }
+                }
+                let leftOut = rows.filter(\.isLeftOut)
+                if !leftOut.isEmpty {
+                    Section {
+                        ForEach(leftOut) { row in picker(for: row) }
+                    } header: {
+                        Text("Not sent")
+                    } footer: {
+                        Text("These children are never sent to ParentLocker. Pick a child to send them again.")
+                    }
                 }
                 if let pickText {
                     Section {
@@ -71,7 +94,10 @@ struct ParentLockerMatchView: View {
             get: { row.studentID },
             set: { choose($0, for: row) }
         )) {
-            Text("Not matched").tag(String?.none)
+            if row.studentID == nil {
+                Text("Choose a child").tag(String?.none)
+            }
+            Text("Not matched").tag(Optional(ParentLockerPlanner.notMatchedID))
             ForEach(people) { person in
                 Text(person.label).tag(Optional(person.id))
             }
@@ -79,6 +105,7 @@ struct ParentLockerMatchView: View {
     }
 
     private func choose(_ studentID: String?, for row: Row) {
+        guard let studentID, studentID != row.studentID else { return }
         let role = sync.store.day(sync.today, withChildren: false).role
         if let refusal = Self.refusal(policy: sync.dependencies.policy, role: role) {
             pickText = refusal
@@ -89,7 +116,10 @@ struct ParentLockerMatchView: View {
             return
         }
         pickText = nil
-        if let index = rows.firstIndex(where: { $0.id == row.id }) { rows[index].studentID = studentID }
+        // Match again: whoever held this ParentLocker child now needs one.
+        let day = sync.store.day(sync.today, withChildren: true)
+        let matches = ParentLockerPlanner.match(children: day.children, rosters: rosters)
+        rows = Self.rows(children: day.children, matches: matches, name: day.name(of:))
     }
 
     nonisolated static let saveFailed = "Couldn't save the match. Try again."
@@ -124,15 +154,27 @@ struct ParentLockerMatchView: View {
         }
         let day = sync.store.day(today, withChildren: true)
         let matches = ParentLockerPlanner.match(children: day.children, rosters: rosters)
-        rows = day.children.map { child in
-            let match = matches[child.id] ?? .unmatched
-            var studentID: String?
-            if case .matched(let id, _) = match { studentID = id }
-            return Row(id: child.id, name: day.name(of: child.id), studentID: studentID, needsYou: studentID == nil)
+        rows = Self.rows(children: day.children, matches: matches, name: day.name(of:))
+        people = Self.people(in: rosters)
+        self.rosters = rosters
+        errorText = nil
+    }
+
+    /// The rows for `children`, the ones that need the guide first.
+    static func rows(
+        children: [ParentLockerPlanner.Child],
+        matches: [UUID: ParentLockerPlanner.Match],
+        name: (UUID) -> String
+    ) -> [Row] {
+        children.map { child in
+            let studentID: String? = switch matches[child.id] ?? .unmatched {
+            case .matched(let id, _): id
+            case .leftOut: ParentLockerPlanner.notMatchedID
+            case .unmatched, .ambiguous: nil
+            }
+            return Row(id: child.id, name: name(child.id), studentID: studentID, needsYou: studentID == nil)
         }
         .sorted { ($0.needsYou ? 0 : 1, $0.name) < ($1.needsYou ? 0 : 1, $1.name) }
-        people = Self.people(in: rosters)
-        errorText = nil
     }
 
     /// Every child on the rosters once, "Juniper Ashby (June) · Girls Middle School".

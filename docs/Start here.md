@@ -22,6 +22,7 @@ run `docs-index`; edit only the Other documents section by hand.
 
 | Plan | What it is | Status | Date |
 |---|---|---|---|
+| [Plan - ParentLocker bug check fixes](<Plans/Plan - ParentLocker bug check fixes.md>) | three agents in their own worktrees fix the 19 findings, each with a test that fails first. Then one review, full builds and both whole suites, and it lands on main. Then the parent plan's Phase 9: Production schema, close-out, TestFlight. | Done | 2026-10-13 |
 | [Plan - Bug hunt 2026-10-12 fixes](<Plans/Plan - Bug hunt 2026-10-12 fixes.md>) | fix every finding with nine fix agents in rolling waves of at most four, each owning its own files, then three reviews, fix what they find with fresh small agents, and land it on main without rolling out. | Done (ba5c5e15) | 2026-10-12 |
 | [Plan - Name list freeze fix](<Plans/Plan - Name list freeze fix.md>) | stop the name list from asking iCloud questions on the main thread, which froze the app until iOS killed it. | Done (59cdbcc9) | 2026-10-11 |
 | [Plan - Bug hunt 2026-10-11 fixes](<Plans/Plan - Bug hunt 2026-10-11 fixes.md>) | fix every finding with nine fix agents in rolling waves of at most four, each owning its own files, then review the combined change, fix what the review finds with fresh small agents, and land it on main without rolling out. | Done (a031f7ab) | 2026-10-11 |

@@ -17,8 +17,12 @@ import SwiftUI
 /// Arrival & Send**: the class goes to ParentLocker once the Undo's moment
 /// has passed (`ParentLockerSync.closeArrivalUndoWindow`), and the Undo
 /// stops the send as well, since ParentLocker can't take a mark back. The
-/// Undo goes when the send does. On an iPhone not signed in, arrival still
-/// closes and the one-time sign-in opens; the send waits for it.
+/// Undo goes when the send does. On an iPhone not signed in (or whose saved
+/// password ParentLocker refused), arrival still closes and the Undo stays
+/// (nothing goes before she signs in); the sign-in opens once, after the
+/// Undo's moment has passed, so it never covers the Undo (bug check
+/// 2026-10-13, D2). Signing in sends the class and takes the Undo away; so
+/// does the day reading as sent (the guide's backstop), and two minutes.
 ///
 /// Its top edge fills green as children come in (gray for the absent), so
 /// how close the class is shows without reading. A child back after days
@@ -148,14 +152,7 @@ struct AssistantArrivalBar: View {
         .onChange(of: confirmingClose) { _, showing in
             if !showing { emailAfterClose = false }
         }
-        .task(id: undo?.id) {
-            // Once the class has gone to ParentLocker, Undo can't take it
-            // back, so it goes with the send.
-            guard let id = undo?.id, undo?.sendsToParentLocker == true,
-                  (try? await Task.sleep(for: .seconds(ParentLockerSync.closeArrivalUndoWindow))) != nil,
-                  undo?.id == id else { return }
-            withAnimation(.smooth(duration: 0.3)) { undo = nil }
-        }
+        .task(id: undoWatch) { await watchUndo() }
         .sheet(isPresented: $showingSignIn) {
             if let sync = bootstrapper.parentLockerForScreens {
                 ParentLockerSignInSheet(sync: sync)
@@ -178,7 +175,7 @@ struct AssistantArrivalBar: View {
                 HStack(spacing: 12) {
                     Text("Marked \(undo.count) absent")
                     Button("Undo") {
-                        if undo.sendsToParentLocker { bootstrapper.parentLockerForScreens?.cancelCloseArrivalSend() }
+                        if undo.stopsSend { bootstrapper.parentLockerForScreens?.cancelCloseArrivalSend() }
                         withAnimation(.smooth(duration: 0.3)) {
                             viewModel.returnToArrival(undo: true)
                             self.undo = nil
@@ -318,20 +315,70 @@ struct AssistantArrivalBar: View {
         let sync = sendsOnClose ? bootstrapper.parentLockerForScreens : nil
         withAnimation(.smooth(duration: 0.3)) {
             let count = viewModel.beginLate()
-            undo = count > 0 ? ArrivalUndo(count: count, sendsToParentLocker: sync != nil) : nil
+            undo = Self.undo(afterClosing: count, queuedSend: sync != nil, signedIn: sync?.needsSignIn == false)
         }
         // A locked day, say, stays open: nothing to send.
         guard let sync, viewModel.phase == .late else { return }
         // A second after the Undo goes, so a last-instant Undo still stops it.
         sync.closeArrivalSend(on: viewModel.date, after: ParentLockerSync.closeArrivalUndoWindow + 1)
-        if !sync.isSignedIn { showingSignIn = true }
+        // Not signed in: the sheet waits for the Undo's moment (`watchUndo`),
+        // unless there's no Undo to keep in reach.
+        if sync.needsSignIn, undo == nil { showingSignIn = true }
     }
 }
 
-/// The Undo offered after closing arrival.
-struct ArrivalUndo: Equatable {
-    let id = UUID()
-    let count: Int
-    /// Close Arrival & Send: the Undo stops the send too, until it goes.
-    var sendsToParentLocker = false
+// MARK: - Close Arrival & Send's Undo
+
+extension AssistantArrivalBar {
+
+    /// The day on screen reads as sent to ParentLocker: a send record, from
+    /// this phone or synced in (the guide's backstop).
+    private var daySentToParentLocker: Bool {
+        viewModel.isToday && viewModel.frontDesk.latestSend?.channel == .parentLocker
+    }
+
+    /// What `watchUndo` follows: the Undo on offer, the sign-in, and the day's send.
+    private var undoWatch: String {
+        "\(undo?.id.uuidString ?? "")|\(bootstrapper.parentLockerForScreens?.needsSignIn == false)"
+            + "|\(daySentToParentLocker)"
+    }
+
+    /// The moment Close Arrival & Send's Undo stops being offered: when the
+    /// class goes.
+    /// When this Undo stops being safe (bug check 2026-10-13, D2): the
+    /// sync's "Undo ends at", when the send goes; without one, Close
+    /// Arrival's own Undo window from the close.
+    private func undoEnds(for undo: ArrivalUndo) -> Date {
+        bootstrapper.parentLockerForScreens?.undoEndsAt
+            ?? undo.closedAt.addingTimeInterval(ParentLockerSync.closeArrivalUndoWindow)
+    }
+
+    /// Waits out Close Arrival & Send's Undo, then hides it (signed in: the
+    /// class has gone) or opens the sign-in, once per close (not: the Undo
+    /// stays until she signs in or the day reads as sent, each of which runs
+    /// this again, or until `unsentUndoLimit`). A return to the screen runs
+    /// it again too, and doesn't ask a second time.
+    private func watchUndo() async {
+        guard let undo, undo.stopsSend else { return }
+        let wait = undoEnds(for: undo).timeIntervalSinceNow
+        if wait > 0 { guard (try? await Task.sleep(for: .seconds(wait))) != nil else { return } }
+        guard let current = self.undo, current.id == undo.id else { return }
+        switch Self.afterUndoWindow(
+            signedIn: bootstrapper.parentLockerForScreens?.needsSignIn == false, daySent: daySentToParentLocker,
+            askedToSignIn: current.askedToSignIn, closedAt: undo.closedAt, now: Date()
+        ) {
+        case .hideUndo:
+            withAnimation(.smooth(duration: 0.3)) { self.undo = nil }
+            return
+        case .askToSignIn:
+            self.undo?.askedToSignIn = true
+            showingSignIn = true
+        case .keepUndo:
+            break
+        }
+        let left = undo.closedAt.addingTimeInterval(Self.unsentUndoLimit).timeIntervalSinceNow
+        if left > 0 { guard (try? await Task.sleep(for: .seconds(left))) != nil else { return } }
+        guard self.undo?.id == undo.id else { return }
+        withAnimation(.smooth(duration: 0.3)) { self.undo = nil }
+    }
 }

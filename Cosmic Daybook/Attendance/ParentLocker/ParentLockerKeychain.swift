@@ -128,6 +128,29 @@ nonisolated enum ParentLockerKeychain {
         }
     }
 
+    /// When the sign-in for `site` was last saved (the item's modification
+    /// date, which follows a save on any of the person's devices), without
+    /// reading the password; nil when there is none. A password ParentLocker
+    /// refused is remembered by it, so the app doesn't try that one again by
+    /// itself, and a newly saved one is tried.
+    static func passwordModified(site: String) throws -> Date? {
+        var query = passwordQuery(site: site)
+        query[kSecReturnAttributes as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        switch status {
+        case errSecSuccess:
+            guard let found = item as? [String: Any] else { throw KeychainError.read(status) }
+            // An item without one (never seen) still keys a refusal: by the distant past.
+            return found[kSecAttrModificationDate as String] as? Date ?? .distantPast
+        case errSecItemNotFound:
+            return nil
+        default:
+            throw KeychainError.read(status)
+        }
+    }
+
     /// Deletes the sign-in for `site` here and, through iCloud Keychain, on
     /// every other device of the person's. Nothing there is fine.
     static func deletePassword(site: String) throws {

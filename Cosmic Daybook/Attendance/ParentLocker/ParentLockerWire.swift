@@ -164,8 +164,11 @@ nonisolated struct ParentLockerCourse: Sendable, Hashable, Decodable {
     let courseID: Int
     let name: String
     let period: Int
-    /// What a save names the class's day by.
+    /// What a save names the class's day by, as text.
     let attendanceReportID: String
+    /// The same, exactly as the page gave it (`.null` when it gave none), so
+    /// a save sends it back unchanged (`ParentLockerHTTP.reportID(for:)`).
+    let attendanceReport: ParentLockerJSON
     /// `submitted`, `not_expected`, or empty when not taken.
     let reportStatus: String
     /// The class's mark is the child's mark for the day.
@@ -180,6 +183,7 @@ nonisolated struct ParentLockerCourse: Sendable, Hashable, Decodable {
         self.name = name
         self.period = period
         self.attendanceReportID = attendanceReportID
+        attendanceReport = .string(attendanceReportID)
         self.reportStatus = reportStatus
         self.isDailyAttendance = isDailyAttendance
         self.hasAttendance = hasAttendance
@@ -190,7 +194,8 @@ nonisolated struct ParentLockerCourse: Sendable, Hashable, Decodable {
         self.courseID = courseID
         name = json["course_name"]?.stringValue ?? ""
         period = json["period"]?.intValue ?? 0
-        attendanceReportID = json["attendance_report_id"]?.stringValue ?? ""
+        attendanceReport = json["attendance_report_id"] ?? .null
+        attendanceReportID = attendanceReport.stringValue ?? ""
         reportStatus = json["attendance_report_status"]?.stringValue ?? ""
         isDailyAttendance = json["isDailyAttendance"]?.isTruthy ?? false
         hasAttendance = json["hasAttendance"]?.isTruthy ?? false
@@ -202,6 +207,12 @@ nonisolated struct ParentLockerCourse: Sendable, Hashable, Decodable {
             throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "No course_id"))
         }
         self = course
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(courseID)
+        hasher.combine(period)
+        hasher.combine(attendanceReportID)
     }
 
     /// The courses in the page's HTML: `var courses = [...];` and `var

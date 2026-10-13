@@ -191,7 +191,7 @@ extension AssistantFrontDeskRow {
         AssistantParentLockerRow(
             status: viewModel.isToday ? sync.status : ParentLockerStatus(state: .idle),
             sentSummary: frontDesk.latestSend.map(summary(of:)),
-            isSignedIn: sync.isSignedIn,
+            isSignedIn: !sync.needsSignIn,
             isSending: isSendingNow || sync.status.state == .sending,
             offersSend: frontDesk.offersParentLockerSend(by: viewModel),
             onSendNow: { sendNow(sync) },

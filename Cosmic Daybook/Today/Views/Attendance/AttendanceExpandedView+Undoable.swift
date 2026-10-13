@@ -87,6 +87,10 @@ extension AttendanceExpandedView {
 
     func resetDay() {
         guard let undo = viewModel.resetDay(modelContext: viewContext) else { return }
+        // Reset reopens arrival: a Close Arrival & Send still waiting out its
+        // Undo doesn't go. Its Undo can't bring it back (the guide's backstop,
+        // or Send Now, sends the day once it's taken again).
+        if viewModel.isToday { parentLocker?.cancelCloseArrivalSend() }
         saved("Reset day")
         let context = viewContext
         let model = viewModel

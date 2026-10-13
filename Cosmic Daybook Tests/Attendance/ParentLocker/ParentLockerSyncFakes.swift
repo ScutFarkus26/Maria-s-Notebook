@@ -31,6 +31,8 @@ nonisolated final class FakeParentLockerClock: ParentLockerClock {
 nonisolated final class FakeParentLockerSecrets: ParentLockerSecrets {
     private struct Items {
         var credential: ParentLockerKeychain.Credential?
+        /// When the password was last saved: each save is a second later.
+        var modified: Date?
         var cookies: [ParentLockerCookie] = []
         /// The Keychain's answer to reading or deleting the password, when it
         /// isn't the item itself (locked since restart, say).
@@ -42,6 +44,7 @@ nonisolated final class FakeParentLockerSecrets: ParentLockerSecrets {
     init(password: String? = "made-up-password", cookie: String? = "good") {
         items.withLock { items in
             items.credential = password.map { .init(email: "guide@school.test", password: $0) }
+            items.modified = password.map { _ in Date(timeIntervalSinceReferenceDate: 0) }
             items.cookies = cookie.map {
                 [ParentLockerCookie(name: "PHPSESSID", value: $0, domain: FakeParentLocker.host)]
             } ?? []
@@ -65,13 +68,23 @@ nonisolated final class FakeParentLockerSecrets: ParentLockerSecrets {
             return items.credential != nil
         }
     }
+    func passwordModified(site: String) throws -> Date? {
+        try items.withLock { items in
+            if let trouble = items.trouble { throw trouble }
+            return items.modified
+        }
+    }
     func savePassword(_ credential: ParentLockerKeychain.Credential, site: String) throws {
-        items.withLock { $0.credential = credential }
+        items.withLock { items in
+            items.credential = credential
+            items.modified = (items.modified ?? Date(timeIntervalSinceReferenceDate: 0)).addingTimeInterval(1)
+        }
     }
     func deletePassword(site: String) throws {
         try items.withLock { items in
             if let trouble = items.trouble { throw trouble }
             items.credential = nil
+            items.modified = nil
         }
     }
     func cookies(site: String) throws -> [ParentLockerCookie] { items.withLock { $0.cookies } }
@@ -106,6 +119,18 @@ final class FakeParentLocker {
         courseID: 5102, name: "Upper Elementary Girls", period: 1, attendanceReportID: "880002"
     )
 
+    /// The classes as the page lists them: today's, or another day's with
+    /// that day's own report ids (77…, where today's are 88…).
+    static func courses(on day: Date?) -> [ParentLockerCourse] {
+        guard day != nil else { return [middle, upper] }
+        return [middle, upper].map { course in
+            ParentLockerCourse(
+                courseID: course.courseID, name: course.name, period: course.period,
+                attendanceReportID: "77" + course.attendanceReportID.dropFirst(2)
+            )
+        }
+    }
+
     static let marks = [
         ParentLockerMark(id: "701", name: "Present", type: "present"),
         ParentLockerMark(id: "702", name: "Late", type: "late"),
@@ -129,6 +154,9 @@ final class FakeParentLocker {
     var goodCookie = "good"
     var password = "made-up-password"
     var signIns = 0
+    /// How many times the sign-in form lets other work run before it
+    /// answers, as the real web view does.
+    var signInYields = 0
     /// What the next saves report as changed by someone else.
     var conflicts: [ParentLockerSaveReply.Conflict] = []
 
@@ -154,7 +182,7 @@ final class FakeParentLocker {
     }
 
     fileprivate func roster(for course: ParentLockerCourse) -> ParentLockerRoster {
-        let students = kids.filter { $0.course == course }.compactMap { kid in
+        let students = kids.filter { $0.course.courseID == course.courseID }.compactMap { kid in
             ParentLockerRosterStudent(json: .object([
                 "student_id": .int(kid.studentID),
                 "first_name": .string(kid.first),
@@ -191,11 +219,12 @@ nonisolated struct FakeParentLockerTransport: ParentLockerTransport {
     let site: FakeParentLocker
     let cookies: [ParentLockerCookie]
 
-    func courses() async throws -> [ParentLockerCourse] {
+    /// "courses" for today's page, "courses 2026-10-9" for another day's.
+    func courses(on day: Date?) async throws -> [ParentLockerCourse] {
         try await MainActor.run {
-            site.requests.append("courses")
+            site.requests.append(day.map { "courses " + ParentLockerPlanner.dateText($0) } ?? "courses")
             try site.check(cookies)
-            return [FakeParentLocker.middle, FakeParentLocker.upper]
+            return FakeParentLocker.courses(on: day)
         }
     }
 
@@ -246,8 +275,25 @@ final class FakeParentLockerStore: ParentLockerStore {
         return true
     }
 
+    /// Stores the matches on the children, as the real store does: a pick
+    /// clears that ParentLocker child from whoever else held it.
     func writeMatches(_ matches: [UUID: String?]) -> Bool {
         writtenMatches.append(matches)
+        let picked = Set(matches.values.compactMap { $0 }.filter { !ParentLockerPlanner.isNotMatched($0) })
+        state.children = state.children.map { child in
+            let stored: String?
+            if let wanted = matches[child.id] {
+                stored = wanted
+            } else if let held = child.parentLockerID, picked.contains(held) {
+                stored = nil
+            } else {
+                return child
+            }
+            return ParentLockerPlanner.Child(
+                id: child.id, firstName: child.firstName, lastName: child.lastName,
+                nickname: child.nickname, parentLockerID: stored
+            )
+        }
         return true
     }
 }
@@ -320,7 +366,10 @@ struct ParentLockerTestDevice {
         var dependencies = ParentLockerSync.Dependencies(store: store)
         dependencies.secrets = secrets
         dependencies.makeTransport = { _, cookies, _ in FakeParentLockerTransport(site: site, cookies: cookies) }
-        dependencies.signIn = { credential, _ in try site.signIn(credential) }
+        dependencies.signIn = { credential, _ in
+            for _ in 0..<site.signInYields { await Task.yield() }
+            return try site.signIn(credential)
+        }
         dependencies.clock = clock
         dependencies.policy = policy
         dependencies.unsent = unsent

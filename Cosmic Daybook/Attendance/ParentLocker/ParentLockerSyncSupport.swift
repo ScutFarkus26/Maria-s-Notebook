@@ -37,6 +37,9 @@ nonisolated struct ParentLockerSystemClock: ParentLockerClock {
 nonisolated protocol ParentLockerSecrets: Sendable {
     func credential(site: String) throws -> ParentLockerKeychain.Credential?
     func hasPassword(site: String) throws -> Bool
+    /// When the password was last saved, here or on another of the person's
+    /// devices; nil when there is none (`ParentLockerKeychain.passwordModified`).
+    func passwordModified(site: String) throws -> Date?
     func savePassword(_ credential: ParentLockerKeychain.Credential, site: String) throws
     func deletePassword(site: String) throws
     func cookies(site: String) throws -> [ParentLockerCookie]
@@ -50,6 +53,7 @@ nonisolated struct ParentLockerKeychainSecrets: ParentLockerSecrets {
         try ParentLockerKeychain.credential(site: site)
     }
     func hasPassword(site: String) throws -> Bool { try ParentLockerKeychain.hasPassword(site: site) }
+    func passwordModified(site: String) throws -> Date? { try ParentLockerKeychain.passwordModified(site: site) }
     func savePassword(_ credential: ParentLockerKeychain.Credential, site: String) throws {
         try ParentLockerKeychain.savePassword(credential, site: site)
     }
@@ -64,16 +68,37 @@ nonisolated struct ParentLockerKeychainSecrets: ParentLockerSecrets {
 // MARK: - Changes not sent yet
 
 /// The children whose marks this device changed and ParentLocker hasn't got
-/// yet, and whether the day's whole-class send is still owed. Kept across
-/// launches so the catch-up on the way back can send them; only child ids,
-/// never names, marks or anything of the sign-in.
+/// yet, whether the day's whole-class send is still owed, and whether arrival
+/// closed here. Kept across launches so the catch-up on the way back can
+/// send them; only child ids, never names, marks or anything of the sign-in.
 nonisolated struct ParentLockerUnsent: Codable, Equatable, Sendable {
     /// The day it's for (`AppCalendar.dayID`); another day's is dropped.
     var day: String
     var children: Set<UUID>
     var wholeClass: Bool
+    /// Close Arrival & Send was made here, or a whole-class send started: the
+    /// day is past "after" on this device whatever its automatic absences say
+    /// now (a child marked Late in the Undo window takes the last one away).
+    /// Only that Close Arrival's Undo clears it. Builds before the 2026-10-13
+    /// fixes saved no such field, which reads as false.
+    var arrivalClosed: Bool
 
-    var isEmpty: Bool { children.isEmpty && !wholeClass }
+    init(day: String, children: Set<UUID>, wholeClass: Bool, arrivalClosed: Bool = false) {
+        self.day = day
+        self.children = children
+        self.wholeClass = wholeClass
+        self.arrivalClosed = arrivalClosed
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        day = try container.decode(String.self, forKey: .day)
+        children = try container.decode(Set<UUID>.self, forKey: .children)
+        wholeClass = try container.decode(Bool.self, forKey: .wholeClass)
+        arrivalClosed = try container.decodeIfPresent(Bool.self, forKey: .arrivalClosed) ?? false
+    }
+
+    var isEmpty: Bool { children.isEmpty && !wholeClass && !arrivalClosed }
 }
 
 /// Where `ParentLockerUnsent` is kept.
@@ -116,6 +141,49 @@ nonisolated final class ParentLockerMemoryUnsentStore: ParentLockerUnsentStore {
     }
 }
 
+// MARK: - A refused password
+
+/// The saved password ParentLocker refused, by when it was saved (the
+/// Keychain item's modification date): until a new one is saved, here or on
+/// another of the person's devices, the sync doesn't sign in with it by
+/// itself, so the school's site doesn't see a wrong password again and again.
+nonisolated protocol ParentLockerRefusalStore: Sendable {
+    /// When the refused password was saved; nil when none was refused.
+    func refused(site: String) -> Date?
+    /// Remembers `saved` as refused; nil forgets.
+    func setRefused(_ saved: Date?, site: String)
+}
+
+/// In the app's preferences, so a relaunch doesn't try it again: a date per
+/// site, nothing of the sign-in. Only a `.live` build keeps one.
+nonisolated struct ParentLockerDefaultsRefusalStore: ParentLockerRefusalStore {
+    static let key = "ParentLocker.refusedPassword"
+
+    func refused(site: String) -> Date? {
+        UserDefaults.standard.dictionary(forKey: Self.key)?[site] as? Date
+    }
+
+    func setRefused(_ saved: Date?, site: String) {
+        var refused = UserDefaults.standard.dictionary(forKey: Self.key) ?? [:]
+        guard (refused[site] as? Date) != saved else { return }
+        refused[site] = saved
+        if refused.isEmpty {
+            UserDefaults.standard.removeObject(forKey: Self.key)
+        } else {
+            UserDefaults.standard.set(refused, forKey: Self.key)
+        }
+    }
+}
+
+/// In memory only: previews, and tests.
+nonisolated final class ParentLockerMemoryRefusalStore: ParentLockerRefusalStore {
+    private let stored = Mutex<[String: Date]>([:])
+
+    func refused(site: String) -> Date? { stored.withLock { $0[site] } }
+
+    func setRefused(_ saved: Date?, site: String) { stored.withLock { $0[site] = saved } }
+}
+
 // MARK: - Background
 
 /// Keeps the app running while a send is under way or due within seconds,
@@ -131,21 +199,37 @@ protocol ParentLockerBackgroundWork: AnyObject {
 @MainActor
 final class ParentLockerSystemBackgroundWork: ParentLockerBackgroundWork {
     #if canImport(UIKit) && !os(watchOS)
-    private var task: UIBackgroundTaskIdentifier = .invalid
+    /// The window's identifier, shared with its expiration handler, which
+    /// ends it even when this object (and its sync) has gone.
+    private let window = Window()
 
     func begin() {
-        guard task == .invalid else { return }
-        task = UIApplication.shared.beginBackgroundTask(withName: "Send attendance to ParentLocker") { [weak self] in
+        guard window.id == .invalid else { return }
+        let window = window
+        window.id = UIApplication.shared.beginBackgroundTask(withName: "Send attendance to ParentLocker") {
             // Time's up: the system suspends the app, and the catch-up on the
             // way back sends what's still owed.
-            MainActor.assumeIsolated { self?.end() }
+            MainActor.assumeIsolated { window.end() }
         }
     }
 
-    func end() {
-        guard task != .invalid else { return }
-        UIApplication.shared.endBackgroundTask(task)
-        task = .invalid
+    func end() { window.end() }
+
+    /// A sync let go without `stop()` takes its window with it.
+    deinit {
+        let window = window
+        Task { @MainActor in window.end() }
+    }
+
+    @MainActor
+    private final class Window {
+        var id: UIBackgroundTaskIdentifier = .invalid
+
+        func end() {
+            guard id != .invalid else { return }
+            UIApplication.shared.endBackgroundTask(id)
+            id = .invalid
+        }
     }
     #else
     func begin() {}

@@ -8,6 +8,9 @@ struct AttendanceParentLockerSettings: View {
 
     /// The school's ParentLocker address, as the guide typed it.
     @Binding var site: String
+    /// Return in the address field: the site goes into the share now, rather
+    /// than when typing pauses.
+    var onSubmitSite: () -> Void = {}
 
     @Environment(\.managedObjectContext) private var viewContext
     @State private var showsSignIn = false
@@ -19,6 +22,7 @@ struct AttendanceParentLockerSettings: View {
                 TextField(AttendanceEmailLog.defaultParentLockerSite, text: $site)
                     .textFieldStyle(.roundedBorder)
                     .autocorrectionDisabled(true)
+                    .onSubmit(onSubmitSite)
                     #if os(iOS)
                     .keyboardType(.URL)
                     .textInputAutocapitalization(.never)
@@ -52,13 +56,16 @@ struct AttendanceParentLockerSettings: View {
 
     private func signInRow(_ sync: ParentLockerSync) -> some View {
         LabeledContent("Your ParentLocker sign-in") {
+            // Signed in and working, or ParentLocker refused the saved
+            // password (the sheet then asks for it again), or not signed in.
+            let working = sync.isSignedIn && !sync.savedPasswordRefused
             HStack(spacing: 8) {
                 Label(
-                    sync.isSignedIn ? "Signed in" : "Not signed in",
-                    systemImage: sync.isSignedIn ? "checkmark.circle.fill" : "person.crop.circle.badge.questionmark"
+                    sync.savedPasswordRefused ? "Sign in again" : working ? "Signed in" : "Not signed in",
+                    systemImage: working ? "checkmark.circle.fill" : "person.crop.circle.badge.questionmark"
                 )
-                .foregroundStyle(sync.isSignedIn ? Color.green : Color.secondary)
-                Button(sync.isSignedIn ? "Sign Out…" : "Sign In…") { showsSignIn = true }
+                .foregroundStyle(working ? Color.green : Color.secondary)
+                Button(working ? "Sign Out…" : "Sign In…") { showsSignIn = true }
             }
         }
     }

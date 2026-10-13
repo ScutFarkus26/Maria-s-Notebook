@@ -39,6 +39,7 @@ extension AssistantFrontDesk {
 protocol AssistantParentLockerSending: AnyObject {
     var isSignedIn: Bool { get }
     func sendNow(day: Date) async -> ParentLockerStatus
+    func closeArrivalSend(on day: Date, after undoWindow: TimeInterval)
 }
 
 extension ParentLockerSync: AssistantParentLockerSending {}
@@ -60,15 +61,28 @@ extension AssistantSiriCommands {
 
     /// After Siri closes arrival: sends the whole class to ParentLocker when
     /// the guide picked it and this iPhone is signed in, and says how it went.
-    /// `sync` is the class's (`ParentLockerSync.current`); nil when it isn't
-    /// running, which can't send.
+    /// Not signed in, the send waits for her to sign in (or the guide's
+    /// backstop), as Close Arrival & Send does on screen. `sync` is the
+    /// class's (`ParentLockerSync.current`); nil when it isn't running (the
+    /// app launched for Siri alone), when the send is kept in `unsent` for
+    /// the sync to make once it starts.
     static func sendAfterClose(
-        _ session: SiriAttendance, sync: (any AssistantParentLockerSending)?
+        _ session: SiriAttendance, sync: (any AssistantParentLockerSending)?,
+        unsent: any ParentLockerUnsentStore = ParentLockerSync.defaultUnsentStore()
     ) async -> AssistantParentLockerAfterClose {
-        guard !AssistantSampleClass.isActive,
+        // Siri marks the real class unless the app was launched into the
+        // sample (`AssistantStack`), whatever the join screen has open.
+        guard !AssistantSampleClass.isRequested,
               AttendanceEmailLog.settings(in: session.context)?.sendMethod == .parentLocker else { return .notPicked }
-        guard let sync else { return .notSentYet }
-        guard sync.isSignedIn else { return .notSignedIn }
+        guard let sync else {
+            ParentLockerSync.oweCloseArrivalSend(on: session.today, in: unsent)
+            return .notSentYet
+        }
+        guard sync.isSignedIn else {
+            // Siri offers no Undo, so nothing to wait out.
+            sync.closeArrivalSend(on: session.today, after: 0)
+            return .notSignedIn
+        }
         switch await sync.sendNow(day: session.today).state {
         case .upToDate: return .sent
         case .previewed: return .previewed

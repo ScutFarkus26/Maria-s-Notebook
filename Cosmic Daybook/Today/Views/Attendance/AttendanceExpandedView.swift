@@ -35,9 +35,9 @@ struct AttendanceExpandedView: View {
     @State var viewModel = AttendanceViewModel()
 
     @SyncedAppStorage("AttendanceEmail.enabled") var emailEnabled: Bool = true
-    /// ParentLocker or the email (`AttendanceSendMethod`), the guide's choice.
-    @SyncedAppStorage(AttendanceEmailPrefs.sendMethodKey)
-    var sendMethodRaw: String = AttendanceSendMethod.email.rawValue
+    /// ParentLocker or the email, as the shared settings row holds it
+    /// (`sendMethod`): read on each load and each change to the row.
+    @State var loadedSendMethod: AttendanceSendMethod?
     /// Close Arrival & Send or Send Now on a device not signed in to ParentLocker.
     @State var showingParentLockerSignIn = false
     @State var showMailSheet = false
@@ -283,6 +283,7 @@ struct AttendanceExpandedView: View {
         localSortKey = viewModel.sortKey
         frontDeskSend = AttendanceEmailLog.latestSend(on: date, in: viewContext)
         classroomNames = ClassroomNames.snapshot(in: viewContext)
+        loadedSendMethod = Self.sendMethod(in: viewContext)
     }
 
     func students(for status: AttendanceStatus) -> [AttendanceEmailStudent] {

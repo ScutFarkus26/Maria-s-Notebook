@@ -35,6 +35,13 @@ nonisolated struct ParentLockerDay: Sendable, Equatable {
         !children.isEmpty && children.allSatisfy { ParentLockerPlanner.wanted(for: marks[$0.id]) != .nothing }
     }
 
+    /// Someone on the roll has a mark to send. Reset Day leaves nobody: a
+    /// Close Arrival & Send waiting then has nothing to send. Read with the
+    /// children only.
+    var anyoneMarked: Bool {
+        children.contains { ParentLockerPlanner.wanted(for: marks[$0.id]) != .nothing }
+    }
+
     /// When `day`'s attendance is due.
     func deadline(on day: Date, calendar: Calendar) -> Date? {
         calendar.date(byAdding: .minute, value: deadlineMinutes, to: calendar.startOfDay(for: day))
@@ -60,8 +67,10 @@ protocol ParentLockerStore: AnyObject {
     func children(inRecords records: [NSManagedObjectID], on day: Date) -> Set<UUID>
     /// Records that `day` went to ParentLocker. Returns whether it saved.
     func recordSend(on day: Date) -> Bool
-    /// Stores ParentLocker ids on the children (nil clears one). Only the
-    /// lead guide's devices write them. Returns whether it saved.
+    /// Stores ParentLocker ids on the children (nil clears one, and
+    /// `ParentLockerPlanner.notMatchedID` is "Not matched"); a picked id is
+    /// cleared from any other child who held it. Only the lead guide's
+    /// devices write them. Returns whether it saved.
     func writeMatches(_ matches: [UUID: String?]) -> Bool
 }
 
@@ -172,6 +181,20 @@ final class ParentLockerCoreDataStore: ParentLockerStore {
             let stored = value?.isEmpty == false ? value : nil
             if student.parentLockerID != stored {
                 student.parentLockerID = stored
+                changed = true
+            }
+        }
+        // A pick moves that ParentLocker child: whoever else held it lets go,
+        // so one child's mark never goes out for two of ours.
+        let picked = matches.values.compactMap { $0?.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && !ParentLockerPlanner.isNotMatched($0) }
+        if !picked.isEmpty {
+            let holders = CDFetchRequest(CDStudent.self)
+            holders.predicate = NSPredicate(
+                format: "parentLockerID IN %@ AND NOT (id IN %@)", picked, Array(matches.keys)
+            )
+            for student in context.safeFetch(holders) {
+                student.parentLockerID = nil
                 changed = true
             }
         }

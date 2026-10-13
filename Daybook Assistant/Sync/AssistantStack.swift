@@ -27,8 +27,23 @@ enum AssistantStack {
     /// The open stack, if any, without opening one.
     static var current: CoreDataStack? { stack }
 
+    /// Why `shared()` opened nothing.
+    enum OpenError: Error {
+        /// A hosted `Daybook Assistant Tests` run: the tests build their own stacks.
+        case hostedTestRun
+    }
+
     static func shared() throws -> CoreDataStack {
         if let stack { return stack }
+        // A hosted test run never opens this iPhone's own class, as the
+        // bootstrapper never starts in one (`AssistantApp`). A test's
+        // attendance screen tells Siri its names (`AssistantSiriVocabulary`),
+        // and the system then asks the app's entity queries for them, which
+        // came here: the simulator's real stores opened, their CloudKit setup
+        // failed without an iCloud account, and the filing hold it started
+        // stopped every share attacher in the run that reads it, whenever
+        // the failure happened to arrive (2026-10-13).
+        guard !AssistantBootstrapper.isRunningUnitTests else { throw OpenError.hostedTestRun }
         // The launch-argument sample only (Debug). The join screen's sample
         // sits beside this stack instead; see AssistantBootstrapper.
         let isSample = AssistantSampleClass.isRequested
