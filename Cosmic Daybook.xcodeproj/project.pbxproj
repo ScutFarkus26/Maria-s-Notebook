@@ -114,6 +114,15 @@
 		DF6D1B2F3D4A5C6B7A89E004 /* ClassroomNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF6D1B2F3D4A5C6B7A89E003 /* ClassroomNames.swift */; };
 		DF6D1B2F3D4A5C6B7A89E006 /* ClassroomNames+Arrival.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF6D1B2F3D4A5C6B7A89E005 /* ClassroomNames+Arrival.swift */; };
 		DF6D1B2F3D4A5C6B7A89E008 /* ClassroomNames+Zones.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF6D1B2F3D4A5C6B7A89E007 /* ClassroomNames+Zones.swift */; };
+		EB7C0A1E2D3F4A5B6C7D0002 /* ParentLockerWire.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7C0A1E2D3F4A5B6C7D0001 /* ParentLockerWire.swift */; };
+		EB7C0A1E2D3F4A5B6C7D0004 /* ParentLockerWire+Roster.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7C0A1E2D3F4A5B6C7D0003 /* ParentLockerWire+Roster.swift */; };
+		EB7C0A1E2D3F4A5B6C7D0006 /* ParentLockerPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7C0A1E2D3F4A5B6C7D0005 /* ParentLockerPlanner.swift */; };
+		EB7C0A1E2D3F4A5B6C7D0008 /* ParentLockerPlanner+Matching.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7C0A1E2D3F4A5B6C7D0007 /* ParentLockerPlanner+Matching.swift */; };
+		EB7C0A1E2D3F4A5B6C7D000A /* ParentLockerPlanner+Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7C0A1E2D3F4A5B6C7D0009 /* ParentLockerPlanner+Store.swift */; };
+		EB7C0A1E2D3F4A5B6C7D000C /* ParentLockerTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7C0A1E2D3F4A5B6C7D000B /* ParentLockerTransport.swift */; };
+		EB7C0A1E2D3F4A5B6C7D000E /* ParentLockerCookie.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7C0A1E2D3F4A5B6C7D000D /* ParentLockerCookie.swift */; };
+		EB7C0A1E2D3F4A5B6C7D0010 /* ParentLockerHTTP.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7C0A1E2D3F4A5B6C7D000F /* ParentLockerHTTP.swift */; };
+		EB7C0A1E2D3F4A5B6C7D0012 /* ParentLockerKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7C0A1E2D3F4A5B6C7D0011 /* ParentLockerKeychain.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -246,6 +255,15 @@
 		DF6D1B2F3D4A5C6B7A89E003 /* ClassroomNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClassroomNames.swift; path = "Cosmic Daybook/Sharing/ClassroomNames.swift"; sourceTree = SOURCE_ROOT; };
 		DF6D1B2F3D4A5C6B7A89E005 /* ClassroomNames+Arrival.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ClassroomNames+Arrival.swift"; path = "Cosmic Daybook/Sharing/ClassroomNames+Arrival.swift"; sourceTree = SOURCE_ROOT; };
 		DF6D1B2F3D4A5C6B7A89E007 /* ClassroomNames+Zones.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ClassroomNames+Zones.swift"; path = "Cosmic Daybook/Sharing/ClassroomNames+Zones.swift"; sourceTree = SOURCE_ROOT; };
+		EB7C0A1E2D3F4A5B6C7D0001 /* ParentLockerWire.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ParentLockerWire.swift; path = "Cosmic Daybook/Attendance/ParentLocker/ParentLockerWire.swift"; sourceTree = SOURCE_ROOT; };
+		EB7C0A1E2D3F4A5B6C7D0003 /* ParentLockerWire+Roster.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ParentLockerWire+Roster.swift"; path = "Cosmic Daybook/Attendance/ParentLocker/ParentLockerWire+Roster.swift"; sourceTree = SOURCE_ROOT; };
+		EB7C0A1E2D3F4A5B6C7D0005 /* ParentLockerPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ParentLockerPlanner.swift; path = "Cosmic Daybook/Attendance/ParentLocker/ParentLockerPlanner.swift"; sourceTree = SOURCE_ROOT; };
+		EB7C0A1E2D3F4A5B6C7D0007 /* ParentLockerPlanner+Matching.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ParentLockerPlanner+Matching.swift"; path = "Cosmic Daybook/Attendance/ParentLocker/ParentLockerPlanner+Matching.swift"; sourceTree = SOURCE_ROOT; };
+		EB7C0A1E2D3F4A5B6C7D0009 /* ParentLockerPlanner+Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ParentLockerPlanner+Store.swift"; path = "Cosmic Daybook/Attendance/ParentLocker/ParentLockerPlanner+Store.swift"; sourceTree = SOURCE_ROOT; };
+		EB7C0A1E2D3F4A5B6C7D000B /* ParentLockerTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ParentLockerTransport.swift; path = "Cosmic Daybook/Attendance/ParentLocker/ParentLockerTransport.swift"; sourceTree = SOURCE_ROOT; };
+		EB7C0A1E2D3F4A5B6C7D000D /* ParentLockerCookie.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ParentLockerCookie.swift; path = "Cosmic Daybook/Attendance/ParentLocker/ParentLockerCookie.swift"; sourceTree = SOURCE_ROOT; };
+		EB7C0A1E2D3F4A5B6C7D000F /* ParentLockerHTTP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ParentLockerHTTP.swift; path = "Cosmic Daybook/Attendance/ParentLocker/ParentLockerHTTP.swift"; sourceTree = SOURCE_ROOT; };
+		EB7C0A1E2D3F4A5B6C7D0011 /* ParentLockerKeychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ParentLockerKeychain.swift; path = "Cosmic Daybook/Attendance/ParentLocker/ParentLockerKeychain.swift"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -473,6 +491,15 @@
 				DF6D1B2F3D4A5C6B7A89E003 /* ClassroomNames.swift */,
 				DF6D1B2F3D4A5C6B7A89E005 /* ClassroomNames+Arrival.swift */,
 				DF6D1B2F3D4A5C6B7A89E007 /* ClassroomNames+Zones.swift */,
+				EB7C0A1E2D3F4A5B6C7D0001 /* ParentLockerWire.swift */,
+				EB7C0A1E2D3F4A5B6C7D0003 /* ParentLockerWire+Roster.swift */,
+				EB7C0A1E2D3F4A5B6C7D0005 /* ParentLockerPlanner.swift */,
+				EB7C0A1E2D3F4A5B6C7D0007 /* ParentLockerPlanner+Matching.swift */,
+				EB7C0A1E2D3F4A5B6C7D0009 /* ParentLockerPlanner+Store.swift */,
+				EB7C0A1E2D3F4A5B6C7D000B /* ParentLockerTransport.swift */,
+				EB7C0A1E2D3F4A5B6C7D000D /* ParentLockerCookie.swift */,
+				EB7C0A1E2D3F4A5B6C7D000F /* ParentLockerHTTP.swift */,
+				EB7C0A1E2D3F4A5B6C7D0011 /* ParentLockerKeychain.swift */,
 			);
 			name = "Shared with Cosmic Daybook";
 			sourceTree = "<group>";
@@ -771,6 +798,15 @@
 				DF6D1B2F3D4A5C6B7A89E004 /* ClassroomNames.swift in Sources */,
 				DF6D1B2F3D4A5C6B7A89E006 /* ClassroomNames+Arrival.swift in Sources */,
 				DF6D1B2F3D4A5C6B7A89E008 /* ClassroomNames+Zones.swift in Sources */,
+				EB7C0A1E2D3F4A5B6C7D0002 /* ParentLockerWire.swift in Sources */,
+				EB7C0A1E2D3F4A5B6C7D0004 /* ParentLockerWire+Roster.swift in Sources */,
+				EB7C0A1E2D3F4A5B6C7D0006 /* ParentLockerPlanner.swift in Sources */,
+				EB7C0A1E2D3F4A5B6C7D0008 /* ParentLockerPlanner+Matching.swift in Sources */,
+				EB7C0A1E2D3F4A5B6C7D000A /* ParentLockerPlanner+Store.swift in Sources */,
+				EB7C0A1E2D3F4A5B6C7D000C /* ParentLockerTransport.swift in Sources */,
+				EB7C0A1E2D3F4A5B6C7D000E /* ParentLockerCookie.swift in Sources */,
+				EB7C0A1E2D3F4A5B6C7D0010 /* ParentLockerHTTP.swift in Sources */,
+				EB7C0A1E2D3F4A5B6C7D0012 /* ParentLockerKeychain.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -1,0 +1,24 @@
+{
+ "error": false,
+ "updated": 3,
+ "conflicts": [
+  {
+   "student_id": 40001,
+   "desired": {
+    "attendance_code_id": "701"
+   },
+   "current": {
+    "attendance_code_id": "703"
+   }
+  },
+  {
+   "student_id": "41001",
+   "desired": {
+    "attendance_code_id": "702"
+   },
+   "current": {
+    "attendance_code_id": "702"
+   }
+  }
+ ]
+}
