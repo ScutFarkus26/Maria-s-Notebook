@@ -8,6 +8,9 @@ struct AttendanceParentLockerSettings: View {
 
     /// The school's ParentLocker address, as the guide typed it.
     @Binding var site: String
+    /// Return in the address field: the site goes into the share now, rather
+    /// than when typing pauses.
+    var onSubmitSite: () -> Void = {}
 
     @Environment(\.managedObjectContext) private var viewContext
     @State private var showsSignIn = false
@@ -19,6 +22,7 @@ struct AttendanceParentLockerSettings: View {
                 TextField(AttendanceEmailLog.defaultParentLockerSite, text: $site)
                     .textFieldStyle(.roundedBorder)
                     .autocorrectionDisabled(true)
+                    .onSubmit(onSubmitSite)
                     #if os(iOS)
                     .keyboardType(.URL)
                     .textInputAutocapitalization(.never)

@@ -80,7 +80,9 @@ extension AttendanceExpandedView {
             Divider()
             Button("Tardy Report", systemImage: "chart.bar.doc.horizontal") { showingTardyReport = true }
             Button("Absence Report", systemImage: "chart.bar.doc.horizontal") { showingAbsenceReport = true }
-            if sendsToParentLocker, !isNonSchoolDay {
+            // Not ahead of the day: a day that hasn't come can't be sent, and
+            // marking it sent would start its live updates before arrival.
+            if sendsToParentLocker, !isNonSchoolDay, !viewModel.isFuture {
                 Divider()
                 parentLockerMenuItems
             }

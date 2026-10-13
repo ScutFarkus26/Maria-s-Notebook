@@ -90,11 +90,10 @@ extension AttendanceExpandedView {
     /// hand), in the classroom share, so the assistants see it; then today's
     /// reminder is withdrawn.
     func recordFrontDeskSend(confirmedByHand: Bool) {
-        // A test copy never records a ParentLocker send: on the live store it
-        // would silence the 9:00 reminder and start every Release device's
-        // live updates (`ParentLockerSavePolicy`).
-        if sendsToParentLocker, !ParentLockerSavePolicy.current.allowsSaving {
-            onToast("This test copy of the app doesn't record ParentLocker sends.")
+        if sendsToParentLocker, let refusal = Self.parentLockerMarkRefusal(
+            on: date, allowsSaving: ParentLockerSavePolicy.current.allowsSaving
+        ) {
+            onToast(refusal)
             return
         }
         AttendanceEmailLog.recordSend(
@@ -106,6 +105,21 @@ extension AttendanceExpandedView {
         frontDeskSend = AttendanceEmailLog.latestSend(on: date, in: viewContext)
         let context = viewContext
         Task { await FrontDeskEmailReminder.reschedule(in: context) }
+    }
+
+    /// Why Mark as Sent can't record `day` as sent to ParentLocker, or nil
+    /// when it can. A day that hasn't come: its send would make it "after"
+    /// from midnight, so its live updates would start before arrival closed
+    /// (bug check 2026-10-13, C2); the email's Mark as Sent is unchanged. And
+    /// a test copy: on the live store its record would silence the 9:00
+    /// reminder and start every Release device's live updates
+    /// (`ParentLockerSavePolicy`).
+    static func parentLockerMarkRefusal(on day: Date, now: Date = Date(), allowsSaving: Bool) -> String? {
+        if AppCalendar.startOfDay(day) > AppCalendar.startOfDay(now) {
+            return "That day hasn't come yet. Its attendance can go to ParentLocker on the day."
+        }
+        if !allowsSaving { return "This test copy of the app doesn't record ParentLocker sends." }
+        return nil
     }
 
     /// The children with `status`, as the email lists them: a child who
