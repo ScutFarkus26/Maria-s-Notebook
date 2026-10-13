@@ -211,7 +211,7 @@ Checked 2026-10-12 against Xcode 27.0 (27A266a). Xcode 27.1 RC and 27.2 beta 2 e
     - Per-class batches, plus the skipped list: unmatched, locked, unmarked, can't-clear.
   - `ParentLockerTransport.swift`: the protocol `courses() / roster(course:date:) / save(batch:)`.
   - `ParentLockerHTTP.swift`: the `URLSession` transport, exactly as under Privacy rules: ephemeral, no cookie handling, other hosts refused, cookies taken back from every reply.
-  - `Services/DataCleanup/DataCleanupService+DeduplicateStudents.swift` (wherever it lives): copy `parentLockerID` from a duplicate when the kept student has none (from Phase 1).
+  - `Services/Migrations/DataCleanupService+DeduplicateStudents.swift`: copy `parentLockerID` from a duplicate when the kept student has none (from Phase 1).
   - `ParentLockerKeychain.swift`:
     - The synced internet-password item and the `ThisDeviceOnly` cookie item, as in Apple guidance item 1.
     - Reads and deletes use `kSecAttrSynchronizableAny`.
