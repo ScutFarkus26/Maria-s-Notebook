@@ -116,6 +116,10 @@ Read 2026-10-12 from Danny's signed-in page; nothing was changed.
 - **The app's own small sign-in sheet,** with Email and Password fields.
   - The fields are marked as username and password, so the Passwords app may offer to fill them by hand. Apple gives apps no way to read ParentLocker's saved password from Passwords on their own (Apple guidance, item 2).
   - Under the fields: "Your password stays in your iCloud Keychain, encrypted by Apple, and is only used to sign in to ParentLocker."
+  - **Its words** (Danny, 2026-10-12: "I like all of your suggestions. also a privacy notice on that page too. Explain clearly and plainly what is happening."):
+    - The title "Sign in to ParentLocker", with the school's site under it.
+    - "You only need to do this once."
+    - A short "What happens when you sign in" notice: the app signs in for you, as on the website; the password sits in your iCloud Keychain, encrypted by Apple and readable only by your own devices, never in the notebook, its backups or the shared class; it's used only to sign in and send the attendance you take (here, late, absent, and an absence's reason), and your own notes stay in the notebook; the app signs back in by itself; signing out deletes it from all your devices.
   - On Sign In, the app saves the password, then fills ParentLocker's own form in an invisible web view and submits it, with `remember=1` and `return_to` pointing at the attendance page. Success means the attendance page loads with its course list.
   - The web view is shown only if ParentLocker asks for something more (new terms, a password reset).
 - **Signing back in by itself.** When a sync in the foreground finds the sign-in page instead of the attendance page, it signs in again with the saved password and carries on. Only when ParentLocker refuses the saved password (it was changed) does anyone see "ParentLocker didn't take your saved password. Sign in again."
