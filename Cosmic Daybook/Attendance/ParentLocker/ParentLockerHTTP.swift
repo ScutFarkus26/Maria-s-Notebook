@@ -71,7 +71,7 @@ nonisolated final class ParentLockerHTTP: ParentLockerTransport {
 
     // MARK: - ParentLockerTransport
 
-    func courses() async throws -> [ParentLockerCourse] {
+    func courses(on day: Date?) async throws -> [ParentLockerCourse] {
         var request = URLRequest(url: attendancePageURL)
         request.setValue("text/html", forHTTPHeaderField: "Accept")
         let data = try await send(request, label: "page")

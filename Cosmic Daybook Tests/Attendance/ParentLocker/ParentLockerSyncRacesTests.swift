@@ -73,13 +73,17 @@ struct ParentLockerSyncRacesTests {
         #expect(site.mark(41002) == "703")
     }
 
-    @Test("A child this device never saw goes only while ParentLocker holds no mark for them")
+    @Test("Unread as the change arrived, a child this device never saw goes only while ParentLocker holds no mark")
     func neverSeenChild() async {
         let mac = Device(site: site, clock: clock, sent: true)
         // Wren has a mark saved by someone; Odile has none yet.
         site.setMark(40001, "703")
         mac.store.state.marks = [Device.wren: Device.mark(.tardy), Device.odile: Device.mark(.tardy)]
+        // The class lists can't be read as the change arrives (B4 reads them then).
+        site.failuresLeft = 1
         mac.imports([Device.wren: Device.mark(.tardy), Device.odile: Device.mark(.tardy)])
+        await mac.sync.baselineTask?.value
+        #expect(mac.sync.lastSeen.isEmpty)
         clock.advance(by: ParentLockerSync.importedWait)
         await mac.sync.runDue()
         #expect(site.saves.flatMap(\.entries).map(\.studentID) == ["41002"])

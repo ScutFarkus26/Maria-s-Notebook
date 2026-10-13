@@ -151,7 +151,7 @@ extension ParentLockerSync {
         let today = isToday(day)
         return try await withTransport(site: site) { transport in
             var rosters: [ParentLockerRoster] = []
-            for course in Self.coursesToLoad(try await transport.courses(), isToday: today).load {
+            for course in Self.coursesToLoad(try await transport.courses(on: nil), isToday: today).load {
                 rosters.append(try await transport.roster(course: course, date: day))
             }
             return rosters
@@ -165,7 +165,7 @@ extension ParentLockerSync {
     private func sendPlan(
         _ job: ParentLockerJob, day: ParentLockerDay, transport: any ParentLockerTransport
     ) async throws -> ParentLockerRunResult {
-        let (courses, leftAlone) = Self.coursesToLoad(try await transport.courses(), isToday: isToday(job.day))
+        let (courses, leftAlone) = Self.coursesToLoad(try await transport.courses(on: nil), isToday: isToday(job.day))
         var rosters: [ParentLockerRoster] = []
         for course in courses {
             rosters.append(try await transport.roster(course: course, date: job.day))

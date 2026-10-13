@@ -39,6 +39,7 @@ extension AssistantFrontDesk {
 protocol AssistantParentLockerSending: AnyObject {
     var isSignedIn: Bool { get }
     func sendNow(day: Date) async -> ParentLockerStatus
+    func closeArrivalSend(on day: Date, after undoWindow: TimeInterval)
 }
 
 extension ParentLockerSync: AssistantParentLockerSending {}
@@ -63,7 +64,8 @@ extension AssistantSiriCommands {
     /// `sync` is the class's (`ParentLockerSync.current`); nil when it isn't
     /// running, which can't send.
     static func sendAfterClose(
-        _ session: SiriAttendance, sync: (any AssistantParentLockerSending)?
+        _ session: SiriAttendance, sync: (any AssistantParentLockerSending)?,
+        unsent: any ParentLockerUnsentStore = ParentLockerSync.defaultUnsentStore()
     ) async -> AssistantParentLockerAfterClose {
         guard !AssistantSampleClass.isActive,
               AttendanceEmailLog.settings(in: session.context)?.sendMethod == .parentLocker else { return .notPicked }

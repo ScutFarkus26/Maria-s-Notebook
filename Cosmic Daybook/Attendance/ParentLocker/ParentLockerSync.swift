@@ -75,8 +75,7 @@ final class ParentLockerSync {
         }
         var clock: any ParentLockerClock = ParentLockerSystemClock()
         var policy: ParentLockerSavePolicy = .current
-        var unsent: any ParentLockerUnsentStore = ParentLockerSavePolicy.current.allowsSaving
-            ? ParentLockerDefaultsUnsentStore() : ParentLockerMemoryUnsentStore()
+        var unsent: any ParentLockerUnsentStore = ParentLockerSync.defaultUnsentStore()
         var background: any ParentLockerBackgroundWork = ParentLockerSystemBackgroundWork()
         var isInForeground: @MainActor () -> Bool = { ParentLockerAppState.isInForeground() }
         /// Whether CloudKit imports will come: false for a stack without
@@ -100,6 +99,13 @@ final class ParentLockerSync {
     var isSignedIn = false
     /// The last whole-day plan or preview.
     var lastReport: ParentLockerReport?
+    /// When Close Arrival's Undo ends for the Close Arrival & Send made here
+    /// today: the send goes no earlier, and a screen offers its Undo until
+    /// then. Nil when there is none, or once Undo was used.
+    private(set) var undoEndsAt: Date?
+    /// ParentLocker refused the saved password, and no new one has been
+    /// saved since: the app doesn't sign in with it by itself (Sign In again).
+    private(set) var savedPasswordRefused = false
 
     /// The sync the app started, for the screens, intents and MCP that
     /// aren't handed one.
@@ -140,11 +146,21 @@ final class ParentLockerSync {
     @ObservationIgnored var deadlineDue: Date?
 
     @ObservationIgnored var wakeTask: Task<Void, Never>?
+    /// Reading the class lists for changes synced in with nothing seen to
+    /// measure them by (`loadBaseline`).
+    @ObservationIgnored var baselineTask: Task<Void, Never>?
     @ObservationIgnored var activeRun: Task<Result<ParentLockerReport, ParentLockerSendFailure>, Never>?
     @ObservationIgnored private var watcher: ParentLockerWatcher?
     @ObservationIgnored var holdsBackground = false
 
     static let logger = Logger.attendance
+
+    /// Where what's owed is kept: the app's preferences in a build that
+    /// saves, memory otherwise (`ParentLockerDefaultsUnsentStore`).
+    nonisolated static func defaultUnsentStore() -> any ParentLockerUnsentStore {
+        ParentLockerSavePolicy.current.allowsSaving
+            ? ParentLockerDefaultsUnsentStore() : ParentLockerMemoryUnsentStore()
+    }
 
     init(dependencies: Dependencies) {
         self.dependencies = dependencies
@@ -258,7 +274,7 @@ final class ParentLockerSync {
         try secrets.saveCookies(cookies, site: site)
         let transport = makeTransport(site: site, cookies: cookies)
         do {
-            _ = try await transport.courses()
+            _ = try await transport.courses(on: nil)
         } catch {
             try? secrets.deleteCookies(site: site)
             throw error

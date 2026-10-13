@@ -39,6 +39,18 @@ struct ParentLockerKeychainTests {
         try ParentLockerKeychain.deletePassword(site: Self.site)
     }
 
+    @Test("When the password was saved reads without the password, and goes with it")
+    func passwordModified() throws {
+        #expect(try ParentLockerKeychain.passwordModified(site: Self.site) == nil)
+        let typed = ParentLockerKeychain.Credential(email: "guide@school.test", password: "made-up-5")
+        try ParentLockerKeychain.savePassword(typed, site: Self.site)
+        let saved = try #require(try ParentLockerKeychain.passwordModified(site: Self.site))
+        #expect(abs(saved.timeIntervalSinceNow) < 600)
+
+        try ParentLockerKeychain.deletePassword(site: Self.site)
+        #expect(try ParentLockerKeychain.passwordModified(site: Self.site) == nil)
+    }
+
     @Test("The cookies round-trip, are replaced, and delete")
     func cookiesRoundTrip() throws {
         #expect(try ParentLockerKeychain.cookies(site: Self.site).isEmpty)

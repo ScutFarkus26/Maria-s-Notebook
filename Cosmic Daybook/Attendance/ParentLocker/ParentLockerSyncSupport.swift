@@ -37,6 +37,9 @@ nonisolated struct ParentLockerSystemClock: ParentLockerClock {
 nonisolated protocol ParentLockerSecrets: Sendable {
     func credential(site: String) throws -> ParentLockerKeychain.Credential?
     func hasPassword(site: String) throws -> Bool
+    /// When the password was last saved, here or on another of the person's
+    /// devices; nil when there is none (`ParentLockerKeychain.passwordModified`).
+    func passwordModified(site: String) throws -> Date?
     func savePassword(_ credential: ParentLockerKeychain.Credential, site: String) throws
     func deletePassword(site: String) throws
     func cookies(site: String) throws -> [ParentLockerCookie]
@@ -50,6 +53,7 @@ nonisolated struct ParentLockerKeychainSecrets: ParentLockerSecrets {
         try ParentLockerKeychain.credential(site: site)
     }
     func hasPassword(site: String) throws -> Bool { try ParentLockerKeychain.hasPassword(site: site) }
+    func passwordModified(site: String) throws -> Date? { try ParentLockerKeychain.passwordModified(site: site) }
     func savePassword(_ credential: ParentLockerKeychain.Credential, site: String) throws {
         try ParentLockerKeychain.savePassword(credential, site: site)
     }
@@ -64,16 +68,37 @@ nonisolated struct ParentLockerKeychainSecrets: ParentLockerSecrets {
 // MARK: - Changes not sent yet
 
 /// The children whose marks this device changed and ParentLocker hasn't got
-/// yet, and whether the day's whole-class send is still owed. Kept across
-/// launches so the catch-up on the way back can send them; only child ids,
-/// never names, marks or anything of the sign-in.
+/// yet, whether the day's whole-class send is still owed, and whether arrival
+/// closed here. Kept across launches so the catch-up on the way back can
+/// send them; only child ids, never names, marks or anything of the sign-in.
 nonisolated struct ParentLockerUnsent: Codable, Equatable, Sendable {
     /// The day it's for (`AppCalendar.dayID`); another day's is dropped.
     var day: String
     var children: Set<UUID>
     var wholeClass: Bool
+    /// Close Arrival & Send was made here, or a whole-class send started: the
+    /// day is past "after" on this device whatever its automatic absences say
+    /// now (a child marked Late in the Undo window takes the last one away).
+    /// Only that Close Arrival's Undo clears it. Builds before the 2026-10-13
+    /// fixes saved no such field, which reads as false.
+    var arrivalClosed: Bool
 
-    var isEmpty: Bool { children.isEmpty && !wholeClass }
+    init(day: String, children: Set<UUID>, wholeClass: Bool, arrivalClosed: Bool = false) {
+        self.day = day
+        self.children = children
+        self.wholeClass = wholeClass
+        self.arrivalClosed = arrivalClosed
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        day = try container.decode(String.self, forKey: .day)
+        children = try container.decode(Set<UUID>.self, forKey: .children)
+        wholeClass = try container.decode(Bool.self, forKey: .wholeClass)
+        arrivalClosed = try container.decodeIfPresent(Bool.self, forKey: .arrivalClosed) ?? false
+    }
+
+    var isEmpty: Bool { children.isEmpty && !wholeClass && !arrivalClosed }
 }
 
 /// Where `ParentLockerUnsent` is kept.
