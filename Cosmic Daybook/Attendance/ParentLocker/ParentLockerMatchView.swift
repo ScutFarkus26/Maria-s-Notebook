@@ -111,11 +111,13 @@ struct ParentLockerMatchView: View {
             pickText = refusal
             return
         }
+        let displaced = Self.displaced(by: studentID, picking: row.id, in: rows)
         guard sync.store.writeMatches([row.id: studentID]) else {
             pickText = Self.saveFailed
             return
         }
         pickText = nil
+        Self.notePick(of: row.id, displacing: displaced, in: sync)
         // Match again: whoever held this ParentLocker child now needs one.
         let day = sync.store.day(sync.today, withChildren: true)
         let matches = ParentLockerPlanner.match(children: day.children, rosters: rosters)
@@ -123,6 +125,23 @@ struct ParentLockerMatchView: View {
     }
 
     nonisolated static let saveFailed = "Couldn't save the match. Try again."
+
+    /// The child who held `studentID` before `picked` took it, if anyone.
+    static func displaced(by studentID: String, picking picked: UUID, in rows: [Row]) -> UUID? {
+        guard !ParentLockerPlanner.isNotMatched(studentID) else { return nil }
+        return rows.first { $0.studentID == studentID && $0.id != picked }?.id
+    }
+
+    /// A pick made once today is past "after" goes to ParentLocker as this
+    /// device's own change: a child matched after the class went would
+    /// otherwise wait for their next mark, and the watcher doesn't follow
+    /// student saves (bug hunt 2026-10-13 afternoon, M7). Before "after",
+    /// the whole-class send covers them.
+    static func notePick(of picked: UUID, displacing displaced: UUID?, in sync: ParentLockerSync) {
+        let today = sync.today
+        guard sync.isAfter(sync.store.day(today, withChildren: false), on: today) else { return }
+        sync.noteChanges(Set([picked] + (displaced.map { [$0] } ?? [])), imported: false, on: today)
+    }
 
     /// Why a pick can't be saved on this device, before trying: a test copy
     /// only previews, and only the guide matches names.

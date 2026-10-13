@@ -30,8 +30,24 @@ struct SendAttendanceIntent: AppIntent {
         guard let sync = AppBootstrapper.startParentLockerSync(on: stack) else {
             return .result(dialog: "Couldn't send to ParentLocker. Open the app and try again.")
         }
-        let reply = Self.reply(to: await sync.send(day: Date(), preview: false))
+        let day = Date()
+        // Children still unmarked: ask first, as the attendance screen does
+        // (bug hunt 2026-10-13 afternoon, M4). A "no" stops the action.
+        if let question = Self.unmarkedQuestion(count: sync.unmarkedNames(on: day).count) {
+            try await requestConfirmation(actionName: .send, dialog: "\(question)")
+        }
+        let reply = Self.reply(to: await sync.send(day: day, preview: false))
         return .result(dialog: "\(reply)")
+    }
+
+    /// What the action asks with `count` children unmarked ("3 children
+    /// aren't marked yet. Send the rest?"), or nil when everyone is.
+    static func unmarkedQuestion(count: Int) -> String? {
+        switch count {
+        case ..<1: nil
+        case 1: "1 child isn't marked yet. Send the rest?"
+        default: "\(count) children aren't marked yet. Send the rest?"
+        }
     }
 
     /// What the action says: what went, that nothing needed to, or why it
