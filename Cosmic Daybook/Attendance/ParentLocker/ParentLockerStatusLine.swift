@@ -14,26 +14,43 @@ struct ParentLockerStatusLine: View {
     var showsProblems = true
 
     var body: some View {
-        if let line = status.line(sentSummary: sentSummary) {
+        if let content = Self.content(for: status, sentSummary: sentSummary, showsProblems: showsProblems) {
             VStack(alignment: .leading, spacing: 4) {
-                Label {
-                    Text(line)
-                } icon: {
-                    Image(systemName: symbol)
-                }
-                .foregroundStyle(status.isTrouble ? Color.orange : Color.secondary)
-                if showsProblems {
-                    ForEach(status.problems, id: \.self) { problem in
-                        Text(problem)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                if let line = content.line {
+                    Label {
+                        Text(line)
+                    } icon: {
+                        Image(systemName: symbol)
                     }
+                    .foregroundStyle(status.isTrouble ? Color.orange : Color.secondary)
+                }
+                ForEach(content.problems, id: \.self) { problem in
+                    Text(problem)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
             .font(.footnote)
             .fixedSize(horizontal: false, vertical: true)
             .accessibilityElement(children: .combine)
         }
+    }
+
+    /// What the line draws: the line itself and the per-child lines.
+    struct Content: Equatable {
+        var line: String?
+        var problems: [String]
+    }
+
+    /// What to draw for `status`, or nil for nothing. The per-child lines
+    /// show even with no line above them: a run that ends with nothing to
+    /// say of its own ("None of the class's children were found in
+    /// ParentLocker…") says it there (bug hunt 2026-10-13 afternoon, M3).
+    static func content(for status: ParentLockerStatus, sentSummary: String?, showsProblems: Bool) -> Content? {
+        let line = status.line(sentSummary: sentSummary)
+        let problems = showsProblems ? status.problems : []
+        guard line != nil || !problems.isEmpty else { return nil }
+        return Content(line: line, problems: problems)
     }
 
     private var symbol: String {

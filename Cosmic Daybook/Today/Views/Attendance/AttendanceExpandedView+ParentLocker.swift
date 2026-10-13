@@ -58,13 +58,35 @@ extension AttendanceExpandedView {
 
     /// Close Arrival & Send: the whole class goes once the Undo toast just
     /// shown has gone. Returns what Undo calls to stop it. A device not
-    /// signed in asks to sign in; the send waits for it.
+    /// signed in asks to sign in once that Undo has gone, never over it (bug
+    /// hunt 2026-10-13 afternoon, M1, as the Daybook Assistant's bar does);
+    /// the send waits for the sign-in.
     func sendAfterClosingArrival() -> (() -> Void)? {
         guard sendsToParentLocker, viewModel.isToday, let sync = parentLocker else { return nil }
         sync.closeArrivalSend(on: date, after: undoWindow)
         // Not signed in, or the saved password was refused: sign in again.
-        if sync.needsSignIn { showingParentLockerSignIn = true }
+        if let delay = Self.signInDelay(after: sync), let undoEnds = sync.undoEndsAt {
+            let showingSignIn = $showingParentLockerSignIn
+            Task {
+                if delay > 0 { guard (try? await Task.sleep(for: .seconds(delay))) != nil else { return } }
+                if Self.asksToSignIn(afterUndoEnding: undoEnds, sync: sync) { showingSignIn.wrappedValue = true }
+            }
+        }
         return { sync.cancelCloseArrivalSend() }
+    }
+
+    /// How long Close Arrival & Send waits before asking to sign in: until
+    /// its Undo has gone. Nil when it won't ask: signed in, or no send waits.
+    static func signInDelay(after sync: ParentLockerSync) -> TimeInterval? {
+        guard sync.needsSignIn, let undoEnds = sync.undoEndsAt else { return nil }
+        return max(0, undoEnds.timeIntervalSince(sync.clock.now))
+    }
+
+    /// Whether the sign-in opens once the Undo ending at `undoEnds` has gone:
+    /// that Close Arrival & Send still waits (no Undo or Reset since), and
+    /// this device still isn't signed in.
+    static func asksToSignIn(afterUndoEnding undoEnds: Date, sync: ParentLockerSync) -> Bool {
+        sync.undoEndsAt == undoEnds && sync.needsSignIn
     }
 
     /// How long until the Undo toast just shown has gone: its own time, after
@@ -80,47 +102,102 @@ extension AttendanceExpandedView {
 
     /// Send to ParentLocker (Send Now), for a day taken without Close
     /// Arrival; Mark as Sent in its menu for one taken on the site by hand.
-    @ViewBuilder
     func parentLockerSendButton(overdue: Bool, prominent: Bool) -> some View {
-        let menu = Menu {
-            Button("Mark as Sent", systemImage: "checkmark.circle") { recordFrontDeskSend(confirmedByHand: true) }
-        } label: {
-            Label("Send to ParentLocker", systemImage: "paperplane")
-        } primaryAction: {
-            sendToParentLockerNow()
-        }
-        .help("Send this day's attendance to ParentLocker")
-        if prominent {
-            menu.buttonStyle(.borderedProminent).tint(overdue ? .orange : nil)
-        } else {
-            menu.buttonStyle(.bordered)
+        ParentLockerAsking { asker in
+            let menu = Menu {
+                Button("Mark as Sent", systemImage: "checkmark.circle") { recordFrontDeskSend(confirmedByHand: true) }
+            } label: {
+                Label("Send to ParentLocker", systemImage: "paperplane")
+            } primaryAction: {
+                sendToParentLockerNow(asking: asker)
+            }
+            .help("Send this day's attendance to ParentLocker")
+            if prominent {
+                menu.buttonStyle(.borderedProminent).tint(overdue ? .orange : nil)
+            } else {
+                menu.buttonStyle(.bordered)
+            }
         }
     }
 
     /// What's due: "front desk email", or "ParentLocker attendance".
     var dueWhat: String { sendsToParentLocker ? "ParentLocker attendance" : "front desk email" }
 
-    /// Send Now: the whole class for the day on screen, now; or the sign-in
-    /// sheet first.
-    func sendToParentLockerNow() {
+    /// Send Now for the day on screen. With children unmarked it asks first,
+    /// naming them (bug hunt 2026-10-13 afternoon, M4). `asker` is nil only
+    /// where the roll's follow-ups don't reach, and then it just sends.
+    func sendToParentLockerNow(asking asker: ParentLockerSendAsker?) {
         guard let sync = parentLocker else { return }
-        guard !sync.needsSignIn else {
+        if let asker, let question = ParentLockerSendQuestion.beforeSending(
+            on: date, unmarked: sync.unmarkedNames(on: date)
+        ) {
+            asker.question = question
+            return
+        }
+        sendToParentLocker(day: date)
+    }
+
+    /// The 9:00 reminder's tap with ParentLocker picked: asks whether to send
+    /// today's attendance now, naming anyone unmarked (M2).
+    func offerParentLockerSend(asking asker: ParentLockerSendAsker?) {
+        guard let sync = parentLocker, let asker else { return }
+        asker.question = .fromReminder(on: date, unmarked: sync.unmarkedNames(on: date))
+    }
+
+    /// The whole class for `day`, now. Not signed in: today's send waits in
+    /// the sync for the sign-in the sheet opens for, so one tap is enough
+    /// (L6); another day's is sent again once signed in.
+    func sendToParentLocker(day: Date) {
+        guard let sync = parentLocker else { return }
+        let steps = Self.sendSteps(needsSignIn: sync.needsSignIn, isToday: sync.isToday(day))
+        if steps.opensSignIn {
+            if steps.sends {
+                Task {
+                    await sync.sendNow(day: day)
+                    parentLockerSynced()
+                }
+            }
             showingParentLockerSignIn = true
             return
         }
-        let day = date
         let toasts = dependencies.toastService
         Task {
             let status = await sync.sendNow(day: day)
             parentLockerSynced()
-            switch status.state {
-            case .upToDate:
-                toasts.showSuccess("Sent to ParentLocker")
-            case .previewed:
-                toasts.showInfo("This test copy of the app only previews. Nothing was sent to ParentLocker.")
-            default:
-                if let message = status.message { toasts.showError(message) }
+            switch Self.sendNowToast(for: status) {
+            case .success(let text): toasts.showSuccess(text)
+            case .info(let text): toasts.showInfo(text)
+            case .error(let text): toasts.showError(text)
+            case nil: break
             }
+        }
+    }
+
+    /// What tapping Send does: signed in, it sends; not, it opens the
+    /// sign-in, and for today also asks the sync to send once signed in.
+    static func sendSteps(needsSignIn: Bool, isToday: Bool) -> (sends: Bool, opensSignIn: Bool) {
+        needsSignIn ? (isToday, true) : (true, false)
+    }
+
+    /// Send Now's toast.
+    enum SendNowToast: Equatable {
+        case success(String)
+        case info(String)
+        case error(String)
+    }
+
+    /// What Send Now's toast says about how the send ended. A run that ends
+    /// with nothing to say of its own ("None of the class's children were
+    /// found in ParentLocker…") gives its first problem (M3).
+    static func sendNowToast(for status: ParentLockerStatus) -> SendNowToast? {
+        switch status.state {
+        case .upToDate:
+            return .success("Sent to ParentLocker")
+        case .previewed:
+            return .info("This test copy of the app only previews. Nothing was sent to ParentLocker.")
+        default:
+            if let message = status.message { return .error(message) }
+            return status.problems.first.map(SendNowToast.error)
         }
     }
 
@@ -130,8 +207,11 @@ extension AttendanceExpandedView {
     @ViewBuilder
     var parentLockerMenuItems: some View {
         Section("ParentLocker") {
-            Button(frontDeskSend == nil ? "Send Now" : "Send Again", systemImage: "paperplane",
-                   action: sendToParentLockerNow)
+            ParentLockerAsking { asker in
+                Button(frontDeskSend == nil ? "Send Now" : "Send Again", systemImage: "paperplane") {
+                    sendToParentLockerNow(asking: asker)
+                }
+            }
             if frontDeskSend == nil {
                 Button("Mark as Sent", systemImage: "checkmark.circle") { recordFrontDeskSend(confirmedByHand: true) }
             }
@@ -151,20 +231,23 @@ extension AttendanceExpandedView {
         Task { await FrontDeskEmailReminder.reschedule(in: context) }
     }
 
-    /// The sign-in sheet, and the send record and reminder after each sync.
+    /// The question before a send, the sign-in sheet, and the send record
+    /// and reminder after each sync.
     var parentLockerFollowUps: ParentLockerFollowUps {
         ParentLockerFollowUps(
             sync: parentLocker,
             context: viewContext,
             showingSignIn: $showingParentLockerSignIn,
             sendMethod: $loadedSendMethod,
-            onSynced: parentLockerSynced
+            onSynced: parentLockerSynced,
+            onSend: { sendToParentLocker(day: $0) }
         )
     }
 }
 
 /// The roll's follow-ups to ParentLocker, as a modifier so its body stays
-/// one line there.
+/// one line there. Its asker goes into the environment, for the buttons
+/// that ask before a send (`ParentLockerAsking`) and the reminder's tap.
 struct ParentLockerFollowUps: ViewModifier {
     let sync: ParentLockerSync?
     let context: NSManagedObjectContext
@@ -174,12 +257,29 @@ struct ParentLockerFollowUps: ViewModifier {
     /// in from the guide's other devices.
     @Binding var sendMethod: AttendanceSendMethod?
     let onSynced: () -> Void
+    /// Sends the day the question was about, once the guide says to.
+    let onSend: (Date) -> Void
+
+    @State private var asker = ParentLockerSendAsker()
 
     func body(content: Content) -> some View {
         content
-            .sheet(isPresented: $showingSignIn) {
-                if let sync { ParentLockerSignInSheet(sync: sync) }
+            .environment(asker)
+            .alert(
+                asker.question?.title ?? "",
+                isPresented: Binding(get: { asker.question != nil }, set: { if !$0 { asker.question = nil } }),
+                presenting: asker.question
+            ) { question in
+                Button(question.sendTitle) { onSend(question.day) }
+                Button("Cancel", role: .cancel) {}
+            } message: { question in
+                Text(question.message)
             }
+            .sheet(isPresented: $showingSignIn, onDismiss: {
+                // MERGE (agent E, L6): if let sync, sync.needsSignIn { sync.signInDismissed() }
+            }, content: {
+                if let sync { ParentLockerSignInSheet(sync: sync) }
+            })
             .onPresentationDataChangeWhenVisible(of: ["AttendanceEmailSettings"], in: context, catchUpOnAppear: false) {
                 sendMethod = AttendanceExpandedView.sendMethod(in: context)
             }
@@ -187,4 +287,54 @@ struct ParentLockerFollowUps: ViewModifier {
                 if synced != nil { onSynced() }
             }
     }
+}
+
+/// The question the roll asks before a send to ParentLocker: with children
+/// unmarked, who (bug hunt 2026-10-13 afternoon, M4); from the 9:00
+/// reminder, whether to send now (M2).
+struct ParentLockerSendQuestion: Equatable {
+    /// The day it would send.
+    let day: Date
+    let title: String
+    let message: String
+    /// The button that sends.
+    let sendTitle: String
+
+    /// Before Send Now: nil while everyone on the roll is marked.
+    static func beforeSending(on day: Date, unmarked: [String]) -> ParentLockerSendQuestion? {
+        guard !unmarked.isEmpty else { return nil }
+        return ParentLockerSendQuestion(
+            day: day,
+            title: unmarked.count == 1 ? "1 child isn't marked yet" : "\(unmarked.count) children aren't marked yet",
+            message: "\(unmarked.formatted(.list(type: .and))). Send the rest to ParentLocker now, or mark them first.",
+            sendTitle: "Send the Rest"
+        )
+    }
+
+    /// The 9:00 reminder's tap: today's attendance is due.
+    static func fromReminder(on day: Date, unmarked: [String]) -> ParentLockerSendQuestion {
+        beforeSending(on: day, unmarked: unmarked) ?? ParentLockerSendQuestion(
+            day: day,
+            title: "Send today's attendance to ParentLocker?",
+            message: "Everyone's marked.",
+            sendTitle: "Send"
+        )
+    }
+}
+
+/// Holds the roll's question before a send, for the buttons that ask
+/// (`ParentLockerAsking`) and the alert that shows it (`ParentLockerFollowUps`).
+@MainActor
+@Observable
+final class ParentLockerSendAsker {
+    var question: ParentLockerSendQuestion?
+}
+
+/// Hands its content the roll's asker, from the environment
+/// `ParentLockerFollowUps` sets: nil outside a roll.
+struct ParentLockerAsking<Content: View>: View {
+    @Environment(ParentLockerSendAsker.self) private var asker: ParentLockerSendAsker?
+    @ViewBuilder let content: (ParentLockerSendAsker?) -> Content
+
+    var body: some View { content(asker) }
 }
