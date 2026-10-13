@@ -11,8 +11,11 @@ Every finding in the report is fixed or answered. Close Arrival & Send always se
 
 ## Progress
 Build board: https://claude.ai/artifact/WAKaFZGNPQsfKD4A5GbqsM (milestone 15).
-- [ ] Phase 1: Fix agents S ‖ M ‖ U, each in its own worktree from main 55117e19 (session: here) · est. ~6–9% weekly · started at 62%
-- [ ] Phase 2: Combine, one review, full builds, whole suites, land on main (session: here) · est. ~2–3% weekly
+- [x] Phase 1: Fix agents S ‖ M ‖ U, each in its own worktree from main 55117e19 (session: here) · est. ~6–9% weekly · started at 62% · cost ~2% (62→64). All three merged cleanly (261d2ebe, 6a8aa90c, cbd8a69b), then joined up by the main session (52943638): the Assistant's `undoEnds(for:)` reads the sync's `undoEndsAt`; `makeReport` uses M's `childByStudentID`; Settings says "Sign in again" when the saved password was refused; PARENTLOCKER.md gained the `?date=` class list, the refused-password rule, "none" and the future-day rule.
+  - **S** (e31ad473, tests first in 2a4250a3: 21 failed before): B1–B7, D3, C2, A1, C3, A3, A4, D1, D4. 109 notebook tests in 13 suites and 34 Assistant tests pass. Three earlier tests were changed for B4 and B5. It took 4.7 hours, mostly in the build queue.
+  - **M** (a3fa128d): A2/C4 and A5. 100 + 9 tests pass. Differed: a ParentLocker child claimed twice goes to neither child; Match Names gained "Choose a child" and a "Not sent" section.
+  - **U** (bedc8875): C1, C2's screen side and D2. 22 + 12 tests pass. Differed: the site field is written on a pause, on Return and when Settings closes, not on every keystroke; a new `stopsSend` lets Undo cancel a queued send on a phone that isn't signed in.
+- [ ] Phase 2: Combine, one review, full builds, whole suites, land on main (session: here) · est. ~2–3% weekly · started at 64%
 
 ## Cost
 
