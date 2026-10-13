@@ -35,6 +35,11 @@ struct AttendanceExpandedView: View {
     @State var viewModel = AttendanceViewModel()
 
     @SyncedAppStorage("AttendanceEmail.enabled") var emailEnabled: Bool = true
+    /// ParentLocker or the email (`AttendanceSendMethod`), the guide's choice.
+    @SyncedAppStorage(AttendanceEmailPrefs.sendMethodKey)
+    var sendMethodRaw: String = AttendanceSendMethod.email.rawValue
+    /// Close Arrival & Send or Send Now on a device not signed in to ParentLocker.
+    @State var showingParentLockerSignIn = false
     @State var showMailSheet = false
     /// The day's newest front-desk email, from any device in the classroom.
     @State var frontDeskSend: AttendanceEmailLog.Send?
@@ -267,6 +272,7 @@ struct AttendanceExpandedView: View {
 #endif
         }
         .modifier(frontDeskFollowUps)
+        .modifier(parentLockerFollowUps)
     }
 
     private func loadData() {

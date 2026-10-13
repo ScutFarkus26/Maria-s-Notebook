@@ -6,10 +6,13 @@ import SwiftUI
 /// Closing marks everyone still unmarked absent, so it asks first, naming
 /// exactly who: the question doubles as a last look at who's missing. It
 /// closes arrival on this device only; another device keeps its own phase
-/// and sees the marks.
+/// and sees the marks. With ParentLocker picked it is Close Arrival & Send:
+/// the class goes to ParentLocker once the Undo that follows has gone.
 struct AttendanceArrivalControl: View {
     let viewModel: AttendanceViewModel
     let isEditing: Bool
+    /// ParentLocker is how the day goes: closing sends the class.
+    var sendsToParentLocker = false
     let onClose: () -> Void
     let onReopen: () -> Void
 
@@ -20,14 +23,19 @@ struct AttendanceArrivalControl: View {
         if isEditing, !viewModel.isFuture, viewModel.phase == .late {
             lateMenu
         } else if viewModel.offersCloseArrival(canMark: isEditing) {
-            Button("Close Arrival…") { confirming = true }
+            Button(sendsToParentLocker ? "Close Arrival & Send…" : "Close Arrival…") { confirming = true }
                 .buttonStyle(.bordered)
                 .buttonBorderShape(.capsule)
                 .controlSize(.small)
-                .help("Marks everyone not here yet absent")
+                .help(sendsToParentLocker
+                    ? "Marks everyone not here yet absent, then sends the class to ParentLocker"
+                    : "Marks everyone not here yet absent")
                 .accessibilityHint("Asks before marking everyone not here yet absent")
                 .confirmationDialog(title, isPresented: $confirming, titleVisibility: .visible) {
-                    Button("Mark \(viewModel.unmarkedCount) Absent", role: .destructive, action: onClose)
+                    Button(
+                        "Mark \(viewModel.unmarkedCount) Absent" + (sendsToParentLocker ? " & Send" : ""),
+                        role: .destructive, action: onClose
+                    )
                 } message: {
                     Text(message)
                 }
@@ -67,6 +75,7 @@ struct AttendanceArrivalControl: View {
 
     private var message: String {
         let names = viewModel.unmarkedNames.formatted(.list(type: .and))
-        return "\(names). After this, \(markVerb) marks a child late."
+        let send = sendsToParentLocker ? " Then the class goes to ParentLocker." : ""
+        return "\(names). After this, \(markVerb) marks a child late.\(send)"
     }
 }

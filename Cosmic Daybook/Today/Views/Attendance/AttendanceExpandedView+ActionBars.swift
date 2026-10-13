@@ -75,8 +75,15 @@ extension AttendanceExpandedView {
                     Label("Absence Report", systemImage: "chart.bar.doc.horizontal")
                 }
 
+                // ParentLocker: Send Now, Mark as Sent, Sign In
+                if sendsToParentLocker {
+                    Divider()
+                    parentLockerMenuItems
+                        .disabled(isNonSchoolDay)
+                }
+
                 // Email (also on its own row once everyone's marked)
-                if emailEnabled {
+                if emailIsOn {
                     Button {
                         prepareAttendanceEmail()
                     } label: {

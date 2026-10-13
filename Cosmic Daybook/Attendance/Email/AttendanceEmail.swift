@@ -1,15 +1,11 @@
 import Foundation
 import SwiftUI
-import OSLog
-
-#if os(macOS)
-import AppKit
-import ObjectiveC
-#endif
 
 // MARK: - Settings View
 
-/// Settings form for configuring Attendance Email behavior.
+/// Settings › Messages › Attendance to the School: how the day's attendance
+/// goes (ParentLocker, or the front-desk email), that method's settings, and
+/// the due time with this device's reminder.
 /// - CDNote: The "Preferred 'From' Address" applies to iOS only;
 ///   macOS always uses the default Mail account.
 public struct AttendanceEmailSettingsView: View {
@@ -24,6 +20,10 @@ public struct AttendanceEmailSettingsView: View {
     @AppStorage(FrontDeskEmailReminder.leadKey) private var reminderLead = FrontDeskEmailReminder.defaultLeadMinutes
     @SyncedAppStorage(AttendanceEmailPrefs.deadlineKey)
     private var deadlineMinutes: Int = AttendanceEmailLog.defaultDeadlineMinutes
+    // Shared with the assistants, as the email's settings are (schema 18).
+    @SyncedAppStorage(AttendanceEmailPrefs.sendMethodKey)
+    private var sendMethodRaw: String = AttendanceSendMethod.email.rawValue
+    @SyncedAppStorage(AttendanceEmailPrefs.parentLockerSiteKey) private var parentLockerSite: String = ""
     @State private var notificationsDenied = false
     /// The settings as last seen here: what the screen opened with, then each edit.
     @State private var seenSignature: String?
@@ -37,6 +37,26 @@ public struct AttendanceEmailSettingsView: View {
             get: { AttendanceEmailNameOrder(rawValue: nameOrderRaw) ?? .firstLast },
             set: { nameOrderRaw = $0.rawValue }
         )
+    }
+
+    private var sendMethod: Binding<AttendanceSendMethod> {
+        Binding(
+            get: { AttendanceSendMethod(stored: sendMethodRaw) },
+            set: { sendMethodRaw = $0.rawValue }
+        )
+    }
+
+    private var sendsToParentLocker: Bool { sendMethod.wrappedValue == .parentLocker }
+
+    private var methodPicker: some View {
+        LabeledContent("Send attendance by") {
+            Picker("Send attendance by", selection: sendMethod) {
+                Text("ParentLocker").tag(AttendanceSendMethod.parentLocker)
+                Text("Email to the front desk").tag(AttendanceSendMethod.email)
+            }
+            .labelsHidden()
+            .fixedSize()
+        }
     }
 
     private var nameOrderPicker: some View {
@@ -61,7 +81,10 @@ public struct AttendanceEmailSettingsView: View {
     /// when notifications are off.
     private var reminderRows: some View {
         VStack(alignment: .leading, spacing: 8) {
-            DatePicker("Due at the front desk by", selection: deadlineTime, displayedComponents: .hourAndMinute)
+            DatePicker(
+                sendsToParentLocker ? "Due in ParentLocker by" : "Due at the front desk by",
+                selection: deadlineTime, displayedComponents: .hourAndMinute
+            )
             Toggle("Remind me if it hasn't gone", isOn: $reminderOn)
             if reminderOn {
                 Picker("Remind me", selection: $reminderLead) {
@@ -73,12 +96,20 @@ public struct AttendanceEmailSettingsView: View {
             Text(notificationsDenied && reminderOn
                 ? "Notifications are off for Cosmic Daybook, so the reminder can't show. "
                     + "Turn them on in \(SystemSettingsApp.name) › Notifications."
-                : "The due time and these settings go to the Daybook Assistant app on your assistants' phones, "
-                    + "which sends the same email to the same addresses. The reminder is this device's own: "
-                    + "on school days, before the due time and again at it, if nobody has sent the day's email.")
+                : reminderFootnote)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    private var reminderFootnote: String {
+        sendsToParentLocker
+            ? "The due time and this choice go to the Daybook Assistant app on your assistants' phones. "
+                + "The reminder is this device's own: on school days, before the due time and again at it, "
+                + "if nobody has sent the day's attendance to ParentLocker."
+            : "The due time and these settings go to the Daybook Assistant app on your assistants' phones, "
+                + "which sends the same email to the same addresses. The reminder is this device's own: "
+                + "on school days, before the due time and again at it, if nobody has sent the day's email."
     }
 
     /// Minutes after midnight, as the time the picker shows.
@@ -110,12 +141,18 @@ public struct AttendanceEmailSettingsView: View {
         seenSignature = signature
         guard (try? await Task.sleep(for: .seconds(1.5))) != nil else { return }
         if AttendanceEmail.shareSettings(in: viewContext) { viewContext.safeSave() }
+        // A new site or method: the sign-in and the line follow it.
+        if let sync = ParentLockerSync.current(for: viewContext) {
+            sync.refreshSignIn()
+            sync.refreshStatus()
+        }
         if reminderOn { notificationsDenied = !(await FrontDeskEmailReminder.requestPermission()) }
         await FrontDeskEmailReminder.reschedule(in: viewContext)
     }
 
     private var changeSignature: String {
         "\(enabled)|\(toAddress)|\(nameOrderRaw)|\(groupByLevel)|\(deadlineMinutes)|\(reminderOn)|\(reminderLead)"
+            + "|\(sendMethodRaw)|\(parentLockerSite)"
     }
 
     public var body: some View {
@@ -133,8 +170,27 @@ public struct AttendanceEmailSettingsView: View {
         }
     }
 
-    @ViewBuilder
     private var platformBody: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            methodPicker
+            Divider()
+            if sendsToParentLocker {
+                AttendanceParentLockerSettings(site: $parentLockerSite)
+                Divider()
+                #if !os(macOS)
+                Text("Deadline")
+                    .font(.subheadline.weight(.semibold))
+                #endif
+                reminderRows
+            } else {
+                emailRows
+            }
+        }
+    }
+
+    /// The front-desk email's settings, then its due time and the reminder.
+    @ViewBuilder
+    private var emailRows: some View {
         #if os(macOS)
         VStack(alignment: .leading, spacing: 12) {
             LabeledContent("Attendance email") {
@@ -231,120 +287,3 @@ private struct AttendanceEmailPreview: View {
 #Preview {
     AttendanceEmailPreview()
 }
-
-// MARK: - macOS Mail Sender Helper
-
-#if os(macOS)
-public enum MacOSMailSender {
-    private static let logger = Logger.attendance
-
-    /// How a compose request ended. Nothing in AppKit reports that Mail sent
-    /// a message: `didShareItems` means only that the message reached Mail
-    /// (its compose window), so a caller that records a send asks the guide.
-    public enum Outcome: Sendable, Equatable {
-        /// The message reached Mail.
-        case handedToMail
-        /// The guide cancelled.
-        case cancelled
-        /// This Mac has no compose-email service.
-        case unavailable
-        /// An error, or no word within 30 seconds: the compose window may
-        /// still have opened.
-        case failed
-    }
-
-    /// Opens the message in Mail; `completion` is true when it reached Mail,
-    /// false otherwise. Callers that record a send use `compose`, which says
-    /// how it ended.
-    public static func send(
-        to recipient: String?,
-        subject: String,
-        body: String,
-        attachmentURL: URL? = nil,
-        completion: @escaping (Bool) -> Void
-    ) {
-        compose(to: recipient, subject: subject, body: body, attachmentURL: attachmentURL) { outcome in
-            completion(outcome == .handedToMail)
-        }
-    }
-
-    /// Opens the message in Mail and says how the request ended.
-    public static func compose(
-        to recipient: String?,
-        subject: String,
-        body: String,
-        attachmentURL: URL? = nil,
-        completion: @escaping (Outcome) -> Void
-    ) {
-        guard let service = NSSharingService(named: .composeEmail) else {
-            Task {
-                completion(.unavailable)
-            }
-            return
-        }
-        if let r = recipient {
-            let recipients = AttendanceEmail.parseRecipients(from: r)
-            if !recipients.isEmpty {
-                service.recipients = recipients
-            }
-        }
-        service.subject = subject
-        
-        // Timeout fallback: ensure completion is called even if delegate callbacks don't fire
-        var hasCompleted = false
-        let timeoutTask = Task {
-            do {
-                try await Task.sleep(nanoseconds: 30_000_000_000) // 30 seconds
-            } catch {
-                logger.warning("Task sleep interrupted: \(error)")
-            }
-            if !hasCompleted {
-                hasCompleted = true
-                completion(.failed) // No word: the window may still have opened
-            }
-        }
-
-        let delegate = SharingDelegate { outcome in
-            Task {
-                if !hasCompleted {
-                    hasCompleted = true
-                    timeoutTask.cancel()
-                    completion(outcome)
-                }
-            }
-        }
-        service.delegate = delegate
-        // Keep the delegate alive until completion by retaining it on the service via associated object.
-        objc_setAssociatedObject(
-            service,
-            Unmanaged.passUnretained(delegate).toOpaque(),
-            delegate,
-            .OBJC_ASSOCIATION_RETAIN_NONATOMIC
-        )
-        var items: [Any] = [body]
-        if let attachmentURL {
-            items.append(attachmentURL)
-        }
-        service.perform(withItems: items)
-    }
-
-    private final class SharingDelegate: NSObject, NSSharingServiceDelegate {
-        private let completion: (Outcome) -> Void
-        init(completion: @escaping (Outcome) -> Void) { self.completion = completion }
-
-        func sharingService(_ sharingService: NSSharingService, didShareItems items: [Any]) {
-            completion(.handedToMail)
-            clearAssociation(from: sharingService)
-        }
-        func sharingService(_ sharingService: NSSharingService, didFailToShareItems items: [Any], error: Error) {
-            let nsError = error as NSError
-            let cancelled = nsError.domain == NSCocoaErrorDomain && nsError.code == NSUserCancelledError
-            completion(cancelled ? .cancelled : .failed)
-            clearAssociation(from: sharingService)
-        }
-        private func clearAssociation(from service: NSSharingService) {
-            objc_removeAssociatedObjects(service)
-        }
-    }
-}
-#endif

@@ -51,11 +51,17 @@ extension AttendanceExpandedView {
 
     /// On iPhone, where the email is otherwise in the overflow menu: its own
     /// row once everyone's marked, the due time is near, or it has gone.
+    /// With ParentLocker picked, ParentLocker's line in its place.
     @ViewBuilder
     var compactFrontDeskRow: some View {
         #if os(iOS)
         let near = AttendanceEmailLog.urgency(for: date, deadlineMinutes: deadlineMinutes) != .none
-        if hSizeClass == .compact, emailEnabled, !isNonSchoolDay, frontDeskSend != nil || isRollComplete || near {
+        if hSizeClass == .compact, sendsToParentLocker {
+            parentLockerLine(showsProblems: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, AppTheme.Spacing.compact)
+                .padding(.bottom, AppTheme.Spacing.small)
+        } else if hSizeClass == .compact, emailIsOn, !isNonSchoolDay, frontDeskSend != nil || isRollComplete || near {
             HStack {
                 Spacer(minLength: 0)
                 frontDeskControl
@@ -79,11 +85,14 @@ extension AttendanceExpandedView {
         return send.summary(senderName: name, for: date, deadlineMinutes: deadlineMinutes)
     }
 
-    /// Records that the day's email went, in the classroom share, so the
-    /// assistants see it; then today's reminder is withdrawn.
+    /// Records that the day's attendance went (the email, or with
+    /// ParentLocker picked, Mark as Sent for a day taken on the site by
+    /// hand), in the classroom share, so the assistants see it; then today's
+    /// reminder is withdrawn.
     func recordFrontDeskSend(confirmedByHand: Bool) {
         AttendanceEmailLog.recordSend(
             on: date, role: CDClassroomMembership.currentRole(in: viewContext),
+            channel: sendsToParentLocker ? .parentLocker : .email,
             confirmedByHand: confirmedByHand, in: viewContext
         )
         saveCoordinator.save(viewContext, reason: "Record front-desk email")
@@ -153,7 +162,7 @@ extension AttendanceExpandedView {
             onReminderTap: {
                 guard FrontDeskEmailReminder.isEmailRequested, Calendar.current.isDateInToday(date) else { return }
                 FrontDeskEmailReminder.isEmailRequested = false
-                if emailEnabled, !isNonSchoolDay, frontDeskSend == nil { prepareAttendanceEmail() }
+                if emailIsOn, !isNonSchoolDay, frontDeskSend == nil { prepareAttendanceEmail() }
             }
         )
     }
