@@ -211,9 +211,13 @@ extension PresentationDetailContentView {
             selectedIDs: $vm.selectedStudentIDs,
             onDone: { vm.showingStudentPickerPopover = false },
             lessonOnRecord: currentLesson,
-            // The roster may already hold a child who has since left; she
-            // stays visible here, disabled, so she can be taken off.
-            formerStudents: .shownBlocked
+            // Only the class as it is now. A child already on this
+            // presentation who has since left stays under Selected, disabled,
+            // so she can be taken off; any other leaver is not listed.
+            formerStudents: .shownIfSelected,
+            // Selected, then Ready for this lesson, then everyone else, A–Z;
+            // no Age sort here.
+            arrangement: .selectedThenReady
         )
         .padding(12)
         .frame(minWidth: 320)

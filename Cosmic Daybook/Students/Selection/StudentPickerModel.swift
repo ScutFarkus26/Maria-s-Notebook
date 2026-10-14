@@ -16,6 +16,12 @@
 //  for a lesson is what the picker is for. Every other picker keeps today's
 //  behaviour through the `.hidden` default.
 //
+//  The present-a-lesson picker (2026-10-13) lists only the class as it is now,
+//  plus anyone already on the presentation who has since left, and orders the
+//  list for the job: the children already picked, then the ones ready for the
+//  lesson, then everyone else, each run A–Z (`Arrangement.selectedThenReady`).
+//  A level with no enrolled child is not offered as a segment in any picker.
+//
 
 import Foundation
 
@@ -110,8 +116,14 @@ nonisolated struct StudentPickerRow: Identifiable, Equatable, Sendable {
     let record: PresentationRecordIndex.Given?
     let block: StudentEnrollmentBlock?
 
+    /// Where she sits in a picker arranged Selected → Ready → Everyone Else;
+    /// `nil` in a picker ordered by its sort menu.
+    var placement: StudentPickerModel.Placement?
+
     var id: UUID { candidate.id }
     var isSelectable: Bool { block == nil }
+    /// Ready for the picker's lesson by the ready queue's rules.
+    var isReady: Bool { placement == .ready }
 }
 
 // MARK: - The Rules
@@ -124,6 +136,35 @@ nonisolated enum StudentPickerModel {
     enum FormerStudents: Equatable, Sendable {
         case hidden
         case shownBlocked
+        /// Shown, blocked, only when she was already picked as the picker
+        /// opened (`Query.pinned`), so she can be taken off; otherwise dropped.
+        case shownIfSelected
+    }
+
+    /// How a picker orders its rows.
+    enum Arrangement: Equatable, Sendable {
+        /// By the remembered Name / Age sort menu.
+        case sortMenu
+        /// Selected, then Ready, then everyone else, each A–Z by name. The
+        /// sort menu is not offered.
+        case selectedThenReady
+    }
+
+    /// The runs a `.selectedThenReady` picker shows, in order.
+    enum Placement: Int, CaseIterable, Comparable, Sendable {
+        case selected
+        case ready
+        case everyoneElse
+
+        var title: String {
+            switch self {
+            case .selected: return "Selected"
+            case .ready: return "Ready"
+            case .everyoneElse: return "Everyone Else"
+            }
+        }
+
+        static func < (lhs: Placement, rhs: Placement) -> Bool { lhs.rawValue < rhs.rawValue }
     }
 
     enum Sort: String, Equatable, Sendable {
@@ -143,6 +184,13 @@ nonisolated enum StudentPickerModel {
         var scope: LevelScope = .all
         var sort: Sort = .name
         var formerStudents: FormerStudents = .hidden
+        var arrangement: Arrangement = .sortMenu
+        /// Who was picked when the picker opened. The Selected run is read
+        /// from this, not the live selection, so a tap never moves the row
+        /// under the guide's finger.
+        var pinned: Set<UUID> = []
+        /// Who is ready for the picker's lesson.
+        var ready: Set<UUID> = []
     }
 
     /// The rows a picker shows: searched, scoped to a level, sorted, and
@@ -155,15 +203,58 @@ nonisolated enum StudentPickerModel {
         let search = query.search.normalizedForComparison()
         let kept = candidates.filter { candidate in
             matches(candidate, query: search) && inScope(candidate, scope: query.scope)
-                && keeps(candidate, formerStudents: query.formerStudents)
+                && keeps(candidate, query: query)
         }
-        return sorted(kept, by: query.sort).map { candidate in
-            StudentPickerRow(
-                candidate: candidate,
-                record: records[candidate.id],
-                block: candidate.enrollmentBlock
-            )
+        switch query.arrangement {
+        case .sortMenu:
+            return sorted(kept, by: query.sort).map { candidate in
+                StudentPickerRow(
+                    candidate: candidate,
+                    record: records[candidate.id],
+                    block: candidate.enrollmentBlock
+                )
+            }
+        case .selectedThenReady:
+            return kept
+                .map { candidate in
+                    StudentPickerRow(
+                        candidate: candidate,
+                        record: records[candidate.id],
+                        block: candidate.enrollmentBlock,
+                        placement: placement(of: candidate, query: query)
+                    )
+                }
+                .sorted { lhs, rhs in
+                    let left = lhs.placement ?? .everyoneElse
+                    let right = rhs.placement ?? .everyoneElse
+                    if left != right { return left < right }
+                    return byDisplayName(lhs.candidate, rhs.candidate)
+                }
         }
+    }
+
+    /// Rows already in order, split into their runs; empty runs are left out.
+    /// A `.sortMenu` picker's rows come back as one untitled run.
+    static func sections(
+        _ rows: [StudentPickerRow]
+    ) -> [(placement: Placement?, rows: [StudentPickerRow])] {
+        var result: [(placement: Placement?, rows: [StudentPickerRow])] = []
+        for row in rows {
+            if let last = result.indices.last, result[last].placement == row.placement {
+                result[last].rows.append(row)
+            } else {
+                result.append((row.placement, [row]))
+            }
+        }
+        return result
+    }
+
+    /// The levels a picker offers as segments: only those with an enrolled
+    /// child among its candidates, in the notebook's level order. A child who
+    /// has left never keeps a level on offer.
+    static func offeredLevels(_ candidates: [StudentPickerCandidate]) -> [CDStudent.Level] {
+        let present = Set(candidates.filter { $0.enrollmentBlock == nil }.map(\.level))
+        return CDStudent.Level.allCases.filter(present.contains)
     }
 
     /// The ids the select-all control may touch — never a blocked child.
@@ -219,13 +310,31 @@ nonisolated enum StudentPickerModel {
         }
     }
 
-    private static func keeps(
-        _ candidate: StudentPickerCandidate, formerStudents: FormerStudents
-    ) -> Bool {
-        switch formerStudents {
+    private static func keeps(_ candidate: StudentPickerCandidate, query: Query) -> Bool {
+        switch query.formerStudents {
         case .hidden: return candidate.enrollmentBlock == nil
         case .shownBlocked: return true
+        case .shownIfSelected:
+            return candidate.enrollmentBlock == nil || query.pinned.contains(candidate.id)
         }
+    }
+
+    /// Selected wins over Ready: a child already on the lesson is not waiting
+    /// for it. A child who has left is never Ready.
+    private static func placement(of candidate: StudentPickerCandidate, query: Query) -> Placement {
+        if query.pinned.contains(candidate.id) { return .selected }
+        if candidate.enrollmentBlock == nil, query.ready.contains(candidate.id) { return .ready }
+        return .everyoneElse
+    }
+
+    /// A–Z by the name the row shows ("Maya S"), then by full name, so two
+    /// children with one short name keep an order.
+    private static func byDisplayName(
+        _ lhs: StudentPickerCandidate, _ rhs: StudentPickerCandidate
+    ) -> Bool {
+        let shown = lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName)
+        if shown != .orderedSame { return shown == .orderedAscending }
+        return byName(lhs, rhs)
     }
 
     /// Age runs oldest first, matching the student columns on the checklist
