@@ -94,6 +94,29 @@ struct MCPWorkAndAttendanceToolsTests {
         #expect(work.completedAt != nil)
     }
 
+    @Test("update_work closes work as Finished from complete or finished", arguments: ["complete", "finished"])
+    func updateWorkLogsFinished(statusArgument: String) async throws {
+        let (tools, context) = try makeTools()
+        CoreDataTestHelpers.seedLesson(in: context, name: "Timeline of Life", area: "History", sequence: "Eras")
+        CoreDataTestHelpers.seedStudent(in: context, firstName: "Ava", lastName: "Bloom")
+        CoreDataTestHelpers.save(context)
+        _ = try await tool(named: "assign_work", in: tools).handler([
+            "lesson": .string("Timeline of Life"),
+            "student_names": .array([.string("Ava")])
+        ])
+        let work = try #require(workItems(in: context).first)
+
+        let receipt = try await tool(named: "update_work", in: tools).handler([
+            "work_id": .string(try #require(work.id).uuidString),
+            "status": .string(statusArgument)
+        ])
+
+        #expect(receipt.contains("logged as Finished"))
+        #expect(work.status == .done)
+        #expect(work.statusRaw == "complete")
+        #expect(work.completedAt != nil)
+    }
+
     @Test("update_work refuses an empty change")
     func updateWorkRefusesEmptyChange() async throws {
         let (tools, context) = try makeTools()

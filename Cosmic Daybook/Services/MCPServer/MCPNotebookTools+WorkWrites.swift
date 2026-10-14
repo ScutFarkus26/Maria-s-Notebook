@@ -220,8 +220,9 @@ extension MCPNotebookTools {
             name: "update_work",
             title: "Update Work",
             description: "Change a work item: log its status (the one verdict per child — "
-                + "active and review keep it open; mastered, keepPracticing and incomplete close "
-                + "it, record the completion, mark the day's check-in done and skip later ones, so "
+                + "active and review keep it open; mastered, complete (Finished: done, with no "
+                + "verdict and no mastery, for work where mastery doesn't apply), keepPracticing and "
+                + "incomplete close it, record the completion, mark the day's check-in done and skip later ones, so "
                 + "it leaves the schedule), set or clear its due date, record which student "
                 + "finished a row several children share, schedule a new check-in, complete a scheduled "
                 + "check-in (which also closes the work's linked todos, named in the reply), or move a "
@@ -245,10 +246,11 @@ extension MCPNotebookTools {
             ],
             "status": [
                 "type": "string",
-                "enum": ["active", "review", "mastered", "keepPracticing", "incomplete", "complete"],
+                "enum": ["active", "review", "mastered", "complete", "finished", "keepPracticing", "incomplete"],
                 "description": .string("The work's one status: active (Working) and review (Needs Review) "
                     + "keep it open; mastered, keepPracticing and incomplete close and log it, and "
-                    + "complete (Done) closes it with no verdict")
+                    + "complete (Finished; finished is accepted too) closes it with no verdict. Finished "
+                    + "is never mastery: use it when the work is done and mastery doesn't apply")
             ],
             "outcome": [
                 "type": "string",

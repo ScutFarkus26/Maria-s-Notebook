@@ -28,8 +28,8 @@ extension MCPNotebookTools {
             title: "Mastery Candidates",
             description: "Children with a lesson on record that nobody has marked mastered, where "
                 + "the notebook already holds evidence they have it: the guide confirmed them ready "
-                + "at capture, their practice work was closed as Mastered (or Done, on older work; "
-                + "never Keep Practicing or Incomplete), or a recall "
+                + "at capture, their practice work was closed as Mastered (or Finished, the "
+                + "weaker evidence; never Keep Practicing or Incomplete), or a recall "
                 + "check found it retained. Strongest evidence first, each line citing what the "
                 + "evidence was. It proposes only and never writes — it closes with the exact "
                 + "mark_mastered call for the list, to make once the guide says they assessed "
@@ -203,9 +203,10 @@ extension MCPNotebookTools {
             var practice: [String: Bool] = [:]
             let works = CDFetchRequest(CDWorkModel.self)
             works.predicate = NSPredicate(format: "kindRaw == %@", WorkKind.practiceLesson.rawValue)
-            // Only a verdict of Mastered, or a legacy Done with no verdict, is
-            // evidence. Keep Practicing and Incomplete are closed too, but they
-            // say she doesn't have it yet.
+            // Only a verdict of Mastered, or Finished (done, with no verdict), is
+            // evidence; Finished shows she did the work, not that she has it, so
+            // it is the weaker one. Keep Practicing and Incomplete are closed too,
+            // but they say she doesn't have it yet.
             for work in modelContext.safeFetch(works) where work.status == .mastered || work.status == .done {
                 guard let key = Self.key(work.studentID, work.lessonID) else { continue }
                 if practice[key] == true { continue }

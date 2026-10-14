@@ -43,12 +43,9 @@ final class WorkDetailViewModel {
     var checkInStyle: CheckInStyle = .flexible
     var completionNote: String = ""
 
-    /// The pills the header offers: the five a guide can choose, plus the
-    /// legacy `Done` only while the row already is Done, so it can be shown
-    /// without being offered.
-    var statusChoices: [WorkStatus] {
-        status == .done ? WorkStatus.pickable + [.done] : WorkStatus.pickable
-    }
+    /// The pills the header offers: every status a guide can choose, Finished
+    /// among them since 2026-10-13.
+    var statusChoices: [WorkStatus] { WorkStatus.pickable }
 
     var newPlanDate: Date = Date()
     var newPlanPurpose: String = "progressCheck"

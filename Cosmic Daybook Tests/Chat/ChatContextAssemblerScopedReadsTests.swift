@@ -544,6 +544,26 @@ struct ChatContextAssemblerScopedReadsTests {
         try expectSameContext(in: try CoreDataTestHelpers.makeSplitStoreContext())
     }
 
+    @Test("Work closed as Finished reads Finished in the chat's context, apart from Mastered")
+    func finishedWorkIsNamedFinished() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Levi")
+        let oraID = try #require(ora.id)
+        for (title, status) in [("Volcano poster", WorkStatus.done), ("Bead frame", .mastered)] {
+            let work = CoreDataTestHelpers.seedWorkModel(in: context, title: title, studentID: oraID)
+            work.status = status
+            work.completedAt = daysAgo(2)
+        }
+        #expect(CoreDataTestHelpers.save(context))
+
+        let text = ChatContextAssembler(context: context)
+            .buildQuestionContext(question: "What work has Ora finished?", existingMentionedIDs: []).context
+        #expect(text.contains("Completed work (last 30 days):"))
+        #expect(text.contains("• Volcano poster [Finished]"))
+        #expect(text.contains("• Bead frame [Mastered]"))
+        #expect(!text.contains("[Done]"))
+    }
+
     @Test("The area list follows unsaved lesson edits, as the whole-row read did")
     func areasFollowUnsavedEdits() throws {
         for context in [try CoreDataTestHelpers.makeContext(), try CoreDataTestHelpers.makeSplitStoreContext()] {

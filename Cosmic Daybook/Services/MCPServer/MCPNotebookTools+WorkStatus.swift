@@ -17,10 +17,10 @@ extension MCPNotebookTools {
         let outcome = try completionOutcomeArgument(arguments, "outcome")
         // `outcome` alone used to mean "close it with this verdict"; it still does.
         let closingByOutcome = outcome.map { _ in WorkStatus.done.rawValue }
-        guard let statusRaw = nonEmpty(arguments["status"]?.stringValue) ?? closingByOutcome else { return [] }
+        guard let statusRaw = workStatusRaw(arguments) ?? closingByOutcome else { return [] }
         guard WorkStatus(rawValue: statusRaw) != nil else {
             let allowed = WorkStatus.allCases.map(\.rawValue).joined(separator: ", ")
-            throw MCPToolError("status must be one of: \(allowed). Got \"\(statusRaw)\".")
+            throw MCPToolError("status must be one of: \(allowed) (or finished). Got \"\(statusRaw)\".")
         }
         let status = WorkStatusMigration.mergedStatus(statusRaw: statusRaw, outcomeRaw: outcome?.rawValue)
 
@@ -54,6 +54,13 @@ extension MCPNotebookTools {
             whom = ""
         }
         return [("logged as \(status.displayName) " + whom).trimmed()]
+    }
+
+    /// The `status` argument's raw value. `finished` is accepted for
+    /// `complete`, the raw value Finished has always stored (2026-10-13).
+    static func workStatusRaw(_ arguments: [String: JSONValue]) -> String? {
+        guard let raw = nonEmpty(arguments["status"]?.stringValue) else { return nil }
+        return raw.lowercased() == "finished" ? WorkStatus.done.rawValue : raw
     }
 
     /// The `students` argument resolved to enrolled children, or nil when the
