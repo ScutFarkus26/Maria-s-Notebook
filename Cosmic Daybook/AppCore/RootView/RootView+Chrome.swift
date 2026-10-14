@@ -39,9 +39,8 @@ extension RootView {
             .buttonStyle(.plain)
             .accessibilityLabel("Search")
 
-            if !classroomWorkspace.isShowingSampleClass {
-                CompactSyncStatusIndicator(compact: true)
-            }
+            CompactSyncStatusIndicator(compact: true)
+                .opacity(classroomWorkspace.isShowingSampleClass ? 0 : 1)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
@@ -73,9 +72,8 @@ extension RootView {
             #if os(macOS)
             .help("Search notes, lessons, students, and todos (⌘F)")
             #endif
-            if !classroomWorkspace.isShowingSampleClass {
-                CompactSyncStatusIndicator(compact: true)
-            }
+            CompactSyncStatusIndicator(compact: true)
+                .opacity(classroomWorkspace.isShowingSampleClass ? 0 : 1)
         }
         .padding(.trailing, 12)
         .padding(.top, 6)
