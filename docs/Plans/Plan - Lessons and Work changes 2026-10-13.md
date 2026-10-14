@@ -17,7 +17,7 @@ Lessons & Work gets easier to run a day from, on Mac and iPad.
 - Move All Forward and Clear All to Inbox handle every open check-in, including overdue ones, and every child's linked copy.
 
 ## Progress
-- [ ] Phase 1: Student picker (#1) (session: agent, Phases 1–5 started at 78%) ‖ 2 ‖ 3 ‖ 4 ‖ 5 · est. ~1–2% weekly
+- [x] Phase 1: Student picker (#1) (session: agent, Phases 1–5 started at 78%) ‖ 2 ‖ 3 ‖ 4 ‖ 5 · est. ~1–2% weekly · branch `worktree-agent-a7064b2f8b1ddd661` 8d9fbac7, 38 tests pass. Differed: still passes the whole roster but a rule drops anyone who has left unless already on the presentation; the Selected run is fixed when the picker opens (rows don't jump under a tap); the Level row hides entirely when fewer than two levels have enrolled children.
 - [ ] Phase 2: Three-day strip + Move forward / Clear all (#2, #7) (agent) · est. ~2–4%
 - [x] Phase 3: Finished work status (#3) (agent) · est. ~1–2% · branch `worktree-agent-ab9072863d914b1ac` 5508a48e, 103 tests in 13 suites pass. Differed: kept the gray checkmark; meeting-card outcome buttons don't offer Finished; the six-pill wrap in the work sheet wasn't rendered; `Documentation/Manuals/UserManual.md:359` still lists the old statuses (fix in Phase 7).
 - [x] Phase 4: Steady sync dot (#4) (agent) · est. <1% · branch `worktree-agent-a1c8f458819d45ef1` 4caa975b. Differed: the no-shift check renders a stand-in toolbar (`SyncDotSlotTests`); the real Mac and iPad toolbars are a by-hand check. `SyncStatusSignalsTests` doesn't exist.
