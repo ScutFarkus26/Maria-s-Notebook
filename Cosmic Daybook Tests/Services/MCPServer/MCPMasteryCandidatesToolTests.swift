@@ -190,7 +190,7 @@ struct MCPMasteryCandidatesToolTests {
 
         #expect(output.contains("Etty Krinsky:"))
         #expect(output.contains("- [lesson id=\(distributiveID)] The Distributive Law of Multiplication "
-            + "— practice complete"))
+            + "— practice finished"))
         #expect(!output.contains("practice mastered"), "the work closed as Done, not Mastered")
     }
 

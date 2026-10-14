@@ -12,7 +12,8 @@
 // through `apply`, so the two cannot drift.
 //
 // A new group copies only the lesson's own fields from the group it came
-// out of — never its notes or presentation records.
+// out of — never its notes or presentation records. A mastery mark filed on
+// the group she leaves stays standing on its own (`keepMasteryMarks`).
 //
 // Nothing here saves; the caller owns the save. `undo` takes a move back from
 // its receipt: a group the move deleted is rebuilt with its own id and
@@ -106,8 +107,13 @@ enum PresentationGroupMove {
             moved.updateDenormalizedKeys()
             moved.modifiedAt = Date()
         }
+        // Both cleanups delete the source's history rows; a mastery or
+        // proficiency mark filed on one is kept as a mark of its own first,
+        // as Remove Plan does, so neither the move nor its Undo loses it.
+        ChecklistRosterRemoval.keepMasteryMarks(on: source, studentIDs: [studentID], in: context)
         PresentationRecordCleanup.moveStudents([studentID], from: source, to: target, in: context)
         guard source.studentIDs.isEmpty else { return false }
+        ChecklistRosterRemoval.keepMasteryMarks(on: source, studentIDs: nil, in: context)
         PresentationRecordCleanup.prepareToMerge(source, into: target, in: context)
         context.delete(source)
         return true

@@ -10,7 +10,7 @@ import Testing
 @MainActor
 struct ReadyGroupMoveTests {
 
-    private struct Room {
+    struct Room {
         let context: NSManagedObjectContext
         let ada: CDStudent
         let ben: CDStudent
@@ -19,7 +19,7 @@ struct ReadyGroupMoveTests {
         let other: CDLesson
     }
 
-    private func makeRoom() throws -> Room {
+    func makeRoom() throws -> Room {
         let context = try CoreDataTestHelpers.makeContext()
         let room = Room(
             context: context,
@@ -33,7 +33,7 @@ struct ReadyGroupMoveTests {
         return room
     }
 
-    private func group(_ lesson: CDLesson, _ students: [CDStudent], in context: NSManagedObjectContext) throws
+    func group(_ lesson: CDLesson, _ students: [CDStudent], in context: NSManagedObjectContext) throws
         -> CDLessonAssignment {
         let group = PresentationFactory.makeDraft(
             lessonID: try #require(lesson.id), studentIDs: try students.map { try #require($0.id) }, context: context
@@ -54,7 +54,7 @@ struct ReadyGroupMoveTests {
     }
 
     /// A child's id, outside any `#require` so the macros don't nest.
-    private func id(_ student: CDStudent) throws -> UUID {
+    func id(_ student: CDStudent) throws -> UUID {
         try #require(student.id)
     }
 

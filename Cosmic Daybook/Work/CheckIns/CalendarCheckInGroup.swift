@@ -128,8 +128,11 @@ enum CalendarCheckInGrouper {
         var students: [UUID: CDStudent] = [:]
 
         func lessonTitle(for work: CDWorkModel) -> String {
-            let name = work.lessonID.asUUID.flatMap { lessons[$0]?.name }?.trimmed() ?? ""
-            return name.isEmpty ? "Lesson \(String(work.lessonID.prefix(6)))" : name
+            LessonFormatter.lessonName(
+                work.lessonID.asUUID.flatMap { lessons[$0]?.name },
+                orRowTitle: work.title,
+                missing: LessonFormatter.untitledWork
+            )
         }
 
         func studentName(for work: CDWorkModel) -> String {

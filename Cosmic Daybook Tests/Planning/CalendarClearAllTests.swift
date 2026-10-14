@@ -5,8 +5,9 @@ import Testing
 
 /// "Clear All to Inbox" on the Lessons & Work calendar (2026-10-13): every
 /// planned presentation goes back to the Inbox and every open work check
-/// comes off the calendar with it, linked copies included, except a check
-/// carrying a note; and Undo puts all of it back.
+/// comes off the calendar with it, linked copies included; a check carrying
+/// a note is marked skipped rather than deleted, so the note stays; and Undo
+/// puts all of it back.
 @Suite("Calendar Clear All")
 @MainActor
 struct CalendarClearAllTests {
@@ -87,7 +88,7 @@ struct CalendarClearAllTests {
         )
     }
 
-    @Test("Clear All unschedules presentations and work checks, resets due days, and keeps a noted check")
+    @Test("Clear All unschedules presentations and work checks, resets due days, and skips a noted check")
     func clearAllTakesEverythingOff() throws {
         let plan = try seedPlan()
 
@@ -95,7 +96,7 @@ struct CalendarClearAllTests {
         let cleared = CalendarClearAllService.clearAll(in: plan.context)
 
         #expect(pending == cleared)
-        #expect(cleared.presentations == 1 && cleared.checkIns == 4 && cleared.keptForNotes == 1)
+        #expect(cleared.presentations == 1 && cleared.checkIns == 5 && cleared.keptForNotes == 1)
         #expect(plan.assignment.scheduledFor == nil)
         let removed = ([plan.overdue, plan.upcoming] + plan.copyChecks).map(\.isDeleted)
         #expect(removed == [true, true, true, true])
@@ -107,10 +108,14 @@ struct CalendarClearAllTests {
                 .compactMap(\.date)
         )
         #expect(LessonsAndWorkTriage.bucket(for: triage, asOf: plan.monday) == .toSchedule)
-        // The noted check stays, and its work stays due on it.
+        // The noted check is skipped where it was, note and all, so it leaves
+        // the strip and its work goes back to To Schedule too.
         #expect(!plan.notedCheck.isDeleted)
-        #expect(plan.notedCheck.status == .scheduled)
-        #expect(plan.noted.dueAt == plan.monday)
+        #expect(plan.notedCheck.status == .skipped)
+        #expect(plan.notedCheck.date == time(14, on: plan.monday))
+        #expect(plan.notedCheck.legacyNoteText == "Bring the bead frame")
+        #expect(plan.noted.dueAt == nil)
+        #expect(CalendarForwardShiftService.movableCheckIns(in: plan.context).isEmpty)
         #expect(CoreDataTestHelpers.save(plan.context))
     }
 
@@ -125,7 +130,7 @@ struct CalendarClearAllTests {
         let restored = CalendarClearAllService.undo(cleared.receipt, in: plan.context, calendar: AppCalendar.shared)
         #expect(CoreDataTestHelpers.save(plan.context))
 
-        #expect(restored == 5)
+        #expect(restored == 6)
         #expect(plan.assignment.scheduledFor == time(9, 30, on: plan.monday))
         #expect(plan.work.dueAt == plan.lastThursday)
         #expect(plan.copies.allSatisfy { $0.dueAt == plan.tuesday })
@@ -134,11 +139,40 @@ struct CalendarClearAllTests {
             #expect(checkIn.status == .scheduled)
             #expect(checkIn.resolvedWork(in: plan.context) != nil)
         }
+        // The noted check is scheduled again on its day, with its note.
+        #expect(plan.notedCheck.status == .scheduled)
+        #expect(plan.notedCheck.legacyNoteText == "Bring the bead frame")
+        #expect(plan.noted.dueAt == plan.monday)
         let back = try #require(plan.context.object(CDWorkCheckIn.self, id: overdueID))
         #expect(back.date == time(13, on: plan.lastThursday))
         #expect(WorkLogService.scheduledCheckIns(of: plan.work, in: plan.context).count == 2)
         // A second Undo makes nothing twice.
         #expect(CalendarClearAllService.undo(cleared.receipt, in: plan.context, calendar: AppCalendar.shared) == 0)
+    }
+
+    @Test("A note logged on the work that day belongs to the work, so its check is deleted and the note stays")
+    func workNoteDoesNotKeepACheck() throws {
+        let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+        let monday = day(2026, 6, 8)
+        let work = CoreDataTestHelpers.seedWorkModel(in: context)
+        work.dueAt = monday
+        let checkIn = CDWorkCheckIn.make(for: work, on: time(10, on: monday), in: context)
+        let note = CoreDataTestHelpers.seedNote(in: context, body: "Counted to a thousand")
+        note.work = work
+        note.workCheckIn = checkIn
+        #expect(CoreDataTestHelpers.save(context))
+
+        #expect(!WorkCheckInService.hasNote(checkIn))
+        let pending = CalendarClearAllService.pending(in: context)
+        let cleared = CalendarClearAllService.clearAll(in: context)
+        #expect(CoreDataTestHelpers.save(context))
+
+        #expect(pending == cleared)
+        #expect(cleared.checkIns == 1 && cleared.keptForNotes == 0)
+        #expect(checkIn.isDeleted || checkIn.managedObjectContext == nil)
+        #expect(!note.isDeleted && note.managedObjectContext != nil)
+        #expect(note.work == work)
+        #expect(work.dueAt == nil)
     }
 
     @Test("Clear All leaves finished work's checks and given presentations alone")

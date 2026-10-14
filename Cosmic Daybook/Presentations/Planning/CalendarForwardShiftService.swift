@@ -9,7 +9,8 @@
 //
 // What moves (2026-10-13, reversing part of bug hunt 2026-10-12 #49):
 // presentations the Show filter shows, dated today or later; and every open
-// work check, whatever the Show filter shows. A check left on an earlier day
+// work check, whatever the Show filter shows, on open work whose child is
+// still in the class (`onPlan`, the strip's own set). A check left on an earlier day
 // comes to today, and one from today on moves one school day later. #49 had
 // stopped moving weeks-old checks because the move used to happen with no
 // question first and no way back; the strip now asks with `pending`'s counts
@@ -345,16 +346,14 @@ enum CalendarForwardShiftService {
         return context.safeFetch(request).filter { !$0.isGiven }
     }
 
-    /// Every check still waiting to happen, on any day, on work that is still
-    /// open — read through the relationship or the `workID` string, whichever
-    /// the check-in has.
+    /// Every check still waiting to happen, on any day, that is still the
+    /// plan's (`onPlan`) — read through the relationship or the `workID`
+    /// string, whichever the check-in has.
     static func movableCheckIns(in context: NSManagedObjectContext) -> [CDWorkCheckIn] {
         let request = CDFetchRequest(CDWorkCheckIn.self)
         request.predicate = NSPredicate(
             format: "statusRaw == %@ AND date != nil", WorkCheckInStatus.scheduled.rawValue
         )
-        return context.safeFetch(request).filter { checkIn in
-            !checkIn.isDeleted && checkIn.resolvedWork(in: context).map { !$0.isClosed } == true
-        }
+        return onPlan(context.safeFetch(request), in: context)
     }
 }

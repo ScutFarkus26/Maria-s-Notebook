@@ -54,8 +54,7 @@ struct PresentationPlannerCard: View {
     }
 
     private var lessonName: String {
-        if let name = lessonObject?.name.trimmed(), !name.isEmpty { return name }
-        return "Lesson \(snapshot.lessonID.uuidString.prefix(6))"
+        LessonFormatter.lessonName(lessonObject?.name, missing: LessonFormatter.untitledLesson)
     }
 
     private var areaColor: Color {

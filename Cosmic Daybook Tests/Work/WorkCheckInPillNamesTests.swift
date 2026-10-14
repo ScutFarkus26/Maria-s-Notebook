@@ -25,7 +25,10 @@ struct WorkCheckInPillNamesTests {
                 if !name.isEmpty { return name }
             }
         }
-        return "Lesson \(String(work.lessonID.prefix(6)))"
+        // Never the lesson's id (2026-10-14 review): the work's own title,
+        // then a plain phrase.
+        let title = work.title.trimmed()
+        return title.isEmpty ? "Untitled work" : title
     }
 
     /// `WorkCheckInPill.studentName` before the pill took the group's name.
@@ -141,8 +144,8 @@ struct WorkCheckInPillNamesTests {
         // The strings themselves, so the two sides cannot agree on a wrong one.
         let titles = Set(singles.map { WorkCheckInPill(group: $0).workTitle })
         let names = Set(singles.map { WorkCheckInPill(group: $0).studentName })
-        let blankFallback = "Lesson " + String(blankID.prefix(6))
-        #expect(titles.isSuperset(of: ["Long Division", "Checkerboard", blankFallback, "Lesson legacy", "Lesson "]))
+        #expect(titles == ["Long Division", "Checkerboard", "Untitled work"])
+        #expect(!titles.contains { $0.contains(String(blankID.prefix(6))) })
         #expect(names == ["Ada L", "Noa", "Katz", "Maya S", ""])
     }
 

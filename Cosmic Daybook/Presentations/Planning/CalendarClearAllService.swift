@@ -9,10 +9,14 @@
 // `pending`'s counts and offers Undo from the `Receipt`, as Move All Forward
 // does.
 //
-// A check-in carrying a note stays where it is: deleting it would lose the
-// note. Any other open one is deleted, which is what "not scheduled" means
-// for work (`LessonsAndWorkTriage.bucket`), and its work's due date becomes
-// its soonest check still scheduled, or none.
+// A check-in carrying a note of its own is marked skipped where it was:
+// deleting it would lose the note, and leaving it scheduled kept it on the
+// strip and split its linked copies (2026-10-14 review). Any other open one
+// is deleted, which is what "not scheduled" means for work
+// (`LessonsAndWorkTriage.bucket`). Either way the check leaves the strip, and
+// its work's due date becomes its soonest check still scheduled, or none.
+// Undo deletes nothing it made: it rebuilds the deleted checks and puts the
+// skipped ones back to scheduled.
 
 import CoreData
 import Foundation
@@ -22,9 +26,10 @@ enum CalendarClearAllService {
     /// What a clear did, or would do.
     struct Result: Equatable {
         var presentations: Int = 0
-        /// Work checks taken off the calendar.
+        /// Work checks taken off the calendar, skipped ones included.
         var checkIns: Int = 0
-        /// Work checks left on their days because each carries a note.
+        /// Of those, the checks marked skipped rather than deleted, because
+        /// each carries a note, which is kept.
         var keptForNotes: Int = 0
         /// Not part of equality: two results are the same clear when they
         /// cleared the same counts.
@@ -43,19 +48,20 @@ enum CalendarClearAllService {
         /// Each cleared presentation and the time it was planned for.
         var presentations: [(objectID: NSManagedObjectID, scheduledFor: Date)] = []
         var checkIns: [WorkCheckInService.RemovedCheckIn] = []
+        /// Checks carrying a note, marked skipped where they were.
+        var skipped: [NSManagedObjectID] = []
         var dueDays: [CalendarForwardShiftService.Move<Date?>] = []
     }
 
     /// How many presentations and check-ins a clear would take off the
-    /// calendar now, and how many it would leave for their notes, without
-    /// touching any: the confirmation's counts.
+    /// calendar now, and how many of those checks it would skip to keep
+    /// their notes, without touching any: the confirmation's counts.
     static func pending(in context: NSManagedObjectContext) -> Result {
         let checkIns = CalendarForwardShiftService.movableCheckIns(in: context)
-        let kept = checkIns.filter(WorkCheckInService.hasNote).count
         return Result(
             presentations: scheduledPresentations(in: context).count,
-            checkIns: checkIns.count - kept,
-            keptForNotes: kept
+            checkIns: checkIns.count,
+            keptForNotes: checkIns.filter(WorkCheckInService.hasNote).count
         )
     }
 
@@ -76,21 +82,22 @@ enum CalendarClearAllService {
         var works: [NSManagedObjectID: CDWorkModel] = [:]
         for checkIn in CalendarForwardShiftService.movableCheckIns(in: context) {
             let work = checkIn.resolvedWork(in: context)
-            guard let removed = service.unschedule(checkIn) else {
+            switch service.unschedule(checkIn) {
+            case .removed(let removed):
+                result.receipt.checkIns.append(removed)
+            case .skipped(let objectID):
+                result.receipt.skipped.append(objectID)
                 result.keptForNotes += 1
+            case nil:
                 continue
             }
-            // Only a work that lost a check has its due date reset; one whose
-            // only check kept its note stays as it was.
             if let work { works[work.objectID] = work }
-            result.receipt.checkIns.append(removed)
             result.checkIns += 1
         }
         context.processPendingChanges()
 
         // The due date follows what is left, as it does when the plan moves:
-        // a note's check still on the calendar, or nothing, which is To
-        // Schedule.
+        // with no check still scheduled it is none, which is To Schedule.
         for work in works.values {
             let due = CalendarForwardShiftService.earliestScheduledDate(of: work, in: context)
             guard due != work.dueAt else { continue }
@@ -129,6 +136,9 @@ enum CalendarClearAllService {
         }
         let service = WorkCheckInService(context: context)
         for removed in receipt.checkIns where service.restore(removed) != nil {
+            restored += 1
+        }
+        for objectID in receipt.skipped where service.restoreSkipped(objectID) {
             restored += 1
         }
         for move in receipt.dueDays {

@@ -15,11 +15,11 @@ extension PresentationsViewModel {
     // MARK: - Title / name helpers
 
     func lessonTitle(for la: CDLessonAssignment) -> String {
-        if let lesson = lessonsByID[uuidString: la.lessonID] {
-            let name = lesson.name.trimmed()
-            if !name.isEmpty { return name }
-        }
-        return "Lesson \(String(la.lessonID.prefix(6)))"
+        LessonFormatter.lessonName(
+            lessonsByID[uuidString: la.lessonID]?.name,
+            orRowTitle: la.lessonTitleSnapshot,
+            missing: LessonFormatter.untitledLesson
+        )
     }
 
     func studentNames(for la: CDLessonAssignment) -> String {

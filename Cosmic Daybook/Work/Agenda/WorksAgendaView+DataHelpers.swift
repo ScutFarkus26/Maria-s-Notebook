@@ -253,7 +253,7 @@ extension WorksAgendaView {
             works = works.filter { w in
                 var hay: [String] = []
                 hay.append(w.title)
-                hay.append(lessonTitle(forLessonID: w.lessonID))
+                hay.append(lessonTitle(for: w))
                 hay.append(w.displayKind.displayName)
                 if let s = studentsByID[uuidString: w.studentID] {
                     hay.append(s.firstName)
@@ -267,15 +267,15 @@ extension WorksAgendaView {
         return works
     }
 
-    func lessonTitle(forLessonID lessonID: String) -> String {
-        let name = lessonsByID[uuidString: lessonID]?.name ?? ""
-        return LessonFormatter.titleOrFallback(name, fallback: "Lesson \(String(lessonID.prefix(6)))")
+    func lessonTitle(for work: CDWorkModel) -> String {
+        let name = lessonsByID[uuidString: work.lessonID]?.name
+        return LessonFormatter.lessonName(name, orRowTitle: work.title, missing: LessonFormatter.untitledWork)
     }
 
     #if os(macOS)
     func makePrintItems(from works: [CDWorkModel]) -> [WorkPDFRenderer.PrintItem] {
         works.map { w in
-            let title = lessonTitle(forLessonID: w.lessonID)
+            let title = lessonTitle(for: w)
             let student = (UUID(uuidString: w.studentID))
                 .flatMap { studentsByID[$0] }
                 .map(\.shortName) ?? "Student"

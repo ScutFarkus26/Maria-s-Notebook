@@ -204,7 +204,7 @@ private final class LegacyOpenWorkGridSort {
 
     private var sortedWorks: [WorkGridItem] {
         let mapped: [WorkGridItem] = works.map { w in
-            let title = lessonTitle(forLessonID: w.lessonID)
+            let title = lessonTitle(for: w)
             let student = studentName(for: w)
             let meta = metadata(for: w)
             let attention = needsAttention(for: w)
@@ -229,9 +229,10 @@ private final class LegacyOpenWorkGridSort {
         }
     }
 
-    private func lessonTitle(forLessonID lessonID: String) -> String {
-        let name = lessonsByID[uuidString: lessonID]?.name ?? ""
-        return LessonFormatter.titleOrFallback(name, fallback: "Lesson \(String(lessonID.prefix(6)))")
+    private func lessonTitle(for work: CDWorkModel) -> String {
+        LessonFormatter.lessonName(
+            lessonsByID[uuidString: work.lessonID]?.name, orRowTitle: work.title, missing: LessonFormatter.untitledWork
+        )
     }
 
     private func studentName(for w: CDWorkModel) -> String {

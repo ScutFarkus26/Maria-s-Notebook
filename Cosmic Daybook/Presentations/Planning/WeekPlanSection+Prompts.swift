@@ -78,8 +78,14 @@ extension WeekPlanSection {
         await refreshCheckIns()
         let receipt = moved.receipt
         dependencies.toastService.show("Moved forward one school day", type: .success, duration: 5) {
-            CalendarForwardShiftService.undo(receipt, in: viewContext, calendar: calendar)
-            saveCoordinator.save(viewContext, reason: "Undo moving the plan forward one day")
+            // A failed save takes the Undo back rather than leave the strip
+            // showing a plan that wasn't saved, and says so.
+            let undone = saveCoordinator.saveEdit(in: viewContext, reason: "Undo moving the plan forward one day") {
+                _ = CalendarForwardShiftService.undo(receipt, in: viewContext, calendar: calendar)
+            }
+            if !undone {
+                dependencies.toastService.showError("Couldn't undo moving the plan forward. Try again.")
+            }
             Task { await refreshCheckIns() }
         }
     }
@@ -90,10 +96,7 @@ extension WeekPlanSection {
     func askToClearAll() {
         let pending = CalendarClearAllService.pending(in: viewContext)
         guard !pending.isEmpty else {
-            let message = pending.keptForNotes > 0
-                ? "Nothing to clear. The work checks left each have a note, so they stay on their days."
-                : "Nothing is scheduled to clear."
-            dependencies.toastService.show(message, type: .info, duration: 3)
+            dependencies.toastService.show("Nothing is scheduled to clear.", type: .info, duration: 3)
             return
         }
         pendingClear = pending
@@ -115,9 +118,10 @@ extension WeekPlanSection {
     static func clearAllMessage(for pending: CalendarClearAllService.Result) -> String {
         var message = "Planned presentations go back to the Inbox, and work goes back to To Schedule."
         if pending.keptForNotes == 1 {
-            message += " 1 work check has a note, so it stays on its day."
+            message += " 1 work check has a note, so it's marked skipped and its note is kept."
         } else if pending.keptForNotes > 1 {
-            message += " \(pending.keptForNotes) work checks have notes, so they stay on their days."
+            message += " \(pending.keptForNotes) work checks have notes, so they're marked skipped"
+                + " and their notes are kept."
         }
         return message + " You can undo this."
     }
@@ -132,8 +136,12 @@ extension WeekPlanSection {
         guard let cleared = result, !cleared.isEmpty else { return }
         let receipt = cleared.receipt
         dependencies.toastService.show("Cleared to the Inbox", type: .success, duration: 5) {
-            CalendarClearAllService.undo(receipt, in: viewContext, calendar: calendar)
-            saveCoordinator.save(viewContext, reason: "Undo clearing the plan to inbox")
+            let undone = saveCoordinator.saveEdit(in: viewContext, reason: "Undo clearing the plan to inbox") {
+                _ = CalendarClearAllService.undo(receipt, in: viewContext, calendar: calendar)
+            }
+            if !undone {
+                dependencies.toastService.showError("Couldn't put the plan back. Try again.")
+            }
             Task { await refreshCheckIns() }
         }
     }

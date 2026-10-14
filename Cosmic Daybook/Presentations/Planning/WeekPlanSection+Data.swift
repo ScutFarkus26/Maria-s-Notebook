@@ -28,7 +28,7 @@ extension WeekPlanSection {
         earliestDay = WeekPlanDayWindow.earliestDay(
             today: Date(),
             firstPresentation: lessonAssignments.first { $0.scheduledFor != nil && !$0.isGiven }?.scheduledFor,
-            firstCheckIn: firstScheduledCheckInDate(),
+            firstCheckIn: CalendarForwardShiftService.firstScheduledCheckInDate(in: viewContext),
             calendar: calendar
         )
         let first = max(
@@ -82,18 +82,6 @@ extension WeekPlanSection {
         front: windowEdgeMargin,
         back: visibleDayCount + windowEdgeMargin
     )
-
-    /// The day of the soonest work check still scheduled, on any day: one
-    /// row, not the table.
-    private func firstScheduledCheckInDate() -> Date? {
-        let request = CDFetchRequest(CDWorkCheckIn.self)
-        request.predicate = NSPredicate(
-            format: "statusRaw == %@ AND date != nil", WorkCheckInStatus.scheduled.rawValue
-        )
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkCheckIn.date, ascending: true)]
-        request.fetchLimit = 1
-        return viewContext.safeFetch(request).first?.date
-    }
 
     /// The strip is at rest on `leadingDay`: load more days at an end it is
     /// near. Days added in front would carry the day on screen along with
@@ -249,7 +237,9 @@ extension WeekPlanSection {
         let (_, end) = AppCalendar.dayRange(for: lastDay)
         let request = CDFetchRequest(CDWorkCheckIn.self)
         request.predicate = CalendarCheckInGrouper.scheduledPredicate(start: start, end: end)
-        let fetched = viewContext.safeFetch(request)
+        // Only the plan's checks: open work, child still in the class — the
+        // same set Move All Forward and Clear All act on and count.
+        let fetched = CalendarForwardShiftService.onPlan(viewContext.safeFetch(request), in: viewContext)
         cachedCheckIns = fetched
         checkInLookup = CalendarCheckInGrouper.Lookup.build(for: fetched, in: viewContext)
     }

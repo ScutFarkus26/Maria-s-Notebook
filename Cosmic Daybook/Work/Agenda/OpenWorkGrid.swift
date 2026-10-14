@@ -268,7 +268,7 @@ struct OpenWorkGrid: View {
     private var sortedWorks: [WorkGridItem] {
         let today = AppCalendar.startOfDay(Date())
         let mapped: [WorkGridItem] = works.map { w in
-            let title = lessonTitle(forLessonID: w.lessonID)
+            let title = lessonTitle(for: w)
             let student = studentName(for: w)
             let attention = needsAttention(for: w)
             return WorkGridItem(
@@ -294,9 +294,9 @@ struct OpenWorkGrid: View {
     }
 
     // MARK: - Helpers
-    private func lessonTitle(forLessonID lessonID: String) -> String {
-        let name = lessonsByID[uuidString: lessonID]?.name ?? ""
-        return LessonFormatter.titleOrFallback(name, fallback: "Lesson \(String(lessonID.prefix(6)))")
+    private func lessonTitle(for work: CDWorkModel) -> String {
+        let name = lessonsByID[uuidString: work.lessonID]?.name
+        return LessonFormatter.lessonName(name, orRowTitle: work.title, missing: LessonFormatter.untitledWork)
     }
 
     private func studentName(for w: CDWorkModel) -> String {

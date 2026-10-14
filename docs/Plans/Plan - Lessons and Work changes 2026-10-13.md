@@ -24,6 +24,7 @@ Lessons & Work gets easier to run a day from, on Mac and iPad.
 - [x] Phase 5: Move a child between groups (#5) (agent) · est. ~1–2% · branch `worktree-agent-a036c4342cee3b4dc` 9bfa40fa, 38 tests in 4 suites pass; iPad simulator long-press opened the menu without starting a drag. Differed: Undo included (rebuilds an emptied group with its notes); a new group copies Unlock Lesson; menu on ready lessons only; dragging a chip uses the same move code; Mac right-click not seen.
 - [ ] Phase 6: Work to show first, A + D + E (#6) (agent, after 1–5 are combined) · est. ~2–3%
 - [ ] Phase 7: Combine, full builds, whole suite, review, fixes (main session) · est. ~3–5%
+  - [x] Review fixes, Phases 1–5 (agent, 2026-10-14): 8 findings fixed with failing-first tests; 103 tests in 13 suites pass; iOS and macOS builds clean. Group moves keep mastery marks; Clear All marks a check with its own note Skipped (Undo restores it); Move All Forward, Clear All, their counts and the strip all leave out closed work and departed children's checks (the strip now hides those pills too); no raw lesson-id names on screen; Undo saves roll back with a plain message on failure. Not checked by hand: the Undo failure toast.
 
 ## Cost
 

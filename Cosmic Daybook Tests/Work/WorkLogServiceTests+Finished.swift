@@ -45,11 +45,15 @@ struct WorkLogServiceFinishedTests {
         #expect(receipt.closed == 1)
         let records = try WorkCompletionService.records(for: workID, in: context)
         #expect(records.map(\.studentID) == [studentID.uuidString])
-        // Not mastery: the lesson's mark is untouched, and the ladder reads Reviewing.
+        // Not mastery: the lesson's mark is untouched, her record reads no
+        // mastery for the lesson, and the ladder reads Reviewing.
         #expect(mark.masteredAt == nil)
         #expect(mark.stateRaw == LessonPresentationState.presented.rawValue)
+        let marks = PresentationRecordIndex.masteryMarks(lessonIDs: [lessonID.uuidString], in: context)
+        let isMastered = marks[lessonID.uuidString]?.contains(studentID.uuidString) ?? false
+        #expect(!isMastered)
         #expect(LessonNodeStatus.resolve(
-            isPresented: true, scheduledFor: nil, isMastered: false, workStatuses: [work.status]
+            isPresented: true, scheduledFor: nil, isMastered: isMastered, workStatuses: [work.status]
         ) == .reviewing)
     }
 

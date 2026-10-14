@@ -244,7 +244,7 @@ extension MCPNotebookTools {
             if let proficient = key.flatMap({ practice[$0] }) {
                 items.append(proficient
                     ? MasteryEvidenceItem(phrase: "practice mastered", weight: 3)
-                    : MasteryEvidenceItem(phrase: "practice complete", weight: 2))
+                    : MasteryEvidenceItem(phrase: "practice finished", weight: 2))
             }
             if let check = key.flatMap({ recall[$0] }) {
                 items.append(MasteryEvidenceItem(

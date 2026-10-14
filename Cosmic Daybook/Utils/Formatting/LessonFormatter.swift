@@ -35,4 +35,24 @@ enum LessonFormatter {
     nonisolated static func titleOrFallback(_ name: String, fallback: String = "Untitled Lesson") -> String {
         StringFallbacks.trimmedValueOrFallback(name, fallback: fallback)
     }
+
+    /// What a work row says when its lesson has no name on file.
+    nonisolated static let untitledWork = "Untitled work"
+    /// What a presentation says when its lesson has no name on file.
+    nonisolated static let untitledLesson = "Untitled lesson"
+
+    /// The name a work or presentation row shows for its lesson: the
+    /// lesson's own name; else the title the row keeps for itself (a work's
+    /// title, a presentation's lesson snapshot); else `missing`, a plain
+    /// phrase. Never the lesson's id: a few id characters mean nothing to
+    /// the guide (plain English on screen, 2026-10-14 review).
+    nonisolated static func lessonName(
+        _ name: String?, orRowTitle rowTitle: String? = nil, missing: String
+    ) -> String {
+        for candidate in [name, rowTitle] {
+            let trimmed = candidate?.trimmed() ?? ""
+            if !trimmed.isEmpty { return trimmed }
+        }
+        return missing
+    }
 }
