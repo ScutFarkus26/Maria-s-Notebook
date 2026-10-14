@@ -21,7 +21,7 @@ Lessons & Work gets easier to run a day from, on Mac and iPad.
 - [ ] Phase 2: Three-day strip + Move forward / Clear all (#2, #7) (agent) · est. ~2–4%
 - [x] Phase 3: Finished work status (#3) (agent) · est. ~1–2% · branch `worktree-agent-ab9072863d914b1ac` 5508a48e, 103 tests in 13 suites pass. Differed: kept the gray checkmark; meeting-card outcome buttons don't offer Finished; the six-pill wrap in the work sheet wasn't rendered; `Documentation/Manuals/UserManual.md:359` still lists the old statuses (fix in Phase 7).
 - [x] Phase 4: Steady sync dot (#4) (agent) · est. <1% · branch `worktree-agent-a1c8f458819d45ef1` 4caa975b. Differed: the no-shift check renders a stand-in toolbar (`SyncDotSlotTests`); the real Mac and iPad toolbars are a by-hand check. `SyncStatusSignalsTests` doesn't exist.
-- [ ] Phase 5: Move a child between groups (#5) (agent) · est. ~1–2%
+- [x] Phase 5: Move a child between groups (#5) (agent) · est. ~1–2% · branch `worktree-agent-a036c4342cee3b4dc` 9bfa40fa, 38 tests in 4 suites pass; iPad simulator long-press opened the menu without starting a drag. Differed: Undo included (rebuilds an emptied group with its notes); a new group copies Unlock Lesson; menu on ready lessons only; dragging a chip uses the same move code; Mac right-click not seen.
 - [ ] Phase 6: Work to show first, A + D + E (#6) (agent, after 1–5 are combined) · est. ~2–3%
 - [ ] Phase 7: Combine, full builds, whole suite, review, fixes (main session) · est. ~3–5%
 
