@@ -11,11 +11,6 @@ extension WeekPlanSection {
 
     // MARK: - Day window
 
-    func restoredStartDate() -> Date {
-        guard startDateRaw != 0 else { return AppCalendar.startOfDay(Date()) }
-        return AppCalendar.startOfDay(Date(timeIntervalSinceReferenceDate: startDateRaw))
-    }
-
     /// School days loaded either side of the anchor when the window is built,
     /// and how many more join an end the guide scrolls near.
     static let windowDaysBefore = 15
@@ -26,14 +21,24 @@ extension WeekPlanSection {
     static let windowEdgeMargin = 5
 
     /// Builds the window around `startDate` and puts its first school day at
-    /// the leading edge.
+    /// the leading edge. Nothing before `earliestDay` is built, so the strip
+    /// can't be scrolled back past the first day still holding something.
     func reloadDays() async {
         let isSchoolDay = { SchoolDayChecker.isSchoolDay($0, using: viewContext) }
-        let first = Self.shiftedStart(
-            from: startDate,
-            bySchoolDays: -Self.windowDaysBefore,
-            calendar: calendar,
-            isSchoolDay: isSchoolDay
+        earliestDay = WeekPlanDayWindow.earliestDay(
+            today: Date(),
+            firstPresentation: lessonAssignments.first { $0.scheduledFor != nil && !$0.isGiven }?.scheduledFor,
+            firstCheckIn: firstScheduledCheckInDate(),
+            calendar: calendar
+        )
+        let first = max(
+            Self.shiftedStart(
+                from: startDate,
+                bySchoolDays: -Self.windowDaysBefore,
+                calendar: calendar,
+                isSchoolDay: isSchoolDay
+            ),
+            earliestDay
         )
         stripSettle.releasePin()
         days = SchoolDayChecker.nextSchoolDays(
@@ -78,18 +83,31 @@ extension WeekPlanSection {
         back: visibleDayCount + windowEdgeMargin
     )
 
-    /// The strip is at rest on `leadingDay`: remember it for next launch, and
-    /// load more days at an end it is near. Days added in front would carry
-    /// the day on screen along with them, so it is put back explicitly, without
-    /// animation, rather than trusting the scroll view to hold it.
+    /// The day of the soonest work check still scheduled, on any day: one
+    /// row, not the table.
+    private func firstScheduledCheckInDate() -> Date? {
+        let request = CDFetchRequest(CDWorkCheckIn.self)
+        request.predicate = NSPredicate(
+            format: "statusRaw == %@ AND date != nil", WorkCheckInStatus.scheduled.rawValue
+        )
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkCheckIn.date, ascending: true)]
+        request.fetchLimit = 1
+        return viewContext.safeFetch(request).first?.date
+    }
+
+    /// The strip is at rest on `leadingDay`: load more days at an end it is
+    /// near. Days added in front would carry the day on screen along with
+    /// them, so it is put back explicitly, without animation, rather than
+    /// trusting the scroll view to hold it. Where it rests isn't kept: the
+    /// strip opens on today every time.
     func settleStrip(proxy: ScrollViewProxy) {
         guard let day = leadingDay, days.contains(day) else { return }
-        startDateRaw = day.timeIntervalSinceReferenceDate
         let isSchoolDay = { SchoolDayChecker.isSchoolDay($0, using: viewContext) }
         guard let growth = WeekPlanDayWindow.grown(
             days: days,
             leadingDay: day,
             margins: Self.windowMargins,
+            notBefore: earliestDay,
             earlierDays: { first in
                 let earlierStart = Self.shiftedStart(
                     from: first, bySchoolDays: -Self.windowGrowth, calendar: calendar, isSchoolDay: isSchoolDay
@@ -363,10 +381,4 @@ extension WeekPlanSection {
         viewContext.object(CDWorkModel.self, id: id)
     }
 
-    func clearAllScheduledLessonsToInbox() async {
-        let scheduled = lessonAssignments.filter { $0.scheduledFor != nil && !$0.isGiven }
-        guard !scheduled.isEmpty else { return }
-        for lesson in scheduled { lesson.unschedule() }
-        saveCoordinator.save(viewContext, reason: "Clear all scheduled presentations to inbox")
-    }
 }

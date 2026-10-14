@@ -1,7 +1,8 @@
 // WeekPlanSection+Prompts.swift
 // The strip's questions and the refreshes that go with them: a later pill's
-// "Open whose work?", Move All Forward's "Move N … forward?" with its Undo,
-// and the card data's reload when a child or lesson changes.
+// "Open whose work?", Move All Forward's "Move N … forward?" and Clear All's
+// "Clear N … to the Inbox?" with their Undo, and the card data's reload when a
+// child or lesson changes.
 //
 // Split from WeekPlanSection+Data.swift for SwiftLint's file-length limit; the
 // state these read is declared in WeekPlanSection.swift.
@@ -18,16 +19,15 @@ extension WeekPlanSection {
         return "This check is for \(name), so it's logged then. To log it now, move it to today from its menu."
     }
 
-    /// Move All Forward asks first, naming what it would move: what the Show
-    /// filter shows, from today on (bug hunt 2026-10-12, #49).
+    /// Move All Forward asks first, naming what it would move: the
+    /// presentations the Show filter shows, from today on, and every open
+    /// work check, overdue ones included (bug hunt 2026-10-12 #49; 2026-10-13).
     func askToMoveAllForward() {
         let pending = CalendarForwardShiftService.pending(
             in: viewContext, calendar: calendar, kinds: visibleKinds, from: Date()
         )
         guard !pending.isEmpty else {
-            dependencies.toastService.show(
-                "Nothing is scheduled from today on to move.", type: .info, duration: 3
-            )
+            dependencies.toastService.show("Nothing is scheduled to move.", type: .info, duration: 3)
             return
         }
         pendingShift = pending
@@ -45,11 +45,12 @@ extension WeekPlanSection {
         return "Move \(parts.joined(separator: " and ")) forward?"
     }
 
-    static let moveForwardMessage = "Each moves to the next school day. Earlier days, finished work "
-        + "and anything the Show filter hides stay where they are."
+    static let moveForwardMessage = "Each moves to the next school day, and work checks left on "
+        + "earlier days come to today. Presentations on earlier days or hidden by the Show filter "
+        + "stay where they are. You can undo this."
 
-    /// Slides what the strip shows, from today on, one school day later —
-    /// presentations and the work checks alongside them — and offers Undo.
+    /// Slides the plan one school day later — presentations and the work
+    /// checks alongside them, overdue checks to today — and offers Undo.
     /// See `CalendarForwardShiftService` for the rule.
     func moveAllScheduledForward() async {
         let result = CalendarForwardShiftService.moveForwardOneDayAndSave(
@@ -82,13 +83,71 @@ extension WeekPlanSection {
             Task { await refreshCheckIns() }
         }
     }
+
+    // MARK: - Clear All to Inbox
+
+    /// Clear All asks first, naming what it would clear.
+    func askToClearAll() {
+        let pending = CalendarClearAllService.pending(in: viewContext)
+        guard !pending.isEmpty else {
+            let message = pending.keptForNotes > 0
+                ? "Nothing to clear. The work checks left each have a note, so they stay on their days."
+                : "Nothing is scheduled to clear."
+            dependencies.toastService.show(message, type: .info, duration: 3)
+            return
+        }
+        pendingClear = pending
+    }
+
+    /// "Clear 3 presentations and 5 work checks to the Inbox?"
+    static func clearAllTitle(for pending: CalendarClearAllService.Result) -> String {
+        var parts: [String] = []
+        if pending.presentations > 0 {
+            parts.append(pending.presentations == 1 ? "1 presentation" : "\(pending.presentations) presentations")
+        }
+        if pending.checkIns > 0 {
+            parts.append(pending.checkIns == 1 ? "1 work check" : "\(pending.checkIns) work checks")
+        }
+        return "Clear \(parts.joined(separator: " and ")) to the Inbox?"
+    }
+
+    /// What Clear All's question says under the title.
+    static func clearAllMessage(for pending: CalendarClearAllService.Result) -> String {
+        var message = "Planned presentations go back to the Inbox, and work goes back to To Schedule."
+        if pending.keptForNotes == 1 {
+            message += " 1 work check has a note, so it stays on its day."
+        } else if pending.keptForNotes > 1 {
+            message += " \(pending.keptForNotes) work checks have notes, so they stay on their days."
+        }
+        return message + " You can undo this."
+    }
+
+    /// Takes every planned presentation and open work check off the strip,
+    /// and offers Undo. See `CalendarClearAllService` for the rule.
+    func clearAllToInbox() async {
+        let result = CalendarClearAllService.clearAllAndSave(in: viewContext) {
+            saveCoordinator.save(viewContext, reason: "Clear all scheduled presentations and work to inbox")
+        }
+        await refreshCheckIns()
+        guard let cleared = result, !cleared.isEmpty else { return }
+        let receipt = cleared.receipt
+        dependencies.toastService.show("Cleared to the Inbox", type: .success, duration: 5) {
+            CalendarClearAllService.undo(receipt, in: viewContext, calendar: calendar)
+            saveCoordinator.save(viewContext, reason: "Undo clearing the plan to inbox")
+            Task { await refreshCheckIns() }
+        }
+    }
 }
 
 extension View {
     /// The strip's card-data refresh, a later pill's "Open whose work?" and
     /// Move All Forward's question, attached in `WeekPlanSection.body`.
     func weekPlanPrompts(_ section: WeekPlanSection) -> some View {
-        section.attachMoveForwardDialog(to: section.attachLaterPillDialog(to: section.attachCardRefresh(to: self)))
+        section.attachClearAllDialog(
+            to: section.attachMoveForwardDialog(
+                to: section.attachLaterPillDialog(to: section.attachCardRefresh(to: self))
+            )
+        )
     }
 }
 
@@ -157,6 +216,29 @@ extension WeekPlanSection {
             Button("Cancel", role: .cancel) { pendingShift = nil }
         } message: { (_: CalendarForwardShiftService.Result) in
             Text(Self.moveForwardMessage)
+        }
+    }
+}
+
+extension WeekPlanSection {
+    private var pendingClearShown: Binding<Bool> {
+        Binding(get: { pendingClear != nil }, set: { if !$0 { pendingClear = nil } })
+    }
+
+    func attachClearAllDialog<Content: View>(to content: Content) -> some View {
+        content.confirmationDialog(
+            pendingClear.map(Self.clearAllTitle(for:)) ?? "",
+            isPresented: pendingClearShown,
+            titleVisibility: .visible,
+            presenting: pendingClear
+        ) { (_: CalendarClearAllService.Result) in
+            Button("Clear All to Inbox", role: .destructive) {
+                pendingClear = nil
+                Task { await clearAllToInbox() }
+            }
+            Button("Cancel", role: .cancel) { pendingClear = nil }
+        } message: { (pending: CalendarClearAllService.Result) in
+            Text(Self.clearAllMessage(for: pending))
         }
     }
 }

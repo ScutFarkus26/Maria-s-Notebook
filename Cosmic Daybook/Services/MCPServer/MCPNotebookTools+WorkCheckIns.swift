@@ -39,10 +39,7 @@ extension MCPNotebookTools {
     static func checkIns(
         of work: CDWorkModel, on day: Date, in modelContext: NSManagedObjectContext
     ) -> [CDWorkCheckIn] {
-        checkIns(of: work, in: modelContext).filter { checkIn in
-            guard let date = checkIn.date else { return false }
-            return AppCalendar.isSameDay(date, day)
-        }
+        WorkCheckInService(context: modelContext).checkIns(of: work, on: day)
     }
 
     /// The check-in still scheduled on `day`. One that is already completed
@@ -87,7 +84,7 @@ extension MCPNotebookTools {
     private static func blockingCheckIn(
         of work: CDWorkModel, on day: Date, in modelContext: NSManagedObjectContext
     ) -> CDWorkCheckIn? {
-        checkIns(of: work, on: day, in: modelContext).first { $0.status != .skipped }
+        WorkCheckInService(context: modelContext).blockingCheckIn(of: work, on: day)
     }
 
     /// What `add_check_in_on` did: the receipt lines, and how many check-ins
@@ -241,9 +238,7 @@ extension MCPNotebookTools {
     /// child who isn't in the room. A copy whose child can't be found is
     /// treated as before, since nothing says she left.
     private static func ownerHasLeft(_ sibling: CDWorkModel, in modelContext: NSManagedObjectContext) -> Bool {
-        guard let owner = WorkGrouping.owner(of: sibling),
-              let student = StudentRepository(context: modelContext).fetchStudent(id: owner) else { return false }
-        return !student.isEnrolled
+        WorkCheckInService(context: modelContext).ownerHasLeft(sibling)
     }
 
     /// "Eli Test's linked copy [work id=…]", for a receipt line.
@@ -297,7 +292,7 @@ extension MCPNotebookTools {
             )
         }
 
-        move(checkIn, toDay: landing)
+        WorkCheckInService.move(checkIn, toDay: landing)
         var changes = ["moved the check-in from \(from) to \(to)\(detour)"]
 
         let siblings = WorkGrouping.group(containing: work, in: modelContext).siblings
@@ -344,39 +339,27 @@ extension MCPNotebookTools {
     /// One linked copy's line of the receipt: moved; kept because its child
     /// has left or it already has a check-in on the new day; kept because its
     /// check-in was already completed or skipped; or had nothing on that day.
+    /// The move itself is `WorkCheckInService`'s, which Move All Forward
+    /// shares.
     private static func moveSiblingCheckIn(
         of sibling: CDWorkModel, from fromDay: Date, to landing: Date,
         in modelContext: NSManagedObjectContext
     ) -> String {
         let label = linkedCopyLabel(sibling, in: modelContext)
-        let onDay = checkIns(of: sibling, on: fromDay, in: modelContext)
-        if let scheduled = onDay.first(where: { $0.status == .scheduled }) {
-            if ownerHasLeft(sibling, in: modelContext) {
-                return "\(label) belongs to a child who has left the classroom, so its check-in stayed on "
-                    + dayString(fromDay)
-            }
-            if let existing = blockingCheckIn(of: sibling, on: landing, in: modelContext) {
-                return "\(label) already has a \(existing.status.rawValue.lowercased()) check-in on "
-                    + "\(dayString(landing)), so its check-in stayed on \(dayString(fromDay))"
-            }
-            move(scheduled, toDay: landing)
+        switch WorkCheckInService(context: modelContext).moveSiblingCheckIn(of: sibling, from: fromDay, to: landing) {
+        case .moved:
             return "also moved \(label)"
-        }
-        if let settled = onDay.first {
+        case .childHasLeft:
+            return "\(label) belongs to a child who has left the classroom, so its check-in stayed on "
+                + dayString(fromDay)
+        case .blocked(_, let existing):
+            return "\(label) already has a \(existing.status.rawValue.lowercased()) check-in on "
+                + "\(dayString(landing)), so its check-in stayed on \(dayString(fromDay))"
+        case .settled(let status):
             return "\(label) stayed on \(dayString(fromDay)) — its check-in is already "
-                + settled.status.rawValue.lowercased()
+                + status.rawValue.lowercased()
+        case .noneOnDay:
+            return "\(label) has no check-in on \(dayString(fromDay))"
         }
-        return "\(label) has no check-in on \(dayString(fromDay))"
-    }
-
-    /// Only the day changes. The time of day is kept, as the Today view's
-    /// "bump to tomorrow" keeps it, so the row's place in the day's ordering
-    /// stays where it was; purpose, status and notes are not touched.
-    private static func move(_ checkIn: CDWorkCheckIn, toDay day: Date) {
-        let calendar = AppCalendar.shared
-        let time = calendar.dateComponents([.hour, .minute, .second], from: checkIn.date ?? day)
-        checkIn.date = calendar.date(
-            bySettingHour: time.hour ?? 0, minute: time.minute ?? 0, second: time.second ?? 0, of: day
-        ) ?? day
     }
 }

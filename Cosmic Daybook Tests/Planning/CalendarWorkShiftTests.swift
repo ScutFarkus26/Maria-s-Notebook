@@ -16,12 +16,12 @@ struct CalendarWorkShiftTests {
 
     // MARK: - Fixtures
 
-    private func day(_ year: Int, _ month: Int, _ dayOfMonth: Int) -> Date {
+    func day(_ year: Int, _ month: Int, _ dayOfMonth: Int) -> Date {
         let components = DateComponents(year: year, month: month, day: dayOfMonth)
         return AppCalendar.startOfDay(AppCalendar.shared.date(from: components)!)
     }
 
-    private func time(_ hour: Int, _ minute: Int = 0, _ second: Int = 0, on base: Date) -> Date {
+    func time(_ hour: Int, _ minute: Int = 0, _ second: Int = 0, on base: Date) -> Date {
         AppCalendar.shared.date(bySettingHour: hour, minute: minute, second: second, of: base)!
     }
 
@@ -54,7 +54,7 @@ struct CalendarWorkShiftTests {
 
     /// A weekend-skipping next-school-day, injected so the shift under test does
     /// not depend on the school-day cache.
-    private func nextWeekday(after date: Date) -> Date {
+    func nextWeekday(after date: Date) -> Date {
         var cursor = AppCalendar.shared.date(byAdding: .day, value: 1, to: date)!
         while AppCalendar.shared.isDateInWeekend(cursor) {
             cursor = AppCalendar.shared.date(byAdding: .day, value: 1, to: cursor)!
@@ -177,5 +177,98 @@ struct CalendarWorkShiftTests {
         #expect(moved.isEmpty)
         #expect(done.date == monday)
         #expect(given.presentedAt == time(9, 0, on: monday))
+    }
+
+    // MARK: - Every open check-in (2026-10-13)
+
+    /// Linked copies the way assign_work makes them: one row per child, each
+    /// naming every child, made together.
+    func seedLinkedCopies(in context: NSManagedObjectContext, count: Int) -> [CDWorkModel] {
+        let lessonID = UUID()
+        let works = (0..<count).map { _ in
+            let work = CoreDataTestHelpers.seedWorkModel(
+                in: context, title: "Checkerboard practice", studentID: UUID(), lessonID: lessonID
+            )
+            work.kind = .followUpAssignment
+            return work
+        }
+        for work in works {
+            for named in works {
+                let participant = CDWorkParticipantEntity(context: context)
+                participant.id = UUID()
+                participant.studentID = named.studentID
+                participant.work = work
+            }
+        }
+        return works
+    }
+
+    @Test("An overdue open check-in moves to today, keeping its time")
+    func overdueCheckInMovesToToday() throws {
+        let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+        let lastThursday = day(2026, 6, 4)
+        let monday = day(2026, 6, 8)
+        let work = CoreDataTestHelpers.seedWorkModel(in: context)
+        work.dueAt = lastThursday
+        let overdue = CDWorkCheckIn.make(for: work, on: time(13, 15, on: lastThursday), in: context)
+
+        let moved = CalendarForwardShiftService.moveForwardOneDay(
+            in: context, calendar: AppCalendar.shared, from: time(8, on: monday), nextSchoolDay: nextWeekday(after:)
+        )
+
+        #expect(moved.checkIns == 1)
+        #expect(overdue.date == time(13, 15, on: monday))
+        #expect(work.dueAt == time(13, 15, on: monday))
+    }
+
+    @Test("Every child's linked copy moves with the group, overdue ones included")
+    func linkedCopiesMoveTogether() throws {
+        let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+        let lastThursday = day(2026, 6, 4)
+        let monday = day(2026, 6, 8)
+        let copies = seedLinkedCopies(in: context, count: 3)
+        let checks = copies.map { CDWorkCheckIn.make(for: $0, on: time(10, on: lastThursday), in: context) }
+        #expect(WorkGrouping.group(containing: copies[0], in: context).siblings.count == 2)
+
+        CalendarForwardShiftService.moveForwardOneDay(
+            in: context, calendar: AppCalendar.shared, from: monday, nextSchoolDay: nextWeekday(after:)
+        )
+
+        #expect(checks.allSatisfy { $0.date == time(10, on: monday) })
+    }
+
+    @Test("A linked copy's check-in known only by its relationship still comes along")
+    func relationshipOnlySiblingMoves() throws {
+        let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+        let monday = day(2026, 6, 8)
+        let tuesday = day(2026, 6, 9)
+        let copies = seedLinkedCopies(in: context, count: 2)
+        let first = CDWorkCheckIn.make(for: copies[0], on: time(10, on: monday), in: context)
+        let second = CDWorkCheckIn.make(for: copies[1], on: time(10, on: monday), in: context)
+        second.workID = ""
+
+        CalendarForwardShiftService.moveForwardOneDay(
+            in: context, calendar: AppCalendar.shared, from: monday, nextSchoolDay: nextWeekday(after:)
+        )
+
+        #expect(first.date == time(10, on: tuesday))
+        #expect(second.date == time(10, on: tuesday))
+    }
+
+    @Test("Work checks move whatever the Show menu shows; presentations follow it")
+    func checkInsIgnoreTheShowFilter() throws {
+        let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+        let monday = day(2026, 6, 8)
+        let tuesday = day(2026, 6, 9)
+        let work = CoreDataTestHelpers.seedWorkModel(in: context)
+        let checkIn = CDWorkCheckIn.make(for: work, on: time(13, on: monday), in: context)
+
+        let moved = CalendarForwardShiftService.moveForwardOneDay(
+            in: context, calendar: AppCalendar.shared, kinds: .presentations,
+            from: monday, nextSchoolDay: nextWeekday(after:)
+        )
+
+        #expect(moved.checkIns == 1)
+        #expect(checkIn.date == time(13, on: tuesday))
     }
 }

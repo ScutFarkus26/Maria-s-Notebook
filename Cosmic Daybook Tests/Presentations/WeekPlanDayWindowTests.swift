@@ -212,4 +212,43 @@ struct WeekPlanDayWindowTests {
         let saturday = calendar.date(byAdding: .day, value: 5, to: monday) ?? monday
         #expect(grow(days, leading: saturday) == nil)
     }
+
+    // MARK: - The earliest day (2026-10-13)
+
+    @Test("The window never grows back past the earliest day")
+    func frontGrowthStopsAtTheEarliestDay() throws {
+        let days = weekdays(from: monday, count: 45)
+        let atStart = WeekPlanDayWindow.grown(
+            days: days, leadingDay: days[1], margins: margins, notBefore: monday,
+            earlierDays: { weekdays(before: $0, count: 20) }, laterDays: { _ in [] }
+        )
+        #expect(atStart == nil)
+
+        let threeBack = weekdays(before: monday, count: 3)[0]
+        let growth = try #require(WeekPlanDayWindow.grown(
+            days: days, leadingDay: days[1], margins: margins, notBefore: threeBack,
+            earlierDays: { weekdays(before: $0, count: 20) }, laterDays: { _ in [] }
+        ))
+        #expect(growth.addedInFront == 3)
+        #expect(growth.days.first == threeBack)
+        #expect(growth.days.firstIndex(of: days[1]) == 4)
+    }
+
+    @Test("The earliest day is today unless a presentation or check is still waiting on an earlier one")
+    func earliestDayRule() {
+        let today = calendar.date(byAdding: .hour, value: 10, to: monday) ?? monday
+        let lastThursday = calendar.date(byAdding: .day, value: -4, to: monday) ?? monday
+        let lastFriday = calendar.date(byAdding: .day, value: -3, to: monday) ?? monday
+        let wednesday = calendar.date(byAdding: .day, value: 2, to: monday) ?? monday
+        func earliest(_ presentation: Date?, _ checkIn: Date?) -> Date {
+            WeekPlanDayWindow.earliestDay(
+                today: today, firstPresentation: presentation, firstCheckIn: checkIn, calendar: calendar
+            )
+        }
+        #expect(earliest(nil, nil) == monday)
+        #expect(earliest(wednesday, wednesday) == monday)
+        #expect(earliest(nil, lastThursday.addingTimeInterval(13 * 3_600)) == lastThursday)
+        #expect(earliest(lastFriday.addingTimeInterval(9 * 3_600), lastThursday) == lastThursday)
+        #expect(earliest(lastFriday, nil) == lastFriday)
+    }
 }

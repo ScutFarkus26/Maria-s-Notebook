@@ -6,7 +6,8 @@ import Testing
 /// Review findings on the 2026-10-12 presentation, work and year-plan fixes:
 /// deleting her own generated row says what goes with it (#47), a failed
 /// presentation save takes its work retraction back, Move All Forward keeps a
-/// work's due date on its earliest open check-in (#49) and takes back a
+/// work's due date on its earliest open check-in (#49; an overdue one comes
+/// to today since 2026-10-13) and takes back a
 /// failed save whole, the Lessons path's Plan reuses a child's waiting draft
 /// (#32), and a keep-observing entry flags only the note it was written into
 /// (#51).
@@ -131,7 +132,7 @@ struct ReviewFixes1012A {
 
     // MARK: - 5. A work's due date after Move All Forward (#49)
 
-    @Test("Move All Forward leaves a work due on its overdue check-in, not after it")
+    @Test("Move All Forward brings an overdue check-in to today, and the work is due on it")
     func forwardShiftKeepsDueOnEarliestOpenCheckIn() throws {
         let classroom = try seed()
         let monday = try CoreDataTestHelpers.day("2026-06-08")
@@ -148,9 +149,9 @@ struct ReviewFixes1012A {
             nextSchoolDay: { _ in tuesday }
         )
 
-        #expect(overdue.date == lastWeek)
+        #expect(overdue.date == monday)
         #expect(upcoming.date == tuesday)
-        #expect(work.dueAt == lastWeek)
+        #expect(work.dueAt == monday)
     }
 
     // MARK: - 6. A failed Move All Forward save is taken back whole

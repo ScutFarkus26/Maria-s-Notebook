@@ -7,11 +7,21 @@
 // work it produced was still sitting on Monday, so a guide who pushed the week
 // had to walk the work across day by day afterwards.
 //
-// Only what the guide can see moves (bug hunt 2026-10-12, #49): what the Show
-// filter shows, dated today or later, and check-ins on open work. It used to
-// move hidden presentations, weeks-old overdue items and finished work's
-// check-ins too, with no question first and no way back; the strip now asks
-// with `pending`'s counts and offers Undo from the `Receipt`.
+// What moves (2026-10-13, reversing part of bug hunt 2026-10-12 #49):
+// presentations the Show filter shows, dated today or later; and every open
+// work check, whatever the Show filter shows. A check left on an earlier day
+// comes to today, and one from today on moves one school day later. #49 had
+// stopped moving weeks-old checks because the move used to happen with no
+// question first and no way back; the strip now asks with `pending`'s counts
+// and offers Undo from the `Receipt`, so Danny chose to have them come along.
+// A presentation left on an earlier day still stays: it is the guide's to
+// place.
+//
+// Every child's linked copy moves with its group (`WorkCheckInService`'s
+// sibling move, which update_work's `move_check_in_from` shares), and a work
+// never ends up with two checks on one day: a check that would land on a day
+// its work already has one folds into that one (it is marked skipped, and
+// Undo brings it back).
 //
 // A service rather than another method on the calendar view, because the rule
 // it encodes — what moves, how far, and what travels with it — is the part
@@ -26,6 +36,7 @@ enum CalendarForwardShiftService {
     /// save, and what it moved, so it can be taken back.
     struct Result: Equatable {
         var presentations: Int = 0
+        /// Work checks moved, folded ones included.
         var checkIns: Int = 0
         /// Each moved record's day before and after. Not part of equality:
         /// two results are the same shift when they moved the same counts.
@@ -49,11 +60,15 @@ enum CalendarForwardShiftService {
     struct Receipt {
         var presentations: [Move<Date>] = []
         var checkIns: [Move<Date>] = []
+        /// Checks that would have landed on a day their work already had
+        /// one, marked skipped where they were.
+        var folded: [NSManagedObjectID] = []
         var dueDays: [Move<Date?>] = []
     }
 
     /// How many presentations and check-ins a shift would move now, without
-    /// moving them: the confirmation's counts.
+    /// moving them: the confirmation's counts. Folded checks count, since
+    /// each is a check the move takes off its day.
     static func pending(
         in context: NSManagedObjectContext,
         calendar: Calendar,
@@ -63,12 +78,15 @@ enum CalendarForwardShiftService {
         let start = calendar.startOfDay(for: today)
         return Result(
             presentations: kinds.showsPresentations ? scheduledPresentations(from: start, in: context).count : 0,
-            checkIns: kinds.showsWork ? movableCheckIns(from: start, in: context).checkIns.count : 0
+            // Every open linked copy's scheduled check is in this set too, so
+            // the sibling moves add none: each is moved or folded once.
+            checkIns: movableCheckIns(in: context).count
         )
     }
 
-    /// Moves every scheduled presentation and work check the strip shows, dated
-    /// `today` or later, one school day later.
+    /// Moves every scheduled presentation the strip shows, dated `today` or
+    /// later, one school day later, and every open work check: an overdue one
+    /// to today, and one from today on a school day later.
     ///
     /// `nextSchoolDay` is passed in rather than resolved here: it reads the
     /// school-day cache, which is a different concern from the shift itself and
@@ -86,15 +104,18 @@ enum CalendarForwardShiftService {
         nextSchoolDay: (Date) -> Date
     ) -> Result {
         var resolved: [Date: Date] = [:]
-        func nextDay(after date: Date) -> Date {
+        let start = calendar.startOfDay(for: today)
+        /// The day a record on `date` moves to: today for an overdue one, the
+        /// next school day for one from today on.
+        func landing(for date: Date) -> Date {
             let key = calendar.startOfDay(for: date)
+            if key < start { return start }
             if let cached = resolved[key] { return cached }
-            let next = nextSchoolDay(key)
+            let next = calendar.startOfDay(for: nextSchoolDay(key))
             resolved[key] = next
             return next
         }
 
-        let start = calendar.startOfDay(for: today)
         var result = Result()
 
         if kinds.showsPresentations {
@@ -102,31 +123,29 @@ enum CalendarForwardShiftService {
                 guard let current = assignment.scheduledFor else { continue }
                 // Carry the within-day position across, or moving the week forward
                 // would flatten every day's order to a single instant.
-                let moved = preservingTimeOfDay(from: current, onto: nextDay(after: current), using: calendar)
+                let moved = preservingTimeOfDay(from: current, onto: landing(for: current), using: calendar)
                 assignment.setScheduledFor(moved, using: calendar)
                 result.receipt.presentations.append(Move(objectID: assignment.objectID, before: current, after: moved))
                 result.presentations += 1
             }
         }
 
-        guard kinds.showsWork else { return result }
-        let (checkIns, works) = movableCheckIns(from: start, in: context)
-        var touched = Set<UUID>()
-        for checkIn in checkIns {
-            guard let current = checkIn.date else { continue }
-            let moved = preservingTimeOfDay(from: current, onto: nextDay(after: current), using: calendar)
-            checkIn.date = moved
-            result.receipt.checkIns.append(Move(objectID: checkIn.objectID, before: current, after: moved))
-            result.checkIns += 1
-            if let workID = checkIn.workID.asUUID { touched.insert(workID) }
+        var shift = CheckInShift(context: context)
+        // Latest first: a work's later check leaves its day before an earlier
+        // one lands there, so only a real clash folds.
+        for checkIn in movableCheckIns(in: context).sorted(by: isLater) {
+            guard let current = checkIn.date, let work = checkIn.resolvedWork(in: context) else { continue }
+            shift.place(checkIn, of: work, from: current, to: landing(for: current), calendar: calendar)
         }
+        result.checkIns = shift.receipt.checkIns.count + shift.receipt.folded.count
+        result.receipt.checkIns = shift.receipt.checkIns
+        result.receipt.folded = shift.receipt.folded
+
         // The work's due date travels with its checks — the same pairing a
         // single dragged pill keeps — and is the soonest check still waiting
-        // after the move. An overdue one isn't moved, so it can be the soonest:
-        // the work is never due after one of its own open checks (bug hunt
-        // 2026-10-12 #49).
-        for workID in touched {
-            guard let work = works[workID], let due = earliestScheduledDate(of: work, in: context) else { continue }
+        // after the move.
+        for work in shift.touched.values {
+            guard let due = earliestScheduledDate(of: work, in: context), due != work.dueAt else { continue }
             result.receipt.dueDays.append(Move(objectID: work.objectID, before: work.dueAt, after: due))
             work.dueAt = due
         }
@@ -135,7 +154,7 @@ enum CalendarForwardShiftService {
 
     /// The day of `work`'s soonest check-in still scheduled, read through the
     /// relationship and the `workID` string both.
-    private static func earliestScheduledDate(of work: CDWorkModel, in context: NSManagedObjectContext) -> Date? {
+    static func earliestScheduledDate(of work: CDWorkModel, in context: NSManagedObjectContext) -> Date? {
         WorkDeletionService.checkIns(of: work, in: context)
             .filter { !$0.isDeleted && $0.status == .scheduled }
             .compactMap(\.date)
@@ -164,13 +183,17 @@ enum CalendarForwardShiftService {
             return moved
         }
         transaction.rollback()
-        // A row the undo put back can still read as edited with nothing
-        // changed; refresh it so the context doesn't look as if it had
-        // unsaved work.
+        refreshUnchanged(in: context)
+        return nil
+    }
+
+    /// A row a rollback put back can still read as edited with nothing
+    /// changed; refresh it so the context doesn't look as if it had unsaved
+    /// work.
+    static func refreshUnchanged(in context: NSManagedObjectContext) {
         for object in context.updatedObjects where object.changedValues().isEmpty {
             context.refresh(object, mergeChanges: false)
         }
-        return nil
     }
 
     /// Puts back what `receipt` moved, leaving any record changed since (a
@@ -189,6 +212,13 @@ enum CalendarForwardShiftService {
             guard let checkIn = context.existing(CDWorkCheckIn.self, move.objectID),
                   checkIn.status == .scheduled, checkIn.date == move.after else { continue }
             checkIn.date = move.before
+            restored += 1
+        }
+        for objectID in receipt.folded {
+            guard let checkIn = context.existing(CDWorkCheckIn.self, objectID), checkIn.status == .skipped else {
+                continue
+            }
+            checkIn.status = .scheduled
             restored += 1
         }
         for move in receipt.dueDays {
@@ -216,6 +246,87 @@ enum CalendarForwardShiftService {
         ) ?? day
     }
 
+    // MARK: - Moving the checks
+
+    /// The check-ins one shift has placed, so none moves twice, and the works
+    /// they belong to, whose due dates follow.
+    private struct CheckInShift {
+        let service: WorkCheckInService
+        var receipt = Receipt()
+        var placed = Set<NSManagedObjectID>()
+        var touched: [NSManagedObjectID: CDWorkModel] = [:]
+        /// Each work's linked copies, resolved once per group.
+        private var siblings: [NSManagedObjectID: [CDWorkModel]] = [:]
+
+        init(context: NSManagedObjectContext) {
+            service = WorkCheckInService(context: context)
+        }
+
+        /// Moves `checkIn` from `current` onto `day`, or folds it into the
+        /// check its work already has there, then brings its linked copies'
+        /// checks on the same day along.
+        mutating func place(
+            _ checkIn: CDWorkCheckIn, of work: CDWorkModel, from current: Date, to day: Date, calendar: Calendar
+        ) {
+            guard placed.insert(checkIn.objectID).inserted else { return }
+            touched[work.objectID] = work
+            if service.blockingCheckIn(of: work, on: day, excluding: checkIn) != nil {
+                fold(checkIn)
+            } else {
+                let moved = preservingTimeOfDay(from: current, onto: day, using: calendar)
+                checkIn.date = moved
+                receipt.checkIns.append(Move(objectID: checkIn.objectID, before: current, after: moved))
+            }
+            let fromDay = calendar.startOfDay(for: current)
+            for sibling in linkedCopies(of: work) where !sibling.isClosed {
+                moveSibling(sibling, from: fromDay, to: day)
+            }
+        }
+
+        /// A copy whose check on the day this shift has already placed has
+        /// nothing scheduled left there, so it is never moved twice.
+        private mutating func moveSibling(_ sibling: CDWorkModel, from fromDay: Date, to day: Date) {
+            switch service.moveSiblingCheckIn(of: sibling, from: fromDay, to: day) {
+            case .moved(let checkIn):
+                guard placed.insert(checkIn.objectID).inserted, let after = checkIn.date else { return }
+                touched[sibling.objectID] = sibling
+                // Only the day changed, so the time it had is the time it has.
+                let before = preservingTimeOfDay(from: after, onto: fromDay, using: AppCalendar.shared)
+                receipt.checkIns.append(Move(objectID: checkIn.objectID, before: before, after: after))
+            case .blocked(let checkIn, _):
+                guard placed.insert(checkIn.objectID).inserted else { return }
+                touched[sibling.objectID] = sibling
+                fold(checkIn)
+            case .childHasLeft, .settled, .noneOnDay:
+                break
+            }
+        }
+
+        /// Two checks for one work on one day become one: the one already
+        /// there stands, and this one is marked skipped where it was, notes
+        /// and all.
+        private mutating func fold(_ checkIn: CDWorkCheckIn) {
+            checkIn.status = .skipped
+            receipt.folded.append(checkIn.objectID)
+        }
+
+        private mutating func linkedCopies(of work: CDWorkModel) -> [CDWorkModel] {
+            if let cached = siblings[work.objectID] { return cached }
+            let group = WorkGrouping.group(containing: work, in: service.context)
+            for member in group.members {
+                siblings[member.objectID] = group.members.filter { $0 !== member }
+            }
+            return group.siblings
+        }
+    }
+
+    private static func isLater(_ lhs: CDWorkCheckIn, _ rhs: CDWorkCheckIn) -> Bool {
+        let lhsDate = lhs.date ?? .distantPast
+        let rhsDate = rhs.date ?? .distantPast
+        if lhsDate != rhsDate { return lhsDate > rhsDate }
+        return (lhs.id?.uuidString ?? "") < (rhs.id?.uuidString ?? "")
+    }
+
     // MARK: - What moves
 
     /// Everything still waiting to be given, from `start` on. A presentation
@@ -234,41 +345,16 @@ enum CalendarForwardShiftService {
         return context.safeFetch(request).filter { !$0.isGiven }
     }
 
-    /// Every check still waiting to happen from `start` on, not only the ones
-    /// in the calendar's visible window, on work that is still open, with the
-    /// works they belong to.
-    private static func movableCheckIns(
-        from start: Date,
-        in context: NSManagedObjectContext
-    ) -> (checkIns: [CDWorkCheckIn], works: [UUID: CDWorkModel]) {
+    /// Every check still waiting to happen, on any day, on work that is still
+    /// open — read through the relationship or the `workID` string, whichever
+    /// the check-in has.
+    static func movableCheckIns(in context: NSManagedObjectContext) -> [CDWorkCheckIn] {
         let request = CDFetchRequest(CDWorkCheckIn.self)
         request.predicate = NSPredicate(
-            format: "statusRaw == %@ AND date >= %@",
-            WorkCheckInStatus.scheduled.rawValue, start as NSDate
+            format: "statusRaw == %@ AND date != nil", WorkCheckInStatus.scheduled.rawValue
         )
-        let checkIns = context.safeFetch(request)
-        let works = worksByID(for: checkIns, in: context)
-        let open = checkIns.filter { checkIn in
-            checkIn.workID.asUUID.flatMap { works[$0] }.map { !$0.isClosed } ?? false
+        return context.safeFetch(request).filter { checkIn in
+            !checkIn.isDeleted && checkIn.resolvedWork(in: context).map { !$0.isClosed } == true
         }
-        return (open, works)
-    }
-
-    /// The works a set of check-ins belongs to, in one fetch rather than one
-    /// per check-in.
-    private static func worksByID(
-        for checkIns: [CDWorkCheckIn],
-        in context: NSManagedObjectContext
-    ) -> [UUID: CDWorkModel] {
-        let ids = Set(checkIns.compactMap { $0.workID.asUUID })
-        guard !ids.isEmpty else { return [:] }
-        let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(format: "id IN %@", ids as NSSet)
-        return Dictionary(
-            context.safeFetch(request).compactMap { work in work.id.map { ($0, work) } },
-            // CloudKit sync can leave duplicate rows sharing an id; first wins,
-            // matching every other lookup table in the app.
-            uniquingKeysWith: { first, _ in first }
-        )
     }
 }
