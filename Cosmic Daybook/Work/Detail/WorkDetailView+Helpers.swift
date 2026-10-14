@@ -98,36 +98,40 @@ extension WorkDetailView {
                         .foregroundStyle(.secondary)
                     #if os(macOS)
                     Text("")
-                        .help("Working and Needs Review keep it open; Mastered, Keep Practicing and Incomplete log it and clear its check-ins from the calendar")
+                        .help(
+                            "Working and Needs Review keep it open; Mastered, Finished, Keep Practicing and "
+                                + "Incomplete log it and clear its check-ins from the calendar"
+                        )
                     #endif
                 }
 
-                HStack(spacing: 8) {
-                    ForEach(viewModel.statusChoices) { s in
-                        SelectablePillButton(
-                            item: s,
-                            isSelected: viewModel.status == s,
-                            color: s.color,
-                            icon: s.iconName,
-                            label: s.displayName
-                        ) {
-                            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                viewModel.status = s
+                // Six pills wrap rather than clip in a narrow sheet.
+                HStack(alignment: .top, spacing: 8) {
+                    FlowLayout(spacing: 8) {
+                        ForEach(viewModel.statusChoices) { s in
+                            SelectablePillButton(
+                                item: s,
+                                isSelected: viewModel.status == s,
+                                color: s.color,
+                                icon: s.iconName,
+                                label: s.displayName
+                            ) {
+                                adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    viewModel.status = s
 
-                                // When marking as complete with good outcome, offer to unlock next lesson
-                                if let info = unlockInfo {
-                                    checkAndOfferUnlock(lessonID: info.lessonID, studentID: info.studentID)
+                                    // When marking as complete with good outcome, offer to unlock next lesson
+                                    if let info = unlockInfo {
+                                        checkAndOfferUnlock(lessonID: info.lessonID, studentID: info.studentID)
+                                    }
                                 }
-                            }
-                            if s.isClosed {
-                                HapticService.shared.notification(.success)
-                            } else {
-                                HapticService.shared.selection()
+                                if s.isClosed {
+                                    HapticService.shared.notification(.success)
+                                } else {
+                                    HapticService.shared.selection()
+                                }
                             }
                         }
                     }
-
-                    Spacer()
 
                     if viewModel.status.isOpen, likelyNextLesson != nil {
                         Button {

@@ -54,7 +54,7 @@ struct WorkLogStatusMenu: View {
         targets.count > 1 ? "Log \(targets.count) as" : "Log as"
     }
 
-    /// Working and Needs Review above the line, the three closing verdicts
+    /// Working and Needs Review above the line, the four closing statuses
     /// below it. A checkmark only when every target already has the status;
     /// a mixed selection shows none rather than claiming one of them.
     @ViewBuilder

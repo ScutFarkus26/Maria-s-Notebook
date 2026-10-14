@@ -17,7 +17,7 @@ struct WorkStatusMigrationTests {
             ("mastered", "mastered"),
             ("needsMorePractice", "keepPracticing"),
             ("incomplete", "incomplete"),
-            // Verdicts the merged vocabulary does not keep stay a plain Done.
+            // Verdicts the merged vocabulary does not keep stay Finished.
             ("needsReview", "complete"),
             ("notApplicable", "complete"),
             ("something-no-build-ever-wrote", "complete")
@@ -27,7 +27,7 @@ struct WorkStatusMigrationTests {
         #expect(WorkStatusMigration.merged(statusRaw: "complete", outcomeRaw: outcomeRaw) == expected)
     }
 
-    @Test("A closed row with no outcome stays Done")
+    @Test("A closed row with no outcome stays Finished")
     func noOutcomeStaysDone() {
         #expect(WorkStatusMigration.merged(statusRaw: "complete", outcomeRaw: nil) == "complete")
         #expect(WorkStatusMigration.mergedStatus(statusRaw: "complete", outcomeRaw: nil) == .done)
@@ -88,6 +88,20 @@ struct WorkStatusMigrationTests {
 
         // A second pass on a merged store finds nothing to do.
         #expect(DataCleanupService.mergeWorkCompletionOutcomes(using: context) == 0)
+    }
+
+    @Test("Work closed as Finished carries no outcome, so the launch pass leaves it put")
+    func finishedRowsStayPut() throws {
+        let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+        let work = CoreDataTestHelpers.seedWorkModel(in: context, title: "Volcano poster")
+        #expect(CoreDataTestHelpers.save(context))
+        try WorkLogService.log([.init(work: work, status: .done)], context: context)
+        #expect(work.statusRaw == "complete")
+        #expect(work.completionOutcomeRaw == nil)
+
+        #expect(DataCleanupService.mergeWorkCompletionOutcomes(using: context) == 0)
+        #expect(work.status == .done)
+        #expect(work.completedAt != nil)
     }
 
     // MARK: - The backup importer

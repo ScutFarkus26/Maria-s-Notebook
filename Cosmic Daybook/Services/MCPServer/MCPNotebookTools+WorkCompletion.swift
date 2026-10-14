@@ -55,7 +55,7 @@ extension MCPNotebookTools {
     /// every row it logs, so completed_by beside it wrote both twice.
     private static func refuseCompletionBesideClosingStatus(_ arguments: [String: JSONValue]) throws {
         let outcome = try completionOutcomeArgument(arguments, "outcome")
-        guard let raw = nonEmpty(arguments["status"]?.stringValue) ?? outcome.map({ _ in WorkStatus.done.rawValue }),
+        guard let raw = workStatusRaw(arguments) ?? outcome.map({ _ in WorkStatus.done.rawValue }),
               WorkStatus(rawValue: raw) != nil else { return }
         let status = WorkStatusMigration.mergedStatus(statusRaw: raw, outcomeRaw: outcome?.rawValue)
         guard status.isClosed else { return }
@@ -81,8 +81,8 @@ extension MCPNotebookTools {
             : "This is \(student.fullName)'s own copy of the work"
         throw MCPToolError(
             "\(whose), so completed_by would record a finish and leave the work open. Nothing has been "
-                + "changed. To log the finish, call update_work with status (mastered, keepPracticing, "
-                + "incomplete or complete)."
+                + "changed. To log the finish, call update_work with status (mastered, complete for "
+                + "Finished, keepPracticing or incomplete)."
         )
     }
 

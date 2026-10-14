@@ -212,7 +212,7 @@ struct ReportGeneratorFix1010GTests {
 
     // MARK: - Monthly report wording
 
-    @Test("Only finished work reads Completed; Keep Practicing and Incomplete are worded as they were closed")
+    @Test("Mastered reads Completed and Finished reads Finished; the other closings are worded as closed")
     func workIsWordedByHowItWasClosed() throws {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
         let context = stack.viewContext
@@ -237,10 +237,10 @@ struct ReportGeneratorFix1010GTests {
             "Completed “Bead frame”",
             "Worked on “Stamp game” and will keep practicing it",
             "Worked on “Map of Africa”",
-            "Completed “Old checkerboard”"
+            "Finished “Old checkerboard”"
         ])
 
-        // The fallback draft counts only the two finished pieces.
+        // The fallback draft counts only the two finished pieces, Mastered and Finished.
         let draft = MonthlyReportDraftService(
             modelContext: context, mcpClient: UnusedClient(), reportService: ReportGeneratorService()
         ).makeFallbackDraft(from: month)

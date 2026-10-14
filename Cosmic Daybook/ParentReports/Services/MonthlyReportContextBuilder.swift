@@ -360,15 +360,18 @@ struct MonthlyReportContextBuilder {
 
 extension MonthlyReportContextBuilder {
     /// What a family is told about a piece of work closed this month, by how the guide
-    /// closed it. Only Mastered and Done read "Completed"; work closed as Keep Practicing
-    /// or Incomplete used to say "Completed" too (bug hunt 2026-10-10, P2 #33). Those
-    /// carry a ref suffix, as a presentation's proficiency does, so the fallback draft
-    /// counts only finished work. Open work (reopened after closing, its old
+    /// closed it. Mastered reads "Completed" and Finished (closed with no verdict, so
+    /// not mastery) reads "Finished"; work closed as Keep Practicing or Incomplete used
+    /// to say "Completed" too (bug hunt 2026-10-10, P2 #33). Those carry a ref suffix,
+    /// as a presentation's proficiency does, so the fallback draft counts only Mastered
+    /// and Finished work. Open work (reopened after closing, its old
     /// `completedAt` left behind) isn't reported.
     static func closedWorkPhrase(title: String, status: WorkStatus) -> (phrase: String, refSuffix: String)? {
         switch status {
-        case .mastered, .done:
+        case .mastered:
             return ("Completed “\(title)”", "")
+        case .done:
+            return ("Finished “\(title)”", "")
         case .keepPracticing:
             return ("Worked on “\(title)” and will keep practicing it", "#practicing")
         case .incomplete:

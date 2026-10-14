@@ -31,9 +31,11 @@ nonisolated public enum WorkKind: String, Codable, CaseIterable, Hashable, Ident
 /// *and* a completion outcome (mastered / keep practicing / …) that were only
 /// ever set together. They are one field now. Two states are open and keep
 /// the work on the guide's radar; the rest close it, log it, and clear its
-/// check-ins from the Scheduled strip. `done` keeps the legacy raw value
-/// `"complete"` so rows closed before the merge need no rewrite; it is never
-/// offered in a picker.
+/// check-ins from the Scheduled strip. `done` (Finished) keeps the legacy raw
+/// value `"complete"`, so rows closed as Done before the merge read as Finished
+/// with no rewrite, and every build already knows it (a new raw value would read
+/// as Working on an older one). It closes work with no verdict, for work where
+/// mastery doesn't apply, and is never mastery (2026-10-13).
 nonisolated public enum WorkStatus: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
     // Open
     /// The child is working on it.
@@ -44,7 +46,7 @@ nonisolated public enum WorkStatus: String, Codable, CaseIterable, Hashable, Ide
     case mastered
     case keepPracticing
     case incomplete
-    /// Closed with no verdict — legacy rows, raw value `"complete"`.
+    /// Finished: closed with no verdict, raw value `"complete"`.
     case done = "complete"
 
     public var id: String { rawValue }
@@ -56,7 +58,7 @@ nonisolated public enum WorkStatus: String, Codable, CaseIterable, Hashable, Ide
         case .mastered: return "Mastered"
         case .keepPracticing: return "Keep Practicing"
         case .incomplete: return "Incomplete"
-        case .done: return "Done"
+        case .done: return "Finished"
         }
     }
 
@@ -65,8 +67,9 @@ nonisolated public enum WorkStatus: String, Codable, CaseIterable, Hashable, Ide
     /// Logged and off the Scheduled strip.
     public var isClosed: Bool { !isOpen }
 
-    /// The statuses a picker offers. `done` is legacy only.
-    public static let pickable: [WorkStatus] = [.active, .review, .mastered, .keepPracticing, .incomplete]
+    /// The statuses a picker offers, in the order it offers them: Finished
+    /// sits beside Mastered, for work where mastery doesn't apply.
+    public static let pickable: [WorkStatus] = [.active, .review, .mastered, .done, .keepPracticing, .incomplete]
     public static let openCases: [WorkStatus] = allCases.filter(\.isOpen)
     public static let closedCases: [WorkStatus] = allCases.filter(\.isClosed)
     public static let openRawValues: [String] = openCases.map(\.rawValue)
