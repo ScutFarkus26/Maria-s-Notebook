@@ -87,9 +87,32 @@ enum SyncDotVisibility {
     }
 }
 
+/// The compact dot itself. It always lays out its 8-pt circle and only fades, so showing or
+/// hiding it never resizes what sits beside it (it used to come and go with `if`, which
+/// shoved the toolbar around every time sync started or finished).
+struct SyncDotView: View {
+    let state: SyncDotState
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        let isShown = state != .synced
+        Circle()
+            .fill(state.color)
+            .frame(width: 8, height: 8)
+            .opacity(isShown ? 1 : 0)
+            // One soft fade, never a pulse. Under Reduce Motion it just appears.
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: isShown)
+            .accessibilityElement()
+            .accessibilityLabel("iCloud sync status")
+            .accessibilityValue(state.text)
+            .accessibilityHidden(!isShown)
+            .help(isShown ? "iCloud: \(state.text)" : "")
+    }
+}
+
 /// A compact sync status dot that observes CloudKit sync state.
 /// Shows a colored dot with optional label text. Rendered only when CloudKit is enabled;
-/// the compact dot also hides while sync is idle and fine (`SyncDotVisibility`).
+/// the compact dot fades out while sync is idle and fine (`SyncDotVisibility`).
 struct CompactSyncStatusIndicator: View {
     let compact: Bool
     var syncService = CloudKitSyncStatusService.shared
@@ -103,14 +126,7 @@ struct CompactSyncStatusIndicator: View {
         if cloudStatus.enabled {
             let state = SyncDotVisibility.state(for: syncService)
             if compact {
-                if state != .synced {
-                    Circle()
-                        .fill(state.color)
-                        .frame(width: 8, height: 8)
-                        .accessibilityLabel("iCloud sync status")
-                        .accessibilityValue(state.text)
-                        .help("iCloud: \(state.text)")
-                }
+                SyncDotView(state: state)
             } else {
                 HStack(spacing: 6) {
                     Circle()
@@ -132,16 +148,18 @@ struct CompactSyncStatusIndicator: View {
 /// flip re-reads this item alone, not RootView's body. The item never leaves
 /// the toolbar — `.hidden` keeps its identity stable (an item inserted and
 /// removed by an `if` desyncs toolbars sharing the identifier) — it is only
-/// hidden in Sample Class, which never syncs, and while sync is idle and fine.
+/// hidden in Sample Class, which never syncs. While sync is idle and fine the dot
+/// fades to clear inside its fixed slot, and the item has no glass of its own, so
+/// showing it can't resize the capsule around its neighbors.
 struct SyncStatusToolbarItem: ToolbarContent {
     let isSampleClass: Bool
-    var syncService = CloudKitSyncStatusService.shared
 
     var body: some ToolbarContent {
         ToolbarItem(id: "syncStatus", placement: .primaryAction) {
             CompactSyncStatusIndicator(compact: true)
         }
-        .hidden(isSampleClass || !SyncDotVisibility.isShown(for: syncService))
+        .sharedBackgroundVisibility(.hidden)
+        .hidden(isSampleClass)
     }
 }
 #endif
