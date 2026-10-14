@@ -12,6 +12,10 @@
 //  tick shows and a tap takes her off: `StudentPickerModel.toggling` allows
 //  that, and the row used to be disabled outright (bug hunt 2026-10-12 #56).
 //
+//  A child ready for the picker's lesson carries a small green "Ready" tag
+//  beside her name, in the Groups page's ready color, so the tag still reads
+//  when a search mixes the runs.
+//
 
 import SwiftUI
 
@@ -59,8 +63,13 @@ struct StudentPickerRowView: View {
     private var selectableRow: some View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(row.candidate.displayName)
-                    .foregroundStyle(.primary)
+                HStack(spacing: 6) {
+                    Text(row.candidate.displayName)
+                        .foregroundStyle(.primary)
+                    if row.isReady {
+                        readyTag
+                    }
+                }
                 if let given = row.record {
                     StudentRecordCaption(given: given)
                 }
@@ -80,6 +89,17 @@ struct StudentPickerRowView: View {
         }
         .padding(.vertical, 6)
         .contentShape(Rectangle())
+    }
+
+    /// "Ready" in the ready queue's green: the Groups page's word and color.
+    private var readyTag: some View {
+        Text("Ready")
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(AppColors.success)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 1)
+            .background(Capsule().fill(AppColors.success.opacity(0.15)))
+            .accessibilityLabel("Ready for this lesson")
     }
 
     /// The tick keeps its slot when a row is unselected, so the ages stay in a column.

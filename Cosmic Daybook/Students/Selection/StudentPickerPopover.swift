@@ -9,6 +9,11 @@
 //  ticked at all is `StudentPickerModel` — value types with their own tests.
 //  This file is the presentation of those rows and nothing else.
 //
+//  The present-a-lesson caller arranges it Selected → Ready → Everyone Else
+//  (`arrangement: .selectedThenReady`), with a header over each run and no
+//  sort menu; the Ready run is `ReadyGroups.readyStudentIDs`, read once per
+//  lesson. Every picker offers only the levels its enrolled children are at.
+//
 
 import SwiftUI
 import CoreData
@@ -30,14 +35,24 @@ struct StudentPickerPopover: View {
     /// where the choice is made; every other picker keeps today's behaviour and
     /// leaves her out.
     var formerStudents: StudentPickerModel.FormerStudents = .hidden
+    /// How the rows are ordered. The remembered sort menu by default; the
+    /// present-a-lesson picker puts the picked and the ready children first.
+    var arrangement: StudentPickerModel.Arrangement = .sortMenu
 
     @State private var filterLevel: LevelFilter = .all
     @State private var searchText: String = ""
     @State private var showingAddStudent: Bool = false
     /// What the record holds for `lessonOnRecord`, read once when there is one.
     @State private var records: [UUID: PresentationRecordIndex.Given] = [:]
+    /// Who is ready for `lessonOnRecord`, read once when the picker is
+    /// arranged around it.
+    @State private var readyIDs: Set<UUID> = []
+    /// The selection as the picker opened: the Selected run. Until it is
+    /// captured the live selection stands in, which is the same set.
+    @State private var openingSelection: Set<UUID>?
 
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
 
     @AppStorage(UserDefaultsKeys.studentPickerSortOrder)
     private var sortModeRaw: String = SortMode.name.rawValue
@@ -52,13 +67,17 @@ struct StudentPickerPopover: View {
 
         var id: String { rawValue }
 
-        var scope: StudentPickerModel.LevelScope {
+        var level: CDStudent.Level? {
             switch self {
-            case .all: return .all
-            case .lower: return .level(.lower)
-            case .upper: return .level(.upper)
-            case .adolescent: return .level(.adolescent)
+            case .all: return nil
+            case .lower: return .lower
+            case .upper: return .upper
+            case .adolescent: return .adolescent
             }
+        }
+
+        var scope: StudentPickerModel.LevelScope {
+            level.map(StudentPickerModel.LevelScope.level) ?? .all
         }
     }
 
@@ -94,16 +113,34 @@ struct StudentPickerPopover: View {
 
     private var sortMode: SortMode { SortMode(rawValue: sortModeRaw) ?? .name }
 
+    private var candidates: [StudentPickerCandidate] { StudentPickerModel.candidates(students) }
+
+    /// The level segments on offer: All, then each level an enrolled child is
+    /// at. Fewer than two levels leave nothing to choose between.
+    private var offeredLevelFilters: [LevelFilter] {
+        let levels = StudentPickerModel.offeredLevels(candidates)
+        guard levels.count > 1 else { return [] }
+        return [.all] + LevelFilter.allCases.filter { $0.level.map(levels.contains) ?? false }
+    }
+
+    /// The chosen segment, or All when that level is no longer on offer.
+    private var effectiveLevel: LevelFilter {
+        offeredLevelFilters.contains(filterLevel) ? filterLevel : .all
+    }
+
     /// The children on screen, with what the record holds for each and whether
     /// she may be picked.
     var rows: [StudentPickerRow] {
         StudentPickerModel.rows(
-            candidates: StudentPickerModel.candidates(students),
+            candidates: candidates,
             query: StudentPickerModel.Query(
                 search: searchText,
-                scope: filterLevel.scope,
+                scope: effectiveLevel.scope,
                 sort: sortMode.sort,
-                formerStudents: formerStudents
+                formerStudents: formerStudents,
+                arrangement: arrangement,
+                pinned: openingSelection ?? selectedIDs,
+                ready: readyIDs
             ),
             records: records
         )
@@ -125,12 +162,7 @@ struct StudentPickerPopover: View {
     /// than a search result. Lets the button read "Select All Upper".
     private var visibleScopeName: String? {
         guard searchText.normalizedForComparison().isEmpty else { return nil }
-        switch filterLevel {
-        case .all: return nil
-        case .lower: return "Lower"
-        case .upper: return "Upper"
-        case .adolescent: return "Adolescent"
-        }
+        return effectiveLevel.level?.rawValue
     }
 
     private var selectAllTitle: String {
@@ -188,7 +220,9 @@ struct StudentPickerPopover: View {
                         .foregroundStyle(.secondary)
                 }
 
-                sortMenu
+                if arrangement == .sortMenu {
+                    sortMenu
+                }
             }
 
             studentList
@@ -224,6 +258,9 @@ struct StudentPickerPopover: View {
         .sheet(isPresented: $showingAddStudent) {
             AddStudentView()
         }
+        .onAppear {
+            if openingSelection == nil { openingSelection = selectedIDs }
+        }
         .task(id: lessonOnRecord?.id) { loadRecord() }
     }
 
@@ -256,12 +293,15 @@ extension StudentPickerPopover {
                 }
             }
 
-            Picker("Level", selection: $filterLevel) {
-                ForEach(LevelFilter.allCases) { level in
-                    Text(level.rawValue).tag(level)
+            let levels = offeredLevelFilters
+            if !levels.isEmpty {
+                Picker("Level", selection: $filterLevel) {
+                    ForEach(levels) { level in
+                        Text(level.rawValue).tag(level)
+                    }
                 }
+                .pickerStyle(.segmented)
             }
-            .pickerStyle(.segmented)
         }
     }
 
@@ -270,16 +310,39 @@ extension StudentPickerPopover {
     var studentList: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 4) {
-                ForEach(rows) { row in
-                    StudentPickerRowView(
-                        row: row,
-                        isSelected: selectedIDs.contains(row.id),
-                        onToggle: { toggle(row.id) }
-                    )
+                ForEach(StudentPickerModel.sections(rows), id: \.placement) { section in
+                    if let placement = section.placement {
+                        Section {
+                            rowViews(section.rows)
+                        } header: {
+                            sectionHeader(placement)
+                        }
+                    } else {
+                        rowViews(section.rows)
+                    }
                 }
             }
             .padding(.vertical, 4)
         }
+    }
+
+    private func rowViews(_ rows: [StudentPickerRow]) -> some View {
+        ForEach(rows) { row in
+            StudentPickerRowView(
+                row: row,
+                isSelected: selectedIDs.contains(row.id),
+                onToggle: { toggle(row.id) }
+            )
+        }
+    }
+
+    private func sectionHeader(_ placement: StudentPickerModel.Placement) -> some View {
+        Text(placement.title)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .textCase(.uppercase)
+            .padding(.top, placement == .selected ? 0 : 8)
+            .accessibilityAddTraits(.isHeader)
     }
 
     private func toggle(_ id: UUID) {
@@ -292,9 +355,23 @@ extension StudentPickerPopover {
     private func loadRecord() {
         guard let lessonID = lessonOnRecord?.id else {
             records = [:]
+            readyIDs = []
             return
         }
         let index = PresentationRecordIndex(lessonIDs: [lessonID.uuidString], in: viewContext)
         records = StudentPickerModel.records(from: index, lesson: lessonID)
+        readyIDs = arrangement == .selectedThenReady ? loadReady(lessonID) : []
+    }
+
+    /// The enrolled children on offer who are ready for the lesson.
+    private func loadReady(_ lessonID: UUID) -> Set<UUID> {
+        let enrolled = Set(candidates.filter { $0.enrollmentBlock == nil }.map(\.id.uuidString))
+        let ready = ReadyGroups.readyStudentIDs(
+            for: lessonID.uuidString,
+            among: enrolled,
+            lessons: dependencies.lessonCatalog.all,
+            in: viewContext
+        )
+        return Set(ready.compactMap(UUID.init(uuidString:)))
     }
 }

@@ -260,3 +260,83 @@ struct ReadyGroupsTests {
         #expect(built.areaCounts.isEmpty)
     }
 }
+
+// MARK: - One lesson (the present-a-lesson picker)
+
+extension ReadyGroupsTests {
+    private func readyIDs(
+        _ fixture: Fixture, for lesson: CDLesson, among students: [CDStudent]
+    ) throws -> Set<String> {
+        ReadyGroups.readyStudentIDs(
+            for: try fixture.id(lesson),
+            among: Set(try students.map { try fixture.id($0) }),
+            lessons: fixture.lessons,
+            in: fixture.context
+        )
+    }
+
+    @Test("Ready for one lesson skips a child already given or planned for it")
+    func oneLessonSkipsGivenAndPlanned() throws {
+        let fixture = try Fixture()
+        let ada = fixture.student("Ada", "Bell")
+        let ben = fixture.student("Ben", "Cole")
+        let cal = fixture.student("Cal", "Dunn")
+        let dee = fixture.student("Dee", "Eng")
+        let eve = fixture.student("Eve", "Ford")
+        let fay = fixture.student("Fay", "Gold")
+        let students = [ada, ben, cal, dee, eve, fay]
+        try fixture.give(students, fixture.commutative, on: "2026-04-20", confirmed: true)
+        try fixture.plan([cal], fixture.distributive, on: "2026-05-04")
+        try fixture.plan([dee], fixture.distributive, on: nil)
+        try fixture.yearPlan(eve, fixture.distributive, on: "2026-05-11")
+        try fixture.give([fay], fixture.distributive, on: "2026-04-27")
+        #expect(CoreDataTestHelpers.save(fixture.context))
+
+        let ready = try readyIDs(fixture, for: fixture.distributive, among: students)
+
+        #expect(ready == Set([try fixture.id(ada), try fixture.id(ben)]))
+        // Only the children asked about are considered.
+        #expect(try readyIDs(fixture, for: fixture.distributive, among: [ben, cal]) == [try fixture.id(ben)])
+        #expect(try readyIDs(fixture, for: fixture.distributive, among: []).isEmpty)
+        // The first lesson in a sub-area has nothing before it.
+        #expect(try readyIDs(fixture, for: fixture.commutative, among: students).isEmpty)
+    }
+
+    @Test("Ready for one lesson matches the lesson's card on the Groups page, lesson by lesson")
+    func oneLessonMatchesTheCards() throws {
+        let fixture = try Fixture()
+        fixture.requirePractice(area: "Math", sequence: "Laws")
+        let kids = (0..<8).map { fixture.student("Kid\($0)", "Test") }
+        try fixture.give([kids[0], kids[1], kids[2]], fixture.commutative, on: "2026-04-20", confirmed: true)
+        // Held by the practice gate: almost, not ready.
+        try fixture.work(kids[2], on: fixture.commutative, status: "active")
+        // Had the previous lesson but not confirmed: never ready.
+        try fixture.give([kids[3]], fixture.commutative, on: "2026-04-21")
+        // A mastery mark counts as well as a confirmation.
+        try fixture.give([kids[4]], fixture.distributive, on: "2026-04-22")
+        let mark = CDLessonPresentation(context: fixture.context)
+        mark.studentID = try fixture.id(kids[4])
+        mark.lessonID = try fixture.id(fixture.distributive)
+        mark.presentedAt = try CoreDataTestHelpers.day("2026-04-22")
+        mark.masteredAt = try CoreDataTestHelpers.day("2026-04-24")
+        try fixture.give([kids[5], kids[6]], fixture.triangle, on: "2026-04-16", confirmed: true)
+        try fixture.plan([kids[6]], fixture.square, on: "2026-05-04")
+        try fixture.give([kids[7]], fixture.square, on: "2026-04-28", confirmed: true)
+
+        let built = build(try fixture.snapshot(kids))
+
+        var cardsWithReady: [String] = []
+        for lesson in fixture.lessons {
+            let card = Set(built.group(for: try fixture.id(lesson))?.ready.map(\.child.id) ?? [])
+            #expect(try readyIDs(fixture, for: lesson, among: kids) == card, "\(lesson.name)")
+            if !card.isEmpty { cardsWithReady.append(lesson.name) }
+        }
+        // The comparison is not vacuous: four cards have someone ready, and
+        // the gated child is on Distributive's card as almost, not ready.
+        #expect(cardsWithReady.sorted() == ["Associative Law", "Distributive Law", "Pentagon", "Square"])
+        let distributive = try #require(built.group(for: try fixture.id(fixture.distributive)))
+        #expect(distributive.ready.map(\.child.name) == ["Kid0 T", "Kid1 T"])
+        #expect(distributive.almost.map(\.child.name) == ["Kid2 T"])
+        #expect(built.group(for: try fixture.id(fixture.square))?.ready.map(\.child.name) == ["Kid5 T"])
+    }
+}

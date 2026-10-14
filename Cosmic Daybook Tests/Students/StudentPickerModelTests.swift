@@ -199,3 +199,147 @@ struct StudentPickerModelTests {
             == "had this \(DateFormatters.shortMonthDay.string(from: thisYear)), 2 times")
     }
 }
+
+// MARK: - Present a lesson: Selected, Ready, Everyone Else
+
+extension StudentPickerModelTests {
+    private func arranged(
+        _ candidates: [StudentPickerCandidate],
+        pinned: Set<UUID> = [],
+        ready: Set<UUID> = [],
+        search: String = "",
+        sort: StudentPickerModel.Sort = .age
+    ) -> [StudentPickerRow] {
+        StudentPickerModel.rows(
+            candidates: candidates,
+            query: StudentPickerModel.Query(
+                search: search,
+                sort: sort,
+                formerStudents: .shownIfSelected,
+                arrangement: .selectedThenReady,
+                pinned: pinned,
+                ready: ready
+            ),
+            records: [:]
+        )
+    }
+
+    @Test("the present-a-lesson picker runs Selected, then Ready, then everyone else, each A to Z")
+    func selectedThenReadyOrder() throws {
+        let zev = candidate("Zev", "Adler", birthday: try day("2015-01-01"))
+        let ada = candidate("Ada", "Bell", birthday: try day("2018-01-01"))
+        let mia = candidate("Mia", "Cole")
+        let ben = candidate("Ben", "Dunn")
+        let cyrus = candidate("Cyrus", "Eng", birthday: try day("2016-01-01"))
+        let eve = candidate("Eve", "Ford")
+        let people = [zev, ada, mia, ben, cyrus, eve]
+
+        // The Age sort is ignored here: Zev is oldest, Ada youngest.
+        let listed = arranged(people, pinned: [zev.id, mia.id], ready: [ben.id, ada.id])
+
+        #expect(listed.map(\.candidate.firstName) == ["Mia", "Zev", "Ada", "Ben", "Cyrus", "Eve"])
+        let placements: [StudentPickerModel.Placement?] = [
+            .selected, .selected, .ready, .ready, .everyoneElse, .everyoneElse
+        ]
+        #expect(listed.map(\.placement) == placements)
+        let readyNames: [String] = listed.filter(\.isReady).map(\.candidate.firstName)
+        #expect(readyNames == ["Ada", "Ben"])
+
+        let sections = StudentPickerModel.sections(listed)
+        let runs: [StudentPickerModel.Placement?] = [.selected, .ready, .everyoneElse]
+        #expect(sections.map(\.placement) == runs)
+        let counts: [Int] = sections.map { $0.rows.count }
+        #expect(counts == [2, 2, 2])
+        let titles: [String] = sections.compactMap(\.placement).map(\.title)
+        #expect(titles == ["Selected", "Ready", "Everyone Else"])
+    }
+
+    @Test("a child already picked is Selected, not Ready; an empty run gets no header")
+    func selectedWinsOverReady() {
+        let ada = candidate("Ada", "Bell")
+        let ben = candidate("Ben", "Cole")
+
+        let listed = arranged([ada, ben], pinned: [ada.id], ready: [ada.id])
+
+        #expect(listed.map(\.placement) == [.selected, .everyoneElse])
+        #expect(listed.first?.isReady == false)
+        #expect(StudentPickerModel.sections(listed).map(\.placement) == [.selected, .everyoneElse])
+    }
+
+    @Test("same short name: A to Z by the shown name, then the full name")
+    func displayNameOrderBreaksTies() {
+        let sarahK = candidate("Sarah", "Klein")
+        let sarahKa = candidate("Sarah", "Kahn")
+        let sam = candidate("Sam", "Zur")
+
+        #expect(arranged([sarahK, sam, sarahKa]).map(\.candidate.lastName) == ["Zur", "Kahn", "Klein"])
+    }
+
+    @Test("a child who has left is listed only when already picked, under Selected, and never Ready")
+    func formerStudentOnlyWhenSelected() throws {
+        let naomi = candidate("Naomi", "Levin", status: .withdrawn, departedOn: try day("2026-06-12"))
+        let rivka = candidate("Rivka", "Stein", status: .transferred)
+        let etty = candidate("Etty", "Dechter")
+
+        let listed = arranged([naomi, rivka, etty], pinned: [naomi.id], ready: [rivka.id, etty.id])
+
+        #expect(listed.map(\.candidate.firstName) == ["Naomi", "Etty"])
+        let first = try #require(listed.first)
+        #expect(first.placement == .selected)
+        #expect(!first.isSelectable)
+        // She can still be taken off, but never put back.
+        #expect(StudentPickerModel.toggling(naomi.id, in: [naomi.id], rows: listed).isEmpty)
+        #expect(StudentPickerModel.toggling(naomi.id, in: [], rows: listed).isEmpty)
+        #expect(listed.last?.placement == .ready)
+
+        // Unticked, she stays listed while the picker is open: the runs come
+        // from who was picked when it opened, not from the live selection.
+        #expect(arranged([naomi, etty], pinned: [naomi.id]).map(\.candidate.firstName) == ["Naomi", "Etty"])
+        #expect(arranged([naomi, etty]).map(\.candidate.firstName) == ["Etty"])
+    }
+
+    @Test("search narrows each run and keeps the order")
+    func searchInsideRuns() {
+        let ada = candidate("Ada", "Bell")
+        let adam = candidate("Adam", "Cole")
+        let ben = candidate("Ben", "Dunn")
+
+        let listed = arranged([ben, adam, ada], pinned: [adam.id], ready: [ada.id], search: "ad")
+
+        #expect(listed.map(\.candidate.firstName) == ["Adam", "Ada"])
+        #expect(listed.map(\.placement) == [.selected, .ready])
+    }
+
+    @Test("a sort-menu picker has no runs and keeps its sort")
+    func sortMenuHasNoRuns() throws {
+        let older = candidate("Zev", "Adler", birthday: try day("2015-01-01"))
+        let younger = candidate("Ada", "Bell", birthday: try day("2018-01-01"))
+
+        let listed = rows([younger, older], sort: .age)
+
+        #expect(listed.map(\.candidate.firstName) == ["Zev", "Ada"])
+        #expect(listed.allSatisfy { $0.placement == nil && !$0.isReady })
+        let sections = StudentPickerModel.sections(listed)
+        #expect(sections.count == 1)
+        #expect(sections.first?.placement == nil)
+        #expect(sections.first?.rows.count == 2)
+        #expect(StudentPickerModel.sections([]).isEmpty)
+    }
+
+    // MARK: - Levels on offer
+
+    @Test("a level is offered only when an enrolled child is at it")
+    func offeredLevelsFollowEnrolledChildren() {
+        let people = [
+            candidate("Ada", "Bell", level: .adolescent),
+            candidate("Ben", "Cole", level: .upper),
+            candidate("Cy", "Dunn", level: .lower, status: .withdrawn),
+            candidate("Dee", "Eng", level: .upper)
+        ]
+
+        #expect(StudentPickerModel.offeredLevels(people) == [.upper, .adolescent])
+        #expect(StudentPickerModel.offeredLevels(people + [candidate("Eve", "Ford", level: .lower)])
+            == [.lower, .upper, .adolescent])
+        #expect(StudentPickerModel.offeredLevels([]).isEmpty)
+    }
+}
