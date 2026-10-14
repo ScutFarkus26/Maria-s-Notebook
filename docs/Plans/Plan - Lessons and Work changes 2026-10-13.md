@@ -3,6 +3,8 @@
 > **Working on it.** Written 2026-10-13 from Danny's inventory of seven changes (session on branch `claude/changes-inventory-8960e5`).
 > In short: a tidier student picker, a three-day Scheduled strip, a Finished work status, a steady sync dot, moving children between groups, "work to show first" before a lesson, and Move All Forward / Clear All that handle every open check-in.
 
+Build board: https://claude.ai/artifact/WAKaFZGNPQsfKD4A5GbqsM (milestones 18–21).
+
 ## Goal
 
 Lessons & Work gets easier to run a day from, on Mac and iPad.
