@@ -13,7 +13,9 @@ struct WorkToShowFirstPopover: View {
     let childName: String
     let items: [WorkToShowFirst.Item]
     let onOpenWork: (UUID) -> Void
-    let onCheckToday: (CDWorkModel) -> Void
+    let onCheckToday: (WorkToShowFirst.Item) -> Void
+
+    @Environment(\.managedObjectContext) private var viewContext
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
@@ -35,7 +37,10 @@ struct WorkToShowFirstPopover: View {
     }
 
     private func row(_ item: WorkToShowFirst.Item) -> some View {
-        let checkingToday = item.work.dueAt.map { AppCalendar.shared.isDateInToday($0) } ?? false
+        // From the work's check-ins, not its due date: a row can be due today
+        // with no check planned, or have one today and a later due date.
+        let plan = WorkToShowFirst.todayCheck(for: item.work, in: viewContext)
+        let onToday = if case .onToday = plan { true } else { false }
         return VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
             Text(item.lessonName)
                 .font(.subheadline.weight(.semibold))
@@ -44,16 +49,26 @@ struct WorkToShowFirstPopover: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: AppTheme.Spacing.small) {
-                if let workID = item.work.id {
-                    Button("Open Work") { onOpenWork(workID) }
-                        .buttonStyle(.bordered)
+            // "Move Thursday's Check to Today" can outgrow the popover beside
+            // Open Work; the two then stack.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: AppTheme.Spacing.small) { buttons(item, plan: plan, onToday: onToday) }
+                VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
+                    buttons(item, plan: plan, onToday: onToday)
                 }
-                Button(checkingToday ? "On Today's Checks" : "Check Today") { onCheckToday(item.work) }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(checkingToday)
             }
             .controlSize(.small)
         }
+    }
+
+    @ViewBuilder
+    private func buttons(_ item: WorkToShowFirst.Item, plan: WorkToShowFirst.TodayCheck, onToday: Bool) -> some View {
+        if let workID = item.work.id {
+            Button("Open Work") { onOpenWork(workID) }
+                .buttonStyle(.bordered)
+        }
+        Button(WorkToShowFirst.checkTodayTitle(plan)) { onCheckToday(item) }
+            .buttonStyle(.borderedProminent)
+            .disabled(onToday)
     }
 }

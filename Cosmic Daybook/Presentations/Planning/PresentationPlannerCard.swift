@@ -145,9 +145,7 @@ struct PresentationPlannerCard: View {
         .onChange(of: day) { _, _ in loadAttendanceIfNeeded(force: true) }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
-        .accessibilityAction(named: "Show work to check first") {
-            showFirstChild = snapshot.studentIDs.first { workToShowFirst[$0] != nil }
-        }
+        .accessibilityActions { showFirstAccessibilityAction }
     }
 
     private var titleRow: some View {

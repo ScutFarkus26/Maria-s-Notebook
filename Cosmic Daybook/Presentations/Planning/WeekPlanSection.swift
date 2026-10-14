@@ -41,7 +41,7 @@ struct WeekPlanSection: View {
     @State var cachedStudents: [CDStudent] = []
     /// Where each of `cachedLessons` sits in its sequence, for the cards'
     /// "to check first" marks. Built with `cachedLessons`.
-    @State var lessonOrder = LessonSequenceOrder(lessons: [])
+    @State var showFirstSequences = WorkToShowFirst.Sequences(lessons: [])
 
     /// Check-ins for the whole visible range, fetched once and grouped per day.
     @State var cachedCheckIns: [CDWorkCheckIn] = []
@@ -74,6 +74,9 @@ struct WeekPlanSection: View {
     /// Each pending presentation's children's open work from earlier in its
     /// sequence, keyed by presentation id: the amber marks on the cards.
     @State var workToShowFirst: [UUID: WorkToShowFirst.ByChild] = [:]
+    /// Bumped by every save touching work and by the card data's reload, so
+    /// the marks are read again (`ShowFirstKey`).
+    @State var showFirstVersion = 0
     /// The strip's measured width, which the day columns share between them.
     /// Zero until the first layout, which reads as the minimum column width.
     @State var stripWidth: CGFloat = 0
@@ -139,6 +142,7 @@ struct WeekPlanSection: View {
                     }
                     .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
             ) {
+                showFirstVersion &+= 1
                 Task { await refreshCheckIns() }
             }
             // The card data's own refresh, a later pill's "Open whose work?"
@@ -253,6 +257,7 @@ struct WeekPlanSection: View {
     private func dayStrip(_ proxy: ScrollViewProxy) -> some View {
         let assignments = Array(lessonAssignments)
         let byDay = Self.scheduledByDay(assignments, days: days, calendar: calendar)
+        let marksKey = showFirstKey(byDay)
         let columnWidth = Self.columnWidth(forStripWidth: stripWidth, dayCount: Self.visibleDayCount)
         return ScrollView(.horizontal, showsIndicators: false) {
             LazyHStack(alignment: .top, spacing: Self.columnSpacing) {
@@ -295,10 +300,10 @@ struct WeekPlanSection: View {
         } action: { width in
             stripWidth = width
         }
-        // Read again when a card's lesson or children change; a work save
-        // reads it again through `refreshCheckIns`.
-        .task(id: Self.showFirstRequests(byDay)) {
-            refreshWorkToShowFirst()
+        // Read again when the cards near the screen, the Show menu or the
+        // work behind them change: one key, so one read per change.
+        .task(id: marksKey) {
+            refreshWorkToShowFirst(marksKey)
         }
     }
 

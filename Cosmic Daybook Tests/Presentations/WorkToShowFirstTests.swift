@@ -9,11 +9,11 @@ import Testing
 @MainActor
 struct WorkToShowFirstTests {
 
-    private let ada = UUID()
-    private let ben = UUID()
+    let ada = UUID()
+    let ben = UUID()
 
     /// A lesson in Math › `sequence` at `step`.
-    private func lesson(
+    func lesson(
         _ name: String, step: Int, sequence: String = "Addition", in context: NSManagedObjectContext
     ) -> CDLesson {
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: name, area: "Math", sequence: sequence)
@@ -24,7 +24,7 @@ struct WorkToShowFirstTests {
 
     /// One child's own row on `lesson`, naming nobody else.
     @discardableResult
-    private func work(
+    func work(
         for child: UUID, on lesson: CDLesson, status: WorkStatus = .active, in context: NSManagedObjectContext
     ) throws -> CDWorkModel {
         let work = CoreDataTestHelpers.seedWorkModel(
@@ -60,7 +60,7 @@ struct WorkToShowFirstTests {
         WorkToShowFirst.find(
             lessonID: try #require(lesson.id?.uuidString),
             studentIDs: children,
-            order: LessonSequenceOrder(lessons: lessons),
+            sequences: WorkToShowFirst.Sequences(lessons: lessons),
             in: context
         )
     }
@@ -95,13 +95,14 @@ struct WorkToShowFirstTests {
         for status in WorkStatus.closedCases {
             try work(for: ada, on: first, status: status, in: context)
         }
+        try work(for: ben, on: first, status: .done, in: context)
         let review = try work(for: ben, on: first, status: .review, in: context)
 
         let found = try find(second, for: [ada, ben], lessons: [first, second], in: context)
 
         #expect(found[ada] == nil)
+        // Ben's Finished row is left out beside his open one.
         #expect(found[ben]?.map(\.work) == [review])
-        #expect(WorkStatus.closedCases.contains(.done))
     }
 
     @Test("A child not on the lesson is left out")
@@ -166,19 +167,57 @@ struct WorkToShowFirstTests {
 
         #expect(try find(third, for: [ada], lessons: lessons, in: context)[ada]?.map(\.work) == [onFirst, onSecond])
         #expect(try find(first, for: [ada], lessons: lessons, in: context).isEmpty)
-        let order = LessonSequenceOrder(lessons: lessons)
-        #expect(WorkToShowFirst.earlierLessonIDs(before: try #require(first.id?.uuidString), in: order).isEmpty)
-        #expect(WorkToShowFirst.earlierLessonIDs(before: UUID().uuidString, in: order).isEmpty)
+        let sequences = WorkToShowFirst.Sequences(lessons: lessons)
+        #expect(WorkToShowFirst.earlierLessonIDs(before: try #require(first.id?.uuidString), in: sequences).isEmpty)
+        #expect(WorkToShowFirst.earlierLessonIDs(before: UUID().uuidString, in: sequences).isEmpty)
+    }
+
+    @Test("Earlier means a lower step number: lessons tied on one, ordered only by name, aren't earlier")
+    func tiesAreNotEarlier() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        // A sequence never numbered: every lesson at 0, sorted by name alone.
+        let apple = lesson("Apple Addition", step: 0, sequence: "Unordered", in: context)
+        let banana = lesson("Banana Addition", step: 0, sequence: "Unordered", in: context)
+        try work(for: ada, on: apple, in: context)
+        #expect(try find(banana, for: [ada], lessons: [apple, banana], in: context).isEmpty)
+
+        // Two lessons sharing step 1 and one at step 2.
+        let bead = lesson("Bead Addition", step: 1, in: context)
+        let chain = lesson("Chain Addition", step: 1, in: context)
+        let stamp = lesson("Stamp Game Addition", step: 2, in: context)
+        let onBead = try work(for: ada, on: bead, in: context)
+        let onChain = try work(for: ada, on: chain, in: context)
+        let lessons = [bead, chain, stamp]
+        #expect(try find(chain, for: [ada], lessons: lessons, in: context).isEmpty, "Bead sorts first by name only")
+        let beforeStamp = try find(stamp, for: [ada], lessons: lessons, in: context)[ada]?.map(\.work)
+        #expect(Set(try #require(beforeStamp)) == [onBead, onChain])
+    }
+
+    @Test("A lesson with no sequence has nothing before it, and asks for nothing")
+    func lessonWithNoSequence() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let first = lesson("Bead Addition", step: 1, in: context)
+        let loose = lesson("Bead Frame", step: 2, sequence: "", in: context)
+        try work(for: ada, on: first, in: context)
+        let sequences = WorkToShowFirst.Sequences(lessons: [first, loose])
+
+        #expect(WorkToShowFirst.earlierLessonIDs(before: try #require(loose.id?.uuidString), in: sequences).isEmpty)
+        #expect(try find(loose, for: [ada], lessons: [first, loose], in: context).isEmpty)
     }
 
     // MARK: - One fetch
 
-    @Test("Many lessons are answered with one fetch, and nothing to ask fetches nothing")
-    func oneFetchPerCall() throws {
+    private func countingContext() throws -> (NSManagedObjectContext, CountingCoordinator) {
         let coordinator = CountingCoordinator(managedObjectModel: try CoreDataStack.sharedModel())
         _ = try coordinator.addPersistentStore(type: .inMemory, at: URL(fileURLWithPath: "/dev/null"))
         let context = NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)
         context.persistentStoreCoordinator = coordinator
+        return (context, coordinator)
+    }
+
+    @Test("Many lessons are answered with one fetch, and nothing to ask fetches nothing")
+    func oneFetchPerCall() throws {
+        let (context, coordinator) = try countingContext()
         let first = lesson("Bead Addition", step: 1, in: context)
         let second = lesson("Stamp Game Addition", step: 2, in: context)
         let snakeOne = lesson("Snake Game", step: 1, sequence: "Snake Game", in: context)
@@ -194,65 +233,42 @@ struct WorkToShowFirstTests {
         ]
         coordinator.fetches = 0
 
-        let found = WorkToShowFirst.find(requests, order: LessonSequenceOrder(lessons: lessons), in: context)
+        let found = WorkToShowFirst.find(requests, sequences: WorkToShowFirst.Sequences(lessons: lessons), in: context)
 
-        #expect(coordinator.fetches == 1)
+        #expect(coordinator.fetches == 1, "rows naming one child need no second read")
         #expect(found["addition"]?.keys.sorted() == [ada])
         #expect(found["snake"]?.keys.sorted() == [ben])
         #expect(found["first"] == nil)
 
         let nothing = WorkToShowFirst.find(
-            ["first": try #require(requests["first"])], order: LessonSequenceOrder(lessons: lessons), in: context
+            ["first": try #require(requests["first"])],
+            sequences: WorkToShowFirst.Sequences(lessons: lessons),
+            in: context
         )
         #expect(nothing.isEmpty)
         #expect(coordinator.fetches == 1, "a lesson with nothing before it needs no fetch")
     }
 
-    // MARK: - The Work tab's list
-
-    @Test("Before a Lesson groups under each upcoming lesson, soonest first, each work once")
-    func beforeLessonSections() throws {
-        let context = try CoreDataTestHelpers.makeContext()
+    @Test("Closed rows are read only on a lesson where an open row names more than one child")
+    func secondFetchOnlyForGroupWork() throws {
+        let (context, coordinator) = try countingContext()
         let first = lesson("Bead Addition", step: 1, in: context)
         let second = lesson("Stamp Game Addition", step: 2, in: context)
-        let third = lesson("Dot Game", step: 3, in: context)
-        let adaWork = try work(for: ada, on: first, in: context)
-        let benWork = try work(for: ben, on: second, in: context)
-        let today = AppCalendar.startOfDay(Date())
-        let tomorrow = AppCalendar.addingDays(1, to: today)
-        let later = AppCalendar.addingDays(1, to: tomorrow)
-        let nextWeek = AppCalendar.addingDays(7, to: today)
-        let presentations = [
-            // Out of order on purpose: the list sorts by day.
-            PresentationFactory.makeScheduled(
-                lessonID: try #require(third.id), studentIDs: [ada, ben], scheduledFor: tomorrow, context: context
-            ),
-            PresentationFactory.makeScheduled(
-                lessonID: try #require(second.id), studentIDs: [ada], scheduledFor: today, context: context
-            ),
-            PresentationFactory.makeScheduled(
-                lessonID: try #require(third.id), studentIDs: [ben], scheduledFor: nextWeek, context: context
-            )
-        ]
+        let copies = try linkedCopies(on: first, statuses: [ada: .mastered, ben: .active], in: context)
+        try context.save()
+        coordinator.fetches = 0
 
-        let list = BeforeLessonWork.build(
-            presentations: presentations,
-            days: [today, tomorrow, later],
-            lessons: [first, second, third],
-            in: context,
-            now: today
+        let found = WorkToShowFirst.find(
+            ["lesson": .init(lessonID: try #require(second.id?.uuidString), studentIDs: [ada, ben])],
+            sequences: WorkToShowFirst.Sequences(lessons: [first, second]),
+            in: context
         )
 
-        #expect(list.sections.map(\.title) == [
-            "Today · Stamp Game Addition",
-            "\(tomorrow.formatted(.dateTime.weekday(.wide))) · Dot Game"
-        ])
-        #expect(list.sections.first?.works == [adaWork])
-        // Ada's work is listed under the sooner lesson only.
-        #expect(list.sections.last?.works == [benWork])
-        let benOnly = Set([try #require(benWork.id)])
-        #expect(list.works(visibleTo: benOnly) == [benWork])
-        #expect(list.sections(visibleTo: benOnly).count == 1)
+        #expect(coordinator.fetches == 2, "the open rows, then the lesson's rows to tell the copies apart")
+        // Ada's closed copy, read the second time, is what keeps Ben's open one off her list.
+        #expect(found["lesson"]?[ada] == nil)
+        #expect(found["lesson"]?[ben]?.map(\.work) == [try #require(copies[ben])])
+        #expect(found["lesson"]?[ben]?.first?.isHersAlone == true, "his own linked copy")
     }
 
     // MARK: - Words

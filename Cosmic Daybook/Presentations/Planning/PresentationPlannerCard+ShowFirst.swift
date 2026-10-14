@@ -10,9 +10,22 @@ import SwiftUI
 
 extension PresentationPlannerCard {
 
-    /// Open earlier work across the card's children, for the card's line.
+    /// The children whose chips the card draws: those on it that the roster
+    /// has (`studentChipsRow`). The "to check first" count and action read
+    /// only these.
+    var chippedStudentIDs: [UUID] {
+        let known = Set(cachedStudents.compactMap(\.id))
+        return snapshot.studentIDs.filter(known.contains)
+    }
+
+    /// Open earlier work across the children whose chips are drawn, for the
+    /// card's line, its spoken label and its VoiceOver action.
     var showFirstCount: Int {
-        snapshot.studentIDs.reduce(0) { $0 + (workToShowFirst[$1]?.count ?? 0) }
+        Self.showFirstCount(of: chippedStudentIDs, in: workToShowFirst)
+    }
+
+    static func showFirstCount(of studentIDs: [UUID], in marks: WorkToShowFirst.ByChild) -> Int {
+        studentIDs.reduce(0) { $0 + (marks[$1]?.count ?? 0) }
     }
 
     /// A chip with earlier work open is a button that lists it; the others
@@ -37,14 +50,24 @@ extension PresentationPlannerCard {
                         showFirstChild = nil
                         actions.openWork(workID)
                     },
-                    onCheckToday: { work in
+                    onCheckToday: { item in
                         showFirstChild = nil
-                        actions.checkToday(work)
+                        actions.checkToday(item)
                     }
                 )
             }
         } else {
             chipLabel(for: student, sid: sid)
+        }
+    }
+
+    /// The card's VoiceOver action, only when a drawn chip has a list to open.
+    @ViewBuilder
+    var showFirstAccessibilityAction: some View {
+        if showFirstCount > 0 {
+            Button("Show work to check first") {
+                showFirstChild = chippedStudentIDs.first { workToShowFirst[$0] != nil }
+            }
         }
     }
 
@@ -87,7 +110,7 @@ extension PresentationPlannerCard {
     /// What the "to check first" list can do from a strip card.
     struct ShowFirstActions {
         let openWork: (UUID) -> Void
-        /// Puts the work on today's checks.
-        let checkToday: (CDWorkModel) -> Void
+        /// Puts the work on today's checks (`WorkToShowFirst.checkToday`).
+        let checkToday: (WorkToShowFirst.Item) -> Void
     }
 }

@@ -90,8 +90,14 @@ extension WorksAgendaView {
 
     /// The Before a Lesson pill's list: the open earlier work of the children
     /// in the lessons planned for the next three school days, one fetch for
-    /// all of them.
+    /// all of them. Built only while the Work half is showing (the pill is
+    /// there); switching to it builds it, and so does a new day, which moves
+    /// the three-day window.
     func rebuildBeforeLesson() {
+        guard showsWorkGrid else {
+            if !beforeLesson.sections.isEmpty { beforeLesson = BeforeLessonWork() }
+            return
+        }
         let days = LessonsAndWorkTriage.beforeLessonDays(from: Date()) { day in
             SchoolDayChecker.isSchoolDay(day, using: viewContext)
         }

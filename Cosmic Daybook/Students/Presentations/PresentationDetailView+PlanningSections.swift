@@ -155,10 +155,11 @@ extension PresentationDetailContentView {
     // MARK: - Before you start
 
     /// The children's open work from earlier in the sequence, above "Who was
-    /// there?". Shown only when there is some.
+    /// there?". Shown only when it has a row to list: `showFirst` can hold a
+    /// child the plan no longer lists.
     @ViewBuilder
     var beforeYouStartSection: some View {
-        if !showFirst.isEmpty {
+        if !PresentationBeforeYouStartSection.rows(students: selectedStudentsList, showFirst: showFirst).isEmpty {
             PresentationBeforeYouStartSection(
                 students: selectedStudentsList,
                 showFirst: showFirst,
@@ -168,6 +169,10 @@ extension PresentationDetailContentView {
         }
     }
 
+    /// The saves that can change "Before you start": work rows and the
+    /// participant rows that say whose part is done.
+    nonisolated static let showFirstEntityNames: Set<String> = ["WorkModel", "WorkParticipantEntity"]
+
     func refreshWorkToShowFirst() {
         guard !vm.isPresented else {
             if !showFirst.isEmpty { showFirst = [:] }
@@ -176,20 +181,19 @@ extension PresentationDetailContentView {
         showFirst = WorkToShowFirst.find(
             lessonID: vm.editingLessonID.uuidString,
             studentIDs: vm.selectedStudentIDs,
-            order: LessonSequenceOrder(lessons: lessons),
+            sequences: WorkToShowFirst.Sequences(lessons: lessons),
             in: viewContext
         )
     }
 
     /// Closes one row of earlier work the way every other log does, and
-    /// offers Undo.
+    /// offers Undo. A row logged elsewhere since the list was read is only
+    /// taken off the list; a shared row is never logged from here.
     func logEarlierWork(_ item: WorkToShowFirst.Item, as status: WorkStatus) {
         let saveCoordinator = dependencies.saveCoordinator
         do {
-            let receipt = try WorkLogService.log(
-                [WorkLogService.Entry(work: item.work, status: status)],
-                context: viewContext,
-                saveCoordinator: saveCoordinator
+            let receipt = try WorkToShowFirst.log(
+                item, as: status, context: viewContext, saveCoordinator: saveCoordinator
             )
             refreshWorkToShowFirst()
             vm.recomputeSequenceRecap(currentLesson: currentLesson, students: selectedStudentsList)
@@ -205,6 +209,13 @@ extension PresentationDetailContentView {
                 refreshWorkToShowFirst()
                 vm.recomputeSequenceRecap(currentLesson: currentLesson, students: selectedStudentsList)
             }
+        } catch WorkToShowFirst.LogRefusal.noLongerOpen {
+            refreshWorkToShowFirst()
+        } catch WorkToShowFirst.LogRefusal.sharedWithOthers {
+            refreshWorkToShowFirst()
+            dependencies.toastService.show(
+                "Other children share this work. Open it to log it.", type: .info, duration: 4
+            )
         } catch {
             let message = PresentationFailureMessage.message(for: error, fallback: "Couldn't log that work. Try again.")
             dependencies.toastService.show(message, type: .error, duration: 4)

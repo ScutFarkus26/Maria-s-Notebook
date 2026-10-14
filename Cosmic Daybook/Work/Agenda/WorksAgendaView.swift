@@ -237,6 +237,13 @@ struct WorksAgendaView: View {
         ) {
             refreshAfterSave()
         }
+        // The pill's window is the next three school days from today.
+        .onChange(of: workspaceKindRaw) { _, _ in
+            rebuildBeforeLesson()
+        }
+        .onCalendarDayChange {
+            rebuildBeforeLesson()
+        }
         .onChange(of: searchText) { _, newValue in
             searchDebounceTask?.cancel()
             searchDebounceTask = Task {

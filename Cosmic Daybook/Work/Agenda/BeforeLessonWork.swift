@@ -13,6 +13,9 @@ import Foundation
 struct BeforeLessonWork {
     /// One upcoming lesson and the earlier work its children have open.
     struct Section {
+        /// The day and the lesson: two groups of one lesson on one day are
+        /// one section, two lessons that share a name are two.
+        let id: String
         /// "Today · Stamp Game Addition".
         let title: String
         let works: [CDWorkModel]
@@ -31,7 +34,7 @@ struct BeforeLessonWork {
     func sections(visibleTo visibleIDs: Set<UUID>) -> [Section] {
         sections.compactMap { section in
             let works = section.works.filter { $0.id.map(visibleIDs.contains) ?? false }
-            return works.isEmpty ? nil : Section(title: section.title, works: works)
+            return works.isEmpty ? nil : Section(id: section.id, title: section.title, works: works)
         }
     }
 
@@ -66,12 +69,12 @@ struct BeforeLessonWork {
                 studentIDs: Set(presentation.resolvedStudentIDs)
             )
         }
-        let order = LessonSequenceOrder(lessons: lessons)
-        let found = WorkToShowFirst.find(requests, order: order, in: context)
+        let sequences = WorkToShowFirst.Sequences(lessons: lessons)
+        let found = WorkToShowFirst.find(requests, sequences: sequences, in: context)
 
         var seen = Set<NSManagedObjectID>()
-        var titles: [String] = []
-        var worksByTitle: [String: [CDWorkModel]] = [:]
+        var sections: [Section] = []
+        var indexByID: [String: Int] = [:]
         for presentation in upcoming {
             // Earlier in the sequence first; ties in a fixed order, so the
             // grid doesn't reshuffle on each refresh.
@@ -82,28 +85,38 @@ struct BeforeLessonWork {
             let works = items.map(\.work).filter { seen.insert($0.objectID).inserted }
             guard !works.isEmpty else { continue }
             // Two groups of one lesson on one day read as one section.
-            let title = sectionTitle(for: presentation, order: order, now: now)
-            if worksByTitle[title] == nil { titles.append(title) }
-            worksByTitle[title, default: []].append(contentsOf: works)
+            let id = sectionID(for: presentation)
+            if let index = indexByID[id] {
+                let merged = sections[index]
+                sections[index] = Section(id: id, title: merged.title, works: merged.works + works)
+            } else {
+                indexByID[id] = sections.count
+                sections.append(Section(
+                    id: id, title: sectionTitle(for: presentation, order: sequences.order, now: now), works: works
+                ))
+            }
         }
-        return BeforeLessonWork(sections: titles.map { Section(title: $0, works: worksByTitle[$0] ?? []) })
+        return BeforeLessonWork(sections: sections)
+    }
+
+    /// The day and the lesson, whatever either is called.
+    private static func sectionID(for presentation: CDLessonAssignment) -> String {
+        let day = presentation.scheduledFor.map { AppCalendar.startOfDay($0).timeIntervalSinceReferenceDate } ?? 0
+        return "\(day)|\(presentation.resolvedLessonID.uuidString)"
     }
 
     private static func triageInput(for presentation: CDLessonAssignment) -> PresentationTriageInput {
         PresentationTriageInput(state: presentation.state, scheduledFor: presentation.scheduledFor)
     }
 
-    /// "Today · Stamp Game Addition", "Thursday · Stamp Game Addition".
+    /// "Today · Stamp Game Addition", "Thursday · Stamp Game Addition", and
+    /// past a holiday week "Mon, Jan 5 · Stamp Game Addition".
     static func sectionTitle(for presentation: CDLessonAssignment, order: LessonSequenceOrder, now: Date) -> String {
         let name = LessonFormatter.lessonName(
             order.position(of: presentation.resolvedLessonID.uuidString)?.name,
             missing: LessonFormatter.untitledLesson
         )
         guard let day = presentation.scheduledFor else { return name }
-        let calendar = AppCalendar.shared
-        let dayName = calendar.isDate(day, inSameDayAs: now)
-            ? "Today"
-            : day.formatted(.dateTime.weekday(.wide))
-        return "\(dayName) · \(name)"
+        return "\(WorkToShowFirst.dayName(day, now: now)) · \(name)"
     }
 }

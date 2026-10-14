@@ -187,7 +187,7 @@ struct LessonsAndWorkWorkView: View {
             OpenWorkGrid(
                 works: slice,
                 fixedSections: chip == .beforeLesson
-                    ? beforeLesson.sections(visibleTo: visibleWorkIDs).map { (key: $0.title, works: $0.works) }
+                    ? beforeLesson.sections(visibleTo: visibleWorkIDs)
                     : nil,
                 lessonsByID: lessonsByID,
                 studentsByID: studentsByID,

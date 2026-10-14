@@ -6,8 +6,9 @@ struct OpenWorkGrid: View {
     let works: [CDWorkModel]
     /// Sections the caller has already made, in order, used instead of the
     /// sort's own (the Before a Lesson pill groups under each lesson). Each
-    /// one's works must be among `works`.
-    var fixedSections: [(key: String, works: [CDWorkModel])]?
+    /// one's works must be among `works`. Each section's `id` tells apart two
+    /// that share a title.
+    var fixedSections: [BeforeLessonWork.Section]?
     let lessonsByID: [UUID: CDLesson]
     let studentsByID: [UUID: CDStudent]
     /// Work the partition placed in `.attention`. Passed in rather than
@@ -87,7 +88,7 @@ struct OpenWorkGrid: View {
             }
     }
 
-    private func grid(sections: [(key: String, items: [WorkGridItem])]) -> some View {
+    private func grid(sections: [GridSection]) -> some View {
         GeometryReader { proxy in
             ScrollViewReader { reader in
                 ScrollView {
@@ -97,7 +98,7 @@ struct OpenWorkGrid: View {
                         spacing: 8,
                         pinnedViews: [.sectionHeaders]
                     ) {
-                        ForEach(sections, id: \.key) { section in
+                        ForEach(sections, id: \.id) { section in
                             Section(header: groupHeader(title: section.key, count: section.items.count)) {
                                 ForEach(section.items, id: \.id) { item in
                                     card(for: item)
@@ -228,11 +229,20 @@ struct OpenWorkGrid: View {
     }
 
     // Group items by current sort mode; preserve overall order by grouping in the order items first appear
-    var groupedSections: [(key: String, items: [WorkGridItem])] {
+    /// One section of cards: `key` is its header.
+    struct GridSection {
+        let id: String
+        let key: String
+        let items: [WorkGridItem]
+    }
+
+    var groupedSections: [GridSection] {
         if let fixedSections {
             let today = AppCalendar.startOfDay(Date())
             return fixedSections.map { section in
-                (key: section.key, items: section.works.map { gridItem(for: $0, today: today) })
+                GridSection(
+                    id: section.id, key: section.title, items: section.works.map { gridItem(for: $0, today: today) }
+                )
             }
         }
         let items = sortedWorks
@@ -243,7 +253,7 @@ struct OpenWorkGrid: View {
             if buckets[key] == nil { order.append(key); buckets[key] = [] }
             buckets[key]?.append(it)
         }
-        return order.map { key in (key: key, items: buckets[key] ?? []) }
+        return order.map { key in GridSection(id: key, key: key, items: buckets[key] ?? []) }
     }
 
     private func sequenceKey(for item: WorkGridItem) -> String {

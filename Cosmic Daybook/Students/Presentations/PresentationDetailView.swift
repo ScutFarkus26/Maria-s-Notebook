@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreData
+import Combine
 
 struct PresentationDetailView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -222,15 +223,27 @@ struct PresentationDetailContentView: View {
         .sheet(isPresented: $showRescheduleSheet) {
             rescheduleSheet
         }
-        .sheet(item: $vm.recapWorkSheetID) { workID in
+        .sheet(item: $vm.recapWorkSheetID, onDismiss: {
+            // However the sheet closed (its Done, a swipe, Escape), the work
+            // in it may have been logged.
+            vm.recomputeSequenceRecap(currentLesson: currentLesson, students: selectedStudentsList)
+            refreshWorkToShowFirst()
+        }, content: { workID in
             WorkDetailView(workID: workID) {
                 vm.recapWorkSheetID = nil
-                vm.recomputeSequenceRecap(
-                    currentLesson: currentLesson,
-                    students: selectedStudentsList
-                )
-                refreshWorkToShowFirst()
             }
+        })
+        // A row logged anywhere else (the strip, Today, another device, MCP)
+        // leaves "Before you start" too.
+        .onReceive(
+            NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)
+                // @Sendable: runs on the saving context's queue.
+                .filter { @Sendable note in
+                    ManagedObjectChangeScope.saveTouches(Self.showFirstEntityNames, in: note.userInfo)
+                }
+                .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
+        ) { _ in
+            refreshWorkToShowFirst()
         }
         .onChange(of: vm.showingStudentPickerPopover) { _, isShowing in
             if !isShowing && lessonPickerFocused {

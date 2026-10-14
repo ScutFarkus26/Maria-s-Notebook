@@ -5,10 +5,14 @@ import SwiftUI
 /// the work the children on the plan still have open from earlier in this
 /// lesson's sequence (`WorkToShowFirst`), each with a way to close it there
 /// and then. The sheet shows it only when there is something to list.
+///
+/// A shared row (project or book-club work) is one row for every child on it,
+/// so logging it here would close her classmates' part too; it offers Open
+/// Work instead, where the guide sees everyone on it.
 struct PresentationBeforeYouStartSection: View {
     let students: [CDStudent]
     let showFirst: WorkToShowFirst.ByChild
-    /// Logs one row through `WorkLogService.log`.
+    /// Logs one row through `WorkToShowFirst.log`.
     let onLog: (WorkToShowFirst.Item, WorkStatus) -> Void
     let onOpenWork: (UUID) -> Void
 
@@ -16,10 +20,18 @@ struct PresentationBeforeYouStartSection: View {
     /// verdict, or not yet.
     static let statuses: [WorkStatus] = [.done, .mastered, .keepPracticing]
 
-    private var rows: [(student: CDStudent, item: WorkToShowFirst.Item)] {
+    /// The rows listed: each child on the plan, then her earlier work. A
+    /// child in `showFirst` who isn't among `students` isn't listed.
+    static func rows(
+        students: [CDStudent], showFirst: WorkToShowFirst.ByChild
+    ) -> [(student: CDStudent, item: WorkToShowFirst.Item)] {
         students.flatMap { student in
             (student.id.flatMap { showFirst[$0] } ?? []).map { (student, $0) }
         }
+    }
+
+    private var rows: [(student: CDStudent, item: WorkToShowFirst.Item)] {
+        Self.rows(students: students, showFirst: showFirst)
     }
 
     var body: some View {
@@ -71,9 +83,13 @@ struct PresentationBeforeYouStartSection: View {
                 Text("\(student.shortName) · \(item.lessonName)")
                     .font(AppTheme.ScaledFont.bodySemibold)
                     .fixedSize(horizontal: false, vertical: true)
-                Text([item.workTitle, item.work.status.displayName].compactMap { $0 }.joined(separator: " · "))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text(
+                    [item.workTitle, item.work.status.displayName, item.isHersAlone ? nil : "Shared work"]
+                        .compactMap { $0 }
+                        .joined(separator: " · ")
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
         }
         .contentShape(Rectangle())
@@ -85,15 +101,24 @@ struct PresentationBeforeYouStartSection: View {
         .accessibilityHint("Opens the work")
     }
 
+    @ViewBuilder
     private func buttons(_ item: WorkToShowFirst.Item) -> some View {
-        HStack(spacing: 6) {
-            ForEach(Self.statuses) { status in
-                Button(status.displayName) { onLog(item, status) }
-                    .buttonStyle(.bordered)
-                    .tint(status.color)
+        if item.isHersAlone {
+            HStack(spacing: 6) {
+                ForEach(Self.statuses) { status in
+                    Button(status.displayName) { onLog(item, status) }
+                        .buttonStyle(.bordered)
+                        .tint(status.color)
+                }
             }
+            .controlSize(.small)
+            .fixedSize()
+        } else if let workID = item.work.id {
+            Button("Open Work") { onOpenWork(workID) }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .fixedSize()
+                .accessibilityHint("Shared with other children, so it's logged from the work itself")
         }
-        .controlSize(.small)
-        .fixedSize()
     }
 }

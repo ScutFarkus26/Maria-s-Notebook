@@ -6,8 +6,10 @@
 //  earlier lesson in the same sequence, to look at before going on.
 //
 //  Danny's definition (2026-10-13): a child's open work whose lesson comes
-//  earlier in the same sub-area than the lesson being given. "Earlier" is
-//  `LessonSequenceOrder`'s order, the ready queue's; "open" is
+//  earlier in the same sub-area than the lesson being given. "Earlier" is a
+//  strictly lower `orderInSequence`: the ready queue breaks ties by name, but
+//  a lesson that only sorts first by name isn't one the child had to finish
+//  first, so a sequence left all at 0 has nothing earlier. "Open" is
 //  `WorkStatus.isOpen`; "the child's" is the Work column's rule
 //  (`QuietStudentsOrder.openStudentIDs` through `WorkVisibility`): her own
 //  copy of linked work, or a shared row she hasn't finished her part of. A
@@ -16,9 +18,11 @@
 //  Three surfaces read it: the Scheduled strip's cards (a mark on the chip),
 //  the present-a-lesson sheet ("Before you start") and the Work tab's
 //  "Before a Lesson" pill. Each asks for many lessons at once, and the answer
-//  for all of them is one fetch: every row on the earlier lessons that a
-//  child owns, plus the open rows that name one. The owned closed rows are
-//  read too because they are what tells a classmate's copy from a shared row.
+//  for all of them is one fetch of the open rows on the earlier lessons that
+//  name one of the children, plus, only where one of those names more than
+//  one child, a second of every row on those lessons: a child's closed copy is
+//  what tells a classmate's open copy from a row she shares
+//  (`WorkVisibility(covering:)`'s rule).
 //
 
 import CoreData
@@ -33,6 +37,25 @@ enum WorkToShowFirst {
         let studentIDs: Set<UUID>
     }
 
+    /// The library's sequences as this reads them: each lesson's place in its
+    /// sub-area (`LessonSequenceOrder`, the ready queue's order and names)
+    /// and the `orderInSequence` that alone decides what is earlier.
+    nonisolated struct Sequences: Sendable, Equatable {
+        let order: LessonSequenceOrder
+        /// lessonID → `orderInSequence`.
+        let ranks: [String: Int64]
+
+        init(lessons: [CDLesson]) {
+            order = LessonSequenceOrder(lessons: lessons)
+            var ranks: [String: Int64] = [:]
+            for lesson in lessons {
+                guard let id = lesson.id?.uuidString, ranks[id] == nil else { continue }
+                ranks[id] = lesson.orderInSequence
+            }
+            self.ranks = ranks
+        }
+    }
+
     /// One piece of open work a child has on an earlier lesson.
     struct Item: Identifiable {
         let work: CDWorkModel
@@ -43,6 +66,11 @@ enum WorkToShowFirst {
         let lessonName: String
         /// The lesson's place in its sub-area, 1-based.
         let step: Int
+        /// Whether logging the row closes it for this child alone: her own
+        /// copy, or a row naming nobody else. A shared row (project or book-club
+        /// work) closes for everyone on it (`WorkLogService.studentsLogged`), so
+        /// the lists only open it.
+        let isHersAlone: Bool
 
         /// A shared row can be open work of two children on one lesson, so
         /// the child is part of the identity.
@@ -72,12 +100,15 @@ enum WorkToShowFirst {
 
     // MARK: - Earlier lessons
 
-    /// The lessons before `lessonID` in its sub-area, first first. Empty for
-    /// the first lesson, and for one with no area or sequence.
-    static func earlierLessonIDs(before lessonID: String, in order: LessonSequenceOrder) -> [String] {
-        guard let position = order.position(of: lessonID) else { return [] }
-        let ids = order.lessonIDs(area: position.area, sequence: position.sequence)
-        return Array(ids.prefix(position.step - 1))
+    /// The lessons in `lessonID`'s sub-area with a lower `orderInSequence`,
+    /// first first. Empty for the first lesson, for one tied with every lesson
+    /// before it, and for one with no area or sequence.
+    static func earlierLessonIDs(before lessonID: String, in sequences: Sequences) -> [String] {
+        guard let position = sequences.order.position(of: lessonID),
+              let rank = sequences.ranks[lessonID] else { return [] }
+        return sequences.order.lessonIDs(area: position.area, sequence: position.sequence).filter { id in
+            sequences.ranks[id].map { $0 < rank } ?? false
+        }
     }
 
     // MARK: - Finding it
@@ -86,81 +117,123 @@ enum WorkToShowFirst {
     static func find(
         lessonID: String,
         studentIDs: Set<UUID>,
-        order: LessonSequenceOrder,
+        sequences: Sequences,
         in context: NSManagedObjectContext
     ) -> ByChild {
         let request = Request(lessonID: lessonID, studentIDs: studentIDs)
-        return find([0: request], order: order, in: context)[0] ?? [:]
+        return find([0: request], sequences: sequences, in: context)[0] ?? [:]
     }
 
     /// The open earlier work for many lessons at once, keyed as the caller
     /// keys its requests (a presentation's id, say). One fetch for all of
-    /// them; a key with nothing to show is absent.
+    /// them, two when a row names more than one child; a key with nothing to
+    /// show is absent.
     static func find<Key: Hashable>(
         _ requests: [Key: Request],
-        order: LessonSequenceOrder,
+        sequences: Sequences,
         in context: NSManagedObjectContext
     ) -> [Key: ByChild] {
         var earlierByLesson: [String: [String]] = [:]
         for request in requests.values where earlierByLesson[request.lessonID] == nil {
-            earlierByLesson[request.lessonID] = earlierLessonIDs(before: request.lessonID, in: order)
+            earlierByLesson[request.lessonID] = earlierLessonIDs(before: request.lessonID, in: sequences)
         }
         let asked = requests.values.filter { !$0.studentIDs.isEmpty && !(earlierByLesson[$0.lessonID] ?? []).isEmpty }
         let lessonIDs = Set(asked.flatMap { earlierByLesson[$0.lessonID] ?? [] })
         let children = Set(asked.flatMap(\.studentIDs))
         guard !lessonIDs.isEmpty, !children.isEmpty else { return [:] }
 
-        let open = openWork(
-            in: context.safeFetch(fetchRequest(lessonIDs: lessonIDs, studentIDs: children)),
-            for: children
-        )
+        let openRows = context.safeFetch(openRowsRequest(lessonIDs: lessonIDs, studentIDs: children))
+            .filter { !$0.isDeleted && $0.status.isOpen }
+        guard !openRows.isEmpty else { return [:] }
+        let open = openWork(openRows, for: children, in: context)
         var result: [Key: ByChild] = [:]
         for (key, request) in requests {
             let byChild = items(
-                for: request.studentIDs, on: earlierByLesson[request.lessonID] ?? [], open: open, order: order
+                for: request.studentIDs, on: earlierByLesson[request.lessonID] ?? [], open: open,
+                order: sequences.order
             )
             if !byChild.isEmpty { result[key] = byChild }
         }
         return result
     }
 
-    /// Each open row among `rows`, by lesson and then by each of `children`
-    /// it is open work of.
+    /// One open row as one child's: the row, and whether logging it closes it
+    /// for her alone.
+    private struct OpenRow {
+        let work: CDWorkModel
+        let isHersAlone: Bool
+    }
+
+    /// Each of `openRows`, by lesson and then by each of `children` it is
+    /// open work of. A row naming one child is hers whatever else is on its
+    /// lesson; only the lessons where a row names more are read whole, in one
+    /// more fetch, to tell linked copies from a shared row.
     private static func openWork(
-        in rows: [CDWorkModel], for children: Set<UUID>
-    ) -> [String: [UUID: [CDWorkModel]]] {
-        let rows = rows.filter { !$0.isDeleted }
+        _ openRows: [CDWorkModel], for children: Set<UUID>, in context: NSManagedObjectContext
+    ) -> [String: [UUID: [OpenRow]]] {
+        let rows = rowsToTellApart(openRows, in: context)
         let visibility = WorkVisibility(rows: rows)
-        var open: [String: [UUID: [CDWorkModel]]] = [:]
-        for row in rows where row.status.isOpen {
+        var rowsByLesson: [String: [CDWorkModel]] = [:]
+        for row in rows { rowsByLesson[row.lessonID, default: []].append(row) }
+
+        var open: [String: [UUID: [OpenRow]]] = [:]
+        for row in openRows {
+            let named = WorkGrouping.studentIDs(of: row)
+            let owner = WorkGrouping.owner(of: row)
+            // More than one child named: hers alone only as one of a set of
+            // linked copies, never as a shared row.
+            let isLinkedCopy = named.count > 1 && !WorkGrouping.closure(
+                from: row, among: (rowsByLesson[row.lessonID] ?? []).filter { $0 !== row }
+            ).filter { $0 !== row }.isEmpty
             for child in QuietStudentsOrder.openStudentIDs(of: row, visibility: visibility)
             where children.contains(child) {
-                open[row.lessonID, default: [:]][child, default: []].append(row)
+                let hersAlone = owner == child && (named.count <= 1 || isLinkedCopy)
+                open[row.lessonID, default: [:]][child, default: []].append(
+                    OpenRow(work: row, isHersAlone: hersAlone)
+                )
             }
         }
         return open
+    }
+
+    /// `openRows`, plus every row on the lessons where one of them names more
+    /// than one child (`WorkVisibility(covering:)`'s fetch, kept in hand here
+    /// for the linked-copy test).
+    private static func rowsToTellApart(
+        _ openRows: [CDWorkModel], in context: NSManagedObjectContext
+    ) -> [CDWorkModel] {
+        let lessonIDs = Set(openRows.filter { WorkGrouping.studentIDs(of: $0).count > 1 }.map(\.lessonID))
+        guard !lessonIDs.isEmpty else { return openRows }
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(format: "lessonID IN %@", Array(lessonIDs))
+        request.relationshipKeyPathsForPrefetching = ["participants"]
+        var seen = Set<ObjectIdentifier>()
+        return (openRows + context.safeFetch(request)).filter {
+            !$0.isDeleted && seen.insert(ObjectIdentifier($0)).inserted
+        }
     }
 
     /// One request's answer, out of the open rows already sorted by lesson.
     private static func items(
         for children: Set<UUID>,
         on earlier: [String],
-        open: [String: [UUID: [CDWorkModel]]],
+        open: [String: [UUID: [OpenRow]]],
         order: LessonSequenceOrder
     ) -> ByChild {
         var byChild: ByChild = [:]
         for lessonID in earlier {
             guard let byStudent = open[lessonID], let position = order.position(of: lessonID) else { continue }
             for child in children {
-                for work in byStudent[child] ?? [] {
+                for row in byStudent[child] ?? [] {
                     byChild[child, default: []].append(Item(
-                        work: work,
+                        work: row.work,
                         studentID: child,
                         lessonID: lessonID,
                         lessonName: LessonFormatter.lessonName(
-                            position.name, orRowTitle: work.title, missing: LessonFormatter.untitledWork
+                            position.name, orRowTitle: row.work.title, missing: LessonFormatter.untitledWork
                         ),
-                        step: position.step
+                        step: position.step,
+                        isHersAlone: row.isHersAlone
                     ))
                 }
             }
@@ -168,20 +241,18 @@ enum WorkToShowFirst {
         return byChild.mapValues { $0.sorted(by: isOrderedBefore) }
     }
 
-    /// Every row on `lessonIDs` a child owns, open or closed, and every open
-    /// row naming one of them. Participants are prefetched: who a row is
-    /// open for is read from them.
-    static func fetchRequest(lessonIDs: Set<String>, studentIDs: Set<UUID>) -> NSFetchRequest<CDWorkModel> {
+    /// The open rows on `lessonIDs` that name one of the children, as owner
+    /// or participant. Participants are prefetched: who a row is open for is
+    /// read from them.
+    static func openRowsRequest(lessonIDs: Set<String>, studentIDs: Set<UUID>) -> NSFetchRequest<CDWorkModel> {
         let ids = studentIDs.map(\.uuidString)
         let request = CDFetchRequest(CDWorkModel.self)
         request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
             NSPredicate(format: "lessonID IN %@", Array(lessonIDs)),
+            WorkStatus.openPredicate,
             NSCompoundPredicate(orPredicateWithSubpredicates: [
                 NSPredicate(format: "studentID IN %@", ids),
-                NSCompoundPredicate(andPredicateWithSubpredicates: [
-                    WorkStatus.openPredicate,
-                    NSPredicate(format: "ANY participants.studentID IN %@", ids)
-                ])
+                NSPredicate(format: "ANY participants.studentID IN %@", ids)
             ])
         ])
         request.relationshipKeyPathsForPrefetching = ["participants"]
