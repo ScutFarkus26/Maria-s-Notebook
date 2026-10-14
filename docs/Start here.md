@@ -10,6 +10,7 @@ run `docs-index`; edit only the Other documents section by hand.
 |---|---|---|---|
 | [Plan - Daybook Assistant bug fixes](<Plans/Plan - Daybook Assistant bug fixes.md>) | Fixes for the ~50 findings of the 2026-10-04 Daybook Assistant bug hunt, in six phases. | Working on it | 2026-10-05 |
 | [Plan - Debug builds open a fake notebook](<Plans/Plan - Debug builds open a fake notebook.md>) | Debug builds open a fake, local-only notebook; the real one only through the Real Notebook scheme. | Not started | 2026-10-04 |
+| [Plan - Lessons and Work changes 2026-10-13](<Plans/Plan - Lessons and Work changes 2026-10-13.md>) | a tidier student picker, a three-day Scheduled strip, a Finished work status, a steady sync dot, moving children between groups, "work to show first" before a lesson, and Move All Forward / Clear All that handle every open check-in. | Not started | 2026-10-13 |
 | [Plan - Names you set yourself](<Plans/Plan - Names you set yourself.md>) | A small shared list of each person's current name, set by that person, so the Assistant says "Danny" instead of "your guide" and a rename shows everywhere, old entries included. | Working on it | 2026-10-05 |
 | [Plan - Restock](<Plans/Plan - Restock.md>) | Supplies and orders as one page, shared with the Daybook Assistant; shipped to TestFlight, device checks open. | Working on it | 2026-10-03 |
 | [Plan - School year separation](<Plans/Plan - School year separation.md>) | A school-year lens across the app; reports, exports and the activity stamp were never built. | Working on it | 2026-09-30 |
