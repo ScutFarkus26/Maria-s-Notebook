@@ -22,7 +22,7 @@ Lessons & Work gets easier to run a day from, on Mac and iPad.
 - [x] Phase 3: Finished work status (#3) (agent) · est. ~1–2% · branch `worktree-agent-ab9072863d914b1ac` 5508a48e, 103 tests in 13 suites pass. Differed: kept the gray checkmark; meeting-card outcome buttons don't offer Finished; the six-pill wrap in the work sheet wasn't rendered; `Documentation/Manuals/UserManual.md:359` still lists the old statuses (fix in Phase 7).
 - [x] Phase 4: Steady sync dot (#4) (agent) · est. <1% · branch `worktree-agent-a1c8f458819d45ef1` 4caa975b. Differed: the no-shift check renders a stand-in toolbar (`SyncDotSlotTests`); the real Mac and iPad toolbars are a by-hand check. `SyncStatusSignalsTests` doesn't exist.
 - [x] Phase 5: Move a child between groups (#5) (agent) · est. ~1–2% · branch `worktree-agent-a036c4342cee3b4dc` 9bfa40fa, 38 tests in 4 suites pass; iPad simulator long-press opened the menu without starting a drag. Differed: Undo included (rebuilds an emptied group with its notes); a new group copies Unlock Lesson; menu on ready lessons only; dragging a chip uses the same move code; Mac right-click not seen.
-- [ ] Phase 6: Work to show first, A + D + E (#6) (agent, after 1–5 are combined) · est. ~2–3%
+- [ ] Phase 6: Work to show first, A + D + E (#6) (agent, after 1–5 are combined; started at 80%) · est. ~2–3%
 - [x] Phase 7 (for Phases 1–5): combined, reviewed, fixed, landed (main session) · est. ~3–5% · weekly 78% → 81% for Phases 1–5 and this landing. Five clean merges; Mac, iOS and Assistant builds clean; whole suites 3,799 + 349 pass. One Opus review found 9 issues (mastery marks lost on group moves; Clear All left noted checks scheduled; departed children's checks moved; stale checks pinned the strip; raw-ID lesson names on 5 screens; unchecked Undo saves; 3 small); a fix agent fixed 8 test-first (a503cca8); the 9th (the sync-dot test is a stand-in) is a device check. Differed: the strip now hides pills for closed work and departed children.
 - [ ] Phase 7 again, for Phase 6
   - [x] Review fixes, Phases 1–5 (agent, 2026-10-14): 8 findings fixed with failing-first tests; 103 tests in 13 suites pass; iOS and macOS builds clean. Group moves keep mastery marks; Clear All marks a check with its own note Skipped (Undo restores it); Move All Forward, Clear All, their counts and the strip all leave out closed work and departed children's checks (the strip now hides those pills too); no raw lesson-id names on screen; Undo saves roll back with a plain message on failure. Not checked by hand: the Undo failure toast.
@@ -270,6 +270,20 @@ Checked 2026-10-13 against Xcode 27.0 (27A266a), Swift 6.4, iOS/macOS 27.0 SDKs.
   - Close work as Finished.
   - Use Move All Forward with an overdue check.
   - (`Release`) Roll out to the Mac, iPhone and iPad.
+
+## Danny's steps (in Tide)
+
+Phases 1–5 are on main as a361c2e4. Danny's rows in Tide:
+- [Roll out to the Mac, iPhone and iPad](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Roll%20out%20the%20Lessons%20%26%20Work%20changes%20%28main%20a361c2e4%29%20to%20the%20Mac%2C%20iPhone%20and%20iPad)
+- [Try the picker on the Mac](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20roll-out%2C%20try%20Add%20or%20Remove%20Children%20on%20the%20Mac%3A%20only%20your%20class%2C%20selected%20then%20ready%20then%20A%20to%20Z)
+- [Scroll the three-day strip](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20roll-out%2C%20scroll%20the%20three-day%20Scheduled%20strip%20on%20the%20Mac%20and%20iPad)
+- [Move a child between groups](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20roll-out%2C%20move%20a%20child%20between%20a%20lesson%27s%20groups%3A%20right-click%20on%20the%20Mac%2C%20long-press%20on%20the%20iPad)
+- [Watch the sync dot](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20roll-out%2C%20watch%20the%20toolbar%20during%20a%20sync%20on%20the%20Mac%20and%20iPad%3A%20the%20dot%20fades%2C%20nothing%20moves)
+- [Close work as Finished](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20roll-out%2C%20close%20a%20piece%20of%20work%20as%20Finished%20and%20check%20the%20work%20sheet%27s%20status%20row)
+- [Move All Forward and Clear All](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20roll-out%2C%20try%20Move%20All%20Forward%20with%20an%20overdue%20check%2C%20then%20Clear%20All%20to%20Inbox%2C%20and%20Undo%20each)
+- [Confirm two strip choices](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Confirm%20two%20Scheduled-strip%20choices%20made%20overnight%20in%20Cosmic%20Daybook)
+
+The user manual's PDF (`Documentation/Generated/UserManual.pdf`) still lists the old statuses; the Markdown is updated.
 
 ## Starting a phase
 Read the plan usage (`get_usage`) and note the weekly % used next to the phase under Progress ("started at N%").
