@@ -20,7 +20,7 @@ Lessons & Work gets easier to run a day from, on Mac and iPad.
 - [ ] Phase 1: Student picker (#1) (session: agent, Phases 1–5 started at 78%) ‖ 2 ‖ 3 ‖ 4 ‖ 5 · est. ~1–2% weekly
 - [ ] Phase 2: Three-day strip + Move forward / Clear all (#2, #7) (agent) · est. ~2–4%
 - [ ] Phase 3: Finished work status (#3) (agent) · est. ~1–2%
-- [ ] Phase 4: Steady sync dot (#4) (agent) · est. <1%
+- [x] Phase 4: Steady sync dot (#4) (agent) · est. <1% · branch `worktree-agent-a1c8f458819d45ef1` 4caa975b. Differed: the no-shift check renders a stand-in toolbar (`SyncDotSlotTests`); the real Mac and iPad toolbars are a by-hand check. `SyncStatusSignalsTests` doesn't exist.
 - [ ] Phase 5: Move a child between groups (#5) (agent) · est. ~1–2%
 - [ ] Phase 6: Work to show first, A + D + E (#6) (agent, after 1–5 are combined) · est. ~2–3%
 - [ ] Phase 7: Combine, full builds, whole suite, review, fixes (main session) · est. ~3–5%
