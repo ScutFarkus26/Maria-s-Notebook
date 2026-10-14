@@ -285,7 +285,7 @@ Phases 1–5 landed as a361c2e4 and Phase 6 as db2b9d39. Danny's rows in Tide:
 - [Try work to show first](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20roll-out%2C%20try%20work%20to%20show%20first%3A%20the%20strip%27s%20amber%20marks%2C%20Before%20you%20start%2C%20and%20the%20Before%20a%20Lesson%20chip)
 - [Confirm two strip choices](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Confirm%20two%20Scheduled-strip%20choices%20made%20overnight%20in%20Cosmic%20Daybook)
 
-The user manual's PDF (`Documentation/Generated/UserManual.pdf`) still lists the old statuses; the Markdown is updated.
+The user manual's PDF still lists the old statuses; the Markdown is updated ([regenerate the PDF](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Ask%20Claude%20to%20regenerate%20the%20Cosmic%20Daybook%20user%20manual%20PDF%20so%20it%20lists%20the%20Finished%20status)).
 
 ## Starting a phase
 Read the plan usage (`get_usage`) and note the weekly % used next to the phase under Progress ("started at N%").
