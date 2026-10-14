@@ -2,7 +2,8 @@
 // What makes a backlog line a presentation rather than a picture of one: it
 // drags onto the calendar, opens on a tap, joins a selection on a command-
 // click, carries the presentation's context menu, and can be ringed and
-// scrolled to by a deep link.
+// scrolled to by a deep link. Its chips' move menus are named actions here
+// too, since the line is one element to VoiceOver.
 //
 // Every line — a single-group row, or one group of a lesson with several —
 // goes through `backlogLine`, so the two shapes cannot drift apart on any of
@@ -18,12 +19,16 @@ extension ReadyToPresentSection {
         _ la: CDLessonAssignment,
         chips: [BacklogChip],
         groupLabel: String?,
-        groupCount: Int,
+        groups: [CDLessonAssignment],
         context: BacklogRenderContext,
         @ViewBuilder content: () -> Content
     ) -> some View {
         let isFocused = focusedLessonID != nil && focusedLessonID == la.id
         let readiness = partialReadiness(of: la, context: context)
+        let moves = chips.flatMap { chip in
+            chipMoves(for: chip, on: la, groups: groups, visibleChildren: chips.count, context: context)
+                .map { (chip: chip, move: $0) }
+        }
         let line = content()
             .padding(.horizontal, AppTheme.Spacing.small)
             .padding(.vertical, AppTheme.Spacing.verySmall)
@@ -51,6 +56,11 @@ extension ReadyToPresentSection {
                 if let readiness {
                     Button("Move Ready") { splitReadyToInbox(la, result: readiness.result) }
                 }
+                ForEach(Array(moves.enumerated()), id: \.offset) { _, item in
+                    Button(item.move.spokenTitle(for: item.chip.name)) {
+                        moveChild(item.chip, from: la, move: item.move)
+                    }
+                }
             }
         return draggableLine(line, la: la, chips: chips)
             .id(la.id ?? UUID())
@@ -59,7 +69,7 @@ extension ReadyToPresentSection {
                 selection.contains(la.id),
                 cornerRadius: UIConstants.CornerRadius.medium
             )
-            .contextMenu { lineMenu(for: la, groupCount: groupCount, context: context) }
+            .contextMenu { lineMenu(for: la, groupCount: groups.count, context: context) }
     }
 
     @ViewBuilder

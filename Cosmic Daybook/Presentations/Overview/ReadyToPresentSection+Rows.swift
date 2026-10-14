@@ -95,11 +95,11 @@ extension ReadyToPresentSection {
     func singleLessonRow(_ la: CDLessonAssignment, context: BacklogRenderContext) -> some View {
         let chips = backlogChips(for: la, context: context)
         let title = viewModel.lessonTitle(for: la)
-        return backlogLine(la, chips: chips, groupLabel: nil, groupCount: 1, context: context) {
+        return backlogLine(la, chips: chips, groupLabel: nil, groups: [la], context: context) {
             BacklogRowLayout(isCompact: context.isCompact, titleWidth: titleColumnWidth) {
                 BacklogLessonTitle(title: title, areaColor: areaColor(for: la))
             } content: {
-                lineContent(la, chips: chips, context: context)
+                lineContent(la, chips: chips, groups: [la], context: context)
             }
         }
     }
@@ -127,7 +127,7 @@ extension ReadyToPresentSection {
                 ForEach(Array(group.items.enumerated()), id: \.element.objectID) { index, la in
                     let chips = backlogChips(for: la, context: context)
                     let label = "Group \(index + 1)"
-                    backlogLine(la, chips: chips, groupLabel: label, groupCount: group.items.count, context: context) {
+                    backlogLine(la, chips: chips, groupLabel: label, groups: group.items, context: context) {
                         HStack(alignment: .top, spacing: AppTheme.Spacing.small) {
                             Text(label)
                                 .font(.caption.weight(.medium))
@@ -135,7 +135,7 @@ extension ReadyToPresentSection {
                                 .fixedSize()
                                 // Level with the text inside the first chip.
                                 .padding(.top, 3)
-                            lineContent(la, chips: chips, context: context)
+                            lineContent(la, chips: chips, groups: group.items, context: context)
                         }
                     }
                 }
@@ -144,10 +144,12 @@ extension ReadyToPresentSection {
     }
 
     /// The children, then what the line has to say on its right: partial
-    /// readiness and its action for a brewing lesson, and the flags.
+    /// readiness and its action for a brewing lesson, and the flags. Each
+    /// chip carries its menu for moving the child among `groups`.
     private func lineContent(
         _ la: CDLessonAssignment,
         chips: [BacklogChip],
+        groups: [CDLessonAssignment],
         context: BacklogRenderContext
     ) -> some View {
         let palette = context.palette
@@ -160,7 +162,14 @@ extension ReadyToPresentSection {
             } else {
                 FlowLayout(spacing: AppTheme.Spacing.xxsmall) {
                     ForEach(chips) { chip in
-                        BacklogStudentChip(chip: chip, longWaitColor: palette.overdue)
+                        movableChip(
+                            chip,
+                            on: la,
+                            moves: chipMoves(
+                                for: chip, on: la, groups: groups, visibleChildren: chips.count, context: context
+                            ),
+                            longWaitColor: palette.overdue
+                        )
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
