@@ -105,7 +105,6 @@ nonisolated enum UserDefaultsKeys {
 
     // MARK: - Presentations
     static let presentationHistoryNameDisplayStyle = "PresentationHistory.nameDisplayStyle"
-    static let lessonsAgendaStartDate = "LessonsAgenda.startDate"
     static let lessonsAgendaMissWindow = "LessonsAgenda.missWindow"
     static let planningRecentWindowDays = "Planning.recentWindowDays"
     /// What the merged calendar shows: a `CalendarKindFilter` raw value.

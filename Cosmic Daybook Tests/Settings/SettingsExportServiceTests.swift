@@ -53,7 +53,8 @@ struct SettingsExportServiceTests {
         source.set(false, forKey: UserDefaultsKeys.quickCaptureButtonVisible)
         source.set(0.7, forKey: UserDefaultsKeys.lessonPlanningTemperature)
         source.set(6, forKey: UserDefaultsKeys.autoBackupIntervalHours)
-        source.set(when, forKey: UserDefaultsKeys.lessonsAgendaStartDate)
+        // Any backed-up key will do: this one checks a date survives the trip.
+        source.set(when, forKey: UserDefaultsKeys.lessonsAgendaMissWindow)
         source.set(tagOrder, forKey: UserDefaultsKeys.todoTagOrder)
         source.set(untouchedByArea, forKey: UserDefaultsKeys.curriculumMapUntouchedDaysByArea)
         // Device-only: must not travel.
@@ -75,7 +76,7 @@ struct SettingsExportServiceTests {
         #expect(target.object(forKey: UserDefaultsKeys.quickCaptureButtonVisible) as? Bool == false)
         #expect(target.double(forKey: UserDefaultsKeys.lessonPlanningTemperature) == 0.7)
         #expect(target.integer(forKey: UserDefaultsKeys.autoBackupIntervalHours) == 6)
-        #expect(target.object(forKey: UserDefaultsKeys.lessonsAgendaStartDate) as? Date == when)
+        #expect(target.object(forKey: UserDefaultsKeys.lessonsAgendaMissWindow) as? Date == when)
         #expect(target.stringArray(forKey: UserDefaultsKeys.todoTagOrder) == tagOrder)
         #expect(
             target.dictionary(forKey: UserDefaultsKeys.curriculumMapUntouchedDaysByArea) as? [String: Int]

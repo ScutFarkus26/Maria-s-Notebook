@@ -3,7 +3,7 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-/// The week strip's geometry: five days share the pane, the range label names
+/// The day strip's geometry: the visible days share the pane, the range label names
 /// exactly the days the strip holds, and the insertion bar sits on the side of
 /// a "Morning" / "Afternoon" label that matches the half the drop will take.
 @Suite("Week plan layout")
@@ -100,7 +100,18 @@ struct WeekPlanLayoutTests {
 
     // MARK: - Paging
 
-    @Test("Later and Earlier page by the five days shown, from the first one, skipping none")
+    @Test("The strip shows three days at a time")
+    func threeDaysAtATime() {
+        #expect(WeekPlanSection.visibleDayCount == 3)
+        let count = WeekPlanSection.visibleDayCount
+        #expect(WeekPlanSection.visibleColumnCount(forStripWidth: 900, dayCount: count) == 3)
+        // 900 − 2 × 10 padding − 2 × 10 gaps = 860, a third of which is 286.
+        #expect(WeekPlanSection.columnWidth(forStripWidth: 900, dayCount: count) == 286)
+        // An iPhone still falls back to the two that fit.
+        #expect(WeekPlanSection.visibleColumnCount(forStripWidth: 390, dayCount: count) == 2)
+    }
+
+    @Test("Later and Earlier page by the three days shown, from the first one, skipping none")
     func pagesByTheVisibleDays() {
         let appCalendar = AppCalendar.shared
         let weekday = { (date: Date) in !appCalendar.isDateInWeekend(date) }
@@ -112,11 +123,11 @@ struct WeekPlanLayoutTests {
         }
         let page = WeekPlanSection.visibleDayCount
 
-        // Thursday Oct 1 shows Thu, Fri, Mon, Tue, Wed: the next page starts Thursday Oct 8.
-        #expect(appCalendar.isDate(shifted(date(10, 1), page), inSameDayAs: date(10, 8)))
-        #expect(appCalendar.isDate(shifted(date(10, 1), -page), inSameDayAs: date(9, 24)))
-        // A strip that starts on Monday Oct 5 pages back to Monday Sep 28.
-        #expect(appCalendar.isDate(shifted(date(10, 5), -page), inSameDayAs: date(9, 28)))
+        // Thursday Oct 1 shows Thu, Fri, Mon: the next page starts Tuesday Oct 6.
+        #expect(appCalendar.isDate(shifted(date(10, 1), page), inSameDayAs: date(10, 6)))
+        #expect(appCalendar.isDate(shifted(date(10, 1), -page), inSameDayAs: date(9, 28)))
+        // A strip that starts on Monday Oct 5 pages back to Wednesday Sep 30.
+        #expect(appCalendar.isDate(shifted(date(10, 5), -page), inSameDayAs: date(9, 30)))
     }
 
     // MARK: - Insertion bar

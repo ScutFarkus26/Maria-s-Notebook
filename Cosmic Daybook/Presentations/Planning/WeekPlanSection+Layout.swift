@@ -7,20 +7,20 @@ import Foundation
 
 extension WeekPlanSection {
     /// Narrowest a day column gets. Below it a presentation card's title and
-    /// its row of chips stop fitting, so a pane too narrow for five days at
+    /// its row of chips stop fitting, so a pane too narrow for three days at
     /// this width (an iPhone, an iPad in split view) scrolls instead.
     ///
-    /// 160, not 200: an 11-inch iPad in landscape leaves the strip about 900
-    /// points beside the sidebar, and at 200 the fifth day was cut in half —
-    /// the very thing the five-day strip is for. Titles wrap to two lines at
-    /// this width and the chips wrap under them, which still reads.
+    /// 160, not 200: when the strip showed five days, an 11-inch iPad in
+    /// landscape left it about 900 points beside the sidebar, and at 200 the
+    /// fifth day was cut in half. Titles wrap to two lines at this width and
+    /// the chips wrap under them, which still reads.
     static let minimumColumnWidth: CGFloat = 160
     /// Space around the row of days and between neighboring days.
     static let stripPadding: CGFloat = 10
     static let columnSpacing: CGFloat = 10
 
     /// Each day's width when the strip is `stripWidth` points wide: an equal
-    /// share of what the padding and gaps leave, so the whole school week is on
+    /// share of what the padding and gaps leave, so every visible day is on
     /// screen at once, or `minimumColumnWidth` when that share is smaller.
     ///
     /// The days used to be a fixed ~730 points wide each (two lanes side by

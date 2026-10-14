@@ -74,7 +74,6 @@ nonisolated enum BackupPreferencesService {
         UserDefaultsKeys.lessonPlanningDefaultDepth,
         UserDefaultsKeys.lessonPlanningTemperature,
         // Planning & agenda
-        UserDefaultsKeys.lessonsAgendaStartDate,
         UserDefaultsKeys.lessonsAgendaMissWindow,
         UserDefaultsKeys.planningRecentWindowDays,
         UserDefaultsKeys.planningRootViewMode,

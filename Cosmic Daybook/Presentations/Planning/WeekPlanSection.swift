@@ -1,5 +1,5 @@
 // WeekPlanSection.swift
-// The merged Lessons & Work calendar: a school week of day columns sharing the
+// The merged Lessons & Work calendar: three school days of columns sharing the
 // pane's width, each carrying both presentations and work check-ins.
 //
 // Replaces two calendars that each drew the same days from opposite ends —
@@ -33,7 +33,6 @@ struct WeekPlanSection: View {
 
     @AppStorage(UserDefaultsKeys.calendarVisibleKinds)
     var visibleKindsRaw: String = CalendarKindFilter.everything.rawValue
-    @AppStorage(UserDefaultsKeys.lessonsAgendaStartDate) var startDateRaw: Double = 0
     @TestStudentVisibility var testStudents
 
     /// The curriculum and the roster, fetched once for the whole strip and
@@ -45,8 +44,13 @@ struct WeekPlanSection: View {
     @State var cachedCheckIns: [CDWorkCheckIn] = []
     @State var checkInLookup = CalendarCheckInGrouper.Lookup()
     /// The day the loaded window is built around. Changing it rebuilds the
-    /// window (Today, a deep link to a far-off day); scrolling does not.
+    /// window (Today, a deep link to a far-off day); scrolling does not. The
+    /// strip opens on today every time, in the leading column.
     @State var startDate: Date = AppCalendar.startOfDay(Date())
+    /// The earliest day the strip builds a column for: the first day holding
+    /// a presentation or work check still waiting, or today when nothing is
+    /// left on an earlier day. Read when the window is built.
+    @State var earliestDay: Date = AppCalendar.startOfDay(Date())
     /// Every school day loaded into the strip — a few weeks either side of
     /// what is on screen, grown as the guide scrolls toward either end.
     @State var days: [Date] = []
@@ -55,7 +59,8 @@ struct WeekPlanSection: View {
     /// Whether the strip is scrolling or holding a day in place, which is when
     /// it must not load more days.
     @State var stripSettle = WeekPlanDayWindow.Settle()
-    @State var showClearAllConfirmation = false
+    /// Clear All's counts, while it asks first.
+    @State var pendingClear: CalendarClearAllService.Result?
     @State var selectedGroup: CalendarCheckInGroup?
     /// A grouped pill for a later day, tapped: whose work to open, since
     /// there is nothing to log yet.
@@ -67,10 +72,11 @@ struct WeekPlanSection: View {
     /// Zero until the first layout, which reads as the minimum column width.
     @State var stripWidth: CGFloat = 0
 
-    /// Days on screen at once: one school week, which is what the guide plans
-    /// and what the columns divide the pane's width between. The strip scrolls
-    /// through the days either side, and the arrows move it a week at a time.
-    static let visibleDayCount = 5
+    /// Days on screen at once: three, wide enough for a day's cards to read
+    /// at a glance (2026-10-13; it was a five-day school week). The strip
+    /// scrolls through the days either side, and the arrows move it three
+    /// days at a time.
+    static let visibleDayCount = 3
 
     var visibleKinds: CalendarKindFilter {
         CalendarKindFilter.resolved(rawValue: visibleKindsRaw)
@@ -92,7 +98,7 @@ struct WeekPlanSection: View {
                 dayStrip(proxy)
             }
             .task {
-                startDate = restoredStartDate()
+                startDate = AppCalendar.startOfDay(Date())
                 refreshCardData()
                 await reloadDays()
             }
@@ -210,9 +216,9 @@ struct WeekPlanSection: View {
             } label: {
                 Label("Move All Forward 1 Day…", systemImage: "arrow.right.circle")
             }
-            .help("Slides what the strip shows, from today on, one school day later.")
+            .help("Slides the plan one school day later, and brings overdue work checks to today.")
             Button(role: .destructive) {
-                showClearAllConfirmation = true
+                askToClearAll()
             } label: {
                 Label("Clear All to Inbox", systemImage: "tray.and.arrow.up")
             }
@@ -223,18 +229,6 @@ struct WeekPlanSection: View {
         .menuStyle(.borderlessButton)
         .fixedSize()
         .help("What to show, and bulk scheduling actions")
-        .confirmationDialog(
-            "Clear all scheduled presentations?",
-            isPresented: $showClearAllConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button("Clear All to Inbox", role: .destructive) {
-                Task { await clearAllScheduledLessonsToInbox() }
-            }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("Every planned presentation not yet given goes back to the Inbox.")
-        }
     }
 
     /// The first and last of the days on screen — read off `visibleDays`, the
@@ -247,9 +241,9 @@ struct WeekPlanSection: View {
 
     // MARK: - Day strip
 
-    /// Five equal columns across the pane, in a strip that scrolls through the
-    /// school days either side and comes to rest on a day's edge. A pane too
-    /// narrow for five at the minimum width shows fewer.
+    /// Three equal columns across the pane, in a strip that scrolls through
+    /// the school days either side and comes to rest on a day's edge. A pane
+    /// too narrow for three at the minimum width shows fewer.
     private func dayStrip(_ proxy: ScrollViewProxy) -> some View {
         let assignments = Array(lessonAssignments)
         let byDay = Self.scheduledByDay(assignments, days: days, calendar: calendar)

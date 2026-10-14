@@ -1,6 +1,7 @@
 // WorkCheckInService.swift
 // Small persistence service for CDWorkCheckIn operations to keep model methods side-effect free.
-// Behavior-preserving cleanup: comments and MARKs only.
+// Also the one place a linked copy's check-in moves with its group's, and the
+// one way a scheduled check-in comes off the calendar.
 
 import Foundation
 import CoreData
@@ -10,7 +11,6 @@ import CoreData
 /// This service ensures that model methods remain free of side-effects
 /// (no implicit saves), while callers can perform explicit, transactional
 /// operations that throw on failure.
-/// This file includes only structural and documentation improvements; behavior is unchanged.
 struct WorkCheckInService {
     let context: NSManagedObjectContext
 
@@ -83,5 +83,138 @@ struct WorkCheckInService {
         if let note {
             checkIn.setLegacyNoteText(note, in: context)
         }
+    }
+
+    // MARK: - Lookup
+
+    /// Every check-in of `work` on `day`, through the relationship and the
+    /// `workID` string both.
+    func checkIns(of work: CDWorkModel, on day: Date) -> [CDWorkCheckIn] {
+        WorkDeletionService.checkIns(of: work, in: context).filter { checkIn in
+            guard let date = checkIn.date else { return false }
+            return AppCalendar.isSameDay(date, day)
+        }
+    }
+
+    /// A check-in on `day` that another would duplicate: scheduled or
+    /// completed. A skipped one doesn't count — putting the day back is a
+    /// fresh decision. `excluding` is the check-in on its way there.
+    func blockingCheckIn(of work: CDWorkModel, on day: Date, excluding: CDWorkCheckIn? = nil) -> CDWorkCheckIn? {
+        checkIns(of: work, on: day).first { $0.status != .skipped && $0 !== excluding }
+    }
+
+    /// A work row whose child is on file but no longer enrolled. A row whose
+    /// child can't be found is treated as hers, since nothing says she left.
+    func ownerHasLeft(_ work: CDWorkModel) -> Bool {
+        guard let owner = WorkGrouping.owner(of: work),
+              let student = StudentRepository(context: context).fetchStudent(id: owner) else { return false }
+        return !student.isEnrolled
+    }
+
+    // MARK: - Moving a linked copy's check-in
+
+    /// What happened to a linked copy's check-in when its group's moved.
+    enum SiblingMove {
+        /// Its check-in on the old day moved to the new one.
+        case moved(CDWorkCheckIn)
+        /// Its child has left the classroom, so the check-in stayed.
+        case childHasLeft(CDWorkCheckIn)
+        /// It already has a check-in on the new day (`existing`), so this one
+        /// stayed. The caller decides what that means: update_work reports it;
+        /// Move All Forward folds the two into one.
+        case blocked(CDWorkCheckIn, existing: CDWorkCheckIn)
+        /// Its check-in on the old day was already completed or skipped.
+        case settled(WorkCheckInStatus)
+        /// It had nothing on the old day.
+        case noneOnDay
+    }
+
+    /// Moves `sibling`'s check-in on `fromDay` to `landing`, as its group's
+    /// own check-in moved: the one decision about the group reconsidered, so
+    /// every child's copy goes with it. Never leaves two check-ins on one day,
+    /// and leaves a departed child's copy where it is. update_work's
+    /// `move_check_in_from` and Move All Forward both move linked copies
+    /// through here. Does not save.
+    func moveSiblingCheckIn(of sibling: CDWorkModel, from fromDay: Date, to landing: Date) -> SiblingMove {
+        let onDay = checkIns(of: sibling, on: fromDay)
+        guard let scheduled = onDay.first(where: { $0.status == .scheduled }) else {
+            return onDay.first.map { .settled($0.status) } ?? .noneOnDay
+        }
+        if ownerHasLeft(sibling) { return .childHasLeft(scheduled) }
+        if let existing = blockingCheckIn(of: sibling, on: landing, excluding: scheduled) {
+            return .blocked(scheduled, existing: existing)
+        }
+        Self.move(scheduled, toDay: landing)
+        return .moved(scheduled)
+    }
+
+    /// Only the day changes. The time of day is kept, as the Today view's
+    /// "bump to tomorrow" keeps it, so the row's place in the day's ordering
+    /// stays where it was; purpose, status and notes are not touched.
+    static func move(_ checkIn: CDWorkCheckIn, toDay day: Date) {
+        let calendar = AppCalendar.shared
+        let time = calendar.dateComponents([.hour, .minute, .second], from: checkIn.date ?? day)
+        checkIn.date = calendar.date(
+            bySettingHour: time.hour ?? 0, minute: time.minute ?? 0, second: time.second ?? 0, of: day
+        ) ?? day
+    }
+
+    // MARK: - Unscheduling
+
+    /// A check-in as it was before `unschedule` removed it, so Undo can put
+    /// the same record back.
+    struct RemovedCheckIn {
+        let id: UUID?
+        let workID: String
+        let work: NSManagedObjectID?
+        let date: Date?
+        let statusRaw: String
+        let purpose: String
+        let studentInitiated: Bool
+    }
+
+    /// Whether a check-in carries a note of its own: a typed note, or one
+    /// logged on the work that day.
+    static func hasNote(_ checkIn: CDWorkCheckIn) -> Bool {
+        ((checkIn.notes as? Set<CDNote>) ?? []).contains { !$0.isDeleted }
+    }
+
+    /// Takes a scheduled check-in off the calendar, so its work goes back to
+    /// To Schedule. A check-in carrying a note is kept as it is (nil), since
+    /// deleting it would lose the note; one with none is deleted, and what it
+    /// was comes back for Undo. A check-in that isn't scheduled is history and
+    /// is never touched. The work's due date is the caller's to reset, once
+    /// every check-in it is clearing has gone. Does not save.
+    @discardableResult
+    func unschedule(_ checkIn: CDWorkCheckIn) -> RemovedCheckIn? {
+        guard checkIn.status == .scheduled, !checkIn.isDeleted, !Self.hasNote(checkIn) else { return nil }
+        let removed = RemovedCheckIn(
+            id: checkIn.id,
+            workID: checkIn.workID,
+            work: checkIn.resolvedWork(in: context)?.objectID,
+            date: checkIn.date,
+            statusRaw: checkIn.statusRaw,
+            purpose: checkIn.purpose,
+            studentInitiated: checkIn.studentInitiated
+        )
+        context.delete(checkIn)
+        return removed
+    }
+
+    /// Puts back a check-in `unschedule` removed: the same id, day, purpose
+    /// and work. Nothing is made when a check-in with that id is back already
+    /// (sync brought it, or Undo ran twice). Does not save.
+    @discardableResult
+    func restore(_ removed: RemovedCheckIn) -> CDWorkCheckIn? {
+        if let id = removed.id, context.object(CDWorkCheckIn.self, id: id) != nil { return nil }
+        let checkIn = CDWorkCheckIn(context: context)
+        checkIn.id = removed.id ?? UUID()
+        checkIn.workID = removed.workID
+        checkIn.date = removed.date
+        checkIn.statusRaw = removed.statusRaw
+        checkIn.purpose = removed.purpose
+        checkIn.studentInitiated = removed.studentInitiated
+        checkIn.work = removed.work.flatMap { context.existing(CDWorkModel.self, $0) }
+        return checkIn
     }
 }

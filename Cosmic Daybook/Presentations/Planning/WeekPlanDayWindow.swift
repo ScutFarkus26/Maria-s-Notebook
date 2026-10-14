@@ -35,12 +35,15 @@ enum WeekPlanDayWindow {
     ///
     /// - Parameters:
     ///   - margins: How near either end the leading day may come first.
+    ///   - notBefore: The earliest day the window may hold (`earliestDay`);
+    ///     no day before it is ever added.
     ///   - earlierDays: School days before the window's first day.
     ///   - laterDays: School days after the window's last day.
     static func grown(
         days: [Date],
         leadingDay: Date,
         margins: Margins,
+        notBefore: Date? = nil,
         earlierDays: (_ first: Date) -> [Date],
         laterDays: (_ last: Date) -> [Date]
     ) -> Growth? {
@@ -49,8 +52,10 @@ enum WeekPlanDayWindow {
         var grownDays = days
         var addedInFront = 0
         var addedAtEnd = 0
-        if index < margins.front {
-            let earlier = earlierDays(first).filter { $0 < first }
+        if index < margins.front, notBefore.map({ first > $0 }) ?? true {
+            let earlier = earlierDays(first).filter { day in
+                day < first && notBefore.map { day >= $0 } ?? true
+            }
             grownDays.insert(contentsOf: earlier, at: 0)
             addedInFront = earlier.count
         }
@@ -61,6 +66,18 @@ enum WeekPlanDayWindow {
         }
         guard addedInFront + addedAtEnd > 0 else { return nil }
         return Growth(days: grownDays, leadingDay: leadingDay, addedInFront: addedInFront, addedAtEnd: addedAtEnd)
+    }
+
+    /// The earliest day the strip builds a column for: the first day still
+    /// holding an unpresented presentation or a scheduled work check, or
+    /// today when nothing is left before it. Apple has no API that stops a
+    /// scroll view short of its content, so the strip never builds the days
+    /// before this one rather than trying to hold the scroll back.
+    static func earliestDay(
+        today: Date, firstPresentation: Date?, firstCheckIn: Date?, calendar: Calendar
+    ) -> Date {
+        let earliest = [today, firstPresentation, firstCheckIn].compactMap { $0 }.min() ?? today
+        return calendar.startOfDay(for: earliest)
     }
 
     /// Whether the strip may look at its ends now: only at rest, and never
