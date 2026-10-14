@@ -356,7 +356,7 @@ Each work item shows:
 - **Title** — The name of the work (often matching the lesson name)
 - **Student(s)** — Who is assigned
 - **Lesson** — The lesson this work relates to
-- **Status** — Working, Needs Review, Mastered, Keep Practicing, or Incomplete
+- **Status** — Working, Needs Review, Mastered, Finished, Keep Practicing, or Incomplete
 - **Due Date** — When you expect the work to be finished (optional)
 - **Steps** — A breakdown of the work into individual steps (optional)
 - **Check-Ins** — Your observations recorded during the work period
@@ -364,17 +364,18 @@ Each work item shows:
 
 ## The Work Lifecycle
 
-A work item has one status, and it is per child. Two statuses keep the work open; three close it.
+A work item has one status, and it is per child. Two statuses keep the work open; four close it.
 
 | Status | What it means |
 |--------|-------------|
 | Working | The child is working on it |
 | Needs Review | She may be ready — you need to look before it moves on |
 | Mastered | Closed: she has it. This is the practice evidence the mastery candidates read |
+| Finished | Closed: the work is done, and mastery doesn't apply to it. It never counts as mastery |
 | Keep Practicing | Closed: this invitation is done, but she is not there yet |
 | Incomplete | Closed: set aside unfinished |
 
-Work closed before September 2026 with no verdict shows as **Done**. It cannot be chosen for new work.
+Work closed before September 2026 with no verdict shows as **Finished** too, since both mean closed with no verdict.
 
 Closing a work logs it, like recording a presentation: the completion is recorded for the child, that day's check-in is marked done, any later check-ins are skipped, and the work leaves the Scheduled strip. Changing the status back to Working or Needs Review reopens it.
 
