@@ -85,6 +85,22 @@ extension WorksAgendaView {
         )
         partitionBuiltAt = Date()
         rebuildQuietStudents()
+        rebuildBeforeLesson()
+    }
+
+    /// The Before a Lesson pill's list: the open earlier work of the children
+    /// in the lessons planned for the next three school days, one fetch for
+    /// all of them.
+    func rebuildBeforeLesson() {
+        let days = LessonsAndWorkTriage.beforeLessonDays(from: Date()) { day in
+            SchoolDayChecker.isSchoolDay(day, using: viewContext)
+        }
+        beforeLesson = BeforeLessonWork.build(
+            presentations: partition.presentations.scheduled,
+            days: days,
+            lessons: dependencies.lessonCatalog.all,
+            in: viewContext
+        )
     }
 
     /// The Work column's two inputs: how long each child has gone without the
@@ -226,6 +242,7 @@ extension WorksAgendaView {
     /// sheet matches the list the guide is looking at.
     func worksOnScreen() -> [CDWorkModel] {
         let visible = visibleWorkIDs
+        if workChip == .beforeLesson { return beforeLesson.works(visibleTo: visible) }
         return workChip.slice(of: partition.work).filter { work in
             guard let id = work.id else { return false }
             return visible.contains(id)

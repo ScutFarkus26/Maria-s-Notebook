@@ -39,6 +39,9 @@ struct WeekPlanSection: View {
     /// handed to every day column. Each card used to fetch both tables itself.
     @State var cachedLessons: [CDLesson] = []
     @State var cachedStudents: [CDStudent] = []
+    /// Where each of `cachedLessons` sits in its sequence, for the cards'
+    /// "to check first" marks. Built with `cachedLessons`.
+    @State var lessonOrder = LessonSequenceOrder(lessons: [])
 
     /// Check-ins for the whole visible range, fetched once and grouped per day.
     @State var cachedCheckIns: [CDWorkCheckIn] = []
@@ -68,6 +71,9 @@ struct WeekPlanSection: View {
     /// Move All Forward's counts, while it asks first.
     @State var pendingShift: CalendarForwardShiftService.Result?
     @State var prompt: WorkCheckInPlanPrompt?
+    /// Each pending presentation's children's open work from earlier in its
+    /// sequence, keyed by presentation id: the amber marks on the cards.
+    @State var workToShowFirst: [UUID: WorkToShowFirst.ByChild] = [:]
     /// The strip's measured width, which the day columns share between them.
     /// Zero until the first layout, which reads as the minimum column width.
     @State var stripWidth: CGFloat = 0
@@ -266,6 +272,8 @@ struct WeekPlanSection: View {
                         onDropWorkCheckIns: rescheduleCheckIns,
                         onDropWork: beginPlanningWork,
                         pillActions: pillActions,
+                        workToShowFirst: workToShowFirst,
+                        showFirstActions: showFirstActions,
                         columnWidth: columnWidth
                     )
                     .id(day)
@@ -286,6 +294,11 @@ struct WeekPlanSection: View {
             proxy.size.width
         } action: { width in
             stripWidth = width
+        }
+        // Read again when a card's lesson or children change; a work save
+        // reads it again through `refreshCheckIns`.
+        .task(id: Self.showFirstRequests(byDay)) {
+            refreshWorkToShowFirst()
         }
     }
 

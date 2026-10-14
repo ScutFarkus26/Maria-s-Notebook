@@ -117,7 +117,8 @@ extension WeekDayColumn {
             day: day,
             cachedLessons: lessons,
             cachedStudents: students,
-            blockingWork: [:],
+            workToShowFirst: workToShowFirst[laID] ?? [:],
+            showFirstActions: showFirstActions,
             doubleBookedStudentIDs: dayDoubleBooked,
             period: period,
             // The Morning / Afternoon labels above the cards say it already.
@@ -165,7 +166,6 @@ extension WeekDayColumn {
             day: day,
             cachedLessons: [],
             cachedStudents: [],
-            blockingWork: [:],
             doubleBookedStudentIDs: doubleBooked,
             period: period,
             showsPeriodBadge: false

@@ -11,6 +11,11 @@
 //
 // `.all` has no bucket. It is the old "All Open Work" toolbar toggle, which
 // was a second way of saying the same thing from a different control.
+//
+// `.beforeLesson` has none either: it is a lens over open work (what children
+// in the next three school days' lessons still have open from earlier in the
+// sequence, `WorkToShowFirst`), so its work is also in one of the buckets.
+// The Work half lists it from `BeforeLessonWork`, grouped under each lesson.
 
 import SwiftUI
 
@@ -23,6 +28,9 @@ nonisolated enum WorkFilterChip: String, CaseIterable, Identifiable, Sendable, W
     case toSchedule
     /// Has a day on it and that day has not arrived.
     case scheduled
+    /// Open work from earlier in the sequence of a lesson coming up in the
+    /// next three school days.
+    case beforeLesson
 
     var id: Self { self }
 
@@ -33,6 +41,7 @@ nonisolated enum WorkFilterChip: String, CaseIterable, Identifiable, Sendable, W
         case .needsChecking: .attention
         case .toSchedule: .toSchedule
         case .scheduled: .scheduled
+        case .beforeLesson: nil
         }
     }
 
@@ -42,6 +51,7 @@ nonisolated enum WorkFilterChip: String, CaseIterable, Identifiable, Sendable, W
         case .needsChecking: "Needs Checking"
         case .toSchedule: "To Schedule"
         case .scheduled: "Scheduled"
+        case .beforeLesson: "Before a Lesson"
         }
     }
 
@@ -51,6 +61,7 @@ nonisolated enum WorkFilterChip: String, CaseIterable, Identifiable, Sendable, W
         case .needsChecking: "exclamationmark.circle"
         case .toSchedule: "tray.and.arrow.down"
         case .scheduled: "calendar"
+        case .beforeLesson: WorkToShowFirst.glyph
         }
     }
 
@@ -60,6 +71,7 @@ nonisolated enum WorkFilterChip: String, CaseIterable, Identifiable, Sendable, W
         case .needsChecking: AppColors.color(for: .overdue)
         case .toSchedule: AppColors.attention
         case .scheduled: .accentColor
+        case .beforeLesson: AppColors.color(for: .brewing)
         }
     }
 
@@ -70,6 +82,8 @@ nonisolated enum WorkFilterChip: String, CaseIterable, Identifiable, Sendable, W
     /// and overlap only where `.all` deliberately does.
     func slice<Record>(of split: TriageSplit<Record>) -> [Record] {
         if let bucket { return split[bucket] }
+        // A lens, not a bucket: its list is `BeforeLessonWork`'s.
+        if self == .beforeLesson { return [] }
         // `.all` is every open record — the three workspace buckets. `.done`
         // is history and lives under Logs.
         return split.attention + split.scheduled + split.toSchedule

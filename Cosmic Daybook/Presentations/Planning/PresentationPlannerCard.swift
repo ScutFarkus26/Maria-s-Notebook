@@ -22,7 +22,13 @@ struct PresentationPlannerCard: View {
     /// A drag preview, which needs neither, passes empty arrays.
     let cachedLessons: [CDLesson]
     let cachedStudents: [CDStudent]
-    let blockingWork: [UUID: CDWorkModel]
+    /// Each child's open work from earlier in this lesson's sequence
+    /// (`WorkToShowFirst`), read by the strip for every card at once. A child
+    /// with some gets an amber mark that opens the list.
+    var workToShowFirst: WorkToShowFirst.ByChild = [:]
+    /// What the list's buttons do. Nil (a drag preview) keeps the mark but
+    /// draws the chip as plain text.
+    var showFirstActions: ShowFirstActions?
     /// Children the caller has already found to be booked twice. In the
     /// calendar that means twice in *this card's own half* of the day, so the
     /// set arrives scoped and the card only draws what it is handed.
@@ -42,6 +48,8 @@ struct PresentationPlannerCard: View {
     var showsPeriodBadge = true
 
     @State private var attendanceCache: [UUID: AttendanceStatus] = [:]
+    /// The child whose earlier work is listed in the chip's popover.
+    @State var showFirstChild: UUID?
     @State private var lastAttendanceDay: Date?
 
     private var lessons: [CDLesson] { cachedLessons }
@@ -116,6 +124,7 @@ struct PresentationPlannerCard: View {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
                 titleRow
                 studentChipsRow
+                showFirstLine
                 readinessFooter
             }
             .padding(.horizontal, AppTheme.Spacing.compact)
@@ -136,6 +145,9 @@ struct PresentationPlannerCard: View {
         .onChange(of: day) { _, _ in loadAttendanceIfNeeded(force: true) }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
+        .accessibilityAction(named: "Show work to check first") {
+            showFirstChild = snapshot.studentIDs.first { workToShowFirst[$0] != nil }
+        }
     }
 
     private var titleRow: some View {
@@ -183,15 +195,15 @@ struct PresentationPlannerCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func studentChip(for student: CDStudent, sid: UUID) -> some View {
+    func chipLabel(for student: CDStudent, sid: UUID) -> some View {
         let name = student.shortName
         let isAbsent = attendanceCache[sid] == .absent
         let isDoubleBooked = doubleBookedStudentIDs.contains(sid)
-        let isBlocking = blockingWork[sid] != nil
+        let hasWorkToShowFirst = workToShowFirst[sid] != nil
         let indicator: Color? = {
             if isAbsent { return .red }
             if isDoubleBooked { return AppColors.attention }
-            if isBlocking { return AppColors.color(for: .brewing) }
+            if hasWorkToShowFirst { return AppColors.color(for: .brewing) }
             return nil
         }()
 
@@ -210,6 +222,9 @@ struct PresentationPlannerCard: View {
                 .font(AppTheme.ScaledFont.captionSmallSemibold)
                 .foregroundStyle(isAbsent ? .secondary : .primary)
                 .lineLimit(1)
+            // Earlier work open: a glyph as well as the amber ring, so it
+            // doesn't rest on color alone. The card's line says the count.
+            if hasWorkToShowFirst { showFirstMark }
         }
         .padding(.horizontal, 7)
         .padding(.vertical, 3)
@@ -300,7 +315,8 @@ struct PresentationPlannerCard: View {
         }.joined(separator: ", ")
         // The card combines its children, so the badge's own label is replaced
         // by this one — the half has to be spoken here or not at all.
-        return [lessonName, names, period?.label]
+        let showFirst = showFirstCount > 0 ? WorkToShowFirst.countLine(showFirstCount) : nil
+        return [lessonName, names, period?.label, showFirst]
             .compactMap { $0 }
             .filter { !$0.isEmpty }
             .joined(separator: ", ")

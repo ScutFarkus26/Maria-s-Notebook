@@ -110,6 +110,9 @@ struct PresentationDetailContentView: View {
     @State var lessonPickerFocused: Bool = false
     @State var attendance: [UUID: AttendanceStatus] = [:]
     @State var masteredOn: [UUID: Date?] = [:]
+    /// The children's open work from earlier in this lesson's sequence, for
+    /// "Before you start" (`WorkToShowFirst`).
+    @State var showFirst: WorkToShowFirst.ByChild = [:]
     @State var showRescheduleSheet = false
     @State var showRecordDayPicker = false
     @State var recordPickedDay = AppCalendar.startOfDay(Date())
@@ -183,6 +186,7 @@ struct PresentationDetailContentView: View {
                     if vm.isPresented {
                         studentPillsSection
                     } else {
+                        beforeYouStartSection
                         whoWasThereSection
                     }
                     notesSection
@@ -225,6 +229,7 @@ struct PresentationDetailContentView: View {
                     currentLesson: currentLesson,
                     students: selectedStudentsList
                 )
+                refreshWorkToShowFirst()
             }
         }
         .onChange(of: vm.showingStudentPickerPopover) { _, isShowing in
@@ -237,15 +242,18 @@ struct PresentationDetailContentView: View {
             vm.recomputeSequenceRecap(currentLesson: currentLesson, students: selectedStudentsList)
             refreshAttendance()
             refreshMasteryNotes()
+            refreshWorkToShowFirst()
         }
         .onChange(of: vm.editingLessonID) { _, _ in
             vm.recomputeSequenceRecap(currentLesson: currentLesson, students: selectedStudentsList)
             refreshMasteryNotes()
+            refreshWorkToShowFirst()
         }
         .onChange(of: vm.selectedStudentIDs) { _, _ in
             vm.recomputeSequenceRecap(currentLesson: currentLesson, students: selectedStudentsList)
             refreshAttendance()
             refreshMasteryNotes()
+            refreshWorkToShowFirst()
         }
         .onChange(of: session.presentedDay) { _, _ in
             // A new day brings its own attendance; ticks the guide changed by

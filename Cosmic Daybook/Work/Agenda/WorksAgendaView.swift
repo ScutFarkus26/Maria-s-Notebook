@@ -80,6 +80,8 @@ struct WorksAgendaView: View {
     /// so the first save after the day turns refreshes it even when that save
     /// touched nothing the partition reads.
     @State var partitionBuiltAt: Date = .distantPast
+    /// What the Before a Lesson pill lists, built with `partition`.
+    @State var beforeLesson = BeforeLessonWork()
 
     @TestStudentVisibility var testStudents
     @AppStorage(UserDefaultsKeys.workAgendaHideScheduled) var hideScheduled: Bool = false
@@ -284,6 +286,7 @@ struct WorksAgendaView: View {
         case .work:
             LessonsAndWorkWorkView(
                 split: partition.work,
+                beforeLesson: beforeLesson,
                 visibleWorkIDs: visibleWorkIDs,
                 lessonsByID: lessonsByID,
                 studentsByID: studentsByID,

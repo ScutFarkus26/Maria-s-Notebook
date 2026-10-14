@@ -216,6 +216,7 @@ extension WeekPlanSection {
     /// everywhere else.
     func refreshCardData() {
         cachedLessons = viewContext.safeFetch(CDFetchRequest(CDLesson.self))
+        lessonOrder = LessonSequenceOrder(lessons: cachedLessons)
         let allStudents: [CDStudent] = viewContext.safeFetch(CDFetchRequest(CDStudent.self))
         // DEDUPLICATION: CloudKit sync can leave two rows carrying one id.
         cachedStudents = TestStudentsFilter.filterVisible(
@@ -242,6 +243,7 @@ extension WeekPlanSection {
         let fetched = CalendarForwardShiftService.onPlan(viewContext.safeFetch(request), in: viewContext)
         cachedCheckIns = fetched
         checkInLookup = CalendarCheckInGrouper.Lookup.build(for: fetched, in: viewContext)
+        refreshWorkToShowFirst()
     }
 
     // MARK: - Actions

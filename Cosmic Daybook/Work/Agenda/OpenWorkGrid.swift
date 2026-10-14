@@ -4,6 +4,10 @@ import CoreData
 
 struct OpenWorkGrid: View {
     let works: [CDWorkModel]
+    /// Sections the caller has already made, in order, used instead of the
+    /// sort's own (the Before a Lesson pill groups under each lesson). Each
+    /// one's works must be among `works`.
+    var fixedSections: [(key: String, works: [CDWorkModel])]?
     let lessonsByID: [UUID: CDLesson]
     let studentsByID: [UUID: CDStudent]
     /// Work the partition placed in `.attention`. Passed in rather than
@@ -225,6 +229,12 @@ struct OpenWorkGrid: View {
 
     // Group items by current sort mode; preserve overall order by grouping in the order items first appear
     var groupedSections: [(key: String, items: [WorkGridItem])] {
+        if let fixedSections {
+            let today = AppCalendar.startOfDay(Date())
+            return fixedSections.map { section in
+                (key: section.key, items: section.works.map { gridItem(for: $0, today: today) })
+            }
+        }
         let items = sortedWorks
         var order: [String] = []
         var buckets: [String: [WorkGridItem]] = [:]
@@ -249,34 +259,9 @@ struct OpenWorkGrid: View {
         }
     }
 
-    private func ageBucketLabel(forDays days: Int) -> String {
-        if days <= 0 {
-            return "Today"
-        } else if days <= 3 {
-            return "1–3 days"
-        } else if days <= 7 {
-            return "4–7 days"
-        } else if days <= 14 {
-            return "8–14 days"
-        } else if days <= 30 {
-            return "15–30 days"
-        } else {
-            return "30+ days"
-        }
-    }
-
     private var sortedWorks: [WorkGridItem] {
         let today = AppCalendar.startOfDay(Date())
-        let mapped: [WorkGridItem] = works.map { w in
-            let title = lessonTitle(for: w)
-            let student = studentName(for: w)
-            let attention = needsAttention(for: w)
-            return WorkGridItem(
-                id: w.objectID, workID: w.id ?? UUID(), work: w, title: title,
-                student: student, needsAttention: attention,
-                ageDays: Self.ageDays(for: w, today: today)
-            )
-        }
+        let mapped: [WorkGridItem] = works.map { gridItem(for: $0, today: today) }
         switch sortMode {
         case .lesson:
             return mapped.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
@@ -294,6 +279,14 @@ struct OpenWorkGrid: View {
     }
 
     // MARK: - Helpers
+    private func gridItem(for w: CDWorkModel, today: Date) -> WorkGridItem {
+        WorkGridItem(
+            id: w.objectID, workID: w.id ?? UUID(), work: w, title: lessonTitle(for: w),
+            student: studentName(for: w), needsAttention: needsAttention(for: w),
+            ageDays: Self.ageDays(for: w, today: today)
+        )
+    }
+
     private func lessonTitle(for work: CDWorkModel) -> String {
         let name = lessonsByID[uuidString: work.lessonID]?.name
         return LessonFormatter.lessonName(name, orRowTitle: work.title, missing: LessonFormatter.untitledWork)
@@ -322,6 +315,25 @@ struct OpenWorkGrid: View {
         w.id.map(attentionWorkIDs.contains) ?? false
     }
 
+}
+
+private extension OpenWorkGrid {
+    /// The Age sort's section for a card this many days old.
+    func ageBucketLabel(forDays days: Int) -> String {
+        if days <= 0 {
+            return "Today"
+        } else if days <= 3 {
+            return "1–3 days"
+        } else if days <= 7 {
+            return "4–7 days"
+        } else if days <= 14 {
+            return "8–14 days"
+        } else if days <= 30 {
+            return "15–30 days"
+        } else {
+            return "30+ days"
+        }
+    }
 }
 
 // The `#Preview` closure is expanded and type-checked in every compiler job

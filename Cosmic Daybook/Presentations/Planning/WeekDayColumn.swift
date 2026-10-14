@@ -53,6 +53,11 @@ struct WeekDayColumn: View {
     let onDropWork: (UUID, Date) -> Void
     /// What a check-in pill's right-click menu can do — see WeekDayColumn+Bands.
     let pillActions: WorkCheckPillActions
+    /// Each card's children's open work from earlier in its sequence, keyed
+    /// by presentation id, read once for the whole strip (`WorkToShowFirst`).
+    var workToShowFirst: [UUID: WorkToShowFirst.ByChild] = [:]
+    /// What a marked chip's list can do. Nil leaves the chips plain.
+    var showFirstActions: PresentationPlannerCard.ShowFirstActions?
     /// The column's width, an equal share of the strip — see
     /// `WeekPlanSection.columnWidth(forStripWidth:dayCount:)`. Defaulted so a
     /// column can be built on its own, as the menu tests do.

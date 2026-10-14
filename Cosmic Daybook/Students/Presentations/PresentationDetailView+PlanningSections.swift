@@ -152,6 +152,65 @@ extension PresentationDetailContentView {
         }
     }
 
+    // MARK: - Before you start
+
+    /// The children's open work from earlier in the sequence, above "Who was
+    /// there?". Shown only when there is some.
+    @ViewBuilder
+    var beforeYouStartSection: some View {
+        if !showFirst.isEmpty {
+            PresentationBeforeYouStartSection(
+                students: selectedStudentsList,
+                showFirst: showFirst,
+                onLog: logEarlierWork,
+                onOpenWork: { vm.recapWorkSheetID = $0 }
+            )
+        }
+    }
+
+    func refreshWorkToShowFirst() {
+        guard !vm.isPresented else {
+            if !showFirst.isEmpty { showFirst = [:] }
+            return
+        }
+        showFirst = WorkToShowFirst.find(
+            lessonID: vm.editingLessonID.uuidString,
+            studentIDs: vm.selectedStudentIDs,
+            order: LessonSequenceOrder(lessons: lessons),
+            in: viewContext
+        )
+    }
+
+    /// Closes one row of earlier work the way every other log does, and
+    /// offers Undo.
+    func logEarlierWork(_ item: WorkToShowFirst.Item, as status: WorkStatus) {
+        let saveCoordinator = dependencies.saveCoordinator
+        do {
+            let receipt = try WorkLogService.log(
+                [WorkLogService.Entry(work: item.work, status: status)],
+                context: viewContext,
+                saveCoordinator: saveCoordinator
+            )
+            refreshWorkToShowFirst()
+            vm.recomputeSequenceRecap(currentLesson: currentLesson, students: selectedStudentsList)
+            dependencies.toastService.show("Logged as \(status.displayName)", type: .success, duration: 5) {
+                do {
+                    try WorkLogService.undo(receipt.token, context: viewContext, saveCoordinator: saveCoordinator)
+                } catch {
+                    let message = PresentationFailureMessage.message(
+                        for: error, fallback: "Couldn't undo that. Try again."
+                    )
+                    dependencies.toastService.show(message, type: .error, duration: 4)
+                }
+                refreshWorkToShowFirst()
+                vm.recomputeSequenceRecap(currentLesson: currentLesson, students: selectedStudentsList)
+            }
+        } catch {
+            let message = PresentationFailureMessage.message(for: error, fallback: "Couldn't log that work. Try again.")
+            dependencies.toastService.show(message, type: .error, duration: 4)
+        }
+    }
+
     // MARK: - Children
 
     var whoWasThereSection: some View {
