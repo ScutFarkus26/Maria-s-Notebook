@@ -1,6 +1,6 @@
 # Lessons and Work changes (2026-10-13)
 
-> **Not started.** Written 2026-10-13 from Danny's inventory of seven changes (session on branch `claude/changes-inventory-8960e5`).
+> **Working on it.** Written 2026-10-13 from Danny's inventory of seven changes (session on branch `claude/changes-inventory-8960e5`).
 > In short: a tidier student picker, a three-day Scheduled strip, a Finished work status, a steady sync dot, moving children between groups, "work to show first" before a lesson, and Move All Forward / Clear All that handle every open check-in.
 
 ## Goal
@@ -15,7 +15,7 @@ Lessons & Work gets easier to run a day from, on Mac and iPad.
 - Move All Forward and Clear All to Inbox handle every open check-in, including overdue ones, and every child's linked copy.
 
 ## Progress
-- [ ] Phase 1: Student picker (#1) (session: agent) ‖ 2 ‖ 3 ‖ 4 ‖ 5 · est. ~1–2% weekly
+- [ ] Phase 1: Student picker (#1) (session: agent, Phases 1–5 started at 78%) ‖ 2 ‖ 3 ‖ 4 ‖ 5 · est. ~1–2% weekly
 - [ ] Phase 2: Three-day strip + Move forward / Clear all (#2, #7) (agent) · est. ~2–4%
 - [ ] Phase 3: Finished work status (#3) (agent) · est. ~1–2%
 - [ ] Phase 4: Steady sync dot (#4) (agent) · est. <1%
@@ -25,7 +25,7 @@ Lessons & Work gets easier to run a day from, on Mac and iPad.
 
 ## Cost
 
-About 11–19% of the weekly all-models limit (Max plan). At planning time 77% was used, so 23% is left until Sat 18 Oct, 4 pm. That's tight. Phases 1–5 and 7 for them (about 8–14%) fit. Run Phase 6 and a second Phase 7 pass for it after the reset unless Phases 1–5 come in under estimate. Check usage before starting Phase 6. Phases 1–5 run at once. They queue for the one build line, so the 5-hour window (9% used) won't be strained.
+About 11–19% of the weekly all-models limit (Max plan). At planning time 77% was used, so 23% is left until Sat 18 Oct, 4 pm. That's tight. Phases 1–5 and 7 for them (about 8–14%) fit. Run Phase 6 and a second Phase 7 pass for it after the reset unless Phases 1–5 come in under estimate. Check usage before starting Phase 6. **Danny's stop line (2026-10-14): stop at a good point once weekly use reaches 87%.** Finish or park the step in hand, commit, and leave a note here and in Tide. Phases 1–5 run at once. They queue for the one build line, so the 5-hour window (9% used) won't be strained.
 
 ## Decisions
 
