@@ -36,6 +36,10 @@ final class AssistantShareAttacher {
     /// How many marks wait to go into the share: the sync line says
     /// "Sending…" while any do (`AssistantSyncStatusView`).
     private(set) var pendingCount = 0
+    /// The last pass stopped because iCloud couldn't be reached, and none has
+    /// put a mark in since: the sync line says they'll go once she's back
+    /// online, rather than "Sending…" for as long as she's offline.
+    private(set) var isOffline = false
 
     @ObservationIgnored private var pass: Task<Void, Never>?
     @ObservationIgnored private var runAgain = false
@@ -51,7 +55,15 @@ final class AssistantShareAttacher {
     /// every tap into a retry of every waiting mark. When the rest ends it's
     /// tried on its own, without waiting for a tap.
     @ObservationIgnored private var backlogWaitsUntil = Date.distantPast
+    /// Refusals and network failures in a row, each backing off on its own
+    /// count: three network failures and then one refusal rest a minute.
     @ObservationIgnored private var failuresInARow = 0
+    @ObservationIgnored private var networkFailuresInARow = 0
+    /// CloudKit asked to wait until then (`CKErrorRetryAfterKey`): nothing
+    /// that ends a rest early (`retryWaiting`, a rebuilt stack, an early try)
+    /// moves the backlog's next try before it. A just-saved mark is still
+    /// tried at once.
+    @ObservationIgnored private var notBefore = Date.distantPast
     @ObservationIgnored private var retryTask: Task<Void, Never>?
     /// The newest stack a caller gave: each round of a pass uses it, so a
     /// pass running when the stack is rebuilt moves to the new one. Also
@@ -123,6 +135,15 @@ final class AssistantShareAttacher {
         min(60 * pow(2, Double(max(failures, 1) - 1)), 10 * 60)
     }
 
+    /// After a pass that couldn't reach iCloud: 30 seconds, doubling, never
+    /// more than two minutes. Retrying is cheap once the pass stops at the
+    /// first network failure, and on Wi-Fi that's weak but never drops
+    /// nothing else says the network is back. Other refusals: `rest(afterFailures:)`.
+    static func rest(afterFailures failures: Int, noConnection: Bool) -> TimeInterval {
+        guard noConnection else { return rest(afterFailures: failures) }
+        return min(30 * pow(2, Double(max(failures, 1) - 1)), 2 * 60)
+    }
+
     /// Whether a pass is running now.
     var isRunning: Bool { pass != nil }
 
@@ -144,9 +165,12 @@ final class AssistantShareAttacher {
     func flush(container: NSPersistentCloudKitContainer, context: NSManagedObjectContext) {
         if let lastContainer, lastContainer !== container {
             // A rebuilt stack. What the old one couldn't send says nothing
-            // about CloudKit, so the waiting marks don't wait out its rest.
-            backlogWaitsUntil = .distantPast
+            // about CloudKit, so the waiting marks don't wait out its rest
+            // (but do wait out a wait CloudKit itself asked for).
+            backlogWaitsUntil = notBefore
             failuresInARow = 0
+            networkFailuresInARow = 0
+            isOffline = false
         }
         lastContainer = container
         lastContext = context
@@ -165,10 +189,11 @@ final class AssistantShareAttacher {
     }
 
     /// Tries every waiting mark now, rest or no rest, with what the last pass
-    /// was given. Nothing happens before the first pass, or with nothing waiting.
+    /// was given, unless CloudKit asked to wait longer (`notBefore`).
+    /// Nothing happens before the first pass, or with nothing waiting.
     func retryWaiting() {
         guard let lastContainer, let lastContext, !pending.isEmpty else { return }
-        backlogWaitsUntil = .distantPast
+        backlogWaitsUntil = notBefore
         flush(container: lastContainer, context: lastContext)
     }
 
@@ -225,6 +250,7 @@ final class AssistantShareAttacher {
             // Marks saved during the pass stay; of these, only what failed.
             forget(found.gone + found.ids.map { $0.uriRepresentation() })
             remember(result.left.map { $0.uriRepresentation() })
+            if result.left.count < found.ids.count { isOffline = false }
             guard afterRound(result, on: container, backlogDue: backlogDue, wasEarly: wasEarly) else { return }
         } while runAgain
     }
@@ -255,9 +281,10 @@ final class AssistantShareAttacher {
         if result.mirroringStopped { return mirroringStopped(on: container) }
         if result.left.isEmpty {
             failuresInARow = 0
+            networkFailuresInARow = 0
             if backlogDue {
-                backlogWaitsUntil = .distantPast
-            } else if !pending.isEmpty, !earlyTryFailed {
+                backlogWaitsUntil = notBefore
+            } else if !pending.isEmpty, !earlyTryFailed, now() >= notBefore {
                 // CloudKit took every mark it was given, so it's working:
                 // go round now for the marks it held back.
                 backlogWaitsUntil = .distantPast
@@ -270,8 +297,19 @@ final class AssistantShareAttacher {
             runAgain = true
         } else {
             if wasEarly { earlyTryFailed = true }
-            failuresInARow += 1
-            let rest = Self.rest(afterFailures: failuresInARow)
+            var rest: TimeInterval
+            if result.noConnection {
+                isOffline = true
+                networkFailuresInARow += 1
+                rest = Self.rest(afterFailures: networkFailuresInARow, noConnection: true)
+            } else {
+                failuresInARow += 1
+                rest = Self.rest(afterFailures: failuresInARow)
+            }
+            if let wait = result.retryAfter {
+                notBefore = now().addingTimeInterval(wait)
+                rest = max(rest, wait)
+            }
             backlogWaitsUntil = now().addingTimeInterval(rest)
             scheduleRetry(after: rest)
             Self.logger.notice(
@@ -286,6 +324,8 @@ final class AssistantShareAttacher {
     /// marks now.
     private func mirroringStopped(on container: NSPersistentCloudKitContainer) -> Bool {
         stoppedContainer = container
+        // The line says so in its own words (`sendingStopped`), not "offline".
+        isOffline = false
         retryTask?.cancel()
         Self.logger.error(
             "CloudKit mirroring stopped; \(self.pending.count, privacy: .public) mark(s) wait for a new stack"
@@ -379,7 +419,10 @@ extension AssistantShareAttacher {
         retryTask?.cancel()
         retryTask = nil
         backlogWaitsUntil = .distantPast
+        notBefore = .distantPast
         failuresInARow = 0
+        networkFailuresInARow = 0
+        isOffline = false
         triedEarly = false
         earlyTryFailed = false
         defaults.removeObject(forKey: Self.listKey)

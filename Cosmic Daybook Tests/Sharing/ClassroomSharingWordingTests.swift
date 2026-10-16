@@ -14,7 +14,9 @@ struct ClassroomSharingWordingTests {
         let timedOut = NSError(domain: NSCocoaErrorDomain, code: 134_060)
         #expect(ClassroomShareAttach.stopReason(for: dead) == "iCloud stopped syncing")
         #expect(ClassroomShareAttach.stopReason(for: timedOut) == "iCloud took too long to answer")
-        #expect(ClassroomShareAttach.stopReason(for: NSError(domain: CKErrorDomain, code: 4)) == nil)
+        #expect(ClassroomShareAttach.stopReason(for: NSError(domain: CKErrorDomain, code: 4)) == "iCloud couldn't be reached")
+        #expect(ClassroomShareAttach.stopReason(for: NSError(domain: CKErrorDomain, code: 7)) == "iCloud is busy")
+        #expect(ClassroomShareAttach.stopReason(for: NSError(domain: CKErrorDomain, code: 14)) == nil)
     }
 
     @Test("A setup that stopped partway says how many and what to do")

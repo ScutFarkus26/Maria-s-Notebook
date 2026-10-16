@@ -28,6 +28,11 @@ extension CDAttendanceStore {
         /// container fails the same way, by an exception no `catch` traps,
         /// so nothing may try again until the stack is rebuilt or relaunched.
         var mirroringStopped = false
+        /// The try stopped because iCloud couldn't be reached
+        /// (`ClassroomShareAttach.Outcome.noConnection`).
+        var noConnection = false
+        /// CloudKit asked for this many seconds before the next try.
+        var retryAfter: TimeInterval?
     }
 
     private static let shareLogger = Logger(
@@ -99,7 +104,12 @@ extension CDAttendanceStore {
             let summary = "attached \(outcome.attached), failed \(outcome.failed.count)" +
                 (outcome.stoppedBecause.map { ", stopped: \($0)" } ?? "")
             shareLogger.notice("Assistant records to classroom share: \(summary, privacy: .public)")
-            return ShareAttachResult(left: outcome.failed, mirroringStopped: outcome.mirroringDelegateDied)
+            return ShareAttachResult(
+                left: outcome.failed,
+                mirroringStopped: outcome.mirroringDelegateDied,
+                noConnection: outcome.noConnection,
+                retryAfter: outcome.retryAfter
+            )
         } catch {
             shareLogger.error("Couldn't check the new records' share: \(error.localizedDescription, privacy: .public)")
             return ShareAttachResult(left: permanent)

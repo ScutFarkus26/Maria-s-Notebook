@@ -39,22 +39,26 @@ struct AssistantSyncStatusView: View {
             lastSave: record?.lastSave ?? 0,
             lastExportStart: record?.lastExportStart ?? 0,
             lastExportFailed: record?.lastExportFailed ?? false,
-            waitingForShare: AssistantShareAttacher.shared.pendingCount
+            waitingForShare: AssistantShareAttacher.shared.pendingCount,
+            shareOffline: AssistantShareAttacher.shared.isOffline
         )
     }
 
     /// Sent once an export that began after the last save has finished and
     /// nothing waits to go into the share; until then sending, or waiting for
-    /// the network when the last export failed.
+    /// the network when the last export failed or the share step couldn't
+    /// reach iCloud (`AssistantShareAttacher.isOffline`). Before the share
+    /// step said so, marks stuck offline read "Sending to iCloud…" for good.
     static func status(
         hasUnsavedChanges: Bool,
         lastSave: Double,
         lastExportStart: Double,
         lastExportFailed: Bool,
-        waitingForShare: Int = 0
+        waitingForShare: Int = 0,
+        shareOffline: Bool = false
     ) -> Status {
         if hasUnsavedChanges || waitingForShare > 0 || lastSave > lastExportStart {
-            return lastExportFailed ? .waitingForNetwork : .sending
+            return lastExportFailed || (shareOffline && waitingForShare > 0) ? .waitingForNetwork : .sending
         }
         return .sent
     }

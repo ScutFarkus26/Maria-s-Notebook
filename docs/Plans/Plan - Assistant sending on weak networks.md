@@ -1,6 +1,6 @@
 # Assistant sending on weak networks (2026-10-16)
 
-> **Not started.** Written 2026-10-16 from an investigation on branch `claude/assistants-attendance-upload-921752`.
+> **Working on it.** Written 2026-10-16 from an investigation on branch `claude/assistants-attendance-upload-921752`.
 > In short: the Assistant's marks sometimes sit on her phone for minutes, because nothing notices the network coming back, locking the phone doesn't retry waiting marks, and a weak link stalls sending; five fixes make it retry at the right moments and say plainly when it's offline.
 
 ## Goal
@@ -8,7 +8,7 @@
 An assistant's marks reach the guide within seconds of her phone getting a usable connection: when Wi-Fi comes back, when the phone switches between Wi-Fi and cellular, and when she locks the phone right after tapping. A weak link no longer holds every later mark behind one slow try. When her marks can't go, the sync line says "Not sent yet. They'll go when you're back online." instead of "Sending to iCloud…" indefinitely.
 
 ## Progress
-- [ ] Phase 1: Network failures stop the pass and say so (fixes 3, 4, 5) (session: here) · est. ~1–3% weekly
+- [x] Phase 1: Network failures stop the pass and say so (fixes 3, 4, 5) (session: here) · est. ~1–3% weekly · started at 91% · actual <1% (91→91). 66 Assistant tests (5 suites) and 28 notebook tests (3 suites) pass on the iOS simulator. Differed: the sync line reads "offline" only while marks wait (`shareOffline && waitingForShare > 0`); an early try after a fresh mark goes in also waits for CloudKit's retry-after; `serverResponseLost` counts as no connection, as planned.
 - [ ] Phase 2: Retry when the network returns and at lock (fixes 1, 2), then finish (session: here) · est. ~1–2% weekly
 
 ## Cost

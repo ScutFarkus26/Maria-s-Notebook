@@ -1,3 +1,4 @@
+import CloudKit
 import CoreData
 import Foundation
 import Testing
@@ -156,6 +157,84 @@ struct ClassroomShareAttachPassTests {
         #expect(await calls.all == [Array(ids[1...])])
         #expect(outcome.attached == 3)
         #expect(outcome.failed.isEmpty)
+    }
+
+    // MARK: - Network failures stop the pass
+
+    /// What one attach pass makes of a chunk refused with `error`.
+    private func passRefused(
+        with error: any Error, count: Int = 3
+    ) async throws -> (ClassroomShareAttach.Outcome, [[NSManagedObjectID]], [NSManagedObjectID]) {
+        let context = try CoreDataTestHelpers.makeContext()
+        let ids = daysOff(count, in: context).map(\.objectID)
+        #expect(context.safeSave())
+        let calls = SharedCalls()
+        let outcome = await ClassroomShareAttach.attach(ids, using: ClassroomShareAttach.Steps(
+            unshared: { $0 },
+            share: { chunk in
+                await calls.record(chunk)
+                throw error
+            }
+        ))
+        return (outcome, await calls.all, ids)
+    }
+
+    @Test("Offline, a refused chunk stops the pass: no record is tried on its own")
+    func offlineStopsThePass() async throws {
+        let (outcome, calls, ids) = try await passRefused(with: CKError(.networkUnavailable))
+        #expect(calls == [ids])
+        #expect(outcome.failed == ids)
+        #expect(outcome.attached == 0)
+        #expect(outcome.noConnection)
+        #expect(outcome.stoppedBecause == "iCloud couldn't be reached")
+        #expect(!outcome.mirroringDelegateDied)
+    }
+
+    @Test("A network failure wrapped in another error, or inside a partial failure, stops the pass too")
+    func wrappedOfflineStopsThePass() async throws {
+        let wrapped = NSError(domain: NSCocoaErrorDomain, code: 134_419, userInfo: [
+            NSUnderlyingErrorKey: CKError(.networkFailure) as NSError
+        ])
+        let partial = NSError(domain: CKErrorDomain, code: CKError.Code.partialFailure.rawValue, userInfo: [
+            CKPartialErrorsByItemIDKey: [CKRecord.ID(recordName: "a"): CKError(.serverResponseLost)]
+        ])
+        for error in [wrapped, partial] {
+            let (outcome, calls, ids) = try await passRefused(with: error)
+            #expect(calls == [ids])
+            #expect(outcome.noConnection)
+            #expect(outcome.failed == ids)
+        }
+    }
+
+    @Test("Core Data's share timeout counts as offline and keeps its own wording")
+    func timeoutCountsAsOffline() async throws {
+        let timedOut = NSError(domain: NSCocoaErrorDomain, code: ClassroomShareAttach.shareTimedOutCode)
+        let (outcome, calls, ids) = try await passRefused(with: timedOut)
+        #expect(calls == [ids])
+        #expect(outcome.noConnection)
+        #expect(outcome.stoppedBecause == "iCloud took too long to answer")
+    }
+
+    @Test("A throttled chunk stops the pass and carries CloudKit's wait; it isn't offline")
+    func throttledCarriesRetryAfter() async throws {
+        let throttled = NSError(domain: CKErrorDomain, code: CKError.Code.requestRateLimited.rawValue, userInfo: [
+            CKErrorRetryAfterKey: NSNumber(value: 42)
+        ])
+        let (outcome, calls, ids) = try await passRefused(with: throttled)
+        #expect(calls == [ids])
+        #expect(outcome.failed == ids)
+        #expect(!outcome.noConnection)
+        #expect(outcome.retryAfter == 42)
+        #expect(outcome.stoppedBecause == "iCloud is busy")
+    }
+
+    @Test("Any other refusal still goes one record at a time, and isn't offline")
+    func otherRefusalsGoOneByOne() async throws {
+        let (outcome, calls, ids) = try await passRefused(with: CocoaError(.validationMissingMandatoryProperty))
+        #expect(calls == [ids] + ids.map { [$0] })
+        #expect(outcome.failed == ids)
+        #expect(!outcome.noConnection)
+        #expect(outcome.stoppedBecause == nil)
     }
 
     @Test("While one attach holds the lock, the next waits its turn")
