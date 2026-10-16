@@ -92,10 +92,11 @@ extension WeekPlanSection {
         PresentationPlannerCard.ShowFirstActions(
             openWork: onOpenWork,
             checkToday: { item in
+                let day = WorkToShowFirst.checkDay(in: viewContext)
                 let outcome = WorkToShowFirst.checkToday(
-                    item, context: viewContext, saveCoordinator: saveCoordinator
+                    item, today: day, context: viewContext, saveCoordinator: saveCoordinator
                 )
-                let message = WorkToShowFirst.message(for: outcome)
+                let message = WorkToShowFirst.message(for: outcome, day: day)
                 dependencies.toastService.show(message.text, type: message.type, duration: 3)
                 showFirstVersion &+= 1
                 Task { await refreshCheckIns() }

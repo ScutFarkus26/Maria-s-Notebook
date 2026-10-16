@@ -160,6 +160,33 @@ struct ReadyGroupMoveTests {
         #expect(room.context.hasChanges == false)
     }
 
+    @Test("Her own notes go with her; the group's and shared ones stay, and Undo brings hers back")
+    func herNotesMoveWithHer() throws {
+        let room = try makeRoom()
+        let source = try group(room.lesson, [room.ada, room.ben], in: room.context)
+        let target = try group(room.lesson, [room.cy], in: room.context)
+        let hers = CoreDataTestHelpers.seedNote(in: room.context, body: "Ada is ready for exchanges")
+        hers.lessonAssignment = source
+        hers.scope = .student(try id(room.ada))
+        let groupNote = CoreDataTestHelpers.seedNote(in: room.context, body: "Bring the bead frame")
+        groupNote.lessonAssignment = source
+        let both = CoreDataTestHelpers.seedNote(in: room.context, body: "Ada and Ben work well together")
+        both.lessonAssignment = source
+        both.scope = .students([try id(room.ada), try id(room.ben)])
+        #expect(CoreDataTestHelpers.save(room.context))
+
+        let receipt = try #require(
+            PresentationGroupMove.move(try id(room.ada), from: source, to: target, in: room.context)
+        )
+
+        #expect(hers.lessonAssignment == target)
+        #expect(groupNote.lessonAssignment == source)
+        #expect(both.lessonAssignment == source, "Ben is still on it")
+
+        #expect(PresentationGroupMove.undo(receipt, in: room.context))
+        #expect(hers.lessonAssignment == source)
+    }
+
     // MARK: - Emptying the source
 
     @Test("A group left empty is deleted, and its notes go to the group she joined")

@@ -40,7 +40,7 @@ final class AssistantShareAttacher {
     /// the sync line says they'll go once she's back online.
     private(set) var isOffline = false
 
-    @ObservationIgnored private var pass: Task<Void, Never>?
+    @ObservationIgnored private(set) var pass: Task<Void, Never>?
     @ObservationIgnored private var runAgain = false
     /// Saved since the last pass began: always tried.
     @ObservationIgnored private var fresh: Set<String> = []
@@ -77,6 +77,9 @@ final class AssistantShareAttacher {
     /// wait out the full rest rather than riding along with every tap.
     @ObservationIgnored private var triedEarly = false
     @ObservationIgnored private var earlyTryFailed = false
+    /// A `retryWaiting()` came mid-round (network back, phone locking): a
+    /// failed round goes again at once, not after a rest (bug hunt 2026-10-16 #1).
+    @ObservationIgnored private var retryAskedDuringRound = false
     /// Told when a pass finds CloudKit mirroring stopped on `container`. The
     /// bootstrapper rebuilds the stack once then
     /// (`AssistantBootstrapper.mirroringStopped(in:)`): only a rebuilt stack
@@ -84,7 +87,7 @@ final class AssistantShareAttacher {
     /// "Sending to iCloud…" for good.
     @ObservationIgnored var onMirroringStopped: (@MainActor (NSPersistentCloudKitContainer) -> Void)?
     private let defaults: UserDefaults
-    private let now: @MainActor () -> Date
+    let now: @MainActor () -> Date
     private let sleep: Sleep
 
     /// One try at putting records into the share: those to try again, and
@@ -124,9 +127,6 @@ final class AssistantShareAttacher {
         self.filingStopReason = filingStopReason
         pendingCount = defaults.stringArray(forKey: Self.listKey)?.count ?? 0
     }
-
-    /// Whether a pass is running now.
-    var isRunning: Bool { pass != nil }
 
     /// Remembers `ids` (just saved) and starts a pass, or asks the running
     /// one to go round again.
@@ -174,6 +174,7 @@ final class AssistantShareAttacher {
     func retryWaiting() {
         guard let lastContainer, let lastContext, !pending.isEmpty else { return }
         backlogWaitsUntil = notBefore
+        if pass != nil { retryAskedDuringRound = true }
         flush(container: lastContainer, context: lastContext)
     }
 
@@ -194,11 +195,6 @@ final class AssistantShareAttacher {
             guard !Task.isCancelled else { return }
             self?.retryWaiting()
         }
-    }
-
-    /// Returns once no pass is running: Siri keeps its launch alive this long.
-    func waitUntilIdle() async {
-        while let pass { await pass.value }
     }
 
     private func run() async {
@@ -224,6 +220,7 @@ final class AssistantShareAttacher {
                 continue
             }
             let round = generation
+            retryAskedDuringRound = false
             let result = await attemptAndConfirm(found.ids, container: container, context: context)
             // Given up meanwhile (Leave): nothing goes back in the list.
             guard round == generation else { continue }
@@ -232,6 +229,10 @@ final class AssistantShareAttacher {
             remember(result.left.map { $0.uriRepresentation() })
             if result.left.count < found.ids.count { isOffline = false }
             guard afterRound(result, on: container, backlogDue: backlogDue, wasEarly: wasEarly) else { return }
+            if retryAskedDuringRound, !result.left.isEmpty {
+                backlogWaitsUntil = notBefore
+                runAgain = true
+            }
         } while runAgain
     }
 
@@ -278,8 +279,8 @@ final class AssistantShareAttacher {
         } else {
             if wasEarly { earlyTryFailed = true }
             var rest: TimeInterval
+            isOffline = result.noConnection // a refusal reached iCloud (bug hunt 2026-10-16 #2)
             if result.noConnection {
-                isOffline = true
                 networkFailuresInARow += 1
                 rest = Self.rest(afterFailures: networkFailuresInARow, noConnection: true)
             } else {

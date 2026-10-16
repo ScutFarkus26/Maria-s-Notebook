@@ -66,9 +66,9 @@ enum AssistantStack {
             keepAlive = UnsentChangesKeepAlive(
                 viewContext: made.viewContext,
                 isBusy: { attacher.isRunning },
-                hasWaitingWork: { attacher.pendingCount > 0 && (attacher.isOffline || attacher.backlogIsDue()) },
+                hasWaitingWork: { attacher.waitingHaveAChance },
                 waitForWork: {
-                    attacher.retryWaiting()
+                    attacher.retryWaitingIfAChance()
                     await attacher.waitUntilIdle()
                 }
             )

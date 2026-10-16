@@ -223,6 +223,46 @@ struct WorkToShowFirstActionTests {
         )
     }
 
+    @Test("Check Today on a shared row changes nothing: its one check is the whole group's")
+    func checkTodayRefusesSharedRow() throws {
+        let fixture = try fixture()
+        let shared = try sharedRow(fixture)
+        let today = AppCalendar.startOfDay(Date())
+        let later = AppCalendar.addingDays(3, to: today)
+        CDWorkCheckIn.make(for: shared, on: later, in: fixture.context)
+        try fixture.context.save()
+        let benItem = try item(for: fixture.benID, fixture)
+
+        let outcome = WorkToShowFirst.checkToday(
+            benItem, today: today, context: fixture.context, saveCoordinator: .preview
+        )
+
+        #expect(outcome == .sharedWithOthers)
+        let days = scheduledCheckIns(of: shared, in: fixture.context).compactMap(\.date).map(AppCalendar.startOfDay)
+        #expect(days == [later], "Ada's check didn't move")
+    }
+
+    @Test("On a weekend, Check Today means the next school day, and says which")
+    func checkTodayAtTheWeekend() throws {
+        let fixture = try fixture()
+        let own = try work(for: fixture.adaID, on: fixture.first, in: fixture.context)
+        let saturday = AppCalendar.startOfDay(
+            try #require(AppCalendar.shared.date(from: DateComponents(year: 2026, month: 6, day: 6)))
+        )
+        let monday = AppCalendar.addingDays(2, to: saturday)
+        CDWorkCheckIn.make(for: own, on: monday, in: fixture.context)
+        try fixture.context.save()
+
+        let day = WorkToShowFirst.checkDay(from: saturday, in: fixture.context)
+        #expect(day == monday)
+        let plan = WorkToShowFirst.todayCheck(for: own, today: day, in: fixture.context)
+        #expect(plan == .onToday(checked: false), "Monday's check isn't pulled back to Saturday")
+        #expect(WorkToShowFirst.checkTodayTitle(plan, day: day, now: saturday) == "On Monday's Checks")
+        #expect(WorkToShowFirst.checkTodayTitle(.adds, day: day, now: saturday) == "Check Monday")
+        #expect(WorkToShowFirst.message(for: .added, day: day, now: saturday).text == "Added to Monday's checks")
+        #expect(WorkToShowFirst.checkTodayTitle(.adds, day: monday, now: monday) == "Check Today")
+    }
+
     // MARK: - What the lists draw
 
     @Test("Before you start lists only children on the plan; a card counts only the chips it draws")

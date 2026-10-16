@@ -74,8 +74,56 @@ struct AssistantShareAttacherOfflineTests {
         await attach(marks(1), with: attacher)
         #expect(share.rests == [30, 60, 120, 60])
         // A refusal isn't "offline": the line goes back to "Sending…".
+        #expect(!attacher.isOffline, "the last round reached iCloud, though nothing went in")
+    }
+
+    @Test("A retry asked for during a send that then fails tries again at once, not after the rest")
+    func retryDuringPassIsKept() async {
+        let attacher = launch()
+        share.offline = true
         await attach(marks(1), with: attacher)
-        #expect(attacher.isOffline, "no mark has gone in since the network failures")
+        #expect(share.attempts.count == 1)
+
+        // The network comes back while a fresh mark's try is still out on
+        // the old link, and that try fails.
+        share.offline = false
+        share.holdsNextAttempt = true
+        share.refusesNextAttempt = true
+        attacher.attach(marks(1), container: stack.container, context: context)
+        while !share.isHolding { await Task.yield() }
+        attacher.retryWaiting()
+        share.release()
+        await attacher.waitUntilIdle()
+
+        #expect(share.attempts.count == 3, "the retry wasn't swallowed by the failed try's rest")
+        #expect(attacher.pending.isEmpty)
+    }
+
+    @Test("Locking tries resting marks only while offline or once the rest is over")
+    func lockRetriesOnlyWithAChance() async {
+        let attacher = launch()
+        share.refusesEverything = true
+        await attach(marks(1), with: attacher)
+        share.refusesEverything = false
+        #expect(!attacher.waitingHaveAChance)
+        attacher.retryWaitingIfAChance()
+        await attacher.waitUntilIdle()
+        #expect(share.attempts.count == 1, "a mark resting after a refusal waits out its rest")
+
+        clock.advance(61)
+        #expect(attacher.waitingHaveAChance)
+        attacher.retryWaitingIfAChance()
+        await attacher.waitUntilIdle()
+        #expect(share.attempts.count == 2)
+        #expect(attacher.pending.isEmpty)
+
+        share.offline = true
+        await attach(marks(1), with: attacher)
+        share.offline = false
+        #expect(attacher.waitingHaveAChance, "offline marks are worth a try at any lock")
+        attacher.retryWaitingIfAChance()
+        await attacher.waitUntilIdle()
+        #expect(attacher.pending.isEmpty)
     }
 
     @Test("CloudKit's wait holds even when something asks for a retry; a new mark is still tried")

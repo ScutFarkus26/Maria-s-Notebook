@@ -146,7 +146,9 @@ struct ReviewFixes1012A {
 
         CalendarForwardShiftService.moveForwardOneDay(
             in: classroom.context, calendar: AppCalendar.shared, from: monday,
-            nextSchoolDay: { _ in tuesday }
+            // Monday is a school day: the one after Sunday (where overdue
+            // checks land is asked as "after yesterday", 2026-10-16 #4).
+            nextSchoolDay: { $0 < monday ? monday : tuesday }
         )
 
         #expect(overdue.date == monday)

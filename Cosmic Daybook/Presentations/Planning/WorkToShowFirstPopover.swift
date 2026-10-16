@@ -39,22 +39,26 @@ struct WorkToShowFirstPopover: View {
     private func row(_ item: WorkToShowFirst.Item) -> some View {
         // From the work's check-ins, not its due date: a row can be due today
         // with no check planned, or have one today and a later due date.
-        let plan = WorkToShowFirst.todayCheck(for: item.work, in: viewContext)
+        let day = WorkToShowFirst.checkDay(in: viewContext)
+        let plan = WorkToShowFirst.todayCheck(for: item.work, today: day, in: viewContext)
         let onToday = if case .onToday = plan { true } else { false }
         return VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
             Text(item.lessonName)
                 .font(.subheadline.weight(.semibold))
                 .fixedSize(horizontal: false, vertical: true)
-            Text([item.workTitle, item.work.status.displayName].compactMap { $0 }.joined(separator: " · "))
+            Text(
+                [item.workTitle, item.work.status.displayName, item.isHersAlone ? nil : "Shared work"]
+                    .compactMap { $0 }.joined(separator: " · ")
+            )
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             // "Move Thursday's Check to Today" can outgrow the popover beside
             // Open Work; the two then stack.
             ViewThatFits(in: .horizontal) {
-                HStack(spacing: AppTheme.Spacing.small) { buttons(item, plan: plan, onToday: onToday) }
+                HStack(spacing: AppTheme.Spacing.small) { buttons(item, plan: plan, day: day, onToday: onToday) }
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
-                    buttons(item, plan: plan, onToday: onToday)
+                    buttons(item, plan: plan, day: day, onToday: onToday)
                 }
             }
             .controlSize(.small)
@@ -62,13 +66,19 @@ struct WorkToShowFirstPopover: View {
     }
 
     @ViewBuilder
-    private func buttons(_ item: WorkToShowFirst.Item, plan: WorkToShowFirst.TodayCheck, onToday: Bool) -> some View {
+    private func buttons(
+        _ item: WorkToShowFirst.Item, plan: WorkToShowFirst.TodayCheck, day: Date, onToday: Bool
+    ) -> some View {
         if let workID = item.work.id {
             Button("Open Work") { onOpenWork(workID) }
                 .buttonStyle(.bordered)
         }
-        Button(WorkToShowFirst.checkTodayTitle(plan)) { onCheckToday(item) }
-            .buttonStyle(.borderedProminent)
-            .disabled(onToday)
+        // A shared row's one check is every child's on it: moving it from
+        // her chip would move theirs, so it's changed from the work itself.
+        if item.isHersAlone {
+            Button(WorkToShowFirst.checkTodayTitle(plan, day: day)) { onCheckToday(item) }
+                .buttonStyle(.borderedProminent)
+                .disabled(onToday)
+        }
     }
 }

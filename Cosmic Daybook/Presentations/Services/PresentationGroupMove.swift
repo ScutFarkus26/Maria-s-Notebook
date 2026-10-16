@@ -5,7 +5,8 @@
 // A group is its own `CDLessonAssignment` for the lesson. A move takes the
 // child's id off one roster and puts it on the other, and
 // `PresentationRecordCleanup.moveStudents` carries her own records along (the
-// year-plan entries promoted into the source point at the target). A group
+// year-plan entries promoted into the source point at the target, and notes
+// about her alone go to the target). A group
 // she leaves empty is folded into the one she joined before it is deleted,
 // so its notes do not cascade away with it. Dragging a chip onto another
 // group (`PillDropDelegate`) and the Ready backlog's chip menu both go
@@ -89,8 +90,8 @@ enum PresentationGroupMove {
         )
     }
 
-    /// Moves one child from `source` to `target`; her year-plan entries
-    /// follow her. A group she leaves empty is folded into the target (its
+    /// Moves one child from `source` to `target`; her year-plan entries and
+    /// notes about her alone follow her. A group she leaves empty is folded into the target (its
     /// notes would cascade away with it) and deleted. Returns whether it was.
     @discardableResult
     static func apply(

@@ -1,15 +1,30 @@
 import Foundation
 import CoreData
 
-// How long the backlog rests after a failed pass, and which waiting marks
-// still exist to be tried.
+// How long the backlog rests after a failed pass, which waiting marks still
+// exist to be tried, and the small reads of where a pass stands.
 
 extension AssistantShareAttacher {
 
-    /// Whether the waiting marks' rest is over at `date`: locking the phone
-    /// tries them only then, or while offline (`AssistantStack`).
-    func backlogIsDue(at date: Date = Date()) -> Bool {
-        date >= backlogWaitsUntil
+    /// Whether a pass is running now.
+    var isRunning: Bool { pass != nil }
+
+    /// Returns once no pass is running: Siri keeps its launch alive this long.
+    func waitUntilIdle() async {
+        while let pass { await pass.value }
+    }
+
+    /// Marks wait with a chance of going: offline (the network may be back),
+    /// or their rest is over. A mark resting after refusals waits it out.
+    var waitingHaveAChance: Bool {
+        pendingCount > 0 && (isOffline || now() >= backlogWaitsUntil)
+    }
+
+    /// `retryWaiting()`, only for marks with a chance (`waitingHaveAChance`):
+    /// what locking the phone tries (bug hunt 2026-10-16 #3).
+    func retryWaitingIfAChance() {
+        guard waitingHaveAChance else { return }
+        retryWaiting()
     }
 
     /// One minute after the first failed pass in a row, doubling each time

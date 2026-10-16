@@ -92,13 +92,17 @@ extension WorkToShowFirst {
         case noLongerOpen
         case childHasLeft
         case saveFailed
+        /// A row other children are on too: its one check is theirs as well.
+        case sharedWithOthers
     }
 
     /// Puts the row on today's checks without ever making a second check for
     /// the day: one already on today is left alone, a later planned one moves
-    /// up, and otherwise one is added. Nothing is written for closed work or a
-    /// child who has left the class. Saved on its own, and taken back alone if
-    /// the save fails.
+    /// up, and otherwise one is added. `today` is the check day (`checkDay`).
+    /// Nothing is written for closed work, a child who has left the class, or
+    /// a row other children are on (moving its check would move theirs; bug
+    /// hunt 2026-10-16 #5). Saved on its own, and taken back alone if the
+    /// save fails.
     static func checkToday(
         _ item: Item,
         today: Date = Date(),
@@ -109,6 +113,9 @@ extension WorkToShowFirst {
         guard !work.isDeleted, work.managedObjectContext != nil, work.status.isOpen else { return .noLongerOpen }
         if let child = StudentRepository(context: context).fetchStudent(id: item.studentID), !child.isEnrolled {
             return .childHasLeft
+        }
+        guard WorkLogService.studentsLogged(on: work, in: context) == [item.studentID] else {
+            return .sharedWithOthers
         }
         let day = AppCalendar.startOfDay(today)
         let plan = todayCheck(for: work, today: day, in: context)
@@ -122,38 +129,66 @@ extension WorkToShowFirst {
     }
 
     /// The toast after Check Today, and how it looks.
-    static func message(for outcome: CheckTodayOutcome, now: Date = Date()) -> (text: String, type: ToastType) {
+    /// `day` is the check day when it isn't `now`'s (a weekend's Monday).
+    static func message(
+        for outcome: CheckTodayOutcome, day: Date? = nil, now: Date = Date()
+    ) -> (text: String, type: ToastType) {
+        let target = checkDayName(day, now: now)
+        let inSentence = target == "Today" ? "today" : target
         switch outcome {
         case .added:
-            return ("Added to today's checks", .success)
+            return ("Added to \(inSentence)'s checks", .success)
         case .moved(let from):
-            return ("Moved the check on \(dayName(from, now: now)) to today", .success)
+            return ("Moved the check on \(dayName(from, now: now)) to \(inSentence)", .success)
         case .alreadyOnToday:
-            return ("That work is already on today's checks", .info)
+            return ("That work is already on \(inSentence)'s checks", .info)
         case .noLongerOpen:
             return ("That work has already been logged, so no check was added.", .info)
         case .childHasLeft:
             return ("That child has left the class, so no check was added.", .info)
         case .saveFailed:
             return ("Couldn't add that check. Try again.", .error)
+        case .sharedWithOthers:
+            return (
+                "That work is shared with classmates, so its check wasn't moved. Open the work to change it.",
+                .info
+            )
         }
     }
 
-    /// The popover's button for a row in this state.
-    static func checkTodayTitle(_ plan: TodayCheck, now: Date = Date()) -> String {
+    /// The popover's button for a row in this state. `day` is the check day
+    /// when it isn't `now`'s: "Check Monday" at the weekend.
+    static func checkTodayTitle(_ plan: TodayCheck, day: Date? = nil, now: Date = Date()) -> String {
+        let target = checkDayName(day, now: now)
         switch plan {
         case .onToday(let checked):
-            return checked ? "Checked Today" : "On Today's Checks"
+            return checked ? "Checked \(target)" : "On \(target)'s Checks"
         case .movesFrom(let date):
             return isWithinTheWeek(date, now: now)
-                ? "Move \(dayName(date, now: now))'s Check to Today"
-                : "Move the \(date.formatted(.dateTime.month(.abbreviated).day())) Check to Today"
+                ? "Move \(dayName(date, now: now))'s Check to \(target)"
+                : "Move the \(date.formatted(.dateTime.month(.abbreviated).day())) Check to \(target)"
         case .adds:
-            return "Check Today"
+            return "Check \(target)"
         }
     }
 
     // MARK: - Days
+
+    /// The day Check Today puts a check on: today, or the next school day
+    /// when today isn't one. The strip has no column for a weekend or
+    /// holiday, so a check put there would show nowhere (bug hunt 2026-10-16 #4).
+    static func checkDay(from now: Date = Date(), in context: NSManagedObjectContext) -> Date {
+        let today = AppCalendar.startOfDay(now)
+        let schoolCalendar = SchoolCalendarService.shared
+        guard schoolCalendar.isNonSchoolDaySync(today, using: context) else { return today }
+        return AppCalendar.startOfDay(schoolCalendar.nextSchoolDaySync(after: today, using: context))
+    }
+
+    /// "Today" for the check day on `now`'s day, else the day's name ("Monday").
+    private static func checkDayName(_ day: Date?, now: Date) -> String {
+        guard let day else { return "Today" }
+        return dayName(day, now: now)
+    }
 
     /// "Today", "Thursday" within the coming week, else "Thu, Oct 23": a
     /// weekday alone more than six days out would name the wrong week.

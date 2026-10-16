@@ -46,8 +46,9 @@ extension WeekPlanSection {
     }
 
     static let moveForwardMessage = "Each moves to the next school day, and work checks left on "
-        + "earlier days come to today. Presentations on earlier days or hidden by the Show filter "
-        + "stay where they are. You can undo this."
+        + "earlier days come to today (the next school day on a weekend or holiday). "
+        + "Presentations on earlier days or hidden by the Show filter stay where they are. "
+        + "You can undo this."
 
     /// Slides the plan one school day later — presentations and the work
     /// checks alongside them, overdue checks to today — and offers Undo.
