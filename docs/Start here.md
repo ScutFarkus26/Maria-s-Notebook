@@ -8,7 +8,6 @@ run `docs-index`; edit only the Other documents section by hand.
 
 | Plan | What it is | Status | Date |
 |---|---|---|---|
-| [Plan - Assistant sending on weak networks](<Plans/Plan - Assistant sending on weak networks.md>) | the Assistant's marks sometimes sit on her phone for minutes, because nothing notices the network coming back, locking the phone doesn't retry waiting marks, and a weak link stalls sending; five fixes make it retry at the right moments and say plainly when it's offline. | Working on it | 2026-10-16 |
 | [Plan - Daybook Assistant bug fixes](<Plans/Plan - Daybook Assistant bug fixes.md>) | Fixes for the ~50 findings of the 2026-10-04 Daybook Assistant bug hunt, in six phases. | Working on it | 2026-10-05 |
 | [Plan - Debug builds open a fake notebook](<Plans/Plan - Debug builds open a fake notebook.md>) | Debug builds open a fake, local-only notebook; the real one only through the Real Notebook scheme. | Not started | 2026-10-04 |
 | [Plan - Names you set yourself](<Plans/Plan - Names you set yourself.md>) | A small shared list of each person's current name, set by that person, so the Assistant says "Danny" instead of "your guide" and a rename shows everywhere, old entries included. | Working on it | 2026-10-05 |
@@ -22,6 +21,7 @@ run `docs-index`; edit only the Other documents section by hand.
 
 | Plan | What it is | Status | Date |
 |---|---|---|---|
+| [Plan - Assistant sending on weak networks](<Plans/Plan - Assistant sending on weak networks.md>) | the Assistant's marks sometimes sit on her phone for minutes, because nothing notices the network coming back, locking the phone doesn't retry waiting marks, and a weak link stalls sending; five fixes make it retry at the right moments and say plainly when it's offline. | Done (ca072a6d) | 2026-10-16 |
 | [Plan - Lessons and Work changes 2026-10-13](<Plans/Plan - Lessons and Work changes 2026-10-13.md>) | a tidier student picker, a three-day Scheduled strip, a Finished work status, a steady sync dot, moving children between groups, "work to show first" before a lesson, and Move All Forward / Clear All that handle every open check-in. | Done (db2b9d39) | 2026-10-14 |
 | [Plan - ParentLocker bug hunt afternoon fixes](<Plans/Plan - ParentLocker bug hunt afternoon fixes.md>) | the main session adds the shared hooks as placeholders, then four agents in their own worktrees fix the 23 findings, each with a test that fails first. Then a review, full builds and both whole suites, and it lands on main. TestFlight stays on hold until Danny says go. | Done (020ef75b) | 2026-10-13 |
 | [Plan - ParentLocker bug check fixes](<Plans/Plan - ParentLocker bug check fixes.md>) | three agents in their own worktrees fix the 19 findings, each with a test that fails first. Then one review, full builds and both whole suites, and it lands on main. Then the parent plan's Phase 9: Production schema, close-out, TestFlight. | Done (3ba3c2f8) | 2026-10-13 |

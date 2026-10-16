@@ -1,6 +1,6 @@
 # Assistant sending on weak networks (2026-10-16)
 
-> **Working on it.** Written 2026-10-16 from an investigation on branch `claude/assistants-attendance-upload-921752`.
+> **Done 2026-10-16** (ca072a6d). Written 2026-10-16 from an investigation on branch `claude/assistants-attendance-upload-921752`.
 > In short: the Assistant's marks sometimes sit on her phone for minutes, because nothing notices the network coming back, locking the phone doesn't retry waiting marks, and a weak link stalls sending; five fixes make it retry at the right moments and say plainly when it's offline.
 
 ## Goal
