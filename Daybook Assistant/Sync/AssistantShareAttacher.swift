@@ -36,9 +36,8 @@ final class AssistantShareAttacher {
     /// How many marks wait to go into the share: the sync line says
     /// "Sending…" while any do (`AssistantSyncStatusView`).
     private(set) var pendingCount = 0
-    /// The last pass stopped because iCloud couldn't be reached, and none has
-    /// put a mark in since: the sync line says they'll go once she's back
-    /// online, rather than "Sending…" for as long as she's offline.
+    /// The last pass couldn't reach iCloud and none has put a mark in since:
+    /// the sync line says they'll go once she's back online.
     private(set) var isOffline = false
 
     @ObservationIgnored private var pass: Task<Void, Never>?
@@ -54,15 +53,12 @@ final class AssistantShareAttacher {
     /// before it's tried again, so a CloudKit that keeps refusing doesn't turn
     /// every tap into a retry of every waiting mark. When the rest ends it's
     /// tried on its own, without waiting for a tap.
-    @ObservationIgnored private var backlogWaitsUntil = Date.distantPast
-    /// Refusals and network failures in a row, each backing off on its own
-    /// count: three network failures and then one refusal rest a minute.
+    @ObservationIgnored private(set) var backlogWaitsUntil = Date.distantPast
+    /// Refusals and network failures in a row, each kind on its own count.
     @ObservationIgnored private var failuresInARow = 0
     @ObservationIgnored private var networkFailuresInARow = 0
-    /// CloudKit asked to wait until then (`CKErrorRetryAfterKey`): nothing
-    /// that ends a rest early (`retryWaiting`, a rebuilt stack, an early try)
-    /// moves the backlog's next try before it. A just-saved mark is still
-    /// tried at once.
+    /// CloudKit asked to wait until then: nothing that ends a rest early
+    /// moves the backlog's next try before it (a new mark still goes at once).
     @ObservationIgnored private var notBefore = Date.distantPast
     @ObservationIgnored private var retryTask: Task<Void, Never>?
     /// The newest stack a caller gave: each round of a pass uses it, so a
@@ -129,21 +125,6 @@ final class AssistantShareAttacher {
         pendingCount = defaults.stringArray(forKey: Self.listKey)?.count ?? 0
     }
 
-    /// One minute after the first failed pass in a row, doubling each time
-    /// after, and never more than ten.
-    static func rest(afterFailures failures: Int) -> TimeInterval {
-        min(60 * pow(2, Double(max(failures, 1) - 1)), 10 * 60)
-    }
-
-    /// After a pass that couldn't reach iCloud: 30 seconds, doubling, never
-    /// more than two minutes. Retrying is cheap once the pass stops at the
-    /// first network failure, and on Wi-Fi that's weak but never drops
-    /// nothing else says the network is back. Other refusals: `rest(afterFailures:)`.
-    static func rest(afterFailures failures: Int, noConnection: Bool) -> TimeInterval {
-        guard noConnection else { return rest(afterFailures: failures) }
-        return min(30 * pow(2, Double(max(failures, 1) - 1)), 2 * 60)
-    }
-
     /// Whether a pass is running now.
     var isRunning: Bool { pass != nil }
 
@@ -165,8 +146,7 @@ final class AssistantShareAttacher {
     func flush(container: NSPersistentCloudKitContainer, context: NSManagedObjectContext) {
         if let lastContainer, lastContainer !== container {
             // A rebuilt stack. What the old one couldn't send says nothing
-            // about CloudKit, so the waiting marks don't wait out its rest
-            // (but do wait out a wait CloudKit itself asked for).
+            // about CloudKit, so the waiting marks don't wait out its rest.
             backlogWaitsUntil = notBefore
             failuresInARow = 0
             networkFailuresInARow = 0
@@ -334,29 +314,6 @@ final class AssistantShareAttacher {
         guard lastContainer !== container else { return false }
         runAgain = true
         return true
-    }
-
-    /// The waiting records that still exist (`ids`), and those that are
-    /// gone for good (`gone`): deleted, or from a store this open stack
-    /// doesn't have, which a Rebuild from iCloud replaced. A stack with no
-    /// stores open (one closed for a rebuild) can say neither, so its
-    /// marks are in neither list and keep waiting.
-    private func resolve(
-        _ uris: [URL], in context: NSManagedObjectContext
-    ) -> (ids: [NSManagedObjectID], gone: [URL]) {
-        guard let coordinator = context.persistentStoreCoordinator,
-              !coordinator.persistentStores.isEmpty else { return ([], []) }
-        var ids: [NSManagedObjectID] = []
-        var gone: [URL] = []
-        for uri in uris {
-            if let id = coordinator.managedObjectID(forURIRepresentation: uri),
-               (try? context.existingObject(with: id)) != nil {
-                ids.append(id)
-            } else {
-                gone.append(uri)
-            }
-        }
-        return (ids, gone)
     }
 
     /// The waiting list, oldest first.

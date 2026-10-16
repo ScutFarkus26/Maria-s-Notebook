@@ -36,6 +36,7 @@ final class UnsentChangesKeepAlive {
     /// gone.
     private(set) var unsentSince: Date?
     private let isBusy: @MainActor () -> Bool
+    private let hasWaitingWork: @MainActor () -> Bool
     private let waitForWork: @MainActor () async -> Void
     private let sleep: Sleep
     /// Written in `init` only; read again in `deinit`.
@@ -55,13 +56,18 @@ final class UnsentChangesKeepAlive {
         )
     }
 
+    /// `hasWaitingWork`: the app's own sending has something waiting to try
+    /// (the Assistant's marks resting after a failed attach). Leaving the
+    /// foreground then keeps the app awake too, and `waitForWork` tries it.
     init(
         viewContext: NSManagedObjectContext,
         isBusy: @escaping @MainActor () -> Bool = { false },
+        hasWaitingWork: @escaping @MainActor () -> Bool = { false },
         waitForWork: @escaping @MainActor () async -> Void = {},
         sleep: @escaping Sleep = { try await Task.sleep(for: $0) }
     ) {
         self.isBusy = isBusy
+        self.hasWaitingWork = hasWaitingWork
         self.waitForWork = waitForWork
         self.sleep = sleep
         let center = NotificationCenter.default
@@ -107,6 +113,12 @@ final class UnsentChangesKeepAlive {
 
     /// Whether leaving the foreground now would leave anything behind.
     var hasUnsentWork: Bool { unsentSince != nil || isBusy() }
+
+    /// Whether leaving the foreground now keeps the app awake: something
+    /// unsent, or the app's own sending has something to try. Marks resting
+    /// after a failed attach counted as neither, so the phone locked with them
+    /// untried. Leave reads `hasUnsentWork`, which counts them its own way.
+    var needsKeepAlive: Bool { hasUnsentWork || hasWaitingWork() }
 
     func saved(at date: Date) {
         unsentSince = date
@@ -170,7 +182,7 @@ final class UnsentChangesKeepAlive {
     }
 
     private func didLeaveForeground() {
-        guard hasUnsentWork else { return }
+        guard needsKeepAlive else { return }
         SiriSyncKeepAlive.run(named: "Send unsent changes") { [weak self] in
             await self?.sendBeforeSuspending()
         }

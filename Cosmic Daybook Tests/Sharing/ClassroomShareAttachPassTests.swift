@@ -161,10 +161,15 @@ struct ClassroomShareAttachPassTests {
 
     // MARK: - Network failures stop the pass
 
-    /// What one attach pass makes of a chunk refused with `error`.
-    private func passRefused(
-        with error: any Error, count: Int = 3
-    ) async throws -> (ClassroomShareAttach.Outcome, [[NSManagedObjectID]], [NSManagedObjectID]) {
+    /// One attach pass over a chunk refused with an error: what it made of
+    /// it, the calls it made, and the records it was given.
+    private struct Refused {
+        var outcome: ClassroomShareAttach.Outcome
+        var calls: [[NSManagedObjectID]]
+        var ids: [NSManagedObjectID]
+    }
+
+    private func passRefused(with error: any Error, count: Int = 3) async throws -> Refused {
         let context = try CoreDataTestHelpers.makeContext()
         let ids = daysOff(count, in: context).map(\.objectID)
         #expect(context.safeSave())
@@ -176,18 +181,18 @@ struct ClassroomShareAttachPassTests {
                 throw error
             }
         ))
-        return (outcome, await calls.all, ids)
+        return Refused(outcome: outcome, calls: await calls.all, ids: ids)
     }
 
     @Test("Offline, a refused chunk stops the pass: no record is tried on its own")
     func offlineStopsThePass() async throws {
-        let (outcome, calls, ids) = try await passRefused(with: CKError(.networkUnavailable))
-        #expect(calls == [ids])
-        #expect(outcome.failed == ids)
-        #expect(outcome.attached == 0)
-        #expect(outcome.noConnection)
-        #expect(outcome.stoppedBecause == "iCloud couldn't be reached")
-        #expect(!outcome.mirroringDelegateDied)
+        let refused = try await passRefused(with: CKError(.networkUnavailable))
+        #expect(refused.calls == [refused.ids])
+        #expect(refused.outcome.failed == refused.ids)
+        #expect(refused.outcome.attached == 0)
+        #expect(refused.outcome.noConnection)
+        #expect(refused.outcome.stoppedBecause == "iCloud couldn't be reached")
+        #expect(!refused.outcome.mirroringDelegateDied)
     }
 
     @Test("A network failure wrapped in another error, or inside a partial failure, stops the pass too")
@@ -199,20 +204,20 @@ struct ClassroomShareAttachPassTests {
             CKPartialErrorsByItemIDKey: [CKRecord.ID(recordName: "a"): CKError(.serverResponseLost)]
         ])
         for error in [wrapped, partial] {
-            let (outcome, calls, ids) = try await passRefused(with: error)
-            #expect(calls == [ids])
-            #expect(outcome.noConnection)
-            #expect(outcome.failed == ids)
+            let refused = try await passRefused(with: error)
+            #expect(refused.calls == [refused.ids])
+            #expect(refused.outcome.noConnection)
+            #expect(refused.outcome.failed == refused.ids)
         }
     }
 
     @Test("Core Data's share timeout counts as offline and keeps its own wording")
     func timeoutCountsAsOffline() async throws {
         let timedOut = NSError(domain: NSCocoaErrorDomain, code: ClassroomShareAttach.shareTimedOutCode)
-        let (outcome, calls, ids) = try await passRefused(with: timedOut)
-        #expect(calls == [ids])
-        #expect(outcome.noConnection)
-        #expect(outcome.stoppedBecause == "iCloud took too long to answer")
+        let refused = try await passRefused(with: timedOut)
+        #expect(refused.calls == [refused.ids])
+        #expect(refused.outcome.noConnection)
+        #expect(refused.outcome.stoppedBecause == "iCloud took too long to answer")
     }
 
     @Test("A throttled chunk stops the pass and carries CloudKit's wait; it isn't offline")
@@ -220,21 +225,21 @@ struct ClassroomShareAttachPassTests {
         let throttled = NSError(domain: CKErrorDomain, code: CKError.Code.requestRateLimited.rawValue, userInfo: [
             CKErrorRetryAfterKey: NSNumber(value: 42)
         ])
-        let (outcome, calls, ids) = try await passRefused(with: throttled)
-        #expect(calls == [ids])
-        #expect(outcome.failed == ids)
-        #expect(!outcome.noConnection)
-        #expect(outcome.retryAfter == 42)
-        #expect(outcome.stoppedBecause == "iCloud is busy")
+        let refused = try await passRefused(with: throttled)
+        #expect(refused.calls == [refused.ids])
+        #expect(refused.outcome.failed == refused.ids)
+        #expect(!refused.outcome.noConnection)
+        #expect(refused.outcome.retryAfter == 42)
+        #expect(refused.outcome.stoppedBecause == "iCloud is busy")
     }
 
     @Test("Any other refusal still goes one record at a time, and isn't offline")
     func otherRefusalsGoOneByOne() async throws {
-        let (outcome, calls, ids) = try await passRefused(with: CocoaError(.validationMissingMandatoryProperty))
-        #expect(calls == [ids] + ids.map { [$0] })
-        #expect(outcome.failed == ids)
-        #expect(!outcome.noConnection)
-        #expect(outcome.stoppedBecause == nil)
+        let refused = try await passRefused(with: CocoaError(.validationMissingMandatoryProperty))
+        #expect(refused.calls == [refused.ids] + refused.ids.map { [$0] })
+        #expect(refused.outcome.failed == refused.ids)
+        #expect(!refused.outcome.noConnection)
+        #expect(refused.outcome.stoppedBecause == nil)
     }
 
     @Test("While one attach holds the lock, the next waits its turn")

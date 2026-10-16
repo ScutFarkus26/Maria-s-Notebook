@@ -229,6 +229,31 @@ struct UnsentChangesKeepAliveTests {
         #expect(attacher.pending.isEmpty)
     }
 
+    @Test("Marks waiting to be tried keep the app awake on leaving, and get their try; Leave's count is unchanged")
+    func waitingWorkKeepsAwake() async {
+        let work = WaitingWork()
+        let keepAlive = UnsentChangesKeepAlive(
+            viewContext: context,
+            hasWaitingWork: { work.waiting },
+            waitForWork: { work.tried += 1 }
+        )
+        #expect(keepAlive.needsKeepAlive)
+        #expect(!keepAlive.hasUnsentWork)
+        await keepAlive.sendBeforeSuspending()
+        #expect(work.tried == 1)
+        work.waiting = false
+        #expect(!keepAlive.needsKeepAlive)
+    }
+
+    @Test("Without waiting work (the notebook's case), keeping awake follows what's unsent")
+    func notebookKeepsItsRule() {
+        let keepAlive = UnsentChangesKeepAlive(viewContext: context)
+        #expect(!keepAlive.needsKeepAlive)
+        saveAMark()
+        #expect(keepAlive.hasUnsentWork)
+        #expect(keepAlive.needsKeepAlive)
+    }
+
     /// A mark saved, with its permanent ID.
     private func savedMark() throws -> NSManagedObjectID {
         let record = CDAttendanceRecord(context: context)
@@ -298,4 +323,11 @@ private final class Gate {
         waiters = []
         resumed.forEach { $0.resume() }
     }
+}
+
+/// A test's stand-in for the app's own waiting work.
+@MainActor
+private final class WaitingWork {
+    var waiting = true
+    var tried = 0
 }

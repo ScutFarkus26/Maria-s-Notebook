@@ -105,4 +105,22 @@ struct AssistantSyncRecordTests {
         #expect(Line.status(hasUnsavedChanges: false, lastSave: 10, lastExportStart: 20, lastExportFailed: false,
                             waitingForShare: 0) == .sent)
     }
+
+    @Test("A successful export or import says iCloud can be reached; a failed one doesn't")
+    func syncProvesOnline() {
+        let record = AssistantSyncRecord(viewContext: stack.viewContext, defaults: defaults)
+        let heard = Heard()
+        record.onSharedStoreSynced = { heard.count += 1 }
+        record.record(export(started: Date(), succeeded: false))
+        #expect(heard.count == 0)
+        record.record(export(started: Date()))
+        record.record(.init(isExport: false, start: Date(), end: Date(), succeeded: true))
+        #expect(heard.count == 2)
+    }
+}
+
+/// How many times a callback was heard.
+@MainActor
+private final class Heard {
+    var count = 0
 }

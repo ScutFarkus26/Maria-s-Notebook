@@ -9,7 +9,7 @@ An assistant's marks reach the guide within seconds of her phone getting a usabl
 
 ## Progress
 - [x] Phase 1: Network failures stop the pass and say so (fixes 3, 4, 5) (session: here) · est. ~1–3% weekly · started at 91% · actual <1% (91→91). 66 Assistant tests (5 suites) and 28 notebook tests (3 suites) pass on the iOS simulator. Differed: the sync line reads "offline" only while marks wait (`shareOffline && waitingForShare > 0`); an early try after a fresh mark goes in also waits for CloudKit's retry-after; `serverResponseLost` counts as no connection, as planned.
-- [ ] Phase 2: Retry when the network returns and at lock (fixes 1, 2), then finish (session: here) · est. ~1–2% weekly
+- [x] Phase 2: Retry when the network returns and at lock (fixes 1, 2), then finish (session: here) · est. ~1–2% weekly · started at 91% · actual <1% (91→91). Whole suites pass on the iOS simulator: Assistant 360 of 360, notebook 3,816 passed, 14 skipped, none failed; both schemes build. Differed: the rebuild doesn't stop the watch itself (`shared()` replaces it, so a rebuild whose stores won't come off keeps watching); Phase 1's three files went over SwiftLint's length limits, so the share-copy reads and error checks moved to `ClassroomShareAttach+Server.swift` (added to the Assistant target), the rest math to `AssistantShareAttacher+Rest.swift`, and the offline tests to `AssistantShareAttacherOfflineTests`; the sync-record test covers success and failure only (the private store is already filtered out before `record` runs).
 
 ## Cost
 About 2–5% of the weekly limit (Max plan), from past main-session phases of this size (each ~1%), plus ~1% already spent on this planning (the Apple check and the review). 10% is left until the weekly reset on Sunday 18 October; extra usage is off. Fits, though only just with room for one more job of this size this week. If a phase runs over, Phase 2 can wait for the reset.
@@ -116,7 +116,7 @@ Checked 2026-10-16 against Xcode 27.0 (27A266a), iOS 27.0 SDK, by an `sdk-verifi
 
 ## Checking it on a phone
 
-Unit tests can't make a real network flaky. At the end of Phase 2 this becomes a row in Tide (`Areas/App Development/Cosmic Daybook/To do.md`), linked here:
+Unit tests can't make a real network flaky. Check on a phone after the next Assistant roll-out: [Tide row](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20Assistant%20roll-out%2C%20check%20marks%20go%20on%20their%20own%20when%20the%20phone%20gets%20its%20connection%20back). The steps:
 
 - Install the Assistant on a phone in the class. Turn on Settings › Developer › Network Link Conditioner, "100% Loss": tap a few marks, see "Not sent yet…". Turn the conditioner off: the marks go within a few seconds, without tapping or reopening.
 - Walk out of Wi-Fi range with cellular on: marks tapped on the way go once cellular takes over.

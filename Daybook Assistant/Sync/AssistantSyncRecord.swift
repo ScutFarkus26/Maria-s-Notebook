@@ -33,6 +33,10 @@ final class AssistantSyncRecord {
     private(set) var lastImportEnd: Double = 0
     /// For this launch only: the line says the marks go once she's online.
     private(set) var lastExportFailed = false
+    /// Told of each successful export or import of the shared store: proof
+    /// iCloud can be reached, so marks waiting offline are tried
+    /// (`AssistantStack`).
+    @ObservationIgnored var onSharedStoreSynced: (@MainActor () -> Void)?
 
     private let defaults: UserDefaults
     /// Written in `init` only; read again in `deinit`.
@@ -78,6 +82,7 @@ final class AssistantSyncRecord {
     }
 
     func record(_ event: FinishedEvent) {
+        if event.succeeded { onSharedStoreSynced?() }
         if event.isExport {
             lastExportFailed = !event.succeeded
             guard event.succeeded else { return }

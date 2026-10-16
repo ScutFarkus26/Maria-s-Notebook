@@ -19,6 +19,8 @@ enum AssistantStack {
     /// Whether the classroom share's store may be filed into, from its own
     /// CloudKit events since this stack began opening.
     private(set) static var filingHold: AssistantFilingHold?
+    /// Tries the waiting marks when the network comes back or changes.
+    private(set) static var networkWatch: AssistantNetworkWatch?
 
     /// Why her marks mustn't go into the share now, or nil: asked by the
     /// attacher before each pass and before each chunk.
@@ -56,15 +58,26 @@ enum AssistantStack {
         if !isSample {
             hold.onLift = { AssistantShareAttacher.shared.retryWaiting() }
             filingHold = hold
-            // A mark tapped just before the phone locks still goes out. One
-            // at a time, as `install` keeps it: a rebuilt stack's replaces
-            // the old one's.
+            let attacher = AssistantShareAttacher.shared
+            // A mark tapped just before the phone locks still goes out, and so
+            // do marks waiting with a chance of going (offline, or rested):
+            // locking tries them. One at a time, as `install` keeps it: a
+            // rebuilt stack's replaces the old one's.
             keepAlive = UnsentChangesKeepAlive(
                 viewContext: made.viewContext,
-                isBusy: { AssistantShareAttacher.shared.isRunning },
-                waitForWork: { await AssistantShareAttacher.shared.waitUntilIdle() }
+                isBusy: { attacher.isRunning },
+                hasWaitingWork: { attacher.pendingCount > 0 && (attacher.isOffline || attacher.backlogIsDue()) },
+                waitForWork: {
+                    attacher.retryWaiting()
+                    await attacher.waitUntilIdle()
+                }
             )
-            syncRecord = AssistantSyncRecord(viewContext: made.viewContext)
+            let record = AssistantSyncRecord(viewContext: made.viewContext)
+            // A successful sync proves iCloud can be reached.
+            record.onSharedStoreSynced = { if attacher.isOffline { attacher.retryWaiting() } }
+            syncRecord = record
+            networkWatch?.stop()
+            networkWatch = .live { attacher.retryWaiting() }
         }
         return made
     }
