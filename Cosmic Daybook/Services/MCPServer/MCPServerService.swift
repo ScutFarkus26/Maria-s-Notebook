@@ -134,20 +134,30 @@ final class MCPServerService {
     }
 
     private func stop() {
-        guard let server else { return }
+        guard let server = detachServer() else { return }
+        Task { await server.stop() }
+    }
+
+    /// Forgets the running server and returns it for the caller to stop.
+    private func detachServer() -> MCPSocketServer? {
+        guard let server else { return nil }
         self.server = nil
         currentServerID = nil
         isRunning = false
         setConnectedClientCount(0)
-        Task { await server.stop() }
+        return server
     }
 
     /// Closes the port ahead of an MCP-only launch's idle quit (the Settings
     /// toggle is left alone), so a Claude session that starts while the quit
     /// backup runs finds no listener, and its bridge starts a fresh copy once
     /// this one has exited, rather than connecting to a process about to go.
-    func stopBeforeQuit() {
-        stop()
+    /// Returns once the listener is closed: a stop left to a task of its own
+    /// would wait behind the quit, as it did on 2026-10-18, when a quitting
+    /// copy kept accepting connections it could never answer.
+    func stopBeforeQuit() async {
+        guard let server = detachServer() else { return }
+        await server.stop()
     }
 
     /// A previously-ready listener died (the socket server already tore

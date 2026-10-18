@@ -2,6 +2,7 @@
 import AppKit
 import CoreData
 import CloudKit
+import OSLog
 import SwiftUI
 
 /// AppDelegate that performs the automatic backup before the app quits.
@@ -10,7 +11,10 @@ import SwiftUI
 /// `applicationShouldTerminate` returns `.terminateLater`, the backup runs as
 /// a normal main-actor task, and `reply(toApplicationShouldTerminate:)`
 /// resumes termination when it finishes (or when the safety timeout fires).
-/// This replaces a semaphore + RunLoop polling loop that blocked the main
+/// The timeout is a run-loop timer (`QuitReplyGate`), not a task: a quit
+/// started from inside a main-actor task starves every other main-actor
+/// task until the reply, so a task-based timeout never fired and the app
+/// froze mid-quit (2026-10-18). This replaces a semaphore + RunLoop polling loop that blocked the main
 /// thread and only let the backup task run during half its duty cycle.
 ///
 /// It also runs an MCP-only launch (see `AppLaunchMode`): with no main window
@@ -25,7 +29,6 @@ final class AutoBackupAppDelegate: NSObject, NSApplicationDelegate {
 
     private var coreDataStack: CoreDataStack?
     private var autoBackupManager: AutoBackupManager?
-    private var didReplyToTermination = false
     /// Only for an MCP-only launch.
     private var idleQuitController: MCPIdleQuitController?
 
@@ -81,27 +84,22 @@ final class AutoBackupAppDelegate: NSObject, NSApplicationDelegate {
               autoBackupManager.enabled else { return .terminateNow }
 
         let viewContext = coreDataStack.viewContext
-        didReplyToTermination = false
+        // The gate sends the one reply AppKit needs: when the backup ends, or
+        // at the timeout, so a hung backup never holds the quit hostage. Its
+        // timer keeps it alive until then.
+        let gate = QuitReplyGate(timeout: Self.quitBackupTimeout) { timedOut in
+            if timedOut {
+                Logger.backup.notice("Quit backup still running after the time limit; quitting anyway")
+            }
+            sender.reply(toApplicationShouldTerminate: true)
+        }
 
         Task {
             await autoBackupManager.performBackupOnQuit(viewContext: viewContext)
-            self.replyToTerminationOnce(sender)
-        }
-
-        // Safety net: never hold the quit hostage to a hung backup.
-        Task {
-            try? await Task.sleep(for: Self.quitBackupTimeout)
-            self.replyToTerminationOnce(sender)
+            gate.workFinished()
         }
 
         return .terminateLater
-    }
-
-    /// AppKit must receive exactly one reply per `.terminateLater`.
-    private func replyToTerminationOnce(_ application: NSApplication) {
-        guard !didReplyToTermination else { return }
-        didReplyToTermination = true
-        application.reply(toApplicationShouldTerminate: true)
     }
 }
 #endif

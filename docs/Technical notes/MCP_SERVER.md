@@ -117,9 +117,17 @@ Claude Desktop ──stdio──▶ Scripts/mcp/cosmic-daybook-mcp (nc relay)
   `MCPSocketServer` once past the `AUTH` line (a bridge's `nc -z` probe does
   not count) and surface as `MCPServerService.connectedClientCount`; windows
   are counted by AppKit's reopen rule (visible `NSWindow`s, not panels,
-  minimized ones included). The port closes just before the quit, so a
-  session that starts during the quit backup gets a fresh copy from its
-  bridge. A Dock click with no window open opens the main window: SwiftUI
+  minimized ones included). The port closes just before the quit (awaited,
+  so it is shut before terminate begins), so a session that starts during
+  the quit backup gets a fresh copy from its bridge. The quit itself starts
+  from a run-loop timer (`MainRunLoop.performOutsideMainQueue`), never from
+  the countdown task, and the quit backup's 25-second limit is a run-loop
+  timer too (`QuitReplyGate`): AppKit waits for a `.terminateLater` reply in
+  a nested run loop, and when that loop sits inside a main-actor task the
+  main queue never drains, so no other main-actor task (the backup, a
+  task-based timeout, the server's stop, every tool call) can run. That is
+  how an idle copy froze mid-quit on 2026-10-18, still accepting
+  connections it never answered. A Dock click with no window open opens the main window: SwiftUI
   also consults the suppressed launch behavior there, so the delegate's
   `applicationShouldHandleReopen` does it with an `openWindow` captured from
   the menu bar's commands (`MainWindowOpenerCommands`); on a normal launch
@@ -655,7 +663,9 @@ can be lost.
   (which arguments make an MCP-only launch), `MCPIdleQuitPolicyTests.swift`
   (when that launch quits: clients and windows, cancel and re-arm, the full
   interval), and `Services/MCPServer/MCPEnabledMarkerTests.swift` (the
-  bridge's marker, created and removed with the toggle). The AppKit wiring
+  bridge's marker, created and removed with the toggle), and
+  `QuitReplyGateTests.swift` (the quit's reply comes by its deadline even
+  while main-actor tasks are starved, and only once). The AppKit wiring
   (`MCPIdleQuitController`, the Dock-click reopen) is checked by hand.
 - The bridge's launch decisions: `Scripts/mcp/test-cosmic-daybook-mcp.sh`
   runs a copy of the bridge on port 43199 with a fake bundle id, a temporary

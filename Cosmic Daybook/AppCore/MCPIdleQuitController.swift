@@ -6,8 +6,9 @@
 //  connected Claude clients (from MCPServerService) and the app's open
 //  windows (from AppKit), keeps one countdown task in step with the
 //  policy's deadline, and quits with NSApp.terminate — an ordinary quit, so
-//  the quit backup in AutoBackupAppDelegate runs as it does on ⌘Q. A normal
-//  launch never creates one.
+//  the quit backup in AutoBackupAppDelegate runs as it does on ⌘Q. The quit
+//  is started from a run-loop timer, never from the countdown task itself
+//  (see QuitReplyGate for why). A normal launch never creates one.
 //
 
 #if os(macOS)
@@ -109,27 +110,44 @@ final class MCPIdleQuitController {
             } catch {
                 return // cancelled: a client connected, a window opened, or the deadline moved
             }
-            self?.countdownElapsed()
+            await self?.countdownElapsed()
         }
     }
 
-    private func countdownElapsed() {
+    private func countdownElapsed() async {
         // Count the windows afresh rather than trusting the notifications alone.
         recountWindows()
         guard policy.shouldQuit(at: .now) else {
-            // Something is open again, or the wake came early: aim a fresh
-            // countdown at whatever the deadline is now (none while busy).
-            scheduledDeadline = nil
-            reschedule()
+            aimFreshCountdown()
             return
         }
         Self.logger.notice("MCP-only launch idle — no Claude client and no window — quitting")
-        // Close the port first: a Claude session that starts while the quit
-        // backup runs then finds it closed and its bridge starts a fresh copy
-        // once this one has gone, instead of connecting to a process that is
-        // about to exit.
-        MCPServerService.shared.stopBeforeQuit()
-        NSApplication.shared.terminate(nil)
+        // Close the port first, and wait until it is closed: a Claude session
+        // that starts while the quit backup runs then finds it closed and its
+        // bridge starts a fresh copy once this one has gone, instead of
+        // connecting to a process that is about to exit.
+        await MCPServerService.shared.stopBeforeQuit()
+        recountWindows()
+        guard policy.shouldQuit(at: .now) else {
+            // A Dock click opened a window while the port was closing: stay,
+            // and listen again.
+            MCPServerService.shared.applySettings()
+            aimFreshCountdown()
+            return
+        }
+        // Not from this task: AppKit's wait for the quit backup, nested inside
+        // a main-actor task, would starve every other main-actor task (the
+        // backup among them) until the reply.
+        MainRunLoop.performOutsideMainQueue {
+            NSApplication.shared.terminate(nil)
+        }
+    }
+
+    /// Something is open again, or the wake came early: aim a fresh
+    /// countdown at whatever the deadline is now (none while busy).
+    private func aimFreshCountdown() {
+        scheduledDeadline = nil
+        reschedule()
     }
 }
 #endif
