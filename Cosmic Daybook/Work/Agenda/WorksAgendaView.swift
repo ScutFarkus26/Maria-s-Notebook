@@ -95,6 +95,12 @@ struct WorksAgendaView: View {
     /// Which state pill the Work half is filtered by.
     @SceneStorage("LessonsAndWork.workChip")
     var workChipRaw: String = WorkFilterChip.needsChecking.rawValue
+    /// Each half's live list or its History (`WorkspaceList`), remembered
+    /// per half and per window like the half itself.
+    @SceneStorage("LessonsAndWork.presentationsList")
+    var presentationsListRaw: String = WorkspaceList.open.rawValue
+    @SceneStorage("LessonsAndWork.workList")
+    var workListRaw: String = WorkspaceList.open.rawValue
 
     var visibleKinds: Binding<Set<WorkKind>> {
         Binding(
@@ -241,6 +247,10 @@ struct WorksAgendaView: View {
         .onChange(of: workspaceKindRaw) { _, _ in
             rebuildBeforeLesson()
         }
+        // Back from History, the grid's pill is there again.
+        .onChange(of: workListRaw) { _, _ in
+            rebuildBeforeLesson()
+        }
         .onCalendarDayChange {
             rebuildBeforeLesson()
         }
@@ -266,14 +276,25 @@ struct WorksAgendaView: View {
     @ViewBuilder
     private var workspaceContent: some View {
         #if os(macOS)
-        workspaceSplit
+        workspaceBody
         #else
         VStack(spacing: 0) {
             mobileHeader
             Divider()
-            workspaceSplit
+            workspaceBody
         }
         #endif
+    }
+
+    /// The half's live list over the Scheduled calendar, or its History,
+    /// which fills the workspace (`WorksAgendaView+History.swift`).
+    @ViewBuilder
+    private var workspaceBody: some View {
+        if showsHistory {
+            workspaceHistory
+        } else {
+            workspaceSplit
+        }
     }
 
     /// The half the guide is working in. Scheduled is neither of them — it is
@@ -315,11 +336,11 @@ struct WorksAgendaView: View {
         }
     }
 
-    var searchPrompt: String { workspaceKind.searchPrompt }
+    var searchPrompt: String { workspaceList.searchPrompt(in: workspaceKind) }
 
     /// True when the work grid is on screen, and so its sort, kind chips and
-    /// print/export controls apply.
-    var showsWorkGrid: Bool { workspaceKind == .work }
+    /// print/export controls apply. Not under History, which is a list.
+    var showsWorkGrid: Bool { workspaceKind == .work && !showsHistory }
 }
 
 // The `#Preview` closure is expanded and type-checked in every compiler job

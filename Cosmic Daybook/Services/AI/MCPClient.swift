@@ -51,32 +51,6 @@ protocol MCPClientProtocol {
         maxTokens: Int,
         timeout: TimeInterval?
     ) async throws -> String
-
-    // Sends a multi-turn conversation with streaming, calling onText with the
-    // whole answer so far each time it grows (cumulative, never a delta).
-    // Returns the full response text when complete.
-    // swiftlint:disable:next function_parameter_count
-    func streamConversation(
-        messages: [[String: String]],
-        systemMessage: String?,
-        temperature: Double,
-        maxTokens: Int,
-        timeout: TimeInterval?,
-        onText: @escaping @MainActor @Sendable (String) -> Void
-    ) async throws -> String
-
-    // One Ask AI answer: `streamConversation` with the notebook tools
-    // attached, reading the classroom in `tools` and recording the records
-    // they cite in `tools.sources`. Clients without tools answer without them.
-    // swiftlint:disable:next function_parameter_count
-    func streamChat(
-        messages: [[String: String]],
-        systemMessage: String?,
-        temperature: Double,
-        maxTokens: Int,
-        tools: ChatToolContext,
-        onText: @escaping @MainActor @Sendable (String) -> Void
-    ) async throws -> String
 }
 
 /// A model `AIClientRouter` can try: whether it can take a request now, and
@@ -90,10 +64,9 @@ protocol RoutableModelClient: MCPClientProtocol {
 
 // Fallbacks for clients that don't implement a form themselves. None of them
 // takes default argument values: a call that left an argument out would bind
-// to the fallback statically and skip the client's own implementation (Ask AI
-// never streamed that way). Each forwards to a requirement, so the client's
-// fullest form runs; only a client with nothing but the short forms loses the
-// system message and token limit.
+// to the fallback statically and skip the client's own implementation. Each
+// forwards to a requirement, so the client's fullest form runs; only a client
+// with nothing but the short forms loses the system message and token limit.
 extension MCPClientProtocol {
     func generateText(
         prompt: String, systemMessage: String?,
@@ -150,46 +123,6 @@ extension MCPClientProtocol {
             temperature: temperature,
             maxTokens: maxTokens,
             timeout: timeout
-        )
-    }
-
-    // swiftlint:disable:next function_parameter_count
-    func streamConversation(
-        messages: [[String: String]],
-        systemMessage: String?,
-        temperature: Double,
-        maxTokens: Int,
-        timeout: TimeInterval?,
-        onText: @escaping @MainActor @Sendable (String) -> Void
-    ) async throws -> String {
-        // Non-streaming fallback: generate full text, emit it once.
-        let result = try await sendConversation(
-            messages: messages,
-            systemMessage: systemMessage,
-            temperature: temperature,
-            maxTokens: maxTokens,
-            timeout: timeout
-        )
-        onText(result)
-        return result
-    }
-
-    // swiftlint:disable:next function_parameter_count
-    func streamChat(
-        messages: [[String: String]],
-        systemMessage: String?,
-        temperature: Double,
-        maxTokens: Int,
-        tools: ChatToolContext,
-        onText: @escaping @MainActor @Sendable (String) -> Void
-    ) async throws -> String {
-        try await streamConversation(
-            messages: messages,
-            systemMessage: systemMessage,
-            temperature: temperature,
-            maxTokens: maxTokens,
-            timeout: nil,
-            onText: onText
         )
     }
 }

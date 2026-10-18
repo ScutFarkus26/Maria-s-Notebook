@@ -15,12 +15,6 @@ private struct NoModelClient: MCPClientProtocol {
         messages: [[String: String]], systemMessage: String?, temperature: Double,
         maxTokens: Int, timeout: TimeInterval?
     ) async throws -> String { throw Offline() }
-    // swiftlint:disable:next function_parameter_count
-    func streamConversation(
-        messages: [[String: String]], systemMessage: String?, temperature: Double,
-        maxTokens: Int, timeout: TimeInterval?,
-        onText: @escaping @MainActor @Sendable (String) -> Void
-    ) async throws -> String { throw Offline() }
 }
 
 @Suite("Parent reports (review fixes 10-11)")

@@ -367,7 +367,7 @@ struct StoryDetailView: View {
                 .buttonStyle(.bordered)
                 if StoryAnalyzer.isAIEnabled && story.analysisStatus != .manual {
                     Button {
-                        Task { await StoryImportService.reanalyze(story: story, context: viewContext) }
+                        Task { await StoryAnalysisRunner.reanalyze(story: story, context: viewContext) }
                     } label: {
                         Label("Re-extract with AI", systemImage: "wand.and.stars")
                     }
@@ -558,10 +558,7 @@ struct StoryDetailView: View {
     /// have to download; see `UbiquitousFile`): in Quick Look on iPhone and
     /// iPad, where `UIApplication.open` can't open a file.
     private func openPDF() {
-        guard let url = StoryFileStorage.resolveURL(
-            bookmark: story.pdfFileBookmark,
-            relativePath: story.pdfFileRelativePath
-        ) else { return }
+        guard let url = LibraryFileStorage.url(for: story) else { return }
         Task {
             #if os(macOS)
             let url = await UbiquitousFile.localURL(for: url)
@@ -575,12 +572,7 @@ struct StoryDetailView: View {
     }
 
     private func deleteStory() {
-        if let url = StoryFileStorage.resolveURL(
-            bookmark: story.pdfFileBookmark,
-            relativePath: story.pdfFileRelativePath
-        ) {
-            try? StoryFileStorage.deleteIfManaged(url)
-        }
+        LibraryFileStorage.deleteFile(of: story)
         viewContext.delete(story)
         saveContext()
         onDelete()

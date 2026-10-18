@@ -59,7 +59,7 @@ extension AppBootstrapping {
 
     /// The stack, for code that runs only once the notebook is open: what
     /// the window shows once it's ready, Settings, the MCP server (started
-    /// after the stack), Ask AI. Anything that can run sooner awaits
+    /// after the stack). Anything that can run sooner awaits
     /// `sharedCoreDataStack()` instead.
     ///
     /// Hosted unit tests get an empty stack in memory. The macOS test host is

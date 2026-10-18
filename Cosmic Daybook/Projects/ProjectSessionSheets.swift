@@ -2,72 +2,35 @@ import OSLog
 import SwiftUI
 import CoreData
 
-// MARK: - CDProject CDLesson Picker Sheet
+// MARK: - Project Lesson Picker Sheet
 
-/// A minimal wrapper that reuses LessonPickerViewModel to choose a single lesson
+/// Chooses the lesson a project's piece of work belongs to, with the shared
+/// `LessonLinkPicker`.
 struct ProjectLessonPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.dependencies) private var dependencies
 
-    let viewModel: LessonPickerViewModel
-    var onChosen: (UUID?) -> Void
-
-    @State private var search: String = ""
-
-    /// The workspace's catalog in this sheet's own order — by lesson name.
-    private var lessons: [CDLesson] {
-        dependencies.lessonCatalog.all.sorted {
-            $0.name.localizedStandardCompare($1.name) == .orderedAscending
-        }
-    }
-
-    init(viewModel: LessonPickerViewModel, onChosen: @escaping (UUID?) -> Void) {
-        self.viewModel = viewModel
-        self.onChosen = onChosen
-    }
+    /// The lesson the work has now, ticked in the list.
+    let chosenLessonID: UUID?
+    var onChosen: (UUID) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Choose Lesson")
-                .font(.title3).fontWeight(.semibold)
-            TextField("Search…", text: $search)
-                .textFieldStyle(.roundedBorder)
-            List {
-                ForEach(filteredLessons, id: \.objectID) { l in
-                    Button {
-                        onChosen(l.id)
-                        dismiss()
-                    } label: {
-                        HStack {
-                            Text(l.name)
-                            Spacer()
-                            if viewModel.selectedLessonID == l.id { Image(systemName: "checkmark") }
-                        }
-                    }
-                    .buttonStyle(.plain)
+        NavigationStack {
+            LessonLinkPicker(chosen: chosenLessonID) { lessonID in
+                onChosen(lessonID)
+                dismiss()
+            }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
                 }
             }
-            HStack {
-                Spacer()
-                Button("Cancel") { dismiss() }
-            }
         }
-        .padding(16)
-    #if os(iOS)
+        #if os(iOS)
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
-    #endif
-    }
-
-    private var filteredLessons: [CDLesson] {
-        let q = search.trimmed()
-        let all = lessons
-        if q.isEmpty { return all }
-        return all.filter { l in
-            l.name.localizedCaseInsensitiveContains(q) ||
-            l.area.localizedCaseInsensitiveContains(q) ||
-            l.sequence.localizedCaseInsensitiveContains(q)
-        }
+        #else
+        .frame(minWidth: 420, minHeight: 480)
+        #endif
     }
 }
 

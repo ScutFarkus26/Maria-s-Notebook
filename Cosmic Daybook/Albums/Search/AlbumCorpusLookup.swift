@@ -1,7 +1,6 @@
-// The album corpus as the assistants see it. Both the on-device chat tool
-// (Services/AI/NotebookTools.swift) and the MCP server's read tools
-// (Services/MCPServer/MCPNotebookTools+Reads.swift) go through here, so the
-// two surfaces return the same wording and the same citation format.
+// The album corpus as the assistants see it. The MCP server's read tools
+// (Services/MCPServer/MCPNotebookTools+Reads.swift) go through here, so they
+// return the same wording and the same citation format.
 //
 // Album pages have no UUID, so citations name the album file and page number
 // instead of the `[kind id=<uuid>]` form the notebook entities use. A caller

@@ -237,9 +237,9 @@ extension MCPNotebookTools {
     /// Resolves a student by first name, full name, short name ("Maya S",
     /// the form the app uses when two children share a first name, with or
     /// without a period) or nickname, diacritic- and case-insensitive,
-    /// mirroring NotebookTools' resolver. A full or short name settles a
-    /// first name two children share. Ambiguity and misses throw tool errors
-    /// the model can relay to the teacher.
+    /// A full or short name settles a first name two children share.
+    /// Ambiguity and misses throw tool errors the model can relay to the
+    /// teacher.
     static func resolveStudent(named name: String, in context: NSManagedObjectContext) throws -> CDStudent {
         var token = name.folded()
         if token.hasSuffix(".") { token.removeLast() }

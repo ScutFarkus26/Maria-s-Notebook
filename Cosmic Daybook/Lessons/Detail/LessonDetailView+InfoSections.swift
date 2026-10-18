@@ -204,11 +204,6 @@ extension LessonDetailView {
                 }
             }
 
-            // Related Resources
-            if let lessonID = lesson.id {
-                RelatedResourcesSection(lessonID: lessonID, lessonArea: lesson.area)
-            }
-
             if let url = resolvedPagesURL {
                 HStack { Spacer() }
                 OpenInPagesButton(title: "Open in Pages") { openInPages(url) }

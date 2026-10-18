@@ -10,15 +10,15 @@
 
 import Foundation
 
-struct ResourceSelection {
+struct ResourceSelection<ID: Hashable> {
     /// The resources on screen, in their order.
-    let visibleIDs: [UUID]
+    let visibleIDs: [ID]
     /// Every resource the guide has ticked, shown or not.
-    let selectedIDs: Set<UUID>
+    let selectedIDs: Set<ID>
 
     /// The resources a bulk action (Favorite, Categorize, Tag, Delete) changes,
     /// and the count the select bar shows: the ticked ones she can see.
-    var actedOnIDs: Set<UUID> {
+    var actedOnIDs: Set<ID> {
         selectedIDs.intersection(visibleIDs)
     }
 
@@ -29,7 +29,7 @@ struct ResourceSelection {
 
     /// The selection after Select All (or Deselect All), which changes only
     /// what's on screen.
-    func togglingAll() -> Set<UUID> {
+    func togglingAll() -> Set<ID> {
         allVisibleSelected ? selectedIDs.subtracting(visibleIDs) : selectedIDs.union(visibleIDs)
     }
 }

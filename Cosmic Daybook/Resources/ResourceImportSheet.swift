@@ -3,7 +3,7 @@ import CoreData
 import UniformTypeIdentifiers
 import OSLog
 
-/// Sheet for importing a PDF into the CDResource Library.
+/// Adds a file to Resources › Files, with its category, notes, tags and links.
 struct ResourceImportSheet: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
@@ -115,10 +115,7 @@ struct ResourceImportSheet: View {
                     }
 
                     NavigationLink {
-                        ResourceLessonPicker(
-                            allLessons: allLessons,
-                            selectedLessonIDs: $selectedLessonIDs
-                        )
+                        LessonLinkPicker(selection: $selectedLessonIDs)
                     } label: {
                         HStack {
                             Label("Lessons", systemImage: "book")
@@ -142,7 +139,7 @@ struct ResourceImportSheet: View {
                     }
                 }
             }
-            .navigationTitle("Add Resource")
+            .navigationTitle("Add File")
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -210,25 +207,11 @@ struct ResourceImportSheet: View {
         }
 
         do {
-            let resourceID = UUID()
-
-            // Import file to managed storage
-            let (destURL, relativePath) = try ResourceFileStorage.importFile(
+            let file = try LibraryImportService.importResourceFile(
                 from: sourceURL,
-                resourceID: resourceID,
                 title: trimmedTitle,
                 category: selectedCategory
             )
-
-            // Get file size
-            let fileAttributes = try FileManager.default.attributesOfItem(atPath: destURL.path)
-            let fileSize = (fileAttributes[.size] as? Int64) ?? 0
-
-            // Create bookmark
-            let bookmark = try ResourceFileStorage.makeBookmark(for: destURL)
-
-            // Generate thumbnail
-            let thumbnail = ResourceThumbnailGenerator.generateThumbnail(from: destURL)
 
             // Build linked IDs
             let lessonIDsString = selectedLessonIDs.map(\.uuidString).sorted().joined(separator: ",")
@@ -240,10 +223,10 @@ struct ResourceImportSheet: View {
                 title: trimmedTitle,
                 category: selectedCategory,
                 descriptionText: descriptionText.trimmingCharacters(in: .whitespaces),
-                fileBookmark: bookmark,
-                fileRelativePath: relativePath,
-                fileSizeBytes: fileSize,
-                thumbnailData: thumbnail,
+                fileBookmark: file.bookmark,
+                fileRelativePath: file.relativePath,
+                fileSizeBytes: file.fileSizeBytes,
+                thumbnailData: file.thumbnail,
                 tags: selectedTags,
                 linkedLessonIDs: lessonIDsString,
                 linkedAreas: areasString

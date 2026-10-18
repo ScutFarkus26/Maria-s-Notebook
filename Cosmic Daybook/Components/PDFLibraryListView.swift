@@ -3,26 +3,32 @@ import CoreData
 import UniformTypeIdentifiers
 import OSLog
 
-/// The shared shape of a PDF library screen (book club packets, stories): a header,
-/// an adaptive card grid with a single-selection detail column, PDF import by
-/// drag-and-drop or file importer behind one "Couldn't Add the PDF" alert, and an
-/// empty state. The screens inject only what differs: header, card, detail, empty
-/// state, drop prompt, logger and import service.
+/// The shape of every list on the Resources screen (stories, book club packets,
+/// resource files, procedures): a header, an adaptive card grid in optional
+/// sections, a detail column for the selected card (a sheet at compact width),
+/// PDF import by drag-and-drop or file importer behind one "Couldn't Add the
+/// PDF" alert, an optional select mode, and an empty state. The lists inject
+/// only what differs: header, card, detail, empty state, drop prompt, logger
+/// and import.
 struct PDFLibraryListView<Item: NSManagedObject, Header: View, Card: View, Detail: View, EmptyState: View>: View {
     /// Every item, filtered or not; the selection is looked up here so a filter
     /// change doesn't dismiss the open detail column.
     let items: [Item]
-    /// The items the grid shows.
-    let filteredItems: [Item]
+    /// The items the grid shows, in the sections it shows them in.
+    let sections: [PDFLibrarySection<Item>]
     @Binding var isShowingFileImporter: Bool
     /// Caption on the drag-and-drop overlay ("Drop PDF to add a story").
     let dropPrompt: String
     let logger: Logger
-    /// Imports one PDF; returns the message to show when it fails, `nil` on success.
-    let importPDF: (URL) -> String?
+    /// Imports one PDF; returns the message to show when it fails, `nil` on
+    /// success. Nil for a list that takes no PDFs (procedures): no drop target.
+    let importPDF: ((URL) -> String?)?
+    /// When set, the grid is in select mode: a tap ticks the card instead of
+    /// opening it.
+    let multiSelection: Binding<Set<NSManagedObjectID>>?
     @ViewBuilder let header: () -> Header
     @ViewBuilder let card: (Item, Bool) -> Card
-    /// Builds the detail column for the selected item; call the closure to close it.
+    /// Builds the detail for the selected item; call the closure to close it.
     @ViewBuilder let detail: (Item, @escaping () -> Void) -> Detail
     @ViewBuilder let emptyState: () -> EmptyState
 
@@ -30,15 +36,62 @@ struct PDFLibraryListView<Item: NSManagedObject, Header: View, Card: View, Detai
     @State private var isDropTargeted = false
     @State private var importErrorMessage: String?
 
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+
+    init(
+        items: [Item],
+        sections: [PDFLibrarySection<Item>],
+        isShowingFileImporter: Binding<Bool> = .constant(false),
+        dropPrompt: String = "",
+        logger: Logger,
+        importPDF: ((URL) -> String?)?,
+        multiSelection: Binding<Set<NSManagedObjectID>>? = nil,
+        @ViewBuilder header: @escaping () -> Header,
+        @ViewBuilder card: @escaping (Item, Bool) -> Card,
+        @ViewBuilder detail: @escaping (Item, @escaping () -> Void) -> Detail,
+        @ViewBuilder emptyState: @escaping () -> EmptyState
+    ) {
+        self.items = items
+        self.sections = sections
+        self._isShowingFileImporter = isShowingFileImporter
+        self.dropPrompt = dropPrompt
+        self.logger = logger
+        self.importPDF = importPDF
+        self.multiSelection = multiSelection
+        self.header = header
+        self.card = card
+        self.detail = detail
+        self.emptyState = emptyState
+    }
+
+    /// A phone has no room for a detail column beside the grid; it gets a sheet.
+    private var showsDetailAsSheet: Bool {
+        #if os(iOS)
+        horizontalSizeClass == .compact
+        #else
+        false
+        #endif
+    }
+
     private var selectedItem: Item? {
         guard let id = selectedID else { return nil }
         return items.first { $0.objectID == id }
     }
 
+    /// The open item as a sheet's item, at compact width.
+    private var sheetItem: Binding<PDFLibrarySelectedObject?> {
+        Binding(
+            get: { showsDetailAsSheet ? selectedID.map(PDFLibrarySelectedObject.init) : nil },
+            set: { if $0 == nil { selectedID = nil } }
+        )
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             mainColumn
-            if let item = selectedItem {
+            if !showsDetailAsSheet, let item = selectedItem {
                 Divider()
                 detail(item) { selectedID = nil }
                     .frame(width: 480)
@@ -46,6 +99,11 @@ struct PDFLibraryListView<Item: NSManagedObject, Header: View, Card: View, Detai
             }
         }
         .animation(.easeInOut(duration: 0.2), value: selectedID)
+        .sheet(item: sheetItem) { selected in
+            if let item = items.first(where: { $0.objectID == selected.id }) {
+                detail(item) { selectedID = nil }
+            }
+        }
         .fileImporter(
             isPresented: $isShowingFileImporter,
             allowedContentTypes: [UTType.pdf],
@@ -65,6 +123,9 @@ struct PDFLibraryListView<Item: NSManagedObject, Header: View, Card: View, Detai
         } message: { message in
             Text(message)
         }
+        .onChange(of: multiSelection != nil) { _, isSelecting in
+            if isSelecting { selectedID = nil }
+        }
     }
 
     private var mainColumn: some View {
@@ -74,8 +135,13 @@ struct PDFLibraryListView<Item: NSManagedObject, Header: View, Card: View, Detai
             content
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .overlay(dropOverlay)
-        .onDrop(of: [UTType.pdf], isTargeted: $isDropTargeted) { providers in
+        .overlay {
+            if isDropTargeted {
+                PDFLibraryDropOverlay(prompt: dropPrompt)
+            }
+        }
+        .onDrop(of: importPDF == nil ? [] : [UTType.pdf], isTargeted: $isDropTargeted) { providers in
+            guard importPDF != nil else { return false }
             handleDrop(providers: providers)
             return true
         }
@@ -83,7 +149,7 @@ struct PDFLibraryListView<Item: NSManagedObject, Header: View, Card: View, Detai
 
     @ViewBuilder
     private var content: some View {
-        if filteredItems.isEmpty {
+        if sections.allSatisfy(\.items.isEmpty) {
             emptyState()
         } else {
             grid
@@ -92,9 +158,24 @@ struct PDFLibraryListView<Item: NSManagedObject, Header: View, Card: View, Detai
 
     private var grid: some View {
         ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 220, maximum: 320), spacing: 16)], spacing: 16) {
-                ForEach(filteredItems, id: \.objectID) { item in
-                    cardButton(for: item)
+            LazyVStack(alignment: .leading, spacing: 20) {
+                ForEach(sections.filter { !$0.items.isEmpty }) { section in
+                    if let title = section.title {
+                        PDFLibrarySectionHeading(
+                            title: title,
+                            systemImage: section.systemImage,
+                            subtitle: section.subtitle,
+                            count: section.items.count
+                        )
+                    }
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: 200, maximum: 320), spacing: 16)],
+                        spacing: 16
+                    ) {
+                        ForEach(section.items, id: \.objectID) { item in
+                            cardButton(for: item)
+                        }
+                    }
                 }
             }
             .padding(16)
@@ -102,35 +183,33 @@ struct PDFLibraryListView<Item: NSManagedObject, Header: View, Card: View, Detai
     }
 
     private func cardButton(for item: Item) -> some View {
-        let isSelected = item.objectID == selectedID
+        let isTicked = multiSelection?.wrappedValue.contains(item.objectID) ?? false
+        let isSelected = multiSelection == nil ? item.objectID == selectedID : isTicked
         return Button {
-                selectedID = isSelected ? nil : item.objectID
-            } label: {
-                card(item, isSelected)
-            }
-            .buttonStyle(.plain)
-            .accessibilityValue(isSelected ? "Selected" : "Not selected")
-    }
-
-    @ViewBuilder
-    private var dropOverlay: some View {
-        if isDropTargeted {
-            ZStack {
-                Color.accentColor.opacity(0.08)
-                VStack(spacing: 8) {
-                    Image(systemName: "arrow.down.doc.fill")
-                        .font(.system(size: 48))
-                        .foregroundStyle(Color.accentColor)
-                    Text(dropPrompt)
-                        .font(.headline)
-                        .foregroundStyle(Color.accentColor)
+            if let multiSelection {
+                if isTicked {
+                    multiSelection.wrappedValue.remove(item.objectID)
+                } else {
+                    multiSelection.wrappedValue.insert(item.objectID)
                 }
+            } else {
+                selectedID = isSelected ? nil : item.objectID
             }
-            .allowsHitTesting(false)
+        } label: {
+            card(item, isSelected)
+                .overlay(alignment: .topLeading) {
+                    if multiSelection != nil {
+                        Image(systemName: isTicked ? "checkmark.circle.fill" : "circle")
+                            .font(.title3)
+                            .foregroundStyle(isTicked ? Color.accentColor : .secondary)
+                            .background(Circle().fill(.background).padding(2))
+                            .padding(8)
+                    }
+                }
         }
+        .buttonStyle(.plain)
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
-
-    // MARK: - Drop / Import
 
     private func handleDrop(providers: [NSItemProvider]) {
         let logger = self.logger
@@ -154,7 +233,7 @@ struct PDFLibraryListView<Item: NSManagedObject, Header: View, Card: View, Detai
                     return
                 }
                 Task { @MainActor in
-                    if let message = PDFDropSupport.importTempCopy(tempCopy, using: importPDF) {
+                    if let importPDF, let message = PDFDropSupport.importTempCopy(tempCopy, using: importPDF) {
                         importErrorMessage = message
                     }
                 }
@@ -168,81 +247,13 @@ struct PDFLibraryListView<Item: NSManagedObject, Header: View, Card: View, Detai
             for url in urls {
                 let didStart = url.startAccessingSecurityScopedResource()
                 defer { if didStart { url.stopAccessingSecurityScopedResource() } }
-                performImport(at: url)
+                if let message = importPDF?(url) {
+                    importErrorMessage = message
+                }
             }
         case .failure(let error):
             logger.warning("File picker failed: \(error.localizedDescription, privacy: .public)")
             importErrorMessage = AppErrorMessages.importMessage(for: error, fileType: "PDF")
         }
-    }
-
-    private func performImport(at url: URL) {
-        if let message = importPDF(url) {
-            importErrorMessage = message
-        }
-    }
-}
-
-/// Off-main-actor support for dropped PDFs. Kept outside the generic view so the
-/// `@Sendable` load-completion closure captures no generic metatypes.
-enum PDFDropSupport {
-    /// Copies a dropped PDF into a folder of its own in tmp, under its own
-    /// name: the import titles the story or packet (and names its file) after
-    /// it, as Resources does. Nil when it couldn't be copied.
-    nonisolated static func copyToTempIfNeeded(_ url: URL, logger: Logger) -> URL? {
-        let fm = FileManager.default
-        let folder = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let temp = folder.appendingPathComponent(url.lastPathComponent, isDirectory: false)
-        do {
-            try fm.createDirectory(at: folder, withIntermediateDirectories: true)
-            try fm.copyItem(at: url, to: temp)
-            return temp
-        } catch {
-            logger.warning("Failed to copy dropped PDF to temp: \(error.localizedDescription, privacy: .public)")
-            try? fm.removeItem(at: folder)
-            return nil
-        }
-    }
-
-    /// Imports a dropped PDF's temp copy with `importPDF` (which copies it into
-    /// the library), then removes the copy and its folder. Returns the import's
-    /// message, nil when it worked.
-    static func importTempCopy(_ copy: URL, using importPDF: (URL) -> String?) -> String? {
-        defer { try? FileManager.default.removeItem(at: copy.deletingLastPathComponent()) }
-        return importPDF(copy)
-    }
-}
-
-/// The empty state of a `PDFLibraryListView`: one message when the library has
-/// nothing at all, another (with a "Clear filters" button) when the filters hide
-/// everything. `footer` renders under the hint only while the library is empty.
-struct PDFLibraryEmptyState<Footer: View>: View {
-    let systemImage: String
-    let isLibraryEmpty: Bool
-    let emptyTitle: String
-    let filteredTitle: String
-    let hint: String
-    let clearFilters: () -> Void
-    @ViewBuilder let footer: () -> Footer
-
-    var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: systemImage)
-                .font(.system(size: 56, weight: .light))
-                .foregroundStyle(.secondary)
-            Text(isLibraryEmpty ? emptyTitle : filteredTitle)
-                .font(.title3.weight(.semibold))
-            if isLibraryEmpty {
-                Text(hint)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                footer()
-            } else {
-                Button("Clear filters", action: clearFilters)
-            }
-        }
-        .padding(40)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

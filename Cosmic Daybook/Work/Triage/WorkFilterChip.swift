@@ -85,7 +85,7 @@ nonisolated enum WorkFilterChip: String, CaseIterable, Identifiable, Sendable, W
         // A lens, not a bucket: its list is `BeforeLessonWork`'s.
         if self == .beforeLesson { return [] }
         // `.all` is every open record — the three workspace buckets. `.done`
-        // is history and lives under Logs.
+        // is history and lives under History (`WorkspaceList`).
         return split.attention + split.scheduled + split.toSchedule
     }
 

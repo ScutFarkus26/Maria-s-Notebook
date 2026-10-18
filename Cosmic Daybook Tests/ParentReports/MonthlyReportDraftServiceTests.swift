@@ -19,12 +19,6 @@ private struct UnavailableModelClient: MCPClientProtocol {
         messages: [[String: String]], systemMessage: String?, temperature: Double,
         maxTokens: Int, timeout: TimeInterval?
     ) async throws -> String { throw Unavailable() }
-    // swiftlint:disable:next function_parameter_count
-    func streamConversation(
-        messages: [[String: String]], systemMessage: String?, temperature: Double,
-        maxTokens: Int, timeout: TimeInterval?,
-        onText: @escaping @MainActor @Sendable (String) -> Void
-    ) async throws -> String { throw Unavailable() }
 }
 
 /// Returns a fixed narrative — drives the AI path.
@@ -35,12 +29,6 @@ private struct FixedNarrativeClient: MCPClientProtocol {
     func sendConversation(
         messages: [[String: String]], systemMessage: String?, temperature: Double,
         maxTokens: Int, timeout: TimeInterval?
-    ) async throws -> String { narrative }
-    // swiftlint:disable:next function_parameter_count
-    func streamConversation(
-        messages: [[String: String]], systemMessage: String?, temperature: Double,
-        maxTokens: Int, timeout: TimeInterval?,
-        onText: @escaping @MainActor @Sendable (String) -> Void
     ) async throws -> String { narrative }
 }
 

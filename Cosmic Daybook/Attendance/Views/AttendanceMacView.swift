@@ -1,6 +1,7 @@
 // AttendanceMacView.swift
 // The Mac and iPad Attendance screen: the day in the toolbar, the roll (its
-// band and tiles), and Insights beside it with the month.
+// band and tiles), and Insights beside it with the month; or, from the
+// toolbar's Roll / List switch, the list of every mark.
 
 import SwiftUI
 import CoreData
@@ -25,6 +26,9 @@ struct AttendanceMacView: View {
     /// "Day 37", from the roll (`AttendanceDayLabelKey`).
     @State private var dayLabel: String?
     @State private var showingDatePicker = false
+    /// Roll or List (`AttendanceScreenView`).
+    @AppStorage(UserDefaultsKeys.attendanceScreenView)
+    private var screenViewRaw: String = AttendanceScreenView.roll.rawValue
 
     private static let logger = Logger.attendance
 
@@ -68,7 +72,49 @@ struct AttendanceMacView: View {
 
     // MARK: Layout
 
+    private var screenView: AttendanceScreenView {
+        AttendanceScreenView.resolved(rawValue: screenViewRaw)
+    }
+
+    /// The roll, or the list of every mark (the old Attendance log, with its
+    /// date range, status filter and totals). The day's arrows belong to the
+    /// roll; the list picks its own dates.
     private var mainContent: some View {
+        Group {
+            switch screenView {
+            case .roll: rollContent
+            case .list: AttendanceLogView()
+            }
+        }
+        .navigationTitle("Attendance")
+        .navigationSubtitle(screenView == .roll ? (dayLabel ?? "") : "")
+        .toolbar {
+            // Centered on the Mac. On the iPad the center would sit over the
+            // day's "Day 37" line, so the switch follows the day's arrows.
+            #if os(macOS)
+            ToolbarItem(placement: .principal) { screenViewPicker }
+            if screenView == .roll { dayNavigation }
+            #else
+            if screenView == .roll {
+                dayNavigation
+                ToolbarSpacer(.fixed, placement: .navigation)
+            }
+            ToolbarItem(placement: .navigation) { screenViewPicker.fixedSize() }
+            #endif
+        }
+        .onPreferenceChange(AttendanceDayLabelKey.self) { dayLabel = $0 }
+    }
+
+    private var screenViewPicker: some View {
+        ScreenViewPicker(
+            title: "View",
+            selection: Binding(get: { screenView }, set: { screenViewRaw = $0.rawValue }),
+            choices: AttendanceScreenView.allCases,
+            label: \.title
+        )
+    }
+
+    private var rollContent: some View {
         HStack(alignment: .top, spacing: 0) {
             mainColumn
                 .frame(maxWidth: .infinity)
@@ -88,10 +134,6 @@ struct AttendanceMacView: View {
                 onSelectDate: { date in selectDate(date) }
             )
         }
-        .navigationTitle("Attendance")
-        .navigationSubtitle(dayLabel ?? "")
-        .toolbar { dayNavigation }
-        .onPreferenceChange(AttendanceDayLabelKey.self) { dayLabel = $0 }
     }
 
     private var mainColumn: some View {

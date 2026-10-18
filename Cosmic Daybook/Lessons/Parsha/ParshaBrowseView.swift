@@ -1,101 +1,26 @@
 // ParshaBrowseView.swift
 // Column-2 view when the "Parshas" sentinel is selected in the areas column.
-// Shows the 54 parshas and the 7 combined weeks in annual-cycle order; tapping one
-// pushes to the lessons list.
+// The parsha lessons and the year's Shabbatot live on one screen, This Week's
+// Parsha; this column points to it instead of listing them again.
 
 import SwiftUI
-import CoreData
 
 struct ParshaBrowseView: View {
-    let onSelectLesson: (CDLesson) -> Void
-
-    @Environment(\.dependencies) private var dependencies
-
-    private var allLessons: [CDLesson] { dependencies.lessonCatalog.all }
-
-    @State private var selectedParshaKey: String?
-
-    private var lessonCounts: [String: Int] {
-        var counts: [String: Int] = [:]
-        for lesson in allLessons {
-            if let key = lesson.parshaKey, !key.isEmpty {
-                counts[key, default: 0] += 1
-            }
-        }
-        return counts
-    }
-
-    private var currentWeekParshaKey: String? {
-        HebrewParshaService.currentParshaKey()
-    }
-
     var body: some View {
-        NavigationStack {
-            List(selection: $selectedParshaKey) {
-                // Combined weeks are listed after their second half, and each row
-                // counts the lessons that week shows (tagged on either half or on
-                // the combined week).
-                let counts = lessonCounts
-                Section {
-                    ForEach(HebrewParshaService.pickerKeys, id: \.self) { key in
-                        NavigationLink(value: key) {
-                            ParshaBrowseRow(
-                                parshaKey: key,
-                                lessonCount: HebrewParshaService.lessonCount(forParshaKey: key, countsByTag: counts),
-                                isCurrentWeek: key == currentWeekParshaKey
-                            )
-                        }
-                    }
-                } header: {
-                    if let currentKey = currentWeekParshaKey {
-                        Text("This week: \(HebrewParshaService.displayName(forKey: currentKey))")
-                            .font(AppTheme.ScaledFont.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+        ContentUnavailableView {
+            Label("Parsha Lessons", systemImage: "book.closed")
+        } description: {
+            Text(
+                "Lessons for each parsha are on the This Week’s Parsha screen, " +
+                "with every Shabbat of the year listed beside them."
+            )
+        } actions: {
+            Button {
+                AppRouter.shared.selectedNavItem = .thisWeeksParsha
+            } label: {
+                Label("Open This Week’s Parsha", systemImage: "book.closed")
             }
-            .listStyle(.sidebar)
-            .navigationTitle("Parshas")
-            .navigationDestination(for: String.self) { key in
-                ParshaLessonListView(parshaKey: key, onSelectLesson: onSelectLesson)
-            }
+            .buttonStyle(.borderedProminent)
         }
-    }
-}
-
-struct ParshaBrowseRow: View {
-    let parshaKey: String
-    let lessonCount: Int
-    let isCurrentWeek: Bool
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Circle()
-                .fill(isCurrentWeek ? Color.accentColor : Color.secondary.opacity(0.3))
-                .frame(width: 8, height: 8)
-
-            Text(HebrewParshaService.displayName(forKey: parshaKey))
-                .font(AppTheme.ScaledFont.bodySemibold)
-                .foregroundStyle(.primary)
-
-            Spacer()
-
-            if lessonCount > 0 {
-                Text("\(lessonCount)")
-                    .font(AppTheme.ScaledFont.captionSmallSemibold)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .capsuleFill(Color.secondary.opacity(0.15))
-            }
-
-            if isCurrentWeek {
-                Text("this week")
-                    .font(AppTheme.ScaledFont.captionSmallSemibold)
-                    .foregroundStyle(Color.accentColor)
-            }
-        }
-        .padding(.vertical, 2)
-        .contentShape(Rectangle())
     }
 }

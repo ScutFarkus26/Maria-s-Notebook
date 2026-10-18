@@ -15,7 +15,7 @@
 //
 // Every open presentation and every open work item lands in exactly one of
 // them — the buckets do not overlap and they leave no gaps. Finished records
-// fall out to `.done`, which is history and lives under Logs.
+// fall out to `.done`, which is each half's History (`WorkspaceList`).
 //
 // The rule is pure: it takes value inputs and an explicit reference date, so
 // every boundary is testable without Core Data and without a live clock. The
@@ -39,7 +39,7 @@ enum TriageBucket: String, CaseIterable, Identifiable, Sendable {
     case scheduled
     /// Real and open, but carries no date at all.
     case toSchedule
-    /// Finished. Not shown in the workspace; reachable through Logs.
+    /// Finished. Not in the live lists; shown under each half's History.
     case done
 
     var id: Self { self }

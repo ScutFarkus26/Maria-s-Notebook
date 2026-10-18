@@ -108,7 +108,7 @@ enum ResourceDocumentActions {
     private static func exportableFileURL(for resource: CDResource) async -> URL? {
         guard !resource.fileRelativePath.isEmpty else { return nil }
         do {
-            let stored = try ResourceFileStorage.resolve(relativePath: resource.fileRelativePath)
+            let stored = try LibraryFileStorage.resolveResource(relativePath: resource.fileRelativePath)
             let url = await UbiquitousFile.localURL(for: stored)
             guard FileManager.default.fileExists(atPath: url.path) else {
                 logger.warning("A resource's file isn't on this device")
@@ -132,7 +132,7 @@ enum ResourceDocumentActions {
     }
 
     private static func exportFilename(for resource: CDResource) -> String {
-        let baseName = ResourceFileStorage.sanitizedExportFilename(resource.title)
+        let baseName = LibraryFileStorage.sanitizedExportFilename(resource.title)
         return baseName.hasSuffix(".pdf") ? baseName : "\(baseName).pdf"
     }
 

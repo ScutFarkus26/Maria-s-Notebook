@@ -18,13 +18,13 @@ struct ManagedPDFFileStorageTests {
 
     private var libraries: [Library] {
         [
-            Library(name: "book club", storage: BookClubFileStorage.storage,
+            Library(name: "book club", storage: LibraryFileStorage.packets,
                     folderName: "Book Club Files", fallbackFilename: "BookClub.pdf"),
-            Library(name: "story", storage: StoryFileStorage.storage,
+            Library(name: "story", storage: LibraryFileStorage.stories,
                     folderName: "Story Files", fallbackFilename: "Story.pdf"),
             Library(name: "student document", storage: StudentDocumentFileStorage.storage,
                     folderName: "Student Files", fallbackFilename: "Document.pdf"),
-            Library(name: "resource", storage: ResourceFileStorage.storage,
+            Library(name: "resource", storage: LibraryFileStorage.resources,
                     folderName: "Resource Files", fallbackFilename: "Resource.pdf"),
             Library(name: "lesson", storage: LessonFileStorage.storage,
                     folderName: "Lesson Files", fallbackFilename: "Lesson.pdf")
@@ -55,10 +55,10 @@ struct ManagedPDFFileStorageTests {
         for library in libraries {
             #expect(library.storage.folderName == library.folderName, "\(library.name)")
         }
-        #expect(try BookClubFileStorage.packetFilesDirectory().lastPathComponent == "Book Club Files")
-        #expect(try StoryFileStorage.storyFilesDirectory().lastPathComponent == "Story Files")
+        #expect(try LibraryFileStorage.packets.directory().lastPathComponent == "Book Club Files")
+        #expect(try LibraryFileStorage.stories.directory().lastPathComponent == "Story Files")
         #expect(try StudentDocumentFileStorage.studentFilesDirectory().lastPathComponent == "Student Files")
-        #expect(try ResourceFileStorage.resourceFilesDirectory().lastPathComponent == "Resource Files")
+        #expect(try LibraryFileStorage.resources.directory().lastPathComponent == "Resource Files")
         #expect(try LessonFileStorage.lessonFilesDirectory().lastPathComponent == "Lesson Files")
     }
 
@@ -79,7 +79,7 @@ struct ManagedPDFFileStorageTests {
     @Test("Punctuation, non-ASCII and edge whitespace sanitize as the legacy code did")
     func sanitizerEdgeCases() throws {
         try withScratchDirectory { directory in
-            let storage = StoryFileStorage.storage
+            let storage = LibraryFileStorage.stories
             #expect(filename(storage, "  ..Hello__World--2026.. ", in: directory) == "Hello__World-2026.pdf")
             #expect(filename(storage, "Ñandú/Émile (draft)", in: directory) == "and-mile -draft.pdf")
         }
@@ -100,7 +100,7 @@ struct ManagedPDFFileStorageTests {
     @Test("Colliding names are numbered from -2, and the extension stays as given")
     func collisionNumbering() throws {
         try withScratchDirectory { directory in
-            let storage = BookClubFileStorage.storage
+            let storage = LibraryFileStorage.packets
             let base = storage.sanitizedBaseName("Frog & Toad: Together!")
             #expect(base == "Frog - Toad- Together")
 
@@ -154,11 +154,12 @@ struct ManagedPDFFileStorageTests {
     @Test("Story and book club imports tell a failed copy from a failed save")
     func copyAndSaveFailuresDiffer() {
         let outOfSpace = CocoaError(.fileWriteOutOfSpace)
-        #expect(StoryImportService.ImportRejection.copyFailed(underlying: outOfSpace).errorDescription
+        let copyMessage = ManagedPDFFileStorage.ImportError.copyFailureMessage(for: outOfSpace)
+        #expect(LibraryImportService.ImportRejection.copyFailed(message: copyMessage).errorDescription
                 == "There isn't enough space to add this PDF. Free up some space and try again.")
-        #expect(StoryImportService.ImportRejection.saveFailed.errorDescription
+        #expect(LibraryImportService.ImportRejection.saveFailed(.story).errorDescription
                 == "Couldn't save the new story. Try again.")
-        #expect(BookClubImportService.ImportRejection.saveFailed.errorDescription
+        #expect(LibraryImportService.ImportRejection.saveFailed(.packet).errorDescription
                 == "Couldn't save the new packet. Try again.")
     }
 }

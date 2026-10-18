@@ -37,10 +37,11 @@ private enum FileImportHelpers {
 }
 
 // swiftlint:disable type_body_length
-/// Displays and manages a lesson's attachments: its own, and those shared with
-/// its whole sequence or area from whichever lesson holds them. A shared
-/// attachment is renamed or deleted from the lesson that holds it; elsewhere
-/// it can be viewed and shared.
+/// A lesson's Files section: its attachments (its own, and those shared with
+/// its whole sequence or area from whichever lesson holds them) and the
+/// Resources files linked to it or its area, which open the resource. A
+/// shared attachment is renamed or deleted from the lesson that holds it;
+/// elsewhere it can be viewed and shared. New files go in as attachments.
 struct LessonAttachmentsSection: View {
     private static let logger = Logger.lessons
 
@@ -52,6 +53,8 @@ struct LessonAttachmentsSection: View {
 
     let lesson: CDLesson
     @Environment(\.managedObjectContext) private var viewContext
+    /// Resources whose links mention this lesson or its area (`LessonLinkedResources`).
+    @FetchRequest private var linkCandidates: FetchedResults<CDResource>
     @Environment(\.isSampleClassroom) private var isSampleClassroom
 
     @State private var showingScopeSheet = false
@@ -67,6 +70,13 @@ struct LessonAttachmentsSection: View {
     @State private var deleteOriginalAfterImport = false
     /// What went wrong with an attachment, shown in one alert; the raw error is logged.
     @State private var attachmentProblem: (title: String, message: String)?
+
+    init(lesson: CDLesson) {
+        self.lesson = lesson
+        _linkCandidates = FetchRequest(
+            fetchRequest: LessonLinkedResources.fetchRequest(lessonID: lesson.id, area: lesson.area)
+        )
+    }
 
     var body: some View {
         attachmentsContent
@@ -132,10 +142,13 @@ struct LessonAttachmentsSection: View {
         let lessonAttachments = attachments.filter { $0.scope == .lesson }
         let sequenceAttachments = attachments.filter { $0.scope == .sequence }
         let areaAttachments = attachments.filter { $0.scope == .area }
+        let linkedResources = LessonLinkedResources.matching(
+            Array(linkCandidates), lessonID: lesson.id, area: lesson.area
+        )
 
         return VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label("Attachments", systemImage: "paperclip")
+                Label("Files", systemImage: "paperclip")
                     .font(AppTheme.ScaledFont.calloutBold)
 
                 Spacer()
@@ -147,7 +160,7 @@ struct LessonAttachmentsSection: View {
                 .buttonStyle(.borderless)
             }
 
-            if attachments.isEmpty {
+            if attachments.isEmpty && linkedResources.isEmpty {
                 emptyState
             } else {
                 VStack(alignment: .leading, spacing: 16) {
@@ -167,6 +180,10 @@ struct LessonAttachmentsSection: View {
                             title: "From Area: \(lesson.area)",
                             attachments: areaAttachments
                         )
+                    }
+
+                    if !linkedResources.isEmpty {
+                        LessonLinkedResourcesGroup(resources: linkedResources)
                     }
                 }
             }
@@ -209,7 +226,7 @@ struct LessonAttachmentsSection: View {
             Image(systemName: "doc.badge.plus")
                 .font(.system(size: 32))
                 .foregroundStyle(.secondary)
-            Text("No attachments yet")
+            Text("No files yet")
                 .font(AppTheme.ScaledFont.bodySemibold)
                 .foregroundStyle(.secondary)
             Text("Add PDFs, images, or Pages documents")

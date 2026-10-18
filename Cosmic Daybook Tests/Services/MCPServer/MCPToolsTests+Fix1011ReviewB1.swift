@@ -3,8 +3,7 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-// Bug hunt 2026-10-11, review (b) of the MCP and chat write fixes: Ask AI's
-// meeting and follow-up writes left a failed write pending, a huge count
+// Bug hunt 2026-10-11, review (b) of the MCP write fixes: a huge count
 // still crashed adjust_supply, a failed mastery batch said "nothing was
 // marked" after a finished track had saved the first mark, and notes filed
 // by record_presentation or unflagged by resolve_follow_up went unannounced.
@@ -26,77 +25,6 @@ private func call(
     let tool = try #require(tools.first { $0.name == name })
     return try await tool.handler(arguments)
 }
-
-// MARK: - Ask AI's write tools undo a failed write
-
-#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-
-@Suite("Chat writes undo a failed save (Fix1011ReviewB1)")
-@MainActor
-struct ChatWritesUndoFix1011ReviewB1Tests {
-    @Test("A failed recordStudentMeeting takes back its meeting, goals and booking, not the guide's edits")
-    func failedChatMeetingKeepsGuideEdits() async throws {
-        let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
-        let maya = CoreDataTestHelpers.seedStudent(in: context, firstName: "Maya", lastName: "Stern")
-        let booking = CDScheduledMeeting(context: context)
-        booking.studentID = try #require(maya.id).uuidString
-        booking.date = AppCalendar.startOfDay(Date())
-        CoreDataTestHelpers.save(context)
-
-        maya.nickname = "Mimi"
-        let pending = unsavableRow(in: context)
-
-        let tool = RecordStudentMeetingTool(contextProvider: { context })
-        let output = try await tool.call(arguments: .init(
-            student: "Maya", date: "", reflection: "Chose long division on paper.",
-            lessonRequests: "", guideNotes: "", goals: ["Finish the checkerboard"]
-        ))
-
-        #expect(output.contains("could not be saved"))
-        #expect(!context.insertedObjects.contains { $0 is CDStudentMeeting })
-        #expect(!context.insertedObjects.contains { $0 is CDStudentFocusItem })
-        #expect(!booking.isDeleted)
-        #expect(!context.deletedObjects.contains(booking))
-        #expect(maya.nickname == "Mimi")
-        #expect(context.insertedObjects.contains(pending))
-    }
-
-    @Test("A failed addFollowUp leaves no todo pending")
-    func failedChatFollowUpLeavesNothing() async throws {
-        let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
-        CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Katz")
-        CoreDataTestHelpers.save(context)
-        let pending = unsavableRow(in: context)
-
-        let tool = AddFollowUpTool(contextProvider: { context })
-        let output = try await tool.call(arguments: .init(
-            title: "Order Ellis Island books", notes: "", studentNames: ["Etty"], dueDate: ""
-        ))
-
-        #expect(output.contains("could not be saved"))
-        #expect(!context.insertedObjects.contains { $0 is CDTodoItem })
-        #expect(context.insertedObjects.contains(pending))
-    }
-
-    @Test("A failed resolveFollowUp leaves the todo open")
-    func failedChatResolveLeavesTodoOpen() async throws {
-        let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
-        let todo = CDTodoItem(context: context)
-        todo.title = "Call Etty's mother"
-        let todoID = try #require(todo.id)
-        CoreDataTestHelpers.save(context)
-        unsavableRow(in: context)
-
-        let tool = ResolveFollowUpTool(contextProvider: { context })
-        let output = try await tool.call(arguments: .init(id: todoID.uuidString))
-
-        #expect(output.contains("could not be saved"))
-        #expect(!todo.isCompleted)
-        #expect(todo.completedAt == nil)
-    }
-}
-
-#endif
 
 // MARK: - adjust_supply refuses a count too big to add up
 

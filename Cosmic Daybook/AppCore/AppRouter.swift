@@ -240,25 +240,6 @@ final class AppRouter {
         return lessonsAndWorkRequest
     }
 
-    /// Opens a finished record's history. The workspace holds only open work
-    /// now — completed presentations and work live under Logs.
-    func navigateToHistory(_ kind: HistoryKind) {
-        UserDefaults.standard.set(kind.logsModeRaw, forKey: UserDefaultsKeys.logsMenuRootViewMode)
-        selectedNavItem = .logs
-    }
-
-    enum HistoryKind {
-        case presentations
-        case work
-
-        var logsModeRaw: String {
-            switch self {
-            case .presentations: "Presentations"
-            case .work: "Works"
-            }
-        }
-    }
-
     /// Kept as a source-compatible bridge for Today and older call sites.
     func navigateToPresentationFollowUps() {
         navigateToLessonsAndWork(.attention, preferredKind: .presentations)

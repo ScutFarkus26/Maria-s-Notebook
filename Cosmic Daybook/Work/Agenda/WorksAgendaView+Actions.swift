@@ -140,10 +140,15 @@ extension WorksAgendaView {
             // so open it and let the calendar reveal the record rather than
             // switching the half above it.
             isCalendarExpanded = true
+            // History hides the calendar, so the half goes back to its list.
+            setList(.open, for: workspaceKind)
             return
         }
 
         workspaceKindRaw = placement.kind.rawValue
+        // A finished record is in that half's History; anything else is in
+        // its live list, which a route always comes back to.
+        setList(WorkspaceList.holding(placement.bucket), for: placement.kind)
         switch placement.kind {
         case .work:
             workChipRaw = WorkFilterChip.showing(placement.bucket).rawValue

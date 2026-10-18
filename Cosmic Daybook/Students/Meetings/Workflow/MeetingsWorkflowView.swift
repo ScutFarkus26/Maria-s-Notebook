@@ -18,7 +18,7 @@ struct MeetingsWorkflowView: View {
 
     @State private var queueModel = MeetingQueueModel()
     @State private var selectedStudentID: UUID?
-    @State private var searchText = ""
+    @State var searchText = ""
     @State private var selectedAgeRanges: Set<AgeRange> = []
     @State private var customOrder: [UUID] = []
     @State private var requeueStore = MeetingQueueRequeueStore()
@@ -26,6 +26,9 @@ struct MeetingsWorkflowView: View {
     @State private var isMetExpanded = false
     @State private var studentForMeetingDatePicker: CDStudent?
 
+    /// Queue or History (`MeetingsScreenView`); the switch is in
+    /// `MeetingsWorkflowView+Screen.swift`.
+    @AppStorage(UserDefaultsKeys.meetingsScreenView) var screenViewRaw: String = MeetingsScreenView.queue.rawValue
     @AppStorage(UserDefaultsKeys.meetingsWorkflowDaysSinceThreshold) private var cadenceDays: Int = 7
     @AppStorage(Self.orderKey) private var orderRaw: String = MeetingQueueOrder.need.rawValue
     @SyncedAppStorage("WorkAge.overdueDays") private var workOverdueDays: Int = WorkAgeDefaults.overdueDays
@@ -94,11 +97,13 @@ struct MeetingsWorkflowView: View {
         let queue = arrangement(of: students)
         let rows = { (ids: [UUID]) in ids.compactMap { byID[$0] }.filter(matchesSearch) }
 
-        content(queue: queue, byID: byID, rows: rows)
+        screen(queue: queue, byID: byID, rows: rows)
             .navigationTitle("Meetings")
-            .navigationSubtitle("\(queue.met.count) of \(queue.total) met · every \(cadenceDays) days")
+            .navigationSubtitle(
+                screenView == .queue ? "\(queue.met.count) of \(queue.total) met · every \(cadenceDays) days" : ""
+            )
             .inlineNavigationTitle()
-            .searchable(text: $searchText, prompt: "Search")
+            .searchable(text: $searchText, prompt: screenView == .queue ? "Search" : "Search meetings")
             .toolbar { toolbarContent }
             .onAppear {
                 loadCustomOrder()
@@ -126,7 +131,7 @@ struct MeetingsWorkflowView: View {
     }
 
     @ViewBuilder
-    private func content(
+    func content(
         queue: MeetingQueueArrangement,
         byID: [UUID: CDStudent],
         rows: ([UUID]) -> [CDStudent]
@@ -208,16 +213,22 @@ struct MeetingsWorkflowView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .primaryAction) {
-            MeetingsFilterMenu(
-                cadenceDays: $cadenceDays,
-                selectedAgeRanges: $selectedAgeRanges,
-                orderRaw: $orderRaw,
-                iconOnly: isCompact
-            )
+        #if os(macOS)
+        ToolbarItem(placement: .principal) { screenViewPicker }
+        #endif
+        // The queue's cadence, ages and order; History has filters of its own.
+        if screenView == .queue {
+            ToolbarItem(placement: .primaryAction) {
+                MeetingsFilterMenu(
+                    cadenceDays: $cadenceDays,
+                    selectedAgeRanges: $selectedAgeRanges,
+                    orderRaw: $orderRaw,
+                    iconOnly: isCompact
+                )
+            }
         }
         #if os(iOS)
-        if order == .custom && isCompact {
+        if order == .custom && isCompact && screenView == .queue {
             ToolbarItem(placement: .topBarLeading) { EditButton() }
         }
         #endif

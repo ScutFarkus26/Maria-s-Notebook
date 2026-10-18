@@ -50,7 +50,7 @@ implementations:
 
 | Provider | Type | File | Notes |
 |----------|------|------|-------|
-| Apple On-Device | `LocalModelClient` | `Services/AI/LocalModelClient.swift` | Wraps `SystemLanguageModel.default`. Also hosts the tool-enabled chat path. |
+| Apple On-Device | `LocalModelClient` | `Services/AI/LocalModelClient.swift` | Wraps `SystemLanguageModel.default`. |
 | Apple Private Cloud | `PrivateCloudModelClient` | `Services/AI/PrivateCloudModelClient.swift` | Wraps `PrivateCloudComputeLanguageModel`. Adds `generateDraft(reasoning:)`. |
 | Router | `AIClientRouter` | `Services/AI/AIClientRouter.swift` | Implements `MCPClientProtocol`; dispatches to the above. |
 
@@ -110,7 +110,6 @@ equivalent) at runtime before calling the model.
 | Describe photo into note | `Notes/Editor/NoteEditorAISuggestion.swift` | Free text | No | **Photo** |
 | Story metadata (title/themes/grade) | `Stories/StoryAnalyzer.swift` | `@Generable` `StoryAnalysisAI` | No | **PDF pages** |
 | Command bar parsing and classroom capture proposal | `CommandBar/Services/AppleIntelligenceCommandParser.swift` | `@Generable` `ParsedTeacherCommand` / `GeneratedClassroomCapture` | No | — |
-| Ask-your-notebook chat | `Chat/Services/ChatService.swift` + `Services/AI/NotebookTools.swift` | Free text | Yes | — |
 | Lesson planning | `Planning/AIPlanning/LessonPlanning/*` | Structured | — | — |
 | Story ↔ lesson connections (rerank + one-line reasons) | `Stories/StoryLessonMatcher.swift` | JSON via `generateStructuredJSON` | No | — |
 | Parsha ↔ album lesson suggestions | `Parsha/Services/ParshaSuggestionService.swift` | JSON via `generateStructuredJSON` | No | — |
@@ -144,7 +143,7 @@ presentation, assignment, or practice record until the guide chooses it.
 
 System prompts/personas for all of this live in one place: `Services/AI/AIPrompts.swift`
 (`generalAssistant`, `advancedAssistant`, `lessonPlanningAssistant`,
-`chatAssistant`, `commandBarParser`, `noteClassification`).
+`commandBarParser`, `noteClassification`).
 
 ---
 
@@ -182,25 +181,12 @@ gate on this. Two uses today:
 - Story PDFs with no text layer: `StoryAnalyzer.analyzeVisually(url:)` renders
   the first pages with PDFKit and sends them as attachments.
 
-**Notebook tools (on-device retrieval).** `Services/AI/NotebookTools.swift` defines
-`FoundationModels.Tool`s the chat model can call to look things up in the guide's
-own data: `SearchNotebookTool` (keyword search via `SearchIndexService`) and
-`StudentNotesTool` (a student's recent notes from Core Data). They're attached in
-`LocalModelClient.sendConversation`/`streamConversation`, which give chat a real
-tool-enabled multi-turn session instead of flattening messages into one prompt.
-Tool results retain source references so an answer can show which notebook
-records support it. Retrieved text is evidence for a proposed answer, not
-authority to make a guide-owned pedagogical decision.
-
-**Meeting and follow-up tools.** `Services/AI/NotebookTools+Meetings.swift` adds
-four more: `recordStudentMeeting`, `addFollowUp`, `resolveFollowUp` and
-`listOpenFollowUps`. They are thin bridges onto the MCP handlers
-(`MCPNotebookTools.recordMeeting` / `addFollowUp` / `resolveFollowUp` /
-`listOpenFollowUps`), so chat and Claude share one save path and one wording.
-Chat has no per-call approval, so the three writers' descriptions limit them to
-an explicit request from the guide, and expected failures come back as replies
-rather than thrown errors. `addFollowUp` drops the MCP duplicate notice's
-"pass force: true" clause, since chat has no `force`.
+**Ask AI (removed 2026-10-18).** The ask-your-notebook chat, its on-device
+notebook tools (`NotebookTools`, `NotebookTools+Meetings`) and its tool-enabled
+conversation path in `LocalModelClient` were removed in Simplify the app,
+Phase 1. The class-wide snapshot it built lives on as the Claude tool
+`classroom_snapshot` (`MCPNotebookTools+Reads.swift`). Claude reaches the
+notebook only through the MCP server.
 
 ---
 
@@ -295,13 +281,10 @@ Services/
   MCPClient.swift                     # MCPClientProtocol + shared types
   AI/
     AIClientRouter.swift              # routing + cascade
-    LocalModelClient.swift            # on-device provider + tool chat
+    LocalModelClient.swift            # on-device provider
     PrivateCloudModelClient.swift     # Private Cloud Compute provider
     TokenBudget.swift                 # token-based input budgeting
-    NotebookTools.swift               # on-device search tools for chat
-    NotebookTools+Meetings.swift      # chat bridges onto the MCP meeting/follow-up tools
   CommandBar/                         # command parsing (local and on-device tiers)
-Chat/Services/ChatService.swift       # chat orchestration + escalation
 Planning/AIPlanning/LessonPlanning/   # lesson planning service and state
 Todos/Services/                       # todo parsing and student suggestions
 Services/AI/AIPrompts.swift               # all system prompts/personas

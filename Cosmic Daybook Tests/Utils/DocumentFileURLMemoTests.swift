@@ -93,7 +93,7 @@ struct DocumentFileURLMemoTests {
     /// `BookClubPacketDetailView.resolvedURL()` before the change, verbatim
     /// but for the packet's two columns, which it read in place.
     private func oldPacketPDF(bookmark: Data?, relativePath: String) -> URL? {
-        BookClubFileStorage.resolveURL(
+        LibraryFileStorage.packets.resolveURL(
             bookmark: bookmark,
             relativePath: relativePath
         )
@@ -115,7 +115,7 @@ struct DocumentFileURLMemoTests {
         func bookmarkedPDF(_ name: String) throws -> (url: URL, bookmark: Data) {
             let url = scratch.appendingPathComponent(name)
             try StudentFileThumbnailTests.makePDF().write(to: url)
-            return (url, try BookClubFileStorage.storage.makeBookmark(for: url))
+            return (url, try LibraryFileStorage.packets.makeBookmark(for: url))
         }
 
         let present = try bookmarkedPDF("Present.pdf")
@@ -125,7 +125,7 @@ struct DocumentFileURLMemoTests {
         try FileManager.default.removeItem(at: gone.url)
         // A file under the managed folder that only the relative path names.
         let fallbackName = "Fallback \(UUID().uuidString).pdf"
-        let fallback = try BookClubFileStorage.packetFilesDirectory().appendingPathComponent(fallbackName)
+        let fallback = try LibraryFileStorage.packets.directory().appendingPathComponent(fallbackName)
         try StudentFileThumbnailTests.makePDF().write(to: fallback)
         defer { try? FileManager.default.removeItem(at: fallback) }
 
@@ -143,7 +143,7 @@ struct DocumentFileURLMemoTests {
             let memo = DocumentFileURLMemo()
             for _ in 0..<20 {
                 let drawn = memo.url(
-                    bookmark: item.bookmark, relativePath: item.path, resolve: BookClubFileStorage.resolveURL
+                    bookmark: item.bookmark, relativePath: item.path, resolve: LibraryFileStorage.packets.resolveURL
                 )
                 #expect(drawn == old)
             }
@@ -161,13 +161,13 @@ struct DocumentFileURLMemoTests {
     /// for the resource's column, which it read in place.
     private func oldResourceFile(relativePath: String) -> URL? {
         guard !relativePath.isEmpty else { return nil }
-        return try? ResourceFileStorage.resolve(relativePath: relativePath)
+        return try? LibraryFileStorage.resolveResource(relativePath: relativePath)
     }
 
     @Test("The Share and Print check answers what the old one did, a missing file included")
     func resourceFileMatchesTheOldCheck() throws {
         let name = "Other/Chart \(UUID().uuidString).pdf"
-        let file = try ResourceFileStorage.resolve(relativePath: name)
+        let file = try LibraryFileStorage.resolveResource(relativePath: name)
         try FileManager.default.createDirectory(
             at: file.deletingLastPathComponent(), withIntermediateDirectories: true
         )
@@ -178,11 +178,11 @@ struct DocumentFileURLMemoTests {
         // for it as they always were; an empty path gets none.
         for path in [name, "Other/Missing \(UUID().uuidString).pdf", ""] {
             let old = oldResourceFile(relativePath: path)
-            #expect(ResourceFileStorage.fileURL(relativePath: path) == old)
+            #expect(LibraryFileStorage.resourceFileURL(relativePath: path) == old)
             #expect((old == nil) == path.isEmpty)
             let memo = DocumentFileURLMemo()
             for _ in 0..<20 {
-                #expect(memo.url(relativePath: path, resolve: ResourceFileStorage.fileURL) == old)
+                #expect(memo.url(relativePath: path, resolve: LibraryFileStorage.resourceFileURL) == old)
             }
             // Only an empty path gets no URL; it too is looked up once until
             // a recheck (review a2 #10).

@@ -2,10 +2,8 @@
 //  MCPNotebookTools+Reads.swift
 //  Cosmic Daybook
 //
-//  Read-only MCP tools. Query logic and output conventions mirror the
-//  on-device NotebookTools (Services/AI/NotebookTools.swift) so both AI
-//  surfaces describe the classroom the same way: entities are cited as
-//  "[kind id=<uuid>]" so follow-up tools can chain on the identifiers.
+//  Read-only MCP tools. Entities are cited as "[kind id=<uuid>]" so
+//  follow-up tools can chain on the identifiers.
 //
 
 import CoreData
@@ -267,9 +265,37 @@ extension MCPNotebookTools {
             inputSchema: ["type": "object", "properties": [:]],
             annotations: .readOnly,
             handler: { _ in
-                ChatContextAssembler(context: context()).buildClassroomSnapshot()
+                classroomSnapshotText(context: context())
             }
         )
+    }
+
+    /// A deliberately minimal snapshot: no child is named and no activity is
+    /// listed. Sensitive details come only from the tools that ask for a
+    /// specific record.
+    static func classroomSnapshotText(context: NSManagedObjectContext) -> String {
+        let queryService = DataQueryService(context: context)
+        let students = queryService.fetchAllStudents(excludeTest: true)
+        // The area names only — one column, not every lesson row.
+        let areas = queryService.fetchLessonAreas()
+
+        var lines: [String] = []
+        lines.append("=== CLASSROOM SNAPSHOT ===")
+        lines.append("Date: \(DateFormatters.mediumDate.string(from: Date()))")
+        lines.append("Enrolled student count: \(students.count)")
+        lines.append("")
+
+        if !areas.isEmpty {
+            lines.append("--- Areas ---")
+            lines.append(areas.joined(separator: ", "))
+            lines.append("")
+        }
+        lines.append(
+            "Use notebook lookup tools for dates, observations, presentations, work, attendance, "
+                + "and student-specific facts."
+        )
+
+        return lines.joined(separator: "\n")
     }
 }
 
@@ -277,8 +303,6 @@ extension MCPNotebookTools {
 
 extension MCPNotebookTools {
     /// Full-text + semantic search of the guide's teaching-album PDFs.
-    /// Wording and citation format match the on-device `searchTeachingAlbums`
-    /// chat tool — the two surfaces are meant to stay interchangeable.
     static func searchAlbumsTool() -> MCPToolDefinition {
         MCPToolDefinition(
             name: "search_albums",

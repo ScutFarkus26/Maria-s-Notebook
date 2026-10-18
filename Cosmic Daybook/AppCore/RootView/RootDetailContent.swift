@@ -27,7 +27,7 @@ struct RootDetailContent: View {
     var body: some View {
         Group {
             switch item {
-            case .today, .attendance, .note, .more:
+            case .today, .askAI, .attendance, .note, .more:
                 dailyContent
             case .students, .parentReports, .meetings, .goingOut:
                 studentsContent
@@ -42,7 +42,7 @@ struct RootDetailContent: View {
             case .supplies, .orders, .procedures, .schedules,
                  .community, .resourceLibrary:
                 resourcesContent
-            case .askAI, .logs, .notes, .settings:
+            case .logs, .notes, .settings:
                 toolsContent
             case .thisWeeksParsha:
                 ThisWeeksParshaView()
@@ -56,7 +56,7 @@ struct RootDetailContent: View {
     // view model once, when the screen first appears, not per rebuild.
     private var dailyContent: AnyView {
         switch item {
-        case .today: AnyView(TodayRootView())
+        case .today, .askAI: AnyView(TodayRootView())
         case .attendance: AnyView(attendanceContent)
         default: AnyView(EmptyView())
         }
@@ -138,14 +138,12 @@ struct RootDetailContent: View {
         }
     }
 
-    // Logs and Notes share one view type, so each gets its own identity or
-    // switching between them would reuse the first and skip `onAppear`.
+    // Notes opens its own view, not Logs on its Observations tab, so it
+    // leaves the tab Logs remembers alone.
     private var toolsContent: AnyView {
         switch item {
-        case .askAI: AnyView(ChatView())
-        case .logs: AnyView(LogsMenuRootView().id(RootView.NavigationItem.logs))
-        case .notes:
-            AnyView(LogsMenuRootView(initialMode: .observations).id(RootView.NavigationItem.notes))
+        case .logs: AnyView(LogsMenuRootView())
+        case .notes: AnyView(ObservationsView())
         case .settings: AnyView(SettingsView())
         default: AnyView(EmptyView())
         }

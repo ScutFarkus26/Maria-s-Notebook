@@ -149,19 +149,10 @@ struct ProjectSessionDetailView: View {
         }
         .sheet(item: lessonPickerBinding) { wrapper in
             if let targetWork = allWorkModels.first(where: { $0.id == wrapper.id }) {
-                ProjectLessonPickerSheet(
-                    viewModel: {
-                        let initialIDs = Set([UUID(uuidString: targetWork.studentID)].compactMap { $0 })
-                        let vm = LessonPickerViewModel(selectedStudentIDs: initialIDs)
-                        vm.configure(lessons: dependencies.lessonCatalog.all, students: students)
-                        return vm
-                    }()
-                ) { chosenID in
-                    if let chosenID {
-                        targetWork.lessonID = chosenID.uuidString
-                        targetWork.lastTouchedAt = Date()
-                        saveProjectSession(reason: "Link Project Lesson")
-                    }
+                ProjectLessonPickerSheet(chosenLessonID: UUID(uuidString: targetWork.lessonID)) { chosenID in
+                    targetWork.lessonID = chosenID.uuidString
+                    targetWork.lastTouchedAt = Date()
+                    saveProjectSession(reason: "Link Project Lesson")
                 }
             }
         }

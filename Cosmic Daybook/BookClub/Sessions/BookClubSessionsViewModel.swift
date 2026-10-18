@@ -3,21 +3,6 @@ import CoreData
 
 @Observable
 final class BookClubSessionsViewModel {
-    func grouped(_ sessions: [CDBookClubSession]) -> [(status: BookClubSessionStatus, sessions: [CDBookClubSession])] {
-        let buckets = Dictionary(grouping: sessions, by: \.status)
-        return BookClubSessionStatus.allCases
-            .sorted { $0.sortOrder < $1.sortOrder }
-            .compactMap { status in
-                guard let group = buckets[status], !group.isEmpty else { return nil }
-                let ordered = group.sorted { lhs, rhs in
-                    let lhsDate = lhs.startDate ?? lhs.createdAt ?? .distantPast
-                    let rhsDate = rhs.startDate ?? rhs.createdAt ?? .distantPast
-                    return lhsDate > rhsDate
-                }
-                return (status, ordered)
-            }
-    }
-
     /// Returns the packet for a session, or nil if the linked packet has been deleted.
     func packet(for session: CDBookClubSession, in context: NSManagedObjectContext) -> CDBookClubPacket? {
         guard let packetUUID = session.packetUUID else { return nil }

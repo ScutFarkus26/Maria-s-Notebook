@@ -34,10 +34,10 @@ enum ResourceDeletion {
     /// Removes the managed file at each path that no resource refers to any more.
     static func removeUnusedFiles(atRelativePaths paths: Set<String>, context: NSManagedObjectContext) {
         for path in paths where !isInUse(relativePath: path, context: context) {
-            guard let url = ResourceFileStorage.fileURL(relativePath: path),
+            guard let url = LibraryFileStorage.resourceFileURL(relativePath: path),
                   FileManager.default.fileExists(atPath: url.path) else { continue }
             do {
-                try ResourceFileStorage.storage.deleteIfManaged(url)
+                try LibraryFileStorage.resources.deleteIfManaged(url)
             } catch {
                 Logger.resources.warning(
                     "Couldn't remove a deleted resource's file: \(error.localizedDescription, privacy: .public)"

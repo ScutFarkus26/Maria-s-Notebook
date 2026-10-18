@@ -1,6 +1,10 @@
 import SwiftUI
 import CoreData
 
+/// Every attendance mark over a date range, by day, with a status filter and
+/// totals. Shown as the Attendance screen's List view (`AttendanceMacView`,
+/// and pushed from the iPhone's), and still under Logs until that screen is
+/// retired.
 struct AttendanceLogView: View {
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.dependencies) var dependencies

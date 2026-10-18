@@ -124,6 +124,18 @@ struct AttendanceStandaloneView: View {
                 }
             }
         }
+        // Every mark over a date range, with its status filter and totals:
+        // the Mac and iPad's List view, pushed here for want of room.
+        ToolbarItem(placement: .topBarLeading) {
+            NavigationLink {
+                AttendanceLogView()
+                    .navigationTitle("Attendance List")
+                    .inlineNavigationTitle()
+            } label: {
+                Label("List", systemImage: "list.bullet")
+            }
+            .accessibilityLabel("Attendance list")
+        }
         ToolbarItem(placement: .topBarTrailing) {
             Button("Today") {
                 let today = Date()

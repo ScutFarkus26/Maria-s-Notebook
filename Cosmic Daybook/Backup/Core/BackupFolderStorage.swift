@@ -5,8 +5,8 @@ import OSLog
 /// iCloud Drive › Cosmic Daybook › Backups. Falls back to the local
 /// app sandbox `Documents/Backups/` when iCloud is unavailable.
 ///
-/// Mirrors the pattern used by `StoryFileStorage`, `LessonFileStorage`,
-/// and `ResourceFileStorage` so manual exports land in a predictable,
+/// Mirrors the pattern used by `LibraryFileStorage` and `LessonFileStorage`
+/// so manual exports land in a predictable,
 /// user-visible location without requiring a security-scoped bookmark. Like
 /// them, it reads the container's URL from `UbiquityContainerCache`, which
 /// looks it up off the main thread as Apple requires (the Settings label

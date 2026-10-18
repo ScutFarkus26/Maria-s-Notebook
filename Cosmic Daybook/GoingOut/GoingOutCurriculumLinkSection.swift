@@ -89,31 +89,32 @@ struct GoingOutCurriculumLinkSection: View {
 
     private var lessonPickerSheet: some View {
         NavigationStack {
-            LessonPickerList(
-                selectedIDs: Set(goingOut.curriculumLinkUUIDs),
-                onToggle: { lessonID in
-                    var current = goingOut.curriculumLinkUUIDs
-                    if current.contains(lessonID) {
-                        current.removeAll { $0 == lessonID }
-                    } else {
-                        current.append(lessonID)
+            LessonLinkPicker(selection: linkedIDs)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { showingLessonPicker = false }
                     }
-                    goingOut.curriculumLinkUUIDs = current
-                    goingOut.modifiedAt = Date()
-                    modelContext.safeSave()
                 }
-            )
-            .navigationTitle("Link Lessons")
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { showingLessonPicker = false }
-                }
-            }
         }
         #if os(iOS)
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         #endif
+    }
+
+    /// The linked lessons as the picker ticks them. A change is saved at once,
+    /// keeping the links in the order they were made.
+    private var linkedIDs: Binding<Set<UUID>> {
+        Binding(
+            get: { Set(goingOut.curriculumLinkUUIDs) },
+            set: { newValue in
+                var current = goingOut.curriculumLinkUUIDs.filter(newValue.contains)
+                current += newValue.subtracting(current).sorted { $0.uuidString < $1.uuidString }
+                goingOut.curriculumLinkUUIDs = current
+                goingOut.modifiedAt = Date()
+                modelContext.safeSave()
+            }
+        )
     }
 
     private func removeLink(_ lesson: CDLesson) {
@@ -123,62 +124,5 @@ struct GoingOutCurriculumLinkSection: View {
         goingOut.curriculumLinkUUIDs = current
         goingOut.modifiedAt = Date()
         modelContext.safeSave()
-    }
-}
-
-// MARK: - CDLesson Picker List
-
-private struct LessonPickerList: View {
-    let selectedIDs: Set<UUID>
-    let onToggle: (UUID) -> Void
-
-    @Environment(\.dependencies) private var dependencies
-
-    @State private var searchText = ""
-
-    private var filteredLessons: [CDLesson] {
-        let all = dependencies.lessonCatalog.sortedByAreaAndSortIndex
-        guard !searchText.isEmpty else { return all }
-        let query = searchText.lowercased()
-        return all.filter {
-            $0.name.lowercased().contains(query) ||
-            $0.area.lowercased().contains(query)
-        }
-    }
-
-    var body: some View {
-        List {
-            ForEach(filteredLessons, id: \.objectID) { lesson in
-                Button {
-                    guard let lessonID = lesson.id else { return }
-                    onToggle(lessonID)
-                } label: {
-                    HStack(spacing: 10) {
-                        Circle()
-                            .fill(AppColors.color(forArea: lesson.area))
-                            .frame(width: 8, height: 8)
-
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(lesson.name)
-                                .font(.subheadline)
-                                .foregroundStyle(.primary)
-                                .lineLimit(1)
-                            Text(lesson.area)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        Spacer()
-
-                        if let lessonID = lesson.id, selectedIDs.contains(lessonID) {
-                            Image(systemName: SFSymbol.Action.checkmarkCircleFill)
-                                .foregroundStyle(Color.accentColor)
-                        }
-                    }
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .searchable(text: $searchText, prompt: "Search lessons")
     }
 }

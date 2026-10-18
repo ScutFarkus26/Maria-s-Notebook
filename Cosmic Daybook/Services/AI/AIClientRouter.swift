@@ -139,95 +139,6 @@ final class AIClientRouter: MCPClientProtocol {
         }
     }
 
-    // MARK: - MCPClientProtocol — streamConversation
-
-    // swiftlint:disable:next function_parameter_count
-    func streamConversation(
-        messages: [[String: String]],
-        systemMessage: String?,
-        temperature: Double,
-        maxTokens: Int,
-        timeout: TimeInterval?,
-        onText: @escaping @MainActor @Sendable (String) -> Void
-    ) async throws -> String {
-        let deadline = Deadline(limit: timeout)
-        return try await route { client in
-            try await client.streamConversation(
-                messages: messages,
-                systemMessage: systemMessage,
-                temperature: temperature,
-                maxTokens: maxTokens,
-                timeout: try deadline.remaining(),
-                onText: onText
-            )
-        }
-    }
-
-    // MARK: - MCPClientProtocol — streamChat
-
-    // Ask AI's answers. Only the on-device model has the notebook tools; when
-    // it fails and Private Cloud Compute answers instead, the records the
-    // failed attempt looked up are dropped, so the answer doesn't list
-    // sources it never used (bug hunt 2026-10-11 #53). When a tool already
-    // saved something, the failure stands: Private Cloud would answer
-    // without tools, and the guide would ask again (bug hunt 2026-10-17 #9).
-    // swiftlint:disable:next function_parameter_count
-    func streamChat(
-        messages: [[String: String]],
-        systemMessage: String?,
-        temperature: Double,
-        maxTokens: Int,
-        tools: ChatToolContext,
-        onText: @escaping @MainActor @Sendable (String) -> Void
-    ) async throws -> String {
-        #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-        try await Self.streamChat(
-            local: localClient,
-            cloud: { self.privateCloudClient },
-            cloudAllowed: Self.automaticPrivateCloudAllowed,
-            messages: messages,
-            systemMessage: systemMessage,
-            temperature: temperature,
-            maxTokens: maxTokens,
-            tools: tools,
-            onText: onText
-        )
-        #else
-        throw LocalModelError.unavailable(AppleIntelligenceMessages.notInThisVersion)
-        #endif
-    }
-
-    /// `streamChat`'s routing, apart from the real models so a test can see
-    /// the failed attempt's sources dropped through this wiring, not only
-    /// through `route` (review (b) 2026-10-11).
-    static func streamChat( // swiftlint:disable:this function_parameter_count
-        local: any RoutableModelClient,
-        cloud: () -> any RoutableModelClient,
-        cloudAllowed: Bool,
-        messages: [[String: String]],
-        systemMessage: String?,
-        temperature: Double,
-        maxTokens: Int,
-        tools: ChatToolContext,
-        onText: @escaping @MainActor @Sendable (String) -> Void
-    ) async throws -> String {
-        let answer: (any MCPClientProtocol) async throws -> String = { client in
-            try await client.streamChat(
-                messages: messages,
-                systemMessage: systemMessage,
-                temperature: temperature,
-                maxTokens: maxTokens,
-                tools: tools,
-                onText: onText
-            )
-        }
-        return try await route(
-            local: local, cloud: cloud, cloudAllowed: cloudAllowed,
-            fallbackAllowed: { tools.writes.isEmpty },
-            beforeFallback: { _ = await tools.sources.consume() }, answer
-        )
-    }
-
     // MARK: - Routing Engine
 
     /// Tries Apple's models in order: on-device, then Private Cloud Compute.
@@ -245,19 +156,15 @@ final class AIClientRouter: MCPClientProtocol {
     }
 
     /// The routing rule, apart from the real models so it can be tested:
-    /// `local` first; then, when `cloudAllowed` and the failed attempt left
-    /// `fallbackAllowed`, `cloud`, after `beforeFallback` has undone what the
-    /// failed local attempt left behind.
+    /// `local` first; then, when `cloudAllowed`, `cloud`.
     ///
     /// A cancelled request stops here. It used to be taken for a failure and
-    /// sent again to Private Cloud Compute, so New Chat or a closed window
-    /// mid-answer still spent a cloud request (bug hunt 2026-10-11 #53).
+    /// sent again to Private Cloud Compute, so a closed window mid-answer
+    /// still spent a cloud request (bug hunt 2026-10-11 #53).
     static func route<T>(
         local: any RoutableModelClient,
         cloud: () -> any RoutableModelClient,
         cloudAllowed: Bool,
-        fallbackAllowed: () -> Bool = { true },
-        beforeFallback: () async -> Void = {},
         _ work: (any MCPClientProtocol) async throws -> T
     ) async throws -> T {
         var failures: [String] = []
@@ -271,11 +178,9 @@ final class AIClientRouter: MCPClientProtocol {
                 if isCancellation(error) { throw error }
                 logger.info("On-device failed (\(error.localizedDescription)), trying next provider")
                 // With Private Cloud off there's nowhere else to go, so the
-                // on-device failure is the answer, said in its own words; the
-                // same when the attempt already changed the notebook.
-                guard cloudAllowed, fallbackAllowed() else { throw error }
+                // on-device failure is the answer, said in its own words.
+                guard cloudAllowed else { throw error }
                 failures.append(plainReason(for: error))
-                await beforeFallback()
             }
         } else {
             failures.append(local.unavailabilityReason)

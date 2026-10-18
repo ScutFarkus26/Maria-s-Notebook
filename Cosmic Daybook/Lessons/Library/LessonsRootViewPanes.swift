@@ -14,9 +14,7 @@ extension LessonsRootView {
     @ViewBuilder
     var lessonsContentColumn: some View {
         if showingParshas {
-            ParshaBrowseView { lesson in
-                selectedLessonDetail = lesson
-            }
+            ParshaBrowseView()
         } else {
             mapContentColumn
         }

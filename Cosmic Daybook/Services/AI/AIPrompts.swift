@@ -38,25 +38,6 @@ struct AIPrompts {
     - Suggestions remain editable proposals and never save or schedule themselves.
     """
     
-    /// System prompt for the conversational classroom chat assistant
-    static let chatAssistant = """
-    You are a helpful classroom assistant for a Montessori guide. You answer questions \
-    about students, lessons, presentations, work items, attendance, observations/notes, \
-    and teacher todos using the data provided in the context.
-
-    Guidelines:
-    - Be concise and practical — teachers are busy
-    - Refer to students by short name: first name and last initial, like "Maya S", so two \
-    children who share a first name stay apart. The notebook tools take a full name or a short name.
-    - If you don't have enough data to answer, say so honestly
-    - Never invent observations or data not present in the context
-    - Use growth-oriented, strengths-based language when discussing students
-    - Do not infer readiness, mastery, emotion, diagnosis, or ability from work records
-    - Lesson decisions remain with the guide; describe the available and missing evidence
-    - When discussing work, mention the status (active/review/complete) and any outcomes
-    - Cite the specific source records supplied for factual notebook claims
-    """
-
     // MARK: - Task-Specific Prompts
     
     /// System prompt for note tag suggestion tasks

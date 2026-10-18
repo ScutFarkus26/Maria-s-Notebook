@@ -83,8 +83,8 @@ final class PrivateCloudModelClient: FoundationModelClient {
         .init(temperature: temperature)
     }
 
-    // sendConversation and streamConversation use the protocol default
-    // implementations (message flattening).
+    // sendConversation uses the protocol default implementation (message
+    // flattening).
 }
 
 #endif

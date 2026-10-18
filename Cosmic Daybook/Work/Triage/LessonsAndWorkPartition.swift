@@ -30,7 +30,7 @@ nonisolated struct TriageSplit<Record> {
     let attention: [Record]
     let scheduled: [Record]
     let toSchedule: [Record]
-    /// Finished records. Not shown in the workspace; reachable through Logs.
+    /// Finished records. Not in the live lists; shown under History.
     let done: [Record]
 
     /// Splits `records`, calling `bucket` exactly once per record and keeping

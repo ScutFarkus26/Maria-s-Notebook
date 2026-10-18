@@ -257,10 +257,4 @@ private struct UnusedClient: MCPClientProtocol {
         messages: [[String: String]], systemMessage: String?, temperature: Double,
         maxTokens: Int, timeout: TimeInterval?
     ) async throws -> String { throw Unused() }
-    // swiftlint:disable:next function_parameter_count
-    func streamConversation(
-        messages: [[String: String]], systemMessage: String?, temperature: Double,
-        maxTokens: Int, timeout: TimeInterval?,
-        onText: @escaping @MainActor @Sendable (String) -> Void
-    ) async throws -> String { throw Unused() }
 }

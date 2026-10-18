@@ -5,6 +5,9 @@ import CoreData
 struct ProcedureDetailView: View {
     let procedure: CDProcedure
     var onEdit: ((CDProcedure) -> Void)?
+    /// Closes the detail where it is a column beside the Procedures grid;
+    /// nil where it is a sheet, which is dismissed.
+    var onClose: (() -> Void)?
 
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
@@ -48,7 +51,7 @@ struct ProcedureDetailView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") {
-                        dismiss()
+                        close()
                     }
                 }
 
@@ -79,15 +82,24 @@ struct ProcedureDetailView: View {
             ) {
                 Button("Delete", role: .destructive) {
                     ProcedureService.deleteProcedure(procedure, in: viewContext)
-                    dismiss()
+                    close()
                 }
             } message: {
                 Text("Are you sure you want to delete \"\(procedure.title)\"? This action cannot be undone.")
             }
         }
         #if os(macOS)
-        .frame(minWidth: UIConstants.SheetSize.medium.width + 30, idealWidth: 700, maxWidth: 900)
-        .frame(minHeight: UIConstants.SheetSize.medium.height - 60, idealHeight: 700, maxHeight: .infinity)
+        // A sheet sets its own size; a column beside the grid has its width.
+        .frame(
+            minWidth: onClose == nil ? UIConstants.SheetSize.medium.width + 30 : nil,
+            idealWidth: onClose == nil ? 700 : nil,
+            maxWidth: onClose == nil ? 900 : .infinity
+        )
+        .frame(
+            minHeight: onClose == nil ? UIConstants.SheetSize.medium.height - 60 : nil,
+            idealHeight: onClose == nil ? 700 : nil,
+            maxHeight: .infinity
+        )
         #endif
     }
 
@@ -233,6 +245,14 @@ struct ProcedureDetailView: View {
     }
 
     // MARK: - Helpers
+
+    private func close() {
+        if let onClose {
+            onClose()
+        } else {
+            dismiss()
+        }
+    }
 
     private var sheetBackground: Color {
         Color.windowBackgroundColor()

@@ -59,6 +59,9 @@ nonisolated enum UserDefaultsKeys {
 
     // MARK: - Attendance
     // Dynamic keys: "Attendance.locked.<yyyy-MM-dd>"
+    /// The Attendance screen's view on the Mac and iPad: the roll, or the
+    /// list of every mark (`AttendanceScreenView`).
+    static let attendanceScreenView = "Attendance.screenView"
     
     // MARK: - CDLesson Age
     static let lessonAgeWarningDays = "LessonAge.warningDays"
@@ -123,6 +126,9 @@ nonisolated enum UserDefaultsKeys {
     static let studentDetailViewActiveTab = "StudentDetailView.activeTab"
     static let meetingsWorkflowDaysSinceThreshold = "MeetingsWorkflow.daysSinceThreshold"
     static let meetingsWorkflowRequeuedStudents = "MeetingsWorkflow.requeuedStudents"
+    /// The Meetings screen's view: the queue, or every meeting's history
+    /// (`MeetingsScreenView`).
+    static let meetingsScreenView = "MeetingsWorkflow.screenView"
     static let studentsViewSortOrder = "StudentsView.sortOrder"
     static let studentsViewSelectedFilter = "StudentsView.selectedFilter"
     static let studentPickerSortOrder = "StudentPicker.sortOrder"
@@ -138,10 +144,6 @@ nonisolated enum UserDefaultsKeys {
     static let whatsNewDismissedRelease = "WhatsNew.dismissedRelease"
     /// The footer's easter egg: a starfield in the Settings footer and behind its header.
     static let settingsCosmicAccent = "Settings.cosmicAccent"
-
-    // MARK: - Resources
-    /// Grid or list on the resource library (a `ResourceViewMode` raw value).
-    static let resourceLibraryViewMode = "resourceLibrary.viewMode"
 
     // MARK: - Planning Calendar
     static let planningCalendarShowTodos = "PlanningCalendar.showTodos"

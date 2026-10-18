@@ -1,11 +1,21 @@
 // ParshaCalendarView.swift
-// Annual calendar of every Shabbat in the current Hebrew year and its parsha.
+// The year list of the parsha screen: every Shabbat in the current Hebrew year and its parsha.
 // Festival-displaced Shabbatot are labeled with the festival instead of a parsha key.
 
 import SwiftUI
 import CoreData
 
+/// The Parsha Calendar destination: the parsha screen with its year list showing.
 struct ParshaCalendarView: View {
+    var body: some View {
+        ThisWeeksParshaView(showsYearList: true)
+    }
+}
+
+struct ParshaYearList: View {
+    /// The Shabbat the screen shows; nil is this week.
+    @Binding var selection: Date?
+
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)],
         predicate: NSPredicate(format: "parshaKey != nil AND parshaKey != %@", "")
@@ -85,59 +95,55 @@ struct ParshaCalendarView: View {
         return entries.first { calendar.startOfDay(for: $0.date) >= start }?.date
     }
 
+    /// The highlighted row: the Shabbat picked, else this week's.
+    private var highlighted: Binding<Date?> {
+        Binding(get: { selection ?? scrollTarget }, set: { selection = $0 })
+    }
+
     var body: some View {
-        PageNavigationStack {
-            ScrollViewReader { proxy in
-                List {
-                    Section {
-                        Text(yearTitle)
-                            .font(AppTheme.ScaledFont.titleMedium)
-                            .foregroundStyle(.primary)
-                        Text("\(entries.count) Shabbatot")
-                            .font(AppTheme.ScaledFont.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    // Hoisted out of the row builder: all three were recomputed per row.
-                    // `Calendar(identifier:)` allocates an ICU calendar every time, and
-                    // `lessonCountsByParsha` walked the whole fetch to rebuild its
-                    // dictionary — so the counts alone were O(rows × tagged lessons).
-                    let calendar = HebrewParshaService.gregorian
-                    let today = currentShabbat
-                    let counts = lessonCountsByParsha
-                    ForEach(entriesByMonth, id: \.monthLabel) { group in
-                        Section(group.monthLabel) {
-                            ForEach(group.items) { entry in
-                                NavigationLink(value: entry.date) {
-                                    CalendarRowView(
-                                        date: entry.date,
-                                        parshaKey: entry.parshaKey,
-                                        festivalName: entry.festivalName,
-                                        lessonCount: entry.parshaKey.map {
-                                            HebrewParshaService.lessonCount(forParshaKey: $0, countsByTag: counts)
-                                        } ?? 0,
-                                        isCurrentWeek: calendar.isDate(entry.date, inSameDayAs: today)
-                                    )
-                                }
-                                .id(entry.date)
-                            }
+        ScrollViewReader { proxy in
+            List(selection: highlighted) {
+                Section {
+                    Text(yearTitle)
+                        .font(AppTheme.ScaledFont.titleMedium)
+                        .foregroundStyle(.primary)
+                    Text("\(entries.count) Shabbatot")
+                        .font(AppTheme.ScaledFont.caption)
+                        .foregroundStyle(.secondary)
+                }
+                // Hoisted out of the row builder: all three were recomputed per row.
+                // `Calendar(identifier:)` allocates an ICU calendar every time, and
+                // `lessonCountsByParsha` walked the whole fetch to rebuild its
+                // dictionary — so the counts alone were O(rows × tagged lessons).
+                let calendar = HebrewParshaService.gregorian
+                let today = currentShabbat
+                let counts = lessonCountsByParsha
+                ForEach(entriesByMonth, id: \.monthLabel) { group in
+                    Section(group.monthLabel) {
+                        ForEach(group.items) { entry in
+                            CalendarRowView(
+                                date: entry.date,
+                                parshaKey: entry.parshaKey,
+                                festivalName: entry.festivalName,
+                                lessonCount: entry.parshaKey.map {
+                                    HebrewParshaService.lessonCount(forParshaKey: $0, countsByTag: counts)
+                                } ?? 0,
+                                isCurrentWeek: calendar.isDate(entry.date, inSameDayAs: today)
+                            )
+                            .tag(entry.date)
+                            .id(entry.date)
                         }
                     }
                 }
-                .task {
-                    // After the list's first layout; scrolling from the first
-                    // pass of `.task` landed before the rows existed.
-                    try? await Task.sleep(for: .milliseconds(150))
-                    if let scrollTarget {
-                        proxy.scrollTo(scrollTarget, anchor: .top)
-                    }
+            }
+            .listStyle(.sidebar)
+            .task {
+                // After the list's first layout; scrolling from the first
+                // pass of `.task` landed before the rows existed.
+                try? await Task.sleep(for: .milliseconds(150))
+                if let scrollTarget {
+                    proxy.scrollTo(scrollTarget, anchor: .top)
                 }
-            }
-            .navigationTitle("Parsha Calendar")
-            .navigationDestination(for: Date.self) { date in
-                ThisWeeksParshaView(forShabbat: date)
-            }
-            .navigationDestination(for: CDLesson.self) { lesson in
-                LessonDetailView(lesson: lesson, onSave: { _ in })
             }
         }
     }

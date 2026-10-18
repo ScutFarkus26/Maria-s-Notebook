@@ -35,11 +35,13 @@ struct SmallerFeaturesFix1010J1Tests {
     @Test("Deleting a resource removes its file once no other resource uses it")
     func resourceDeleteRemovesFile() throws {
         let context = try CoreDataTestHelpers.makeContext()
-        let folder = try ResourceFileStorage.categoryDirectory(for: .other)
+        let folder = try LibraryFileStorage.resources.subdirectory(
+            named: ResourceCategory.other.rawValue, fallback: "Other"
+        )
         let fileURL = folder.appendingPathComponent("Fix1010J1-\(UUID().uuidString).pdf")
         try Data("%PDF-1.4".utf8).write(to: fileURL)
         defer { try? FileManager.default.removeItem(at: fileURL) }
-        let relativePath = try ResourceFileStorage.relativePath(forManagedURL: fileURL)
+        let relativePath = try LibraryFileStorage.resources.relativePath(forManagedURL: fileURL)
 
         let original = CDResource(context: context)
         original.title = "Hundred board"

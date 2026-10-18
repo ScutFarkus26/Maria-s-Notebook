@@ -7,7 +7,7 @@ import Foundation
 import CoreData
 
 /// One recorded fact backing a report narrative, citable as "kind:uuid"
-/// (matching the `[kind id=<uuid>]` convention in NotebookTools).
+/// (matching the `[kind id=<uuid>]` convention of the MCP tools).
 struct MonthlyReportEvidenceItem: Sendable, Identifiable, Equatable {
     let ref: String
     let date: Date

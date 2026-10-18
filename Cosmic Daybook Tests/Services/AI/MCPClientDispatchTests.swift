@@ -6,43 +6,10 @@ import Testing
 /// implementation. The protocol extension's fallbacks are for clients that
 /// have none, never a detour for clients that do: a fallback with defaulted
 /// parameters would win any call that leaves one out, statically, and the
-/// client's streaming or system-prompt handling would never run.
+/// client's system-prompt handling would never run.
 @Suite("MCP client dispatch")
 @MainActor
 struct MCPClientDispatchTests {
-
-    @MainActor
-    private final class Recorder {
-        var texts: [String] = []
-    }
-
-    /// Streams two snapshots and answers something else when asked without
-    /// streaming, so the two paths can be told apart.
-    private final class StreamingClient: MCPClientProtocol {
-        var sendCalls = 0
-        var streamCalls = 0
-
-        func generateText(prompt: String, temperature: Double) async throws -> String { "text" }
-        func generateStructuredJSON(prompt: String, temperature: Double) async throws -> String { "{}" }
-        func sendConversation(
-            messages: [[String: String]], systemMessage: String?, temperature: Double,
-            maxTokens: Int, timeout: TimeInterval?
-        ) async throws -> String {
-            sendCalls += 1
-            return "whole answer, not streamed"
-        }
-        // swiftlint:disable:next function_parameter_count
-        func streamConversation(
-            messages: [[String: String]], systemMessage: String?, temperature: Double,
-            maxTokens: Int, timeout: TimeInterval?,
-            onText: @escaping @MainActor @Sendable (String) -> Void
-        ) async throws -> String {
-            streamCalls += 1
-            onText("Ora has")
-            onText("Ora has had the Checkerboard")
-            return "Ora has had the Checkerboard"
-        }
-    }
 
     /// Shaped like AIClientRouter: the two-argument and full forms only,
     /// recording what the full form was handed.
@@ -94,26 +61,6 @@ struct MCPClientDispatchTests {
         func generateStructuredJSON(prompt: String, temperature: Double) async throws -> String { "{\"ok\":true}" }
     }
 
-    // MARK: - Ask AI
-
-    @Test("Ask AI streams through the client's own streamConversation")
-    func chatServiceStreams() async throws {
-        let client = StreamingClient()
-        let service = ChatService(modelContext: try CoreDataTestHelpers.makeContext(), mcpClient: client)
-        var session = service.startSession()
-        let recorder = Recorder()
-
-        let reply = try await service.sendMessageStreaming("What has Ora had?", session: &session) { answerSoFar in
-            recorder.texts.append(answerSoFar)
-        }
-
-        #expect(client.streamCalls == 1)
-        #expect(client.sendCalls == 0)
-        #expect(recorder.texts == ["Ora has", "Ora has had the Checkerboard"])
-        #expect(reply == "Ora has had the Checkerboard")
-        #expect(session.messages.last?.content == "Ora has had the Checkerboard")
-    }
-
     // MARK: - The system-prompt forms
 
     @Test("generateText with a system message reaches the client's full form")
@@ -150,7 +97,6 @@ struct MCPClientDispatchTests {
     func shortFormClientAnswersEverything() async throws {
         let shortForm = ShortFormClient()
         let client: any MCPClientProtocol = shortForm
-        let recorder = Recorder()
 
         let four = try await client.generateText(
             prompt: "a", systemMessage: "s", temperature: 0.5, maxTokens: 10
@@ -161,18 +107,15 @@ struct MCPClientDispatchTests {
         let json = try await client.generateStructuredJSON(
             prompt: "c", systemMessage: "s", temperature: 0.5, maxTokens: 10, timeout: nil
         )
-        let streamed = try await client.streamConversation(
+        let conversation = try await client.sendConversation(
             messages: [["role": "user", "content": "hi"]], systemMessage: nil,
             temperature: 0.7, maxTokens: 100, timeout: nil
-        ) { answerSoFar in
-            recorder.texts.append(answerSoFar)
-        }
+        )
 
         #expect(four == "short answer")
         #expect(six == "short answer")
         #expect(json == "{\"ok\":true}")
-        #expect(streamed == "short answer")
-        #expect(recorder.texts == ["short answer"])
+        #expect(conversation == "short answer")
         #expect(shortForm.textPrompts == ["a", "b", "user: hi"])
     }
 }

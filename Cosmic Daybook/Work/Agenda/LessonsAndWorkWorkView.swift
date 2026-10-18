@@ -285,7 +285,7 @@ struct LessonsAndWorkWorkView: View {
             return "\(name) has no open work. Tap their name again to see everyone's."
         }
         switch chip {
-        case .all: return "Finished work lives under Logs."
+        case .all: return "Finished work is under History."
         case .needsChecking:
             return "No child's work is due, in review, or has gone quiet."
         case .toSchedule:

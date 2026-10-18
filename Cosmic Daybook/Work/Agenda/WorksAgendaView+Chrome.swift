@@ -21,6 +21,11 @@ extension WorksAgendaView {
             .frame(minWidth: 240, idealWidth: 300)
         }
 
+        // The half's live list or its History, beside the half it belongs to.
+        ToolbarItem(placement: .principal) {
+            workspaceListPicker
+        }
+
         ToolbarItemGroup(placement: .primaryAction) {
             Button {
                 newWorkInThisWindow()
@@ -108,6 +113,10 @@ extension WorksAgendaView {
             .clipRounded(UIConstants.CornerRadius.control)
             .padding(.horizontal, 16)
             .padding(.bottom, 4)
+            // The half's live list or its History.
+            workspaceListPicker
+                .padding(.horizontal, 16)
+                .padding(.bottom, 4)
             if showsWorkGrid {
                 WorkKindFilterChipBar(visibleKinds: visibleKinds)
                     .padding(.bottom, 4)

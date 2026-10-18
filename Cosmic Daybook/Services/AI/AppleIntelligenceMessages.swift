@@ -1,6 +1,6 @@
 // AppleIntelligenceMessages.swift
 // The one place Apple Intelligence failures become plain sentences. Notes,
-// Stories, Parsha, Planning, Chat, Albums and Insights all read from here, so
+// Stories, Parsha, Planning, Albums and Insights all read from here, so
 // the same failure says the same thing everywhere.
 
 import Foundation

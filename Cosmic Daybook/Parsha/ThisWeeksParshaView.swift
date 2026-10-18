@@ -1,17 +1,96 @@
 // ThisWeeksParshaView.swift
-// Surfaces a parsha's name, Shabbat date, passages, topics, related lessons,
-// previous presentations, and upcoming-week navigation. Defaults to the current
-// week's parsha; pushed instances scope to a specific Shabbat date.
+// The parsha screen. Opens on this week's parsha: its name, Shabbat date, passages,
+// topics, related lessons, previous presentations and the coming weeks. The year's
+// Shabbatot (`ParshaYearList`) are its index: a column beside the week on a Mac or iPad,
+// a list behind the toolbar button on a phone.
 
 import SwiftUI
 import CoreData
 
 struct ThisWeeksParshaView: View {
-    let forShabbat: Date?
+    /// The Shabbat shown; nil is this week.
+    @State private var selectedShabbat: Date?
+    @State private var showingYearList: Bool
 
-    init(forShabbat: Date? = nil) {
-        self.forShabbat = forShabbat
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+
+    /// `showsYearList` opens the year list over the week at first on a phone
+    /// (the Parsha Calendar item).
+    init(showsYearList: Bool = false) {
+        _showingYearList = State(initialValue: showsYearList)
     }
+
+    private var isCompact: Bool {
+        #if os(iOS)
+        horizontalSizeClass == .compact
+        #else
+        false
+        #endif
+    }
+
+    var body: some View {
+        if isCompact {
+            phoneLayout
+        } else {
+            HStack(spacing: 0) {
+                NavigationStack {
+                    ParshaYearList(selection: $selectedShabbat)
+                        .navigationTitle("Parsha Calendar")
+                }
+                .frame(width: 300)
+                Divider()
+                weekStack
+            }
+        }
+    }
+
+    /// The week in a stack of its own, rebuilt when another Shabbat is picked so
+    /// a lesson left open from the last one doesn't stay on top.
+    private var weekStack: some View {
+        PageNavigationStack {
+            ParshaWeekPage(forShabbat: selectedShabbat)
+        }
+        .id(selectedShabbat)
+    }
+
+    private var phoneLayout: some View {
+        PageNavigationStack {
+            ParshaWeekPage(forShabbat: selectedShabbat)
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            showingYearList = true
+                        } label: {
+                            Label("Year", systemImage: "list.bullet")
+                        }
+                        .accessibilityLabel("Choose a Shabbat from the year")
+                    }
+                }
+        }
+        .id(selectedShabbat)
+        .sheet(isPresented: $showingYearList) {
+            NavigationStack {
+                ParshaYearList(selection: $selectedShabbat)
+                    .navigationTitle("Parsha Calendar")
+                    #if os(iOS)
+                    .navigationBarTitleDisplayMode(.inline)
+                    #endif
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { showingYearList = false }
+                        }
+                    }
+            }
+            .onChange(of: selectedShabbat) { showingYearList = false }
+        }
+    }
+}
+
+/// One Shabbat's page: `forShabbat`, or this week's when nil.
+private struct ParshaWeekPage: View {
+    let forShabbat: Date?
 
     private var shabbat: Date {
         HebrewParshaService.shabbatOfWeek(containing: forShabbat ?? Date())
@@ -21,28 +100,24 @@ struct ThisWeeksParshaView: View {
         HebrewParshaService.parshaKey(forShabbat: shabbat)
     }
 
+    /// Whether this is the week the guide is in, however it was picked.
+    private var isCurrentWeek: Bool {
+        forShabbat == nil || HebrewParshaService.gregorian.isDate(
+            shabbat, inSameDayAs: HebrewParshaService.shabbatOfWeek(containing: Date())
+        )
+    }
+
     private var navigationTitle: String {
-        if forShabbat == nil {
+        if isCurrentWeek {
             return "This Week’s Parsha"
         }
         return parshaKey.flatMap { HebrewParshaService.displayName(forKey: $0) } ?? "Parsha"
     }
 
     var body: some View {
-        if forShabbat == nil {
-            PageNavigationStack {
-                rootContent
-            }
-        } else {
-            rootContent
-        }
-    }
-
-    @ViewBuilder
-    private var rootContent: some View {
         Group {
             if let key = parshaKey {
-                ParshaContentList(parshaKey: key, shabbat: shabbat, isCurrentWeek: forShabbat == nil)
+                ParshaContentList(parshaKey: key, shabbat: shabbat, isCurrentWeek: isCurrentWeek)
             } else {
                 noParshaState
             }
@@ -52,7 +127,7 @@ struct ThisWeeksParshaView: View {
             LessonDetailView(lesson: lesson, onSave: { _ in })
         }
         .navigationDestination(for: Date.self) { date in
-            ThisWeeksParshaView(forShabbat: date)
+            ParshaWeekPage(forShabbat: date)
         }
         .navigationDestination(for: ParshaSuggestionsNav.self) { nav in
             ParshaSuggestionsDetailView(parshaKey: nav.parshaKey) { /* refresh handled by view */ }

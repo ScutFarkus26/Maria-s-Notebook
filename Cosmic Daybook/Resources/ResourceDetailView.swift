@@ -12,6 +12,9 @@ struct ResourceDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     @ObservedObject var resource: CDResource
+    /// Closes the detail where it is a column beside the Files grid; a sheet
+    /// or window (a lesson's Files rows) leaves it nil and is dismissed.
+    var onClose: (() -> Void)?
 
     /// The catalog in the name order this screen has always read it in.
     private var allLessons: [CDLesson] {
@@ -99,7 +102,7 @@ struct ResourceDetailView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") {
-                        dismiss()
+                        close()
                     }
                 }
 
@@ -171,7 +174,8 @@ struct ResourceDetailView: View {
             await loadPDF()
         }
         #if os(macOS)
-        .frame(minWidth: 500, minHeight: 500)
+        // A window or sheet sets its own floor; a column beside the grid has its width.
+        .frame(minWidth: onClose == nil ? 500 : nil, minHeight: onClose == nil ? 500 : nil)
         #endif
     }
 
@@ -386,10 +390,7 @@ struct ResourceDetailView: View {
                     }
 
                     NavigationLink {
-                        ResourceLessonPicker(
-                            allLessons: allLessons,
-                            selectedLessonIDs: $editLessonIDs
-                        )
+                        LessonLinkPicker(selection: $editLessonIDs)
                     } label: {
                         HStack {
                             Label("Lessons", systemImage: "book")
@@ -435,7 +436,7 @@ struct ResourceDetailView: View {
     /// container included. Share sends this URL, as it always sent the drawn
     /// one; Open and Print resolve afresh when tapped.
     private var resolvedFileURL: URL? {
-        drawnFile.url(relativePath: resource.fileRelativePath, resolve: ResourceFileStorage.fileURL)
+        drawnFile.url(relativePath: resource.fileRelativePath, resolve: LibraryFileStorage.resourceFileURL)
     }
 
     // MARK: - Actions
@@ -447,7 +448,7 @@ struct ResourceDetailView: View {
         defer { isFetchingFile = false }
         guard !resource.fileRelativePath.isEmpty else { return }
         do {
-            let stored = try ResourceFileStorage.resolve(relativePath: resource.fileRelativePath)
+            let stored = try LibraryFileStorage.resolveResource(relativePath: resource.fileRelativePath)
             let url = await UbiquitousFile.localURL(for: stored)
             if FileManager.default.fileExists(atPath: url.path), !UbiquitousFile.needsDownload(url) {
                 downloadedFileURL = url
@@ -513,6 +514,14 @@ struct ResourceDetailView: View {
         guard ResourceDeletion.delete(
             [resource], context: viewContext, saveCoordinator: dependencies.saveCoordinator
         ) else { return }
-        dismiss()
+        close()
+    }
+
+    private func close() {
+        if let onClose {
+            onClose()
+        } else {
+            dismiss()
+        }
     }
 }

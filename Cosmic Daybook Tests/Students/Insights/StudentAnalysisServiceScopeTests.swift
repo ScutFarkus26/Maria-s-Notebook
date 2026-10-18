@@ -18,12 +18,6 @@ private struct CannedAnalysisClient: MCPClientProtocol {
         messages: [[String: String]], systemMessage: String?, temperature: Double,
         maxTokens: Int, timeout: TimeInterval?
     ) async throws -> String { "" }
-    // swiftlint:disable:next function_parameter_count
-    func streamConversation(
-        messages: [[String: String]], systemMessage: String?, temperature: Double,
-        maxTokens: Int, timeout: TimeInterval?,
-        onText: @escaping @MainActor @Sendable (String) -> Void
-    ) async throws -> String { "" }
 }
 
 /// Pins what one Insights analysis materialises for a student. Her notes

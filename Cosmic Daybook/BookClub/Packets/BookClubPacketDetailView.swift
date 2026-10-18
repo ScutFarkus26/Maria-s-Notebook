@@ -330,18 +330,8 @@ struct BookClubPacketDetailView: View {
         touch()
     }
 
-    /// Where the PDF is now, resolved afresh for deleting, as it always was.
-    private func resolvedURL() -> URL? {
-        BookClubFileStorage.resolveURL(
-            bookmark: packet.packetPDFBookmark,
-            relativePath: packet.packetPDFRelativePath
-        )
-    }
-
     private func deletePacket() {
-        if let url = resolvedURL() {
-            try? BookClubFileStorage.deleteIfManaged(url)
-        }
+        LibraryFileStorage.deleteFile(of: packet)
         viewContext.delete(packet)
         dependencies.saveCoordinator.save(viewContext, reason: "Delete packet")
         onDelete()

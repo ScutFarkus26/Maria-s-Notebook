@@ -173,12 +173,6 @@ private struct CannedInsightsClient: MCPClientProtocol {
         messages: [[String: String]], systemMessage: String?, temperature: Double,
         maxTokens: Int, timeout: TimeInterval?
     ) async throws -> String { "" }
-    // swiftlint:disable:next function_parameter_count
-    func streamConversation(
-        messages: [[String: String]], systemMessage: String?, temperature: Double,
-        maxTokens: Int, timeout: TimeInterval?,
-        onText: @escaping @MainActor @Sendable (String) -> Void
-    ) async throws -> String { "" }
 }
 
 @Suite("Insights reads group observations 2026-10-10")

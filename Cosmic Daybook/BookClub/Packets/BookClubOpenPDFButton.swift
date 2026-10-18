@@ -38,7 +38,7 @@ struct BookClubOpenPDFButton: View {
         packetFile.url(
             bookmark: packet.packetPDFBookmark,
             relativePath: packet.packetPDFRelativePath,
-            resolve: BookClubFileStorage.resolveURL
+            resolve: LibraryFileStorage.packets.resolveURL
         )
     }
 
@@ -46,10 +46,7 @@ struct BookClubOpenPDFButton: View {
     /// have to download; see `UbiquitousFile`): in Quick Look on iPhone and
     /// iPad, where `UIApplication.open` can't open a file.
     private func openPDF() {
-        guard let url = BookClubFileStorage.resolveURL(
-            bookmark: packet.packetPDFBookmark,
-            relativePath: packet.packetPDFRelativePath
-        ) else { return }
+        guard let url = LibraryFileStorage.url(for: packet) else { return }
         Task {
             #if os(macOS)
             let url = await UbiquitousFile.localURL(for: url)

@@ -1,7 +1,14 @@
 import SwiftUI
 import CoreData
 
+/// Every child's meetings by day, newest first, with filters. Shown as the
+/// Meetings screen's History view (`MeetingsWorkflowView`), and still under
+/// Logs until that screen is retired.
 struct MeetingsLogView: View {
+    /// The host screen's search text, when it has a search field of its own
+    /// (Meetings does); nil gives this view its own.
+    var embeddedSearchText: String?
+
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
     @Environment(\.calendar) private var calendar
@@ -30,6 +37,10 @@ struct MeetingsLogView: View {
     @State private var selectedCompletion: CompletionFilter = .all
     @State private var searchText: String = ""
     @State private var selectedAgeRanges: Set<AgeRange> = []
+
+    private var effectiveSearchText: String {
+        embeddedSearchText ?? searchText
+    }
 
     enum CompletionFilter: String, CaseIterable, Identifiable {
         case all = "All"
@@ -72,8 +83,8 @@ struct MeetingsLogView: View {
             }
 
             // Search filter (search student name, focus, or reflection)
-            if !searchText.isEmpty {
-                let query = searchText.lowercased()
+            if !effectiveSearchText.isEmpty {
+                let query = effectiveSearchText.lowercased()
                 var matches = false
 
                 if let studentID = meeting.studentIDUUID,
@@ -143,6 +154,14 @@ struct MeetingsLogView: View {
     // MARK: - Body
 
     var body: some View {
+        if embeddedSearchText == nil {
+            content.searchable(text: $searchText)
+        } else {
+            content
+        }
+    }
+
+    private var content: some View {
         VStack(spacing: 8) {
             filterBar
 
@@ -173,7 +192,6 @@ struct MeetingsLogView: View {
                 }
             }
         }
-        .searchable(text: $searchText)
     }
 
     // MARK: - Row
