@@ -207,7 +207,7 @@ Read the plan usage (`get_usage`) and note the weekly % used next to the phase u
 
 ## Open questions
 
-- **Three Assistant tests fail on weekends.** `AssistantParentLockerTests` builds its class on today's date; on a Saturday or Sunday the day is off, so the ParentLocker offers are hidden and three expectations fail, on main as well. Not a bug in the app; the tests need a fixed weekday.
+- **Three Assistant tests failed on weekends** — fixed after the run in bcc3ffb1 (2026-10-18): the attendance view model takes a fixed "now" in tests, and the whole Assistant suite passes 365 of 365 on a Saturday and a Sunday clock.
 - **Reminders synced on two devices keep two copies (#13).** Each device files reminders under its own ids, so the notebook holds one hidden copy per device; nothing shows twice, but the rows pile up and a list deleted and recreated leaves its old rows. A fix that shares one row across devices was built and backed out (review b): it needs every device on the same build at once and new rules for who may delete a shared row. Worth doing only if Reminders sync is on more than one device. [Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Tell%20Claude%20whether%20Reminders%20sync%20is%20on%20in%20Cosmic%20Daybook%20on%20more%20than%20one%20of%20my%20devices)
 
 ## Device checks
