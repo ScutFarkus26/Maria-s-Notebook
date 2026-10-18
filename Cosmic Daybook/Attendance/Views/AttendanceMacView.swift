@@ -11,14 +11,6 @@ struct AttendanceMacView: View {
     @Environment(RestoreCoordinator.self) private var restoreCoordinator
     @Environment(\.dependencies) private var dependencies
 
-    // Active on the selected day, not enrolled-only: browsing a past date shows the
-    // roster as it was then, so former students' attendance stays visible and editable.
-    private var students: [CDStudent] {
-        let day = AppCalendar.startOfDay(selectedDate)
-        let nextDay = AppCalendar.shared.date(byAdding: .day, value: 1, to: day) ?? day
-        return dependencies.roster.all.filterActive(in: DateRange(start: day, end: nextDay))
-    }
-
     @State private var selectedDate: Date = AppCalendar.startOfDay(Date())
     /// The school day that stood for today when the screen last looked; see
     /// `AttendanceDayRollover`.
@@ -84,7 +76,7 @@ struct AttendanceMacView: View {
             Divider()
 
             AttendanceInsightsSidebar(
-                students: students,
+                roster: dependencies.roster.all,
                 referenceDate: selectedDate,
                 reloadToken: reloadToken,
                 month: AttendanceSidebarMonth(

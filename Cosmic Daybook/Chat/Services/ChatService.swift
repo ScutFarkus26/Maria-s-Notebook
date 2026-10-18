@@ -78,14 +78,26 @@ final class ChatService {
         // and cite into this answer's own list, whatever another chat window
         // is answering meanwhile.
         let tools = ChatToolContext(modelContext)
-        let fullResponse = try await mcpClient.streamChat(
-            messages: apiMessages,
-            systemMessage: systemMessage,
-            temperature: 0.7,
-            maxTokens: 2048,
-            tools: tools,
-            onText: onText
-        )
+        let fullResponse: String
+        do {
+            fullResponse = try await mcpClient.streamChat(
+                messages: apiMessages,
+                systemMessage: systemMessage,
+                temperature: 0.7,
+                maxTokens: 2048,
+                tools: tools,
+                onText: onText
+            )
+        } catch {
+            // A tool saved something (a meeting, a follow-up) before the
+            // answer failed. Putting the question back to be sent again would
+            // file it twice, so the exchange stays, and the reply says what
+            // was recorded (bug hunt 2026-10-17 #9).
+            guard !(error is CancellationError), !Task.isCancelled,
+                  let recorded = tools.unfinishedAnswerMessage else { throw error }
+            Self.logger.warning("Chat answer failed after a notebook write: \(error)")
+            fullResponse = recorded
+        }
         let sources = await tools.sources.consume()
 
         // Add the complete assistant response to session

@@ -175,11 +175,13 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         .onPresentationDataChange(of: ["WorkModel", "Student"], in: viewContext) { _ in
             reloadWorkSummary()
         }
-        .onReceive(
-            NotificationCenter.default.publisher(for: .NSManagedObjectContextObjectsDidChange, object: viewContext)
-                .filter { !ManagedObjectChangeScope.touched(["PracticeSession"], in: $0.userInfo).isEmpty }
-                .receive(on: DispatchQueue.main)
-        ) { _ in
+        // Another context's save too: a session logged elsewhere that newly
+        // names this presentation's work or children reaches this context only if it was registered here.
+        // Only while on screen, and once per burst; the `.task` above reloads on return.
+        .onReceiveWhenVisible(
+            CoordinatorChangeSignal.coalescedChanges(of: ["PracticeSession"], in: viewContext),
+            catchUpOnAppear: false
+        ) {
             reloadWorkSummary()
         }
     }

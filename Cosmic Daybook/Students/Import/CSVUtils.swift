@@ -4,6 +4,10 @@ public struct CSVData: Identifiable {
     public let id = UUID()
     public let headers: [String]
     public let rows: [[String]]
+    /// Each row's place among the file's records, counting from 1, when
+    /// records were left out (`parse(data:headerRow:)` drops blank ones);
+    /// nil when the rows follow the header record by record.
+    var recordNumbers: [Int]?
 }
 
 public enum CSVParser {
@@ -143,15 +147,29 @@ public enum CSVParser {
     /// turned a real header row into a row of data (a student named "First
     /// Name Last Name"). Blank cells are named "Column N" and a repeated name
     /// gets " 2", " 3", so every column can still be picked.
+    ///
+    /// Blank records (an empty line, or a spreadsheet's empty row of commas)
+    /// are dropped first: a blank first line used to be the record tested as
+    /// the header, so the real header row was read as data (bug hunt
+    /// 2026-10-17, #43). Each row keeps its record number for warnings.
     static func parse(data: Data, headerRow isHeaderRow: ([String]) -> Bool) -> CSVData? {
         guard let string = text(of: data) else { return nil }
         let content = normalized(string)
-        let rows = CSVRecordScanner.records(in: content) ?? characterRecords(in: content)
-        guard let first = rows.first, isHeaderRow(first) else { return table(from: rows) }
+        let records = CSVRecordScanner.records(in: content) ?? characterRecords(in: content)
+        let kept = records.indices.filter { index in records[index].contains { !$0.trimmed().isEmpty } }
+        let rows = kept.map { records[$0] }
+        let numbers = kept.map { $0 + 1 }
+        guard let first = rows.first, isHeaderRow(first) else {
+            guard var table = table(from: rows) else { return nil }
+            table.recordNumbers = Array(numbers.suffix(table.rows.count))
+            return table
+        }
         let headers = uniqueHeaders(first)
-        return CSVData(headers: headers, rows: rows.dropFirst().map { row in
+        var table = CSVData(headers: headers, rows: rows.dropFirst().map { row in
             row + Array(repeating: "", count: max(0, headers.count - row.count))
         })
+        table.recordNumbers = Array(numbers.dropFirst())
+        return table
     }
 
     /// The header cells trimmed, blanks named by position, repeats numbered.

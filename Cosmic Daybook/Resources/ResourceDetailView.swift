@@ -29,6 +29,11 @@ struct ResourceDetailView: View {
     @State private var pdfPage: PDFPage?
     /// The resource's file as the toolbar menu draws it (see `resolvedFileURL`).
     @State private var drawnFile = DocumentFileURLMemo()
+    /// The file once it is on this device, for Share: an iCloud file still
+    /// downloading isn't offered to another app (see `loadPDF`).
+    @State private var downloadedFileURL: URL?
+    /// True until `loadPDF` has fetched the file, or given up.
+    @State private var isFetchingFile = true
 
     private static let logger = Logger.resources
 
@@ -119,9 +124,16 @@ struct ResourceDetailView: View {
                             Label("Open PDF", systemImage: "arrow.up.forward.square")
                         }
 
-                        if let fileURL = resolvedFileURL {
-                            ShareLink(item: fileURL) {
-                                Label("Share", systemImage: "square.and.arrow.up")
+                        if resolvedFileURL != nil {
+                            if let downloadedFileURL {
+                                ShareLink(item: downloadedFileURL) {
+                                    Label("Share", systemImage: "square.and.arrow.up")
+                                }
+                            } else if isFetchingFile {
+                                Button {} label: {
+                                    Label("Share (Downloading from iCloud…)", systemImage: "icloud.and.arrow.down")
+                                }
+                                .disabled(true)
                             }
 
                             Button {
@@ -429,12 +441,17 @@ struct ResourceDetailView: View {
     // MARK: - Actions
 
     /// Draws the first page once the file is on this device (an iCloud file
-    /// may still have to download; see `UbiquitousFile`).
+    /// may still have to download; see `UbiquitousFile`), and offers Share
+    /// from then on.
     private func loadPDF() async {
+        defer { isFetchingFile = false }
         guard !resource.fileRelativePath.isEmpty else { return }
         do {
             let stored = try ResourceFileStorage.resolve(relativePath: resource.fileRelativePath)
             let url = await UbiquitousFile.localURL(for: stored)
+            if FileManager.default.fileExists(atPath: url.path), !UbiquitousFile.needsDownload(url) {
+                downloadedFileURL = url
+            }
             if let document = PDFDocument(url: url) {
                 pdfPage = document.page(at: 0)
             }

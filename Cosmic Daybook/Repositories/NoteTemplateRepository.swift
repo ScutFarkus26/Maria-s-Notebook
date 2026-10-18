@@ -27,11 +27,12 @@ struct NoteTemplateRepository: SavingRepository {
 
     // MARK: - Delete
 
-    /// Delete a NoteTemplate by ID (only custom templates can be deleted)
-    func deleteTemplate(id: UUID) throws {
+    /// Deletes a custom NoteTemplate by ID (built-in ones stay). Does not
+    /// save: the caller saves and takes the change back if that fails
+    /// (`SaveCoordinator.saveEdit`; bug hunt 2026-10-17, #42).
+    func removeTemplate(id: UUID) {
         guard let template = fetchTemplate(id: id) else { return }
         guard !template.isBuiltIn else { return }
         context.delete(template)
-        try context.save()
     }
 }

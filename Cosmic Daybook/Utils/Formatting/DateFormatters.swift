@@ -190,6 +190,27 @@ nonisolated enum DateFormatters {
         return formatter
     }()
 
+    /// `isoDayPOSIX` made for `timeZone`, which it keeps. The last one made is
+    /// kept, so the usual case (the zone hasn't changed) reuses one formatter.
+    /// The MCP server asks for `AppCalendar.shared.timeZone`, the zone its
+    /// start-of-day reads use (review (b) 2026-10-17, #35).
+    static func isoDayPOSIX(in timeZone: TimeZone) -> DateFormatter {
+        isoDayPOSIXCache.withLock { cached in
+            if let current = cached, current.timeZone.identifier == timeZone.identifier {
+                return current
+            }
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            // A fixed zone, not an autoupdating one, so the formatter keeps it.
+            formatter.timeZone = TimeZone(identifier: timeZone.identifier) ?? timeZone
+            cached = formatter
+            return formatter
+        }
+    }
+
+    private static let isoDayPOSIXCache = Mutex<DateFormatter?>(nil)
+
     /// 24-hour clock time with fixed digits (e.g., "09:30")
     static let time24Hour: DateFormatter = {
         let formatter = DateFormatter()

@@ -128,6 +128,33 @@ enum MeetingScheduler {
         context.safeSave()
     }
 
+    /// Takes a child who is being deleted off every booking that names her,
+    /// without saving. Her own bookings go. A group booking keeps its first
+    /// participant in `studentID`, so the deletion's old sweep by `studentID`
+    /// deleted the whole group's booking when she was first and left her on
+    /// it otherwise (bug hunt 2026-10-17, #39); now a group booking loses her
+    /// by `remove`'s rule, as when her meeting is held: deleted when she was
+    /// the last in it or everyone left has left the class, otherwise kept
+    /// with `studentID` on the first left. She is matched by id, never by
+    /// her student row. Returns how many bookings went and how many lost her.
+    static func removeDeletedStudent(
+        _ studentID: UUID, context: NSManagedObjectContext
+    ) -> (deleted: Int, detached: Int) {
+        let named = CDFetchRequest(CDScheduledMeeting.self)
+        named.predicate = NSPredicate(format: "studentID ==[c] %@", studentID.uuidString)
+        var deleted = 0
+        var detached = 0
+        for booking in context.safeFetch(named) where !booking.isGroupMeeting {
+            context.delete(booking)
+            deleted += 1
+        }
+        for booking in groupBookings(including: studentID, context: context) {
+            remove(studentID, from: booking, context: context)
+            if booking.isDeleted { deleted += 1 } else { detached += 1 }
+        }
+        return (deleted, detached)
+    }
+
     // MARK: - Group Meetings
 
     /// Schedules a sequence meeting for multiple students, optionally linked to a work item.

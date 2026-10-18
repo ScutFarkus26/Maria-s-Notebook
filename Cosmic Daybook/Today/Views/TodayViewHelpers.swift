@@ -101,12 +101,9 @@ extension TodayView {
         viewModel.reload()
 
         // Two-way sync: Update EventKit with the completion change
+        let sync = eventKitSync
         Task<Void, Never> {
-            do {
-                try await dependencies.reminderSync.updateReminderCompletionInEventKit(reminder)
-            } catch {
-                logger.warning("Failed to update reminder in EventKit: \(error)")
-            }
+            await sync.writeBackCompletion(of: reminder)
         }
     }
 

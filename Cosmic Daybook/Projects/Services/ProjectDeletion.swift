@@ -63,7 +63,36 @@ enum ProjectDeletion {
         let roles = allRoles.filter { $0.projectID == clubIDString }
         for r in roles { modelContext.delete(r) }
 
+        deleteTemplateRows(of: club, id: clubIDString, in: modelContext)
+
         // Finally, delete the club itself
         modelContext.delete(club)
+    }
+
+    /// The project's template weeks, the role assignments on them and its
+    /// assignment templates. Nothing writes these any more, but a project
+    /// made before they were retired still has them, and they are the
+    /// project's alone: left behind, every backup carried them (bug hunt
+    /// 2026-10-17, #44).
+    private static func deleteTemplateRows(
+        of club: CDProject, id clubID: String, in context: NSManagedObjectContext
+    ) {
+        let weeks = CDFetchRequest(CDProjectTemplateWeek.self)
+        weeks.predicate = NSPredicate(format: "projectID ==[c] %@", clubID)
+        let doomedWeeks = context.safeFetch(weeks)
+        let weekIDs = Set(doomedWeeks.compactMap { $0.id?.uuidString.lowercased() })
+        let weekObjects = Set(doomedWeeks.map(\.objectID))
+
+        // Few rows, and matched by either link, so in memory.
+        for assignment in context.safeFetch(CDFetchRequest(CDProjectWeekRoleAssignment.self))
+        where weekIDs.contains(assignment.weekID.lowercased())
+            || assignment.week.map({ weekObjects.contains($0.objectID) }) == true {
+            context.delete(assignment)
+        }
+        for week in doomedWeeks { context.delete(week) }
+
+        let templates = CDFetchRequest(CDProjectAssignmentTemplate.self)
+        templates.predicate = NSPredicate(format: "projectID ==[c] %@ OR project == %@", clubID, club)
+        for template in context.safeFetch(templates) { context.delete(template) }
     }
 }

@@ -33,7 +33,9 @@ enum ChecklistBatchActionExecutor {
 
     // MARK: - Batch Mark Presented
 
-    /// Marks selected cells as presented.
+    /// Marks selected cells as presented. Only ever adds: a cell the grid
+    /// drew as not presented may have been given on another device since, and
+    /// a batch mark must not take her off it (bug hunt 2026-10-17 #48).
     static func batchMarkPresented(
         selectedCells: Set<CellIdentifier>,
         students: [CDStudent],
@@ -49,7 +51,7 @@ enum ChecklistBatchActionExecutor {
                   let lesson = lessons.first(where: { $0.id == cell.lessonID }) else { continue }
             let state = matrixStates[cell.studentID]?[cell.lessonID]
             if state?.isPresented != true {
-                togglePresentedNoRecompute(
+                markPresentedNoRecompute(
                     student: student, lesson: lesson, attachment: .today,
                     prefetchedLPs: allLPs, context: context
                 )
@@ -60,7 +62,8 @@ enum ChecklistBatchActionExecutor {
 
     // MARK: - Batch Mark Previously Presented
 
-    /// Marks selected cells as previously presented (undated).
+    /// Marks selected cells as previously presented (undated). Only ever adds,
+    /// as `batchMarkPresented` does.
     static func batchMarkPreviouslyPresented(
         selectedCells: Set<CellIdentifier>,
         students: [CDStudent],
@@ -75,7 +78,7 @@ enum ChecklistBatchActionExecutor {
                   let lesson = lessons.first(where: { $0.id == cell.lessonID }) else { continue }
             let state = matrixStates[cell.studentID]?[cell.lessonID]
             if state?.isPresented != true {
-                togglePresentedNoRecompute(
+                markPresentedNoRecompute(
                     student: student, lesson: lesson, attachment: .undated,
                     prefetchedLPs: allLPs, context: context
                 )
@@ -165,11 +168,13 @@ enum ChecklistBatchActionExecutor {
         }
     }
 
-    /// Toggles one child's "presented" mark for one lesson.
+    /// Puts one child on a presentation of one lesson, unless one already
+    /// names her. Never takes her off one: the cell's own toggle does that,
+    /// and a batch reads the grid as drawn, which may be stale.
     ///
     /// `attachment` is the whole difference between *Presented* and *Previously
     /// Presented* — see `PresentedAttachment`.
-    private static func togglePresentedNoRecompute(
+    private static func markPresentedNoRecompute(
         student: CDStudent, lesson: CDLesson,
         attachment: PresentedAttachment,
         prefetchedLPs: [CDLessonPresentation],
@@ -182,25 +187,17 @@ enum ChecklistBatchActionExecutor {
         laRequest.predicate = NSPredicate(format: "lessonID == %@", lessonIDString as CVarArg)
         let allLAs = context.safeFetch(laRequest)
 
-        if let existing = allLAs.first(where: {
-            $0.isPresented && $0.studentIDs.contains(studentIDString)
-        }) {
-            // Unmark Presented, as the cell's own toggle does: never a mastery mark.
-            ChecklistRosterRemoval.remove(studentIDString, from: existing, in: context)
-            ChecklistRosterRemoval.deleteToggleHistory(
-                studentID: studentIDString, lessonID: lessonIDString,
-                unmarked: existing, among: allLAs, in: context
-            )
-        } else {
-            addStudentToPresentedLesson(
-                student: student, lesson: lesson,
-                in: allLAs, attachment: attachment, context: context
-            )
-            upsertLessonPresentation(
-                studentID: studentIDString, lessonID: lessonIDString,
-                state: .presented, from: prefetchedLPs, context: context
-            )
+        guard !allLAs.contains(where: { $0.isPresented && $0.studentIDs.contains(studentIDString) }) else {
+            return
         }
+        addStudentToPresentedLesson(
+            student: student, lesson: lesson,
+            in: allLAs, attachment: attachment, context: context
+        )
+        upsertLessonPresentation(
+            studentID: studentIDString, lessonID: lessonIDString,
+            state: .presented, from: prefetchedLPs, context: context
+        )
     }
 
     private static func markCompleteNoRecompute(

@@ -36,7 +36,12 @@ protocol TemplateManaging {
 
     static func seedIfNeeded(in context: NSManagedObjectContext)
     static func activate(_ template: Template, in context: NSManagedObjectContext)
-    static func delete(_ template: Template, in context: NSManagedObjectContext)
+    /// Deletes `template` and saves. False when that failed, with the
+    /// template still there.
+    @discardableResult
+    static func delete(
+        _ template: Template, in context: NSManagedObjectContext, saveCoordinator: SaveCoordinator
+    ) -> Bool
 
     @ViewBuilder static func editorSheet(for template: Template?) -> EditorSheet
     @ViewBuilder static func previewSheet(
@@ -58,12 +63,14 @@ extension TemplateManaging {
 
 struct TemplateManagementView<Adapter: TemplateManaging>: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(SaveCoordinator.self) private var saveCoordinator
     @FetchRequest private var templates: FetchedResults<Adapter.Template>
 
     @State private var showingAddSheet = false
     @State private var editingTemplate: Adapter.Template?
     @State private var previewingTemplate: Adapter.Template?
     @State private var templatePendingDelete: Adapter.Template?
+    @State private var showingDeleteFailure = false
 
     init() {
         _templates = FetchRequest(sortDescriptors: Adapter.sortDescriptors)
@@ -109,6 +116,11 @@ struct TemplateManagementView<Adapter: TemplateManaging>: View {
             }
         } message: { _ in
             Text("This can't be undone.")
+        }
+        .alert(SettingsCopy.TemplateManagement.deleteFailedTitle, isPresented: $showingDeleteFailure) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(SettingsCopy.TemplateManagement.deleteFailed)
         }
         .sheet(isPresented: $showingAddSheet) {
             Adapter.editorSheet(for: nil)
@@ -217,10 +229,13 @@ struct TemplateManagementView<Adapter: TemplateManaging>: View {
         }
     }
 
+    /// A delete that couldn't be saved is taken back and said so; it used
+    /// to look done and stay pending (bug hunt 2026-10-17, #42).
     private func deleteTemplate(_ template: Adapter.Template) {
-        adaptiveWithAnimation {
-            Adapter.delete(template, in: viewContext)
+        let deleted = adaptiveWithAnimation {
+            Adapter.delete(template, in: viewContext, saveCoordinator: saveCoordinator)
         }
+        if !deleted { showingDeleteFailure = true }
     }
 }
 

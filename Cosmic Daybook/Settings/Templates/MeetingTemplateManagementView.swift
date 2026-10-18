@@ -36,14 +36,16 @@ enum MeetingTemplateManaging: TemplateManaging {
         }
     }
 
-    static func delete(_ template: CDMeetingTemplate, in context: NSManagedObjectContext) {
-        do {
-            if let templateID = template.id {
-                try MeetingTemplateRepository(context: context).deleteTemplate(id: templateID)
-            }
-        } catch {
-            logger.warning("Failed to delete meeting template: \(error, privacy: .public)")
+    @discardableResult
+    static func delete(
+        _ template: CDMeetingTemplate, in context: NSManagedObjectContext, saveCoordinator: SaveCoordinator
+    ) -> Bool {
+        guard let templateID = template.id else { return true }
+        let deleted = saveCoordinator.saveEdit(in: context, reason: "Delete meeting template") {
+            MeetingTemplateRepository(context: context).removeTemplate(id: templateID)
         }
+        if !deleted { logger.warning("Couldn't save a meeting template's deletion; it was taken back") }
+        return deleted
     }
 
     static func editorSheet(for template: CDMeetingTemplate?) -> some View {

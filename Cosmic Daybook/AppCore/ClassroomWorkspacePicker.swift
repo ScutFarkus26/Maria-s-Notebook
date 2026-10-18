@@ -3,12 +3,15 @@ import SwiftUI
 /// Compact app-wide classroom switcher used in the main toolbar.
 struct ClassroomWorkspacePicker: View {
     let workspaceStore: ClassroomWorkspaceStore
+    /// Switches to the chosen classroom, asking first while something is open
+    /// that the switch would lose (`RootView.requestClassroomSwitch`).
+    let choose: (ClassroomWorkspace) -> Void
 
     var body: some View {
         Menu {
             ForEach(ClassroomWorkspace.allCases) { workspace in
                 Button {
-                    Task { await workspaceStore.select(workspace) }
+                    choose(workspace)
                 } label: {
                     if workspaceStore.selection == workspace {
                         Label(workspace.displayName, systemImage: "checkmark")
@@ -38,6 +41,8 @@ struct MobileClassroomAndYearPicker: View {
     @Environment(\.dependencies) private var dependencies
     let workspaceStore: ClassroomWorkspaceStore
     var showsContextLabel = false
+    /// As `ClassroomWorkspacePicker.choose`.
+    let choose: (ClassroomWorkspace) -> Void
 
     private var yearStore: SchoolYearStore { dependencies.schoolYearStore }
 
@@ -46,7 +51,7 @@ struct MobileClassroomAndYearPicker: View {
             Section("Classroom") {
                 ForEach(ClassroomWorkspace.allCases) { workspace in
                     Button {
-                        Task { await workspaceStore.select(workspace) }
+                        choose(workspace)
                     } label: {
                         selectionLabel(
                             workspace.displayName,
@@ -148,7 +153,9 @@ struct MobileClassroomAndYearPicker: View {
 /// prominent than a toolbar title so a guide cannot mistake practice records
 /// for the real classroom during a busy work cycle.
 struct SampleClassroomBanner: View {
-    let workspaceStore: ClassroomWorkspaceStore
+    /// Goes back to My Class, asking first while something is open that the
+    /// switch would lose.
+    let returnToMyClass: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -170,9 +177,7 @@ struct SampleClassroomBanner: View {
 
             Spacer(minLength: 0)
 
-            Button("Return to My Class") {
-                Task { await workspaceStore.select(.myClass) }
-            }
+            Button("Return to My Class", action: returnToMyClass)
             .buttonStyle(.bordered)
             .controlSize(.small)
             .fixedSize()

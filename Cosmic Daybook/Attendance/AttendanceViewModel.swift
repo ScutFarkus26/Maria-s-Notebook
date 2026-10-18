@@ -179,9 +179,10 @@ final class AttendanceViewModel {
         changed([record])
     }
 
-    /// "Welcome back" when a child back after days away is marked in.
+    /// "Welcome back" when a child back after days away is marked in. Left
+    /// Early isn't coming in, so it gets none (bug hunt 2026-10-17 review, At #7).
     private func welcomeBack(_ row: AttendanceRow, to status: AttendanceStatus) {
-        let comesIn = status == .present || status == .tardy || status == .leftEarly
+        let comesIn = status == .present || status == .tardy
         guard row.daysAway != nil, !row.isHere, comesIn else { return }
         welcome = Welcome(name: row.shortName)
     }

@@ -96,7 +96,8 @@ struct TodayAppearanceGateTests {
         }
 
         #expect(before.readyForNextBuildCount == 5)
-        #expect(before.derivedCountsBuildCount == 5)
+        // The first reload's own count, then the five forced ones.
+        #expect(before.derivedCountsBuildCount == 6)
         #expect(after.readyForNextBuildCount == 1)
         #expect(after.derivedCountsBuildCount == 1)
         #expect(after.needsLessonCount == before.needsLessonCount)
@@ -147,10 +148,11 @@ struct TodayAppearanceGateTests {
         await viewModel.readyForNextSettled()
         #expect(viewModel.readyForNext == freshQueue(context))
 
-        // An unsaved edit in the same turn is seen too.
+        // An unsaved edit in the same turn is seen too: by the reload's own
+        // count, and again by the appearance's while it is still unsaved.
         fixture.noa.enrollmentStatus = .withdrawn
         appear(viewModel)
-        #expect(viewModel.derivedCountsBuildCount == 4)
+        #expect(viewModel.derivedCountsBuildCount == 5)
         #expect(viewModel.needsLessonCount == oldNeedsLessonCount(in: context))
         await viewModel.readyForNextSettled()
         #expect(viewModel.readyForNext == freshQueue(context))

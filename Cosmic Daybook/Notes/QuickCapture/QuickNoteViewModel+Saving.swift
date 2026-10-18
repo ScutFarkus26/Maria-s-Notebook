@@ -41,9 +41,17 @@ extension QuickNoteViewModel {
 
     // MARK: - Saving
 
-    /// Whether closing the sheet now would throw away something she made.
+    /// Whether closing the sheet now would throw away something she made. A
+    /// photo still loading counts, so closing goes through Discard, which
+    /// deletes the photo when it lands.
     var hasUnsavedContent: Bool {
-        !didSave && (!bodyText.trimmed().isEmpty || attachedImagePath != nil)
+        !didSave && (!bodyText.trimmed().isEmpty || attachedImagePath != nil || isLoadingPhoto)
+    }
+
+    /// Whether Save is on: there is text, and no picked photo is still on its
+    /// way (it would miss the note).
+    var canSave: Bool {
+        !bodyText.trimmed().isEmpty && !isLoadingPhoto
     }
 
     /// Saves the note, its student links and its photo, then tells the
@@ -57,7 +65,7 @@ extension QuickNoteViewModel {
     @discardableResult
     func saveNote(viewContext: NSManagedObjectContext, saveCoordinator: SaveCoordinator) -> Bool {
         let trimmed = bodyText.trimmed()
-        guard !trimmed.isEmpty, !didSave else { return false }
+        guard !trimmed.isEmpty, !didSave, !isLoadingPhoto else { return false }
 
         let scope: NoteScope
         if selectedStudentIDs.count == 1, let firstID = selectedStudentIDs.first {
@@ -111,10 +119,12 @@ extension QuickNoteViewModel {
     static let notSavedMessage = "Couldn't save this note. Your text is still here, so try again."
 
     /// Deletes a photo she attached but didn't save with a note, when she
-    /// discards the note. A saved note keeps its photo.
+    /// discards the note. A saved note keeps its photo. A photo still loading
+    /// is no longer the picked one, so it is deleted when it lands.
     func discardUnsavedPhoto() {
         guard !didSave else { return }
         selectedPhotoItem = nil
+        loadingPhotoItem = nil
         removeAttachedPhoto()
     }
 }

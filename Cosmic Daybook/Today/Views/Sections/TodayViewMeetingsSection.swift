@@ -134,11 +134,12 @@ extension TodayView {
         openLessonPlan(at: url)
     }
 
+    /// The bookmarked plan. Access isn't started here: `openLessonPlan` holds
+    /// it while the plan is open (it used to start on every tap and never
+    /// stop; review of the 2026-10-17 fixes, a2 #7).
     private func resolveLessonPlanBookmark(_ bookmark: Data) -> URL? {
         do {
-            let url = try SecurityScopedBookmark.resolve(bookmark).url
-            _ = url.startAccessingSecurityScopedResource()
-            return url
+            return try SecurityScopedBookmark.resolve(bookmark).url
         } catch {
             Logger.app_.warning("Failed to resolve lesson plan bookmark: \(error.localizedDescription)")
             return nil
@@ -146,14 +147,22 @@ extension TodayView {
     }
 
     /// Opens the plan once its file is on this device (an iCloud file may
-    /// still have to download; see `UbiquitousFile`).
+    /// still have to download; see `UbiquitousFile`). On iPhone and iPad,
+    /// where `UIApplication.open` can't open a file, a Pages plan goes to the
+    /// share sheet (where Pages offers itself) and any other file to Quick
+    /// Look; `DocumentPresenter` holds access until it closes (#22's last
+    /// button, review a2 #7).
     private func openLessonPlan(at url: URL) {
         Task {
-            let url = await UbiquitousFile.localURL(for: url)
 #if os(iOS)
-            _ = await UIApplication.shared.open(url)
+            let style: DocumentPresenter.Style = url.pathExtension.lowercased() == "pages" ? .share : .preview
+            if let message = await DocumentPresenter.open(url, as: style).message {
+                ToastService.shared.showError(message)
+            }
 #elseif os(macOS)
-            NSWorkspace.shared.open(url)
+            let needsAccess = url.startAccessingSecurityScopedResource()
+            defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
+            NSWorkspace.shared.open(await UbiquitousFile.localURL(for: url))
 #endif
         }
     }

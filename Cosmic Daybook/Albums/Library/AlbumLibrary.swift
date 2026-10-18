@@ -37,6 +37,12 @@ final class AlbumLibrary {
     var shelfError: String?
     /// The download of pending shelf albums in flight (`AlbumLibrary+ICloudShelf`).
     @ObservationIgnored var shelfDownloadTask: Task<Void, Never>?
+    /// The once-a-session clearing of partial copies left on the shelf
+    /// (`sweepShelfOnce`); kept after it finishes so it runs only once.
+    @ObservationIgnored var shelfSweepTask: Task<Void, Never>?
+    /// How old a partial copy on the shelf must be to be cleared; tests
+    /// shorten it.
+    @ObservationIgnored var stalePartialAge: TimeInterval = AlbumICloudShelf.stalePartialAge
     /// Albums whose PDF changed since the user last opened them.
     var updatedAlbumIDs: Set<String> = []
     /// Set after each load; the Albums surface clears it by running
@@ -71,22 +77,52 @@ final class AlbumLibrary {
     /// Every PDF the last load found ready, including one PDFKit couldn't
     /// open, so `refreshIfChanged()` doesn't take that one for a new album on
     /// every activation.
-    @ObservationIgnored private var loadedFileNames: Set<String> = []
+    @ObservationIgnored private(set) var loadedFileNames: Set<String> = []
+    /// Albums kept in iCloud whose copy in a chosen folder is newer than the
+    /// shelf's (the original edited since it was kept), by album id; see
+    /// `newerCopy(for:)`. Set only by a folder scan (`load`, `refreshIfChanged`).
+    var newerCopies: [String: URL] = [:]
+    /// The chosen folders this library started security-scoped access to,
+    /// held until the folder is removed or resolved again. Only `holdAccess`
+    /// (`AlbumLibrary+FolderBookmarks`) touches it.
+    @ObservationIgnored var accessedFolders: [URL] = []
 
     static let bookmarksKey = UserDefaultsKeys.albumsFolderBookmarks
     static let lastSeenKey = UserDefaultsKeys.albumsLastSeenModDates
 
+    /// Where the iCloud shelf is: `AlbumICloudShelf.directory()`, or a scratch
+    /// folder for a test's own library.
+    let shelfDirectory: () -> URL?
+    /// Fetches one shelf album to this device, nil when it couldn't be
+    /// (`AlbumLibrary+ICloudShelf`); tests stand in an offline one.
+    @ObservationIgnored var downloadAlbum: @Sendable (URL) async -> URL? = { url in
+        await UbiquitousFile.ensureLocal(url, timeout: AlbumLibrary.albumDownloadTimeout)
+    }
+    /// Moves a shelf album to the Trash (`removeFromICloud`); tests stand in
+    /// their own.
+    @ObservationIgnored var trashItem: @Sendable (URL) throws -> Void = UbiquitousFile.coordinatedTrash
+    /// Starting and stopping security-scoped access to the chosen folders;
+    /// tests record it.
+    @ObservationIgnored var scopeAccess = ScopeAccess.live
+
     func album(id: String) -> Album? { albums.first { $0.id == id } }
 
     private init() {
+        shelfDirectory = { AlbumICloudShelf.directory() }
         observeMemoryPressure()
+    }
+
+    /// A library of its own, for tests: `shelfDirectory` stands in for the
+    /// iCloud shelf, and memory warnings leave it alone.
+    init(shelfDirectory: @escaping () -> URL?) {
+        self.shelfDirectory = shelfDirectory
     }
 
     // MARK: Folder access
 
     func bootstrap() {
         let bookmarkList = (UserDefaults.standard.array(forKey: Self.bookmarksKey) as? [Data]) ?? []
-        let resolved = bookmarkList.compactMap { resolveBookmark($0) }
+        let resolved = holdAccess(to: bookmarkList.compactMap { resolveFolder($0) })
         let folders = withShelf(resolved)
         if !resolved.isEmpty || folders.count > resolved.count {
             load(from: folders)
@@ -187,8 +223,8 @@ final class AlbumLibrary {
 
     /// Adds a folder to the library (the first chosen folder just loads it).
     func chooseFolder(_ url: URL) {
-        let accessing = url.startAccessingSecurityScopedResource()
-        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+        let accessing = scopeAccess.start(url)
+        defer { if accessing { scopeAccess.stop(url) } }
         do {
             let data = try SecurityScopedBookmark.make(for: url, unscopedOptions: .minimalBookmark)
             var list = (UserDefaults.standard.array(forKey: Self.bookmarksKey) as? [Data]) ?? []
@@ -198,11 +234,12 @@ final class AlbumLibrary {
             // We can still use the folder for this session even if bookmarking failed.
         }
         let bookmarkList = (UserDefaults.standard.array(forKey: Self.bookmarksKey) as? [Data]) ?? []
-        let deduped = Self.dedupedBookmarks(bookmarkList) { resolveBookmark($0) }
-        var resolved = deduped.folders
+        let deduped = Self.dedupedBookmarks(bookmarkList) { resolveFolder($0) }
         UserDefaults.standard.set(deduped.kept, forKey: Self.bookmarksKey)
+        var resolved = holdAccess(to: deduped.folders)
         if resolved.isEmpty {
-            _ = url.startAccessingSecurityScopedResource()
+            // Bookmarking failed: the folder is used for this session only.
+            _ = holdAccess(to: [url])
             resolved = [url]
         }
         load(from: withShelf(resolved))
@@ -211,9 +248,9 @@ final class AlbumLibrary {
     func removeFolder(_ url: URL) {
         let target = url.standardizedFileURL.path
         let bookmarkList = (UserDefaults.standard.array(forKey: Self.bookmarksKey) as? [Data]) ?? []
-        let kept = Self.bookmarks(bookmarkList, removingFolderAt: target) { resolveBookmark($0) }
+        let kept = Self.bookmarks(bookmarkList, removingFolderAt: target) { resolveFolder($0) }
         UserDefaults.standard.set(kept, forKey: Self.bookmarksKey)
-        let resolved = kept.compactMap { resolveBookmark($0) }
+        let resolved = holdAccess(to: kept.compactMap { resolveFolder($0) })
         let folders = withShelf(resolved)
         if resolved.isEmpty, folders.isEmpty {
             albums = []
@@ -222,12 +259,6 @@ final class AlbumLibrary {
         } else {
             load(from: folders)
         }
-    }
-
-    private func resolveBookmark(_ data: Data) -> URL? {
-        guard let url = try? SecurityScopedBookmark.resolve(data).url else { return nil }
-        guard url.startAccessingSecurityScopedResource() else { return nil }
-        return url
     }
 
     // MARK: Loading
@@ -239,26 +270,22 @@ final class AlbumLibrary {
     func load(from folders: [URL]) {
         state = .loading
         folderURLs = folders
-        let shelfPath = AlbumICloudShelf.directory()?.standardizedFileURL.path
+        let shelfPath = shelfDirectory()?.standardizedFileURL.path
         shelfURL = folders.first { $0.standardizedFileURL.path == shelfPath }
-        var pdfURLs: [URL] = []
-        var pending: [URL] = []
-        var seenNames = Set<String>()
-        for folder in folders {
-            let listing = AlbumICloudShelf.listing(of: folder)
-            for url in listing.ready where !seenNames.contains(url.lastPathComponent) {
-                seenNames.insert(url.lastPathComponent)
-                pdfURLs.append(url)
-            }
-            pending += listing.pending
+        if let shelfURL { sweepShelfOnce(shelfURL) }
+        let found = scan(folders)
+        loadedFileNames = found.names
+        newerCopies = found.newerCopies
+        pendingShelfAlbumNames = Set(found.pending.map(\.lastPathComponent))
+        downloadPendingAlbums(found.pending)
+        let pdfURLs = found.ready.sorted {
+            $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending
         }
-        pending.removeAll { seenNames.contains($0.lastPathComponent) }
-        loadedFileNames = seenNames
-        pendingShelfAlbumNames = Set(pending.map(\.lastPathComponent))
-        downloadPendingAlbums(pending)
-        pdfURLs.sort { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
-        if pdfURLs.isEmpty, !pending.isEmpty {
-            // Everything is still on its way from iCloud; the download reloads.
+        if pdfURLs.isEmpty, !found.pending.isEmpty {
+            // Everything is still on its way from iCloud; the download reloads,
+            // or says it couldn't. The last load's albums aren't offered
+            // meanwhile: their files are no longer on this device.
+            albums = []
             return
         }
         guard !pdfURLs.isEmpty else {
@@ -270,27 +297,6 @@ final class AlbumLibrary {
         state = .ready
         needsIdentityRepair = true
         startIndexBuild()
-    }
-
-    /// Re-checks every album file's modification date; if any changed on
-    /// disk, reloads and re-indexes. Called when the app becomes active.
-    func refreshIfChanged() {
-        guard state == .ready, !indexing else { return }
-        let changed = albums.contains { album in
-            let current = (try? album.url.resourceValues(forKeys: [.contentModificationDateKey]))?
-                .contentModificationDate ?? .distantPast
-            let indexed = modDates[album.id] ?? .distantPast
-            return abs(current.timeIntervalSince(indexed)) >= 1
-        }
-        let listings = folderURLs.map(AlbumICloudShelf.listing(of:))
-        let onDisk = Set(listings.flatMap(\.ready).map(\.lastPathComponent))
-        let pending = Set(listings.flatMap(\.pending).map(\.lastPathComponent)).subtracting(onDisk)
-        // A new album on the shelf, or one another device added, joins too.
-        // Compared with every file the load found, not just the albums that
-        // opened: a PDF PDFKit can't open would otherwise look new each time.
-        if changed || loadedFileNames != onDisk || pending != pendingShelfAlbumNames {
-            load(from: folderURLs)
-        }
     }
 
     /// The user opened this album — clear its "updated" badge.

@@ -45,6 +45,9 @@ struct AlbumsLibraryView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
                 }
+                ForEach(albumsWithNewerCopies) { album in
+                    NewerCopyRow(album: album)
+                }
                 LazyVGrid(columns: columns, spacing: 18) {
                     ForEach(library.albums) { album in
                         AlbumCard(album: album, bookmarkCount: bookmarkCounts[album.id] ?? 0)
@@ -120,6 +123,11 @@ struct AlbumsLibraryView: View {
         return context.safeFetch(request)
     }
 
+    /// Albums kept in iCloud whose original in a chosen folder has changed since.
+    private var albumsWithNewerCopies: [Album] {
+        library.albums.filter { library.newerCopy(for: $0) != nil }
+    }
+
     /// Bookmark tallies keyed by album id, built in one pass over the fetch.
     private var bookmarkCounts: [String: Int] {
         bookmarks.reduce(into: [:]) { counts, bookmark in
@@ -181,6 +189,12 @@ private struct AlbumCard: View {
     let album: Album
     let bookmarkCount: Int
     @State private var confirmingRemoval = false
+    /// How this device's chosen folders' copy compares with the one in
+    /// iCloud, checked when Remove from iCloud is chosen: the dialog says
+    /// what will happen.
+    @State private var removal: AlbumICloudShelf.ChosenCopy = .missing
+    @State private var confirmingNewerCopy = false
+    @State private var newerCopyConfirmation = ""
 
     var body: some View {
         Button {
@@ -213,9 +227,18 @@ private struct AlbumCard: View {
             Divider()
             #endif
             if library.isKeptInICloud(album) {
+                if library.newerCopy(for: album) != nil {
+                    Button("Use Newer Copy…", systemImage: "doc.badge.clock") {
+                        newerCopyConfirmation = NewerCopyWording.confirmation(for: album, in: library)
+                        confirmingNewerCopy = true
+                    }
+                    .disabled(library.albumsBeingKept.contains(album.id))
+                }
                 Button("Remove from iCloud…", systemImage: "icloud.slash", role: .destructive) {
+                    removal = library.chosenCopy(of: album)
                     confirmingRemoval = true
                 }
+                .disabled(library.albumsBeingKept.contains(album.id))
             } else {
                 Button("Keep in iCloud", systemImage: "icloud.and.arrow.up") {
                     Task { await library.keepInICloud([album]) }
@@ -228,16 +251,37 @@ private struct AlbumCard: View {
             isPresented: $confirmingRemoval,
             titleVisibility: .visible
         ) {
-            Button("Remove from iCloud", role: .destructive) {
-                Task { await library.removeFromICloud(album) }
+            let deletes = removal.isCurrent
+            Button(deletes ? "Remove from iCloud" : AlbumICloudShelf.moveToTrashTitle, role: .destructive) {
+                Task { await library.removeFromICloud(album, mayDelete: deletes) }
             }
         } message: {
-            Text("It will be deleted from iCloud Drive on every device. Your bookmarks and notes are kept, "
-                + "and a copy in one of your own album folders will take its place.")
+            Text(removalMessage)
         }
+        .useNewerCopyConfirmation(album, isPresented: $confirmingNewerCopy, message: newerCopyConfirmation)
         // Keyed on whether the cover is loaded, so one dropped by a memory trim
         // comes back while the card is still on screen.
         .task(id: album.cover == nil) { library.loadCoverIfNeeded(album) }
+    }
+
+    /// What Remove from iCloud will do, for the dialog: delete it when a copy
+    /// here is as new, otherwise move it to the Trash, saying why.
+    private var removalMessage: String {
+        let trash = AlbumICloudShelf.trashName
+        switch removal {
+        case .current:
+            return "It will be deleted from iCloud Drive on every device. Your bookmarks and notes are kept, "
+                + "and a copy in one of your own album folders will take its place."
+        case .older(let copy):
+            return "The copy in \(copy.deletingLastPathComponent().lastPathComponent) is older than the one "
+                + "in iCloud, so the one in iCloud will be moved to \(trash) rather than deleted, and the older "
+                + "copy will take its place. It leaves iCloud Drive on every device. "
+                + "Your bookmarks and notes are kept."
+        case .missing:
+            return "There's no copy in this device's album folders, so it will be moved to \(trash) "
+                + "rather than deleted. It leaves iCloud Drive on every device. "
+                + "Your bookmarks and notes are kept."
+        }
     }
 
     @ViewBuilder

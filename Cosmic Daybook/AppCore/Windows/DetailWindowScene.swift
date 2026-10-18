@@ -48,6 +48,10 @@ struct DetailWindowScene<Value: Codable & Hashable, Host: View>: Scene {
     private let minimumSize: CGSize
     private let loadingStyle: DetailWindowLoadingStyle
     private let placeholder: DetailWindowPlaceholder
+    /// Whether the window holds typing (an observation, a topic, a meeting or
+    /// report), so a classroom switch asks before closing it. Every detail
+    /// window closes on a switch either way.
+    private let countsAsEditor: Bool
     private let host: (Value) -> Host
 
     init(
@@ -58,6 +62,7 @@ struct DetailWindowScene<Value: Codable & Hashable, Host: View>: Scene {
         minimumSize: CGSize = CGSize(width: 400, height: 300),
         loadingStyle: DetailWindowLoadingStyle = .stacked,
         placeholder: DetailWindowPlaceholder,
+        countsAsEditor: Bool,
         @ViewBuilder host: @escaping (Value) -> Host
     ) {
         self.id = id
@@ -66,6 +71,7 @@ struct DetailWindowScene<Value: Codable & Hashable, Host: View>: Scene {
         self.minimumSize = minimumSize
         self.loadingStyle = loadingStyle
         self.placeholder = placeholder
+        self.countsAsEditor = countsAsEditor
         self.host = host
     }
 
@@ -75,7 +81,8 @@ struct DetailWindowScene<Value: Codable & Hashable, Host: View>: Scene {
                 DetailWindowGate(
                     dependencies: dependencies,
                     minimumSize: minimumSize,
-                    loadingStyle: loadingStyle
+                    loadingStyle: loadingStyle,
+                    countsAsEditor: countsAsEditor
                 ) {
                     host(value)
                 }
@@ -107,26 +114,92 @@ struct DetailWindowScene<Value: Codable & Hashable, Host: View>: Scene {
 
 /// Shows the loading placeholder until the store is ready, then the host
 /// with the shared environment applied.
+///
+/// A classroom switch closes the window rather than rebuilding it on the other
+/// classroom's records, where its record isn't (bug hunt 2026-10-17 #31). A
+/// window that holds typing counts itself in `OpenDetailWindows` while its
+/// host is on screen, so a switch asks first (`DetailWindowClassroom`).
 private struct DetailWindowGate<Host: View>: View {
     let dependencies: DetailWindowDependencies
     let minimumSize: CGSize
     let loadingStyle: DetailWindowLoadingStyle
     @ViewBuilder let host: () -> Host
 
+    @Environment(\.dismissWindow) private var dismissWindow
+    /// This window's part in a classroom switch.
+    @State private var classroom: DetailWindowClassroom
+
+    init(
+        dependencies: DetailWindowDependencies,
+        minimumSize: CGSize,
+        loadingStyle: DetailWindowLoadingStyle,
+        countsAsEditor: Bool,
+        @ViewBuilder host: @escaping () -> Host
+    ) {
+        self.dependencies = dependencies
+        self.minimumSize = minimumSize
+        self.loadingStyle = loadingStyle
+        self.host = host
+        _classroom = State(initialValue: DetailWindowClassroom(countsAsEditor: countsAsEditor))
+    }
+
     private var isRestoring: Bool { dependencies.restoreCoordinator.isRestoring }
 
+    private var selection: ClassroomWorkspace? {
+        dependencies.notebookOpener.notebook?.classroomWorkspace.selection
+    }
+
     var body: some View {
+        gatedContent
+            .onChange(of: selection) { _, switchedTo in
+                if let switchedTo { classroom.classroomChanged(to: switchedTo) }
+            }
+    }
+
+    @ViewBuilder
+    private var gatedContent: some View {
         if dependencies.bootstrapper.state == .ready, !isRestoring,
            let notebook = dependencies.notebookOpener.notebook {
-            host()
-                .activeClassroomEnvironment(notebook.classroomWorkspace)
-                .environment(\.calendar, AppCalendar.shared)
-                .environment(\.appRouter, dependencies.appRouter)
-                .environment(notebook.saveCoordinator)
-                .environment(dependencies.restoreCoordinator)
+            let workspace = notebook.classroomWorkspace
+            if let openedIn = classroom.openedIn, classroom.isClosing(showing: workspace.selection) {
+                closingView(openedIn: openedIn, showing: workspace.selection)
+            } else {
+                host()
+                    .activeClassroomEnvironment(workspace)
+                    .environment(\.calendar, AppCalendar.shared)
+                    .environment(\.appRouter, dependencies.appRouter)
+                    .environment(notebook.saveCoordinator)
+                    .environment(dependencies.restoreCoordinator)
+                    .onAppear { classroom.hostAppeared(showing: workspace.selection) }
+                    .onDisappear { classroom.hostDisappeared() }
+            }
         } else {
             loadingView
                 .frame(minWidth: minimumSize.width, minHeight: minimumSize.height)
+        }
+    }
+
+    /// What the window shows once its classroom has been switched away: it
+    /// closes on its own, but one that can't (a sheet still closing in it)
+    /// says why it's empty and offers to close (review c #4).
+    private func closingView(openedIn: ClassroomWorkspace, showing current: ClassroomWorkspace) -> some View {
+        ContentUnavailableView {
+            Label("This Window Was for \(openedIn.displayName)", systemImage: openedIn.systemImage)
+        } description: {
+            Text("You switched to \(current.displayName).")
+        } actions: {
+            Button("Close Window") { dismissWindow() }
+        }
+        .frame(minWidth: minimumSize.width, minHeight: minimumSize.height)
+        // On the next turn, once the host has gone, and with it anything that
+        // held the window open (a topic with unsaved edits disables closing).
+        // A sheet the host had up may still be closing, so it tries once more.
+        .task {
+            await Task.yield()
+            dismissWindow()
+            try? await Task.sleep(for: .milliseconds(600))
+            guard !Task.isCancelled else { return }
+            dismissWindow()
         }
     }
 

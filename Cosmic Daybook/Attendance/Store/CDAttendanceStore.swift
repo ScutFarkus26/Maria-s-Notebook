@@ -94,9 +94,16 @@ struct CDAttendanceStore { // swiftlint:disable:this type_body_length
     /// marker goes with it (`markUnmarkedAbsent` sets it again after): left
     /// on a record, a later plain Absent would read as arrival closed on
     /// every device (`arrivalClosed`).
+    ///
+    /// A reason belongs to one absence. Leaving Absent clears it (the
+    /// `status` setter does), and a new absence starts without one: a row a
+    /// backup restore or an import wrote field by field can hold a present
+    /// mark with an old reason, which a later plain Absent showed on the
+    /// tile, the log and ParentLocker (bug hunt 2026-10-17, #5). A reason
+    /// for this absence comes after (`updateAbsenceReason`).
     private func mark(_ record: CDAttendanceRecord, as status: AttendanceStatus, at now: Date) {
         let previous = record.status
-        if record.absenceReasonRaw == AttendanceDeduplication.automaticAbsenceRaw {
+        if previous != .absent || record.absenceReasonRaw == AttendanceDeduplication.automaticAbsenceRaw {
             record.absenceReason = .none
         }
         record.status = status
@@ -387,11 +394,15 @@ struct CDAttendanceStore { // swiftlint:disable:this type_body_length
 
     #if !ASSISTANT_APP
 
-    /// Deletes a record, unless this role can't write or its day is locked.
+    /// Deletes a record and the day's other copies for its child (CloudKit
+    /// duplicates), unless this role can't write or the day is locked.
+    /// Deleting only the row the log showed left another device's copy,
+    /// whose mark came straight back on the grid (bug hunt 2026-10-17, #2).
     /// Returns whether it did. The caller saves.
     @discardableResult
     func delete(_ record: CDAttendanceRecord) -> Bool {
         guard canWrite(on: record.date) else { return false }
+        for copy in otherCopies(of: record) { context.delete(copy) }
         context.delete(record)
         return true
     }

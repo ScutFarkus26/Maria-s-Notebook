@@ -69,7 +69,9 @@ struct AttendanceSidebarMonth {
 }
 
 struct AttendanceInsightsSidebar: View {
-    let students: [CDStudent]
+    /// The whole roster; each timeframe counts the children in it
+    /// (`AttendanceInsightsService.insightStudents`).
+    let roster: [CDStudent]
     let referenceDate: Date
     let reloadToken: Int
     let month: AttendanceSidebarMonth
@@ -77,6 +79,7 @@ struct AttendanceInsightsSidebar: View {
     let onSelectDate: (Date) -> Void
 
     @Environment(\.managedObjectContext) private var viewContext
+    @TestStudentVisibility private var testStudents
     @State private var timeframe: AttendanceInsightsTimeframe = .last30
     @State private var summary: AttendanceClassSummary = .init()
     @State private var priorSummary: AttendanceClassSummary = .init()
@@ -117,7 +120,10 @@ struct AttendanceInsightsSidebar: View {
         // One read per change of what it shows: the window, the day, or
         // the roll after marks (each used to be its own reload, and a new
         // day came with a token bump too, so it read twice).
-        .task(id: ReloadKey(timeframe: timeframe, referenceDate: referenceDate, token: reloadToken)) {
+        .task(id: ReloadKey(
+            timeframe: timeframe, referenceDate: referenceDate, token: reloadToken,
+            showTestStudents: testStudents.show, testStudentNames: testStudents.namesRaw
+        )) {
             reloadAll()
         }
     }
@@ -149,6 +155,8 @@ struct AttendanceInsightsSidebar: View {
         let timeframe: AttendanceInsightsTimeframe
         let referenceDate: Date
         let token: Int
+        let showTestStudents: Bool
+        let testStudentNames: String
     }
 
     private func reloadAll() {
@@ -158,7 +166,10 @@ struct AttendanceInsightsSidebar: View {
         let insights = AttendanceInsightsService.sidebarInsights(
             range: range,
             priorRange: priorRange,
-            students: students,
+            students: AttendanceInsightsService.insightStudents(
+                from: roster, range: range, priorRange: priorRange,
+                show: testStudents.show, namesRaw: testStudents.namesRaw
+            ),
             context: viewContext
         )
         summary = insights.summary

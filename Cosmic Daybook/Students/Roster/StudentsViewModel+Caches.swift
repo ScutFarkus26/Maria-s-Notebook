@@ -229,10 +229,7 @@ extension StudentsViewModel {
             since cutoff: Date,
             in context: NSManagedObjectContext
         ) -> [PresentedAssignment] {
-            let predicate = NSPredicate(
-                format: "createdAt >= %@ AND stateRaw == %@",
-                cutoff as CVarArg, LessonAssignmentState.presented.rawValue
-            )
+            let predicate = StudentsViewModel.presentedInWindowPredicate(since: cutoff)
             // A dictionary-result fetch can't see unsaved inserts, so a dirty
             // context still takes the object path — the answer has to be identical.
             if !context.hasChanges, let rows = dictionaryRows(matching: predicate, in: context) {
@@ -279,29 +276,42 @@ extension StudentsViewModel {
         }
     }
 
+    /// Presented assignments given since `cutoff`: windowed on the date the
+    /// lesson was given, as each row is dated, or on `createdAt` for a row
+    /// without one. Windowing on `createdAt` alone dropped a lesson drafted
+    /// over a year ago and given this week (bug hunt 2026-10-17 review, St #44).
+    /// Today's window floor (`TodayViewModel.presentedWindowFloor`) reads it too.
+    nonisolated static func presentedInWindowPredicate(since cutoff: Date) -> NSPredicate {
+        NSPredicate(
+            format: "stateRaw == %@ AND (presentedAt >= %@ OR (presentedAt == nil AND createdAt >= %@))",
+            LessonAssignmentState.presented.rawValue, cutoff as CVarArg, cutoff as CVarArg
+        )
+    }
+
+    /// Each child's last given lesson: the latest presented assignment of the
+    /// last year that names her, Parsha lessons aside. The roster's lesson
+    /// age and the record's "School Days Since Last Lesson"
+    /// (`DaysSinceLastLessonView`) both read it, so they agree about a child;
+    /// the record kept a rule of its own (any row with a presentation date,
+    /// no one-year window, a Parsha lesson left out only when its area was
+    /// typed exactly), and the two could disagree (bug hunt 2026-10-17, #44).
+    static func lastLessonDates(in viewContext: NSManagedObjectContext, calendar: Calendar) -> [UUID: Date] {
+        let context = LessonQueryContext(viewContext: viewContext, calendar: calendar)
+        var lastDateByStudent: [UUID: Date] = [:]
+        for assignment in context.presentedAssignments {
+            for sid in assignment.studentIDs where (lastDateByStudent[sid] ?? .distantPast) < assignment.when {
+                lastDateByStudent[sid] = assignment.when
+            }
+        }
+        return lastDateByStudent
+    }
+
     func computeDaysSinceLastLessonCache(
         for students: [CDStudent],
         using viewContext: NSManagedObjectContext,
         calendar: Calendar
     ) -> [UUID: Int] {
-        // Build shared query context once
-        let context = LessonQueryContext(viewContext: viewContext, calendar: calendar)
-
-        // Build a map of student ID to most recent lesson date
-        var lastDateByStudent: [UUID: Date] = [:]
-        for assignment in context.presentedAssignments {
-            let when = assignment.when
-            for sid in assignment.studentIDs {
-                // Update if this is the first date or a more recent date
-                if let existing = lastDateByStudent[sid] {
-                    if when > existing {
-                        lastDateByStudent[sid] = when
-                    }
-                } else {
-                    lastDateByStudent[sid] = when
-                }
-            }
-        }
+        let lastDateByStudent = Self.lastLessonDates(in: viewContext, calendar: calendar)
 
         // Compute days since last lesson for each student
         var result: [UUID: Int] = [:]

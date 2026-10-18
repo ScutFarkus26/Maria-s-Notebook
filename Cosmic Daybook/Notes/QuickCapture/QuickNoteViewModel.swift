@@ -35,6 +35,14 @@ class QuickNoteViewModel {
     var selectedPhotoItem: PhotosPickerItem?
     var attachedImage: PlatformImage?
     var attachedImagePath: String?
+    /// The picked photo still being loaded and stored (an iCloud Photos
+    /// original can take seconds). Save waits for it (`canSave`).
+    var loadingPhotoItem: PhotosPickerItem?
+    var isLoadingPhoto: Bool { loadingPhotoItem != nil }
+    /// How long Save waits for a picked photo before giving up on it.
+    var photoLoadLimit: Duration = .seconds(30)
+    /// Shown under the note when a picked photo didn't arrive in time.
+    var photoLoadMessage: String?
 
     // AI & Analysis State
     var detectedCandidateIDs: Set<UUID> = []

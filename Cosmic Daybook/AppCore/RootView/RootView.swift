@@ -30,8 +30,10 @@ struct RootView: View {
     @SceneStorage("RootView.selectedNavItem") private var selectedNavItemRaw: String?
     @SceneStorage("RootView.selectedTab") private var selectedTabRaw: String?
     @Environment(\.managedObjectContext) private var viewContext
-    @Environment(\.appRouter) private var appRouter
+    @Environment(\.appRouter) var appRouter
     @Environment(\.dependencies) var dependencies
+    /// This main window's Handoff target, which this screen takes Handoffs for.
+    @Environment(\.windowHandoff) private var windowHandoff
     #if os(macOS)
     @Environment(\.openWindow) private var openWindow
     #endif
@@ -48,8 +50,6 @@ struct RootView: View {
     @AppStorage(UserDefaultsKeys.quickCaptureButtonVisible)
     private var isQuickCaptureButtonVisible = true
 
-    // Preferences for presentations preloading
-    
     // MARK: - Computed
     /// The section this window opens on: a request made before it existed
     /// first, else the saved selection, migrated by `NavigationSelectionRestorer`
@@ -84,9 +84,11 @@ struct RootView: View {
                 activeSheet = .search
             }
             installQuickCaptureHandlers()
+            windowHandoff?.screenAppeared(quickCaptureActions)
         }
         .onDisappear {
             focusedSearchAction.clearAction()
+            windowHandoff?.screenDisappeared(quickCaptureActions)
         }
         // One object for the window's life, so File > New is not rebuilt on
         // every RootView body pass; the handlers are refilled only when the
@@ -339,7 +341,7 @@ struct RootView: View {
     @ToolbarContentBuilder
     private var rootToolbar: some ToolbarContent {
         ToolbarItem(id: "classroom", placement: .primaryAction) {
-            ClassroomWorkspacePicker(workspaceStore: classroomWorkspace)
+            ClassroomWorkspacePicker(workspaceStore: classroomWorkspace) { requestClassroomSwitch(to: $0) }
         }
 
         // Hidden on Today, never removed: an `if` here would change the item
@@ -407,7 +409,6 @@ struct RootView: View {
             self.appRouter.selectedNavItem = nil
         }
     }
-
 }
 
 // The `#Preview` closure is expanded and type-checked in every compiler job

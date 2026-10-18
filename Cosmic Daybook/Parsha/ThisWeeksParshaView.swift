@@ -343,7 +343,7 @@ private struct ParshaContentList: View {
             .padding(.vertical, AppTheme.Spacing.xxsmall)
         } else {
             Label(
-                "Apple Intelligence isn't available on this device, so suggestions are off.",
+                AIClientRouter.unavailabilityNotice("suggestions are off"),
                 systemImage: "exclamationmark.triangle.fill"
             )
                 .font(AppTheme.ScaledFont.caption)

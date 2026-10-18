@@ -101,14 +101,31 @@ final class WorkspaceMultiSelection {
     /// selection. The payloads are newline-joined —
     /// `UnifiedCalendarDragPayload.parseAll` reads them all back, and every
     /// older drop site that still calls `parse` takes the first line.
-    func dragPayload(startingAt id: UUID, make: (UUID) -> UnifiedCalendarDragPayload) -> String {
+    ///
+    /// `order` is the cards as the screen lists them. A day column lands a
+    /// batch in payload order, so a selection carries the guide's order, top
+    /// to bottom, rather than the order the ids happen to sort in (review of
+    /// bug hunt 2026-10-17 #47). Without it the dragged card leads and the
+    /// rest follow by id.
+    func dragPayload(
+        startingAt id: UUID,
+        inOrder order: [UUID]? = nil,
+        make: (UUID) -> UnifiedCalendarDragPayload
+    ) -> String {
         guard ids.contains(id), ids.count > 1 else {
             return make(id).stringRepresentation
         }
-        // The dragged card leads, so a drop that orders by arrival puts the
-        // card under the pointer where the guide aimed it.
-        let rest = ids.subtracting([id]).sorted { $0.uuidString < $1.uuidString }
-        return UnifiedCalendarDragPayload.joined(([id] + rest).map(make))
+        let byID: (UUID, UUID) -> Bool = { $0.uuidString < $1.uuidString }
+        guard let order else {
+            let rest = ids.subtracting([id]).sorted(by: byID)
+            return UnifiedCalendarDragPayload.joined(([id] + rest).map(make))
+        }
+        // On screen first, in the screen's order; anything selected that the
+        // list no longer names (it is pruned on the next pass) after, by id.
+        var seen = Set<UUID>()
+        let listed = order.filter { ids.contains($0) && seen.insert($0).inserted }
+        let unlisted = ids.subtracting(listed).sorted(by: byID)
+        return UnifiedCalendarDragPayload.joined((listed + unlisted).map(make))
     }
 }
 

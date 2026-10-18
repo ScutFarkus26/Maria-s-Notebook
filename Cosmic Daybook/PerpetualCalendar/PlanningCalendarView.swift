@@ -144,7 +144,7 @@ private extension PlanningCalendarView {
             isEditing: editor.editingCell == cellID,
             editText: $editor.draft,
             metrics: .planning,
-            onBeginEdit: { beginEdit(cellID: cellID, currentText: note?.text ?? holiday ?? "") },
+            onBeginEdit: { beginEdit(cellID: cellID) },
             onCommit: { commitEdit(cellID: cellID) },
             extra: {
                 eventRows(showEvents ? (eventsLookup[cellID] ?? []) : [])
@@ -197,8 +197,10 @@ private extension PlanningCalendarView {
 
     // MARK: - Editing
 
-    func beginEdit(cellID: CellID, currentText: String) {
-        editor.beginEditing(cellID, currentText: currentText, notes: notesLookup, in: viewContext)
+    /// Opens the day with its stored note, even with the Notes layer hidden
+    /// (the editor chooses the text; see `CalendarNoteEditor.openingText`).
+    func beginEdit(cellID: CellID) {
+        editor.beginEditing(cellID, notes: notesLookup, in: viewContext)
     }
 
     /// Return or focus leaving the field; a no-op once another day is open.

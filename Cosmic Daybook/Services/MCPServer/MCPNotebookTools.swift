@@ -223,7 +223,12 @@ enum MCPNotebookTools {
 
 extension MCPNotebookTools {
     /// Formats dates for tool output; the server's instructions promise ISO 8601.
-    static let isoDay: DateFormatter = DateFormatters.isoDayPOSIX
+    /// Read each time, for the zone `AppCalendar` is in now (its start-of-day
+    /// reads use the same), so "2026-10-17" means the 17th where the Mac is.
+    /// The single shared formatter it read before had no zone of its own,
+    /// and whether it followed a change of the Mac's zone was never certain
+    /// (review (b) 2026-10-17, #35).
+    static var isoDay: DateFormatter { DateFormatters.isoDayPOSIX(in: AppCalendar.shared.timeZone) }
 
     static func dayString(_ date: Date?) -> String {
         date.map { isoDay.string(from: $0) } ?? "undated"

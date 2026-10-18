@@ -92,7 +92,7 @@ struct ParshaSuggestionsDetailView: View {
         if !AIClientRouter.isAvailable {
             Section {
                 Label(
-                    "Apple Intelligence isn't available on this device, so suggestions are off.",
+                    AIClientRouter.unavailabilityNotice("suggestions are off"),
                     systemImage: "exclamationmark.triangle.fill"
                 )
                     .font(AppTheme.ScaledFont.caption)

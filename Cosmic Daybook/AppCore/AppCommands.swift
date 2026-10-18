@@ -40,6 +40,12 @@ final class QuickCaptureActions {
         /// (`WindowSectionRequests`). Lessons & Work takes the lens to open on.
         var goTo: (RootView.NavigationItem) -> Void = { _ in }
         var openLessonsAndWork: (AppRouter.LessonsAndWorkRequest) -> Void = { _ in }
+        /// The Classroom menu: switches, asking in this window first while a
+        /// sheet or detail window is open (`RootView.requestClassroomSwitch`).
+        var switchClassroom: (ClassroomWorkspace) -> Void = { _ in }
+        /// A Handoff this window took (`WindowHandoff`): opens it in this
+        /// window, never another one.
+        var continueHandoff: (Handoff.Destination) -> Void = { _ in }
     }
 
     private var handlers: Handlers?
@@ -61,6 +67,8 @@ final class QuickCaptureActions {
     func openLessonsAndWork(_ request: AppRouter.LessonsAndWorkRequest) {
         handlers?.openLessonsAndWork(request)
     }
+    func switchClassroom(to workspace: ClassroomWorkspace) { handlers?.switchClassroom(workspace) }
+    func continueHandoff(to destination: Handoff.Destination) { handlers?.continueHandoff(destination) }
 
     /// Runs one of the radial menu's five actions in this window.
     func perform(_ action: PieMenuAction) {

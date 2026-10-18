@@ -17,10 +17,16 @@ struct QuickNoteGlassButton: View {
     var onNewNote: () -> Void
 
     @State private var offset: CGSize = .zero
-    @State private var isPressed: Bool = false
+    /// The finger's travel from where it went down; nil while no finger is.
+    /// Gesture state, so a press the system cancels (a sheet coming up, a
+    /// call) ends here as surely as lifting the finger: `onEnded` never runs
+    /// for a cancelled press (bug hunt 2026-10-17 #38).
+    @GestureState private var press: CGSize? = nil // swiftlint:disable:this implicit_optional_initialization
+    /// This press has dragged the button: once past the long-press slop it
+    /// stays a move, even back over where it started.
+    @State private var hasMoved = false
     @State private var isPieMenuExpanded: Bool = false
     @State private var highlightedAction: PieMenuAction?
-    @State private var dragTranslation: CGSize = .zero
     @State private var longPressTask: Task<Void, Never>?
     @State private var sparklePhase: Bool = false
     /// The area the button floats over, for keeping it inside the window.
@@ -70,8 +76,8 @@ struct QuickNoteGlassButton: View {
     private var floatingContent: some View {
         // Main button with fixed size
         visualContent
-            .scaleEffect(isPressed && !isPieMenuExpanded ? 0.92 : 1.0)
-            .adaptiveAnimation(.easeInOut(duration: 0.1), value: isPressed)
+            .scaleEffect(press != nil && !isPieMenuExpanded ? 0.92 : 1.0)
+            .adaptiveAnimation(.easeInOut(duration: 0.1), value: press != nil)
             .overlay {
                 // Pie menu segments overlay (doesn't affect button layout)
                 if isPieMenuExpanded {
@@ -82,6 +88,13 @@ struct QuickNoteGlassButton: View {
         .padding(.trailing, Self.trailingInset)
         .padding(.bottom, Self.bottomInset)
         .gesture(combinedGesture)
+        .onChange(of: press == nil) { _, isUp in
+            if isUp {
+                pressEnded()
+            } else {
+                startLongPressTask()
+            }
+        }
         .onAppear {
             self.offset = restingOffset
         }
@@ -138,7 +151,7 @@ struct QuickNoteGlassButton: View {
                 Image(systemName: "sparkle")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(.white.opacity(UIConstants.OpacityConstants.nearSolid))
-                    .offset(orbitOffset(for: index, radius: pieMenuRadius + 20))
+                    .offset(Self.orbitOffset(for: index, radius: pieMenuRadius + 20))
                     .rotationEffect(.degrees(sparklePhase ? 360 : 0))
                     .opacity(UIConstants.OpacityConstants.heavy)
                     .adaptiveAnimation(
@@ -212,27 +225,19 @@ struct QuickNoteGlassButton: View {
 
     private var combinedGesture: some Gesture {
         DragGesture(minimumDistance: 0)
+            .updating($press) { value, press, _ in
+                press = value.translation
+            }
             .onChanged { value in
-                // Start long press task on first touch
-                if longPressTask == nil && !isPieMenuExpanded {
-                    isPressed = true
-                    startLongPressTask()
-                }
-
-                dragTranslation = value.translation
-                let distance = hypot(value.translation.width, value.translation.height)
-
-                // Cancel long press if user drags too far
-                if distance >= 10 && !isPieMenuExpanded {
-                    longPressTask?.cancel()
-                    longPressTask = nil
-                }
-
                 // If pie menu is expanded, track which segment is highlighted
                 if isPieMenuExpanded {
                     updateHighlightedAction(translation: value.translation)
-                } else if distance >= 2 && longPressTask == nil {
-                    // Regular drag to reposition (only once the long press is off the table)
+                } else if !QuickNoteButtonPress.isTap(value.translation, hasMoved: hasMoved) {
+                    // Past the long-press slop: a drag that moves the button,
+                    // for the rest of this press. Under it, still a tap
+                    // (bug hunt 2026-10-17 #34).
+                    hasMoved = true
+                    longPressTask?.cancel()
                     self.offset = clamped(CGSize(
                         width: restingOffset.width + value.translation.width,
                         height: restingOffset.height + value.translation.height
@@ -240,10 +245,9 @@ struct QuickNoteGlassButton: View {
                 }
             }
             .onEnded { value in
-                isPressed = false
                 longPressTask?.cancel()
                 longPressTask = nil
-                let distance = hypot(value.translation.width, value.translation.height)
+                defer { hasMoved = false }
 
                 if isPieMenuExpanded {
                     // Handle pie menu selection; letting go off every segment just closes it
@@ -255,7 +259,7 @@ struct QuickNoteGlassButton: View {
                         isPieMenuExpanded = false
                         highlightedAction = nil
                     }
-                } else if distance < 2 {
+                } else if QuickNoteButtonPress.isTap(value.translation, hasMoved: hasMoved) {
                     // A plain tap is the one capture surface.
                     self.offset = restingOffset
                     isShowingCommandBar = true
@@ -272,19 +276,19 @@ struct QuickNoteGlassButton: View {
                         self.offset = finalOffset
                     }
                 }
-
-                dragTranslation = .zero
             }
     }
 
+    /// Starts the long press when a finger goes down.
     private func startLongPressTask() {
+        longPressTask?.cancel()
         longPressTask = Task {
             do {
                 try await Task.sleep(for: longPressDuration)
 
-                // Check if still valid (not cancelled and finger hasn't moved)
-                let distance = hypot(dragTranslation.width, dragTranslation.height)
-                guard distance < 10 else { return }
+                // Only for a finger still down that hasn't dragged the button.
+                guard !isPieMenuExpanded,
+                      QuickNoteButtonPress.opensMenu(translation: press, hasMoved: hasMoved) else { return }
 
                 adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
                     isPieMenuExpanded = true
@@ -301,6 +305,26 @@ struct QuickNoteGlassButton: View {
         }
     }
 
+    /// The finger is up: lifted, or the press was cancelled. A cancelled press
+    /// never reaches `onEnded`, so it's tidied here — a turn later, after any
+    /// `onEnded` that did run: the menu closes with nothing chosen and a
+    /// half-dragged button goes back to where it rests.
+    private func pressEnded() {
+        longPressTask?.cancel()
+        longPressTask = nil
+        Task {
+            guard press == nil else { return }
+            hasMoved = false
+            if isPieMenuExpanded {
+                adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                    isPieMenuExpanded = false
+                    highlightedAction = nil
+                }
+            }
+            pullBackIntoView()
+        }
+    }
+
     private func updateHighlightedAction(translation: CGSize) {
         let distance = hypot(translation.width, translation.height)
 
@@ -310,12 +334,12 @@ struct QuickNoteGlassButton: View {
             return
         }
 
-        let angle = normalizedDegrees(atan2(translation.height, translation.width) * 180 / .pi)
+        let angle = Self.normalizedDegrees(atan2(translation.height, translation.width) * 180 / .pi)
 
         for action in PieMenuAction.allCases {
-            let start = normalizedDegrees(action.startAngle)
-            let end = normalizedDegrees(action.endAngle)
-            if angleInRange(angle, from: start, to: end) {
+            let start = Self.normalizedDegrees(action.startAngle)
+            let end = Self.normalizedDegrees(action.endAngle)
+            if Self.angleInRange(angle, from: start, to: end) {
                 if highlightedAction != action {
                     highlightedAction = action
                 }
@@ -364,27 +388,10 @@ struct QuickNoteGlassButton: View {
     /// and a keyboard or a narrow window mustn't overwrite it (review 2026-10-11
     /// (c) #4). Left alone mid-drag.
     private func pullBackIntoView() {
-        guard dragTranslation == .zero else { return }
+        guard press == nil else { return }
         let inside = restingOffset
         if offset != inside {
             offset = inside
         }
-    }
-
-    private func normalizedDegrees(_ angle: Double) -> Double {
-        angle < 0 ? angle + 360 : angle
-    }
-
-    private func angleInRange(_ angle: Double, from start: Double, to end: Double) -> Bool {
-        if start <= end {
-            return angle >= start && angle < end
-        }
-        return angle >= start || angle < end
-    }
-
-    private func orbitOffset(for index: Int, radius: CGFloat) -> CGSize {
-        let angle = Double(index) * (360.0 / 6.0)
-        let radians = angle * .pi / 180
-        return CGSize(width: cos(radians) * radius, height: sin(radians) * radius)
     }
 }

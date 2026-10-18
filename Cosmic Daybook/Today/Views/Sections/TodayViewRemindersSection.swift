@@ -36,9 +36,11 @@ extension TodayView {
     }
 
     /// The last sync's failure, already in plain words
-    /// (`AppErrorMessages.syncMessage`); nil while a sync runs.
+    /// (`AppErrorMessages.syncMessage`); nil while a sync runs, and in the
+    /// Sample Class, which doesn't sync (the failure is My Class's list).
     private var reminderSyncError: String? {
-        dependencies.reminderSync.isSyncing ? nil : dependencies.reminderSync.lastSyncError
+        guard !dependencies.isSampleClassroom, !dependencies.reminderSync.isSyncing else { return nil }
+        return dependencies.reminderSync.lastSyncError
     }
 
     /// The sync failure as a line of its own: the header's warning icon has
@@ -168,8 +170,11 @@ extension TodayView {
                 .textCase(.uppercase)
                 .tracking(0.8)
             Spacer()
-            // Show sync status indicator
-            if dependencies.reminderSync.isSyncing {
+            // Show sync status indicator; the Sample Class never syncs, so
+            // the real service's spinner and warning don't belong there.
+            if dependencies.isSampleClassroom {
+                EmptyView()
+            } else if dependencies.reminderSync.isSyncing {
                 ProgressView()
                     .scaleEffect(0.6)
                     .accessibilityLabel("Syncing reminders")
@@ -211,8 +216,11 @@ extension TodayView {
                 .textCase(.uppercase)
                 .tracking(0.8)
             Spacer()
-            // Show sync status indicator
-            if dependencies.calendarSync.isSyncing {
+            // Show sync status indicator; the Sample Class never syncs, so
+            // the real service's spinner and warning don't belong there.
+            if dependencies.isSampleClassroom {
+                EmptyView()
+            } else if dependencies.calendarSync.isSyncing {
                 ProgressView()
                     .scaleEffect(0.6)
                     .accessibilityLabel("Syncing calendar events")

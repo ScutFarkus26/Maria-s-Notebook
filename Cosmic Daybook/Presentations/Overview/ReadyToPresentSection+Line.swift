@@ -62,7 +62,7 @@ extension ReadyToPresentSection {
                     }
                 }
             }
-        return draggableLine(line, la: la, chips: chips)
+        return draggableLine(line, la: la, chips: chips, order: context.displayOrder)
             .id(la.id ?? UUID())
             .focusHighlight(isFocused)
             .workspaceSelectionRing(
@@ -104,10 +104,12 @@ extension ReadyToPresentSection {
     /// would report success while doing nothing — so it simply isn't a drag
     /// source.
     @ViewBuilder
-    private func draggableLine(_ line: some View, la: CDLessonAssignment, chips: [BacklogChip]) -> some View {
+    private func draggableLine(
+        _ line: some View, la: CDLessonAssignment, chips: [BacklogChip], order: [UUID]
+    ) -> some View {
         if let id = la.id {
             line.draggable(
-                selection.dragPayload(startingAt: id, make: UnifiedCalendarDragPayload.presentation)
+                selection.dragPayload(startingAt: id, inOrder: order, make: UnifiedCalendarDragPayload.presentation)
             ) {
                 dragPreview(for: la, names: chips.map(\.name))
             }

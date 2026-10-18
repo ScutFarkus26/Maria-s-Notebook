@@ -135,7 +135,7 @@ extension MCPNotebookTools {
                 ? "\(label) is a school day — a weekend marked as one."
                 : "\(label) is a school day."
         }
-        if let reason = nonEmpty(nonSchoolDayRows(in: day...day, modelContext).first?.reason) {
+        if let reason = daysOff(in: day...day, modelContext).first?.reason {
             return "\(label) is a no-school day — \(reason)."
         }
         return isWeekend(day)
@@ -149,8 +149,7 @@ extension MCPNotebookTools {
     ) -> String {
         var sections: [String] = [settings.lines.joined(separator: "\n")]
 
-        let closed = nonSchoolDayRows(in: window, modelContext)
-            .filter { $0.date.map { !isWeekend($0) } ?? false }
+        let closed = daysOff(in: window, modelContext).filter { !isWeekend($0.day) }
         let windowText = "\(dayString(window.lowerBound)) to \(dayString(window.upperBound))"
         if closed.isEmpty {
             sections.append("No weekdays are marked no-school from \(windowText).")
@@ -161,10 +160,10 @@ extension MCPNotebookTools {
             sections.append(lines.joined(separator: "\n"))
         }
 
-        let open = schoolDayOverrideRows(in: window, modelContext)
+        let open = weekendSchoolDays(in: window, modelContext)
         if !open.isEmpty {
             var lines = ["Weekends marked as school days (\(open.count)):"]
-            lines.append(contentsOf: open.map { "- \(dayString($0.date)) (\(weekdayName($0.date ?? .distantPast)))" })
+            lines.append(contentsOf: open.map { "- \(dayString($0)) (\(weekdayName($0)))" })
             sections.append(lines.joined(separator: "\n"))
         }
         return sections.joined(separator: "\n\n")
@@ -186,11 +185,11 @@ extension MCPNotebookTools {
         }
     }
 
-    private static func collapseRuns(_ rows: [CDNonSchoolDay]) -> [NonSchoolRun] {
+    private static func collapseRuns(_ days: [DayOff]) -> [NonSchoolRun] {
         var runs: [NonSchoolRun] = []
-        for row in rows {
-            guard let day: Date = row.date else { continue }
-            let reason: String? = nonEmpty(row.reason)
+        for dayOff in days {
+            let day: Date = dayOff.day
+            let reason: String? = dayOff.reason
             let lastIndex: Int = runs.count - 1
             if lastIndex >= 0, runs[lastIndex].continues(on: day, reason: reason) {
                 runs[lastIndex].last = day
@@ -209,6 +208,38 @@ extension MCPNotebookTools {
         }
         return "- \(dayString(run.first)) (\(weekdayName(run.first))) to "
             + "\(dayString(run.last)) (\(weekdayName(run.last))), \(run.count) weekdays\(reason)"
+    }
+
+    /// One no-school day as the read reports it. Two devices can each have
+    /// marked a day, and a row can sit at another hour of it, so rows are read
+    /// by day: each day counts once, keeping a reason one of its rows gives.
+    /// Counting rows reported a day marked twice as two days and split a break
+    /// into overlapping runs (2026-10-17 hunt, #14).
+    private struct DayOff {
+        let day: Date
+        var reason: String?
+    }
+
+    /// The no-school days in `window`, one per day, in order.
+    private static func daysOff(in window: ClosedRange<Date>, _ modelContext: NSManagedObjectContext) -> [DayOff] {
+        var byDay: [Date: DayOff] = [:]
+        for row in nonSchoolDayRows(in: window, modelContext) {
+            guard let date = row.date else { continue }
+            let day = AppCalendar.startOfDay(date)
+            let reason = nonEmpty(row.reason)
+            if byDay[day]?.reason == nil {
+                byDay[day] = DayOff(day: day, reason: reason ?? byDay[day]?.reason)
+            }
+        }
+        return byDay.values.sorted { $0.day < $1.day }
+    }
+
+    /// The days in `window` marked as school days, one per day, in order.
+    private static func weekendSchoolDays(
+        in window: ClosedRange<Date>, _ modelContext: NSManagedObjectContext
+    ) -> [Date] {
+        let rows = schoolDayOverrideRows(in: window, modelContext)
+        return Set(rows.compactMap { $0.date.map(AppCalendar.startOfDay) }).sorted()
     }
 
     private static func nonSchoolDayRows(

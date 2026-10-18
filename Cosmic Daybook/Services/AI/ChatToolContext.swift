@@ -21,6 +21,24 @@ final class ChatToolContext {
     /// The records the tools looked up for this answer, shown as its Sources.
     let sources = EvidenceSourceCollector()
 
+    /// What the tools saved for this answer, in order. "Record a meeting with
+    /// Maya S" could save the meeting and then fail to answer (too long, a
+    /// guardrail); chat put the question back to be sent again, filing a
+    /// second meeting, or let Private Cloud, which has no tools, answer it
+    /// over (bug hunt 2026-10-17 #9). After a write, neither happens.
+    private(set) var writes: [ChatWrite] = []
+
+    func recordWrite(_ write: ChatWrite) {
+        writes.append(write)
+    }
+
+    /// What chat says when the answer failed after a write ("The meeting was
+    /// recorded, but the answer couldn't be finished."), or nil when the
+    /// tools saved nothing.
+    var unfinishedAnswerMessage: String? {
+        ChatWrite.unfinishedAnswerMessage(for: writes)
+    }
+
     init(_ context: NSManagedObjectContext? = nil) {
         store = context
     }
@@ -34,6 +52,38 @@ final class ChatToolContext {
     /// only hers.
     var readsGuidesNotebook: Bool {
         context === AppBootstrapping.getSharedCoreDataStack().viewContext
+    }
+}
+
+/// A change one of Ask AI's notebook tools saved.
+nonisolated enum ChatWrite: CaseIterable, Sendable {
+    case meeting
+    case followUpAdded
+    case followUpResolved
+
+    /// "the meeting was recorded", "2 meetings were recorded".
+    func clause(count: Int) -> String {
+        switch self {
+        case .meeting:
+            count == 1 ? "the meeting was recorded" : "\(count) meetings were recorded"
+        case .followUpAdded:
+            count == 1 ? "the follow-up was added" : "\(count) follow-ups were added"
+        case .followUpResolved:
+            count == 1 ? "the follow-up was marked done" : "\(count) follow-ups were marked done"
+        }
+    }
+
+    /// One sentence naming everything `writes` saved, or nil for none.
+    static func unfinishedAnswerMessage(for writes: [ChatWrite]) -> String? {
+        let clauses = allCases.compactMap { kind -> String? in
+            let count = writes.count { $0 == kind }
+            return count > 0 ? kind.clause(count: count) : nil
+        }
+        guard let last = clauses.last else { return nil }
+        let joined = clauses.count == 1
+            ? last
+            : clauses.dropLast().joined(separator: ", ") + " and " + last
+        return joined.prefix(1).uppercased() + joined.dropFirst() + ", but the answer couldn't be finished."
     }
 }
 

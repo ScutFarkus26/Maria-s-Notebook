@@ -91,21 +91,29 @@ nonisolated enum Handoff {
 
 // MARK: - Receiving
 
-/// Answers the three Handoff activities in a main window by routing to the
-/// same place the app's own "open" requests go.
+/// Answers the three Handoff activities in a main window: in that window once
+/// its screen is up, else through the router, which holds the request until
+/// the screen that answers it appears (`WindowHandoff`).
 private struct HandoffContinuationModifier: ViewModifier {
     let router: AppRouter
+    /// This main window's own target, which its RootView hooks into.
+    @State private var window = WindowHandoff()
 
     func body(content: Content) -> some View {
         content
+            .environment(\.windowHandoff, window)
             .onContinueUserActivity(Handoff.ActivityType.student, perform: route)
             .onContinueUserActivity(Handoff.ActivityType.lesson, perform: route)
             .onContinueUserActivity(Handoff.ActivityType.albumPage, perform: route)
+            // A main window already open takes the activity. With no window
+            // saying so, SwiftUI opened another main window for every Handoff
+            // (bug hunt 2026-10-17 #33).
+            .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
     }
 
     private func route(_ activity: NSUserActivity) {
         guard let destination = Handoff.destination(from: activity) else { return }
-        router.continueHandoff(to: destination)
+        window.continueHandoff(to: destination, router: router)
     }
 }
 
@@ -114,4 +122,42 @@ extension View {
     func continuesHandoff(router: AppRouter) -> some View {
         modifier(HandoffContinuationModifier(router: router))
     }
+}
+
+/// The main window a Handoff arrived in, and its screen once that is up.
+///
+/// SwiftUI gives the activity to one main window. Sending it on through the
+/// router, which every main window watches, let a window behind the one in
+/// front switch section instead, whichever saw the change first (review c
+/// #3). So once the window's RootView is up, the window takes the Handoff
+/// itself (`QuickCaptureActions.continueHandoff`). Before then (a Handoff that
+/// launches the app arrives while it says "Opening your notebook…"), the
+/// router holds it until the screen that answers it appears.
+final class WindowHandoff {
+    /// This window's screen, while it's up.
+    private weak var screen: QuickCaptureActions?
+
+    func screenAppeared(_ actions: QuickCaptureActions) {
+        screen = actions
+    }
+
+    /// Unhooks `actions` only while it is still this window's screen: the
+    /// screen a classroom switch replaced can leave after the new one came.
+    func screenDisappeared(_ actions: QuickCaptureActions) {
+        if screen === actions { screen = nil }
+    }
+
+    func continueHandoff(to destination: Handoff.Destination, router: AppRouter) {
+        if let screen {
+            screen.continueHandoff(to: destination)
+        } else {
+            router.continueHandoff(to: destination)
+        }
+    }
+}
+
+extension EnvironmentValues {
+    /// The enclosing main window's Handoff target, for its screen to take
+    /// Handoffs in. Nil outside a main window (a detail window, a preview).
+    @Entry var windowHandoff: WindowHandoff?
 }

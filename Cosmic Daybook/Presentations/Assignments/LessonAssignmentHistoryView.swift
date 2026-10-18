@@ -72,6 +72,14 @@ struct LessonAssignmentHistoryView: View {
     @State var lastNotesCount: Int = 0
     @State var lastLessonsCount: Int = 0
     @State var lastStudentsCount: Int = 0
+    /// Bumped by a change to a row on screen; `groupedByDay` reads it, so a
+    /// row edited in place is drawn again.
+    @State var assignmentRevision: Int = 0
+    /// The presentations changed since the history last answered, and a
+    /// counter bumped with each change so the answer can wait until the
+    /// screen is on screen (the Progress dashboard's pattern).
+    @State var pendingAssignmentTouches: AssignmentTouches?
+    @State var assignmentChangeToken: Int = 0
 
     // Filter state
     @State var selectedStudentIDs: Set<UUID> = []
@@ -155,6 +163,7 @@ struct LessonAssignmentHistoryView: View {
     }
 
     var groupedByDay: [(day: Date, items: [CDLessonAssignment])] {
+        _ = assignmentRevision
         let dict = filteredAssignments
             .compactMap { la -> (Date, CDLessonAssignment)? in
                 guard let presentedAt = la.presentedAt else { return nil }
@@ -217,7 +226,9 @@ struct LessonAssignmentHistoryView: View {
                     await buildCachesAsync()
                     hasBuiltCachesOnce = true
                 }
-                // Initialize counts for change detection
+                // Initialize counts for change detection; the reload above
+                // answers whatever changed while the screen was away.
+                pendingAssignmentTouches = nil
                 lastAssignmentCount = Self.presentedAssignmentCount(in: viewContext) ?? lastAssignmentCount
                 lastNotesCount = Self.noteCount(in: viewContext) ?? lastNotesCount
                 lastLessonsCount = lessons.count
@@ -233,16 +244,15 @@ struct LessonAssignmentHistoryView: View {
                 // in the list before ScrollViewReader tries to reveal it.
                 loadAssignments()
             }
-            // Only while on screen: a TabView keeps Logs alive behind the
-            // other tabs, and the `.task` above reloads when it is back.
-            .onPresentationDataChangeWhenVisible(
-                of: ["LessonAssignment"], in: viewContext, catchUpOnAppear: false
-            ) {
-                // Only reload when count actually changes
-                guard let newCount = Self.presentedAssignmentCount(in: viewContext),
-                      newCount != lastAssignmentCount else { return }
-                lastAssignmentCount = newCount
-                loadAssignments(limit: loadedAssignments.count >= Self.initialLoadCount ? nil : Self.initialLoadCount)
+            // Gather which presentations changed; answer only while on
+            // screen: a TabView keeps Logs alive behind the other tabs, and
+            // the `.task` above reloads when it is back.
+            .onReceive(Self.assignmentTouches(in: viewContext)) { touches in
+                pendingAssignmentTouches = pendingAssignmentTouches.map { $0.merged(with: touches) } ?? touches
+                assignmentChangeToken &+= 1
+            }
+            .onChangeWhenVisible(of: assignmentChangeToken, catchUpOnAppear: false) {
+                respondToAssignmentChanges()
             }
             .onReceiveWhenVisible(Self.noteChanges(in: viewContext), catchUpOnAppear: false) {
                 guard let newCount = Self.noteCount(in: viewContext), newCount != lastNotesCount else { return }

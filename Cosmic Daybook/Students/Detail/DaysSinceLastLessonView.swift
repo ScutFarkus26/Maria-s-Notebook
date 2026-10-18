@@ -47,33 +47,11 @@ struct DaysSinceLastLessonView: View {
         if fresh != daysSince { daysSince = fresh }
     }
 
-    /// The latest `presentedAt` among presented assignments that include this
-    /// student, ignoring parsha lessons.
-    ///
-    /// Reads newest-first and stops at the first match, which is the maximum
-    /// because every row read has a `presentedAt`; rows past the match are
-    /// never decoded. (Not batched: a batched fetch's ordering of unsaved rows
-    /// is not something to lean on, and the plain fetch sorts them in.)
+    /// This child's last given lesson, read the roster's way
+    /// (`StudentsViewModel.lastLessonDates`) so the record and the roster's
+    /// lesson age never disagree about her (bug hunt 2026-10-17, #44).
     static func lastLessonDate(studentID: UUID, in context: NSManagedObjectContext) -> Date? {
-        let parshaRequest = CDFetchRequest(CDLesson.self)
-        parshaRequest.predicate = NSPredicate(format: "area ==[c] 'parsha' OR sequence ==[c] 'parsha'")
-        let excludedLessonIDs = Set(context.safeFetch(parshaRequest).compactMap(\.id))
-
-        let request = CDFetchRequest(CDLessonAssignment.self)
-        request.predicate = NSPredicate(format: "presentedAt != nil")
-        request.sortDescriptors = [
-            NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false),
-            NSSortDescriptor(keyPath: \CDLessonAssignment.createdAt, ascending: false)
-        ]
-
-        let studentIDString = studentID.uuidString
-        for la in context.safeFetch(request) {
-            guard let presentedAt = la.presentedAt else { continue }
-            if la.studentIDs.contains(studentIDString), !excludedLessonIDs.contains(la.resolvedLessonID) {
-                return presentedAt
-            }
-        }
-        return nil
+        StudentsViewModel.lastLessonDates(in: context, calendar: AppCalendar.shared)[studentID]
     }
 }
 

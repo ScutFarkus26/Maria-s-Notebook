@@ -44,11 +44,12 @@ import FoundationModels
 extension UnifiedNoteEditor {
 
     /// The note's photo, downsampled for AI input — only when the on-device
-    /// model can actually look at it.
-    var noteImageForAI: CGImage? {
+    /// model can actually look at it. A photo taken on another device is
+    /// downloaded first, and the file is read off the main thread.
+    func noteImageForAI() async -> CGImage? {
         guard SystemLanguageModel.default.capabilities.contains(.vision),
               let path = imagePath else { return nil }
-        return PhotoStorageService.loadCGImageForAI(filename: path)
+        return await PhotoStorageService.imageForAI(filename: path)
     }
 
     /// Drafts an on-device AI description of the attached photo into the note body.
@@ -71,16 +72,21 @@ extension UnifiedNoteEditor {
     }
 
     func suggestTagsAndScope() async {
-        let noteImage = noteImageForAI
-        guard !bodyText.trimmed().isEmpty || noteImage != nil else { return }
+        guard !bodyText.trimmed().isEmpty || imagePath != nil else { return }
 
-        guard SystemLanguageModel.default.isAvailable else {
-            self.suggestionError = appleIntelligenceUnavailableMessage()
+        if let reason = suggestTagsUnavailableReason() {
+            self.suggestionError = reason
             return
         }
 
         isSuggesting = true
         defer { isSuggesting = false }
+
+        let noteImage = await noteImageForAI()
+        guard !bodyText.trimmed().isEmpty || noteImage != nil else {
+            self.suggestionError = photoNotHereMessage
+            return
+        }
 
         let session = LanguageModelSession(
             instructions: AIPrompts.noteClassification
@@ -107,17 +113,7 @@ extension UnifiedNoteEditor {
                 )
             }
             let content = response.content
-
-            // Convert suggested tag names to tag strings with appropriate colors
-            let suggestedTags: [String] = content.suggestedTags.map { tagName in
-                let normalized = tagName.trimmed().lowercased()
-                // Check if it maps to a known category color
-                let color = TagHelper.colorForNoteCategory(normalized)
-                let displayName = tagName.trimmed().prefix(1).uppercased() + tagName.trimmed().dropFirst()
-                return TagHelper.createTag(name: displayName, color: color)
-            }
-
-            self.proposedTags = suggestedTags
+            self.proposedTags = content.suggestedTags.map(Self.suggestedTag(named:))
             self.proposedStudentIDs = SuggestedStudentMatcher.studentIDs(
                 for: content.studentIdentifiers, among: students
             )
@@ -129,6 +125,14 @@ extension UnifiedNoteEditor {
         }
     }
 
+    /// A suggested tag name as a tag string, capitalized, in its category's
+    /// color when it names a known category.
+    private static func suggestedTag(named tagName: String) -> String {
+        let color = TagHelper.colorForNoteCategory(tagName.trimmed().lowercased())
+        let displayName = tagName.trimmed().prefix(1).uppercased() + tagName.trimmed().dropFirst()
+        return TagHelper.createTag(name: displayName, color: color)
+    }
+
     /// Drafts a 1-2 sentence factual description of the attached photo and
     /// appends it to the note body. Runs fully on-device.
     func describePhotoIntoNote() async {
@@ -136,13 +140,18 @@ extension UnifiedNoteEditor {
             self.suggestionError = appleIntelligenceUnavailableMessage()
             return
         }
-        guard let noteImage = noteImageForAI else {
+        guard SystemLanguageModel.default.capabilities.contains(.vision), imagePath != nil else {
             self.suggestionError = "Describing photos isn't available on this device."
             return
         }
 
         isDescribingPhoto = true
         defer { isDescribingPhoto = false }
+
+        guard let noteImage = await noteImageForAI() else {
+            self.suggestionError = photoNotHereMessage
+            return
+        }
 
         let session = LanguageModelSession(instructions: AIPrompts.generalAssistant)
         do {
@@ -168,6 +177,28 @@ extension UnifiedNoteEditor {
     }
 
     // MARK: - Shared error text
+
+    /// Why Suggest Tags can't run, or nil when it can. A photo-only note on a
+    /// device whose model can't look at photos used to be told the photo
+    /// hadn't downloaded, which wasn't the reason (review of the 2026-10-17
+    /// fixes, a2 #11).
+    private func suggestTagsUnavailableReason() -> String? {
+        guard SystemLanguageModel.default.isAvailable else { return appleIntelligenceUnavailableMessage() }
+        if bodyText.trimmed().isEmpty, !SystemLanguageModel.default.capabilities.contains(.vision) {
+            return Self.needsTextMessage
+        }
+        return nil
+    }
+
+    static let needsTextMessage = "Apple Intelligence on this device can't look at photos. "
+        + "Write a few words in the note, then try Suggest Tags again."
+
+    /// The note's photo couldn't be read: usually one taken on another device
+    /// that iCloud hasn't brought here yet.
+    private var photoNotHereMessage: String {
+        "Couldn't open the note's photo. If it was taken on another device, it may still be "
+            + "downloading. Try again in a moment."
+    }
 
     private func appleIntelligenceUnavailableMessage() -> String {
         AppleIntelligenceMessages.unavailableMessage(for: SystemLanguageModel.default.availability)

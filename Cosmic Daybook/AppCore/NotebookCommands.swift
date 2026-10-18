@@ -78,18 +78,17 @@ struct NotebookCommands: Commands {
         SidebarCommands()
         QuickCaptureButtonCommands()
 
+        // The key main window's own, like the Go menu: a switch that would
+        // lose an open sheet or detail window asks first, in that window.
         CommandMenu("Classroom") {
-            Button("My Class") {
-                Task { await classroomWorkspace?.select(.myClass) }
-            }
-            .disabled(classroomWorkspace.map { $0.selection == .myClass } ?? true)
+            Button("My Class") { quickCapture?.switchClassroom(to: .myClass) }
+                .disabled(quickCapture == nil || classroomWorkspace.map { $0.selection == .myClass } ?? true)
 
-            Button("Sample Class") {
-                Task { await classroomWorkspace?.select(.sampleClass) }
-            }
-            .disabled(
-                classroomWorkspace.map { $0.selection == .sampleClass || $0.isPreparingSample } ?? true
-            )
+            Button("Sample Class") { quickCapture?.switchClassroom(to: .sampleClass) }
+                .disabled(
+                    quickCapture == nil
+                        || classroomWorkspace.map { $0.selection == .sampleClass || $0.isPreparingSample } ?? true
+                )
         }
 
         // 4. GO MENU (Navigation)
@@ -133,9 +132,9 @@ struct NotebookCommands: Commands {
         // 5. HELP & TROUBLESHOOTING (Help Menu)
         CommandGroup(replacing: .help) {
             #if os(macOS)
-            Button("Keyboard Shortcuts") {
-                NotificationCenter.default.post(name: .openKeyboardShortcutsWindow, object: nil)
-            }
+            // Opens the window itself, so it works with no main window open
+            // (bug hunt 2026-10-17 #36).
+            Button("Keyboard Shortcuts") { openKeyboardShortcutsWindow() }
             .keyboardShortcut("/", modifiers: [.command])
             #endif
 

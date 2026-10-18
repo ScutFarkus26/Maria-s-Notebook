@@ -14,7 +14,16 @@ struct TileTapMotion {
     /// How far the green has spread, 0 to 1 (1 covers the tile).
     var spread: CGFloat = 1
 
-    /// Which way a mark went, for its motion.
+    /// Which way a mark went, for its motion, and in both apps for its bell
+    /// (`ring(after:)`, the Assistant's `ring(for:in:)`): in, away, or
+    /// neither.
+    ///
+    /// Left Early is a child going home, not arriving: like clearing a
+    /// mark it rings no bell and gets a small dip, with no green spreading
+    /// in, no birthday sparkles and no welcome wave. It rang the next
+    /// arrival bell and played both as she left (bug hunt 2026-10-17, #7).
+    /// It shares `cleared` rather than a case of its own because the
+    /// Assistant's bell switches over these three.
     enum Kind {
         case here
         case away
@@ -22,9 +31,9 @@ struct TileTapMotion {
 
         init(_ status: AttendanceStatus) {
             switch status {
-            case .present, .tardy, .leftEarly: self = .here
+            case .present, .tardy: self = .here
             case .absent: self = .away
-            case .unmarked: self = .cleared
+            case .unmarked, .leftEarly: self = .cleared
             }
         }
     }

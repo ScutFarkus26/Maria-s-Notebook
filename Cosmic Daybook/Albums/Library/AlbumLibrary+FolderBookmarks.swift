@@ -1,6 +1,6 @@
 // AlbumLibrary+FolderBookmarks.swift
 // The saved album-folder bookmarks: what the list keeps when a folder is added
-// or removed.
+// or removed, and the folder access the library holds.
 
 import Foundation
 
@@ -35,5 +35,35 @@ extension AlbumLibrary {
             guard let folder = resolve(data) else { return true }
             return folder.standardizedFileURL.path != path
         }
+    }
+
+    // MARK: Folder access
+
+    /// Security-scoped access, as a pair of calls a test can stand in for.
+    struct ScopeAccess {
+        var start: (URL) -> Bool
+        var stop: (URL) -> Void
+
+        static let live = ScopeAccess(
+            start: { $0.startAccessingSecurityScopedResource() },
+            stop: { $0.stopAccessingSecurityScopedResource() }
+        )
+    }
+
+    /// A stored folder bookmark's folder, without starting access to it.
+    func resolveFolder(_ data: Data) -> URL? {
+        try? SecurityScopedBookmark.resolve(data).url
+    }
+
+    /// Starts security-scoped access to `folders`, leaving out one whose access
+    /// can't start, and stops the access the previous call started. Each chosen
+    /// folder is held once however often the bookmarks are resolved again, and
+    /// a removed folder is let go. New access starts before the old stops, so a
+    /// folder kept across the call is never without it.
+    func holdAccess(to folders: [URL]) -> [URL] {
+        let opened = folders.filter { scopeAccess.start($0) }
+        for folder in accessedFolders { scopeAccess.stop(folder) }
+        accessedFolders = opened
+        return opened
     }
 }

@@ -252,4 +252,10 @@ enum SettingsCopy {
         static let saveFailedTitle = "Plans Not Changed"
         static let saveFailed = "Couldn’t save the changes to last year’s plans, so nothing was changed. Try again."
     }
+
+    /// The note- and meeting-template lists (`TemplateManagementView`).
+    enum TemplateManagement {
+        static let deleteFailedTitle = "Couldn’t Delete the Template"
+        static let deleteFailed = "The template is still here. Try deleting it again."
+    }
 }

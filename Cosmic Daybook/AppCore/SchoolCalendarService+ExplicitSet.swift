@@ -41,15 +41,23 @@ extension SchoolCalendarService {
         using context: NSManagedObjectContext
     ) throws -> SchoolDayChange {
         let day = cal.startOfDay(for: date)
+        let nextDay = cal.date(byAdding: .day, value: 1, to: day) ?? day.addingTimeInterval(86_400)
         let weekday = cal.component(.weekday, from: day)
         let isWeekend = (weekday == 1 || weekday == 7)
 
+        // Every row on that day, at whatever hour it was stored, as the grid's
+        // tap (`toggleNonSchoolDay`) and every reader match it. An exact
+        // midnight match missed a row stored at another hour: turning that day
+        // back on replied "Already in session" while every screen showed it
+        // off, and marking it off added a second row (2026-10-17 hunt, #10).
+        let onDay = NSPredicate(format: "date >= %@ AND date < %@", day as NSDate, nextDay as NSDate)
+
         let nonSchoolFetch = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay")
-        nonSchoolFetch.predicate = NSPredicate(format: "date == %@", day as NSDate)
+        nonSchoolFetch.predicate = onDay
         let nonSchoolRows = try context.fetch(nonSchoolFetch)
 
         let overrideFetch = NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride")
-        overrideFetch.predicate = NSPredicate(format: "date == %@", day as NSDate)
+        overrideFetch.predicate = onDay
         let overrideRows = try context.fetch(overrideFetch)
 
         let change: SchoolDayChange
@@ -70,20 +78,8 @@ extension SchoolCalendarService {
                 // A weekend is out of session by default; a stray explicit row is
                 // harmless but there is nothing to add.
                 change = removedOverride ? .markedNonSchool : .unchanged
-            } else if let existing = nonSchoolRows.first {
-                let trimmedReason = reason?.trimmingCharacters(in: .whitespacesAndNewlines)
-                if let trimmedReason, !trimmedReason.isEmpty, trimmedReason != existing.reason {
-                    existing.reason = trimmedReason
-                    change = .reasonUpdated
-                } else {
-                    change = .unchanged
-                }
             } else {
-                let nonSchoolDay = CDNonSchoolDay(context: context)
-                nonSchoolDay.date = day
-                let trimmedReason = reason?.trimmingCharacters(in: .whitespacesAndNewlines)
-                nonSchoolDay.reason = (trimmedReason?.isEmpty == false) ? trimmedReason : nil
-                change = .markedNonSchool
+                change = markWeekdayOff(day, reason: reason, existing: nonSchoolRows, in: context)
             }
         }
 
@@ -92,5 +88,28 @@ extension SchoolCalendarService {
             Self.notifySchoolDayDataChanged()
         }
         return change
+    }
+
+    /// A weekday out of session: a `NonSchoolDay` with `reason`, or the reason
+    /// on the rows already there. Two devices can each have marked the day, so
+    /// every copy takes the reason and whichever one a reader picks says it.
+    private func markWeekdayOff(
+        _ day: Date, reason: String?, existing rows: [CDNonSchoolDay], in context: NSManagedObjectContext
+    ) -> SchoolDayChange {
+        let trimmedReason = reason?.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !rows.isEmpty else {
+            let nonSchoolDay = CDNonSchoolDay(context: context)
+            nonSchoolDay.date = day
+            nonSchoolDay.reason = (trimmedReason?.isEmpty == false) ? trimmedReason : nil
+            return .markedNonSchool
+        }
+        guard let trimmedReason, !trimmedReason.isEmpty,
+              rows.contains(where: { $0.reason != trimmedReason }) else {
+            return .unchanged
+        }
+        for row in rows where row.reason != trimmedReason {
+            row.reason = trimmedReason
+        }
+        return .reasonUpdated
     }
 }

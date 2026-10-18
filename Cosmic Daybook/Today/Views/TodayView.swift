@@ -15,7 +15,6 @@
 import SwiftUI
 import CoreData
 import UniformTypeIdentifiers
-import OSLog
 import TipKit
 #if os(iOS)
 import MessageUI
@@ -372,32 +371,15 @@ struct TodayView: View {
     // PERF: Async functions instead of fire-and-forget Task blocks.
     // Callers use structured concurrency (async let / .task) for automatic cancellation.
     private func syncReminders() async {
-        let syncService = dependencies.reminderSync
-        if syncService.syncListIdentifier != nil || syncService.syncListName != nil {
-            do {
-                try await syncService.syncReminders()
-            } catch let error as ReminderSyncError where error.isConfigurationIssue {
-                #if DEBUG
-                Logger.sync.notice("Reminder sync skipped: \(error.localizedDescription)")
-                #endif
-            } catch {
-                #if DEBUG
-                Logger.sync.error("Reminder sync failed: \(error.localizedDescription)")
-                #endif
-            }
-        }
+        await eventKitSync.syncReminders()
     }
 
     private func syncCalendarEvents() async {
-        let calendarSyncService = dependencies.calendarSync
-        if !calendarSyncService.syncCalendarIdentifiers.isEmpty {
-            do {
-                try await calendarSyncService.syncEvents()
-            } catch {
-                #if DEBUG
-                Logger.sync.error("Calendar sync failed: \(error.localizedDescription)")
-                #endif
-            }
-        }
+        await eventKitSync.syncCalendarEvents()
+    }
+
+    /// Today's Reminders and Calendar work, through this classroom's services.
+    var eventKitSync: TodayEventKitSync {
+        TodayEventKitSync(dependencies: dependencies)
     }
 }

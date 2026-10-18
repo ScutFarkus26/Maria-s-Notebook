@@ -47,7 +47,7 @@ struct MeetingsWorkflowView: View {
     private var rules: MeetingQueueRules {
         MeetingQueueRules(
             cadenceDays: cadenceDays,
-            requeued: requeueStore.activeIDs { queueModel.signals[$0]?.lastMet },
+            requeued: requeueStore.activeIDs(signals: queueModel.signals),
             order: order,
             customOrder: customOrder
         )
@@ -292,7 +292,7 @@ struct MeetingsWorkflowView: View {
     /// Puts a recently-met child back into Up Next. In custom order she lands
     /// at `position` (nil = the top); by need she sorts by her wait like anyone.
     private func requeueStudent(_ id: UUID, at position: Int?, upNext: [UUID]) {
-        requeueStore.requeue(id) { queueModel.signals[$0]?.lastMet }
+        requeueStore.requeue(id, signals: queueModel.signals)
         requeueStore.save()
         guard order == .custom else { return }
         var ids = upNext.filter { $0 != id }

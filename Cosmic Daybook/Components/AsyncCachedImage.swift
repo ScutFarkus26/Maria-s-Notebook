@@ -51,7 +51,9 @@ struct AsyncCachedImage: View {
     
     @State private var image: PlatformImage?
     @State private var isLoading = true
-    
+    /// The cache key of the photo in `image`.
+    @State private var shownKey: String?
+
     /// Initializes an AsyncCachedImage with optional target size for downsampling.
     /// - Parameters:
     ///   - filename: The image filename to load
@@ -81,27 +83,40 @@ struct AsyncCachedImage: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .task {
-            await loadImage()
+        // Keyed by the photo and size, so a note given a new photo shows it
+        // straight away; a plain `.task` ran once and kept the old photo until
+        // the row was rebuilt.
+        .task(id: cacheKey) {
+            await loadImage(cacheKey: cacheKey)
         }
     }
-    
-    private func loadImage() async {
-        // Determine the effective target size (use default thumbnail size if not provided)
-        let effectiveSize = targetSize ?? CGSize(width: 300, height: 300)
 
-        // Create cache key that includes size to cache different sizes separately
-        let cacheKey = "\(filename)_\(Int(effectiveSize.width))x\(Int(effectiveSize.height))"
+    /// The effective target size: the default thumbnail size when none was given.
+    private var effectiveSize: CGSize {
+        targetSize ?? CGSize(width: 300, height: 300)
+    }
+
+    private var cacheKey: String {
+        CachedPhotoLoader.cacheKey(filename: filename, pointSize: effectiveSize)
+    }
+
+    private func loadImage(cacheKey: String) async {
+        // A different photo: don't keep showing the one it replaced.
+        if shownKey != cacheKey {
+            image = nil
+            isLoading = true
+        }
 
         // Memory cache, then disk cache, then the photo; disk and photo are read off the main thread
-        if let loadedImage = await CachedPhotoLoader.image(
+        let loadedImage = await CachedPhotoLoader.image(
             filename: filename,
             cacheKey: cacheKey,
             pointSize: effectiveSize,
             scale: DisplayScale.current
-        ) {
-            self.image = loadedImage
-        }
-        self.isLoading = false
+        )
+        guard !Task.isCancelled else { return }
+        image = loadedImage
+        shownKey = cacheKey
+        isLoading = false
     }
 }

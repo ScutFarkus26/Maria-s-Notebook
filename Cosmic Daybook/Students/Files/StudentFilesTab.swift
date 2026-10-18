@@ -143,6 +143,8 @@ struct StudentFilesTab: View {
         .onChange(of: previewURL) { _, newURL in
             if let url = newURL {
                 openDocumentInDefaultApp(url)
+                // Cleared, so tapping the same card again opens it again.
+                previewURL = nil
             }
         }
     }

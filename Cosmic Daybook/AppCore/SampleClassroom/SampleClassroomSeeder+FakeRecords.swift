@@ -86,9 +86,10 @@ extension SampleClassroomSeeder {
         let request = CDFetchRequest(CDAttendanceRecord.self)
         guard try context.count(for: request) == 0 else { return }
 
-        let today = calendar.startOfDay(for: now)
-        for dayOffset in 0..<5 {
-            guard let day = calendar.date(byAdding: .day, value: -dayOffset, to: today) else { continue }
+        // The last five school days, today first when it is one: a sample
+        // class takes no attendance on a weekend (bug hunt 2026-10-17 #38).
+        let days = schoolDays(5, from: now, step: -1, in: context, calendar: calendar)
+        for (dayOffset, day) in days.enumerated() {
             for (index, studentSeed) in fakeStudents.enumerated() {
                 let record = CDAttendanceRecord(context: context)
                 record.studentIDUUID = studentSeed.id
@@ -158,18 +159,64 @@ extension SampleClassroomSeeder {
             assignment.notes = "Sample small-group presentation."
         }
 
-        for (index, lesson) in lessons.dropFirst(2).prefix(3).enumerated() {
+        seedPlans(Array(lessons.dropFirst(2).prefix(3)), in: context, now: now, calendar: calendar)
+    }
+
+    /// One sample plan per lesson, on this school day and the next ones, never
+    /// on a day off (bug hunt 2026-10-17 #38).
+    private static func seedPlans(
+        _ lessons: [LessonSnapshot],
+        in context: NSManagedObjectContext,
+        now: Date,
+        calendar: Calendar
+    ) {
+        let planDays = schoolDays(lessons.count, from: now, step: 1, in: context, calendar: calendar)
+        for (index, lesson) in lessons.enumerated() {
             let assignment = CDLessonAssignment(context: context)
             assignment.lessonID = lesson.id.uuidString
             assignment.studentIDs = [fakeStudents[(index + 4) % fakeStudents.count].id.uuidString]
             assignment.lessonTitleSnapshot = lesson.name
             assignment.lessonSectionSnapshot = lesson.section
-            if let scheduledDate = calendar.date(byAdding: .day, value: index, to: now) {
+            if index < planDays.count {
                 // Sample data expresses a day, not a seed-run timestamp.
-                assignment.schedule(onDay: scheduledDate, using: calendar)
+                assignment.schedule(onDay: planDays[index], using: calendar)
             }
             assignment.notes = "Sample plan—safe to reschedule or complete."
         }
+    }
+
+    /// `count` school days from `now`'s day, stepping `step` days at a time
+    /// (1 forward, -1 back) and starting with that day when it is one. Weekends
+    /// are skipped, and any day off in the sample store (it copies none of My
+    /// Class's).
+    private static func schoolDays(
+        _ count: Int,
+        from now: Date,
+        step: Int,
+        in context: NSManagedObjectContext,
+        calendar: Calendar
+    ) -> [Date] {
+        let start = calendar.startOfDay(for: now)
+        // Room for `count` school days past a two-week break.
+        let reach = count * 7 + 14
+        guard let far = calendar.date(byAdding: .day, value: step * reach, to: start),
+              let dayAfterStart = calendar.date(byAdding: .day, value: 1, to: start) else { return [] }
+        let daysOff = SchoolDayChecker.nonSchoolDaySet(
+            in: step > 0 ? start..<far : far..<dayAfterStart,
+            using: context,
+            calendar: calendar
+        )
+
+        var days: [Date] = []
+        var cursor = start
+        var looked = 0
+        while days.count < count, looked < reach {
+            if !daysOff.contains(cursor) { days.append(cursor) }
+            guard let next = calendar.date(byAdding: .day, value: step, to: cursor) else { break }
+            cursor = calendar.startOfDay(for: next)
+            looked += 1
+        }
+        return days
     }
 
     static func seedNotesIfNeeded(

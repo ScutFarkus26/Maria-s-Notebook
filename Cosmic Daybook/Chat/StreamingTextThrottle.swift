@@ -91,6 +91,14 @@ final class StreamingTextThrottle {
         }
     }
 
+    /// Drops what is waiting and the scheduled update, showing nothing: the
+    /// answer no longer belongs on screen.
+    func cancel() {
+        scheduledUpdate?.cancel()
+        scheduledUpdate = nil
+        _ = pacing.flush(at: .now)
+    }
+
     private func fireScheduledUpdate() {
         scheduledUpdate = nil
         if let text = pacing.fire(at: .now) {

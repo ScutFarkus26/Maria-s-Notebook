@@ -60,7 +60,8 @@ extension MCPNotebookTools {
             "reason": [
                 "type": "string",
                 "description": .string("Why school is out, e.g. Thanksgiving, Winter break, Teacher "
-                    + "planning day (no-school days only)")
+                    + "planning day (no-school weekdays only: a weekend is out without a record, so its "
+                    + "reason isn't kept)")
             ],
             "include_weekends": [
                 "type": "boolean",
@@ -86,17 +87,30 @@ extension MCPNotebookTools {
             }
         }
 
-        func lines(state: String, reason: String?) -> [String] {
+        /// `weekendsWithoutReason`: the weekends a reason was given for, which
+        /// keep none (see `setSchoolDays`).
+        func lines(state: String, reason: String?, weekendsWithoutReason: [Date] = []) -> [String] {
             var lines: [String] = []
-            if !changed.isEmpty {
+            let withReason = changed.filter { !weekendsWithoutReason.contains($0) }
+            let withoutReason = changed.filter { weekendsWithoutReason.contains($0) }
+            if !withReason.isEmpty {
                 let reasonText = reason.map { " — \($0)" } ?? ""
-                lines.append("Marked \(MCPNotebookTools.dayList(changed)) \(state)\(reasonText).")
+                lines.append("Marked \(MCPNotebookTools.dayList(withReason)) \(state)\(reasonText).")
+            }
+            if !withoutReason.isEmpty {
+                lines.append("Marked \(MCPNotebookTools.dayList(withoutReason)) \(state).")
             }
             if !reasonUpdated.isEmpty {
                 lines.append("Updated the reason on \(MCPNotebookTools.dayList(reasonUpdated)), already no school.")
             }
             if !unchanged.isEmpty {
                 lines.append("Already \(state): \(MCPNotebookTools.dayList(unchanged)).")
+            }
+            if let reason, !weekendsWithoutReason.isEmpty {
+                lines.append(
+                    "A weekend is out of school without a record, so \u{201C}\(reason)\u{201D} isn't kept for "
+                        + "\(MCPNotebookTools.dayList(weekendsWithoutReason))."
+                )
             }
             return lines
         }
@@ -129,8 +143,12 @@ extension MCPNotebookTools {
         if tally.wroteSomething, !modelContext.safeSave() {
             throw MCPToolError("The calendar change could not be saved.")
         }
-        return tally.lines(state: inSession ? "in session" : "no school", reason: reason)
-            .joined(separator: "\n")
+        // A weekend is out of session with no row, so a reason has nowhere to
+        // be kept; the reply used to echo it as saved (2026-10-17 hunt, #16).
+        let weekendsWithoutReason = (reason != nil && !inSession) ? days.filter(isWeekend) : []
+        return tally.lines(
+            state: inSession ? "in session" : "no school", reason: reason, weekendsWithoutReason: weekendsWithoutReason
+        ).joined(separator: "\n")
     }
 
     /// The days named by `date`, `dates`, and `from`/`to`, each at start of

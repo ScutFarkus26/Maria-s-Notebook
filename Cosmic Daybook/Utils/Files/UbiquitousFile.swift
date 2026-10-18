@@ -132,20 +132,32 @@ nonisolated enum UbiquitousFile {
         timeout: Duration = downloadTimeout,
         _ body: @escaping @Sendable (URL) throws -> T
     ) async throws -> T {
-        let coordinator = CoordinatorBox(NSFileCoordinator(filePresenter: nil))
         let intent = NSFileAccessIntent.readingIntent(with: url, options: [])
+        return try await coordinate([intent], timeout: timeout) { try body(intent.url) }
+    }
+
+    /// Runs `body` once the coordinator grants `intents` (read `url` from
+    /// each intent inside it), without blocking a thread while it waits. After
+    /// `timeout` the wait is cancelled and the coordinator's error thrown;
+    /// a `body` already running runs to the end.
+    private static func coordinate<T: Sendable>(
+        _ intents: [NSFileAccessIntent],
+        timeout: Duration,
+        _ body: @escaping @Sendable () throws -> T
+    ) async throws -> T {
+        let coordinator = CoordinatorBox(NSFileCoordinator(filePresenter: nil))
         let timeout = Task {
             try await Task.sleep(for: timeout)
             coordinator.value.cancel()
         }
         defer { timeout.cancel() }
         return try await withCheckedThrowingContinuation { continuation in
-            coordinator.value.coordinate(with: [intent], queue: accessQueue) { error in
+            coordinator.value.coordinate(with: intents, queue: accessQueue) { error in
                 if let error {
                     continuation.resume(throwing: error)
                     return
                 }
-                continuation.resume(with: Result { try body(intent.url) })
+                continuation.resume(with: Result { try body() })
             }
         }
     }
@@ -179,6 +191,19 @@ nonisolated enum UbiquitousFile {
         if let copyError { throw copyError }
     }
 
+    /// Copies `source` to `destination` the same way, without blocking a
+    /// thread while it waits for access: when another process holds either
+    /// file past `timeout` (or an iCloud source won't come down), the wait is
+    /// cancelled and the copy fails, rather than leave a spinner up for good.
+    /// Once access is granted the copy runs to the end.
+    static func coordinatedCopy(from source: URL, to destination: URL, timeout: Duration) async throws {
+        let read = NSFileAccessIntent.readingIntent(with: source, options: .withoutChanges)
+        let write = NSFileAccessIntent.writingIntent(with: destination, options: .forReplacing)
+        try await coordinate([read, write], timeout: timeout) {
+            try FileManager.default.copyItem(at: read.url, to: write.url)
+        }
+    }
+
     /// Moves or renames `source` to `destination` under a coordinated move,
     /// telling the coordinator where the item went. Works for an iCloud item
     /// that is not downloaded yet: the move is of the item, not its bytes.
@@ -203,6 +228,27 @@ nonisolated enum UbiquitousFile {
         if let moveError { throw moveError }
     }
 
+    /// Replaces `destination` with `source` under a coordinated move of the
+    /// source and a coordinated replace of the destination, so a reader sees
+    /// the old file or the new one, never a mix. `source` is gone afterward.
+    static func coordinatedReplaceItem(at destination: URL, withItemAt source: URL) throws {
+        var coordinationError: NSError?
+        var replaceError: Error?
+        NSFileCoordinator(filePresenter: nil).coordinate(
+            writingItemAt: source, options: .forMoving,
+            writingItemAt: destination, options: .forReplacing,
+            error: &coordinationError
+        ) { fromURL, toURL in
+            do {
+                _ = try FileManager.default.replaceItemAt(toURL, withItemAt: fromURL)
+            } catch {
+                replaceError = error
+            }
+        }
+        if let coordinationError { throw coordinationError }
+        if let replaceError { throw replaceError }
+    }
+
     /// Deletes `url` under a coordinated delete. A file that is only an iOS
     /// placeholder is deleted through its real name, which removes the item
     /// from iCloud; when the system declines that, the placeholder itself is
@@ -219,6 +265,16 @@ nonisolated enum UbiquitousFile {
                     try fm.removeItem(at: placeholder)
                 }
             }
+        }
+    }
+
+    /// Moves `url` to the Trash under a coordinated delete, so it leaves the
+    /// container (and iCloud) but can still be got back. Throws, having moved
+    /// nothing, when the system can't: what the Trash does inside a ubiquity
+    /// container isn't documented, so a caller never falls back to deleting.
+    static func coordinatedTrash(_ url: URL) throws {
+        try coordinate(writingAt: url, options: .forDeleting) { target in
+            try FileManager.default.trashItem(at: target, resultingItemURL: nil)
         }
     }
 

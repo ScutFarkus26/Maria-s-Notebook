@@ -386,5 +386,12 @@ final class TodayViewModel {
         if errorCollector.hasErrors {
             showFetchErrorToast(errorCollector)
         }
+
+        // 10. The needs-a-lesson card. A reload follows edits made elsewhere
+        // (a lesson given in another window, synced, or over MCP) while Today
+        // stays open, as the Mac's does all day; only an appearance or a date
+        // change recounted it before (bug hunt 2026-10-17, #41). Its change
+        // flag skips the count when nothing it reads moved.
+        reloadDerivedCountsIfNeeded(calendar: calendar)
     }
 }

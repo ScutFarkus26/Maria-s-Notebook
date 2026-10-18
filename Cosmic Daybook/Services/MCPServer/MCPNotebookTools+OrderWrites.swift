@@ -157,7 +157,9 @@ extension MCPNotebookTools {
                 + "that the guide asked the office (it sends nothing) and groups the items as one "
                 + "request; confirmed means the office acknowledged; received checks an item off; "
                 + "not_received unchecks it; to_request forgets the request. Setting a stage an "
-                + "item is already at changes nothing. Every id is checked before anything is saved.",
+                + "item is already at changes nothing. An item can't go back with asked_for or "
+                + "confirmed: a received one needs not_received first, a confirmed one to_request. "
+                + "Every id is checked before anything is saved.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -195,6 +197,8 @@ extension MCPNotebookTools {
             throw MCPToolError("Pass items: at least one { id, stage, title, quantity, notes }.")
         }
         let resolved = try entries.map { try resolveOrderEdit($0, in: modelContext) }
+        // Every real change stamps the item, so the stamps say which changed.
+        let stampsBefore = resolved.map(\.item.modifiedAt)
 
         // Items newly asked for in one call form one request, as they would
         // from one drafted message.
@@ -211,10 +215,30 @@ extension MCPNotebookTools {
             applyOrderStage(fields["stage"]?.stringValue, to: item, by: author, in: modelContext)
         }
 
+        // A stage an item is already at, or a title it already has, changes
+        // nothing; a call that changed nothing says so and isn't a write. It
+        // used to report "Updated N" and go into the write journal
+        // (2026-10-17 hunt, #16).
+        var seen: Set<NSManagedObjectID> = []
+        let items = resolved.map(\.item).filter { seen.insert($0.objectID).inserted }
+        let changedIDs = Set(zip(resolved, stampsBefore).compactMap { entry, stamp in
+            entry.item.modifiedAt != stamp ? entry.item.objectID : nil
+        })
+        let unchanged = items.filter { !changedIDs.contains($0.objectID) }
+        guard !changedIDs.isEmpty else {
+            MCPCallOutcome.markNothingWritten()
+            return "Nothing changed — already as asked:\n" + unchanged.map(orderLine).joined(separator: "\n")
+        }
+
         guard modelContext.safeSave() else {
             throw MCPToolError("The changes could not be saved.")
         }
-        return "Updated \(resolved.count):\n" + resolved.map { orderLine($0.item) }.joined(separator: "\n")
+        let changed = items.filter { changedIDs.contains($0.objectID) }
+        var reply = "Updated \(changed.count):\n" + changed.map(orderLine).joined(separator: "\n")
+        if !unchanged.isEmpty {
+            reply += "\nAlready as asked:\n" + unchanged.map(orderLine).joined(separator: "\n")
+        }
+        return reply
     }
 
     /// Checks one entry before anything is written, so a bad id or stage anywhere
@@ -232,6 +256,7 @@ extension MCPNotebookTools {
         if let stage = fields["stage"]?.stringValue, !allowedStages.contains(stage) {
             throw MCPToolError("Unknown stage \"\(stage)\". Nothing was changed.")
         }
+        try checkStageCanMove(fields["stage"]?.stringValue, item: item)
         if fields["stage"]?.stringValue == "confirmed", item.requestedAt == nil {
             throw MCPToolError(
                 "\"\(item.title)\" hasn't been asked for, so the office can't have confirmed it; "
@@ -248,6 +273,27 @@ extension MCPNotebookTools {
             throw MCPToolError("Quantity must be at least 1. Nothing was changed.")
         }
         return (item, fields)
+    }
+
+    /// asked_for and confirmed only move an item forward. On an item already
+    /// past them they used to change nothing and reply "already as asked"
+    /// (review (b) 2026-10-17, #9); this says why it can't move instead.
+    private static func checkStageCanMove(_ stage: String?, item: CDOrderItem) throws {
+        switch (stage, item.stage) {
+        case ("asked_for", .received), ("confirmed", .received):
+            let asked = stage == "asked_for" ? "asked for" : "confirmed"
+            throw MCPToolError(
+                "\"\(item.displayTitle)\" was already received, so it can't be marked \(asked); "
+                    + "set it to not_received first. Nothing was changed."
+            )
+        case ("asked_for", .confirmed):
+            throw MCPToolError(
+                "\"\(item.displayTitle)\" is already confirmed by the office, so it can't go back to "
+                    + "asked for; to ask again, set it to to_request first. Nothing was changed."
+            )
+        default:
+            break
+        }
     }
 
     /// Every stage but asked_for, which `updateOrderItems` applies to the whole
@@ -274,7 +320,12 @@ extension MCPNotebookTools {
         let title = fields["title"]?.stringValue
         let quantity = fields["quantity"]?.intValue
         let notes = fields["notes"]?.stringValue
-        guard title != nil || quantity != nil || notes != nil else { return }
+        // Only a value that differs is an edit: `OrderService.update` stamps
+        // the item whatever it is given.
+        let changesTitle = title.map { $0.trimmed() != item.title } ?? false
+        let changesQuantity = quantity.map { OrderService.clampedQuantity($0) != item.quantity } ?? false
+        let changesNotes = notes.map { $0.trimmed() != item.notes } ?? false
+        guard changesTitle || changesQuantity || changesNotes else { return }
         OrderService.update(
             item,
             title: title ?? item.title,

@@ -16,6 +16,8 @@ import UniformTypeIdentifiers
 struct WeekDayColumnDropDelegate: PresentationDropTarget {
     let calendar: Calendar
     let viewContext: NSManagedObjectContext
+    /// Saves the drop and, when that fails, raises the shared "Couldn't Save" alert.
+    let saveCoordinator: SaveCoordinator
     let allLessonAssignments: [CDLessonAssignment]
     let day: Date
     /// Only presentations take part in ordering, so only their ids and frames
@@ -40,15 +42,25 @@ struct WeekDayColumnDropDelegate: PresentationDropTarget {
         // in it, so a day accepts a whole morning in one drop.
         let payloads = UnifiedCalendarDragPayload.parseAll(text)
         guard !payloads.isEmpty else { return }
-        // Check-ins are collected and applied together; everything else lands
-        // in the order it was dragged.
+        // Presentations land together, in the order they were dragged, and
+        // check-ins are applied together; work cards go one at a time.
+        var presentationIDs: [UUID] = []
         var checkInIDs: [UUID] = []
         for payload in payloads {
-            if case .workCheckIn(let id) = payload {
+            switch payload {
+            case .presentation(let id):
+                if !presentationIDs.contains(id) { presentationIDs.append(id) }
+            case .workCheckIn(let id):
                 checkInIDs.append(id)
-            } else {
-                applyDrop(payload: payload, locationY: location.y)
+            case .work(let id):
+                onDropWork(id, AppCalendar.startOfDay(day))
+            case .yearPlanEntry:
+                // Year plan entries belong to the student Year Plan calendar.
+                break
             }
+        }
+        if !presentationIDs.isEmpty {
+            applyPresentationDrop(ids: presentationIDs, locationY: location.y)
         }
         if !checkInIDs.isEmpty {
             onDropWorkCheckIns(checkInIDs, AppCalendar.startOfDay(day))
@@ -59,82 +71,131 @@ struct WeekDayColumnDropDelegate: PresentationDropTarget {
         PresentationDropHandling.frames(for: orderedPresentationIDs(), in: itemFramesProvider())
     }
 
-    private func applyDrop(payload: UnifiedCalendarDragPayload, locationY: CGFloat) {
-        switch payload {
-        case .presentation(let id):
-            applyPresentationDrop(id: id, locationY: locationY)
-        case .work(let id):
-            onDropWork(id, AppCalendar.startOfDay(day))
-        case .workCheckIn:
-            // Batched by the caller — see handleDroppedText.
-            break
-        case .yearPlanEntry:
-            // Year plan entries belong to the student Year Plan calendar.
-            break
-        }
-    }
-
-    private func applyPresentationDrop(id: UUID, locationY: CGFloat) {
-        let ordered = orderedPresentationIDs()
+    /// Places every dropped presentation in one pass: a drop on a pill for the
+    /// same lesson merges as before, and the rest go in at the drop point, in
+    /// the order they were dragged, with the day's times worked out once and
+    /// saved once. Placing them one at a time against the column as it was
+    /// drawn gave every one the same slot (bug hunt 2026-10-17 #47).
+    private func applyPresentationDrop(ids droppedIDs: [UUID], locationY: CGFloat) {
         let frames = presentationFrames()
-        if let target = PresentationDropHandling.mergeTarget(
-            for: id,
-            locationY: locationY,
-            among: ordered.compactMap { pid in allLessonAssignments.first { $0.id == pid } },
-            in: allLessonAssignments,
-            frames: frames
-        ) {
-            PresentationMergeService.merge(
-                sourceID: id,
-                targetID: target.id ?? UUID(),
-                context: viewContext
-            )
-            return
-        }
+        let (placed, merged) = mergeWhereDropped(droppedIDs, locationY: locationY, frames: frames)
+        guard !placed.isEmpty else { return }
 
-        let ids = PlanningDropUtils.reordered(
-            ids: ordered,
-            moving: id,
-            toLocationY: locationY,
-            frames: frames
-        )
+        // A card merged away is deleted: it takes no slot on the day, and is
+        // never written to again (review of bug hunt 2026-10-17 #47).
+        let ordered = orderedPresentationIDs().filter { !merged.contains($0) }
+        let ids = Self.ordering(ordered, inserting: placed, atLocationY: locationY, frames: frames)
         // One pass over the day's assignments instead of a linear scan per id —
         // every drop now writes and saves for real, so a big day would repeat
         // that scan for every pill in it.
         let assignmentsByID = Dictionary(
-            allLessonAssignments.compactMap { assignment in assignment.id.map { ($0, assignment) } },
+            allLessonAssignments.compactMap { assignment -> (UUID, CDLessonAssignment)? in
+                guard !assignment.isDeleted, assignment.managedObjectContext != nil,
+                      let id = assignment.id else { return nil }
+                return (id, assignment)
+            },
             uniquingKeysWith: { first, _ in first }
         )
         let timeMap = DayHalfPlanner.times(
-            for: placements(ordering: ids, dropped: id, lookup: assignmentsByID),
+            for: placements(ordering: ids, dropped: Set(placed), lookup: assignmentsByID),
             on: day,
             using: calendar,
             spacingSeconds: UIConstants.scheduleSpacingSeconds
         )
+        var touched: [CDLessonAssignment] = []
         for itemID in ids {
             if let item = assignmentsByID[itemID], let time = timeMap[itemID] {
                 item.setScheduledFor(time, using: AppCalendar.shared)
+                touched.append(item)
             }
         }
-        guard viewContext.safeSave() else { return }
+        guard save(touched) else { return }
 
-        if let droppedItem = assignmentsByID[id] {
-            PresentationDropHandling.autoPopulateSequence(
-                for: droppedItem, fallbackDate: { day }, context: viewContext
-            )
+        for id in placed {
+            if let droppedItem = assignmentsByID[id] {
+                PresentationDropHandling.autoPopulateSequence(
+                    for: droppedItem, fallbackDate: { day }, context: viewContext
+                )
+            }
         }
+    }
+
+    /// Merges each dropped card that landed on a pill for the same lesson into
+    /// it, and returns the rest, in the order given, to be placed. A dropped
+    /// card merges only into one that stays, never another of the batch.
+    private func mergeWhereDropped(
+        _ droppedIDs: [UUID], locationY: CGFloat, frames: [UUID: CGRect]
+    ) -> (placed: [UUID], merged: Set<UUID>) {
+        let candidates = orderedPresentationIDs()
+            .filter { !droppedIDs.contains($0) }
+            .compactMap { pid in allLessonAssignments.first { $0.id == pid } }
+        var placed: [UUID] = []
+        var merged: Set<UUID> = []
+        for id in droppedIDs {
+            if let target = PresentationDropHandling.mergeTarget(
+                for: id,
+                locationY: locationY,
+                among: candidates,
+                in: allLessonAssignments,
+                frames: frames
+            ), let targetID = target.id,
+               PresentationMergeService.merge(sourceID: id, targetID: targetID, context: viewContext) {
+                merged.insert(id)
+            } else {
+                placed.append(id)
+            }
+        }
+        return (placed, merged)
+    }
+
+    /// Saves the drop. A failed save raises the shared alert and puts every
+    /// card it touched back as the store has it, rather than leaving the drop
+    /// half made in memory (review of bug hunt 2026-10-17 #47).
+    private func save(_ touched: [CDLessonAssignment]) -> Bool {
+        guard saveCoordinator.save(viewContext, reason: "Drop presentations on a day") else {
+            for item in touched where item.managedObjectContext != nil {
+                viewContext.refresh(item, mergeChanges: false)
+            }
+            return false
+        }
+        return true
+    }
+
+    /// The day's presentations with `dropped` taken out and put back together
+    /// where the drop landed, first to last in the order given.
+    ///
+    /// The landing point is found the way a single card's is
+    /// (`PlanningDropUtils.reordered`, which drops the moving card's own frame
+    /// first), with every dropped card's frame left out, so the boundary is
+    /// read among the cards that stay.
+    static func ordering(
+        _ ordered: [UUID],
+        inserting dropped: [UUID],
+        atLocationY locationY: CGFloat,
+        frames: [UUID: CGRect]
+    ) -> [UUID] {
+        guard let first = dropped.first else { return ordered }
+        let droppedSet = Set(dropped)
+        let staying = ordered.filter { !droppedSet.contains($0) }
+        let stayingFrames = frames.filter { !droppedSet.contains($0.key) }
+        var ids = PlanningDropUtils.reordered(
+            ids: staying, moving: first, toLocationY: locationY, frames: stayingFrames
+        )
+        let index = (ids.firstIndex(of: first) ?? ids.count - 1) + 1
+        ids.insert(contentsOf: dropped.dropFirst(), at: index)
+        return ids
     }
 
     /// The day in its new order, each card carrying the half it belongs to.
     ///
-    /// Every card already on the day keeps its own half; only the dropped one
-    /// takes a new one, inherited from the card it landed under. That is the
+    /// Every card already on the day keeps its own half; only the dropped ones
+    /// take a new one, inherited from the card they landed under. That is the
     /// whole AM/PM gesture — and it is also what keeps a reorder honest, since
     /// dragging a morning lesson below the afternoon run makes it an afternoon
     /// lesson rather than leaving it stranded in the wrong half.
     private func placements(
         ordering ids: [UUID],
-        dropped id: UUID,
+        dropped: Set<UUID>,
         lookup: [UUID: CDLessonAssignment]
     ) -> [DayHalfPlanner.Placement] {
         func half(_ itemID: UUID) -> DayPeriod {
@@ -142,15 +203,17 @@ struct WeekDayColumnDropDelegate: PresentationDropTarget {
             return DayPeriod(scheduledFor: scheduled, using: calendar)
         }
 
-        let insertionIndex = ids.firstIndex(of: id) ?? ids.count
+        // The dropped cards sit together, so the first of them is where the
+        // drop landed among the others, and they all take that half.
+        let insertionIndex = ids.firstIndex { dropped.contains($0) } ?? ids.count
         let inherited = DayHalfPlanner.inheritedPeriod(
             insertingAt: insertionIndex,
-            into: ids.filter { $0 != id }.map(half)
+            into: ids.filter { !dropped.contains($0) }.map(half)
         )
         // A time the guide set (10:30 through Claude) stays put; only the
-        // dropped card and the ordering slots around it are renumbered.
+        // dropped cards and the ordering slots around them are renumbered.
         return ids.map { itemID in
-            itemID == id
+            dropped.contains(itemID)
                 ? DayHalfPlanner.Placement(id: itemID, period: inherited)
                 : DayHalfPlanner.Placement(
                     id: itemID,

@@ -169,7 +169,7 @@ enum CalendarDayText {
     }
 
     /// How a day's note reads: red on a non-school day, grey for a holiday
-    /// name the user has not overwritten, otherwise the normal text colour.
+    /// name the user has not overwritten, otherwise the normal text color.
     static func noteStyle(isHoliday: Bool, isNonSchool: Bool) -> some ShapeStyle {
         if isNonSchool { return AnyShapeStyle(.red.opacity(UIConstants.OpacityConstants.half)) }
         if isHoliday { return AnyShapeStyle(.secondary) }

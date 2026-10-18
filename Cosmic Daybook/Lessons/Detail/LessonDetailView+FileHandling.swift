@@ -8,6 +8,10 @@ import AppKit
 // MARK: - File Handling
 
 extension LessonDetailView {
+    /// The lesson's bookmarked Pages file. Access to it isn't started here:
+    /// `openInPages` holds it while the file is open. It used to be started
+    /// on every resolve and never stopped (review of the 2026-10-17 fixes,
+    /// a2 #7).
     func resolvePagesURL() -> URL? {
         guard let bookmarkData = lesson.pagesFileBookmark else {
             return nil
@@ -19,16 +23,9 @@ extension LessonDetailView {
                 options: [.withoutUI]
             )
 
-#if os(iOS)
-            if url.startAccessingSecurityScopedResource() {
-                // Caller must call stopAccessingSecurityScopedResource when done,
-                // but here we keep it open as long as resolvedPagesURL is set.
-                // Will be released when resolvedPagesURL changes or view disappears.
-            }
-#endif
-
             if isStale {
-                // Optionally recreate bookmark here
+                let needsAccess = url.startAccessingSecurityScopedResource()
+                defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
                 savePagesBookmark(from: url)
             }
             return url
@@ -132,24 +129,29 @@ extension LessonDetailView {
     }
 
     /// Opens the file once it is on this device (an iCloud file may still
-    /// have to download; see `UbiquitousFile`).
+    /// have to download; see `UbiquitousFile`). On iPhone and iPad, where
+    /// `UIApplication.open` can't open a file, the share sheet offers Pages;
+    /// `DocumentPresenter` holds access to the file until the sheet closes,
+    /// since Pages reads the file while the sheet is up.
     func openInPages(_ url: URL) {
         Task {
-            let url = await UbiquitousFile.localURL(for: url)
+            #if os(iOS)
+            if let message = await DocumentPresenter.open(url, as: .share).message {
+                ToastService.shared.showError(message)
+            }
+            #elseif os(macOS)
             let needsAccess = url.startAccessingSecurityScopedResource()
             defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
-            #if os(iOS)
-            UIApplication.shared.open(url, options: [:], completionHandler: nil)
-            #elseif os(macOS)
+            let file = await UbiquitousFile.localURL(for: url)
             if let pagesAppURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.iWork.Pages") {
                 let config = NSWorkspace.OpenConfiguration()
                 config.activates = true
                 NSWorkspace.shared.open(
-                    [url], withApplicationAt: pagesAppURL,
+                    [file], withApplicationAt: pagesAppURL,
                     configuration: config, completionHandler: nil
                 )
             } else {
-                NSWorkspace.shared.open(url)
+                NSWorkspace.shared.open(file)
             }
             #endif
         }

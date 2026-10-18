@@ -219,7 +219,7 @@ struct CalendarSchoolYearSiriFix1011C {
         let first = CellID(year: 2026, month: 10, day: 6)
         let second = CellID(year: 2026, month: 10, day: 7)
 
-        editor.beginEditing(first, currentText: "", notes: [:], in: context)
+        editor.beginEditing(first, notes: [:], in: context)
         editor.draft = "Picture day"
         editor.commitIfOpen(first, notes: [:], in: context)
 
@@ -229,7 +229,7 @@ struct CalendarSchoolYearSiriFix1011C {
         #expect(notes.first?.text == "Picture day")
         #expect(editor.editingCell == nil)
 
-        editor.beginEditing(second, currentText: "", notes: [:], in: context)
+        editor.beginEditing(second, notes: [:], in: context)
         editor.draft = "Field trip"
         // The first day's field reports losing focus after the second opened.
         editor.commitIfOpen(first, notes: [:], in: context)

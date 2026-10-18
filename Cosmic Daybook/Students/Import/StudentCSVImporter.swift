@@ -134,6 +134,9 @@ enum StudentCSVImporter {
         var warnings: [String] = []
 
         for (i, rawRow) in csv.rows.enumerated() {
+            // The spreadsheet's own line, past any blank lines left out.
+            let line = csv.recordNumbers.flatMap { i < $0.count ? $0[i] : nil } ?? i + 2
+
             // Extract text safely
             func value(_ idx: Int?) -> String {
                 guard let idx, idx >= 0, idx < rawRow.count else { return "" }
@@ -150,7 +153,7 @@ enum StudentCSVImporter {
             )
 
             guard !first.isEmpty && !last.isEmpty else {
-                warnings.append("Line \(i + 2) skipped: it's missing a first or last name.")
+                warnings.append("Line \(line) skipped: it's missing a first or last name.")
                 continue
             }
 
@@ -159,8 +162,8 @@ enum StudentCSVImporter {
             let startStr = value(useMap.startDate)
             let levelStr = value(useMap.level)
 
-            let bday = date(bdayStr, named: "birthday", line: i + 2, warnings: &warnings)
-            let start = date(startStr, named: "start date", line: i + 2, warnings: &warnings)
+            let bday = date(bdayStr, named: "birthday", line: line, warnings: &warnings)
+            let start = date(startStr, named: "start date", line: line, warnings: &warnings)
             let lvl = parseLevel(from: levelStr)
 
             let row = Row(firstName: first, lastName: last, birthday: bday, dateStarted: start, level: lvl)

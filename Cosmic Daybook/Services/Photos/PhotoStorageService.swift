@@ -206,6 +206,9 @@ public enum PhotoStorageService {
     /// Loads a downsampled image from the photos directory using a filename.
     /// Uses CGImageSource to create thumbnails efficiently, drastically reducing memory usage:
     /// the full-size photo is never decoded, and the thumbnail is decoded on the calling thread.
+    /// The photo's EXIF orientation is applied, so it comes back upright: an iPhone
+    /// photo is stored with its pixels as the camera took them and an orientation tag
+    /// (`PhotoImageIO.savedPhotoJPEG`), and rows draw this image as it is.
     /// - Parameters:
     ///   - filename: The filename returned from saveImage
     ///   - pointSize: The desired size in points
@@ -222,6 +225,7 @@ public enum PhotoStorageService {
         let maxPixelSize = max(pointSize.width, pointSize.height) * scale
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
             kCGImageSourceShouldCacheImmediately: true,
             kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
         ]
@@ -231,7 +235,7 @@ public enum PhotoStorageService {
 
     /// Loads a downsampled CGImage suitable for on-device AI analysis.
     /// Platform-independent; capped at `maxPixelSize` on the long edge to keep
-    /// token cost and latency reasonable.
+    /// token cost and latency reasonable. Upright, as `downsampledCGImage` is.
     nonisolated public static func loadCGImageForAI(
         filename: String, maxPixelSize: CGFloat = 1_024
     ) -> CGImage? {
@@ -241,10 +245,27 @@ public enum PhotoStorageService {
         }
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
             kCGImageSourceShouldCacheImmediately: true,
             kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
         ]
         return CGImageSourceCreateThumbnailAtIndex(imageSource, 0, options as CFDictionary)
+    }
+
+    /// The note photo `filename` for Apple Intelligence (`loadCGImageForAI`),
+    /// read off the main thread once it is on this device: `download` (by
+    /// default `downloadIfNeeded`) first brings a photo taken on another
+    /// device that is still in iCloud. Nil when it never arrives. Describe
+    /// Photo and Suggest Tags used to read the file on the main thread without
+    /// waiting, and found nothing there.
+    @concurrent
+    nonisolated static func imageForAI(
+        filename: String,
+        maxPixelSize: CGFloat = 1_024,
+        download: @Sendable (String) async -> Void = { await downloadIfNeeded(filename: $0) }
+    ) async -> CGImage? {
+        await download(filename)
+        return loadCGImageForAI(filename: filename, maxPixelSize: maxPixelSize)
     }
 
     /// Deletes the photo named `filename` wherever it is: from iCloud (a

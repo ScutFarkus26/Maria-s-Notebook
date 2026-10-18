@@ -60,8 +60,12 @@ struct MeetingTemplateRepository: SavingRepository {
 
     // MARK: - Delete
 
-    /// Delete a MeetingTemplate by ID (only custom templates can be deleted)
-    func deleteTemplate(id: UUID) throws {
+    /// Deletes a custom MeetingTemplate by ID (built-in ones stay), handing
+    /// the active mark to the first built-in one. Does not save: the caller
+    /// saves and takes the change back if that fails (`SaveCoordinator.saveEdit`),
+    /// since a delete that saved itself and failed stayed pending, to be
+    /// saved by whatever saved next (bug hunt 2026-10-17, #42).
+    func removeTemplate(id: UUID) {
         guard let template = fetchTemplate(id: id) else { return }
         guard !template.isBuiltIn else { return }
 
@@ -72,6 +76,5 @@ struct MeetingTemplateRepository: SavingRepository {
         }
 
         context.delete(template)
-        try context.save()
     }
 }

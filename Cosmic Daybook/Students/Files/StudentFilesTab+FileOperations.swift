@@ -13,14 +13,17 @@ import UIKit
 
 extension StudentFilesTab {
     /// Opens the document once its file is on this device (an iCloud file
-    /// may still have to download; see `UbiquitousFile`).
+    /// may still have to download; see `UbiquitousFile`): in Quick Look on
+    /// iPhone and iPad, where `UIApplication.open` can't open a file.
     func openDocumentInDefaultApp(_ url: URL) {
         Task {
-            let url = await UbiquitousFile.localURL(for: url)
             #if os(macOS)
+            let url = await UbiquitousFile.localURL(for: url)
             NSWorkspace.shared.open(url)
             #else
-            UIApplication.shared.open(url, options: [:], completionHandler: nil)
+            if let message = await DocumentPresenter.open(url, as: .preview).message {
+                ToastService.shared.showError(message)
+            }
             #endif
         }
     }

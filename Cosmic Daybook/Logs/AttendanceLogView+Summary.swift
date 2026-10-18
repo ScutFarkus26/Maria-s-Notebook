@@ -12,7 +12,7 @@ extension AttendanceLogView {
         HStack(spacing: 16) {
             statBadge(count: stats.present, label: "Present", color: .green)
             statBadge(count: stats.absent, label: "Absent", color: .red)
-            statBadge(count: stats.tardy, label: "Tardy", color: .blue)
+            statBadge(count: stats.tardy, label: AttendanceStatus.tardy.displayName, color: .blue)
             statBadge(count: stats.leftEarly, label: "Left Early", color: .purple)
             Spacer()
             Text("\(stats.total) records")

@@ -299,6 +299,11 @@ struct QuickNoteSheet: View {
                         aiMenuButton(students: students)
 
                         // Attachments
+                        if viewModel.isLoadingPhoto {
+                            QuickNotePhotoLoadingLine { viewModel.selectedPhotoItem = nil }
+                        } else if let message = viewModel.photoLoadMessage {
+                            QuickNotePhotoMessageLine(message: message)
+                        }
                         if let img = viewModel.attachedImage {
                             QuickNoteAttachmentThumbnail(image: img) {
                                 viewModel.selectedPhotoItem = nil
@@ -324,7 +329,7 @@ struct QuickNoteSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
                     .fontWeight(.bold)
-                    .disabled(viewModel.bodyText.trimmed().isEmpty)
+                    .disabled(!viewModel.canSave)
                 }
             }
         }
@@ -409,6 +414,18 @@ struct QuickNoteSheet: View {
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
+                if viewModel.isLoadingPhoto {
+                    QuickNotePhotoLoadingLine { viewModel.selectedPhotoItem = nil }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal)
+                        .padding(.bottom, 8)
+                } else if let message = viewModel.photoLoadMessage {
+                    QuickNotePhotoMessageLine(message: message)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal)
+                        .padding(.bottom, 8)
+                }
+
                 Divider()
 
                 iOSAccessoryBar(students: students)
@@ -420,7 +437,7 @@ struct QuickNoteSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
                         .fontWeight(.bold)
-                        .disabled(viewModel.bodyText.trimmed().isEmpty)
+                        .disabled(!viewModel.canSave)
                 }
             }
             .popover(isPresented: $viewModel.isShowingStudentPicker) {

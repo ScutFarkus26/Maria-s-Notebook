@@ -107,11 +107,14 @@ struct WorkDetailView: View {
                     #endif
             }
         }
-        .onReceive(
-            NotificationCenter.default.publisher(for: .NSManagedObjectContextObjectsDidChange, object: modelContext)
-                .filter { !ManagedObjectChangeScope.touched(["PracticeSession"], in: $0.userInfo).isEmpty }
-                .receive(on: DispatchQueue.main)
-        ) { _ in
+        // Another context's save too: a session logged elsewhere that newly
+        // names this work or child reaches this context only if it was registered here.
+        // Only while on screen, and once per burst: the reload reads every
+        // practice session, and `.onAppear` below reloads on return.
+        .onReceiveWhenVisible(
+            CoordinatorChangeSignal.coalescedChanges(of: ["PracticeSession"], in: modelContext),
+            catchUpOnAppear: false
+        ) {
             reloadPracticeSessions()
         }
         .onPresentationDataChange(of: ["LessonAssignment", "WorkModel"], in: modelContext) { _ in

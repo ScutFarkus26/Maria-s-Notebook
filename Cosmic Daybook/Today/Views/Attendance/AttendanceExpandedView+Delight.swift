@@ -25,7 +25,8 @@ extension AttendanceExpandedView {
     #if os(iOS)
     /// Her mark's bell on the iPhone's tiles, if the bells are on: the next
     /// one up the scale for a child here, the low C damped for an absence,
-    /// nothing for clearing. `before` is the row as it was before the mark.
+    /// nothing for clearing or Left Early (`TileTapMotion.Kind`). `before`
+    /// is the row as it was before the mark.
     func ring(after before: AttendanceRow) {
         guard isCompact, AttendanceBells.isOn,
               let marked = viewModel.rows.first(where: { $0.id == before.id }),

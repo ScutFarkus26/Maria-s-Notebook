@@ -555,19 +555,21 @@ struct StoryDetailView: View {
     }
 
     /// Opens the PDF once it is on this device (an iCloud file may still
-    /// have to download; see `UbiquitousFile`).
+    /// have to download; see `UbiquitousFile`): in Quick Look on iPhone and
+    /// iPad, where `UIApplication.open` can't open a file.
     private func openPDF() {
         guard let url = StoryFileStorage.resolveURL(
             bookmark: story.pdfFileBookmark,
             relativePath: story.pdfFileRelativePath
         ) else { return }
         Task {
-            let url = await UbiquitousFile.localURL(for: url)
             #if os(macOS)
+            let url = await UbiquitousFile.localURL(for: url)
             NSWorkspace.shared.open(url)
             #else
-            // On iOS, open via the system. Caller can route to a Quick Look sheet.
-            _ = await UIApplication.shared.open(url)
+            if let message = await DocumentPresenter.open(url, as: .preview).message {
+                dependencies.toastService.showError(message)
+            }
             #endif
         }
     }

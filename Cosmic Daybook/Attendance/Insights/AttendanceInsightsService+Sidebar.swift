@@ -66,6 +66,29 @@ struct AttendanceSidebarInsights {
 }
 
 extension AttendanceInsightsService {
+    /// The children the sidebar counts for `range` and `priorRange`, from
+    /// the whole roster (`RosterStore.all`): those in the class at any time
+    /// in either, test students hidden unless the teacher shows them. It
+    /// counted only the children enrolled on the day on screen, test
+    /// students included, so on 90 days or Year a child who left last week
+    /// dropped out of the rate and Patterns (bug hunt 2026-10-17, #6).
+    static func insightStudents(
+        from roster: [CDStudent],
+        range: ClosedRange<Date>,
+        priorRange: ClosedRange<Date>,
+        show: Bool,
+        namesRaw: String
+    ) -> [CDStudent] {
+        let spans = [range, priorRange].map { span in
+            DateRange(
+                start: AppCalendar.startOfDay(span.lowerBound),
+                end: AppCalendar.addingDays(1, to: AppCalendar.startOfDay(span.upperBound))
+            )
+        }
+        let active = roster.filter { student in spans.contains { student.isActive(in: $0) } }
+        return TestStudentsFilter.filterVisible(active, show: show, namesRaw: namesRaw)
+    }
+
     /// The sidebar's aggregations from a single fetch over the union of the
     /// ranges they need (it was five fetches per attendance tap, the current
     /// range read twice). Each aggregation sees exactly the records its own

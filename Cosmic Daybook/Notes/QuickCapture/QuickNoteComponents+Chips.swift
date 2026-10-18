@@ -1,5 +1,42 @@
 import SwiftUI
 
+// MARK: - Photo Loading Line
+
+/// Shown while a picked photo is still on its way (an iCloud Photos original
+/// can take seconds); Save waits for it. Remove stops the wait, so a photo
+/// that never comes doesn't hold Save and her note.
+struct QuickNotePhotoLoadingLine: View {
+    let onRemove: () -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            HStack(spacing: 6) {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Adding photo…")
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .accessibilityElement(children: .combine)
+            Button("Remove", action: onRemove)
+                .font(AppTheme.ScaledFont.caption)
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Remove photo")
+        }
+    }
+}
+
+/// Why a picked photo wasn't added (it took too long to arrive).
+struct QuickNotePhotoMessageLine: View {
+    let message: String
+
+    var body: some View {
+        Label(message, systemImage: "exclamationmark.circle")
+            .font(AppTheme.ScaledFont.caption)
+            .foregroundStyle(.secondary)
+    }
+}
+
 // MARK: - CDLesson Chip
 
 struct QuickNoteLessonChip: View {

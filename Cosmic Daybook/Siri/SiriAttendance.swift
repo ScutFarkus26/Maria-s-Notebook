@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 //
 //  SiriAttendance.swift
 //  Cosmic Daybook
@@ -15,7 +16,7 @@ import CoreData
 import OSLog
 
 @MainActor
-struct SiriAttendance {
+struct SiriAttendance { // swiftlint:disable:this type_body_length
 
     nonisolated static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "CosmicDaybook",
@@ -156,13 +157,24 @@ struct SiriAttendance {
         _ student: CDStudent, as status: AttendanceStatus, reason: AbsenceReason? = nil
     ) async throws -> AttendanceStatus {
         try await Self.plainly("marking attendance") {
-            try await markUnwrapped(student, as: status, reason: reason)
+            try await markUnwrapped(student, as: status, reason: reason).previous
+        }
+    }
+
+    /// Absent, with `reason` when one was given: the mark before, and
+    /// whether anything changed (a reason a child already absent has
+    /// changes nothing).
+    func markAbsent(
+        _ student: CDStudent, reason: AbsenceReason?
+    ) async throws -> (previous: AttendanceStatus, changed: Bool) {
+        try await Self.plainly("marking attendance") {
+            try await markUnwrapped(student, as: .absent, reason: reason)
         }
     }
 
     private func markUnwrapped(
         _ student: CDStudent, as status: AttendanceStatus, reason: AbsenceReason?
-    ) async throws -> AttendanceStatus {
+    ) async throws -> (previous: AttendanceStatus, changed: Bool) {
         guard !store.isLocked(today) else { throw SiriAttendanceError.dayLocked }
         guard let record = try store.ensureRecord(for: student, on: today) else {
             throw SiriAttendanceError.cannotMark
@@ -176,7 +188,7 @@ struct SiriAttendance {
             guard store.updateStatus(record, to: status) else { throw SiriAttendanceError.cannotMark }
         }
         let reasonChanges = status == .absent && reason.map { store.updateAbsenceReason(record, to: $0) } == true
-        guard statusChanges || reasonChanges else { return previous }
+        guard statusChanges || reasonChanges else { return (previous, false) }
         var pending = Pending(record: record, from: previous, to: status, before: before)
         if reasonChanges {
             pending.fromReasonRaw = previousReasonRaw
@@ -184,18 +196,47 @@ struct SiriAttendance {
         }
         let name = spokenName(for: student)
         try await commit([pending], created: created, summary: "\(name) \(status.spokenWord)", name: name)
-        return previous
+        return (previous, true)
     }
 
     /// "Here": present, or late once arrival has closed in the Assistant
     /// (`SiriHost.statusForHere`), but never a downgrade: a child already
     /// present stays present, as a tap on the grid leaves her.
+    ///
+    /// A child marked Left Early is back in class (`markBack`), as the
+    /// roll's own button does: a plain mark gave her a new arrival time,
+    /// lost the trip out, and once arrival had closed made a child who came
+    /// on time late, at the front desk and in ParentLocker too (bug hunt
+    /// 2026-10-17, #1).
     func markHere(_ student: CDStudent) async throws -> (previous: AttendanceStatus, now: AttendanceStatus) {
+        let current = try status(of: student)
+        if current == .leftEarly {
+            return (.leftEarly, try await markBack(student))
+        }
         var status = SiriHost.statusForHere(on: today, store: store)
-        if status == .tardy, try self.status(of: student) == .present {
+        if status == .tardy, current == .present {
             status = .present
         }
         return (try await mark(student, as: status), status)
+    }
+
+    /// Back in Class (`CDAttendanceStore.markBack`): present or late, as
+    /// she was before she left, keeping her arrival and the trip out. The
+    /// whole record is remembered, so Undo puts her back as Left Early with
+    /// her times. Returns the mark she's back to.
+    private func markBack(_ student: CDStudent) async throws -> AttendanceStatus {
+        try await Self.plainly("marking back in class") {
+            guard !store.isLocked(today) else { throw SiriAttendanceError.dayLocked }
+            guard let record = try store.ensureRecord(for: student, on: today) else {
+                throw SiriAttendanceError.cannotMark
+            }
+            let before = AttendanceRecordSnapshot(record).values
+            guard store.markBack(record) else { throw SiriAttendanceError.cannotMark }
+            let name = spokenName(for: student)
+            let pending = Pending(record: record, from: .leftEarly, to: record.status, before: before)
+            try await commit([pending], created: [], summary: "\(name) back in class", name: name)
+            return record.status
+        }
     }
 
     /// A mark made in the context and not yet saved.

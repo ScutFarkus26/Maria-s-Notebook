@@ -66,7 +66,6 @@ extension CosmicDaybookApp {
                 .environment(restoreCoordinator)
                 .environment(AlbumLibrary.shared)
                 .syncingFromICloudOverlay()
-                .continuesHandoff(router: appRouter)
                 .parentLockerPreviewOnLaunch(context: notebook.coreDataStack.viewContext)
         }
     }
@@ -87,6 +86,11 @@ extension CosmicDaybookApp {
         .onChange(of: bootstrapper.state, initial: true) { _, state in
             Self.logger.info("App body: bootstrapper state: \(String(describing: state))")
         }
+        // On the content every main window has from its first frame, not on
+        // RootView: a Handoff that launches the app arrives while it still says
+        // "Opening your notebook…", and the router holds the request until the
+        // screen that answers it appears (bug hunt 2026-10-17 #32).
+        .continuesHandoff(router: appRouter)
     }
 
     #if os(macOS)

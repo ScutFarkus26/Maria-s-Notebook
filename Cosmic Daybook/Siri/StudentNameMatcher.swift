@@ -9,7 +9,8 @@
 //  nickname, or a near miss ("Eddie" for Etty). The tiers below run strictest
 //  first and stop at the first one that finds anyone, so an exact "Sarah
 //  Klein" never drags in Sarah Adler, while a bare "Sarah" returns both and
-//  Siri asks which.
+//  Siri asks which. The exact tiers cover former children too before any
+//  sound-alike is tried.
 //
 
 import Foundation
@@ -24,12 +25,37 @@ nonisolated enum StudentNameMatcher {
         let nickname: String?
     }
 
-    /// The students `spoken` could mean, best tier only, in roster order.
-    static func matches(for spoken: String, in roster: [Candidate]) -> [Candidate] {
+    /// The students `spoken` could mean among the class (`current`) and the
+    /// children who have left (`former`, read only when it's needed). Every
+    /// exact tier (full name, short form, one name, the start of a name)
+    /// runs over the class and then over former children before any
+    /// sound-alike, which tries the class first too: "Mark Leah here" finds
+    /// Leah, who has left (and is refused by name), never Lea in the class,
+    /// whose name only sounds like it (bug hunt 2026-10-17, #4).
+    static func matches(
+        for spoken: String, current: [Candidate], former: () -> [Candidate]
+    ) -> [Candidate] {
         let words = normalizedWords(spoken)
         guard !words.isEmpty else { return [] }
-        let query = words.joined(separator: " ")
+        let exact = exactMatches(for: words, in: current)
+        if !exact.isEmpty { return exact }
+        let currentIDs = Set(current.map(\.id))
+        let others = former().filter { !currentIDs.contains($0.id) }
+        let formerExact = exactMatches(for: words, in: others)
+        if !formerExact.isEmpty { return formerExact }
+        let near = closestSoundingMatches(for: words, in: current)
+        return near.isEmpty ? closestSoundingMatches(for: words, in: others) : near
+    }
 
+    /// The students `spoken` could mean in one list, best tier only, in
+    /// roster order.
+    static func matches(for spoken: String, in roster: [Candidate]) -> [Candidate] {
+        matches(for: spoken, current: roster, former: { [] })
+    }
+
+    /// The exact tiers, strictest first; the first that finds anyone wins.
+    private static func exactMatches(for words: [String], in roster: [Candidate]) -> [Candidate] {
+        let query = words.joined(separator: " ")
         let tiers: [(Candidate) -> Bool] = [
             // "Maya Stone", or a nickname with the last name.
             { fullNames(of: $0).contains(query) },
@@ -45,7 +71,7 @@ nonisolated enum StudentNameMatcher {
             let found = roster.filter(tier)
             if !found.isEmpty { return found }
         }
-        return closestSoundingMatches(for: words, in: roster)
+        return []
     }
 
     // MARK: - Name forms
@@ -73,11 +99,15 @@ nonisolated enum StudentNameMatcher {
 
     /// Siri's spelling of an unusual name is often off by a sound: "Eddie"
     /// for Etty, "Talya" for Talia. The first word heard is compared with
-    /// each first name and nickname by `soundKey`, allowing one difference
-    /// (two in a long name), and only the closest wins.
+    /// each first name and nickname by `soundKey`, and only the closest win.
+    /// A name that sounds just the same always counts. A near miss (one
+    /// difference, two in a long name) counts only on a sound key longer
+    /// than three letters, and never alone: whether Siri asks before taking
+    /// a single answer isn't documented, so "Ari" heard for Avi would mark
+    /// Avi. Two near misses come back together, and Siri asks which.
     private static func closestSoundingMatches(for words: [String], in roster: [Candidate]) -> [Candidate] {
         guard let heard = words.first.map(soundKey), heard.count >= 3 else { return [] }
-        let allowed = heard.count <= 5 ? 1 : 2
+        let allowed = heard.count <= 3 ? 0 : heard.count <= 5 ? 1 : 2
         var best = Int.max
         var found: [Candidate] = []
         for candidate in roster {
@@ -92,7 +122,8 @@ nonisolated enum StudentNameMatcher {
                 found.append(candidate)
             }
         }
-        return found
+        // A lone near miss is a guess.
+        return best > 0 && found.count == 1 ? [] : found
     }
 
     /// A rough spelling of how a name sounds: letters that sound alike merge

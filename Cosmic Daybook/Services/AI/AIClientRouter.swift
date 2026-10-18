@@ -51,6 +51,19 @@ final class AIClientRouter: MCPClientProtocol {
         #endif
     }
 
+    /// Why no request can be served right now, in plain words, for screens
+    /// that say so ahead of time: Apple Intelligence is off, still
+    /// downloading, or not on this device. Parsha's pages used to say "isn't
+    /// available on this device" for all three (bug hunt 2026-10-17 #16).
+    static var unavailabilityReason: String {
+        #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+        let reason = LocalModelClient().unavailabilityReason
+        return reason.isEmpty ? AppleIntelligenceMessages.notAvailable : reason
+        #else
+        AppleIntelligenceMessages.notInThisVersion
+        #endif
+    }
+
     // MARK: - MCPClientProtocol — generateText
 
     func generateText(prompt: String, temperature: Double) async throws -> String {
@@ -68,11 +81,12 @@ final class AIClientRouter: MCPClientProtocol {
         maxTokens: Int?,
         timeout: TimeInterval?
     ) async throws -> String {
-        try await route { client in
+        let deadline = Deadline(limit: timeout)
+        return try await route { client in
             try await client.generateText(
                 prompt: prompt, systemMessage: systemMessage,
                 temperature: temperature, maxTokens: maxTokens,
-                timeout: timeout
+                timeout: try deadline.remaining()
             )
         }
     }
@@ -94,11 +108,12 @@ final class AIClientRouter: MCPClientProtocol {
         maxTokens: Int?,
         timeout: TimeInterval?
     ) async throws -> String {
-        try await route { client in
+        let deadline = Deadline(limit: timeout)
+        return try await route { client in
             try await client.generateStructuredJSON(
                 prompt: prompt, systemMessage: systemMessage,
                 temperature: temperature, maxTokens: maxTokens,
-                timeout: timeout
+                timeout: try deadline.remaining()
             )
         }
     }
@@ -112,13 +127,14 @@ final class AIClientRouter: MCPClientProtocol {
         maxTokens: Int,
         timeout: TimeInterval?
     ) async throws -> String {
-        try await route { client in
+        let deadline = Deadline(limit: timeout)
+        return try await route { client in
             try await client.sendConversation(
                 messages: messages,
                 systemMessage: systemMessage,
                 temperature: temperature,
                 maxTokens: maxTokens,
-                timeout: timeout
+                timeout: try deadline.remaining()
             )
         }
     }
@@ -134,13 +150,14 @@ final class AIClientRouter: MCPClientProtocol {
         timeout: TimeInterval?,
         onText: @escaping @MainActor @Sendable (String) -> Void
     ) async throws -> String {
-        try await route { client in
+        let deadline = Deadline(limit: timeout)
+        return try await route { client in
             try await client.streamConversation(
                 messages: messages,
                 systemMessage: systemMessage,
                 temperature: temperature,
                 maxTokens: maxTokens,
-                timeout: timeout,
+                timeout: try deadline.remaining(),
                 onText: onText
             )
         }
@@ -151,7 +168,9 @@ final class AIClientRouter: MCPClientProtocol {
     // Ask AI's answers. Only the on-device model has the notebook tools; when
     // it fails and Private Cloud Compute answers instead, the records the
     // failed attempt looked up are dropped, so the answer doesn't list
-    // sources it never used (bug hunt 2026-10-11 #53).
+    // sources it never used (bug hunt 2026-10-11 #53). When a tool already
+    // saved something, the failure stands: Private Cloud would answer
+    // without tools, and the guide would ask again (bug hunt 2026-10-17 #9).
     // swiftlint:disable:next function_parameter_count
     func streamChat(
         messages: [[String: String]],
@@ -204,6 +223,7 @@ final class AIClientRouter: MCPClientProtocol {
         }
         return try await route(
             local: local, cloud: cloud, cloudAllowed: cloudAllowed,
+            fallbackAllowed: { tools.writes.isEmpty },
             beforeFallback: { _ = await tools.sources.consume() }, answer
         )
     }
@@ -225,8 +245,9 @@ final class AIClientRouter: MCPClientProtocol {
     }
 
     /// The routing rule, apart from the real models so it can be tested:
-    /// `local` first; then, when `cloudAllowed`, `cloud`, after
-    /// `beforeFallback` has undone what the failed local attempt left behind.
+    /// `local` first; then, when `cloudAllowed` and the failed attempt left
+    /// `fallbackAllowed`, `cloud`, after `beforeFallback` has undone what the
+    /// failed local attempt left behind.
     ///
     /// A cancelled request stops here. It used to be taken for a failure and
     /// sent again to Private Cloud Compute, so New Chat or a closed window
@@ -235,6 +256,7 @@ final class AIClientRouter: MCPClientProtocol {
         local: any RoutableModelClient,
         cloud: () -> any RoutableModelClient,
         cloudAllowed: Bool,
+        fallbackAllowed: () -> Bool = { true },
         beforeFallback: () async -> Void = {},
         _ work: (any MCPClientProtocol) async throws -> T
     ) async throws -> T {
@@ -249,8 +271,9 @@ final class AIClientRouter: MCPClientProtocol {
                 if isCancellation(error) { throw error }
                 logger.info("On-device failed (\(error.localizedDescription)), trying next provider")
                 // With Private Cloud off there's nowhere else to go, so the
-                // on-device failure is the answer, said in its own words.
-                guard cloudAllowed else { throw error }
+                // on-device failure is the answer, said in its own words; the
+                // same when the attempt already changed the notebook.
+                guard cloudAllowed, fallbackAllowed() else { throw error }
                 failures.append(plainReason(for: error))
                 await beforeFallback()
             }
@@ -311,5 +334,50 @@ final class AIClientRouter: MCPClientProtocol {
     /// Automatic cloud movement is an explicit school-level choice and defaults off.
     static var automaticPrivateCloudAllowed: Bool {
         UserDefaults.standard.bool(forKey: UserDefaultsKeys.aiAllowAutomaticPrivateCloud)
+    }
+}
+
+// MARK: - Time limits and the unavailable line
+
+extension AIClientRouter {
+    /// The line a screen shows while its AI feature is off: why, then
+    /// "Until then, <off>." only when that will pass (Apple Intelligence is
+    /// turned off or still getting ready). A device that can't run it, or a
+    /// reason the app can't name, gets "<Off>." without a promise
+    /// (review (b) 2026-10-17, #8).
+    static func unavailabilityNotice(_ off: String, reason: String = unavailabilityReason) -> String {
+        let passes = reason == AppleIntelligenceMessages.turnOn
+            || reason == AppleIntelligenceMessages.stillGettingReady
+        if passes { return "\(reason) Until then, \(off)." }
+        return "\(reason) \(off.prefix(1).uppercased())\(off.dropFirst())."
+    }
+
+    /// One request's time limit, shared by its attempts: Private Cloud
+    /// Compute gets only what the on-device attempt left, so a step given
+    /// 120 seconds can't take 240 (review (b) 2026-10-17, #7).
+    nonisolated struct Deadline: Sendable {
+        private let end: ContinuousClock.Instant?
+
+        /// No limit when `seconds` is nil or not positive, as for
+        /// `ModelRequestTimeout`.
+        init(limit seconds: TimeInterval?, from now: ContinuousClock.Instant = .now) {
+            if let seconds, seconds > 0 {
+                end = now.advanced(by: .seconds(seconds))
+            } else {
+                end = nil
+            }
+        }
+
+        /// The seconds left for the next attempt, nil without a limit.
+        /// Throws "took too long" when none are left.
+        func remaining(at now: ContinuousClock.Instant = .now) throws -> TimeInterval? {
+            guard let end else { return nil }
+            let left = now.duration(to: end)
+            guard left > .zero else {
+                throw LocalModelError.generationFailed(AppleIntelligenceMessages.timedOut)
+            }
+            let parts = left.components
+            return Double(parts.seconds) + Double(parts.attoseconds) / 1e18
+        }
     }
 }

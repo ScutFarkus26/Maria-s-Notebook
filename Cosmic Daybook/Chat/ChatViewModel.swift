@@ -132,8 +132,12 @@ final class ChatViewModel {
         sendTask = Task { [self] in
             // The answer so far, shown at most about ten times a second rather
             // than once per chunk; flushed before the stream's outcome lands.
+            // A New Chat since: the text is the old answer's, and an update
+            // the throttle still had waiting used to land in the new chat
+            // (bug hunt 2026-10-17 #11).
             let throttle = StreamingTextThrottle { [weak self] answerSoFar in
-                self?.streamingContent = answerSoFar
+                guard let self, generation == self.generation else { return }
+                self.streamingContent = answerSoFar
             }
             do {
                 _ = try await service.sendMessageStreaming(
@@ -143,7 +147,10 @@ final class ChatViewModel {
                     throttle.submit(answerSoFar)
                 }
                 // New Chat was tapped meanwhile: this answer is the old chat's.
-                guard generation == self.generation else { return }
+                guard generation == self.generation else {
+                    throttle.cancel()
+                    return
+                }
                 throttle.flush()
                 self.session = currentSession
                 self.streamingContent = nil
@@ -151,7 +158,10 @@ final class ChatViewModel {
                 // Persist after each message exchange
                 currentSession.save(sampleClassroom: sampleClassroom, defaults: defaults)
             } catch {
-                guard generation == self.generation else { return }
+                guard generation == self.generation else {
+                    throttle.cancel()
+                    return
+                }
                 throttle.flush()
                 Self.logger.warning("Chat send failed: \(error)")
                 // Roll back the optimistic message and put the text back in the

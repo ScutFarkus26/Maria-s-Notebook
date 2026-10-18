@@ -28,9 +28,15 @@ final class CalendarSyncService {
     var syncCalendarIdentifiers: [String] {
         didSet {
             defaults.set(syncCalendarIdentifiers, forKey: UserDefaultsKeys.calendarSyncIdentifiers)
+            // A new choice lifts a pause for missing calendars; listening
+            // resumes below and the new choice is tried once.
+            let retryAfterPause = changeListening.resume()
             Task {
                 if !self.syncCalendarIdentifiers.isEmpty && self.hasFullAccess {
                     self.startObservingChanges()
+                    if retryAfterPause && !self.isSyncing {
+                        await self.handleEventStoreChanged()
+                    }
                 } else {
                     self.storeChangeObserver.stop()
                 }
@@ -66,6 +72,18 @@ final class CalendarSyncService {
 
     // MARK: - Change Observation
     private let storeChangeObserver = EventKitChangeObserver()
+
+    /// Paused while none of the chosen calendars can be found, the rule
+    /// Reminders has for a missing list (`ReminderChangeListening`): until
+    /// the choice of calendars changes or a sync finds them, an EventKit
+    /// change would only re-run the same failing sync, adding two Sync
+    /// History rows and a fresh error on Today each time (2026-10-17 hunt,
+    /// #12). Listening goes on while paused, but a change only looks for the
+    /// calendars (`handleEventStoreChanged`): stopping the observer missed
+    /// the change that brought them back (review (b) 2026-10-17, #6).
+    @ObservationIgnored private var changeListening = ReminderChangeListening()
+    /// Calendar's calendar identifiers on this device; tests supply their own.
+    @ObservationIgnored var calendarIdentifiersOnDevice: (() -> [String])?
 
     init(context: NSManagedObjectContext? = nil, defaults: UserDefaults = .standard) {
         self.managedObjectContext = context
@@ -171,8 +189,10 @@ final class CalendarSyncService {
             calendars.first { $0.calendarIdentifier == identifier }
         }
         guard !targetCalendars.isEmpty else {
+            pauseChangeObservationForMissingCalendars()
             throw CalendarSyncError.calendarNotFound(syncCalendarNames.joined(separator: ", "))
         }
+        resumeChangeObservationIfPaused()
 
         // Fetch events for a window around today (7 days back, 30 days forward)
         let startDate = AppCalendar.shared.date(byAdding: .day, value: -7, to: Date()) ?? Date()
@@ -281,10 +301,7 @@ final class CalendarSyncService {
 
     /// Get all available calendars with their identifiers
     func getAvailableCalendarsWithIdentifiers() -> [CalendarInfo] {
-        guard hasFullAccess else {
-            return []
-        }
-
+        guard hasFullAccess else { return [] }
         let calendars = eventStore.calendars(for: .event)
         return calendars.map { CalendarInfo(identifier: $0.calendarIdentifier, name: $0.title, color: $0.cgColor) }
     }
@@ -292,33 +309,52 @@ final class CalendarSyncService {
     // MARK: - Automatic Syncing
 
     private func startObservingChanges() {
-        guard hasFullAccess else { return }
-        guard !syncCalendarIdentifiers.isEmpty else { return }
+        guard hasFullAccess, !syncCalendarIdentifiers.isEmpty else { return }
 
         storeChangeObserver.start(observing: eventStore) { [weak self] in
             await self?.handleEventStoreChanged()
         }
     }
 
+    /// True while store changes are being listened for.
+    var isObservingChanges: Bool { storeChangeObserver.isObserving }
+
+    /// True while missing calendars have paused syncing on changes.
+    var isChangeObservationPaused: Bool { changeListening.isPaused }
+
+    /// Stops syncing on store changes after a sync found none of the chosen
+    /// calendars; listening goes on. Logged once per pause.
+    func pauseChangeObservationForMissingCalendars() {
+        guard changeListening.pause() else { return }
+        Self.logger.notice("Chosen calendars not found; syncing on changes paused until one is back")
+    }
+
+    /// Listens again after a sync or a change found the calendars again.
+    func resumeChangeObservationIfPaused() {
+        guard changeListening.resume() else { return }
+        startObservingChanges()
+    }
+
     private nonisolated func stopObservingChanges() {
-        Task { @MainActor [weak self] in
-            self?.storeChangeObserver.stop()
-        }
+        Task { @MainActor [weak self] in self?.storeChangeObserver.stop() }
     }
 
     /// Runs a sync after the store has gone quiet (`EventKitChangeObserver`).
+    /// While paused it only looks for the chosen calendars; when one is
+    /// back, the pause lifts and it syncs at once, past the throttle.
     func handleEventStoreChanged() async {
-        guard !syncCalendarIdentifiers.isEmpty else { return }
-        guard hasFullAccess else { return }
-        guard managedObjectContext != nil else { return }
-
+        guard !syncCalendarIdentifiers.isEmpty, hasFullAccess, managedObjectContext != nil else { return }
+        let force = isChangeObservationPaused
+        if force {
+            guard chosenCalendarIsOnDevice() else { return }
+            resumeChangeObservationIfPaused()
+        }
         // `syncEvents` skips a call within 10 minutes of the last sync, so the
         // time is recorded only when a sync ran. Recording it after a skipped
-        // one (as this did, behind a 30-second check the throttle covers)
-        // pushed the next sync back on every change: while the calendar kept
-        // changing at least every 10 minutes, no unforced sync ran at all.
+        // one pushed the next sync back on every change: while the calendar
+        // kept changing every 10 minutes, no unforced sync ran at all.
         do {
-            if try await syncEvents() {
+            if try await syncEvents(force: force) {
                 lastSyncTime = Date()
             }
         } catch {
@@ -326,10 +362,14 @@ final class CalendarSyncService {
         }
     }
 
+    private func chosenCalendarIsOnDevice() -> Bool {
+        let onDevice = calendarIdentifiersOnDevice?() ?? eventStore.calendars(for: .event).map(\.calendarIdentifier)
+        return syncCalendarIdentifiers.contains(where: onDevice.contains)
+    }
+
     /// When the last sync ran; the 10-minute throttle reads it.
     var lastSyncTime: Date?
 
-    /// Sync status for UI visibility
     var lastSuccessfulSync: Date?
     var lastSyncError: String?
     var isSyncing: Bool = false

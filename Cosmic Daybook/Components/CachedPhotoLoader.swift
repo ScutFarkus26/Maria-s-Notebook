@@ -24,6 +24,14 @@ enum CachedPhotoLoader {
         let diskCache: ImageDiskCache?
     }
 
+    /// The memory- and disk-cache key for the photo `filename` shown in a
+    /// `pointSize` box: sizes are cached separately. "upright" marks copies made
+    /// with the photo's orientation applied (2026-10-17); the sideways copies
+    /// cached before then, under the bare size, are never read again.
+    nonisolated static func cacheKey(filename: String, pointSize: CGSize) -> String {
+        "\(filename)_\(Int(pointSize.width))x\(Int(pointSize.height))_upright"
+    }
+
     /// The image for `cacheKey`, or nil when neither cache has it and the photo
     /// can't be read. `diskCacheDirectory` overrides `ImageDiskCache.standard`.
     static func image(
@@ -85,14 +93,18 @@ enum CachedPhotoLoader {
         return Loaded(cgImage: original, isFromDiskCache: false, diskCache: diskCache)
     }
 
-    /// The same platform image each path produced before this loader, so what is
-    /// drawn is unchanged. From the original: `NSImage(cgImage:size:)` at
-    /// `pointSize` / `UIImage` at the screen scale. From the disk cache it was
-    /// `NSImage(data:)`, whose size comes from the resolution the file records —
-    /// `pointSize` again — and `UIImage(data:)`, which has scale 1.
+    /// The platform image to draw. On the Mac, the bitmap's own shape at the
+    /// screen scale: sized to the square `pointSize` box, an upright photo was
+    /// squeezed (review of the 2026-10-17 fixes, a2 #13). On iPhone and iPad,
+    /// as before: `UIImage` at the screen scale from the original, and scale 1
+    /// from the disk cache (what `UIImage(data:)` gave).
     private static func platformImage(for loaded: Loaded, pointSize: CGSize, scale: CGFloat) -> PlatformImage {
         #if os(macOS)
-        return NSImage(cgImage: loaded.cgImage, size: pointSize)
+        let pixelsPerPoint = max(scale, 1)
+        return NSImage(cgImage: loaded.cgImage, size: CGSize(
+            width: CGFloat(loaded.cgImage.width) / pixelsPerPoint,
+            height: CGFloat(loaded.cgImage.height) / pixelsPerPoint
+        ))
         #else
         let imageScale: CGFloat = loaded.isFromDiskCache ? 1 : scale
         return UIImage(cgImage: loaded.cgImage, scale: imageScale, orientation: .up)

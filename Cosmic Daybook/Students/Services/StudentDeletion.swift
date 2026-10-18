@@ -57,8 +57,9 @@ enum StudentDeletion {
     private static let logger = Logger.students
 
     /// Entities whose rows belong to one child through a `studentID` string
-    /// and go with her. Documents, notes, work, meetings and the student row
-    /// itself need more than a delete and are handled separately.
+    /// and go with her. Documents, notes, work, meetings, meeting bookings
+    /// (a group booking keeps its first participant in `studentID`) and the
+    /// student row itself need more than a delete and are handled separately.
     static let ownedEntities = [
         "AttendanceRecord",
         "LessonPresentation",
@@ -70,7 +71,6 @@ enum StudentDeletion {
         "TransitionPlan",
         "ProjectWeekRoleAssignment",
         "StudentFocusItem",
-        "ScheduledMeeting",
         "YearPlanEntry",
         "WorkCycleEntry",
         "Guardian",
@@ -88,7 +88,7 @@ enum StudentDeletion {
         // Work first: `WorkDeletionService` resolves ownership and linked
         // copies from participant rows and completion records that the
         // owned-entity sweep below would otherwise delete out from under it.
-        detachFromWork(studentID, in: context, report: &report)
+        let deletedWorkIDs = detachFromWork(studentID, in: context, report: &report)
 
         for entity in ownedEntities {
             for row in fetch(entity, studentID: idString, in: context) {
@@ -96,6 +96,11 @@ enum StudentDeletion {
                 report.countDeleted(entity)
             }
         }
+
+        // Her own bookings go; a group booking stays for the others.
+        let bookings = MeetingScheduler.removeDeletedStudent(studentID, context: context)
+        report.countDeleted("ScheduledMeeting", bookings.deleted)
+        report.countDetached("ScheduledMeeting", bookings.detached)
 
         // Her meetings take their notes and work reviews with them (cascade).
         for meeting in fetch("StudentMeeting", studentID: idString, in: context) {
@@ -117,6 +122,7 @@ enum StudentDeletion {
 
         detachFromNotes(studentID, in: context, report: &report)
         detachFromSharedLists(studentID, in: context, report: &report)
+        dropDeletedWork(deletedWorkIDs, fromPracticeSessionsIn: context)
 
         let students = CDFetchRequest(CDStudent.self)
         students.predicate = NSPredicate(format: "id == %@", studentID as CVarArg)
@@ -131,9 +137,11 @@ enum StudentDeletion {
 
     // MARK: - Work
 
+    /// Takes her off her work and returns the ids of the rows that went with
+    /// her, which practice sessions may still name.
     private static func detachFromWork(
         _ studentID: UUID, in context: NSManagedObjectContext, report: inout StudentDeletionReport
-    ) {
+    ) -> Set<String> {
         let idString = studentID.uuidString
         let owned = CDFetchRequest(CDWorkModel.self)
         owned.predicate = NSPredicate(format: "studentID ==[c] %@", idString)
@@ -144,13 +152,29 @@ enum StudentDeletion {
         works += context.safeFetch(participantRows).compactMap(\.work)
         var seen = Set<NSManagedObjectID>()
         works = works.filter { seen.insert($0.objectID).inserted }
-        guard !works.isEmpty else { return }
+        guard !works.isEmpty else { return [] }
 
         let before = works.filter { !$0.isDeleted }.count
         WorkDeletionService.removeWithoutSaving(studentID: studentID, from: works, in: context)
-        let deleted = works.filter(\.isDeleted).count
-        report.countDeleted("WorkModel", deleted)
-        report.countDetached("WorkModel", before - deleted)
+        let deleted = works.filter(\.isDeleted)
+        report.countDeleted("WorkModel", deleted.count)
+        report.countDetached("WorkModel", before - deleted.count)
+        return Set(deleted.compactMap { $0.id?.uuidString.lowercased() })
+    }
+
+    /// A practice session that stays (another child was in it) loses the ids
+    /// of her work that went with her, which nothing could open any more
+    /// (bug hunt 2026-10-17, #44). Not counted again: the session was
+    /// counted when it lost her.
+    private static func dropDeletedWork(
+        _ workIDs: Set<String>, fromPracticeSessionsIn context: NSManagedObjectContext
+    ) {
+        guard !workIDs.isEmpty else { return }
+        for session in context.safeFetch(CDFetchRequest(CDPracticeSession.self)) where !session.isDeleted {
+            let kept = session.workItemIDsArray.filter { !workIDs.contains($0.lowercased()) }
+            guard kept.count != session.workItemIDsArray.count else { continue }
+            session.workItemIDsArray = kept
+        }
     }
 
     // MARK: - Notes
@@ -214,6 +238,7 @@ enum StudentDeletion {
         // Group records with nobody left on them mean nothing and go.
         detach(idString, from: \CDIssue.studentIDs,
                deleteWhenEmpty: true, in: context, report: &report)
+        detachFromIssueActions(idString, in: context, report: &report)
         detach(idString, from: \CDPlanningRecommendation.studentIDs,
                deleteWhenEmpty: true, in: context, report: &report)
         detach(idString, from: \CDPracticeSession.studentIDsArray,
@@ -249,6 +274,21 @@ enum StudentDeletion {
                 if let confirmed { assignment.confirmedStudentIDs = confirmed }
                 report.countDetached("LessonAssignment")
             }
+        }
+    }
+
+    /// The actions of an issue that stays lose her too; an action about her
+    /// alone stays on the issue's record with nobody named (bug hunt
+    /// 2026-10-17, #44). An issue that went takes its actions with it
+    /// (cascade), so those are left alone.
+    private static func detachFromIssueActions(
+        _ idString: String, in context: NSManagedObjectContext, report: inout StudentDeletionReport
+    ) {
+        for action in context.safeFetch(CDFetchRequest(CDIssueAction.self))
+        where !action.isDeleted && action.issue?.isDeleted != true {
+            guard let remaining = removing(idString, from: action.participantStudentIDs) else { continue }
+            action.participantStudentIDs = remaining
+            report.countDetached("IssueAction")
         }
     }
 

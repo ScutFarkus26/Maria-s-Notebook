@@ -82,22 +82,75 @@ enum AttendanceLogFilter {
         var searchText = ""
     }
 
-    /// The records the log lists, in fetch order: marked, inside the window,
-    /// for the chosen students and statuses, and whose student's short name
-    /// contains the search text (case-insensitively).
+    /// What one render of the log shows.
+    struct Listing {
+        /// The Students menu (`students(from:bounds:show:namesRaw:)`).
+        let students: [CDStudent]
+        /// Who each row is named by, searched by and sorted by.
+        let studentsByID: [UUID: CDStudent]
+        /// The rows, in fetch order.
+        let records: [CDAttendanceRecord]
+    }
+
+    /// The Students menu, the names and the rows for `criteria`, from the
+    /// fetched records and the whole roster (`RosterStore.all`).
+    ///
+    /// Rows are named, searched and sorted by the whole roster, not the
+    /// window's: a start date typed in after a child's first marks left
+    /// those rows "Unknown Student", and unsearchable. A hidden test
+    /// student's rows aren't listed or counted, as the menu doesn't offer
+    /// her (bug hunt 2026-10-17, #3).
+    static func listing(
+        _ all: some Sequence<CDAttendanceRecord>,
+        roster: [CDStudent],
+        criteria: Criteria,
+        show: Bool,
+        namesRaw: String
+    ) -> Listing {
+        let students = students(from: roster, bounds: criteria.bounds, show: show, namesRaw: namesRaw)
+        let byID = studentsByID(roster)
+        let visible = Set(TestStudentsFilter.filterVisible(roster, show: show, namesRaw: namesRaw).compactMap(\.id))
+        let hidden = Set(roster.compactMap(\.id)).subtracting(visible)
+        return Listing(
+            students: students, studentsByID: byID,
+            records: records(all, matching: criteria, studentsByID: byID, hiding: hidden)
+        )
+    }
+
+    /// The records the log lists, in fetch order: one per child per day,
+    /// marked, inside the window, not a hidden student's (`hidden`), for the
+    /// chosen students and statuses, and whose student's short name contains
+    /// the search text (case-insensitively).
+    ///
+    /// A day two devices marked before syncing holds a copy from each; the
+    /// log showed and counted both, where every other screen shows the one
+    /// `deduplicatedPerStudentDay` picks. That pick comes first, so a filter
+    /// never finds the copy the grid doesn't show (bug hunt 2026-10-17, #2).
+    /// A record with no date has no day to share and stays. The pick runs
+    /// over the window's rows only, not the whole table on every redraw: a
+    /// day's copies share its date, so they fall inside the window together.
     static func records(
         _ all: some Sequence<CDAttendanceRecord>,
         matching criteria: Criteria,
-        studentsByID: [UUID: CDStudent]
+        studentsByID: [UUID: CDStudent],
+        hiding hidden: Set<UUID> = []
     ) -> [CDAttendanceRecord] {
         let query = criteria.searchText.isEmpty ? nil : criteria.searchText.lowercased()
-        return all.filter { record in
+        let inside = all.filter { isInside($0, criteria.bounds) }
+        let shown = Set(inside.deduplicatedPerStudentDay().map(ObjectIdentifier.init))
+        return inside.filter { record in
             // Unmarked records are never listed.
-            record.status != .unmarked
-                && isInside(record, criteria.bounds)
+            (record.date == nil || shown.contains(ObjectIdentifier(record)))
+                && record.status != .unmarked
+                && !isHidden(record, hidden)
                 && matchesSelection(record, criteria)
                 && matchesSearch(record, query: query, studentsByID: studentsByID)
         }
+    }
+
+    private static func isHidden(_ record: CDAttendanceRecord, _ hidden: Set<UUID>) -> Bool {
+        guard !hidden.isEmpty, let studentID = record.studentIDUUID else { return false }
+        return hidden.contains(studentID)
     }
 
     private static func isInside(_ record: CDAttendanceRecord, _ bounds: Bounds?) -> Bool {

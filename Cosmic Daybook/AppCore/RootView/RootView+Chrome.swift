@@ -13,7 +13,8 @@ extension RootView {
         HStack(spacing: 10) {
             MobileClassroomAndYearPicker(
                 workspaceStore: classroomWorkspace,
-                showsContextLabel: true
+                showsContextLabel: true,
+                choose: { requestClassroomSwitch(to: $0) }
             )
             .layoutPriority(1)
 
@@ -21,7 +22,7 @@ extension RootView {
 
             if classroomWorkspace.isShowingSampleClass {
                 Button("Exit Sample") {
-                    Task { await classroomWorkspace.select(.myClass) }
+                    requestClassroomSwitch(to: .myClass)
                 }
                 .buttonStyle(.bordered)
                 .buttonBorderShape(.capsule)
@@ -56,7 +57,7 @@ extension RootView {
 
     var searchAndSyncOverlay: some View {
         HStack(spacing: 8) {
-            ClassroomWorkspacePicker(workspaceStore: classroomWorkspace)
+            ClassroomWorkspacePicker(workspaceStore: classroomWorkspace) { requestClassroomSwitch(to: $0) }
             if selectedNavItem != .today {
                 SchoolYearPicker()
             }
@@ -82,7 +83,7 @@ extension RootView {
     @ViewBuilder
     var warningBanners: some View {
         if classroomWorkspace.isShowingSampleClass, !showsSampleStateInContextBar {
-            SampleClassroomBanner(workspaceStore: classroomWorkspace)
+            SampleClassroomBanner { requestClassroomSwitch(to: .myClass) }
         }
 
         if UserDefaults.standard.bool(forKey: UserDefaultsKeys.ephemeralSessionFlag) {

@@ -7,9 +7,9 @@ import Testing
 /// packet's Open PDF button and the resource detail's Share and Print items.
 /// Opening, deleting and printing still resolve afresh. These pin that the
 /// memo answers what each library's resolver answers (the old expressions
-/// kept verbatim below), resolves again only when the bookmark or the
-/// relative path changes, and remembers a missing file as missing rather
-/// than asking again.
+/// kept verbatim below) and resolves again only when the bookmark or the
+/// relative path changes, or while the file hasn't been found: one still
+/// coming from iCloud is found once it lands (bug hunt 10-17 #26).
 @Suite("Document file memo")
 @MainActor
 struct DocumentFileURLMemoTests {
@@ -51,8 +51,8 @@ struct DocumentFileURLMemoTests {
         #expect(memo.resolutionCount == 5)
     }
 
-    @Test("A missing file is remembered as missing, as the redraw that found it saw it")
-    func missingFileStaysMissing() {
+    @Test("A missing file is looked for again at the memo's rechecks, not on each redraw (review a2 #10)")
+    func missingFileIsLookedForAgain() {
         let memo = DocumentFileURLMemo()
         let storage = Storage()
         storage.finds = false
@@ -147,6 +147,7 @@ struct DocumentFileURLMemoTests {
                 )
                 #expect(drawn == old)
             }
+            // Found or not, it is looked up once until a recheck (review a2 #10).
             #expect(memo.resolutionCount == 1)
         }
         // The moved file is found where it went, as the bookmark always found it.
@@ -183,6 +184,8 @@ struct DocumentFileURLMemoTests {
             for _ in 0..<20 {
                 #expect(memo.url(relativePath: path, resolve: ResourceFileStorage.fileURL) == old)
             }
+            // Only an empty path gets no URL; it too is looked up once until
+            // a recheck (review a2 #10).
             #expect(memo.resolutionCount == 1)
         }
     }

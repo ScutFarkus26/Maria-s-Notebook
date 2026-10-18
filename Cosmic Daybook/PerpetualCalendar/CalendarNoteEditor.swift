@@ -20,30 +20,54 @@ final class CalendarNoteEditor {
     /// The text bound to the open text field.
     var draft: String = ""
 
+    /// What the open field started with: a commit that leaves it as it was
+    /// writes nothing.
+    private var openingText = ""
+
     /// Open `cellID` for editing, committing whichever cell was open before.
     func beginEditing(
         _ cellID: CellID,
-        currentText: String,
         notes: [CellID: CDCalendarNote],
         in context: NSManagedObjectContext
     ) {
         if let previous = editingCell, previous != cellID {
             commit(previous, notes: notes, in: context)
         }
-        draft = currentText
+        let opening = Self.openingText(for: cellID, notes: notes)
+        draft = opening
+        openingText = opening
         editingCell = cellID
+    }
+
+    /// What a day's field opens with: its stored note, whatever the grid's
+    /// layers show, else the holiday it falls on, else nothing. The grid used
+    /// to pass what it showed, so with the Notes layer hidden the field opened
+    /// empty (or with the holiday) and the commit that followed deleted or
+    /// overwrote the hidden note (2026-10-17 hunt, #8).
+    static func openingText(for cellID: CellID, notes: [CellID: CDCalendarNote]) -> String {
+        if let text = notes[cellID]?.text, !text.trimmed().isEmpty {
+            return text
+        }
+        return PerpetualHolidays.holiday(month: cellID.month, day: cellID.day, year: cellID.year) ?? ""
     }
 
     /// Write the draft back to `cellID` and close the text field.
     ///
-    /// A note that is emptied, or typed back to the holiday name it was
-    /// standing in for, is deleted rather than stored.
+    /// A draft left as the field opened writes nothing. A note that is
+    /// emptied, or typed back to the holiday name it was standing in for, is
+    /// deleted rather than stored.
     func commit(
         _ cellID: CellID,
         notes: [CellID: CDCalendarNote],
         in context: NSManagedObjectContext
     ) {
         let trimmed = draft.trimmed()
+        let unchanged = trimmed == openingText.trimmed()
+        editingCell = nil
+        draft = ""
+        openingText = ""
+        guard !unchanged else { return }
+
         let holiday = PerpetualHolidays.holiday(month: cellID.month, day: cellID.day, year: cellID.year)
 
         if let existing = notes[cellID] {
@@ -62,8 +86,6 @@ final class CalendarNoteEditor {
         }
 
         context.safeSave()
-        editingCell = nil
-        draft = ""
     }
 
     /// Commits `cellID` only while it is still the open cell. Leaving a day's

@@ -56,12 +56,13 @@ final class LocalModelClient: FoundationModelClient {
     ) async throws -> String {
         try requireAvailable()
         let chat = makeChatSession(messages: messages, systemMessage: systemMessage, tools: ChatToolContext())
+        let session = chat.session
+        let prompt = chat.prompt
+        let options = generationOptions(temperature: temperature, maxTokens: maxTokens)
         do {
-            let response = try await chat.session.respond(
-                to: chat.prompt,
-                options: generationOptions(temperature: temperature, maxTokens: maxTokens)
-            )
-            return response.content
+            return try await ModelRequestTimeout.run(limit: timeout) {
+                try await session.respond(to: prompt, options: options).content
+            }
         } catch let error as LanguageModelError {
             throw LocalModelError.fromLanguageModel(error)
         }
@@ -76,11 +77,14 @@ final class LocalModelClient: FoundationModelClient {
         timeout: TimeInterval?,
         onText: @escaping @MainActor @Sendable (String) -> Void
     ) async throws -> String {
-        try await streamChat(
-            messages: messages, systemMessage: systemMessage,
-            temperature: temperature, maxTokens: maxTokens,
-            tools: ChatToolContext(), onText: onText
-        )
+        let tools = ChatToolContext()
+        return try await ModelRequestTimeout.run(limit: timeout) {
+            try await self.streamChat(
+                messages: messages, systemMessage: systemMessage,
+                temperature: temperature, maxTokens: maxTokens,
+                tools: tools, onText: onText
+            )
+        }
     }
 
     // swiftlint:disable:next function_parameter_count
@@ -129,6 +133,11 @@ final class LocalModelClient: FoundationModelClient {
             tools: NotebookTools.chatTools(toolContext: tools),
             instructions: instructions
         )
+        // What the transcript keeps after a failed answer has no documented
+        // default, so it's set. The session lives for this one answer, and a
+        // write a tool made is recorded by the tool in `tools`, never read
+        // back from the transcript (bug hunt 2026-10-17 #9).
+        session.transcriptErrorHandlingPolicy = .preserveTranscript
         return (session, Self.lastUserMessage(from: messages))
     }
 

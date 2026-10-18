@@ -41,19 +41,26 @@ struct MarkHereIntent: AppIntent {
         try await SiriAttendance.confirmIfNoSchool(session, marking: name, for: self)
 
         let (previous, status) = try await session.markHere(child)
+        let answer = Self.answer(name: name, previous: previous, now: status)
+        return .result(dialog: IntentDialog(full: "\(answer.full)", supporting: "\(answer.supporting)"))
+    }
+
+    /// What Siri says once `name` is marked `now` from `previous`.
+    @MainActor
+    static func answer(
+        name: String, previous: AttendanceStatus, now status: AttendanceStatus
+    ) -> (full: String, supporting: String) {
+        // Back in Class, to the mark she left from (`SiriAttendance.markHere`).
+        if previous == .leftEarly {
+            return ("\(name) is back in class.", "Back in class")
+        }
         if previous == status {
-            return .result(dialog: IntentDialog(
-                full: "\(name) was already marked \(status.spokenWord).",
-                supporting: "Already \(status.spokenWord)"
-            ))
+            return ("\(name) was already marked \(status.spokenWord).", "Already \(status.spokenWord)")
         }
         if status == .tardy {
-            return .result(dialog: IntentDialog(
-                full: "Arrival has closed, so \(name) is marked late.",
-                supporting: "Late"
-            ))
+            return ("Arrival has closed, so \(name) is marked late.", "Late")
         }
-        return .result(dialog: IntentDialog(full: "\(name) is marked present.", supporting: "Present"))
+        return ("\(name) is marked present.", "Present")
     }
 }
 
@@ -122,18 +129,29 @@ struct MarkAbsentIntent: AppIntent {
             try await SiriAttendance.confirmIfNoSchool(session, marking: name, for: self)
         }
 
-        let previous = try await session.mark(child, as: .absent, reason: reason?.reason)
+        let (previous, changed) = try await session.markAbsent(child, reason: reason?.reason)
+        let answer = Self.answer(name: name, previous: previous, reason: reason?.reason, changed: changed)
+        return .result(dialog: IntentDialog(full: "\(answer.full)", supporting: "\(answer.supporting)"))
+    }
+
+    /// What Siri says once `name` is marked absent (for `reason`, when one
+    /// was given) from `previous`; `changed` is whether anything did.
+    @MainActor
+    static func answer(
+        name: String, previous: AttendanceStatus, reason: AbsenceReason?, changed: Bool
+    ) -> (full: String, supporting: String) {
         if let reason, previous == .absent {
-            return .result(dialog: IntentDialog(
-                full: "\(name) is marked absent: \(reason.reason.displayName.lowercased()).", supporting: "Absent"
-            ))
+            let why = reason.displayName.lowercased()
+            // The reason she already had changes nothing, and Siri says so
+            // (bug hunt 2026-10-17, #7).
+            return changed
+                ? ("\(name) is marked absent: \(why).", "Absent")
+                : ("\(name) is already marked absent: \(why).", "Already absent")
         }
         if previous == .absent {
-            return .result(dialog: IntentDialog(
-                full: "\(name) was already marked absent.", supporting: "Already absent"
-            ))
+            return ("\(name) was already marked absent.", "Already absent")
         }
-        return .result(dialog: IntentDialog(full: "\(name) is marked absent.", supporting: "Absent"))
+        return ("\(name) is marked absent.", "Absent")
     }
 }
 

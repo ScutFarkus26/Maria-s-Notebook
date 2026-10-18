@@ -180,6 +180,15 @@ struct AlbumDetailView: View {
         // Kept off `body`'s long modifier chain, which type-checks slowly.
         .onAppear { installFocusActions() }
         .onChange(of: focusActionInputs) { installFocusActions() }
+        // A page turn still waiting goes to the store when the guide switches
+        // to another app or quits, as an iOS scene does on going to the
+        // background; quitting used to lose the last 1.5 s of reading.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.willResignActiveNotification)) { _ in
+            positionSaves.flush()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
+            positionSaves.flush()
+        }
         #else
         VStack(spacing: 0) {
             viewerStack

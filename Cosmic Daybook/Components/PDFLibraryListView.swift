@@ -147,9 +147,16 @@ struct PDFLibraryListView<Item: NSManagedObject, Header: View, Card: View, Detai
                 }
                 // The provided URL is in a temp location that gets cleaned up when the
                 // closure returns; copy to a stable temp path before hopping main actor.
-                let tempCopy = PDFDropSupport.copyToTempIfNeeded(url, logger: logger)
+                guard let tempCopy = PDFDropSupport.copyToTempIfNeeded(url, logger: logger) else {
+                    Task { @MainActor in
+                        importErrorMessage = "Couldn't add the PDF you dropped. Try again."
+                    }
+                    return
+                }
                 Task { @MainActor in
-                    performImport(at: tempCopy ?? url)
+                    if let message = PDFDropSupport.importTempCopy(tempCopy, using: importPDF) {
+                        importErrorMessage = message
+                    }
                 }
             }
         }
@@ -178,17 +185,31 @@ struct PDFLibraryListView<Item: NSManagedObject, Header: View, Card: View, Detai
 
 /// Off-main-actor support for dropped PDFs. Kept outside the generic view so the
 /// `@Sendable` load-completion closure captures no generic metatypes.
-private enum PDFDropSupport {
+enum PDFDropSupport {
+    /// Copies a dropped PDF into a folder of its own in tmp, under its own
+    /// name: the import titles the story or packet (and names its file) after
+    /// it, as Resources does. Nil when it couldn't be copied.
     nonisolated static func copyToTempIfNeeded(_ url: URL, logger: Logger) -> URL? {
         let fm = FileManager.default
-        let temp = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".pdf")
+        let folder = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let temp = folder.appendingPathComponent(url.lastPathComponent, isDirectory: false)
         do {
+            try fm.createDirectory(at: folder, withIntermediateDirectories: true)
             try fm.copyItem(at: url, to: temp)
             return temp
         } catch {
             logger.warning("Failed to copy dropped PDF to temp: \(error.localizedDescription, privacy: .public)")
+            try? fm.removeItem(at: folder)
             return nil
         }
+    }
+
+    /// Imports a dropped PDF's temp copy with `importPDF` (which copies it into
+    /// the library), then removes the copy and its folder. Returns the import's
+    /// message, nil when it worked.
+    static func importTempCopy(_ copy: URL, using importPDF: (URL) -> String?) -> String? {
+        defer { try? FileManager.default.removeItem(at: copy.deletingLastPathComponent()) }
+        return importPDF(copy)
     }
 }
 

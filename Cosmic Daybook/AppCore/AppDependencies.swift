@@ -53,11 +53,18 @@ final class AppDependencies {
 
     // MARK: - Initialization
 
+    /// True for the Sample Class's graph, whose store is the local practice
+    /// copy. `ClassroomWorkspaceStore` sets it when it builds that graph. Such
+    /// a graph never binds the EventKit services to its store (see Sync
+    /// Services).
+    let isSampleClassroom: Bool
+
     @ObservationIgnored
     private var schoolDayChangeObserver: (any NSObjectProtocol)?
 
-    init(coreDataStack: CoreDataStack) {
+    init(coreDataStack: CoreDataStack, isSampleClassroom: Bool = false) {
         self.coreDataStack = coreDataStack
+        self.isSampleClassroom = isSampleClassroom
 
         // Invalidate cached school-day calculations whenever the underlying
         // calendar data changes — a local edit or a CloudKit sync. This is the
@@ -105,15 +112,19 @@ final class AppDependencies {
     //
     // Both EventKit services are process-wide singletons: each owns the
     // `EKEventStore` change observer and the sync state the Today card
-    // watches, so every reader must reach the same object. They are rebound
-    // to this graph's store on each access so a prior Sample Class visit
-    // cannot leave one pointed at that classroom's store. The comparison
-    // keeps a read from a view body from mutating an observed property on
-    // every evaluation. Views read them here, never through `.shared`.
+    // watches, so every reader must reach the same object. A My Class graph
+    // binds them to its store on each access. A Sample Class graph never
+    // does: bound to the practice store, Today's sync there copied the real
+    // Reminders and Calendar into it, a tick there ticked the real reminder,
+    // and EventKit changes kept landing there back in My Class (bug hunt
+    // 2026-10-17, #30). Today doesn't sync in the Sample Class either. The
+    // comparison keeps a read from a view body from mutating an observed
+    // property on every evaluation. Views read them here, never through
+    // `.shared`.
 
     var reminderSync: ReminderSyncService {
         let service = ReminderSyncService.shared
-        if service.managedObjectContext !== viewContext {
+        if !isSampleClassroom, service.managedObjectContext !== viewContext {
             service.managedObjectContext = viewContext
         }
         return service
@@ -121,7 +132,7 @@ final class AppDependencies {
 
     var calendarSync: CalendarSyncService {
         let service = CalendarSyncService.shared
-        if service.managedObjectContext !== viewContext {
+        if !isSampleClassroom, service.managedObjectContext !== viewContext {
             service.managedObjectContext = viewContext
         }
         return service

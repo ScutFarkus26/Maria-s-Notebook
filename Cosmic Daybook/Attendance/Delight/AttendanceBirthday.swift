@@ -58,7 +58,8 @@ enum AttendanceBirthday: Equatable {
     }
 
     /// `month`/`day` in `year`, with Feb 29 on Feb 28 when `year` has none.
-    private static func anniversary(month: Int, day: Int, year: Int, calendar: Calendar) -> Date? {
+    /// The roster counts down to the same day (`RosterBirthday`).
+    static func anniversary(month: Int, day: Int, year: Int, calendar: Calendar) -> Date? {
         let first = DateComponents(year: year, month: month, day: 1)
         guard let monthStart = calendar.date(from: first),
               let days = calendar.range(of: .day, in: .month, for: monthStart)?.count

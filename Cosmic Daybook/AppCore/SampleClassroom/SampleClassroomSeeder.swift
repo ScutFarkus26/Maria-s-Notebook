@@ -91,6 +91,7 @@ enum SampleClassroomSeeder {
                 calendar: calendar
             )
             try seedNotesIfNeeded(in: sampleContext, now: now, calendar: calendar)
+            try clearCalendarCopies(in: sampleContext)
 
             if sampleContext.hasChanges {
                 try sampleContext.save()
@@ -98,6 +99,19 @@ enum SampleClassroomSeeder {
         } catch {
             sampleContext.rollback()
             throw error
+        }
+    }
+
+    /// Deletes every reminder and calendar event in the sample store. The
+    /// seeder makes neither and the store never syncs, but earlier builds
+    /// copied real ones in while the Sample Class was open, and Today there
+    /// kept listing them, frozen (bug hunt 2026-10-17 review, St #30).
+    static func clearCalendarCopies(in sampleContext: NSManagedObjectContext) throws {
+        for reminder in try sampleContext.fetch(CDFetchRequest(CDReminder.self)) {
+            sampleContext.delete(reminder)
+        }
+        for event in try sampleContext.fetch(CDFetchRequest(CDCalendarEvent.self)) {
+            sampleContext.delete(event)
         }
     }
 }

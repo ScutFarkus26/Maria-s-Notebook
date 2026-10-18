@@ -292,7 +292,7 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
             // mark would win the child straight back (`CDAttendanceStore.unmark`).
             _ = status == .unmarked ? store.unmark(record) : store.updateStatus(record, to: status)
             persist(updating: [record])
-            if row.daysAway != nil, !wasHere, Self.isHere(status), saveError == nil {
+            if row.daysAway != nil, !wasHere, Self.comesIn(status), saveError == nil {
                 welcome = Welcome(name: row.shortName)
             }
         } catch {

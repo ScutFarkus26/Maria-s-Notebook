@@ -25,13 +25,16 @@ enum NoteTemplateManaging: TemplateManaging {
     static func subtitle(of template: CDNoteTemplate) -> String { template.body }
     static func tags(of template: CDNoteTemplate) -> [String] { (template.tags as? [String]) ?? [] }
 
-    static func delete(_ template: CDNoteTemplate, in context: NSManagedObjectContext) {
-        guard let id = template.id else { return }
-        do {
-            try NoteTemplateRepository(context: context).deleteTemplate(id: id)
-        } catch {
-            logger.warning("Failed to delete note template: \(error, privacy: .public)")
+    @discardableResult
+    static func delete(
+        _ template: CDNoteTemplate, in context: NSManagedObjectContext, saveCoordinator: SaveCoordinator
+    ) -> Bool {
+        guard let id = template.id else { return true }
+        let deleted = saveCoordinator.saveEdit(in: context, reason: "Delete note template") {
+            NoteTemplateRepository(context: context).removeTemplate(id: id)
         }
+        if !deleted { logger.warning("Couldn't save a note template's deletion; it was taken back") }
+        return deleted
     }
 
     static func editorSheet(for template: CDNoteTemplate?) -> some View {

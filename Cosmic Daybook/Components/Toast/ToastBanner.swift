@@ -40,18 +40,25 @@ extension View {
         }
     }
 
-    /// Flashes `message` for two seconds and then clears it, animating both
-    /// ends. The binding is the caller's own toast state.
-    func showToast(_ message: String, in toast: Binding<String?>, logger: Logger) {
+    /// Flashes `message` for two seconds (`duration`) and then clears it,
+    /// animating both ends. The binding is the caller's own toast state.
+    ///
+    /// Clears only its own message: a newer toast shown meanwhile keeps its
+    /// full time rather than going when this one's does (bug hunt 2026-10-17
+    /// #38). The same words shown twice share the first one's time.
+    func showToast(
+        _ message: String, in toast: Binding<String?>, logger: Logger, duration: Duration = .seconds(2)
+    ) {
         adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
             toast.wrappedValue = message
         }
         Task {
             do {
-                try await Task.sleep(for: .seconds(2.0))
+                try await Task.sleep(for: duration)
             } catch {
                 logger.warning("Failed to sleep for toast dismissal: \(error)")
             }
+            guard toast.wrappedValue == message else { return }
             adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
                 toast.wrappedValue = nil
             }

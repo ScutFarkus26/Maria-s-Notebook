@@ -19,6 +19,7 @@ struct StudentDetailView: View {
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
+    @Environment(\.isSampleClassroom) private var isSampleClassroom
     #if os(macOS)
     @Environment(\.openWindow) private var openWindow
     #endif
@@ -245,8 +246,10 @@ struct StudentDetailView: View {
         .overlay(alignment: .top) {
             StudentDetailToastOverlay(message: vm.toastMessage)
         }
-        // Handoff: the same student on the guide's other devices.
-        .userActivity(Handoff.ActivityType.student, element: student.id) { id, activity in
+        // Handoff: the same student on the guide's other devices. Not a
+        // Sample Class child, who isn't on them and opened "not found" there
+        // (bug hunt 2026-10-17, #38).
+        .userActivity(Handoff.ActivityType.student, element: isSampleClassroom ? nil : student.id) { id, activity in
             Handoff.describeStudent(activity, id: id, name: StudentFormatter.displayName(for: student))
         }
         .departurePlansAlert(

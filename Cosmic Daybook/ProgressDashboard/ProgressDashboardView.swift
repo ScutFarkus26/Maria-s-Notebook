@@ -13,9 +13,14 @@ struct ProgressDashboardView: View {
     @State private var viewModel = ProgressDashboardViewModel()
     @State private var detailTarget: StudentSequenceDetailTarget?
 
-    /// Reload on assignment / work mutations — an edit or save on the view
-    /// context, a save on another context, or a remote import — without
-    /// keeping both tables registered just to count their rows.
+    /// What the screen reloads on: presentations and work, the mastery marks
+    /// "Mastered" is read from (`mark_mastered`, a checklist or synced mark),
+    /// and lessons (a rename, a lesson moved to another sequence).
+    static let reloadEntityNames: Set<String> = ["LessonAssignment", "WorkModel", "LessonPresentation", "Lesson"]
+
+    /// Reload on those mutations — an edit or save on the view context, a
+    /// save on another context, or a remote import — without keeping the
+    /// tables registered just to count their rows.
     @State private var changeToken = 0
     @State private var reloadDebounceTask: Task<Void, Never>?
 
@@ -24,7 +29,7 @@ struct ProgressDashboardView: View {
             .navigationTitle("Progress")
             .searchable(text: $viewModel.searchText, prompt: "Search students")
             .onAppear { viewModel.loadData(context: viewContext) }
-            .onPresentationDataChange(of: ["LessonAssignment", "WorkModel"], in: viewContext) { _ in
+            .onPresentationDataChange(of: Self.reloadEntityNames, in: viewContext) { _ in
                 changeToken &+= 1
             }
             // Only while on screen: a TabView keeps this screen alive behind

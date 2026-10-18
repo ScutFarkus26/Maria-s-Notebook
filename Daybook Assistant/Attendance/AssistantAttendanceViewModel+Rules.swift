@@ -39,6 +39,13 @@ extension AssistantAttendanceViewModel {
         status == .present || status == .tardy || status == .leftEarly
     }
 
+    /// Whether marking `status` brings a child in, for "Welcome back": present
+    /// or late. Left Early counts as here, but isn't coming in (bug hunt
+    /// 2026-10-17 review, At #7).
+    static func comesIn(_ status: AttendanceStatus) -> Bool {
+        status == .present || status == .tardy
+    }
+
     static func allows(_ status: AttendanceStatus, on day: Date, now: Date = Date()) -> Bool {
         AttendanceRules.allows(status, on: day, now: now)
     }

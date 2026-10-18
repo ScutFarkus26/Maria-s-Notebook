@@ -24,22 +24,21 @@ struct FilterSelectionSummary {
         }
     }
 
-    /// Resolves a single selection through `items`, exactly as the hand-rolled
-    /// labels did: one selected id that no longer matches a visible item falls
-    /// through to the count.
+    /// Counts only the selected ids still among `items`: a chosen child who
+    /// has since gone read "1 Students" (bug hunt 2026-10-17, #44). One left
+    /// reads as that item's label; none left reads as the "all" title, as
+    /// the menu shows nothing checked.
     func text<Item, ID: Hashable>(
         for selection: Set<ID>,
         items: [Item],
         id: (Item) -> ID?,
         label: (Item) -> String
     ) -> String {
-        if selection.isEmpty { return allLabel }
-        if selection.count == 1,
-           let only = selection.first,
-           let item = items.first(where: { id($0) == only }) {
-            return label(item)
-        }
-        return "\(selection.count) \(pluralNoun)"
+        let chosen = items.filter { id($0).map(selection.contains) == true }
+        let count = Set(chosen.compactMap(id)).count
+        if count == 0 { return allLabel }
+        if count == 1, let item = chosen.first { return label(item) }
+        return "\(count) \(pluralNoun)"
     }
 }
 
@@ -158,6 +157,14 @@ struct MultiSelectFilterMenu<Item, ID: Hashable, MenuLabel: View>: View {
             }
         } label: {
             menuLabel()
+        }
+        // A pick whose item has left the menu (the window moved past the
+        // child) kept filtering while the chip, counting only what the menu
+        // still shows, read "All Students". Drop it, so the chip and the
+        // list agree (bug hunt 2026-10-17 review, St #44).
+        .onChange(of: rows.map(\.id)) { _, ids in
+            let kept = selection.intersection(ids)
+            if kept != selection { selection = kept }
         }
     }
 }

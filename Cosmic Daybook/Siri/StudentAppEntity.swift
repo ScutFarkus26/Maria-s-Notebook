@@ -101,18 +101,25 @@ struct StudentEntityQuery: EntityStringQuery {
         }
     }
 
-    /// The class first; only when no current child matches does it look at
-    /// former students (`SiriHost.formerStudents`), so "Open Leah" still
-    /// finds a child who has left while "Mark Leah here" never picks her
-    /// over a current Leah.
+    /// The class first, then former students (`SiriHost.formerStudents`),
+    /// exact names before sound-alikes (`StudentNameMatcher.matches(for:
+    /// current:former:)`): "Open Leah" still finds a child who has left,
+    /// "Mark Leah here" never picks her over a current Leah, and a current
+    /// Lea is never marked for her.
     @MainActor
     func entities(matching string: String) async throws -> [StudentEntity] {
         let context = try await SiriAttendance.openStack().viewContext
         let current = Self.entities(SiriHost.roster(in: context))
-        let found = Self.matches(for: string, in: current)
-        if !found.isEmpty { return found }
-        let former = SiriHost.formerStudents(in: context).compactMap { StudentEntity(student: $0) }
-        return Self.matches(for: string, in: former)
+        let currentIDs = Set(current.map(\.id))
+        var former: [StudentEntity] = []
+        let found = StudentNameMatcher.matches(for: string, current: current.map(\.matcherCandidate)) {
+            former = SiriHost.formerStudents(in: context)
+                .compactMap { StudentEntity(student: $0) }
+                .filter { !currentIDs.contains($0.id) }
+            return former.map(\.matcherCandidate)
+        }
+        let ids = Set(found.map(\.id))
+        return (current + former).filter { ids.contains($0.id) }
     }
 
     /// The names Siri learns for App Shortcut phrases: the current class.
@@ -131,10 +138,5 @@ struct StudentEntityQuery: EntityStringQuery {
             entity?.displayName = names[student.objectID]
             return entity
         }
-    }
-
-    private static func matches(for string: String, in students: [StudentEntity]) -> [StudentEntity] {
-        let ids = Set(StudentNameMatcher.matches(for: string, in: students.map(\.matcherCandidate)).map(\.id))
-        return students.filter { ids.contains($0.id) }
     }
 }

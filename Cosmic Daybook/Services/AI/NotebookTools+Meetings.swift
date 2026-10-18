@@ -26,9 +26,9 @@ extension NotebookTools {
         let provider: MCPContextProvider = { toolContext.context }
         return [
             ListOpenFollowUpsTool(contextProvider: provider),
-            RecordStudentMeetingTool(contextProvider: provider),
-            AddFollowUpTool(contextProvider: provider),
-            ResolveFollowUpTool(contextProvider: provider)
+            RecordStudentMeetingTool(contextProvider: provider, toolContext: toolContext),
+            AddFollowUpTool(contextProvider: provider, toolContext: toolContext),
+            ResolveFollowUpTool(contextProvider: provider, toolContext: toolContext)
         ]
     }
 }
@@ -53,10 +53,57 @@ private func bridgedNotebookOperation(_ operation: () throws -> String) -> Strin
     }
 }
 
+/// Runs one bridged MCP write, as `bridgedNotebookOperation` does, and tells
+/// the answer's `toolContext` when it saved: a refusal, or an "already done"
+/// reply, returns without saving and isn't a write (bug hunt 2026-10-17 #9).
+@MainActor
+private func bridgedNotebookWrite(
+    _ write: ChatWrite,
+    for toolContext: ChatToolContext?,
+    in context: NSManagedObjectContext,
+    _ operation: (NSManagedObjectContext) throws -> String
+) -> String {
+    let saves = SaveWatch(context)
+    let reply = bridgedNotebookOperation {
+        try MCPNotebookTools.undoingOnFailure(context, operation)
+    }
+    if saves.stop() {
+        toolContext?.recordWrite(write)
+    }
+    return reply
+}
+
+/// Whether a context saved while it was watched.
+@MainActor
+private final class SaveWatch {
+    private var saved = false
+    private var observer: (any NSObjectProtocol)?
+
+    init(_ context: NSManagedObjectContext) {
+        observer = NotificationCenter.default.addObserver(
+            forName: NSManagedObjectContext.didSaveObjectsNotification, object: context, queue: nil
+        ) { [weak self] _ in
+            // The view context saves on the main thread, inside the write.
+            MainActor.assumeIsolated { self?.saved = true }
+        }
+    }
+
+    /// Stops watching; whether the context saved meanwhile.
+    func stop() -> Bool {
+        if let observer {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        observer = nil
+        return saved
+    }
+}
+
 /// Records a completed student meeting through the same path as the in-app
 /// meeting form; new goals become open focus items.
 struct RecordStudentMeetingTool: Tool {
     var contextProvider: MCPContextProvider
+    /// The answer this tool works for, told when the tool saves.
+    var toolContext: ChatToolContext?
     let name = "recordStudentMeeting"
     let description = "Record a completed student meeting (conference) in the student's history. "
         + "Use ONLY when the guide explicitly asks to record or file a meeting — never for "
@@ -90,11 +137,10 @@ struct RecordStudentMeetingTool: Tool {
             "goals": .array(arguments.goals.map { .string($0) })
         ]
         let contextProvider = contextProvider
+        let toolContext = toolContext
         return await MainActor.run {
-            bridgedNotebookOperation {
-                try MCPNotebookTools.undoingOnFailure(contextProvider()) {
-                    try MCPNotebookTools.recordMeeting(arguments: toolArguments, in: $0)
-                }
+            bridgedNotebookWrite(.meeting, for: toolContext, in: contextProvider()) {
+                try MCPNotebookTools.recordMeeting(arguments: toolArguments, in: $0)
             }
         }
     }
@@ -104,6 +150,8 @@ struct RecordStudentMeetingTool: Tool {
 /// in-app new-todo form, including student tag syncing.
 struct AddFollowUpTool: Tool {
     var contextProvider: MCPContextProvider
+    /// The answer this tool works for, told when the tool saves.
+    var toolContext: ChatToolContext?
     let name = "addFollowUp"
     let description = "Add a follow-up to the guide's todo list — something owed to a student, "
         + "a parent, an assistant, or the guide themself. Use ONLY when the guide explicitly "
@@ -130,11 +178,10 @@ struct AddFollowUpTool: Tool {
             "due_date": .string(arguments.dueDate)
         ]
         let contextProvider = contextProvider
+        let toolContext = toolContext
         let reply = await MainActor.run {
-            bridgedNotebookOperation {
-                try MCPNotebookTools.undoingOnFailure(contextProvider()) {
-                    try MCPNotebookTools.addFollowUp(arguments: toolArguments, in: $0)
-                }
+            bridgedNotebookWrite(.followUpAdded, for: toolContext, in: contextProvider()) {
+                try MCPNotebookTools.addFollowUp(arguments: toolArguments, in: $0)
             }
         }
         // The same-day duplicate guard ends by offering `force: true`, which
@@ -147,6 +194,8 @@ struct AddFollowUpTool: Tool {
 /// goal (focus item) by id.
 struct ResolveFollowUpTool: Tool {
     var contextProvider: MCPContextProvider
+    /// The answer this tool works for, told when the tool saves.
+    var toolContext: ChatToolContext?
     let name = "resolveFollowUp"
     let description = "Mark a follow-up done: completes a todo, or resolves a student's open "
         + "goal, by the id shown in listOpenFollowUps. Use ONLY when the guide explicitly says "
@@ -161,11 +210,10 @@ struct ResolveFollowUpTool: Tool {
     func call(arguments: Arguments) async throws -> String {
         let toolArguments: [String: JSONValue] = ["id": .string(arguments.id)]
         let contextProvider = contextProvider
+        let toolContext = toolContext
         return await MainActor.run {
-            bridgedNotebookOperation {
-                try MCPNotebookTools.undoingOnFailure(contextProvider()) {
-                    try MCPNotebookTools.resolveFollowUp(arguments: toolArguments, in: $0)
-                }
+            bridgedNotebookWrite(.followUpResolved, for: toolContext, in: contextProvider()) {
+                try MCPNotebookTools.resolveFollowUp(arguments: toolArguments, in: $0)
             }
         }
     }

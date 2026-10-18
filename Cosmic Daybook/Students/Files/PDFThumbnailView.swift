@@ -51,7 +51,9 @@ struct PDFThumbnail: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .task {
+        // Keyed on the file, so a card drawn before its file came down from
+        // iCloud draws the page once it has.
+        .task(id: url) {
             await loadThumbnail()
         }
     }

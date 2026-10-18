@@ -9,7 +9,9 @@ import Foundation
 /// History rows. The pause lasts until the list setting changes (listening
 /// resumes and the new choice is tried once) or until a sync started from
 /// Today or Settings finds the list after all. Those syncs are not paused, and
-/// the error stays on show as before.
+/// the error stays on show as before. Calendar sync pauses the same way when
+/// none of its chosen calendars can be found (2026-10-17 hunt, #12), so
+/// "list" here is also the choice of calendars.
 nonisolated struct ReminderChangeListening: Equatable, Sendable {
     /// True from a "list not found" until the setting changes or the list turns up.
     private(set) var isPaused = false

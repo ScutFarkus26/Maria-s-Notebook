@@ -25,28 +25,33 @@ extension PresentationDetailContentView {
         return resolveBookmarkURL(lesson.pagesFileBookmark)
     }
 
+    /// The bookmarked file. Access isn't started here: `openInPages` holds it
+    /// while the file is open. Every tap used to start it and nothing stopped
+    /// it (review of the 2026-10-17 fixes, a2 #7).
     func resolveBookmarkURL(_ bookmark: Data?) -> URL? {
         guard let bookmark else { return nil }
         do {
-            let url = try SecurityScopedBookmark.resolve(bookmark).url
-            _ = url.startAccessingSecurityScopedResource()
-            return url
+            return try SecurityScopedBookmark.resolve(bookmark).url
         } catch {
             return nil
         }
     }
 
     /// Opens the file once it is on this device (an iCloud file may still
-    /// have to download; see `UbiquitousFile`).
+    /// have to download; see `UbiquitousFile`). On iPhone and iPad, where
+    /// `UIApplication.open` can't open a file, the share sheet offers Pages;
+    /// `DocumentPresenter` holds access to the file until it closes (bug hunt
+    /// 2026-10-17, #22).
     func openInPages(_ url: URL) {
         Task {
-            let url = await UbiquitousFile.localURL(for: url)
+#if os(iOS)
+            if let message = await DocumentPresenter.open(url, as: .share).message {
+                ToastService.shared.showError(message)
+            }
+#elseif os(macOS)
             let needsAccess = url.startAccessingSecurityScopedResource()
             defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
-#if os(iOS)
-            UIApplication.shared.open(url, options: [:], completionHandler: nil)
-#elseif os(macOS)
-            openInPagesOnMac(url)
+            openInPagesOnMac(await UbiquitousFile.localURL(for: url))
 #endif
         }
     }

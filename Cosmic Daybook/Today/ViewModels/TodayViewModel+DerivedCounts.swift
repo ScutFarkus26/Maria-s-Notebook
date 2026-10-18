@@ -46,8 +46,9 @@ extension TodayViewModel {
     /// What a computed count stands on.
     struct DerivedCountsBasis {
         let stamp: DerivedCountsStamp
-        /// `createdAt` of the oldest presented assignment in the one-year
-        /// window when the count was taken (nil when the window was empty).
+        /// Window date (`presentedAt`, else `createdAt`) of the oldest
+        /// presented assignment in the one-year window when the count was
+        /// taken (nil when the window was empty).
         /// Time only ever moves rows out of the window, and this one leaves
         /// first; until it does, the window holds the same rows.
         let windowFloor: Date?
@@ -103,19 +104,26 @@ extension TodayViewModel {
         return presentedWindowStart(calendar: calendar, now: now) > floor
     }
 
-    /// `createdAt` of the oldest presented assignment in the window at `now`.
+    /// The window date of the oldest presented assignment in the window at
+    /// `now`: its `presentedAt`, or `createdAt` for a row without one, the
+    /// fields `StudentsViewModel.presentedInWindowPredicate` windows on.
     static func presentedWindowFloor(
         calendar: Calendar, now: Date, in context: NSManagedObjectContext
     ) -> Date? {
-        let request = CDFetchRequest(CDLessonAssignment.self)
-        request.predicate = NSPredicate(
-            format: "createdAt >= %@ AND stateRaw == %@",
-            presentedWindowStart(calendar: calendar, now: now) as CVarArg,
-            LessonAssignmentState.presented.rawValue
-        )
-        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
-        request.fetchLimit = 1
-        return context.safeFetch(request).first?.createdAt
+        let start = presentedWindowStart(calendar: calendar, now: now)
+        let window = StudentsViewModel.presentedInWindowPredicate(since: start)
+        func oldest(by date: KeyPath<CDLessonAssignment, Date?>, where narrowing: String) -> Date? {
+            let request = CDFetchRequest(CDLessonAssignment.self)
+            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+                window, NSPredicate(format: narrowing)
+            ])
+            request.sortDescriptors = [NSSortDescriptor(keyPath: date, ascending: true)]
+            request.fetchLimit = 1
+            return context.safeFetch(request).first?[keyPath: date]
+        }
+        let given = oldest(by: \.presentedAt, where: "presentedAt != nil")
+        let undated = oldest(by: \.createdAt, where: "presentedAt == nil")
+        return [given, undated].compactMap(\.self).min()
     }
 
     private func derivedCountFlag() -> ManagedObjectChangeFlag {

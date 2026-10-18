@@ -29,12 +29,11 @@ enum MeetingTemplateEditing: TemplateEditing {
         )
     }
 
+    /// A name is enough: a prompt left empty shows no placeholder, as the
+    /// built-in Quick Check-In's guide notes don't, and requiring all four
+    /// kept a copy of it from being saved (bug hunt 2026-10-17, #44).
     static func canSave(_ draft: MeetingTemplateDraft) -> Bool {
-        !draft.name.trimmed().isEmpty &&
-        !draft.reflectionPrompt.trimmed().isEmpty &&
-        !draft.focusPrompt.trimmed().isEmpty &&
-        !draft.requestsPrompt.trimmed().isEmpty &&
-        !draft.guideNotesPrompt.trimmed().isEmpty
+        !draft.name.trimmed().isEmpty
     }
 
     @ViewBuilder

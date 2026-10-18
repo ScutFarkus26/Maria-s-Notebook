@@ -28,6 +28,9 @@ final class AlbumSemanticIndex {
     private var titleVectors: [String: [[Float]]] = [:]
     private var bodyVectors: [String: [[Float]]] = [:]
     private var titleBackend = ""
+    /// Counts purges, so a build a purge overtook doesn't put back what the
+    /// purge let go.
+    private var purgeCount = 0
 
     /// Below this cosine score a query match is noise, not meaning.
     var matchThreshold: Float { titleBackend == "sentence" ? 0.55 : 0.88 }
@@ -67,33 +70,47 @@ final class AlbumSemanticIndex {
         titleVectors.removeAll()
         bodyVectors.removeAll()
         status = .idle
+        purgeCount += 1
     }
 
+    /// Builds the index for exactly `items`, the library's albums now. The
+    /// vectors go into fresh tables that replace the old ones when the build
+    /// is done, so an album that has left the library (renamed, removed, its
+    /// folder gone) leaves the index too instead of taking Related Lessons and
+    /// search slots. Searches meanwhile use the last complete index.
     /// `cacheDir` is where each album's vectors are cached; tests pass their own.
     func build(items: [BuildItem], cacheDir: URL? = AlbumSemanticIndex.cacheDirectory()) async {
         guard status != .building else { return }
         status = .building
+        let purgesAtStart = purgeCount
         // One title model for every album: queries are embedded with one
         // model, so an album built with the other could never match them.
         // Detached so the wait for the model is never cut short.
         let backend = await Task.detached(priority: .utility) {
             await Self.resolveTitleBackend()
         }.value
-        var anySucceeded = false
+        var titles: [String: [[Float]]] = [:]
+        var bodies: [String: [[Float]]] = [:]
+        var builtBackend = titleBackend
         for item in items {
             let result = await Task.detached(priority: .utility) {
                 Self.loadOrBuildVectors(for: item, backend: backend, cacheDir: cacheDir)
             }.value
             if let result {
-                titleVectors[item.id] = result.titles
-                titleBackend = result.titleBackend
-                if let bodies = result.bodies {
-                    bodyVectors[item.id] = bodies
+                titles[item.id] = result.titles
+                builtBackend = result.titleBackend
+                if let itemBodies = result.bodies {
+                    bodies[item.id] = itemBodies
                 }
-                anySucceeded = true
             }
         }
-        status = anySucceeded ? .ready : .unavailable
+        // Memory pressure purged the index while this ran: leave it purged
+        // (the next `ensureIndexed()` builds again) rather than refill it.
+        guard purgeCount == purgesAtStart else { return }
+        titleVectors = titles
+        bodyVectors = bodies
+        titleBackend = builtBackend
+        status = titles.isEmpty ? .unavailable : .ready
     }
 
     // MARK: Queries

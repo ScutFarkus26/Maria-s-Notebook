@@ -52,6 +52,12 @@ struct LessonDetailView: View {
         .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
+    /// The lesson Handoff offers to the guide's other devices: none in the
+    /// Sample Class, whose lessons they don't have.
+    var handoffLessonID: UUID? {
+        isSampleClassroom ? nil : lesson.id
+    }
+
     var existingSections: [String] {
         let area = draft.area.trimmed()
         let sequence = draft.sequence.trimmed()
@@ -153,7 +159,7 @@ struct LessonDetailView: View {
         }
         .frame(minWidth: 440, minHeight: 560)
         // Handoff: the same lesson on the guide's other devices.
-        .userActivity(Handoff.ActivityType.lesson, element: lesson.id) { id, activity in
+        .userActivity(Handoff.ActivityType.lesson, element: handoffLessonID) { id, activity in
             Handoff.describeLesson(activity, id: id, name: lesson.name)
         }
         .safeAreaInset(edge: .bottom) {

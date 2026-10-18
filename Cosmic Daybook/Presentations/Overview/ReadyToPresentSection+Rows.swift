@@ -19,6 +19,9 @@ struct BacklogRenderContext {
     let missedIDs: Set<UUID>
     let palette: StudentAgePalette
     let isCompact: Bool
+    /// Every line's presentation, top to bottom, so a dragged selection
+    /// carries the order the guide sees.
+    var displayOrder: [UUID] = []
 }
 
 /// How far a brewing presentation has come: some of its children are ready.
@@ -60,7 +63,7 @@ extension ReadyToPresentSection {
         state: PresentationsFilterChip,
         slices: ReadyToPresentSlices
     ) -> some View {
-        let context = renderContext(state: state, slices: slices)
+        var context = renderContext(state: state, slices: slices)
         let groups = ReadyBacklog.groupByLesson(
             assignments,
             lessonID: \.resolvedLessonID,
@@ -68,6 +71,7 @@ extension ReadyToPresentSection {
             waits: viewModel.daysSinceLastLessonByStudent,
             longestWaitFirst: state != .waitingForWork
         )
+        context.displayOrder = groups.flatMap(\.items).compactMap(\.id)
         return VStack(alignment: .leading, spacing: 0) {
             ForEach(groups) { group in
                 lessonRow(group, context: context)

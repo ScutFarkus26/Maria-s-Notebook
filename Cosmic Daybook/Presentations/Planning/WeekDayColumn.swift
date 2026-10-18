@@ -181,6 +181,7 @@ struct WeekDayColumn: View {
         WeekDayColumnDropDelegate(
             calendar: calendar,
             viewContext: viewContext,
+            saveCoordinator: dependencies.saveCoordinator,
             allLessonAssignments: allLessonAssignments,
             day: day,
             orderedPresentationIDs: { scheduledLessonsForDay.compactMap(\.id) },

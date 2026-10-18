@@ -84,10 +84,16 @@ private final class MainWindowProbeView: NSView {
     }
 }
 
-// MARK: - Helper functions for posting window notifications
+// MARK: - Opening a window from anywhere
+
+// The helpers open the window themselves, through the menu bar's `openWindow`
+// (`MainWindowOpener`), so they work with no main window open — from a detail
+// window, say (bug hunt 2026-10-17 #36). Only before SwiftUI has built the
+// menu bar do they fall back to the post a main window answers.
 
 /// Opens a student detail in a new window
 func openStudentInNewWindow(_ studentID: UUID) {
+    guard !MainWindowOpener.shared.open(id: "StudentDetailWindow", value: studentID) else { return }
     NotificationCenter.default.post(
         name: .openStudentDetailWindow,
         object: nil,
@@ -97,6 +103,7 @@ func openStudentInNewWindow(_ studentID: UUID) {
 
 /// Opens a lesson detail in a new window
 func openLessonInNewWindow(_ lessonID: UUID) {
+    guard !MainWindowOpener.shared.open(id: "LessonDetailWindow", value: lessonID) else { return }
     NotificationCenter.default.post(
         name: .openLessonDetailWindow,
         object: nil,
@@ -106,10 +113,17 @@ func openLessonInNewWindow(_ lessonID: UUID) {
 
 /// Opens a work detail in a new window
 func openWorkInNewWindow(_ workID: UUID) {
+    guard !MainWindowOpener.shared.open(id: "WorkDetailWindow", value: workID) else { return }
     NotificationCenter.default.post(
         name: .openWorkDetailWindow,
         object: nil,
         userInfo: ["workID": workID]
     )
+}
+
+/// Opens the Keyboard Shortcuts window (Help › Keyboard Shortcuts).
+func openKeyboardShortcutsWindow() {
+    guard !MainWindowOpener.shared.open(id: "KeyboardShortcutsWindow") else { return }
+    NotificationCenter.default.post(name: .openKeyboardShortcutsWindow, object: nil)
 }
 #endif

@@ -18,7 +18,8 @@ struct AttendanceLogView: View {
     @State private var selectedStudentIDs: Set<UUID> = []
     @State private var selectedStatuses: Set<AttendanceStatus> = []
     @State private var selectedDateRange: DateRangeFilter = .thisMonth
-    @State private var customStartDate: Date = AppCalendar.shared.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+    @State private var customStartDate: Date =
+        AppCalendar.shared.date(byAdding: .month, value: -1, to: Date()) ?? Date()
     @State private var customEndDate: Date = Date()
     @State private var searchText: String = ""
 
@@ -126,22 +127,20 @@ struct AttendanceLogView: View {
     var body: some View {
         // Read once per render: the timeframe's bounds, the roster, and the
         // filtered records the summary, the grouping and the rows all use.
-        let bounds = dateRangeBounds
-        let students = AttendanceLogFilter.students(
-            from: dependencies.roster.all, bounds: bounds,
-            show: testStudents.show, namesRaw: testStudents.namesRaw
-        )
-        let studentsByID = AttendanceLogFilter.studentsByID(students)
-        let records = AttendanceLogFilter.records(
+        let listing = AttendanceLogFilter.listing(
             allRecords,
-            matching: AttendanceLogFilter.Criteria(
-                bounds: bounds, studentIDs: selectedStudentIDs,
+            roster: dependencies.roster.all,
+            criteria: AttendanceLogFilter.Criteria(
+                bounds: dateRangeBounds, studentIDs: selectedStudentIDs,
                 statuses: selectedStatuses, searchText: searchText
             ),
-            studentsByID: studentsByID
+            show: testStudents.show,
+            namesRaw: testStudents.namesRaw
         )
+        let studentsByID = listing.studentsByID
+        let records = listing.records
         VStack(spacing: 0) {
-            filterBar(students: students)
+            filterBar(students: listing.students)
                 .padding(.vertical, 8)
 
             customDateRangePicker

@@ -14,6 +14,9 @@ struct MeetingQueueSignals: Equatable {
     var stuckWork = 0
     /// Active focus items carried from earlier meetings.
     var focusCarried = 0
+    /// Every meeting row she has, so a requeue can tell when a new one is
+    /// filed whatever date it carries (`MeetingQueueRequeueStore`).
+    var meetingIDs: Set<UUID> = []
 
     /// Days since the last meeting, counted from the school-year epoch so last
     /// spring's meeting doesn't read "104 days" on the first morning back.
@@ -223,7 +226,11 @@ final class MeetingQueueModel {
 
     private static func addMeetings(to result: inout [UUID: MeetingQueueSignals], context: NSManagedObjectContext) {
         for meeting in context.safeFetch(CDFetchRequest(CDStudentMeeting.self)) {
-            guard let id = UUID(uuidString: meeting.studentID), let date = meeting.date else { continue }
+            guard let id = UUID(uuidString: meeting.studentID) else { continue }
+            if let meetingID = meeting.id {
+                result[id, default: MeetingQueueSignals()].meetingIDs.insert(meetingID)
+            }
+            guard let date = meeting.date else { continue }
             if (result[id]?.lastMet ?? .distantPast) < date {
                 result[id, default: MeetingQueueSignals()].lastMet = date
             }

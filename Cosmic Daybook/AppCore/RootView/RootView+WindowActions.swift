@@ -3,6 +3,7 @@
 // File > New's quick-capture set, New Lesson / New Student, and the Go menu.
 // Each acts in this window only (see AppCommands.swift).
 
+import OSLog
 import SwiftUI
 
 extension RootView {
@@ -20,8 +21,31 @@ extension RootView {
             newStudent: { askInThisWindow(.newStudent) },
             importStudents: { askInThisWindow(.importStudents) },
             goTo: { goInThisWindow($0) },
-            openLessonsAndWork: { openLessonsAndWorkInThisWindow($0) }
+            openLessonsAndWork: { openLessonsAndWorkInThisWindow($0) },
+            switchClassroom: { requestClassroomSwitch(to: $0) },
+            continueHandoff: { continueHandoffInThisWindow($0) }
         ))
+    }
+
+    /// The Classroom menu's and this window's classroom controls' switch: at
+    /// once when nothing is open that it would lose, else after asking over
+    /// whatever is in front in this window, a sheet included (bug hunt
+    /// 2026-10-17 #31, review c #1).
+    func requestClassroomSwitch(to workspace: ClassroomWorkspace) {
+        let store = classroomWorkspace
+        Task {
+            await store.requestSwitch(to: workspace) { proceed in
+                if !ClassroomSwitchQuestion.ask(onSwitch: { Task { await proceed() } }) {
+                    Self.logger.warning("No window to ask about a classroom switch in; nothing switched")
+                }
+            }
+        }
+    }
+
+    /// A Handoff this window took (`WindowHandoff`): its section opens here,
+    /// not in whichever main window sees the router first (review c #3).
+    private func continueHandoffInThisWindow(_ destination: Handoff.Destination) {
+        appRouter.continueHandoff(to: destination) { selectInThisWindow($0) }
     }
 
     /// Goes to the section that answers `request` in this window and leaves

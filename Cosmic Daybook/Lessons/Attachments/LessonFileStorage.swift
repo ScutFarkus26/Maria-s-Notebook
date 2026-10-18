@@ -192,10 +192,12 @@ public enum LessonFileStorage {
             baseName = ManagedPDFFileStorage.sanitizeFilenameComponent(sourceStem, fallback: "Attachment")
         }
 
-        let destinationURL = storage.uniqueDestination(
+        let destinationURL = uniqueAttachmentURL(
             in: destDir,
-            baseName: scopePrefix(for: scope) + baseName,
-            extWithDot: extWithDot
+            scope: scope,
+            name: AttachmentName(base: baseName, extWithDot: extWithDot),
+            excluding: nil,
+            held: namesHeldByRecords(in: destDir, context: lesson.managedObjectContext, apartFrom: nil)
         )
         try UbiquitousFile.coordinatedCopy(from: sourceURL, to: destinationURL)
 
@@ -235,7 +237,10 @@ public enum LessonFileStorage {
             in: destinationDirectory,
             scope: attachment.scope,
             name: AttachmentName(base: sanitizedBaseName, extWithDot: extWithDot),
-            excluding: currentURL
+            excluding: currentURL,
+            held: namesHeldByRecords(
+                in: destinationDirectory, context: attachment.managedObjectContext, apartFrom: attachment
+            )
         )
 
         if currentURL.standardizedFileURL != destinationURL.standardizedFileURL {
@@ -262,12 +267,16 @@ public enum LessonFileStorage {
     }
 
     /// Like `ManagedPDFFileStorage.uniqueDestination`, except the attachment's own
-    /// current URL counts as free so a rename to the same name is a no-op.
+    /// current URL counts as free so a rename to the same name is a no-op. A
+    /// name held by a file still in iCloud (not downloaded here yet) is taken,
+    /// as it is there, and so is one in `held`: an attachment record synced
+    /// from another device whose file hasn't reached this one at all.
     private static func uniqueAttachmentURL(
         in directory: URL,
         scope: AttachmentScope,
         name: AttachmentName,
-        excluding currentURL: URL
+        excluding currentURL: URL?,
+        held: Set<String>
     ) -> URL {
         let fm = FileManager.default
         let scopePrefix = scopePrefix(for: scope)
@@ -285,12 +294,43 @@ public enum LessonFileStorage {
         var counter: Int?
         while true {
             let candidate = candidateURL(counter: counter)
-            if candidate.standardizedFileURL == currentURL.standardizedFileURL
-                || !fm.fileExists(atPath: candidate.path) {
+            if let currentURL, candidate.standardizedFileURL == currentURL.standardizedFileURL {
+                return candidate
+            }
+            let taken = fm.fileExists(atPath: candidate.path)
+                || fm.fileExists(atPath: UbiquitousFile.placeholderURL(for: candidate).path)
+                || held.contains(candidate.lastPathComponent.lowercased())
+            if !taken {
                 return candidate
             }
 
             counter = (counter ?? 1) + 1
         }
+    }
+
+    /// The file names (lowercased: iCloud Drive ignores case) that attachment
+    /// records in `context` hold directly inside `directory`, `apartFrom`'s
+    /// own aside. A record synced from another device can arrive before its
+    /// file does, and a second file under its name would collide with that
+    /// one when it lands.
+    private static func namesHeldByRecords(
+        in directory: URL,
+        context: NSManagedObjectContext?,
+        apartFrom attachment: CDLessonAttachment?
+    ) -> Set<String> {
+        guard let context, let folder = try? relativePath(forManagedURL: directory) else { return [] }
+        let prefix = folder.lowercased() + "/"
+        let request = CDFetchRequest(CDLessonAttachment.self)
+        request.predicate = NSPredicate(format: "fileRelativePath BEGINSWITH[c] %@", prefix)
+        var held = Set<String>()
+        for record in context.safeFetch(request) where record !== attachment && !record.isDeleted {
+            let path = record.fileRelativePath.lowercased()
+            guard path.hasPrefix(prefix) else { continue }
+            let name = path.dropFirst(prefix.count)
+            if !name.isEmpty, !name.contains("/") {
+                held.insert(String(name))
+            }
+        }
+        return held
     }
 }
