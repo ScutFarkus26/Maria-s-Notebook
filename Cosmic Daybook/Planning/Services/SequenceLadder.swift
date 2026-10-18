@@ -7,7 +7,7 @@
 //
 //  A child's frontier is the step after the highest one she has been given.
 //  She stands there once, with one tier: planned when an open plan names her
-//  for it, otherwise ready or practice-open exactly as the ready queue says,
+//  for it, otherwise ready or ready-check-first exactly as the ready queue says,
 //  otherwise unconfirmed (she had the step below, and the guide has neither
 //  confirmed nor marked it). A child given the last step is finished; one
 //  given nothing is not started, unless a plan already names her for a step,
@@ -27,8 +27,9 @@ nonisolated struct SequenceLadder: Sendable, Equatable {
     enum Tier: String, Sendable, Hashable {
         /// The queue holds her ready for this step.
         case ready
-        /// The queue holds her almost ready: practice on the step below is open.
-        case practiceOpen
+        /// The queue holds her Ready, check first: work from the step below is
+        /// open, its last check-in asked for practice, or its recall was shaky.
+        case checkFirst
         /// An open plan already names her for this step.
         case planned
         /// She had the step below; it is neither confirmed nor mastered.
@@ -42,15 +43,17 @@ nonisolated struct SequenceLadder: Sendable, Equatable {
         /// The highest step she has been given (1-based); nil when she has
         /// been given none and stands here only because she is planned.
         let lastStepGiven: Int?
-        /// Why practice holds her (`.practiceOpen`).
+        /// What to check first (`.checkFirst`).
         let reason: String?
-        /// School days since the step below was given (`.ready`, `.practiceOpen`).
+        /// School days since the step below was given (`.ready`, `.checkFirst`).
         let waitSchoolDays: Int?
         /// The plan's date (`.planned`); nil for an undated plan.
         let plannedDate: Date?
         /// Her latest presented assignment of the step below, to confirm on
         /// (`.unconfirmed`); nil when the record holds only a presentation row.
         let confirmAssignmentID: NSManagedObjectID?
+        /// Where she stands on the step below (`.ready`, `.checkFirst`).
+        var previous: PreviousLessonStatus?
 
         var id: String { child.id }
     }
@@ -180,12 +183,13 @@ nonisolated struct SequenceLadder: Sendable, Equatable {
             if let item = itemsByKey["\(child.id)|\(frontier)"] {
                 return Rung(
                     child: child,
-                    tier: item.tier == .ready ? .ready : .practiceOpen,
+                    tier: item.tier == .ready ? .ready : .checkFirst,
                     lastStepGiven: lastStepGiven,
                     reason: item.tier == .ready ? nil : item.reasons.joined(separator: "; "),
                     waitSchoolDays: item.basisDate.map(schoolDaysSince),
                     plannedDate: nil,
-                    confirmAssignmentID: nil
+                    confirmAssignmentID: nil,
+                    previous: item.previous
                 )
             }
             return Rung(

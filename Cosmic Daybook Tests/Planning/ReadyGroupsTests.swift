@@ -233,7 +233,8 @@ struct ReadyGroupsTests {
 
         #expect(group.ready.map(\.child.name) == ["Ada B", "Ben C", "Dee E"])
         #expect(group.almost.map(\.child.name) == ["Cy D"])
-        #expect(group.almost.first?.reason == "practice on Commutative Law not yet complete")
+        #expect(group.almost.first?.reason == "1 piece of work still open")
+        #expect(group.almost.first?.previous?.openWorkCount == 1)
         #expect(group.ready.allSatisfy { $0.reason == nil })
 
         let engineAlmost = Set(snapshot.items.filter { $0.tier == .almostReady }.map(\.studentID))

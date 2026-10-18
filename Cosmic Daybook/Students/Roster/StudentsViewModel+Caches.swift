@@ -169,167 +169,35 @@ extension StudentsViewModel {
 }
 
 // MARK: - Days since last lesson
-// Reads the presented assignments of the last year once — as five columns, not
-// as objects — and folds them into one date per student. Today's "need a
-// lesson" count uses it too.
+// The one rule is `DaysSinceLastLesson`: given presentations of the last year,
+// Parsha lessons aside, in school days. Today's "need a lesson" count uses it too.
 
 extension StudentsViewModel {
 
-    /// One presented assignment reduced to the three facts the day count needs.
-    private struct PresentedAssignment {
-        let lessonID: UUID?
-        let studentIDs: [UUID]
-        let when: Date
-    }
-
-    /// The presented assignments of the last year, minus the ones for Parsha lessons.
-    ///
-    /// Both queries are shaped to read as little as the answer needs. The lesson
-    /// query asks the store for the Parsha rows instead of folding every lesson
-    /// name in Swift; the assignment query filters on `stateRaw` in SQL and reads
-    /// dictionaries rather than faulting a year of objects — the old object path
-    /// also read `resolvedLessonID` per row, which is a separate `SELECT` each.
-    private struct LessonQueryContext {
-        let presentedAssignments: [PresentedAssignment]
-
-        init(viewContext: NSManagedObjectContext, calendar: Calendar) {
-            // PERFORMANCE: Limit query to recent lessons (1 year) to avoid loading entire history
-            let oneYearAgo = calendar.date(byAdding: .year, value: -1, to: Date())
-                ?? Date().addingTimeInterval(-365 * 24 * 3600)
-
-            let excluded = Self.parshaLessonIDs(in: viewContext)
-            // A row whose `lessonID` doesn't parse used to compare against a fresh
-            // UUID, which is never in the excluded set — so it was kept. Keep it.
-            presentedAssignments = Self.presentedRows(since: oneYearAgo, in: viewContext)
-                .filter { row in
-                    guard let lessonID = row.lessonID else { return true }
-                    return !excluded.contains(lessonID)
-                }
-        }
-
-        /// IDs of the lessons the day count ignores.
-        ///
-        /// `normalizedForComparison()` is trim + lowercase, which no predicate can
-        /// express, so the store narrows to the rows that could possibly match and
-        /// Swift makes the same decision it always did on that handful. `[c]` only —
-        /// the fold is case-insensitive but *not* diacritic-insensitive.
-        private static func parshaLessonIDs(in context: NSManagedObjectContext) -> Set<UUID> {
-            let request = CDFetchRequest(CDLesson.self)
-            request.predicate = NSPredicate(
-                format: "area CONTAINS[c] %@ OR sequence CONTAINS[c] %@", "parsha", "parsha"
-            )
-            let candidates = context.safeFetch(request).filter {
-                $0.area.normalizedForComparison() == "parsha"
-                    || $0.sequence.normalizedForComparison() == "parsha"
-            }
-            return Set(candidates.compactMap(\.id))
-        }
-
-        private static func presentedRows(
-            since cutoff: Date,
-            in context: NSManagedObjectContext
-        ) -> [PresentedAssignment] {
-            let predicate = StudentsViewModel.presentedInWindowPredicate(since: cutoff)
-            // A dictionary-result fetch can't see unsaved inserts, so a dirty
-            // context still takes the object path — the answer has to be identical.
-            if !context.hasChanges, let rows = dictionaryRows(matching: predicate, in: context) {
-                return rows
-            }
-            let request = CDFetchRequest(CDLessonAssignment.self)
-            request.predicate = predicate
-            request.returnsObjectsAsFaults = false
-            request.fetchBatchSize = 200
-            return context.safeFetch(request).map {
-                PresentedAssignment(
-                    lessonID: $0.lessonIDUUID,
-                    studentIDs: $0.resolvedStudentIDs,
-                    when: $0.presentedAt ?? $0.scheduledFor ?? $0.createdAt ?? Date()
-                )
-            }
-        }
-
-        /// `nil` when the fetch fails, so the caller falls back to the object path.
-        private static func dictionaryRows(
-            matching predicate: NSPredicate,
-            in context: NSManagedObjectContext
-        ) -> [PresentedAssignment]? {
-            let request = NSFetchRequest<NSDictionary>(entityName: "LessonAssignment")
-            request.resultType = .dictionaryResultType
-            request.predicate = predicate
-            request.propertiesToFetch = [
-                "presentedAt", "scheduledFor", "createdAt", "lessonID", "_studentIDsData"
-            ]
-            guard let rows = try? context.fetch(request) else { return nil }
-            return rows.map { row in
-                let when = (row["presentedAt"] as? Date)
-                    ?? (row["scheduledFor"] as? Date)
-                    ?? (row["createdAt"] as? Date)
-                    ?? Date()
-                // Same decoding the `studentIDs` accessor does, straight off the blob.
-                let ids = CloudKitStringArrayStorage.decode(from: row["_studentIDsData"] as? Data)
-                return PresentedAssignment(
-                    lessonID: (row["lessonID"] as? String).flatMap { UUID(uuidString: $0) },
-                    studentIDs: ids.compactMap { UUID(uuidString: $0) },
-                    when: when
-                )
-            }
-        }
-    }
-
-    /// Presented assignments given since `cutoff`: windowed on the date the
-    /// lesson was given, as each row is dated, or on `createdAt` for a row
-    /// without one. Windowing on `createdAt` alone dropped a lesson drafted
-    /// over a year ago and given this week (bug hunt 2026-10-17 review, St #44).
-    /// Today's window floor (`TodayViewModel.presentedWindowFloor`) reads it too.
+    /// The window Today's floor reads (`TodayViewModel.presentedWindowFloor`):
+    /// `DaysSinceLastLesson.presentedInWindowPredicate`.
     nonisolated static func presentedInWindowPredicate(since cutoff: Date) -> NSPredicate {
-        NSPredicate(
-            format: "stateRaw == %@ AND (presentedAt >= %@ OR (presentedAt == nil AND createdAt >= %@))",
-            LessonAssignmentState.presented.rawValue, cutoff as CVarArg, cutoff as CVarArg
-        )
+        DaysSinceLastLesson.presentedInWindowPredicate(since: cutoff)
     }
 
-    /// Each child's last given lesson: the latest presented assignment of the
-    /// last year that names her, Parsha lessons aside. The roster's lesson
-    /// age and the record's "School Days Since Last Lesson"
-    /// (`DaysSinceLastLessonView`) both read it, so they agree about a child;
-    /// the record kept a rule of its own (any row with a presentation date,
-    /// no one-year window, a Parsha lesson left out only when its area was
-    /// typed exactly), and the two could disagree (bug hunt 2026-10-17, #44).
-    static func lastLessonDates(in viewContext: NSManagedObjectContext, calendar: Calendar) -> [UUID: Date] {
-        let context = LessonQueryContext(viewContext: viewContext, calendar: calendar)
-        var lastDateByStudent: [UUID: Date] = [:]
-        for assignment in context.presentedAssignments {
-            for sid in assignment.studentIDs where (lastDateByStudent[sid] ?? .distantPast) < assignment.when {
-                lastDateByStudent[sid] = assignment.when
-            }
-        }
-        return lastDateByStudent
-    }
-
+    /// School days since each student's last given lesson, or -1 for a child
+    /// with none in the last year.
     func computeDaysSinceLastLessonCache(
         for students: [CDStudent],
         using viewContext: NSManagedObjectContext,
         calendar: Calendar
     ) -> [UUID: Int] {
-        let lastDateByStudent = Self.lastLessonDates(in: viewContext, calendar: calendar)
-
-        // Compute days since last lesson for each student
+        let now = Date()
+        let lastLessons = DaysSinceLastLesson.lastLessons(in: viewContext, now: now, calendar: calendar)
         var result: [UUID: Int] = [:]
         for student in students {
             guard let studentID = student.id else { continue }
-            if let lastDate = lastDateByStudent[studentID] {
-                // Use LessonAgeHelper to compute school days since last lesson
-                result[studentID] = LessonAgeHelper.schoolDaysSinceCreation(
-                    createdAt: lastDate,
-                    asOf: Date(),
-                    using: viewContext
-                )
+            if let last = lastLessons[studentID] {
+                result[studentID] = DaysSinceLastLesson.schoolDays(since: last.date, asOf: now, using: viewContext)
             } else {
-                // No lesson found - return -1 to indicate no lesson
                 result[studentID] = -1
             }
         }
-
         return result
     }
 }

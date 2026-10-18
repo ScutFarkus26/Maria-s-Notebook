@@ -35,7 +35,8 @@ nonisolated extension ReadyGroups {
                 basis: item.basis,
                 basisDate: item.basisDate,
                 waitSchoolDays: item.basisDate.map(schoolDaysSince),
-                reason: item.tier == .ready ? nil : item.reasons.joined(separator: "; ")
+                reason: item.tier == .ready ? nil : item.reasons.joined(separator: "; "),
+                previous: item.previous
             )
             if item.tier == .ready {
                 drafts[item.nextLessonID, default: ([], [])].ready.append(member)

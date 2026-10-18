@@ -3,15 +3,16 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-/// Bug hunt 2026-10-11, #17, #18 and #6: the checklist's "Not yet" is the
-/// planner's readiness rule, its cells read each child's own copy of shared
-/// work, and View Class Progress lands on the track's sequence.
+/// Bug hunt 2026-10-11, #17, #18 and #6: the checklist's "Not yet" is one
+/// readiness rule, its cells read each child's own copy of shared work, and
+/// View Class Progress lands on the track's sequence. Since 2026-10-18 the
+/// rule is the ready queue's (`ReadyForNextEngine.readiness(of:)`, the one the
+/// Groups page and Today read), with two levels of Ready.
 @Suite("Checklist readiness (fix 10-11 W)")
 @MainActor
 struct ChecklistReadinessFix1011WTests {
 
-    /// Math › Decimal: lesson A, then lesson B. No sequence settings, so B
-    /// needs both practice on A and the guide's confirmation.
+    /// Math › Decimal: lesson A, then lesson B.
     private struct Fixture {
         let context: NSManagedObjectContext
         let maya: CDStudent
@@ -69,31 +70,30 @@ struct ChecklistReadinessFix1011WTests {
             return try #require(matrix[studentID]?[lessonID])
         }
 
-        /// What the planner says about the child for B: a plan of B for her,
-        /// judged with every work row, open and closed.
-        func engineReady(_ student: CDStudent) throws -> Bool {
-            let plan = CDLessonAssignment(context: context)
-            plan.lessonID = try #require(lessonB.id).uuidString
-            plan.studentIDs = [student.cloudKitKey]
-            defer { context.delete(plan) }
-            let assignments = context.safeFetch(CDFetchRequest(CDLessonAssignment.self))
-            let works = context.safeFetch(CDFetchRequest(CDWorkModel.self))
-            let result = BlockingAlgorithmEngine.checkBlocking(
-                forBatch: [plan], lessons: [lessonA, lessonB],
-                allLessonAssignments: assignments, workModels: works
+        /// What the ready queue says about the child for B: its tier, or not
+        /// ready when she isn't in it.
+        func queueTier(_ student: CDStudent) throws -> ReadinessTier {
+            let studentID = try #require(student.id).uuidString
+            let index = PresentationRecordIndex(students: [studentID], in: context)
+            let items = ReadyForNextEngine.items(
+                studentIDs: [studentID], lessons: [lessonA, lessonB], index: index, in: context
             )
-            let planID = try #require(plan.id)
-            let studentID = try #require(student.id)
-            let readiness = try #require(result[planID]?.perStudentReadiness[studentID])
-            return readiness.isReady
+            let lessonBID = try #require(lessonB.id).uuidString
+            return items.first { $0.nextLessonID == lessonBID }?.tier ?? .notReady
         }
 
-        /// The checklist and the planner agree, and say `ready`.
-        func expectAgreement(_ student: CDStudent, ready: Bool) throws {
-            let checklistReady = try cell(student, lessonB).blockingReason == .none
-            let plannerReady = try engineReady(student)
-            #expect(checklistReady == plannerReady)
-            #expect(checklistReady == ready)
+        /// The checklist cell's level for B.
+        func cellTier(_ student: CDStudent) throws -> ReadinessTier {
+            let state = try cell(student, lessonB)
+            if state.blockingReason != .none { return .notReady }
+            return state.checkFirstReasons.isEmpty ? .ready : .almostReady
+        }
+
+        /// The checklist and the queue agree, and say `tier`.
+        func expectAgreement(_ student: CDStudent, _ tier: ReadinessTier) throws {
+            let checklist = try cellTier(student)
+            #expect(checklist == (try queueTier(student)))
+            #expect(checklist == tier)
         }
     }
 
@@ -112,7 +112,7 @@ struct ChecklistReadinessFix1011WTests {
 
     // MARK: - One rule (#17)
 
-    @Test("practice that exists only as closed work: both say ready")
+    @Test("practice that exists only as closed work: both say Ready")
     func closedPracticeIsReady() throws {
         let fixture = try makeFixture()
         let given = try fixture.giveA(to: [fixture.maya], on: "2026-09-08", confirming: [fixture.maya])
@@ -120,7 +120,7 @@ struct ChecklistReadinessFix1011WTests {
         copies[0].status = .mastered
         try fixture.context.save()
 
-        try fixture.expectAgreement(fixture.maya, ready: true)
+        try fixture.expectAgreement(fixture.maya, .ready)
     }
 
     @Test("a confirmation recorded on her other giving counts")
@@ -134,7 +134,7 @@ struct ChecklistReadinessFix1011WTests {
         copies[0].status = .mastered
         try fixture.context.save()
 
-        try fixture.expectAgreement(fixture.maya, ready: true)
+        try fixture.expectAgreement(fixture.maya, .ready)
     }
 
     @Test("no work, on a giving that didn't ask for practice: ready, not 'needs practice'")
@@ -144,10 +144,10 @@ struct ChecklistReadinessFix1011WTests {
         given.needsPractice = false
         try fixture.context.save()
 
-        try fixture.expectAgreement(fixture.maya, ready: true)
+        try fixture.expectAgreement(fixture.maya, .ready)
     }
 
-    @Test("a classmate's open copy doesn't hold Maya back")
+    @Test("a classmate's open copy doesn't hold Maya back; Eli's own is worth a look first")
     func classmatesCopyDoesNotBlock() throws {
         let fixture = try makeFixture()
         let given = try fixture.giveA(
@@ -157,18 +157,19 @@ struct ChecklistReadinessFix1011WTests {
         copies[0].status = .mastered
         try fixture.context.save()
 
-        try fixture.expectAgreement(fixture.maya, ready: true)
-        try fixture.expectAgreement(fixture.eli, ready: false)
-        #expect(try fixture.cell(fixture.eli, fixture.lessonB).blockingReason == .practiceRequired)
+        try fixture.expectAgreement(fixture.maya, .ready)
+        try fixture.expectAgreement(fixture.eli, .almostReady)
+        #expect(try fixture.cell(fixture.eli, fixture.lessonB).checkFirstReasons == ["1 piece of work still open"])
+        #expect(try fixture.cell(fixture.eli, fixture.lessonB).displayStatus == .ready)
     }
 
     // Guard: passes on the old code too.
-    @Test("A not given to her: both say not ready, and the cell says why")
+    @Test("A not given to her: both say Not ready yet, and the cell says why")
     func notPresentedIsNotReady() throws {
         let fixture = try makeFixture()
         try fixture.giveA(to: [fixture.maya], on: "2026-09-08", confirming: [fixture.maya])
 
-        try fixture.expectAgreement(fixture.eli, ready: false)
+        try fixture.expectAgreement(fixture.eli, .notReady)
         #expect(try fixture.cell(fixture.eli, fixture.lessonB).blockingReason == .prerequisiteNotPresented)
     }
 
@@ -180,7 +181,7 @@ struct ChecklistReadinessFix1011WTests {
         copies[0].status = .mastered
         try fixture.context.save()
 
-        try fixture.expectAgreement(fixture.maya, ready: false)
+        try fixture.expectAgreement(fixture.maya, .notReady)
         #expect(try fixture.cell(fixture.maya, fixture.lessonB).blockingReason == .confirmationRequired)
     }
 

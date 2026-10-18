@@ -5,29 +5,26 @@ import Foundation
 // MARK: - Days Since Last CDLesson
 
 extension PresentationsViewModel {
+    /// Each student's wait since her last given lesson, by the one rule
+    /// (`DaysSinceLastLesson`): Parsha lessons aside, undated marks skipped,
+    /// in school days. `Int.max` for a child never given one; also the area of
+    /// her last lesson.
     func calculateDaysSinceLastLesson(
         lessonAssignments: [CDLessonAssignment],
         lessons: [CDLesson],
         students: [CDStudent]
     ) {
-        var result: [UUID: Int] = [:]
-
-        func norm(_ s: String) -> String {
-            s.trimmed().lowercased()
+        let parshaLessonIDs = Set(
+            lessons.filter { DaysSinceLastLesson.isParsha(area: $0.area, sequence: $0.sequence) }.compactMap(\.id)
+        )
+        let given = lessonAssignments.filter(\.isGiven).map {
+            DaysSinceLastLesson.Given(
+                lessonID: $0.resolvedLessonID,
+                studentIDs: $0.resolvedStudentIDs,
+                date: DaysSinceLastLesson.givenDate(presentedAt: $0.presentedAt, scheduledFor: $0.scheduledFor)
+            )
         }
-
-        let excludedLessonIDs: Set<UUID> = {
-            let ids = lessons.filter { l in
-                let s = norm(l.area)
-                let g = norm(l.sequence)
-                return s == "parsha" || g == "parsha"
-            }.compactMap(\.id)
-            return Set(ids)
-        }()
-
-        let given = lessonAssignments.filter {
-            $0.isGiven && !excludedLessonIDs.contains($0.resolvedLessonID)
-        }
+        let lastLessons = DaysSinceLastLesson.lastLessons(from: given, parshaLessonIDs: parshaLessonIDs)
 
         // Sync can hand back two rows with one id; keep the first.
         let lessonsByID: [UUID: CDLesson] = Dictionary(
@@ -38,23 +35,18 @@ extension PresentationsViewModel {
             uniquingKeysWith: { first, _ in first }
         )
 
-        let (lastDateByStudent, lastLessonIDByStudent) = buildLastLessonData(from: given)
-
+        var result: [UUID: Int] = [:]
         var areas: [UUID: String] = [:]
+        let now = Date()
         for s in students {
             guard let sid = s.id else { continue }
-            if let last = lastDateByStudent[sid] {
+            if let last = lastLessons[sid] {
                 guard let viewContext else { continue }
-                let days = LessonAgeHelper.schoolDaysSinceCreation(
-                    createdAt: last,
-                    asOf: Date(),
-                    using: viewContext
-                )
-                result[sid] = days
+                result[sid] = DaysSinceLastLesson.schoolDays(since: last.date, asOf: now, using: viewContext)
             } else {
                 result[sid] = Int.max
             }
-            if let lessonID = lastLessonIDByStudent[sid],
+            if let lessonID = lastLessons[sid]?.lessonID,
                let area = lessonsByID[lessonID]?.area,
                !area.isEmpty {
                 areas[sid] = area
@@ -63,30 +55,5 @@ extension PresentationsViewModel {
 
         self.daysSinceLastLessonByStudent = result
         self.lastAreaByStudent = areas
-    }
-
-    func buildLastLessonData(
-        from given: [CDLessonAssignment]
-    ) -> (dateByStudent: [UUID: Date], lessonIDByStudent: [UUID: UUID]) {
-        var lastDateByStudent: [UUID: Date] = [:]
-        var lastLessonIDByStudent: [UUID: UUID] = [:]
-        for la in given {
-            // An undated "given earlier" presentation says nothing about when.
-            // Its `createdAt` is the day it was marked, so falling back to it
-            // made a new child's August catch-up read as "taught today".
-            guard let when = la.presentedAt ?? la.scheduledFor else { continue }
-            for sid in la.resolvedStudentIDs {
-                if let existing = lastDateByStudent[sid] {
-                    if when > existing {
-                        lastDateByStudent[sid] = when
-                        lastLessonIDByStudent[sid] = la.resolvedLessonID
-                    }
-                } else {
-                    lastDateByStudent[sid] = when
-                    lastLessonIDByStudent[sid] = la.resolvedLessonID
-                }
-            }
-        }
-        return (lastDateByStudent, lastLessonIDByStudent)
     }
 }

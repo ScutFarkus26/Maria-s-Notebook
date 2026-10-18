@@ -137,8 +137,9 @@ struct ChecklistIncrementalUpdateTests {
         fixture.viewModel.markComplete(student: fixture.ada, lesson: fixture.middle, context: fixture.context)
 
         #expect(fixture.viewModel.matrixStates == fullRebuild(fixture))
-        // Presented and practiced; the next lesson now waits only on the guide's confirmation.
-        #expect(try blocking(fixture, fixture.ada, fixture.next) == .confirmationRequired)
+        // A mastery mark is as good as a confirmation under the one readiness rule
+        // (Simplify the app, Phase 3): the next lesson is Ready.
+        #expect(try blocking(fixture, fixture.ada, fixture.next) == BlockingReason.none)
         #expect(fixture.viewModel.state(for: fixture.ada, lesson: fixture.middle)?.isComplete == true)
         // The shared work closed for Bruno too, and his cell in the touched row shows it.
         #expect(fixture.viewModel.state(for: fixture.bruno, lesson: fixture.middle)?.isComplete == true)
@@ -148,7 +149,7 @@ struct ChecklistIncrementalUpdateTests {
     func clearMatchesFullRebuild() throws {
         let fixture = try makeFixture()
         fixture.viewModel.markComplete(student: fixture.ada, lesson: fixture.middle, context: fixture.context)
-        #expect(try blocking(fixture, fixture.ada, fixture.next) == .confirmationRequired)
+        #expect(try blocking(fixture, fixture.ada, fixture.next) == BlockingReason.none)
 
         fixture.viewModel.clearStatus(student: fixture.ada, lesson: fixture.middle, context: fixture.context)
 

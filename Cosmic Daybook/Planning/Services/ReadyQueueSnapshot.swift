@@ -95,6 +95,7 @@ nonisolated struct ReadyQueueSnapshot: Sendable {
     /// Builds the queue itself the way `students_ready` and Today do, over
     /// `students` and the whole library. For a caller that does not already
     /// hold the queue; one that does passes it to the memberwise init.
+    @MainActor
     init(
         students: [CDStudent],
         lessons: [CDLesson],

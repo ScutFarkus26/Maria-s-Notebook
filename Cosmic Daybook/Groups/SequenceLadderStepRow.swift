@@ -5,12 +5,13 @@
 //  One step of the sequence ladder: its number on the rail, the lesson, and
 //  the children standing on it.
 //
-//  The tiers use the Groups page's colors: success green is ready, warning
-//  orange is practice open (with the reason held), accent blue is planned
+//  The tiers use the Groups page's colors: success green is Ready, warning
+//  orange is Ready, check first (with what to check), accent blue is planned
 //  (with the date), a gray question mark is unconfirmed (with a Confirm
 //  button), and a dashed outline is a catch-up ghost, someone who could join
-//  after the step below. The wait is colored by the guide's Lesson Age
-//  settings only once it passes the overdue threshold.
+//  after the step below. A ready or check-first child also gets the step
+//  below's status line (`PreviousLessonStatus.summary`). The wait is colored
+//  by the guide's Lesson Age settings only once it passes the overdue threshold.
 //
 
 import CoreData
@@ -104,6 +105,13 @@ struct SequenceLadderStepRow: View {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                if let previous = rung.previous {
+                    Text(previous.summary)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityLabel("Previous lesson: \(previous.summary)")
+                }
             }
             Spacer(minLength: 8)
             trailing(for: rung)
@@ -137,7 +145,7 @@ struct SequenceLadderStepRow: View {
                         .accessibilityLabel("Confirm \(rung.child.name)")
                 }
             }
-        case .ready, .practiceOpen:
+        case .ready, .checkFirst:
             if let days = rung.waitSchoolDays {
                 waitText(days)
             }
@@ -182,9 +190,9 @@ struct SequenceLadderStepRow: View {
     private func label(for rung: SequenceLadder.Rung) -> String {
         switch rung.tier {
         case .ready:
-            return "Ready"
-        case .practiceOpen:
-            return "Practice open"
+            return ReadinessTier.ready.title
+        case .checkFirst:
+            return ReadinessTier.almostReady.title
         case .planned:
             guard let date = rung.plannedDate else { return "Planned, no date yet" }
             return "Planned \(date.formatted(.dateTime.month(.abbreviated).day()))"
@@ -197,7 +205,7 @@ struct SequenceLadderStepRow: View {
     static func tint(for tier: SequenceLadder.Tier) -> Color {
         switch tier {
         case .ready: AppColors.success
-        case .practiceOpen: AppColors.warning
+        case .checkFirst: AppColors.warning
         case .planned: Color.accentColor
         case .unconfirmed: Color.secondary
         }
@@ -206,7 +214,7 @@ struct SequenceLadderStepRow: View {
     private static func symbol(for tier: SequenceLadder.Tier) -> String {
         switch tier {
         case .ready: "checkmark.circle.fill"
-        case .practiceOpen: "hourglass.circle.fill"
+        case .checkFirst: "exclamationmark.circle.fill"
         case .planned: "calendar.circle.fill"
         case .unconfirmed: "questionmark.circle"
         }

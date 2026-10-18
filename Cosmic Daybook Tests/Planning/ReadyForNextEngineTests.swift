@@ -193,10 +193,10 @@ struct ReadyForNextEngineTests {
         #expect(found.isEmpty)
     }
 
-    // MARK: - The practice gate
+    // MARK: - Ready, check first
 
-    @Test("Open practice work on the lesson she had holds her at almost ready")
-    func practiceGateHoldsHerAtAlmostReady() throws {
+    @Test("Open practice work on the lesson she had makes her Ready, check first")
+    func openWorkMakesHerCheckFirst() throws {
         let context = try CoreDataTestHelpers.makeContext()
         let library = seedLibrary(in: context)
         let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Levi")
@@ -217,7 +217,8 @@ struct ReadyForNextEngineTests {
         let found = try items(for: [ora], library: library, in: context)
         let item = try #require(found.first)
         #expect(item.tier == .almostReady)
-        #expect(item.reasons == ["practice on Commutative Law not yet complete"])
+        #expect(item.reasons == ["1 piece of work still open"])
+        #expect(item.previous.openWorkCount == 1)
 
         // Finished, and she is simply ready.
         work.statusRaw = "complete"
@@ -226,8 +227,8 @@ struct ReadyForNextEngineTests {
         #expect(after.reasons.isEmpty)
     }
 
-    @Test("A sub-area that does not require practice ignores open work")
-    func practiceGateOffLeavesHerReady() throws {
+    @Test("One rule: open work is worth a look whatever the sub-area's practice setting")
+    func openWorkCountsWithoutThePracticeSetting() throws {
         let context = try CoreDataTestHelpers.makeContext()
         let library = seedLibrary(in: context)
         let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Levi")
@@ -246,6 +247,7 @@ struct ReadyForNextEngineTests {
         work.statusRaw = "active"
 
         let item = try #require(try items(for: [ora], library: library, in: context).first)
-        #expect(item.tier == .ready)
+        #expect(item.tier == .almostReady)
+        #expect(item.reasons == ["1 piece of work still open"])
     }
 }

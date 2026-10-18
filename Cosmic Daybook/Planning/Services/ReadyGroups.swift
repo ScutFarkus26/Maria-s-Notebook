@@ -6,15 +6,15 @@
 //
 //  The ready queue (`ReadyForNextEngine`) is one row per child and lesson.
 //  The guide plans by lesson, so this folds the queue onto the lessons it
-//  proposes: a card per lesson with the children ready for it, the ones a
-//  practice gate still holds, the ones who could catch up and join, the ones
+//  proposes: a card per lesson with the children ready for it, the ones to
+//  check on first (Ready, check first), the ones who could catch up and join, the ones
 //  waiting on a confirmation, and whoever already has it on a plan. It reads
 //  and proposes; it writes nothing, and it never second-guesses the queue:
-//  a child is Ready or Almost here exactly when the queue says so.
+//  a child is Ready or Ready, check first here exactly when the queue says so.
 //
 //  Rules (GROUPS_PAGE_PLAN.md, defaults 1–5):
 //  - A group is 2+ ready children (`groups`); one ready child is a single
-//    (`singles`); a lesson only gate-held children wait on is `holding`.
+//    (`singles`); a lesson only check-first children wait on is `holding`.
 //  - Catch-up is derived: a child ready for N appears on next(N)'s card, but
 //    only when that card exists. Ghosts never make a card and are never counted.
 //  - Unconfirmed children (had the previous lesson, neither confirmed nor
@@ -32,7 +32,8 @@ import Foundation
 /// One lesson the queue proposes, with everyone who bears on planning it.
 nonisolated struct LessonGroup: Sendable, Hashable, Identifiable {
 
-    /// A child the queue holds for this lesson: ready, or almost with a reason.
+    /// A child the queue holds for this lesson: Ready, or Ready, check first
+    /// with the reasons.
     struct Member: Sendable, Hashable, Identifiable {
         let child: ReadyRoster.Child
         /// The lesson she was confirmed or mastered on (the previous step).
@@ -42,8 +43,10 @@ nonisolated struct LessonGroup: Sendable, Hashable, Identifiable {
         let basisDate: Date?
         /// School days since `basisDate`; nil when there is no date.
         let waitSchoolDays: Int?
-        /// Why she is almost rather than ready; nil when ready.
+        /// Why she should be checked on first; nil when ready.
         let reason: String?
+        /// Where she stands on the previous lesson (`PreviousLessonStatus.summary`).
+        let previous: PreviousLessonStatus?
 
         var id: String { child.id }
     }
@@ -89,7 +92,7 @@ nonisolated struct LessonGroup: Sendable, Hashable, Identifiable {
     let position: LessonSequenceOrder.Position
     /// Ready now, by name.
     let ready: [Member]
-    /// Held by the practice gate, by name; never preselected.
+    /// Ready, check first, by name, with the reasons; never preselected.
     let almost: [Member]
     /// Dashed "could join after N" ghosts, by name; never counted.
     let catchUp: [CatchUp]
@@ -152,7 +155,7 @@ nonisolated struct ReadyGroups: Sendable, Equatable {
     /// Cards with exactly one ready child, in order: the "N lessons with one
     /// child ready" row.
     let singles: [LessonGroup]
-    /// Cards with no ready child, only gate-held ones, in order. Today lists
+    /// Cards with no ready child, only check-first ones, in order. Today lists
     /// them (Plan disabled); the Groups page may leave them out.
     let holding: [LessonGroup]
     /// Areas with a group or a single, alphabetically. Counts ignore `inArea`.

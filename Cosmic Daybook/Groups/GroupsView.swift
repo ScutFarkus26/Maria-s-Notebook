@@ -9,8 +9,8 @@
 //  same queue, read off the main thread, rebuilt only while the page can be
 //  seen and only when one of the queue's inputs moved. `ReadyGroups` folds
 //  it onto lessons; a card is 2+ ready children, and the lessons with one
-//  ready child fold into one row below the cards. Lessons only held children
-//  wait on are left out here (Today lists them).
+//  ready child fold into one row below the cards. Lessons only Ready, check
+//  first children wait on are left out here (Today lists them).
 //
 
 import CoreData

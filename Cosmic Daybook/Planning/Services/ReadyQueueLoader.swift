@@ -27,11 +27,12 @@ import Foundation
 final class ReadyQueueLoader {
 
     /// Everything the ready queue reads: the roster, the lesson library, the
-    /// three record shapes the index folds, the practice work (and its
-    /// participants, which say whether it is complete), and the sub-area rules.
+    /// three record shapes the index folds, the work on the previous lessons
+    /// (and its participants, which say whose it is and whether it is open),
+    /// and the recall checks the readiness rule reads.
     nonisolated static let inputEntities: Set<String> = [
         "Student", "Lesson", "LessonPresentation", "LessonAssignment", "YearPlanEntry",
-        "WorkModel", "WorkParticipantEntity", "LessonSequenceSettings"
+        "WorkModel", "WorkParticipantEntity", "LessonRecallCheck"
     ]
 
     let context: NSManagedObjectContext

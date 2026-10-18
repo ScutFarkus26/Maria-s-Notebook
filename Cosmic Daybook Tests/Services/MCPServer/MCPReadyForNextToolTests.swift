@@ -149,7 +149,7 @@ struct MCPReadyForNextToolTests {
         let oraLine = try #require(output.split(separator: "\n").map(String.init).first {
             $0.contains(distributiveID) && $0.contains("almost:")
         })
-        #expect(oraLine.hasSuffix(" — almost: practice on Commutative Law not yet complete"))
+        #expect(oraLine.hasSuffix(" — almost: 1 piece of work still open"))
         #expect(output.contains("Ora Levi:"))
         #expect(!output.contains("Rivka"))
         #expect(!output.contains("Sarah Adler:"))
@@ -169,7 +169,7 @@ struct MCPReadyForNextToolTests {
         let header = try #require(lines.first { $0.contains(distributiveID) && $0.contains("ready (") })
         #expect(header.contains("Distributive Law — Math › Laws"))
         #expect(header.contains("ready (2): Avital Beyderman, Etty Krinsky"))
-        #expect(header.contains("almost ready (1): Ora Levi (practice on Commutative Law not yet complete)"))
+        #expect(header.contains("almost ready (1): Ora Levi (1 piece of work still open)"))
 
         // The closing line has to decode as a call, not merely look like one.
         let callLine = try #require(lines.first {

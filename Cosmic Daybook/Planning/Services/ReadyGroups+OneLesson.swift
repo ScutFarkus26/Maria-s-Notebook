@@ -20,8 +20,8 @@ nonisolated extension ReadyGroups {
 
     /// The children in `studentIDs` that `build` would list as Ready on
     /// `lessonID`'s card: confirmed or mastered on the lesson before it in its
-    /// sub-area, neither given nor planned this one, and not held by the
-    /// practice gate.
+    /// sub-area, neither given nor planned this one, and Ready rather than
+    /// Ready, check first (`ReadyForNextEngine.readiness(of:)`).
     ///
     /// - Parameters:
     ///   - lessonID: the lesson being planned, as a UUID string.
@@ -29,7 +29,8 @@ nonisolated extension ReadyGroups {
     ///     chooses them as it would a snapshot's roster (enrolled, test
     ///     students hidden).
     ///   - lessons: the whole lesson library; "before" is read from it.
-    ///   - context: for the record, the progression rules and the practice work.
+    ///   - context: for the record, and the work and recall checks the rule reads.
+    @MainActor
     static func readyStudentIDs(
         for lessonID: String,
         among studentIDs: Set<String>,
@@ -49,7 +50,7 @@ nonisolated extension ReadyGroups {
             lessonIDs: previous.union([lessonID]), students: studentIDs, in: context
         )
         // Only a child with a mark on the previous lesson can be in the queue
-        // for this one, so only her work is read for the practice gate.
+        // for this one, so only her work and recall checks are read.
         let marked = studentIDs.filter { studentID in
             previous.contains { lesson in
                 guard let given = index.given(student: studentID, lesson: lesson) else { return false }

@@ -42,16 +42,16 @@ struct DaysSinceLastLessonView: View {
         let fresh: Int? = {
             guard let studentID = student.id,
                   let last = Self.lastLessonDate(studentID: studentID, in: viewContext) else { return nil }
-            return LessonAgeHelper.schoolDaysSinceCreation(createdAt: last, asOf: Date(), using: viewContext)
+            return DaysSinceLastLesson.schoolDays(since: last, using: viewContext)
         }()
         if fresh != daysSince { daysSince = fresh }
     }
 
-    /// This child's last given lesson, read the roster's way
-    /// (`StudentsViewModel.lastLessonDates`) so the record and the roster's
-    /// lesson age never disagree about her (bug hunt 2026-10-17, #44).
+    /// This child's last given lesson, by the one rule (`DaysSinceLastLesson`)
+    /// the roster's lesson age reads too, so the two never disagree about her
+    /// (bug hunt 2026-10-17, #44).
     static func lastLessonDate(studentID: UUID, in context: NSManagedObjectContext) -> Date? {
-        StudentsViewModel.lastLessonDates(in: context, calendar: AppCalendar.shared)[studentID]
+        DaysSinceLastLesson.lastLessons(in: context)[studentID]?.date
     }
 }
 

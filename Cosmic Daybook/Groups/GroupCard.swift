@@ -3,8 +3,8 @@
 //  Cosmic Daybook
 //
 //  One lesson the ready queue proposes, as a card on the Groups page: who is
-//  ready (green, with how long each has waited), who a practice gate still
-//  holds (orange, with the reason), who could catch up and join (dashed),
+//  Ready (green, with how long each has waited), who is Ready, check first
+//  (orange, with what to check), who could catch up and join (dashed),
 //  who is waiting on a confirmation, and whoever already has it planned.
 //  The breadcrumb opens the sub-area's ladder; Plan opens the schedule sheet
 //  with the ready children selected.
@@ -154,8 +154,9 @@ struct GroupBreadcrumb: View {
     }
 }
 
-/// A ready child (green) or one the practice gate holds (orange, with the
-/// reason), and how long she has waited since the lesson that made her ready.
+/// A Ready child (green) or a Ready, check first one (orange, with what to
+/// check), how long she has waited since the lesson that made her ready, and
+/// where she stands on that lesson (`PreviousLessonStatus.summary`).
 struct GroupMemberRow: View {
     let member: LessonGroup.Member
     let palette: StudentAgePalette
@@ -172,15 +173,23 @@ struct GroupMemberRow: View {
                 Text(member.child.name)
                     .font(.subheadline)
                 if let reason = member.reason {
-                    Text(reason)
+                    Text("Check first: \(reason)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let previous = member.previous {
+                    Text(previous.summary)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityLabel("Previous lesson: \(previous.summary)")
                 }
             }
             Spacer(minLength: 8)
             if let days = member.waitSchoolDays {
                 // The Lesson Age overdue color, as the ladder shows it; orange
-                // already means "practice not done" on this row.
+                // already means "check first" on this row.
                 Text(days == 1 ? "1 day" : "\(days) days")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(palette.status(forDays: days) == .overdue ? palette.overdue : .secondary)

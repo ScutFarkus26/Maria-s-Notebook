@@ -127,6 +127,10 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
     public let blockingReason: BlockingReason
     /// The child has a mastery mark on the lesson (see `ChecklistDisplayStatus.mastered`).
     public let isMastered: Bool
+    /// A Ready cell that is Ready, check first: what to look at on the lesson before
+    /// (`ReadyForNextEngine.readiness(of:)`), e.g. "2 pieces of work still open". Empty
+    /// otherwise.
+    public let checkFirstReasons: [String]
 
     /// The highest rung reached: mastered > reviewing > practicing > presented > planned,
     /// then ready or not yet ready by the blocking reason. Closed work counts as Reviewing
@@ -163,7 +167,8 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
         isStale: Bool,
         isInboxPlan: Bool = false,
         blockingReason: BlockingReason = .none,
-        isMastered: Bool = false
+        isMastered: Bool = false,
+        checkFirstReasons: [String] = []
     ) {
         self.lessonID = lessonID
         self.plannedItemID = plannedItemID
@@ -180,5 +185,6 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
         self.isInboxPlan = isInboxPlan
         self.blockingReason = blockingReason
         self.isMastered = isMastered
+        self.checkFirstReasons = checkFirstReasons
     }
 }

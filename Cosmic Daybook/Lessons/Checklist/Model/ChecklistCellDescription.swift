@@ -4,7 +4,8 @@
 //
 //  The words for a checklist cell: its hover text, its VoiceOver value and hint.
 //  The blocking reason left the cell as a badge and lives here now, naming the
-//  lesson before ("Not yet: Subtraction: Dynamic not presented").
+//  lesson before ("Not yet: Subtraction: Dynamic not presented"), and so does what to
+//  check first on a Ready cell ("Ready, check first: 2 pieces of work still open").
 //
 
 import Foundation
@@ -21,7 +22,8 @@ enum ChecklistCellDescription {
         "\(studentName) · \(lessonName) — \(summary(state: state, precedingLessonName: precedingLessonName))"
     }
 
-    /// The state, then why it's blocked and whether it needs a check-in.
+    /// The state, then why it's blocked (or what to check first) and whether it needs a
+    /// check-in.
     static func summary(state: StudentChecklistRowState?, precedingLessonName: String?) -> String {
         let status = state?.displayStatus ?? .ready
         let reason = state.flatMap { reasonText($0.blockingReason, precedingLessonName: precedingLessonName) }
@@ -29,6 +31,8 @@ enum ChecklistCellDescription {
         switch (status, reason) {
         case (.notReady, let reason?): text = "Not yet: \(reason)"
         case (_, let reason?): text = "\(status.label): \(reason)"
+        case (.ready, nil) where checkFirstText(state) != nil:
+            text = "\(ReadinessTier.almostReady.title): \(checkFirstText(state) ?? "")"
         case (_, nil): text = status.label
         }
         if state?.needsCheckIn == true { text += " · needs a check-in" }
@@ -37,10 +41,13 @@ enum ChecklistCellDescription {
 
     /// VoiceOver's value: the state, the reason and the check-in, comma-separated.
     static func accessibilityValue(state: StudentChecklistRowState?, precedingLessonName: String?) -> String {
-        var parts = [(state?.displayStatus ?? .ready).label]
+        let status = state?.displayStatus ?? .ready
+        let checkFirst = status == .ready ? checkFirstText(state) : nil
+        var parts = [checkFirst == nil ? status.label : ReadinessTier.almostReady.title]
         if let state, let reason = reasonText(state.blockingReason, precedingLessonName: precedingLessonName) {
             parts.append(reason)
         }
+        if let checkFirst { parts.append(checkFirst) }
         if state?.needsCheckIn == true { parts.append("needs a check-in") }
         return parts.joined(separator: ", ")
     }
@@ -51,6 +58,13 @@ enum ChecklistCellDescription {
         isSelectionMode
             ? "Adds to the selection"
             : "Opens the card for this child and lesson"
+    }
+
+    /// What to check first on the lesson before ("2 pieces of work still open; Recall check
+    /// was shaky"). Nil when there is nothing to check, or the cell isn't Ready.
+    static func checkFirstText(_ state: StudentChecklistRowState?) -> String? {
+        guard let state, state.displayStatus == .ready, !state.checkFirstReasons.isEmpty else { return nil }
+        return state.checkFirstReasons.joined(separator: "; ")
     }
 
     /// Why the lesson is blocked, naming the lesson before it when known. Nil when nothing blocks it.

@@ -69,9 +69,9 @@ enum ChecklistMatrixBuilder {
     }
 
     /// Writes one state per (student, row lesson) into `matrix`, fetching the row lessons'
-    /// records and their predecessors' (for the blocking reason) once, indexed by student,
-    /// plus the row lessons' mastery marks in one more fetch, and the work on the
-    /// predecessors' presentations in one more.
+    /// records once, indexed by student, plus the row lessons' mastery marks in one more
+    /// fetch, and the predecessors' record, work and recall checks for the readiness rule
+    /// (`ReadyForNextEngine.readiness(of:)`) in a few more.
     private static func fillRows(
         _ matrix: inout Matrix,
         rowLessons: [CDLesson],
@@ -90,8 +90,10 @@ enum ChecklistMatrixBuilder {
             }
         }
         guard !rowIDs.isEmpty || !precedingIDs.isEmpty else { return }
-        let records = loadRecords(rowIDs: rowIDs, precedingIDs: precedingIDs, context: context)
-        let rulesMap = progressionRules(for: rowPrecedingMap, context: context)
+        let records = loadRecords(rowIDs: rowIDs, context: context)
+        let readiness = PrecedingReadiness(
+            precedingIDs: precedingIDs, students: students, context: context
+        )
 
         // Pre-compute staleness threshold date once instead of per-cell
         let calendar = AppCalendar.shared
@@ -107,14 +109,12 @@ enum ChecklistMatrixBuilder {
                 let studentLAs = records.assignments[lessonIDString]?[studentKey] ?? []
                 let studentWorks = records.works[lessonIDString]?[studentKey] ?? []
 
-                // Only a cell not yet presented can be blocked by the lesson before it,
-                // and a plan the guide unlocked isn't blocked, as in Presentations
-                // (BlockingAlgorithmEngine.checkBlocking).
+                // Only a cell not yet presented can be held back by the lesson before it,
+                // and a plan the guide unlocked isn't, as in Presentations.
                 let isPresented = studentLAs.contains { $0.isPresented }
                 let isUnlocked = studentLAs.contains { !$0.isPresented && $0.manuallyUnblocked }
-                let blockingReason: BlockingReason = isPresented || isUnlocked ? .none : computeBlockingReason(
-                    precedingLesson: rowPrecedingMap[lessonID], rules: rulesMap[lessonID],
-                    studentID: studentID, records: records
+                let verdict = isPresented || isUnlocked ? CellReadiness.ready : readiness.cell(
+                    precedingLessonID: rowPrecedingMap[lessonID]?.id?.uuidString, studentID: studentID
                 )
 
                 studentRow[lessonID] = buildCellState(
@@ -123,111 +123,92 @@ enum ChecklistMatrixBuilder {
                     studentWorkModels: studentWorks,
                     calendar: calendar,
                     today: today,
-                    blockingReason: blockingReason,
-                    isMastered: records.masteryMarks[lessonIDString]?.contains(studentKey) ?? false
+                    blockingReason: verdict.blockingReason,
+                    isMastered: records.masteryMarks[lessonIDString]?.contains(studentKey) ?? false,
+                    checkFirstReasons: verdict.checkFirstReasons
                 )
             }
             matrix[studentID] = studentRow
         }
     }
 
-    /// Rules for each lesson's predecessor. The sequence-settings lookup is
-    /// shared by every predecessor filed under the same area + sequence, so it
-    /// runs once per pair instead of once per lesson.
-    private static func progressionRules(
-        for precedingLessonMap: [UUID: CDLesson],
-        context: NSManagedObjectContext
-    ) -> [UUID: LessonProgressionRules.ResolvedRules] {
-        var rules: [UUID: LessonProgressionRules.ResolvedRules] = [:]
-        var settingsByGroup: [SettingsKey: CDLessonSequenceSettings?] = [:]
-        for (lessonID, preceding) in precedingLessonMap {
-            rules[lessonID] = LessonProgressionRules.resolve(for: preceding) {
-                let key = SettingsKey(area: preceding.area, sequence: preceding.sequence)
-                if let cached = settingsByGroup[key] { return cached }
-                let found = CDLessonSequenceSettings.find(
-                    area: preceding.area, sequence: preceding.sequence, context: context
-                )
-                settingsByGroup[key] = .some(found)
-                return found
-            }
-        }
-        return rules
-    }
-
     // MARK: - Private Helpers
 
-    /// A batch's assignments and work, by lesson ID string and then by student key, the
-    /// row lessons' mastery marks (lesson ID string → student keys), and what the
-    /// readiness rule reads for the predecessors: their givings by lesson ID string,
-    /// and the work on those givings by presentation ID string.
+    /// A batch's assignments and work, by lesson ID string and then by student key, and
+    /// the row lessons' mastery marks (lesson ID string → student keys).
     private struct LessonRecordIndex {
         let assignments: [String: [String: [CDLessonAssignment]]]
         let works: [String: [String: [CDWorkModel]]]
         let masteryMarks: [String: Set<String>]
-        let precedingGivings: [String: [CDLessonAssignment]]
-        let precedingWork: [String: [CDWorkModel]]
     }
 
-    /// Exact (case-preserving) area + sequence, the arguments `find` receives.
-    private struct SettingsKey: Hashable {
-        let area: String
-        let sequence: String
-    }
-
-    /// The row lessons' records and their predecessors', in one fetch per
-    /// entity, plus the row lessons' mastery marks and the work on the
-    /// predecessors' givings.
-    private static func loadRecords(
-        rowIDs: Set<String>, precedingIDs: Set<String>, context: NSManagedObjectContext
-    ) -> LessonRecordIndex {
-        let fetchIDs = Array(rowIDs.union(precedingIDs))
+    /// The row lessons' records, in one fetch per entity, plus their mastery marks.
+    private static func loadRecords(rowIDs: Set<String>, context: NSManagedObjectContext) -> LessonRecordIndex {
+        let fetchIDs = Array(rowIDs)
         let assignments = fetchAssignments(lessonIDs: fetchIDs, context: context)
         let works = fetchWorks(lessonIDs: fetchIDs, context: context)
-        let precedingGivings = presentedGivings(in: assignments, lessonIDs: precedingIDs)
         return LessonRecordIndex(
             assignments: assignmentsByLesson(assignments),
             works: worksByLesson(works, visibility: WorkVisibility(rows: works)),
-            masteryMarks: PresentationRecordIndex.masteryMarks(lessonIDs: rowIDs, in: context),
-            precedingGivings: precedingGivings,
-            precedingWork: workByPresentationID(on: precedingGivings, context: context)
+            masteryMarks: PresentationRecordIndex.masteryMarks(lessonIDs: rowIDs, in: context)
         )
     }
 
     // MARK: - Readiness
 
-    /// Why a child isn't ready for a lesson yet, by the planner's own rule
-    /// (`BlockingAlgorithmEngine.readiness`), so the checklist's "Not yet" and
-    /// Presentations' Ready can't disagree. This used to be an older copy of
-    /// that rule: it read the first giving in fetch order, took a confirmation
-    /// only on that one, read no work as needing practice, and counted a
-    /// classmate's copy. The first lesson of a sequence (no preceding lesson)
-    /// is never blocked.
-    private static func computeBlockingReason(
-        precedingLesson: CDLesson?,
-        rules: LessonProgressionRules.ResolvedRules?,
-        studentID: UUID,
-        records: LessonRecordIndex
-    ) -> BlockingReason {
-        guard let precedingLesson, let rules, rules.requiresPractice || rules.requiresTeacherConfirmation else {
-            return .none
+    /// What the readiness rule says about one unplanned cell, as the cell carries it.
+    private struct CellReadiness {
+        let blockingReason: BlockingReason
+        let checkFirstReasons: [String]
+
+        static let ready = CellReadiness(blockingReason: .none, checkFirstReasons: [])
+    }
+
+    /// The lesson before each row, read for the one readiness rule the Groups page and
+    /// Today read (`ReadyForNextEngine.readiness(of:)`), so the checklist's Ready and
+    /// "Not yet" can't disagree with them. Until 2026-10-18 this was the planner's rule
+    /// (`BlockingAlgorithmEngine.readiness`), which the Inbox keeps for its drafts.
+    ///
+    /// Reads the predecessors' record for these children, and their work and recall
+    /// checks, once for the whole batch.
+    private struct PrecedingReadiness {
+        let index: PresentationRecordIndex
+        let record: PreviousLessonRecord
+
+        init(precedingIDs: Set<String>, students: [CDStudent], context: NSManagedObjectContext) {
+            let studentIDs = Set(students.compactMap { $0.id?.uuidString })
+            guard !precedingIDs.isEmpty, !studentIDs.isEmpty else {
+                index = PresentationRecordIndex(rows: PresentationRecordIndex.RecordRows(), students: [])
+                record = PreviousLessonRecord(pairs: [], in: context)
+                return
+            }
+            let index = PresentationRecordIndex(lessonIDs: precedingIDs, students: studentIDs, in: context)
+            var pairs: [PreviousLessonRecord.Pair] = []
+            for lessonID in precedingIDs {
+                for studentID in (index.givenByLesson[lessonID] ?? [:]).keys {
+                    pairs.append(PreviousLessonRecord.Pair(studentID: studentID, lessonID: lessonID))
+                }
+            }
+            self.index = index
+            record = PreviousLessonRecord(pairs: pairs, in: context)
         }
 
-        let givings = BlockingAlgorithmEngine.givings(
-            for: studentID, among: records.precedingGivings[precedingLesson.id?.uuidString ?? ""] ?? []
-        )
-        guard !givings.isEmpty else {
-            // Preceding lesson hasn't been presented to this student
-            return .prerequisiteNotPresented
-        }
-
-        let readiness = BlockingAlgorithmEngine.readiness(
-            of: studentID, givings: givings, rules: rules, workByPresentationID: records.precedingWork
-        ).readiness
-        switch (readiness.workComplete, readiness.teacherConfirmed) {
-        case (false, false): return .practiceAndConfirmation
-        case (false, true): return .practiceRequired
-        case (true, false): return .confirmationRequired
-        case (true, true): return .none
+        /// Ready (with what to check first, if anything) or why not. The first lesson of a
+        /// sequence (no preceding lesson) is always ready.
+        func cell(precedingLessonID: String?, studentID: UUID) -> CellReadiness {
+            guard let precedingLessonID else { return .ready }
+            let student = studentID.uuidString
+            guard let given = index.given(student: student, lesson: precedingLessonID) else {
+                return CellReadiness(blockingReason: .prerequisiteNotPresented, checkFirstReasons: [])
+            }
+            let verdict = ReadyForNextEngine.readiness(
+                of: record.status(student: student, lesson: precedingLessonID, given: given)
+            )
+            switch verdict.tier {
+            case .notReady: return CellReadiness(blockingReason: .confirmationRequired, checkFirstReasons: [])
+            case .almostReady: return CellReadiness(blockingReason: .none, checkFirstReasons: verdict.reasons)
+            case .ready: return .ready
+            }
         }
     }
 
@@ -241,7 +222,8 @@ enum ChecklistMatrixBuilder {
         calendar: Calendar,
         today: Date,
         blockingReason: BlockingReason = .none,
-        isMastered: Bool = false
+        isMastered: Bool = false,
+        checkFirstReasons: [String] = []
     ) -> StudentChecklistRowState {
         let nonPresented = studentLAs.filter { !$0.isPresented }
         let plannedCandidate = nonPresented.first
@@ -274,7 +256,8 @@ enum ChecklistMatrixBuilder {
             isStale: isStale,
             isInboxPlan: isInboxPlan,
             blockingReason: blockingReason,
-            isMastered: isMastered
+            isMastered: isMastered,
+            checkFirstReasons: checkFirstReasons
         )
     }
 
@@ -346,31 +329,5 @@ extension ChecklistMatrixBuilder {
             }
         }
         return result
-    }
-
-    /// The given presentations of `lessonIDs`, by lesson: what the planner's
-    /// readiness rule reads a child's givings from.
-    private static func presentedGivings(
-        in assignments: [CDLessonAssignment], lessonIDs: Set<String>
-    ) -> [String: [CDLessonAssignment]] {
-        var result: [String: [CDLessonAssignment]] = [:]
-        for la in assignments where la.isPresented && lessonIDs.contains(la.lessonID) {
-            result[la.lessonID, default: []].append(la)
-        }
-        return result
-    }
-
-    /// The work on those presentations, open and closed, by presentation id.
-    /// The rule needs the closed rows: a child whose practice is done has only
-    /// closed work there, and with open work alone she read as having none.
-    private static func workByPresentationID(
-        on givings: [String: [CDLessonAssignment]], context: NSManagedObjectContext
-    ) -> [String: [CDWorkModel]] {
-        let presentationIDs = Set(givings.values.joined().compactMap { $0.id?.uuidString })
-        guard !presentationIDs.isEmpty else { return [:] }
-        let request: NSFetchRequest<CDWorkModel> = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(format: "presentationID IN %@", Array(presentationIDs))
-        request.relationshipKeyPathsForPrefetching = ["participants"]
-        return Dictionary(grouping: context.safeFetch(request)) { $0.presentationID ?? "" }
     }
 }

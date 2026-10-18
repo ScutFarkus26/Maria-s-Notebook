@@ -3,9 +3,11 @@
 //  Cosmic Daybook
 //
 //  How the checklist grid reads: every mark, or "Ready to Present", which lifts the
-//  cells a child could be given now (not presented, not planned, nothing before the
-//  lesson holding her back — the cell's Ready mark) and fades the rest. Display only:
-//  a lens never changes a record, and the grid opens on All Marks each time.
+//  cells a child could be given now (not presented, not planned, and the lesson before
+//  confirmed or mastered — the cell's Ready mark, by the one readiness rule
+//  `ReadyForNextEngine.readiness(of:)`; a Ready, check first cell is lifted too, and its
+//  hover and card say what to check) and fades the rest. Display only: a lens never
+//  changes a record, and the grid opens on All Marks each time.
 //
 
 import Foundation
@@ -26,7 +28,7 @@ enum ChecklistLens: String, CaseIterable, Identifiable {
     }
 
     /// The status bar's line while the Ready lens is on: the rule a ringed cell meets.
-    static let readyRule = "Ringed: not presented or planned, and nothing holds it back"
+    static let readyRule = "Ringed: not presented or planned, and the lesson before is confirmed"
 
     /// How faint every mark that isn't Ready draws under the Ready lens.
     static let fadedOpacity: Double = 0.2

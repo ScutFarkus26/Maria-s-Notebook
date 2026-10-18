@@ -89,8 +89,9 @@ struct SequenceLadderTests {
         #expect(ada.rung.waitSchoolDays == 10)
 
         let ben = try #require(rung("Ben C", in: built)).rung
-        #expect(ben.tier == .practiceOpen)
-        #expect(ben.reason == "practice on Commutative Law not yet complete")
+        #expect(ben.tier == .checkFirst)
+        #expect(ben.reason == "1 piece of work still open")
+        #expect(ben.previous?.openWorkCount == 1)
 
         let dee = try #require(rung("Dee E", in: built)).rung
         #expect(dee.tier == .planned)
@@ -127,7 +128,7 @@ struct SequenceLadderTests {
 
         let engineAlmost = Set(snapshot.items.filter { $0.tier == .almostReady }.map(\.studentID))
         #expect(engineAlmost == [try fixture.id(ben)])
-        #expect(Set(rungs.filter { $0.tier == .practiceOpen }.map(\.child.id)) == engineAlmost)
+        #expect(Set(rungs.filter { $0.tier == .checkFirst }.map(\.child.id)) == engineAlmost)
         #expect(rungs.filter { $0.tier == .ready }.map(\.child.name) == ["Ada B", "Cy D"])
     }
 

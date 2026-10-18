@@ -79,6 +79,26 @@ struct ChecklistMatrixBuilderEquivalenceTests {
         }
         try context.save()
 
+        // A confirmed lesson with open work of her own: the next cell is Ready, check first.
+        let geometry = (0..<2).map { order in
+            let lesson = CoreDataTestHelpers.seedLesson(
+                in: context, name: "Geometry \(order)", area: "Math", sequence: "Geometry"
+            )
+            lesson.orderInSequence = Int64(order)
+            return lesson
+        }
+        lessons.append(contentsOf: geometry)
+        let shown = CDLessonAssignment(context: context)
+        shown.lessonID = try #require(geometry[0].id).uuidString
+        shown.studentIDs = [students[1].cloudKitKey]
+        shown.markPresented(at: Date(timeIntervalSince1970: 1_780_000_000))
+        shown.confirmStudent(try #require(students[1].id))
+        let open = CoreDataTestHelpers.seedWorkModel(
+            in: context, studentID: try #require(students[1].id), lessonID: try #require(geometry[0].id)
+        )
+        open.status = .active
+        try context.save()
+
         // Another saved presentation, then compare. (Rows are compared on a
         // clean context: an unsorted fetch has no defined order once the
         // context holds unsaved changes, for the old per-lesson reads as much
@@ -101,6 +121,7 @@ struct ChecklistMatrixBuilderEquivalenceTests {
         #expect(cells.contains { $0.contractID != nil })
         #expect(cells.contains { $0.blockingReason == .prerequisiteNotPresented })
         #expect(cells.contains { $0.blockingReason != .none && $0.blockingReason != .prerequisiteNotPresented })
+        #expect(cells.contains { !$0.checkFirstReasons.isEmpty })
     }
 
     @Test func emptyLessonsGiveEmptyMatrix() throws {
@@ -114,11 +135,11 @@ struct ChecklistMatrixBuilderEquivalenceTests {
 /// lesson (and per giving), calling the shared `buildCellState`. Its rules
 /// follow the builder's since bug hunt 2026-10-11 #17/#18: a cell reads the
 /// work that counts as the child's (`WorkGrouping.visibleWork`, row by row,
-/// against the builder's batched `WorkVisibility`), and "Not yet" is the
-/// planner's readiness rule.
+/// against the builder's batched `WorkVisibility`). Since 2026-10-18 "Not yet" and
+/// "Ready, check first" are the one readiness rule (`ReadyForNextEngine.readiness(of:)`),
+/// read here one cell at a time.
 @MainActor
 private enum LegacyMatrixBuilder {
-    // swiftlint:disable:next function_body_length
     static func buildMatrix(
         students: [CDStudent],
         lessons: [CDLesson],
@@ -142,10 +163,6 @@ private enum LegacyMatrixBuilder {
         let calendar = AppCalendar.shared
         let today = calendar.startOfDay(for: Date())
         let precedingLessonMap = BlockingAlgorithmEngine.buildPrecedingLessonCache(lessons)
-        var progressionRulesMap: [UUID: LessonProgressionRules.ResolvedRules] = [:]
-        for (lessonID, preceding) in precedingLessonMap {
-            progressionRulesMap[lessonID] = LessonProgressionRules.resolve(for: preceding, context: context)
-        }
         for student in students {
             var studentRow: [UUID: StudentChecklistRowState] = [:]
             let studentKey = student.cloudKitKey
@@ -157,18 +174,14 @@ private enum LegacyMatrixBuilder {
                 let studentWorks = WorkGrouping.visibleWork(
                     for: studentUUID, among: worksByLessonID[lessonIDString] ?? [], in: context
                 )
-                let blockingReason: BlockingReason
+                var readiness = (blocking: BlockingReason.none, checkFirst: [String]())
                 if !studentLAs.contains(where: { $0.isPresented }), let preceding = precedingLessonMap[lessonID] {
-                    blockingReason = computeBlockingReason(
-                        precedingLesson: preceding, rules: progressionRulesMap[lessonID],
-                        studentID: studentUUID, lasByLessonID: lasByLessonID, context: context
-                    )
-                } else {
-                    blockingReason = .none
+                    readiness = cellReadiness(precedingLesson: preceding, studentID: studentUUID, context: context)
                 }
                 studentRow[lessonID] = ChecklistMatrixBuilder.buildCellState(
                     lesson: lesson, studentLAs: studentLAs, studentWorkModels: studentWorks,
-                    calendar: calendar, today: today, blockingReason: blockingReason
+                    calendar: calendar, today: today, blockingReason: readiness.blocking,
+                    checkFirstReasons: readiness.checkFirst
                 )
             }
             guard let studentID = student.id else { continue }
@@ -177,34 +190,25 @@ private enum LegacyMatrixBuilder {
         return newMatrix
     }
 
-    private static func computeBlockingReason(
-        precedingLesson: CDLesson,
-        rules: LessonProgressionRules.ResolvedRules?,
-        studentID: UUID,
-        lasByLessonID: [String: [CDLessonAssignment]],
-        context: NSManagedObjectContext
-    ) -> BlockingReason {
-        guard let rules, rules.requiresPractice || rules.requiresTeacherConfirmation else { return .none }
-        let precedingIDStr = precedingLesson.id?.uuidString ?? ""
-        let givings = BlockingAlgorithmEngine.givings(
-            for: studentID, among: (lasByLessonID[precedingIDStr] ?? []).filter(\.isPresented)
-        )
-        guard !givings.isEmpty else { return .prerequisiteNotPresented }
-        var workByPresentationID: [String: [CDWorkModel]] = [:]
-        for giving in givings {
-            guard let presentationID = giving.id?.uuidString else { continue }
-            let descriptor: NSFetchRequest<CDWorkModel> = CDFetchRequest(CDWorkModel.self)
-            descriptor.predicate = NSPredicate(format: "presentationID == %@", presentationID)
-            workByPresentationID[presentationID] = context.safeFetch(descriptor)
+    /// One cell's readiness, read on its own: the record, work and recall checks of the
+    /// lesson before, for this one child.
+    private static func cellReadiness(
+        precedingLesson: CDLesson, studentID: UUID, context: NSManagedObjectContext
+    ) -> (blocking: BlockingReason, checkFirst: [String]) {
+        let lessonID = precedingLesson.id?.uuidString ?? ""
+        let student = studentID.uuidString
+        let index = PresentationRecordIndex(lessonIDs: [lessonID], students: [student], in: context)
+        guard let given = index.given(student: student, lesson: lessonID) else {
+            return (.prerequisiteNotPresented, [])
         }
-        let readiness = BlockingAlgorithmEngine.readiness(
-            of: studentID, givings: givings, rules: rules, workByPresentationID: workByPresentationID
-        ).readiness
-        switch (readiness.workComplete, readiness.teacherConfirmed) {
-        case (false, false): return .practiceAndConfirmation
-        case (false, true): return .practiceRequired
-        case (true, false): return .confirmationRequired
-        case (true, true): return .none
+        let record = PreviousLessonRecord(
+            pairs: [PreviousLessonRecord.Pair(studentID: student, lessonID: lessonID)], in: context
+        )
+        let verdict = ReadyForNextEngine.readiness(of: record.status(student: student, lesson: lessonID, given: given))
+        switch verdict.tier {
+        case .notReady: return (.confirmationRequired, [])
+        case .almostReady: return (.none, verdict.reasons)
+        case .ready: return (.none, [])
         }
     }
 }

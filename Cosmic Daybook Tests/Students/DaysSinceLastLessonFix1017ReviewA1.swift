@@ -29,7 +29,7 @@ struct DaysSinceLastLessonFix1017ReviewA1Tests {
         let mayaID = try #require(maya.id)
 
         #expect(DaysSinceLastLessonView.lastLessonDate(studentID: mayaID, in: context) == given)
-        #expect(StudentsViewModel.lastLessonDates(in: context, calendar: AppCalendar.shared)[mayaID] == given)
+        #expect(DaysSinceLastLesson.lastLessons(in: context)[mayaID]?.date == given)
     }
 
     @Test("A lesson given over a year ago, though created this week, is outside the window")

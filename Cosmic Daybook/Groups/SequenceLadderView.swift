@@ -225,19 +225,13 @@ private struct SequenceLadderViewPreview: View {
             .enumerated().map { lesson($1, "Laws", Int64($0 + 1) * 10) }
         let fractions = ["Fraction Skittles", "Equivalence"]
             .enumerated().map { lesson($1, "Fractions", Int64($0 + 1) * 10) }
-        let settings = CDLessonSequenceSettings(context: context)
-        settings.area = "Math"
-        settings.sequence = "Laws"
-        settings.requiresPractice = true
-        settings.requiresTeacherConfirmation = false
-
         let kids = seedClass(laws: laws, in: context)
         let ids = Set(kids.compactMap { $0.id?.uuidString })
         let index = PresentationRecordIndex(students: ids, in: context)
         return ReadyQueueSnapshot(students: kids, lessons: laws + fractions, index: index, in: context)
     }
 
-    /// Ada and Ben are ready (Ben's practice is open), Cy is unconfirmed, Dee is
+    /// Ada is ready, Ben is ready but to check first (his practice is open), Cy is unconfirmed, Dee is
     /// planned, Eve has finished, and Fay and Gil have not started.
     @MainActor
     private static func seedClass(laws: [CDLesson], in context: NSManagedObjectContext) -> [CDStudent] {

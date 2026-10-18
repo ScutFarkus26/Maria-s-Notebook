@@ -24,6 +24,9 @@ struct StudentReadinessAssessor {
         let allPresentations = fetchPresentations(context: context)
         let allWork = fetchAllWork(context: context)
         let representations = ChildRepresentations(in: context)
+        let daysSince = daysSinceLastPresentation(
+            allLessons: allLessons, allPresentations: allPresentations, context: context
+        )
 
         return students.map { student in
             buildProfile(
@@ -31,7 +34,8 @@ struct StudentReadinessAssessor {
                 allLessons: allLessons,
                 allPresentations: allPresentations,
                 allWork: allWork,
-                representations: representations
+                representations: representations,
+                daysSinceLastPresentation: student.id.flatMap { daysSince[$0] }
             )
         }
     }
@@ -57,12 +61,13 @@ struct StudentReadinessAssessor {
 
     // MARK: - Profile Building
 
-    private static func buildProfile(
+    private static func buildProfile( // swiftlint:disable:this function_parameter_count
         for student: CDStudent,
         allLessons: [CDLesson],
         allPresentations: [CDLessonAssignment],
         allWork: [CDWorkModel],
-        representations: ChildRepresentations
+        representations: ChildRepresentations,
+        daysSinceLastPresentation: Int?
     ) -> StudentReadinessProfile {
         let studentIDStr = student.id?.uuidString ?? ""
         let studentPresentations = allPresentations.filter { $0.studentIDs.contains(studentIDStr) }
@@ -71,7 +76,6 @@ struct StudentReadinessAssessor {
             studentID: student.id ?? UUID(), allLessons: allLessons,
             presentations: studentPresentations, work: studentWork, representations: representations
         )
-        let daysSinceLastPresentation = computeDaysSinceLastPresentation(studentPresentations)
         let activeWorkCount = studentWork.filter { $0.status.isOpen }.count
         return StudentReadinessProfile(
             studentID: student.id ?? UUID(),
@@ -83,12 +87,27 @@ struct StudentReadinessAssessor {
         )
     }
 
-    private static func computeDaysSinceLastPresentation(_ presentations: [CDLessonAssignment]) -> Int? {
-        guard let lastDate = presentations.compactMap({ $0.presentedAt }).max() else { return nil }
-        // Clamped to the school-year counter epoch (see `SchoolYearCounters`) so the planner
-        // doesn't read a summer gap as a child who has been ignored for months.
-        let from = SchoolYearCounters.countFrom(lastDate)
-        return AppCalendar.shared.dateComponents([.day], from: from, to: Date()).day
+    /// School days since each child's last given lesson, by the one rule the roster and
+    /// Presentations read (`DaysSinceLastLesson`): Parsha lessons aside, undated marks
+    /// skipped, counted from the school-year epoch so a summer gap doesn't read as a child
+    /// ignored for months. A child with none is absent.
+    private static func daysSinceLastPresentation(
+        allLessons: [CDLesson], allPresentations: [CDLessonAssignment], context: NSManagedObjectContext
+    ) -> [UUID: Int] {
+        let parshaLessonIDs = Set(
+            allLessons.filter { DaysSinceLastLesson.isParsha(area: $0.area, sequence: $0.sequence) }.compactMap(\.id)
+        )
+        let given = allPresentations.filter(\.isGiven).map {
+            DaysSinceLastLesson.Given(
+                lessonID: $0.resolvedLessonID,
+                studentIDs: $0.resolvedStudentIDs,
+                date: DaysSinceLastLesson.givenDate(presentedAt: $0.presentedAt, scheduledFor: $0.scheduledFor)
+            )
+        }
+        let now = Date()
+        return DaysSinceLastLesson.lastLessons(from: given, parshaLessonIDs: parshaLessonIDs).mapValues {
+            DaysSinceLastLesson.schoolDays(since: $0.date, asOf: now, using: context)
+        }
     }
 
     // MARK: - Area Readiness Computation

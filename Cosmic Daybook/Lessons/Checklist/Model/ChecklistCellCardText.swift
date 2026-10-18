@@ -84,7 +84,8 @@ enum ChecklistCellCardText {
             }
             detail = reason.map { $0.prefix(1).uppercased() + $0.dropFirst() + "." } ?? "Not ready for this one yet."
         case .ready:
-            detail = "Nothing holds it back; not presented or planned yet."
+            detail = ChecklistCellDescription.checkFirstText(state).map { "Check first: \($0)." }
+                ?? "Nothing holds it back; not presented or planned yet."
         case .planned:
             detail = record.plannedFor.map { "Planned for \(dateText($0))." } ?? "In the Inbox."
         case .presented:
@@ -98,8 +99,14 @@ enum ChecklistCellCardText {
             detail = record.presentedOn.map { "Marked mastered. Presented \(dateText($0))." } ?? "Marked mastered."
         }
         if state?.needsCheckIn == true { detail += " Needs a check-in." }
-        let title = status == .notReady ? "Not yet." : "\(status.label)."
-        return Status(title: title, detail: detail)
+        return Status(title: title(status, state: state), detail: detail)
+    }
+
+    /// "Not yet.", "Ready, check first.", or the status itself: "Presented.".
+    private static func title(_ status: ChecklistDisplayStatus, state: StudentChecklistRowState?) -> String {
+        if status == .notReady { return "Not yet." }
+        if ChecklistCellDescription.checkFirstText(state) != nil { return "\(ReadinessTier.almostReady.title)." }
+        return "\(status.label)."
     }
 
     /// "Present…", "Present with 1 other ready…", "Present with 4 others ready…".

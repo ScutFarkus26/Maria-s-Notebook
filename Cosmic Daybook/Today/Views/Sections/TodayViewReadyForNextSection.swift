@@ -10,9 +10,11 @@
 // children already selected. The top five show here; "See all in Groups"
 // opens the rest, with no number that could disagree with the page.
 //
-// Almost-ready children are shown dimmed with the reason holding them, never
-// preselected: the practice gate is information, not a veto the guide has to
-// argue with. A lesson only held children wait on is listed with Plan off.
+// The queue has two levels (`ReadyForNextEngine.readiness(of:)`): Ready, and
+// Ready, check first. Check-first children are shown dimmed with what to check
+// ("2 pieces of work still open"), never preselected: it is information, not
+// a veto the guide has to argue with. A lesson only check-first children wait
+// on is listed with Plan off.
 
 import SwiftUI
 import CoreData
@@ -91,9 +93,10 @@ struct ReadyForNextSectionView: View {
                         .foregroundStyle(.secondary)
                 }
                 ForEach(group.almost) { member in
-                    Text("\(member.child.name) — \(member.reason ?? "")")
+                    Text(Self.checkFirstLine(member))
                         .font(.caption)
                         .foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             Spacer(minLength: 8)
@@ -102,6 +105,12 @@ struct ReadyForNextSectionView: View {
                 .controlSize(.small)
                 .disabled(group.ready.isEmpty)
         }
+    }
+
+    /// "Maya S, check first: 2 pieces of work still open".
+    static func checkFirstLine(_ member: LessonGroup.Member) -> String {
+        guard let reason = member.reason, !reason.isEmpty else { return member.child.name }
+        return "\(member.child.name), check first: \(reason)"
     }
 
     private var seeAllLink: some View {

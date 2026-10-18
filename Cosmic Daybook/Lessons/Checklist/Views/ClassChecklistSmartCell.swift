@@ -49,7 +49,12 @@ struct ClassChecklistSmartCell: View, Equatable {
             .popover(isPresented: cardBinding) {
                 ChecklistCellCard(cell: cell, isRegular: isRegular, onAction: onAction)
             }
-            .contextMenu { cellContextMenu(blockingReason: blockingReason, isScheduled: isScheduled) }
+            .contextMenu {
+                cellContextMenu(
+                    blockingReason: blockingReason, isScheduled: isScheduled,
+                    checkFirst: ChecklistCellDescription.checkFirstText(state)
+                )
+            }
             .help(ChecklistCellDescription.helpText(
                 studentName: studentName, lessonName: lessonName,
                 state: state, precedingLessonName: precedingLessonName
@@ -123,11 +128,14 @@ struct ClassChecklistSmartCell: View, Equatable {
     // MARK: - Context Menu
 
     @ViewBuilder
-    private func cellContextMenu(blockingReason: BlockingReason, isScheduled: Bool) -> some View {
+    private func cellContextMenu(blockingReason: BlockingReason, isScheduled: Bool, checkFirst: String?) -> some View {
         if let reason = ChecklistCellDescription.reasonText(
             blockingReason, precedingLessonName: precedingLessonName
         ) {
             Label("Not yet: \(reason)", systemImage: blockingReason.iconName)
+            Divider()
+        } else if let checkFirst {
+            Label("Check first: \(checkFirst)", systemImage: "exclamationmark.circle")
             Divider()
         }
         Button {
