@@ -42,16 +42,20 @@ enum AssistantTestSupport {
         return try #require(Calendar.current.date(from: components))
     }
 
+    /// The attendance screen's model on `date`, loaded. `now` fixes the day
+    /// it takes for today; nil keeps the real clock.
     static func viewModel(
         _ stack: CoreDataStack,
         on date: Date = Date(),
-        defaults: UserDefaults? = nil
+        defaults: UserDefaults? = nil,
+        now: Date? = nil
     ) -> AssistantAttendanceViewModel {
         let model = AssistantAttendanceViewModel(
             context: stack.viewContext,
             container: nil,
             date: date,
-            defaults: defaults ?? makeDefaults()
+            defaults: defaults ?? makeDefaults(),
+            now: now.map { fixed in { fixed } } ?? Date.init
         )
         model.load()
         return model

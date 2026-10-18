@@ -127,16 +127,20 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
 
     /// Where the Late phase is remembered; tests pass their own suite.
     private let defaults: UserDefaults
+    /// The time now, which today and the days ahead are told by; tests fix it.
+    private let now: () -> Date
 
     init(
         context: NSManagedObjectContext,
         container: NSPersistentCloudKitContainer?,
         date: Date = Date(),
-        defaults: UserDefaults = .standard
+        defaults: UserDefaults = .standard,
+        now: @escaping () -> Date = Date.init
     ) {
         self.context = context
         self.container = container
         self.defaults = defaults
+        self.now = now
         self.date = Calendar.current.startOfDay(for: date)
         // The role is hardcoded rather than read from the membership row: this
         // app is only ever used by an assistant, and ClassroomPermissions is
@@ -188,15 +192,15 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
         if current != names { names = current }
     }
 
-    var isToday: Bool { Calendar.current.isDateInToday(date) }
+    var isToday: Bool { Calendar.current.isDate(date, inSameDayAs: now()) }
 
     /// A day after today: only absences (a known vacation, an appointment)
     /// and notes can be marked ahead.
-    var isFuture: Bool { date > Calendar.current.startOfDay(for: Date()) }
+    var isFuture: Bool { date > Calendar.current.startOfDay(for: now()) }
 
     /// The statuses the long-press menu offers on the day on screen.
     var menuStatuses: [AttendanceStatus] {
-        [.present, .absent, .tardy, .leftEarly, .unmarked].filter { Self.allows($0, on: date) }
+        [.present, .absent, .tardy, .leftEarly, .unmarked].filter { Self.allows($0, on: date, now: now()) }
     }
 
     /// What a tap on `row` does today, or nil when it does nothing: a present

@@ -75,23 +75,33 @@ enum ParentLockerTestSettings {
 @MainActor
 struct AssistantParentLockerTests {
 
-    /// A class of two, Ari and Maya, on `day`, with `method` picked.
+    /// The school day these tests take for today, whatever day they run: on
+    /// a weekend the real today is a day off, which offers nothing.
+    private static func monday() throws -> Date { try AssistantTestSupport.day("2026-10-12") }
+
+    /// A class of two, Ari and Maya, on `day` (the Monday when nil), with
+    /// `method` picked, seen at nine on the Monday.
     private func classOfTwo(
-        _ method: AttendanceSendMethod?, on day: Date = Date()
+        _ method: AttendanceSendMethod?, on day: Date? = nil
     ) throws -> (CoreDataStack, AssistantAttendanceViewModel) {
+        let monday = try Self.monday()
         let stack = try AssistantTestSupport.makeStack()
         let context = stack.viewContext
         AssistantTestSupport.student("Ari", "Cedar", in: context)
         AssistantTestSupport.student("Maya", "Stone", in: context)
         #expect(context.safeSave())
         if let method { ParentLockerTestSettings.pick(method, in: context) }
-        return (stack, AssistantTestSupport.viewModel(stack, on: day))
+        let viewModel = AssistantTestSupport.viewModel(
+            stack, on: day ?? monday, now: monday.addingTimeInterval(9 * 3_600)
+        )
+        return (stack, viewModel)
     }
 
     @Test("With ParentLocker picked, the email isn't offered and today's Close Arrival sends")
     func parentLockerReplacesTheEmail() throws {
         let (_, viewModel) = try classOfTwo(.parentLocker)
         let frontDesk = viewModel.frontDesk
+        #expect(viewModel.isToday)
         #expect(frontDesk.sendsToParentLocker)
         #expect(!frontDesk.isOffered(by: viewModel))
         #expect(frontDesk.offersParentLocker(by: viewModel))
@@ -122,7 +132,7 @@ struct AssistantParentLockerTests {
 
     @Test("Another day's Close Arrival doesn't send; that day goes by Send Now")
     func onlyTodaySendsOnClose() throws {
-        let lastWeek = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        let lastWeek = try #require(Calendar.current.date(byAdding: .day, value: -7, to: try Self.monday()))
         let (_, viewModel) = try classOfTwo(.parentLocker, on: lastWeek)
         #expect(!viewModel.isToday)
         #expect(!viewModel.frontDesk.closesWithSend(by: viewModel, hasSync: true))
