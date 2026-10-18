@@ -1,6 +1,6 @@
 # Simplify the app
 
-> **Not started.** Written 2026-10-18 from the app-structure review session (2026-10-10 to 2026-10-18): Danny's map of the app, a screen-by-screen overlap survey, live usage counts, and his answers.
+> **Working on it.** Written 2026-10-18 from the app-structure review session (2026-10-10 to 2026-10-18): Danny's map of the app, a screen-by-screen overlap survey, live usage counts, and his answers.
 > In short: fewer, fuller screens (one class grid, Logs folded into the screens it repeats, one Library, one Clubs & Projects), two levels of readiness, one day note, a to-do list shared with Tide, no Ask AI, and a six-group sidebar, without losing anything Danny uses.
 
 The map behind this plan: https://claude.ai/artifact/Dw5P6Q19JrawCyq2f2CyFH (the teaching loop, the parts around it, the first sidebar proposal).
@@ -14,7 +14,7 @@ The sidebar drops from 30 rows in eight groups to 21 rows in six, and every scre
 - [ ] Phase 1: Removals and one Parsha screen (session: fresh) ‖ Phases 2, 3, 6, 7, 9 · est. ~1–2% weekly
 - [ ] Phase 2: Logs folded into Meetings, Attendance, Notes and Lessons & Work (session: same as 1) ‖ · est. ~2–3%
 - [ ] Phase 3: Two levels of readiness, one rule (session: same as 1) ‖ · est. ~2–3%
-- [ ] Phase 4: Class grid design on a canvas, Danny approves (session: fresh, needs Danny) · est. ~1–2%
+- [x] Phase 4: Class grid design on a canvas, Danny approves (session: fresh, needs Danny) · est. ~1–2% · started at 48%, ended at 49% (~1%). Approved 2026-10-18 as drawn, named **Class Grid** (canvas and decisions under Decisions › Class Grid). The view names became Checklist, Three Years, Children, Recall. The build board couldn't be updated: it sits in Danny's other claude.ai organization.
 - [ ] Phase 5: Build the class grid (session: fresh, after 3 and 4) · est. ~3–5%
 - [ ] Phase 6: One Library, Clubs & Projects, one Files section on a lesson (session: same as 1) ‖ · est. ~2–4%
 - [ ] Phase 7: One day note, today's schedule on Today (session: same as 1) ‖ · est. ~2–3%, plus its own review
@@ -49,6 +49,15 @@ About **25–37% of the weekly all-models limit** (Max plan), including a review
 - **Retired destinations are aliased, never deleted.** Their raw values are saved with each window; the case stays, joins `NavigationItem.aliases`, and leaves `NavigationGroup.all`. `allCases.count == 34` stays.
 - **The iPhone tab bar doesn't change**: Today, Students, Attendance, Lessons & Work, More. Apple's tab-bar guidance prefers five or fewer, and the iOS 27 SDK can crash when a TabView's selection points at a hidden tab, so the saved-selection restore must land every retired item on a visible one.
 - **The class grid gets a canvas first** (Phase 4). It replaces four screens Danny uses, and the Checklist's last redesign (2026-10-02) also started on a canvas.
+- **Class Grid (Phase 4, approved by Danny 2026-10-18, "approved as drawn, including the five points in the orange note").** Canvas: https://claude.ai/artifact/5zGC9J7nQn6u5xxTVPhfqs (Mac: all four views; iPad: Ready lens with a cell card open; iPhone: all four views under More; one set of marks). Phase 5 builds it as drawn:
+  - **Name**: Class Grid. **Views**: Checklist, Three Years, Children, Recall (a toolbar segmented control on Mac, `.tabs` under the title on iPad/iPhone). The area menu ("All areas" or one area), search and the children filter carry across views.
+  - **Readiness on cells**: Ready = grey ring; Ready, check first = grey ring with the amber dot (the same dot as "needs a check-in": amber always means look before you act); Not yet = small grey dot. The Ready lens lights Ready cells blue and check-first cells amber; the Class column reads "4 ready · 1 check first" with Plan. The cell card shows the reason ("2 pieces of work still open") and a Previous lesson box: name and date given, open work, last check-in, mastered or not.
+  - **One palette**: the Checklist's ladder everywhere (grey, blue quarter/half/three-quarter fill, green with a check only for a mastery mark, dashed orange for planned). The Map's presented/chosen/repeated/mastered become Presented/Practicing/Reviewing/Mastered; the Progress pills' yellow Reviewing goes. Area color stays on row labels and area headings only.
+  - **Recall rings** (Three Years and Recall): solid green = still has it, dashed orange = shaky, dotted red = forgotten, drawn as an outline outside the mark.
+  - **Three Years**: children grouped by year in class (Year 3 first), Great Lessons rows then one row per area (furthest mark per child), Key / All lessons once an area is picked, a "N not yet" column.
+  - **Children**: one row per child (grouped by level), each started sequence a strip of the same marks with "4/8"; clicking a strip opens the sequence sheet (Work, Presentations, Notes).
+  - **Recall**: a list, not lit grid cells (frontier lessons cross areas): retention tiles (Held, Checked, To present again, Faded over summer, Due), By child, the due queue grouped by child, and the recall check beside it on Mac/iPad (a sheet on iPhone).
+  - **iPhone columns**: 44-pt columns with angled names (5 children fit), replacing today's 120-pt columns; rows stay 44 pt.
 - **The class grid lives at the Checklist's destination** (`.planningChecklist`), which is the screen with the editing tools. Three-Year View, Progress Dashboard and Lesson Recall alias to it and open on their view.
 - **Logs' pieces go to the screens they repeat**: meetings history becomes a History view in Meetings; the attendance log becomes a List view in Attendance (keeping its date range, status filters and totals); Observations is Notes, opened directly; the all-time Presentations list and the Works list (the only list of finished work) become a History choice in each half of Lessons & Work. Its empty-state line "Finished work lives under Logs." changes with it.
 - **The class-wide `classroom_snapshot` builder survives Ask AI.** `ChatContextAssembler.buildClassroomSnapshot()` feeds the Claude tool `classroom_snapshot` (`MCPNotebookTools+Reads.swift:269`); it moves into `Services/MCPServer`. `AIClientRouter`, `generateText`/`generateStructuredJSON` and `EvidenceReference` stay (Parsha suggestions, Stories, parent reports, insights, note summaries use them).
@@ -82,7 +91,7 @@ About **25–37% of the weekly all-models limit** (Max plan), including a review
 |---|---|---|
 | Today | Today, Attendance, Todos | open |
 | Children | Students, Meetings, Notes, Parent Reports | open |
-| Plan | Lessons & Work, Groups, Class Grid (working name, settled in Phase 4), Calendar, This Week's Parsha | open |
+| Plan | Lessons & Work, Groups, Class Grid, Calendar, This Week's Parsha | open |
 | Classroom | Restock, Community, Clubs & Projects, Going Out, Schedules | closed |
 | Library | Lessons, Albums, Resources | open |
 | System | Settings | open |
@@ -174,7 +183,7 @@ Checked 2026-10-10 against Xcode 27.0 (27A266a); targets iOS 27.0 / macOS 27.0 (
 ## Phase 5: Build the class grid
 
 - Who: `feature-phase` (Opus, high), size +50% (four screens, both platforms).
-- Steps: build the approved canvas at `.planningChecklist`, reusing `ClassAreaChecklistView`'s tools and one status model and one glyph (retire the duplicate `CurriculumMapEngine`/`ChecklistMatrixBuilder` and `CurriculumCellGlyph`/`ChecklistMark` pairs into one each, keeping the Map's chosen/repeated levels and recall ring). The By child view replaces `ProgressDashboard/` and uses the shared status function (fixed on main as c40fa961, "only a mastery mark is Mastered"). Recall due hosts `Students/Recall/RecallQueueView`'s content. The grid pins its header row and name column per the Apple guidance. The child's own Three-Year View on the student page stays.
+- Steps: build the approved canvas (Decisions › Class Grid) at `.planningChecklist`, reusing `ClassAreaChecklistView`'s tools and one status model and one glyph (retire the duplicate `CurriculumMapEngine`/`ChecklistMatrixBuilder` and `CurriculumCellGlyph`/`ChecklistMark` pairs into one each, keeping the Map's chosen/repeated levels and recall ring). The By child view replaces `ProgressDashboard/` and uses the shared status function (fixed on main as c40fa961, "only a mastery mark is Mastered"). Recall due hosts `Students/Recall/RecallQueueView`'s content. The grid pins its header row and name column per the Apple guidance. The child's own Three-Year View on the student page stays.
 - Cost: ~3–5%.
 - Done when: notebook builds for macOS and iOS; Checklist, curriculum-map and recall suites pass `-only-testing:` (rewritten where the model merged); scrolling a full area (every lesson × every child) on the iPad simulator stays smooth in the SwiftUI instrument; iPad screenshots of all four views match the canvas; the Mac look and Mac scrolling are a Tide row.
 - Hand off: no.
@@ -266,6 +275,5 @@ Read the plan usage (`get_usage`) and note the weekly % used next to the phase u
 
 ## Open questions
 
-- The class grid's name (Phase 4, with the canvas).
 - Whether to close the Tide Room Setup copies of the 7 orders once they're in Restock (Phase 8, asked with the cleanup list).
 - Whether Apple Reminders sync is on for more than one device (already a question in Tide; Phase 9's tests cover both cases either way).
