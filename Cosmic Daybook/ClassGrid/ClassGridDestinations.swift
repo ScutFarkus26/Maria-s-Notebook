@@ -1,8 +1,8 @@
 // ClassGridDestinations.swift
-// The four sidebar destinations the Class Grid replaces, kept as the names
-// `RootDetailContent` routes to until Phase 11 aliases the old three to the
-// Checklist's destination. Each opens the Class Grid on its view; the screens
-// they used to be are gone.
+// The four screens the Class Grid replaced, kept as names that open the grid
+// on their view. The sidebar routes the Checklist's destination straight to
+// `ClassGridView`; Three-Year View, Progress Dashboard and Lesson Recall are
+// aliases of it (Phase 11) and land on their view through `screenLanding`.
 
 import SwiftUI
 
