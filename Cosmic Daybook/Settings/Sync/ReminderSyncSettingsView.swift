@@ -3,8 +3,8 @@ import CoreData
 import EventKit
 
 /// Settings view for configuring CDReminder sync with Apple's Reminders app.
+/// The list choice, Off included, is this device's own.
 public struct ReminderSyncSettingsView: View {
-    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
     private var syncService: ReminderSyncService { dependencies.reminderSync }
     @State private var selectedListIdentifier: String = ""
@@ -18,6 +18,15 @@ public struct ReminderSyncSettingsView: View {
 
     private var needsAuthorization: Bool {
         syncService.authorizationStatus != EKAuthorizationStatus.fullAccess
+    }
+
+    private var footnote: String {
+        if !syncService.isListConfigured {
+            return "This device doesn't read your Reminders. Reminders already in your notebook stay,"
+                + " and your other devices keep their own choice."
+        }
+        return "Reminders from this list show on Today and update when they change in Reminders."
+            + " This choice is for this device only."
     }
 
     public var body: some View {
@@ -36,16 +45,16 @@ public struct ReminderSyncSettingsView: View {
             } else {
                 VStack(alignment: .leading, spacing: SettingsStyle.groupSpacing) {
                     if !availableLists.isEmpty {
-                        Picker("Sync from list", selection: $selectedListIdentifier) {
-                            Text("None (don't sync)").tag("")
+                        Picker("Show reminders from", selection: $selectedListIdentifier) {
+                            Text("Off").tag("")
                             ForEach(availableLists) { listInfo in
                                 Text(listInfo.name).tag(listInfo.identifier)
                             }
                         }
                         .onChange(of: selectedListIdentifier) { _, newValue in
                             if newValue.isEmpty {
-                                syncService.syncListIdentifier = nil
-                                syncService.syncListName = nil
+                                // This device only; the reminders already in the notebook stay.
+                                syncService.turnOff()
                             } else if let listInfo = availableLists.first(where: { $0.identifier == newValue }) {
                                 syncService.syncListIdentifier = listInfo.identifier
                                 syncService.syncListName = listInfo.name
@@ -71,18 +80,17 @@ public struct ReminderSyncSettingsView: View {
                         StatusMessageView(status: lastSyncStatus)
                     }
 
-                    Text(
-                        "Reminders from the selected list will appear in your Today view."
-                        + " You can manually sync or reminders will sync automatically when changes are detected."
-                    )
+                    Text(footnote)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
         }
         .task {
-            // Update shared syncService with real viewContext
-            syncService.managedObjectContext = viewContext
+            // `dependencies.reminderSync` already points the service at My
+            // Class's store, and never at the Sample Class's. Pointing it at
+            // this view's store here did, when Settings was opened in the
+            // Sample Class, and the next sync copied real reminders into it.
             selectedListIdentifier = syncService.syncListIdentifier ?? ""
             await loadAvailableLists()
         }
@@ -116,6 +124,15 @@ public struct ReminderSyncSettingsView: View {
         isRefreshing = true
         let lists = syncService.getAvailableReminderListsWithIdentifiers()
         availableLists = lists
+        // A setup saved by list name only (from before identifiers were kept)
+        // still shows its list, as the sync reads it.
+        if selectedListIdentifier.isEmpty, syncService.syncListIdentifier == nil,
+           let name = syncService.syncListName, !name.isEmpty,
+           let match = lists.first(where: {
+               $0.name.compare(name, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
+           }) {
+            selectedListIdentifier = match.identifier
+        }
         hasLoadedLists = true
         isRefreshing = false
     }

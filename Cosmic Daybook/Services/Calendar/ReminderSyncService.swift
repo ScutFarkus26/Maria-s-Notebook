@@ -24,8 +24,19 @@ final class ReminderSyncService {
 
     /// Created on first use, not with the service: Apple calls an event store
     /// slow to set up, and the Mac made this one at every launch even with
-    /// no list chosen.
-    @ObservationIgnored private(set) lazy var eventStore = EKEventStore()
+    /// no list chosen. Let go of when sync is turned off (`turnOff`).
+    var eventStore: EKEventStore {
+        if let heldEventStore { return heldEventStore }
+        let store = EKEventStore()
+        heldEventStore = store
+        return store
+    }
+
+    @ObservationIgnored private var heldEventStore: EKEventStore?
+
+    /// True while the service holds an event store.
+    var isHoldingEventStore: Bool { heldEventStore != nil }
+
     var managedObjectContext: NSManagedObjectContext?
 
     /// Where the list choice is kept; tests pass their own suite.
@@ -230,6 +241,30 @@ final class ReminderSyncService {
         startObservingChanges()
     }
 
+    /// Settings' Off, for this device only (the list choice is kept in this
+    /// device's defaults and never synced). Stops listening for Reminders
+    /// changes and lets go of the event store; the service holds no reminder
+    /// objects between syncs (a fetch hands back `ReminderSyncData`), so
+    /// there are none to drop first. A sync still waiting on EventKit writes
+    /// nothing when it returns (`applyFetchedReminders`).
+    ///
+    /// The rows already mirrored, and their links, stay as they are: they're
+    /// in iCloud, and another device syncing its list keeps its own current.
+    /// Access to Reminders stays as granted; there's no way to give it back.
+    func turnOff() {
+        syncListIdentifier = nil
+        syncListName = nil
+        storeChangeObserver.stop()
+        lastSyncError = nil
+        heldEventStore = nil
+    }
+
+    /// Whether a list is chosen on this device, by identifier or (from before
+    /// identifiers were kept) by name.
+    var isListConfigured: Bool {
+        syncListIdentifier != nil || !(syncListName ?? "").isEmpty
+    }
+
     /// Stop observing EventKit changes
     /// Safe to call from nonisolated contexts (e.g. `deinit`)
     private nonisolated func stopObservingChanges() {
@@ -278,6 +313,9 @@ final class ReminderSyncService {
     /// Update a reminder's completion status in EventKit (Core Data)
     /// Call this when the user toggles completion in the app
     func updateReminderCompletionInEventKit(_ reminder: CDReminder) async throws {
+        // Off on this device: leave Reminders alone (and the store let go of).
+        guard isListConfigured else { return }
+
         guard hasFullAccess else {
             throw ReminderSyncError.notAuthorized
         }
@@ -329,7 +367,7 @@ enum ReminderSyncError: LocalizedError, Equatable {
             return "Cosmic Daybook doesn't have access to Reminders. "
                 + "Turn it on in \(SystemSettingsApp.privacyPath("Reminders"))."
         case .noSyncListConfigured:
-            return "Choose a Reminders list to sync first."
+            return "Choose a list under Show reminders from."
         case .listNotFound(let name):
             let which = name.isEmpty ? "the Reminders list you chose" : "the Reminders list \u{201C}\(name)\u{201D}"
             return "Couldn't find \(which). It may have been renamed or deleted. Choose a list again."

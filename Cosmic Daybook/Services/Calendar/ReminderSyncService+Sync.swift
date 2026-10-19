@@ -27,11 +27,13 @@ extension ReminderSyncService {
         SyncEventLogger.shared.log("reminders", status: "started", message: "Reminders sync started")
 
         do {
-            try await performSync()
-            // Update status on success
-            lastSuccessfulSync = Date()
-            lastSyncError = nil
-            SyncEventLogger.shared.log("reminders", status: "success", message: "Reminders sync completed")
+            let wrote = try await performSync()
+            // A sync EventKit answered after Off wrote nothing: not a success to stamp or log.
+            if wrote {
+                lastSuccessfulSync = Date()
+                lastSyncError = nil
+                SyncEventLogger.shared.log("reminders", status: "success", message: "Reminders sync completed")
+            }
         } catch {
             // Plain words for Today's header; the raw text for Sync History's Details.
             lastSyncError = AppErrorMessages.syncMessage(for: error, service: "Reminders")
@@ -48,7 +50,9 @@ extension ReminderSyncService {
         return true
     }
 
-    func performSync() async throws {
+    /// Returns whether the sync wrote to the notebook (false when the choice moved off the list meanwhile).
+    @discardableResult
+    func performSync() async throws -> Bool {
         // Check authorization
         guard hasFullAccess else {
             throw ReminderSyncError.notAuthorized
@@ -79,21 +83,35 @@ extension ReminderSyncService {
         let syncData = try await fetchRemindersFromEventKit(in: targetCalendar)
 
         guard let syncData else {
-            return
+            return true
         }
 
-        // Insert new reminders, rewrite only the rows whose values changed
-        // (re-uncompleted reminders included), and delete the ones gone from
-        // the list. An unchanged list leaves the context clean, so the save
-        // below writes nothing.
-        EventKitMirror.reconcileReminders(
-            syncData, listID: targetCalendar.calendarIdentifier, in: context, now: Date()
-        )
-
-        context.safeSave()
+        guard applyFetchedReminders(syncData, fromList: targetCalendar.calendarIdentifier, in: context) else {
+            return false
+        }
 
         // Update last sync time after successful sync
         lastSyncTime = Date()
+        return true
+    }
+
+    /// Writes one fetch of the list `listID` into the notebook, unless the
+    /// choice moved off that list while EventKit was answering (turned Off,
+    /// or another list picked): a sync that ends after Off writes nothing.
+    /// Returns whether it wrote.
+    ///
+    /// Inserts new reminders, rewrites only the rows whose values changed
+    /// (re-uncompleted reminders included), and deletes the ones gone from
+    /// the list. An unchanged list leaves the context clean, so the save
+    /// writes nothing.
+    @discardableResult
+    func applyFetchedReminders(
+        _ syncData: [ReminderSyncData], fromList listID: String, in context: NSManagedObjectContext
+    ) -> Bool {
+        guard syncListIdentifier == listID else { return false }
+        EventKitMirror.reconcileReminders(syncData, listID: listID, in: context, now: Date())
+        context.safeSave()
+        return true
     }
 
     // MARK: - Sync Helpers
