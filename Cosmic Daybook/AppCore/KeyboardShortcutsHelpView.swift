@@ -14,11 +14,12 @@ struct KeyboardShortcutsHelpView: View {
 
                 shortcutSection("Navigation", shortcuts: [
                     ShortcutItem(keys: "\u{2318}1", description: "Today"),
-                    ShortcutItem(keys: "\u{2318}2", description: "Lessons & Work"),
+                    ShortcutItem(keys: "\u{2318}2", description: "Attendance"),
                     ShortcutItem(keys: "\u{2318}3", description: "Students"),
-                    ShortcutItem(keys: "\u{2318}4", description: "Lessons"),
-                    ShortcutItem(keys: "\u{2318}5", description: "Logs"),
-                    ShortcutItem(keys: "\u{2318}6", description: "Attendance"),
+                    ShortcutItem(keys: "\u{2318}4", description: "Lessons & Work"),
+                    ShortcutItem(keys: "\u{2318}5", description: "Lessons"),
+                    ShortcutItem(keys: "\u{2318}6", description: "Notes"),
+                    ShortcutItem(keys: "\u{2318}7", description: "Todos"),
                     ShortcutItem(keys: "\u{2318},", description: "Settings")
                 ])
 

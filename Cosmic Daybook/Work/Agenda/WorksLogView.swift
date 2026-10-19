@@ -90,18 +90,18 @@ struct WorksLogView: View {
             if !WorksLogRows.matches(work, kind: selectedKind) { return false }
 
             // Status filter
-            if !completedOnly,
-               !selectedStatuses.isEmpty,
-               !selectedStatuses.contains(work.status) { return false }
+            if !WorksLogRows.matches(work, statuses: selectedStatuses) { return false }
 
             if !WorksLogRows.matches(work, students: selectedStudentIDs, visibility: visibility) { return false }
 
             // Search filter
+            // (title, notes, and the child it is for, as the live list reads them)
             if !effectiveSearchText.isEmpty {
-                let title = workTitle(work, assignmentsByID).lowercased()
-                let notes = work.latestUnifiedNoteText.lowercased()
-                let query = effectiveSearchText.lowercased()
-                if !title.contains(query) && !notes.contains(query) { return false }
+                var texts = [workTitle(work, assignmentsByID), work.latestUnifiedNoteText]
+                for id in HistorySearch.searchedStudentIDs(of: work) {
+                    if let student = dependencies.roster.byID[id] { texts += HistorySearch.names(of: student) }
+                }
+                if !HistorySearch.matches(effectiveSearchText, in: texts) { return false }
             }
 
             return true
@@ -173,6 +173,10 @@ struct WorksLogView: View {
 
     // MARK: - Filter Bar
 
+    private var statusChoices: [WorkStatus] {
+        WorksLogRows.statusChoices(completedOnly: completedOnly)
+    }
+
     private var filterBar: some View {
         HStack(spacing: 12) {
             MultiSelectFilterMenu(
@@ -192,15 +196,15 @@ struct WorksLogView: View {
                 allLabel: "All Types"
             )
 
-            if !completedOnly {
-                MultiSelectFilterMenu(
-                    items: WorkStatus.allCases,
-                    selection: $selectedStatuses,
-                    label: { $0.displayName },
-                    summary: FilterSelectionSummary(allLabel: "All Statuses"),
-                    systemImage: "checkmark.circle"
-                )
-            }
+            // History offers only the finished statuses; the open ones live
+            // on the Scheduled strip.
+            MultiSelectFilterMenu(
+                items: statusChoices,
+                selection: $selectedStatuses,
+                label: { $0.displayName },
+                summary: FilterSelectionSummary(allLabel: "All Statuses"),
+                systemImage: "checkmark.circle"
+            )
 
             Spacer()
         }

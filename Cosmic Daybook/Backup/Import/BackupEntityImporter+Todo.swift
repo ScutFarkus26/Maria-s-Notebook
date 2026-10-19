@@ -50,8 +50,11 @@ extension BackupEntityImporter {
             t.moodRaw = dto.moodRaw
             // Kept as the backup has it, so a restored to-do isn't sent to
             // Tide a second time (a v40 or older backup keeps the record's
-            // own: `BackupFieldsAddedLater`).
-            t.tideLink = dto.tideLink
+            // own: `BackupFieldsAddedLater`). A merge never blanks a link the
+            // record has since gained: a backup taken before the to-do was
+            // shared has none, and the sync would send it again as new. A
+            // Replace restore starts from an empty store, so it is exact.
+            if let link = dto.tideLink { t.tideLink = link }
             return t
         })
     }

@@ -147,10 +147,13 @@ struct LessonAssignmentHistoryView: View {
             }
 
             // Search filter
+            // (the lesson's title, and the children it was given to)
             if !effectiveSearchText.isEmpty {
-                let titleText = title(for: la).lowercased()
-                let query = effectiveSearchText.lowercased()
-                if !titleText.contains(query) { return false }
+                var texts = [title(for: la)]
+                for id in la.resolvedStudentIDs {
+                    if let student = dependencies.roster.byID[id] { texts += HistorySearch.names(of: student) }
+                }
+                if !HistorySearch.matches(effectiveSearchText, in: texts) { return false }
             }
 
             return true
