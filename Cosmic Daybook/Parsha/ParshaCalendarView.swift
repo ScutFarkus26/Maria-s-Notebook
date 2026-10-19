@@ -31,20 +31,10 @@ struct ParshaYearList: View {
         var id: Date { date }
     }
 
-    /// The reading cycle to list. A cycle's list runs from Bereishit to the last
-    /// Shabbat before the next Simchat Torah (Ha'azinu and Sukkot included), so
-    /// in the few days after that Shabbat the cycle is already over and listing
-    /// it showed a year of past readings; the calendar shows the coming cycle
-    /// then. (A month on always lands in the coming cycle.)
+    /// The reading cycle to list: its Shabbatot, then Simchat Torah with V'Zot
+    /// HaBerachah (`HebrewParshaService.parshaYearList`).
     private var entries: [CalendarEntry] {
-        let now = Date()
-        var shabbatot = HebrewParshaService.shabbatotForHebrewYear(containing: now)
-        let today = HebrewParshaService.gregorian.startOfDay(for: now)
-        if let last = shabbatot.last, last.date < today,
-           let monthOn = HebrewParshaService.gregorian.date(byAdding: .day, value: 30, to: now) {
-            shabbatot = HebrewParshaService.shabbatotForHebrewYear(containing: monthOn)
-        }
-        return shabbatot.map {
+        HebrewParshaService.parshaYearList().map {
             CalendarEntry(date: $0.date, parshaKey: $0.parshaKey, festivalName: $0.festivalName)
         }
     }
@@ -100,7 +90,7 @@ struct ParshaYearList: View {
                     Text(yearTitle)
                         .font(AppTheme.ScaledFont.titleMedium)
                         .foregroundStyle(.primary)
-                    Text("\(entries.count) Shabbatot")
+                    Text("\(entries.filter { $0.parshaKey != HebrewParshaService.vzotHaberachahKey }.count) Shabbatot")
                         .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -150,6 +140,9 @@ private struct CalendarRowView: View {
     let isCurrentWeek: Bool
 
     private var title: String {
+        if parshaKey == HebrewParshaService.vzotHaberachahKey {
+            return "\(HebrewParshaService.displayName(forKey: HebrewParshaService.vzotHaberachahKey)) (Simchat Torah)"
+        }
         if let key = parshaKey { return HebrewParshaService.displayName(forKey: key) }
         if let festivalName { return festivalName }
         return "—"

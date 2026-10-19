@@ -3,8 +3,7 @@ import CoreData
 
 /// Detail view for viewing a procedure
 struct ProcedureDetailView: View {
-    let procedure: CDProcedure
-    var onEdit: ((CDProcedure) -> Void)?
+    @ObservedObject var procedure: CDProcedure
     /// Closes the detail where it is a column beside the Procedures grid;
     /// nil where it is a sheet, which is dismissed.
     var onClose: (() -> Void)?
@@ -12,6 +11,9 @@ struct ProcedureDetailView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
     @State private var showingDeleteConfirmation = false
+    /// The editor opens from here, over the detail, so Edit works in the
+    /// column beside the grid and in the sheet a phone shows.
+    @State private var showingEditor = false
 
     private var relatedProcedures: [CDProcedure] {
         ProcedureService.fetchRelatedProcedures(for: procedure, in: viewContext)
@@ -58,7 +60,7 @@ struct ProcedureDetailView: View {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Button {
-                            onEdit?(procedure)
+                            showingEditor = true
                         } label: {
                             Label("Edit", systemImage: "pencil")
                         }
@@ -74,6 +76,9 @@ struct ProcedureDetailView: View {
                         Image(systemName: "ellipsis.circle")
                     }
                 }
+            }
+            .sheet(isPresented: $showingEditor) {
+                ProcedureEditorSheet(procedure: procedure)
             }
             .confirmationDialog(
                 "Delete Procedure",

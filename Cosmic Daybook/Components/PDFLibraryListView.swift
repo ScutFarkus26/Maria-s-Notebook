@@ -93,7 +93,10 @@ struct PDFLibraryListView<Item: NSManagedObject, Header: View, Card: View, Detai
             mainColumn
             if !showsDetailAsSheet, let item = selectedItem {
                 Divider()
+                // Keyed by the item, so picking another card starts the detail afresh
+                // (its preview, download and viewed stamp are per item).
                 detail(item) { selectedID = nil }
+                    .id(item.objectID)
                     .frame(width: 480)
                     .transition(.move(edge: .trailing))
             }
@@ -102,6 +105,7 @@ struct PDFLibraryListView<Item: NSManagedObject, Header: View, Card: View, Detai
         .sheet(item: sheetItem) { selected in
             if let item = items.first(where: { $0.objectID == selected.id }) {
                 detail(item) { selectedID = nil }
+                    .id(item.objectID)
             }
         }
         .fileImporter(
