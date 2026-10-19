@@ -62,6 +62,16 @@ struct ClassGridView: View {
             .onChange(of: appRouter.checklistFilterArea) { _, area in
                 if area != nil { selection = .checklist }
             }
+            // A retired row (Three-Year View, Progress Dashboard, Lesson
+            // Recall) opens the grid on its view.
+            .onChange(of: appRouter.screenLanding, initial: true) { _, _ in
+                if let view = appRouter.consumeScreenLanding(where: { landing -> ClassGridViewKind? in
+                    if case .classGrid(let view) = landing { return view }
+                    return nil
+                }) {
+                    selection = view
+                }
+            }
     }
 
     private func loadScope() {

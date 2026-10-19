@@ -90,7 +90,7 @@ struct RootAdaptiveTabs: View {
     /// push into `RootMoreTab`'s instead.
     static let pagesWithOwnStack: Set<RootView.NavigationItem> = [
         .today, .students, .attendance, .teachingAlbums,
-        .settings, .askAI, .thisWeeksParsha, .parshaCalendar, .smallSequencePlanner, .meetings
+        .settings, .thisWeeksParsha, .smallSequencePlanner, .meetings
     ]
 
     /// A tab's page on a phone-sized layout. The tab bar gives a page no

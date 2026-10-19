@@ -5,13 +5,6 @@
 import SwiftUI
 import CoreData
 
-/// The Parsha Calendar destination: the parsha screen with its year list showing.
-struct ParshaCalendarView: View {
-    var body: some View {
-        ThisWeeksParshaView(showsYearList: true)
-    }
-}
-
 struct ParshaYearList: View {
     /// The Shabbat the screen shows; nil is this week.
     @Binding var selection: Date?

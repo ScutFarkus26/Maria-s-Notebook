@@ -66,6 +66,9 @@ struct RootView: View {
         if let scope = resolution.lessonsAndWorkScope {
             appRouter.lessonsAndWorkRequest = .init(scope: scope)
         }
+        if let landing = resolution.landing {
+            appRouter.screenLanding = landing
+        }
         return resolution.item
     }
 

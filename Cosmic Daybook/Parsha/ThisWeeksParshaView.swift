@@ -8,6 +8,7 @@ import SwiftUI
 import CoreData
 
 struct ThisWeeksParshaView: View {
+    @Environment(\.appRouter) private var appRouter
     /// The Shabbat shown; nil is this week.
     @State private var selectedShabbat: Date?
     @State private var showingYearList: Bool
@@ -16,8 +17,8 @@ struct ThisWeeksParshaView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
 
-    /// `showsYearList` opens the year list over the week at first on a phone
-    /// (the Parsha Calendar item).
+    /// `showsYearList` opens the year list over the week at first on a phone.
+    /// The retired Parsha Calendar row does the same through `screenLanding`.
     init(showsYearList: Bool = false) {
         _showingYearList = State(initialValue: showsYearList)
     }
@@ -31,6 +32,18 @@ struct ThisWeeksParshaView: View {
     }
 
     var body: some View {
+        layout
+            .onChange(of: appRouter.screenLanding, initial: true) { _, _ in
+                let landed = appRouter.consumeScreenLanding { landing -> Bool? in
+                    landing == .parshaYearList ? true : nil
+                }
+                // A Mac or iPad already shows the year beside the week.
+                if landed == true, isCompact { showingYearList = true }
+            }
+    }
+
+    @ViewBuilder
+    private var layout: some View {
         if isCompact {
             phoneLayout
         } else {

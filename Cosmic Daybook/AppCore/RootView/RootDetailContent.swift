@@ -11,8 +11,9 @@ struct RootDetailContent: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
 
-    /// The destination actually shown: an aliased case (`.note`, `.more`,
-    /// `.perpetualCalendar`, `.orders`) renders as its target.
+    /// The destination actually shown: an aliased case (`.note`, `.logs`,
+    /// `.curriculumMap`, `.stories`…) renders as its target, which opens on the
+    /// alias's view through `AppRouter.screenLanding`.
     private var item: RootView.NavigationItem { selectedNavItem.canonical }
 
     /// Returns true if we're on iPhone compact layout
@@ -27,27 +28,26 @@ struct RootDetailContent: View {
     var body: some View {
         Group {
             switch item {
-            case .today, .askAI, .attendance, .note, .more:
+            case .today, .attendance:
                 dailyContent
             case .students, .parentReports, .meetings, .goingOut:
                 studentsContent
-            case .lessons, .teachingAlbums, .stories, .bookClub, .planningChecklist,
-                 .planningAgenda,
+            case .lessons, .teachingAlbums, .planningChecklist, .planningAgenda,
                  .planningProjects, .smallSequencePlanner:
                 curriculumContent
-            case .todos, .planningCalendar, .perpetualCalendar:
+            case .todos, .planningCalendar:
                 planningContent
-            case .progressDashboard, .curriculumMap, .lessonRecall:
-                progressContent
-            case .supplies, .orders, .procedures, .schedules,
-                 .community, .resourceLibrary:
+            case .supplies, .schedules, .community, .resourceLibrary:
                 resourcesContent
-            case .logs, .notes, .settings:
+            case .notes, .settings:
                 toolsContent
             case .thisWeeksParsha:
                 ThisWeeksParshaView()
-            case .parshaCalendar:
-                ParshaCalendarView()
+            // Aliases: `item` is canonical, so these never get here.
+            case .note, .more, .perpetualCalendar, .orders, .logs, .curriculumMap,
+                 .progressDashboard, .lessonRecall, .parshaCalendar, .stories, .procedures,
+                 .bookClub, .askAI:
+                EmptyView()
             }
         }
     }
@@ -56,7 +56,7 @@ struct RootDetailContent: View {
     // view model once, when the screen first appears, not per rebuild.
     private var dailyContent: AnyView {
         switch item {
-        case .today, .askAI: AnyView(TodayRootView())
+        case .today: AnyView(TodayRootView())
         case .attendance: AnyView(attendanceContent)
         default: AnyView(EmptyView())
         }
@@ -66,7 +66,7 @@ struct RootDetailContent: View {
     private var planningContent: some View {
         switch item {
         case .todos: TodoMainView()
-        case .planningCalendar, .perpetualCalendar: PlanningCalendarView()
+        case .planningCalendar: PlanningCalendarView()
         default: EmptyView()
         }
     }
@@ -85,43 +85,12 @@ struct RootDetailContent: View {
     @ViewBuilder
     private var curriculumContent: some View {
         switch item {
-        case .lessons, .teachingAlbums, .stories, .bookClub, .planningChecklist,
-             .planningAgenda:
-            curriculumPlanningContent
-        case .planningProjects, .smallSequencePlanner:
-            curriculumAdvancedContent
-        default: EmptyView()
-        }
-    }
-
-    @ViewBuilder
-    private var curriculumPlanningContent: some View {
-        switch item {
         case .lessons: LessonsMenuRootView()
         case .teachingAlbums: AlbumsRootView()
-        case .stories: StoriesRootView()
-        case .bookClub: BookClubRootView()
-        case .planningChecklist: ClassAreaChecklistView()
+        case .planningChecklist: ClassGridView()
         case .planningAgenda: WorksAgendaView()
-        default: EmptyView()
-        }
-    }
-
-    @ViewBuilder
-    private var curriculumAdvancedContent: some View {
-        switch item {
         case .planningProjects: ProjectsRootView()
         case .smallSequencePlanner: GroupsView()
-        default: EmptyView()
-        }
-    }
-
-    @ViewBuilder
-    private var progressContent: some View {
-        switch item {
-        case .progressDashboard: ProgressDashboardView()
-        case .curriculumMap: ClassCurriculumMapView()
-        case .lessonRecall: RecallQueueView()
         default: EmptyView()
         }
     }
@@ -130,19 +99,15 @@ struct RootDetailContent: View {
     private var resourcesContent: some View {
         switch item {
         case .supplies: RestockView()
-        case .procedures: ProceduresListView()
         case .schedules: SchedulesView()
         case .community: CommunityMeetingsView()
-        case .resourceLibrary: ResourceLibraryView()
+        case .resourceLibrary: ResourcesView()
         default: EmptyView()
         }
     }
 
-    // Notes opens its own view, not Logs on its Observations tab, so it
-    // leaves the tab Logs remembers alone.
     private var toolsContent: AnyView {
         switch item {
-        case .logs: AnyView(LogsMenuRootView())
         case .notes: AnyView(ObservationsView())
         case .settings: AnyView(SettingsView())
         default: AnyView(EmptyView())

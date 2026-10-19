@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum ClassGridViewKind: String, CaseIterable, Identifiable, Hashable, Sendable {
+nonisolated enum ClassGridViewKind: String, CaseIterable, Identifiable, Hashable, Sendable {
     case checklist
     case threeYears
     case children
@@ -31,8 +31,8 @@ enum ClassGridViewKind: String, CaseIterable, Identifiable, Hashable, Sendable {
 
     /// The view an old destination opens on. The Class Grid lives at the
     /// Checklist's destination; Three-Year View, Progress Dashboard and Lesson
-    /// Recall keep their own destinations until Phase 11 aliases them, and each
-    /// opens the Class Grid on its view.
+    /// Recall are aliases of it (Phase 11), and each opens the Class Grid on
+    /// its view through `NavigationItem.landing`.
     static func opening(_ item: RootView.NavigationItem) -> ClassGridViewKind? {
         switch item {
         case .planningChecklist: .checklist

@@ -33,16 +33,26 @@ The groups under **More** (and in the sidebar) are:
 
 | Group | What it holds |
 |-------|---------------|
-| Today | Today, Todos |
-| Children | Students, Attendance, Meetings, Parent Reports, Progress Dashboard |
-| Lessons & Work | Lessons & Work, Lessons (your full lesson library) |
-| Planning | Checklist, Three-Year View, Calendar, This Week’s Parsha, Groups |
-| Records | Logs, Notes (your observations) |
-| Classroom | Supplies, Orders, Community, Schedules, Going Out, Lesson Recall, Projects |
-| Library | Albums, Stories, Book Club, Resources, Procedures, Parsha Calendar |
-| System | Ask AI, Settings |
+| Today | Today, Attendance, Todos |
+| Children | Students, Meetings, Notes (your observations), Parent Reports |
+| Plan | Lessons & Work, Groups, Class Grid, Calendar, This Week’s Parsha |
+| Classroom | Restock, Community, Clubs & Projects, Going Out, Schedules |
+| Library | Lessons (your full lesson library), Albums, Resources |
+| System | Settings |
 
-On the Mac, click a group's heading to collapse or expand it; the app remembers your choice. **Classroom** and **Library** start collapsed because you reach for them a few times a term. Choosing something inside a collapsed group — with a keyboard shortcut, say — opens the group for you.
+On the Mac, click a group's heading to collapse or expand it; the app remembers your choice. **Classroom** starts collapsed because you reach for it a few times a term. Choosing something inside a collapsed group — with a keyboard shortcut, say — opens the group for you.
+
+Some screens you may remember now live inside others, and old links and saved windows take you to the right place:
+
+| If you are looking for… | Find it in… |
+|-------------------------|-------------|
+| Logs | **Notes** for observations; **History** or **List** inside Meetings, Attendance and Lessons & Work for the rest |
+| Three-Year View, Progress Dashboard, Lesson Recall | **Class Grid**, on that view |
+| Parsha Calendar | **This Week’s Parsha**, with the year list beside it (the **Year** button on iPhone) |
+| Stories, Procedures | **Resources**, on that type |
+| Book Club | **Clubs & Projects** |
+
+The in-app Ask AI chat has been removed.
 
 ## Switching Between My Class and Sample Class
 
@@ -124,9 +134,17 @@ Student meetings scheduled for today. Tap to open the meeting and record notes.
 
 Work items with check-ins due today. Tap to log your observation.
 
+### Schedule
+
+If you have set up a schedule in **Schedules**, today's slots appear here, grouped by schedule. The section stays out of the way when there is no schedule.
+
 ### Todos
 
 Your to-do items for today. Tap the checkbox to mark them complete.
+
+### Today's Pad
+
+The pad is the day's note — a place to jot whatever you want to remember about the day. It is the one note for a day: the **Calendar** reads and writes the same pad, so a note you add on a Calendar day shows up on that day's pad and the other way around. Notes you wrote on the Calendar before this change were copied into their days' pads for you (on the Mac, at launch); until a note has been copied, iPhone and iPad show it beside the pad, read only.
 
 ### Completed Items
 
@@ -227,7 +245,7 @@ Tap any lesson to see its full details:
 | Age Range | Recommended student ages |
 | Teacher Notes | Your personal notes about teaching this lesson |
 | Follow-Up Work | Suggested activities for after the presentation |
-| Attachments | PDF files, images, or Pages documents |
+| Files | The lesson's attachments (PDFs, images, Pages documents) and any Resources linked to it, together in one list; tap a Resource to open it |
 | Lesson Journey | A timeline showing which students have received this lesson and their progress |
 
 ## Adding a Lesson
@@ -260,7 +278,7 @@ If you choose the Story format, you can create branching lessons: a parent story
 | Needs Attention | Open presentation follow-ups and work that is due, overdue, ready for review, or has gone too long without a check-in |
 | Upcoming | Presentations that are ready or scheduled, plus children who may need a lesson |
 | Children Working | All active child work, with search, work-type filters, sorting, scheduling, and completion actions |
-| History | Recorded presentations and completed child work |
+| History | Recorded presentations and completed child work. Each half (presentations and work) has its own **History** choice; finished work is under History |
 
 On Mac, choose these views from the segmented control in the toolbar. On iPhone, choose them from the **Lessons & Work** view menu. Search follows the selected view.
 
@@ -415,7 +433,7 @@ Access this from the Pie Menu (pink "Practice" segment).
 
 ## Daily Attendance
 
-Tap **Attendance** in the navigation to open the daily attendance grid. You'll see all your students listed with status indicators:
+Tap **Attendance** in the navigation to open the daily attendance grid (the **Roll**). You'll see all your students listed with status indicators:
 
 | Status | Color | Meaning |
 |--------|-------|---------|
@@ -432,7 +450,9 @@ The Today view includes an attendance strip at the top — a quick visual showin
 
 ## Attendance History
 
-In each student's detail view, you can see their attendance calendar — a month view showing which days they were present, absent, or tardy. This is useful for parent conferences and tracking patterns.
+Attendance has two views: **Roll** (today's grid) and **List**. On Mac and iPad, choose between them at the top of the screen; on iPhone, tap the **List** button. **List** is the attendance record for any stretch of time. It keeps a date range, status filters (present, absent, tardy), and totals.
+
+In each student's detail view, you can also see their attendance calendar — a month view showing which days they were present, absent, or tardy. This is useful for parent conferences and tracking patterns.
 
 ---
 
@@ -481,7 +501,7 @@ Notes appear in several places:
 
 - **Student detail view** — Notes tab shows all observations for that student
 - **Today view** — Recent notes from today
-- **Notes section** (from the navigation) — Search and filter across all notes
+- **Notes** (from the navigation) — Opens your observations list directly. Search and filter across all notes
 
 ## Note Templates
 
@@ -519,15 +539,27 @@ Your incomplete todos for today appear in a dedicated section. Tap the checkbox 
 
 Complex todos can have subtasks — a checklist within the todo. Check off each subtask as you complete it. The parent todo tracks how many subtasks are done.
 
+## Sharing with Tide
+
+If you also use the Tide app for your classroom to-dos, Cosmic Daybook can share its to-do list with it, so you see one list in either app.
+
+- **Turn it on** in **Settings ▸ Connections ▸ Tide** on the Mac, with Tide open. Sharing runs from the Mac; to-dos made on iPhone or iPad reach Tide when the Mac is on. If Tide isn't open, the screen says so, and to-dos go across when it is.
+- **What goes to Tide:** your to-dos, except the automatic work check-ins ("Check in with Maya on …"), which stay here.
+- **Ticking off works both ways.** Tick a to-do in either app and the other follows.
+- **From Tide:** to-dos that live in your Tide classroom lists show in a **From Tide** section in Todos. A Tide to-do that names a child (full name, or the short form such as "Maya S") also shows on that child's page. A first name two children share doesn't match.
+- **Once a to-do has been sent, Tide owns the wording.** Changing its title here doesn't change it in Tide, so make wording changes in Tide.
+
+The first time you turn sharing on, Cosmic Daybook matches to-dos you already have on both sides by their words, so you don't get doubles.
+
 ---
 
-# Supplies
+# Restock
 
-Track your classroom materials and inventory so you always know what you have and what needs restocking.
+Track your classroom materials and inventory so you always know what you have and what needs restocking. **Restock** is in the **Classroom** group.
 
 ## Supplies List
 
-Tap **Supplies** in the navigation to see all your tracked materials. Each supply shows:
+Tap **Restock** in the navigation to see all your tracked materials. Each supply shows:
 
 - Name
 - Status badge — **In Stock** (green), **Low** (yellow), **Critical** (orange), or **Out of Stock** (red)
@@ -559,11 +591,11 @@ The status automatically updates based on your current quantity versus the minim
 
 # Procedures
 
-Document your classroom procedures and routines so you have them in one place — useful for substitutes, assistants, and your own reference.
+Document your classroom procedures and routines so you have them in one place — useful for substitutes, assistants, and your own reference. Procedures live in **Resources** (in the **Library** group) alongside Stories, Packets, and Files. Choose **Procedures** to see them, one type at a time.
 
 ## Adding a Procedure
 
-Tap the add button from the Procedures screen:
+Tap the add button with **Procedures** chosen in Resources:
 
 - **Title** (required) — e.g., "Morning Arrival Routine"
 - **Category** — Classroom Management, Practical Life, Transitions, Grace & Courtesy, Academic, or Other
@@ -574,19 +606,53 @@ Tap the add button from the Procedures screen:
 
 Procedures are searchable and filterable by category.
 
----
+## Resources
+
+**Resources** is the one place for your reference material. Choose a type: **Stories**, **Packets** (book club reading), **Files**, or **Procedures**. Only one type shows at a time, and the filter sits in the toolbar. Stories keep their cover pictures and story analysis; Files keep their categories, tags, favorites, and links to lessons and areas.
 
 # Planning Tools
 
-**Lessons & Work** is on the iPhone bar; the rest of the planning tools are under **More ▸ Planning** (or the Planning group in the sidebar).
+**Lessons & Work** is on the iPhone bar; the rest of the planning tools are under **More ▸ Plan** (or the Plan group in the sidebar).
 
 ## Lessons & Work
 
 The shared planning workspace for presentations, follow-up, active child work, and history. Use **Needs Attention** for today’s observing and deciding, **Upcoming** to prepare presentations, **Children Working** to manage active work, and **History** to revisit presentations or completed work. The shared **Agenda** coordinates scheduled presentations and check-ins.
 
-## Checklist
+## Class Grid
 
-A class-wide checklist view organized by subject and group. See at a glance which students have received which lessons. Check off items as you go — useful for weekly or monthly planning.
+The **Class Grid** is one screen for seeing the whole class against the curriculum, with four views. On the Mac, switch between them with the segmented control in the toolbar; on iPad and iPhone, use the tabs under the title.
+
+| View | What it shows |
+|------|---------------|
+| Checklist | The class-wide checklist by area and group: which children have had which lessons. Check off items as you go — useful for weekly or monthly planning. |
+| Three Years | Children grouped by year in class, with the Great Lessons first and then one row per area, showing each child's furthest mark. Pick an area to see its key lessons (or all of them). |
+| Children | One row per child, grouped by level, with a strip for each sequence they have started (for example "4/8"). Click a strip to open that sequence: work, presentations, and notes. |
+| Recall | A list rather than a grid: retention tiles (held, checked, to present again, faded over summer, due), a by-child list, and the queue of recall checks that are due, grouped by child, with the recall check beside it. |
+
+The **area menu** ("All areas" or one area), **search**, and the **children filter** carry across all four views, so you can switch views without losing your place.
+
+### Marks
+
+The same marks are used everywhere in the grid:
+
+- grey — no lesson given yet
+- blue, filled a quarter, a half, or three-quarters — **Presented**, **Practicing**, **Reviewing**
+- green with a check — **Mastered** (only when you have marked mastery)
+- dashed orange — planned
+
+Recall checks show as a ring around the mark: **solid green** still has it, **dashed orange** shaky, **dotted red** forgotten.
+
+### Ready
+
+Cells for lessons not yet given show whether the child is ready for them:
+
+- **Ready** — a grey ring. The previous lesson is confirmed or mastered, no work from it is open, and the last check-in didn't ask for more practice.
+- **Ready, check first** — a grey ring with an amber dot. The child is ready, but look first. Tap the cell and its card says why, for example "2 pieces of work still open".
+- **Not yet** — a small grey dot.
+
+The cell card also has a **Previous lesson** box: the lesson's name and the date it was given, any open work, the last check-in, and whether it was mastered. Confirming a lesson is not the same as mastery; only a mastery mark turns a cell green.
+
+Groups and Today use the same two readiness levels, so they always agree with the grid.
 
 ### Narrowing the grid
 
@@ -597,40 +663,17 @@ The filter bar above the grid narrows what you see without changing any records:
 
 Both filters can be on at once, and **Clear** drops them both. Cells you had selected for a batch action drop out of the selection when a filter hides them, so the batch buttons only ever act on what you can see.
 
+The grid reports the presence and absence of records. It never judges whether a child is ahead or behind. A child's own **Three-Year View**, on the student's page, stays where it was.
+
 ## Groups
 
-Which children can you put together for the same next lesson? **Groups** answers it for the whole class. It reads the same record as Today's **Ready for a next lesson** (who you confirmed or marked mastered on a lesson, and isn't planned for the next one yet), so the two never disagree; Today shows the top five and **See all in Groups ›** opens this page.
+Which children can you put together for the same next lesson? **Groups** answers it for the whole class. It reads the same record as Today's **Ready for a next lesson** (who you confirmed or marked mastered on a lesson, and isn't planned for the next one yet), so the two never disagree; Today shows the top five and **See all in Groups ›** opens this page. Groups, Today, and the Class Grid use the same two readiness levels, **Ready** and **Ready, check first**.
 
 - **A card is a group:** a lesson with two or more children ready for it, showing how long each has waited in school days (colored once it passes your Lesson Age setting). Cards are sorted by how many children are ready, then the longest wait.
 - Children held by open practice (in a sub-area that requires it) are listed in orange with the reason. Children one lesson behind, ready for the lesson before this one, appear dashed as "could join after …". A child who had the previous lesson but isn't confirmed yet shows a **Confirm** button; one tap moves her to Ready.
 - **Plan** opens the scheduling sheet with the ready children already chosen. A card also says when the lesson is already planned for some of them.
 - Lessons with only one child ready are folded into one row at the bottom; tap it to open them.
 - Narrow by level from the toolbar, or by area with the chips. Tap a card's area and sequence to open its **sequence ladder**: every lesson in the sequence, with each child standing on the next one they need, and ‹ › to step through the area's other sequences.
-
-## Progress Dashboard
-
-A per-student progression map across the curriculum. Each student's card shows where they stand by subject area; tap a category to open the sequence detail — what's been presented, what's mastered, and what comes next.
-
-## Three-Year View
-
-The record card for the whole elementary cycle. Open it from a student's **Learning** section (Learning View ▸ Three-Year View) for one child, or from the sidebar for the class.
-
-**For one child**, the curriculum runs down the side and her years in the environment run across the top, counted from her start date and divided into years, terms, or months. The Great Lessons come first, one row per story; every area follows, and tapping an area opens its sequences and key lessons. Each cell is a glyph:
-
-- empty — not yet presented
-- outline dot — presented
-- half dot — chosen: work or a practice session followed the presentation
-- filled dot — repeated: three or more practice sessions, or work that reached review or completion
-- ringed dot — mastered
-- a coloured ring — the latest recall check (green retained, orange shaky, red forgotten)
-
-An area with no presentation in the last 90 days carries a soft flag — the "she has not been in biology since spring" signal. Change the threshold for all areas in the Options menu, or for one area from its row's context menu, since Art and Parsha have different rhythms than Math. Tap any cell to see the records behind it; a cell that is a single presentation opens that presentation straight away, with its observation or a place to write one.
-
-**For the class**, children run across the top, oldest cohort first, and lessons (or areas) down the side. Choose an area to see its sequences and key lessons. Tap a lesson's name for the children in each state; the button at the top turns everyone who has not had it into a draft presentation, ready to schedule.
-
-**Key lessons** are the milestones the grids show by default: any lesson you mark **Key lesson** in its editor, plus the first lesson of every sequence and the Great Lesson stories. Switch to **All lessons** to see every sub-step. The Great Lessons row is built from each story's **Great Lesson** tag, so tag the five stories to fill it in.
-
-The view reports the presence and absence of records. It never judges whether a child is ahead or behind.
 
 ---
 
@@ -656,13 +699,13 @@ Open an item to:
 
 ---
 
-# Projects
+# Clubs & Projects
 
-Track long-term student projects, research initiatives, and independent studies.
+Track long-term student projects, research initiatives, and independent studies, and run book clubs. **Clubs & Projects** is one screen in the **Classroom** group that lists your projects and your book club sessions together. Each opens to its own page. A project makes work for its students; a club has a schedule and rotating leaders. A club's reading packets live in **Resources** (choose **Packets**).
 
 ## Creating a Project
 
-Tap the add button from the Projects screen:
+Tap the add button from the Clubs & Projects screen:
 
 - **Title** — The project name
 - **Description** — What the project is about
@@ -703,7 +746,7 @@ When creating a track, you define:
 
 ### Monitoring Progress
 
-The Progress Dashboard and each student's Progress tab show the student's position in their enrolled tracks. You can see who's ahead, who's on pace, and who may need additional support.
+The Class Grid's **Children** view and each student's Progress tab show the student's position in their enrolled tracks. You can see who's ahead, who's on pace, and who may need additional support.
 
 ## Group Tracks
 
@@ -714,6 +757,8 @@ Group tracks let you apply the same progression template to multiple students at
 # Meetings
 
 Schedule and record one-on-one meetings with students.
+
+Meetings has two views: **Queue** (the meetings you have scheduled or still need to hold) and **History** (every child's meetings by day). History has filters for child, age, done or pending, and search; you can mark a meeting done or delete it there.
 
 ## Scheduling a Meeting
 
@@ -738,36 +783,6 @@ Open the meeting to record:
 ## Meeting Templates
 
 Create templates in Settings for common meeting types (e.g., "Progress Check," "Behavior Discussion," "Parent Follow-Up") with pre-filled purpose and note starters.
-
----
-
-# AI Assistant
-
-Cosmic Daybook includes an AI chat feature powered by Claude. It can analyze your classroom data and answer questions.
-
-## Setup
-
-Before using AI features, you need to add your Anthropic API key:
-
-1. Go to **Settings**
-2. Find the **AI / Chat** section
-3. Enter your API key
-4. Choose your preferred model (Claude 3 Opus for best quality, Sonnet for balanced, Haiku for fastest)
-
-## What You Can Ask
-
-The AI has access to your classroom data and can answer questions like:
-
-- "Which students haven't received a lesson in the past two weeks?"
-- "Summarize Emma's progress this month"
-- "What's my curriculum balance across subjects?"
-- "Which work items are overdue?"
-- "Help me plan next week's lessons"
-- "Generate a progress summary for parent conferences"
-
-## How to Access
-
-Tap **Ask AI** under **More ▸ System** (the System group in the sidebar). You'll see a chat interface where you can type questions and receive responses. The AI reads your actual student, lesson, and work data to give relevant answers.
 
 ---
 
@@ -836,11 +851,10 @@ Access Settings from **More ▸ System** (the last row of the sidebar on Mac and
 - Templates for common meeting types
 - Pre-filled purpose and note fields
 
-## AI / Chat
+## Connections ▸ Tide (Mac)
 
-- Anthropic API key
-- Model selection (Opus, Sonnet, Haiku)
-- API usage statistics
+- Turn on sharing your to-dos with Tide (see **Sharing with Tide** under Todos)
+- See whether Tide is reachable
 
 ## CloudKit Sync
 
@@ -887,7 +901,7 @@ Every time you observe a student working, log a quick check-in on their work ite
 
 ## Review Progress Weekly
 
-Set aside time each week (perhaps Friday afternoon) to open the Progress Dashboard and see where each student stands. This helps you plan the next week's presentations and ensures no student falls behind.
+Set aside time each week (perhaps Friday afternoon) to open the Class Grid's **Children** view and see where each student stands. This helps you plan the next week's presentations and ensures no student falls behind.
 
 ## Back Up Regularly
 
@@ -935,3 +949,5 @@ Create a manual backup at least once a week, or enable auto-backup in Settings. 
 | Command Bar | The natural-language text input for typing commands in plain English |
 | Needs Attention | The Lessons & Work view that combines open presentation follow-ups with work that needs a guide check |
 | Mastery | When a student demonstrates proficiency in a lesson or skill |
+| Class Grid | One screen, four views (Checklist, Three Years, Children, Recall), showing the whole class against the curriculum |
+| Ready, check first | A readiness level: the child is ready for the next lesson, but something from the previous one (open work, a check-in asking for practice, a shaky recall check) deserves a look first |

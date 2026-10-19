@@ -65,11 +65,36 @@ extension RootView {
             .note: .today,
             .more: .today,
             // Orders folded into Restock (2026-10-03): its lists are Restock's to-order card.
-            .orders: .supplies
+            .orders: .supplies,
+            // Simplify the app, Phase 11 (2026-10-19): each retired row opens
+            // the screen that took its place, on its view (`landing`).
+            .logs: .notes,
+            .curriculumMap: .planningChecklist,
+            .progressDashboard: .planningChecklist,
+            .lessonRecall: .planningChecklist,
+            .parshaCalendar: .thisWeeksParsha,
+            .stories: .resourceLibrary,
+            .procedures: .resourceLibrary,
+            .bookClub: .planningProjects,
+            .askAI: .today
         ]
 
         /// The destination this item actually shows.
         var canonical: Self { Self.aliases[self] ?? self }
+
+        /// Where a retired row opens inside the screen that replaced it: the
+        /// Class Grid on its view, Resources on its type, the Parsha screen
+        /// with the year list showing. Nil for every row still in the sidebar.
+        var landing: ScreenLanding? {
+            switch self {
+            case .curriculumMap, .progressDashboard, .lessonRecall:
+                return ClassGridViewKind.opening(self).map(ScreenLanding.classGrid)
+            case .stories: return .resources(.stories)
+            case .procedures: return .resources(.procedures)
+            case .parshaCalendar: return .parshaYearList
+            default: return nil
+            }
+        }
 
         // Combines displayName + icon into one exhaustive switch,
         // so adding a new case forces updates in both at compile time.
@@ -89,12 +114,12 @@ extension RootView {
             case .bookClub:            return ("Book Club", "books.vertical.circle")
             case .more:                return ("More", "ellipsis.circle")
             case .todos:               return ("Todos", "checkmark.circle")
-            case .planningChecklist:   return ("Checklist", "list.clipboard")
+            case .planningChecklist:   return ("Class Grid", "square.grid.3x3")
             case .planningAgenda:      return ("Lessons & Work", "tray.full")
-            case .planningProjects:    return ("Projects", "folder")
+            case .planningProjects:    return ("Clubs & Projects", "folder")
             case .planningCalendar:    return ("Calendar", "calendar.day.timeline.leading")
             case .progressDashboard:   return ("Progress Dashboard", "person.text.rectangle")
-            case .curriculumMap:       return ("Three-Year View", "square.grid.3x3")
+            case .curriculumMap:       return ("Three-Year View", "square.grid.3x3.square")
             case .lessonRecall:        return ("Lesson Recall", "arrow.clockwise.circle")
             case .goingOut:            return ("Going Out", "figure.walk")
             case .smallSequencePlanner:   return ("Groups", "person.3.sequence")
@@ -132,9 +157,9 @@ extension RootView {
             case .bookClub:            return "Manage book club packets and run sessions with students"
             case .more:                return "Everything else"
             case .todos:               return "Manage your personal todos and tasks"
-            case .planningChecklist:   return "View class area checklist"
+            case .planningChecklist:   return "The class against the curriculum: Checklist, Three Years, Children and Recall"
             case .planningAgenda:      return "Plan lessons, follow presentations, and manage student work"
-            case .planningProjects:    return "Manage student projects"
+            case .planningProjects:    return "Student projects and book club sessions"
             case .planningCalendar, .perpetualCalendar:
                 return "Year-at-a-glance calendar with Mac events and due todos"
             case .progressDashboard:   return "View per-student progress across all areas"
@@ -144,7 +169,7 @@ extension RootView {
             case .smallSequencePlanner:   return "See which children are ready for the same next lesson, and plan it"
             case .community:           return "View community meetings and topics"
             case .schedules:           return "View recurring schedules"
-            case .resourceLibrary:     return "Browse and organize classroom resource documents"
+            case .resourceLibrary:     return "Stories, book club packets, files and procedures"
             case .askAI:               return "Ask questions about your classroom data"
             case .logs:                return "View activity and observation logs"
             case .notes:               return "Browse and search your observation notes"
@@ -166,7 +191,7 @@ extension RootView {
             case .albums:     self = .lessons
             case .planning:   self = .planningAgenda
             case .community:  self = .community
-            case .logs:       self = .logs
+            case .logs:       self = .notes
             case .settings:   self = .settings
             }
         }
@@ -200,10 +225,13 @@ extension RootView {
         /// Set when the restored destination is the Lessons & Work
         /// workspace opened on a particular lens.
         let lessonsAndWorkScope: TriageBucket?
+        /// Set when a retired row was restored: the view of its new screen to open on.
+        let landing: ScreenLanding?
 
-        init(item: NavigationItem, lessonsAndWorkScope: TriageBucket? = nil) {
+        init(item: NavigationItem, lessonsAndWorkScope: TriageBucket? = nil, landing: ScreenLanding? = nil) {
             self.item = item
             self.lessonsAndWorkScope = lessonsAndWorkScope
+            self.landing = landing
         }
     }
 
@@ -237,7 +265,7 @@ extension RootView {
                     return NavigationSelectionResolution(item: .planningAgenda, lessonsAndWorkScope: .toSchedule)
                 }
                 if let item = NavigationItem(rawValue: raw) {
-                    return NavigationSelectionResolution(item: item.canonical)
+                    return NavigationSelectionResolution(item: item.canonical, landing: item.landing)
                 }
             }
             if let legacyRaw = legacyTabRaw, let legacyTab = Tab(rawValue: legacyRaw) {

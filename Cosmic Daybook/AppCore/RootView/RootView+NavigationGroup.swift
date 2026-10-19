@@ -9,45 +9,40 @@ extension RootView {
     /// Sidebar / More-list groups in display order. The raw value is the
     /// suffix of the group's persisted expansion key.
     nonisolated enum NavigationGroupID: String, CaseIterable {
-        case today, children, lessonsAndWork, planning, records, classroom, library, system
+        // `planning` keeps its raw value for the Plan group, so a sidebar
+        // collapsed under the old Planning group stays collapsed.
+        case today, children, planning, classroom, library, system
     }
 
     nonisolated struct NavigationGroup: Identifiable, Hashable {
         let id: NavigationGroupID
         let title: String
         let items: [NavigationItem]
-        /// Classroom and Library start collapsed: the room's running
-        /// (Restock, schedules) and the reference material are both
-        /// reached a few times a term, not daily.
+        /// Only Classroom starts collapsed: the room's running (Restock,
+        /// schedules, outings) is reached a few times a term, not daily.
         let isExpandedByDefault: Bool
 
+        /// Six groups, 21 rows (Simplify the app, Phase 11). The retired rows
+        /// are aliases (`NavigationItem.aliases`) and open inside these.
         static let all: [NavigationGroup] = [
             .init(id: .today, title: "Today",
-                  items: [.today, .todos],
+                  items: [.today, .attendance, .todos],
                   isExpandedByDefault: true),
             .init(id: .children, title: "Children",
-                  items: [.students, .attendance, .meetings, .parentReports, .progressDashboard],
+                  items: [.students, .meetings, .notes, .parentReports],
                   isExpandedByDefault: true),
-            .init(id: .lessonsAndWork, title: "Lessons & Work",
-                  items: [.planningAgenda, .lessons],
-                  isExpandedByDefault: true),
-            .init(id: .planning, title: "Planning",
-                  items: [.planningChecklist, .curriculumMap, .planningCalendar, .thisWeeksParsha,
-                          .smallSequencePlanner],
-                  isExpandedByDefault: true),
-            .init(id: .records, title: "Records",
-                  items: [.logs, .notes],
+            .init(id: .planning, title: "Plan",
+                  items: [.planningAgenda, .smallSequencePlanner, .planningChecklist, .planningCalendar,
+                          .thisWeeksParsha],
                   isExpandedByDefault: true),
             .init(id: .classroom, title: "Classroom",
-                  items: [.supplies, .community, .schedules, .goingOut, .lessonRecall,
-                          .planningProjects],
+                  items: [.supplies, .community, .planningProjects, .goingOut, .schedules],
                   isExpandedByDefault: false),
             .init(id: .library, title: "Library",
-                  items: [.teachingAlbums, .stories, .bookClub, .resourceLibrary, .procedures,
-                          .parshaCalendar],
-                  isExpandedByDefault: false),
+                  items: [.lessons, .teachingAlbums, .resourceLibrary],
+                  isExpandedByDefault: true),
             .init(id: .system, title: "System",
-                  items: [.askAI, .settings],
+                  items: [.settings],
                   isExpandedByDefault: true)
         ]
 

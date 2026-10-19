@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// What the Resources screen lists, one type at a time.
-enum LibraryKind: String, CaseIterable, Identifiable {
+nonisolated enum LibraryKind: String, CaseIterable, Identifiable, Sendable {
     case stories
     case packets
     case files
@@ -25,9 +25,10 @@ enum LibraryKind: String, CaseIterable, Identifiable {
 /// `PDFLibraryListView`. The type filter is a segmented control in the
 /// toolbar on the Mac and tabs under the title on iPhone and iPad.
 ///
-/// The Stories, Procedures and Resources sidebar rows each open it on their
-/// own type (`StoriesRootView`, `ProceduresListView`, `ResourceLibraryView`).
+/// It sits at the Resources destination; the retired Stories and Procedures
+/// rows open it on their own type (`NavigationItem.landing`).
 struct ResourcesView: View {
+    @Environment(\.appRouter) private var appRouter
     @State private var kind: LibraryKind
 
     init(kind: LibraryKind = .files) {
@@ -48,6 +49,14 @@ struct ResourcesView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationTitle("Resources")
+        .onChange(of: appRouter.screenLanding, initial: true) { _, _ in
+            if let landed = appRouter.consumeScreenLanding(where: { landing -> LibraryKind? in
+                if case .resources(let kind) = landing { return kind }
+                return nil
+            }) {
+                kind = landed
+            }
+        }
         #if os(macOS)
         .toolbar {
             ToolbarItem(placement: .principal) {

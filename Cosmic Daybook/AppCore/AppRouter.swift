@@ -123,6 +123,11 @@ final class AppRouter {
     /// One-shot destination inside the shared Lessons & Work workspace.
     var lessonsAndWorkRequest: LessonsAndWorkRequest?
 
+    /// One-shot view for the screen a retired row now opens (the Class Grid on
+    /// Three Years, Resources on Stories…). That screen takes it with
+    /// `consumeScreenLanding(where:)`.
+    var screenLanding: ScreenLanding?
+
     /// One-shot request to open a page of a teaching album. `AlbumsRootView`
     /// consumes it into its own `AlbumsNavModel`, which is per-surface and so
     /// can't be reached from outside the Albums section.
@@ -214,8 +219,17 @@ final class AppRouter {
         case .planningAgenda:
             navigateToLessonsAndWork(.toSchedule)
         default:
+            if let landing = item.landing { screenLanding = landing }
             selectedNavItem = item
         }
+    }
+
+    /// Takes the pending landing when it's one this screen answers, leaving
+    /// any other screen's in place.
+    func consumeScreenLanding<T>(where match: (ScreenLanding) -> T?) -> T? {
+        guard let landing = screenLanding, let value = match(landing) else { return nil }
+        screenLanding = nil
+        return value
     }
 
     /// Opens the shared workspace at the point in the learning cycle requested
