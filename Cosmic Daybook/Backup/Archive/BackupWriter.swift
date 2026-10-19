@@ -107,7 +107,11 @@ nonisolated public enum BackupWriter {
     ///   sends restore as email, and a record keeps its own values. The
     ///   ParentLocker password and sign-in cookies live only in the Keychain
     ///   and never go into a backup.
-    public static let formatVersion: Int = 40
+    /// - v41: `TodoItem` entries carry `tideLink` (schema 19), the Tide action
+    ///   a to-do is shared with, so a restored to-do isn't sent to Tide again.
+    ///   Purely additive; restoring an older backup leaves a to-do's own link.
+    ///   Tide's connection address lives only in the Keychain.
+    public static let formatVersion: Int = 41
 
     public enum WriterError: LocalizedError {
         case entityEncodingFailed(entityName: String, underlying: Error)

@@ -25,6 +25,8 @@ struct TodoMainView: View {
     @State var tagOrder: [String] = UserDefaults.standard.stringArray(forKey: UserDefaultsKeys.todoTagOrder) ?? []
     @AppStorage(UserDefaultsKeys.todoHideCompleted) var hideCompleted = false
     @State var selectedFolder: String?
+    /// A Tide list picked under "From Tide", by workspace path.
+    @State var selectedTideList: String?
     @State var isShowingNewFolder = false
     @State var newFolderName = ""
     @State private var isShowingCompactList = false
@@ -37,6 +39,8 @@ struct TodoMainView: View {
     @State var cachedAllUsedTags: [String] = []
     @State var cachedFilterCounts: [TodoListFilter: Int] = [:]
     @State var cachedTagCounts: [String: Int] = [:]
+    /// Open shared to-dos per Tide list, by workspace path.
+    @State var cachedTideListCounts: [String: Int] = [:]
 
     var body: some View {
         layout

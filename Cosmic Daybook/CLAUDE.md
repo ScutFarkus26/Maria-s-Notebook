@@ -53,6 +53,8 @@ Scripts/locked_xcodebuild.sh -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic
 # the archive + dSYM in Xcode's Organizer, refuses while the installed copy runs, saves the old copy to the
 # Trash as a zip (an app bundle there gets registered again), and drops dead LaunchServices registrations.
 # Run it after merging to main.
+# 2026-10-19: schema 19 (to-dos shared with Tide) is on main but not in Production yet. Don't run this, or
+# roll out, until Danny's "deploy schema 19 to Production" row in Tide is done; then remove this line.
 Scripts/install_release.sh
 
 # Archive the Daybook Assistant (iPhone-only, portrait) for TestFlight: the checkout's last commit, with a
@@ -163,7 +165,7 @@ MVVM with services on `NSPersistentCloudKitContainer` (private and shared stores
 
 ## Data Model
 
-89 entities (schema 18): 70 private-only, 11 in the classroom share, 8 dormant tombstones. Core Data rules: `CD` prefix, no unique constraints, enums as raw `String`, foreign keys as `String`, every property optional or defaulted, `modifiedAt` for conflicts. Integrity rules and the entity table: `docs/Technical notes/DATA_MODELS.md`.
+89 entities (schema 19): 70 private-only, 11 in the classroom share, 8 dormant tombstones. Core Data rules: `CD` prefix, no unique constraints, enums as raw `String`, foreign keys as `String`, every property optional or defaulted, `modifiedAt` for conflicts. Integrity rules and the entity table: `docs/Technical notes/DATA_MODELS.md`.
 
 ## Sharing Model
 
@@ -237,7 +239,7 @@ Rules: `docs/Technical notes/PARENTLOCKER.md`. The password stays in the Keychai
 
 ## Backup System
 
-Format v40; rules: `docs/Technical notes/BACKUP_SYSTEM.md`. A new entity or attribute needs a line in `Backup/BackupEntityTable.swift` and a format-version bump; merge restore is an upsert, never delete and reinsert.
+Format v41; rules: `docs/Technical notes/BACKUP_SYSTEM.md`. A new entity or attribute needs a line in `Backup/BackupEntityTable.swift` and a format-version bump; merge restore is an upsert, never delete and reinsert.
 
 ## Todos for Danny
 

@@ -55,8 +55,8 @@ enum TodoCompletionService {
     /// of a repeat, that copy goes too, so tick, untick, tick leaves one next
     /// occurrence, not two (bug hunt 2026-10-10, P2 #22) — but only while the
     /// copy is still as `complete` made it: open, and with the same title,
-    /// notes, children, tags, priority and dates, and no checklist. Does not
-    /// save.
+    /// notes, children, tags, priority and dates, no checklist, and not yet
+    /// shared with Tide. Does not save.
     static func reopen(_ todo: CDTodoItem) {
         if let copy = untouchedNextOccurrence(of: todo, calendar: AppCalendar.shared) {
             copy.managedObjectContext?.delete(copy)
@@ -134,6 +134,9 @@ enum TodoCompletionService {
                 && copy.tagsArray == todo.tagsArray
                 && copy.linkedWorkItemID == todo.linkedWorkItemID
                 && !copy.isSomeday
+                // Once sent to Tide it isn't untouched: deleting it would
+                // leave its Tide action with no copy here.
+                && copy.tideLink == nil
                 && (copy.subtasks?.count ?? 0) == 0
                 && isSameDate(copy.dueDate, expected.dueDate)
                 && isSameDate(copy.scheduledDate, expected.scheduledDate)

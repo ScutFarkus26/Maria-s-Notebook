@@ -108,6 +108,8 @@ extension TodoMainView {
                 }
             }
 
+            tideListsSection
+
             if !allUsedTags.isEmpty || tagOrder.contains(where: { $0.hasPrefix("folder:") }) {
                 Section {
                     ForEach(orderedSidebarItems, id: \.self) { item in
@@ -180,8 +182,7 @@ extension TodoMainView {
     private func filterRow(filter: TodoListFilter) -> some View {
         let isActive = selectedTag == nil && selectedFolder == nil && selectedFilter == filter
         Button {
-            selectedTag = nil
-            selectedFolder = nil
+            clearSidebarSelection()
             selectedFilter = filter
             showSelectedListIfCompact()
         } label: {
@@ -254,9 +255,8 @@ extension TodoMainView {
                     selectedFolder = nil
                     selectedFilter = .inbox
                 } else {
+                    clearSidebarSelection()
                     selectedFolder = sequenceName
-                    selectedTag = nil
-                    selectedFilter = nil
                     showSelectedListIfCompact()
                 }
             }
@@ -287,8 +287,7 @@ extension TodoMainView {
 
     func tagRow(tag: String, displayName: String, dotSize: CGFloat, fontSize: CGFloat, dragKey: String) -> some View {
         Button {
-            selectedFilter = nil
-            selectedFolder = nil
+            clearSidebarSelection()
             selectedTag = tag
             showSelectedListIfCompact()
         } label: {

@@ -55,7 +55,7 @@ nonisolated enum BackupFieldsAddedLater {
             "followUpActionRaw": 20, "followUpEvidenceRaw": 20, "followUpNote": 20, "followUpResolutionRaw": 20,
             "followUpResolvedAt": 20, "followUpReviewAt": 20, "followUpSupportRaw": 20, "followUpUpdatedAt": 20
         ],
-        "TodoItem": ["moodRaw": 20],
+        "TodoItem": ["moodRaw": 20, "tideLink": 41],
         // Non-optional, but exported as nil when empty: "" is its "missing".
         "Document": ["pdfFileRelativePath": 20]
     ]

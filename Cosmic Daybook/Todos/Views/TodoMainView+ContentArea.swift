@@ -70,7 +70,8 @@ extension TodoMainView {
         .background(Color(nsColor: .controlBackgroundColor))
         #endif
         .navigationTitle(
-            selectedFolder
+            selectedTideList.map(TideActionLink.listName(ofFile:))
+                ?? selectedFolder
                 ?? (selectedTag != nil
                     ? TodoTagHelper.tagName(selectedTag!)
                     : (selectedFilter ?? .inbox).title)
@@ -371,6 +372,9 @@ extension TodoMainView {
     var emptyStateMessage: String {
         if !searchText.isEmpty {
             return "No todos found"
+        }
+        if let list = selectedTideList {
+            return "No todos from Tide's \(TideActionLink.listName(ofFile: list)) list"
         }
         if let folder = selectedFolder {
             return "No todos in \"\(folder)\""

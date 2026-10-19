@@ -58,7 +58,8 @@ struct BackupSendMethodRoundTripTests {
         #expect(row.sendMethodRaw == "parentLocker")
         #expect(row.parentLockerSite == "other.parentlocker.com")
         #expect(!row.isEnabled)
-        #expect(BackupWriter.formatVersion == 40)
+        // v40 brought these fields; later formats still carry them.
+        #expect(BackupWriter.formatVersion >= 40)
         #expect(BackupReader.supportedFormatVersions.contains(39))
     }
 

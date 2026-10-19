@@ -249,8 +249,10 @@ nonisolated extension DataCleanupService {
         )
     }
 
-    /// A todo's subtasks cascade with the copy that holds them (#12).
+    /// A todo's subtasks cascade with the copy that holds them (#12). Its
+    /// Tide link survives too: a copy that lost it would be sent to Tide again.
     static func mergeTodoItem(canonical: CDTodoItem, duplicate: CDTodoItem) {
+        if canonical.tideLink == nil { canonical.tideLink = duplicate.tideLink }
         var existingSubtaskIDs = Set((canonical.subtasks as? Set<CDTodoSubtask>)?.compactMap(\.id) ?? [])
         mergeNSSetRelationship(
             from: duplicate.subtasks,

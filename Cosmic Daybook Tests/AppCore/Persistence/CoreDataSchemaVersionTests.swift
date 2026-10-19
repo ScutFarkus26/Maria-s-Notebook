@@ -33,7 +33,7 @@ final class CoreDataSchemaVersionTests {
     /// (2026-10-05: the digest took in the Shared and Private entity lists, so
     /// a move between stores trips it too. The model and the stores didn't
     /// change, so the version didn't either.)
-    static let expectedModelDigest = "d05b8aa8f68f44b1e2fc551c7911cd8162d1b5cd9d50de914e87c2399868b5c7"
+    static let expectedModelDigest = "7b9494dfcfcb8814d4684e2602282696d3fd3ec3c6a8d6a0fbe23a05b080d2f2"
 
     // MARK: - Version Tracking
 

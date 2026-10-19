@@ -544,7 +544,7 @@ Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-02 so that file keeps 
 
 Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-04 so that file keeps only a pointer and the few rules a session needs before touching this area. These are still rules: follow them.
 
-**89 entities** defined in `CosmicDaybook.xcdatamodeld` (schema 18): 70 private-only, 11 in the classroom share (schema 16 added `ClassroomPerson`, the shared list of names people set for themselves; `Sharing/ClassroomNames.swift`; schema 17 added `SupplyTransaction.changedByID`, who changed a staple's level, so its history line shows that person's current name; schema 18 added how attendance goes to the school, `AttendanceEmailSettings.sendMethodRaw` and `parentLockerSite`, the channel of each send, `AttendanceEmailSend.channelRaw`, and the child's ParentLocker match, `Student.parentLockerID`), 8 dormant tombstones.
+**89 entities** defined in `CosmicDaybook.xcdatamodeld` (schema 19; schema 19 added `TodoItem.tideLink`, the Tide action a to-do is shared with, `docs/Technical notes/TIDE_SHARING.md`): 70 private-only, 11 in the classroom share (schema 16 added `ClassroomPerson`, the shared list of names people set for themselves; `Sharing/ClassroomNames.swift`; schema 17 added `SupplyTransaction.changedByID`, who changed a staple's level, so its history line shows that person's current name; schema 18 added how attendance goes to the school, `AttendanceEmailSettings.sendMethodRaw` and `parentLockerSite`, the channel of each send, `AttendanceEmailSend.channelRaw`, and the child's ParentLocker match, `Student.parentLockerID`), 8 dormant tombstones.
 
 **Core Models:**
 
@@ -557,6 +557,7 @@ Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-04 so that file keeps 
 | WorkModel | `CDWorkModel` | Work items; one `WorkStatus` per row (Working / Needs Review open; Mastered / Keep Practicing / Incomplete / legacy Done closed), changed only through `WorkLogService` |
 | Note | `CDNote` | Observations with tags, multi-student scoping |
 | AttendanceRecord | `CDAttendanceRecord` | Daily attendance tracking; `leavesAt` (schema 13) is a planned early pickup, not a mark; `returnedAt` + `statusBeforeLeavingRaw` (schema 14) record a child who left early and came back |
+| TodoItem | `CDTodoItem` | The guide's to-dos; `tideLink` (schema 19) is the Tide action one is shared with, written only by the Mac's Tide sharing (`Services/Tide/`) and the backup restore |
 | ClassroomMembership | `CDClassroomMembership` | This device's role and the pinned classroom share zone (private only) |
 | AttendanceDayLock | `CDAttendanceDayLock` | A day the lead guide locked (shared); read and written through `AttendanceDayLocks` |
 | AttendanceEmailSend / AttendanceEmailSettings | `CDAttendanceEmailSend` / `CDAttendanceEmailSettings` | The day's attendance going to the school: who sent a day's, and the guide's settings for it (shared, schema 12). Schema 18: `sendMethodRaw` (`email` or `parentLocker`, default `email`) and `parentLockerSite` on the settings, `channelRaw` (default `email`) on each send; picking ParentLocker also writes `isEnabled = false`, so Assistant builds from before schema 18 stop offering the email. Read and written through `AttendanceEmailLog` |

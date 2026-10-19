@@ -48,6 +48,10 @@ extension BackupEntityImporter {
             t.notifyOnEntry = dto.notifyOnEntry
             t.notifyOnExit = dto.notifyOnExit
             t.moodRaw = dto.moodRaw
+            // Kept as the backup has it, so a restored to-do isn't sent to
+            // Tide a second time (a v40 or older backup keeps the record's
+            // own: `BackupFieldsAddedLater`).
+            t.tideLink = dto.tideLink
             return t
         })
     }

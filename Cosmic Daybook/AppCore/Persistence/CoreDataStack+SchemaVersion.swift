@@ -118,7 +118,10 @@ nonisolated extension CoreDataStack {
     ///   (default "email"), and `Student.parentLockerID`, a child's match on the
     ///   school's ParentLocker site. Additive attributes, each optional or with
     ///   a default.
-    nonisolated static let currentSchemaVersion = 18
+    /// - `19` — `TodoItem.tideLink` (private): the Tide action a to-do is shared
+    ///   with (plan "Simplify the app", Phase 10; `Services/Tide/`). Additive
+    ///   optional String.
+    nonisolated static let currentSchemaVersion = 19
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"

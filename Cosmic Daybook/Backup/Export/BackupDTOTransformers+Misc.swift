@@ -271,7 +271,8 @@ extension BackupDTOTransformers {
             locationRadius: t.locationRadius,
             notifyOnEntry: t.notifyOnEntry,
             notifyOnExit: t.notifyOnExit,
-            moodRaw: t.moodRaw
+            moodRaw: t.moodRaw,
+            tideLink: t.tideLink
         )
     }
 

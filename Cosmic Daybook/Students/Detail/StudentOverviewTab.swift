@@ -208,6 +208,9 @@ struct StudentOverviewTab: View {
                 Divider()
                     .padding(.top, AppTheme.Spacing.small)
 
+                // Shown only when a to-do shared with Tide names her.
+                StudentTideTodosSection(student: student)
+
                 NextLessonsSection(snapshots: nextLessonsForStudent, lessonsByID: lessonsByID)
 
                 Divider()

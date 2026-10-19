@@ -7,7 +7,9 @@ import CoreData
 extension TodoMainView {
     var filteredTodos: [CDTodoItem] {
         var todos: [CDTodoItem]
-        if let folder = selectedFolder {
+        if let list = selectedTideList {
+            todos = allTodos.filter { $0.tideListFile == list }
+        } else if let folder = selectedFolder {
             // Show all todos that have any tag belonging to this folder
             let folderTags = Set(allUsedTags.filter {
                 TodoTagHelper.tagPathComponents($0).count > 1 && TodoTagHelper.rootTagName($0) == folder
@@ -76,6 +78,7 @@ extension TodoMainView {
         // Build filter counts and tag counts in the same pass
         var filterCounts: [TodoListFilter: Int] = [:]
         var tagCounts: [String: Int] = [:]
+        var tideListCounts: [String: Int] = [:]
         let today = Date()
 
         for todo in allTodos {
@@ -84,6 +87,9 @@ extension TodoMainView {
                 if filter.matches(todo, today: today) {
                     filterCounts[filter, default: 0] += 1
                 }
+            }
+            if let list = todo.tideListFile {
+                tideListCounts[list, default: 0] += todo.isCompleted ? 0 : 1
             }
             // Collect tags and count per-tag
             for tag in todo.tagsArray {
@@ -102,6 +108,11 @@ extension TodoMainView {
         }
         cachedFilterCounts = filterCounts
         cachedTagCounts = tagCounts
+        cachedTideListCounts = tideListCounts
+        if let list = selectedTideList, tideListCounts[list] == nil {
+            selectedTideList = nil
+            selectedFilter = .inbox
+        }
 
         // If the selected tag was hidden, deselect it
         if let selected = selectedTag, !visibleTags.contains(selected) {
@@ -111,7 +122,9 @@ extension TodoMainView {
     }
 
     /// The todo fields the sidebar's counts and tags read.
-    private static let countedKeys: Set<String> = ["isCompleted", "isSomeday", "scheduledDate", "dueDate", "tags"]
+    private static let countedKeys: Set<String> = [
+        "isCompleted", "isSomeday", "scheduledDate", "dueDate", "tags", "tideLink"
+    ]
 
     /// Whether a change in the view context can move the sidebar's counts or
     /// tags: a todo added, deleted or refreshed from iCloud, or one of the

@@ -19,6 +19,12 @@ struct EditTodoForm: View {
                 TextField("Notes", text: $todo.notes, axis: .vertical)
                     .lineLimit(3...6)
                     .font(AppTheme.ScaledFont.body)
+
+                if let list = todo.tideListName {
+                    Label(TideSyncMessages.linkedNote(listName: list), systemImage: "water.waves")
+                        .font(AppTheme.ScaledFont.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             scheduleSection

@@ -149,6 +149,15 @@ final class AppServicesLauncher {
         // find the app's services through this registration.
         MCPAppServices.register(dependencies)
         MCPServerService.shared.applySettings()
+
+        // Share to-dos with Tide (Settings › Connections › Tide), on the
+        // notebook's own store. Not in an MCP-only launch: it has no window to
+        // come to the front, and the copy Danny opens does the sharing.
+        if AppLaunchMode.current != .mcpOnly {
+            TideSyncService.shared.start(
+                context: coreDataStack.viewContext, saveCoordinator: dependencies.saveCoordinator
+            )
+        }
         #endif
     }
 

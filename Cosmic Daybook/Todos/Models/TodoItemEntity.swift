@@ -36,6 +36,9 @@ nonisolated public class CDTodoItemEntity: NSManagedObject {
     @NSManaged public var notifyOnEntry: Bool
     @NSManaged public var notifyOnExit: Bool
     @NSManaged public var tags: NSObject?
+    /// The Tide action this to-do is shared with, as Tide addresses it
+    /// (`TideActionLink`); nil for one not shared (schema 19).
+    @NSManaged public var tideLink: String?
 
     // MARK: - Relationships
     @NSManaged public var subtasks: NSSet?
@@ -152,6 +155,16 @@ nonisolated extension CDTodoItem {
     /// Whether this todo has a hard deadline set
     var hasDeadline: Bool {
         dueDate != nil
+    }
+
+    /// The Tide list a shared to-do is in, by workspace path.
+    var tideListFile: String? {
+        tideLink.flatMap(TideActionLink.init)?.file
+    }
+
+    /// The Tide list a shared to-do is in, by name ("Room Setup").
+    var tideListName: String? {
+        tideLink.flatMap(TideActionLink.init)?.listName
     }
 }
 

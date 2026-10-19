@@ -31,6 +31,7 @@ enum SettingsCopy {
         // Connections
         case appleCalendar
         case reminders
+        case tide
         // Intelligence
         case appleIntelligence
         case lessonPlanning
@@ -59,7 +60,7 @@ enum SettingsCopy {
             case .ageIndicators, .quickCapture: return .lookAndFeel
             case .attendanceEmail, .parentReports, .orderRequests: return .messages
             case .noteTemplates, .meetingTemplates, .todoTemplates: return .templates
-            case .appleCalendar, .reminders: return .connections
+            case .appleCalendar, .reminders, .tide: return .connections
             case .appleIntelligence, .lessonPlanning, .siri, .claudeDesktop: return .intelligence
             case .iCloud, .backups, .settingsTransfer: return .syncBackup
             case .syncHistory, .maintenance, .cleanUp, .notebookStats, .testStudents: return .troubleshooting
@@ -82,6 +83,7 @@ enum SettingsCopy {
             case .todoTemplates: return "To-do templates"
             case .appleCalendar: return "Apple Calendar events"
             case .reminders: return "Reminders"
+            case .tide: return "Tide"
             case .claudeDesktop: return "Claude Desktop"
             case .appleIntelligence: return "Apple Intelligence"
             case .lessonPlanning: return "Lesson planning"
@@ -113,6 +115,7 @@ enum SettingsCopy {
             case .todoTemplates: return "checklist"
             case .appleCalendar: return "calendar.day.timeline.left"
             case .reminders: return "bell.fill"
+            case .tide: return "water.waves"
             case .claudeDesktop: return "desktopcomputer"
             case .appleIntelligence: return "apple.intelligence"
             case .lessonPlanning: return "list.clipboard"
@@ -164,6 +167,9 @@ enum SettingsCopy {
                 return ["Calendar", "Calendars", "Events", "Today"]
             case .reminders:
                 return ["Reminders list", "Sync from list", "Today"]
+            case .tide:
+                return ["To-dos", "Todos", "Share to-dos", "Connection address", "Classroom to-dos",
+                        "New to-dos go to", "Show in the notebook"]
             case .claudeDesktop:
                 return ["Claude", "MCP", "Anthropic", "Allow Claude Desktop access"]
             case .appleIntelligence:

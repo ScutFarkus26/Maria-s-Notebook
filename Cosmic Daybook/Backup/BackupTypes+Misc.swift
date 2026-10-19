@@ -34,6 +34,8 @@ nonisolated public struct TodoItemDTO: Codable, Sendable {
     public var notifyOnEntry: Bool
     public var notifyOnExit: Bool
     public var moodRaw: String?
+    /// The Tide action it is shared with (v41, schema 19); absent before.
+    public var tideLink: String?
 }
 
 nonisolated public struct TodoTemplateDTO: Codable, Sendable {
