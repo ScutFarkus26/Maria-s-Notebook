@@ -134,7 +134,9 @@ struct ProjectsRootView: View {
         }
         .sheet(isPresented: $showNewBookClubSheet) {
             BookClubSessionEditorSheet(prefilledPacket: nil)
+                #if os(macOS)
                 .frame(minWidth: 560, minHeight: 600)
+                #endif
         }
         .alert("Delete Project?", isPresented: $showDeleteAlert, presenting: clubToDelete) { club in
             Button("Delete", role: .destructive) {

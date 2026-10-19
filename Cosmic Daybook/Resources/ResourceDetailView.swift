@@ -124,7 +124,7 @@ struct ResourceDetailView: View {
                         Button {
                             openInDefaultApp()
                         } label: {
-                            Label("Open PDF", systemImage: "arrow.up.forward.square")
+                            Label("Open", systemImage: "arrow.up.forward.square")
                         }
 
                         if resolvedFileURL != nil {
@@ -161,7 +161,7 @@ struct ResourceDetailView: View {
             .sheet(isPresented: $isEditing) {
                 editSheet
             }
-            .confirmationDialog("Delete Resource?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+            .confirmationDialog("Delete File?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
                 Button("Delete", role: .destructive) {
                     deleteResource()
                 }
@@ -198,7 +198,7 @@ struct ResourceDetailView: View {
                     Image(systemName: "doc.text.fill")
                         .font(.system(size: 48))
                         .foregroundStyle(.secondary)
-                    Text("PDF Preview")
+                    Text("Preview")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -406,7 +406,7 @@ struct ResourceDetailView: View {
                     }
                 }
             }
-            .navigationTitle("Edit Resource")
+            .navigationTitle("Edit File")
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

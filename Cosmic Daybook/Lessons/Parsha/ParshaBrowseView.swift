@@ -6,17 +6,21 @@
 import SwiftUI
 
 struct ParshaBrowseView: View {
+    /// The Go menu's route: this window switches screen, never another window.
+    @Environment(\.quickCaptureActions) private var quickCapture
+
     var body: some View {
         ContentUnavailableView {
             Label("Parsha Lessons", systemImage: "book.closed")
         } description: {
             Text(
-                "Lessons for each parsha are on the This Week’s Parsha screen, " +
-                "with every Shabbat of the year listed beside them."
+                "Lessons for each parsha are on the This Week’s Parsha screen. " +
+                "The year’s Shabbatot are listed there too: beside the week on a Mac or iPad, " +
+                "behind the Year button on an iPhone."
             )
         } actions: {
             Button {
-                AppRouter.shared.selectedNavItem = .thisWeeksParsha
+                quickCapture?.go(to: .thisWeeksParsha)
             } label: {
                 Label("Open This Week’s Parsha", systemImage: "book.closed")
             }

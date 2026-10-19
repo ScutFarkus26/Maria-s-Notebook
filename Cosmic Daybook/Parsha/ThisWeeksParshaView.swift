@@ -11,18 +11,14 @@ struct ThisWeeksParshaView: View {
     @Environment(\.appRouter) private var appRouter
     /// The Shabbat shown; nil is this week.
     @State private var selectedShabbat: Date?
-    @State private var showingYearList: Bool
+    @State private var showingYearList = false
 
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
 
-    /// `showsYearList` opens the year list over the week at first on a phone.
-    /// The retired Parsha Calendar row does the same through `screenLanding`.
-    init(showsYearList: Bool = false) {
-        _showingYearList = State(initialValue: showsYearList)
-    }
-
+    /// The retired Parsha Calendar row opens the year list over the week at first
+    /// on a phone, through `screenLanding`.
     private var isCompact: Bool {
         #if os(iOS)
         horizontalSizeClass == .compact
@@ -48,9 +44,18 @@ struct ThisWeeksParshaView: View {
             phoneLayout
         } else {
             HStack(spacing: 0) {
-                NavigationStack {
+                // A plain header, not a navigation stack: on an iPad mini or a large
+                // phone turned sideways this screen sits inside the More tab's stack,
+                // and a stack of its own would add a second bar.
+                VStack(spacing: 0) {
+                    Text("Parsha Calendar")
+                        .font(AppTheme.ScaledFont.titleMedium)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, AppTheme.Spacing.medium)
+                        .padding(.vertical, AppTheme.Spacing.compact)
+                        .accessibilityAddTraits(.isHeader)
+                    Divider()
                     ParshaYearList(selection: $selectedShabbat)
-                        .navigationTitle("Parsha Calendar")
                 }
                 .frame(width: 300)
                 Divider()
@@ -64,21 +69,33 @@ struct ThisWeeksParshaView: View {
     private var weekStack: some View {
         PageNavigationStack {
             ParshaWeekPage(forShabbat: selectedShabbat)
+                .toolbar { thisWeekToolbar }
         }
         .id(selectedShabbat)
+    }
+
+    /// Back to this week's page once another Shabbat is picked.
+    @ToolbarContentBuilder
+    private var thisWeekToolbar: some ToolbarContent {
+        if selectedShabbat != nil {
+            ToolbarItem(placement: .navigation) {
+                Button("This Week") { selectedShabbat = nil }
+            }
+        }
     }
 
     private var phoneLayout: some View {
         PageNavigationStack {
             ParshaWeekPage(forShabbat: selectedShabbat)
                 .toolbar {
+                    thisWeekToolbar
                     ToolbarItem(placement: .primaryAction) {
                         Button {
                             showingYearList = true
                         } label: {
                             Label("Year", systemImage: "list.bullet")
                         }
-                        .accessibilityLabel("Choose a Shabbat from the year")
+                        .accessibilityHint("Choose a Shabbat from the year")
                     }
                 }
         }
@@ -105,12 +122,21 @@ struct ThisWeeksParshaView: View {
 private struct ParshaWeekPage: View {
     let forShabbat: Date?
 
+    /// The year list's Simchat Torah row, where V'Zot HaBerachah is read.
+    private var isSimchatTorah: Bool {
+        forShabbat.map(HebrewParshaService.isSimchatTorah) ?? false
+    }
+
+    /// The Shabbat shown; on Simchat Torah, the festival's own day.
     private var shabbat: Date {
-        HebrewParshaService.shabbatOfWeek(containing: forShabbat ?? Date())
+        if isSimchatTorah, let forShabbat {
+            return HebrewParshaService.gregorian.startOfDay(for: forShabbat)
+        }
+        return HebrewParshaService.shabbatOfWeek(containing: forShabbat ?? Date())
     }
 
     private var parshaKey: String? {
-        HebrewParshaService.parshaKey(forShabbat: shabbat)
+        isSimchatTorah ? HebrewParshaService.vzotHaberachahKey : HebrewParshaService.parshaKey(forShabbat: shabbat)
     }
 
     /// Whether this is the week the guide is in, however it was picked.
@@ -197,6 +223,13 @@ private struct ParshaContentList: View {
 
     private var metadata: ParshaMetadata? {
         ParshaMetadataService.metadata(forKey: parshaKey)
+    }
+
+    /// "Shabbat <date>", or the day itself for V'Zot HaBerachah, which is read on
+    /// Simchat Torah and never on a Shabbat.
+    private var dateLine: String {
+        let date = shabbat.formatted(date: .long, time: .omitted)
+        return parshaKey == HebrewParshaService.vzotHaberachahKey ? "Simchat Torah, \(date)" : "Shabbat \(date)"
     }
 
     private var specialShabbat: SpecialShabbat? {
@@ -322,7 +355,7 @@ private struct ParshaContentList: View {
                 Text(displayName)
                     .font(AppTheme.ScaledFont.titleLarge)
                     .foregroundStyle(.primary)
-                Text("Shabbat \(shabbat.formatted(date: .long, time: .omitted))")
+                Text(dateLine)
                     .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
             }

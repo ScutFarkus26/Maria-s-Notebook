@@ -2,8 +2,10 @@ import SwiftUI
 import CoreData
 
 /// Resources › Procedures: classroom routines written in the notebook, shown
-/// as pages and grouped by category. A page opens the procedure, and Edit
-/// opens the procedure editor.
+/// as pages and grouped by category. A page opens the procedure, whose Edit
+/// opens the procedure editor from the detail itself (on a phone the detail
+/// is a sheet, which can't hand the editor to a sheet on the list below it);
+/// a card's context menu opens the editor from here.
 struct ProceduresLibrary: View {
     @Environment(\.managedObjectContext) private var viewContext
 
@@ -72,11 +74,7 @@ struct ProceduresLibrary: View {
                     }
             },
             detail: { procedure, close in
-                ProcedureDetailView(
-                    procedure: procedure,
-                    onEdit: { procedureToEdit = $0 },
-                    onClose: close
-                )
+                ProcedureDetailView(procedure: procedure, onClose: close)
             },
             emptyState: { emptyState }
         )
