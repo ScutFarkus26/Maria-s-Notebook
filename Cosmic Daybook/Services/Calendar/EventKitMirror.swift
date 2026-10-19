@@ -28,26 +28,43 @@ enum EventKitMirror {
     /// Mirrors one fetch of a Reminders list: inserts rows for identifiers not
     /// stored yet, updates stored rows that changed, and deletes stored rows of
     /// this list that EventKit no longer returns.
+    ///
+    /// A reminder with no row of its own first takes over an unlinked copy of
+    /// itself, a row a restore brought back without its link, rather than
+    /// getting a second row beside it (`UnlinkedReminderPool`); that counts
+    /// as an update. Links stay this device's own: nothing is matched across
+    /// devices.
     @discardableResult
     static func reconcileReminders(
         _ reminders: [ReminderSyncData], listID: String, in context: NSManagedObjectContext, now: Date
     ) -> Outcome {
         let stored = context.safeFetch(CDFetchRequest(CDReminder.self))
         // Use uniquingKeysWith to handle potential duplicates from CloudKit sync
-        let storedByID = [String: CDReminder](
+        var storedByID = [String: CDReminder](
             stored.compactMap { row in row.eventKitReminderID.map { ($0, row) } },
             uniquingKeysWith: { first, _ in first }
         )
+        var unlinked = UnlinkedReminderPool(stored)
 
         var outcome = Outcome()
         // An identifier EventKit repeats updated the same row each time, so
-        // the last entry is the one the row ended up holding.
+        // the last entry is the one the row ended up holding. A row this pass
+        // inserts or takes over is filed too, so a repeat updates it rather
+        // than adding or taking another.
         var latest: [String: (row: CDReminder, data: ReminderSyncData)] = [:]
         for data in reminders {
-            if let row = storedByID[data.calendarItemIdentifier] {
-                latest[data.calendarItemIdentifier] = (row, data)
+            let id = data.calendarItemIdentifier
+            if let row = storedByID[id] {
+                latest[id] = (row, data)
+            } else if let copy = unlinked.takeCopy(of: data) {
+                copy.eventKitReminderID = id
+                copy.eventKitCalendarID = listID
+                copy.lastSyncedAt = now
+                updateReminder(copy, from: data, now: now)
+                storedByID[id] = copy
+                outcome.updated += 1
             } else {
-                insertReminder(data, listID: listID, in: context, now: now)
+                storedByID[id] = insertReminder(data, listID: listID, in: context, now: now)
                 outcome.inserted += 1
             }
         }

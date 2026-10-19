@@ -5,7 +5,6 @@ import EventKit
 /// Settings view for configuring Calendar sync with Apple's Calendar app.
 /// Supports selecting multiple calendars to sync.
 public struct CalendarSyncSettingsView: View {
-    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
     private var syncService: CalendarSyncService { dependencies.calendarSync }
     @State private var selectedCalendarIdentifiers: Set<String> = []
@@ -87,7 +86,8 @@ public struct CalendarSyncSettingsView: View {
             }
         }
         .task {
-            syncService.managedObjectContext = viewContext
+            // `dependencies.calendarSync` already points the service at My
+            // Class's store; setting it here pointed it at the Sample Class's.
             selectedCalendarIdentifiers = Set(syncService.syncCalendarIdentifiers)
             await loadAvailableCalendars()
         }

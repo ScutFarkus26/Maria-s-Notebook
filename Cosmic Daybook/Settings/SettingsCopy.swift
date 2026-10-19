@@ -166,7 +166,7 @@ enum SettingsCopy {
             case .appleCalendar:
                 return ["Calendar", "Calendars", "Events", "Today"]
             case .reminders:
-                return ["Reminders list", "Sync from list", "Today"]
+                return ["Reminders list", "Show reminders from", "Today"]
             case .tide:
                 return ["To-dos", "Todos", "Share to-dos", "Connection address", "Classroom to-dos",
                         "New to-dos go to", "Show in the notebook"]
