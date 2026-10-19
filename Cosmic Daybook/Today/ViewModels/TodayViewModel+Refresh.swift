@@ -27,10 +27,12 @@ extension TodayViewModel {
     /// another device, left a stale row whose Start and Remove did nothing.
     /// "OrderItem" for the Restock card: an assistant marking a staple Out
     /// opens a need, and the guide learns of it here (there are no
-    /// notifications).
+    /// notifications). "Schedule" and "ScheduleSlot" for the Schedule
+    /// section: a child added to a schedule in its own screen shows at once.
     nonisolated static let reloadInputEntities: Set<String> = [
         "WorkModel", "LessonAssignment", "WorkCheckIn", "TodoItem",
-        "AttendanceRecord", "ScheduledMeeting", "StudentMeeting", "OrderItem"
+        "AttendanceRecord", "ScheduledMeeting", "StudentMeeting", "OrderItem",
+        "Schedule", "ScheduleSlot"
     ]
 
     /// `reload()` as an Instruments interval ("Today" category).

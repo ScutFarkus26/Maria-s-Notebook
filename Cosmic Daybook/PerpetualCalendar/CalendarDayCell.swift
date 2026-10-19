@@ -48,6 +48,10 @@ struct CalendarDayCell<Extra: View>: View {
     let displayText: String
     let isHoliday: Bool
     let isEditing: Bool
+    /// The text being edited has more than one line (a day's pad, written on
+    /// Today): the field wraps, up to a few lines, instead of running them
+    /// together on one, and Return on iPhone and iPad starts a new line.
+    let editsMultipleLines: Bool
     @Binding var editText: String
     let metrics: CalendarDayMetrics
     let onBeginEdit: () -> Void
@@ -64,6 +68,7 @@ struct CalendarDayCell<Extra: View>: View {
         displayText: String,
         isHoliday: Bool,
         isEditing: Bool,
+        editsMultipleLines: Bool = false,
         editText: Binding<String>,
         metrics: CalendarDayMetrics,
         onBeginEdit: @escaping () -> Void,
@@ -77,6 +82,7 @@ struct CalendarDayCell<Extra: View>: View {
         self.displayText = displayText
         self.isHoliday = isHoliday
         self.isEditing = isEditing
+        self.editsMultipleLines = editsMultipleLines
         _editText = editText
         self.metrics = metrics
         self.onBeginEdit = onBeginEdit
@@ -96,11 +102,13 @@ struct CalendarDayCell<Extra: View>: View {
                     .padding(.top, metrics.parshaTopPadding)
             }
 
-            HStack(spacing: 4) {
+            // A field holding several lines keeps the day number by its first line.
+            HStack(alignment: isEditing && editsMultipleLines ? .firstTextBaseline : .center, spacing: 4) {
                 dayNumber
 
                 if isEditing {
-                    TextField("", text: $editText)
+                    TextField("", text: $editText, axis: editsMultipleLines ? .vertical : .horizontal)
+                        .lineLimit(editsMultipleLines ? 1...6 : 1...1)
                         .font(.system(.caption, design: .rounded))
                         .textFieldStyle(.plain)
                         .frame(maxWidth: .infinity, alignment: .leading)

@@ -40,4 +40,11 @@ enum Weekday: String, Codable, CaseIterable, Identifiable, Sendable {
     static var schoolDays: [Weekday] {
         [.monday, .tuesday, .wednesday, .thursday, .friday]
     }
+
+    /// The day of the week `date` falls on in `calendar` (the app's own, in
+    /// the device's time zone, unless one is given).
+    init(date: Date, calendar: Calendar = AppCalendar.shared) {
+        let number = calendar.component(.weekday, from: date)
+        self = Self.allCases.first { $0.calendarWeekday == number } ?? .sunday
+    }
 }

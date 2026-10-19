@@ -281,3 +281,72 @@ struct MCPScheduleToolsTests {
         }
     }
 }
+
+// MARK: - The day's note (Simplify the app, Phase 7)
+
+// Outside the struct body only for SwiftLint's type length limit.
+extension MCPScheduleToolsTests {
+
+    @Test("schedule_for_range reads the day's pad, and an old Calendar note until it is in the pad or marked copied")
+    func scheduleForRangeReadsThePad() async throws {
+        let (tools, context) = try makeTools()
+        let day = AppCalendar.startOfDay(try CoreDataTestHelpers.day("2026-10-20"))
+        let pad = CDDayPad(context: context, day: day)
+        pad.body = "Picture day\nBring forms"
+        // Calendar notes an older build wrote: one the pad already says, one
+        // on the next day not copied yet, which shows read-only, and one the
+        // Mac copied (marked) whose line she has since taken off the pad.
+        for (dayOfMonth, text, copied) in [
+            (20, "Picture day", false), (21, "Old calendar note", false), (20, "Order golden beads", true)
+        ] {
+            let note = CDCalendarNote(context: context)
+            note.id = UUID()
+            note.year = 2026
+            note.month = 10
+            note.day = Int64(dayOfMonth)
+            note.text = text
+            if copied { note.modifiedAt = CalendarNotePadCopy.copiedMark }
+        }
+        CoreDataTestHelpers.save(context)
+
+        let output = try await tool(named: "schedule_for_range", in: tools).handler([
+            "start_date": .string("2026-10-20"), "end_date": .string("2026-10-21")
+        ])
+        #expect(output.contains("Day pad:\n    Picture day\n    Bring forms"))
+        #expect(output.components(separatedBy: "Picture day").count - 1 == 1)
+        #expect(output.contains(
+            "2026-10-21 (Wednesday)\n  Older calendar notes, not yet in the day pad (the Mac adds them; "
+                + "don't copy them in):\n    - Old calendar note"
+        ))
+        #expect(output.components(separatedBy: "Older calendar notes").count - 1 == 1)
+        #expect(!output.contains("Order golden beads"))
+
+        // A child's schedule leaves the classroom's note out.
+        CoreDataTestHelpers.seedStudent(in: context, firstName: "Maya", lastName: "Soto")
+        CoreDataTestHelpers.save(context)
+        let forMaya = try await tool(named: "schedule_for_range", in: tools).handler([
+            "start_date": .string("2026-10-20"), "student_name": .string("Maya")
+        ])
+        #expect(!forMaya.contains("Picture day"))
+    }
+
+    @Test("schedule_for_range shows two devices' pads for a day as one, and writes nothing")
+    func scheduleForRangeReadsUnjoinedPads() async throws {
+        let (tools, context) = try makeTools()
+        let day = AppCalendar.startOfDay(try CoreDataTestHelpers.day("2026-10-20"))
+        let mac = CDDayPad(context: context, day: day)
+        mac.body = "Picture day"
+        mac.createdAt = day.addingTimeInterval(8 * 3600)
+        let iPad = CDDayPad(context: context, day: day)
+        iPad.body = "Bring forms"
+        iPad.createdAt = day.addingTimeInterval(9 * 3600)
+        CoreDataTestHelpers.save(context)
+
+        let output = try await tool(named: "schedule_for_range", in: tools).handler([
+            "start_date": .string("2026-10-20")
+        ])
+        #expect(output.contains("Day pad:\n    Picture day\n    Bring forms"))
+        #expect(!context.hasChanges)
+        #expect(context.safeFetch(CDFetchRequest(CDDayPad.self)).count == 2)
+    }
+}

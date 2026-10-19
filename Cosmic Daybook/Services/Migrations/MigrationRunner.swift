@@ -79,7 +79,154 @@ enum MigrationRunner {
         if let ledger = outcome.orphanGraceLedger {
             OrphanStudentGrace.save(ledger, to: .standard)
         }
+
+        // Calendar notes join their days' pads (one day note): on the Mac, on
+        // the view context, each launch once it has caught up with iCloud.
+        #if os(macOS)
+        startCalendarNotePadCopy(
+            coreDataStack: coreDataStack,
+            firstDownloadPending: firstDownloadPending,
+            lastImport: lastImport(.privateStore)
+        )
+        #endif
     }
+
+    /// Copies the Calendar's notes into their days' pads (`CalendarNotePadCopy`),
+    /// marking each note on its row, and saves the pads and the marks together.
+    ///
+    /// - Every launch, not once: a note an older build writes later, on any
+    ///   device, is copied the next time. The marks make a launch with nothing
+    ///   new one fetch that finds nothing, and no write.
+    /// - Not while the first download from iCloud is under way
+    ///   (`FirstDownloadGate`), nor before this launch has caught up with
+    ///   iCloud (`copyCalendarNotesToPadsOnceCaughtUp`): pads already holding
+    ///   the copies, or edited on the iPad since, may still be on their way down.
+    /// - On the view context, where Today's Pad and the Calendar edit: a pad
+    ///   open in an editor sees the added text and merges it with her typing
+    ///   (`TodayDataFetcher.savePadText`), where a second context's save
+    ///   could cross hers.
+    /// - Never with someone else's edit: the save is the view context's whole
+    ///   save, so while the context holds a change not saved yet (a field
+    ///   being typed in, a sheet's draft) this pass doesn't run, and returns
+    ///   nil; the caller tries again at the next finished import, or the next
+    ///   launch does. Between that check and the save nothing else runs, so a
+    ///   failed save is rolled back, losing only the copy's own changes, and
+    ///   is tried again the same way.
+    /// - On the Mac only (the caller gates it), as with the Restock backfill:
+    ///   one device writes the copies and the iPad and iPhone get them through
+    ///   iCloud, so a device that hasn't caught up can't add a note again to a
+    ///   pad edited elsewhere since, nor send a stale pad back over that edit.
+    ///   It is safe to run on two devices all the same (the pad's text is
+    ///   checked first, and two devices' copies of a day are joined).
+    ///
+    /// Only the primary copy of the app runs it (`runIfNeeded` is the launch
+    /// pass), and only on the notebook's own stack: the Sample Class has its
+    /// own store and never runs the launch pass, and hosted tests skip it.
+    /// Returns what it did, or nil when it didn't run or couldn't save.
+    @discardableResult
+    static func copyCalendarNotesToPads(
+        in context: NSManagedObjectContext,
+        firstDownloadPending: Bool
+    ) -> CalendarNotePadCopy.Outcome? {
+        guard !firstDownloadPending else { return nil }
+        guard !context.hasChanges else {
+            logger.info("Calendar notes wait to go into the day pads: a change on screen isn't saved yet")
+            return nil
+        }
+        let outcome = CalendarNotePadCopy.run(in: context)
+        guard context.safeSave() else {
+            context.rollback()
+            logger.error("Calendar notes couldn't be saved into the day pads; they're tried again later")
+            return nil
+        }
+        if outcome.copied > 0 {
+            logger.notice("Copied \(outcome.copied, privacy: .public) calendar note(s) into their day pads")
+        }
+        return outcome
+    }
+
+    /// `copyCalendarNotesToPads`, once this launch has caught up with iCloud
+    /// (`CalendarNotePadCopy.caughtUp`): an import into the notebook that began
+    /// after the app started (`launchedAt`) has finished, the way the orphan
+    /// graces wait for one (`OrphanStudentGrace`). `lastImport` is the latest
+    /// on record (`ImportWatermark`), or the launch itself when iCloud sync is
+    /// off; otherwise it waits for one among `finishedImports`, the starts of
+    /// imports into the notebook as each finishes. A pass that doesn't run (a
+    /// change on screen not saved yet) or can't save is tried again at the
+    /// next of them. None coming (offline all day) leaves the copy to a later
+    /// launch. Returns what the copy did, or nil when it didn't run.
+    @discardableResult
+    static func copyCalendarNotesToPadsOnceCaughtUp(
+        in context: NSManagedObjectContext,
+        launchedAt: Date,
+        lastImport: Date?,
+        finishedImports: some AsyncSequence<Date, Never>
+    ) async -> CalendarNotePadCopy.Outcome? {
+        if CalendarNotePadCopy.caughtUp(lastImport: lastImport, launchedAt: launchedAt),
+           let outcome = copyCalendarNotesToPads(in: context, firstDownloadPending: false) {
+            return outcome
+        }
+        for await started in finishedImports
+        where CalendarNotePadCopy.caughtUp(lastImport: started, launchedAt: launchedAt) {
+            if let outcome = copyCalendarNotesToPads(in: context, firstDownloadPending: false) {
+                return outcome
+            }
+        }
+        return nil
+    }
+
+    #if os(macOS)
+    /// Starts this launch's copy of the Calendar notes into the day pads
+    /// (`copyCalendarNotesToPadsOnceCaughtUp`) without holding up the rest of
+    /// the launch. A launch during the first download leaves it to the next.
+    private static func startCalendarNotePadCopy(
+        coreDataStack: CoreDataStack,
+        firstDownloadPending: Bool,
+        lastImport: Date?
+    ) {
+        guard !firstDownloadPending, let notebook = coreDataStack.privatePersistentStore?.identifier else { return }
+        let context = coreDataStack.viewContext
+        let launchedAt = processStartDate() ?? Date()
+        Task {
+            // Listening before the watermark is read again, so an import that
+            // finishes in between is heard.
+            let imports = NotificationCenter.default
+                .notifications(named: NSPersistentCloudKitContainer.eventChangedNotification)
+                .compactMap { finishedImportStart($0, storeIdentifier: notebook) }
+            let latest = [lastImport, ImportWatermark.lastImport(into: .notebook, of: coreDataStack)]
+                .compactMap { $0 }
+                .max()
+            await copyCalendarNotesToPadsOnceCaughtUp(
+                in: context, launchedAt: launchedAt, lastImport: latest, finishedImports: imports
+            )
+        }
+    }
+
+    /// When the import a CloudKit event notification reports began, if it is
+    /// an import into the store with `storeIdentifier` that finished and
+    /// worked (`RemoteImportReloader.isFinishedImport`). Read off the
+    /// notification before it reaches the main actor: `Notification` isn't
+    /// Sendable.
+    nonisolated private static func finishedImportStart(_ note: Notification, storeIdentifier: String) -> Date? {
+        guard RemoteImportReloader.isFinishedImport(note, storeIdentifier: storeIdentifier),
+              let event = note.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
+                as? NSPersistentCloudKitContainer.Event
+        else { return nil }
+        return event.startDate
+    }
+
+    /// When this process started, from the kernel: "this launch" for the
+    /// copy's wait, since the launch's own first import begins right after.
+    nonisolated private static func processStartDate() -> Date? {
+        var info = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.stride
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid()]
+        guard sysctl(&mib, u_int(mib.count), &info, &size, nil, 0) == 0, size > 0 else { return nil }
+        let start = info.kp_proc.p_un.__p_starttime
+        guard start.tv_sec > 0 else { return nil }
+        return Date(timeIntervalSince1970: TimeInterval(start.tv_sec) + TimeInterval(start.tv_usec) / 1_000_000)
+    }
+    #endif
 
     /// The launch pass's middle step: deduplication and the other launch
     /// cleanups, then one save. On `context`'s queue.

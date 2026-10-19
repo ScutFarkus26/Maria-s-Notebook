@@ -141,12 +141,13 @@ struct TodaySectionVisibilityTests {
 
     // MARK: - Orderings
 
-    @Test("The agenda, its meetings and Gone quiet are in the phone ordering and own the macOS left column")
+    @Test("The agenda, its meetings, the schedules and Gone quiet own the macOS left column")
     func agendaPlacement() {
         #expect(TodaySectionVisibility.phoneOrder.contains(.agenda))
-        #expect(TodaySectionVisibility.macLeftColumnOrder == [.agenda, .meetings, .goneQuiet])
+        #expect(TodaySectionVisibility.macLeftColumnOrder == [.agenda, .meetings, .schedule, .goneQuiet])
         #expect(TodaySectionVisibility.macRightColumnOrder.contains(.agenda) == false)
         #expect(TodaySectionVisibility.macRightColumnOrder.contains(.meetings) == false)
+        #expect(TodaySectionVisibility.macRightColumnOrder.contains(.schedule) == false)
         #expect(TodaySectionVisibility.macRightColumnOrder.contains(.goneQuiet) == false)
     }
 
@@ -157,18 +158,30 @@ struct TodaySectionVisibilityTests {
         #expect(order[agenda + 1] == .meetings)
     }
 
-    @Test("Gone quiet follows the meetings on the phone, then the Needs-a-lesson card and the todos")
+    @Test("On the phone the meetings are followed by the schedules, Gone quiet, Needs-a-lesson and the todos")
     func goneQuietFollowsTheMeetingsOnThePhone() throws {
         let order = TodaySectionVisibility.phoneOrder
         let meetings = try #require(order.firstIndex(of: .meetings))
-        #expect(order[meetings + 1] == .goneQuiet)
-        #expect(order[meetings + 2] == .dayCards)
-        #expect(order[meetings + 3] == .todos)
+        #expect(order[meetings + 1] == .schedule)
+        #expect(order[meetings + 2] == .goneQuiet)
+        #expect(order[meetings + 3] == .dayCards)
+        #expect(order[meetings + 4] == .todos)
     }
 
-    @Test("The phone leads with the plan: lessons (with the Next card), meetings, Gone quiet")
+    @Test("The phone leads with the plan: lessons (with the Next card), meetings, schedules, Gone quiet")
     func phoneLeadsWithThePlan() {
-        #expect(Array(TodaySectionVisibility.phoneOrder.prefix(3)) == [.agenda, .meetings, .goneQuiet])
+        #expect(
+            Array(TodaySectionVisibility.phoneOrder.prefix(4)) == [.agenda, .meetings, .schedule, .goneQuiet]
+        )
+    }
+
+    @Test("The Schedule section shows only when a schedule has someone on the day, and school is open")
+    func scheduleNeedsASlotOnASchoolDay() {
+        #expect(TodaySectionVisibility.showsSchedule(slotCount: 0, isNonSchoolDay: false) == false)
+        #expect(TodaySectionVisibility.showsSchedule(slotCount: 3, isNonSchoolDay: false))
+        // A holiday Monday: the Monday sessions don't happen.
+        #expect(TodaySectionVisibility.showsSchedule(slotCount: 3, isNonSchoolDay: true) == false)
+        #expect(TodaySectionVisibility.showsSchedule(slotCount: 0, isNonSchoolDay: true) == false)
     }
 
     @Test("Gone quiet shows only when some open work has gone quiet")
@@ -188,7 +201,7 @@ struct TodaySectionVisibilityTests {
         #expect(
             TodaySectionVisibility.macRightColumnOrder
                 == TodaySectionVisibility.phoneOrder.filter {
-                    $0 != .agenda && $0 != .meetings && $0 != .goneQuiet
+                    $0 != .agenda && $0 != .meetings && $0 != .schedule && $0 != .goneQuiet
                 }
         )
     }

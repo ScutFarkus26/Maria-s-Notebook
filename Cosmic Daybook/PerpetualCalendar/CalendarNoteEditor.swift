@@ -1,16 +1,20 @@
 // CalendarNoteEditor.swift
-// Inline day-note editing shared by the calendar grids.
+// Inline day-note editing for the planning calendar: the day's pad.
 
 import CoreData
 import Foundation
 import SwiftUI
 
 /// Holds the day cell whose text field is open and the text being typed into
-/// it, and writes the draft back to its `CDCalendarNote` on commit.
+/// it, and writes the draft back to that day's pad (`CDDayPad`) on commit.
 ///
-/// Both calendar grids edit notes the same way — tap a day, type, hit return,
-/// and opening a second day commits the first — so the rules for when a note
-/// is created, updated or deleted live here instead of in each view.
+/// A day has one note, its pad: the Calendar, Today's Pad and the Claude tools
+/// read and write the same text (Simplify the app, Phase 7). The Calendar's
+/// own notes (`CDCalendarNote`) were copied into the pads at launch
+/// (`CalendarNotePadCopy`) and are no longer written.
+///
+/// Tap a day, type, hit return (or click away), and opening a second day
+/// commits the first, so the rules for what a commit writes live here.
 @Observable
 final class CalendarNoteEditor {
 
@@ -24,68 +28,70 @@ final class CalendarNoteEditor {
     /// writes nothing.
     private var openingText = ""
 
+    /// The day's pad text when the field opened: what a save is measured
+    /// against, so a change made meanwhile on another device or on Today is
+    /// kept rather than written over (`TodayDataFetcher.savePadText`).
+    private var openingPadText = ""
+
+    /// Whether the open field holds more than one line: the pad written on
+    /// Today can, and its field then wraps rather than flattening the lines.
+    var editsMultipleLines: Bool { openingText.contains(where: \.isNewline) }
+
     /// Open `cellID` for editing, committing whichever cell was open before.
+    /// `padTexts` is each day's pad text, as the grid shows it.
     func beginEditing(
         _ cellID: CellID,
-        notes: [CellID: CDCalendarNote],
+        padTexts: [CellID: String],
         in context: NSManagedObjectContext
     ) {
         if let previous = editingCell, previous != cellID {
-            commit(previous, notes: notes, in: context)
+            commit(previous, in: context)
         }
-        let opening = Self.openingText(for: cellID, notes: notes)
+        let padText = padTexts[cellID] ?? ""
+        let opening = Self.openingText(for: cellID, padText: padText)
         draft = opening
         openingText = opening
+        openingPadText = padText
         editingCell = cellID
     }
 
-    /// What a day's field opens with: its stored note, whatever the grid's
+    /// What a day's field opens with: its pad's text, whatever the grid's
     /// layers show, else the holiday it falls on, else nothing. The grid used
     /// to pass what it showed, so with the Notes layer hidden the field opened
     /// empty (or with the holiday) and the commit that followed deleted or
     /// overwrote the hidden note (2026-10-17 hunt, #8).
-    static func openingText(for cellID: CellID, notes: [CellID: CDCalendarNote]) -> String {
-        if let text = notes[cellID]?.text, !text.trimmed().isEmpty {
-            return text
+    static func openingText(for cellID: CellID, padText: String) -> String {
+        if !padText.trimmed().isEmpty {
+            return padText
         }
         return PerpetualHolidays.holiday(month: cellID.month, day: cellID.day, year: cellID.year) ?? ""
     }
 
-    /// Write the draft back to `cellID` and close the text field.
+    /// Write the draft to `cellID`'s pad and close the text field.
     ///
     /// A draft left as the field opened writes nothing. A note that is
-    /// emptied, or typed back to the holiday name it was standing in for, is
-    /// deleted rather than stored.
-    func commit(
-        _ cellID: CellID,
-        notes: [CellID: CDCalendarNote],
-        in context: NSManagedObjectContext
-    ) {
+    /// emptied, or typed back to the holiday name it was standing in for,
+    /// empties the pad, and the holiday shows again. The pad is looked up
+    /// again first, and a change made to it since the field opened is kept,
+    /// with what she typed added after it. Her text is saved trimmed, so the
+    /// merge compares the three texts trimmed too (`TodayDataFetcher.mergedPadText`):
+    /// a pad that opened ending in a line break used to go in again whole.
+    func commit(_ cellID: CellID, in context: NSManagedObjectContext) {
         let trimmed = draft.trimmed()
         let unchanged = trimmed == openingText.trimmed()
+        let base = openingPadText
         editingCell = nil
         draft = ""
         openingText = ""
-        guard !unchanged else { return }
+        openingPadText = ""
+        guard !unchanged, let day = cellID.startOfDay() else { return }
 
         let holiday = PerpetualHolidays.holiday(month: cellID.month, day: cellID.day, year: cellID.year)
-
-        if let existing = notes[cellID] {
-            if trimmed.isEmpty || trimmed == holiday {
-                context.delete(existing)
-            } else {
-                existing.text = trimmed
-                existing.modifiedAt = Date()
-            }
-        } else if !trimmed.isEmpty && trimmed != holiday {
-            let newNote = CDCalendarNote(context: context)
-            newNote.year = Int64(cellID.year)
-            newNote.month = Int64(cellID.month)
-            newNote.day = Int64(cellID.day)
-            newNote.text = trimmed
+        let text = trimmed == holiday ? "" : trimmed
+        _ = TodayDataFetcher.savePadText(text, base: base, day: day, context: context)
+        if context.hasChanges {
+            context.safeSave()
         }
-
-        context.safeSave()
     }
 
     /// Commits `cellID` only while it is still the open cell. Leaving a day's
@@ -95,32 +101,50 @@ final class CalendarNoteEditor {
     /// commits the first and moves the draft to the second, and the first
     /// field's focus loss can arrive after that: it must not write the second
     /// day's text into the first.
-    func commitIfOpen(
-        _ cellID: CellID,
-        notes: [CellID: CDCalendarNote],
-        in context: NSManagedObjectContext
-    ) {
+    func commitIfOpen(_ cellID: CellID, in context: NSManagedObjectContext) {
         guard editingCell == cellID else { return }
-        commit(cellID, notes: notes, in: context)
+        commit(cellID, in: context)
     }
 
     /// Commits whichever day is open, if any (the calendar going away).
-    func commitOpenCell(notes: [CellID: CDCalendarNote], in context: NSManagedObjectContext) {
+    func commitOpenCell(in context: NSManagedObjectContext) {
         guard let open = editingCell else { return }
-        commit(open, notes: notes, in: context)
+        commit(open, in: context)
     }
 }
 
-// MARK: - Note lookup
+// MARK: - Pad lookup
 
-extension FetchedResults where Result == CDCalendarNote {
+extension CalendarNoteEditor {
 
-    /// The fetched notes keyed by the day cell they belong to.
-    var byCell: [CellID: CDCalendarNote] {
-        var lookup: [CellID: CDCalendarNote] = [:]
-        for note in self {
-            lookup[CellID(year: Int(note.year), month: Int(note.month), day: Int(note.day))] = note
+    /// Each day's pad text keyed by its cell, as a join of the day's copies
+    /// would leave it (`TodayDataFetcher.joinedText`), without joining them;
+    /// days whose pads hold nothing but spaces are left out.
+    static func padTexts(of pads: some Sequence<CDDayPad>) -> [CellID: String] {
+        var padsByCell: [CellID: [CDDayPad]] = [:]
+        for pad in pads where !pad.isDeleted {
+            guard let day = pad.day else { continue }
+            padsByCell[CellID(date: day), default: []].append(pad)
+        }
+        var lookup: [CellID: String] = [:]
+        for (cell, dayPads) in padsByCell {
+            let text = TodayDataFetcher.joinedText(of: TodayDataFetcher.joinOrder(dayPads))
+            if !text.trimmed().isEmpty { lookup[cell] = text }
         }
         return lookup
+    }
+}
+
+// MARK: - Shown in a cell
+
+extension CalendarDayText {
+
+    /// A pad's text on one line of a day cell: each line that has writing on
+    /// it, trimmed, joined with a middle dot.
+    static func padSummary(_ text: String) -> String {
+        text.split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " \u{00B7} ")
     }
 }

@@ -2,15 +2,16 @@
 // The order Today's sections appear in, on each platform.
 //
 // The phone sequence is the guide's morning, read top to bottom: the day's
-// plan (the lessons, led by the Next card, then the meetings and the work
-// gone quiet), the Needs-a-lesson card and her todo list, then what she is
+// plan (the lessons, led by the Next card, then the meetings, who is on the
+// recurring schedules, and the work gone quiet), the Needs-a-lesson card and
+// her todo list, then what she is
 // watching (ready-for-next, following presentations, recent observations),
 // then the external feeds she does not own (calendar, reminders), then the
 // monthly nudge, the pad, and last the retrospective of what is already done.
 // The iPad draws the same list, under the attendance band.
 //
 // The Mac splits that in two. The plan is the wide left column — the lessons,
-// then the meetings, then Gone quiet.
+// then the meetings, the schedules, then Gone quiet.
 // A fixed 340-pt right column holds the rest in the phone's order: the
 // Needs-a-lesson card, Todos, then the count-gated sections. A todo opens in
 // an inspector at the window's trailing edge instead of replacing either
@@ -56,6 +57,7 @@ extension TodayView {
     private var phoneSections: some View {
         agendaListSection
         meetingsListSection
+        scheduleListSection
         goneQuietListSection
         dayCardsListSection
         todosListSection
@@ -95,11 +97,12 @@ extension TodayView {
     }
 
     /// Mirrors `TodaySectionVisibility.macLeftColumnOrder` — the day's plan:
-    /// the lessons, then the meetings, then the work gone quiet.
+    /// the lessons, then the meetings, the schedules, then the work gone quiet.
     @ViewBuilder
     private var macLeftColumnSections: some View {
         agendaListSection
         meetingsListSection
+        scheduleListSection
         goneQuietListSection
     }
 

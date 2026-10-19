@@ -36,23 +36,69 @@ extension TodayDataFetcher {
     /// Joins one day's pads into the first by `createdAt`, then `id`, and
     /// deletes the rest. See `fetchDayPad`.
     static func joinDuplicatePads(_ pads: [CDDayPad], in context: NSManagedObjectContext) -> CDDayPad? {
-        let ordered = pads.sorted { lhs, rhs in
+        let ordered = joinOrder(pads)
+        guard let kept = ordered.first else { return nil }
+        let body = joinedText(of: ordered)
+        for other in ordered.dropFirst() {
+            context.delete(other)
+        }
+        kept.setBody(body)
+        return kept
+    }
+
+    /// One day's pads in the order a join takes them: by `createdAt`, then
+    /// `id`, so every device keeps the same one.
+    static func joinOrder(_ pads: [CDDayPad]) -> [CDDayPad] {
+        pads.sorted { lhs, rhs in
             let left = lhs.createdAt ?? .distantPast
             let right = rhs.createdAt ?? .distantPast
             if left != right { return left < right }
             return (lhs.id?.uuidString ?? "") < (rhs.id?.uuidString ?? "")
         }
-        guard let kept = ordered.first else { return nil }
+    }
+
+    /// The text a join leaves in the kept pad (`ordered`'s first): its own
+    /// text, then each other pad's, after a blank line, unless already there.
+    /// Changes nothing, so a screen can show what a join would keep.
+    static func joinedText(of ordered: [CDDayPad]) -> String {
+        guard let kept = ordered.first else { return "" }
         var body = kept.body ?? ""
         for other in ordered.dropFirst() {
             let text = (other.body ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             if !text.isEmpty, !body.contains(text) {
                 body = body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? text : body + "\n\n" + text
             }
-            context.delete(other)
         }
-        kept.setBody(body)
-        return kept
+        return body
+    }
+
+    /// The day's pad text as a join would leave it, without joining: for
+    /// readers that must not write, such as the Claude tool `schedule_for_range`.
+    /// Empty when the day has no pad.
+    static func padText(day: Date, context: NSManagedObjectContext) -> String {
+        let request = CDFetchRequest(CDDayPad.self)
+        request.predicate = NSPredicate(format: "day == %@", AppCalendar.startOfDay(day) as NSDate)
+        let pads = context.safeFetch(request).filter { !$0.isDeleted }
+        return joinedText(of: joinOrder(pads))
+    }
+
+    // MARK: - Adding to a Pad
+
+    /// Adds `text`, trimmed, to the end of the day's pad as a paragraph of its
+    /// own (after a blank line), making the pad when the day has none. Joins
+    /// the day's copies first (`fetchDayPad`). Whether the text is already
+    /// there is the caller's call. Returns the pad, or nil for empty text.
+    /// Doesn't save the context.
+    @discardableResult
+    static func appendPadText(_ text: String, day: Date, context: NSManagedObjectContext) -> CDDayPad? {
+        let addition = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !addition.isEmpty else { return nil }
+        let dayStart = AppCalendar.startOfDay(day)
+        let pad = fetchDayPad(day: dayStart, context: context) ?? CDDayPad(context: context, day: dayStart)
+        let stored = pad.body ?? ""
+        let storedText = stored.trimmingCharacters(in: .whitespacesAndNewlines)
+        pad.setBody(storedText.isEmpty ? addition : stored + "\n\n" + addition)
+        return pad
     }
 
     // MARK: - Saving From an Open Editor
@@ -90,10 +136,25 @@ extension TodayDataFetcher {
     /// Changed underneath: the stored text, then what she added after `base`
     /// (or all she has, if she edited inside it), after a blank line, unless
     /// the stored text already contains it.
+    ///
+    /// The three are compared with the spacing at their ends trimmed. The
+    /// Calendar's field saves her text trimmed, while the pad it opened on
+    /// can end with a line break: compared as they were, her addition read as
+    /// an edit inside the pad, and the whole pad went in again after itself;
+    /// so did a stored text that differed only by that line break.
     static func mergedPadText(typed: String, base: String, stored: String) -> String {
-        guard stored != base else { return typed }
-        guard typed != base, !stored.contains(typed) else { return stored }
-        let added = typed.hasPrefix(base) ? String(typed.dropFirst(base.count)) : typed
+        let typedText = typed.trimmingCharacters(in: .whitespacesAndNewlines)
+        let baseText = base.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard stored.trimmingCharacters(in: .whitespacesAndNewlines) != baseText else { return typed }
+        guard typedText != baseText, !stored.contains(typedText) else { return stored }
+        let added: Substring
+        if typed.hasPrefix(base) {
+            added = typed.dropFirst(base.count)
+        } else if typedText.hasPrefix(baseText) {
+            added = typedText.dropFirst(baseText.count)
+        } else {
+            added = Substring(typed)
+        }
         let addition = added.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !addition.isEmpty, !stored.contains(addition) else { return stored }
         let storedText = stored.trimmingCharacters(in: .whitespacesAndNewlines)

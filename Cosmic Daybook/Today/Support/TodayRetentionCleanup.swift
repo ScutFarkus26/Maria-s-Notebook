@@ -8,6 +8,8 @@ import OSLog
 /// Deletes Today's saved agenda-order rows, and its empty day pads, dated
 /// before the start of the day 30 days ago — at most 1,000 of each per run.
 /// Pads with text are kept, so a guide can return to past notes indefinitely.
+/// That covers the Calendar's day notes, which are pads too (copied in by
+/// `CalendarNotePadCopy`, never empty), and a pad dated ahead is never taken.
 ///
 /// Until 2026-09-26 `TodayViewModel` did this on the main thread each time it
 /// was created, and until 2026-09-27 `TodayView.init` created one on every

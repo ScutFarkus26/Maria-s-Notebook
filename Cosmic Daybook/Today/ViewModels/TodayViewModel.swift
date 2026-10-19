@@ -98,6 +98,9 @@ final class TodayViewModel {
     // Completed meetings for today
     var completedMeetings: [CDStudentMeeting] = []
 
+    /// The day's slots on the recurring schedules, grouped by schedule.
+    var scheduleGroups: [TodayScheduleSlots.Group] = []
+
     var attendanceSummary: AttendanceSummary = AttendanceSummary()
     var absentToday: [UUID] = []
     var leftEarlyToday: [UUID] = []
@@ -209,10 +212,7 @@ final class TodayViewModel {
         self.date = date.startOfDay
 
         // Clean up old agenda order entries and empty day pads: once a day per
-        // store, on a background context. One view model is made per Today
-        // screen (`TodayRootView`); until 2026-09-27 `TodayView.init` made one
-        // on every redraw of its parent, and this once ran for each of them on
-        // the main thread.
+        // store, on a background context (`TodayRetentionCleanup` has the history).
         TodayRetentionCleanup.startIfDue(for: context)
     }
 
@@ -302,9 +302,11 @@ final class TodayViewModel {
             day: day, nextDay: nextDay, context: context, errorCollector: errorCollector
         )
 
-        // 6. Fetch scheduled meetings
+        // 6. Fetch scheduled meetings, and the day's slots on the recurring schedules
         let meetingsResult = TodayDataFetcher.fetchScheduledMeetings(day: day, nextDay: nextDay, context: context)
+        let scheduleSlots = TodayScheduleSlots.fetch(weekday: Weekday(date: day, calendar: calendar), context: context)
         cacheManager.loadStudentsIfNeeded(ids: meetingsResult.neededStudentIDs, context: context)
+        cacheManager.loadStudentsIfNeeded(ids: scheduleSlots.neededStudentIDs, context: context)
 
         // 6a. Fetch completed meetings
         let completedMeetingsResult = TodayDataFetcher.fetchCompletedMeetings(
@@ -360,6 +362,7 @@ final class TodayViewModel {
             completedMeetingsResult.meetings, studentsByID: studentsByID, levelFilter: levelFilter
         )
         meetingStudentsByID = meetingStudents
+        scheduleGroups = TodayScheduleSlots.groups(scheduleSlots, studentsByID: studentsByID, levelFilter: levelFilter)
         attendanceSummary = processedAttendance.summary
         absentToday = processedAttendance.absentStudentIDs
         leftEarlyToday = processedAttendance.leftEarlyStudentIDs

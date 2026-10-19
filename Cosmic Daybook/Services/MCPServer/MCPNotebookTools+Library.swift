@@ -299,8 +299,9 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "day_pad",
             title: "Day Pad",
-            description: "The teacher's scratch pad for a day — whatever they jotted down that "
-                + "did not belong anywhere else. Reads one day, or writes/replaces it.",
+            description: "The teacher's note for a day — whatever they jotted down that did not "
+                + "belong anywhere else. It is the one day note: Today's Pad and the Calendar show "
+                + "the same text. Reads one day, or writes/replaces it.",
             inputSchema: [
                 "type": "object",
                 "properties": [

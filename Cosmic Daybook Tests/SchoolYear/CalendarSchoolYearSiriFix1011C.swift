@@ -212,6 +212,7 @@ struct CalendarSchoolYearSiriFix1011C {
 
     /// Focus leaving a day commits only that day: a late focus-lost from the
     /// day she just left must not write the newly opened day's text into it.
+    /// (The Calendar's day note is the day's pad since Simplify the app's Phase 7.)
     @Test("#41 A focus-lost commit only writes the day still open")
     func calendarNoteCommitIfOpen() throws {
         let context = try makeContext()
@@ -219,24 +220,26 @@ struct CalendarSchoolYearSiriFix1011C {
         let first = CellID(year: 2026, month: 10, day: 6)
         let second = CellID(year: 2026, month: 10, day: 7)
 
-        editor.beginEditing(first, notes: [:], in: context)
+        editor.beginEditing(first, padTexts: [:], in: context)
         editor.draft = "Picture day"
-        editor.commitIfOpen(first, notes: [:], in: context)
+        editor.commitIfOpen(first, in: context)
 
-        let request = CDFetchRequest(CDCalendarNote.self)
-        var notes = try context.fetch(request)
-        #expect(notes.count == 1)
-        #expect(notes.first?.text == "Picture day")
+        let request = CDFetchRequest(CDDayPad.self)
+        var pads = try context.fetch(request)
+        let firstDay = try #require(first.startOfDay())
+        #expect(pads.count == 1)
+        #expect(pads.first?.body == "Picture day")
+        #expect(pads.first?.day == firstDay)
         #expect(editor.editingCell == nil)
 
-        editor.beginEditing(second, notes: [:], in: context)
+        editor.beginEditing(second, padTexts: [:], in: context)
         editor.draft = "Field trip"
         // The first day's field reports losing focus after the second opened.
-        editor.commitIfOpen(first, notes: [:], in: context)
+        editor.commitIfOpen(first, in: context)
         #expect(editor.editingCell == second)
-        notes = try context.fetch(request)
-        #expect(notes.count == 1)
-        #expect(notes.first?.text == "Picture day")
+        pads = try context.fetch(request)
+        #expect(pads.count == 1)
+        #expect(pads.first?.body == "Picture day")
     }
 
     // MARK: - #42 School day toggle

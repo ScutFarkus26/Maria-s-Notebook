@@ -29,6 +29,7 @@ import Foundation
 enum TodaySection: String, CaseIterable, Sendable {
     case agenda
     case meetings
+    case schedule
     case goneQuiet
     case dayCards
     case todos
@@ -63,6 +64,13 @@ enum TodaySectionVisibility {
     /// The day's scheduled meetings, in a small section of their own after
     /// the lessons — gone on a day with none.
     static func showsMeetings(count: Int) -> Bool { count > 0 }
+
+    /// Who is on the recurring schedules today (reading support and the
+    /// like), after the meetings — only when a schedule has someone on the
+    /// day, and never on a day school is closed, when no session happens.
+    static func showsSchedule(slotCount: Int, isNonSchoolDay: Bool) -> Bool {
+        slotCount > 0 && !isNonSchoolDay
+    }
 
     /// Open work nobody has touched in a while, after the meetings — gone
     /// when every piece of open work has been seen recently.
@@ -122,7 +130,8 @@ enum TodaySectionVisibility {
     // MARK: - Orderings
 
     /// iPhone and iPad, top to bottom: the day's plan first — the lessons,
-    /// led by the Next card, then its meetings and the work gone quiet — then
+    /// led by the Next card, then its meetings, who is on the recurring
+    /// schedules, and the work gone quiet — then
     /// the Needs-a-lesson card and her todo list, then what she is watching
     /// (ready-for-next, following presentations, observations), then the
     /// external feeds, then the monthly nudge, the pad, and last the
@@ -138,6 +147,7 @@ enum TodaySectionVisibility {
     static let phoneOrder: [TodaySection] = [
         .agenda,
         .meetings,
+        .schedule,
         .goneQuiet,
         .dayCards,
         .todos,
@@ -153,8 +163,8 @@ enum TodaySectionVisibility {
     ]
 
     /// macOS left column, the wide one: the day's plan, full height — the
-    /// lessons, then the meetings, then the work gone quiet.
-    static let macLeftColumnOrder: [TodaySection] = [.agenda, .meetings, .goneQuiet]
+    /// lessons, then the meetings, the schedules, then the work gone quiet.
+    static let macLeftColumnOrder: [TodaySection] = [.agenda, .meetings, .schedule, .goneQuiet]
 
     /// macOS right column, 340 pt: the phone ordering minus the plan.
     static let macRightColumnOrder: [TodaySection] = phoneOrder.filter {

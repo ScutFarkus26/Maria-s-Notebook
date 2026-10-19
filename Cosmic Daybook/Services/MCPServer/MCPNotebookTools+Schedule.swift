@@ -3,7 +3,7 @@
 //  Cosmic Daybook
 //
 //  What the classroom's days look like: lessons planned, work checks due,
-//  calendar events, and the days school isn't in session.
+//  calendar events, the day's pad, and the days school isn't in session.
 //
 //  The reads mirror TodayDataFetcher's predicates so a day described over
 //  MCP matches the Today view exactly — including its use of `scheduledFor`
@@ -25,9 +25,10 @@ extension MCPNotebookTools {
             name: "schedule_for_range",
             title: "Schedule",
             description: "The classroom's plan for a day or a span of days: lessons scheduled to "
-                + "be presented, work check-ins due, calendar events, and whether school is in "
-                + "session. Use this for what is coming up; student_presentation_history covers "
-                + "what has already been given.",
+                + "be presented, work check-ins due, calendar events, the day's pad (the one day "
+                + "note, which the Calendar shows too), and whether school is in session. Use "
+                + "this for what is coming up; student_presentation_history covers what has "
+                + "already been given.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -65,17 +66,21 @@ extension MCPNotebookTools {
         )
     }
 
-    /// One day's plan, assembled from the four sources the Today view reads.
+    /// One day's plan, assembled from the sources the Today view reads.
     private struct ScheduledDay {
         let day: Date
         let isNonSchoolDay: Bool
         let presentations: [CDLessonAssignment]
         let checkIns: [CDWorkCheckIn]
         let events: [CDCalendarEvent]
-        let notes: [CDCalendarNote]
+        /// The day's pad, trimmed; empty when nothing is written on it.
+        let padText: String
+        /// The day's Calendar notes not yet copied into its pad
+        /// (`CalendarNotePadCopy.uncopiedTexts`).
+        let olderNotes: [String]
 
         var isEmpty: Bool {
-            presentations.isEmpty && checkIns.isEmpty && events.isEmpty && notes.isEmpty
+            presentations.isEmpty && checkIns.isEmpty && events.isEmpty && padText.isEmpty && olderNotes.isEmpty
         }
     }
 
@@ -86,10 +91,14 @@ extension MCPNotebookTools {
         let calendar = AppCalendar.shared
         let span = (calendar.dateComponents([.day], from: start, to: end).day ?? 0) + 1
         let dayCount = min(max(span, 1), maximumScheduleDays)
-        let days = (0..<dayCount).compactMap { offset in
+        let dates = (0..<dayCount).compactMap { offset in
             calendar.date(byAdding: .day, value: offset, to: start)
-        }.map { day in
-            scheduledDay(day, student: student, in: modelContext)
+        }
+        // The Calendar notes not yet in their pads, read once for the span; the
+        // classroom's, so a student filter leaves them out with the pad.
+        let notes = student == nil ? calendarNotesByDay(on: dates, in: modelContext) : [:]
+        let days = dates.map { day in
+            scheduledDay(day, student: student, calendarNotes: notes[CellID(date: day)] ?? [], in: modelContext)
         }
 
         let described = days.filter { !$0.isEmpty || $0.isNonSchoolDay }
@@ -117,7 +126,10 @@ extension MCPNotebookTools {
     }
 
     private static func scheduledDay(
-        _ day: Date, student: CDStudent?, in modelContext: NSManagedObjectContext
+        _ day: Date,
+        student: CDStudent?,
+        calendarNotes: [CDCalendarNote],
+        in modelContext: NSManagedObjectContext
     ) -> ScheduledDay {
         let nextDay = AppCalendar.shared.date(byAdding: .day, value: 1, to: day) ?? day
         let studentID = student?.id
@@ -148,12 +160,16 @@ extension MCPNotebookTools {
             return !WorkGrouping.visibleWork(for: studentID, among: [work], in: modelContext).isEmpty
         }
 
-        // Calendar events and day notes belong to the classroom as a whole, so a
+        // Calendar events and the day's pad belong to the classroom as a whole, so a
         // student filter hides them rather than pretending they are about one child.
+        // The pad is read as a join of two devices' copies would leave it, without
+        // joining them: a join writes, and this tool only reads.
         let events = studentID == nil
             ? TodayDataFetcher.fetchCalendarEvents(day: day, nextDay: nextDay, context: modelContext)
             : []
-        let notes = studentID == nil ? calendarNotes(on: day, in: modelContext) : []
+        let padText = studentID == nil
+            ? TodayDataFetcher.padText(day: day, context: modelContext).trimmed()
+            : ""
 
         return ScheduledDay(
             day: day,
@@ -161,8 +177,34 @@ extension MCPNotebookTools {
             presentations: presentations,
             checkIns: checkIns,
             events: events,
-            notes: notes
+            padText: padText,
+            olderNotes: CalendarNotePadCopy.uncopiedTexts(of: calendarNotes, padText: padText)
         )
+    }
+
+    /// The Calendar's notes on `days` not marked copied into their pads yet
+    /// (`CalendarNotePadCopy.notCopiedPredicate`), by day, in one fetch: they
+    /// are kept as year, month and day numbers, so it asks for the months the
+    /// days fall in.
+    private static func calendarNotesByDay(
+        on days: [Date], in modelContext: NSManagedObjectContext
+    ) -> [CellID: [CDCalendarNote]] {
+        let cells = Set(days.map(CellID.init(date:)))
+        let months = Set(cells.map { [$0.year, $0.month] })
+        guard !months.isEmpty else { return [:] }
+        let request = CDFetchRequest(CDCalendarNote.self)
+        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            CalendarNotePadCopy.notCopiedPredicate(),
+            NSCompoundPredicate(orPredicateWithSubpredicates: months.map { month in
+                NSPredicate(format: "year == %d AND month == %d", month[0], month[1])
+            })
+        ])
+        var notesByDay: [CellID: [CDCalendarNote]] = [:]
+        for note in modelContext.safeFetch(request) where !note.isDeleted {
+            let day = CalendarNotePadCopy.cell(of: note)
+            if cells.contains(day) { notesByDay[day, default: []].append(note) }
+        }
+        return notesByDay
     }
 
     private static func describe(
@@ -214,9 +256,14 @@ extension MCPNotebookTools {
             })
         }
 
-        if !day.notes.isEmpty {
-            lines.append("  Day notes:")
-            lines.append(contentsOf: day.notes.map { "    - \($0.text.trimmed())" })
+        if !day.padText.isEmpty {
+            lines.append("  Day pad:")
+            lines.append(contentsOf: day.padText.split(whereSeparator: \.isNewline).map { "    \($0)" })
+        }
+
+        if !day.olderNotes.isEmpty {
+            lines.append("  Older calendar notes, not yet in the day pad (the Mac adds them; don't copy them in):")
+            lines.append(contentsOf: day.olderNotes.map { "    - \(CalendarDayText.padSummary($0))" })
         }
 
         return lines.joined(separator: "\n")
@@ -237,22 +284,6 @@ extension MCPNotebookTools {
         let others = everyone.filter { $0 != owner }
         return "\(studentNames(for: [owner], in: modelContext))'s copy "
             + "(with \(studentNames(for: others, in: modelContext)))"
-    }
-
-    /// Perpetual-calendar notes are stored as year/month/day integers rather
-    /// than a Date, so they are matched on components instead of a range.
-    private static func calendarNotes(
-        on day: Date, in modelContext: NSManagedObjectContext
-    ) -> [CDCalendarNote] {
-        let parts = AppCalendar.shared.dateComponents([.year, .month, .day], from: day)
-        guard let year = parts.year, let month = parts.month, let dayOfMonth = parts.day else {
-            return []
-        }
-        let request = CDFetchRequest(CDCalendarNote.self)
-        request.predicate = NSPredicate(
-            format: "year == %d AND month == %d AND day == %d", year, month, dayOfMonth
-        )
-        return modelContext.safeFetch(request).filter { !$0.text.trimmed().isEmpty }
     }
 
     // MARK: - Shared Formatting

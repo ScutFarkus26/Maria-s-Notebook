@@ -301,11 +301,8 @@ extension MCPToolsFix1012MRTests {
         CoreDataTestHelpers.save(context)
         // Sixty days from 2026-09-03 end on 2026-11-01, the day the clocks go back
         // in the US: 86,400 seconds after its midnight is still 2026-11-01.
-        let note = CDCalendarNote(context: context)
-        note.year = 2026
-        note.month = 9
-        note.day = 3
-        note.text = "First day back"
+        let pad = CDDayPad(context: context, day: AppCalendar.startOfDay(try CoreDataTestHelpers.day("2026-09-03")))
+        pad.body = "First day back"
         CoreDataTestHelpers.save(context)
 
         let schedule = try await call("schedule_for_range", [

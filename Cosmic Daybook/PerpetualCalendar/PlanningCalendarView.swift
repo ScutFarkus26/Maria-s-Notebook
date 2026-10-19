@@ -2,22 +2,34 @@ import SwiftUI
 import CoreData
 
 /// Unified planning calendar — year-at-a-glance grid that overlays:
-///  • CDCalendarNote (user notes)
+///  • CDDayPad (the day's note: the same text as Today's Pad)
 ///  • PerpetualHolidays (system holidays)
 ///  • CDCalendarEvent (Mac calendar events synced via EventKit)
 ///  • CDTodoItem due dates
 ///  • Parsha labels (Saturdays)
+///
+/// Until Simplify the app's Phase 7 the notes here were their own rows
+/// (`CDCalendarNote`); the Mac copies them into the day pads at launch
+/// (`CalendarNotePadCopy`), and the grid reads and writes the pads. A note not
+/// copied yet still shows on its day, read-only (`olderNoteLookup`).
 struct PlanningCalendarView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
 
+    /// Pads with something written on them; an empty one has nothing to show.
     @FetchRequest(
-        sortDescriptors: [
-            NSSortDescriptor(keyPath: \CDCalendarNote.year, ascending: true),
-            NSSortDescriptor(keyPath: \CDCalendarNote.month, ascending: true),
-            NSSortDescriptor(keyPath: \CDCalendarNote.day, ascending: true)
-        ]
-    ) private var allNotes: FetchedResults<CDCalendarNote>
+        sortDescriptors: [NSSortDescriptor(keyPath: \CDDayPad.day, ascending: true)],
+        predicate: NSPredicate(format: "day != nil AND body != nil AND body != %@", "")
+    ) private var writtenPads: FetchedResults<CDDayPad>
+
+    /// The Calendar's own notes not marked copied into their pads yet
+    /// (`CalendarNotePadCopy.notCopiedPredicate`): each is shown on its day
+    /// until its text is in the day's pad (`olderNoteLookup`). Once the Mac has
+    /// copied them all, this fetches nothing.
+    @FetchRequest(
+        sortDescriptors: [],
+        predicate: CalendarNotePadCopy.notCopiedPredicate()
+    ) private var waitingNotes: FetchedResults<CDCalendarNote>
 
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \CDCalendarEvent.startDate, ascending: true)]
@@ -45,7 +57,17 @@ struct PlanningCalendarView: View {
         return (now - Self.yearRadius)...(now + Self.yearRadius)
     }
 
-    private var notesLookup: [CellID: CDCalendarNote] { allNotes.byCell }
+    /// Each day's pad text. Built once per body and handed to the cells,
+    /// rather than once per cell.
+    private var padTexts: [CellID: String] { CalendarNoteEditor.padTexts(of: writtenPads) }
+
+    /// Each day's Calendar notes not yet copied into its pad
+    /// (`CalendarNotePadCopy.uncopiedTexts`): not marked, and not in the pad;
+    /// on the iPhone and iPad, which never copy, until the Mac has. Built once
+    /// per body, beside `padTexts`.
+    private func olderNoteLookup(padTexts: [CellID: String]) -> [CellID: [String]] {
+        CalendarNotePadCopy.uncopiedTexts(of: waitingNotes, padTexts: padTexts)
+    }
 
     private var eventsLookup: [CellID: [CDCalendarEvent]] {
         var lookup: [CellID: [CDCalendarEvent]] = [:]
@@ -74,6 +96,8 @@ struct PlanningCalendarView: View {
     }
 
     var body: some View {
+        let padTexts = padTexts
+        let olderNotes = olderNoteLookup(padTexts: padTexts)
         CalendarGridView(
             title: "Calendar",
             columnWidth: 200,
@@ -81,7 +105,10 @@ struct PlanningCalendarView: View {
             nonSchoolCells: nonSchoolCells,
             headerTrailing: { headerMenu },
             dayContent: { cellID, isToday, isNonSchool in
-                planningDayCell(cellID: cellID, isToday: isToday, isNonSchool: isNonSchool)
+                planningDayCell(
+                    cellID: cellID, isToday: isToday, isNonSchool: isNonSchool,
+                    padTexts: padTexts, olderNotes: olderNotes[cellID] ?? []
+                )
             }
         )
         .task { await reloadNonSchoolCells() }
@@ -91,7 +118,7 @@ struct PlanningCalendarView: View {
             Task { await reloadNonSchoolCells() }
         }
         // Switching sections keeps a note still being typed.
-        .onDisappear { editor.commitOpenCell(notes: notesLookup, in: viewContext) }
+        .onDisappear { editor.commitOpenCell(in: viewContext) }
         .sheet(isPresented: $showCalendarSync) {
             CalendarSyncSettingsView()
         }
@@ -127,30 +154,60 @@ struct PlanningCalendarView: View {
 
 private extension PlanningCalendarView {
 
-    func planningDayCell(cellID: CellID, isToday: Bool, isNonSchool: Bool) -> some View {
+    /// `olderNotes` are the day's Calendar notes not yet in its pad: on the
+    /// day's line after the pad's text, and, while the day's field is open,
+    /// under it, outside the text being edited.
+    func planningDayCell(
+        cellID: CellID, isToday: Bool, isNonSchool: Bool, padTexts: [CellID: String], olderNotes: [String]
+    ) -> some View {
         let holiday = showHolidays
             ? PerpetualHolidays.holiday(month: cellID.month, day: cellID.day, year: cellID.year)
             : nil
-        let note = showNotes ? notesLookup[cellID] : nil
-        let hasUserNote = note != nil && !(note?.text.isEmpty ?? true)
+        let isEditing = editor.editingCell == cellID
+        let note = showNotes
+            ? ([padTexts[cellID] ?? ""] + olderNotes)
+                .map(CalendarDayText.padSummary)
+                .filter { !$0.isEmpty }
+                .joined(separator: " \u{00B7} ")
+            : ""
+        let hasUserNote = !note.isEmpty
 
         return CalendarDayCell(
             cellID: cellID,
             isToday: isToday,
             isNonSchool: isNonSchool,
             parsha: showParsha ? CalendarDayText.parsha(for: cellID) : nil,
-            displayText: note?.text ?? holiday ?? "",
+            displayText: hasUserNote ? note : holiday ?? "",
             isHoliday: holiday != nil && !hasUserNote,
-            isEditing: editor.editingCell == cellID,
+            isEditing: isEditing,
+            editsMultipleLines: editor.editsMultipleLines,
             editText: $editor.draft,
             metrics: .planning,
-            onBeginEdit: { beginEdit(cellID: cellID) },
+            onBeginEdit: { beginEdit(cellID: cellID, padTexts: padTexts) },
             onCommit: { commitEdit(cellID: cellID) },
             extra: {
+                olderNoteRows(isEditing ? olderNotes : [])
                 eventRows(showEvents ? (eventsLookup[cellID] ?? []) : [])
                 todoRows(showTodos ? (todosLookup[cellID] ?? []) : [])
             }
         )
+    }
+
+    /// A day's Calendar notes not yet in its pad, under its open field,
+    /// read-only: the Mac adds them to the pad itself, so typing them in
+    /// would only put them there twice.
+    @ViewBuilder
+    func olderNoteRows(_ notes: [String]) -> some View {
+        ForEach(notes, id: \.self) { text in
+            Text("Older note: \(CalendarDayText.padSummary(text))")
+                .font(.system(size: 9))
+                .italic()
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .padding(.horizontal, 8)
+                .help("Written in the Calendar before it shared Today's note. "
+                    + "It's added to this day's note the next time Cosmic Daybook opens on your Mac.")
+        }
     }
 
     @ViewBuilder
@@ -197,15 +254,15 @@ private extension PlanningCalendarView {
 
     // MARK: - Editing
 
-    /// Opens the day with its stored note, even with the Notes layer hidden
+    /// Opens the day with its pad's text, even with the Notes layer hidden
     /// (the editor chooses the text; see `CalendarNoteEditor.openingText`).
-    func beginEdit(cellID: CellID) {
-        editor.beginEditing(cellID, notes: notesLookup, in: viewContext)
+    func beginEdit(cellID: CellID, padTexts: [CellID: String]) {
+        editor.beginEditing(cellID, padTexts: padTexts, in: viewContext)
     }
 
     /// Return or focus leaving the field; a no-op once another day is open.
     func commitEdit(cellID: CellID) {
-        editor.commitIfOpen(cellID, notes: notesLookup, in: viewContext)
+        editor.commitIfOpen(cellID, in: viewContext)
     }
 
     func reloadNonSchoolCells() async {
