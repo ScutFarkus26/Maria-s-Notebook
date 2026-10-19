@@ -9,8 +9,10 @@
 //
 // The view switch is a segmented control in the Mac toolbar and tabs under the
 // title on iPad and iPhone. The area menu, the search and the children filter
-// belong to the screen, so they carry across views (`ClassGridScope`); each
-// view adds its own tools (the Checklist's lens, Three Years' Key / All).
+// belong to the screen, so they carry across views (`ClassGridScope`); the
+// search carries only between fields that look through the same thing, and a
+// view with no field ignores it. Each view adds its own tools (the Checklist's
+// lens, Three Years' sequence menu and Key / All).
 //
 // It opens at the Checklist's destination. Until Phase 11 aliases them, the
 // Three-Year View, Progress Dashboard and Lesson Recall destinations open it on
@@ -53,6 +55,9 @@ struct ClassGridView: View {
             .onAppear(perform: loadScope)
             .onChange(of: testStudents.show) { _, _ in loadScope() }
             .onChange(of: testStudents.namesRaw) { _, _ in loadScope() }
+            .onChange(of: selection, initial: true) { _, view in
+                scope.viewDidChange(to: view, isRegular: usesRegularLayout)
+            }
             // "Show in Checklist" and "View Class Progress" name a Checklist row or
             // band: whichever view is showing, the grid turns to the Checklist,
             // which takes the request as it loads.

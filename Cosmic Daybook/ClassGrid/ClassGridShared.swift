@@ -35,6 +35,10 @@ struct ClassGridAngledName: View {
 
 /// Three Years' key: the five marks it draws and the three recall rings.
 struct ClassGridYearsLegend: View {
+    /// The line at the key's end ("Click a mark…"); none on the iPhone, where
+    /// the key scrolls sideways.
+    let hint: String?
+
     var body: some View {
         HStack(spacing: 16) {
             item(.notReady, nil, "Not yet")
@@ -45,15 +49,17 @@ struct ClassGridYearsLegend: View {
             item(.mastered, .retained, "Still has it")
             item(.mastered, .shaky, "Shaky")
             item(.reviewing, .forgotten, "Forgotten")
-            Spacer(minLength: 8)
-            Text("Click a mark for what's behind it · click a row to plan it")
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .layoutPriority(-1)
+            if let hint {
+                Spacer(minLength: 8)
+                Text(hint)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .layoutPriority(-1)
+            }
         }
         .font(.caption)
         .padding(.leading, 12)
-        .padding(.trailing, 92)
+        .padding(.trailing, hint == nil ? 12 : 92)
         .frame(height: ChecklistStatusBar.height)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.bar)

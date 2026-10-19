@@ -6,7 +6,8 @@
 // and iPad the check sits beside the list; on the iPhone it opens as a sheet.
 //
 // The area menu, the search and the children filter narrow the queue; the
-// retention numbers are the whole class's this year.
+// retention numbers are the whole class's this year. The iPhone shows no search
+// field here, so there the search doesn't narrow it.
 
 import CoreData
 import SwiftUI
@@ -33,10 +34,30 @@ struct ClassGridRecallView: View {
         #endif
     }
 
+    /// The search the queue applies: none on the iPhone, which shows no field.
+    private var query: String {
+        scope.query(for: .recall, isRegular: isRegular)
+    }
+
     private var sections: [RecallStudentSection] {
         RecallQueueFilter.sections(
-            model.sections, area: scope.area, query: scope.searchText, childIDs: scope.childFilterIDs
+            model.sections, area: scope.area, query: query, childIDs: scope.childFilterIDs
         )
+    }
+
+    /// The queue's empty line: nothing due at all, or the filters that hide
+    /// what is, and how to see it again.
+    private var emptyQueueLine: String {
+        guard model.hasContent else { return "No lessons are due for a recall check right now." }
+        var picked: [String] = []
+        if scope.area != nil { picked.append("area") }
+        if !scope.childFilterIDs.isEmpty { picked.append("children") }
+        if !query.trimmed().isEmpty { picked.append("search") }
+        guard !picked.isEmpty else { return "No lessons are due for a recall check right now." }
+        let named = picked.count == 1
+            ? picked[0]
+            : picked.dropLast().joined(separator: ", ") + " or " + (picked.last ?? "")
+        return "Lessons are due, but none for the \(named) picked. Change the \(named) to see them."
     }
 
     private var byChild: [RecallStudentRetention] {
@@ -153,9 +174,7 @@ struct ClassGridRecallView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
                 if sections.isEmpty {
-                    Text(model.hasContent
-                         ? "Nothing due matches. Try another area or search."
-                         : "No lessons are due for a recall check right now.")
+                    Text(emptyQueueLine)
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .padding(20)
@@ -204,7 +223,7 @@ struct ClassGridRecallView: View {
                 .padding(.top, 6)
                 VStack(spacing: 0) {
                     if sections.isEmpty {
-                        Text("No lessons are due for a recall check right now.")
+                        Text(emptyQueueLine)
                             .font(.callout)
                             .foregroundStyle(.secondary)
                             .padding(14)

@@ -55,7 +55,8 @@ extension ClassGridChecklistView {
     }
 
     /// Shown only while a filter is on: what's hidden, the picked children, and Clear.
-    private func activeFiltersRow(summary: String) -> some View {
+    /// The iPhone shows it too, over its grid (ClassGridChecklistView.swift).
+    func activeFiltersRow(summary: String) -> some View {
         HStack(spacing: AppTheme.Spacing.small) {
             Text(summary)
                 .font(.system(.caption, design: .rounded))
