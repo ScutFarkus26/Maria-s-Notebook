@@ -65,6 +65,6 @@ nonisolated enum TideSyncMessages {
     /// Settings' summary of what the sharing does.
     static let explainer = "Every open to-do goes to Tide except the automatic work check-ins, and the to-dos "
         + "in the Tide lists you pick show here. Ticking one off in either app ticks it off in the other; "
-        + "unticking doesn't carry. Once a to-do is in Tide, Tide keeps its wording. Checklists, Someday, "
-        + "repeats and linked work stay in the notebook."
+        + "unticking doesn't carry. Once a to-do is in Tide, Tide keeps its wording. Checklists, Someday "
+        + "and linked work stay in the notebook. The repeat rule stays here; each new one goes to Tide."
 }

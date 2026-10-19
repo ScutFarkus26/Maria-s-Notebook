@@ -161,9 +161,6 @@ nonisolated enum UserDefaultsKeys {
     // MARK: - Checklist
     static let checklistSelectedArea = "Checklist.selectedArea"
 
-    // MARK: - Logs
-    static let logsMenuRootViewMode = "LogsMenuRootView.mode"
-
     // MARK: - Work
     static let workAgendaHideScheduled = "WorkAgenda.hideScheduled"
     static let workAgendaVisibleKinds = "WorkAgenda.visibleKinds"

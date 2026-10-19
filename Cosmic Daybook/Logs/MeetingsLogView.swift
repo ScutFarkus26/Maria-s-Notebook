@@ -2,8 +2,8 @@ import SwiftUI
 import CoreData
 
 /// Every child's meetings by day, newest first, with filters. Shown as the
-/// Meetings screen's History view (`MeetingsWorkflowView`), and still under
-/// Logs until that screen is retired.
+/// Meetings screen's History view (`MeetingsWorkflowView`); the Logs screen it
+/// once belonged to is gone.
 struct MeetingsLogView: View {
     /// The host screen's search text, when it has a search field of its own
     /// (Meetings does); nil gives this view its own.

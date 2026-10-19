@@ -75,6 +75,7 @@ struct OpenAttendanceIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
+        AttendanceScreenView.showRoll()
         AppRouter.shared.navigateTo(.attendance)
         return .result()
     }
@@ -136,7 +137,9 @@ struct OpenSectionIntent: AppIntent {
         case .today: AppRouter.shared.navigateTo(.today)
         case .students: AppRouter.shared.navigateTo(.students)
         case .lessons: AppRouter.shared.navigateTo(.lessons)
-        case .attendance: AppRouter.shared.navigateTo(.attendance)
+        case .attendance:
+            AttendanceScreenView.showRoll()
+            AppRouter.shared.navigateTo(.attendance)
         case .restock: AppRouter.shared.navigateTo(.supplies)
         }
         return .result()

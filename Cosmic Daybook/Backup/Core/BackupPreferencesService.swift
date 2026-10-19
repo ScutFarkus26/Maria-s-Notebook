@@ -103,11 +103,11 @@ nonisolated enum BackupPreferencesService {
         UserDefaultsKeys.studentDetailViewActiveTab,
         UserDefaultsKeys.checklistSelectedArea,
         UserDefaultsKeys.checklistCollapsedSequences,
-        UserDefaultsKeys.logsMenuRootViewMode,
+        UserDefaultsKeys.meetingsScreenView,
+        UserDefaultsKeys.attendanceScreenView,
         UserDefaultsKeys.todayDayPadExpanded,
         UserDefaultsKeys.todayDoneTodayExpanded,
         UserDefaultsKeys.todayAnytimeRemindersExpanded,
-        "resourceLibrary.viewMode",
         // Albums — the folder bookmarks only resolve on the device that made
         // them, but restoring them on the same Mac after a reinstall brings the
         // shelf straight back; the fingerprint map is what lets

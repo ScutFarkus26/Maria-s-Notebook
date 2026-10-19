@@ -41,6 +41,17 @@ enum WorksLogRows {
         return work.displayKind == kind
     }
 
+    /// The statuses the status menu offers: History (`completedOnly`) holds
+    /// finished work only, so it offers only the finished statuses.
+    static func statusChoices(completedOnly: Bool) -> [WorkStatus] {
+        completedOnly ? WorkStatus.closedCases : WorkStatus.allCases
+    }
+
+    /// Whether the row passes the status filter (none picked keeps every row).
+    static func matches(_ work: CDWorkModel, statuses: Set<WorkStatus>) -> Bool {
+        statuses.isEmpty || statuses.contains(work.status)
+    }
+
     /// Whether the row belongs to any of the children the filter picked
     /// (none picked keeps every row): her own copy of linked work, or a
     /// shared row she is on — never a classmate's copy that names her.

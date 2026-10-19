@@ -26,4 +26,12 @@ enum AttendanceScreenView: String, CaseIterable, Identifiable, Sendable {
     static func resolved(rawValue: String?) -> Self {
         rawValue.flatMap(Self.init(rawValue:)) ?? .roll
     }
+
+    /// Saves the roll as the screen's view. A route that has to land on the
+    /// roll (the 9:00 reminder's email offer is made there; Siri's "open
+    /// attendance") sets this first: the open screen follows the saved view,
+    /// and a screen opened later starts on it.
+    static func showRoll(defaults: UserDefaults = .standard) {
+        defaults.set(Self.roll.rawValue, forKey: UserDefaultsKeys.attendanceScreenView)
+    }
 }

@@ -68,10 +68,18 @@ struct LogsFoldedViewsTests {
         #expect(AttendanceScreenView.resolved(rawValue: "attendance") == .roll)
     }
 
-    @Test("The two screens' saved views are kept under keys of their own, apart from Logs'")
+    @Test("The two screens' saved views are kept under keys of their own, apart from Logs', and backed up")
     func screenViewKeysAreTheirOwn() {
         let keys = [UserDefaultsKeys.meetingsScreenView, UserDefaultsKeys.attendanceScreenView]
         #expect(Set(keys).count == 2)
-        #expect(!keys.contains(UserDefaultsKeys.logsMenuRootViewMode))
+        #expect(!keys.contains("LogsMenuRootView.mode"))
+        for key in keys {
+            #expect(BackupPreferencesService.preferenceKeys.contains(key), "\(key) is backed up")
+        }
+        // Two keys nothing reads any more: an old backup carrying them is
+        // restored without them rather than failing.
+        for key in ["LogsMenuRootView.mode", "resourceLibrary.viewMode"] {
+            #expect(!BackupPreferencesService.isBackedUp(key), "\(key)")
+        }
     }
 }

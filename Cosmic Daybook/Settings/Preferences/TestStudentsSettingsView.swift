@@ -14,8 +14,8 @@ struct TestStudentsSettingsView: View {
             if !showTestStudents {
                 #if os(macOS)
                 Text(
-                    "When hidden, test students are excluded from Students, Today, Attendance, Planning, "
-                    + "Presentations, Checklist, Open Work, Logs, Projects, Notes, Inbox, and related views."
+                    "When hidden, test students are excluded from Students, Today, Attendance, Meetings, "
+                    + "Lessons & Work, Class Grid, Clubs & Projects, Notes, Inbox, and related views."
                 )
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -29,12 +29,10 @@ struct TestStudentsSettingsView: View {
                             ExclusionItem("Students")
                             ExclusionItem("Today")
                             ExclusionItem("Attendance")
-                            ExclusionItem("Planning")
-                            ExclusionItem("Presentations")
-                            ExclusionItem("Checklist")
-                            ExclusionItem("Open Work")
-                            ExclusionItem("Logs")
-                            ExclusionItem("Projects")
+                            ExclusionItem("Meetings")
+                            ExclusionItem("Lessons & Work")
+                            ExclusionItem("Class Grid")
+                            ExclusionItem("Clubs & Projects")
                             ExclusionItem("Notes")
                             ExclusionItem("Inbox")
                         }

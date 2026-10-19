@@ -21,6 +21,8 @@ final class NotebookNotificationTaps: NSObject, UNUserNotificationCenterDelegate
     ) async {
         guard FrontDeskEmailReminder.isReminder(response.notification.request.identifier) else { return }
         await MainActor.run {
+            // The email offer is made on the roll, not the list.
+            AttendanceScreenView.showRoll()
             AppRouter.shared.navigateTo(.attendance)
             FrontDeskEmailReminder.handleTap()
         }
