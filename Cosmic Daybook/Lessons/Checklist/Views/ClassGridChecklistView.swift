@@ -69,6 +69,8 @@ struct ClassGridChecklistView: View {
                 let area = scope.checklistAreaToShow
                 if !area.isEmpty { viewModel.selectedArea = area }
                 viewModel.studentFilterIDs = scope.childFilterIDs
+                // The lens it had before another view showed.
+                viewModel.lens = scope.checklistLens
                 // Single load: fetches students, lessons, and builds matrix once
                 viewModel.loadData(context: viewContext)
                 viewModel.applyVisibilityFilter(
@@ -81,6 +83,9 @@ struct ClassGridChecklistView: View {
             }
             .onChange(of: viewModel.pendingSequenceJump) { _, _ in
                 takePendingSequenceJump()
+            }
+            .onChange(of: viewModel.lens) { _, lens in
+                if scope.checklistLens != lens { scope.checklistLens = lens }
             }
             .sheet(item: $workTarget) { target in
                 QuickNewWorkItemSheet(
@@ -184,23 +189,29 @@ struct ClassGridChecklistView: View {
     }
 
     /// iPhone: Select and the lens in the navigation bar, the grid under the Class
-    /// Grid's area menu, search and tabs.
+    /// Grid's area menu, search and tabs, and the active filters' row over it.
     private var compactPage: some View {
-        checklistBody
-            .toolbar {
-                ToolbarItemGroup(placement: .primaryAction) {
-                    Button(viewModel.isSelectionMode ? "Done" : "Select") {
-                        withAnimation(.snappy(duration: 0.2)) {
-                            if viewModel.isSelectionMode {
-                                viewModel.clearSelection()
-                            } else {
-                                viewModel.isEditModeActive = true
-                            }
+        VStack(spacing: 0) {
+            if let summary = viewModel.filterSummary {
+                activeFiltersRow(summary: summary)
+                Divider()
+            }
+            checklistBody
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button(viewModel.isSelectionMode ? "Done" : "Select") {
+                    withAnimation(.snappy(duration: 0.2)) {
+                        if viewModel.isSelectionMode {
+                            viewModel.clearSelection()
+                        } else {
+                            viewModel.isEditModeActive = true
                         }
                     }
-                    ChecklistLensMenu(lens: $viewModel.lens, readyCount: viewModel.readyTotal)
                 }
+                ChecklistLensMenu(lens: $viewModel.lens, readyCount: viewModel.readyTotal)
             }
+        }
     }
 
     /// The selection bar, the grid and its key, or the empty state. Both layouts: the iPhone's

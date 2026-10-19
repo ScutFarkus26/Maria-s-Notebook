@@ -19,9 +19,16 @@ final class ClassGridScope {
     private(set) var checklistArea: String
     /// Every area with a lesson, in the Lessons screen's saved order.
     private(set) var areas: [String] = []
-    /// Lessons on the Checklist and Three Years, children on Children, lessons
-    /// and children on Recall.
+    /// Lessons on the Checklist, children on Children, lessons and children on
+    /// Recall (Mac and iPad). Three Years and the iPhone's Recall show no field,
+    /// so they ignore it (`query(for:isRegular:)`) and keep it for the way back.
     var searchText = ""
+    /// What `searchText` looks through: the target of the last view that showed
+    /// a field.
+    private(set) var searchTarget: ClassGridSearchTarget?
+    /// The Checklist's lens, kept while another view shows; the grid opens on
+    /// All marks.
+    var checklistLens: ChecklistLens = .allMarks
     /// Empty shows every child.
     var childFilterIDs: Set<UUID> = []
     /// The enrolled children the filter offers, test students left out.
@@ -92,6 +99,20 @@ final class ClassGridScope {
         case .children: return "Search children"
         case .recall: return "Search"
         }
+    }
+
+    /// The grid now shows `view`. A view with no field leaves the search alone;
+    /// a field that looks through something else than the search was typed for
+    /// starts empty, so a child's name never becomes a lesson search.
+    func viewDidChange(to view: ClassGridViewKind, isRegular: Bool) {
+        guard let target = view.searchTarget(isRegular: isRegular) else { return }
+        if let searchTarget, searchTarget != target, !searchText.isEmpty { searchText = "" }
+        searchTarget = target
+    }
+
+    /// The search `view` applies: none where it shows no field to see or clear it.
+    func query(for view: ClassGridViewKind, isRegular: Bool) -> String {
+        view.searchTarget(isRegular: isRegular) == nil ? "" : searchText
     }
 
     /// Whether the children filter keeps `studentID`.

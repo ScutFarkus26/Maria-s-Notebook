@@ -7,6 +7,15 @@
 
 import Foundation
 
+/// What a search field looks through. A search typed for one kind means nothing
+/// to another (a child's name is no lesson), so the grid empties it when the
+/// field it shows looks through something else.
+nonisolated enum ClassGridSearchTarget: Hashable, Sendable {
+    case lessons
+    case children
+    case lessonsAndChildren
+}
+
 nonisolated enum ClassGridViewKind: String, CaseIterable, Identifiable, Hashable, Sendable {
     case checklist
     case threeYears
@@ -28,6 +37,26 @@ nonisolated enum ClassGridViewKind: String, CaseIterable, Identifiable, Hashable
     /// Whether the area menu offers "All areas". The Checklist always shows one
     /// area; the other three can show the whole curriculum.
     var allowsAllAreas: Bool { self != .checklist }
+
+    /// What the view's search field looks through, or nil where it shows none:
+    /// Three Years has no field, and neither does Recall on the iPhone.
+    func searchTarget(isRegular: Bool) -> ClassGridSearchTarget? {
+        switch self {
+        case .checklist: .lessons
+        case .threeYears: nil
+        case .children: .children
+        case .recall: isRegular ? .lessonsAndChildren : nil
+        }
+    }
+
+    /// "Click" with a pointer, "Tap" on a touch screen, for the grid's hint lines.
+    static var pointVerb: String {
+        #if os(macOS)
+        "Click"
+        #else
+        "Tap"
+        #endif
+    }
 
     /// The view an old destination opens on. The Class Grid lives at the
     /// Checklist's destination; Three-Year View, Progress Dashboard and Lesson

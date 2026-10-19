@@ -170,7 +170,7 @@ struct ClassGridChildrenView: View {
             Text("One strip per started sequence, in lesson order · same marks as the Checklist")
                 .lineLimit(1)
             Spacer(minLength: 8)
-            Text("Click a strip for its work, presentations and notes")
+            Text("\(ClassGridViewKind.pointVerb) a strip for its work, presentations and notes")
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .layoutPriority(-1)

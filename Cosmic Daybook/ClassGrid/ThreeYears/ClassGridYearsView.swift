@@ -4,7 +4,9 @@
 // Children are grouped by year in class, oldest first, under a "YEAR 3 · 5"
 // band, as the Checklist groups them by level. Click a mark for what's behind
 // it; click a row's name for the children in each state and a draft
-// presentation for those who haven't had it.
+// presentation for those who haven't had it. With an area picked, a sequence
+// menu narrows it to one sequence. There's no search field here, so the
+// grid's search doesn't narrow it.
 //
 // The grid is hand-built, as the Checklist's is: a header row pinned by the
 // lazy stack, a name column pinned by the one scroll-offset reading
@@ -26,6 +28,8 @@ struct ClassGridYearsView: View {
     @AppStorage(UserDefaultsKeys.curriculumMapGranularity)
     private var granularityRaw = CurriculumGranularity.keyLessons.rawValue
     @State private var stateFilter: ChecklistDisplayStatus?
+    /// One sequence of the picked area, or nil for all of them ("" is Other).
+    @State private var sequence: String?
     @State private var rowTarget: ClassRow?
     @State private var cellTarget: CurriculumCellDetailTarget?
     @State private var draftToOpen: CDLessonAssignment?
@@ -50,9 +54,15 @@ struct ClassGridYearsView: View {
     var body: some View {
         VStack(spacing: 0) {
             content
+            Divider()
             if metrics.isRegular {
-                Divider()
-                ClassGridYearsLegend()
+                ClassGridYearsLegend(hint: "\(ClassGridViewKind.pointVerb) a mark for what's behind it · "
+                    + "\(ClassGridViewKind.pointVerb.lowercased()) a row to plan it")
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    ClassGridYearsLegend(hint: nil)
+                }
+                .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
             }
         }
         .toolbar { toolbar }
@@ -62,9 +72,12 @@ struct ClassGridYearsView: View {
         }
         .task { await watchForChanges() }
         .onChange(of: store.loadedAt) { _, _ in rebuild() }
-        .onChange(of: scope.area) { _, _ in rebuild() }
+        .onChange(of: scope.area) { _, _ in
+            // Another area's sequences are different ones.
+            if sequence != nil { sequence = nil } else { rebuild() }
+        }
+        .onChange(of: sequence) { _, _ in rebuild() }
         .onChange(of: scope.childFilterIDs) { _, _ in rebuild() }
-        .onChange(of: scope.searchText) { _, _ in rebuild() }
         .onChange(of: granularityRaw) { _, _ in rebuild() }
         .onChange(of: stateFilter) { _, _ in rebuild() }
         .onChange(of: schoolYear.startMonth) { _, _ in rebuild() }
@@ -88,6 +101,9 @@ struct ClassGridYearsView: View {
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         if metrics.isRegular {
+            if scope.area != nil {
+                ToolbarItem(placement: .primaryAction) { sequenceMenu }
+            }
             ToolbarItem(placement: .primaryAction) {
                 rowsPicker
                     .pickerStyle(.segmented)
@@ -107,8 +123,34 @@ struct ClassGridYearsView: View {
         }
     }
 
+    /// "All sequences", or one sequence of the picked area.
+    private var sequencePicker: some View {
+        Picker("Sequence", selection: $sequence) {
+            Text("All sequences").tag(String?.none)
+            ForEach(model.sequences, id: \.self) { name in
+                Text(Self.sequenceTitle(name)).tag(String?.some(name))
+            }
+        }
+    }
+
+    private var sequenceMenu: some View {
+        Menu {
+            sequencePicker.pickerStyle(.inline)
+        } label: {
+            Label(sequence.map(Self.sequenceTitle) ?? "All sequences", systemImage: "list.bullet.indent")
+                .labelStyle(.titleAndIcon)
+        }
+        .disabled(model.sequences.isEmpty)
+        .help("Show one sequence, or all of them")
+        .accessibilityLabel("Sequence: \(sequence.map(Self.sequenceTitle) ?? "All sequences")")
+    }
+
+    static func sequenceTitle(_ name: String) -> String {
+        name.isEmpty ? "Other" : name
+    }
+
     /// "Any state": only the rows with a child in one state. On the iPhone it also
-    /// holds Key / All lessons.
+    /// holds the sequence menu and Key / All lessons.
     private var stateMenu: some View {
         Menu {
             Picker("Rows with a child", selection: $stateFilter) {
@@ -119,6 +161,7 @@ struct ClassGridYearsView: View {
             }
             .pickerStyle(.inline)
             if !metrics.isRegular, scope.area != nil {
+                sequencePicker.pickerStyle(.inline)
                 rowsPicker.pickerStyle(.inline)
             }
         } label: {
@@ -129,7 +172,8 @@ struct ClassGridYearsView: View {
                 )
                     .labelStyle(.titleAndIcon)
             } else {
-                Image(systemName: "line.3.horizontal.decrease.circle" + (stateFilter == nil ? "" : ".fill"))
+                Image(systemName: "line.3.horizontal.decrease.circle"
+                    + (stateFilter == nil && sequence == nil ? "" : ".fill"))
             }
         }
         .help("Show only the rows with a child in one state")
@@ -158,7 +202,7 @@ struct ClassGridYearsView: View {
             ContentUnavailableView(
                 "Nothing to show",
                 systemImage: "square.grid.3x3",
-                description: Text("No row matches. Try another area, state or search.")
+                description: Text(emptyRowsLine)
             )
         } else {
             ClassGridYearsGrid(
@@ -176,13 +220,28 @@ struct ClassGridYearsView: View {
         }
     }
 
+    /// Why no row shows: a filter hiding them says which, and how to undo it.
+    private var emptyRowsLine: String {
+        if let stateFilter {
+            return "No row has a child in \"\(Self.filterTitle(stateFilter))\". Choose Any state to see every row."
+        }
+        if scope.area != nil, granularity == .keyLessons {
+            return sequence == nil
+                ? "This area has no key lessons. Choose All lessons to see every lesson."
+                : "This sequence has no key lessons. Choose All lessons, or All sequences."
+        }
+        return "This area has no lessons yet."
+    }
+
     // MARK: - Actions
 
+    /// Three Years shows no search field, so the grid's search (typed on the
+    /// Checklist, say) doesn't narrow it: there would be nothing here to clear.
     private func rebuild() {
         model.rebuild(
-            store: store, area: scope.area, sequence: nil, granularity: granularity, stateFilter: stateFilter,
+            store: store, area: scope.area, sequence: sequence, granularity: granularity, stateFilter: stateFilter,
             startMonth: schoolYear.startMonth, startDay: schoolYear.startDay,
-            childIDs: scope.childFilterIDs, query: scope.searchText
+            childIDs: scope.childFilterIDs, query: ""
         )
     }
 
