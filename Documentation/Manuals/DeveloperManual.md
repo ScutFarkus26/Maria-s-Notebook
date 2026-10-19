@@ -29,7 +29,7 @@ RootView (main shell)
     |       |
     |       +-- Services
     |       |       +-- LifecycleService
-    |       |       +-- ChatService + AIClientRouter
+    |       |       +-- AIClientRouter
     |       |       +-- ReminderSyncService
     |       |       +-- CloudKitSyncStatusService
     |       |       +-- BackupService
@@ -46,7 +46,7 @@ RootView (main shell)
             +-- LessonsListView / LessonDetailView
             +-- WorkListView / WorkDetailView
             +-- AttendanceView
-            +-- PlanningViews (agenda, checklist, projects)
+            +-- PlanningViews (agenda, projects) + ClassGridView (Checklist, Three Years, Children, Recall)
             +-- InboxView
             +-- SettingsView
             +-- ... (40+ feature views)
@@ -195,26 +195,26 @@ A view presents sheets by setting `appRouter.navigationDestination`.
 // AppCore/RootView/RootView+NavigationItem.swift
 enum NavigationItem: String, Hashable, Identifiable, CaseIterable {
     case today, todos
-    case students, attendance, meetings, parentReports, progressDashboard
-    case planningAgenda, lessons
-    case planningChecklist, curriculumMap, planningCalendar, smallSequencePlanner
-    case logs, notes
-    case teachingAlbums, stories, bookClub, procedures, resourceLibrary, supplies, goingOut,
-         community, schedules, thisWeeksParsha, parshaCalendar, lessonRecall, planningProjects
-    case askAI, settings
-    case note, more, perpetualCalendar   // aliases: kept so a saved raw value still decodes
+    case students, attendance, meetings, notes, parentReports
+    case planningAgenda, smallSequencePlanner, planningChecklist, planningCalendar, thisWeeksParsha
+    case supplies, community, planningProjects, goingOut, schedules
+    case lessons, teachingAlbums, resourceLibrary
+    case settings
+    // Retired rows, kept so a saved raw value still decodes (each is an alias):
+    case note, more, perpetualCalendar, orders, logs, curriculumMap, progressDashboard,
+         lessonRecall, parshaCalendar, stories, procedures, bookClub, askAI
 }
 ```
 
 Navigation happens by setting `appRouter.selectedNavItem = .students`.
 
-**Raw values are frozen.** They live in `@SceneStorage("RootView.selectedNavItem")`, so renaming one silently resets every device's selection. `NavigationGroupTests.rawValuesArePinned` holds every literal; a case that stops being a destination stays in the enum and is mapped by `NavigationItem.aliases` → `canonical` (`.perpetualCalendar → .planningCalendar`, `.note`/`.more → .today`). A case that is removed outright is handled by `NavigationSelectionRestorer` (same file), the pure function that turns the saved raw value, the pre-`NavigationItem` `Tab` string, and the old Planning mode into today's destination.
+**Raw values are frozen.** They live in `@SceneStorage("RootView.selectedNavItem")`, so renaming one silently resets every device's selection. `NavigationGroupTests.rawValuesArePinned` holds every literal; a case that stops being a destination stays in the enum and is mapped by `NavigationItem.aliases` → `canonical` (`.perpetualCalendar → .planningCalendar`, `.note`/`.more`/`.askAI → .today`, `.logs → .notes`, `.curriculumMap`/`.progressDashboard`/`.lessonRecall → .planningChecklist`, `.stories`/`.procedures → .resourceLibrary`, `.bookClub → .planningProjects`, `.parshaCalendar → .thisWeeksParsha`, `.orders → .supplies`). An alias whose replacement has views opens it on the right one: `NavigationItem.landing` gives a `ScreenLanding` (`AppCore/RootView/ScreenLanding.swift`: `.classGrid(ClassGridViewKind)`, `.resources(LibraryKind)`, `.parshaYearList`), which a saved scene or a router jump sets on `AppRouter.screenLanding` and the Class Grid, Resources or the Parsha screen takes once. A case that is removed outright is handled by `NavigationSelectionRestorer` (same file), the pure function that turns the saved raw value, the pre-`NavigationItem` `Tab` string, and the old Planning mode into today's destination.
 
 ### Navigation groups
 
-`RootView.NavigationGroup` (`AppCore/RootView/RootView+NavigationGroup.swift`) is the single table that decides where every destination sits. The macOS sidebar (`RootSidebar`), the iPad sidebar and the iPhone tab bar plus its More list (`RootAdaptiveTabs`) all iterate it; nothing lists items by hand. Groups in order: Today, Children, Lessons & Work, Planning, Records, Classroom, Library (those two collapsed by default), System. `NavigationGroup.primaryTabs` is the iPhone bar — Today, Students, Attendance, Lessons & Work — and `secondaryGroups` is what "More" shows. `NavigationGroupTests` pins that every destination is in exactly one group, that the TabView lists each once, and the group order.
+`RootView.NavigationGroup` (`AppCore/RootView/RootView+NavigationGroup.swift`) is the single table that decides where every destination sits. The macOS sidebar (`RootSidebar`), the iPad sidebar and the iPhone tab bar plus its More list (`RootAdaptiveTabs`) all iterate it; nothing lists items by hand. Six groups, 21 rows, in order: Today (Today, Attendance, Todos), Children (Students, Meetings, Notes, Parent Reports), Plan (Lessons & Work, Groups, Class Grid, Calendar, This Week's Parsha; its raw value is still `planning`, so an old collapsed state carries over), Classroom (Restock, Community, Clubs & Projects, Going Out, Schedules; collapsed by default), Library (Lessons, Albums, Resources), System (Settings). `NavigationGroup.primaryTabs` is the iPhone bar — Today, Students, Attendance, Lessons & Work — and `secondaryGroups` is what "More" shows. `NavigationGroupTests` pins that every destination is in exactly one group, that the TabView lists each once, the group order, and every alias with the view it lands on.
 
-The macOS sidebar persists each group's collapsed state under `UserDefaultsKeys.sidebarGroupExpanded(groupID)` and auto-expands the group holding a selection that arrives from outside the sidebar (a Go-menu shortcut, an album deep link, a restored selection), so nothing lands invisibly inside a collapsed Classroom or Library.
+The macOS sidebar persists each group's collapsed state under `UserDefaultsKeys.sidebarGroupExpanded(groupID)` and auto-expands the group holding a selection that arrives from outside the sidebar (a Go-menu shortcut, an album deep link, a restored selection), so nothing lands invisibly inside a collapsed Classroom.
 
 ### Special Routing
 
@@ -366,7 +366,7 @@ The container is split across extension files for organization:
 | File | Services |
 |------|----------|
 | `AppDependencies.swift` | Core: repositories, toast, router, memory monitor, sync, command bar |
-| `AppDependencies+AIServices.swift` | AIClientRouter, ChatService, StudentAnalysisService, ReportGeneratorService |
+| `AppDependencies+AIServices.swift` | AIClientRouter, StudentAnalysisService, ReportGeneratorService, MonthlyReportDraftService, MeetingInsightsService |
 | `AppDependencies+BackupServices.swift` | BackupService, EnhancedBackupService, RestoreCoordinator, CloudBackupService |
 
 ### Key Services Available
@@ -785,7 +785,7 @@ Services in this app follow these conventions:
 
 - **`@MainActor`** — ensures thread safety for UI-related operations
 - **`struct` for stateless services** — e.g., `LifecycleService` with static methods
-- **`final class` for stateful services** — e.g., `ChatService` with session state
+- **`final class` for stateful services** — e.g., `TideSyncService` with its run state
 - **Protocol-based design** — enables testing (e.g., `MCPClientProtocol` for API client)
 - **Registered in `AppDependencies`** — lazy-initialized on first access
 
@@ -809,32 +809,15 @@ Manages work item state transitions and data integrity.
 
 **Performance:** Uses predicates and fetch limits to minimize in-memory work. Never loads all records when only one is needed.
 
-### ChatService + AIClientRouter
+### AIClientRouter
 
-**Files:** `Chat/Services/ChatService.swift`, `Services/AI/AIClientRouter.swift`
-
-#### AIClientRouter
+**File:** `Services/AI/AIClientRouter.swift`
 
 Conforms to `MCPClientProtocol` and sends every request to Apple Intelligence:
 the on-device model first, then Private Cloud Compute when Settings → AI allows
 it. See `docs/Technical notes/AI.md`.
 
-#### ChatService
-
-Orchestrates AI chat sessions with classroom context.
-
-**Session Flow:**
-
-```
-1. startSession() — build classroom snapshot (student names, lesson stats)
-2. User sends message
-3. Refresh snapshot if stale
-4. Build question-specific context (Tier 2 enrichment)
-5. Assemble system message with classroom context
-6. Trim message history to token budget (max 10 messages)
-7. Call API (temperature: 0.7, max tokens: 2048)
-8. Hand the answer to the UI via the onText callback (the whole answer so far; StreamingTextThrottle shows at most ~10 updates a second)
-```
+It serves the generate calls: Parsha suggestions, Stories, parent reports, meeting and student insights, note summaries. There is no chat; Ask AI was removed in the Simplify the app plan (Phase 1).
 
 ### ReminderSyncService (macOS)
 
@@ -1110,7 +1093,7 @@ Multiple planning views:
 | View | Purpose |
 |------|---------|
 | Agenda | Drag-and-drop lesson scheduler |
-| Checklist | Class-wide subject tracking |
+| Class Grid (`ClassGrid/`) | Checklist (class-wide subject tracking), Three Years, Children and Recall, over one engine (`ClassGridEngine`) |
 | Open Work | All active work items |
 | Projects | Project-based learning management |
 | Classroom Jobs | Job rotation management |
@@ -1148,7 +1131,7 @@ Teacher task management with:
 | Age Levels | Lower/upper elementary configuration |
 | Reminders | EventKit sync (macOS) |
 | Calendar | Calendar display settings |
-| AI/Chat | Private Cloud Compute opt-in; lesson-planning prompt, temperature and timeout |
+| AI | Private Cloud Compute opt-in; lesson-planning prompt, temperature and timeout |
 | CloudKit | Sync enable/disable, status, deduplication |
 | Data | Statistics, export, import, test student filtering |
 | Templates | Meeting and note templates |
@@ -1169,21 +1152,15 @@ Teacher task management with:
 | `BackupValidationService` | Verify backup integrity |
 | `ChecksumVerificationService` | Hash verification |
 
-## AI Chat
+## AI Services
 
-**Directory:** `Chat/` (`Chat/Services/` contains chat orchestration)
+**Directory:** `Services/AI/` (router and clients), with each feature's service beside its screen. Every call goes through `AIClientRouter` (see above); there is no chat feature.
 
-Chat with Apple Intelligence about classroom data (see `AIClientRouter` above). The system:
-
-1. Builds a classroom snapshot (student names, lesson counts, recent activity)
-2. Enriches each question with relevant context (Tier 2)
-3. Maintains conversation history (trimmed to token budget)
-4. Streams responses in real-time
-
-Additional AI services:
+AI services:
 - `StudentAnalysisService` — progress analysis per student
 - `LessonPlanningService` — AI-assisted lesson planning
 - `ReportGeneratorService` — generate progress reports
+- `MonthlyReportDraftService`, `MeetingInsightsService` — parent report drafts, meeting insights
 
 ---
 
@@ -1574,7 +1551,7 @@ Cosmic Daybook/
 |   +-- Library/LessonsRootView.swift   Library view
 |   +-- Detail/LessonDetailView.swift   Detail view
 |   +-- ViewModels/GiveLessonViewModel.swift  Lesson picker state
-|   +-- Checklist/                       Class-area checklist (Views/, Model/, ViewModels/)
+|   +-- Checklist/                       Checklist view's cells, selection, view model (Views/, Model/, ViewModels/)
 |
 +-- Work/
 |   +-- Models/WorkModelEntity.swift     Work entity (CDWorkModel)
@@ -1596,6 +1573,15 @@ Cosmic Daybook/
 |   +-- Workflow/                         Presentation and follow-up workflow
 |   +-- Services/                         Presentation splitting
 +-- Attendance/                          Daily tracking
++-- ClassGrid/                           The Class Grid: Checklist, Three Years, Children, Recall
+|   +-- Engine/                           ClassGridEngine (one ladder, one mark)
+|   +-- ThreeYears/, Children/, Recall/   The other three views
++-- CurriculumMap/                       Per-child Three-Year View on the student page, and its loader/store/types
++-- Resources/                           Resource records, detail, import
+|   +-- Library/                          One Resources screen: Stories, Packets, Files, Procedures;
+|                                         LibraryImportService, LibraryThumbnailGenerator, LibraryFileStorage
++-- BookClub/                            Book club sessions (shown in Clubs & Projects) and packets (in Resources)
++-- Logs/                                Attendance and Meetings log views (Attendance's List, Meetings' History)
 +-- Planning/                            Scheduling and curriculum
 |   +-- AIPlanning/LessonPlanning/        AI planning service and state
 |   +-- Services/                         Next-lesson planning
@@ -1614,7 +1600,6 @@ Cosmic Daybook/
 |   +-- Editor/                           Note editors and tag selection
 |   +-- QuickCapture/                     Quick-note sheet and parsing
 |   +-- Views/                            Scoped note presentation
-+-- Chat/Services/                       AI chat orchestration
 +-- Parsha/Services/                     Parsha metadata and suggestions
 +-- Procedures/Services/                Procedure operations
 +-- Supplies/                            Inventory management
@@ -1628,6 +1613,7 @@ Cosmic Daybook/
 |
 +-- Services/
 |   +-- Sync/CloudKitSyncStatusService.swift  Sync monitoring
+|   +-- Tide/                             To-do sharing with Tide (client, sync engine and service)
 |   +-- AI/, Search/, Calendar/, Photos/, System/, Migrations/, MCPServer/, Progression/
 |   +-- (cross-feature infrastructure and system integrations)
 |

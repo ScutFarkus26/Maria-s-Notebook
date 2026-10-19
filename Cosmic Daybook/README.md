@@ -60,6 +60,7 @@ Cosmic Daybook/
 ├── Repositories/     # Data access repositories
 ├── Services/         # Cross-feature infrastructure and system integrations
 │   ├── Sync/         #   CloudKit status, persistent history, dedup, synced preferences
+│   ├── Tide/         #   To-do sharing with Tide (client, sync engine and service)
 │   ├── AI/  Search/  Calendar/  Photos/  System/  Migrations/  MCPServer/
 │   └── Progression/  #   Lesson progression shared by Lessons, Planning, Presentations, Students, Work
 ├── Components/       # Reusable SwiftUI used by two or more unrelated features (Toast/, WaitingStudents/, Shared/…)
@@ -67,7 +68,7 @@ Cosmic Daybook/
 │
 ├── Students/         # Student profiles, detail, meetings, progress, notes, import, reports
 ├── Lessons/          # Lesson library, detail, attachments, scope map, parsha lessons
-│   └── Checklist/    #   Class checklist: Views/, Model/, ViewModels/
+│   └── Checklist/    #   The Class Grid's Checklist view: Views/, Model/, ViewModels/
 ├── Work/             # Work items, check-ins, practice sessions
 ├── Presentations/    # Presentation scheduling, queues, sessions, record index
 ├── Attendance/       # Attendance: Store/, Rules/, Views/, Tile/, Email/, Reports/, Insights/, Delight/
@@ -80,20 +81,19 @@ Cosmic Daybook/
 ├── ObservationMode/  # Developmental traits and observation quick tags
 │
 ├── Albums/           # Teaching-album PDFs: Library/, Search/, Detail/, LessonLinks/
-├── BookClub/         # Book club packets, sessions, and meetings
-├── Chat/             # AI chat features
+├── BookClub/         # Book club sessions (shown in Clubs & Projects) and packets (shown in Resources)
+├── ClassGrid/        # The Class Grid: Checklist, Three Years, Children and Recall views over one engine (Engine/)
 ├── ClassroomJobs/    # Classroom jobs and job assignments
-├── CurriculumMap/    # Three-Year View: per-child grid, class heat map, the shared engine
+├── CurriculumMap/    # Per-child Three-Year View (on the student page) and the loader/store/types the Class Grid reads
 ├── GoingOut/         # Going Out planning
-├── Logs/             # Application logging
+├── Logs/             # Attendance and meetings log views (Attendance's List, Meetings' History)
 ├── Orders/           # Links to request from the office, tracked to received
 ├── ParentReports/    # Monthly parent reports, guardians, report generator
 ├── Parsha/           # Weekly parsha calendar and lesson tagging
 ├── PerpetualCalendar/# Calendar notes
 ├── Procedures/       # Procedure documentation
-├── ProgressDashboard/# Class progress dashboard and sequence detail
 ├── Projects/         # Project management & sessions
-├── Resources/        # Educational resources
+├── Resources/        # Resource records and detail; Library/ is the one Resources screen (Stories, Packets, Files, Procedures, one import service)
 ├── Schedules/        # Schedule management
 ├── Stories/          # Story library: import, analysis, covers
 ├── Supplies/         # Supply inventory

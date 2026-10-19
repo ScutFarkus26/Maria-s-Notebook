@@ -60,8 +60,7 @@ hot paths are, and what has been checked and should not be re-litigated.
 | Lessons in the Lessons screen's order / any derived catalog order | `LessonCatalog.sortedByAreaSortIndexAndOrder` (area, sortIndex, orderInSequence); derived orders rebuild on first read behind the observed `version` — read `version` in a body that must refresh on any lesson change | `Lessons/LessonCatalog.swift` |
 | Keep a value built from saved sequence/section orders | `FilterOrderStore.revision` (bumped on every save and cache reset); `MapLayoutMemo` keys the Lessons map's sections on it plus catalog version, area and spine | `Components/FilterOrderStore.swift`, `Lessons/ScopeMap/LessonsScopeMapLayout.swift` |
 | Menu-bar actions that don't rebuild menus per body pass | a reference-type focused value filled in `onAppear` (`FocusedSearchAction`, `QuickCaptureActions`, `AlbumFocusActions`), never a struct of closures | `AppCore/AppCommands.swift`, `Albums/Library/AlbumModels.swift` |
-| Pace streamed text onto the screen | `StreamingTextThrottle` (≤ 10 updates/s, always flushes the last text) | `Chat/StreamingTextThrottle.swift` |
-| Reload only while a screen is on screen (TabView keeps visited tabs alive with live `.onReceive`/`.onChange`) | `.onChangeWhenVisible(of:catchUpOnAppear:)` / `.onReceiveWhenVisible(_:catchUpOnAppear:)`: hidden = mark stale, run once on reappear (pass `false` when the screen's own `.task`/`.onAppear` already reloads). Since 2026-09-25 they also treat a Mac window nobody can see (minimized, covered, other Space) as hidden and catch up once when it's visible again, whatever `catchUpOnAppear` says. Wired (2026-09-23): Students DidSave token refresh, Progress, Presentations (pending tokens → change tokens), Works Agenda DidSave, Week plan check-ins, Albums' activation refresh (`ClassCurriculumMapView` needs nothing: its watcher runs inside `.task`, which is cancelled while hidden) | `Utils/SwiftUI/View+WhenVisible.swift`, `Utils/Visibility/WhenVisibleGate.swift` |
+| Reload only while a screen is on screen (TabView keeps visited tabs alive with live `.onReceive`/`.onChange`) | `.onChangeWhenVisible(of:catchUpOnAppear:)` / `.onReceiveWhenVisible(_:catchUpOnAppear:)`: hidden = mark stale, run once on reappear (pass `false` when the screen's own `.task`/`.onAppear` already reloads). Since 2026-09-25 they also treat a Mac window nobody can see (minimized, covered, other Space) as hidden and catch up once when it's visible again, whatever `catchUpOnAppear` says. Wired (2026-09-23): Students DidSave token refresh, Progress, Presentations (pending tokens → change tokens), Works Agenda DidSave, Week plan check-ins, Albums' activation refresh (the Class Grid's Three Years view, `ClassGridYearsView`, needs nothing: its watcher runs inside `.task`, which is cancelled while hidden) | `Utils/SwiftUI/View+WhenVisible.swift`, `Utils/Visibility/WhenVisibleGate.swift` |
 | Know whether a Mac window can be seen (SwiftUI and `scenePhase` don't report occlusion) | `.onWindowVisibilityChange { visible in … }` (a zero-size `WindowOcclusionProbe` watching its own window; no-op on iOS) | `Utils/SwiftUI/View+WindowOcclusion.swift`, `Utils/Visibility/WindowOcclusionProbe.swift` |
 | Answer a request every main window hears exactly once | `MainWindowRegistry.answersRequests(in:)` (weak registry filled by `EnsureResizableWindow`) | `AppCore/Windows/MainWindowRegistry.swift` |
 | Answer a notification every main window hears exactly once | `MainWindowRegistry.shared.answersRequests(in:)` (`MainWindowCandidate.indexToAnswer`: most recently used open main window); `OpenWindowOnNotificationModifier` does it for its four window requests | `AppCore/Windows/MainWindowRegistry.swift` |
@@ -116,7 +115,7 @@ should join that list; user-initiated work (Sync Now, a manual backup, a search)
 5. **The 2026-09-25 "Energy Fifty" audit** (private artifact "Daybook Energy Fifty"; baseline
    and per-item numbers in `perf-baselines/2026-09-25-energy-fifty-wave1.md`) lists 50 items by
    number. Wave one landed 2026-09-25: items 17, 19–21, 23, 24 and 26–36 (29 as the memo half
-   only; 32 without the Progress Dashboard row). Wave two landed the same day
+   only; 32 without the Progress Dashboard row, which is now the Class Grid's Recall view). Wave two landed the same day
    (`perf-baselines/2026-09-25-energy-fifty-wave2.md`): 2, 3, 4, 6–11, 15, 16, 18, 48, 50 — the MCP
    bridge and MCP-only launch, occlusion-aware gates, services once per process, EventKit
    mirrors writing only changed rows, backup encoding `@concurrent`, the Mac backup on
@@ -244,7 +243,7 @@ image caches are bounded; `NWPathMonitor` is a single shared instance with a can
   interval; main-actor tasks can wait seconds for a turn. The other half: keep synchronous
   `@MainActor` tests light. One that seeds thousands of rows and collects without an `await`
   holds the main actor for its whole run; on 2026-09-26, with four such tests newly added
-  and another build loading the Mac, `StreamingTextThrottleTests` missed its 10 s window.
+  and another build loading the Mac, a throttle timing test (`StreamingTextThrottleTests`, deleted with Ask AI) missed its 10 s window.
   Seed only the types a test needs.
 - `.contextMenu { … }` (and any non-escaping `@ViewBuilder` closure argument) runs on every
   body pass of its view. A fetch or lookup inside it belongs in a nested `View`'s body, which
@@ -255,8 +254,6 @@ image caches are bounded; `NWPathMonitor` is a single shared instance with a can
 - On iOS 27 a `LazyVStack` rebuilds rows that scroll far away: fresh `@State`, and inner
   horizontal scroll views reset to their start. Lifting pin state isn't enough; that is why
   the Lessons map stayed eager.
-- Chat answers do not stream: `ChatService` calls `streamConversation` without `timeout:`, so
-  the protocol's non-streaming default runs and each answer arrives in one piece.
 - Adding a predicate can make SQLite pick another index (check `EXPLAIN QUERY PLAN`), which
   changes the row order of a fetch without complete sort descriptors, and so which rows a
   capped read keeps.
@@ -266,8 +263,7 @@ image caches are bounded; `NWPathMonitor` is a single shared instance with a can
   xcresulttool get test-results summary`. A hand-rolled gate should do the same.
 - `AlbumSemanticBackendTests` need the sentence-embedding model, which the iPhone 17 simulator
   loads in ~100 ms and the iPhone Air / iPhone 17e simulators never load. Run gates on iPhone 17;
-  on the others those two tests fail (and can starve main-actor timing tests such as
-  `StreamingTextThrottleTests.scheduledUpdateArrives`).
+  on the others those two tests fail (and can starve main-actor timing tests).
 - An in-memory store gets `fetchOffset` + `fetchLimit` wrong on an unsorted fetch (the second
   1,000-row page of 1,205 notes held one row). Page only SQLite stores, or sort.
 - On macOS 27 a split view's detail column is not a navigation stack: a root screen that pushes
