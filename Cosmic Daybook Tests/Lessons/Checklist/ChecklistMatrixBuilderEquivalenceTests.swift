@@ -110,7 +110,7 @@ struct ChecklistMatrixBuilderEquivalenceTests {
         try context.save()
 
         let legacy = LegacyMatrixBuilder.buildMatrix(students: students, lessons: lessons, context: context)
-        let batched = ChecklistMatrixBuilder.buildMatrix(students: students, lessons: lessons, context: context)
+        let batched = ClassGridEngine.buildMatrix(students: students, lessons: lessons, context: context)
         #expect(batched.count == students.count)
         #expect(batched == legacy)
 
@@ -127,7 +127,7 @@ struct ChecklistMatrixBuilderEquivalenceTests {
     @Test func emptyLessonsGiveEmptyMatrix() throws {
         let context = try CoreDataTestHelpers.makeSplitStoreContext()
         let student = CoreDataTestHelpers.seedStudent(in: context)
-        #expect(ChecklistMatrixBuilder.buildMatrix(students: [student], lessons: [], context: context).isEmpty)
+        #expect(ClassGridEngine.buildMatrix(students: [student], lessons: [], context: context).isEmpty)
     }
 }
 
@@ -178,7 +178,7 @@ private enum LegacyMatrixBuilder {
                 if !studentLAs.contains(where: { $0.isPresented }), let preceding = precedingLessonMap[lessonID] {
                     readiness = cellReadiness(precedingLesson: preceding, studentID: studentUUID, context: context)
                 }
-                studentRow[lessonID] = ChecklistMatrixBuilder.buildCellState(
+                studentRow[lessonID] = ClassGridEngine.buildCellState(
                     lesson: lesson, studentLAs: studentLAs, studentWorkModels: studentWorks,
                     calendar: calendar, today: today, blockingReason: readiness.blocking,
                     checkFirstReasons: readiness.checkFirst

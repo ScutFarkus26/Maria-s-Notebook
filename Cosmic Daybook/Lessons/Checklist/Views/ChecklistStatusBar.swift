@@ -55,12 +55,27 @@ struct ChecklistStatusBar: View {
         ScrollView(.horizontal) {
             HStack(spacing: 16) {
                 ForEach(ChecklistDisplayStatus.allCases, id: \.self) { status in
-                    legendItem(label: status.label, count: counts[status], help: Self.meaning(of: status)) {
+                    legendItem(
+                        label: status == .notReady ? "Not yet" : status.label,
+                        count: status == .ready ? counts[.ready] - counts.checkFirst : counts[status],
+                        help: Self.meaning(of: status)
+                    ) {
                         ChecklistMark(
                             status: status, size: Self.markSize,
                             emphasizesReady: lens == .ready && status == .ready
                         )
                         .opacity(lens == .ready && status != .ready ? ChecklistLens.fadedOpacity : 1)
+                    }
+                    if status == .ready {
+                        legendItem(
+                            label: "Check first", count: counts.checkFirst,
+                            help: "Ready, but look first: work still open, practice asked for, or a shaky recall"
+                        ) {
+                            ChecklistMark(
+                                status: .ready, checkFirst: true, size: Self.markSize,
+                                emphasizesReady: lens == .ready
+                            )
+                        }
                     }
                 }
                 legendItem(
@@ -123,7 +138,7 @@ struct ChecklistStatusBar: View {
     private static func meaning(of status: ChecklistDisplayStatus) -> String {
         switch status {
         case .notReady: return "Not presented, and the lesson before still holds it back"
-        case .ready: return "Not presented or planned, and nothing holds it back"
+        case .ready: return "Not presented or planned, and the lesson before is confirmed"
         case .planned: return "In the Inbox or on a dated plan"
         case .presented: return "Presented"
         case .practicing: return "Practice work is open"

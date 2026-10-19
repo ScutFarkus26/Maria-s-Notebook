@@ -3,7 +3,9 @@
 //  Cosmic Daybook
 //
 //  What a click on a checklist cell opens: the lesson, the child, where she stands
-//  and why, the ladder's five steps to move her up, Present (with the other children
+//  and why (amber for "Ready, check first", with the reason), the lesson before it
+//  as the guide wants to see it first (when given, open work, last check-in,
+//  mastered or not), the ladder's five steps to move her up, Present (with the other children
 //  ready for it), the Inbox, Assign work, Clear, and links to the lesson and the
 //  child. A popover on the Mac and iPad, a sheet on the iPhone. Every button sends
 //  its action through the grid's one handler, as the cell's own menu does.
@@ -29,6 +31,10 @@ struct ChecklistCellCard: View {
         VStack(alignment: .leading, spacing: 12) {
             heading
             statusLine
+            if let previous = viewModel.cardCell == cell ? viewModel.cardPrevious : nil,
+               status < .presented {
+                previousBox(previous)
+            }
             steps
             actions
             Divider()
@@ -38,6 +44,10 @@ struct ChecklistCellCard: View {
         .frame(width: isRegular ? Self.width : nil, alignment: .leading)
         .frame(maxWidth: isRegular ? nil : .infinity, alignment: .leading)
         .modifier(ChecklistCardKeys(isEnabled: isRegular, cell: cell, onAction: onAction))
+        // A solid card, as drawn: the popover's glass let the grid's names and marks
+        // show through behind the text. The grid's own surface, so dark mode follows.
+        .background(ChecklistGridMetrics.surface)
+        .presentationBackground(ChecklistGridMetrics.surface)
         .presentationDetents([.medium, .large])
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(student?.shortName ?? ""), \(lesson?.name ?? "")")
@@ -69,9 +79,13 @@ struct ChecklistCellCard: View {
             record: viewModel.cardCell == cell ? viewModel.cardRecord : ChecklistCardRecord(),
             precedingLessonName: viewModel.precedingLessonNames[cell.lessonID]
         )
+        // Amber always means look before you act.
+        let checkFirst = ChecklistCellDescription.checkFirstText(state) != nil
         return HStack(alignment: .firstTextBaseline, spacing: 8) {
-            ChecklistMark(status: status, needsCheckIn: state?.needsCheckIn ?? false, size: 16)
-                .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
+            ChecklistMark(
+                status: status, needsCheckIn: state?.needsCheckIn ?? false, checkFirst: checkFirst, size: 16
+            )
+            .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
             Text("\(Text(text.title).bold()) \(text.detail)")
                 .font(.subheadline)
                 .fixedSize(horizontal: false, vertical: true)
@@ -80,9 +94,48 @@ struct ChecklistCellCard: View {
         .padding(.vertical, 8)
         .padding(.horizontal, 10)
         .background(
-            Color.accentColor.opacity(UIConstants.OpacityConstants.light),
+            checkFirst
+                ? ChecklistGridMetrics.checkFirstTile
+                : Color.primary.opacity(UIConstants.OpacityConstants.faint),
             in: RoundedRectangle(cornerRadius: 8)
         )
+        .accessibilityElement(children: .combine)
+    }
+
+    /// PREVIOUS LESSON: its mark, its name and when she was given it, then open work,
+    /// the last check-in and whether it is mastered.
+    private func previousBox(_ previous: ChecklistCardPrevious) -> some View {
+        let mark = viewModel.matrixStates[cell.studentID]?[previous.lessonID]?.displayStatus
+            ?? (previous.status.mastered ? .mastered : .presented)
+        return VStack(alignment: .leading, spacing: 6) {
+            Text("PREVIOUS LESSON")
+                .font(.caption2.weight(.semibold))
+                .tracking(0.6)
+                .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                ChecklistMark(status: mark, size: 14)
+                Text(previous.name)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                Text("· \(previous.givenText)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 3) {
+                ForEach(previous.rows, id: \.label) { row in
+                    GridRow {
+                        Text(row.label).foregroundStyle(.secondary)
+                        Text(row.value)
+                    }
+                }
+            }
+            .font(.footnote)
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.primary.opacity(UIConstants.OpacityConstants.hint), in: RoundedRectangle(cornerRadius: 10))
         .accessibilityElement(children: .combine)
     }
 

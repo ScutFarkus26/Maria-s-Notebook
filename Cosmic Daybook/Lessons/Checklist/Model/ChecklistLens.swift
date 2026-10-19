@@ -22,13 +22,13 @@ enum ChecklistLens: String, CaseIterable, Identifiable {
     /// count over the rows and children on screen.
     func title(readyCount: Int) -> String {
         switch self {
-        case .allMarks: return "All Marks"
-        case .ready: return "Ready to Present (\(readyCount))"
+        case .allMarks: return "All marks"
+        case .ready: return "Ready \(readyCount)"
         }
     }
 
-    /// The status bar's line while the Ready lens is on: the rule a ringed cell meets.
-    static let readyRule = "Ringed: not presented or planned, and the lesson before is confirmed"
+    /// The status bar's line while the Ready lens is on: what the two colors mean.
+    static let readyRule = "Blue: ready · Amber: ready, check first (the card says why)"
 
     /// How faint every mark that isn't Ready draws under the Ready lens.
     static let fadedOpacity: Double = 0.2

@@ -17,6 +17,31 @@ struct ChecklistCardRecord: Equatable {
     var plannedFor: Date?
 }
 
+/// The lesson before the card's, for its Previous lesson box.
+struct ChecklistCardPrevious: Equatable {
+    let lessonID: UUID
+    let name: String
+    let status: PreviousLessonStatus
+
+    /// "given Sep 22", or "given, no date" for an undated mark.
+    var givenText: String {
+        status.lastGiven.map { "given \(ChecklistCellCardText.shortDate($0))" } ?? "given, no date"
+    }
+
+    /// The box's rows: open work, the last check-in, mastered or not.
+    var rows: [(label: String, value: String)] {
+        [
+            ("Open work", status.openWorkCount > 0 ? "\(status.openWorkCount)" : "None"),
+            ("Last check-in", status.lastCheckIn?.displayName ?? "None yet"),
+            ("Mastered", status.mastered ? "Yes" : "Not yet")
+        ]
+    }
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.lessonID == rhs.lessonID && lhs.name == rhs.name && lhs.status == rhs.status
+    }
+}
+
 /// The card's five steps, lowest first. A step moves the child up to its rung; a rung
 /// she has already reached is shown done and does nothing (Clear takes her back).
 enum ChecklistLadderStep: CaseIterable, Identifiable {
@@ -84,7 +109,9 @@ enum ChecklistCellCardText {
             }
             detail = reason.map { $0.prefix(1).uppercased() + $0.dropFirst() + "." } ?? "Not ready for this one yet."
         case .ready:
-            detail = ChecklistCellDescription.checkFirstText(state).map { "Check first: \($0)." }
+            // The title already says "Ready, check first."; the line gives the reason.
+            detail = ChecklistCellDescription.checkFirstText(state)
+                .map { $0.prefix(1).uppercased() + $0.dropFirst() + "." }
                 ?? "Nothing holds it back; not presented or planned yet."
         case .planned:
             detail = record.plannedFor.map { "Planned for \(dateText($0))." } ?? "In the Inbox."

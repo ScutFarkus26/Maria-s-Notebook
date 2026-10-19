@@ -83,7 +83,7 @@ struct CurriculumMapFix1012Review {
 @MainActor
 struct CurriculumMapFix1012ReviewShared {
 
-    @Test("Her own Working row beside a Complete shared project row reads Repeated, and the sheet lists both")
+    @Test("Her own Working row beside a Complete shared project row reads Practicing (her open work wins, as on the Checklist), and the sheet lists both")
     func sharedProjectRowBesideHerOwn() throws {
         let context = try CoreDataTestHelpers.makeContext()
         let maya = UUID()
@@ -104,14 +104,14 @@ struct CurriculumMapFix1012ReviewShared {
         let projectID = try #require(project.id)
 
         let input = CurriculumMapLoader.snapshot(in: context)
-        let cell = try #require(CurriculumMapEngine.cells(for: maya, input: input)[lessonID])
-        #expect(cell.state == .repeated)
+        let cell = try #require(ClassGridEngine.cells(for: maya, input: input)[lessonID])
+        #expect(cell.state == .practicing)
         #expect(Set(cell.evidence.workIDs) == [hersID, projectID])
 
-        let sheet = CurriculumMapEngine.ownWork(for: maya, among: input.work)
+        let sheet = ClassGridEngine.ownWork(for: maya, among: input.work)
         #expect(Set(sheet.map(\.id)) == [hersID, projectID])
         // Eli sees the project row and nothing of hers.
-        #expect(CurriculumMapEngine.ownWork(for: eli, among: input.work).map(\.id) == [projectID])
+        #expect(ClassGridEngine.ownWork(for: eli, among: input.work).map(\.id) == [projectID])
     }
 }
 
@@ -163,7 +163,7 @@ struct CurriculumMapFix1012ReviewSchoolYearStart {
     @Test("The class map's Year N follows the school-year start it is given")
     func classYearFollowsStart() async throws {
         let (store, studentID) = try await loadedStore(started: "2025-07-01")
-        let model = ClassCurriculumMapModel()
+        let model = ClassGridYearsModel()
         func year(month: Int, startDay: Int) -> Int? {
             model.rebuild(
                 store: store, area: nil, sequence: nil, granularity: .keyLessons, stateFilter: nil,

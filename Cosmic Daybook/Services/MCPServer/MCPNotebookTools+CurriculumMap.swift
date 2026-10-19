@@ -4,7 +4,7 @@
 //
 //  The Three-Year View over MCP: one child across the whole plane, and one
 //  lesson (or area) across the whole class. Both read the same
-//  CurriculumMapEngine cells the screens draw, so "presented but never
+//  ClassGridEngine cells the screens draw, so "presented but never
 //  chosen" means one thing in the app and in a conversation.
 //
 //  These are the tools to call for "what has Ora not had yet", "plan the
@@ -67,7 +67,7 @@ extension MCPNotebookTools {
         let since: Date? = try dayArgument(arguments, "since").map(AppCalendar.startOfDay)
 
         let input = CurriculumMapLoader.snapshot(in: modelContext)
-        let cells = CurriculumMapEngine.cells(for: studentID, input: input)
+        let cells = ClassGridEngine.cells(for: studentID, input: input)
         let settings = CurriculumMapSettings()
         let today = Date()
         let calendar = AppCalendar.shared
@@ -79,15 +79,15 @@ extension MCPNotebookTools {
 
         var lines: [String] = [studentHeadline(student, timeline: timeline)]
         lines.append(contentsOf: greatLessonLines(input: input, cells: cells))
-        let shown = CurriculumMapEngine.lessons(input.lessons, at: granularity)
+        let shown = ClassGridEngine.lessons(input.lessons, at: granularity)
         var untouched: [String] = []
         for area in areasInOrder(input.lessons) {
             let areaLessons = input.lessons.filter { sameFiling($0.area, area) }
-            let summary = CurriculumMapEngine.aggregate(
+            let summary = ClassGridEngine.aggregate(
                 areaLessons.compactMap { cells[$0.id] }, lessonCount: areaLessons.count
             )
             let days = settings.untouchedDays(for: area)
-            let isUntouched = CurriculumMapEngine.isUntouched(
+            let isUntouched = ClassGridEngine.isUntouched(
                 lastPresented: summary.lastPresented, days: days, today: today, calendar: calendar
             )
             if isUntouched {
@@ -110,7 +110,7 @@ extension MCPNotebookTools {
     }
 
     /// One line per lesson in curriculum order — sub-areas in the album order
-    /// the class map uses (`ClassCurriculumMapModel.orderedSequences`), not
+    /// the class map uses (`ClassGridYearsModel.orderedSequences`), not
     /// alphabetically (bug hunt 2026-10-12, #27); `since` keeps only lessons
     /// with activity on or after the day.
     private static func areaLessonLines(
@@ -118,7 +118,7 @@ extension MCPNotebookTools {
         cells: [UUID: CurriculumCell], since: Date?
     ) -> [String] {
         let sequenceRank: [String: Int] = Dictionary(
-            ClassCurriculumMapModel.orderedSequences(in: area, lessons: areaLessons)
+            ClassGridYearsModel.orderedSequences(in: area, lessons: areaLessons)
                 .enumerated().map { ($0.element.trimmed().lowercased(), $0.offset) },
             uniquingKeysWith: { first, _ in first }
         )
@@ -149,7 +149,7 @@ extension MCPNotebookTools {
     }
 
     private static func greatLessonLines(input: CurriculumMapInput, cells: [UUID: CurriculumCell]) -> [String] {
-        let byRaw = CurriculumMapEngine.greatLessonLessons(in: input.lessons)
+        let byRaw = ClassGridEngine.greatLessonLessons(in: input.lessons)
         var lines: [String] = ["", "Great Lessons:"]
         for great in GreatLesson.allCases {
             let stories = byRaw[great.rawValue] ?? []
@@ -157,9 +157,9 @@ extension MCPNotebookTools {
                 lines.append("- \(great.displayName): no lesson tagged (tag the story in its lesson editor)")
                 continue
             }
-            let summary = CurriculumMapEngine.aggregate(stories.compactMap { cells[$0.id] }, lessonCount: stories.count)
+            let summary = ClassGridEngine.aggregate(stories.compactMap { cells[$0.id] }, lessonCount: stories.count)
             let names = stories.map(\.name).joined(separator: ", ")
-            var detail = summary.state.toolName
+            var detail = MapToolState.name(summary.state)
             if let first = summary.firstPresented { detail += " \(dayString(first))" }
             lines.append("- \(great.displayName): \(detail) [\(names)]")
         }
@@ -178,7 +178,7 @@ extension MCPNotebookTools {
         guard let cell else {
             return "- [lesson id=\(lesson.id.uuidString)] \(lesson.name)\(filing) — notPresented"
         }
-        var parts: [String] = [cell.state.toolName]
+        var parts: [String] = [MapToolState.name(cell.state)]
         if cell.isConfirmed, cell.state < .mastered { parts.append("confirmed ready for next") }
         if let first = cell.firstPresented { parts.append("presented \(dayString(first))") }
         if let last = cell.lastPresented, last != cell.firstPresented { parts.append("again \(dayString(last))") }
@@ -226,7 +226,7 @@ extension MCPNotebookTools {
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
     ) throws -> String {
         let reference = try requireString(arguments, "lesson_or_area")
-        let filter: CurriculumCellState? = try stateArgument(arguments)
+        let filter: ChecklistDisplayStatus? = try stateArgument(arguments)
         let input = CurriculumMapLoader.snapshot(in: modelContext)
         let hidden = TestStudentsFilter.normalizedHiddenNames()
         let students = input.students
@@ -237,14 +237,14 @@ extension MCPNotebookTools {
         let (title, lessonIDs) = try resolveMapScope(reference, lessons: input.lessons, in: modelContext)
         // Only the lesson (or area) asked about: the same cells the whole grid
         // holds for it, without finalising every other (child, lesson) pair.
-        let all = CurriculumMapEngine.cells(input: input, lessons: Set(lessonIDs))
+        let all = ClassGridEngine.cells(input: input, lessons: Set(lessonIDs))
         let today = Date()
         let calendar = AppCalendar.shared
 
-        var byState: [CurriculumCellState: [String]] = [:]
+        var byState: [ChecklistDisplayStatus: [String]] = [:]
         for student in students {
             let cells = lessonIDs.compactMap { all[student.id]?[$0] }
-            let summary = CurriculumMapEngine.aggregate(cells, lessonCount: lessonIDs.count)
+            let summary = ClassGridEngine.aggregate(cells, lessonCount: lessonIDs.count)
             let year = student.dateStarted.map { started in
                 let number = CurriculumTimeline.enrollmentYear(anchor: started, on: today, calendar: calendar)
                 return CurriculumTimeline.yearBadge(number)
@@ -257,10 +257,10 @@ extension MCPNotebookTools {
         }
 
         var lines: [String] = ["\(title) — \(students.count) enrolled child(ren):"]
-        for state in CurriculumCellState.allCases.reversed() where filter == nil || filter == state {
+        for state in MapToolState.all.reversed() where filter == nil || filter == state {
             let names = byState[state] ?? []
             lines.append("")
-            lines.append("\(state.label) (\(names.count)):")
+            lines.append("\(MapToolState.label(state)) (\(names.count)):")
             lines.append(contentsOf: names.isEmpty ? ["  none"] : names.map { "- \($0)" })
         }
         return lines.joined(separator: "\n")
@@ -301,10 +301,10 @@ extension MCPNotebookTools {
         return granularity
     }
 
-    private static func stateArgument(_ arguments: [String: JSONValue]) throws -> CurriculumCellState? {
+    private static func stateArgument(_ arguments: [String: JSONValue]) throws -> ChecklistDisplayStatus? {
         guard let raw = nonEmpty(arguments["state"]?.stringValue) else { return nil }
-        guard let state = CurriculumCellState(toolName: raw) else {
-            let allowed = CurriculumCellState.allCases.map(\.toolName).joined(separator: ", ")
+        guard let state = MapToolState.state(named: raw) else {
+            let allowed = MapToolState.all.map(MapToolState.name).joined(separator: ", ")
             throw MCPToolError("state must be one of: \(allowed). Got \"\(raw)\".")
         }
         return state
@@ -320,7 +320,7 @@ extension MCPNotebookTools {
         if !sameFiling(lhs.sequence, rhs.sequence) {
             return lhs.sequence.localizedCaseInsensitiveCompare(rhs.sequence) == .orderedAscending
         }
-        return CurriculumMapEngine.precedes(lhs, rhs)
+        return ClassGridEngine.precedes(lhs, rhs)
     }
 
     /// Longest-enrolled first, so the cohorts read as bands; name within a cohort.
@@ -331,5 +331,38 @@ extension MCPNotebookTools {
         case (.some, nil): return true
         default: return lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName) == .orderedAscending
         }
+    }
+}
+
+/// The Claude tools' words for a Three Years mark. The screens now say Not yet,
+/// Practicing and Reviewing (the Class Grid's one ladder); the tools keep the
+/// old map's names (notPresented, chosen, repeated) for the `state` argument and
+/// in what they print, so a conversation reads as it always did.
+private enum MapToolState {
+    /// The five marks Three Years draws, lowest first.
+    static let all: [ChecklistDisplayStatus] = [.notReady, .presented, .practicing, .reviewing, .mastered]
+
+    static func name(_ state: ChecklistDisplayStatus) -> String {
+        switch state {
+        case .notReady, .ready, .planned: "notPresented"
+        case .presented: "presented"
+        case .practicing: "chosen"
+        case .reviewing: "repeated"
+        case .mastered: "mastered"
+        }
+    }
+
+    static func label(_ state: ChecklistDisplayStatus) -> String {
+        switch state {
+        case .notReady, .ready, .planned: "Not yet presented"
+        case .presented: "Presented"
+        case .practicing: "Chosen"
+        case .reviewing: "Repeated"
+        case .mastered: "Mastered"
+        }
+    }
+
+    static func state(named name: String) -> ChecklistDisplayStatus? {
+        all.first { Self.name($0) == name }
     }
 }

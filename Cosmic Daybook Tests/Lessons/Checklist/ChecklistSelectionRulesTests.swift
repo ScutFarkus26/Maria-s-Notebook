@@ -135,7 +135,7 @@ struct ChecklistSelectionRulesTests {
     @Test("A full class of 22 and the Class column fit an 1180-pt iPad window")
     func lessonColumnFits1180() {
         let fitted = ChecklistGridMetrics.regular.fitted(toWidth: 1180, studentCount: 22)
-        #expect(fitted.lessonColumnWidth == 228)
+        #expect(fitted.lessonColumnWidth == 212)
         #expect(fitted.rowWidth(studentCount: 22) <= 1180)
         #expect(fitted.studentColumnWidth == ChecklistGridMetrics.regular.studentColumnWidth)
         #expect(fitted.classColumnWidth == ChecklistGridMetrics.regular.classColumnWidth)

@@ -28,7 +28,7 @@ struct ProgressDashboardGroupingTests {
         #expect(CoreDataTestHelpers.save(context))
 
         let assignments = context.safeFetch(CDFetchRequest(CDLessonAssignment.self))
-        let grouped = ProgressDashboardViewModel.groupByStudent(assignments)
+        let grouped = ClassGridChildrenModel.groupByStudent(assignments)
         for id in ids + [UUID().uuidString] {
             let filtered = assignments.filter { $0.studentIDs.contains(id) }
             #expect((grouped[id] ?? []).map(\.objectID) == filtered.map(\.objectID))

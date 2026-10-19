@@ -113,7 +113,7 @@ struct StudentCurriculumGrid: View {
                             Color.secondary.opacity(UIConstants.OpacityConstants.hint)
                         }
                         if let glyph {
-                            CurriculumCellGlyph(state: glyph.state, recall: glyph.recall, tint: row.tint, size: 11)
+                            ChecklistMark(status: glyph.state, recall: glyph.recall, size: 11)
                         }
                     }
                     .frame(width: columnWidth, height: height)
@@ -124,7 +124,7 @@ struct StudentCurriculumGrid: View {
                 .borderSeparated()
                 .accessibilityLabel("\(row.title), \(column.label)")
                 .accessibilityValue(
-                    glyph.map { CurriculumCellGlyph.label(state: $0.state, recall: $0.recall) } ?? "nothing recorded"
+                    glyph.map { ChecklistMark.label(status: $0.state, recall: $0.recall) } ?? "nothing recorded"
                 )
             }
         }
@@ -198,8 +198,8 @@ struct StudentCurriculumGrid: View {
                 .accessibilityLabel("Untouched: \(flag.text)")
         }
         if row.kind != .greatLessonsHeader {
-            CurriculumCellGlyph(state: row.summary.state, recall: row.summary.recall, tint: row.tint, size: 10)
-                .help(CurriculumCellGlyph.label(state: row.summary.state, recall: row.summary.recall))
+            ChecklistMark(status: row.summary.state, recall: row.summary.recall, size: 10)
+                .help(ChecklistMark.label(status: row.summary.state, recall: row.summary.recall))
         }
     }
 

@@ -32,16 +32,16 @@ final class CurriculumMapSettings {
     }
 
     func untouchedDays(for area: String) -> Int {
-        untouchedDaysByArea[CurriculumMapEngine.filingKey(area)] ?? defaultUntouchedDays
+        untouchedDaysByArea[ClassGridEngine.filingKey(area)] ?? defaultUntouchedDays
     }
 
     func hasOverride(for area: String) -> Bool {
-        untouchedDaysByArea[CurriculumMapEngine.filingKey(area)] != nil
+        untouchedDaysByArea[ClassGridEngine.filingKey(area)] != nil
     }
 
     /// Pass nil to fall back to the default again.
     func setUntouchedDays(_ days: Int?, for area: String) {
-        let key = CurriculumMapEngine.filingKey(area)
+        let key = ClassGridEngine.filingKey(area)
         if let days, days > 0 {
             untouchedDaysByArea[key] = days
         } else {

@@ -4,8 +4,9 @@
 //
 //  The checklist grid's sizes. The Mac and a regular-width iPad get the dense layout
 //  (38-pt columns under angled names grouped by level, a one-line lesson column, a
-//  Class column, 30-pt rows); an iPhone keeps its 120-pt columns, two-line lesson
-//  names and the name-and-age header.
+//  Class column, 30-pt rows). The iPhone gets 44-pt columns under the same angled
+//  names, so five children fit beside a 132-pt lesson column, with two-line names
+//  in 44-pt rows (Class Grid canvas, 2026-10-18; it had 120-pt columns, two children).
 //
 
 import SwiftUI
@@ -26,7 +27,8 @@ struct ChecklistGridMetrics: Equatable {
         studentColumnWidth: 38,
         lessonColumnWidth: 268,
         rowHeight: 30,
-        classColumnWidth: 116,
+        // Room for "4 ready" over "1 check first" beside Plan.
+        classColumnWidth: 132,
         headerHeight: levelBandHeight + 90,
         sequenceBandHeight: 30,
         sectionCaptionHeight: 24
@@ -34,12 +36,12 @@ struct ChecklistGridMetrics: Equatable {
 
     static let compact = ChecklistGridMetrics(
         isRegular: false,
-        studentColumnWidth: 120,
-        lessonColumnWidth: 200,
+        studentColumnWidth: 44,
+        lessonColumnWidth: 132,
         rowHeight: 44,
         classColumnWidth: 0,
-        headerHeight: 44,
-        sequenceBandHeight: 34,
+        headerHeight: levelBandHeight + 78,
+        sequenceBandHeight: 32,
         sectionCaptionHeight: 26
     )
 
@@ -97,4 +99,10 @@ struct ChecklistGridMetrics: Equatable {
     /// The Ready lens's tile behind a ready cell: a light blue wash in light mode, a deep
     /// one in dark mode, under the mark's blue ring.
     static let readyTile = Color.blue.opacity(0.15)
+    /// The Ready lens's tile behind a Ready, check first cell: amber always means look
+    /// before you act.
+    static let checkFirstTile = Color.orange.opacity(0.2)
+    /// The ring of a Ready, check first cell under the Ready lens, and its count in the
+    /// Class column.
+    static let checkFirstInk = Color.orange
 }

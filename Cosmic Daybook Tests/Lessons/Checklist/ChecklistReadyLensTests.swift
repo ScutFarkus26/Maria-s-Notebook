@@ -235,7 +235,7 @@ struct ChecklistReadyLensTests {
         #expect(viewModel.isReadyLens)
         #expect(viewModel.matrixStates == before)
         #expect(viewModel.statusCounts == counts)
-        #expect(ChecklistLens.ready.title(readyCount: viewModel.readyTotal) == "Ready to Present (6)")
-        #expect(ChecklistLens.allMarks.title(readyCount: 6) == "All Marks")
+        #expect(ChecklistLens.ready.title(readyCount: viewModel.readyTotal) == "Ready 6")
+        #expect(ChecklistLens.allMarks.title(readyCount: 6) == "All marks")
     }
 }

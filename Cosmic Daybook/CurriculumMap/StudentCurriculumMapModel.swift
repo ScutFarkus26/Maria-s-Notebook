@@ -37,7 +37,7 @@ struct CurriculumRow: Identifiable, Hashable {
 }
 
 struct CurriculumGlyphSpec: Hashable {
-    let state: CurriculumCellState
+    let state: ChecklistDisplayStatus
     let recall: RecallOutcome?
 }
 
@@ -105,14 +105,14 @@ final class StudentCurriculumMapModel {
     }
 
     func toggle(area: String) {
-        let key = CurriculumMapEngine.filingKey(area)
+        let key = ClassGridEngine.filingKey(area)
         if expandedAreas.contains(key) { expandedAreas.remove(key) } else { expandedAreas.insert(key) }
         applyExpansion()
     }
 
     func expandAll() {
         expandedAreas = Set(allRows.compactMap { row in
-            if case .area(let area) = row.kind { return CurriculumMapEngine.filingKey(area) }
+            if case .area(let area) = row.kind { return ClassGridEngine.filingKey(area) }
             return nil
         })
         applyExpansion()
@@ -131,7 +131,7 @@ final class StudentCurriculumMapModel {
             case .greatLessonsHeader, .greatLesson:
                 visible.append(row)
             case .area(let area):
-                currentAreaExpanded = expandedAreas.contains(CurriculumMapEngine.filingKey(area))
+                currentAreaExpanded = expandedAreas.contains(ClassGridEngine.filingKey(area))
                 row.isExpanded = currentAreaExpanded
                 visible.append(row)
             case .sequence, .lesson:
@@ -153,10 +153,10 @@ private struct RowBuilder {
     let today: Date
     let calendar: Calendar
 
-    private var firstLessonIDs: Set<UUID> { CurriculumMapEngine.firstLessonIDs(in: lessons) }
+    private var firstLessonIDs: Set<UUID> { ClassGridEngine.firstLessonIDs(in: lessons) }
 
     func greatLessonRows() -> [CurriculumRow] {
-        let byRaw = CurriculumMapEngine.greatLessonLessons(in: lessons)
+        let byRaw = ClassGridEngine.greatLessonLessons(in: lessons)
         var rows: [CurriculumRow] = [
             CurriculumRow(
                 id: "great-lessons", kind: .greatLessonsHeader, title: "Great Lessons",
@@ -186,20 +186,20 @@ private struct RowBuilder {
     }
 
     func areaRows() -> [CurriculumRow] {
-        let shownLessons = CurriculumMapEngine.lessons(lessons, at: granularity)
+        let shownLessons = ClassGridEngine.lessons(lessons, at: granularity)
         let areas = orderedAreas()
         var rows: [CurriculumRow] = []
         for area in areas {
-            let areaKey = CurriculumMapEngine.filingKey(area)
-            let areaLessons = lessons.filter { CurriculumMapEngine.filingKey($0.area) == areaKey }
+            let areaKey = ClassGridEngine.filingKey(area)
+            let areaLessons = lessons.filter { ClassGridEngine.filingKey($0.area) == areaKey }
             let ids = areaLessons.map(\.id)
             let summary = aggregate(for: ids)
             let days = settings.untouchedDays(for: area)
-            let untouched = CurriculumMapEngine.isUntouched(
+            let untouched = ClassGridEngine.isUntouched(
                 lastPresented: summary.lastPresented, days: days, today: today, calendar: calendar
             )
             rows.append(CurriculumRow(
-                id: "area-\(CurriculumMapEngine.filingKey(area))",
+                id: "area-\(ClassGridEngine.filingKey(area))",
                 kind: .area(area),
                 title: area,
                 subtitle: "\(summary.presentedCount) of \(areaLessons.count) presented",
@@ -226,11 +226,11 @@ private struct RowBuilder {
         var rows: [CurriculumRow] = []
         for sequence in orderedSequences(in: area, lessons: areaLessons) {
             let inSequence = areaLessons
-                .filter { CurriculumMapEngine.filingKey($0.sequence) == CurriculumMapEngine.filingKey(sequence) }
-                .sorted(by: CurriculumMapEngine.precedes)
+                .filter { ClassGridEngine.filingKey($0.sequence) == ClassGridEngine.filingKey(sequence) }
+                .sorted(by: ClassGridEngine.precedes)
             let summary = aggregate(for: inSequence.map(\.id))
             rows.append(CurriculumRow(
-                id: "seq-\(CurriculumMapEngine.sequenceKey(area: area, sequence: sequence))",
+                id: "seq-\(ClassGridEngine.sequenceKey(area: area, sequence: sequence))",
                 kind: .sequence(area: area, sequence: sequence),
                 title: sequence.isEmpty ? "Other" : sequence,
                 subtitle: "\(summary.presentedCount) of \(inSequence.count)",
@@ -269,7 +269,7 @@ private struct RowBuilder {
 
     private func lessonSubtitle(_ lesson: CurriculumLessonRef, cell: CurriculumCell) -> String? {
         var parts: [String] = []
-        if CurriculumMapEngine.isKeyLesson(lesson, firstLessonIDs: firstLessonIDs) { parts.append("Key lesson") }
+        if ClassGridEngine.isKeyLesson(lesson, firstLessonIDs: firstLessonIDs) { parts.append("Key lesson") }
         if let first = cell.firstPresented {
             parts.append("presented \(DateFormatters.mediumDate.string(from: first))")
         }
@@ -288,17 +288,17 @@ private struct RowBuilder {
     }
 
     private func aggregate(for lessonIDs: [UUID]) -> CurriculumAggregate {
-        CurriculumMapEngine.aggregate(lessonIDs.compactMap { cells[$0] }, lessonCount: lessonIDs.count)
+        ClassGridEngine.aggregate(lessonIDs.compactMap { cells[$0] }, lessonCount: lessonIDs.count)
     }
 
     /// The best thing that happened in each column, with the latest recall in it.
     private func glyphs(for events: [CurriculumEvent]) -> [CurriculumGlyphSpec?] {
-        var best: [CurriculumCellState?] = Array(repeating: nil, count: timeline.columns.count)
+        var best: [ChecklistDisplayStatus?] = Array(repeating: nil, count: timeline.columns.count)
         var recall: [(Date, RecallOutcome)?] = Array(repeating: nil, count: timeline.columns.count)
         for event in events {
             guard let index = timeline.columnIndex(for: event.date) else { continue }
             if let state = event.state {
-                best[index] = max(best[index] ?? .notPresented, state)
+                best[index] = max(best[index] ?? .notReady, state)
             }
             if let outcome = event.recall, recall[index] == nil || event.date > recall[index]!.0 {
                 recall[index] = (event.date, outcome)
@@ -306,7 +306,7 @@ private struct RowBuilder {
         }
         return (0..<timeline.columns.count).map { index in
             guard best[index] != nil || recall[index] != nil else { return nil }
-            return CurriculumGlyphSpec(state: best[index] ?? .notPresented, recall: recall[index]?.1)
+            return CurriculumGlyphSpec(state: best[index] ?? .notReady, recall: recall[index]?.1)
         }
     }
 

@@ -73,7 +73,7 @@ final class CurriculumMapStore {
     func cells(for studentID: UUID) -> [UUID: CurriculumCell] {
         if let cached = cellsByStudent[studentID] { return cached }
         guard let input else { return [:] }
-        let cells = CurriculumMapEngine.cells(for: studentID, input: input)
+        let cells = ClassGridEngine.cells(for: studentID, input: input)
         cellsByStudent[studentID] = cells
         return cells
     }
@@ -82,7 +82,7 @@ final class CurriculumMapStore {
     func cellsForAllStudents() -> [UUID: [UUID: CurriculumCell]] {
         if let allCells { return allCells }
         guard let input else { return [:] }
-        let cells = CurriculumMapEngine.cells(input: input)
+        let cells = ClassGridEngine.cells(input: input)
         allCells = cells
         cellsByStudent = cells
         return cells

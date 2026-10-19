@@ -100,14 +100,14 @@ struct LessonMasteryStatusTests {
         #expect(CoreDataTestHelpers.save(seeded.context))
     }
 
-    private func dashboardStatus(_ seeded: Seeded) throws -> LessonNodeStatus {
-        let dashboard = ProgressDashboardViewModel()
+    private func dashboardStatus(_ seeded: Seeded) throws -> ChecklistDisplayStatus {
+        let dashboard = ClassGridChildrenModel()
         dashboard.loadData(context: seeded.context)
         let pill = try #require(dashboard.studentCards.first?.subjects.first?.sequences.first?.pills.first)
         return pill.status
     }
 
-    @Test("The Progress Dashboard waits for the mastery mark")
+    @Test("The Class Grid's Children view waits for the mastery mark")
     func dashboardWaitsForMark() throws {
         let seeded = try seedClosedWork()
         #expect(try dashboardStatus(seeded) == .reviewing)

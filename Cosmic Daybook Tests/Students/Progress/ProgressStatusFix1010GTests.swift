@@ -80,15 +80,15 @@ struct ProgressStatusFix1010GTests {
         #expect(timeline.nodes.map(\.isNext) == [false, false, true, false])
     }
 
-    @Test("The dashboard's pills agree with the Timeline")
+    @Test("The Children view's marks agree with the Timeline")
     func dashboardReadsTheMasteryMark() throws {
         let seeded = try seed()
-        let dashboard = ProgressDashboardViewModel()
+        let dashboard = ClassGridChildrenModel()
         dashboard.loadData(context: seeded.context)
 
         let card = try #require(dashboard.studentCards.first { $0.id == seeded.student.id })
         let pills = try #require(card.subjects.first?.sequences.first?.pills)
-        #expect(pills.map { label($0.status) } == ["Mastered", "Reviewing", "Not Started", "Not Started"])
+        #expect(pills.map(\.status) == [.mastered, .reviewing, .notReady, .notReady])
     }
 
     @Test("Plan Lesson plans the lesson tapped, shows it Planned, and works on the last lesson")

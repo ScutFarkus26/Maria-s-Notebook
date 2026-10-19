@@ -2,11 +2,15 @@
 //  ChecklistMark.swift
 //  Cosmic Daybook
 //
-//  One mark per checklist cell that fills as the child goes: a grey dot (not yet
-//  ready), a grey ring (ready), a dashed orange ring (planned), a blue ring filling
-//  a quarter, half and three quarters (presented, practicing, reviewing), then solid
-//  green with a check (mastered). A small orange dot on top asks for a check-in.
-//  Plain shapes in system colors, so a grid of them is cheap and dark mode works.
+//  The Class Grid's one mark, in all four views (it replaced the Three-Year View's
+//  glyph): a grey dot (not yet), a grey ring (ready), a dashed orange ring
+//  (planned), a blue ring filling a quarter, half and three quarters (presented,
+//  practicing, reviewing), then solid green with a check (mastered, only for a
+//  mastery mark). A small amber dot on top means look before you act: a check-in
+//  is due, or a Ready cell is "Ready, check first". Three Years and Recall draw
+//  the latest recall check as an outline outside the mark: solid green (still has
+//  it), dashed orange (shaky), dotted red (forgotten). Plain shapes in system
+//  colors, so a grid of them is cheap and dark mode works.
 //
 
 import SwiftUI
@@ -14,6 +18,10 @@ import SwiftUI
 struct ChecklistMark: View, Equatable {
     let status: ChecklistDisplayStatus
     var needsCheckIn: Bool = false
+    /// A Ready cell that is "Ready, check first": the amber dot on its grey ring.
+    var checkFirst: Bool = false
+    /// The latest recall check, drawn as an outline outside the mark.
+    var recall: RecallOutcome?
     var size: CGFloat = 15
     /// The Ready lens: a Ready ring turns blue and heavier, filled with the background
     /// so it reads on the lens's tinted tile.
@@ -21,11 +29,19 @@ struct ChecklistMark: View, Equatable {
 
     private var lineWidth: CGFloat { max(1.25, size * 0.1) }
 
+    /// The amber dot: a check-in is due, or the cell is Ready, check first.
+    private var showsAmberDot: Bool {
+        needsCheckIn || (checkFirst && status == .ready)
+    }
+
     var body: some View {
         mark
             .frame(width: size, height: size)
+            .overlay {
+                if let recall { recallRing(recall) }
+            }
             .overlay(alignment: .topTrailing) {
-                if needsCheckIn { checkInDot }
+                if showsAmberDot { checkInDot }
             }
             .animation(.snappy(duration: 0.25), value: status)
             .accessibilityHidden(true)
@@ -39,9 +55,12 @@ struct ChecklistMark: View, Equatable {
                 .fill(.tertiary)
                 .frame(width: size * 0.32, height: size * 0.32)
         case .ready where emphasizesReady:
+            // Under the Ready lens: blue for Ready, amber for Ready, check first.
             Circle()
                 .fill(ChecklistGridMetrics.surface)
-                .overlay(Circle().strokeBorder(Color.blue, lineWidth: lineWidth * 1.4))
+                .overlay(Circle().strokeBorder(
+                    checkFirst ? ChecklistGridMetrics.checkFirstInk : Color.blue, lineWidth: lineWidth * 1.4
+                ))
         case .ready:
             Circle()
                 .strokeBorder(.secondary, lineWidth: lineWidth)
@@ -70,6 +89,40 @@ struct ChecklistMark: View, Equatable {
                         style: StrokeStyle(lineWidth: size * 0.13, lineCap: .round, lineJoin: .round)
                     )
             }
+        }
+    }
+
+    /// The latest recall check, an outline a little outside the mark. Mastery itself
+    /// never changes; the ring only says how the last check went.
+    private func recallRing(_ recall: RecallOutcome) -> some View {
+        let width = max(1.25, size * 0.12)
+        let style: StrokeStyle = switch recall {
+        case .retained: StrokeStyle(lineWidth: width)
+        case .shaky: StrokeStyle(lineWidth: width, dash: [size * 0.22, size * 0.14])
+        case .forgotten: StrokeStyle(lineWidth: width, lineCap: .round, dash: [0.1, size * 0.2])
+        }
+        return Circle()
+            .stroke(Self.recallColor(recall), style: style)
+            .frame(width: size + size * 0.5, height: size + size * 0.5)
+            .allowsHitTesting(false)
+    }
+
+    static func recallColor(_ recall: RecallOutcome) -> Color {
+        switch recall {
+        case .retained: .green
+        case .shaky: .orange
+        case .forgotten: .red
+        }
+    }
+
+    /// What the mark says, for VoiceOver and hover text: "Mastered, recall shaky".
+    static func label(status: ChecklistDisplayStatus, recall: RecallOutcome?) -> String {
+        let base = status == .notReady ? "Not yet" : status.label
+        guard let recall else { return base }
+        switch recall {
+        case .retained: return "\(base), still has it"
+        case .shaky: return "\(base), recall shaky"
+        case .forgotten: return "\(base), forgotten"
         }
     }
 
@@ -160,6 +213,10 @@ private struct ChecklistMarkPreview: View {
             }
             ChecklistMark(status: .practicing, needsCheckIn: true)
             ChecklistMark(status: .ready, emphasizesReady: true)
+            ChecklistMark(status: .ready, checkFirst: true)
+            ChecklistMark(status: .mastered, recall: .retained)
+            ChecklistMark(status: .mastered, recall: .shaky)
+            ChecklistMark(status: .reviewing, recall: .forgotten)
         }
         .padding()
     }

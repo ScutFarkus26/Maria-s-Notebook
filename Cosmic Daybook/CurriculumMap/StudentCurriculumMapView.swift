@@ -88,7 +88,7 @@ struct StudentCurriculumMapView: View {
                 // The legend keeps its labels at full width (`fixedSize`), so on
                 // a phone it scrolls rather than pushing the row off screen.
                 ScrollView(.horizontal) {
-                    CurriculumLegend()
+                    ClassGridMarksLegend()
                 }
                 .scrollIndicators(.hidden)
                 .scrollBounceBehavior(.basedOnSize, axes: .horizontal)

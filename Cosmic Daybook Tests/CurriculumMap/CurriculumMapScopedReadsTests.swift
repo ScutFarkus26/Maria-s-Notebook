@@ -107,7 +107,7 @@ struct CurriculumMapScopedReadsTests {
     private func wholeGrid(
         _ input: CurriculumMapInput, restrictedTo lessonIDs: Set<UUID>
     ) -> [UUID: [UUID: CurriculumCell]] {
-        CurriculumMapEngine.cells(input: input)
+        ClassGridEngine.cells(input: input)
             .mapValues { byLesson in byLesson.filter { lessonIDs.contains($0.key) } }
             .filter { !$0.value.isEmpty }
     }
@@ -126,17 +126,17 @@ struct CurriculumMapScopedReadsTests {
         ]
 
         for scope in scopes {
-            let scoped = CurriculumMapEngine.cells(input: input, lessons: scope)
+            let scoped = ClassGridEngine.cells(input: input, lessons: scope)
             #expect(scoped == wholeGrid(input, restrictedTo: scope))
         }
         // The fixture reaches every rung, so the equality above is not vacuous.
-        let lawsCells = CurriculumMapEngine.cells(input: input, lessons: [seeded.laws.id])
+        let lawsCells = ClassGridEngine.cells(input: input, lessons: [seeded.laws.id])
         #expect(lawsCells[dalia]?[seeded.laws.id]?.state == .mastered)
-        #expect(lawsCells[ora]?[seeded.laws.id]?.state == .repeated)
+        #expect(lawsCells[ora]?[seeded.laws.id]?.state == .reviewing)
         #expect(lawsCells[ora]?[seeded.laws.id]?.practiceCount == 3)
-        #expect(CurriculumMapEngine.cells(input: input, lessons: [seeded.cell.id])[ora]?[seeded.cell.id]?.state
-            == .repeated)
-        #expect(CurriculumMapEngine.cells(input: input, lessons: [seeded.untouched.id]).isEmpty)
+        #expect(ClassGridEngine.cells(input: input, lessons: [seeded.cell.id])[ora]?[seeded.cell.id]?.state
+            == .reviewing)
+        #expect(ClassGridEngine.cells(input: input, lessons: [seeded.untouched.id]).isEmpty)
     }
 
     // MARK: - Work participants

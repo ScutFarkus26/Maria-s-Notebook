@@ -13,19 +13,22 @@ struct ChecklistStatusCounts: Equatable {
     private(set) var byStatus: [ChecklistDisplayStatus: Int] = [:]
     /// Cells whose open work asks for a check-in (they count on their rung too).
     private(set) var needsCheckIn: Int = 0
+    /// Ready cells that are Ready, check first (they count as Ready too).
+    private(set) var checkFirst: Int = 0
     /// Cells counted: visible students × visible lessons that have a state.
     private(set) var total: Int = 0
 
     init() {}
 
     /// Counts `matrix` (student → lesson → state) over the given students and lessons only.
-    init(matrix: ChecklistMatrixBuilder.Matrix, studentIDs: [UUID], lessonIDs: [UUID]) {
+    init(matrix: ClassGridEngine.Matrix, studentIDs: [UUID], lessonIDs: [UUID]) {
         for studentID in studentIDs {
             guard let row = matrix[studentID] else { continue }
             for lessonID in lessonIDs {
                 guard let state = row[lessonID] else { continue }
                 byStatus[state.displayStatus, default: 0] += 1
                 if state.needsCheckIn { needsCheckIn += 1 }
+                if ChecklistCellDescription.checkFirstText(state) != nil { checkFirst += 1 }
                 total += 1
             }
         }

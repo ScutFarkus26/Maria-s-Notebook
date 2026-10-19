@@ -1,13 +1,16 @@
 // RecallCheckSheet.swift
-// The tap-through recall check for one frontier lesson: pick an outcome (still has it / shaky /
-// forgotten), optionally add a note, and record it. The lessons this frontier covers are shown
-// for context — they're marked retained automatically when the frontier is "still has it".
+// The iPhone's recall check, from the Class Grid's Recall view (the Mac and iPad
+// show the same check beside the queue: RecallCheckForm). For one frontier lesson:
+// pick an outcome (still has it / shaky / forgotten), optionally add a note, and
+// record it. The lessons this frontier covers are shown for context — they're
+// marked retained automatically when the frontier is "still has it".
 // (Optional photo capture + per-covered-lesson "check anyway" override are planned follow-ups.)
 
 import SwiftUI
 
 struct RecallCheckSheet: View {
     let entry: RecallQueueEntry
+    var studentName: String = ""
     let onComplete: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -24,7 +27,7 @@ struct RecallCheckSheet: View {
                 Section {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(entry.frontierLessonName).font(.headline)
-                        Text("\(entry.area) · \(entry.sequence)")
+                        Text([studentName, entry.area, entry.sequence].filter { !$0.isEmpty }.joined(separator: " · "))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         if let mastered = entry.frontierMasteredAt {
@@ -35,11 +38,17 @@ struct RecallCheckSheet: View {
                     }
                 }
 
-                Section("How did the recall go?") {
+                Section {
                     HStack(spacing: 8) {
-                        outcomeButton(.retained, "Still has it")
-                        outcomeButton(.shaky, "Shaky")
-                        outcomeButton(.forgotten, "Forgotten")
+                        ForEach(RecallCheckText.outcomes, id: \.self) { value in
+                            outcomeButton(value, RecallCheckText.title(value))
+                        }
+                    }
+                } header: {
+                    Text("How did the recall go?")
+                } footer: {
+                    if let outcome {
+                        Text(RecallCheckText.consequence(of: outcome, coversCount: entry.coversCount))
                     }
                 }
 

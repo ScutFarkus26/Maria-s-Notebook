@@ -59,13 +59,13 @@ enum ChecklistCellRecords {
         }
     }
 
-    /// The row a cell reads (`ChecklistMatrixBuilder.cellWork`: open before
+    /// The row a cell reads (`ClassGridEngine.cellWork`: open before
     /// closed, then newest), from the rows she owns when she owns any, so a
     /// linked copy that names her as a classmate is never closed in her place.
     static func cellWork(studentID: UUID, lessonID: UUID, in context: NSManagedObjectContext) -> CDWorkModel? {
         let rows = work(on: lessonID, involving: studentID, in: context)
         let owned = rows.filter { WorkGrouping.owner(of: $0) == studentID }
-        return ChecklistMatrixBuilder.cellWork(owned.isEmpty ? rows : owned)
+        return ClassGridEngine.cellWork(owned.isEmpty ? rows : owned)
     }
 
     // MARK: - Clear

@@ -1,7 +1,7 @@
 // ClassAreaChecklistViewModel.swift
 // Cosmic Daybook
 //
-// Extracted from ClassAreaChecklistView.swift for better separation of concerns.
+// Extracted from ClassGridChecklistView.swift for better separation of concerns.
 //
 // Extensions:
 // - ClassAreaChecklistViewModel+CellActions.swift         (toggle/mark/clear individual cells)
@@ -19,7 +19,7 @@ import OSLog
 // MARK: - ViewModel
 // Manages data loading, area selection, and matrix state.
 // Delegates to:
-// - ChecklistMatrixBuilder: Matrix state computation
+// - ClassGridEngine: Matrix state computation
 // - ChecklistBatchActionExecutor: Batch operations
 // - ChecklistDragSelectionManager: Drag selection (used in view)
 @Observable
@@ -80,6 +80,8 @@ class ClassAreaChecklistViewModel {
     @ObservationIgnored var collapsedSequencesDefaults: UserDefaults = .standard
     /// Each lesson's predecessor's name, for the cell's "Not yet: … not presented" text.
     private(set) var precedingLessonNames: [UUID: String] = [:]
+    /// Each lesson's predecessor, for the card's Previous lesson box.
+    private(set) var precedingLessonIDs: [UUID: UUID] = [:]
 
     // MARK: - Row Focus
     /// The lesson whose row a deep link asked to reveal. The grid scrolls to it
@@ -109,6 +111,9 @@ class ClassAreaChecklistViewModel {
     var cardCell: CellIdentifier?
     /// The open card's dates, read when it opens and after each change made from it.
     var cardRecord = ChecklistCardRecord()
+    /// The open card's previous lesson, as the guide wants to see it before giving this
+    /// one; nil when the lesson starts its sequence or she hasn't had the one before.
+    var cardPrevious: ChecklistCardPrevious?
     private let lessonsLogic = LessonsViewModel()
 
     // OPTIMIZATION: Cache lessons-per-sequence to avoid filtering + sorting on every body evaluation.
@@ -182,8 +187,9 @@ class ClassAreaChecklistViewModel {
         if self.lessons.contains(where: { $0.sequence.trimmed().isEmpty }) {
             self.orderedSequences.append("")
         }
-        self.precedingLessonNames = BlockingAlgorithmEngine.buildPrecedingLessonCache(self.lessons)
-            .mapValues(\.name)
+        let preceding = BlockingAlgorithmEngine.buildPrecedingLessonCache(self.lessons)
+        self.precedingLessonNames = preceding.mapValues(\.name)
+        self.precedingLessonIDs = preceding.compactMapValues(\.id)
         self.collapsedSequences = ChecklistCollapsedSequences.load(area: sub, defaults: collapsedSequencesDefaults)
         applyFilters()
     }
@@ -335,14 +341,14 @@ class ClassAreaChecklistViewModel {
         clearSelection()
     }
 
-    // MARK: - Matrix Computation (delegated to ChecklistMatrixBuilder)
+    // MARK: - Matrix Computation (delegated to ClassGridEngine)
 
     /// Builds over the full roster and the full area rather than the filtered subsets, so
     /// narrowing or widening a filter is a pure re-render with no Core Data work behind it.
     func recomputeMatrix(context: NSManagedObjectContext) {
         defer { recomputeStatusCounts() }
         guard !lessons.isEmpty else { matrixStates = [:]; return }
-        self.matrixStates = ChecklistMatrixBuilder.buildMatrix(
+        self.matrixStates = ClassGridEngine.buildMatrix(
             students: rosterStudents,
             lessons: lessons,
             context: context
@@ -376,7 +382,7 @@ class ClassAreaChecklistViewModel {
             return
         }
         var updated = matrixStates
-        ChecklistMatrixBuilder.rebuildRows(
+        ClassGridEngine.rebuildRows(
             in: &updated,
             touching: [lessonID],
             students: rosterStudents,

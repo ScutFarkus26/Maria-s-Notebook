@@ -71,8 +71,8 @@ struct ChecklistIncrementalUpdateTests {
         )
     }
 
-    private func fullRebuild(_ fixture: Fixture) -> ChecklistMatrixBuilder.Matrix {
-        ChecklistMatrixBuilder.buildMatrix(
+    private func fullRebuild(_ fixture: Fixture) -> ClassGridEngine.Matrix {
+        ClassGridEngine.buildMatrix(
             students: fixture.viewModel.rosterStudents,
             lessons: fixture.viewModel.lessons,
             context: fixture.context
@@ -208,8 +208,8 @@ struct ChecklistIncrementalUpdateTests {
         let middleID = try #require(fixture.middle.id)
         let nextID = try #require(fixture.next.id)
 
-        var matrix: ChecklistMatrixBuilder.Matrix = [:]
-        ChecklistMatrixBuilder.rebuildRows(
+        var matrix: ClassGridEngine.Matrix = [:]
+        ClassGridEngine.rebuildRows(
             in: &matrix, touching: [middleID], students: students, lessons: lessons, context: fixture.context
         )
 

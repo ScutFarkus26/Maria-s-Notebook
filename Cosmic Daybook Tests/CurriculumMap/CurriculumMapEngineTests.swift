@@ -55,7 +55,7 @@ struct CurriculumMapEngineTests {
     }
 
     private func cell(_ input: CurriculumMapInput, _ lesson: CurriculumLessonRef) -> CurriculumCell? {
-        CurriculumMapEngine.cells(for: student, input: input)[lesson.id]
+        ClassGridEngine.cells(for: student, input: input)[lesson.id]
     }
 
     // MARK: - The Ladder
@@ -92,10 +92,10 @@ struct CurriculumMapEngineTests {
         var input = CurriculumMapInput(lessons: [laws])
         input.presentations = [presentation(laws, on: "2026-02-12")]
         input.work = [work(laws, assigned: "2026-02-13")]
-        #expect(try #require(cell(input, laws)).state == .chosen)
+        #expect(try #require(cell(input, laws)).state == .practicing)
 
         input.work = [work(laws, status: .review, assigned: "2026-02-13")]
-        #expect(try #require(cell(input, laws)).state == .repeated)
+        #expect(try #require(cell(input, laws)).state == .reviewing)
     }
 
     @Test("Three practice sessions are repeated; two are only chosen")
@@ -107,16 +107,16 @@ struct CurriculumMapEngineTests {
         input.work = [item]
         input.practice = [practice(item, on: "2026-02-14"), practice(item, on: "2026-02-15")]
         let two = try #require(cell(input, laws))
-        #expect(two.state == .chosen)
+        #expect(two.state == .practicing)
         #expect(two.practiceCount == 2)
 
         input.practice.append(practice(item, on: "2026-02-16"))
         let three = try #require(cell(input, laws))
-        #expect(three.state == .repeated)
-        let practiceStates: [CurriculumCellState?] = three.events
+        #expect(three.state == .reviewing)
+        let practiceStates: [ChecklistDisplayStatus?] = three.events
             .filter { $0.kind == CurriculumEvent.Kind.practice }
             .map(\.state)
-        let expected: [CurriculumCellState?] = [.chosen, .chosen, .repeated]
+        let expected: [ChecklistDisplayStatus?] = [.practicing, .practicing, .reviewing]
         #expect(practiceStates == expected)
     }
 
@@ -167,7 +167,7 @@ struct CurriculumMapEngineTests {
         input.practice = [practice(peerWork, on: "2026-02-14", students: [student, peer])]
 
         let cell = try #require(cell(input, laws))
-        #expect(cell.state == .chosen)
+        #expect(cell.state == .practicing)
         #expect(cell.evidence.workIDs.isEmpty)
         #expect(cell.evidence.practiceSessionIDs.count == 1)
     }
@@ -176,7 +176,7 @@ struct CurriculumMapEngineTests {
     func noRecordsNoCell() {
         let laws = lesson("Commutative Law", order: 0)
         let input = CurriculumMapInput(lessons: [laws])
-        #expect(CurriculumMapEngine.cells(for: student, input: input).isEmpty)
+        #expect(ClassGridEngine.cells(for: student, input: input).isEmpty)
     }
 
     // MARK: - Key Lessons & Great Lessons
@@ -191,9 +191,9 @@ struct CurriculumMapEngineTests {
         let chapterFirst = lesson("Composition of the Earth", area: "Geography", sequence: "Chapter 1", order: 0)
         let all = [step, marked, first, story, chapterFirst]
 
-        let key = CurriculumMapEngine.lessons(all, at: .keyLessons).map(\.name)
+        let key = ClassGridEngine.lessons(all, at: .keyLessons).map(\.name)
         #expect(Set(key) == ["Concept of a Multiple", "Distributive Law", "The God With No Hands", "Composition of the Earth"])
-        #expect(CurriculumMapEngine.lessons(all, at: .allLessons).count == 5)
+        #expect(ClassGridEngine.lessons(all, at: .allLessons).count == 5)
     }
 
     @Test("A Great Lesson is its tagged story lessons, not every lesson tagged with it")
@@ -205,7 +205,7 @@ struct CurriculumMapEngineTests {
         let numbers = lesson("The Story of Numerals", area: "Math", sequence: "Intro", order: 0,
                              great: GreatLesson.storyOfNumbers.rawValue)
 
-        let byRaw = CurriculumMapEngine.greatLessonLessons(in: [followUp, story, numbers])
+        let byRaw = ClassGridEngine.greatLessonLessons(in: [followUp, story, numbers])
         #expect(byRaw[GreatLesson.comingOfUniverse.rawValue]?.map(\.name) == ["The God With No Hands"])
         #expect(byRaw[GreatLesson.storyOfNumbers.rawValue]?.map(\.name) == ["The Story of Numerals"])
         #expect(byRaw[GreatLesson.comingOfLife.rawValue] == nil)
@@ -220,10 +220,10 @@ struct CurriculumMapEngineTests {
         var input = CurriculumMapInput(lessons: [a, b])
         input.presentations = [presentation(a, on: "2026-01-10"), presentation(b, on: "2026-03-10")]
         input.work = [work(a, status: .mastered, assigned: "2026-01-11")]
-        let cells = CurriculumMapEngine.cells(for: student, input: input)
+        let cells = ClassGridEngine.cells(for: student, input: input)
 
-        let summary = CurriculumMapEngine.aggregate(Array(cells.values), lessonCount: 2)
-        #expect(summary.state == .repeated)
+        let summary = ClassGridEngine.aggregate(Array(cells.values), lessonCount: 2)
+        #expect(summary.state == .reviewing)
         #expect(summary.presentedCount == 2)
         #expect(summary.firstPresented == day("2026-01-10"))
         #expect(summary.lastPresented == day("2026-03-10"))
@@ -233,9 +233,9 @@ struct CurriculumMapEngineTests {
     func untouchedRule() {
         let calendar = Calendar(identifier: .gregorian)
         let today = day("2026-09-09")
-        #expect(CurriculumMapEngine.isUntouched(lastPresented: nil, days: 90, today: today, calendar: calendar))
-        #expect(CurriculumMapEngine.isUntouched(lastPresented: day("2026-03-01"), days: 90, today: today, calendar: calendar))
-        #expect(!CurriculumMapEngine.isUntouched(lastPresented: day("2026-08-31"), days: 90, today: today, calendar: calendar))
+        #expect(ClassGridEngine.isUntouched(lastPresented: nil, days: 90, today: today, calendar: calendar))
+        #expect(ClassGridEngine.isUntouched(lastPresented: day("2026-03-01"), days: 90, today: today, calendar: calendar))
+        #expect(!ClassGridEngine.isUntouched(lastPresented: day("2026-08-31"), days: 90, today: today, calendar: calendar))
     }
 
     // MARK: - Timeline

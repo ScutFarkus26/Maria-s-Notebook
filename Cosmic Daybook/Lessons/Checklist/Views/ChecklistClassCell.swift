@@ -2,10 +2,11 @@
 //  ChecklistClassCell.swift
 //  Cosmic Daybook
 //
-//  The Class column at the end of a lesson row on the Mac and iPad: a 48-pt bar
+//  The Class column (132 pt) at the end of a lesson row on the Mac and iPad: a 48-pt bar
 //  (green mastered, blue in progress, orange planned) and "17/22", the children on
-//  screen who have had the lesson. Under the Ready lens it reads "5 ready" with a
-//  Plan button for exactly those children, or a dash when no one is ready.
+//  screen who have had the lesson. Under the Ready lens it reads "4 ready" over
+//  "1 check first" (amber) with a Plan button for exactly those children, or a dash
+//  when no one is ready.
 //
 
 import SwiftUI
@@ -37,7 +38,8 @@ struct ChecklistClassCell: View, Equatable {
             }
             Spacer(minLength: 0)
         }
-        .padding(.leading, lens == .ready ? 10 : 14)
+        .padding(.leading, lens == .ready ? 8 : 14)
+        .padding(.trailing, lens == .ready ? 4 : 0)
         .overlay(alignment: .leading) {
             ChecklistGridMetrics.hairline.frame(width: 1)
         }
@@ -52,20 +54,32 @@ struct ChecklistClassCell: View, Equatable {
     @ViewBuilder
     private var readyContent: some View {
         if summary.ready > 0 {
-            Text("\(summary.ready) ready")
-                .font(.caption.weight(.semibold).monospacedDigit())
-                .foregroundStyle(Color.blue)
-                .fixedSize()
+            VStack(alignment: .leading, spacing: 0) {
+                if summary.readyNow > 0 {
+                    Text("\(summary.readyNow) ready")
+                        .font(.caption.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(Color.blue)
+                }
+                if summary.checkFirst > 0 {
+                    Text("\(summary.checkFirst) check first")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(ChecklistGridMetrics.checkFirstInk)
+                }
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.9)
             Button {
                 onPlan?()
             } label: {
+                // A small capsule, not a bordered button, so "1 check first" fits beside it.
                 Text("Plan")
                     .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.blue, in: Capsule())
             }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.roundedRectangle(radius: 5))
-            .controlSize(.mini)
-            .tint(.blue)
+            .buttonStyle(.plain)
             .fixedSize()
             .help("Present or plan this lesson for the \(summary.ready) ready")
             .accessibilityLabel("Plan for \(summary.ready) ready")
@@ -77,11 +91,14 @@ struct ChecklistClassCell: View, Equatable {
     }
 
     private var readyHelp: String {
+        let ready: String
         switch summary.ready {
         case 0: return "No one on screen is ready for this lesson"
-        case 1: return "1 child is ready for this lesson"
-        default: return "\(summary.ready) children are ready for this lesson"
+        case 1: ready = "1 child is ready for this lesson"
+        default: ready = "\(summary.ready) children are ready for this lesson"
         }
+        guard summary.checkFirst > 0 else { return ready }
+        return "\(ready); \(summary.checkFirst) to check first (the card says why)"
     }
 
     private var bar: some View {

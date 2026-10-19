@@ -4,7 +4,7 @@
 // plane?" rather than "where is she on one track?".
 //
 // Nothing here is stored. CurriculumMapLoader reduces CD* records to these
-// Sendable refs on a background context, CurriculumMapEngine derives a
+// Sendable refs on a background context, ClassGridEngine derives a
 // CurriculumCell per (child, lesson) from them, and both screens and the MCP
 // tools read the same cells — so "presented but never chosen" means one thing
 // everywhere. Everything is `nonisolated` so the maths can leave the main actor.
@@ -12,51 +12,12 @@
 import Foundation
 
 // MARK: - Cell State
-
-/// The ladder a lesson climbs for one child, in the order the AMI record card
-/// reads it. Comparable so the strongest evidence wins when records combine
-/// and an area row can show the best of its lessons.
-nonisolated enum CurriculumCellState: Int, Comparable, Sendable, CaseIterable, Codable {
-    /// No presentation and no mastery record.
-    case notPresented = 0
-    /// A presentation exists (dated, or a bulk "previously presented" mark).
-    case presented
-    /// At least one work item or practice session followed the lesson.
-    case chosen
-    /// Three or more practice sessions, or work that reached review / complete.
-    case repeated
-    /// The mastery record says so. The guide's capture-time confirmation
-    /// ("ready for the next lesson") is carried separately on the cell.
-    case mastered
-
-    static func < (lhs: Self, rhs: Self) -> Bool { lhs.rawValue < rhs.rawValue }
-
-    var label: String {
-        switch self {
-        case .notPresented: "Not yet presented"
-        case .presented: "Presented"
-        case .chosen: "Chosen"
-        case .repeated: "Repeated"
-        case .mastered: "Mastered"
-        }
-    }
-
-    /// The raw value the MCP tools accept and print.
-    var toolName: String {
-        switch self {
-        case .notPresented: "notPresented"
-        case .presented: "presented"
-        case .chosen: "chosen"
-        case .repeated: "repeated"
-        case .mastered: "mastered"
-        }
-    }
-
-    init?(toolName: String) {
-        guard let match = Self.allCases.first(where: { $0.toolName == toolName }) else { return nil }
-        self = match
-    }
-}
+//
+// A cell's rung is the Class Grid's one status, `ChecklistDisplayStatus`
+// (Not yet, Presented, Practicing, Reviewing, Mastered here; Ready and Planned
+// are the Checklist's, which reads plans and readiness). The old map's own
+// ladder (not presented, presented, chosen, repeated, mastered) is gone; the
+// Claude tools keep its words (`MCPNotebookTools+CurriculumMap`).
 
 /// How many rows a grid shows: whole areas, the milestones inside them, or
 /// every lesson in the catalog.
@@ -146,7 +107,10 @@ nonisolated struct CurriculumWorkRef: Sendable, Hashable, Identifiable {
     /// it. `WorkGrouping.areLinkedCopies`' rule.
     var isSharedRow = false
 
-    var isBeyondActive: Bool { statusRaw != WorkStatus.active.rawValue }
+    var isBeyondActive: Bool { status != .active }
+
+    /// The row's status, read the way `CDWorkModel.status` reads it.
+    var status: WorkStatus { WorkStatus(rawValue: statusRaw) ?? .active }
 }
 
 nonisolated struct CurriculumPracticeRef: Sendable, Hashable, Identifiable {
@@ -188,9 +152,9 @@ nonisolated struct CurriculumEvidence: Sendable, Hashable {
 }
 
 /// One dated record, placed on the time axis. `state` is what the record
-/// evidences on its own — a third practice session evidences `repeated`, the
-/// first evidences `chosen` — so a time bucket can show the best thing that
-/// happened in it. Recall checks carry an outcome instead of a state.
+/// evidences on its own — a third practice session evidences Reviewing, the
+/// first Practicing — so a time bucket can show the best thing that happened
+/// in it. Recall checks carry an outcome instead of a state.
 nonisolated struct CurriculumEvent: Sendable, Hashable {
     enum Kind: String, Sendable {
         case presentation
@@ -202,7 +166,7 @@ nonisolated struct CurriculumEvent: Sendable, Hashable {
 
     let date: Date
     let kind: Kind
-    let state: CurriculumCellState?
+    let state: ChecklistDisplayStatus?
     let recall: RecallOutcome?
     let recordID: UUID
 }
@@ -211,7 +175,7 @@ nonisolated struct CurriculumEvent: Sendable, Hashable {
 nonisolated struct CurriculumCell: Sendable, Hashable, Identifiable {
     let studentID: UUID
     let lessonID: UUID
-    var state: CurriculumCellState = .notPresented
+    var state: ChecklistDisplayStatus = .notReady
     /// The guide confirmed her ready for the next lesson on a presentation.
     /// Evidence beside the ladder, never a rung of it.
     var isConfirmed: Bool = false
@@ -233,14 +197,14 @@ nonisolated struct CurriculumCell: Sendable, Hashable, Identifiable {
     }
 
     /// The spec's "presented, never chosen": the guide gave it, the child never
-    /// picked it up.
+    /// picked it up (no work, no practice).
     var isPresentedNeverChosen: Bool { state == .presented }
 }
 
 /// A row's worth of cells folded together — an area, a sequence, or a Great
 /// Lesson's story lessons — for the collapsed rows and the untouched flag.
 nonisolated struct CurriculumAggregate: Sendable, Hashable {
-    var state: CurriculumCellState = .notPresented
+    var state: ChecklistDisplayStatus = .notReady
     var recall: RecallOutcome?
     var firstPresented: Date?
     var lastPresented: Date?

@@ -46,7 +46,7 @@ nonisolated public class CDLesson: NSManagedObject {
     @NSManaged public var albumLinkConfidence: Double
     /// A milestone the Three-Year View shows by default. Not every lesson in
     /// the catalog is one; without this the per-child grid drowns in
-    /// sub-steps. See `CurriculumMapEngine.isKeyLesson`, which also counts the
+    /// sub-steps. See `ClassGridEngine.isKeyLesson`, which also counts the
     /// first step of every sequence whether or not it is hand-marked.
     @NSManaged public var isKeyLesson: Bool
 

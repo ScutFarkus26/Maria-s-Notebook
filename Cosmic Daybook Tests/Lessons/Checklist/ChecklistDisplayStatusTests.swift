@@ -190,7 +190,7 @@ struct ChecklistDisplayStatusTests {
         #expect(fixture.status(fixture.ada, 1) == .mastered)
         #expect(fixture.status(fixture.bruno, 1) == .reviewing)
         // The incremental refresh read the new mark exactly as a full build does.
-        let full = ChecklistMatrixBuilder.buildMatrix(
+        let full = ClassGridEngine.buildMatrix(
             students: fixture.viewModel.rosterStudents, lessons: fixture.viewModel.lessons, context: fixture.context
         )
         #expect(fixture.viewModel.matrixStates == full)
@@ -214,8 +214,8 @@ struct ChecklistDisplayStatusTests {
         let today = calendar.startOfDay(for: Date())
 
         for order in [[oldClosed, newOpen], [newOpen, oldClosed]] {
-            #expect(ChecklistMatrixBuilder.cellWork(order) === newOpen)
-            let state = ChecklistMatrixBuilder.buildCellState(
+            #expect(ClassGridEngine.cellWork(order) === newOpen)
+            let state = ClassGridEngine.buildCellState(
                 lesson: lesson, studentLAs: [], studentWorkModels: order,
                 calendar: calendar, today: today
             )
@@ -225,15 +225,15 @@ struct ChecklistDisplayStatusTests {
 
         // With nothing open, the most recent closed row speaks for the cell.
         let newer = work(.incomplete, created: 1_790_000_000)
-        #expect(ChecklistMatrixBuilder.cellWork([newer, oldClosed]) === newer)
-        #expect(ChecklistMatrixBuilder.cellWork([oldClosed, newer]) === newer)
+        #expect(ClassGridEngine.cellWork([newer, oldClosed]) === newer)
+        #expect(ClassGridEngine.cellWork([oldClosed, newer]) === newer)
     }
 
     @Test("A mastery mark synced in from another device refreshes the grid")
     func importedMarksRefreshTheGrid() {
         // The mark lives on a LessonPresentation row; an import touching only those must
         // still pass the grid's remote-change filter.
-        #expect(ClassAreaChecklistView.remoteRefreshEntityNames.contains("LessonPresentation"))
+        #expect(ClassGridChecklistView.remoteRefreshEntityNames.contains("LessonPresentation"))
     }
 
     // MARK: - Counts and Words

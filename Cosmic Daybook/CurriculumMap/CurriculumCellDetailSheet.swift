@@ -127,7 +127,7 @@ struct CurriculumCellDetailSheet: View {
     /// Her own rows on each lesson: a classmate's linked copy names her too.
     private var works: [CurriculumWorkRef] {
         let onLessons = (store.input?.work ?? []).filter { lessonSet.contains($0.lessonID) }
-        return CurriculumMapEngine.ownWork(for: target.studentID, among: onLessons)
+        return ClassGridEngine.ownWork(for: target.studentID, among: onLessons)
             .filter { work in
                 target.range == nil
                     || inRange(work.assignedAt) || inRange(work.completedAt) || inRange(work.lastTouchedAt)
@@ -255,7 +255,7 @@ struct CurriculumCellDetailSheet: View {
                         ].compactMap { $0 }.joined(separator: " · "),
                         trailing: nil
                     )
-                    .foregroundStyle(CurriculumCellGlyph.color(for: recall.outcome))
+                    .foregroundStyle(ChecklistMark.recallColor(recall.outcome))
                 }
             }
         }

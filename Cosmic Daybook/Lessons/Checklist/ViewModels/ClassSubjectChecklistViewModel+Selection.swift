@@ -120,6 +120,7 @@ extension ClassAreaChecklistViewModel {
 
     func openCard(_ cell: CellIdentifier, context: NSManagedObjectContext) {
         cardRecord = Self.loadCardRecord(for: cell, context: context)
+        cardPrevious = loadCardPrevious(for: cell, context: context)
         cursorCell = cell
         cardCell = cell
     }
@@ -133,6 +134,29 @@ extension ClassAreaChecklistViewModel {
         guard let cardCell else { return }
         let record = Self.loadCardRecord(for: cardCell, context: context)
         if record != cardRecord { cardRecord = record }
+        let previous = loadCardPrevious(for: cardCell, context: context)
+        if previous != cardPrevious { cardPrevious = previous }
+    }
+
+    /// The lesson before the card's, as the readiness rule reads it
+    /// (`PreviousLessonRecord`): when she was given it, her open work, the last
+    /// check-in, mastered or not. One record-index read and one work-and-recall read
+    /// for the one child; nil when she hasn't had it.
+    func loadCardPrevious(for cell: CellIdentifier, context: NSManagedObjectContext) -> ChecklistCardPrevious? {
+        guard let previousID = precedingLessonIDs[cell.lessonID],
+              let name = precedingLessonNames[cell.lessonID] else { return nil }
+        let student = cell.studentID.uuidString
+        let lesson = previousID.uuidString
+        let index = PresentationRecordIndex(lessonIDs: [lesson], students: [student], in: context)
+        guard let given = index.given(student: student, lesson: lesson) else { return nil }
+        let record = PreviousLessonRecord(
+            pairs: [PreviousLessonRecord.Pair(studentID: student, lessonID: lesson)], in: context
+        )
+        return ChecklistCardPrevious(
+            lessonID: previousID,
+            name: name,
+            status: record.status(student: student, lesson: lesson, given: given)
+        )
     }
 
     /// When the child was last given the lesson, and when her open plan is for (nil for

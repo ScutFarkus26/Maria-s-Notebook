@@ -62,7 +62,7 @@ struct ChecklistReadinessFix1011WTests {
 
         /// The checklist's cell for a child and lesson.
         func cell(_ student: CDStudent, _ lesson: CDLesson) throws -> StudentChecklistRowState {
-            let matrix = ChecklistMatrixBuilder.buildMatrix(
+            let matrix = ClassGridEngine.buildMatrix(
                 students: [maya, eli], lessons: [lessonA, lessonB], context: context
             )
             let studentID = try #require(student.id)

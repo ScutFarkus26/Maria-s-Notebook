@@ -84,14 +84,17 @@ struct ClassChecklistSmartCell: View, Equatable {
     // MARK: - Cell Content
 
     /// One mark, centered. The blocking reason is in the hover text and VoiceOver value,
-    /// not a badge; a stale cell gets the mark's check-in dot, not a tint.
+    /// not a badge; a stale cell, and a Ready, check first one, get the mark's amber dot,
+    /// not a tint.
     private var cellContent: some View {
         let status = state?.displayStatus ?? .ready
-        // Ready as the lens counts it: a cell with a state that reads Ready.
+        let checkFirst = ChecklistCellDescription.checkFirstText(state) != nil
+        // Ready as the lens counts it: a cell with a state that reads Ready. The lens
+        // lights Ready blue and Ready, check first amber.
         let isLifted = lens == .ready && state?.displayStatus == .ready
         return ZStack {
             if isLifted {
-                ChecklistGridMetrics.readyTile
+                checkFirst ? ChecklistGridMetrics.checkFirstTile : ChecklistGridMetrics.readyTile
             }
 
             if isSelected {
@@ -104,6 +107,7 @@ struct ClassChecklistSmartCell: View, Equatable {
             ChecklistMark(
                 status: status,
                 needsCheckIn: state?.needsCheckIn ?? false,
+                checkFirst: checkFirst,
                 emphasizesReady: isLifted
             )
             .opacity(lens == .ready && !isLifted ? ChecklistLens.fadedOpacity : 1)

@@ -191,7 +191,7 @@ struct ChecklistLayoutTests {
             isWorkActive: false, isWorkReview: false, lastActivityDate: nil, isStale: false,
             blockingReason: .none, isMastered: true
         )
-        let matrix: ChecklistMatrixBuilder.Matrix = [ada: [lessonID: mastered], hidden: [lessonID: mastered]]
+        let matrix: ClassGridEngine.Matrix = [ada: [lessonID: mastered], hidden: [lessonID: mastered]]
 
         let summaries = ChecklistRowSummary.summaries(matrix: matrix, studentIDs: [ada, bruno], lessonIDs: [lessonID])
         let summary = try #require(summaries[lessonID])

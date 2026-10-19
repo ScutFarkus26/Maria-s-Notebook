@@ -55,15 +55,15 @@ struct CurriculumMapFix1012CM {
         var input = CurriculumMapInput(lessons: [laws])
         input.work = [hers, elis, anas]
 
-        let mine = try #require(CurriculumMapEngine.cells(for: maya, input: input)[laws.id])
-        #expect(mine.state == .chosen)
+        let mine = try #require(ClassGridEngine.cells(for: maya, input: input)[laws.id])
+        #expect(mine.state == .practicing)
         #expect(mine.evidence.workIDs == [hers.id])
 
-        let whole = try #require(CurriculumMapEngine.cells(input: input)[eli]?[laws.id])
-        #expect(whole.state == .repeated)
+        let whole = try #require(ClassGridEngine.cells(input: input)[eli]?[laws.id])
+        #expect(whole.state == .reviewing)
         #expect(whole.evidence.workIDs == [elis.id])
 
-        let scoped = try #require(CurriculumMapEngine.cells(input: input, lessons: [laws.id])[maya]?[laws.id])
+        let scoped = try #require(ClassGridEngine.cells(input: input, lessons: [laws.id])[maya]?[laws.id])
         #expect(scoped.evidence.workIDs == [hers.id])
     }
 
@@ -74,8 +74,8 @@ struct CurriculumMapFix1012CM {
         var input = CurriculumMapInput(lessons: [laws])
         input.work = [shared]
 
-        let mine = try #require(CurriculumMapEngine.cells(for: maya, input: input)[laws.id])
-        #expect(mine.state == .repeated)
+        let mine = try #require(ClassGridEngine.cells(for: maya, input: input)[laws.id])
+        #expect(mine.state == .reviewing)
         #expect(mine.evidence.workIDs == [shared.id])
     }
 
@@ -89,7 +89,7 @@ struct CurriculumMapFix1012CM {
         let elisSquares = work(squares, owner: eli, students: group)
         let unrelated = work(squares, owner: ana, students: [ana])
 
-        let shown = CurriculumMapEngine.ownWork(for: maya, among: [hers, elisLaws, elisSquares, unrelated])
+        let shown = ClassGridEngine.ownWork(for: maya, among: [hers, elisLaws, elisSquares, unrelated])
         #expect(shown.map(\.id) == [hers.id, elisSquares.id])
     }
 
@@ -107,7 +107,7 @@ struct CurriculumMapFix1012CM {
             presentedAt: day("2026-10-12"), masteredAt: nil, lastObservedAt: nil
         )]
 
-        let cell = try #require(CurriculumMapEngine.cells(for: maya, input: input)[laws.id])
+        let cell = try #require(ClassGridEngine.cells(for: maya, input: input)[laws.id])
         #expect(cell.state == .presented)
         #expect(cell.firstPresented == nil)
         #expect(cell.lastPresented == nil)
@@ -122,7 +122,7 @@ struct CurriculumMapFix1012CM {
             presentedAt: day("2026-03-02"), masteredAt: nil, lastObservedAt: nil
         )]
 
-        let cell = try #require(CurriculumMapEngine.cells(for: maya, input: input)[laws.id])
+        let cell = try #require(ClassGridEngine.cells(for: maya, input: input)[laws.id])
         #expect(cell.firstPresented == day("2026-03-02"))
     }
 
@@ -220,10 +220,10 @@ struct CurriculumMapFix1012CMLoader {
         #expect(refs[hersID]?.ownerID == maya)
         #expect(refs[elisID]?.ownerID == eli)
 
-        let mine = try #require(CurriculumMapEngine.cells(for: maya, input: input)[lessonID])
-        #expect(mine.state == .chosen)
+        let mine = try #require(ClassGridEngine.cells(for: maya, input: input)[lessonID])
+        #expect(mine.state == .practicing)
         #expect(mine.evidence.workIDs == [hersID])
-        let his = try #require(CurriculumMapEngine.cells(for: eli, input: input)[lessonID])
-        #expect(his.state == .repeated)
+        let his = try #require(ClassGridEngine.cells(for: eli, input: input)[lessonID])
+        #expect(his.state == .reviewing)
     }
 }

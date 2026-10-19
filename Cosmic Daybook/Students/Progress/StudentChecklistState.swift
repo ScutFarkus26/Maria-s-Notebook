@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Display Status
 
 /// Reason a student is blocked from progressing to the next lesson.
-public enum BlockingReason: Sendable, Equatable {
+nonisolated public enum BlockingReason: Sendable, Equatable {
     /// No blocking — student can proceed.
     case none
     /// The preceding lesson hasn't been presented yet.
@@ -36,9 +36,11 @@ public enum BlockingReason: Sendable, Equatable {
     }
 }
 
-/// Where a child stands on a checklist cell: one rung of the ladder the cell's mark draws
-/// (`ChecklistMark`), lowest first. Blue rungs are started, green is done, orange is "act on it".
-public enum ChecklistDisplayStatus: Sendable, Hashable, CaseIterable {
+/// Where a child stands on a lesson: one rung of the ladder the Class Grid's mark draws
+/// (`ChecklistMark`) in all four views, lowest first. Blue rungs are started, green is done,
+/// orange is "act on it". Three Years uses the five rungs it can read (Not yet, Presented,
+/// Practicing, Reviewing, Mastered); the Checklist adds Ready and Planned.
+nonisolated public enum ChecklistDisplayStatus: Sendable, Hashable, CaseIterable, Comparable {
     /// Not presented, and the lesson before it still blocks it (`blockingReason != .none`).
     case notReady
     /// Not presented, not planned, nothing blocking it.
@@ -65,22 +67,42 @@ public enum ChecklistDisplayStatus: Sendable, Hashable, CaseIterable {
         }
     }
 
-    /// The one ladder every progress screen climbs (the Checklist, the Progress Dashboard,
-    /// the student page's track timeline): the highest rung reached, mastered > reviewing >
-    /// practicing > presented > planned, then ready or not yet ready by `blockingReason`.
-    /// Only a mastery mark is Mastered; closed work without one is Reviewing, however it closed.
+    /// Lowest first, in case order: a row's furthest mark is the largest.
+    public static func < (lhs: Self, rhs: Self) -> Bool {
+        lhs.rank < rhs.rank
+    }
+
+    private var rank: Int {
+        switch self {
+        case .notReady: 0
+        case .ready: 1
+        case .planned: 2
+        case .presented: 3
+        case .practicing: 4
+        case .reviewing: 5
+        case .mastered: 6
+        }
+    }
+
+    /// The one ladder every progress screen climbs (the Class Grid's four views, the child's
+    /// Three-Year View, the student page's track timeline): the highest rung reached,
+    /// mastered > reviewing > practicing > presented > planned, then ready or not yet ready by
+    /// `blockingReason`. Only a mastery mark is Mastered; closed work without one is Reviewing,
+    /// however it closed. Practice sessions count where a screen reads them (Three Years): one
+    /// is Practicing, three are Reviewing.
     public static func resolve( // swiftlint:disable:this function_parameter_count
         isMastered: Bool,
         hasReviewWork: Bool,
         allWorkClosed: Bool,
         hasActiveWork: Bool,
+        practiceSessions: Int = 0,
         isPresented: Bool,
         isPlanned: Bool,
         blockingReason: BlockingReason = .none
     ) -> ChecklistDisplayStatus {
         if isMastered { return .mastered }
-        if hasReviewWork || allWorkClosed { return .reviewing }
-        if hasActiveWork { return .practicing }
+        if hasReviewWork || allWorkClosed || practiceSessions >= 3 { return .reviewing }
+        if hasActiveWork || practiceSessions >= 1 { return .practicing }
         if isPresented { return .presented }
         if isPlanned { return .planned }
         return blockingReason == .none ? .ready : .notReady
@@ -90,6 +112,7 @@ public enum ChecklistDisplayStatus: Sendable, Hashable, CaseIterable {
     public static func resolve(
         isMastered: Bool,
         workStatuses: [WorkStatus],
+        practiceSessions: Int = 0,
         isPresented: Bool,
         isPlanned: Bool,
         blockingReason: BlockingReason = .none
@@ -99,6 +122,7 @@ public enum ChecklistDisplayStatus: Sendable, Hashable, CaseIterable {
             hasReviewWork: workStatuses.contains(.review),
             allWorkClosed: !workStatuses.isEmpty && workStatuses.allSatisfy(\.isClosed),
             hasActiveWork: workStatuses.contains(.active),
+            practiceSessions: practiceSessions,
             isPresented: isPresented,
             isPlanned: isPlanned,
             blockingReason: blockingReason
