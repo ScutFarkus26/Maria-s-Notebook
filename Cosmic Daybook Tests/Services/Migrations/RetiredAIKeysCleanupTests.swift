@@ -44,6 +44,24 @@ struct RetiredAIKeysCleanupTests {
         #expect(!again)
     }
 
+    @Test("Ask AI's saved chats are removed even on a device that finished the cleanup long ago")
+    func removesSavedChatsAfterTheCleanupIsDone() throws {
+        let defaults = try makeDefaults()
+        defaults.set(true, forKey: UserDefaultsKeys.retiredAIKeysRemovedV1)
+        for key in RetiredAIKeysCleanup.chatHistoryKeys {
+            defaults.set(Data("a saved chat".utf8), forKey: key)
+        }
+
+        let ran = RetiredAIKeysCleanup.runIfNeeded(defaults: defaults) { _, _ in
+            Issue.record("A finished cleanup must not touch the Keychain")
+            return errSecSuccess
+        }
+
+        #expect(!ran)
+        #expect(RetiredAIKeysCleanup.chatHistoryKeys == ["ChatSession.saved", "ChatSession.saved.sampleClass"])
+        #expect(RetiredAIKeysCleanup.chatHistoryKeys.allSatisfy { defaults.object(forKey: $0) == nil })
+    }
+
     @Test("A Keychain refusal leaves the cleanup to run again next launch")
     func retriesAfterKeychainFailure() throws {
         let defaults = try makeDefaults()

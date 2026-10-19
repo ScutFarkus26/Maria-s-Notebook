@@ -20,6 +20,12 @@ nonisolated enum RetiredAIKeysCleanup {
         "AI.chatModel", "AI.lessonPlanningModel", "AI.backgroundTasksModel", "LessonPlanning.model"
     ]
 
+    /// Ask AI's saved conversations (removed with Ask AI, Simplify the app
+    /// Phase 1). They may name children, so they go too. Removed on every
+    /// launch rather than behind the done flag, which devices set long before
+    /// Ask AI went; removing an absent key costs nothing.
+    static let chatHistoryKeys = ["ChatSession.saved", "ChatSession.saved.sampleClass"]
+
     /// The Keychain's answers that mean it won't let this device remove the
     /// items: locked (interaction not allowed) or not ours to touch (auth
     /// failed). After `maxRefusals` launches that end in one, the cleanup
@@ -38,6 +44,9 @@ nonisolated enum RetiredAIKeysCleanup {
         defaults: UserDefaults = .standard,
         deleteKeychainItem: (_ service: String, _ account: String) -> OSStatus = deleteGenericPassword
     ) -> Bool {
+        for key in chatHistoryKeys {
+            defaults.removeObject(forKey: key)
+        }
         guard !defaults.bool(forKey: UserDefaultsKeys.retiredAIKeysRemovedV1) else { return false }
         var finished = true
         var refused = false
