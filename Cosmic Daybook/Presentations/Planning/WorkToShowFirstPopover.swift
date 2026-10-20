@@ -18,7 +18,9 @@ struct WorkToShowFirstPopover: View {
     @Environment(\.managedObjectContext) private var viewContext
 
     var body: some View {
-        VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
+        // One check day for every row: today, or Monday at the weekend.
+        let day = WorkToShowFirst.checkDay(in: viewContext)
+        return VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(childName) has work to check first")
                     .font(.headline)
@@ -28,7 +30,7 @@ struct WorkToShowFirstPopover: View {
             }
             ForEach(items) { item in
                 Divider()
-                row(item)
+                row(item, day: day)
             }
         }
         .padding(AppTheme.Spacing.medium)
@@ -36,20 +38,16 @@ struct WorkToShowFirstPopover: View {
         .presentationCompactAdaptation(.popover)
     }
 
-    private func row(_ item: WorkToShowFirst.Item) -> some View {
+    private func row(_ item: WorkToShowFirst.Item, day: Date) -> some View {
         // From the work's check-ins, not its due date: a row can be due today
         // with no check planned, or have one today and a later due date.
-        let day = WorkToShowFirst.checkDay(in: viewContext)
         let plan = WorkToShowFirst.todayCheck(for: item.work, today: day, in: viewContext)
         let onToday = if case .onToday = plan { true } else { false }
         return VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
             Text(item.lessonName)
                 .font(.subheadline.weight(.semibold))
                 .fixedSize(horizontal: false, vertical: true)
-            Text(
-                [item.workTitle, item.work.status.displayName, item.isHersAlone ? nil : "Shared work"]
-                    .compactMap { $0 }.joined(separator: " · ")
-            )
+            Text(item.subtitle)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

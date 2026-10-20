@@ -187,6 +187,30 @@ struct ReadyGroupMoveTests {
         #expect(hers.lessonAssignment == source)
     }
 
+    @Test("Undo takes back only the notes the move carried; the other group's own note about her stays")
+    func undoLeavesTheTargetsOwnNotes() throws {
+        let room = try makeRoom()
+        let source = try group(room.lesson, [room.ada, room.ben], in: room.context)
+        let target = try group(room.lesson, [room.cy], in: room.context)
+        let hers = CoreDataTestHelpers.seedNote(in: room.context, body: "Ada is ready for exchanges")
+        hers.lessonAssignment = source
+        hers.scope = .student(try id(room.ada))
+        // Left on the other group from an earlier sitting she was taken off.
+        let older = CoreDataTestHelpers.seedNote(in: room.context, body: "Ada watched closely")
+        older.lessonAssignment = target
+        older.scope = .student(try id(room.ada))
+        #expect(CoreDataTestHelpers.save(room.context))
+
+        let receipt = try #require(
+            PresentationGroupMove.move(try id(room.ada), from: source, to: target, in: room.context)
+        )
+        #expect(hers.lessonAssignment == target)
+
+        #expect(PresentationGroupMove.undo(receipt, in: room.context))
+        #expect(hers.lessonAssignment == source)
+        #expect(older.lessonAssignment == target, "the move never carried it")
+    }
+
     // MARK: - Emptying the source
 
     @Test("A group left empty is deleted, and its notes go to the group she joined")

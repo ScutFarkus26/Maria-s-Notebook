@@ -107,10 +107,12 @@ enum CalendarForwardShiftService {
         var resolved: [Date: Date] = [:]
         let start = calendar.startOfDay(for: today)
         // Today, or the next school day when today isn't one: the strip has
-        // no column for a weekend or holiday (bug hunt 2026-10-16 #4).
-        let firstSchoolDay = calendar.startOfDay(
+        // no column for a weekend or holiday (bug hunt 2026-10-16 #4). Never
+        // before today: `nextSchoolDaySync` answers with the day it was asked
+        // about when it finds no school day ahead, here yesterday.
+        let firstSchoolDay = max(start, calendar.startOfDay(
             for: nextSchoolDay(calendar.date(byAdding: .day, value: -1, to: start) ?? start)
-        )
+        ))
         /// The day a record on `date` moves to: the first school day from today
         /// for an overdue one, the next school day for one from today on.
         func landing(for date: Date) -> Date {

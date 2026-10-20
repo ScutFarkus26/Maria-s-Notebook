@@ -32,9 +32,7 @@ enum YearPlanPacing {
 
     /// The first open day at or after `date`. An open day is returned unchanged.
     static func schoolDay(onOrAfter date: Date, in context: NSManagedObjectContext) -> Date {
-        let day = AppCalendar.startOfDay(date)
-        guard SchoolCalendarService.shared.isNonSchoolDaySync(day, using: context) else { return day }
-        return SchoolCalendarService.shared.nextSchoolDaySync(after: day, using: context)
+        SchoolCalendarService.shared.schoolDaySync(onOrAfter: date, using: context)
     }
 
     /// `count` school days after `date`, skipping everything the school is

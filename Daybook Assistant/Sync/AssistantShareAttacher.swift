@@ -77,8 +77,9 @@ final class AssistantShareAttacher {
     /// wait out the full rest rather than riding along with every tap.
     @ObservationIgnored private var triedEarly = false
     @ObservationIgnored private var earlyTryFailed = false
-    /// A `retryWaiting()` came mid-round (network back, phone locking): a
-    /// failed round goes again at once, not after a rest (bug hunt 2026-10-16 #1).
+    /// A `retryWaiting()` came mid-round (the network back, the phone
+    /// locking, a rest ending, the filing hold lifting): a failed round goes
+    /// again at once, not after a rest (bug hunt 2026-10-16 #1).
     @ObservationIgnored private var retryAskedDuringRound = false
     /// Told when a pass finds CloudKit mirroring stopped on `container`. The
     /// bootstrapper rebuilds the stack once then
@@ -227,12 +228,11 @@ final class AssistantShareAttacher {
             // Marks saved during the pass stay; of these, only what failed.
             forget(found.gone + found.ids.map { $0.uriRepresentation() })
             remember(result.left.map { $0.uriRepresentation() })
-            if result.left.count < found.ids.count { isOffline = false }
-            guard afterRound(result, on: container, backlogDue: backlogDue, wasEarly: wasEarly) else { return }
-            if retryAskedDuringRound, !result.left.isEmpty {
-                backlogWaitsUntil = notBefore
-                runAgain = true
-            }
+            let someWentIn = result.left.count < found.ids.count
+            if someWentIn { isOffline = false }
+            if retryAskedDuringRound, goesAgainAtOnce(result, on: container, someWentIn: someWentIn) { continue }
+            guard afterRound(result, on: container, backlogDue: backlogDue, wasEarly: wasEarly, someWentIn: someWentIn)
+            else { return }
         } while runAgain
     }
 
@@ -251,13 +251,32 @@ final class AssistantShareAttacher {
         return result
     }
 
+    /// A round that left marks after a retry was asked for during it goes
+    /// again now, with the backlog. The try the retry cut short isn't
+    /// counted or rested on: counting it doubled the next rest whenever the
+    /// second go failed too. Not when CloudKit asked to wait, or the round
+    /// can't simply go again (mirroring stopped, the stack rebuilt).
+    private func goesAgainAtOnce(
+        _ result: CDAttendanceStore.ShareAttachResult,
+        on container: NSPersistentCloudKitContainer,
+        someWentIn: Bool
+    ) -> Bool {
+        guard !result.left.isEmpty, !result.mirroringStopped, result.retryAfter == nil,
+              lastContainer === container else { return false }
+        isOffline = result.noConnection && !someWentIn
+        backlogWaitsUntil = notBefore
+        runAgain = true
+        return true
+    }
+
     /// The rest, retry and next round after a round on `container`. Returns
     /// false when nothing more may run on it.
     private func afterRound(
         _ result: CDAttendanceStore.ShareAttachResult,
         on container: NSPersistentCloudKitContainer,
         backlogDue: Bool,
-        wasEarly: Bool
+        wasEarly: Bool,
+        someWentIn: Bool
     ) -> Bool {
         if result.mirroringStopped { return mirroringStopped(on: container) }
         if result.left.isEmpty {
@@ -279,7 +298,10 @@ final class AssistantShareAttacher {
         } else {
             if wasEarly { earlyTryFailed = true }
             var rest: TimeInterval
-            isOffline = result.noConnection // a refusal reached iCloud (bug hunt 2026-10-16 #2)
+            // Offline only when nothing reached iCloud: a refusal did (bug
+            // hunt 2026-10-16 #2), and so did a mark that went in before
+            // the connection dropped.
+            isOffline = result.noConnection && !someWentIn
             if result.noConnection {
                 networkFailuresInARow += 1
                 rest = Self.rest(afterFailures: networkFailuresInARow, noConnection: true)

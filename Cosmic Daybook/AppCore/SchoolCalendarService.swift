@@ -138,6 +138,13 @@ public final class SchoolCalendarService {
         return cal.startOfDay(for: date)
     }
 
+    /// The given date's day when it is a school day, else the next one.
+    public func schoolDaySync(onOrAfter date: Date, using context: NSManagedObjectContext) -> Date {
+        let day = cal.startOfDay(for: date)
+        guard isNonSchoolDaySync(day, using: context) else { return day }
+        return nextSchoolDaySync(after: day, using: context)
+    }
+
     /// Returns the previous school day strictly before the given date.
     /// Weekends and configured non-school days are skipped; weekend overrides are respected.
     public func previousSchoolDaySync(before date: Date, using context: NSManagedObjectContext) -> Date {

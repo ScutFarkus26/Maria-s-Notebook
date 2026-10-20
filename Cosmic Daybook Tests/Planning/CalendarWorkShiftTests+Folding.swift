@@ -60,6 +60,24 @@ extension CalendarWorkShiftTests {
         #expect(mondays.date == time(10, on: tuesday))
     }
 
+    @Test("With no school day ahead to find, overdue checks still come to today, never to yesterday")
+    func overdueNeverLandsBeforeToday() throws {
+        let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+        let lastThursday = day(2026, 6, 4)
+        let saturday = day(2026, 6, 6)
+        let overdueWork = CoreDataTestHelpers.seedWorkModel(in: context)
+        let overdue = CDWorkCheckIn.make(for: overdueWork, on: time(13, 15, on: lastThursday), in: context)
+        #expect(CoreDataTestHelpers.save(context))
+
+        // `nextSchoolDaySync` gives back the day it was asked about when it
+        // finds no school day in two years.
+        CalendarForwardShiftService.moveForwardOneDay(
+            in: context, calendar: AppCalendar.shared, from: saturday, nextSchoolDay: { $0 }
+        )
+
+        #expect(overdue.date == time(13, 15, on: saturday))
+    }
+
     @Test("An overdue check folds into a check already done on today")
     func overdueFoldsIntoTodaysCompletedCheck() throws {
         let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext

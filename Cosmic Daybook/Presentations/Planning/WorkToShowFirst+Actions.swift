@@ -133,15 +133,14 @@ extension WorkToShowFirst {
     static func message(
         for outcome: CheckTodayOutcome, day: Date? = nil, now: Date = Date()
     ) -> (text: String, type: ToastType) {
-        let target = checkDayName(day, now: now)
-        let inSentence = target == "Today" ? "today" : target
+        let words = CheckDayWords(day, now: now)
         switch outcome {
         case .added:
-            return ("Added to \(inSentence)'s checks", .success)
+            return ("Added to \(words.checks)", .success)
         case .moved(let from):
-            return ("Moved the check on \(dayName(from, now: now)) to \(inSentence)", .success)
+            return ("Moved the check on \(dayName(from, now: now)) to \(words.inSentence)", .success)
         case .alreadyOnToday:
-            return ("That work is already on \(inSentence)'s checks", .info)
+            return ("That work is already on \(words.checks)", .info)
         case .noLongerOpen:
             return ("That work has already been logged, so no check was added.", .info)
         case .childHasLeft:
@@ -159,17 +158,50 @@ extension WorkToShowFirst {
     /// The popover's button for a row in this state. `day` is the check day
     /// when it isn't `now`'s: "Check Monday" at the weekend.
     static func checkTodayTitle(_ plan: TodayCheck, day: Date? = nil, now: Date = Date()) -> String {
-        let target = checkDayName(day, now: now)
+        let words = CheckDayWords(day, now: now)
         switch plan {
         case .onToday(let checked):
-            return checked ? "Checked \(target)" : "On \(target)'s Checks"
+            return checked ? words.checkedTitle : "On \(words.checksTitle)"
         case .movesFrom(let date):
             return isWithinTheWeek(date, now: now)
-                ? "Move \(dayName(date, now: now))'s Check to \(target)"
-                : "Move the \(date.formatted(.dateTime.month(.abbreviated).day())) Check to \(target)"
+                ? "Move \(dayName(date, now: now))'s Check to \(words.name)"
+                : "Move the \(date.formatted(.dateTime.month(.abbreviated).day())) Check to \(words.name)"
         case .adds:
-            return "Check \(target)"
+            return words.checkTitle
         }
+    }
+
+    /// How the check day reads: "Today", "Monday" within the coming week, or
+    /// "Thu, Jan 7" further out (after a long break). A weekday takes a
+    /// possessive ("Monday's checks"); a date doesn't ("the checks for
+    /// Thu, Jan 7"), and nor does Checked, which would read as done already.
+    private struct CheckDayWords {
+        let name: String
+        private let isToday: Bool
+        private let isDate: Bool
+
+        init(_ day: Date?, now: Date) {
+            guard let day, !AppCalendar.shared.isDate(day, inSameDayAs: now) else {
+                name = "Today"
+                isToday = true
+                isDate = false
+                return
+            }
+            name = WorkToShowFirst.dayName(day, now: now)
+            isToday = false
+            isDate = !WorkToShowFirst.isWithinTheWeek(day, now: now)
+        }
+
+        /// "today", "Monday", "Thu, Jan 7": the day inside a sentence.
+        var inSentence: String { isToday ? "today" : name }
+        /// "today's checks", "Monday's checks", "the checks for Thu, Jan 7".
+        var checks: String { isDate ? "the checks for \(name)" : "\(inSentence)'s checks" }
+        /// "Today's Checks", "Monday's Checks", "the Checks for Thu, Jan 7".
+        var checksTitle: String { isDate ? "the Checks for \(name)" : "\(name)'s Checks" }
+        /// "Check Today", "Check Monday", "Check on Thu, Jan 7".
+        var checkTitle: String { isDate ? "Check on \(name)" : "Check \(name)" }
+        /// "Checked Today", "Checked for Monday".
+        var checkedTitle: String { isToday ? "Checked Today" : "Checked for \(name)" }
     }
 
     // MARK: - Days
@@ -178,16 +210,7 @@ extension WorkToShowFirst {
     /// when today isn't one. The strip has no column for a weekend or
     /// holiday, so a check put there would show nowhere (bug hunt 2026-10-16 #4).
     static func checkDay(from now: Date = Date(), in context: NSManagedObjectContext) -> Date {
-        let today = AppCalendar.startOfDay(now)
-        let schoolCalendar = SchoolCalendarService.shared
-        guard schoolCalendar.isNonSchoolDaySync(today, using: context) else { return today }
-        return AppCalendar.startOfDay(schoolCalendar.nextSchoolDaySync(after: today, using: context))
-    }
-
-    /// "Today" for the check day on `now`'s day, else the day's name ("Monday").
-    private static func checkDayName(_ day: Date?, now: Date) -> String {
-        guard let day else { return "Today" }
-        return dayName(day, now: now)
+        AppCalendar.startOfDay(SchoolCalendarService.shared.schoolDaySync(onOrAfter: now, using: context))
     }
 
     /// "Today", "Thursday" within the coming week, else "Thu, Oct 23": a

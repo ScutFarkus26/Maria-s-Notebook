@@ -83,6 +83,14 @@ enum WorkToShowFirst {
             return title
         }
 
+        /// The line under the lesson name: "Bead frame · Working", with
+        /// "Shared work" on a row her classmates are on too.
+        var subtitle: String {
+            [workTitle, work.status.displayName, isHersAlone ? nil : "Shared work"]
+                .compactMap { $0 }
+                .joined(separator: " · ")
+        }
+
         /// "Golden Bead Addition, Working".
         var summary: String {
             [lessonName, workTitle, work.status.displayName].compactMap { $0 }.joined(separator: ", ")

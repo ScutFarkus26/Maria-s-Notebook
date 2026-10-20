@@ -308,6 +308,8 @@ final class FakeShare {
     var offline = false
     /// Refuses everything as CloudKit throttling, asking for this wait.
     var throttledFor: TimeInterval?
+    /// The next attempt puts this many in, then loses the connection.
+    var dropsConnectionAfter: Int?
     private(set) var attempts: [[NSManagedObjectID]] = []
     /// The context each attempt was given.
     private(set) var contexts: [NSManagedObjectContext] = []
@@ -359,6 +361,10 @@ final class FakeShare {
         if refusesNextAttempt {
             refusesNextAttempt = false
             return .init(left: ids)
+        }
+        if let kept = dropsConnectionAfter {
+            dropsConnectionAfter = nil
+            return .init(left: Array(ids.dropFirst(kept)), noConnection: true)
         }
         if offline { return .init(left: ids, noConnection: true) }
         if let throttledFor { return .init(left: ids, retryAfter: throttledFor) }

@@ -83,13 +83,9 @@ struct PresentationBeforeYouStartSection: View {
                 Text("\(student.shortName) · \(item.lessonName)")
                     .font(AppTheme.ScaledFont.bodySemibold)
                     .fixedSize(horizontal: false, vertical: true)
-                Text(
-                    [item.workTitle, item.work.status.displayName, item.isHersAlone ? nil : "Shared work"]
-                        .compactMap { $0 }
-                        .joined(separator: " · ")
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                Text(item.subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         .contentShape(Rectangle())

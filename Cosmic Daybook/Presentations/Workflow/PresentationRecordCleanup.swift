@@ -87,12 +87,14 @@ nonisolated enum PresentationRecordCleanup {
     /// Children moved from one plan to another (dragged between two groups,
     /// or moved to a new draft): their entries promoted into the source point
     /// at the target, which holds them now, notes about only them go with
-    /// them, and their history rows on the source go. Rosters are the
+    /// them (or exactly `notes`, for an Undo putting back what a move
+    /// carried), and their history rows on the source go. Rosters are the
     /// caller's to change.
     static func moveStudents(
         _ studentIDs: Set<String>,
         from source: CDLessonAssignment,
         to target: CDLessonAssignment,
+        notes: [CDNote]? = nil,
         in context: NSManagedObjectContext
     ) {
         guard !studentIDs.isEmpty, let sourceID = source.id?.uuidString,
@@ -100,26 +102,23 @@ nonisolated enum PresentationRecordCleanup {
         for entry in entries(promotedInto: sourceID, studentIDs: studentIDs, in: context) {
             entry.promotedAssignmentID = targetID
         }
-        moveOwnNotes(of: studentIDs, from: source, to: target)
+        moveNotes(from: source, to: target, only: notes ?? ownNotes(of: studentIDs, on: source))
         deleteHistoryRows(presentationID: sourceID, studentIDs: studentIDs, in: context)
     }
 
-    /// Re-parents the notes on `source` that are about only children in
-    /// `studentIDs`. A note for the whole group, or one that also names a
-    /// child who stays, stays (bug hunt 2026-10-16 #6).
-    static func moveOwnNotes(
-        of studentIDs: Set<String>, from source: CDLessonAssignment, to target: CDLessonAssignment
-    ) {
-        let notes = (source.unifiedNotes as? Set<CDNote>) ?? []
-        for note in notes where !note.isDeleted {
+    /// The notes on `source` about only children in `studentIDs`: what goes
+    /// with them when they move. A note for the whole group, or one that
+    /// also names a child who stays, stays (bug hunt 2026-10-16 #6).
+    static func ownNotes(of studentIDs: Set<String>, on source: CDLessonAssignment) -> [CDNote] {
+        ((source.unifiedNotes as? Set<CDNote>) ?? []).filter { note in
+            guard !note.isDeleted else { return false }
             let about: [UUID]
             switch note.scope {
-            case .all: continue
+            case .all: return false
             case .student(let id): about = [id]
             case .students(let ids): about = ids
             }
-            guard !about.isEmpty, about.allSatisfy({ studentIDs.contains($0.uuidString) }) else { continue }
-            note.lessonAssignment = target
+            return !about.isEmpty && about.allSatisfy { studentIDs.contains($0.uuidString) }
         }
     }
 
@@ -145,10 +144,13 @@ nonisolated enum PresentationRecordCleanup {
         UUID(uuidString: id)?.uuidString ?? id
     }
 
-    /// Re-parents every note on `source` onto `target`.
-    static func moveNotes(from source: CDLessonAssignment, to target: CDLessonAssignment) {
+    /// Re-parents every note on `source` onto `target`, or only those of
+    /// `chosen` still on it.
+    static func moveNotes(
+        from source: CDLessonAssignment, to target: CDLessonAssignment, only chosen: [CDNote]? = nil
+    ) {
         let notes = (source.unifiedNotes as? Set<CDNote>) ?? []
-        for note in notes where !note.isDeleted {
+        for note in notes where !note.isDeleted && (chosen?.contains(note) ?? true) {
             note.lessonAssignment = target
         }
     }

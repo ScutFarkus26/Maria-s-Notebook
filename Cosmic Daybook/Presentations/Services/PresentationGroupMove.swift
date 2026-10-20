@@ -34,6 +34,9 @@ enum PresentationGroupMove {
         let createdTarget: Bool
         /// The source as it stood before the move emptied and deleted it.
         let deletedSource: DeletedGroup?
+        /// The notes about her alone the move took to the target: Undo takes
+        /// back these, not every note about her the target holds by then.
+        let carriedNotes: [CDNote]
     }
 
     /// A group the move deleted: every stored attribute, and the notes it
@@ -61,10 +64,11 @@ enum PresentationGroupMove {
               source.studentIDs.contains(id), !target.studentIDs.contains(id) else { return nil }
         let willEmpty = source.studentIDs.allSatisfy { $0 == id }
         let snapshot = willEmpty ? deletedGroup(source) : nil
-        let emptied = apply(id, from: source, to: target, in: context)
+        let carried = PresentationRecordCleanup.ownNotes(of: [id], on: source)
+        let emptied = apply(id, from: source, to: target, carrying: carried, in: context)
         return Receipt(
             studentID: id, sourceID: sourceID, targetID: targetID,
-            createdTarget: false, deletedSource: emptied ? snapshot : nil
+            createdTarget: false, deletedSource: emptied ? snapshot : nil, carriedNotes: carried
         )
     }
 
@@ -83,21 +87,24 @@ enum PresentationGroupMove {
         let group = PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: [], context: context)
         copyLessonFields(from: source, to: group)
         guard let targetID = group.id else { return nil }
-        apply(id, from: source, to: group, in: context)
+        let carried = PresentationRecordCleanup.ownNotes(of: [id], on: source)
+        apply(id, from: source, to: group, carrying: carried, in: context)
         return Receipt(
             studentID: id, sourceID: sourceID, targetID: targetID,
-            createdTarget: true, deletedSource: nil
+            createdTarget: true, deletedSource: nil, carriedNotes: carried
         )
     }
 
     /// Moves one child from `source` to `target`; her year-plan entries and
-    /// notes about her alone follow her. A group she leaves empty is folded into the target (its
-    /// notes would cascade away with it) and deleted. Returns whether it was.
+    /// notes about her alone follow her (exactly `notes`, when given). A
+    /// group she leaves empty is folded into the target (its notes would
+    /// cascade away with it) and deleted. Returns whether it was.
     @discardableResult
     static func apply(
         _ studentID: String,
         from source: CDLessonAssignment,
         to target: CDLessonAssignment,
+        carrying notes: [CDNote]? = nil,
         in context: NSManagedObjectContext
     ) -> Bool {
         if !target.studentIDs.contains(studentID) {
@@ -112,7 +119,7 @@ enum PresentationGroupMove {
         // proficiency mark filed on one is kept as a mark of its own first,
         // as Remove Plan does, so neither the move nor its Undo loses it.
         ChecklistRosterRemoval.keepMasteryMarks(on: source, studentIDs: [studentID], in: context)
-        PresentationRecordCleanup.moveStudents([studentID], from: source, to: target, in: context)
+        PresentationRecordCleanup.moveStudents([studentID], from: source, to: target, notes: notes, in: context)
         guard source.studentIDs.isEmpty else { return false }
         ChecklistRosterRemoval.keepMasteryMarks(on: source, studentIDs: nil, in: context)
         PresentationRecordCleanup.prepareToMerge(source, into: target, in: context)
@@ -143,8 +150,9 @@ enum PresentationGroupMove {
             return false
         }
         // A group the move made is left empty here, so `apply` folds it back
-        // into the source and deletes it.
-        apply(receipt.studentID, from: target, to: source, in: context)
+        // into the source and deletes it. Only the notes the move carried go
+        // back: one the target already had about her stays (review 2026-10-16).
+        apply(receipt.studentID, from: target, to: source, carrying: receipt.carriedNotes, in: context)
         return true
     }
 

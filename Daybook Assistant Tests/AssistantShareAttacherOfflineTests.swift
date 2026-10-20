@@ -99,6 +99,34 @@ struct AssistantShareAttacherOfflineTests {
         #expect(attacher.pending.isEmpty)
     }
 
+    @Test("A retry during a send that fails goes again without counting the failed try")
+    func retryDuringPassDoesNotDoubleTheRest() async {
+        let attacher = launch()
+        share.offline = true
+        await attach(marks(1), with: attacher)
+        #expect(share.rests == [30])
+
+        // Still offline: the phone locks while a fresh mark's try is out.
+        share.holdsNextAttempt = true
+        attacher.attach(marks(1), container: stack.container, context: context)
+        while !share.isHolding { await Task.yield() }
+        attacher.retryWaiting()
+        share.release()
+        await attacher.waitUntilIdle()
+
+        #expect(share.attempts.count == 3, "the retry went again at once")
+        #expect(share.rests == [30, 60], "the try the retry cut short isn't counted as a failure of its own")
+    }
+
+    @Test("A round that puts some marks in before losing the connection isn't offline")
+    func partlySentRoundIsNotOffline() async {
+        let attacher = launch()
+        share.dropsConnectionAfter = 1
+        await attach(marks(2), with: attacher)
+        #expect(attacher.pending.count == 1)
+        #expect(!attacher.isOffline, "a mark reached iCloud in this round")
+    }
+
     @Test("Locking tries resting marks only while offline or once the rest is over")
     func lockRetriesOnlyWithAChance() async {
         let attacher = launch()

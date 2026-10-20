@@ -263,6 +263,39 @@ struct WorkToShowFirstActionTests {
         #expect(WorkToShowFirst.checkTodayTitle(.adds, day: monday, now: monday) == "Check Today")
     }
 
+    @Test("A check day past the coming week reads without a possessive date, and Checked says for which day")
+    func checkDayPastTheWeekReadsPlainly() throws {
+        let saturday = AppCalendar.startOfDay(
+            try #require(AppCalendar.shared.date(from: DateComponents(year: 2026, month: 12, day: 19)))
+        )
+        let monday = AppCalendar.addingDays(2, to: saturday)
+        let afterBreak = AppCalendar.addingDays(18, to: saturday)
+        let date = afterBreak.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+
+        #expect(WorkToShowFirst.checkTodayTitle(.adds, day: afterBreak, now: saturday) == "Check on \(date)")
+        #expect(
+            WorkToShowFirst.checkTodayTitle(.onToday(checked: false), day: afterBreak, now: saturday)
+                == "On the Checks for \(date)"
+        )
+        #expect(
+            WorkToShowFirst.checkTodayTitle(.onToday(checked: true), day: afterBreak, now: saturday)
+                == "Checked for \(date)"
+        )
+        #expect(
+            WorkToShowFirst.message(for: .added, day: afterBreak, now: saturday).text
+                == "Added to the checks for \(date)"
+        )
+        #expect(
+            WorkToShowFirst.message(for: .alreadyOnToday, day: afterBreak, now: saturday).text
+                == "That work is already on the checks for \(date)"
+        )
+        #expect(
+            WorkToShowFirst.checkTodayTitle(.onToday(checked: true), day: monday, now: saturday)
+                == "Checked for Monday"
+        )
+        #expect(WorkToShowFirst.checkTodayTitle(.onToday(checked: true), day: saturday, now: saturday) == "Checked Today")
+    }
+
     // MARK: - What the lists draw
 
     @Test("Before you start lists only children on the plan; a card counts only the chips it draws")
