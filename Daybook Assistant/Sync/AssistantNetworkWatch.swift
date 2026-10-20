@@ -16,6 +16,14 @@ import OSLog
 /// path says, since a path can claim to be online when it isn't, and the
 /// other way round. A wrong answer here costs at most one extra try.
 ///
+/// The network coming back (from none, not a move between Wi-Fi and
+/// cellular) also runs the ParentLocker sync's return path, as coming back
+/// to the app does (bug hunt 2026-10-20, #16): a send that gave up while the
+/// phone was offline waited for the next trip away and back. Only a return,
+/// so a link flapping between kinds doesn't keep restarting the sync's wait
+/// for the first import; and not while that wait runs, or just after the app
+/// came back, whose own return has run it (`runsParentLockerReturn`).
+///
 /// One per stack (`AssistantStack`), stopped when a rebuild closes it.
 @MainActor
 final class AssistantNetworkWatch {
@@ -62,20 +70,51 @@ final class AssistantNetworkWatch {
         return !old.usable || old.interface != new.interface
     }
 
+    /// Whether moving from `old` to `new` is the network coming back: from
+    /// no usable path to one. The first path only sets the scene.
+    nonisolated static func cameBack(from old: PathState?, to new: PathState) -> Bool {
+        guard let old else { return false }
+        return !old.usable && new.usable
+    }
+
+    /// How soon after the app became active the network's return counts as
+    /// part of that return: a phone rejoins Wi-Fi as it wakes, and `settle`
+    /// adds its few seconds.
+    nonisolated static let returnOverlap: TimeInterval = 10
+
+    /// Whether the network's return runs ParentLocker's return path. Not
+    /// while the sync still waits for its first import (a return to the app
+    /// started that wait, and the import comes with the network), and not
+    /// within `returnOverlap` of the app becoming active, whose own return
+    /// ran it seconds before: the two together restarted the wait (review of
+    /// the 2026-10-20 fixes). `activeSince` is nil while the app isn't
+    /// active. Pure, for the tests.
+    nonisolated static func runsParentLockerReturn(awaitingImport: Bool, activeSince: Date?, now: Date) -> Bool {
+        guard !awaitingImport else { return false }
+        guard let activeSince else { return true }
+        return now.timeIntervalSince(activeSince) >= returnOverlap
+    }
+
     private var reader: Task<Void, Never>?
     private var pendingRetry: Task<Void, Never>?
+    /// A change waiting to settle came back from no network.
+    private var pendingCameBack = false
     private let settle: Duration
     private let retry: @MainActor () -> Void
+    private let cameBack: @MainActor () -> Void
 
     /// Follows `paths`, calling `retry` once a change has settled for
-    /// `settle`. Tests pass their own paths and settle.
+    /// `settle`, and `cameBack` too when the change was the network coming
+    /// back. Tests pass their own paths and settle.
     init(
         paths: AsyncStream<PathState>,
         settle: Duration = AssistantNetworkWatch.settle,
-        retry: @escaping @MainActor () -> Void
+        retry: @escaping @MainActor () -> Void,
+        cameBack: @escaping @MainActor () -> Void = {}
     ) {
         self.settle = settle
         self.retry = retry
+        self.cameBack = cameBack
         reader = Task { [weak self] in
             var last: PathState?
             for await path in paths {
@@ -86,9 +125,16 @@ final class AssistantNetworkWatch {
         }
     }
 
-    /// The system's paths, from a fresh `NWPathMonitor`.
+    /// The system's paths, from a fresh `NWPathMonitor`. The network coming
+    /// back reaches the class's ParentLocker sync, when one is running and
+    /// hasn't just run its return (`runsParentLockerReturn`).
     static func live(retry: @escaping @MainActor () -> Void) -> AssistantNetworkWatch {
-        AssistantNetworkWatch(paths: systemPaths(), retry: retry)
+        AssistantNetworkWatch(paths: systemPaths(), retry: retry) {
+            guard let sync = ParentLockerSync.current, runsParentLockerReturn(
+                awaitingImport: sync.awaitingImport, activeSince: ArrivalReminderTaps.activeSince, now: Date()
+            ) else { return }
+            sync.appReturned()
+        }
     }
 
     /// Ends the watch: no retry starts after this.
@@ -106,20 +152,27 @@ final class AssistantNetworkWatch {
 
     private func follow(_ path: PathState, after last: PathState?) {
         if !path.usable {
-            // Gone again before the link settled: nothing to try on.
+            // Gone again before the link settled: nothing to try on. The
+            // next usable path is a return of its own.
             pendingRetry?.cancel()
             pendingRetry = nil
+            pendingCameBack = false
             return
         }
         guard Self.shouldRetry(from: last, to: path) else { return }
-        // Changes within the settle time make one retry, after the last.
+        // Changes within the settle time make one retry, after the last;
+        // a return among them reaches ParentLocker once too.
+        if Self.cameBack(from: last, to: path) { pendingCameBack = true }
         pendingRetry?.cancel()
         pendingRetry = Task { [weak self, settle] in
             do { try await Task.sleep(for: settle) } catch { return }
             guard let self, !Task.isCancelled else { return }
             Self.logger.notice("The network came back or changed: waiting marks are tried")
             pendingRetry = nil
+            let returned = pendingCameBack
+            pendingCameBack = false
             retry()
+            if returned { cameBack() }
         }
     }
 

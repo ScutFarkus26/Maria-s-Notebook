@@ -19,14 +19,34 @@ final class ClassroomSharingService {
     private(set) var currentRole: CDClassroomMembership.ClassroomRole = .leadGuide
     private(set) var participants: [CKShare.Participant] = []
     private(set) var isSharing: Bool = false
-    private(set) var shareError: String?
+    /// Written here and by joining (`+Joining`) only.
+    var shareError: String?
     private(set) var currentShare: CKShare?
+
+    // Joining. Written by `+Joining` only; internal so that file can.
+
     /// True while an opened invitation is being joined, which can take a
     /// while; the Daybook Assistant shows "Joining your classroom…". Gives
     /// up after `joinTimeout`.
-    private(set) var isJoining = false
+    var isJoining = false
     /// Numbers each join (`beginJoin`).
-    @ObservationIgnored private var joinAttempt = 0
+    @ObservationIgnored var joinAttempt = 0
+    /// Whether the join's accept is still running, timed out on screen or
+    /// not: CloudKit's accept can't be cancelled. Until `endJoin`.
+    @ObservationIgnored var acceptIsRunning = false
+    /// The invitation that accept is for.
+    @ObservationIgnored var runningInvitation: CKShare.Metadata?
+    /// The running accept's task, cancelled when a rebuilt stack takes the
+    /// join over (`letGoOfJoin`).
+    @ObservationIgnored var joinTask: Task<Void, Never>?
+    /// Set by the Daybook Assistant while it waits for a running join before
+    /// rebuilding its stack (`AssistantBootstrapper.rebuildStack`): a join
+    /// that fails meanwhile keeps its invitation (`failedInvitation`), to be
+    /// accepted again on the rebuilt stack, instead of showing the failure,
+    /// and the join's own timeout leaves the decision to the wait.
+    @ObservationIgnored var keepsFailedInvitation = false
+    /// The invitation of a join that failed while `keepsFailedInvitation`.
+    @ObservationIgnored var failedInvitation: CKShare.Metadata?
 
     /// The share entry of whoever is using this device, so the members list
     /// can mark its own row. CloudKit withholds your own name components, which
@@ -185,7 +205,7 @@ final class ClassroomSharingService {
     /// on every CloudKit remote change while a members screen is open, and
     /// `fetchShares(in:)` is a synchronous read of the store's CloudKit
     /// metadata that would otherwise stall the UI mid-sync.
-    private func refreshParticipantsOffMain() async throws {
+    func refreshParticipantsOffMain() async throws {
         guard let storeID = classroomShareStore?.identifier else {
             publishShare(nil)
             publishParticipants(of: nil)
@@ -204,44 +224,6 @@ final class ClassroomSharingService {
         // .refreshRecordName()`, never from here: the share gives the stand-in.
         let participantID = share?.currentUserParticipant?.participantID
         if currentUserParticipantID != participantID { currentUserParticipantID = participantID }
-    }
-
-    /// Accepts an incoming share invitation.
-    /// Called via notification when user taps a share link.
-    func acceptShare(metadata: CKShare.Metadata) async throws {
-        guard let store = sharedStore else {
-            Self.logger.error("Cannot accept share: shared store not found")
-            shareError = "Couldn't join the classroom on this device. Quit and reopen the app, "
-                + "then open the invitation again."
-            ToastService.shared.showError(shareError ?? "")
-            return
-        }
-
-        Self.logger.info("Accepting CloudKit share invitation...")
-        try await container.acceptShareInvitations(from: [metadata], into: store)
-
-        // Pin the accepted zone on this device's membership row — updating the
-        // row an earlier acceptance wrote rather than adding one per invitation.
-        let repo = ClassroomRepository(context: context)
-        repo.pinClassroom(
-            zoneName: metadata.share.recordID.zoneID.zoneName,
-            role: .assistant,
-            ownerIdentity: metadata.ownerIdentity.userRecordID?.recordName ?? "unknown"
-        )
-        _ = repo.save(reason: "Accept classroom share")
-
-        loadCurrentMembership()
-        shareError = nil
-        // The join is done once the membership row is saved. Reading the
-        // participants back is a nicety: failing it used to throw from here,
-        // so a good join never posted `.didJoinClassroom` and read as a failure.
-        do {
-            try refreshParticipants()
-        } catch {
-            Self.logger.error("Joined, but reading the participants failed: \(error.localizedDescription)")
-        }
-        Self.logger.info("Share accepted successfully")
-        NotificationCenter.default.post(name: .didJoinClassroom, object: nil)
     }
 
     /// Resynchronizes published share state once the share turns out to be
@@ -274,8 +256,14 @@ final class ClassroomSharingService {
         }
 
         // Which share to purge, or why not to leave yet: see `shareToLeave`.
+        // The shares are read off the main actor, which a running download
+        // would otherwise freeze (bug hunt 2026-10-20 #10).
         if let store = sharedStore {
-            let shares = try container.fetchShares(in: store)
+            let shares = if let storeID = store.identifier {
+                try await ClassroomShareAttach.shares(inStoreWithIdentifier: storeID, container: container)
+            } else {
+                try container.fetchShares(in: store)
+            }
             let pinned = currentShare ?? CDClassroomMembership.classroomShare(among: shares, in: context)
             let holdsClassroom = Self.holdsClassroom(store, in: context)
             if let zoneID = try Self.shareToLeave(pinned: pinned, among: shares, holdsClassroom: holdsClassroom)?
@@ -309,7 +297,8 @@ final class ClassroomSharingService {
 
     // MARK: - Private
 
-    private var sharedStore: NSPersistentStore? {
+    /// The store an accepted share lives in (`+Joining` reads it too).
+    var sharedStore: NSPersistentStore? {
         container.persistentStoreCoordinator.persistentStores.first { store in
             store.configurationName == CoreDataStack.sharedConfiguration
         }
@@ -343,56 +332,5 @@ final class ClassroomSharingService {
 
     @objc private func handleShareAcceptance(_ notification: Notification) {
         acceptPendingInvitation()
-    }
-
-    /// Takes the invitation waiting in `ShareInvitationInbox`, if any, and
-    /// joins its classroom. A service with no shared store (the Sample Class)
-    /// leaves the invitation for the real notebook's service.
-    private func acceptPendingInvitation() {
-        guard sharedStore != nil, let metadata = ShareInvitationInbox.take() else { return }
-        let attempt = beginJoin()
-        Task { [weak self] in
-            try? await Task.sleep(for: Self.joinTimeout)
-            self?.joinTimedOut(attempt)
-        }
-        Task {
-            defer { endJoin(attempt) }
-            do {
-                try await acceptShare(metadata: metadata)
-            } catch {
-                Self.logger.error("Share acceptance failed: \(error.localizedDescription)")
-                // A later invitation's join owns the screen now.
-                guard attempt == joinAttempt else { return }
-                let message = AppErrorMessages.joinMessage(for: error) + " " + Self.joinAdvice(for: error)
-                shareError = message
-                ToastService.shared.showError(message)
-            }
-        }
-    }
-
-    // MARK: - Join timeout
-
-    /// Starts showing a join; its number keeps a later invitation's join from
-    /// being ended by an earlier one's timeout or finish.
-    func beginJoin() -> Int {
-        joinAttempt += 1
-        isJoining = true
-        shareError = nil
-        return joinAttempt
-    }
-
-    /// CloudKit's accept has no timeout and can't be cancelled, so a join
-    /// that never answered left "Joining your classroom…" up for good. After
-    /// `joinTimeout` the screen lets go; a late success still saves the
-    /// membership row and posts `.didJoinClassroom`.
-    func joinTimedOut(_ attempt: Int) {
-        guard attempt == joinAttempt, isJoining else { return }
-        Self.logger.error("Joining the classroom timed out; the accept may still finish")
-        isJoining = false
-        shareError = Self.joinTimeoutMessage
-    }
-
-    func endJoin(_ attempt: Int) {
-        if attempt == joinAttempt { isJoining = false }
     }
 }

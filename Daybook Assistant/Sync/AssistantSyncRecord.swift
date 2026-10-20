@@ -76,6 +76,11 @@ final class AssistantSyncRecord {
         var succeeded: Bool
     }
 
+    /// A save to the shared store with no upload begun after it: kept
+    /// across launches, so Leave can warn of marks saved before a relaunch
+    /// that never went (`AssistantBootstrapper.unsentMarks`).
+    var hasUnsentSave: Bool { lastSave > lastExportStart }
+
     func saved(at date: Date) {
         lastSave = date.timeIntervalSince1970
         defaults.set(lastSave, forKey: Self.lastSharedSaveKey)

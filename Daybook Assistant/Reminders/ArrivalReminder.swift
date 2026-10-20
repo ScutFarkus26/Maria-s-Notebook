@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import UIKit
 import CoreData
 import UserNotifications
 import OSLog
@@ -27,7 +28,17 @@ enum ArrivalReminder {
     /// The notification's words, which setup's reminder page shows too.
     static let notificationTitle = "Time to close arrival"
     static let notificationBody = "Close arrival to mark anyone not here yet absent."
-    private static let idPrefix = "arrival-"
+    nonisolated private static let idPrefix = "arrival-"
+
+    /// The day's reminder's identifier.
+    nonisolated static func identifier(on day: Date) -> String {
+        idPrefix + AppCalendar.dayID(day)
+    }
+
+    /// Whether a delivered notification is one of these.
+    nonisolated static func isReminder(_ identifier: String) -> Bool {
+        identifier.hasPrefix(idPrefix)
+    }
 
     private static let logger = Logger.app(category: "reminder")
 
@@ -78,7 +89,7 @@ enum ArrivalReminder {
     /// after removing the old reminders, leaving none.
     private static let runs = ReminderRuns()
 
-    private static func isOurs(_ id: String) -> Bool { id.hasPrefix(idPrefix) }
+    private static func isOurs(_ id: String) -> Bool { isReminder(id) }
 
     /// Replaces this app's pending reminders with the ones that should be
     /// there now.
@@ -107,7 +118,9 @@ enum ArrivalReminder {
         let calendar = AppCalendar.shared
         let start = calendar.startOfDay(for: now)
         guard let end = calendar.date(byAdding: .day, value: daysAhead * 3, to: start) else { return [] }
-        let nonSchoolDays = SchoolDayChecker.nonSchoolDaySet(in: start..<end, using: context, calendar: calendar)
+        // The guide's days off, never a notebook of her own on the same
+        // Apple Account (bug hunt 2026-10-20).
+        let nonSchoolDays = AttendanceEmailLog.nonSchoolDays(in: start..<end, using: context, calendar: calendar)
         let dates = fireDates(
             from: now,
             minutes: minutes(),
@@ -122,8 +135,7 @@ enum ArrivalReminder {
             content.sound = .default
             let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-            let id = idPrefix + AppCalendar.dayID(date)
-            return UNNotificationRequest(identifier: id, content: content, trigger: trigger)
+            return UNNotificationRequest(identifier: identifier(on: date), content: content, trigger: trigger)
         }
     }
 
@@ -142,9 +154,46 @@ enum ArrivalReminder {
 
 /// Shows a reminder that fires while the app is open, and turns a tap on one
 /// into "show today" for the attendance screen (and, for the front-desk
-/// reminder, "open the email").
+/// reminder, "open the email"). An arrival or front-desk reminder from
+/// another day only opens the app (bug hunt 2026-10-20, #18).
 final class ArrivalReminderTaps: NSObject, UNUserNotificationCenterDelegate {
     static let shared = ArrivalReminderTaps()
+
+    /// When the app last became active; nil while it isn't. A front-desk
+    /// tap that brought it forward waits for iCloud before opening anything
+    /// (#14), and the network coming back just after doesn't run
+    /// ParentLocker's return a second time (`AssistantNetworkWatch`).
+    @MainActor private(set) static var activeSince: Date?
+
+    /// Made at launch (the app sets it as the notification delegate), so it
+    /// also keeps, from then on, when the app came forward and which stores
+    /// iCloud has imported into since (`AssistantFrontDeskMail.catchUp`): the
+    /// import a tap's wait is for can finish before the screen listens.
+    override private init() {
+        super.init()
+        AssistantFrontDeskMail.catchUp.cameForward(at: Date())
+        let center = NotificationCenter.default
+        _ = center.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { ArrivalReminderTaps.activeSince = Date() }
+        }
+        _ = center.addObserver(forName: UIApplication.willResignActiveNotification, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { ArrivalReminderTaps.activeSince = nil }
+        }
+        _ = center.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { AssistantFrontDeskMail.catchUp.cameForward(at: Date()) }
+        }
+        _ = center.addObserver(
+            forName: NSPersistentCloudKitContainer.eventChangedNotification, object: nil, queue: .main
+        ) { note in
+            guard let event = note.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
+                    as? NSPersistentCloudKitContainer.Event,
+                  event.type == .import, event.endDate != nil, event.succeeded else { return }
+            let store = event.storeIdentifier, started = event.startDate
+            MainActor.assumeIsolated {
+                AssistantFrontDeskMail.catchUp.importFinished(into: store, startedAt: started)
+            }
+        }
+    }
 
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
@@ -157,11 +206,46 @@ final class ArrivalReminderTaps: NSObject, UNUserNotificationCenterDelegate {
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
-        let isFrontDesk = FrontDeskEmailReminder.isReminder(response.notification.request.identifier)
-        await MainActor.run {
-            NotificationCenter.default.post(name: .assistantShowToday, object: nil)
-            if isFrontDesk { FrontDeskEmailReminder.handleTap() }
+        let identifier = response.notification.request.identifier
+        await MainActor.run { Self.handleTap(identifier, now: Date()) }
+    }
+
+    /// A tapped reminder: today on screen, and for the front desk's, the
+    /// email (`AssistantFrontDeskMail`). One left from an earlier day only
+    /// opened the app: it used to show today and open today's email, which
+    /// could go to the front desk a second time.
+    @MainActor
+    static func handleTap(_ identifier: String, now: Date) {
+        guard isForToday(identifier, now: now) else { return }
+        NotificationCenter.default.post(name: .assistantShowToday, object: nil)
+        guard FrontDeskEmailReminder.isReminder(identifier) else { return }
+        AssistantFrontDeskMail.tapBroughtAppForward = broughtForward(activeSince: activeSince, now: now)
+        FrontDeskEmailReminder.handleTap()
+    }
+
+    /// Whether a tapped reminder is about today: an arrival or front-desk
+    /// reminder carries its day; a pickup's tap only shows today, so it
+    /// always counts. Pure, for the tests.
+    nonisolated static func isForToday(_ identifier: String, now: Date) -> Bool {
+        if FrontDeskEmailReminder.isReminder(identifier) {
+            return FrontDeskEmailReminder.isReminder(identifier, on: now)
         }
+        if ArrivalReminder.isReminder(identifier) {
+            return identifier == ArrivalReminder.identifier(on: now)
+        }
+        return true
+    }
+
+    /// How soon after the app became active a tap still counts as the one
+    /// that brought it forward: the tap can be handled just before or just
+    /// after the app says it's active.
+    nonisolated static let forwardWindow: TimeInterval = 2
+
+    /// Whether a tap brought the app forward: it wasn't active, or became
+    /// active only just now. Pure, for the tests.
+    nonisolated static func broughtForward(activeSince: Date?, now: Date) -> Bool {
+        guard let activeSince else { return true }
+        return now.timeIntervalSince(activeSince) < forwardWindow
     }
 }
 
@@ -228,14 +312,22 @@ struct ArrivalReminderFollower: ViewModifier {
     /// rebuilding. The sample class rings its pickups, so Leaving Early… can
     /// be tried there, and asks for nothing else. Setup's reminder page asks,
     /// in its own words: until setup is done an alert would land on top of it
-    /// instead, the pickups' included.
+    /// instead, the pickups' included. Setup never shows over the sample,
+    /// which is open before she has joined (and so before setup), so there
+    /// the pickups ask anyway: they never asked, and never rang (bug hunt
+    /// 2026-10-20, #23).
+    ///
+    /// Not Now in setup asks for nothing at all, the pickups' included, until
+    /// she turns a reminder on (`AssistantSetupReminder.declinedInSetup`).
     static func askPermission(
         in context: NSManagedObjectContext,
         setupDone: Bool,
         isSample: Bool,
-        center: any ReminderCenter
+        center: any ReminderCenter,
+        defaults: UserDefaults = .standard
     ) async {
-        guard setupDone, await center.authorizationStatus() == .notDetermined else { return }
+        guard setupDone || isSample, !AssistantSetupReminder.declinedInSetup(defaults) else { return }
+        guard await center.authorizationStatus() == .notDetermined else { return }
         if !isSample { await ArrivalReminder.requestPermissionIfNeeded(center: center) }
         if EarlyPickupReminder.isEnabled(), !EarlyPickupReminder.pendingPickups(in: context).isEmpty {
             await EarlyPickupReminder.requestPermissionIfNeeded(center: center)

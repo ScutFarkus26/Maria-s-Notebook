@@ -19,7 +19,11 @@ final class NotebookNotificationTaps: NSObject, UNUserNotificationCenterDelegate
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
-        guard FrontDeskEmailReminder.isReminder(response.notification.request.identifier) else { return }
+        let identifier = response.notification.request.identifier
+        guard FrontDeskEmailReminder.isReminder(identifier) else { return }
+        // A reminder left over from an earlier day only opens the app: its
+        // email offer would be about today (bug hunt 2026-10-20, #18).
+        guard FrontDeskEmailReminder.isReminder(identifier, on: Date()) else { return }
         await MainActor.run {
             // The email offer is made on the roll, not the list.
             AttendanceScreenView.showRoll()

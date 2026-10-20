@@ -27,7 +27,8 @@ struct AssistantParentLockerFixRoundTests {
         #expect(store.updateStatus(record, to: .present))
         #expect(context.safeSave())
         ParentLockerTestSettings.pick(.parentLocker, in: context)
-        let viewModel = AssistantTestSupport.viewModel(stack, on: monday)
+        // Seen that Monday: Send to ParentLocker is offered only for today.
+        let viewModel = AssistantTestSupport.viewModel(stack, on: monday, now: monday.addingTimeInterval(9 * 3_600))
         #expect(viewModel.unmarkedCount == 1, "Maya isn't marked")
         #expect(viewModel.frontDesk.offersParentLockerSend(by: viewModel), "but she never goes to ParentLocker")
     }

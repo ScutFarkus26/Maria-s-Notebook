@@ -38,6 +38,11 @@ enum SiriHost {
     /// on a locked phone the answer would tell anyone nearby that she has.
     static func formerStudents(in context: NSManagedObjectContext) -> [CDStudent] { [] }
 
+    /// A child who has left is "not found": the Assistant knows no former
+    /// children, and on a locked phone "isn't in the class anymore" would
+    /// tell anyone nearby that she has left (bug hunt 2026-10-20, #29).
+    static let refusesFormerByName = false
+
     /// Siri names children as the grid does: first names, with an initial
     /// only where two share one. Here and late answer on a locked phone,
     /// where a full name tells anyone nearby more than was said.

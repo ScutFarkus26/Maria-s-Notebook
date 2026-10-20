@@ -67,11 +67,19 @@ struct AssistantNameSheet: View {
         return stored
     }
 
+    /// Her name set on this iPhone now, before the sheet goes: set only in
+    /// the task, it was missing for a moment after, and the sheet that asks
+    /// for a missing name could come back (review (d), #4). The classroom's
+    /// list follows in the returned task.
+    @discardableResult
+    static func commit(_ name: String, in stack: CoreDataStack?) -> Task<Void, Never> {
+        AssistantNameStore.save(name)
+        return Task { _ = await AssistantNameStore.save(name, in: stack) }
+    }
+
     private func save() {
         guard !trimmed.isEmpty else { return }
-        let name = trimmed
-        let stack = bootstrapper.coreDataStack
-        Task { await AssistantNameStore.save(name, in: stack) }
+        Self.commit(trimmed, in: bootstrapper.coreDataStack)
         dismiss()
     }
 }

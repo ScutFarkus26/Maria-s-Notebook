@@ -28,10 +28,16 @@ nonisolated enum AttendanceDayLocks {
     // MARK: - Reading
 
     static func isLocked(_ date: Date, in context: NSManagedObjectContext) -> Bool {
+        ((try? context.count(for: request(on: date))) ?? 0) > 0
+    }
+
+    /// The fetch for `date`'s lock rows (one is enough to lock it), for a
+    /// reader that scopes it to a store (`CDAttendanceStore.isLocked`).
+    static func request(on date: Date) -> NSFetchRequest<CDAttendanceDayLock> {
         let request = CDFetchRequest(CDAttendanceDayLock.self)
         request.predicate = NSPredicate(format: "date == %@", AppCalendar.startOfDay(date) as NSDate)
         request.fetchLimit = 1
-        return ((try? context.count(for: request)) ?? 0) > 0
+        return request
     }
 
     // MARK: - Writing

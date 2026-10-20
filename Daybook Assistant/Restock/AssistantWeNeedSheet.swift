@@ -59,7 +59,9 @@ struct AssistantWeNeedSheet: View {
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
-                    siriTip
+                    if Self.showsSiriTip() {
+                        siriTip
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 16)
@@ -179,9 +181,15 @@ struct AssistantWeNeedSheet: View {
         .background(Color(.secondarySystemGroupedBackground), in: fieldShape)
     }
 
+    /// The Siri tip, except in the join screen's sample class, which Siri
+    /// doesn't open (bug hunt 2026-10-20, #33).
+    static func showsSiriTip(sampleChosen: Bool = AssistantSampleClass.isChosen) -> Bool {
+        !sampleChosen
+    }
+
     private func add() {
         switch model.addNeed(trimmed, source: source, quantity: quantity) {
-        case .added, .markedStaple:
+        case .added, .markedStaple, .updatedQuantity:
             dismiss()
         case .alreadyListed:
             notice = "That's already on the list."

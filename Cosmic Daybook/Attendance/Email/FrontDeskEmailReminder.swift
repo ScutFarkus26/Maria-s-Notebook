@@ -34,6 +34,9 @@ enum FrontDeskEmailReminder {
     static let leadChoices = [5, 10, 15, 20, 30]
     nonisolated static let daysAhead = 10
     nonisolated private static let idPrefix = "frontdesk-"
+    /// The day's two reminders: before the deadline, and at it.
+    nonisolated private static let soonSuffix = "soon"
+    nonisolated private static let dueSuffix = "due"
 
     private static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "CosmicDaybook", category: "FrontDeskEmailReminder"
@@ -61,6 +64,18 @@ enum FrontDeskEmailReminder {
     /// Whether a delivered notification is one of these.
     nonisolated static func isReminder(_ identifier: String) -> Bool {
         identifier.hasPrefix(idPrefix)
+    }
+
+    /// The identifiers of `day`'s two reminders, whichever way the guide
+    /// picked.
+    nonisolated static func identifiers(on day: Date) -> [String] {
+        [soonSuffix, dueSuffix].map { idPrefix + AppCalendar.dayID(day) + "-" + $0 }
+    }
+
+    /// Whether a delivered notification is one of `day`'s: a tap on an
+    /// older one is about a day already behind her (bug hunt 2026-10-20, #18).
+    nonisolated static func isReminder(_ identifier: String, on day: Date) -> Bool {
+        identifiers(on: day).contains(identifier)
     }
 
     /// What a tapped reminder does in either app: remember the request and
@@ -147,11 +162,15 @@ enum FrontDeskEmailReminder {
         let calendar = AppCalendar.shared
         let start = calendar.startOfDay(for: now)
         guard let end = calendar.date(byAdding: .day, value: daysAhead * 3, to: start) else { return [] }
-        let nonSchoolDays = SchoolDayChecker.nonSchoolDaySet(in: start..<end, using: context, calendar: calendar)
+        let nonSchoolDays = AttendanceEmailLog.nonSchoolDays(in: start..<end, using: context, calendar: calendar)
         // Sent, or a day ParentLocker isn't expecting, as any device of the
         // class found (bug hunt 2026-10-13 afternoon, M8): nothing is due today.
         let todayIsDone = AttendanceEmailLog.latestSend(on: start, in: context) != nil
             || (settings.sendMethod == .parentLocker && AttendanceEmailLog.isNotExpected(on: start, in: context))
+        // Today's already showing go too, once a send is recorded here or
+        // arrives from another device, so one can't be tapped into a second
+        // send (bug hunt 2026-10-20, #18).
+        if todayIsDone { center.removeDeliveredRequests(withIdentifiers: identifiers(on: start)) }
         return kinds(for: settings, leadMinutes: leadMinutes(defaults)).flatMap { kind in
             fireDates(
                 from: now, minutes: kind.minutes, nonSchoolDays: nonSchoolDays,
@@ -185,19 +204,19 @@ enum FrontDeskEmailReminder {
         switch settings.sendMethod {
         case .email:
             return [
-                Kind(suffix: "soon", minutes: deadline - leadMinutes, title: "Front desk email due at \(dueAt)",
+                Kind(suffix: soonSuffix, minutes: deadline - leadMinutes, title: "Front desk email due at \(dueAt)",
                      body: "Today's attendance hasn't been emailed to the front desk yet."),
-                Kind(suffix: "due", minutes: deadline, title: "Front desk email is late",
+                Kind(suffix: dueSuffix, minutes: deadline, title: "Front desk email is late",
                      body: "It was due at \(dueAt). Close arrival and email the front desk.")
             ]
         case .parentLocker:
             return [
-                Kind(suffix: "soon", minutes: deadline - leadMinutes,
+                Kind(suffix: soonSuffix, minutes: deadline - leadMinutes,
                      title: "Attendance due in ParentLocker at \(dueAt)",
                      body: "Today's attendance hasn't been sent to ParentLocker yet."),
                 // Not "close arrival": with everyone marked there's none to
                 // close, only Send (bug hunt 2026-10-13 afternoon, M2).
-                Kind(suffix: "due", minutes: deadline, title: "ParentLocker attendance is late",
+                Kind(suffix: dueSuffix, minutes: deadline, title: "ParentLocker attendance is late",
                      body: "It was due at \(dueAt). Open attendance and send it to ParentLocker.")
             ]
         }
@@ -222,10 +241,21 @@ protocol ReminderCenter {
     func pendingRequests() async -> [UNNotificationRequest]
     func removePendingRequests(withIdentifiers identifiers: [String])
     func add(_ request: UNNotificationRequest) async throws
+    /// Takes notifications already showing out of Notification Center.
+    func removeDeliveredRequests(withIdentifiers identifiers: [String])
+}
+
+extension ReminderCenter {
+    /// A stand-in with no Notification Center has nothing showing to clear.
+    func removeDeliveredRequests(withIdentifiers identifiers: [String]) {}
 }
 
 /// The system's notification center.
 struct SystemReminderCenter: ReminderCenter {
+    func removeDeliveredRequests(withIdentifiers identifiers: [String]) {
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: identifiers)
+    }
+
     func authorizationStatus() async -> UNAuthorizationStatus {
         await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
     }

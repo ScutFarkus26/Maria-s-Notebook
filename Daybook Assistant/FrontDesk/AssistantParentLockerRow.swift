@@ -7,11 +7,12 @@ import SwiftUI
 /// child the sync left alone. The words are the engine's
 /// (`ParentLockerStatus`), so both apps say the same thing.
 ///
-/// With everyone marked and the day not sent, there's no Close Arrival to
+/// With everyone marked and today not sent, there's no Close Arrival to
 /// send it, so **Send to ParentLocker** is offered instead, as Email the
 /// Front Desk is. On an iPhone that isn't signed in, the one tap asks for
 /// today's send and opens the sign-in; the send goes once she signs in (bug
-/// hunt 2026-10-13 afternoon, L6).
+/// hunt 2026-10-13 afternoon, L6). Another day has only the menu's Send Now,
+/// which asks first (bug hunt 2026-10-20, #17).
 struct AssistantParentLockerRow: View {
     let status: ParentLockerStatus
     /// The day's send as `AttendanceEmailLog.Send.summary` words it; nil

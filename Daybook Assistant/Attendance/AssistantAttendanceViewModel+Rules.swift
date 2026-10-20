@@ -19,13 +19,14 @@ extension AssistantAttendanceViewModel {
     }
 
     /// Whether the bar offers Close Arrival (someone still unmarked) or shows
-    /// Late. Never on a locked day or a day ahead. Reopened while Close
-    /// Arrival's absences still stand, it's offered with nobody unmarked
-    /// too, as the way back to Late.
+    /// Late. Never on a locked day or a day ahead. Reopened while the day
+    /// still reads as closed (Close Arrival's absences, or the children it
+    /// took in not all undone), it's offered with nobody unmarked too, as
+    /// the way back to Late.
     var showsArrivalControl: Bool {
         guard canMark, !isFuture else { return false }
         switch phase {
-        case .arrival: return !unmarkedNames.isEmpty || hasAutomaticAbsences
+        case .arrival: return !unmarkedNames.isEmpty || readsClosed
         case .late: return true
         }
     }
@@ -64,19 +65,32 @@ extension AssistantAttendanceViewModel {
     }
 
     /// Why `date` has no school, if it hasn't: a day off in the guide's
-    /// calendar (with its reason), else a weekend. Any day off dated within
-    /// `date` counts, as `SchoolDayChecker` reads them: one stored at another
-    /// time than midnight (an older build, another time zone) read as a
-    /// weekend here.
+    /// calendar (with its reason), else a weekend that isn't a school
+    /// Saturday, by the school-day rule (`SchoolDayChecker`). Any day off or
+    /// school Saturday dated within `date` counts: one stored at another time
+    /// than midnight (an older build, another time zone) read as a weekend
+    /// here. Only the classroom share's (`AttendanceEmailLog.scopeToClassroom`):
+    /// a notebook of her own on the same Apple Account keeps its days off in
+    /// the private store, and they closed the class's school days on her
+    /// phone (bug hunt 2026-10-20, #6). A stack with one store reads it all.
     static func dayOff(on date: Date, in context: NSManagedObjectContext) -> DayOff? {
-        guard SchoolDayChecker.isNonSchoolDay(date, using: context) else { return nil }
         let day = AppCalendar.startOfDay(date)
-        let request = CDFetchRequest(CDNonSchoolDay.self)
-        request.predicate = NSPredicate(
-            format: "date >= %@ AND date < %@", day as NSDate, AppCalendar.addingDays(1, to: day) as NSDate
+        func dayRows<T: NSManagedObject>(_ type: T.Type) -> [T] {
+            let request = CDFetchRequest(type)
+            request.predicate = NSPredicate(
+                format: "date >= %@ AND date < %@", day as NSDate, AppCalendar.addingDays(1, to: day) as NSDate
+            )
+            AttendanceEmailLog.scopeToClassroom(request, in: context)
+            return context.safeFetch(request)
+        }
+        let holidays = dayRows(CDNonSchoolDay.self)
+        let isDayOff = SchoolDayChecker.isNonSchoolDay(
+            day,
+            nonSchoolDayDates: holidays.isEmpty ? [] : [day],
+            overrideDates: dayRows(CDSchoolDayOverride.self).isEmpty ? [] : [day]
         )
-        request.fetchLimit = 1
-        if let holiday = context.safeFetchFirst(request) {
+        guard isDayOff else { return nil }
+        if let holiday = holidays.first {
             let reason = holiday.reason?.trimmed() ?? ""
             return .holiday(reason.isEmpty ? nil : reason)
         }

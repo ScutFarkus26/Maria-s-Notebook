@@ -36,6 +36,48 @@ extension ClassroomSharingService {
         return ((try? context.count(for: request)) ?? 0) > 0
     }
 
+    // MARK: - Another guide's class
+
+    /// Whether `metadata` invites this device into another guide's class
+    /// while it's still in one: its row is an assistant's, pinned with an
+    /// owner other than the invitation's, and the class is still here (its
+    /// share, or its children). Accepting would put a second class into the
+    /// same store, mixing the two, and send her marks to the wrong guide (bug
+    /// hunt 2026-10-20 #11). The same guide's new share (stopped and shared
+    /// again) has the same owner and is accepted.
+    func isInAnotherGuidesClass(than metadata: CKShare.Metadata, sharedStore store: NSPersistentStore) async -> Bool {
+        await isInAnotherGuidesClass(invitedBy: metadata.ownerIdentity.userRecordID?.recordName, sharedStore: store)
+    }
+
+    /// The same, for an invitation from `invitedBy` (its owner's record name).
+    func isInAnotherGuidesClass(invitedBy: String?, sharedStore store: NSPersistentStore) async -> Bool {
+        guard let membership = CDClassroomMembership.current(in: context), membership.role == .assistant,
+              !membership.classroomZoneID.isEmpty
+        else { return false }
+        guard Self.isAnotherGuide(pinnedOwner: membership.ownerIdentity, invitedBy: invitedBy) else { return false }
+        return await holdsPinnedClass(store)
+    }
+
+    /// The pinned class's share is in `store`, or, if its shares can't be
+    /// read, its children are.
+    private func holdsPinnedClass(_ store: NSPersistentStore) async -> Bool {
+        if let storeID = store.identifier,
+           let shares = try? await ClassroomShareAttach.shares(inStoreWithIdentifier: storeID, container: container),
+           CDClassroomMembership.classroomShare(among: shares, in: context) != nil {
+            return true
+        }
+        return Self.holdsClassroom(store, in: context)
+    }
+
+    /// Whether the invitation's owner is another guide than the pinned one.
+    /// An owner that can't be told (none written, CloudKit's stand-in, or
+    /// none on the invitation) is no reason to refuse.
+    nonisolated static func isAnotherGuide(pinnedOwner: String?, invitedBy: String?) -> Bool {
+        guard let pinned = ClassroomIdentity.realRecordName(pinnedOwner),
+              let inviter = ClassroomIdentity.realRecordName(invitedBy) else { return false }
+        return pinned != inviter
+    }
+
     /// How long "Joining your classroom…" shows before the wait is given up
     /// (`joinTimedOut`).
     static let joinTimeout: Duration = .seconds(60)
@@ -81,6 +123,17 @@ enum ClassroomLeaveError: LocalizedError {
     }
 }
 
+/// Why an invitation wasn't accepted, though it worked: the device is in
+/// another guide's class (`ClassroomSharingService.isInAnotherGuidesClass`).
+/// Nothing moved; leaving that class first lets the invitation through.
+enum ClassroomJoinRefusal: Error {
+    case alreadyInAClass
+
+    var message: String {
+        "You're already in a class. Leave it in Classroom first, then open the new invitation."
+    }
+}
+
 // MARK: - Notification Name
 
 extension Notification.Name {
@@ -114,5 +167,15 @@ enum ShareInvitationInbox {
     static func take() -> CKShare.Metadata? {
         defer { pending = nil }
         return pending
+    }
+
+    /// Puts back an invitation whose join failed on a stack being rebuilt,
+    /// for the rebuilt stack's service to take when it's built. Nobody is
+    /// told: the old service mustn't take it again. Not over an invitation
+    /// waiting already: that one she opened later, and it wins (it used to be
+    /// replaced by the older, failed one).
+    static func keep(_ metadata: CKShare.Metadata) {
+        guard pending == nil else { return }
+        pending = metadata
     }
 }

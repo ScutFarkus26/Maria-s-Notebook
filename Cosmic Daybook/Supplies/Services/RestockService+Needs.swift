@@ -246,7 +246,8 @@ nonisolated extension RestockService {
     /// syncs. Keeps the oldest by (`createdAt`, `id`), so every device keeps
     /// the same one, and deletes the rest; if only a newer copy had been asked
     /// for, the one kept takes over its request and what it asked for
-    /// (`takeRequest`), so the order is still followed.
+    /// (`takeRequest`), so the order is still followed. If none had, the one
+    /// kept takes the largest quantity and every note (`takeWhatWasChosen`).
     ///
     /// It also mends one way a staple's level and its need fall out of step
     /// across devices (one checks the need off as another marks the staple
@@ -274,8 +275,12 @@ nonisolated extension RestockService {
             let ordered = needs.sorted(by: isOlder)
             guard let kept = ordered.first else { continue }
             let extras = ordered.dropFirst()
-            if kept.requestedAt == nil, let asked = extras.first(where: { $0.requestedAt != nil }) {
-                takeRequest(of: asked, into: kept)
+            if kept.requestedAt == nil {
+                if let asked = extras.first(where: { $0.requestedAt != nil }) {
+                    takeRequest(of: asked, into: kept)
+                } else {
+                    takeWhatWasChosen(from: Array(extras), into: kept)
+                }
             }
             for extra in extras {
                 context.delete(extra)
@@ -300,6 +305,29 @@ nonisolated extension RestockService {
         if !asked.title.trimmed().isEmpty { kept.title = asked.title }
         if !asked.urlString.trimmed().isEmpty { kept.urlString = asked.urlString }
         kept.modifiedAt = asked.modifiedAt
+    }
+
+    /// No copy has been asked for: the kept need takes the largest quantity
+    /// any of them chose and their notes, oldest first, each once. Keeping
+    /// the oldest as it was lost the 4 an assistant chose on the copy going
+    /// (bug hunt 2026-10-20, #27). Every device merges the same copies the
+    /// same way, the latest `modifiedAt` among them included; copies that
+    /// agree change nothing. A note an earlier merge joined ("X · Y") is
+    /// split into its parts first, so a copy saying "Y" doesn't make it
+    /// "X · Y · Y" (bug hunt 2026-10-20 review).
+    private static func takeWhatWasChosen(from extras: [CDOrderItem], into kept: CDOrderItem) {
+        let copies = [kept] + extras
+        let quantity = copies.map(\.quantity).max() ?? kept.quantity
+        let parts = copies.flatMap { $0.notes.components(separatedBy: " · ") }.map { $0.trimmed() }
+        var notes: [String] = []
+        for note in parts where !note.isEmpty && !notes.contains(note) {
+            notes.append(note)
+        }
+        let joined = notes.joined(separator: " · ")
+        guard quantity != kept.quantity || joined != kept.notes.trimmed() else { return }
+        kept.quantity = quantity
+        kept.notes = joined
+        kept.modifiedAt = copies.compactMap(\.modifiedAt).max() ?? kept.modifiedAt
     }
 
     /// Opens a need for each settled Low or Out staple whose id isn't among

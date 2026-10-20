@@ -150,17 +150,22 @@ final class ParentLockerCoreDataStore: ParentLockerStore {
     private let sendRecorded: SendRecorded
     /// This device's role when the app fixes it (`appRole`); nil reads the membership.
     private let fixedRole: CDClassroomMembership.ClassroomRole?
+    /// Where this device remembers who carried Close Arrival's absence
+    /// (`AttendanceLatePhase.closedAnywhere`); tests pass their own.
+    private let lateDefaults: UserDefaults
 
     init(
         context: NSManagedObjectContext,
         save: @escaping Save = { context, _ in context.safeSave() },
         sendRecorded: @escaping SendRecorded = ParentLockerCoreDataStore.rescheduleReminder,
-        fixedRole: CDClassroomMembership.ClassroomRole? = ParentLockerCoreDataStore.appRole
+        fixedRole: CDClassroomMembership.ClassroomRole? = ParentLockerCoreDataStore.appRole,
+        lateDefaults: UserDefaults = .standard
     ) {
         self.context = context
         self.save = save
         self.sendRecorded = sendRecorded
         self.fixedRole = fixedRole
+        self.lateDefaults = lateDefaults
     }
 
     /// Who this device is, for ParentLocker.
@@ -179,7 +184,11 @@ final class ParentLockerCoreDataStore: ParentLockerStore {
             site: AttendanceEmailLog.parentLockerHost(settings?.parentLockerSite),
             role: role,
             isSchoolDay: isSchoolDay(start),
-            arrivalClosed: records.contains(where: AttendanceDeduplication.isAutomaticAbsence),
+            // Closed anywhere by the grid's rule: Close Arrival's absences
+            // on the records, or seen here and not all undone, so a late
+            // child or a reason given doesn't reopen the day for ParentLocker
+            // (bug hunt 2026-10-20, #2).
+            arrivalClosed: AttendanceLatePhase.closedAnywhere(on: start, records: records, defaults: lateDefaults),
             sentToParentLocker: channels.contains(AttendanceSendMethod.parentLocker.rawValue),
             notExpected: channels.contains(AttendanceEmailLog.notExpectedChannel),
             deadlineMinutes: settings?.deadlineMinutes ?? AttendanceEmailLog.defaultDeadlineMinutes

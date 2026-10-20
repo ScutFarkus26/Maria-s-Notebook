@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Reloads the attendance screen's day each time the app comes back to the
-/// foreground.
+/// foreground, and moves it to today once the calendar day has turned
+/// (`AssistantAttendanceViewModel.reloadAfterAway`).
 ///
 /// A modifier of its own so that the scene phase is read here rather than by
 /// the attendance screen. The phase changes four times on every trip away and
@@ -14,31 +15,20 @@ struct AssistantReloadOnReturn: ViewModifier {
     /// Runs on every change to a phase other than active.
     var onLeaveActive: () -> Void = {}
 
-    /// Whether the screen was on today when the app last left the foreground:
-    /// only then does coming back move it on to the new today.
-    @State private var followsToday = true
     @Environment(\.scenePhase) private var scenePhase
 
     func body(content: Content) -> some View {
-        content.onChange(of: scenePhase) { oldPhase, phase in
+        content.onChange(of: scenePhase) { _, phase in
             if phase != .active { onLeaveActive() }
             guard let viewModel else { return }
             // Imports don't reload the day while the app is away: the load
             // below shows them.
             viewModel.followScene(isActive: phase == .active)
-            if phase == .active {
-                // Left open overnight on today, the screen moves on to the new
-                // today; left on another day, it stays there.
-                if followsToday, !viewModel.isToday {
-                    viewModel.load(Date())
-                } else {
-                    viewModel.load()
-                }
-            } else if oldPhase == .active {
-                // Noted on the way out only: coming back passes through
-                // .inactive after midnight, when "today" has already moved.
-                followsToday = viewModel.isToday
-            }
+            // After a night away, today, whatever day was left on screen
+            // (bug hunt 2026-10-20, #1); within the day, the day she left.
+            // The day she was last here is the view model's, not this
+            // modifier's: the screen's own `.task` checks it too.
+            if phase == .active { viewModel.reloadAfterAway() }
         }
     }
 }

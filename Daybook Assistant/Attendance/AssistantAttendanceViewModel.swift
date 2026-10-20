@@ -96,10 +96,16 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
     /// for the bar's tap of feedback. `phase` itself is worked out again by
     /// every load, so an import that closed arrival elsewhere buzzed too.
     private(set) var phaseSwitches = 0
-    /// Close Arrival's automatic absence stands on a record of the day
-    /// (closed here or on another device), so after Reopen Arrival the bar
-    /// still offers the way back to Late with nobody left unmarked.
-    private(set) var hasAutomaticAbsences = false
+    /// The day's records read as arrival closed (`AttendanceLatePhase.closedAnywhere`):
+    /// Close Arrival's automatic absences stand, or children this phone saw
+    /// the close take in aren't all undone. So after Reopen Arrival the bar
+    /// still offers the way back to Late with nobody left unmarked, also once
+    /// every absence is resolved: it used to go with the last of them, and
+    /// Reopen was one way (review of the 2026-10-20 fixes, (a) 3).
+    private(set) var readsClosed = false
+    /// Her last tap on the day on screen, while the next tap on the same
+    /// tile can take it back (`tap`).
+    private var lastTap: LastTap?
     /// Set by a tapped front-desk reminder with children still unmarked: the
     /// bar asks its Mark N Absent & Email question (`AssistantFrontDeskMail`),
     /// and clears it.
@@ -129,6 +135,9 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
     private let defaults: UserDefaults
     /// The time now, which today and the days ahead are told by; tests fix it.
     private let now: () -> Date
+    /// The calendar day the screen was last shown on, by `now`: a return
+    /// after the day has turned goes to today (`reloadAfterAway`).
+    @ObservationIgnored private var shownOn: Date
 
     init(
         context: NSManagedObjectContext,
@@ -141,6 +150,7 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
         self.container = container
         self.defaults = defaults
         self.now = now
+        self.shownOn = Calendar.current.startOfDay(for: now())
         self.date = Calendar.current.startOfDay(for: date)
         // The role is hardcoded rather than read from the membership row: this
         // app is only ever used by an assistant, and ClassroomPermissions is
@@ -204,10 +214,11 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
     }
 
     /// What a tap on `row` does today, or nil when it does nothing: a present
-    /// child during Late, and every tap on a day ahead.
+    /// child during Late, and every tap on a day ahead. Right after her tap
+    /// on the tile, the mark from before it (`tap`).
     func statusAfterTap(for row: Row) -> AttendanceStatus? {
-        guard !isFuture else { return nil }
-        return Self.statusAfterTap(from: row.status, in: phase)
+        guard !isFuture, let next = Self.statusAfterTap(from: row.status, in: phase) else { return nil }
+        return restorable(for: row)?.before.values.status ?? next
     }
 
     /// A readable name for the day on screen, for messages.
@@ -218,7 +229,10 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
     func load(_ newDate: Date? = nil) {
         if let newDate {
             let day = Calendar.current.startOfDay(for: newDate)
-            if day != date { lastLateBatch = [] }
+            if day != date {
+                lastLateBatch = []
+                forgetLastTap()
+            }
             date = day
         }
         earliestDay = AssistantDayRoll.earliestRecordDay(in: context)
@@ -229,19 +243,8 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
         frontDesk.load(date)
         refreshNames()
 
-        let fetched: [CDAttendanceRecord]
-        do {
-            fetched = try store.loadRecords(for: date)
-            loadError = nil
-        } catch {
-            Self.logger.error("Loading attendance failed: \(error.localizedDescription, privacy: .public)")
-            loadError = "Couldn't load the attendance for \(dayPhrase). Pull down to try again."
-            fetched = []
-        }
-        // Closed here, or on another device: its automatic absences, as
-        // `CDAttendanceStore.arrivalClosed` reads them.
-        let closedAnywhere = fetched.contains(where: AttendanceDeduplication.isAutomaticAbsence)
-        hasAutomaticAbsences = closedAnywhere
+        let (fetched, closedAnywhere) = fetchDay()
+        readsClosed = closedAnywhere
         phase = AttendanceLatePhase.isLate(on: date, closedAnywhere: closedAnywhere, defaults: defaults)
             ? .late : .arrival
         let records = fetched.deduplicatedPerStudentDay()
@@ -278,31 +281,149 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
         }
     }
 
-    func tap(_ row: Row) {
-        guard let next = statusAfterTap(for: row) else { return }
-        setStatus(next, for: row)
+    /// The day's records, every copy, and whether arrival reads as closed
+    /// from them: closed on another device (its automatic absences), or this
+    /// phone saw it closed and the children who carried them aren't all
+    /// unmarked again (an Undo), as `CDAttendanceStore.arrivalClosed` reads
+    /// it. A failed load reads nothing, so it forgets nothing either.
+    private func fetchDay() -> (records: [CDAttendanceRecord], closedAnywhere: Bool) {
+        do {
+            let fetched = try store.loadRecords(for: date)
+            loadError = nil
+            return (fetched, AttendanceLatePhase.closedAnywhere(on: date, records: fetched, defaults: defaults))
+        } catch {
+            Self.logger.error("Loading attendance failed: \(error.localizedDescription, privacy: .public)")
+            loadError = "Couldn't load the attendance for \(dayPhrase). Pull down to try again."
+            return ([], false)
+        }
+    }
+
+    /// The screen is back after being away: its tab shown again (the
+    /// screen's `.task`) or the app back in front (`AssistantReloadOnReturn`).
+    /// Both call this, since a tab out of sight may not hear the app come
+    /// back. When the calendar day has turned since she was last here, the
+    /// grid goes to today, whatever day it was left on: left on Restock
+    /// overnight, or on last Friday, her taps the next morning changed
+    /// yesterday's marks (bug hunt 2026-10-20, #1). Within the day, a day
+    /// she picked stays.
+    func reloadAfterAway() {
+        let today = Calendar.current.startOfDay(for: now())
+        defer { shownOn = today }
+        load(today == shownOn ? nil : today)
+    }
+
+    /// A tap on `row`'s tile: what `statusAfterTap` says. Returns whether it
+    /// marked anything, so a tap that does nothing (VoiceOver's double tap on
+    /// a present child during Late) leaves Close Arrival's Undo be.
+    ///
+    /// The mark from before her tap is kept while that tap is the last change
+    /// on the day: the next tap on the same tile puts it back exactly
+    /// (`CDAttendanceStore.revert`), reason, time and who made it. A stray tap
+    /// on "Absent, Sick" made the child present and lost the reason, and a
+    /// second tap cleared the mark (bug hunt 2026-10-20, #3). Another tile's
+    /// tap, a menu, Close Arrival, a reopen, an Undo of a close, a change of
+    /// day, or the record changing since (an import) drop it.
+    @discardableResult
+    func tap(_ row: Row) -> Bool {
+        guard !isFuture, let next = Self.statusAfterTap(from: row.status, in: phase) else { return false }
+        if let last = restorable(for: row) { return restore(last, for: row) }
+        forgetLastTap()
+        return mark(next, for: row, remembering: true)
     }
 
     /// Sets any status directly (the long-press menu), creating the record on
     /// the first mark.
     func setStatus(_ status: AttendanceStatus, for row: Row) {
-        guard !reloadIfGone(row) else { return }
-        guard canMark, Self.allows(status, on: date) else { return }
+        forgetLastTap()
+        mark(status, for: row)
+    }
+
+    /// Sets `status` on `row`'s record, creating it on the first mark.
+    /// `remembering`: a tap's, kept for the next tap on the tile to take back
+    /// when the child was marked before it. Returns whether it marked.
+    @discardableResult
+    private func mark(_ status: AttendanceStatus, for row: Row, remembering: Bool = false) -> Bool {
+        guard !reloadIfGone(row) else { return false }
+        guard canMark, Self.allows(status, on: date, now: now()) else { return false }
         do {
-            guard let record = try store.ensureRecord(for: row.student, on: date) else { return }
+            guard let record = try store.ensureRecord(for: row.student, on: date) else { return false }
             if record.isInserted { createdSinceSave.append(record) }
             let wasHere = Self.isHere(record.status)
+            let before = AttendanceDeduplication.isMarked(record) ? AttendanceRecordSnapshot(record).values : nil
             // Clearing goes through every copy of the day, or a duplicate's
             // mark would win the child straight back (`CDAttendanceStore.unmark`).
             _ = status == .unmarked ? store.unmark(record) : store.updateStatus(record, to: status)
             persist(updating: [record])
-            if row.daysAway != nil, !wasHere, Self.comesIn(status), saveError == nil {
-                welcome = Welcome(name: row.shortName)
+            guard saveError == nil else { return true }
+            // After the save, so the snapshots carry the record's lasting id.
+            if remembering, let before {
+                lastTap = LastTap(
+                    studentID: row.id,
+                    before: AttendanceRecordSnapshot(objectID: record.objectID, values: before),
+                    after: AttendanceRecordSnapshot(record)
+                )
             }
+            if row.daysAway != nil, !wasHere, Self.comesIn(status) { welcome = Welcome(name: row.shortName) }
+            return true
         } catch {
             Self.logger.error("Marking failed: \(error.localizedDescription, privacy: .public)")
             saveError = "Couldn't save that mark. Try again."
+            return false
         }
+    }
+
+    /// Her last tap, kept while the next tap on its tile can put back the
+    /// mark from before it.
+    struct LastTap {
+        let studentID: UUID
+        let before: AttendanceRecordSnapshot
+        let after: AttendanceRecordSnapshot
+    }
+
+    /// Any change but a tap's ends the chance to take one back. Set only when
+    /// there is one: every set redraws the grid.
+    private func forgetLastTap() {
+        if lastTap != nil { lastTap = nil }
+    }
+
+    /// `lastTap`, when it's `row`'s and still the last change on its record:
+    /// the record and the tile still hold what the tap left.
+    private func restorable(for row: Row) -> LastTap? {
+        guard let last = lastTap, last.studentID == row.id, row.status == last.after.values.status,
+              let record = try? context.existingObject(with: last.after.objectID) as? CDAttendanceRecord,
+              !record.isDeleted, last.after.matches(record) else { return nil }
+        return last
+    }
+
+    /// Puts back the mark from before her last tap, as a tap: saved, its
+    /// tile redrawn, and a child coming back in welcomed.
+    private func restore(_ last: LastTap, for row: Row) -> Bool {
+        forgetLastTap()
+        guard !reloadIfGone(row), canMark,
+              let record = try? context.existingObject(with: last.after.objectID) as? CDAttendanceRecord,
+              store.revert(record, to: last.before, ifStill: last.after) else { return false }
+        persist(updating: [record])
+        let status = last.before.values.status
+        if row.daysAway != nil, !Self.isHere(row.status), Self.comesIn(status), saveError == nil {
+            welcome = Welcome(name: row.shortName)
+        }
+        return true
+    }
+
+    /// Whether Mark N Absent & Email may open the email after its close:
+    /// only once arrival has closed with nobody on the grid left unmarked. A
+    /// close that failed (a save refused, the day locked meanwhile) opened it
+    /// anyway, and the email left out the children still unmarked (bug hunt
+    /// 2026-10-20, #4). When it may not, the line above the grid says why:
+    /// the lock, the failed save, or that the email didn't open.
+    func emailCanFollowClose() -> Bool {
+        guard phase == .late, !rows.contains(where: { !$0.studentIsGone && $0.status == .unmarked }) else {
+            if saveError == nil, !isLocked {
+                saveError = "Couldn't mark everyone absent, so the email didn't open. Try again."
+            }
+            return false
+        }
+        return true
     }
 
     /// Closes arrival: every child still unmarked is marked absent. Returns
@@ -330,6 +451,7 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
         }
         phase = .late
         phaseSwitches += 1
+        forgetLastTap()
         AttendanceLatePhase.setLate(true, on: date, defaults: defaults)
         // Siri's last change is from before arrival closed: "Undo that" now
         // would put back an older voice mark, not this.
@@ -342,7 +464,9 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
 
     /// Back to Arrival. Reopen Arrival (no `undo`) is on purpose: marks stay
     /// as they are, and it holds on this phone even where another device's
-    /// Close Arrival shows on the records (`AttendanceLatePhase.reopen`).
+    /// Close Arrival shows on the records (`AttendanceLatePhase.reopen`). The
+    /// children the close took in stay remembered, so the bar offers Close
+    /// Arrival as the way back to Late (`showsArrivalControl`).
     /// Close Arrival's Undo (`undo`) puts the children it marked absent (and
     /// still are) back to unmarked, and the day follows the records again:
     /// a Close Arrival made on another device since still counts. Undo used
@@ -358,6 +482,7 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
         let before = phase
         let batch = lastLateBatch
         lastLateBatch = []
+        forgetLastTap()
         guard undo else {
             phase = .arrival
             if before != phase { phaseSwitches += 1 }
@@ -382,8 +507,9 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
     /// Absent with a reason (or none), in one save: the menu's Absent
     /// choices. Allowed on days ahead, for a known vacation or appointment.
     func markAbsent(reason: AbsenceReason, for row: Row) {
+        forgetLastTap()
         guard !reloadIfGone(row) else { return }
-        guard canMark, Self.allows(.absent, on: date) else { return }
+        guard canMark, Self.allows(.absent, on: date, now: now()) else { return }
         do {
             guard let record = try store.ensureRecord(for: row.student, on: date) else { return }
             if record.isInserted { createdSinceSave.append(record) }
@@ -420,6 +546,7 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
         failure: String,
         _ update: (CDAttendanceStore, CDAttendanceRecord) -> Bool
     ) -> Bool {
+        forgetLastTap()
         let day = day.map { Calendar.current.startOfDay(for: $0) } ?? date
         let isOnScreen = day == date
         guard !reloadIfGone(row), isOnScreen ? canMark : store.canWrite(on: day) else { return false }
@@ -461,12 +588,22 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
         for record in records where copiesByStudentID[record.studentID]?.contains(record) != true {
             copiesByStudentID[record.studentID, default: []].append(record)
         }
-        hasAutomaticAbsences = copiesByStudentID.values.contains {
-            $0.contains(where: AttendanceDeduplication.isAutomaticAbsence)
-        }
+        let copies = copiesByStudentID.values.flatMap { $0 }
+        // Who carries Close Arrival's absence now (a close here, a tap on
+        // one of them), and the phase that gives, as a load would read it.
+        let closedAnywhere = AttendanceLatePhase.closedAnywhere(on: date, records: copies, defaults: defaults)
+        readsClosed = closedAnywhere
+        phase = AttendanceLatePhase.isLate(on: date, closedAnywhere: closedAnywhere, defaults: defaults)
+            ? .late : .arrival
         let wasOpen = unmarkedCount > 0
         updateRows(for: records)
         if wasOpen, unmarkedCount == 0, !rows.isEmpty, !isFuture { completions += 1 }
+        // The year's first mark, made here, gives the First Day its number
+        // now rather than at the next reload (bug hunt 2026-10-20, #6).
+        if dayNumber == nil, dayOff == nil,
+           case .counted(let number) = dayCounter.count(date, isDayOff: false, current: nil, in: context) {
+            dayNumber = number
+        }
     }
 
     /// Rebuilds the rows whose student's record is among `records`.

@@ -201,9 +201,7 @@ enum AttendanceEmailLog {
         func summary(
             senderName: String, for day: Date, deadlineMinutes: Int? = nil, calendar: Calendar = .current
         ) -> String {
-            let when = calendar.isDate(sentAt, inSameDayAs: day)
-                ? sentAt.formatted(date: .omitted, time: .shortened)
-                : sentAt.formatted(.dateTime.month(.abbreviated).day().hour().minute())
+            let when = Self.time(sentAt, reporting: day, calendar: calendar)
             let verb = switch (channel, wasConfirmedByHand) {
             case (.email, false): "Emailed"
             case (.email, true): "Marked as sent"
@@ -214,6 +212,14 @@ enum AttendanceEmailLog {
                 .flatMap { calendar.date(byAdding: .minute, value: $0, to: calendar.startOfDay(for: day)) }
                 .map { sentAt > $0 } ?? false
             return "\(verb) \(when) by \(senderName)" + (late ? " (late)" : "")
+        }
+
+        /// "8:42 AM", or "Oct 19, 8:42 AM" when it went on another day than
+        /// the one it reports.
+        static func time(_ sentAt: Date, reporting day: Date, calendar: Calendar = .current) -> String {
+            calendar.isDate(sentAt, inSameDayAs: day)
+                ? sentAt.formatted(date: .omitted, time: .shortened)
+                : sentAt.formatted(.dateTime.month(.abbreviated).day().hour().minute())
         }
     }
 
@@ -324,6 +330,49 @@ enum AttendanceEmailLog {
         }
         if let shared { request.affectedStores = [shared] }
         #endif
+    }
+
+    /// The days with no school in `range`, by `SchoolDayChecker`'s rule, from
+    /// the days off and school-day overrides the classroom share holds: what
+    /// the reminders go by (the front desk's and the Assistant's arrival
+    /// reminder). In the Assistant, the guide's calendar only, never a
+    /// notebook of the assistant's own on the same Apple Account, as for the
+    /// settings and sends above (bug hunt 2026-10-20). The notebook reads both
+    /// stores, as `SchoolDayChecker.nonSchoolDaySet` does.
+    static func nonSchoolDays(
+        in range: Range<Date>,
+        using context: NSManagedObjectContext,
+        calendar: Calendar = AppCalendar.shared
+    ) -> Set<Date> {
+        let start = calendar.startOfDay(for: range.lowerBound)
+        let end = calendar.startOfDay(for: range.upperBound)
+        guard start < end else { return [] }
+        let daysOff = classroomDates(CDNonSchoolDay.self, from: start, to: end, in: context, calendar: calendar)
+        let overrides = classroomDates(CDSchoolDayOverride.self, from: start, to: end, in: context, calendar: calendar)
+        var result: Set<Date> = []
+        var day = start
+        while day < end {
+            let isOff = SchoolDayChecker.isNonSchoolDay(
+                day, nonSchoolDayDates: daysOff, overrideDates: overrides, calendar: calendar
+            )
+            if isOff { result.insert(day) }
+            guard let next = calendar.date(byAdding: .day, value: 1, to: day), next > day else { break }
+            day = next
+        }
+        return result
+    }
+
+    /// The start of each day in [`start`, `end`) holding a record of `type`
+    /// in the classroom's store.
+    private static func classroomDates<T: NSManagedObject>(
+        _ type: T.Type, from start: Date, to end: Date, in context: NSManagedObjectContext, calendar: Calendar
+    ) -> Set<Date> {
+        let request = CDFetchRequest(T.self)
+        request.predicate = NSPredicate(format: "date >= %@ AND date < %@", start as NSDate, end as NSDate)
+        scopeToClassroom(request, in: context)
+        return Set(context.safeFetch(request).compactMap { record in
+            (record.value(forKey: "date") as? Date).map { calendar.startOfDay(for: $0) }
+        })
     }
 
     /// Where a new record goes: the guide's own records live in the private

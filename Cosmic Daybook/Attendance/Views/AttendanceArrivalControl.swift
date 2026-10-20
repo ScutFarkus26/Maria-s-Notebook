@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Close Arrival while anyone's unmarked; once closed, an amber "Late" with
-/// Reopen Arrival in its menu. Nothing ahead of the day, or on a locked day.
+/// Reopen Arrival in its menu, and after a reopen, Back to Late while the day
+/// still reads as closed. Nothing ahead of the day, or on a locked day.
 ///
 /// Closing marks everyone still unmarked absent, so it asks first, naming
 /// exactly who: the question doubles as a last look at who's missing. It
@@ -22,6 +23,15 @@ struct AttendanceArrivalControl: View {
     var body: some View {
         if isEditing, !viewModel.isFuture, viewModel.phase == .late {
             lateMenu
+        } else if viewModel.offersCloseArrival(canMark: isEditing), viewModel.goesBackToLate {
+            // Reopened while the day still reads as closed, with nobody
+            // left to mark: straight back to Late, no one to ask about.
+            Button("Back to Late", action: onClose)
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+                .controlSize(.small)
+                .help("Arrival was reopened here; back to Late, where \(markVerb) marks a child late")
+                .accessibilityHint("Back to Late: \(markVerb) marks a child late")
         } else if viewModel.offersCloseArrival(canMark: isEditing) {
             Button(sendsToParentLocker ? "Close Arrival & Send…" : "Close Arrival…") { confirming = true }
                 .buttonStyle(.bordered)

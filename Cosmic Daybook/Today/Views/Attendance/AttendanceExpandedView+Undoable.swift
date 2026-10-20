@@ -58,6 +58,9 @@ extension AttendanceExpandedView {
             viewModel.closeArrival(modelContext: viewContext)
         }) else { return }
         saved("Close arrival")
+        // Back to Late after Reopen Arrival, with nobody left to mark: no
+        // Undo, and nothing goes to ParentLocker, as on the Assistant's bar.
+        guard !undo.records.isEmpty else { return }
         let count = undo.records.count
         let context = viewContext
         let model = viewModel

@@ -43,7 +43,10 @@ struct StudentNameMatcherFix1017AtTests {
     @Test("A child in the class named exactly still comes before one who left")
     func currentExactBeatsFormerExact() {
         let leahNow = Self.child("Leah", "Stone")
-        #expect(Self.match("Leah", current: [leahNow, lea], former: [leah]) == ["Leah Stone"])
+        // Lea sounds just the same, so she comes too and Siri asks which
+        // (Daybook Assistant bug hunt 2026-10-20, #26); Leah who left doesn't.
+        #expect(Self.match("Leah", current: [leahNow, lea], former: [leah]) == ["Leah Stone", "Lea Moss"])
+        #expect(Self.match("Leah", current: [leahNow, avi], former: [leah]) == ["Leah Stone"])
     }
 
     @Test("A lone near miss is never taken as the child")

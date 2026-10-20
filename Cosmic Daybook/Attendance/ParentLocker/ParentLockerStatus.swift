@@ -50,6 +50,22 @@ nonisolated struct ParentLockerStatus: Sendable, Equatable {
     /// isn't expecting the class's attendance.
     static let notExpectedLine = "ParentLocker isn't expecting attendance today."
 
+    /// The question before Send Now for a day that isn't today, in both apps
+    /// (bug hunt 2026-10-20, #17): "Send Monday, October 19 to ParentLocker?"
+    static func otherDaySendTitle(for day: Date) -> String {
+        "Send \(day.formatted(.dateTime.weekday(.wide).month(.wide).day())) to ParentLocker?"
+    }
+
+    /// What that question says: the send overwrites the office's copy, and
+    /// anyone not marked that day is left out ("Maya S isn't marked; the
+    /// rest go.").
+    static func otherDaySendMessage(unmarked: [String]) -> String {
+        let replaces = "This replaces what the office has for that day."
+        guard !unmarked.isEmpty else { return replaces }
+        let verb = unmarked.count == 1 ? "isn't" : "aren't"
+        return replaces + " \(unmarked.formatted(.list(type: .and))) \(verb) marked; the rest go."
+    }
+
     var state: State = .off
     /// Plain lines about particular children: locked by the office, can't be
     /// cleared, not matched yet, changed by someone else.

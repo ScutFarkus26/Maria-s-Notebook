@@ -67,7 +67,7 @@ extension AssistantBootstrapper {
 
     private var rebuiltForMirroringStopRecently: Bool {
         guard let last = rebuiltForMirroringStopAt else { return false }
-        return Date().timeIntervalSince(last) < Self.mirroringRebuildWindow
+        return now().timeIntervalSince(last) < Self.mirroringRebuildWindow
     }
 
     func observeMirroringStops() {
@@ -77,8 +77,10 @@ extension AssistantBootstrapper {
     }
 
     func mirroringStopped(in container: NSPersistentCloudKitContainer) {
+        // A rebuild under way counts as starting, though the join screen
+        // stays up through it (`rebuildShowsStarting`).
         let settled = switch phase {
-        case .ready, .needsClassroom: !isLeavingHere
+        case .ready, .needsClassroom: !isLeavingHere && !isRebuilding
         case .starting, .failed: false
         }
         switch Self.mirroringStopResponse(
@@ -91,7 +93,7 @@ extension AssistantBootstrapper {
         case .later:
             deferredStop = container
         case .rebuild:
-            rebuiltForMirroringStopAt = Date()
+            rebuiltForMirroringStopAt = now()
             Task { await rebuildStack(because: "CloudKit mirroring stopped") }
         case .giveUp:
             Self.classLogger.error("CloudKit mirroring stopped again on the rebuilt stack")
@@ -124,52 +126,7 @@ extension AssistantBootstrapper {
         if grace > .zero { try? await Task.sleep(for: grace) }
     }
 
-    // MARK: - Leaving with marks not sent
-
-    /// Marks this iPhone holds that haven't reached the guide: some waiting
-    /// to go into the share (counted), or a save iCloud hasn't sent yet.
-    enum UnsentMarks: Equatable {
-        case counted(Int)
-        case uncounted
-
-        var message: String {
-            let what = switch self {
-            case .counted(1): "1 mark hasn't reached your guide yet."
-            case .counted(let count): "\(count) marks haven't reached your guide yet."
-            case .uncounted: "Your latest marks haven't reached your guide yet."
-            }
-            return what + " If you leave now, they're lost. Wait tries to send them first."
-        }
-    }
-
-    nonisolated static func unsentMarks(waitingForShare: Int, unsentSave: Bool) -> UnsentMarks? {
-        if waitingForShare > 0 { return .counted(waitingForShare) }
-        return unsentSave ? .uncounted : nil
-    }
-
-    /// What Leave would lose now. Leave purges the class at once, so marks
-    /// still on their way never reached the guide.
-    func unsentMarks() -> UnsentMarks? {
-        Self.unsentMarks(
-            waitingForShare: AssistantShareAttacher.shared.pending.count,
-            unsentSave: AssistantStack.keepAlive?.hasUnsentWork ?? false
-        )
-    }
-
-    /// Leave's Wait: tries the waiting marks now and gives them up to
-    /// `limit` to go. Returns what's still unsent.
-    func sendUnsentMarks(upTo limit: Duration = .seconds(25)) async -> UnsentMarks? {
-        let deadline = ContinuousClock.now + limit
-        AssistantShareAttacher.shared.retryWaiting()
-        while AssistantShareAttacher.shared.isRunning, ContinuousClock.now < deadline {
-            try? await Task.sleep(for: .milliseconds(250))
-        }
-        await AssistantStack.keepAlive?.waitUntilSent(upTo: max(.zero, deadline - ContinuousClock.now))
-        return unsentMarks()
-    }
-
-    /// How long Leave waits for a running attach before saying to try again.
-    nonisolated static let leaveWaitLimit: Duration = .seconds(20)
+    // MARK: - Giving up marks not sent
 
     /// Once the class is off this iPhone: the marks that were still waiting
     /// to go into its share are given up. The purge takes only the class's
@@ -305,6 +262,12 @@ extension AssistantBootstrapper {
         guard stack === coreDataStack, let sharedStore = stack.sharedPersistentStore else { return }
         let found = shares.contains { $0.recordID.zoneID.zoneName == zone }
         if found { AssistantClassroomLocalState.noteShareSeen(inZone: zone) }
+        // The share arrived after her membership (a new iPhone's download):
+        // the read at becoming ready found none, and the guide's name read
+        // "Your guide" until a relaunch (bug hunt 2026-10-20 #13).
+        if found, let service = sharingService, service.currentShare == nil {
+            Task { await service.refreshShareInBackground() }
+        }
         let removed = Self.removedFromClass(
             pinnedShareFound: found,
             sawPinnedShareBefore: AssistantClassroomLocalState.sawShare(inZone: zone),
@@ -328,20 +291,6 @@ extension AssistantBootstrapper {
             try? await Task.sleep(for: .seconds(5))
             guard let container = AssistantStack.current?.container else { return }
             await AssistantHistoryTrim.trim(container)
-        }
-    }
-}
-
-/// Why Leave didn't start, said on the Classroom screen.
-enum AssistantLeaveError: LocalizedError {
-    /// Her marks were still going into the class's share when she tapped
-    /// Leave, and still were after `leaveWaitLimit`.
-    case stillSending
-
-    var errorDescription: String? {
-        switch self {
-        case .stillSending:
-            "Your marks are still on their way to your guide, so nothing was removed. Try Leave again in a minute."
         }
     }
 }

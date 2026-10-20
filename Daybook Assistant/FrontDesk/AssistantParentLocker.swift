@@ -18,12 +18,16 @@ extension AssistantFrontDesk {
         sendsToParentLocker && viewModel.dayOff == nil && !viewModel.rows.isEmpty && !viewModel.isFuture
     }
 
-    /// Whether the line offers Send to ParentLocker: everyone's marked, so
-    /// there's no Close Arrival to send the day, and nobody has sent it.
-    /// A child left out of ParentLocker ("Not matched") isn't waited for,
-    /// as the sync's line doesn't (`AttendanceRow.waitsForParentLocker`).
+    /// Whether the line offers Send to ParentLocker: today, everyone's
+    /// marked, so there's no Close Arrival to send the day, and nobody has
+    /// sent it. A child left out of ParentLocker ("Not matched") isn't
+    /// waited for, as the sync's line doesn't (`AttendanceRow.waitsForParentLocker`).
+    /// Not another day (bug hunt 2026-10-20, #17): every school day from
+    /// before send records began showed it, and one tap sent a month-old day
+    /// over what the office had; those keep Send Now in the line's menu,
+    /// which asks first. Not on a day ParentLocker isn't expecting (#19).
     func offersParentLockerSend(by viewModel: AssistantAttendanceViewModel) -> Bool {
-        offersParentLocker(by: viewModel) && latestSend == nil
+        offersParentLocker(by: viewModel) && viewModel.isToday && latestSend == nil && !isNotExpected
             && !viewModel.rows.contains(where: \.waitsForParentLocker)
     }
 
@@ -154,6 +158,10 @@ enum AssistantParentLockerSendStep: Equatable {
     /// 2026-10-13 afternoon, M4). The sync sends the marked ones and doesn't
     /// count the day as sent.
     case ask(unmarked: [String])
+    /// Another day, signed in: ask first, naming anyone unmarked there. Its
+    /// send replaces what the office has for that day, so it's never one
+    /// tap (bug hunt 2026-10-20, #17).
+    case confirmDay(unmarked: [String])
     case send
     /// Not signed in, today: the sync keeps the send for once she signs in,
     /// and the sign-in opens, so one tap is enough (L6).
@@ -163,16 +171,53 @@ enum AssistantParentLockerSendStep: Equatable {
     case signIn
 
     /// The first step of a send of `day`. `unmarkedConfirmed`: she has
-    /// answered the question about the unmarked children.
+    /// answered the question about the unmarked children; `dayConfirmed`,
+    /// another day's question.
     static func first(
-        on day: Date, isToday: Bool, unmarkedConfirmed: Bool, sync: any AssistantParentLockerSending
+        on day: Date, isToday: Bool, unmarkedConfirmed: Bool, dayConfirmed: Bool = false,
+        sync: any AssistantParentLockerSending
     ) -> Self {
+        if !dayConfirmed, confirmsDay(isToday: isToday), !sync.needsSignIn {
+            return .confirmDay(unmarked: sync.unmarkedNames(on: day))
+        }
         if !unmarkedConfirmed {
             let unmarked = sync.unmarkedNames(on: day)
             if !unmarked.isEmpty { return .ask(unmarked: unmarked) }
         }
         guard sync.needsSignIn else { return .send }
         return isToday ? .sendAfterSignIn : .signIn
+    }
+
+    /// Whether Send Now asks before sending the day on screen: another day's
+    /// send replaces what the office has for it, so it's never one tap (bug
+    /// hunt 2026-10-20, #17). Today's goes as before.
+    static func confirmsDay(isToday: Bool) -> Bool { !isToday }
+
+    /// A question Send Now asked, and the day it asked about. Her answer
+    /// sends that day: the bar used to send whichever day was on screen when
+    /// she answered (review of the 2026-10-20 fixes).
+    struct Question: Equatable {
+        let day: Date
+        let isToday: Bool
+        /// `.ask` or `.confirmDay`.
+        let step: AssistantParentLockerSendStep
+
+        /// The children the question names.
+        var unmarked: [String] {
+            switch step {
+            case .ask(let unmarked), .confirmDay(let unmarked): unmarked
+            default: []
+            }
+        }
+
+        /// What her yes does next, for the day asked about. Another day's
+        /// question named its unmarked children too, so it answers both.
+        func answered(sync: any AssistantParentLockerSending) -> AssistantParentLockerSendStep {
+            let dayConfirmed = if case .confirmDay = step { true } else { false }
+            return first(
+                on: day, isToday: isToday, unmarkedConfirmed: true, dayConfirmed: dayConfirmed, sync: sync
+            )
+        }
     }
 
     /// The question's title: "Ari isn't marked yet", "3 children aren't marked yet".

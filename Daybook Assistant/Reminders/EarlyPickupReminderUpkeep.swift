@@ -86,18 +86,34 @@ final class EarlyPickupReminderUpkeep {
     /// often (the guide's days off and email settings, a send or the last
     /// marks from another device). None asks for permission: the alert
     /// belongs on screen.
+    ///
+    /// A real class's only while she's in it, asked again before each kind
+    /// (bug hunt 2026-10-20, #20): each waits its turn behind the one before,
+    /// and a rebuild that had started, or an import settling just after,
+    /// put the reminders of a class she had left back after Leave took them
+    /// off. Leave deletes her membership row before it does.
     static func refresh(
         in context: NSManagedObjectContext,
         isSample: Bool = AssistantSampleClass.isActive,
         center: any ReminderCenter = SystemReminderCenter()
     ) async {
-        await EarlyPickupReminder.reschedule(in: context, asksPermission: false, center: center)
+        guard isSample || isInClass(context) else { return }
+        await EarlyPickupReminder.reschedule(in: context, asksPermission: false, isSample: isSample, center: center)
         // As on screen: nothing for a class whose children haven't arrived
         // from iCloud yet.
         let children = AssistantDayRoll.classroomStudents(in: context)
-        guard !isSample, ((try? context.count(for: children)) ?? 0) > 0 else { return }
+        guard !isSample, isInClass(context), ((try? context.count(for: children)) ?? 0) > 0 else { return }
         await ArrivalReminder.reschedule(in: context, center: center)
+        guard isInClass(context) else { return }
         await FrontDeskEmailReminder.reschedule(in: context, center: center)
+    }
+
+    /// Whether this iPhone's membership row is in `context`: she's in the
+    /// class. The sample has none.
+    static func isInClass(_ context: NSManagedObjectContext) -> Bool {
+        let request = CDClassroomMembership.ownRowsRequest()
+        request.fetchLimit = 1
+        return context.safeFetchFirst(request) != nil
     }
 }
 

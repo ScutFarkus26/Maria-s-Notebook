@@ -12,8 +12,18 @@ enum ReminderTestClass {
         let stack = try AssistantTestSupport.makeStack()
         let context = stack.viewContext
         AssistantTestSupport.student("Maya", "Stone", in: context)
+        joined(in: context)
         setEmail(on: true, in: context)
         return stack
+    }
+
+    /// This iPhone's membership row: the upkeep rebuilds a real class's
+    /// reminders only while she's in it (bug hunt 2026-10-20, #20).
+    @discardableResult
+    static func joined(in context: NSManagedObjectContext) -> CDClassroomMembership {
+        let row = CDClassroomMembership(context: context)
+        row.role = .assistant
+        return row
     }
 
     static func setEmail(on: Bool, in context: NSManagedObjectContext) {

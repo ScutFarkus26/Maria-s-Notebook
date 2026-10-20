@@ -13,7 +13,11 @@ struct EarlyPickupReminderRows: View {
         Toggle("Early pickup reminder", isOn: $isOn)
             .task(id: "\(isOn)|\(lead)") {
                 guard let context else { return }
-                await EarlyPickupReminder.reschedule(in: context)
+                // After setup's Not Now, opening Classroom doesn't ask iOS
+                // about notifications; turning a reminder on does.
+                await EarlyPickupReminder.reschedule(
+                    in: context, asksPermission: !AssistantSetupReminder.declinedInSetup()
+                )
             }
         if isOn {
             Picker("Remind me", selection: $lead) {

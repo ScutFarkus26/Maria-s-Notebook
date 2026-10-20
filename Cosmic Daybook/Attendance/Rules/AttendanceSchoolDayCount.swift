@@ -76,6 +76,9 @@ enum AttendanceSchoolDayCount {
         )
         request.sortDescriptors = [NSSortDescriptor(key: "date", ascending: true)]
         request.fetchLimit = 1
+        // In the Assistant, the class's marks only, never a notebook of her
+        // own on the same Apple Account (bug hunt 2026-10-20 review).
+        AttendanceEmailLog.scopeToClassroom(request, in: context)
         return context.safeFetch(request).first?.date.map { calendar.startOfDay(for: $0) }
     }
 
@@ -109,7 +112,12 @@ enum AttendanceSchoolDayCount {
     ) -> Int? {
         let day = calendar.startOfDay(for: date)
         guard day >= firstDay, let end = calendar.date(byAdding: .day, value: 1, to: day) else { return nil }
+        #if ASSISTANT_APP
+        // The guide's calendar only, as the grid's days off are.
+        let daysOff = AttendanceEmailLog.nonSchoolDays(in: firstDay..<end, using: context, calendar: calendar)
+        #else
         let daysOff = SchoolDayChecker.nonSchoolDaySet(in: firstDay..<end, using: context, calendar: calendar)
+        #endif
         return number(of: day, firstDay: firstDay, nonSchoolDays: daysOff, calendar: calendar)
     }
 }

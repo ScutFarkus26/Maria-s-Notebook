@@ -10,8 +10,11 @@ enum AttendanceGridNames {
     /// The fewest letters that still tell each child apart: the first name
     /// alone ("Ari"), the last initial only where a first name is shared
     /// ("Etty G", "Etty R"), and the full name where the initials clash too.
+    /// Names that sound the same count as shared (`StudentNameMatcher.soundFolded`):
+    /// Sara and Sarah are "Sara K" and "Sarah A", so Siri's question and
+    /// its answers tell them apart (bug hunt 2026-10-20, #26).
     static func names(for students: [CDStudent]) -> [NSManagedObjectID: String] {
-        func key(_ name: String) -> String { name.trimmed().lowercased() }
+        func key(_ name: String) -> String { StudentNameMatcher.soundFolded(name) }
         let firstNameCounts = Dictionary(grouping: students) { key($0.firstName) }.mapValues(\.count)
         let shortNameCounts = Dictionary(grouping: students) { key($0.shortName) }.mapValues(\.count)
         var names: [NSManagedObjectID: String] = [:]

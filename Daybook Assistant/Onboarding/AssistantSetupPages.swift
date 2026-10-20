@@ -26,6 +26,15 @@ struct AssistantSetupSymbolsPage: View {
         return AttendanceEmailLog.settings(in: context)?.sendMethod == .parentLocker
     }
 
+    /// The guide's due time ("9:00 AM"), once the front-desk email or
+    /// ParentLocker is set up: Not Now turned that reminder off too, so the
+    /// summary says so (review (d), #6).
+    private var frontDeskDueAt: String? {
+        guard let context = bootstrapper.coreDataStack?.viewContext,
+              let settings = AttendanceEmailLog.settings(in: context), settings.canSendAttendance else { return nil }
+        return FrontDeskEmailReminder.timeString(settings.deadlineMinutes)
+    }
+
     var body: some View {
         AssistantOnboardingPage(title: "What the symbols mean") {
             VStack(alignment: .leading, spacing: 8) {
@@ -153,8 +162,14 @@ struct AssistantSetupDonePage: View {
     let onFinish: () -> Void
     @AppStorage(ArrivalReminder.enabledKey) private var reminderOn = true
     @AppStorage(ArrivalReminder.timeKey) private var reminderMinutes = ArrivalReminder.defaultMinutes
+    @AppStorage(FrontDeskEmailReminder.enabledKey) private var frontDeskOn = FrontDeskEmailReminder.isOnByDefault
+    @AppStorage(FrontDeskEmailReminder.leadKey) private var frontDeskLead = FrontDeskEmailReminder.defaultLeadMinutes
     @AppStorage(AssistantWallpaper.key) private var wallpaperRaw = AssistantWallpaper.standard.rawValue
+    @Environment(\.scenePhase) private var scenePhase
     @State private var childCount = 0
+    /// Refused in iOS: the reminder can't ring, so the summary says so
+    /// (bug hunt 2026-10-20 #24). Read again on coming back from Settings.
+    @State private var notificationsOff = false
 
     private var name: String { ClassroomIdentity.displayName ?? "" }
 
@@ -164,6 +179,15 @@ struct AssistantSetupDonePage: View {
     private var sendsToParentLocker: Bool {
         guard let context = bootstrapper.coreDataStack?.viewContext else { return false }
         return AttendanceEmailLog.settings(in: context)?.sendMethod == .parentLocker
+    }
+
+    /// The guide's due time ("9:00 AM"), once the front-desk email or
+    /// ParentLocker is set up: Not Now turned that reminder off too, so the
+    /// summary says so (review (d), #6).
+    private var frontDeskDueAt: String? {
+        guard let context = bootstrapper.coreDataStack?.viewContext,
+              let settings = AttendanceEmailLog.settings(in: context), settings.canSendAttendance else { return nil }
+        return FrontDeskEmailReminder.timeString(settings.deadlineMinutes)
     }
 
     var body: some View {
@@ -179,8 +203,19 @@ struct AssistantSetupDonePage: View {
                 summary("Your name", value: name.isEmpty ? "Not set" : name)
                 summary(
                     "Arrival reminder",
-                    value: reminderOn ? FrontDeskEmailReminder.timeString(reminderMinutes) : "Off"
+                    value: AssistantSetupReminder.summary(
+                        reminderOn: reminderOn, minutes: reminderMinutes, notificationsOff: notificationsOff
+                    )
                 )
+                if let dueAt = frontDeskDueAt {
+                    summary(
+                        sendsToParentLocker ? "ParentLocker reminder" : "Front desk reminder",
+                        value: AssistantSetupReminder.frontDeskSummary(
+                            on: frontDeskOn, leadMinutes: frontDeskLead, dueAt: dueAt,
+                            notificationsOff: notificationsOff
+                        )
+                    )
+                }
                 summary("Background", value: AssistantWallpaper.resolved(wallpaperRaw).title)
             }
             if sendsToParentLocker {
@@ -197,6 +232,14 @@ struct AssistantSetupDonePage: View {
             OnboardingPrimaryButton("Take Attendance", action: onFinish)
         }
         .task { await followChildCount() }
+        .task { await readNotifications() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await readNotifications() } }
+        }
+    }
+
+    private func readNotifications() async {
+        notificationsOff = AssistantSetupReminder.notificationsOff(await SystemReminderCenter().authorizationStatus())
     }
 
     private func summary(_ title: String, value: String, first: Bool = false) -> some View {

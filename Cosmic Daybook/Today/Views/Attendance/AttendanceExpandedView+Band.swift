@@ -106,6 +106,13 @@ extension AttendanceExpandedView {
                             .buttonStyle(.bordered)
                             .help("Marks everyone not in yet present; anyone already marked keeps their mark")
                     }
+                    // Reopened while the day still reads as closed, with
+                    // nobody left to mark: the way back to Late.
+                    if viewModel.goesBackToLate, viewModel.offersCloseArrival(canMark: isEditing) {
+                        Button("Back to Late", systemImage: "clock", action: closeArrival)
+                            .buttonStyle(.bordered)
+                            .help("Arrival was reopened here; back to Late, where a \(clickWord) marks a child late")
+                    }
                     primaryAction(urgency)
                 }
                 .fixedSize()

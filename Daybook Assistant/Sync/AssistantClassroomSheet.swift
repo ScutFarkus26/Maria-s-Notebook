@@ -341,9 +341,9 @@ extension AssistantClassroomSheet {
         isSendingFirst = true
         let stillUnsent = await bootstrapper.sendUnsentMarks()
         isSendingFirst = false
-        leaveNote = stillUnsent == nil
-            ? "Your marks have reached your guide. You can leave now."
-            : "Some marks still haven't gone. Check that this iPhone is online, then try again."
+        leaveNote = AssistantBootstrapper.afterWaitNote(
+            stillUnsent: stillUnsent != nil, needsRelaunch: bootstrapper.sendingNeedsRelaunch
+        )
     }
 
     private func leave() async {

@@ -41,6 +41,29 @@ extension AssistantRestockModel {
         var day: Date
     }
 
+    /// Clears the "Couldn't save" banner once a later save of this context
+    /// works (the attendance grid's, Siri's), putting what this tab made into
+    /// the classroom share then (`flush`). The banner used to stay until her
+    /// next Restock change (bug hunt 2026-10-20, #33). Runs while the tab is
+    /// up, until the calling task is cancelled.
+    func followSaves() async {
+        let saves = NotificationCenter.default
+            .notifications(named: NSManagedObjectContext.didSaveObjectsNotification, object: context)
+            .map { _ in () }
+        for await _ in saves where errorMessage != nil {
+            flush()
+        }
+    }
+
+    /// The tab is on screen again. A "Couldn't save" still up tries the save
+    /// again first: a save made on another tab while this one was away
+    /// (the grid's, Siri's) may have written it, and `followSaves` only
+    /// listens while the tab is up (bug hunt 2026-10-20 review).
+    func appeared() {
+        if errorMessage != nil { flush() }
+        load()
+    }
+
     /// What the tab shows now.
     func shownNow() -> Shown {
         let staples = self.staples

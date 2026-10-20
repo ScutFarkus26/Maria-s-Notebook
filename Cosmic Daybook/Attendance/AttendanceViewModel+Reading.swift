@@ -34,12 +34,18 @@ extension AttendanceViewModel {
         rows.filter { $0.status == .unmarked }.map(\.name)
     }
 
-    /// Whether Close Arrival is on offer: someone's still unmarked, arrival
-    /// is open, and the day has arrived. `canMark` is the caller's (a locked
-    /// day can't be).
+    /// Whether Close Arrival is on offer: arrival is open, the day has
+    /// arrived, and someone's still unmarked, or the day still reads as
+    /// closed after Reopen Arrival (`readsClosed`), where it's the way back
+    /// to Late (`goesBackToLate`). `canMark` is the caller's (a locked day
+    /// can't be).
     func offersCloseArrival(canMark: Bool) -> Bool {
-        canMark && !isFuture && phase == .arrival && unmarkedCount > 0
+        canMark && !isFuture && phase == .arrival && (unmarkedCount > 0 || readsClosed)
     }
+
+    /// Close Arrival with nobody left to mark, after Reopen Arrival: it goes
+    /// straight back to Late, with no question, no Undo and nothing sent.
+    var goesBackToLate: Bool { unmarkedCount == 0 }
 
     /// What a tap on an iPhone tile does, or nil when it does nothing: a
     /// present child during Late, and every tap on a day ahead.

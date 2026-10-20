@@ -46,6 +46,41 @@ extension AttendanceEmailLog {
         return context.safeFetchFirst(request).map(Send.init)
     }
 
+    /// The day's sends as its summary line words them (bug hunt 2026-10-20,
+    /// #15). Who sent it, and whether it was on time, come from the first
+    /// send the way the newest went, so Send Again, or a second assistant's
+    /// send, no longer relabels an on-time email "(late)" or changes who sent
+    /// it for everyone; a later send of that way shows as "· sent again
+    /// 10:15 AM". Whether the day has gone is still `latestSend`'s.
+    struct DaySends: Equatable, Sendable {
+        /// The day's first send by the way the newest went.
+        let first: Send
+        /// The newest send, when that way went more than once.
+        let again: Send?
+
+        /// "Emailed 8:42 AM by Sarah · sent again 10:15 AM". `senderName`
+        /// is `first`'s, as `Send.senderName` reads it.
+        func summary(
+            senderName: String, for day: Date, deadlineMinutes: Int? = nil, calendar: Calendar = .current
+        ) -> String {
+            let line = first.summary(
+                senderName: senderName, for: day, deadlineMinutes: deadlineMinutes, calendar: calendar
+            )
+            guard let again else { return line }
+            return line + " · sent again " + Send.time(again.sentAt, reporting: day, calendar: calendar)
+        }
+    }
+
+    /// The day's sends for its summary line, or nil before any has gone:
+    /// the first and the newest of the way the newest went.
+    static func daySends(on day: Date, in context: NSManagedObjectContext) -> DaySends? {
+        let newestFirst = sends(on: day, in: context).map(Send.init)
+        guard let latest = newestFirst.first else { return nil }
+        let sameWay = newestFirst.filter { $0.channel == latest.channel }
+        guard let first = sameWay.last else { return nil }
+        return DaySends(first: first, again: sameWay.count > 1 ? latest : nil)
+    }
+
     /// The channels of the day's records, the "not expected" note's
     /// included: what the ParentLocker sync reads of a day in one go.
     static func channels(on day: Date, in context: NSManagedObjectContext) -> Set<String> {
@@ -118,15 +153,17 @@ extension AttendanceEmailLog {
     }
 
     /// The day's send as someone outside the classroom reads it ("Emailed
-    /// 8:42 AM by Sarah (late)", the guide's own "by the guide"), for MCP. An
-    /// assistant is named as she goes by now (the classroom's list, by the
-    /// send's record name, so a rename reaches old sends), then by the name
-    /// stamped on the send, then "an assistant".
+    /// 8:42 AM by Sarah (late)", the guide's own "by the guide"), for MCP,
+    /// from the day's first send, with any later one as "· sent again"
+    /// (`DaySends`). An assistant is named as she goes by now (the
+    /// classroom's list, by the send's record name, so a rename reaches old
+    /// sends), then by the name stamped on the send, then "an assistant".
     static func thirdPersonSummary(on day: Date, in context: NSManagedObjectContext) -> String? {
-        guard let send = latestSend(on: day, in: context) else { return nil }
+        guard let sends = daySends(on: day, in: context) else { return nil }
+        let send = sends.first
         let name = send.sentBy == .leadGuide
             ? "the guide"
             : (ClassroomNames.name(forRecordName: send.sentByID, in: context) ?? send.sentByName ?? "an assistant")
-        return send.summary(senderName: name, for: day, deadlineMinutes: settings(in: context)?.deadlineMinutes)
+        return sends.summary(senderName: name, for: day, deadlineMinutes: settings(in: context)?.deadlineMinutes)
     }
 }

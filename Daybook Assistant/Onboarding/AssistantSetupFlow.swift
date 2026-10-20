@@ -47,34 +47,6 @@ struct AssistantSetupFlow: View {
     }
 }
 
-/// What the attendance screen asks on its first appearance: the whole
-/// setup on the first run after joining, which asks for her name. After
-/// that, a missing name is asked for alone, rather than letting a term's
-/// marks accumulate under no name at all. The sample class marks under no
-/// one's name, so it asks neither.
-struct AssistantFirstRunPrompts: ViewModifier {
-    @State private var showingSetup = false
-    @State private var showingNameSheet = false
-
-    func body(content: Content) -> some View {
-        content
-            .fullScreenCover(isPresented: $showingSetup) {
-                AssistantSetupFlow { showingSetup = false }
-            }
-            .sheet(isPresented: $showingNameSheet) {
-                AssistantNameSheet(isRequired: true)
-            }
-            .task {
-                let isSample = AssistantSampleClass.isActive
-                if AssistantOnboarding.needsSetup(isSample: isSample) {
-                    showingSetup = true
-                } else if !isSample, ClassroomIdentity.displayName == nil {
-                    showingNameSheet = true
-                }
-            }
-    }
-}
-
 // MARK: - Name
 
 /// Required: Continue waits for a name. A name restored from iCloud (a new
@@ -103,7 +75,10 @@ struct AssistantSetupNamePage: View {
                 .focused($isFocused)
                 .font(.title3)
                 .padding(.horizontal, 16)
-                .frame(height: 54)
+                .padding(.vertical, 12)
+                // Grows with the text size: a fixed 54 pt clipped the
+                // largest sizes (bug hunt 2026-10-20 #25).
+                .frame(minHeight: 54)
                 .background(
                     Color(.secondarySystemBackground),
                     in: RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -149,9 +124,8 @@ struct AssistantSetupNamePage: View {
 
     private func save() {
         guard !trimmed.isEmpty else { return }
-        let name = trimmed
-        let stack = bootstrapper.coreDataStack
-        Task { await AssistantNameStore.save(name, in: stack) }
+        // Set now, so the tabs' name sheet never sees a moment without it.
+        AssistantNameSheet.commit(trimmed, in: bootstrapper.coreDataStack)
         isFocused = false
         onContinue()
     }
@@ -160,14 +134,18 @@ struct AssistantSetupNamePage: View {
 // MARK: - Reminder
 
 /// The arrival reminder's time, what it looks like, and the one place iOS
-/// asks to allow notifications. Not Now turns the reminder off; Classroom
-/// turns it back on.
+/// asks to allow notifications. Not Now turns the reminders off; Classroom
+/// turns them back on. A refusal stays on the page with the way to Settings,
+/// rather than moving on as if the reminder would ring.
 struct AssistantSetupReminderPage: View {
     @Environment(AssistantBootstrapper.self) private var bootstrapper
+    @Environment(\.scenePhase) private var scenePhase
     let onContinue: () -> Void
-    @AppStorage(ArrivalReminder.enabledKey) private var reminderOn = true
     @AppStorage(ArrivalReminder.timeKey) private var reminderMinutes = ArrivalReminder.defaultMinutes
     @State private var isAsking = false
+    /// She was asked and said no (or had before): shown until she allows
+    /// them in Settings and comes back.
+    @State private var refused = false
 
     var body: some View {
         AssistantOnboardingPage(
@@ -193,12 +171,43 @@ struct AssistantSetupReminderPage: View {
                 notificationPreview
             }
         } actions: {
-            OnboardingPrimaryButton("Turn On Reminder", isEnabled: !isAsking) {
-                Task { await turnOn() }
+            if refused {
+                // Pinned with the buttons, so the largest text on an SE
+                // doesn't push it below the fold (review (d), #3). Held to the
+                // first accessibility size, so at the largest the page above
+                // keeps room to scroll and the notice isn't cut off.
+                Group {
+                    OnboardingNotice(text: AssistantSetupReminder.refusedLine, systemImage: "bell.slash")
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.bottom, 4)
+                    OnboardingSecondaryButton("Open Settings") {
+                        if let url = URL(string: UIApplication.openNotificationSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                }
+                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+                OnboardingPrimaryButton("Continue", action: onContinue)
+            } else {
+                OnboardingPrimaryButton("Turn On Reminder", isEnabled: !isAsking) {
+                    Task { await turnOn() }
+                }
+                OnboardingSecondaryButton("Not Now") {
+                    AssistantSetupReminder.decline()
+                    onContinue()
+                }
+                // Not both at once: a Not Now while Turn On waits on iOS
+                // would be undone by its answer.
+                .disabled(isAsking)
             }
-            OnboardingSecondaryButton("Not Now") {
-                reminderOn = false
-                onContinue()
+        }
+        .animation(.smooth, value: refused)
+        // Back from Settings: allowed there, the notice goes.
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, refused else { return }
+            Task {
+                let status = await SystemReminderCenter().authorizationStatus()
+                refused = AssistantSetupReminder.notificationsOff(status)
             }
         }
     }
@@ -236,13 +245,16 @@ struct AssistantSetupReminderPage: View {
 
     private func turnOn() async {
         isAsking = true
-        reminderOn = true
-        await ArrivalReminder.requestPermissionIfNeeded()
+        let allowed = await AssistantSetupReminder.turnOn()
         if let context = bootstrapper.coreDataStack?.viewContext {
             await ArrivalReminder.reschedule(in: context)
         }
         isAsking = false
-        onContinue()
+        if allowed {
+            onContinue()
+        } else {
+            refused = true
+        }
     }
 }
 

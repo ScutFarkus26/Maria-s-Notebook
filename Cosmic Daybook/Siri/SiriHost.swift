@@ -49,6 +49,10 @@ enum SiriHost {
             .fetchAllStudents(excludeTest: true, excludeWithdrawn: false, sortBy: CDStudent.sortByName)
     }
 
+    /// A child who has left is refused by name ("isn't in the class
+    /// anymore"): the guide's own notebook knows its former children.
+    static let refusesFormerByName = true
+
     /// Siri names children in full here: the guide's own device.
     static func displayNames(for students: [CDStudent]) -> [NSManagedObjectID: String] { [:] }
 

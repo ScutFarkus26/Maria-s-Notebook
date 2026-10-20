@@ -18,6 +18,12 @@ struct AssistantTabs: View {
     @Environment(AssistantBootstrapper.self) private var bootstrapper
     @State private var selection = Choice.attendance
     @State private var restock: AssistantRestockModel?
+    /// The first run after joining: name, reminder, background and the rest.
+    @State private var showingSetup = false
+    @AppStorage(AssistantOnboarding.setupDoneKey) private var setupDone = false
+    /// Where `ClassroomIdentity.displayName` is kept, watched so the name
+    /// sheet goes the moment she has a name, and comes when she has none.
+    @AppStorage(UserDefaultsKeys.classroomIdentityDisplayName) private var storedName: String?
 
     var body: some View {
         TabView(selection: $selection) {
@@ -52,17 +58,40 @@ struct AssistantTabs: View {
             restock?.load(reconcile: false)
         }
         .modifier(RestockFollowsScene(model: restock))
-        // Another Apple Account signed in on this iPhone: the name here was
-        // the last one's (`AssistantBootstrapper.readAccountAgain`).
+        .modifier(ReminderSwitchesFollower())
+        // The one place the first run asks anything (review (d), #2): setup on
+        // the first run after joining, then one name sheet whenever a name is
+        // missing in the real class, after an Apple Account change too
+        // (`AssistantBootstrapper.readAccountAgain`). While setup is up the
+        // sheet waits; a name given in setup answers it.
+        .fullScreenCover(isPresented: $showingSetup) {
+            AssistantSetupFlow { showingSetup = false }
+        }
         .sheet(isPresented: askingForName) {
             AssistantNameSheet(isRequired: true)
         }
+        .task {
+            if AssistantOnboarding.needsSetup(isSample: AssistantSampleClass.isActive) { showingSetup = true }
+        }
+        .onChange(of: hasName) { _, has in
+            if has, bootstrapper.askForNameAgain { bootstrapper.askForNameAgain = false }
+        }
     }
 
+    private var hasName: Bool { storedName?.trimmed().isEmpty == false }
+
+    /// Shows while `AssistantFirstRun.asksForName` says so. The sheet can't be
+    /// put away without a name, and saving one sets it before the sheet goes
+    /// (`AssistantNameSheet.commit`), so there's nothing to do on the way out.
     private var askingForName: Binding<Bool> {
         Binding(
-            get: { bootstrapper.askForNameAgain },
-            set: { if !$0 { bootstrapper.askForNameAgain = false } }
+            get: {
+                AssistantFirstRun.asksForName(
+                    setupShowing: showingSetup, setupDone: setupDone,
+                    isSample: AssistantSampleClass.isActive, hasName: hasName
+                )
+            },
+            set: { _ in }
         )
     }
 

@@ -42,11 +42,19 @@ extension AssistantRestockModel {
 
     /// The staple whose name is exactly `text` (any case or accents, without
     /// a closing period), for the "We need…" sheet: naming one marks it Out
-    /// instead of adding a second need for it.
+    /// instead of adding a second need for it. A staple the guide has just
+    /// deleted isn't one: the text becomes a one-off rather than marking
+    /// nothing and closing as if it worked (bug hunt 2026-10-20 review).
     func staple(named text: String) -> CDSupply? {
         let key = Self.entry(text).foldedKey()
         guard !key.isEmpty else { return nil }
-        return staples.first { $0.name.foldedKey() == key }
+        return staples.first { !Self.isGone($0) && $0.name.foldedKey() == key }
+    }
+
+    /// The staple is gone: deleted here, or by the guide with the delete
+    /// arrived (no context left).
+    static func isGone(_ staple: CDSupply) -> Bool {
+        staple.isDeleted || staple.managedObjectContext == nil
     }
 
     /// What "We need…" did.
@@ -57,6 +65,8 @@ extension AssistantRestockModel {
         case alreadyListed
         /// It's a staple, which is now marked Out.
         case markedStaple
+        /// The same thing was waiting, and now asks for the larger count.
+        case updatedQuantity
         /// Nothing to add: no name.
         case nothing
         /// The phone couldn't save it (`errorMessage` says so). The change

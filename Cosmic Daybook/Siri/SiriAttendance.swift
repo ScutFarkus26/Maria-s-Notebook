@@ -92,17 +92,33 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
     /// The child `entity` names, if she's on today's roll as the grid shows
     /// it (`AttendanceRoster`): a child who hasn't started yet or has left is
     /// refused rather than marked, and one whose last day is today is not.
+    ///
+    /// A refusal names her as the phone grids do (`refusalName`), never in
+    /// full: here and late answer on a locked phone. Where the app knows no
+    /// former children (`SiriHost.refusesFormerByName`, the Assistant), one
+    /// who has left is "not found", rather than "isn't in the class anymore",
+    /// which would tell anyone nearby that she has left (bug hunt 2026-10-20, #29).
     func student(for entity: StudentEntity) throws -> CDStudent {
         guard let student = context.object(CDStudent.self, id: entity.id) else {
-            throw SiriAttendanceError.studentNotFound(entity.fullName)
+            throw SiriAttendanceError.studentNotFound(entity.displayName ?? entity.fullName)
         }
         let records = AttendanceRoster.recordStudentIDs(on: today, in: context)
         guard !AttendanceRoster.students(on: today, from: [student], recordStudentIDs: records).isEmpty else {
-            throw student.isEnrolled
-                ? SiriAttendanceError.notStarted(student.fullName)
-                : SiriAttendanceError.notEnrolled(student.fullName)
+            let name = refusalName(for: student)
+            if student.isEnrolled { throw SiriAttendanceError.notStarted(name) }
+            throw SiriHost.refusesFormerByName
+                ? SiriAttendanceError.notEnrolled(name)
+                : SiriAttendanceError.studentNotFound(name)
         }
         return student
+    }
+
+    /// `student`'s name on the phone grids (`AttendanceGridNames`), worked
+    /// out among the children Siri can name, with her among them.
+    private func refusalName(for student: CDStudent) -> String {
+        let roster = SiriHost.roster(in: context)
+        let among = roster.contains(student) ? roster : roster + [student]
+        return AttendanceGridNames.names(for: among)[student.objectID] ?? student.firstName
     }
 
     /// The children Siri matches a spoken name against: everyone enrolled

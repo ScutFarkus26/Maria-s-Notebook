@@ -75,7 +75,7 @@ extension AttendanceTile {
     static func voiceOverHint(tapTarget: AttendanceStatus?, reason: String) -> String {
         switch tapTarget {
         case .present: return "Double tap to mark present"
-        case .tardy: return "Double tap to mark tardy"
+        case .tardy: return "Double tap to mark late"
         case .absent: return "Double tap to mark absent again"
         case .unmarked: return "Double tap to clear the mark"
         default:

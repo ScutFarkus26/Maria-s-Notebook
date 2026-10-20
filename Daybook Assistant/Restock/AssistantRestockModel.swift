@@ -198,13 +198,14 @@ final class AssistantRestockModel {
     /// where a tap does nothing and the tile says to hold for more.
     @discardableResult
     func tap(_ staple: CDSupply) -> Bool {
-        guard let next = staple.level.afterTap else { return false }
+        guard !stapleIsGone(staple), let next = staple.level.afterTap else { return false }
         setLevel(staple, to: next)
         return true
     }
 
     /// The hold menu's We have plenty / Running low / Out.
     func setLevel(_ staple: CDSupply, to level: RestockLevel) {
+        guard !stapleIsGone(staple) else { return }
         author = currentAuthor()
         let before = staple.level
         guard RestockService.setLevel(staple, to: level, by: author, at: now(), in: context) else { return }
@@ -214,7 +215,7 @@ final class AssistantRestockModel {
 
     /// The hold menu's Add a Note… (empty text removes it).
     func setNote(_ text: String?, for staple: CDSupply) {
-        guard RestockService.setNote(staple, to: text ?? "", at: now()) else { return }
+        guard !stapleIsGone(staple), RestockService.setNote(staple, to: text ?? "", at: now()) else { return }
         changed()
     }
 
@@ -292,7 +293,7 @@ final class AssistantRestockModel {
         guard added.isNew else {
             // A need made on this phone that didn't save: try the save again.
             if added.object.isInserted { return flush() ? .added : .notSaved }
-            return .alreadyListed
+            return raiseQuantity(of: added.object, to: quantity)
         }
         changed()
         // The sheet closes on it: save now rather than after a burst.
@@ -337,7 +338,7 @@ final class AssistantRestockModel {
     // MARK: - Saving
 
     /// After a change: redraw at once, save once the burst of taps ends.
-    private func changed() {
+    func changed() {
         noteCreated()
         refreshNeeds()
         pendingSave?.cancel()

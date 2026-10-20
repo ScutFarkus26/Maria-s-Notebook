@@ -50,7 +50,8 @@ struct AssistantSiriRestock {
     enum Outcome: Equatable {
         /// The staple is now at this level; its need is on the office run or the order list.
         case marked(String, RestockLevel, RestockSource)
-        /// It was already at that level (or Out, asked to be Low); nothing changed.
+        /// It was already at that level (or Out, asked to be Low) with its
+        /// need open; nothing changed.
         case already(String, RestockLevel)
         /// A new one-off on the office run.
         case added(String)
@@ -97,29 +98,22 @@ struct AssistantSiriRestock {
     /// takes an Out staple back up; that's the shelf's hold menu or a check-off.
     func mark(_ supplyID: UUID, as level: RestockLevel) throws -> Outcome {
         guard let staple = staple(id: supplyID) else { throw AssistantRestockSiriError.notFound }
-        if staple.level == level || (level == .low && staple.level == .out) {
-            return .already(staple.name, staple.level)
-        }
-        let change = SiriChange(in: context)
-        RestockService.setLevel(staple, to: level, by: author, in: context)
-        try commit(change)
-        return .marked(staple.name, level, staple.source)
+        return try setLevel(staple, to: level == .low && staple.level == .out ? .out : level)
     }
 
     /// "Add ‹thing› to the office run": the one staple that name means is
     /// marked Low (it's on the office run, or the order list for one that's
     /// ordered); anything else, a name in several staples' names included,
     /// becomes a one-off from the office rather than a guess at one of them.
+    /// Siri's text loses the period it may end with, as the "We need…"
+    /// sheet's does, so "Glue sticks." is the "Glue sticks" already listed
+    /// (bug hunt 2026-10-20, #32).
     func addToOfficeRun(_ spoken: String) throws -> Outcome {
-        let name = spoken.trimmed()
+        let name = AssistantRestockModel.entry(spoken)
         guard !name.isEmpty else { throw AssistantRestockSiriError.noName }
         let staples = RestockService.staples(in: context, store: Self.sharedStore(of: context))
         if let staple = AssistantSupplyNames.match(for: name, in: staples) {
-            guard staple.level == .stocked else { return .already(staple.name, staple.level) }
-            let change = SiriChange(in: context)
-            RestockService.setLevel(staple, to: .low, by: author, in: context)
-            try commit(change)
-            return .marked(staple.name, .low, staple.source)
+            return try setLevel(staple, to: staple.level == .stocked ? .low : staple.level)
         }
         let change = SiriChange(in: context)
         guard let added = RestockService.addOneOff(title: name, source: .office, by: author, in: context) else {
@@ -135,6 +129,21 @@ struct AssistantSiriRestock {
     }
 
     // MARK: - Steps
+
+    /// Sets `level` through `RestockService.setLevel` even when the staple
+    /// has it already: a Low or Out staple whose need went (another device
+    /// closed it as this one marked it) gets it back, and Siri says it's
+    /// marked. It used to answer "already marked out" and leave nothing on
+    /// the office run (bug hunt 2026-10-20, #28).
+    private func setLevel(_ staple: CDSupply, to level: RestockLevel) throws -> Outcome {
+        let change = SiriChange(in: context)
+        guard RestockService.setLevel(staple, to: level, by: author, in: context) else {
+            change.end()
+            return .already(staple.name, staple.level)
+        }
+        try commit(change)
+        return .marked(staple.name, level, staple.source)
+    }
 
     private func staple(id: UUID) -> CDSupply? {
         let request = CDFetchRequest(CDSupply.self)

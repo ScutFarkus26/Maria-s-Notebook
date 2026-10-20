@@ -38,8 +38,15 @@ struct CDAttendanceStore { // swiftlint:disable:this type_body_length
     }
 
     /// Whether `date` is locked. A locked day takes no edits from anyone.
+    /// In the Assistant, only the classroom share's locks count
+    /// (`AttendanceEmailLog.scopeToClassroom`): on an Apple Account that also
+    /// keeps a notebook of its own, the private store holds that notebook's
+    /// locks, which locked the class's day on her phone (bug hunt 2026-10-20,
+    /// #6). The notebook reads both stores.
     func isLocked(_ date: Date) -> Bool {
-        AttendanceDayLocks.isLocked(date, in: context)
+        let request = AttendanceDayLocks.request(on: date)
+        AttendanceEmailLog.scopeToClassroom(request, in: context)
+        return ((try? context.count(for: request)) ?? 0) > 0
     }
 
     /// This role may write attendance and `date` isn't locked. Screens ask
@@ -151,10 +158,14 @@ struct CDAttendanceStore { // swiftlint:disable:this type_body_length
         return true
     }
 
-    // Fetch all records for a normalized date.
+    /// Every record for a normalized date. In the Assistant, the classroom
+    /// share's only, as the roll reads its children (`AssistantDayRoll`): a
+    /// notebook of her own on the same Apple Account keeps its records in the
+    /// private store (bug hunt 2026-10-20, #6). The notebook reads both.
     private func fetchRecords(for normalizedDate: Date) throws -> [CDAttendanceRecord] {
         let request = CDFetchRequest(CDAttendanceRecord.self)
         request.predicate = NSPredicate(format: "date == %@", normalizedDate as NSDate)
+        AttendanceEmailLog.scopeToClassroom(request, in: context)
         return try context.fetch(request)
     }
 
@@ -332,12 +343,16 @@ struct CDAttendanceStore { // swiftlint:disable:this type_body_length
         return true
     }
 
-    /// Whether arrival has closed on `date` somewhere: a record that day
-    /// carries Close Arrival's automatic absence. The device that closed it
-    /// remembers its Late phase; this is what every other device goes by
-    /// (`AttendanceLatePhase.isLate(on:closedAnywhere:)`).
-    func arrivalClosed(on date: Date) throws -> Bool {
-        try loadRecords(for: date).contains(where: AttendanceDeduplication.isAutomaticAbsence)
+    /// Whether arrival has closed on `date` somewhere, as this device sees
+    /// it: a record that day carries Close Arrival's automatic absence, or
+    /// this device saw one and the children who carried it aren't all back
+    /// to unmarked (an Undo), as `AttendanceLatePhase.closedAnywhere` reads
+    /// the day's records. The device that closed it remembers its Late
+    /// phase; this is what every other device goes by
+    /// (`AttendanceLatePhase.isLate(on:closedAnywhere:)`). `defaults` holds
+    /// what this device has seen (the Sample Class keeps its own).
+    func arrivalClosed(on date: Date, defaults: UserDefaults = .standard) throws -> Bool {
+        AttendanceLatePhase.closedAnywhere(on: date, records: try loadRecords(for: date), defaults: defaults)
     }
 
     /// Marks every student still unmarked on `date` present, creating records

@@ -61,6 +61,7 @@ struct ReminderRescheduleTests {
         let stack = try AssistantTestSupport.makeStack()
         let context = stack.viewContext
         let maya = AssistantTestSupport.student("Maya", "Stone", in: context)
+        ReminderTestClass.joined(in: context)
         let settings = AttendanceEmailLog.Settings(
             isEnabled: true, toAddresses: "office@school.org", nameOrder: .firstLast, groupByLevel: false
         )

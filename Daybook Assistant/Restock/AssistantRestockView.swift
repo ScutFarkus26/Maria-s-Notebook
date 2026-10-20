@@ -63,14 +63,34 @@ struct AssistantRestockView: View {
                 studentName: staple.name,
                 initialText: staple.notes,
                 sharedWith: model.seesNoteToo,
-                onSave: { model.setNote($0, for: staple) }
+                onSave: { text in
+                    if AssistantRestockModel.isGone(staple) {
+                        stapleRemoved()
+                    } else {
+                        model.setNote(text, for: staple)
+                    }
+                }
             )
         }
         .sheet(item: $historyStaple) { staple in
             AssistantRestockHistorySheet(model: model, staple: staple)
         }
-        .onAppear { model.load() }
+        .onAppear { model.appeared() }
         .onDisappear { model.flush() }
+        .task { await model.followSaves() }
+        .onChange(of: model.revision) {
+            // The guide deleted the staple whose note she's writing.
+            if let staple = noteStaple, AssistantRestockModel.isGone(staple) {
+                noteStaple = nil
+                stapleRemoved()
+            }
+        }
+    }
+
+    /// A staple she was changing has been deleted (by the guide, as she
+    /// tapped): nothing was changed, and the shelf has reloaded without it.
+    private func stapleRemoved() {
+        ToastService.shared.showError("That item was removed.")
     }
 
     // MARK: - Pieces
@@ -161,8 +181,14 @@ struct AssistantRestockView: View {
             markedBy: model.markedBy(staple),
             hasNote: !staple.notes.isEmpty,
             menuHeader: model.menuHeader(staple),
-            onTap: { model.tap(staple) },
-            onSetLevel: { model.setLevel(staple, to: $0) },
+            onTap: {
+                if AssistantRestockModel.isGone(staple) { stapleRemoved() }
+                return model.tap(staple)
+            },
+            onSetLevel: { level in
+                if AssistantRestockModel.isGone(staple) { stapleRemoved() }
+                model.setLevel(staple, to: level)
+            },
             onNote: { noteStaple = staple },
             onHistory: { historyStaple = staple }
         )

@@ -29,35 +29,42 @@ extension AssistantBootstrapper {
                 .map { $0.userInfo?[NSStoreUUIDKey] as? String }
             for await storeID in changes {
                 guard let self else { return }
-                pickupRemindersMayHaveChanged()
-                if AssistantSampleClass.isChosen {
-                    // The sample has no membership row of its own, so reading
-                    // it here took every import (the real class's on coming
-                    // back to the app, or the sample's own saves) for a Leave
-                    // elsewhere and threw her back to joining. Only a
-                    // classroom arriving underneath matters now, which the
-                    // sample's own saves can't bring.
-                    if Self.mayBringRealClass(storeID: storeID, sampleStoreIDs: sampleStoreIDs()),
-                       AssistantSampleClass.realClassHasMembership() {
-                        leaveSampleClass()
-                    }
-                    continue
-                }
-                switch phase {
-                case .needsClassroom:
-                    refreshMembership()
-                case .ready:
-                    let privateStoreID = coreDataStack?.privatePersistentStore?.identifier
-                    if Self.mayChangeMembership(storeID: storeID, privateStoreID: privateStoreID) {
-                        await followLeaveElsewhere()
-                    }
-                    if storeID == nil || storeID == coreDataStack?.sharedPersistentStore?.identifier {
-                        checkStillInClass()
-                    }
-                case .starting, .failed:
-                    break
-                }
+                await followRemoteChange(in: storeID)
             }
+        }
+    }
+
+    /// One change to a store, named by its identifier when it says.
+    private func followRemoteChange(in storeID: String?) async {
+        pickupRemindersMayHaveChanged()
+        if AssistantSampleClass.isChosen {
+            // The sample has no membership row of its own, so reading it
+            // here took every import (the real class's on coming back to the
+            // app, or the sample's own saves) for a Leave elsewhere and threw
+            // her back to joining. Only a classroom arriving underneath
+            // matters now, which the sample's own saves can't bring.
+            if Self.mayBringRealClass(storeID: storeID, sampleStoreIDs: sampleStoreIDs()),
+               AssistantSampleClass.realClassHasMembership() {
+                leaveSampleClass()
+            }
+            return
+        }
+        switch phase {
+        case .needsClassroom:
+            refreshMembership()
+        case .ready:
+            let privateStoreID = coreDataStack?.privatePersistentStore?.identifier
+            if Self.mayChangeMembership(storeID: storeID, privateStoreID: privateStoreID) {
+                await followLeaveElsewhere()
+            }
+            if storeID == nil || storeID == coreDataStack?.sharedPersistentStore?.identifier {
+                checkStillInClass()
+            }
+        case .starting:
+            // A download waiting for her membership (`awaitsMembership`).
+            if awaitsMembership { refreshMembership() }
+        case .failed:
+            break
         }
     }
 
@@ -86,7 +93,19 @@ extension AssistantBootstrapper {
 
     /// ClassroomSharingService does the accepting and posts once the
     /// membership row is written, however long CloudKit took.
+    ///
+    /// An invitation arriving while the Sample Class is open leaves it at
+    /// once, for the join screen, which shows the join under way: the sample
+    /// stayed up with no sign of it until the join finished, a minute later
+    /// or never (bug hunt 2026-10-20 #21).
     func observeAcceptance() {
+        if invitationObserver == nil {
+            invitationObserver = NotificationCenter.default.addObserver(
+                forName: .didAcceptCloudKitShare, object: nil, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.leaveSampleClass() }
+            }
+        }
         guard acceptanceObserver == nil else { return }
         acceptanceObserver = NotificationCenter.default.addObserver(
             forName: .didJoinClassroom,

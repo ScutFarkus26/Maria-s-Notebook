@@ -162,6 +162,14 @@ struct AssistantICloudPage: View {
 
     private var status: CKAccountStatus? { bootstrapper.accountStatus }
     private var problem: String? { status?.assistantProblem }
+    private var isChecking: Bool { Self.isChecking(status) }
+
+    /// Not asked yet, or CloudKit couldn't tell: still checking, never
+    /// "Signed in" (bug hunt 2026-10-20 #25). The bootstrapper asks again
+    /// while it's unknown.
+    static func isChecking(_ status: CKAccountStatus?) -> Bool {
+        status == nil || status == .couldNotDetermine
+    }
 
     var body: some View {
         AssistantOnboardingPage(
@@ -183,11 +191,11 @@ struct AssistantICloudPage: View {
             } else {
                 OnboardingCard {
                     OnboardingCardRow(
-                        title: status == nil ? "Checking iCloud…" : "Signed in to iCloud",
-                        detail: status == nil ? nil : "This iPhone is ready to join a classroom.",
+                        title: isChecking ? "Checking iCloud…" : "Signed in to iCloud",
+                        detail: isChecking ? nil : "This iPhone is ready to join a classroom.",
                         showsDivider: false
                     ) {
-                        if status == nil {
+                        if isChecking {
                             ProgressView()
                         } else {
                             Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)

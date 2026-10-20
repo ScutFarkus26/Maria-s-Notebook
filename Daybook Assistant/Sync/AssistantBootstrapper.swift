@@ -29,9 +29,10 @@ final class AssistantBootstrapper {
     /// This iPhone's iCloud account as CloudKit sees it; nil until asked.
     /// Onboarding and the sync line name the problem when it isn't
     /// `.available`, instead of a generic "check iCloud" tip.
-    private(set) var accountStatus: CKAccountStatus?
+    var accountStatus: CKAccountStatus?
 
     @ObservationIgnored var acceptanceObserver: (any NSObjectProtocol)?
+    @ObservationIgnored var invitationObserver: (any NSObjectProtocol)?
     @ObservationIgnored var accountObserver: Task<Void, Never>?
     @ObservationIgnored var nameObserver: (any NSObjectProtocol)?
     @ObservationIgnored var foregroundObserver: (any NSObjectProtocol)?
@@ -42,18 +43,41 @@ final class AssistantBootstrapper {
     /// stays broken for the life of the container: every new mark fails to
     /// attach to the classroom and sits at "Not sent yet" until the app is
     /// relaunched. So the stack is rebuilt when the account arrives.
-    private var stackNeedsAccount = false
+    var stackNeedsAccount = false
     /// Whether the account has been checked since the stack was built.
-    private var accountCheckedSinceBuild = false
-    /// Set while this iPhone's own Leave runs. Its membership delete comes
-    /// back as a remote change, which `followLeaveElsewhere` read as a Leave
-    /// on another device.
-    private(set) var isLeavingHere = false
+    var accountCheckedSinceBuild = false
+    /// Set while this iPhone's own Leave runs (`+Leave`). Its membership
+    /// delete comes back as a remote change, which `followLeaveElsewhere`
+    /// read as a Leave on another device.
+    var isLeavingHere = false
     /// Set while `start()` runs: launch and the window both start it.
     private var isStarting = false
+    /// Set while `rebuildStack` runs: one rebuild at a time, and a mirroring
+    /// stop meanwhile waits (`mirroringStopped(in:)`), as it did while every
+    /// rebuild showed "Starting…".
+    @ObservationIgnored private(set) var isRebuilding = false
+    /// The invitation a rebuild accepted again after its join failed on the
+    /// old stack (`waitForJoinBeforeRebuild`): only once.
+    @ObservationIgnored var rejoinedInvitation: CKRecord.ID?
+    /// After "Download from iCloud again" on a phone that was in a class:
+    /// "Starting…" stays up until the membership comes back down, rather
+    /// than the join screen (`refreshMembership`), for at most
+    /// `membershipWaitLimit`.
+    @ObservationIgnored var awaitsMembership = false
+    @ObservationIgnored var membershipWait: Task<Void, Never>?
+    /// When the stack was last rebuilt because the class store's iCloud
+    /// setup failed for want of an account, with the account there now
+    /// (`rebuildIfSetupFailed`): a second such failure soon after gives up.
+    @ObservationIgnored var rebuiltForFailedSetupAt: Date?
+    /// How many times the class became ready here, its becoming-ready steps
+    /// run (`refreshMembership`). The tests read it.
+    @ObservationIgnored private(set) var timesBecameReady = 0
+    /// Asks about the account again while it's unknown (`retryUnknownAccount`).
+    @ObservationIgnored var accountRetry: Task<Void, Never>?
+    @ObservationIgnored let accountRetryDelay: Duration
 
     /// Asks CloudKit for the account's status; tests pass their own.
-    @ObservationIgnored private let fetchAccountStatus: @MainActor () async throws -> CKAccountStatus
+    @ObservationIgnored let fetchAccountStatus: @MainActor () async throws -> CKAccountStatus
     /// Asks CloudKit who is signed in, after an account change.
     @ObservationIgnored let fetchUserRecordName: @MainActor () async throws -> String
     /// The account's record name as last read here, which an account change
@@ -67,7 +91,7 @@ final class AssistantBootstrapper {
     @ObservationIgnored weak var deferredStop: NSPersistentCloudKitContainer?
     /// Numbers each account check: an answer that arrives after a newer one
     /// began is dropped (the slowest answer used to win, however old).
-    @ObservationIgnored private var accountCheck = 0
+    @ObservationIgnored var accountCheck = 0
     /// Mirroring stopped again after its one rebuild (`mirroringStopped(in:)`).
     var sendingStopped = false
     /// When the stack was last rebuilt because mirroring stopped: a second
@@ -84,6 +108,10 @@ final class AssistantBootstrapper {
     /// The class's ParentLocker sync, on the real stack only
     /// (`startParentLocker`); the screens read it through `parentLockerForScreens`.
     var parentLocker: ParentLockerSync?
+    /// Where rebuilt stacks, the Sample Class and the filing hold come from;
+    /// tests pass their own (`Stacks`).
+    @ObservationIgnored let stacks: Stacks
+    @ObservationIgnored let now: @MainActor () -> Date
 
     init(
         fetchAccountStatus: @escaping @MainActor () async throws -> CKAccountStatus = {
@@ -91,16 +119,27 @@ final class AssistantBootstrapper {
         },
         fetchUserRecordName: @escaping @MainActor () async throws -> String = {
             try await CloudKitConfigurationService.container.userRecordID().recordName
-        }
+        },
+        accountRetryDelay: Duration = .seconds(10),
+        stacks: Stacks = .live,
+        now: @escaping @MainActor () -> Date = Date.init
     ) {
         self.fetchAccountStatus = fetchAccountStatus
         self.fetchUserRecordName = fetchUserRecordName
+        self.accountRetryDelay = accountRetryDelay
+        self.stacks = stacks
+        self.now = now
     }
 
     func start() async {
-        guard case .starting = phase, !isStarting else { return }
+        // Once: not again over a stack that's open (waiting for its
+        // membership after a download) or being rebuilt.
+        guard case .starting = phase, !isStarting, coreDataStack == nil, !isRebuilding else { return }
         isStarting = true
         defer { isStarting = false }
+        // A "Download from iCloud again" still waiting for its membership:
+        // after a relaunch too, "Starting…" waits for it, not the join screen.
+        if AssistantClassroomLocalState.awaitsMembership() { awaitsMembership = true }
 
         if AssistantSampleClass.isRequested {
             do {
@@ -127,7 +166,7 @@ final class AssistantBootstrapper {
             observeReturnToForeground()
             observeMirroringStops()
             startHistoryUpkeep()
-            if reopenSample { await resumeSample() }
+            if reopenSample { resumeSample() }
         } catch {
             Self.logger.error("Assistant bootstrap failed: \(error.localizedDescription, privacy: .public)")
             phase = .failed(AssistantStartupProblem(error, storesOpen: AssistantStack.isOpen))
@@ -137,6 +176,7 @@ final class AssistantBootstrapper {
     /// Takes a newly built stack: its sharing service, and the phase its
     /// membership row gives.
     private func install(_ stack: CoreDataStack) {
+        let sampleWasChosen = AssistantSampleClass.isChosen
         AssistantSampleClass.isChosen = false
         coreDataStack = stack
         let service = ClassroomSharingService(
@@ -148,8 +188,15 @@ final class AssistantBootstrapper {
         stackNeedsAccount = false
         sendingStopped = false
         removedFromClass = false
+        // The sample's `.ready` isn't the class's: read as it, a class that arrived
+        // underneath skipped becoming ready (2026-10-20 review b, item 5).
+        if sampleWasChosen { phase = .needsClassroom }
 
         refreshMembership()
+        followFailedSetup()
+        // A test's stack is in memory: no ParentLocker sync (one per app,
+        // `ParentLockerSync.current`), and nothing asked of iCloud.
+        guard stacks.isLive else { return }
         startParentLocker(on: stack)
         // Where each name row lives, for the screens' reads: a new stack has
         // new stores and new object IDs. Asked of CloudKit off the main thread.
@@ -175,20 +222,51 @@ final class AssistantBootstrapper {
     /// (`mirroringStopped(in:)`). The screens let go of the old one first,
     /// so nothing reads its objects once its stores are gone, and a running
     /// attach finishes on it (`waitForAttachBeforeRebuild`).
+    ///
+    /// A join running on the old stack finishes first, up to its own limit:
+    /// a rebuild under it lost the join (bug hunt 2026-10-20 #8). If it
+    /// failed, or still runs then, it's accepted again on the new stack, once.
+    /// "Starting…" shows only on a phone that has joined (`rebuildShowsStarting`):
+    /// the join screen, or the Sample Class, stays up meanwhile, so setup
+    /// keeps its page (#22).
     func rebuildStack(because reason: String) async {
+        guard !isRebuilding else {
+            Self.logger.info("\(reason, privacy: .public); a rebuild is already running")
+            return
+        }
+        await rebuildOnce(because: reason)
+        // The new stack's setup may have failed for the account at once,
+        // while this ran: heard then, it waited for now (`rebuildIfSetupFailed`).
+        await rebuildIfSetupFailed()
+    }
+
+    private func rebuildOnce(because reason: String) async {
+        isRebuilding = true
+        defer { isRebuilding = false }
         Self.logger.info("\(reason, privacy: .public); rebuilding the Core Data stack")
-        phase = .starting
+        let failedJoin = await waitForJoinBeforeRebuild(on: sharingService)
+        let joined = if case .ready = phase { true } else { false }
+        let inSample = AssistantSampleClass.isChosen
+        if Self.rebuildShowsStarting(ready: joined, starting: isStartingPhase, inSample: inSample) {
+            phase = .starting
+            coreDataStack = nil
+        } else if !inSample {
+            // The join screen reads no stack; the sample keeps its own.
+            coreDataStack = nil
+        }
         sharingService = nil
-        coreDataStack = nil
         let attacher = AssistantShareAttacher.shared
         attacher.hold()
         defer { attacher.release() }
         await waitForAttachBeforeRebuild(attacher)
+        // The new stack's service takes it when it's built.
+        if let failedJoin { ShareInvitationInbox.keep(failedJoin) }
         do {
-            install(try AssistantStack.rebuild())
-            await resumeSample()
+            install(try stacks.rebuild())
+            resumeSample()
         } catch {
             Self.logger.error("Assistant rebuild failed: \(error.localizedDescription, privacy: .public)")
+            coreDataStack = nil
             phase = .failed(AssistantStartupProblem(error, storesOpen: AssistantStack.isOpen))
         }
     }
@@ -210,8 +288,13 @@ final class AssistantBootstrapper {
             Self.logger.notice("The class opened for Siri since the failed start; starting on that stack")
         } else {
             Self.logger.warning("Rebuilding the class from iCloud after a failed start")
+            // Read before it's forgotten: a phone that was in a class waits on
+            // "Starting…" for its membership, not the join screen. Kept until it's
+            // back: a second download found the key gone (2026-10-20 review b, item 9).
+            awaitsMembership = awaitsMembership || AssistantClassroomLocalState.wasInAClass()
             CoreDataStack.performLocalCacheReset()
             AssistantClassroomLocalState.forget()
+            if awaitsMembership { AssistantClassroomLocalState.noteAwaitsMembership() }
             AssistantShareAttacher.shared.forgetWaiting()
         }
         await start()
@@ -232,12 +315,14 @@ final class AssistantBootstrapper {
         request.fetchLimit = 1
         let hasMembership = context.safeFetchFirst(request) != nil
         let wasReady = if case .ready = phase { true } else { false }
-        phase = hasMembership ? .ready : .needsClassroom
+        phase = hasMembership ? .ready : awaitsMembership ? .starting : .needsClassroom
+        noteMembershipRead(hasMembership: hasMembership)
         // Marks an earlier Leave couldn't sort go before anything new is filed.
         Task { await deleteLeftBehindMarks() }
         guard let service = sharingService else { return }
         service.loadCurrentMembership()
         guard hasMembership, !wasReady else { return }
+        timesBecameReady += 1
         if service.currentShare == nil {
             // Only joining fills in the share otherwise: the guide's name
             // on the Classroom screen, and "you" on her own marks.
@@ -248,92 +333,6 @@ final class AssistantBootstrapper {
             AssistantShareAttacher.shared.flush(container: stack.container, context: stack.viewContext)
         }
         checkStillInClass()
-    }
-
-    /// Leaves the classroom: the class comes off this iPhone and the screen
-    /// goes back to joining. Her marks stay with the guide. Taken out of the
-    /// class, the share read at launch is gone: Leave reads the store afresh.
-    ///
-    /// Nothing goes into the share while it runs: it waits for the running
-    /// attach, and the marks still waiting are deleted once the class is off
-    /// (`giveUpWaitingMarks`), so none goes into the next class she joins.
-    func leaveClassroom() async throws {
-        isLeavingHere = true
-        let attacher = AssistantShareAttacher.shared
-        attacher.hold()
-        defer {
-            attacher.release()
-            isLeavingHere = false
-            settleDeferredStop()
-        }
-        guard await attacher.waitUntilIdle(upTo: Self.leaveWaitLimit) else { throw AssistantLeaveError.stillSending }
-        if removedFromClass { sharingService?.updateShareState(nil) }
-        try await sharingService?.leaveClassroom()
-        // Nothing came off (no service yet, or a row it wouldn't leave): the
-        // class and its waiting marks stay.
-        guard !hasOwnMembership() else { return }
-        await giveUpWaitingMarks(attacher.pending)
-        await backToJoining()
-    }
-
-    /// Leave on another of her iPhones deletes the membership rows, and the
-    /// deletion reaches this one by sync. Nothing followed it: this iPhone
-    /// stayed on a class it had left. Now it goes back to joining, as if she
-    /// had left here; CloudKit takes the class's copy off by itself.
-    func followLeaveElsewhere() async {
-        guard coreDataStack != nil else { return }
-        guard Self.leftElsewhere(hasOwnRow: hasOwnMembership(), leavingHere: isLeavingHere) else { return }
-        Self.logger.notice("Left the classroom on another device; back to joining")
-        await dropWaitingMarks()
-        await backToJoining()
-    }
-
-    /// Whether this iPhone's own membership row is here; true with no stack
-    /// to read, which can't say it's gone.
-    func hasOwnMembership() -> Bool {
-        guard let context = coreDataStack?.viewContext else { return true }
-        let request = CDClassroomMembership.ownRowsRequest()
-        request.fetchLimit = 1
-        return context.safeFetchFirst(request) != nil
-    }
-
-    /// After a Leave, here or elsewhere: this iPhone's classroom state and
-    /// reminders go, and the screen goes back to joining.
-    private func backToJoining() async {
-        removedFromClass = false
-        AssistantClassroomLocalState.forget()
-        await ArrivalReminder.cancelAll()
-        await FrontDeskEmailReminder.cancelAll()
-        await EarlyPickupReminder.cancelAll()
-        refreshMembership()
-    }
-
-    func refreshAccountStatus() async {
-        accountCheck += 1
-        let check = accountCheck
-        let status: CKAccountStatus
-        do {
-            status = try await fetchAccountStatus()
-        } catch {
-            // Unknown isn't a problem worth showing; keep what we had.
-            Self.logger.error("iCloud account status failed: \(error.localizedDescription, privacy: .public)")
-            return
-        }
-        // A newer check is on its way, and its answer is the one that counts.
-        guard check == accountCheck else { return }
-        accountStatus = status
-        guard coreDataStack != nil else { return }
-        let decision = Self.accountDecision(
-            checkedSinceBuild: accountCheckedSinceBuild,
-            needsAccount: stackNeedsAccount,
-            status: status
-        )
-        accountCheckedSinceBuild = decision.decided
-        // Cleared before the rebuild awaits, so a second check arriving
-        // meanwhile (the account-change loop and Check Again together)
-        // doesn't rebuild again and pull the stores from under the first.
-        stackNeedsAccount = decision.needsAccount
-        if decision.rebuild { await rebuildStack(because: "iCloud account arrived after launch") }
     }
 }
 
@@ -347,7 +346,7 @@ extension AssistantBootstrapper {
     func openSampleClass() {
         guard case .needsClassroom = phase else { return }
         do {
-            let sample = try AssistantSampleClass.savedStack()
+            let sample = try stacks.sample()
             AssistantSampleClass.isChosen = true
             AssistantSampleClass.wasOpen = true
             coreDataStack = sample
@@ -360,14 +359,17 @@ extension AssistantBootstrapper {
     }
 
     /// Back into the sample after a relaunch or a rebuild if it was open,
-    /// unless a classroom arrived meanwhile: the real class wins then.
-    private func resumeSample() async {
+    /// unless a classroom arrived meanwhile: the real class wins then. Its
+    /// reminders come off as leaving it takes them off, not waited for: a
+    /// rebuild held up behind the reminders' queue held every later one up.
+    func resumeSample() {
         guard AssistantSampleClass.wasOpen else { return }
-        if case .needsClassroom = phase {
+        let needsClassroom = if case .needsClassroom = phase { true } else { false }
+        if Self.reopensSample(needsClassroom: needsClassroom, joining: sharingService?.isJoining ?? false) {
             openSampleClass()
         } else {
             AssistantSampleClass.wasOpen = false
-            await EarlyPickupReminder.cancelSample()
+            Task { await EarlyPickupReminder.cancelSample() }
         }
     }
 
@@ -378,9 +380,20 @@ extension AssistantBootstrapper {
         AssistantSampleClass.isChosen = false
         AssistantSampleClass.wasOpen = false
         Task { await EarlyPickupReminder.cancelSample() }
-        coreDataStack = AssistantStack.isOpen ? try? AssistantStack.shared() : nil
+        guard !isRebuilding else {
+            // The stack underneath is about to come off, under any screens
+            // opened on it: `install` opens the new one (2026-10-20 review b, item 5).
+            coreDataStack = nil
+            phase = .needsClassroom
+            return
+        }
+        coreDataStack = stacks.current()
+        // The sample's `.ready` isn't the class's: a class that arrived
+        // underneath gets the steps of becoming ready (its guide's name, the
+        // retry of waiting marks, the removed check), which a read that took
+        // the sample for the class skipped (bug hunt 2026-10-20 #13).
+        phase = .needsClassroom
         refreshMembership()
-        if coreDataStack == nil { phase = .needsClassroom }
         // A name set in the sample went nowhere: it goes into the class's list.
         writeWaitingName()
     }

@@ -26,11 +26,38 @@ enum AssistantClassroomLocalState {
         defaults.string(forKey: shareSeenZoneKey) == zone
     }
 
+    /// Whether this iPhone held a class whose share it saw, or a download of
+    /// one still waits for its membership: read before a Rebuild from iCloud
+    /// forgets it (`AssistantBootstrapper.awaitsMembership`).
+    static func wasInAClass(defaults: UserDefaults = .standard) -> Bool {
+        defaults.string(forKey: shareSeenZoneKey) != nil || awaitsMembership(defaults: defaults)
+    }
+
+    /// Set by "Download from iCloud again" on a phone that was in a class,
+    /// until its membership comes back or the wait for it ends. The share's
+    /// key is forgotten for the download, so a second one (after a start that
+    /// failed again, or a relaunch) took her for a phone that never joined
+    /// and showed the join screen (2026-10-20 review b, item 9).
+    static var awaitsMembershipKey: String { CloudKitEnvironment.scoped("Assistant.downloadAwaitsMembership") }
+
+    static func noteAwaitsMembership(defaults: UserDefaults = .standard) {
+        defaults.set(true, forKey: awaitsMembershipKey)
+    }
+
+    static func awaitsMembership(defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: awaitsMembershipKey)
+    }
+
+    /// The membership came back, or the wait for it ended.
+    static func membershipAwaited(defaults: UserDefaults = .standard) {
+        defaults.removeObject(forKey: awaitsMembershipKey)
+    }
+
     static func forget(defaults: UserDefaults = .standard) {
         AttendanceLatePhase.forget(defaults: defaults)
         SiriAttendanceChange.forget(defaults: defaults)
         AssistantSyncRecord.forget(defaults: defaults)
-        for key in [shareSeenZoneKey, AssistantShareAttacher.listKey] {
+        for key in [shareSeenZoneKey, AssistantShareAttacher.listKey, awaitsMembershipKey] {
             defaults.removeObject(forKey: key)
         }
     }

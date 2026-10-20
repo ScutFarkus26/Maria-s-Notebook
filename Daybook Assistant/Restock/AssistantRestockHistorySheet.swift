@@ -20,7 +20,7 @@ struct AssistantRestockHistorySheet: View {
                 } else {
                     ForEach(entries, id: \.objectID) { entry in
                         HStack(alignment: .firstTextBaseline) {
-                            Text(Self.line(for: entry, names: names))
+                            Text(Self.line(for: entry, names: names, reader: model.author))
                             Spacer(minLength: 8)
                             if let date = entry.date {
                                 Text(date.formatted(.dateTime.month(.abbreviated).day().hour().minute()))
@@ -44,8 +44,19 @@ struct AssistantRestockHistorySheet: View {
 
     /// The entry's reason, naming who made it as they go by now (`names`,
     /// `RestockHistoryLine`); a counted change with no reason: "Added 3", "Removed 2".
-    static func line(for entry: CDSupplyTransaction, names: ClassroomNames.Snapshot) -> String {
-        let reason = RestockHistoryLine.text(reason: entry.reason, changedByID: entry.changedByID, names: names)
+    ///
+    /// A level change by someone with no name anywhere ("Low", carrying only
+    /// who made it) is named as `reader` reads it elsewhere on the tab:
+    /// "Low · You", "Out · Your guide", "Low · Another assistant". It used
+    /// to name nobody (bug hunt 2026-10-20, #31).
+    static func line(
+        for entry: CDSupplyTransaction, names: ClassroomNames.Snapshot, reader: RestockAuthor? = nil
+    ) -> String {
+        var reason = RestockHistoryLine.text(reason: entry.reason, changedByID: entry.changedByID, names: names)
+        if let reader, !reason.isEmpty, !reason.contains(RestockHistoryLine.separator),
+           let id = ClassroomIdentity.realRecordName(entry.changedByID) {
+            reason += RestockHistoryLine.separator + reader.reads(changedByID: id, name: nil).capitalizedFirst
+        }
         guard reason.isEmpty else { return reason }
         return entry.quantityChange > 0 ? "Added \(entry.quantityChange)" : "Removed \(abs(entry.quantityChange))"
     }

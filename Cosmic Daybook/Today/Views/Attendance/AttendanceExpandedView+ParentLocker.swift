@@ -102,6 +102,8 @@ extension AttendanceExpandedView {
 
     /// Send to ParentLocker (Send Now), for a day taken without Close
     /// Arrival; Mark as Sent in its menu for one taken on the site by hand.
+    /// Prominent only for today (bug hunt 2026-10-20, #17): another day's
+    /// send replaces what the office has, so it stays plain, and asks first.
     func parentLockerSendButton(overdue: Bool, prominent: Bool) -> some View {
         ParentLockerAsking { asker in
             let menu = Menu {
@@ -112,7 +114,7 @@ extension AttendanceExpandedView {
                 sendToParentLockerNow(asking: asker)
             }
             .help("Send this day's attendance to ParentLocker")
-            if prominent {
+            if prominent, viewModel.isToday {
                 menu.buttonStyle(.borderedProminent).tint(overdue ? .orange : nil)
             } else {
                 menu.buttonStyle(.bordered)
@@ -124,17 +126,21 @@ extension AttendanceExpandedView {
     var dueWhat: String { sendsToParentLocker ? "ParentLocker attendance" : "front desk email" }
 
     /// Send Now for the day on screen. With children unmarked it asks first,
-    /// naming them (bug hunt 2026-10-13 afternoon, M4). `asker` is nil only
-    /// where the roll's follow-ups don't reach, and then it just sends.
+    /// naming them (bug hunt 2026-10-13 afternoon, M4). Another day always
+    /// asks, signed in: its send replaces what the office has for that day
+    /// (bug hunt 2026-10-20, #17). `asker` is nil only where the roll's
+    /// follow-ups don't reach, and then it just sends.
     func sendToParentLockerNow(asking asker: ParentLockerSendAsker?) {
         guard let sync = parentLocker else { return }
-        if let asker, let question = ParentLockerSendQuestion.beforeSending(
-            on: date, unmarked: sync.unmarkedNames(on: date)
+        let day = date
+        if let asker, let question = ParentLockerSendQuestion.beforeSendNow(
+            on: day, isToday: sync.isToday(day), needsSignIn: sync.needsSignIn,
+            unmarked: { sync.unmarkedNames(on: day) }
         ) {
             asker.question = question
             return
         }
-        sendToParentLocker(day: date)
+        sendToParentLocker(day: day)
     }
 
     /// The 9:00 reminder's tap with ParentLocker picked: asks whether to send
@@ -312,6 +318,27 @@ struct ParentLockerSendQuestion: Equatable {
             title: unmarked.count == 1 ? "1 child isn't marked yet" : "\(unmarked.count) children aren't marked yet",
             message: "\(unmarked.formatted(.list(type: .and))). Send the rest to ParentLocker now, or mark them first.",
             sendTitle: "Send the Rest"
+        )
+    }
+
+    /// Send Now's question, or nil when it sends at once: another day, signed
+    /// in, always asks (#17); otherwise only children unmarked do (M4).
+    static func beforeSendNow(
+        on day: Date, isToday: Bool, needsSignIn: Bool, unmarked: () -> [String]
+    ) -> ParentLockerSendQuestion? {
+        if !isToday, !needsSignIn { return otherDay(day, unmarked: unmarked()) }
+        return beforeSending(on: day, unmarked: unmarked())
+    }
+
+    /// Send Now for a day that isn't today (bug hunt 2026-10-20, #17): the
+    /// send replaces what the office has for that day, so it always asks,
+    /// naming anyone still unmarked there.
+    static func otherDay(_ day: Date, unmarked: [String]) -> ParentLockerSendQuestion {
+        ParentLockerSendQuestion(
+            day: day,
+            title: ParentLockerStatus.otherDaySendTitle(for: day),
+            message: ParentLockerStatus.otherDaySendMessage(unmarked: unmarked),
+            sendTitle: "Send"
         )
     }
 

@@ -39,10 +39,10 @@ enum EarlyPickupReminder {
 
     private static let logger = Logger.app(category: "reminder")
 
-    /// The run bringing the requests up to date, which the next one waits
-    /// for: two at once could each read the pending requests before the
-    /// other changed them, and an older one could put back a reminder the
-    /// newer one had just taken off.
+    /// The run bringing the requests up to date (or taking them off), which
+    /// the next one waits for: two at once could each read the pending
+    /// requests before the other changed them, and an older one could put
+    /// back a reminder the newer one had just taken off.
     private static var lastRun: Task<Void, Never>?
 
     static func isEnabled(_ defaults: UserDefaults = .standard) -> Bool {
@@ -176,36 +176,56 @@ enum EarlyPickupReminder {
 
     /// Removes every pending pickup reminder, the sample class's included:
     /// when she leaves the classroom.
-    static func cancelAll() async {
-        await cancel(prefix: idPrefix)
+    static func cancelAll(center: any ReminderCenter = SystemReminderCenter()) async {
+        await cancel(prefix: idPrefix, center: center)
     }
 
     /// Removes the sample class's pickup reminders only: when she leaves the
     /// sample, and at a launch that doesn't reopen it.
-    static func cancelSample() async {
-        await cancel(prefix: sampleIDPrefix)
+    static func cancelSample(center: any ReminderCenter = SystemReminderCenter()) async {
+        await cancel(prefix: sampleIDPrefix, center: center)
     }
 
-    private static func cancel(prefix: String) async {
-        let center = UNUserNotificationCenter.current()
-        let ours = await center.pendingNotificationRequests().map(\.identifier).filter { $0.hasPrefix(prefix) }
-        center.removePendingNotificationRequests(withIdentifiers: ours)
+    /// Removes the pending requests under `prefix`, after any run already
+    /// going, as a rebuild waits for the one before it. A rebuild that had
+    /// started (the sample's, as she left it; the class's, as she left it)
+    /// used to add its reminders after these came off, and they rang for a
+    /// class she was no longer in (bug hunt 2026-10-20, #20 and #25). A run
+    /// asked for after this one reads whose class is open when it's asked for.
+    private static func cancel(prefix: String, center: any ReminderCenter) async {
+        let previous = lastRun
+        let run = Task {
+            await previous?.value
+            let ours = await center.pendingRequests().map(\.identifier).filter { $0.hasPrefix(prefix) }
+            center.removePendingRequests(withIdentifiers: ours)
+        }
+        lastRun = run
+        await run.value
     }
 
     /// Brings this app's pending pickup reminders up to date with the ones
     /// that should be there now, after any run already going. Asks for
     /// permission the first time there is a pickup, unless `asksPermission`
     /// is false (the background upkeep: the alert belongs on screen).
+    /// `isSample` says whose they are; nil reads it now, as the run is asked
+    /// for. Read when it started, a run queued behind another as she left
+    /// the sample read the real class, filed the sample's children under the
+    /// real class's prefix, and the sample's cancel that followed left them
+    /// ringing (review of the 2026-10-20 fixes).
     static func reschedule(
         in context: NSManagedObjectContext,
         now: Date = Date(),
         asksPermission: Bool = true,
+        isSample: Bool? = nil,
         center: any ReminderCenter = SystemReminderCenter()
     ) async {
+        let isSample = isSample ?? AssistantSampleClass.isActive
         let previous = lastRun
         let run = Task {
             await previous?.value
-            await bringUpToDate(in: context, now: now, asksPermission: asksPermission, center: center)
+            await bringUpToDate(
+                in: context, now: now, asksPermission: asksPermission, isSample: isSample, center: center
+            )
         }
         lastRun = run
         await run.value
@@ -215,11 +235,9 @@ enum EarlyPickupReminder {
         in context: NSManagedObjectContext,
         now: Date,
         asksPermission: Bool,
+        isSample: Bool,
         center: any ReminderCenter
     ) async {
-        // Read once: leaving the sample mid-run mustn't file its children
-        // under the real class's prefix.
-        let isSample = AssistantSampleClass.isActive
         var wanted: [Reminder] = []
         let pickups = isEnabled() ? pendingPickups(in: context, now: now) : []
         if !pickups.isEmpty {

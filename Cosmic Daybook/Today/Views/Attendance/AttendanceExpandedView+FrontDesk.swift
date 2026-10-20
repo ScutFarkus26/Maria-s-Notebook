@@ -75,7 +75,8 @@ extension AttendanceExpandedView {
                 // line doesn't (`AttendanceRow.waitsForParentLocker`).
                 if Self.compactRowOffersSend(
                     isOpen: parentLockerIsOpen, isFuture: viewModel.isFuture,
-                    isRollComplete: !viewModel.rows.isEmpty && !viewModel.rows.contains(where: \.waitsForParentLocker)
+                    isRollComplete: !viewModel.rows.isEmpty && !viewModel.rows.contains(where: \.waitsForParentLocker),
+                    isToday: viewModel.isToday
                 ) {
                     let overdue = if case .overdue = urgency { true } else { false }
                     parentLockerSendButton(overdue: overdue, prominent: true)
@@ -98,9 +99,11 @@ extension AttendanceExpandedView {
     }
 
     /// Whether the iPhone's row offers Send to ParentLocker: the day is
-    /// still open, has come, and everyone on it is marked.
-    static func compactRowOffersSend(isOpen: Bool, isFuture: Bool, isRollComplete: Bool) -> Bool {
-        isOpen && !isFuture && isRollComplete
+    /// still open, is today, and everyone on it is marked. Not another day
+    /// (bug hunt 2026-10-20, #17): one tap sent a past day over what the
+    /// office had; the ⋯ menu's Send Now asks first.
+    static func compactRowOffersSend(isOpen: Bool, isFuture: Bool, isRollComplete: Bool, isToday: Bool) -> Bool {
+        isOpen && !isFuture && isRollComplete && isToday
     }
 
     /// What the 9:00 reminder's tap does on the roll.
@@ -123,15 +126,20 @@ extension AttendanceExpandedView {
     }
 
     /// Who sent the day's email, as this screen reads it ("you" for the
-    /// guide's own, an assistant by the name she goes by now).
+    /// guide's own, an assistant by the name she goes by now): who sent it
+    /// first and whether that was on time, with any later send as "· sent
+    /// again" (bug hunt 2026-10-20, #15). `send` is the day's newest, read
+    /// on its own before the day's sends are.
     func frontDeskSummary(_ send: AttendanceEmailLog.Send) -> String {
-        let name = send.senderName(
+        let sends = AttendanceEmailLog.daySends(on: date, in: viewContext)
+            ?? AttendanceEmailLog.DaySends(first: send, again: nil)
+        let name = sends.first.senderName(
             viewerRole: CDClassroomMembership.currentRole(in: viewContext),
             myRecordName: ClassroomIdentity.currentUserRecordName,
             myName: ClassroomIdentity.displayName,
             names: classroomNames
         )
-        return send.summary(senderName: name, for: date, deadlineMinutes: deadlineMinutes)
+        return sends.summary(senderName: name, for: date, deadlineMinutes: deadlineMinutes)
     }
 
     /// Records that the day's attendance went (the email, or with

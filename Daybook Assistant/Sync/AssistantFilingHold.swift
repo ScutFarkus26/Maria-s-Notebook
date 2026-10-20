@@ -1,5 +1,6 @@
 import Foundation
 import CoreData
+import CloudKit
 import OSLog
 
 /// Whether her marks may go into the classroom share now, read from the
@@ -35,12 +36,21 @@ final class AssistantFilingHold {
         var killedDelegate: Bool
         var start: Date
         var storeIdentifier: String
+        /// The error says there was no usable iCloud account to set up with.
+        var accountUnavailable = false
     }
 
     /// Held stores, by identifier, and the start of the latest failure.
     private(set) var heldSince: [String: Date] = [:]
     /// Told when the last hold lifts.
     var onLift: (@MainActor () -> Void)?
+    /// The store's setup failed for want of a usable iCloud account, at
+    /// least once on this stack. Never cleared, unlike the hold: an import
+    /// can work once the account arrives while sharing never does on that
+    /// container, so the bootstrapper rebuilds it (bug hunt 2026-10-20 #9).
+    private(set) var setupFailedForAccount = false
+    /// Told the first time `setupFailedForAccount` is set.
+    var onSetupFailedForAccount: (@MainActor () -> Void)?
     /// Written in `listen` only; read again in `deinit`.
     private nonisolated(unsafe) var observer: (any NSObjectProtocol)?
 
@@ -77,6 +87,10 @@ final class AssistantFilingHold {
         } else if event.type == .setup || event.killedDelegate {
             heldSince[store] = max(heldSince[store] ?? event.start, event.start)
             Self.logger.notice("The classroom share's sync failed to start or stopped: marks wait")
+            if event.type == .setup, event.accountUnavailable, !setupFailedForAccount {
+                setupFailedForAccount = true
+                onSetupFailedForAccount?()
+            }
         }
     }
 
@@ -96,7 +110,25 @@ final class AssistantFilingHold {
         let killed = (event.error as NSError?).map(ClassroomShareAttach.indicatesDeadMirroringDelegate) ?? false
         return Event(
             type: event.type, succeeded: event.succeeded, killedDelegate: killed,
-            start: event.startDate, storeIdentifier: storeID
+            start: event.startDate, storeIdentifier: storeID,
+            accountUnavailable: (event.error as NSError?).map(isAccountUnavailable) ?? false
         )
+    }
+
+    /// Whether `error`, or one it wraps, says there was no usable iCloud
+    /// account: Core Data's 134400 ("Unable to initialize without an iCloud
+    /// account", with none signed in or one not ready yet), or CloudKit's
+    /// not-authenticated or account-temporarily-unavailable. A network
+    /// failure isn't one: the container sets up again by itself.
+    nonisolated static func isAccountUnavailable(_ error: NSError) -> Bool {
+        var current: NSError? = error
+        for _ in 0..<5 {
+            guard let checked = current else { return false }
+            if checked.domain == NSCocoaErrorDomain, checked.code == 134_400 { return true }
+            if checked.domain == CKErrorDomain, let code = CKError.Code(rawValue: checked.code),
+               code == .notAuthenticated || code == .accountTemporarilyUnavailable { return true }
+            current = checked.userInfo[NSUnderlyingErrorKey] as? NSError
+        }
+        return false
     }
 }

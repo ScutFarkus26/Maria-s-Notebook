@@ -26,22 +26,40 @@ final class AssistantShareAttacher {
         return attacher
     }()
 
-    private static let logger = Logger.app(category: "shareAttach")
     /// The list's length at most, oldest dropped first: a class's marks for
     /// three weeks, far more than a working phone ever holds back.
     private static let cap = 500
     /// Object URIs name one store, so the list is per CloudKit environment.
     static var listKey: String { CloudKitEnvironment.scoped("Assistant.pendingShareAttach") }
 
+    // The pass's state below is internal, not private, only so the
+    // attacher's own extension files (`+Rounds`, `+Watchdog`) can reach it.
+    // Nothing else writes it.
+
     /// How many marks wait to go into the share: the sync line says
     /// "Sending…" while any do (`AssistantSyncStatusView`).
     private(set) var pendingCount = 0
     /// The last pass couldn't reach iCloud and none has put a mark in since:
     /// the sync line says they'll go once she's back online.
-    private(set) var isOffline = false
+    var isOffline = false
+    /// The running pass's share call has outlived `watchdogLimit` and may
+    /// never return (`share(_:to:)` has no time limit and can't be
+    /// cancelled): the sync line says to quit and reopen the app, which the
+    /// marks waited for anyway (bug hunt 2026-10-20 #7). Cleared when the
+    /// call comes back, or when a rebuilt stack lets go of the pass.
+    var sendingLooksStuck = false
 
-    @ObservationIgnored private(set) var pass: Task<Void, Never>?
-    @ObservationIgnored private var runAgain = false
+    @ObservationIgnored var pass: Task<Void, Never>?
+    /// Numbers each pass. One whose share call outlived the watchdog on a
+    /// stack that has since been rebuilt is let go (`letGoOfStuckPass`): its
+    /// number is passed, so when the call comes back, however late, it exits
+    /// without looping, and touches neither `pass`, the waiting list nor the
+    /// sync line. Its marks are still on the list, and the new pass tries
+    /// them on the new stack.
+    @ObservationIgnored var passToken = 0
+    /// The stack whose share call outlived the watchdog.
+    @ObservationIgnored weak var stuckContainer: NSPersistentCloudKitContainer?
+    @ObservationIgnored var runAgain = false
     /// Saved since the last pass began: always tried.
     @ObservationIgnored private var fresh: Set<String> = []
     /// `hold()`s not yet released, and whether a flush waits for `release()`.
@@ -53,30 +71,30 @@ final class AssistantShareAttacher {
     /// before it's tried again, so a CloudKit that keeps refusing doesn't turn
     /// every tap into a retry of every waiting mark. When the rest ends it's
     /// tried on its own, without waiting for a tap.
-    @ObservationIgnored private(set) var backlogWaitsUntil = Date.distantPast
+    @ObservationIgnored var backlogWaitsUntil = Date.distantPast
     /// Refusals and network failures in a row, each kind on its own count.
-    @ObservationIgnored private var failuresInARow = 0
-    @ObservationIgnored private var networkFailuresInARow = 0
+    @ObservationIgnored var failuresInARow = 0
+    @ObservationIgnored var networkFailuresInARow = 0
     /// CloudKit asked to wait until then: nothing that ends a rest early
     /// moves the backlog's next try before it (a new mark still goes at once).
-    @ObservationIgnored private var notBefore = Date.distantPast
-    @ObservationIgnored private var retryTask: Task<Void, Never>?
+    @ObservationIgnored var notBefore = Date.distantPast
+    @ObservationIgnored var retryTask: Task<Void, Never>?
     /// The newest stack a caller gave: each round of a pass uses it, so a
     /// pass running when the stack is rebuilt moves to the new one. Also
     /// what retries nobody asked for use.
-    @ObservationIgnored private weak var lastContainer: NSPersistentCloudKitContainer?
-    @ObservationIgnored private weak var lastContext: NSManagedObjectContext?
+    @ObservationIgnored weak var lastContainer: NSPersistentCloudKitContainer?
+    @ObservationIgnored weak var lastContext: NSManagedObjectContext?
     @ObservationIgnored private var foregroundObserver: (any NSObjectProtocol)?
     /// The container whose CloudKit mirroring stopped mid-attach. Every later
     /// `share(_:to:)` on it would raise an exception no Swift `catch` traps,
     /// so no pass runs on it again: its marks wait for a rebuilt stack or
     /// the next launch, whose container starts afresh.
-    @ObservationIgnored private weak var stoppedContainer: NSPersistentCloudKitContainer?
+    @ObservationIgnored weak var stoppedContainer: NSPersistentCloudKitContainer?
     /// A pass that goes in ends the rest early, once: if the waiting marks are
     /// refused even then, it's something about them, not CloudKit, and they
     /// wait out the full rest rather than riding along with every tap.
-    @ObservationIgnored private var triedEarly = false
-    @ObservationIgnored private var earlyTryFailed = false
+    @ObservationIgnored var triedEarly = false
+    @ObservationIgnored var earlyTryFailed = false
     /// A `retryWaiting()` came mid-round (the network back, the phone
     /// locking, a rest ending, the filing hold lifting): a failed round goes
     /// again at once, not after a rest (bug hunt 2026-10-16 #1).
@@ -86,10 +104,23 @@ final class AssistantShareAttacher {
     /// (`AssistantBootstrapper.mirroringStopped(in:)`): only a rebuilt stack
     /// or a relaunch sends again, and until then the sync line said
     /// "Sending to iCloud…" for good.
-    @ObservationIgnored var onMirroringStopped: (@MainActor (NSPersistentCloudKitContainer) -> Void)?
+    ///
+    /// A stop found before anyone listens (a Siri command before the app's
+    /// window started the bootstrapper) is kept, and told to the first
+    /// listener set (bug hunt 2026-10-20 #13): it used to go unheard.
+    @ObservationIgnored var onMirroringStopped: (@MainActor (NSPersistentCloudKitContainer) -> Void)? {
+        didSet {
+            guard let onMirroringStopped, let unheard = unheardStop else { return }
+            unheardStop = nil
+            onMirroringStopped(unheard)
+        }
+    }
+    @ObservationIgnored weak var unheardStop: NSPersistentCloudKitContainer?
     private let defaults: UserDefaults
     let now: @MainActor () -> Date
     private let sleep: Sleep
+    /// Waits out `watchdogLimit` beside each share call; tests pass their own.
+    let watchdog: Sleep
 
     /// One try at putting records into the share: those to try again, and
     /// whether mirroring stopped.
@@ -110,19 +141,25 @@ final class AssistantShareAttacher {
     private let zoneCheck: ZoneCheck
     let filingStopReason: FilingStopReason
 
-    /// Tests pass `now`, `sleep`, `attempt`, `zoneCheck` and `filingStopReason`
-    /// (`+Hold`): the real ones need a classroom share.
+    /// How long one share call may run before the sync line says sending
+    /// looks stuck, and a rebuilt stack stops waiting for it.
+    static let watchdogLimit: TimeInterval = 3 * 60
+
+    /// Tests pass `now`, `sleep`, `attempt`, `zoneCheck`, `filingStopReason`
+    /// (`+Hold`) and `watchdog`: the real ones need a classroom share.
     init(
         defaults: UserDefaults = .standard,
         now: @escaping @MainActor () -> Date = Date.init,
         sleep: @escaping Sleep = { try await Task.sleep(for: .seconds($0)) },
         attempt: @escaping Attempt = AssistantShareAttacher.liveAttempt,
         zoneCheck: @escaping ZoneCheck = AssistantShareAttacher.liveZoneCheck,
-        filingStopReason: @escaping FilingStopReason = { AssistantStack.filingStopReason }
+        filingStopReason: @escaping FilingStopReason = { AssistantStack.filingStopReason },
+        watchdog: @escaping Sleep = { try await Task.sleep(for: .seconds($0)) }
     ) {
         self.defaults = defaults
         self.now = now
         self.sleep = sleep
+        self.watchdog = watchdog
         self.attempt = attempt
         self.zoneCheck = zoneCheck
         self.filingStopReason = filingStopReason
@@ -159,13 +196,17 @@ final class AssistantShareAttacher {
             flushHeld = true
             return
         }
+        letGoOfStuckPass()
         guard pass == nil else {
             runAgain = true
             return
         }
+        passToken += 1
+        let token = passToken
         pass = Task { [weak self] in
-            await self?.run()
-            self?.pass = nil
+            await self?.run(token)
+            // A pass let go of meanwhile isn't the running one any more.
+            if self?.passToken == token { self?.pass = nil }
         }
     }
 
@@ -189,7 +230,7 @@ final class AssistantShareAttacher {
         }
     }
 
-    private func scheduleRetry(after seconds: TimeInterval) {
+    func scheduleRetry(after seconds: TimeInterval) {
         retryTask?.cancel()
         retryTask = Task { [weak self, sleep] in
             do { try await sleep(seconds) } catch { return }
@@ -198,7 +239,7 @@ final class AssistantShareAttacher {
         }
     }
 
-    private func run() async {
+    private func run(_ token: Int) async {
         repeat {
             runAgain = false
             guard holds == 0 else {
@@ -209,9 +250,7 @@ final class AssistantShareAttacher {
             // What's waiting stays in the list for a stack that can send it.
             guard container !== stoppedContainer, !filingWaits() else { return }
             let backlogDue = now() >= backlogWaitsUntil
-            if backlogDue, !triedEarly { earlyTryFailed = false }
-            let wasEarly = triedEarly
-            triedEarly = false
+            let wasEarly = beginRound(backlogDue: backlogDue)
             let justSaved = fresh
             fresh = []
             let taken = pending.filter { backlogDue || justSaved.contains($0.absoluteString) }
@@ -222,7 +261,10 @@ final class AssistantShareAttacher {
             }
             let round = generation
             retryAskedDuringRound = false
-            let result = await attemptAndConfirm(found.ids, container: container, context: context)
+            // Nil when this pass was let go of meanwhile (`letGoOfStuckPass`):
+            // another pass owns the list and the line now.
+            guard let result = await attemptWatched(found.ids, container: container, context: context, token: token)
+            else { return }
             // Given up meanwhile (Leave): nothing goes back in the list.
             guard round == generation else { continue }
             // Marks saved during the pass stay; of these, only what failed.
@@ -236,9 +278,19 @@ final class AssistantShareAttacher {
         } while runAgain
     }
 
+    /// Notes a round's start: a backlog that's due clears the last early
+    /// try's failure, unless this round is that early try. Returns whether
+    /// it is.
+    private func beginRound(backlogDue: Bool) -> Bool {
+        if backlogDue, !triedEarly { earlyTryFailed = false }
+        let wasEarly = triedEarly
+        triedEarly = false
+        return wasEarly
+    }
+
     /// One try, with what went in checked against the class's own zone:
     /// a mark in another share counts as left.
-    private func attemptAndConfirm(
+    func attemptAndConfirm(
         _ ids: [NSManagedObjectID],
         container: NSPersistentCloudKitContainer,
         context: NSManagedObjectContext
@@ -249,94 +301,6 @@ final class AssistantShareAttacher {
         let attached = ids.filter { !refused.contains($0) }
         if !attached.isEmpty { result.left += await zoneCheck(attached, container, context) }
         return result
-    }
-
-    /// A round that left marks after a retry was asked for during it goes
-    /// again now, with the backlog. The try the retry cut short isn't
-    /// counted or rested on: counting it doubled the next rest whenever the
-    /// second go failed too. Not when CloudKit asked to wait, or the round
-    /// can't simply go again (mirroring stopped, the stack rebuilt).
-    private func goesAgainAtOnce(
-        _ result: CDAttendanceStore.ShareAttachResult,
-        on container: NSPersistentCloudKitContainer,
-        someWentIn: Bool
-    ) -> Bool {
-        guard !result.left.isEmpty, !result.mirroringStopped, result.retryAfter == nil,
-              lastContainer === container else { return false }
-        isOffline = result.noConnection && !someWentIn
-        backlogWaitsUntil = notBefore
-        runAgain = true
-        return true
-    }
-
-    /// The rest, retry and next round after a round on `container`. Returns
-    /// false when nothing more may run on it.
-    private func afterRound(
-        _ result: CDAttendanceStore.ShareAttachResult,
-        on container: NSPersistentCloudKitContainer,
-        backlogDue: Bool,
-        wasEarly: Bool,
-        someWentIn: Bool
-    ) -> Bool {
-        if result.mirroringStopped { return mirroringStopped(on: container) }
-        if result.left.isEmpty {
-            failuresInARow = 0
-            networkFailuresInARow = 0
-            if backlogDue {
-                backlogWaitsUntil = notBefore
-            } else if !pending.isEmpty, !earlyTryFailed, now() >= notBefore {
-                // CloudKit took every mark it was given, so it's working:
-                // go round now for the marks it held back.
-                backlogWaitsUntil = .distantPast
-                triedEarly = true
-                runAgain = true
-            }
-        } else if lastContainer !== container {
-            // The stack was rebuilt under this round, so the refusals
-            // were the closed stack's: try them on the new one now.
-            runAgain = true
-        } else {
-            if wasEarly { earlyTryFailed = true }
-            var rest: TimeInterval
-            // Offline only when nothing reached iCloud: a refusal did (bug
-            // hunt 2026-10-16 #2), and so did a mark that went in before
-            // the connection dropped.
-            isOffline = result.noConnection && !someWentIn
-            if result.noConnection {
-                networkFailuresInARow += 1
-                rest = Self.rest(afterFailures: networkFailuresInARow, noConnection: true)
-            } else {
-                failuresInARow += 1
-                rest = Self.rest(afterFailures: failuresInARow)
-            }
-            if let wait = result.retryAfter {
-                notBefore = now().addingTimeInterval(wait)
-                rest = max(rest, wait)
-            }
-            backlogWaitsUntil = now().addingTimeInterval(rest)
-            scheduleRetry(after: rest)
-            Self.logger.notice(
-                "\(result.left.count, privacy: .public) mark(s) wait \(Int(rest), privacy: .public) s for the next try"
-            )
-        }
-        return true
-    }
-
-    /// No pass runs on `container` again; the bootstrapper hears of it.
-    /// Returns whether a rebuilt stack arrived meanwhile, which can try the
-    /// marks now.
-    private func mirroringStopped(on container: NSPersistentCloudKitContainer) -> Bool {
-        stoppedContainer = container
-        // The line says so in its own words (`sendingStopped`), not "offline".
-        isOffline = false
-        retryTask?.cancel()
-        Self.logger.error(
-            "CloudKit mirroring stopped; \(self.pending.count, privacy: .public) mark(s) wait for a new stack"
-        )
-        onMirroringStopped?(container)
-        guard lastContainer !== container else { return false }
-        runAgain = true
-        return true
     }
 
     /// The waiting list, oldest first.
@@ -378,7 +342,11 @@ extension AssistantShareAttacher {
     }
 
     /// Ends a `hold()`. What waits is tried now, rest or no rest, since the
-    /// retry that would have ended the rest was cancelled.
+    /// retry that would have ended the rest was cancelled. Unless CloudKit
+    /// asked to wait (`notBefore`): then only what was just saved goes now,
+    /// and the backlog's retry is set again for when the wait ends. It used
+    /// to set none, and the backlog waited for the next tap or a return to
+    /// the app (bug hunt 2026-10-20 #13).
     func release() {
         holds = max(0, holds - 1)
         guard holds == 0 else { return }
@@ -386,6 +354,8 @@ extension AssistantShareAttacher {
         flushHeld = false
         if !pending.isEmpty {
             retryWaiting()
+            let wait = backlogWaitsUntil.timeIntervalSince(now())
+            if wait > 0 { scheduleRetry(after: wait) }
         } else if asked, let lastContainer, let lastContext {
             flush(container: lastContainer, context: lastContext)
         }

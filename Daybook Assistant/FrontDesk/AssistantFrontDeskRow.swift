@@ -12,8 +12,9 @@ import SwiftUI
 /// - after the due time, the same in amber, saying it's late.
 ///
 /// Once anyone has sent it (here, on another assistant's phone or the
-/// guide's), who sent it and when, marked "(late)" after the due time, with
-/// Send Again.
+/// guide's), who sent it first and when, marked "(late)" after the due time,
+/// and when it went again, with Send Again. While a tapped reminder waits for
+/// iCloud, "Checking whether it's gone…".
 ///
 /// Only when the guide has set the email up in the notebook, and never on a
 /// day off or a day ahead. When the guide picked ParentLocker instead, the
@@ -32,10 +33,12 @@ struct AssistantFrontDeskRow: View {
     /// Bumped at the moments the line changes, to redraw it then.
     @State private var changes = 0
     @State private var isSendingNow = false
-    /// Send Now with children unmarked: who, for the question (M4).
-    @State private var unmarkedToAsk: [String] = []
     /// What another day's Send Now came to, when it didn't go (L1).
     @State private var sendNowMessage: (day: Date, text: String)?
+    /// Send Now's question waiting for her yes, with the day it's about:
+    /// children unmarked (M4), or another day, whose send replaces what the
+    /// office has for it (bug hunt 2026-10-20, #17).
+    @State private var asked: AssistantParentLockerSendStep.Question?
 
     private var frontDesk: AssistantFrontDesk { viewModel.frontDesk }
     private var deadlineMinutes: Int { frontDesk.deadlineMinutes }
@@ -72,11 +75,30 @@ struct AssistantFrontDeskRow: View {
         times.filter { $0 > now }
     }
 
+    /// A tapped reminder is waiting for iCloud before it opens anything,
+    /// and the day on screen is the one it's for (#14).
+    private var isChecking: Bool { frontDesk.isCheckingForSend && viewModel.isToday }
+
+    /// In the buttons' place while a tapped reminder waits for iCloud.
+    static var checkingLine: some View {
+        HStack(spacing: 6) {
+            ProgressView()
+                .controlSize(.small)
+            Text("Checking whether it's gone…")
+                .foregroundStyle(.secondary)
+        }
+        .font(.footnote)
+        .accessibilityElement(children: .combine)
+        .transition(.opacity)
+    }
+
     @ViewBuilder
     private func content(urgency: AttendanceEmailLog.Urgency) -> some View {
         VStack(spacing: 4) {
-            if let send = frontDesk.latestSend {
-                sentLine(send)
+            if isChecking {
+                Self.checkingLine
+            } else if frontDesk.latestSend != nil, let sends = frontDesk.daySends {
+                sentLine(sends)
             } else if viewModel.unmarkedCount == 0 {
                 buttonAndDueLine("Email the Front Desk", urgency: urgency, action: onSend)
             } else if frontDesk.offersCloseAndEmail(by: viewModel) {
@@ -155,20 +177,22 @@ struct AssistantFrontDeskRow: View {
         return false
     }
 
-    /// "Emailed 8:42 AM by Sarah", "Sent to ParentLocker 8:47 AM by you".
-    private func summary(of send: AttendanceEmailLog.Send) -> String {
-        let name = send.senderName(
+    /// "Emailed 8:42 AM by Sarah", "Sent to ParentLocker 8:47 AM by you",
+    /// "… · sent again 10:15 AM": who and when from the day's first send
+    /// (bug hunt 2026-10-20, #15).
+    private func summary(of sends: AttendanceEmailLog.DaySends) -> String {
+        let name = sends.first.senderName(
             viewerRole: .assistant,
             myRecordName: ClassroomIdentity.currentUserRecordName,
             myName: ClassroomIdentity.displayName,
             guideName: bootstrapper.guideName,
             names: viewModel.names
         )
-        return send.summary(senderName: name, for: viewModel.date, deadlineMinutes: deadlineMinutes)
+        return sends.summary(senderName: name, for: viewModel.date, deadlineMinutes: deadlineMinutes)
     }
 
-    private func sentLine(_ send: AttendanceEmailLog.Send) -> some View {
-        let summary = summary(of: send)
+    private func sentLine(_ sends: AttendanceEmailLog.DaySends) -> some View {
+        let summary = summary(of: sends)
         return Menu {
             Button("Send Again", systemImage: "envelope", action: onSend)
         } label: {
@@ -195,45 +219,87 @@ extension AssistantFrontDeskRow {
     /// another day shows only whether it was sent, and what its Send Now
     /// came to when it didn't go.
     fileprivate func parentLockerRow(_ sync: ParentLockerSync) -> some View {
-        AssistantParentLockerRow(
-            status: viewModel.isToday ? sync.status : ParentLockerStatus(state: .idle),
-            sentSummary: frontDesk.latestSend.map(summary(of:)),
-            isSignedIn: !sync.needsSignIn,
-            isSending: isSendingNow || sync.status.state == .sending,
-            offersSend: frontDesk.offersParentLockerSend(by: viewModel),
-            sendNowMessage: sendNowMessage.flatMap {
-                Calendar.current.isDate($0.day, inSameDayAs: viewModel.date) ? $0.text : nil
-            },
-            onSendNow: { sendNow(sync, unmarkedConfirmed: false) },
-            onSignIn: onParentLockerSignIn
-        )
+        Group {
+            if isChecking {
+                Self.checkingLine
+            } else {
+                AssistantParentLockerRow(
+                    status: viewModel.isToday ? sync.status : ParentLockerStatus(state: .idle),
+                    sentSummary: frontDesk.latestSend == nil ? nil : frontDesk.daySends.map(summary(of:)),
+                    isSignedIn: !sync.needsSignIn,
+                    isSending: isSendingNow || sync.status.state == .sending,
+                    offersSend: frontDesk.offersParentLockerSend(by: viewModel),
+                    sendNowMessage: sendNowMessage.flatMap {
+                        Calendar.current.isDate($0.day, inSameDayAs: viewModel.date) ? $0.text : nil
+                    },
+                    onSendNow: { sendNow(sync) },
+                    onSignIn: onParentLockerSignIn
+                )
+            }
+        }
         .animation(.smooth(duration: 0.3), value: frontDesk.latestSend)
         // The sync records the day's send itself: the line reads it again
         // after each run that reached ParentLocker.
         .onChange(of: sync.status.lastSyncAt) { frontDesk.load(viewModel.date) }
         .confirmationDialog(
-            AssistantParentLockerSendStep.question(unmarked: unmarkedToAsk),
-            isPresented: Binding(get: { !unmarkedToAsk.isEmpty }, set: { if !$0 { unmarkedToAsk = [] } }),
-            titleVisibility: .visible
-        ) {
-            Button("Send the Others") { sendNow(sync, unmarkedConfirmed: true) }
-        } message: {
-            Text(AssistantParentLockerSendStep.questionMessage(unmarked: unmarkedToAsk))
+            AssistantParentLockerSendStep.question(unmarked: unmarkedAsked?.unmarked ?? []),
+            isPresented: Binding(get: { unmarkedAsked != nil }, set: { if !$0, unmarkedAsked != nil { asked = nil } }),
+            titleVisibility: .visible,
+            presenting: unmarkedAsked
+        ) { question in
+            Button("Send the Others") { answer(question, sync) }
+        } message: { question in
+            Text(AssistantParentLockerSendStep.questionMessage(unmarked: question.unmarked))
         }
+        .alert(
+            dayAsked.map { ParentLockerStatus.otherDaySendTitle(for: $0.day) } ?? "",
+            isPresented: Binding(get: { dayAsked != nil }, set: { if !$0, dayAsked != nil { asked = nil } }),
+            presenting: dayAsked
+        ) { question in
+            Button("Send") { answer(question, sync) }
+            Button("Cancel", role: .cancel) {}
+        } message: { question in
+            Text(ParentLockerStatus.otherDaySendMessage(unmarked: question.unmarked))
+        }
+    }
+
+    /// The question waiting, when it's about children unmarked (M4).
+    private var unmarkedAsked: AssistantParentLockerSendStep.Question? {
+        guard let asked, case .ask = asked.step else { return nil }
+        return asked
+    }
+
+    /// The question waiting, when it's about sending another day (#17).
+    private var dayAsked: AssistantParentLockerSendStep.Question? {
+        guard let asked, case .confirmDay = asked.step else { return nil }
+        return asked
     }
 
     /// Send Now (and Send to ParentLocker): the whole class for the day on
     /// screen. With children unmarked it asks first, naming them (bug hunt
     /// 2026-10-13 afternoon, M4). Not signed in, today's send waits for the
     /// sign-in, which opens in the same tap (L6); another day's only opens it.
-    fileprivate func sendNow(_ sync: ParentLockerSync, unmarkedConfirmed: Bool) {
-        let day = viewModel.date
-        let isToday = viewModel.isToday
-        switch AssistantParentLockerSendStep.first(
-            on: day, isToday: isToday, unmarkedConfirmed: unmarkedConfirmed, sync: sync
-        ) {
-        case .ask(let unmarked):
-            unmarkedToAsk = unmarked
+    /// Another day's send, signed in, always asks first, naming anyone
+    /// unmarked there: it replaces what the office has for that day (bug hunt
+    /// 2026-10-20, #17).
+    fileprivate func sendNow(_ sync: ParentLockerSync) {
+        let day = viewModel.date, isToday = viewModel.isToday
+        run(
+            AssistantParentLockerSendStep.first(on: day, isToday: isToday, unmarkedConfirmed: false, sync: sync),
+            on: day, isToday: isToday, sync: sync
+        )
+    }
+
+    /// Her yes to `question`: the day it asked about, wherever the grid has
+    /// gone since.
+    fileprivate func answer(_ question: AssistantParentLockerSendStep.Question, _ sync: ParentLockerSync) {
+        run(question.answered(sync: sync), on: question.day, isToday: question.isToday, sync: sync)
+    }
+
+    fileprivate func run(_ step: AssistantParentLockerSendStep, on day: Date, isToday: Bool, sync: ParentLockerSync) {
+        switch step {
+        case .ask, .confirmDay:
+            asked = AssistantParentLockerSendStep.Question(day: day, isToday: isToday, step: step)
             return
         case .signIn:
             onParentLockerSignIn()

@@ -31,6 +31,13 @@ final class AttendanceViewModel {
     /// Arrival, here or on another device, a tap on an iPhone tile marks
     /// late, and Siri's "here" does too.
     private(set) var phase: AttendancePhase = .arrival
+    /// The day's records read as arrival closed (`AttendanceLatePhase.closedAnywhere`):
+    /// Close Arrival's automatic absences, or children this device saw the
+    /// close take in not all undone. After Reopen Arrival it keeps Close
+    /// Arrival on offer with nobody unmarked, as the way back to Late
+    /// (`offersCloseArrival`); Reopen used to be one way (review of the
+    /// 2026-10-20 fixes, (a) 3).
+    private(set) var readsClosed = false
     /// Bumped when a mark made here leaves no one unmarked on a day that has
     /// arrived: the success tap and "Everyone's here". Never by a load.
     private(set) var completions = 0
@@ -95,12 +102,15 @@ final class AttendanceViewModel {
             fetched = try store.loadRecords(for: target)
         } catch {
             phase = AttendanceLatePhase.isLate(on: target, defaults: defaults) ? .late : .arrival
+            readsClosed = false
             report("Couldn't load this day's attendance. Try again in a moment.", error, while: "loading records")
             return
         }
-        // Closed here, or on another device: its automatic absences, as
-        // `CDAttendanceStore.arrivalClosed` reads them.
-        let closedAnywhere = fetched.contains(where: AttendanceDeduplication.isAutomaticAbsence)
+        // Closed here, or on another device: its automatic absences, or this
+        // device saw them and their children aren't all unmarked again (an
+        // Undo), as `CDAttendanceStore.arrivalClosed` reads them.
+        let closedAnywhere = AttendanceLatePhase.closedAnywhere(on: target, records: fetched, defaults: defaults)
+        readsClosed = closedAnywhere
         phase = AttendanceLatePhase.isLate(on: target, closedAnywhere: closedAnywhere, defaults: defaults)
             ? .late : .arrival
         let records = fetched.deduplicatedPerStudentDay()
@@ -232,6 +242,9 @@ final class AttendanceViewModel {
             try modelContext.obtainPermanentIDs(for: marked.filter(\.objectID.isTemporaryID))
             phase = .late
             AttendanceLatePhase.setLate(true, on: selectedDate, defaults: defaults)
+            // Who it marked, so their absences undone on another device (two
+            // closed at once, one undid) bring this one back to Arrival too.
+            readsClosed = AttendanceLatePhase.closedAnywhere(on: selectedDate, records: marked, defaults: defaults)
             // As on the Assistant's grid: Siri's last change is from before
             // arrival closed, so "Undo that" can't reach past this.
             SiriAttendanceChange.forget(ifOn: selectedDate, defaults: defaults)
@@ -257,7 +270,9 @@ final class AttendanceViewModel {
     }
 
     /// Back to Arrival on the day on screen, even if another device closed
-    /// it; marks stay as they are.
+    /// it; marks stay as they are. The children the close took in stay
+    /// remembered, so Close Arrival stays on offer as the way back to Late
+    /// (`offersCloseArrival`).
     func reopenArrival() {
         phase = .arrival
         AttendanceLatePhase.reopen(on: selectedDate, defaults: defaults)

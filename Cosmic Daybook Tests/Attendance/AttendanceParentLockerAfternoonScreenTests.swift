@@ -59,10 +59,13 @@ struct AttendanceParentLockerAfternoonScreenTests {
 
     @Test("The iPhone's row offers Send once everyone's marked and nothing has gone")
     func compactRowOffersSend() {
-        #expect(Screen.compactRowOffersSend(isOpen: true, isFuture: false, isRollComplete: true))
-        #expect(!Screen.compactRowOffersSend(isOpen: true, isFuture: false, isRollComplete: false))
-        #expect(!Screen.compactRowOffersSend(isOpen: false, isFuture: false, isRollComplete: true), "already sent")
-        #expect(!Screen.compactRowOffersSend(isOpen: true, isFuture: true, isRollComplete: true))
+        #expect(Screen.compactRowOffersSend(isOpen: true, isFuture: false, isRollComplete: true, isToday: true))
+        #expect(!Screen.compactRowOffersSend(isOpen: true, isFuture: false, isRollComplete: false, isToday: true))
+        #expect(
+            !Screen.compactRowOffersSend(isOpen: false, isFuture: false, isRollComplete: true, isToday: true),
+            "already sent"
+        )
+        #expect(!Screen.compactRowOffersSend(isOpen: true, isFuture: true, isRollComplete: true, isToday: true))
     }
 
     @Test("The reminder's tap offers ParentLocker's send with ParentLocker picked")

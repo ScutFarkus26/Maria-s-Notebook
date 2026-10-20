@@ -195,7 +195,7 @@ struct AssistantAttendanceView: View {
         }
         .overlay { HundredthDayConfetti(trigger: confettiBursts) }
         .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { topInset = $0 }
-        .modifier(AssistantFirstRunPrompts())
+        // Setup and the name sheet are the tabs' (`AssistantTabs`), so only one name sheet is asked for.
         .sheet(isPresented: $showingClassroom) {
             AssistantClassroomSheet()
         }
@@ -218,8 +218,10 @@ struct AssistantAttendanceView: View {
         .task {
             // Every time the screen comes back (another tab, say), not just
             // the first: SwiftUI ends this task while it's away, so imports
-            // in between were never shown.
-            if let viewModel { viewModel.load() } else { startDay() }
+            // in between were never shown. After a night away it goes to
+            // today (`reloadAfterAway`): left on Restock overnight, the
+            // scene-phase return below may never have reached this tab.
+            if let viewModel { viewModel.reloadAfterAway() } else { startDay() }
             // The class, the guide's marks and locked days all arrive by
             // import; without this the screen shows them only when reloaded.
             if let viewModel, let storeID = coreDataStack.sharedPersistentStore?.identifier {
@@ -403,8 +405,10 @@ struct AssistantAttendanceView: View {
             usesShortName: usesShortNames,
             height: height,
             onTap: {
+                // Only a tap that marked: VoiceOver's double tap on a tile
+                // where a tap does nothing took the Undo away too.
+                guard viewModel.tap(row) else { return }
                 lateUndo = nil
-                viewModel.tap(row)
                 ring(for: row, in: viewModel)
             },
             markedBy: AssistantAttendanceViewModel.markerName(

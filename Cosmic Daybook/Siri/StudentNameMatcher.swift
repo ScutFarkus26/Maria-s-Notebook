@@ -10,7 +10,9 @@
 //  first and stop at the first one that finds anyone, so an exact "Sarah
 //  Klein" never drags in Sarah Adler, while a bare "Sarah" returns both and
 //  Siri asks which. The exact tiers cover former children too before any
-//  sound-alike is tried.
+//  sound-alike is tried. A tier also brings in the names spelled
+//  differently that sound just the same (Sara for Sarah, `soundFolded`), so
+//  Siri asks which rather than going by the spelling the recognizer wrote.
 //
 
 import Foundation
@@ -54,45 +56,68 @@ nonisolated enum StudentNameMatcher {
     }
 
     /// The exact tiers, strictest first; the first that finds anyone wins.
+    ///
+    /// A tier also returns the names that sound just the same as the one
+    /// heard but are spelled differently (`soundFolded`), so "Sarah" with
+    /// Sara and Sarah in the class returns both and Siri asks which: the
+    /// spelling is only the recognizer's guess (bug hunt 2026-10-20, #26).
+    /// Such a name settles a tier on its own only with the last name or its
+    /// initial ("Sarah Klein" finds Sara Klein). A first name that only
+    /// sounds alike never does: "Leah", who has left, is never marked as Lea
+    /// in the class (bug hunt 2026-10-17, #4).
     private static func exactMatches(for words: [String], in roster: [Candidate]) -> [Candidate] {
-        let query = words.joined(separator: " ")
-        let tiers: [(Candidate) -> Bool] = [
-            // "Maya Stone", or a nickname with the last name.
-            { fullNames(of: $0).contains(query) },
-            // "Maya S", the notebook's short form.
-            { shortNames(of: $0).contains(query) },
-            // One name on its own: first, nickname or last.
-            { words.count == 1 && singleNames(of: $0).contains(query) },
-            // The start of a name: "Mir" for Miriam. Three letters at least,
-            // so "Al" doesn't match half the class.
-            { query.count >= 3 && singleNames(of: $0).contains { $0.hasPrefix(query) } }
-        ]
-        for tier in tiers {
-            let found = roster.filter(tier)
-            if !found.isEmpty { return found }
+        let spelled = tiers(for: words, fold: { $0 }, withPrefix: true)
+        let soundAlike = tiers(for: words.map(soundFolded), fold: soundFolded, withPrefix: false)
+        for (index, (tier, alike)) in zip(spelled, soundAlike).enumerated() {
+            // The full name and the short form carry the last name.
+            let alikeSettles = index < 2
+            guard roster.contains(where: tier) || (alikeSettles && roster.contains(where: alike)) else { continue }
+            return roster.filter { tier($0) || alike($0) }
         }
         return []
     }
 
+    /// The exact tiers for `words`, every name form passed through `fold`.
+    /// Without `withPrefix` the last tier finds no one: "Leah" folded to
+    /// "lea" would start Leandra.
+    private static func tiers(
+        for words: [String], fold: @escaping (String) -> String, withPrefix: Bool
+    ) -> [(Candidate) -> Bool] {
+        let query = words.joined(separator: " ")
+        return [
+            // "Maya Stone", or a nickname with the last name.
+            { fullNames(of: $0, fold).contains(query) },
+            // "Maya S", the notebook's short form.
+            { shortNames(of: $0, fold).contains(query) },
+            // One name on its own: first, nickname or last.
+            { words.count == 1 && singleNames(of: $0, fold).contains(query) },
+            // The start of a name: "Mir" for Miriam. Three letters at least,
+            // so "Al" doesn't match half the class.
+            { withPrefix && query.count >= 3 && singleNames(of: $0, fold).contains { $0.hasPrefix(query) } }
+        ]
+    }
+
     // MARK: - Name forms
 
-    private static func fullNames(of candidate: Candidate) -> Set<String> {
-        let last = normalized(candidate.lastName)
-        return Set(givenNames(of: candidate).map { "\($0) \(last)" })
+    private static func fullNames(of candidate: Candidate, _ fold: (String) -> String) -> Set<String> {
+        let last = fold(normalized(candidate.lastName))
+        return Set(givenNames(of: candidate, fold).map { "\($0) \(last)" })
     }
 
-    private static func shortNames(of candidate: Candidate) -> Set<String> {
+    private static func shortNames(of candidate: Candidate, _ fold: (String) -> String) -> Set<String> {
         guard let initial = normalized(candidate.lastName).first else { return [] }
-        return Set(givenNames(of: candidate).map { "\($0) \(initial)" })
+        return Set(givenNames(of: candidate, fold).map { "\($0) \(initial)" })
     }
 
-    private static func singleNames(of candidate: Candidate) -> Set<String> {
-        givenNames(of: candidate).union([normalized(candidate.lastName)]).subtracting([""])
+    private static func singleNames(of candidate: Candidate, _ fold: (String) -> String) -> Set<String> {
+        givenNames(of: candidate, fold).union([fold(normalized(candidate.lastName))]).subtracting([""])
     }
 
     /// First name and nickname: the names a child is called by.
-    private static func givenNames(of candidate: Candidate) -> Set<String> {
-        Set([candidate.firstName, candidate.nickname ?? ""].map(normalized)).subtracting([""])
+    private static func givenNames(
+        of candidate: Candidate, _ fold: (String) -> String = { $0 }
+    ) -> Set<String> {
+        Set([candidate.firstName, candidate.nickname ?? ""].map { fold(normalized($0)) }).subtracting([""])
     }
 
     // MARK: - Near misses
@@ -169,6 +194,19 @@ nonisolated enum StudentNameMatcher {
     }
 
     // MARK: - Normalizing
+
+    /// A name as it sounds when spelled either way, word by word: a final
+    /// "h" after a vowel is dropped, so Sarah and Sara, Noah and Noa, Rivkah
+    /// and Rivka read the same, and Beth and Bet don't. Normalized as
+    /// `normalized` ("Sárah" → "sara"). The phone grids tell such names
+    /// apart as they do shared ones (`AttendanceGridNames`).
+    static func soundFolded(_ name: String) -> String {
+        normalizedWords(name).map { word in
+            guard word.count > 2, word.hasSuffix("h"),
+                  let before = word.dropLast().last, "aeiou".contains(before) else { return word }
+            return String(word.dropLast())
+        }.joined(separator: " ")
+    }
 
     /// Lowercased, accents folded, punctuation dropped ("Maya S." → "maya s").
     static func normalized(_ text: String) -> String {

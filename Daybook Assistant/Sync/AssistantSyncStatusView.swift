@@ -113,9 +113,11 @@ struct AssistantSyncStatusView: View {
                 Image(systemName: "icloud.slash")
                 Text(problem)
                     .foregroundStyle(.orange)
-            } else if bootstrapper.sendingStopped {
-                // iCloud sync stopped, and rebuilding the stack once didn't
-                // bring it back: only reopening the app does.
+            } else if bootstrapper.sendingNeedsRelaunch {
+                // iCloud sync stopped, or the class's iCloud setup failed,
+                // and rebuilding the stack once didn't bring it back, or a
+                // share call has run past its watchdog and may never return:
+                // only reopening the app does.
                 Image(systemName: "exclamationmark.icloud")
                 Text(Self.sendingStoppedMessage)
                     .foregroundStyle(.orange)

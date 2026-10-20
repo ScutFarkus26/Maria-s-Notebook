@@ -153,7 +153,9 @@ struct AssistantArrivalBar: View {
             if emailAfterClose {
                 Button("Mark \(unmarkedNames.count) Absent & Email", role: .destructive) {
                     closeArrival()
-                    onEmailFrontDesk()
+                    // Only after a close that went through; otherwise the
+                    // line above the grid says why (bug hunt 2026-10-20, #4).
+                    if viewModel.emailCanFollowClose() { onEmailFrontDesk() }
                 }
             }
             // From the email button too, for a day someone else sends it.
@@ -255,7 +257,7 @@ struct AssistantArrivalBar: View {
     }
 
     /// Close Arrival while anyone's unmarked, or after Reopen Arrival while
-    /// Close Arrival's absences stand; "Late" once closed. Nothing ahead of
+    /// the day still reads as closed; "Late" once closed. Nothing ahead of
     /// the day (there's no arrival yet) or on a locked day, and no Close
     /// Arrival while the email button below offers it
     /// (`AssistantFrontDesk.offersCloseAndEmail`).
@@ -272,8 +274,8 @@ struct AssistantArrivalBar: View {
         if showsArrivalControl {
             switch viewModel.phase {
             case .arrival:
-                // With nobody left to mark (reopened while Close Arrival's
-                // absences stand), it goes straight back to Late: there's
+                // With nobody left to mark (reopened while the day still
+                // reads as closed), it goes straight back to Late: there's
                 // no one to ask about.
                 Button(sendsOnClose ? "Close Arrival & Send" : "Close Arrival") {
                     if unmarkedNames.isEmpty { closeArrival() } else { confirmingClose = true }
@@ -318,16 +320,17 @@ struct AssistantArrivalBar: View {
 
     /// Close Arrival sends the class to ParentLocker too.
     private var sendsOnClose: Bool {
-        viewModel.frontDesk.closesWithSend(by: viewModel, hasSync: bootstrapper.parentLockerForScreens != nil)
+        Self.sendsOnClose(
+            unmarked: unmarkedNames.count,
+            closesWithSend: viewModel.frontDesk.closesWithSend(
+                by: viewModel, hasSync: bootstrapper.parentLockerForScreens != nil
+            )
+        )
     }
 
     /// The question's plain close: "Mark 3 Absent", or "Mark 3 Absent & Send".
     private var closeButtonTitle: String {
         Self.closeButtonTitle(unmarked: unmarkedNames.count, sends: sendsOnClose)
-    }
-
-    static func closeButtonTitle(unmarked: Int, sends: Bool) -> String {
-        "Mark \(unmarked) Absent" + (sends ? " & Send" : "")
     }
 
     private func closeArrival() {
@@ -343,5 +346,22 @@ struct AssistantArrivalBar: View {
         // Not signed in: the sheet waits for the Undo's moment (`watchSignIn`),
         // unless there's no Undo to keep in reach.
         if sync.needsSignIn, undo == nil { showingSignIn = true }
+    }
+}
+
+// MARK: - Close Arrival's words and send
+
+extension AssistantArrivalBar {
+
+    /// Whether Close Arrival sends the class to ParentLocker: the guide
+    /// picked it, and someone is still unmarked. Back to Late with nobody
+    /// unmarked (after Reopen Arrival) marks no one and offers no Undo, and it
+    /// queued a send all the same (bug hunt 2026-10-20, #6).
+    static func sendsOnClose(unmarked: Int, closesWithSend: Bool) -> Bool {
+        unmarked > 0 && closesWithSend
+    }
+
+    static func closeButtonTitle(unmarked: Int, sends: Bool) -> String {
+        "Mark \(unmarked) Absent" + (sends ? " & Send" : "")
     }
 }
