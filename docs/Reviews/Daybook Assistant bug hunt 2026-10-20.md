@@ -1,6 +1,6 @@
 # Daybook Assistant bug hunt 2026-10-20
 
-> **Not fixed yet.** Found at main 884cf9bd; the fixes are planned in <../Plans/Plan - Daybook Assistant bug hunt 2026-10-20 fixes.md>.
+> **All fixed** on main in 5533235a (2026-10-20) except the items marked "Not changing", and sent to TestFlight as Assistant 1.1 (023) in the Assistants group. One gap left open: a phone that never saw the close can't know arrival was closed (a Tide decision). Found at main 884cf9bd; the fixes, four code reviews and their fix rounds are in <../Plans/Plan - Daybook Assistant bug hunt 2026-10-20 fixes.md>.
 > In short: a read-only hunt over the whole Daybook Assistant (its own ~12,600 lines plus how it uses the ~22,400 shared notebook lines it compiles) found 28 findings plus five groups of smaller ones, and no iOS 18 problems; the worst are the grid opening on yesterday the next morning, the Late phase slipping back to Arrival on phones that didn't close arrival, a stray tap losing "Absent, Sick", one stuck send holding every later mark on the phone, and a reminder tap emailing the front desk a second time.
 
 "Confirmed" means the code path was traced end to end. "Plausible" means the path is real but the trigger depends on timing, data, or something Apple doesn't document.
