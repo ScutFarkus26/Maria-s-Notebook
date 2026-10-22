@@ -5,25 +5,43 @@ import CoreData
 ///
 /// She has no way to inspect sync and no reason to learn how, so this reports
 /// only the states that change what she should do: everything's away, hold on
-/// to your phone a moment longer, or it'll go once you're back online.
+/// to your phone a moment longer, it'll go once you're back online, or the
+/// network she's on isn't letting iCloud through and Wi-Fi off would.
 ///
 /// "Away" means CloudKit says so. A saved context only means the marks are on
-/// this phone; they have reached the guide once an export of the shared store
-/// (the only store her marks are written to, see `CDAttendanceStore`) that
-/// began after the save finishes successfully, and none waits to go into the
-/// classroom share (`AssistantShareAttacher`). The saves and exports are
+/// this phone. A new mark has reached the guide once the share step
+/// (`AssistantShareAttacher`) has put it into the classroom share, which it
+/// counts until then. An edit or a removal of a record already there goes by
+/// Core Data's own upload of the shared store (the only store her marks are
+/// written to, see `CDAttendanceStore`): it has gone once an export that
+/// began after the save finishes successfully. The saves and exports are
 /// recorded for the whole app (`AssistantSyncRecord`), not by this line.
+/// Every save used to wait for an export, so on a Wi-Fi that blocks iCloud
+/// the line read "Not sent yet" all morning while every mark had gone by the
+/// share step (2026-10-22).
 struct AssistantSyncStatusView: View {
     let coreDataStack: CoreDataStack
     @Environment(AssistantBootstrapper.self) private var bootstrapper
     @State private var hasUnsavedChanges = false
 
-    static var lastSharedSaveKey: String { AssistantSyncRecord.lastSharedSaveKey }
+    static var lastSharedEditSaveKey: String { AssistantSyncRecord.lastSharedEditSaveKey }
     static var lastSharedExportStartKey: String { AssistantSyncRecord.lastSharedExportStartKey }
     static var lastSharedImportEndKey: String { AssistantSyncRecord.lastSharedImportEndKey }
 
     enum Status: Equatable {
-        case sent, sending, waitingForNetwork
+        case sent
+        case sending
+        /// The last upload failed for a reason other than the network, and
+        /// an edit waits for it; Core Data tries again by itself.
+        case tryingAgain
+        /// iCloud couldn't be reached, and the phone has no usable network
+        /// (or none known yet).
+        case offline
+        /// iCloud couldn't be reached though the phone is on a network: the
+        /// network isn't letting it through. On Wi-Fi, turning Wi-Fi off
+        /// moves the phone to cellular, which the watch follows with a retry
+        /// (`AssistantNetworkWatch`); that is the one thing she can do.
+        case notReachingICloud(onWifi: Bool)
     }
 
     /// When iCloud sync has stopped on this iPhone (`AssistantBootstrapper.sendingStopped`).
@@ -36,31 +54,41 @@ struct AssistantSyncStatusView: View {
     private var status: Status {
         Self.status(
             hasUnsavedChanges: hasUnsavedChanges,
-            lastSave: record?.lastSave ?? 0,
+            lastEditSave: record?.lastEditSave ?? 0,
             lastExportStart: record?.lastExportStart ?? 0,
-            lastExportFailed: record?.lastExportFailed ?? false,
+            lastExportFailure: record?.lastExportFailure,
             waitingForShare: AssistantShareAttacher.shared.pendingCount,
-            shareOffline: AssistantShareAttacher.shared.isOffline
+            shareOffline: AssistantShareAttacher.shared.isOffline,
+            network: AssistantStack.networkWatch?.current
         )
     }
 
-    /// Sent once an export that began after the last save has finished and
-    /// nothing waits to go into the share; until then sending, or waiting for
-    /// the network when the last export failed or the share step couldn't
-    /// reach iCloud (`AssistantShareAttacher.isOffline`). Before the share
-    /// step said so, marks stuck offline read "Sending to iCloud…" for good.
+    /// Sent once nothing waits to go into the share and no edit waits for
+    /// an upload (an export that began after it has finished). Otherwise
+    /// sending, unless iCloud couldn't be reached: the share step said so
+    /// with marks still waiting (`AssistantShareAttacher.isOffline`), or the
+    /// last export failed on the network with an edit still waiting for one.
+    /// Then the network the phone is on tells "back online" from "this
+    /// network isn't reaching iCloud". A failed export of another kind with
+    /// an edit waiting reads as trying again, not as offline.
     static func status(
         hasUnsavedChanges: Bool,
-        lastSave: Double,
+        lastEditSave: Double,
         lastExportStart: Double,
-        lastExportFailed: Bool,
+        lastExportFailure: AssistantSyncRecord.ExportFailure?,
         waitingForShare: Int = 0,
-        shareOffline: Bool = false
+        shareOffline: Bool = false,
+        network: AssistantNetworkWatch.PathState? = nil
     ) -> Status {
-        if hasUnsavedChanges || waitingForShare > 0 || lastSave > lastExportStart {
-            return lastExportFailed || (shareOffline && waitingForShare > 0) ? .waitingForNetwork : .sending
+        let editWaits = lastEditSave > lastExportStart
+        guard hasUnsavedChanges || waitingForShare > 0 || editWaits else { return .sent }
+        let noConnection = (shareOffline && waitingForShare > 0) || (lastExportFailure == .network && editWaits)
+        if noConnection {
+            guard let network, network.usable else { return .offline }
+            return .notReachingICloud(onWifi: network.interface == .wifi)
         }
-        return .sent
+        if lastExportFailure == .other, editWaits { return .tryingAgain }
+        return .sending
     }
 
     /// iOS 26.4.0 dropped CloudKit's sync pushes, so the guide's changes only
@@ -131,12 +159,29 @@ struct AssistantSyncStatusView: View {
                 case .sending:
                     Image(systemName: "arrow.triangle.2.circlepath")
                     Text("Sending to iCloud…")
-                case .waitingForNetwork:
+                case .tryingAgain:
+                    Image(systemName: "exclamationmark.icloud")
+                    Text(Self.tryingAgainMessage)
+                case .offline:
                     Image(systemName: "icloud.slash")
-                    Text("Not sent yet. They'll go when you're back online.")
+                    Text(Self.offlineMessage)
+                case .notReachingICloud(let onWifi):
+                    Image(systemName: "icloud.slash")
+                    Text(Self.notReachingICloudMessage(onWifi: onWifi))
                 }
             }
         }
+    }
+
+    static let tryingAgainMessage = "Couldn't send yet. Trying again."
+    static let offlineMessage = "Not sent yet. They'll go when you're back online."
+
+    /// On Wi-Fi she can do something about it; on cellular or a wired link
+    /// there's nothing to suggest.
+    static func notReachingICloudMessage(onWifi: Bool) -> String {
+        onWifi
+            ? "Not sent yet. This Wi-Fi isn't reaching iCloud. Try turning Wi-Fi off for a minute."
+            : "Not sent yet. This network isn't reaching iCloud."
     }
 
     /// "· class updated 2 min ago", redrawn each minute only while on screen.

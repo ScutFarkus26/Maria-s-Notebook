@@ -76,7 +76,7 @@ final class UnsentChangesKeepAlive {
         observers.append(center.addObserver(
             forName: .NSManagedObjectContextDidSave, object: viewContext, queue: nil
         ) { [weak self] note in
-            guard Self.leavesSomethingToSend(Self.changedObjects(in: note)) else { return }
+            guard Self.leavesSomethingToUpload(in: note) else { return }
             let now = Date()
             MainActor.assumeIsolated { self?.saved(at: now) }
         })
@@ -160,6 +160,25 @@ final class UnsentChangesKeepAlive {
         #else
         return true
         #endif
+    }
+
+    /// Whether the save in `note` leaves something only CloudKit's own
+    /// upload can carry. In the Assistant a new classroom record goes by the
+    /// share step (`AssistantShareAttacher`), which puts it into the
+    /// classroom share itself and counts it until it's in; only an edit or a
+    /// removal of a record already there waits for the upload. Counting new
+    /// marks too made the sync line and Leave wait for an upload that had
+    /// nothing left to carry, and on a Wi-Fi that blocks iCloud the line said
+    /// "Not sent yet" all morning while every mark had gone (2026-10-22).
+    /// The notebook's every change goes by the upload.
+    nonisolated static func leavesSomethingToUpload(in note: Notification) -> Bool {
+        #if ASSISTANT_APP
+        let keys = [NSUpdatedObjectsKey, NSDeletedObjectsKey]
+        #else
+        let keys = [NSInsertedObjectsKey, NSUpdatedObjectsKey, NSDeletedObjectsKey]
+        #endif
+        let changed = keys.flatMap { key in Array((note.userInfo?[key] as? Set<NSManagedObject>) ?? []) }
+        return leavesSomethingToSend(changed)
     }
 
     /// Returns once CloudKit has exported the saves made so far, or `limit`

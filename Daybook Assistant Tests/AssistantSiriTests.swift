@@ -227,8 +227,9 @@ struct AssistantSiriTests {
 
     // Sync and sharing bug hunt 2026-10-05, #6: only the sync line's own
     // listener noted a save, so a Siri mark made with the app closed and
-    // sent while offline later read "All marks sent".
-    @Test("A Siri mark made with no window open counts as unsent until an export after it")
+    // sent while offline later read "All marks sent". Since 2026-10-22 a new
+    // mark is the share step's to count; a change to it is the upload's.
+    @Test("A Siri mark made with no window open is the share step's to count; changing it is unsent until an export after it")
     func siriMarkIsUnsent() async throws {
         defer { cleanUp() }
         let kids = try classOfThree()
@@ -237,12 +238,17 @@ struct AssistantSiriTests {
         record.record(.init(isExport: true, start: Date(), end: Date(), succeeded: true))
         try await Task.sleep(for: .milliseconds(10))
 
-        try await session().mark(try #require(kids["Maya"]), as: .present)
-        #expect(record.lastSave > record.lastExportStart)
+        let maya = try #require(kids["Maya"])
+        try await session().mark(maya, as: .present)
+        #expect(record.lastEditSave == 0, "a new mark goes by the share step, which counts it")
+        #expect(!keepAlive.hasUnsentWork)
+
+        try await session().mark(maya, as: .absent)
+        #expect(record.lastEditSave > record.lastExportStart)
         #expect(keepAlive.hasUnsentWork)
         let line = AssistantSyncStatusView.status(
-            hasUnsavedChanges: false, lastSave: record.lastSave, lastExportStart: record.lastExportStart,
-            lastExportFailed: record.lastExportFailed
+            hasUnsavedChanges: false, lastEditSave: record.lastEditSave, lastExportStart: record.lastExportStart,
+            lastExportFailure: record.lastExportFailure
         )
         #expect(line == .sending)
     }

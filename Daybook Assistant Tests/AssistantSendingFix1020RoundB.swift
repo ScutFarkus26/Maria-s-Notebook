@@ -175,10 +175,14 @@ struct AssistantSendingFix1020RoundB {
                             succeeded: true))
         #expect(unsent(0, keepAlive, record) == nil)
 
-        AssistantTestSupport.student("Maya", "Stone", in: stack.viewContext)
+        let mark = CDAttendanceRecord(context: stack.viewContext)
+        mark.id = UUID()
+        try stack.viewContext.save()
+        #expect(!keepAlive.hasUnsentWork, "a new mark is the share step's to count")
+        mark.note = "Early pickup"
         try stack.viewContext.save()
         #expect(keepAlive.hasUnsentWork)
-        #expect(unsent(0, keepAlive, nil) == .uncounted, "a save this launch")
+        #expect(unsent(0, keepAlive, nil) == .uncounted, "an edit this launch")
     }
 
     // MARK: - Helpers

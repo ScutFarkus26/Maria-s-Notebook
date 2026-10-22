@@ -183,13 +183,17 @@ struct AssistantShareAttacherOfflineTests {
 
     @Test("The sync line says marks wait for the network only while some wait and the share step is offline")
     func lineSaysOffline() {
-        func line(waiting: Int, offline: Bool, exported: Double = 1) -> AssistantSyncStatusView.Status {
+        func line(
+            waiting: Int, offline: Bool, exported: Double = 1, network: AssistantNetworkWatch.PathState? = nil
+        ) -> AssistantSyncStatusView.Status {
             AssistantSyncStatusView.status(
-                hasUnsavedChanges: false, lastSave: 2, lastExportStart: exported,
-                lastExportFailed: false, waitingForShare: waiting, shareOffline: offline
+                hasUnsavedChanges: false, lastEditSave: 2, lastExportStart: exported,
+                lastExportFailure: nil, waitingForShare: waiting, shareOffline: offline, network: network
             )
         }
-        #expect(line(waiting: 1, offline: true) == .waitingForNetwork)
+        #expect(line(waiting: 1, offline: true) == .offline)
+        #expect(line(waiting: 1, offline: true, network: .init(usable: true, interface: .wifi))
+            == .notReachingICloud(onWifi: true), "on a network, iCloud is what isn't reached")
         #expect(line(waiting: 1, offline: false) == .sending)
         #expect(line(waiting: 0, offline: true, exported: 3) == .sent)
     }

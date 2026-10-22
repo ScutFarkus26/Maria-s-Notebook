@@ -81,16 +81,18 @@ struct AssistantScreenStateTests {
         #expect(try recordCount(stack) == 1)
     }
 
-    @Test("Sent only once an export that began after the last save has finished")
+    @Test("Sent only once an export that began after the last edit has finished")
     func syncStatus() {
         typealias Line = AssistantSyncStatusView
-        #expect(Line.status(hasUnsavedChanges: false, lastSave: 10, lastExportStart: 20, lastExportFailed: false)
+        #expect(Line.status(hasUnsavedChanges: false, lastEditSave: 10, lastExportStart: 20, lastExportFailure: nil)
             == .sent)
-        #expect(Line.status(hasUnsavedChanges: false, lastSave: 20, lastExportStart: 10, lastExportFailed: false)
+        #expect(Line.status(hasUnsavedChanges: false, lastEditSave: 20, lastExportStart: 10, lastExportFailure: nil)
             == .sending)
-        #expect(Line.status(hasUnsavedChanges: false, lastSave: 20, lastExportStart: 10, lastExportFailed: true)
-            == .waitingForNetwork)
-        #expect(Line.status(hasUnsavedChanges: true, lastSave: 10, lastExportStart: 20, lastExportFailed: false)
+        #expect(Line.status(hasUnsavedChanges: false, lastEditSave: 20, lastExportStart: 10, lastExportFailure: .network)
+            == .offline)
+        #expect(Line.status(hasUnsavedChanges: false, lastEditSave: 20, lastExportStart: 10, lastExportFailure: .other)
+            == .tryingAgain)
+        #expect(Line.status(hasUnsavedChanges: true, lastEditSave: 10, lastExportStart: 20, lastExportFailure: nil)
             == .sending)
     }
 
@@ -102,7 +104,7 @@ struct AssistantScreenStateTests {
         let defaults = AssistantTestSupport.makeDefaults()
         let day = try AssistantTestSupport.day("2031-01-06")
         let syncKeys = [
-            AssistantSyncStatusView.lastSharedSaveKey,
+            AssistantSyncStatusView.lastSharedEditSaveKey,
             AssistantSyncStatusView.lastSharedExportStartKey,
             AssistantSyncStatusView.lastSharedImportEndKey
         ]

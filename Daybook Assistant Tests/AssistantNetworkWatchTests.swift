@@ -55,6 +55,22 @@ struct AssistantNetworkWatchTests {
         try await Task.sleep(for: settled)
         #expect(retries.count == 2, "a stopped watch tries nothing")
     }
+
+    // 2026-10-22: the sync line tells "back online" from "this network
+    // isn't reaching iCloud" by the network the phone is on.
+    @Test("The watch keeps the network the phone is on, for the sync line", .timeLimit(.minutes(1)))
+    func currentPath() async throws {
+        let (paths, feed) = AsyncStream.makeStream(of: Path.self)
+        let watch = AssistantNetworkWatch(paths: paths, settle: .milliseconds(50)) {}
+        #expect(watch.current == nil)
+        feed.yield(wifi)
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(watch.current == wifi)
+        feed.yield(offline)
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(watch.current == offline, "going offline is kept too, with no retry to settle")
+        watch.stop()
+    }
 }
 
 /// How many retries a watch asked for.

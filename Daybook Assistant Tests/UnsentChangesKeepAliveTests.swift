@@ -18,9 +18,13 @@ struct UnsentChangesKeepAliveTests {
 
     private var context: NSManagedObjectContext { stack.viewContext }
 
+    /// A change to a mark already there: what the upload carries. A new
+    /// mark is the share step's to count (`newMarkIsTheShareSteps`).
     private func saveAMark() {
         let record = CDAttendanceRecord(context: context)
         record.id = UUID()
+        #expect(context.safeSave())
+        record.note = "Early pickup"
         #expect(context.safeSave())
     }
 
@@ -46,6 +50,29 @@ struct UnsentChangesKeepAliveTests {
         let keepAlive = UnsentChangesKeepAlive(viewContext: context)
         #expect(context.safeSave())
         #expect(!keepAlive.hasUnsentWork)
+    }
+
+    // 2026-10-22: a new mark goes by the share step, which puts it into the
+    // share itself and counts it until it's in. Waiting for an upload too
+    // held the sync line on "Not sent yet" all morning on a Wi-Fi that
+    // blocked iCloud, with every mark gone, and Leave's Wait with it.
+    @Test("A new mark alone leaves nothing for the upload; changing or removing it does")
+    func newMarkIsTheShareSteps() {
+        let keepAlive = UnsentChangesKeepAlive(viewContext: context)
+        let record = CDAttendanceRecord(context: context)
+        record.id = UUID()
+        #expect(context.safeSave())
+        #expect(!keepAlive.hasUnsentWork)
+
+        record.note = "Early pickup"
+        #expect(context.safeSave())
+        #expect(keepAlive.hasUnsentWork)
+        keepAlive.exported(startedAt: Date())
+        #expect(!keepAlive.hasUnsentWork)
+
+        context.delete(record)
+        #expect(context.safeSave())
+        #expect(keepAlive.hasUnsentWork)
     }
 
     // Sync and sharing bug hunt 2026-10-05, #8. Only the first save was
@@ -89,6 +116,9 @@ struct UnsentChangesKeepAliveTests {
         let record = CDAttendanceRecord(context: split.context)
         record.id = UUID()
         split.context.assign(record, to: split.sharedStore)
+        #expect(split.context.safeSave())
+        #expect(!keepAlive.hasUnsentWork, "a new mark is the share step's to count")
+        record.note = "Early pickup"
         #expect(split.context.safeSave())
         #expect(keepAlive.hasUnsentWork)
     }

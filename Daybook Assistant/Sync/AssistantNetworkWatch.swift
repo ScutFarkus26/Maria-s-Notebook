@@ -1,5 +1,6 @@
 import Foundation
 import Network
+import Observation
 import OSLog
 
 /// Tries the waiting marks again when the network comes back or changes.
@@ -24,8 +25,11 @@ import OSLog
 /// for the first import; and not while that wait runs, or just after the app
 /// came back, whose own return has run it (`runsParentLockerReturn`).
 ///
-/// One per stack (`AssistantStack`), stopped when a rebuild closes it.
+/// One per stack (`AssistantStack`), stopped when a rebuild closes it. The
+/// sync line reads `current`, the network the phone is on, to say whether
+/// marks wait for a network or for one that isn't reaching iCloud.
 @MainActor
+@Observable
 final class AssistantNetworkWatch {
     private static let logger = Logger.app(category: "networkWatch")
 
@@ -95,13 +99,18 @@ final class AssistantNetworkWatch {
         return now.timeIntervalSince(activeSince) >= returnOverlap
     }
 
-    private var reader: Task<Void, Never>?
-    private var pendingRetry: Task<Void, Never>?
+    /// The network the phone is on, as last reported: nil before the first
+    /// path. The sync line (`AssistantSyncStatusView`) tells "back online"
+    /// from "this network isn't reaching iCloud" by it.
+    private(set) var current: PathState?
+
+    @ObservationIgnored private var reader: Task<Void, Never>?
+    @ObservationIgnored private var pendingRetry: Task<Void, Never>?
     /// A change waiting to settle came back from no network.
-    private var pendingCameBack = false
-    private let settle: Duration
-    private let retry: @MainActor () -> Void
-    private let cameBack: @MainActor () -> Void
+    @ObservationIgnored private var pendingCameBack = false
+    @ObservationIgnored private let settle: Duration
+    @ObservationIgnored private let retry: @MainActor () -> Void
+    @ObservationIgnored private let cameBack: @MainActor () -> Void
 
     /// Follows `paths`, calling `retry` once a change has settled for
     /// `settle`, and `cameBack` too when the change was the network coming
@@ -151,6 +160,7 @@ final class AssistantNetworkWatch {
     }
 
     private func follow(_ path: PathState, after last: PathState?) {
+        current = path
         if !path.usable {
             // Gone again before the link settled: nothing to try on. The
             // next usable path is a return of its own.

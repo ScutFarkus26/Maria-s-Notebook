@@ -9,7 +9,7 @@ import CoreData
 enum AssistantStack {
     private static var stack: CoreDataStack?
 
-    /// What the open stack has saved and not yet sent. Kept here rather than
+    /// What the open stack has edited and not yet uploaded. Kept here rather than
     /// through `UnsentChangesKeepAlive.install`, so Leave can ask it whether
     /// marks are still on their way (`AssistantBootstrapper.unsentMarks`).
     private(set) static var keepAlive: UnsentChangesKeepAlive?

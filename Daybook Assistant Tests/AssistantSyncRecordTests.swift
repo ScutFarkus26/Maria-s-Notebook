@@ -10,11 +10,17 @@ import Testing
 // for the whole app now (`AssistantSyncRecord`). CloudKit's events can't be
 // made in a test, so they're reported through `record(_:)`, which is all the
 // event observer does.
+//
+// 2026-10-22: a new mark is the share step's to count, and only an edit or a
+// removal waits for Core Data's upload; a failed export says offline only
+// when the network was the reason; and the network the phone is on tells
+// "back online" from "this network isn't reaching iCloud".
 @Suite("Assistant sync record")
 @MainActor
 struct AssistantSyncRecordTests {
 
     private typealias Line = AssistantSyncStatusView
+    private typealias Path = AssistantNetworkWatch.PathState
 
     private let stack: CoreDataStack
     private let defaults: UserDefaults
@@ -24,48 +30,87 @@ struct AssistantSyncRecordTests {
         defaults = AssistantTestSupport.makeDefaults()
     }
 
-    private func export(started start: Date, succeeded: Bool = true) -> AssistantSyncRecord.FinishedEvent {
-        .init(isExport: true, start: start, end: start.addingTimeInterval(1), succeeded: succeeded)
+    private func export(
+        started start: Date, succeeded: Bool = true, noConnection: Bool = false
+    ) -> AssistantSyncRecord.FinishedEvent {
+        .init(isExport: true, start: start, end: start.addingTimeInterval(1), succeeded: succeeded,
+              noConnection: noConnection)
     }
 
-    private func status(_ record: AssistantSyncRecord, waiting: Int = 0) -> Line.Status {
+    private func status(_ record: AssistantSyncRecord, waiting: Int = 0, network: Path? = nil) -> Line.Status {
         Line.status(
             hasUnsavedChanges: false,
-            lastSave: record.lastSave,
+            lastEditSave: record.lastEditSave,
             lastExportStart: record.lastExportStart,
-            lastExportFailed: record.lastExportFailed,
-            waitingForShare: waiting
+            lastExportFailure: record.lastExportFailure,
+            waitingForShare: waiting,
+            network: network
         )
     }
 
-    @Test("Any save on the view context counts, with no sync line on screen")
+    @Test("A new mark is the share step's to count; an edit on the view context counts, with no sync line on screen")
     func saveIsRecorded() throws {
         let record = AssistantSyncRecord(viewContext: stack.viewContext, defaults: defaults)
-        #expect(record.lastSave == 0)
+        #expect(record.lastEditSave == 0)
         let mark = CDAttendanceRecord(context: stack.viewContext)
         mark.id = UUID()
         #expect(stack.viewContext.safeSave())
-        #expect(record.lastSave > 0)
-        #expect(defaults.double(forKey: AssistantSyncRecord.lastSharedSaveKey) == record.lastSave)
+        #expect(record.lastEditSave == 0, "a new mark goes by the share step, which counts it")
+        #expect(status(record) == .sent)
+        #expect(status(record, waiting: 1) == .sending)
+
+        mark.note = "Early pickup"
+        #expect(stack.viewContext.safeSave())
+        #expect(record.lastEditSave > 0)
+        #expect(defaults.double(forKey: AssistantSyncRecord.lastSharedEditSaveKey) == record.lastEditSave)
         #expect(status(record) == .sending)
 
         record.record(export(started: Date()))
         #expect(status(record) == .sent)
     }
 
-    @Test("A failed export says not sent yet; a late event for an earlier export doesn't take the start back")
+    @Test("A failed export says offline only when the network was why; a late event for an earlier export doesn't take the start back")
     func exportsAreRecorded() {
         let record = AssistantSyncRecord(viewContext: stack.viewContext, defaults: defaults)
         record.saved(at: Date(timeIntervalSince1970: 100))
         record.record(export(started: Date(timeIntervalSince1970: 50), succeeded: false))
-        #expect(record.lastExportFailed)
-        #expect(status(record) == .waitingForNetwork)
+        #expect(record.lastExportFailure == .other)
+        #expect(status(record) == .tryingAgain)
+        record.record(export(started: Date(timeIntervalSince1970: 60), succeeded: false, noConnection: true))
+        #expect(record.lastExportFailure == .network)
+        #expect(status(record) == .offline)
 
         record.record(export(started: Date(timeIntervalSince1970: 200)))
-        #expect(!record.lastExportFailed)
+        #expect(record.lastExportFailure == nil)
         #expect(status(record) == .sent)
         record.record(export(started: Date(timeIntervalSince1970: 150)))
         #expect(record.lastExportStart == 200)
+    }
+
+    @Test("A failed export with no edit waiting for the upload changes nothing on the line")
+    func failureWithoutAnEdit() {
+        let record = AssistantSyncRecord(viewContext: stack.viewContext, defaults: defaults)
+        record.record(export(started: Date(timeIntervalSince1970: 50), succeeded: false, noConnection: true))
+        #expect(record.lastExportFailure == .network)
+        #expect(status(record) == .sent)
+        #expect(status(record, waiting: 1) == .sending, "the share step says for itself whether it's offline")
+    }
+
+    @Test("The network the phone is on tells back online from a network that isn't reaching iCloud")
+    func networkWording() {
+        let record = AssistantSyncRecord(viewContext: stack.viewContext, defaults: defaults)
+        record.saved(at: Date(timeIntervalSince1970: 100))
+        record.record(export(started: Date(timeIntervalSince1970: 50), succeeded: false, noConnection: true))
+        #expect(status(record) == .offline, "before the first path, nothing better is known")
+        #expect(status(record, network: Path(usable: false, interface: .other)) == .offline)
+        #expect(status(record, network: Path(usable: true, interface: .wifi)) == .notReachingICloud(onWifi: true))
+        #expect(status(record, network: Path(usable: true, interface: .cellular)) == .notReachingICloud(onWifi: false))
+
+        #expect(Line.notReachingICloudMessage(onWifi: true)
+            == "Not sent yet. This Wi-Fi isn't reaching iCloud. Try turning Wi-Fi off for a minute.")
+        #expect(Line.notReachingICloudMessage(onWifi: false) == "Not sent yet. This network isn't reaching iCloud.")
+        #expect(Line.offlineMessage == "Not sent yet. They'll go when you're back online.")
+        #expect(Line.tryingAgainMessage == "Couldn't send yet. Trying again.")
     }
 
     @Test("Only a successful import moves the class's last update")
@@ -80,30 +125,37 @@ struct AssistantSyncRecordTests {
         #expect(record.lastExportStart == 0)
     }
 
-    @Test("The times are kept for the next launch, and go with the class")
+    @Test("The times are kept for the next launch, and go with the class; the old every-save time is dropped")
     func keptAndForgotten() {
+        let retiredKey = CloudKitEnvironment.scoped("Assistant.lastSharedSave")
+        defaults.set(100.0, forKey: retiredKey)
         let first = AssistantSyncRecord(viewContext: stack.viewContext, defaults: defaults)
+        #expect(defaults.object(forKey: retiredKey) == nil)
+        #expect(first.lastEditSave == 0, "a save from before new marks stopped counting doesn't hold the line")
         first.saved(at: Date(timeIntervalSince1970: 100))
         first.record(export(started: Date(timeIntervalSince1970: 50)))
         let next = AssistantSyncRecord(viewContext: stack.viewContext, defaults: defaults)
-        #expect(next.lastSave == 100)
+        #expect(next.lastEditSave == 100)
         #expect(next.lastExportStart == 50)
         #expect(status(next) == .sending)
 
         AssistantSyncRecord.forget(defaults: defaults)
         let afterLeave = AssistantSyncRecord(viewContext: stack.viewContext, defaults: defaults)
-        #expect(afterLeave.lastSave == 0)
+        #expect(afterLeave.lastEditSave == 0)
         #expect(status(afterLeave) == .sent)
     }
 
-    @Test("Marks waiting to go into the share read as sending, even after an export")
+    @Test("Marks waiting to go into the share read as sending, even after an export; offline only when the share step says so")
     func waitingForTheShare() {
-        #expect(Line.status(hasUnsavedChanges: false, lastSave: 10, lastExportStart: 20, lastExportFailed: false,
-                            waitingForShare: 1) == .sending)
-        #expect(Line.status(hasUnsavedChanges: false, lastSave: 10, lastExportStart: 20, lastExportFailed: true,
-                            waitingForShare: 2) == .waitingForNetwork)
-        #expect(Line.status(hasUnsavedChanges: false, lastSave: 10, lastExportStart: 20, lastExportFailed: false,
-                            waitingForShare: 0) == .sent)
+        func line(waiting: Int, failure: AssistantSyncRecord.ExportFailure? = nil, offline: Bool = false) -> Line.Status {
+            Line.status(hasUnsavedChanges: false, lastEditSave: 10, lastExportStart: 20, lastExportFailure: failure,
+                        waitingForShare: waiting, shareOffline: offline)
+        }
+        #expect(line(waiting: 1) == .sending)
+        #expect(line(waiting: 2, failure: .network) == .sending, "the upload's failure isn't the share step's")
+        #expect(line(waiting: 2, offline: true) == .offline)
+        #expect(line(waiting: 0) == .sent)
+        #expect(line(waiting: 0, offline: true) == .sent)
     }
 
     @Test("A successful export or import says iCloud can be reached; a failed one doesn't")

@@ -77,7 +77,8 @@ extension AssistantBootstrapper {
     // MARK: - Leaving with marks not sent
 
     /// Marks this iPhone holds that haven't reached the guide: some waiting
-    /// to go into the share (counted), or a save iCloud hasn't sent yet.
+    /// to go into the share (counted), or an edit iCloud hasn't uploaded yet.
+    /// A new mark is the share step's to count, so it's never uncounted.
     enum UnsentMarks: Equatable {
         case counted(Int)
         case uncounted
