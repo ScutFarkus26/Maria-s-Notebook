@@ -86,12 +86,18 @@ struct AssistantSyncFix1020Sy {
         let stack = try AssistantTestSupport.makeStack()
         let ids = try Self.marks(1, in: stack)
         let share = HangingShare(), watchdog = Watchdog()
-        let attacher = launch(share, watchdog)
+        let attacher = launch(share, watchdog, networkUsable: true)
+        let stalls = Stalls()
+        attacher.onStalled = { stalls.count += 1 }
 
         attacher.attach(ids, container: stack.container, context: stack.viewContext)
         #expect(await waitUntil { share.inFlight == 1 })
         watchdog.fire()
         #expect(await waitUntil(upTo: .seconds(3)) { attacher.sendingLooksStuck })
+        // 2026-10-22: on a usable network, a stuck call is sending stalled,
+        // and the bootstrapper rebuilds the stack rather than leaving her to
+        // quit the app (`sendStalled`).
+        #expect(stalls.count == 1, "a stuck call on the open stack is told as a stall")
         // The same stack: nothing new starts; a save only asks for another round.
         attacher.flush(container: stack.container, context: stack.viewContext)
         try await Task.sleep(for: .milliseconds(50))
@@ -186,12 +192,15 @@ struct AssistantSyncFix1020Sy {
 
     // MARK: - Helpers
 
-    private func launch(_ share: HangingShare, _ watchdog: Watchdog) -> AssistantShareAttacher {
+    private func launch(
+        _ share: HangingShare, _ watchdog: Watchdog, networkUsable: Bool? = nil
+    ) -> AssistantShareAttacher {
         AssistantShareAttacher(
             defaults: defaults,
             sleep: { _ in throw CancellationError() },
             attempt: share.attempt,
-            watchdog: watchdog.sleep
+            watchdog: watchdog.sleep,
+            networkUsable: { networkUsable }
         )
     }
 
@@ -213,6 +222,12 @@ struct AssistantSyncFix1020Sy {
         }
         return condition()
     }
+}
+
+/// How many times the attacher said sending looked stalled.
+@MainActor
+private final class Stalls {
+    var count = 0
 }
 
 /// A store on disk, so a rebuilt stack opens the same files and reads the

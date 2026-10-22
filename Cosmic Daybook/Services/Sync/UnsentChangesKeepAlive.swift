@@ -168,8 +168,8 @@ final class UnsentChangesKeepAlive {
     /// classroom share itself and counts it until it's in; only an edit or a
     /// removal of a record already there waits for the upload. Counting new
     /// marks too made the sync line and Leave wait for an upload that had
-    /// nothing left to carry, and on a Wi-Fi that blocks iCloud the line said
-    /// "Not sent yet" all morning while every mark had gone (2026-10-22).
+    /// nothing left to carry, and while iCloud couldn't be reached the line
+    /// said "Not sent yet" all morning though every mark had gone (2026-10-22).
     /// The notebook's every change goes by the upload.
     nonisolated static func leavesSomethingToUpload(in note: Notification) -> Bool {
         #if ASSISTANT_APP

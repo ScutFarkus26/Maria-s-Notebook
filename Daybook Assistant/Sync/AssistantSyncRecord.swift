@@ -12,8 +12,8 @@ import Observation
 /// counts it until it's in. Only an edit or a removal of a record already
 /// there goes by Core Data's export, so only such a save is recorded here
 /// (`UnsentChangesKeepAlive.leavesSomethingToUpload`). Every save used to
-/// count, and on a Wi-Fi that blocks iCloud the line said "Not sent yet"
-/// all morning while every mark had reached the guide (2026-10-22).
+/// count, and while iCloud couldn't be reached the line said "Not sent yet"
+/// all morning though every mark had reached the guide (2026-10-22).
 ///
 /// Recorded for as long as the app runs, beside `UnsentChangesKeepAlive`
 /// (`AssistantStack`), not by the line itself. The line's own listeners

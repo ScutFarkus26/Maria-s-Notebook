@@ -56,8 +56,8 @@ struct AssistantNetworkWatchTests {
         #expect(retries.count == 2, "a stopped watch tries nothing")
     }
 
-    // 2026-10-22: the sync line tells "back online" from "this network
-    // isn't reaching iCloud" by the network the phone is on.
+    // 2026-10-22: the sync line tells "back online" from "trouble reaching
+    // iCloud" by the network the phone is on, and the share step a stall.
     @Test("The watch keeps the network the phone is on, for the sync line", .timeLimit(.minutes(1)))
     func currentPath() async throws {
         let (paths, feed) = AsyncStream.makeStream(of: Path.self)

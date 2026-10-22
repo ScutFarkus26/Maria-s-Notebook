@@ -74,6 +74,58 @@ extension AssistantBootstrapper {
         AssistantShareAttacher.shared.onMirroringStopped = { [weak self] container in
             self?.mirroringStopped(in: container)
         }
+        AssistantShareAttacher.shared.onStalled = { [weak self] in
+            self?.sendStalled()
+        }
+    }
+
+    // MARK: - Sending stalled
+
+    /// The share step says sending has stalled: its calls keep failing to
+    /// reach iCloud, or one has run past the watchdog, while the phone is on
+    /// a usable network (`AssistantShareAttacher.onStalled`). Each share
+    /// call waits on Core Data's own upload of the shared store, and once
+    /// that upload is failing Core Data retries it on a growing backoff the
+    /// app can't see or trigger, so the calls keep timing out the same way.
+    /// What moved Nicole's marks on 2026-10-22 was turning Wi-Fi off and on,
+    /// which starts that upload afresh; a relaunch does too. So the stack is
+    /// rebuilt, once per `stallRebuildWindow`: a fresh container starts its
+    /// upload with no backoff, and the new stack's first flush tries the
+    /// waiting marks on it. If iCloud still can't be reached after that, the
+    /// attacher's rests go on, and the line keeps saying so. Nothing is
+    /// deferred: the attacher tells again after its next failed rounds.
+    func sendStalled() {
+        let settled = switch phase {
+        case .ready, .needsClassroom: !isLeavingHere && !isRebuilding
+        case .starting, .failed: false
+        }
+        switch Self.stallResponse(settled: settled, rebuiltRecently: rebuiltForStallRecently) {
+        case .ignore:
+            break
+        case .rebuild:
+            rebuiltForStallAt = now()
+            Task { await rebuildStack(because: "Sending to iCloud has stalled on a usable network") }
+        }
+    }
+
+    enum StallResponse: Equatable {
+        case ignore, rebuild
+    }
+
+    /// What a stall calls for: a rebuild while the app is settled, unless one
+    /// for a stall ran within `stallRebuildWindow` (it didn't help, so iCloud
+    /// is out of reach for now, and rebuilding round and round would only
+    /// flash "Starting…" at her).
+    nonisolated static func stallResponse(settled: Bool, rebuiltRecently: Bool) -> StallResponse {
+        settled && !rebuiltRecently ? .rebuild : .ignore
+    }
+
+    /// How long after a rebuild for a stall the next stall is left alone.
+    nonisolated static let stallRebuildWindow: TimeInterval = 10 * 60
+
+    private var rebuiltForStallRecently: Bool {
+        guard let last = rebuiltForStallAt else { return false }
+        return now().timeIntervalSince(last) < Self.stallRebuildWindow
     }
 
     func mirroringStopped(in container: NSPersistentCloudKitContainer) {

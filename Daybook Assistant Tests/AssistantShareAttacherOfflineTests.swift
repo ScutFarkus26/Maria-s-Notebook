@@ -23,9 +23,10 @@ struct AssistantShareAttacherOfflineTests {
 
     private var context: NSManagedObjectContext { stack.viewContext }
 
-    private func launch() -> AssistantShareAttacher {
+    private func launch(networkUsable: Bool? = nil) -> AssistantShareAttacher {
         AssistantShareAttacher(
-            defaults: defaults, now: { [clock] in clock.now }, sleep: share.sleep, attempt: share.attempt
+            defaults: defaults, now: { [clock] in clock.now }, sleep: share.sleep, attempt: share.attempt,
+            networkUsable: { networkUsable }
         )
     }
 
@@ -193,9 +194,62 @@ struct AssistantShareAttacherOfflineTests {
         }
         #expect(line(waiting: 1, offline: true) == .offline)
         #expect(line(waiting: 1, offline: true, network: .init(usable: true, interface: .wifi))
-            == .notReachingICloud(onWifi: true), "on a network, iCloud is what isn't reached")
+            == .troubleReachingICloud, "on a network, iCloud is what isn't reached")
         #expect(line(waiting: 1, offline: false) == .sending)
         #expect(line(waiting: 0, offline: true, exported: 3) == .sent)
+    }
+
+    // 2026-10-22: Nicole's marks sat all morning with every share call
+    // failing the same way on a working network, and only turning Wi-Fi off
+    // and on moved them. The share step now says when sending looks stalled,
+    // and the bootstrapper restarts the stack (`sendStalled`).
+    @Test("Two passes in a row that can't reach iCloud on a usable network say sending has stalled")
+    func stallIsToldOnAUsableNetwork() async throws {
+        let stalled = Stalls()
+        let attacher = launch(networkUsable: true)
+        attacher.onStalled = { stalled.count += 1 }
+        share.offline = true
+        await attach(marks(1), with: attacher)
+        #expect(stalled.count == 0, "one failure is a blip on any link")
+        await attach(marks(1), with: attacher)
+        #expect(stalled.count == 1)
+        await attach(marks(1), with: attacher)
+        #expect(stalled.count == 2, "told after every such round; the bootstrapper decides how often it acts")
+
+        // A rebuilt stack starts the count over.
+        let rebuilt = try AssistantTestSupport.makeStack()
+        attacher.flush(container: rebuilt.container, context: rebuilt.viewContext)
+        await attacher.waitUntilIdle()
+        #expect(stalled.count == 2, "the first pass on the new stack isn't a stall")
+    }
+
+    @Test("Offline, before the first path, or with a mark going in, failures are not a stall")
+    func noStallWithoutAUsableNetwork() async {
+        for usable in [false, nil] as [Bool?] {
+            let stalled = Stalls()
+            let attacher = launch(networkUsable: usable)
+            attacher.onStalled = { stalled.count += 1 }
+            share.offline = true
+            for _ in 0..<3 { await attach(marks(1), with: attacher) }
+            #expect(stalled.count == 0, "no network, or none known: that's being offline")
+            attacher.forgetWaiting()
+            share.offline = false
+        }
+
+        let stalled = Stalls()
+        let attacher = launch(networkUsable: true)
+        attacher.onStalled = { stalled.count += 1 }
+        share.offline = true
+        await attach(marks(1), with: attacher)
+        share.offline = false
+        share.dropsConnectionAfter = 1
+        await attach(marks(2), with: attacher)
+        #expect(stalled.count == 0, "a mark reached iCloud this round")
+
+        #expect(AssistantShareAttacher.sendLooksStalled(networkFailuresInARow: 2, networkUsable: true))
+        #expect(!AssistantShareAttacher.sendLooksStalled(networkFailuresInARow: 1, networkUsable: true))
+        #expect(!AssistantShareAttacher.sendLooksStalled(networkFailuresInARow: 2, networkUsable: false))
+        #expect(!AssistantShareAttacher.sendLooksStalled(networkFailuresInARow: 2, networkUsable: nil))
     }
 
     @Test("A rebuilt stack and Leave both clear the offline flag")
@@ -214,6 +268,12 @@ struct AssistantShareAttacherOfflineTests {
         attacher.forgetWaiting()
         #expect(!attacher.isOffline)
     }
+}
+
+/// How many times the attacher said sending looked stalled.
+@MainActor
+private final class Stalls {
+    var count = 0
 }
 
 @MainActor

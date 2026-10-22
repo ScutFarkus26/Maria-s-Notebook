@@ -14,7 +14,7 @@ import Testing
 // 2026-10-22: a new mark is the share step's to count, and only an edit or a
 // removal waits for Core Data's upload; a failed export says offline only
 // when the network was the reason; and the network the phone is on tells
-// "back online" from "this network isn't reaching iCloud".
+// "back online" from "trouble reaching iCloud".
 @Suite("Assistant sync record")
 @MainActor
 struct AssistantSyncRecordTests {
@@ -96,19 +96,20 @@ struct AssistantSyncRecordTests {
         #expect(status(record, waiting: 1) == .sending, "the share step says for itself whether it's offline")
     }
 
-    @Test("The network the phone is on tells back online from a network that isn't reaching iCloud")
+    // The line names no culprit on a network: build 024 blamed the Wi-Fi,
+    // a cause that was never shown (2026-10-22).
+    @Test("The network the phone is on tells back online from trouble reaching iCloud, blaming nothing")
     func networkWording() {
         let record = AssistantSyncRecord(viewContext: stack.viewContext, defaults: defaults)
         record.saved(at: Date(timeIntervalSince1970: 100))
         record.record(export(started: Date(timeIntervalSince1970: 50), succeeded: false, noConnection: true))
         #expect(status(record) == .offline, "before the first path, nothing better is known")
         #expect(status(record, network: Path(usable: false, interface: .other)) == .offline)
-        #expect(status(record, network: Path(usable: true, interface: .wifi)) == .notReachingICloud(onWifi: true))
-        #expect(status(record, network: Path(usable: true, interface: .cellular)) == .notReachingICloud(onWifi: false))
+        #expect(status(record, network: Path(usable: true, interface: .wifi)) == .troubleReachingICloud)
+        #expect(status(record, network: Path(usable: true, interface: .cellular)) == .troubleReachingICloud)
 
-        #expect(Line.notReachingICloudMessage(onWifi: true)
-            == "Not sent yet. This Wi-Fi isn't reaching iCloud. Try turning Wi-Fi off for a minute.")
-        #expect(Line.notReachingICloudMessage(onWifi: false) == "Not sent yet. This network isn't reaching iCloud.")
+        #expect(Line.troubleReachingICloudMessage == "Not sent yet. Having trouble reaching iCloud. Trying again.")
+        #expect(!Line.troubleReachingICloudMessage.contains("Wi-Fi"), "the network isn't blamed")
         #expect(Line.offlineMessage == "Not sent yet. They'll go when you're back online.")
         #expect(Line.tryingAgainMessage == "Couldn't send yet. Trying again.")
     }

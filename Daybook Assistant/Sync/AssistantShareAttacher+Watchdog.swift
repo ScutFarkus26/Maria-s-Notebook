@@ -40,15 +40,22 @@ extension AssistantShareAttacher {
     }
 
     /// The pass's share call is still running at the limit: the line says
-    /// so, and a stack rebuilt since no longer waits for it.
+    /// so, and a stack rebuilt since no longer waits for it. On the open
+    /// stack, with the phone on a usable network, that is sending stalled
+    /// (`onStalled`): the bootstrapper rebuilds the stack, and this pass is
+    /// let go of when the new stack's first flush arrives.
     func callOutlivedWatchdog(token: Int, on container: NSPersistentCloudKitContainer) {
         guard token == passToken, pass != nil else { return }
         let limit = Int(Self.watchdogLimit)
         Self.watchdogLogger.error("A share call has run \(limit, privacy: .public) s and may never return")
         sendingLooksStuck = true
         stuckContainer = container
-        guard letGoOfStuckPass(), let lastContainer, let lastContext else { return }
-        flush(container: lastContainer, context: lastContext)
+        if letGoOfStuckPass() {
+            guard let lastContainer, let lastContext else { return }
+            flush(container: lastContainer, context: lastContext)
+        } else if networkUsable() == true {
+            onStalled?()
+        }
     }
 
     /// Lets go of a pass whose share call outlived the watchdog on a stack

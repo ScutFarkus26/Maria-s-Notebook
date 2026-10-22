@@ -98,6 +98,10 @@ final class AssistantBootstrapper {
     /// stop soon after gives up rather than rebuilding round and round, but
     /// one hours later, on a stack that worked meanwhile, gets its rebuild.
     @ObservationIgnored var rebuiltForMirroringStopAt: Date?
+    /// When the stack was last rebuilt because sending stalled on a usable
+    /// network (`sendStalled`): the next stall within `stallRebuildWindow`
+    /// is left to the attacher's own rests.
+    @ObservationIgnored var rebuiltForStallAt: Date?
     /// Taken out of the class (`checkStillInClass`).
     var removedFromClass = false
     @ObservationIgnored var classCheck: Task<Void, Never>?

@@ -5,8 +5,8 @@ import CoreData
 ///
 /// She has no way to inspect sync and no reason to learn how, so this reports
 /// only the states that change what she should do: everything's away, hold on
-/// to your phone a moment longer, it'll go once you're back online, or the
-/// network she's on isn't letting iCloud through and Wi-Fi off would.
+/// to your phone a moment longer, it'll go once you're back online, or iCloud
+/// is hard to reach right now and the app keeps trying.
 ///
 /// "Away" means CloudKit says so. A saved context only means the marks are on
 /// this phone. A new mark has reached the guide once the share step
@@ -16,9 +16,14 @@ import CoreData
 /// written to, see `CDAttendanceStore`): it has gone once an export that
 /// began after the save finishes successfully. The saves and exports are
 /// recorded for the whole app (`AssistantSyncRecord`), not by this line.
-/// Every save used to wait for an export, so on a Wi-Fi that blocks iCloud
-/// the line read "Not sent yet" all morning while every mark had gone by the
-/// share step (2026-10-22).
+/// Every save used to wait for an export, so while iCloud couldn't be
+/// reached the line read "Not sent yet" all morning though every mark had
+/// gone by the share step (2026-10-22).
+///
+/// When iCloud can't be reached though the phone is on a network, the line
+/// doesn't blame the network: the same morning, the fault was most likely a
+/// stalled upload on the phone, which a change of network restarted, and
+/// the app now restarts that itself (`AssistantBootstrapper.sendStalled`).
 struct AssistantSyncStatusView: View {
     let coreDataStack: CoreDataStack
     @Environment(AssistantBootstrapper.self) private var bootstrapper
@@ -37,11 +42,12 @@ struct AssistantSyncStatusView: View {
         /// iCloud couldn't be reached, and the phone has no usable network
         /// (or none known yet).
         case offline
-        /// iCloud couldn't be reached though the phone is on a network: the
-        /// network isn't letting it through. On Wi-Fi, turning Wi-Fi off
-        /// moves the phone to cellular, which the watch follows with a retry
-        /// (`AssistantNetworkWatch`); that is the one thing she can do.
-        case notReachingICloud(onWifi: Bool)
+        /// iCloud couldn't be reached though the phone is on a network. Why
+        /// can't be told from here (a stalled upload, a slow link, a network
+        /// that blocks iCloud), so the line names no culprit; the share step
+        /// retries, and sending that keeps failing on a usable network
+        /// restarts the stack (`AssistantBootstrapper.sendStalled`).
+        case troubleReachingICloud
     }
 
     /// When iCloud sync has stopped on this iPhone (`AssistantBootstrapper.sendingStopped`).
@@ -68,9 +74,9 @@ struct AssistantSyncStatusView: View {
     /// sending, unless iCloud couldn't be reached: the share step said so
     /// with marks still waiting (`AssistantShareAttacher.isOffline`), or the
     /// last export failed on the network with an edit still waiting for one.
-    /// Then the network the phone is on tells "back online" from "this
-    /// network isn't reaching iCloud". A failed export of another kind with
-    /// an edit waiting reads as trying again, not as offline.
+    /// Then the network the phone is on tells "back online" from "trouble
+    /// reaching iCloud". A failed export of another kind with an edit
+    /// waiting reads as trying again, not as offline.
     static func status(
         hasUnsavedChanges: Bool,
         lastEditSave: Double,
@@ -85,7 +91,7 @@ struct AssistantSyncStatusView: View {
         let noConnection = (shareOffline && waitingForShare > 0) || (lastExportFailure == .network && editWaits)
         if noConnection {
             guard let network, network.usable else { return .offline }
-            return .notReachingICloud(onWifi: network.interface == .wifi)
+            return .troubleReachingICloud
         }
         if lastExportFailure == .other, editWaits { return .tryingAgain }
         return .sending
@@ -165,9 +171,9 @@ struct AssistantSyncStatusView: View {
                 case .offline:
                     Image(systemName: "icloud.slash")
                     Text(Self.offlineMessage)
-                case .notReachingICloud(let onWifi):
+                case .troubleReachingICloud:
                     Image(systemName: "icloud.slash")
-                    Text(Self.notReachingICloudMessage(onWifi: onWifi))
+                    Text(Self.troubleReachingICloudMessage)
                 }
             }
         }
@@ -176,13 +182,11 @@ struct AssistantSyncStatusView: View {
     static let tryingAgainMessage = "Couldn't send yet. Trying again."
     static let offlineMessage = "Not sent yet. They'll go when you're back online."
 
-    /// On Wi-Fi she can do something about it; on cellular or a wired link
-    /// there's nothing to suggest.
-    static func notReachingICloudMessage(onWifi: Bool) -> String {
-        onWifi
-            ? "Not sent yet. This Wi-Fi isn't reaching iCloud. Try turning Wi-Fi off for a minute."
-            : "Not sent yet. This network isn't reaching iCloud."
-    }
+    /// Nothing for her to do: the app retries, and restarts its own sending
+    /// when the failures keep coming. Build 024 told her the Wi-Fi wasn't
+    /// reaching iCloud and to turn it off for a minute, a cause that was
+    /// never shown (2026-10-22).
+    static let troubleReachingICloudMessage = "Not sent yet. Having trouble reaching iCloud. Trying again."
 
     /// "· class updated 2 min ago", redrawn each minute only while on screen.
     @ViewBuilder

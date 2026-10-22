@@ -40,7 +40,8 @@ final class AssistantShareAttacher {
     /// "Sending…" while any do (`AssistantSyncStatusView`).
     private(set) var pendingCount = 0
     /// The last pass couldn't reach iCloud and none has put a mark in since:
-    /// the sync line says they'll go once she's back online.
+    /// the sync line says they'll go once she's back online, or that iCloud
+    /// is hard to reach when the phone is on a network.
     var isOffline = false
     /// The running pass's share call has outlived `watchdogLimit` and may
     /// never return (`share(_:to:)` has no time limit and can't be
@@ -116,6 +117,19 @@ final class AssistantShareAttacher {
         }
     }
     @ObservationIgnored weak var unheardStop: NSPersistentCloudKitContainer?
+    /// Told when sending looks stalled: `stallRounds` passes in a row
+    /// couldn't reach iCloud, or one share call has outlived the watchdog,
+    /// while the phone is on a usable network. The bootstrapper then
+    /// rebuilds the stack (`AssistantBootstrapper.sendStalled`), which is
+    /// what a relaunch, or a change of network, did for Core Data's own
+    /// upload: a fresh start with no backoff. Nicole's marks sat all morning
+    /// on 2026-10-22 with every call failing the same way, and only turning
+    /// Wi-Fi off and on moved them. Told after every such round; the
+    /// bootstrapper decides how often it acts.
+    @ObservationIgnored var onStalled: (@MainActor () -> Void)?
+    /// Whether the phone is on a usable network, nil when not yet known
+    /// (`AssistantNetworkWatch.current`): a stall is only called while it is.
+    @ObservationIgnored let networkUsable: @MainActor () -> Bool?
     private let defaults: UserDefaults
     let now: @MainActor () -> Date
     private let sleep: Sleep
@@ -145,8 +159,23 @@ final class AssistantShareAttacher {
     /// looks stuck, and a rebuilt stack stops waiting for it.
     static let watchdogLimit: TimeInterval = 3 * 60
 
+    /// How many passes in a row that couldn't reach iCloud, with the phone on
+    /// a usable network, count as sending having stalled (`onStalled`): two,
+    /// about 30 seconds apart (`rest(afterFailures:noConnection:)`). One
+    /// failure is a blip on any link.
+    nonisolated static let stallRounds = 2
+
+    /// Whether sending looks stalled rather than offline: `failures` passes
+    /// in a row couldn't reach iCloud (none put a mark in), and the phone is
+    /// on a usable network, so it isn't the network that's missing. Unknown
+    /// (`networkUsable` nil, before the first path) counts as not.
+    nonisolated static func sendLooksStalled(networkFailuresInARow failures: Int, networkUsable: Bool?) -> Bool {
+        failures >= stallRounds && networkUsable == true
+    }
+
     /// Tests pass `now`, `sleep`, `attempt`, `zoneCheck`, `filingStopReason`
-    /// (`+Hold`) and `watchdog`: the real ones need a classroom share.
+    /// (`+Hold`), `watchdog` and `networkUsable`: the real ones need a
+    /// classroom share.
     init(
         defaults: UserDefaults = .standard,
         now: @escaping @MainActor () -> Date = Date.init,
@@ -154,12 +183,14 @@ final class AssistantShareAttacher {
         attempt: @escaping Attempt = AssistantShareAttacher.liveAttempt,
         zoneCheck: @escaping ZoneCheck = AssistantShareAttacher.liveZoneCheck,
         filingStopReason: @escaping FilingStopReason = { AssistantStack.filingStopReason },
-        watchdog: @escaping Sleep = { try await Task.sleep(for: .seconds($0)) }
+        watchdog: @escaping Sleep = { try await Task.sleep(for: .seconds($0)) },
+        networkUsable: @escaping @MainActor () -> Bool? = { AssistantStack.networkWatch?.current?.usable }
     ) {
         self.defaults = defaults
         self.now = now
         self.sleep = sleep
         self.watchdog = watchdog
+        self.networkUsable = networkUsable
         self.attempt = attempt
         self.zoneCheck = zoneCheck
         self.filingStopReason = filingStopReason

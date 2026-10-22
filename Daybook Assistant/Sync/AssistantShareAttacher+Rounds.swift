@@ -62,6 +62,14 @@ extension AssistantShareAttacher {
             if result.noConnection {
                 networkFailuresInARow += 1
                 rest = Self.rest(afterFailures: networkFailuresInARow, noConnection: true)
+                if isOffline, Self.sendLooksStalled(
+                    networkFailuresInARow: networkFailuresInARow, networkUsable: networkUsable()
+                ) {
+                    Self.roundsLogger.error(
+                        "\(self.networkFailuresInARow, privacy: .public) passes in a row couldn't reach iCloud on a usable network: sending looks stalled"
+                    )
+                    onStalled?()
+                }
             } else {
                 failuresInARow += 1
                 rest = Self.rest(afterFailures: failuresInARow)

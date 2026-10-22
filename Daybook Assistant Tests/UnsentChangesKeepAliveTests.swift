@@ -54,8 +54,8 @@ struct UnsentChangesKeepAliveTests {
 
     // 2026-10-22: a new mark goes by the share step, which puts it into the
     // share itself and counts it until it's in. Waiting for an upload too
-    // held the sync line on "Not sent yet" all morning on a Wi-Fi that
-    // blocked iCloud, with every mark gone, and Leave's Wait with it.
+    // held the sync line on "Not sent yet" all morning while iCloud couldn't
+    // be reached, with every mark gone, and Leave's Wait with it.
     @Test("A new mark alone leaves nothing for the upload; changing or removing it does")
     func newMarkIsTheShareSteps() {
         let keepAlive = UnsentChangesKeepAlive(viewContext: context)

@@ -27,7 +27,9 @@ import OSLog
 ///
 /// One per stack (`AssistantStack`), stopped when a rebuild closes it. The
 /// sync line reads `current`, the network the phone is on, to say whether
-/// marks wait for a network or for one that isn't reaching iCloud.
+/// marks wait for a network or iCloud is hard to reach on the one she has;
+/// the share step reads it to tell a stall from being offline
+/// (`AssistantShareAttacher.sendLooksStalled`).
 @MainActor
 @Observable
 final class AssistantNetworkWatch {
@@ -101,7 +103,8 @@ final class AssistantNetworkWatch {
 
     /// The network the phone is on, as last reported: nil before the first
     /// path. The sync line (`AssistantSyncStatusView`) tells "back online"
-    /// from "this network isn't reaching iCloud" by it.
+    /// from "trouble reaching iCloud" by it, and the share step a stall
+    /// from being offline.
     private(set) var current: PathState?
 
     @ObservationIgnored private var reader: Task<Void, Never>?

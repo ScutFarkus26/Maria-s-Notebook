@@ -57,6 +57,19 @@ extension AssistantIdentitySuites {
             #expect(respond(false, false, false) == .ignore)
         }
 
+        // 2026-10-22: the share step's calls kept failing on a working
+        // network, and only a change of network, which restarts Core Data's
+        // upload, moved the marks. The app now restarts the stack itself,
+        // once per `stallRebuildWindow`.
+        @Test("Sending stalled on a usable network rebuilds the stack once per window, while the app is settled")
+        func stallResponse() {
+            let respond = AssistantBootstrapper.stallResponse
+            #expect(respond(true, false) == .rebuild)
+            #expect(respond(true, true) == .ignore, "a rebuild didn't help: iCloud is out of reach for now")
+            #expect(respond(false, false) == .ignore, "starting, failed, leaving or rebuilding: the attacher tells again")
+            #expect(AssistantBootstrapper.stallRebuildWindow == 10 * 60)
+        }
+
         // MARK: - Leave
 
         // Before: Leave purged at once, whatever hadn't reached the guide.
