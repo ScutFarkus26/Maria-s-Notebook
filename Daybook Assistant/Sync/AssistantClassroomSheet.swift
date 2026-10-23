@@ -6,8 +6,8 @@ import UserNotifications
 /// The Assistant's one settings screen, behind the person button: whose
 /// classroom this is and since when, what the tiles mean, which way the grid
 /// runs and whether it's split by level, her name, her ParentLocker sign-in
-/// (once the guide picks ParentLocker), the arrival, front-desk and
-/// early-pickup reminders, the background, the bells, and the way out.
+/// (once the guide picks ParentLocker), the arrival, front-desk and early-pickup
+/// reminders, the background, the bells, the app's log (`+Log`), and the way out.
 ///
 /// The guide's name comes from the share's owner identity at display time.
 /// Apple's terms allow showing it to participants but never storing it, and
@@ -50,6 +50,7 @@ struct AssistantClassroomSheet: View {
                 reminderSection
                 backgroundSection
                 bellsSection
+                logSection
                 if AssistantSampleClass.isChosen {
                     sampleSection
                 } else if bootstrapper.sharingService != nil, !AssistantSampleClass.isActive {

@@ -71,6 +71,69 @@ struct AssistantNetworkWatchTests {
         #expect(watch.current == offline, "going offline is kept too, with no retry to settle")
         watch.stop()
     }
+
+    // 2026-10-23: Low Data Mode on the network and Low Power Mode hold
+    // iCloud's work back; the phone reports both, and the watch keeps them
+    // for the sync line and the share step.
+    @Test("Leaving Low Data Mode retries; the hold that's on is named, Low Data Mode first, never while offline")
+    func holds() {
+        let lowData = Path(usable: true, interface: .wifi, lowDataMode: true)
+        #expect(AssistantNetworkWatch.shouldRetry(from: lowData, to: wifi), "she turned it off for this Wi-Fi")
+        #expect(AssistantNetworkWatch.shouldRetry(from: lowData, to: cellular))
+        #expect(!AssistantNetworkWatch.shouldRetry(from: wifi, to: lowData), "it coming on tries nothing")
+        #expect(!AssistantNetworkWatch.shouldRetry(from: lowData, to: lowData))
+        #expect(!AssistantNetworkWatch.shouldRetry(from: nil, to: lowData))
+
+        #expect(AssistantNetworkWatch.hold(on: lowData, lowPowerMode: false) == .lowDataMode(.wifi))
+        #expect(AssistantNetworkWatch.hold(on: lowData, lowPowerMode: true) == .lowDataMode(.wifi))
+        #expect(AssistantNetworkWatch.hold(on: Path(usable: true, interface: .cellular, lowDataMode: true),
+                                           lowPowerMode: false) == .lowDataMode(.cellular))
+        #expect(AssistantNetworkWatch.hold(on: wifi, lowPowerMode: true) == .lowPowerMode)
+        #expect(AssistantNetworkWatch.hold(on: wifi, lowPowerMode: false) == nil)
+        #expect(AssistantNetworkWatch.hold(on: offline, lowPowerMode: true) == nil, "being offline comes first")
+        #expect(AssistantNetworkWatch.hold(on: nil, lowPowerMode: true) == nil)
+    }
+
+    @Test("Low Power Mode going off retries at once, and the watch says when marks are clear to send",
+          .timeLimit(.minutes(1)))
+    func lowPowerMode() async throws {
+        let (paths, feed) = AsyncStream.makeStream(of: Path.self)
+        let (powers, power) = AsyncStream.makeStream(of: Bool.self)
+        let retries = Retries()
+        let watch = AssistantNetworkWatch(paths: paths, powerModes: powers, settle: .milliseconds(50)) {
+            retries.count += 1
+        }
+        #expect(watch.clearToSend == nil, "before the first path")
+        feed.yield(wifi)
+        power.yield(false)
+        power.yield(true)
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(watch.lowPowerMode)
+        #expect(watch.hold == .lowPowerMode)
+        #expect(watch.clearToSend == false)
+        #expect(retries.count == 0, "Low Power Mode coming on tries nothing")
+
+        power.yield(false)
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(retries.count == 1, "going off tries the waiting marks, with no link to settle")
+        #expect(watch.hold == nil)
+        #expect(watch.clearToSend == true)
+
+        feed.yield(Path(usable: true, interface: .wifi, lowDataMode: true))
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(watch.clearToSend == false)
+        #expect(watch.hold == .lowDataMode(.wifi))
+        #expect(retries.count == 1, "Low Data Mode coming on tries nothing")
+        feed.yield(wifi)
+        try await Task.sleep(for: settled)
+        #expect(retries.count == 2, "leaving Low Data Mode tries the waiting marks once the link settles")
+        #expect(watch.clearToSend == true)
+
+        feed.yield(offline)
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(watch.clearToSend == false)
+        watch.stop()
+    }
 }
 
 /// How many retries a watch asked for.

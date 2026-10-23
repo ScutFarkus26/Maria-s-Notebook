@@ -3,7 +3,9 @@ import Network
 import Observation
 import OSLog
 
-/// Tries the waiting marks again when the network comes back or changes.
+/// Tries the waiting marks again when the network comes back or changes,
+/// and keeps what the phone says about its network and power for the sync
+/// line and the share step.
 ///
 /// Her marks go into the classroom share only while the app runs, and a pass
 /// that couldn't reach iCloud rests before its next try. Nothing noticed the
@@ -25,11 +27,15 @@ import OSLog
 /// for the first import; and not while that wait runs, or just after the app
 /// came back, whose own return has run it (`runsParentLockerReturn`).
 ///
+/// Two settings on the phone hold iCloud's work back, and the watch follows
+/// both (`Hold`): Low Data Mode on the network she's on, and Low Power Mode.
+/// When either goes off, the waiting marks are tried at once.
+///
 /// One per stack (`AssistantStack`), stopped when a rebuild closes it. The
-/// sync line reads `current`, the network the phone is on, to say whether
-/// marks wait for a network or iCloud is hard to reach on the one she has;
-/// the share step reads it to tell a stall from being offline
-/// (`AssistantShareAttacher.sendLooksStalled`).
+/// sync line reads `current` and `hold` to say whether marks wait for a
+/// network, for a setting to go off, or iCloud is just hard to reach; the
+/// share step reads `clearToSend` to tell a stall from being offline or
+/// held (`AssistantShareAttacher.sendLooksStalled`).
 @MainActor
 @Observable
 final class AssistantNetworkWatch {
@@ -44,14 +50,21 @@ final class AssistantNetworkWatch {
     nonisolated struct PathState: Sendable, Equatable {
         var usable: Bool
         var interface: Interface
+        /// The network is in Low Data Mode (`NWPath.isConstrained`): a
+        /// setting on the phone, kept per Wi-Fi network and for cellular,
+        /// that holds back iCloud's updates along with other background
+        /// traffic (`Hold.lowDataMode`).
+        var lowDataMode: Bool
 
-        init(usable: Bool, interface: Interface) {
+        init(usable: Bool, interface: Interface, lowDataMode: Bool = false) {
             self.usable = usable
             self.interface = interface
+            self.lowDataMode = lowDataMode
         }
 
         init(_ path: NWPath) {
             usable = path.status == .satisfied
+            lowDataMode = path.isConstrained
             interface = if path.usesInterfaceType(.wifi) {
                 .wifi
             } else if path.usesInterfaceType(.cellular) {
@@ -64,16 +77,37 @@ final class AssistantNetworkWatch {
         }
     }
 
+    /// A setting on this iPhone that holds iCloud's work back, as the phone
+    /// reports it. Core Data's upload of her marks asks the system before
+    /// each try, and the system says no while Low Power Mode is on, until
+    /// the battery is back up or the phone is plugged in (Apple's TN3163);
+    /// a network in Low Data Mode holds iCloud's updates the same way.
+    /// Neither can be overridden by the app, and a relaunch or a rebuilt
+    /// stack doesn't lift them: only the setting going off does. The sync
+    /// line names the one that's on and where to turn it off
+    /// (`AssistantSyncStatusView`); the share step doesn't count failures
+    /// under one as a stall (`clearToSend`). On 2026-10-22 and 2026-10-23
+    /// Nicole's marks sat all morning on the school Wi-Fi and went once she
+    /// turned Wi-Fi off, which is what a Low Data Mode set on that Wi-Fi
+    /// would do; the line used to say only that iCloud was hard to reach.
+    nonisolated enum Hold: Sendable, Equatable {
+        /// The network the phone is on is in Low Data Mode.
+        case lowDataMode(Interface)
+        case lowPowerMode
+    }
+
     /// How long a new link settles before the retry: a phone joining Wi-Fi
     /// reports a path before traffic flows on it.
     static let settle: Duration = .seconds(3)
 
     /// Whether moving from `old` to `new` should try the waiting marks: the
-    /// network came back, or moved to another kind of link. The first path
-    /// (`old` nil) only sets the scene: the launch already tries them.
+    /// network came back, moved to another kind of link, or left Low Data
+    /// Mode (she turned it off for this network, or moved to one without
+    /// it). The first path (`old` nil) only sets the scene: the launch
+    /// already tries them.
     nonisolated static func shouldRetry(from old: PathState?, to new: PathState) -> Bool {
         guard let old, new.usable else { return false }
-        return !old.usable || old.interface != new.interface
+        return !old.usable || old.interface != new.interface || (old.lowDataMode && !new.lowDataMode)
     }
 
     /// Whether moving from `old` to `new` is the network coming back: from
@@ -81,6 +115,16 @@ final class AssistantNetworkWatch {
     nonisolated static func cameBack(from old: PathState?, to new: PathState) -> Bool {
         guard let old else { return false }
         return !old.usable && new.usable
+    }
+
+    /// The hold that's on for a phone on `path` with Low Power Mode
+    /// `lowPowerMode`, if any. Low Data Mode first: it goes with the network
+    /// she's on, which is what a stuck morning has looked like. No hold is
+    /// named without a usable path: being offline comes first.
+    nonisolated static func hold(on path: PathState?, lowPowerMode: Bool) -> Hold? {
+        guard let path, path.usable else { return nil }
+        if path.lowDataMode { return .lowDataMode(path.interface) }
+        return lowPowerMode ? .lowPowerMode : nil
     }
 
     /// How soon after the app became active the network's return counts as
@@ -107,7 +151,23 @@ final class AssistantNetworkWatch {
     /// from being offline.
     private(set) var current: PathState?
 
+    /// Low Power Mode is on (`ProcessInfo.isLowPowerModeEnabled`), followed
+    /// as it changes.
+    private(set) var lowPowerMode = false
+
+    /// The hold that's on, if any (`hold(on:lowPowerMode:)`).
+    var hold: Hold? { Self.hold(on: current, lowPowerMode: lowPowerMode) }
+
+    /// Whether marks can be expected to reach iCloud: a usable network with
+    /// no hold on; nil before the first path. Failing on such a path is what
+    /// the share step calls a stall (`AssistantShareAttacher.sendLooksStalled`).
+    var clearToSend: Bool? {
+        guard let current else { return nil }
+        return current.usable && hold == nil
+    }
+
     @ObservationIgnored private var reader: Task<Void, Never>?
+    @ObservationIgnored private var powerReader: Task<Void, Never>?
     @ObservationIgnored private var pendingRetry: Task<Void, Never>?
     /// A change waiting to settle came back from no network.
     @ObservationIgnored private var pendingCameBack = false
@@ -117,9 +177,13 @@ final class AssistantNetworkWatch {
 
     /// Follows `paths`, calling `retry` once a change has settled for
     /// `settle`, and `cameBack` too when the change was the network coming
-    /// back. Tests pass their own paths and settle.
+    /// back; and `powerModes` (Low Power Mode as it stands, then each
+    /// change), calling `retry` at once when it goes off. Tests pass their
+    /// own paths, power modes and settle; the default `powerModes` never
+    /// says anything.
     init(
         paths: AsyncStream<PathState>,
+        powerModes: AsyncStream<Bool> = AsyncStream { $0.finish() },
         settle: Duration = AssistantNetworkWatch.settle,
         retry: @escaping @MainActor () -> Void,
         cameBack: @escaping @MainActor () -> Void = {}
@@ -135,13 +199,20 @@ final class AssistantNetworkWatch {
                 last = path
             }
         }
+        powerReader = Task { [weak self] in
+            for await on in powerModes {
+                guard let self else { return }
+                followPower(on)
+            }
+        }
     }
 
-    /// The system's paths, from a fresh `NWPathMonitor`. The network coming
-    /// back reaches the class's ParentLocker sync, when one is running and
-    /// hasn't just run its return (`runsParentLockerReturn`).
+    /// The system's paths, from a fresh `NWPathMonitor`, and its Low Power
+    /// Mode. The network coming back reaches the class's ParentLocker sync,
+    /// when one is running and hasn't just run its return
+    /// (`runsParentLockerReturn`).
     static func live(retry: @escaping @MainActor () -> Void) -> AssistantNetworkWatch {
-        AssistantNetworkWatch(paths: systemPaths(), retry: retry) {
+        AssistantNetworkWatch(paths: systemPaths(), powerModes: systemPowerModes(), retry: retry) {
             guard let sync = ParentLockerSync.current, runsParentLockerReturn(
                 awaitingImport: sync.awaitingImport, activeSince: ArrivalReminderTaps.activeSince, now: Date()
             ) else { return }
@@ -153,12 +224,15 @@ final class AssistantNetworkWatch {
     func stop() {
         reader?.cancel()
         reader = nil
+        powerReader?.cancel()
+        powerReader = nil
         pendingRetry?.cancel()
         pendingRetry = nil
     }
 
     deinit {
         reader?.cancel()
+        powerReader?.cancel()
         pendingRetry?.cancel()
     }
 
@@ -189,6 +263,17 @@ final class AssistantNetworkWatch {
         }
     }
 
+    /// Low Power Mode going off tries the waiting marks at once: Core Data's
+    /// upload is let through again from then, and the share call waits on
+    /// it. There's no link to settle.
+    private func followPower(_ on: Bool) {
+        let wasOn = lowPowerMode
+        lowPowerMode = on
+        guard wasOn, !on else { return }
+        Self.logger.notice("Low Power Mode went off: waiting marks are tried")
+        retry()
+    }
+
     /// `NWPathMonitor`'s paths as `PathState`s. Its iterator isn't
     /// `Sendable`, so one task reads it; ending the stream cancels the
     /// monitor.
@@ -203,6 +288,19 @@ final class AssistantNetworkWatch {
                 task.cancel()
                 monitor.cancel()
             }
+        }
+    }
+
+    /// Low Power Mode as it stands, then each change
+    /// (`NSProcessInfoPowerStateDidChange`, posted off the main thread).
+    private static func systemPowerModes() -> AsyncStream<Bool> {
+        AsyncStream { continuation in
+            let center = NotificationCenter.default
+            nonisolated(unsafe) let observer = center.addObserver(
+                forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: nil
+            ) { _ in continuation.yield(ProcessInfo.processInfo.isLowPowerModeEnabled) }
+            continuation.yield(ProcessInfo.processInfo.isLowPowerModeEnabled)
+            continuation.onTermination = { _ in center.removeObserver(observer) }
         }
     }
 }

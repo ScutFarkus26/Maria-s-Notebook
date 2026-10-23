@@ -10,7 +10,11 @@ import Testing
 // release set no retry while CloudKit asked to wait; a mirroring stop found
 // before anyone listened went unheard; the Sample Class stayed up over a
 // join; a failed first account check spun until the app came back.
-@Suite("Assistant sync and joining fixes 2026-10-20")
+//
+// Serialized: `invitationLeavesTheSample` sets `AssistantSampleClass.isChosen`
+// (a plain static) while `failedAccountCheckRetries` waits for a retry that
+// `joinScreenMayShow` reads it for (2026-10-23).
+@Suite("Assistant sync and joining fixes 2026-10-20", .serialized)
 @MainActor
 struct AssistantSyncFix1020Sy {
 
@@ -158,6 +162,13 @@ struct AssistantSyncFix1020Sy {
 
     @Test("A failed account check asks again on its own while the join screen may show")
     func failedAccountCheckRetries() async {
+        // The join screen may show only while the Sample Class isn't open, a
+        // plain static other suites set and (not always in time) restore:
+        // run after the rebuild review suite, the retry never came
+        // (2026-10-23). The premise is this test's to set.
+        let wasChosen = AssistantSampleClass.isChosen
+        defer { AssistantSampleClass.isChosen = wasChosen }
+        AssistantSampleClass.isChosen = false
         let account = FlakyAccount(answers: [nil, .couldNotDetermine, .available])
         let bootstrapper = AssistantBootstrapper(
             fetchAccountStatus: { try account.next() }, accountRetryDelay: .milliseconds(20)

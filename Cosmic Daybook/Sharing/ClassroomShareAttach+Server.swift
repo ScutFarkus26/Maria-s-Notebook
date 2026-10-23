@@ -34,11 +34,12 @@ nonisolated extension ClassroomShareAttach {
     static let attachFetchTimeout = (request: 15.0, resource: 30.0)
 
     /// The latest copy of `share` for an attach: the server's, read with a
-    /// short timeout (`attachFetchTimeout`). Throws when the read finds
-    /// iCloud can't be reached, so no `share(_:to:)` is made offline; any
-    /// other failure falls back to the store's copy, as `current` does.
-    /// `current` keeps CloudKit's default timeouts: Manage Sharing uses it,
-    /// and falling back there more often risks saving a stale change tag.
+    /// short timeout (`attachFetchTimeout`) at user-initiated priority.
+    /// Throws when the read finds iCloud can't be reached, so no
+    /// `share(_:to:)` is made offline; any other failure falls back to the
+    /// store's copy, as `current` does. `current` keeps CloudKit's default
+    /// timeouts: Manage Sharing uses it, and falling back there more often
+    /// risks saving a stale change tag.
     @concurrent
     static func latestForAttach(_ share: CKShare, container: NSPersistentCloudKitContainer) async throws -> CKShare {
         let cloud = await CloudKitConfigurationService.container
@@ -46,6 +47,13 @@ nonisolated extension ClassroomShareAttach {
             ? cloud.privateCloudDatabase
             : cloud.sharedCloudDatabase
         let configuration = CKOperation.Configuration()
+        // A mark she just tapped waits on this read. A CloudKit operation's
+        // default quality of service is discretionary: the system runs it
+        // when it sees fit, pauses it in Low Power Mode, and holds it back
+        // on a network in Low Data Mode (CKOperation.h). At that level the
+        // read can sit until its timeout on a working link, and the pass
+        // then counts the marks as unable to reach iCloud (2026-10-23).
+        configuration.qualityOfService = .userInitiated
         configuration.timeoutIntervalForRequest = attachFetchTimeout.request
         configuration.timeoutIntervalForResource = attachFetchTimeout.resource
         let id = share.recordID

@@ -24,6 +24,10 @@ import CoreData
 /// doesn't blame the network: the same morning, the fault was most likely a
 /// stalled upload on the phone, which a change of network restarted, and
 /// the app now restarts that itself (`AssistantBootstrapper.sendStalled`).
+/// What it does name is a setting on the phone that holds iCloud back, as
+/// the phone reports it (`AssistantNetworkWatch.Hold`): Low Data Mode on
+/// the network she's on, or Low Power Mode. Neither lifts with a retry or a
+/// relaunch, only by being turned off, so the line says where (2026-10-23).
 struct AssistantSyncStatusView: View {
     let coreDataStack: CoreDataStack
     @Environment(AssistantBootstrapper.self) private var bootstrapper
@@ -42,12 +46,21 @@ struct AssistantSyncStatusView: View {
         /// iCloud couldn't be reached, and the phone has no usable network
         /// (or none known yet).
         case offline
-        /// iCloud couldn't be reached though the phone is on a network. Why
-        /// can't be told from here (a stalled upload, a slow link, a network
-        /// that blocks iCloud), so the line names no culprit; the share step
-        /// retries, and sending that keeps failing on a usable network
-        /// restarts the stack (`AssistantBootstrapper.sendStalled`).
+        /// iCloud couldn't be reached though the phone is on a network, with
+        /// no hold the phone reports. Why can't be told from here (a stalled
+        /// upload, a slow link, a network that blocks iCloud), so the line
+        /// names no culprit; the share step retries, and sending that keeps
+        /// failing on such a network restarts the stack
+        /// (`AssistantBootstrapper.sendStalled`).
         case troubleReachingICloud
+        /// iCloud couldn't be reached, and the network the phone is on is in
+        /// Low Data Mode, which holds iCloud's work back: the line says which
+        /// network and where the setting is.
+        case lowDataMode(AssistantNetworkWatch.Interface)
+        /// iCloud couldn't be reached, and Low Power Mode is on, which holds
+        /// Core Data's upload until the battery is back or the phone is
+        /// plugged in (Apple's TN3163).
+        case lowPowerMode
     }
 
     /// When iCloud sync has stopped on this iPhone (`AssistantBootstrapper.sendingStopped`).
@@ -57,6 +70,9 @@ struct AssistantSyncStatusView: View {
     /// whose line says nothing goes to iCloud anyway.
     private var record: AssistantSyncRecord? { AssistantStack.syncRecord }
 
+    /// The setting on the phone that holds iCloud back, if any.
+    private var hold: AssistantNetworkWatch.Hold? { AssistantStack.networkWatch?.hold }
+
     private var status: Status {
         Self.status(
             hasUnsavedChanges: hasUnsavedChanges,
@@ -65,7 +81,9 @@ struct AssistantSyncStatusView: View {
             lastExportFailure: record?.lastExportFailure,
             waitingForShare: AssistantShareAttacher.shared.pendingCount,
             shareOffline: AssistantShareAttacher.shared.isOffline,
-            network: AssistantStack.networkWatch?.current
+            shareStuck: AssistantShareAttacher.shared.sendingLooksStuck,
+            network: AssistantStack.networkWatch?.current,
+            hold: hold
         )
     }
 
@@ -74,9 +92,13 @@ struct AssistantSyncStatusView: View {
     /// sending, unless iCloud couldn't be reached: the share step said so
     /// with marks still waiting (`AssistantShareAttacher.isOffline`), or the
     /// last export failed on the network with an edit still waiting for one.
-    /// Then the network the phone is on tells "back online" from "trouble
-    /// reaching iCloud". A failed export of another kind with an edit
-    /// waiting reads as trying again, not as offline.
+    /// Then the network the phone is on tells "back online" from the rest,
+    /// and a hold the phone reports (`hold`) is named over "trouble reaching
+    /// iCloud". A share call stuck past the watchdog (`shareStuck`) under a
+    /// hold is the hold's doing too; with none, the view says to reopen the
+    /// app before it gets here. A failed export of another kind with an edit
+    /// waiting reads as trying again, not as offline. A hold is named only
+    /// once sending has failed or stuck, not while a first try may still go.
     static func status(
         hasUnsavedChanges: Bool,
         lastEditSave: Double,
@@ -84,14 +106,20 @@ struct AssistantSyncStatusView: View {
         lastExportFailure: AssistantSyncRecord.ExportFailure?,
         waitingForShare: Int = 0,
         shareOffline: Bool = false,
-        network: AssistantNetworkWatch.PathState? = nil
+        shareStuck: Bool = false,
+        network: AssistantNetworkWatch.PathState? = nil,
+        hold: AssistantNetworkWatch.Hold? = nil
     ) -> Status {
         let editWaits = lastEditSave > lastExportStart
         guard hasUnsavedChanges || waitingForShare > 0 || editWaits else { return .sent }
         let noConnection = (shareOffline && waitingForShare > 0) || (lastExportFailure == .network && editWaits)
-        if noConnection {
+        if noConnection || (shareStuck && waitingForShare > 0) {
             guard let network, network.usable else { return .offline }
-            return .troubleReachingICloud
+            switch hold {
+            case .lowDataMode(let interface): return .lowDataMode(interface)
+            case .lowPowerMode: return .lowPowerMode
+            case nil: return .troubleReachingICloud
+            }
         }
         if lastExportFailure == .other, editWaits { return .tryingAgain }
         return .sending
@@ -147,11 +175,13 @@ struct AssistantSyncStatusView: View {
                 Image(systemName: "icloud.slash")
                 Text(problem)
                     .foregroundStyle(.orange)
-            } else if bootstrapper.sendingNeedsRelaunch {
+            } else if bootstrapper.sendingStopped || (bootstrapper.sendingNeedsRelaunch && hold == nil) {
                 // iCloud sync stopped, or the class's iCloud setup failed,
                 // and rebuilding the stack once didn't bring it back, or a
                 // share call has run past its watchdog and may never return:
-                // only reopening the app does.
+                // only reopening the app does. A call stuck under a hold the
+                // phone reports is the hold's doing (`status`): reopening
+                // wouldn't help, turning the setting off would.
                 Image(systemName: "exclamationmark.icloud")
                 Text(Self.sendingStoppedMessage)
                     .foregroundStyle(.orange)
@@ -174,6 +204,16 @@ struct AssistantSyncStatusView: View {
                 case .troubleReachingICloud:
                     Image(systemName: "icloud.slash")
                     Text(Self.troubleReachingICloudMessage)
+                case .lowDataMode(let interface):
+                    // Something for her to do, so it stands out like the
+                    // account problem above.
+                    Image(systemName: "icloud.slash")
+                    Text(Self.lowDataModeMessage(on: interface))
+                        .foregroundStyle(.orange)
+                case .lowPowerMode:
+                    Image(systemName: "icloud.slash")
+                    Text(Self.lowPowerModeMessage)
+                        .foregroundStyle(.orange)
                 }
             }
         }
@@ -187,6 +227,28 @@ struct AssistantSyncStatusView: View {
     /// reaching iCloud and to turn it off for a minute, a cause that was
     /// never shown (2026-10-22).
     static let troubleReachingICloudMessage = "Not sent yet. Having trouble reaching iCloud. Trying again."
+
+    /// Low Data Mode is the phone's own setting, kept per Wi-Fi network and
+    /// for cellular, so the line can say where to turn it off. An app can't
+    /// open Settings to that page, so the words have to carry her there.
+    static func lowDataModeMessage(on interface: AssistantNetworkWatch.Interface) -> String {
+        switch interface {
+        case .wifi:
+            "Not sent yet. This Wi-Fi is in Low Data Mode, which holds iCloud back. "
+                + "Turn it off in Settings › Wi-Fi, under the ⓘ next to the network."
+        case .cellular:
+            "Not sent yet. Low Data Mode is on for cellular, which holds iCloud back. "
+                + "Turn it off in Settings › Cellular › Cellular Data Options."
+        case .wired, .other:
+            "Not sent yet. This network is in Low Data Mode, which holds iCloud back. "
+                + "Turn it off in Settings."
+        }
+    }
+
+    /// The system holds Core Data's upload while Low Power Mode is on, until
+    /// the battery is back up or the phone is plugged in (Apple's TN3163).
+    static let lowPowerModeMessage = "Not sent yet. Low Power Mode holds iCloud back. "
+        + "Turn it off in Settings › Battery, or plug the phone in."
 
     /// "· class updated 2 min ago", redrawn each minute only while on screen.
     @ViewBuilder

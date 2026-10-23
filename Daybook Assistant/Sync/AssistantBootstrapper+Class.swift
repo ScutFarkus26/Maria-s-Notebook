@@ -83,7 +83,9 @@ extension AssistantBootstrapper {
 
     /// The share step says sending has stalled: its calls keep failing to
     /// reach iCloud, or one has run past the watchdog, while the phone is on
-    /// a usable network (`AssistantShareAttacher.onStalled`). Each share
+    /// a usable network with no hold on it (`AssistantShareAttacher.onStalled`;
+    /// under Low Data Mode or Low Power Mode nothing is told, since a rebuild
+    /// doesn't lift those and the line names them). Each share
     /// call waits on Core Data's own upload of the shared store, and once
     /// that upload is failing Core Data retries it on a growing backoff the
     /// app can't see or trigger, so the calls keep timing out the same way.

@@ -37,14 +37,19 @@ struct AssistantSyncRecordTests {
               noConnection: noConnection)
     }
 
-    private func status(_ record: AssistantSyncRecord, waiting: Int = 0, network: Path? = nil) -> Line.Status {
+    private func status(
+        _ record: AssistantSyncRecord, waiting: Int = 0, stuck: Bool = false, network: Path? = nil,
+        hold: AssistantNetworkWatch.Hold? = nil
+    ) -> Line.Status {
         Line.status(
             hasUnsavedChanges: false,
             lastEditSave: record.lastEditSave,
             lastExportStart: record.lastExportStart,
             lastExportFailure: record.lastExportFailure,
             waitingForShare: waiting,
-            network: network
+            shareStuck: stuck,
+            network: network,
+            hold: hold
         )
     }
 
@@ -112,6 +117,39 @@ struct AssistantSyncRecordTests {
         #expect(!Line.troubleReachingICloudMessage.contains("Wi-Fi"), "the network isn't blamed")
         #expect(Line.offlineMessage == "Not sent yet. They'll go when you're back online.")
         #expect(Line.tryingAgainMessage == "Couldn't send yet. Trying again.")
+    }
+
+    // 2026-10-23: a setting on the phone that holds iCloud back (Low Data
+    // Mode on the network, Low Power Mode) is named, with where to turn it
+    // off. Still no network is blamed: the phone reports the setting.
+    @Test("A hold the phone reports is named over trouble reaching iCloud once sending fails, never offline")
+    func holdWording() {
+        let record = AssistantSyncRecord(viewContext: stack.viewContext, defaults: defaults)
+        record.saved(at: Date(timeIntervalSince1970: 100))
+        record.record(export(started: Date(timeIntervalSince1970: 50), succeeded: false, noConnection: true))
+        let wifi = Path(usable: true, interface: .wifi, lowDataMode: true)
+        #expect(status(record, network: wifi, hold: .lowDataMode(.wifi)) == .lowDataMode(.wifi))
+        #expect(status(record, network: wifi, hold: .lowPowerMode) == .lowPowerMode)
+        #expect(status(record, network: Path(usable: false, interface: .other), hold: .lowPowerMode) == .offline)
+        #expect(status(record, hold: .lowPowerMode) == .offline, "before the first path, nothing better is known")
+
+        // A share call stuck past the watchdog under a hold is the hold's
+        // doing; with no hold, the view says to reopen the app instead.
+        let fresh = AssistantSyncRecord(
+            viewContext: stack.viewContext, defaults: AssistantTestSupport.makeDefaults()
+        )
+        #expect(status(fresh, waiting: 1, stuck: true, network: wifi, hold: .lowPowerMode) == .lowPowerMode)
+        #expect(status(fresh, waiting: 1, stuck: true, network: wifi) == .troubleReachingICloud)
+        #expect(status(fresh, waiting: 1, network: wifi, hold: .lowPowerMode) == .sending,
+                "a hold is named once sending has failed, not while a first try may still go")
+        #expect(status(fresh, stuck: true, network: wifi, hold: .lowPowerMode) == .sent, "nothing waits")
+
+        #expect(Line.lowDataModeMessage(on: .wifi).hasPrefix("Not sent yet. This Wi-Fi is in Low Data Mode"))
+        #expect(Line.lowDataModeMessage(on: .wifi).contains("Settings › Wi-Fi"))
+        #expect(Line.lowDataModeMessage(on: .cellular).contains("Settings › Cellular"))
+        #expect(Line.lowDataModeMessage(on: .other).contains("Low Data Mode"))
+        #expect(Line.lowPowerModeMessage.contains("Settings › Battery"))
+        #expect(Line.lowPowerModeMessage.hasPrefix("Not sent yet."))
     }
 
     @Test("Only a successful import moves the class's last update")

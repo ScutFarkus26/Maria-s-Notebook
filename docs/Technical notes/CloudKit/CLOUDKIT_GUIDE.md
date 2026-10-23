@@ -3,7 +3,7 @@
 How Cosmic Daybook and the Daybook Assistant sync through CloudKit, how to tell
 whether sync is healthy, and the rules that keep it that way.
 
-**Last Updated**: September 28, 2026 (iOS/macOS 27 SDK; main app targets 27.0, Daybook Assistant 18.0)
+**Last Updated**: October 23, 2026 (iOS/macOS 27 SDK; main app targets 27.0, Daybook Assistant 18.0)
 
 The short rules live in `Cosmic Daybook/CLAUDE.md` → CloudKit Notes. This
 document explains the design behind them.
@@ -257,13 +257,45 @@ compiles about 40 of the main app's files by path and builds the same
 - **Which membership rows it reads.** Only assistant rows, so a lead-guide row
   synced from the same Apple Account can't make it file attendance as a guide.
 - **Status line** (`AssistantSyncStatusView`).
-  - It says "All marks sent to iCloud" only after a successful `.export` event
-    for the shared store that *started after* the last save touching that store.
-  - The last save and last export are kept in `@AppStorage`, so marks left
+  - A new mark counts as sent once the share step has put it into the
+    classroom share; an edit or a removal of a record already there counts
+    as sent after a successful `.export` event for the shared store that
+    *started after* its save (`AssistantSyncRecord`, 2026-10-22).
+  - The last edit save, export and import are kept in defaults, so marks left
     unsent by a closed app still show as unsent.
-  - A failed export shows "Not sent yet".
+  - "Not sent yet. They'll go when you're back online." only with no usable
+    network; on a network, "Having trouble reaching iCloud. Trying again."
+    The line never blames the network itself: on 2026-10-22 it said the
+    school Wi-Fi blocked iCloud, which was never shown.
   - On iOS 26.4.0 it also asks for an update. That release dropped CloudKit's
     silent pushes, so changes arrived only on relaunch; 26.4.1 fixed it.
+- **What holds its sending back, and what the app does about it (2026-10-23).**
+  Each `share(_:to:)` waits on Core Data's own export of the shared store, and
+  that export asks the system scheduler (`dasd`) before every try. Apple's
+  TN3163 names the policies that refuse it: `Low Power Mode Policy` holds the
+  export until the battery is back up or the phone is plugged in, and a
+  network in Low Data Mode (a setting on the phone, per Wi-Fi network and for
+  cellular, synced across a person's devices) pauses iCloud's updates the same
+  way. Neither has an API override, and a relaunch or a rebuilt stack doesn't
+  lift them. The export's timeout (Cocoa 134060) reads as "no connection"
+  (`ClassroomShareAttach.indicatesNoConnection`), so a held export looked like
+  being offline. A `CKOperation`'s default quality of service is discretionary
+  too (CKOperation.h), so `latestForAttach`, the read of the share before each
+  call, now runs at `.userInitiated`. `AssistantNetworkWatch` follows both
+  settings (`PathState.lowDataMode` from `NWPath.isConstrained`,
+  `lowPowerMode` from `ProcessInfo`) as a `Hold`; the line names the one that's
+  on and where to turn it off ("This Wi-Fi is in Low Data Mode… Settings ›
+  Wi-Fi, under the ⓘ next to the network"; "Low Power Mode holds iCloud back…
+  Settings › Battery, or plug the phone in"), only once a send has failed or
+  stuck; the waiting marks are tried the moment a hold goes off; and the stall
+  rebuild (`AssistantBootstrapper.sendStalled`) is skipped under a hold, which
+  it can't lift. Nicole's marks sat on the school Wi-Fi on 2026-10-22 and
+  2026-10-23 and went once Wi-Fi was off, which is what a Low Data Mode set
+  on that Wi-Fi would do; her phone's settings were still to be checked when
+  this was written. The Classroom screen's "Share the App's Log…"
+  (`AssistantSendingReport`) writes the phone's network and holds, what waits,
+  and the app's own and Core Data's log lines since launch to a text file she
+  can send, so the next stuck morning carries its own evidence.
 - **Minimum OS.** Because the target is iOS 18.0, files the assistant compiles
   must not use iOS 26 or 27 API without `#available`.
 
