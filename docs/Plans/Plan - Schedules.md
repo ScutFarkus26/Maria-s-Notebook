@@ -6,7 +6,7 @@
 Mockups: drawn inline in the talk-through session (a four-lane day view, and the Assistant tab both ways). There is no canvas. Phase 2A and 2B follow the descriptions below.
 
 ## Progress
-- [ ] Phase 1: Data layer, schema 20 (`feature-phase-deep`)
+- [x] Phase 1: Data layer, schema 20 (`feature-phase-deep`) · branch `claude/schedules-1` 6551a0a9 · weekly 79% → 82%. 290 tests in 61 suites pass (the 42 new ones also under `TEST_RUNNER_TZ=GMT-1000` and `GMT+1200`); iOS, macOS compile-only and Assistant builds clean, no warnings; a new test opens schema-19 stores with schema 20. Differed: a booking is also rewritten when `modifiedAt` is equal but its values differ (some roster edits don't bump `modifiedAt`), and removals follow the same rule; a set-time all-adolescent lesson goes only into the turn containing that time, and the note shows only when there is no turn at all that half; folding reuses `ClassroomNames.gate` and `lookUpZones`; the launch catch-up stops waiting for an import after 2 minutes. Not done: removing a lane (Deferred); `DATA_MODELS.md` counts (Phase 3). APIs for Phase 2: `TimetableService` changes objects without saving (callers save on the view context), `replaceWeek` backs `set_timetable`; `ScheduleLessonPlan.lessons(on:)` / `studentLevels(in:)`; `CDTimetableBooking.newestPerPresentation` + `ScheduleLessonSnapshot(booking:)` (no title); `ScheduleDayResolver.resolve(Input)` → `ScheduleDay` (`changeCount`, warnings `text(name:)`, `now(at:)`); `HebrewDateText.headerLine(for:)`.
 - [ ] Phase 2A: Notebook Schedules page (`feature-phase`) ‖ 2B ‖ 2C
 - [ ] Phase 2B: Daybook Assistant Schedule tab (`feature-phase`)
 - [ ] Phase 2C: MCP tools (`feature-phase-light`)
@@ -473,6 +473,7 @@ finish or park the step in hand, commit, note where to pick up here and in Tide,
 - Notifications ("Your turn in the adolescent room in 5 minutes").
 - A Schedules widget, or a now-and-next line in the Assistant's Attendance tab.
 - Retiring `Schedule`/`ScheduleSlot` as dormant tombstones (decision 15).
+- Removing a lane (Phase 1 has rename and reorder only).
 
 ## Open questions
 None blocking. Phase 2A keeps the sidebar item in its current group (Classroom). Moving it is a one-line
