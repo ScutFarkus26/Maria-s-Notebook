@@ -79,10 +79,15 @@ extension SampleClassroomSeeder {
         add(rivka, Weekday.schoolDays, block(9 * 60 + 15, 45, "Chumash group", children: chumash))
         add(rivka, mondayToThursday, block(10 * 60 + 30, 30, "Hebrew reading", children: reading))
 
-        // The change: an assembly on the day the sample is set up.
+        // The change and the lesson go on the first school day from the day the
+        // sample is set up, so a sample made on a weekend shows them (and plans
+        // nothing on a day off, bug hunt 2026-10-17 #38).
+        let firstSchoolDay = schoolDays(1, from: now, step: 1, in: context, calendar: calendar).first ?? now
+
+        // The change: an assembly that day.
         TimetableService.addOneOff(
             TimetableBlockValues(startMinute: 10 * 60 + 15, lengthMinutes: 30, title: "Assembly", note: "In the gym"),
-            to: ourClass, on: now, in: context, now: now, calendar: calendar
+            to: ourClass, on: firstSchoolDay, in: context, now: now, calendar: calendar
         )
 
         // A lesson for the adolescent that morning, which lands in the guide's Math turn.
@@ -92,7 +97,7 @@ extension SampleClassroomSeeder {
             assignment.studentIDs = [SampleChild.rina]
             assignment.lessonTitleSnapshot = lesson.name
             assignment.lessonSectionSnapshot = lesson.section
-            assignment.schedule(onDay: now, using: calendar)
+            assignment.schedule(onDay: firstSchoolDay, using: calendar)
             assignment.notes = "Sample plan—safe to reschedule or complete."
         }
     }

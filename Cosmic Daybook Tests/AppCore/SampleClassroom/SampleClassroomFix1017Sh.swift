@@ -60,7 +60,8 @@ struct SampleClassroomFix1017ShTests {
 
         let assignments = try sample.viewContext.fetch(CDFetchRequest(CDLessonAssignment.self))
         let scheduledDays = assignments.compactMap(\.scheduledFor).map { calendar.startOfDay(for: $0) }
-        #expect(scheduledDays.count == 3)
+        // Three sample plans, plus the Schedules seed's adolescent lesson on the first school day.
+        #expect(scheduledDays.count == 4)
         #expect(Set(scheduledDays) == (try startsOfDay([16, 19, 20])))
     }
 }

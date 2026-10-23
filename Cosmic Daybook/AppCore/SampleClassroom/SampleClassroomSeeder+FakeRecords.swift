@@ -189,7 +189,7 @@ extension SampleClassroomSeeder {
     /// (1 forward, -1 back) and starting with that day when it is one. Weekends
     /// are skipped, and any day off in the sample store (it copies none of My
     /// Class's).
-    private static func schoolDays(
+    static func schoolDays(
         _ count: Int,
         from now: Date,
         step: Int,
