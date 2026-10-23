@@ -1,6 +1,6 @@
 # Schedules: the class day, the adolescent room, and who is where, in both apps
 
-> **Not started.** Written 2026-10-23 from Danny's talk-through (session on branch `claude/schedules-section-design-e82913`).
+> **Not started.** Written 2026-10-23 from Danny's talk-through (session on branch `claude/schedules-section-design-e82913`). Approved by Danny 2026-10-23; the build starts after the weekly reset on Sunday 25 October.
 > In short: one Schedules page in the notebook and a read-only Schedule tab in the Daybook Assistant, showing our class's day, the adolescent room's day with whose turn each block is, Danny's planned lessons, and Morah Devora's schedule, with changes for one day.
 
 Mockups: drawn inline in the talk-through session (a four-lane day view, and the Assistant tab both ways). There is no canvas. Phase 2A and 2B follow the descriptions below.
