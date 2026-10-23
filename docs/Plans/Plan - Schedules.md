@@ -1,6 +1,6 @@
 # Schedules: the class day, the adolescent room, and who is where, in both apps
 
-> **Not started.** Written 2026-10-23 from Danny's talk-through (session on branch `claude/schedules-section-design-e82913`). Approved by Danny 2026-10-23; the build starts after the weekly reset on Sunday 25 October.
+> **Working on it.** Written 2026-10-23 from Danny's talk-through (session on branch `claude/schedules-section-design-e82913`). Approved by Danny 2026-10-23, and built from the same day at his word ("build now"), not after the weekly reset.
 > In short: one Schedules page in the notebook and a read-only Schedule tab in the Daybook Assistant, showing our class's day, the adolescent room's day with whose turn each block is, Danny's planned lessons, and Morah Devora's schedule, with changes for one day.
 
 Mockups: drawn inline in the talk-through session (a four-lane day view, and the Assistant tab both ways). There is no canvas. Phase 2A and 2B follow the descriptions below.
@@ -461,8 +461,9 @@ A rough guess, about 15–23% of the weekly all-models limit (Max plan):
 - Phase 3 with its review and fixes ~3–5%
 - Phase 4 ~1%
 
-At planning time (2026-10-23) 78% was used, with the reset on Sunday 25 October at about 4 pm. **Start
-after the reset.** Phase 1 alone could fit before it, but Phases 2–3 can't.
+At planning time (2026-10-23) 78% was used, with the reset on Sunday 25 October at about 4 pm. Danny
+chose to start at once. **Stop line:** check weekly use before each phase. Past 95%, launch no new agent:
+finish or park the step in hand, commit, note where to pick up here and in Tide, and go on after the reset.
 
 ## Deferred
 - Real lesson times with a length (start + length, snapping to 15 minutes). The co-teacher plan needs
