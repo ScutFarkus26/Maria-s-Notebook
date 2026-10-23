@@ -100,6 +100,12 @@ final class AppBootstrapper {
         // device creates into the classroom share as it is saved.
         SharedStoreOrphanGuard.shared.start(coreDataStack: coreDataStack)
 
+        // 5.7. Schedules: the guide's planned lessons go into the classroom
+        // share as bookings (day, time, children; never a lesson's name), so
+        // the Daybook Assistant shows who is with him. After the orphan guard,
+        // which shares the new bookings as they're saved.
+        Self.startBookingPublisher(on: coreDataStack)
+
         // 6. Run heavy migrations and dedup in the background to avoid UI stalls
         // IMPORTANT: Delay background migrations to let the initial SwiftUI render complete.
         // Without this delay, background DB operations compete with @FetchRequest evaluations

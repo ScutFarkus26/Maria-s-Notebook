@@ -704,7 +704,11 @@ final class BackupFieldCoverageTests {
         FieldSpec("SupplyTransaction"),
         FieldSpec("AttendanceEmailSend"),
         FieldSpec("AttendanceEmailSettings"),
-        FieldSpec("ClassroomPerson")
+        FieldSpec("ClassroomPerson"),
+        FieldSpec("TimetableLane"),
+        FieldSpec("TimetableBlock"),
+        FieldSpec("TimetableChange"),
+        FieldSpec("TimetableBooking")
     ]
 
     /// Inserts this suite's fixture — one instance of every backed-up entity,

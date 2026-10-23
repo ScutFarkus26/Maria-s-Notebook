@@ -205,7 +205,11 @@ enum LegacyBackupPreviewAnalyzer {
             "SupplyTransaction": payload.supplyTransactions?.count ?? 0,
             "AttendanceEmailSend": payload.attendanceEmailSends?.count ?? 0,
             "AttendanceEmailSettings": payload.attendanceEmailSettings?.count ?? 0,
-            "ClassroomPerson": payload.classroomPeople?.count ?? 0
+            "ClassroomPerson": payload.classroomPeople?.count ?? 0,
+            "TimetableLane": payload.timetableLanes?.count ?? 0,
+            "TimetableBlock": payload.timetableBlocks?.count ?? 0,
+            "TimetableChange": payload.timetableChanges?.count ?? 0,
+            "TimetableBooking": payload.timetableBookings?.count ?? 0
         ]
     }
 

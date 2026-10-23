@@ -1,7 +1,8 @@
 // BackupRestoreRun+LaterTypes.swift
 // The restore order, last part: the format v12–v14 types, then v18 (stories,
 // book club, year plan, day pads), v20 (guardians, parent communications), v21
-// (teaching-album annotations), v27 (orders), v30, v31, v34 and v38 (names).
+// (teaching-album annotations), v27 (orders), v30, v31, v34, v38 (names) and
+// v42 (Schedules).
 
 import CoreData
 import Foundation
@@ -319,5 +320,44 @@ extension BackupRestoreRun {
             if restoredAt.map({ storedAt > $0 }) ?? true { older.insert(row.id) }
         }
         return older
+    }
+}
+
+extension BackupRestoreRun {
+
+    /// v42+ entities: Schedules. Matched on `id` like every row; nothing
+    /// relates them but string keys, so the order doesn't matter. Restored
+    /// lanes, blocks and changes join the classroom share as any new row does
+    /// (`SharedStoreOrphanGuard`). Bookings are derived: a restored one the
+    /// guide's plans no longer have is removed, and one behind them rewritten,
+    /// by the booking publisher's next run.
+    func importV42Entities() throws {
+        let viewContext = context
+        let index = self.index
+
+        if let lanes = try rows(\.timetableLanes) {
+            BackupEntityImporter.importRows(
+                lanes, as: CDTimetableLane.self, into: viewContext,
+                existing: { try index.existing(CDTimetableLane.self, id: $0) }
+            )
+        }
+        if let blocks = try rows(\.timetableBlocks) {
+            BackupEntityImporter.importRows(
+                blocks, as: CDTimetableBlock.self, into: viewContext,
+                existing: { try index.existing(CDTimetableBlock.self, id: $0) }
+            )
+        }
+        if let changes = try rows(\.timetableChanges) {
+            BackupEntityImporter.importRows(
+                changes, as: CDTimetableChange.self, into: viewContext,
+                existing: { try index.existing(CDTimetableChange.self, id: $0) }
+            )
+        }
+        if let bookings = try rows(\.timetableBookings) {
+            BackupEntityImporter.importRows(
+                bookings, as: CDTimetableBooking.self, into: viewContext,
+                existing: { try index.existing(CDTimetableBooking.self, id: $0) }
+            )
+        }
     }
 }

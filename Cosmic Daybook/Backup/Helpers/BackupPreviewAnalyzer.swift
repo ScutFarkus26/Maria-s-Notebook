@@ -160,7 +160,8 @@ enum BackupPreviewAnalyzer {
         "ClassroomMembership", "MeetingWorkReview", "StudentFocusItem", "YearPlanEntry", "LessonSequenceSettings",
         "Story", "BookClubPacket", "BookClubSession", "BookClubMeeting", "Guardian",
         "ParentCommunication", "OrderItem", "AttendanceDayLock", "SupplyTransaction",
-        "AttendanceEmailSend", "AttendanceEmailSettings", "ClassroomPerson"
+        "AttendanceEmailSend", "AttendanceEmailSettings", "ClassroomPerson",
+        "TimetableLane", "TimetableBlock", "TimetableChange", "TimetableBooking"
     ]
 
     // MARK: - Merge Mode Analysis

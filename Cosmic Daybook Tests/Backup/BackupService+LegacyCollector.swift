@@ -333,5 +333,13 @@ extension BackupService {
             CDAttendanceEmailSettings.self, using: viewContext) { AttendanceEmailSettingsDTO.rows($0) }
         payload.classroomPeople = fetchAndTransformInBatches(
             CDClassroomPerson.self, using: viewContext) { ClassroomPersonDTO.rows($0) }
+        payload.timetableLanes = fetchAndTransformInBatches(
+            CDTimetableLane.self, using: viewContext) { TimetableLaneDTO.rows($0) }
+        payload.timetableBlocks = fetchAndTransformInBatches(
+            CDTimetableBlock.self, using: viewContext) { TimetableBlockDTO.rows($0) }
+        payload.timetableChanges = fetchAndTransformInBatches(
+            CDTimetableChange.self, using: viewContext) { TimetableChangeDTO.rows($0) }
+        payload.timetableBookings = fetchAndTransformInBatches(
+            CDTimetableBooking.self, using: viewContext) { TimetableBookingDTO.rows($0) }
     }
 }

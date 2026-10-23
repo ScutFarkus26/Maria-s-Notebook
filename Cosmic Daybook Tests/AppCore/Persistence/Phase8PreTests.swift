@@ -61,12 +61,13 @@ final class Phase8PreTests {
         // Schema 9: students, attendance, the school calendar and day locks;
         // schema 12: the front-desk email's sends and settings; schema 15:
         // Restock's staples, their history and the needs; schema 16: the names
-        // people set for themselves. Anything added here reaches an
-        // assistant's device — keep it that short on purpose.
+        // people set for themselves; schema 20: Schedules' lanes, blocks, day
+        // changes and bookings (no lesson names). Anything added here reaches
+        // an assistant's device — keep it that short on purpose.
         #expect(CoreDataStack.sharedEntityNames == [
             "Student", "AttendanceRecord", "NonSchoolDay", "SchoolDayOverride", "AttendanceDayLock",
             "AttendanceEmailSend", "AttendanceEmailSettings", "Supply", "SupplyTransaction", "OrderItem",
-            "ClassroomPerson"
+            "ClassroomPerson", "TimetableLane", "TimetableBlock", "TimetableChange", "TimetableBooking"
         ])
         let priv = CoreDataStack.privateEntityNames
         for name in ["Lesson", "Track", "StudentTrackEnrollment", "Schedule", "Procedure", "ClassroomJob", "GoingOut"] {

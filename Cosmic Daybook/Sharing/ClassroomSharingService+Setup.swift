@@ -299,7 +299,7 @@ nonisolated struct ClassroomShareSetupReport: Sendable {
         let order = [
             "Student", "AttendanceRecord", "NonSchoolDay", "SchoolDayOverride", "AttendanceDayLock",
             "AttendanceEmailSend", "AttendanceEmailSettings", "Supply", "SupplyTransaction", "OrderItem",
-            "ClassroomPerson"
+            "ClassroomPerson", "TimetableLane", "TimetableBlock", "TimetableChange", "TimetableBooking"
         ]
         let shared = CoreDataStack.sharedEntityNames
         return order.filter(shared.contains) + shared.subtracting(order).sorted()
@@ -347,7 +347,11 @@ nonisolated struct ClassroomShareSetupReport: Sendable {
         "Supply": ("1 staple", "staples"),
         "SupplyTransaction": ("1 restock history entry", "restock history entries"),
         "OrderItem": ("1 restock item", "restock items"),
-        "ClassroomPerson": ("1 person's name", "people's names")
+        "ClassroomPerson": ("1 person's name", "people's names"),
+        "TimetableLane": ("1 schedule", "schedules"),
+        "TimetableBlock": ("1 schedule block", "schedule blocks"),
+        "TimetableChange": ("1 schedule change", "schedule changes"),
+        "TimetableBooking": ("1 planned lesson time", "planned lesson times")
     ]
 
     static func describe(_ count: Int, _ entity: String) -> String {

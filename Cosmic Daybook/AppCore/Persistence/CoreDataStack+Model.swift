@@ -76,8 +76,9 @@ extension CoreDataStack {
     /// (enrollments name their student by `studentID`) and the list was five
     /// (Supply and SupplyTransaction were among the 33, and left it then);
     /// schema 12 added the two front-desk email types, schema 15 brought the
-    /// supplies back with the order list, as Restock, and schema 16 added the
-    /// names people set for themselves. Everything else is the guide's own.
+    /// supplies back with the order list, as Restock, schema 16 added the
+    /// names people set for themselves, and schema 20 the Schedules
+    /// timetables and bookings. Everything else is the guide's own.
     nonisolated static let sharedEntityNames: Set<String> = [
         "Student",
         // The assistant writes attendance, so it lives in the share. Its former
@@ -104,7 +105,16 @@ extension CoreDataStack {
         // The name each person goes by (schema 16), so her phone says the
         // guide's name and his devices show each assistant's current one.
         // Each person writes only their own row (`ClassroomNames`).
-        "ClassroomPerson"
+        "ClassroomPerson",
+        // Schedules (schema 20): the lanes, their blocks and one day's
+        // changes, and each planned lesson as a booking that carries its day,
+        // time and children but no lesson name, so the Assistant can say who
+        // is where. Only the guide's devices write them (`TimetableService`,
+        // `ScheduleBookingPublisher`); assistants read.
+        "TimetableLane",
+        "TimetableBlock",
+        "TimetableChange",
+        "TimetableBooking"
     ]
 
     /// Entities stored in the private (per-teacher) store and never shared.

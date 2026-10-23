@@ -238,6 +238,31 @@ public enum ClassroomPersonBackupRow: ModelRowKind {
     public static let spec = ModelRowSpec("ClassroomPerson")
 }
 
+public typealias TimetableLaneDTO = ModelRow<TimetableLaneBackupRow>
+public typealias TimetableBlockDTO = ModelRow<TimetableBlockBackupRow>
+public typealias TimetableChangeDTO = ModelRow<TimetableChangeBackupRow>
+public typealias TimetableBookingDTO = ModelRow<TimetableBookingBackupRow>
+
+/// Schedules (format v42, schema 20): the lanes, their weekly and one-off
+/// blocks, one day's changes, and planned lessons trimmed to their day, time
+/// and children (the booking publisher rewrites or removes a restored booking
+/// on its next run). Nothing older reads them, so nothing needs filling.
+public enum TimetableLaneBackupRow: ModelRowKind {
+    public static let spec = ModelRowSpec("TimetableLane")
+}
+
+public enum TimetableBlockBackupRow: ModelRowKind {
+    public static let spec = ModelRowSpec("TimetableBlock")
+}
+
+public enum TimetableChangeBackupRow: ModelRowKind {
+    public static let spec = ModelRowSpec("TimetableChange")
+}
+
+public enum TimetableBookingBackupRow: ModelRowKind {
+    public static let spec = ModelRowSpec("TimetableBooking")
+}
+
 public typealias OrderItemDTO = ModelRow<OrderItemBackupRow>
 
 /// A need on the Restock lists. Schema 15's source and adder (format v37)

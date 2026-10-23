@@ -71,8 +71,8 @@ nonisolated public enum BackupReader {
     /// supplies and order items; v38 the names people set for themselves; v39
     /// who set each staple's level in its history; v40 how attendance goes to
     /// the school (email or ParentLocker) and each child's ParentLocker match;
-    /// v41 the Tide action each to-do is shared with.
-    public static let supportedFormatVersions: ClosedRange<Int> = 17...41
+    /// v41 the Tide action each to-do is shared with; v42 Schedules.
+    public static let supportedFormatVersions: ClosedRange<Int> = 17...42
 
     // MARK: - Public API
 

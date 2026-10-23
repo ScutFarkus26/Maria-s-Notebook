@@ -26,7 +26,8 @@ struct BackupSparseRowTests {
         "AlbumPageNote", "AlbumRecentVisit", "AlbumReadingPosition", "OrderItem", "ProposedSolution",
         "WorkStep", "SampleWorkStep", "TrackStep", "TodoSubtask", "LessonAttachment", "NoteStudentLink",
         "JobAssignment", "BookClubMeeting", "StudentTrackEnrollment", "MeetingWorkReview", "AttendanceDayLock",
-        "SupplyTransaction", "AttendanceEmailSend", "AttendanceEmailSettings", "ClassroomPerson"
+        "SupplyTransaction", "AttendanceEmailSend", "AttendanceEmailSettings", "ClassroomPerson",
+        "TimetableLane", "TimetableBlock", "TimetableChange", "TimetableBooking"
     ]
 
     /// A child's link to its parent: the row key, the relationship, the parent

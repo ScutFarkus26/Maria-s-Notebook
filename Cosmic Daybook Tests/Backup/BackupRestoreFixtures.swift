@@ -123,7 +123,8 @@ enum BackupRestoreFixtures {
         "BookClubPacket", "BookClubSession", "BookClubMeeting", "Guardian", "ParentCommunication",
         "AlbumBookmark", "AlbumPageNote", "AlbumRecentVisit", "AlbumReadingPosition", "AlbumHighlight",
         "AlbumPageInk", "OrderItem", "AttendanceDayLock", "SupplyTransaction",
-        "AttendanceEmailSend", "AttendanceEmailSettings", "ClassroomPerson"
+        "AttendanceEmailSend", "AttendanceEmailSettings", "ClassroomPerson",
+        "TimetableLane", "TimetableBlock", "TimetableChange", "TimetableBooking"
     ]
 
     /// Restores `url` into two fresh stores prepared alike, the old way and

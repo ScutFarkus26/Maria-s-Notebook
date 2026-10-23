@@ -112,6 +112,10 @@ nonisolated enum BackupPlainNames {
         "PlanningRecommendation": "Planning suggestions",
         "ClassroomMembership": "Classroom sharing setup",
         "ClassroomPerson": "Names you and your assistants go by",
+        "TimetableLane": "Schedules",
+        "TimetableBlock": "Schedule blocks",
+        "TimetableChange": "Schedule changes for one day",
+        "TimetableBooking": "Planned lesson times for the Assistant",
         // Todos and Today
         "TodoItem": "Todos",
         "TodoSubtask": "Todo steps",

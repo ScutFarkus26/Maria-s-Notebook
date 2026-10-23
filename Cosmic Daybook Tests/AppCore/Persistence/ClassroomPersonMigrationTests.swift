@@ -19,12 +19,16 @@ import Testing
 @MainActor
 struct ClassroomPersonMigrationTests {
 
-    /// The model as schema 15 had it: no `ClassroomPerson`, in either store.
+    /// The model as schema 15 had it: no `ClassroomPerson`, in either store
+    /// (nor schema 20's Schedules types).
     private func schema15Model() throws -> NSManagedObjectModel {
         let url = try #require(Bundle.main.url(forResource: CoreDataStack.modelName, withExtension: "momd"))
         let loaded = try #require(NSManagedObjectModel(contentsOf: url))
         let model = try #require(loaded.copy() as? NSManagedObjectModel)
-        model.entities = model.entities.filter { $0.name != "ClassroomPerson" }
+        let laterTypes: Set<String> = [
+            "ClassroomPerson", "TimetableLane", "TimetableBlock", "TimetableChange", "TimetableBooking"
+        ]
+        model.entities = model.entities.filter { !laterTypes.contains($0.name ?? "") }
         for entity in model.entities {
             // Plain objects: the bundle's model keeps the CD… classes to itself.
             entity.managedObjectClassName = NSStringFromClass(NSManagedObject.self)
