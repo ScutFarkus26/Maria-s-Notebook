@@ -2,8 +2,8 @@
 // The order Today's sections appear in, on each platform.
 //
 // The phone sequence is the guide's morning, read top to bottom: the day's
-// plan (the lessons, led by the Next card, then the meetings, who is on the
-// recurring schedules, and the work gone quiet), the Needs-a-lesson card and
+// plan (the lessons, led by the Next card, then the meetings, the day's
+// schedule, and the work gone quiet), the Needs-a-lesson card and
 // her todo list, then what she is
 // watching (ready-for-next, following presentations, recent observations),
 // then the external feeds she does not own (calendar, reminders), then the

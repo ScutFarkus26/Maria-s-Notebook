@@ -91,6 +91,7 @@ enum SampleClassroomSeeder {
                 calendar: calendar
             )
             try seedNotesIfNeeded(in: sampleContext, now: now, calendar: calendar)
+            try seedTimetableIfNeeded(lessons: lessons, in: sampleContext, now: now, calendar: calendar)
             try clearCalendarCopies(in: sampleContext)
 
             if sampleContext.hasChanges {

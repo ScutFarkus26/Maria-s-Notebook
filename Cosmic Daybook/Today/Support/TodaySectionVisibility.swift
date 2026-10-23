@@ -65,11 +65,11 @@ enum TodaySectionVisibility {
     /// the lessons — gone on a day with none.
     static func showsMeetings(count: Int) -> Bool { count > 0 }
 
-    /// Who is on the recurring schedules today (reading support and the
-    /// like), after the meetings — only when a schedule has someone on the
-    /// day, and never on a day school is closed, when no session happens.
-    static func showsSchedule(slotCount: Int, isNonSchoolDay: Bool) -> Bool {
-        slotCount > 0 && !isNonSchoolDay
+    /// The day on the Schedules timetable (the rooms, turns and people),
+    /// after the meetings — only when it has something on the day, and
+    /// never on a day school is closed.
+    static func showsSchedule(rowCount: Int, isNonSchoolDay: Bool) -> Bool {
+        rowCount > 0 && !isNonSchoolDay
     }
 
     /// Open work nobody has touched in a while, after the meetings — gone
@@ -130,8 +130,8 @@ enum TodaySectionVisibility {
     // MARK: - Orderings
 
     /// iPhone and iPad, top to bottom: the day's plan first — the lessons,
-    /// led by the Next card, then its meetings, who is on the recurring
-    /// schedules, and the work gone quiet — then
+    /// led by the Next card, then its meetings, the day's schedule, and the
+    /// work gone quiet — then
     /// the Needs-a-lesson card and her todo list, then what she is watching
     /// (ready-for-next, following presentations, observations), then the
     /// external feeds, then the monthly nudge, the pad, and last the

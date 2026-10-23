@@ -98,8 +98,8 @@ final class TodayViewModel {
     // Completed meetings for today
     var completedMeetings: [CDStudentMeeting] = []
 
-    /// The day's slots on the recurring schedules, grouped by schedule.
-    var scheduleGroups: [TodayScheduleSlots.Group] = []
+    /// The day's blocks on the Schedules timetable, in time order (`TodayScheduleRows`).
+    var scheduleRows: [TodayScheduleRows.Row] = []
 
     var attendanceSummary: AttendanceSummary = AttendanceSummary()
     var absentToday: [UUID] = []
@@ -302,11 +302,10 @@ final class TodayViewModel {
             day: day, nextDay: nextDay, context: context, errorCollector: errorCollector
         )
 
-        // 6. Fetch scheduled meetings, and the day's slots on the recurring schedules
+        // 6. Fetch scheduled meetings, and the day on the Schedules timetable
         let meetingsResult = TodayDataFetcher.fetchScheduledMeetings(day: day, nextDay: nextDay, context: context)
-        let scheduleSlots = TodayScheduleSlots.fetch(weekday: Weekday(date: day, calendar: calendar), context: context)
+        let scheduleDay = TodayScheduleRows.day(day, in: context, calendar: calendar)
         cacheManager.loadStudentsIfNeeded(ids: meetingsResult.neededStudentIDs, context: context)
-        cacheManager.loadStudentsIfNeeded(ids: scheduleSlots.neededStudentIDs, context: context)
 
         // 6a. Fetch completed meetings
         let completedMeetingsResult = TodayDataFetcher.fetchCompletedMeetings(
@@ -362,7 +361,7 @@ final class TodayViewModel {
             completedMeetingsResult.meetings, studentsByID: studentsByID, levelFilter: levelFilter
         )
         meetingStudentsByID = meetingStudents
-        scheduleGroups = TodayScheduleSlots.groups(scheduleSlots, studentsByID: studentsByID, levelFilter: levelFilter)
+        scheduleRows = TodayScheduleRows.rows(scheduleDay, students: studentsByID)
         attendanceSummary = processedAttendance.summary
         absentToday = processedAttendance.absentStudentIDs
         leftEarlyToday = processedAttendance.leftEarlyStudentIDs

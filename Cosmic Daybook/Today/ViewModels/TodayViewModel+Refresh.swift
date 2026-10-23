@@ -27,12 +27,13 @@ extension TodayViewModel {
     /// another device, left a stale row whose Start and Remove did nothing.
     /// "OrderItem" for the Restock card: an assistant marking a staple Out
     /// opens a need, and the guide learns of it here (there are no
-    /// notifications). "Schedule" and "ScheduleSlot" for the Schedule
-    /// section: a child added to a schedule in its own screen shows at once.
+    /// notifications). The three timetable types for the Schedule section:
+    /// a block changed, cancelled or added on the Schedules page (or over
+    /// MCP, or on another device) shows at once.
     nonisolated static let reloadInputEntities: Set<String> = [
         "WorkModel", "LessonAssignment", "WorkCheckIn", "TodoItem",
         "AttendanceRecord", "ScheduledMeeting", "StudentMeeting", "OrderItem",
-        "Schedule", "ScheduleSlot"
+        "TimetableLane", "TimetableBlock", "TimetableChange"
     ]
 
     /// `reload()` as an Instruments interval ("Today" category).
