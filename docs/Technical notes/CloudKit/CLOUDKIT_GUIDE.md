@@ -291,11 +291,12 @@ compiles about 40 of the main app's files by path and builds the same
   rebuild (`AssistantBootstrapper.sendStalled`) is skipped under a hold, which
   it can't lift. Nicole's marks sat on the school Wi-Fi on 2026-10-22 and
   2026-10-23 and went once Wi-Fi was off, which is what a Low Data Mode set
-  on that Wi-Fi would do; her phone's settings were still to be checked when
-  this was written. The Classroom screen's "Share the App's Log…"
+  on that Wi-Fi would do. Her phone's settings are still to be checked
+  ([Tide row](tide://box/Areas/App%20Development/Daybook%20Assistant/To%20do.md?text=On%20my%20assistant%27s%20iPhone%2C%20check%20whether%20Low%20Data%20Mode%20is%20on%20for%20the%20school%20Wi-Fi%20or%20Low%20Power%20Mode%20is%20on%2C%20and%20turn%20it%20off)). The Classroom screen's "Share the App's Log…"
   (`AssistantSendingReport`) writes the phone's network and holds, what waits,
   and the app's own and Core Data's log lines since launch to a text file she
-  can send, so the next stuck morning carries its own evidence.
+  can send, so the next stuck morning carries its own evidence. Checking the
+  hold line and the log on her phone is a [Tide row](tide://box/Areas/App%20Development/Daybook%20Assistant/To%20do.md?text=After%20my%20assistant%20updates%20the%20Assistant%2C%20check%20that%20marks%20stuck%20on%20Not%20sent%20yet%20say%20which%20phone%20setting%20holds%20them%2C%20or%20have%20her%20send%20me%20the%20app%27s%20log).
 - **Minimum OS.** Because the target is iOS 18.0, files the assistant compiles
   must not use iOS 26 or 27 API without `#available`.
 
