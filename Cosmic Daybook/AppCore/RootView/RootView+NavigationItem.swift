@@ -125,7 +125,7 @@ extension RootView {
             case .smallSequencePlanner:   return ("Groups", "person.3.sequence")
             case .perpetualCalendar:   return ("Calendar", "calendar.day.timeline.leading")
             case .community:           return ("Community", "bubble.left.and.bubble.right")
-            case .schedules:           return ("Schedules", "clock.badge.checkmark")
+            case .schedules:           return ("Schedules", "rectangle.split.3x1")
             case .resourceLibrary:     return ("Resources", "tray.2")
             case .askAI:               return ("Ask AI", "bubble.left.and.text.bubble.right")
             case .logs:                return ("Logs", "list.bullet")
@@ -168,7 +168,7 @@ extension RootView {
             case .goingOut:            return "Plan and track student going-out excursions"
             case .smallSequencePlanner:   return "See which children are ready for the same next lesson, and plan it"
             case .community:           return "View community meetings and topics"
-            case .schedules:           return "View recurring schedules"
+            case .schedules:           return "Our class, the adolescent room and who is where, by day or week"
             case .resourceLibrary:     return "Stories, book club packets, files and procedures"
             case .askAI:               return "Ask questions about your classroom data"
             case .logs:                return "View activity and observation logs"
