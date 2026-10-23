@@ -14,7 +14,7 @@ struct MCPToolRegistryTests {
         let tools = MCPNotebookTools.makeTools(context: { context })
 
         let names: [String] = tools.map(\.name)
-        #expect(names.count == 92)
+        #expect(names.count == 94)
         #expect(Set(names).count == names.count)
 
         let encoder = JSONEncoder()
@@ -49,10 +49,11 @@ struct MCPToolRegistryTests {
         "update_going_out", "update_guardian", "update_issue", "update_lesson",
         "update_observation", "update_presentation_roster", "update_project",
         "update_student", "update_todo", "update_work", "update_year_plan_entry",
-        "set_school_days", "update_school_calendar", "update_order_items", "mark_supplies",
+        "set_school_days", "update_school_calendar", "change_schedule_day", "update_order_items",
+        "mark_supplies",
         // deletes and retirements
         "clear_year_plan", "discard_presentation", "remove_student_from_work",
-        "skip_year_plan_entries",
+        "skip_year_plan_entries", "set_timetable",
         "create_backup", "draft_parent_report",
         // sends outside the notebook
         "send_attendance_to_school"
@@ -61,7 +62,7 @@ struct MCPToolRegistryTests {
     /// The tools that delete or retire rows.
     private static let destructiveTools: Set<String> = [
         "clear_year_plan", "discard_presentation", "remove_student_from_work",
-        "skip_year_plan_entries"
+        "skip_year_plan_entries", "set_timetable"
     ]
 
     /// The tools that reach outside the notebook: only the send to the

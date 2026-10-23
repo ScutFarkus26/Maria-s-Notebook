@@ -2,112 +2,18 @@
 //  MCPNotebookTools+Planning.swift
 //  Cosmic Daybook
 //
-//  The structures a guide plans against: the weekly timetable of one-to-one
-//  slots, and the year plan of lessons pencilled in ahead of the calendar.
+//  The structure a guide plans against: the year plan of lessons pencilled in
+//  ahead of the calendar. (The weekly timetables are in +Timetable.)
 //
 //  A year-plan entry is not a scheduled presentation — it is an intention with
-//  a target date that gets promoted into a real assignment later. Both appear
-//  here so the difference stays visible; schedule_for_range shows only what has
-//  actually been put on the calendar.
+//  a target date that gets promoted into a real assignment later. schedule_for_range
+//  shows only what has actually been put on the calendar.
 //
 
 import CoreData
 import Foundation
 
 extension MCPNotebookTools {
-
-    // MARK: - Weekly Schedules
-
-    static func weeklySchedulesTool(context: @escaping MCPContextProvider) -> MCPToolDefinition {
-        MCPToolDefinition(
-            name: "weekly_schedules",
-            title: "Weekly Schedules",
-            description: "The recurring weekly timetables — named schedules and the student "
-                + "slots inside them, by weekday and time. These repeat every week and are "
-                + "separate from the dated calendar.",
-            inputSchema: [
-                "type": "object",
-                "properties": [
-                    "student_name": [
-                        "type": "string",
-                        "description": "Only slots belonging to this student"
-                    ],
-                    "weekday": [
-                        "type": "string",
-                        "enum": [
-                            "Sunday", "Monday", "Tuesday", "Wednesday",
-                            "Thursday", "Friday", "Saturday"
-                        ],
-                        "description": "Only slots on this weekday"
-                    ]
-                ]
-            ],
-            annotations: .readOnly,
-            handler: { arguments in
-                try describeWeeklySchedules(arguments: arguments, in: context())
-            }
-        )
-    }
-
-    private static func describeWeeklySchedules(
-        arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
-    ) throws -> String {
-        let student = try nonEmpty(arguments["student_name"]?.stringValue)
-            .map { try resolveStudentReference($0, in: modelContext) }
-        let studentKey: String? = student?.id?.uuidString
-        let weekday: String? = nonEmpty(arguments["weekday"]?.stringValue)
-
-        let schedules: [CDSchedule] = modelContext.safeFetch(CDFetchRequest(CDSchedule.self))
-        guard !schedules.isEmpty else { return "No weekly schedules are set up." }
-
-        let names = studentNameIndex(in: modelContext)
-        var sections: [String] = []
-        for schedule in schedules.sorted(by: { $0.name < $1.name }) {
-            let slots: [CDScheduleSlot] = keptSlots(
-                of: schedule, studentKey: studentKey, weekday: weekday
-            )
-            guard !slots.isEmpty else { continue }
-            let id: String = schedule.id?.uuidString ?? "unknown"
-            var lines: [String] = ["[schedule id=\(id)] \(schedule.name)"]
-            lines.append(contentsOf: slots.map { slot in
-                let who: String = names[slot.studentID] ?? "unassigned"
-                let time: String = nonEmpty(slot.timeString).map { " \($0)" } ?? ""
-                let note: String = nonEmpty(slot.notes).map { " — \($0)" } ?? ""
-                return "  - \(slot.weekdayRaw)\(time): \(who)\(note)"
-            })
-            sections.append(lines.joined(separator: "\n"))
-        }
-
-        guard !sections.isEmpty else {
-            let who = student.map { " for \($0.fullName)" } ?? ""
-            return "No schedule slots\(who) match that."
-        }
-        return sections.joined(separator: "\n\n")
-    }
-
-    private static func keptSlots(
-        of schedule: CDSchedule, studentKey: String?, weekday: String?
-    ) -> [CDScheduleSlot] {
-        let all: [CDScheduleSlot] = (schedule.slots?.allObjects as? [CDScheduleSlot]) ?? []
-        var kept: [CDScheduleSlot] = []
-        for slot in all {
-            if let studentKey, slot.studentID != studentKey { continue }
-            if let weekday, slot.weekdayRaw != weekday { continue }
-            kept.append(slot)
-        }
-        return kept.sorted { lhs, rhs in
-            let leftDay: Int = weekdayOrder(lhs.weekdayRaw)
-            let rightDay: Int = weekdayOrder(rhs.weekdayRaw)
-            if leftDay != rightDay { return leftDay < rightDay }
-            return lhs.sortOrder < rhs.sortOrder
-        }
-    }
-
-    /// Sorts slots Sunday-first, matching `Weekday`'s own order rather than
-    /// alphabetically (which would put Friday before Monday).
-    private static func weekdayOrder(_ raw: String) -> Int {
-        Weekday.allCases.firstIndex { $0.rawValue == raw } ?? Weekday.allCases.count
-    }
 
     // MARK: - Year Plan
 
