@@ -124,8 +124,8 @@ enum AssistantSampleClass {
         return stack
     }
 
-    /// The roster, the front desk, the past marks and the Restock shelf, into an
-    /// empty store.
+    /// The roster, the front desk, the past marks, the Restock shelf and the
+    /// schedule, into an empty store.
     private static func fill(_ context: NSManagedObjectContext, defaults: UserDefaults) {
         let calendar = Calendar.current
         for (index, (first, last)) in names.enumerated() {
@@ -159,6 +159,7 @@ enum AssistantSampleClass {
         seedHistory(in: context)
         seedGuideName(in: context)
         seedRestock(in: context)
+        seedSchedule(in: context)
         _ = context.safeSave()
         // A fresh class starts the morning fresh.
         AttendanceLatePhase.forget(defaults: defaults)

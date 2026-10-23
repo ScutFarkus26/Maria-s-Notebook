@@ -142,6 +142,22 @@
 		EB7C0A1E2D3F4A5B6C7D0026 /* ParentLockerSignIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7C0A1E2D3F4A5B6C7D0025 /* ParentLockerSignIn.swift */; };
 		EB7C0A1E2D3F4A5B6C7D0028 /* ParentLockerSignInSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7C0A1E2D3F4A5B6C7D0027 /* ParentLockerSignInSheet.swift */; };
 		EB7C0A1E2D3F4A5B6C7D002A /* ParentLockerStatusLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7C0A1E2D3F4A5B6C7D0029 /* ParentLockerStatusLine.swift */; };
+		5CED2B0A1E2D3F4A5B6C0002 /* TimetableValues.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CED2B0A1E2D3F4A5B6C0001 /* TimetableValues.swift */; };
+		5CED2B0A1E2D3F4A5B6C0004 /* ScheduleDay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CED2B0A1E2D3F4A5B6C0003 /* ScheduleDay.swift */; };
+		5CED2B0A1E2D3F4A5B6C0006 /* TimetableLaneEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CED2B0A1E2D3F4A5B6C0005 /* TimetableLaneEntity.swift */; };
+		5CED2B0A1E2D3F4A5B6C0008 /* TimetableBlockEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CED2B0A1E2D3F4A5B6C0007 /* TimetableBlockEntity.swift */; };
+		5CED2B0A1E2D3F4A5B6C000A /* TimetableChangeEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CED2B0A1E2D3F4A5B6C0009 /* TimetableChangeEntity.swift */; };
+		5CED2B0A1E2D3F4A5B6C000C /* TimetableBookingEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CED2B0A1E2D3F4A5B6C000B /* TimetableBookingEntity.swift */; };
+		5CED2B0A1E2D3F4A5B6C000E /* ScheduleDayResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CED2B0A1E2D3F4A5B6C000D /* ScheduleDayResolver.swift */; };
+		5CED2B0A1E2D3F4A5B6C0010 /* HebrewDateText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CED2B0A1E2D3F4A5B6C000F /* HebrewDateText.swift */; };
+		5CED2B0A1E2D3F4A5B6C0012 /* HebrewParshaService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CED2B0A1E2D3F4A5B6C0011 /* HebrewParshaService.swift */; };
+		5CED2B0A1E2D3F4A5B6C0014 /* HebrewParshaService+Caching.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CED2B0A1E2D3F4A5B6C0013 /* HebrewParshaService+Caching.swift */; };
+		5CED2B0A1E2D3F4A5B6C0016 /* HebrewParshaService+CombinedKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CED2B0A1E2D3F4A5B6C0015 /* HebrewParshaService+CombinedKeys.swift */; };
+		5CED2B0A1E2D3F4A5B6C0018 /* HebrewParshaService+DisplayNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CED2B0A1E2D3F4A5B6C0017 /* HebrewParshaService+DisplayNames.swift */; };
+		5CED2B0A1E2D3F4A5B6C001A /* HebrewParshaService+YearSchedules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CED2B0A1E2D3F4A5B6C0019 /* HebrewParshaService+YearSchedules.swift */; };
+		5CED2B0A1E2D3F4A5B6C001C /* Schedule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CED2B0A1E2D3F4A5B6C001B /* Schedule.swift */; };
+		5CED2B0A1E2D3F4A5B6C001E /* CloudKitUUID.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CED2B0A1E2D3F4A5B6C001D /* CloudKitUUID.swift */; };
+		5CED2B0A1E2D3F4A5B6C0020 /* TodayHeaderText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CED2B0A1E2D3F4A5B6C001F /* TodayHeaderText.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -302,6 +318,22 @@
 		EB7C0A1E2D3F4A5B6C7D0025 /* ParentLockerSignIn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ParentLockerSignIn.swift; path = "Cosmic Daybook/Attendance/ParentLocker/ParentLockerSignIn.swift"; sourceTree = SOURCE_ROOT; };
 		EB7C0A1E2D3F4A5B6C7D0027 /* ParentLockerSignInSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ParentLockerSignInSheet.swift; path = "Cosmic Daybook/Attendance/ParentLocker/ParentLockerSignInSheet.swift"; sourceTree = SOURCE_ROOT; };
 		EB7C0A1E2D3F4A5B6C7D0029 /* ParentLockerStatusLine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ParentLockerStatusLine.swift; path = "Cosmic Daybook/Attendance/ParentLocker/ParentLockerStatusLine.swift"; sourceTree = SOURCE_ROOT; };
+		5CED2B0A1E2D3F4A5B6C0001 /* TimetableValues.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TimetableValues.swift; path = "Cosmic Daybook/Schedules/Model/TimetableValues.swift"; sourceTree = SOURCE_ROOT; };
+		5CED2B0A1E2D3F4A5B6C0003 /* ScheduleDay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ScheduleDay.swift; path = "Cosmic Daybook/Schedules/Model/ScheduleDay.swift"; sourceTree = SOURCE_ROOT; };
+		5CED2B0A1E2D3F4A5B6C0005 /* TimetableLaneEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TimetableLaneEntity.swift; path = "Cosmic Daybook/Schedules/Model/TimetableLaneEntity.swift"; sourceTree = SOURCE_ROOT; };
+		5CED2B0A1E2D3F4A5B6C0007 /* TimetableBlockEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TimetableBlockEntity.swift; path = "Cosmic Daybook/Schedules/Model/TimetableBlockEntity.swift"; sourceTree = SOURCE_ROOT; };
+		5CED2B0A1E2D3F4A5B6C0009 /* TimetableChangeEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TimetableChangeEntity.swift; path = "Cosmic Daybook/Schedules/Model/TimetableChangeEntity.swift"; sourceTree = SOURCE_ROOT; };
+		5CED2B0A1E2D3F4A5B6C000B /* TimetableBookingEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TimetableBookingEntity.swift; path = "Cosmic Daybook/Schedules/Model/TimetableBookingEntity.swift"; sourceTree = SOURCE_ROOT; };
+		5CED2B0A1E2D3F4A5B6C000D /* ScheduleDayResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ScheduleDayResolver.swift; path = "Cosmic Daybook/Schedules/Services/ScheduleDayResolver.swift"; sourceTree = SOURCE_ROOT; };
+		5CED2B0A1E2D3F4A5B6C000F /* HebrewDateText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HebrewDateText.swift; path = "Cosmic Daybook/Parsha/Services/HebrewDateText.swift"; sourceTree = SOURCE_ROOT; };
+		5CED2B0A1E2D3F4A5B6C0011 /* HebrewParshaService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HebrewParshaService.swift; path = "Cosmic Daybook/Parsha/Services/HebrewParshaService.swift"; sourceTree = SOURCE_ROOT; };
+		5CED2B0A1E2D3F4A5B6C0013 /* HebrewParshaService+Caching.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "HebrewParshaService+Caching.swift"; path = "Cosmic Daybook/Parsha/Services/HebrewParshaService+Caching.swift"; sourceTree = SOURCE_ROOT; };
+		5CED2B0A1E2D3F4A5B6C0015 /* HebrewParshaService+CombinedKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "HebrewParshaService+CombinedKeys.swift"; path = "Cosmic Daybook/Parsha/Services/HebrewParshaService+CombinedKeys.swift"; sourceTree = SOURCE_ROOT; };
+		5CED2B0A1E2D3F4A5B6C0017 /* HebrewParshaService+DisplayNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "HebrewParshaService+DisplayNames.swift"; path = "Cosmic Daybook/Parsha/Services/HebrewParshaService+DisplayNames.swift"; sourceTree = SOURCE_ROOT; };
+		5CED2B0A1E2D3F4A5B6C0019 /* HebrewParshaService+YearSchedules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "HebrewParshaService+YearSchedules.swift"; path = "Cosmic Daybook/Parsha/Services/HebrewParshaService+YearSchedules.swift"; sourceTree = SOURCE_ROOT; };
+		5CED2B0A1E2D3F4A5B6C001B /* Schedule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Schedule.swift; path = "Cosmic Daybook/Models/Schedule.swift"; sourceTree = SOURCE_ROOT; };
+		5CED2B0A1E2D3F4A5B6C001D /* CloudKitUUID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CloudKitUUID.swift; path = "Cosmic Daybook/Utils/CoreData/CloudKitUUID.swift"; sourceTree = SOURCE_ROOT; };
+		5CED2B0A1E2D3F4A5B6C001F /* TodayHeaderText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TodayHeaderText.swift; path = "Cosmic Daybook/Today/Views/TodayHeaderText.swift"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -557,6 +589,22 @@
 				EB7C0A1E2D3F4A5B6C7D0025 /* ParentLockerSignIn.swift */,
 				EB7C0A1E2D3F4A5B6C7D0027 /* ParentLockerSignInSheet.swift */,
 				EB7C0A1E2D3F4A5B6C7D0029 /* ParentLockerStatusLine.swift */,
+				5CED2B0A1E2D3F4A5B6C0001 /* TimetableValues.swift */,
+				5CED2B0A1E2D3F4A5B6C0003 /* ScheduleDay.swift */,
+				5CED2B0A1E2D3F4A5B6C0005 /* TimetableLaneEntity.swift */,
+				5CED2B0A1E2D3F4A5B6C0007 /* TimetableBlockEntity.swift */,
+				5CED2B0A1E2D3F4A5B6C0009 /* TimetableChangeEntity.swift */,
+				5CED2B0A1E2D3F4A5B6C000B /* TimetableBookingEntity.swift */,
+				5CED2B0A1E2D3F4A5B6C000D /* ScheduleDayResolver.swift */,
+				5CED2B0A1E2D3F4A5B6C000F /* HebrewDateText.swift */,
+				5CED2B0A1E2D3F4A5B6C0011 /* HebrewParshaService.swift */,
+				5CED2B0A1E2D3F4A5B6C0013 /* HebrewParshaService+Caching.swift */,
+				5CED2B0A1E2D3F4A5B6C0015 /* HebrewParshaService+CombinedKeys.swift */,
+				5CED2B0A1E2D3F4A5B6C0017 /* HebrewParshaService+DisplayNames.swift */,
+				5CED2B0A1E2D3F4A5B6C0019 /* HebrewParshaService+YearSchedules.swift */,
+				5CED2B0A1E2D3F4A5B6C001B /* Schedule.swift */,
+				5CED2B0A1E2D3F4A5B6C001D /* CloudKitUUID.swift */,
+				5CED2B0A1E2D3F4A5B6C001F /* TodayHeaderText.swift */,
 			);
 			name = "Shared with Cosmic Daybook";
 			sourceTree = "<group>";
@@ -883,6 +931,22 @@
 				EB7C0A1E2D3F4A5B6C7D0026 /* ParentLockerSignIn.swift in Sources */,
 				EB7C0A1E2D3F4A5B6C7D0028 /* ParentLockerSignInSheet.swift in Sources */,
 				EB7C0A1E2D3F4A5B6C7D002A /* ParentLockerStatusLine.swift in Sources */,
+				5CED2B0A1E2D3F4A5B6C0002 /* TimetableValues.swift in Sources */,
+				5CED2B0A1E2D3F4A5B6C0004 /* ScheduleDay.swift in Sources */,
+				5CED2B0A1E2D3F4A5B6C0006 /* TimetableLaneEntity.swift in Sources */,
+				5CED2B0A1E2D3F4A5B6C0008 /* TimetableBlockEntity.swift in Sources */,
+				5CED2B0A1E2D3F4A5B6C000A /* TimetableChangeEntity.swift in Sources */,
+				5CED2B0A1E2D3F4A5B6C000C /* TimetableBookingEntity.swift in Sources */,
+				5CED2B0A1E2D3F4A5B6C000E /* ScheduleDayResolver.swift in Sources */,
+				5CED2B0A1E2D3F4A5B6C0010 /* HebrewDateText.swift in Sources */,
+				5CED2B0A1E2D3F4A5B6C0012 /* HebrewParshaService.swift in Sources */,
+				5CED2B0A1E2D3F4A5B6C0014 /* HebrewParshaService+Caching.swift in Sources */,
+				5CED2B0A1E2D3F4A5B6C0016 /* HebrewParshaService+CombinedKeys.swift in Sources */,
+				5CED2B0A1E2D3F4A5B6C0018 /* HebrewParshaService+DisplayNames.swift in Sources */,
+				5CED2B0A1E2D3F4A5B6C001A /* HebrewParshaService+YearSchedules.swift in Sources */,
+				5CED2B0A1E2D3F4A5B6C001C /* Schedule.swift in Sources */,
+				5CED2B0A1E2D3F4A5B6C001E /* CloudKitUUID.swift in Sources */,
+				5CED2B0A1E2D3F4A5B6C0020 /* TodayHeaderText.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
