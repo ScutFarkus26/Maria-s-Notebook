@@ -133,7 +133,7 @@ Cosmic Daybook/
 ├── Procedures/       # Procedure documentation
 ├── Projects/         # Project management & sessions
 ├── Resources/        # Resource records and detail; Library/ is the one Resources screen (Stories, Packets, Files, Procedures, one import service)
-├── Schedules/        # Schedule management
+├── Schedules/        # Schedules: rooms' and people's weekly blocks, one-day changes, the guide's lessons (Model/, Services/, Views/); old Schedule/ScheduleSlot files kept unused
 ├── Stories/          # Story library: import, analysis, covers
 ├── Supplies/         # Restock: staples with levels, needs, the one page
 ├── Topics/           # Community topics, solutions, community meetings, and their models
@@ -147,7 +147,7 @@ Cosmic Daybook/
 ├── Assets.xcassets/  # Asset catalog
 └── CosmicDaybook.xcdatamodeld/ # Core Data model
 
-Daybook Assistant/    # Assistant iPhone app: Attendance/, Onboarding/, Siri/, Reminders/, Sync/, FrontDesk/, Wallpaper/
+Daybook Assistant/    # Assistant iPhone app (tabs Attendance, Restock, Schedule): Attendance/, Restock/, Schedule/, Onboarding/, Siri/, Reminders/, Sync/, FrontDesk/, Wallpaper/
                       # (also compiles ~90 notebook files by path; see project.pbxproj)
 Cosmic Daybook Tests/ # Feature-mirrored test target
 Scripts/              # Build lock, install/archive, structure and unused-code checks
@@ -163,7 +163,7 @@ MVVM with services on `NSPersistentCloudKitContainer` (private and shared stores
 
 ## Data Model
 
-89 entities (schema 19): 70 private-only, 11 in the classroom share, 8 dormant tombstones. Core Data rules: `CD` prefix, no unique constraints, enums as raw `String`, foreign keys as `String`, every property optional or defaulted, `modifiedAt` for conflicts. Integrity rules and the entity table: `docs/Technical notes/DATA_MODELS.md`.
+93 entities (schema 20): 70 private-only, 15 in the classroom share, 8 dormant tombstones. Core Data rules: `CD` prefix, no unique constraints, enums as raw `String`, foreign keys as `String`, every property optional or defaulted, `modifiedAt` for conflicts. Integrity rules and the entity table: `docs/Technical notes/DATA_MODELS.md`.
 
 ## Sharing Model
 
@@ -237,7 +237,7 @@ Rules: `docs/Technical notes/PARENTLOCKER.md`. The password stays in the Keychai
 
 ## Backup System
 
-Format v41; rules: `docs/Technical notes/BACKUP_SYSTEM.md`. A new entity or attribute needs a line in `Backup/BackupEntityTable.swift` and a format-version bump; merge restore is an upsert, never delete and reinsert.
+Format v42; rules: `docs/Technical notes/BACKUP_SYSTEM.md`. A new entity or attribute needs a line in `Backup/BackupEntityTable.swift` and a format-version bump; merge restore is an upsert, never delete and reinsert.
 
 ## Todos for Danny
 

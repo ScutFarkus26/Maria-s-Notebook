@@ -93,6 +93,18 @@
     "SupplyTransaction" : [
       "rejected"
     ],
+    "TimetableBlock" : [
+      "rejected"
+    ],
+    "TimetableBooking" : [
+      "rejected"
+    ],
+    "TimetableChange" : [
+      "rejected"
+    ],
+    "TimetableLane" : [
+      "rejected"
+    ],
     "TodoSubtask" : [
       "rejected"
     ],
@@ -282,6 +294,22 @@
     "SupplyTransaction" : [
       "{\"changedByID\":\"\",\"id\":\"00000000-0000-4000-8000-000000000020\",\"quantityChange\":0,\"reason\":\"\",\"supplyID\":\"\"}",
       "{\"changedByID\":\"\",\"id\":\"<new id>\",\"quantityChange\":0,\"reason\":\"\",\"supplyID\":\"\"}"
+    ],
+    "TimetableBlock" : [
+      "{\"id\":\"00000000-0000-4000-8000-000000000025\",\"laneID\":\"\",\"lengthMinutes\":30,\"note\":\"\",\"startMinute\":0,\"teacherName\":\"\",\"title\":\"\"}",
+      "{\"id\":\"<new id>\",\"laneID\":\"\",\"lengthMinutes\":30,\"note\":\"\",\"startMinute\":0,\"teacherName\":\"\",\"title\":\"\"}"
+    ],
+    "TimetableBooking" : [
+      "{\"halfRaw\":\"morning\",\"id\":\"00000000-0000-4000-8000-000000000027\",\"minute\":-1,\"order\":0,\"presentationID\":\"\"}",
+      "{\"halfRaw\":\"morning\",\"id\":\"<new id>\",\"minute\":-1,\"order\":0,\"presentationID\":\"\"}"
+    ],
+    "TimetableChange" : [
+      "{\"id\":\"00000000-0000-4000-8000-000000000026\",\"kindRaw\":\"changed\",\"lengthMinutes\":30,\"note\":\"\",\"startMinute\":0,\"teacherName\":\"\",\"title\":\"\"}",
+      "{\"id\":\"<new id>\",\"kindRaw\":\"changed\",\"lengthMinutes\":30,\"note\":\"\",\"startMinute\":0,\"teacherName\":\"\",\"title\":\"\"}"
+    ],
+    "TimetableLane" : [
+      "{\"colorRaw\":\"\",\"id\":\"00000000-0000-4000-8000-000000000024\",\"isGuide\":false,\"kindRaw\":\"room\",\"name\":\"\",\"sortOrder\":0}",
+      "{\"colorRaw\":\"\",\"id\":\"<new id>\",\"isGuide\":false,\"kindRaw\":\"room\",\"name\":\"\",\"sortOrder\":0}"
     ],
     "TodoSubtask" : [
       "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000018\",\"isCompleted\":false,\"orderIndex\":0,\"title\":\"\"}",

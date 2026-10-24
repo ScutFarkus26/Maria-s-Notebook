@@ -136,6 +136,7 @@ extension BackupService {
         importV20Entities(from: payload, into: viewContext, index: index)
         importV21Entities(from: payload, into: viewContext, index: index)
         importV27Entities(from: payload, into: viewContext, index: index)
+        importV42Entities(from: payload, into: viewContext, index: index)
 
         // Notes import early, but many of their relationship targets (work,
         // check-ins, meetings, etc.) import in later phases — relink them now
@@ -961,6 +962,38 @@ extension BackupService {
             BackupEntityImporter.importRows(
                 people.filter { !renamedSince.contains($0.id) }, as: CDClassroomPerson.self, into: viewContext,
                 existing: { try index.existing(CDClassroomPerson.self, id: $0) }
+            )
+        }
+    }
+
+    /// v42+ entities: Schedules, kept in step with the live restore.
+    private func importV42Entities(
+        from payload: BackupPayload,
+        into viewContext: NSManagedObjectContext,
+        index: BackupEntityIndex
+    ) {
+        if let lanes = payload.timetableLanes {
+            BackupEntityImporter.importRows(
+                lanes, as: CDTimetableLane.self, into: viewContext,
+                existing: { try index.existing(CDTimetableLane.self, id: $0) }
+            )
+        }
+        if let blocks = payload.timetableBlocks {
+            BackupEntityImporter.importRows(
+                blocks, as: CDTimetableBlock.self, into: viewContext,
+                existing: { try index.existing(CDTimetableBlock.self, id: $0) }
+            )
+        }
+        if let changes = payload.timetableChanges {
+            BackupEntityImporter.importRows(
+                changes, as: CDTimetableChange.self, into: viewContext,
+                existing: { try index.existing(CDTimetableChange.self, id: $0) }
+            )
+        }
+        if let bookings = payload.timetableBookings {
+            BackupEntityImporter.importRows(
+                bookings, as: CDTimetableBooking.self, into: viewContext,
+                existing: { try index.existing(CDTimetableBooking.self, id: $0) }
             )
         }
     }

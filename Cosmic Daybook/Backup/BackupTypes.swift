@@ -128,6 +128,7 @@ nonisolated public struct BackupPayload: Codable, Sendable {
         case attendanceEmailSends
         case attendanceEmailSettings
         case classroomPeople
+        case timetableLanes, timetableBlocks, timetableChanges, timetableBookings
         case preferences
     }
 
@@ -284,6 +285,13 @@ nonisolated public struct BackupPayload: Codable, Sendable {
     // The names people in the classroom set for themselves (format v38+,
     // schema 16), one row per person, as the classroom share carries them.
     public var classroomPeople: [ClassroomPersonDTO]?
+
+    // Schedules (format v42+, schema 20): the lanes, their blocks, one day's
+    // changes, and the bookings that tell the Assistant who is with the guide.
+    public var timetableLanes: [TimetableLaneDTO]?
+    public var timetableBlocks: [TimetableBlockDTO]?
+    public var timetableChanges: [TimetableChangeDTO]?
+    public var timetableBookings: [TimetableBookingDTO]?
 
     // Lightweight app/user metadata (preferences) as typed dictionary
     public var preferences: PreferencesDTO

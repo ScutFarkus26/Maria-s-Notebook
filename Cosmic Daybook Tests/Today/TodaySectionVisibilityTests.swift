@@ -175,13 +175,13 @@ struct TodaySectionVisibilityTests {
         )
     }
 
-    @Test("The Schedule section shows only when a schedule has someone on the day, and school is open")
-    func scheduleNeedsASlotOnASchoolDay() {
-        #expect(TodaySectionVisibility.showsSchedule(slotCount: 0, isNonSchoolDay: false) == false)
-        #expect(TodaySectionVisibility.showsSchedule(slotCount: 3, isNonSchoolDay: false))
-        // A holiday Monday: the Monday sessions don't happen.
-        #expect(TodaySectionVisibility.showsSchedule(slotCount: 3, isNonSchoolDay: true) == false)
-        #expect(TodaySectionVisibility.showsSchedule(slotCount: 0, isNonSchoolDay: true) == false)
+    @Test("The Schedule section shows only when the timetable has something on the day, and school is open")
+    func scheduleNeedsARowOnASchoolDay() {
+        #expect(TodaySectionVisibility.showsSchedule(rowCount: 0, isNonSchoolDay: false) == false)
+        #expect(TodaySectionVisibility.showsSchedule(rowCount: 3, isNonSchoolDay: false))
+        // A holiday Monday: the Monday blocks don’t happen.
+        #expect(TodaySectionVisibility.showsSchedule(rowCount: 3, isNonSchoolDay: true) == false)
+        #expect(TodaySectionVisibility.showsSchedule(rowCount: 0, isNonSchoolDay: true) == false)
     }
 
     @Test("Gone quiet shows only when some open work has gone quiet")

@@ -121,7 +121,15 @@ nonisolated extension CoreDataStack {
     /// - `19` — `TodoItem.tideLink` (private): the Tide action a to-do is shared
     ///   with (plan "Simplify the app", Phase 10; `Services/Tide/`). Additive
     ///   optional String.
-    nonisolated static let currentSchemaVersion = 19
+    /// - `20` — Schedules (shared): `TimetableLane` (our class, the adolescent
+    ///   room, the guide, Morah Devora), `TimetableBlock` (a lane's weekly or
+    ///   one-off block, with the days it applies), `TimetableChange` (one day's
+    ///   change: cancelled, changed or out) and `TimetableBooking` (a planned
+    ///   lesson trimmed to its day, time and children, with no text, so the
+    ///   Assistant can show who is with the guide). Four additive entities in
+    ///   the classroom share, written only on the guide's devices
+    ///   (`TimetableService`, `ScheduleBookingPublisher`).
+    nonisolated static let currentSchemaVersion = 20
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"

@@ -54,6 +54,27 @@ extension AssistantIdentitySuites {
             #expect([staple, history, need].allSatisfy { $0.objectID.persistentStore == sharedStore })
         }
 
+        @Test("The shared store holds Schedules' lanes, blocks, day changes and bookings (schema 20)")
+        func sharedStoreTakesSchedules() throws {
+            let names = ["TimetableLane", "TimetableBlock", "TimetableChange", "TimetableBooking"]
+            let model = try CoreDataStack.sharedModel()
+            let shared = Set(
+                (model.entities(forConfigurationName: CoreDataStack.sharedConfiguration) ?? []).compactMap(\.name)
+            )
+            #expect(names.allSatisfy(shared.contains))
+            #expect(!names.contains(where: ClassroomPermissions.assistantWritableEntities.contains), "she only reads")
+            let context = try splitContext()
+            let sharedStore = try store(CoreDataStack.sharedConfiguration, in: context)
+            let rows = names.map { name in
+                let row = NSEntityDescription.insertNewObject(forEntityName: name, into: context)
+                row.setValue(UUID(), forKey: "id")
+                context.assign(row, to: sharedStore)
+                return row
+            }
+            #expect(context.safeSave())
+            #expect(rows.allSatisfy { $0.objectID.persistentStore == sharedStore })
+        }
+
         @Test("Her name goes into the shared store, and names are read only from the classroom share (schema 16)")
         func namesLiveInTheShare() async throws {
             let model = try CoreDataStack.sharedModel()

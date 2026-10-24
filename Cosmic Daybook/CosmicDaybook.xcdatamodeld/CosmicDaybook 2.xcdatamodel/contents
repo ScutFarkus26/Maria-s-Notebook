@@ -1357,4 +1357,69 @@
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
+    <!-- ==================== TimetableLane ==================== -->
+    <entity name="TimetableLane" representedClassName="CDTimetableLane" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="name" attributeType="String" defaultValueString=""/>
+        <attribute name="kindRaw" attributeType="String" defaultValueString="room"/>
+        <attribute name="isGuide" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="sortOrder" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="colorRaw" attributeType="String" defaultValueString=""/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
+    <!-- ==================== TimetableBlock ==================== -->
+    <entity name="TimetableBlock" representedClassName="CDTimetableBlock" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="laneID" attributeType="String" defaultValueString=""/>
+        <attribute name="weekdayRaw" optional="YES" attributeType="String"/>
+        <attribute name="onDay" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="startMinute" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="lengthMinutes" attributeType="Integer 64" defaultValueString="30" usesScalarValueType="YES"/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="note" attributeType="String" defaultValueString=""/>
+        <attribute name="teacherLaneID" optional="YES" attributeType="String"/>
+        <attribute name="teacherName" attributeType="String" defaultValueString=""/>
+        <attribute name="_studentIDsData" optional="YES" attributeType="Binary"/>
+        <attribute name="validFrom" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="validUntil" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
+    <!-- ==================== TimetableChange ==================== -->
+    <entity name="TimetableChange" representedClassName="CDTimetableChange" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="day" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="kindRaw" attributeType="String" defaultValueString="changed"/>
+        <attribute name="blockID" optional="YES" attributeType="String"/>
+        <attribute name="laneID" optional="YES" attributeType="String"/>
+        <attribute name="startMinute" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="lengthMinutes" attributeType="Integer 64" defaultValueString="30" usesScalarValueType="YES"/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="note" attributeType="String" defaultValueString=""/>
+        <attribute name="teacherLaneID" optional="YES" attributeType="String"/>
+        <attribute name="teacherName" attributeType="String" defaultValueString=""/>
+        <attribute name="_studentIDsData" optional="YES" attributeType="Binary"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <fetchIndex name="byDay">
+            <fetchIndexElement property="day" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+    <!-- ==================== TimetableBooking ==================== -->
+    <entity name="TimetableBooking" representedClassName="CDTimetableBooking" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="presentationID" attributeType="String" defaultValueString=""/>
+        <attribute name="day" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="halfRaw" attributeType="String" defaultValueString="morning"/>
+        <attribute name="minute" attributeType="Integer 64" defaultValueString="-1" usesScalarValueType="YES"/>
+        <attribute name="order" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="_studentIDsData" optional="YES" attributeType="Binary"/>
+        <attribute name="sourceModifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <fetchIndex name="byDay">
+            <fetchIndexElement property="day" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
 </model>

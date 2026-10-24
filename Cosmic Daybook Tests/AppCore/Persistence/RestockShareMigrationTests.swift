@@ -32,12 +32,16 @@ struct RestockShareMigrationTests {
     ]
 
     /// The model as schema 14 had it: no Restock attributes, no schema 16
-    /// `ClassroomPerson`, and the seven-type Shared configuration.
+    /// `ClassroomPerson` nor schema 20 Schedules types, and the seven-type
+    /// Shared configuration.
     private func schema14Model() throws -> NSManagedObjectModel {
         let url = try #require(Bundle.main.url(forResource: CoreDataStack.modelName, withExtension: "momd"))
         let loaded = try #require(NSManagedObjectModel(contentsOf: url))
         let model = try #require(loaded.copy() as? NSManagedObjectModel)
-        model.entities = model.entities.filter { $0.name != "ClassroomPerson" }
+        let laterTypes: Set<String> = [
+            "ClassroomPerson", "TimetableLane", "TimetableBlock", "TimetableChange", "TimetableBooking"
+        ]
+        model.entities = model.entities.filter { !laterTypes.contains($0.name ?? "") }
         for entity in model.entities {
             // Plain objects: the bundle's model keeps the CD… classes to itself.
             entity.managedObjectClassName = NSStringFromClass(NSManagedObject.self)

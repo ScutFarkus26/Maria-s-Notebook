@@ -111,7 +111,12 @@ nonisolated public enum BackupWriter {
     ///   a to-do is shared with, so a restored to-do isn't sent to Tide again.
     ///   Purely additive; restoring an older backup leaves a to-do's own link.
     ///   Tide's connection address lives only in the Keychain.
-    public static let formatVersion: Int = 41
+    /// - v42: Schedules (schema 20) under `shared/`: `TimetableLane`,
+    ///   `TimetableBlock`, `TimetableChange` and `TimetableBooking` entries.
+    ///   Purely additive; a v41 reader would skip them silently, hence the
+    ///   version. Bookings are derived from planned lessons, and the booking
+    ///   publisher rewrites or removes restored ones on its next run.
+    public static let formatVersion: Int = 42
 
     public enum WriterError: LocalizedError {
         case entityEncodingFailed(entityName: String, underlying: Error)

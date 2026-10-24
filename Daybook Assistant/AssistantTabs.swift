@@ -1,8 +1,8 @@
 import SwiftUI
 import CoreData
 
-/// The app once you've joined: Attendance, and Restock with the office run's
-/// count on its tab.
+/// The app once you've joined: Attendance, Restock with the office run's
+/// count on its tab, and the class's Schedule (read only).
 ///
 /// The Restock model lives here rather than in its tab, so the badge is right
 /// before the tab is ever opened, and follows the guide's changes as they
@@ -13,10 +13,11 @@ struct AssistantTabs: View {
     enum Choice: Hashable {
         case attendance
         case restock
+        case schedule
     }
 
     @Environment(AssistantBootstrapper.self) private var bootstrapper
-    @State private var selection = Choice.attendance
+    @State private var selection = AssistantScheduleTab.isRequestedAtLaunch ? Choice.schedule : .attendance
     @State private var restock: AssistantRestockModel?
     /// The first run after joining: name, reminder, background and the rest.
     @State private var showingSetup = false
@@ -38,6 +39,9 @@ struct AssistantTabs: View {
                 }
             }
             .badge(restock?.officeRunCount ?? 0)
+            Tab("Schedule", systemImage: "calendar.day.timeline.left", value: Choice.schedule) {
+                AssistantScheduleTab(coreDataStack: coreDataStack)
+            }
         }
         .task {
             let model = restock ?? makeRestock()
