@@ -1,0 +1,196 @@
+# Lesson file attachments: Claude attaches a remade album PDF to a lesson
+
+> **Not started.** Written 2026-10-25 from Danny's /plan-efficiently request (session on branch `claude/cosmic-daybook-lesson-attachments-d7db1a`), with his four answers the same day.
+> In short: Claude can attach a PDF to a lesson through the cosmic-daybook connector, and Danny opens it in Quick Look from the lesson on the Mac and, after sync, on the iPad.
+
+## Goal
+Danny is remaking his AMI albums as designed PDFs with illustrations. A lesson's write-up in the app is text only, so each remade lesson should carry its PDF. When this is done, Claude can call `attach_file_to_lesson` with a path under `~/Documents/Workplaces/YYLI/`. The PDF lands on the lesson's Files card, opens in Quick Look on the Mac, reaches the iPad through iCloud Drive, and a second call with `replace_existing: true` updates it in place instead of adding a copy. Claude can also list and remove a lesson's files and see them in `find_lessons` output. The app gets the pieces it's missing: Quick Look on the Mac, Replace with Newer Version, the date on each row, the source note, and a paperclip on lessons in the library.
+
+## Progress
+- [ ] Phase 1: Attachment service + schema 21 `modifiedAt` (`feature-phase-deep`, this worktree's branch) · est. ~3–5% weekly
+- [ ] Phase 2: MCP tools + folder grant (`feature-phase`, own worktree) ‖ Phase 3 · est. ~2–3% weekly
+- [ ] Phase 3: App UI: Quick Look, replace, dates, paperclip (`feature-phase`, own worktree) ‖ Phase 2 · est. ~2–3% weekly
+- [ ] Phase 4: Combine, full builds, whole suite, review (main session, here) · est. ~2–3% weekly
+- [ ] Phase 5: Ship and the real attach (main session, here or fresh; Danny's steps in Tide) · est. ~1–2% weekly
+
+## Cost
+About 10–16% of the weekly all-models limit (Max plan), plus ~1% already spent planning. Weekly is at 52% now, 48% left until Fri 30 Oct, 1 pm. **Fits.** These estimates are under the skill's starting sizes because the log shows Cosmic Daybook's deep agents landing at ~3% and feature-phase agents at ~1–2%. Phases 2 ‖ 3 together stay well under half of one 5-hour window.
+
+## What exists today (survey, 2026-10-25)
+- **Lessons already have attachments.** `CDLessonAttachment` (entity `LessonAttachment`, `Cosmic Daybook/Lessons/Attachments/LessonAttachmentEntity.swift`) has `id`, `fileName`, `fileBookmark`, `fileRelativePath`, `attachedAt`, `fileType`, `fileSizeBytes`, `scopeRaw` (lesson / sequence / area), `notes` and `thumbnailData`, plus `lesson` (Nullify), with `CDLesson.attachments` cascading. `CDLesson.primaryAttachmentID` marks the lesson's plan document (Today's plan button, Meetings).
+- **Files live in iCloud Drive, not in the record.** `LessonFileStorage` (over `ManagedPDFFileStorage`, folder `Lesson Files`) copies a file into the ubiquity container at `Documents/Lesson Files/<Area>/<Sequence>/<name>.<ext>` with `UbiquitousFile.coordinatedCopy`. The record keeps the relative path, and the file reaches other devices through iCloud Drive. `resolveURL`/`readyURL` start the download and wait for files not yet on the device (`Utils/Files/ManagedPDFFileStorage.swift:184-206`, `Utils/Files/UbiquitousFile.swift:98`). Backups keep the record only, by design (`docs/Technical notes/BACKUP_SYSTEM.md:202`).
+- **The Files card** (`LessonAttachmentsSection.swift`, from `LessonDetailView.swift:142`, both platforms) already has: rows with a type icon, name and size; add from Files (`AttachmentImportSheet.swift:91`, `.fileImporter` with a scope choice); drop (`.onDrop([.pdf, .png, .jpeg, .fileURL])`, lesson scope); rename; delete with confirmation, which trashes the file when nothing else uses it; share; and Set as Primary. It's **missing**: Quick Look on the Mac (`AttachmentRow.swift:222` uses `NSWorkspace.open`; iOS already uses `.quickLookPreview`, :88), Replace with Newer Version, the date on the row, and the note on the row.
+- **The writes live in the view** (`LessonAttachmentsSection.swift:313-385, 399-422`). There's no service, so an MCP tool can't follow the "writes go through the service the in-app control uses" rule until Phase 1 extracts one.
+- **Lesson lists have no badge.** The library is a scope map: `MiniLessonPill` (`Lessons/ScopeMap/LessonsScopeMapView+Row.swift:226-229`) and `pillView(for:)` (`Lessons/ScopeMap/LessonsScopeThreadFocusView.swift:196-232`).
+- **Resources** (`CDResource`, `Resources/Library/LibraryFileStorage.swift`) use the same iCloud Drive mechanism, filed by category and linked to lessons by loose string ids. It's not a better home: the lesson card already shows linked resources, and a lesson's own PDF belongs on the lesson.
+- **Album file access.** The Mac app is sandboxed (`ENABLE_APP_SANDBOX = YES`; `CosmicDaybook.entitlements` has `files.bookmarks.app-scope`, user-selected read/write, read/write on `~/.cosmic-daybook/` and one read-only plist exception). `search_albums`/`get_album_page` never open a path. They read the album text index. The album folders Danny chose (Albums › Choose Folder) are kept as security-scoped bookmarks under `Albums.folderBookmarks` (`AlbumLibrary.swift:225-248`, `AlbumLibrary+FolderBookmarks.swift:62-67`), and access to them is held for the life of the process (`AlbumLibrary.shared.folderURLs`, :28). An arbitrary path under `~/Documents` can't be read today unless it sits inside one of those folders, and the repo can't tell whether `_Remake/masters` does.
+- **MCP plumbing.** A tool is an `MCPToolDefinition` (`Services/MCPServer/MCPToolDefinition.swift`) with annotations `.readOnly / .write / .idempotentWrite / .destructive`, registered in `MCPNotebookTools.makeTools` (`rosterAndLessonTools`, `MCPNotebookTools.swift:76-106`) and pinned in `MCPToolRegistryTests` (count 94 at :17, plus the `writingTools` and `destructiveTools` sets).
+  - `update_lesson` (`MCPNotebookTools+CurriculumWrites.swift:151-227`) resolves the lesson with `resolveLessonReference` (id, then exact folded name, then a unique partial match; more than one match is refused), collects a `changes` list, refuses an empty one, saves once and returns "Updated …". Its handler is wrapped in `undoingOnFailure`.
+  - **The write journal is automatic.** `MCPRequestHandler.toolsCallResponse` (:149-155) records an `MCPWriteRecord` for every successful non-read-only call unless the tool calls `MCPCallOutcome.markNothingWritten()`. Citations are parsed from `[kind id=<uuid>]` in the result (`MCPWriteJournal.swift:105-132`).
+  - `describeLesson` (`MCPNotebookTools+Lessons.swift:84-93`) formats every lesson line in `find_lessons`, `list_lessons_by_area` and every receipt. There's no lesson-detail tool.
+  - Tests seed with `CoreDataTestHelpers.makeInMemoryStack()` / `seedLesson`, call the handler, then check the receipt, the saved object (`!hasChanges`) and a re-read (`MCPLessonSectionToolsTests.updateSectionRoundTrip`, `MCPCurriculumToolsTests.swift:200-260`).
+- **Live data, checked 2026-10-25:** `find_lessons "Area of a Circle"` gives exactly one, `[lesson id=A95CD496-5284-414B-836A-DB8DD50E4157] Area of a Circle — Geometry › Circle`. The PDF exists at `~/Documents/Workplaces/YYLI/Girls Elementary Classroom/Teaching Materials/Albums/Squeezed Elementary Albums/_Remake/masters/Geometry/circle-area-of-a-circle.pdf` (605,635 bytes).
+
+## Decisions
+1. **Build on `CDLessonAttachment` and `LessonFileStorage`; no new entity** (Danny, 2026-10-25). The file syncs to the iPad through iCloud Drive, the same way lesson files and Resources already do. Ruled out: a new `LessonAttachment` entity with `@Attribute(.externalStorage)` file data. That would be a second attachment system beside the old one, plus a migration of the old attachments. Also ruled out: SwiftData, since the app is Core Data.
+2. **Map Danny's fields onto what exists.** title → `fileName` without its extension, which the card already shows as the name. **`fileName` keeps the title exactly as given** ("Area of a Circle — remade album pages.pdf"). Only the name on disk is sanitized: `sanitizeFilenameComponent` keeps ASCII only, so the em dash becomes "-" on disk, not on screen. Phase 1 checks that nothing reads `fileName` as the disk name, and makes in-app Rename keep the typed name the same way. Title matching uses the `fileName` stem, never the path stem, which can carry a "-2". filename → the stored file's name (in `fileRelativePath`); contentType → `fileType` (stays the lowercased extension, as the app reads it today; the tool checks the real UTType); byteSize → `fileSizeBytes`; dateAdded → `attachedAt`; source note → `notes`. **sortOrder is left out.** The card sorts newest first, and nothing would set an order.
+3. **Add one attribute, `modifiedAt: Date?`, on `LessonAttachment`: schema 21** (Danny, 2026-10-25). It's set on add, replace, rename and a note change. Older rows read it as `attachedAt`. Additive and optional, in place in the one model version (project rule). Backup format v42 → v43, with predated rows getting `modifiedAt = attachedAt`. Schema 21 must be deployed to Production in CloudKit before any device runs the build.
+4. **File access: album folders plus a new folder grant** (Danny, 2026-10-25). The Mac's Settings › Claude Desktop (`Settings/Intelligence/ClaudeDesktopSettingsView.swift`) gets "Folders Claude can attach files from" with Add Folder… and Remove. Each folder is stored as a security-scoped bookmark through `SecurityScopedBookmark` in a new `UserDefaults` key. It's kept out of iCloud preference sync, because a bookmark only works on the Mac that made it. It **is** in backups, merged with `.unionArray` like `Albums.folderBookmarks` (`BackupPreferencesService.swift:111-117, 154`), so a reinstall on the same Mac keeps the grant.
+   - A path is accepted only when it sits inside a granted folder or an album folder. The check expands `~`, resolves `..` and symlinks on both the target and each root, and compares with a trailing "/" so that `YYLI2` doesn't match `YYLI`.
+   - The album folders are resolved straight from the `Albums.folderBookmarks` bookmarks. `AlbumLibrary.shared.folderURLs` is empty when the bridge launches the app with no window, and bootstrapping the library would index every album.
+   - Access is started for the read and stopped after it. A stale bookmark is made again.
+   - The check, not the sandbox, is what refuses the app's own container and `~/.cosmic-daybook/` (both reachable through the entitlements), including the MCP token there.
+   - Nothing in a granted folder gets indexed.
+   - The containment and `~` logic is platform-neutral, with the home folder injectable for tests. Only the bookmark storage and the Settings row are Mac-only. Tests run on the iOS simulator only, never as a macOS test run, because a macOS test host opens Danny's live store.
+   - Ruled out: a new temporary-exception entitlement. The app already ships two narrow ones, but Apple's current sandbox page lists only user-chosen folders and their bookmarks, and an exception for all of `~/Documents` is broad and its review status unclear. Also ruled out: "album folders only", which would make Danny index a folder as albums just to read from it.
+5. **Copying a remade PDF into Lesson Files is intended.** `docs/Technical notes/ALBUMS.md` says album PDFs are never copied into the container. That rule is about the album library. A remade lesson PDF is a lesson file, and copying it is the only way it reaches the iPad (Danny: "I want the file to sync to my iPad either way"). Phase 2 adds a line to ALBUMS.md saying so.
+6. **Tool behavior, settled from the request:**
+   - The default title is the source file's stem. `replace_existing` defaults to false.
+   - Same title means the same sanitized stem, compared case-insensitively, among this lesson's own lesson-scope attachments.
+   - With `replace_existing: false`, a same-title call is refused and the refusal names the existing attachment.
+   - With `replace_existing: true`, the same attachment record gets the new file, and size, type, `modifiedAt`, a fresh bookmark, a cleared thumbnail, and `notes` when `source_note` is given are updated. **A replace never rewrites a file in place and never deletes first.** The new file is copied in under a new unique name, the record points at it, the save happens, and only then does the old file go to the Trash through the existing removal. If the save fails, the new copy is removed and the old file and record are untouched. This keeps `UbiquitousFile`'s "written once under a new name, never rewritten in place" rule (`UbiquitousFile.swift:20-25`), so reads stay uncoordinated, and keeps the Trash-not-delete rule (`LessonFileStorage+Removal.swift:8-11`).
+   - If the bytes are identical and nothing else changed, the call returns "already up to date" with `markNothingWritten()`. It never claims success when nothing changed. The old file is made local first (`ensureLocal`). If it's dataless or hasn't arrived from another device, the comparison is skipped and the replace goes ahead.
+   - Accepted types: anything whose real content type (`URLResourceValues.contentType`, not the extension; `UTType(filenameExtension:)` returns a dynamic type for unknown extensions, never nil) conforms to `.pdf` or `.image`. Over 50 MB is refused with a plain message. **These checks live in `LessonAttachmentService` (Phase 1)**, so the in-app Replace and the MCP tool share them. Missing files, folders and paths outside the granted folders are refused, and the refusal names Settings › Claude Desktop.
+   - Receipts and lists report what was stored (the `fileName` title, and the size from `fileSizeFormatted`), never the arguments echoed back.
+   - New attachments are always lesson scope. Attaching never changes `primaryAttachmentID`; Danny can set Primary in the app.
+7. **Three tools.**
+   - `attach_file_to_lesson` (`.idempotentWrite`).
+   - `list_lesson_attachments` (`.readOnly`): the lesson's own attachments plus the sequence and area ones that reach it, each labeled with its scope.
+   - `remove_lesson_attachment(attachment, confirm?)` (`.destructive`): one attachment by id, through the same removal as the app, so the file goes to the Trash only when nothing else uses it. It's two-step as MCP_SERVER.md:696 requires: without `confirm: true` it describes what would be removed, and writes and journals nothing.
+   - A list-only formatter adds " · files: <up to 3 titles>[, +N more]" to `find_lessons` and `list_lessons_by_area` lines, with attachments prefetched because `list_lessons_by_area` is uncapped. `describeLesson` itself stays as it is, so other tools' receipts and their exact-string tests don't change. Receipts cite `[lesson id=…]` and `[lessonAttachment id=…]` so `recent_mcp_writes` links both. The registry count goes 94 → 97.
+8. **The paperclip shows only on lessons that hold their own file.** A sequence-wide file doesn't badge every lesson in the sequence. It's drawn on the two library pills only (Danny, 2026-10-25), from one set of lesson ids that have attachments. That set is read with one fetch and refreshed when an attachment saves, never with a fetch per pill (efficiency rules in `.claude/skills/efficiency-pass`).
+9. **Mac click opens Quick Look**, the same as iOS. "Open in <app>" moves to the context menu. Before Quick Look, the file is asked to download even when it reports `.downloaded`, and the preview waits for `.current` (iOS 18.4+ stale-copy gotcha below).
+10. **Left out:** editing the source note in the app (shown read-only for now; Claude sets it), sortOrder, and a badge in the Class Grid.
+
+## Apple guidance
+Checked 2026-10-25 by `sdk-verifier` against the installed **Xcode 27.1 (27A9275)**, iPhoneOS 27.1 SDK and MacOSX 27.0 SDK. (The project CLAUDE.md still says 27.0; Phase 4 corrects that line.) Xcode 27.2 RC exists and isn't installed. Its notes change nothing here, so no update is needed first.
+- **G1 Quick Look:** `quickLookPreview(_ item: Binding<URL?>)` and `quickLookPreview(_:in:)` (iOS 14 / macOS 11) on both platforms; a file URL is required. Apple documents nothing about iCloud placeholders. Forum gotcha: since iOS 18.4 a ubiquitous file can stay `.downloaded` (a stale copy), so call `startDownloadingUbiquitousItem(at:)` and wait for `.current` before setting the binding (https://developer.apple.com/forums/thread/785030, forum, not Apple guidance). Docs: https://developer.apple.com/documentation/swiftui/view/quicklookpreview(_:) (2026-10-08).
+- **G2 Import, drop and share:** `fileImporter(isPresented:allowedContentTypes:allowsMultipleSelection:onCompletion:)` is current; its URLs are security-scoped (start/stop access). `onDrop(of: [UTType], …)` is **not** deprecated (only the `[String]` overloads are), so the existing drop stays. `dropDestination(for:action:isTargeted:)` is deprecated in favor of `dropDestination(for:isEnabled:action:)` with a `DropSession` (iOS/macOS 26+), so new drop code uses that if it uses Transferable at all. `ShareLink(item: URL)` is fine. https://developer.apple.com/documentation/swiftui/view/dropdestination(for:isenabled:action:) (2026-10-08).
+- **G3 Replacing a file in iCloud Drive:** writes are coordinated. Apple: `.forReplacing` is for putting a *different item* at a location, not for updating an existing file's contents (https://developer.apple.com/documentation/foundation/nsfilecoordinator/writingoptions/forreplacing, 2026-10-08). The plan avoids both. A replace is a coordinated copy under a new name (`UbiquitousFile.coordinatedCopy`), then the old file goes to the coordinated Trash after the save (Decision 6). `coordinatedReplaceItem` isn't used, because it keeps no backup of the old file. Nothing new in 27 for NSFileCoordinator or NSFileVersion.
+- **G4 Sandbox:** Apple's current page lists only the open panel or `fileImporter` (folders grant recursively), security-scoped bookmarks of such URLs, standard-folder entitlements, and Full Disk Access (https://developer.apple.com/documentation/security/accessing-files-from-the-macos-app-sandbox, 2026-10-08). Temporary-exception entitlements are no longer in the current docs index, though the app already ships two narrow ones. This is why Decision 4 uses a folder bookmark. Apple doesn't say whether the Documents-folder privacy prompt also applies, so Phase 5 checks it on the real Mac.
+- **G5 UTType:** don't derive the type from the extension alone; read `URLResourceValues.contentType`. `UTType(filenameExtension:)` gives a non-nil dynamic type for unknown extensions. Checked here: pdf → `com.adobe.pdf`; png, jpg and heic conform to `.image`; docx, pages and txt don't.
+- **G6 Core Data + CloudKit:** adding an optional attribute is an inferred lightweight migration (https://developer.apple.com/documentation/coredata/migrating-your-data-model-automatically, 2026-10-08). After Production you can add fields but never change or delete them; re-run `initializeCloudKitSchema` in Development, then promote (https://developer.apple.com/documentation/coredata/creating-a-core-data-model-for-cloudkit, 2026-10-08). No iOS 27 changes.
+- Freshness gaps: the quickLookPreview pages are thin; no Apple page covers Quick Look with iCloud placeholders; the old `dropDestination` shows deprecated in the docs (27.2) but `100000.0` in the SDK, and the SDK wins.
+
+## How the phases run
+Phase 1 runs in this worktree (`claude/cosmic-daybook-lesson-attachments-d7db1a`) as an agent, so its branch is this session's branch. Phases 2 and 3 run as agents with `isolation: "worktree"`. An agent worktree starts at the last *pushed* main, so each one's **first step is `git merge claude/cosmic-daybook-lesson-attachments-d7db1a`** (the local branch is shared between worktrees), then one build before editing (project rule). Phase 4 merges both branches back here.
+
+## Phase 1: Attachment service + schema 21 `modifiedAt`
+- Who: `feature-phase-deep` (Opus, xhigh). Schema, sync-visible file writes and backup format: a subtle mistake loses a file or breaks sync.
+- Steps:
+  1. Model: add `modifiedAt` (Date, optional) to `LessonAttachment` in `Cosmic Daybook/CosmicDaybook.xcdatamodeld/CosmicDaybook 2.xcdatamodel/contents` and `@NSManaged var modifiedAt: Date?` in `LessonAttachmentEntity.swift`. The convenience init sets it to the same instant as `attachedAt`. Add a computed `lastChanged` (`modifiedAt ?? attachedAt`) in an extension file, per the extensions rule. Schema 20 → 21: `AppCore/Persistence/CoreDataStack+SchemaVersion.swift:132` and its changelog line, and the digest in `Cosmic Daybook Tests/AppCore/Persistence/CoreDataSchemaVersionTests.swift:36`. Follow the existing test that opens a schema-20 store with schema 21.
+  2. Backup: v42 → v43 (`Backup/Archive/BackupWriter.swift:119`). In `Backup/BackupPredatedValues.swift`, older rows get `modifiedAt = attachedAt`. Update `BackupFieldCoverageTests` and the golden output as their failures ask. `ModelRowKinds` picks the attribute up from the model by itself; check that it does.
+  3. New `Lessons/Attachments/LessonAttachmentService.swift` (`@MainActor`, takes a context and a `ManagedPDFFileStorage`, defaulting to `LessonFileStorage.storage`, so tests use a temp folder):
+     - `validate(fileAt:allowedTypes:)`: the real content type conforms to one of `allowedTypes`, the size is at most 50 MB, and it's a regular file (Decision 6). This is used by both add and replace. The MCP tool passes `[.pdf, .image]`; the card passes the types it already accepts (Pages and the rest keep working), so only the 50 MB limit is new in the app.
+     - `add(fileAt:to lesson:scope:title:notes:)`. It wraps today's `importAttachment` + `makeBookmark` + new record + `safeSave`, and removes the copy when the save fails. `fileName` keeps the title as given (Decision 2).
+     - `replace(_ attachment:withFileAt:notes:)`, as in Decision 6: `ensureLocal` the old file and compare the bytes when it's there; copy the new file under a new unique name in the lesson's folder; point the record at it with a fresh bookmark (always remade); update size, `fileType`, `modifiedAt` and `notes`, and clear `thumbnailData`; save; then trash the old file through the existing removal. If the save fails, the new copy is removed and the record is rolled back. It returns whether anything changed: identical bytes with the same notes is no change.
+     - `rename(_:to:)`, `setNotes(_:_:)` and `remove(_:)`, which move today's view code (`LessonAttachmentsSection.swift:369-385, 399-422`, `LessonFileStorage+Removal.swift`) into the service unchanged in behavior, including the primary-file clearing on delete and the Sample Class refusal.
+     - `existingAttachment(titled:on:)`: same sanitized stem, case-insensitive, among the lesson's own lesson-scope attachments.
+  4. Point `LessonAttachmentsSection` at the service: same behavior, no UI change yet.
+  5. Tests: `Cosmic Daybook Tests/Lessons/Attachments/LessonAttachmentServiceTests.swift`, in-memory stack plus a temp storage folder. Cover:
+     - add: file copied, record fields, `modifiedAt == attachedAt`, and a title with an em dash kept in `fileName` but sanitized on disk.
+     - validate: refuses `.docx`, a non-PDF renamed `.pdf`, a folder, and 50 MB + 1 byte (sparse temp file).
+     - replace: same record id, new path and bookmark, new bytes, size and `modifiedAt` changed, old file in the Trash and not deleted.
+     - replace with identical bytes reports no change.
+     - **replace whose save fails** (injected save failure) leaves the old file and record untouched, with no stray new copy.
+     - replace when the old file is missing goes ahead.
+     - replace PDF→PNG. rename and setNotes bump `modifiedAt`; remove deletes the record and the file, clears primary, and keeps a file another record uses; title matching is case-insensitive and skips sequence and area files; and backup round-trip of `modifiedAt` and a predated v42 row.
+- Cost: ~3–4% of weekly (deep xhigh phase; the log shows Daybook deep phases at ~3%).
+- Done when: the iOS build (`Scripts/locked_xcodebuild.sh` with the worktree prefix-mapping settings, scheme `Cosmic Daybook`, iPhone 17) and a macOS compile-only build are clean with no warnings. `-only-testing:` passes for `LessonAttachmentServiceTests`, `CoreDataSchemaVersionTests`, `BackupFieldCoverageTests`, `BackupGoldenOutputTests` and the backup predated-values suite, on the leased simulator with `-parallel-testing-enabled NO` (1 simulator). The card still adds, renames and deletes, through the service. Committed on this branch.
+- Hand off: no (Phases 2 ‖ 3 start from this session).
+
+## Phase 2: MCP tools + folder grant ‖ Phase 3
+- Who: `feature-phase` (Opus, high). Extends the established MCP pattern, but path safety, the sandbox and the "never report success when nothing changed" guard need care, so not the light agent.
+- Steps:
+  1. First `git merge claude/cosmic-daybook-lesson-attachments-d7db1a`, then one build.
+  2. Folder grant (Decision 4): new `Services/MCPServer/MCPAttachFolders.swift`.
+     - It stores bookmarks through `Utils/Files/SecurityScopedBookmark.swift` under a new key in `UserDefaultsKeys`. The key is kept out of synced preferences and added to the backup prefs list with `.unionArray`, like `Albums.folderBookmarks`.
+     - `allowedRoots()` returns the granted folders plus the album folders, both resolved straight from their bookmarks. Stale bookmarks are made again. It doesn't use `AlbumLibrary.shared.folderURLs` and doesn't bootstrap the album library.
+     - A platform-neutral `PathContainment` holds the rules from Decision 4:
+       - expand `~` against an injectable home folder, which in the app is the **real** home (`getpwuid(getuid()).pw_dir`; in the sandbox `NSHomeDirectory()` is the container);
+       - standardize and resolve symlinks on the target and the roots;
+       - compare with a trailing "/".
+     - `withReadAccess(to:)` starts and stops scoped access.
+     - On the Mac only, add the list with Add Folder… (`fileImporter` for `.folder`, G2) and Remove to `Settings/Intelligence/ClaudeDesktopSettingsView.swift`, with wording in `SettingsCopy`, in plain English. Bookmark storage and UI are `#if os(macOS)`; the containment logic and its tests are not.
+  3. Tools in a new `Services/MCPServer/MCPNotebookTools+LessonAttachments.swift`, registered in `rosterAndLessonTools`. Their arguments, behavior and refusals are as in Decisions 6 and 7.
+     - `attach_file_to_lesson(lesson, path, title?, source_note?, replace_existing?)` goes through `LessonAttachmentService` only, including its `validate`. Its receipt is built from the stored record: "Attached|Replaced '<fileName title>' (PDF, <fileSizeFormatted>) to [lesson id=…] Area of a Circle — Geometry › Circle [lessonAttachment id=…]".
+     - `list_lesson_attachments(lesson)` gives title, id, scope, type, size, added, changed and source note.
+     - `remove_lesson_attachment(attachment, confirm?)`.
+     - The list-only files suffix for `find_lessons` and `list_lessons_by_area`, with prefetching. `describeLesson` is unchanged.
+     - Every refusal is a plain sentence through the existing MCP error type.
+  4. Registry: `MCPToolRegistryTests` count 94 → 97 and the `writingTools` / `destructiveTools` sets. `docs/Technical notes/MCP_SERVER.md` table (:160-167) and count line (:685). The line in `docs/Technical notes/ALBUMS.md` (Decision 5).
+  5. Tests (`Cosmic Daybook Tests/Services/MCPServer/MCPLessonAttachmentToolsTests.swift`; temp folder registered as a granted root through a test seam). **One test per parameter proving it persisted, read back from the store and through `list_lesson_attachments`, not from the receipt:**
+     - `lesson` by id and by exact name, and an ambiguous name is refused.
+     - `path`: the file's bytes are in the managed folder.
+     - `title`: it's the stored stem; the default is the source stem.
+     - `source_note` lands in `notes`.
+     - `replace_existing: true`: same attachment id, new size, later `modifiedAt`, still one attachment.
+     - `replace_existing` false or missing: refused, store unchanged (`!hasChanges`, count unchanged).
+     - Identical bytes: "already up to date" and nothing journaled.
+     - `remove_lesson_attachment` removes exactly one of two.
+     - The receipt's title and size match the stored record: an em-dash title comes back with its em dash, and the size equals `fileSizeFormatted`.
+     - Refusals with no write: `.docx`, a missing path, a folder, a path outside the roots, a `..` escape, a symlink inside a root pointing out, a sibling `YYLI2` beside a granted `YYLI`, and `~/.cosmic-daybook/mcp.token`. The type and size refusals are covered by the Phase 1 service tests; here one of them is checked to reach the caller as a plain message.
+     - `~` expansion uses the injected home folder.
+     - `remove_lesson_attachment` without `confirm` writes and journals nothing.
+     - The `find_lessons` files suffix shows the titles; with five files it shows three plus "+2 more".
+     - The journal: `MCPRequestHandler` records attach, replace and remove with both citations, and nothing for a refusal, a no-op or an unconfirmed remove (the `MCPRequestHandlerTests` `onWrite` collector).
+- Cost: ~2–3% of weekly (feature-phase Opus high, two folders plus a settings row).
+- Done when: macOS compile-only and iOS builds are clean with no warnings. `-only-testing:` passes for the whole `Cosmic Daybook Tests/Services/MCPServer/` folder (every MCP suite, so a changed output line anywhere shows up here, not in Phase 4) and for `BackupPreferences` coverage, on the iOS simulator with 1 simulator, never a macOS test run. One picture of the Claude Desktop settings pane with a granted folder. Committed on its own branch. `~/.claude/bin/sim-lease --done` before reporting.
+- Hand off: no.
+
+## Phase 3: App UI ‖ Phase 2
+- Who: `feature-phase` (Opus, high). SwiftUI on a data layer that exists, both platforms.
+- Steps:
+  1. First `git merge claude/cosmic-daybook-lesson-attachments-d7db1a`, then one build.
+  2. `AttachmentRow.swift`:
+     - The Mac click opens Quick Look (`quickLookPreview`, G1), after a download request and waiting for `.current`. "Open in <default app>" goes in the context menu.
+     - The row shows "Added Oct 25" or "Updated Oct 26" (from `lastChanged`, using the app's shared date formatter) next to the size.
+     - When `notes` isn't empty, the row shows it as one secondary line.
+     - "Replace with Newer Version…" goes in the hover buttons, the iOS menu and the context menu. It's hidden for files shared from another lesson, as Rename is. It uses `fileImporter` (`.pdf`, `.image`, plus the card's other accepted types) → `LessonAttachmentService.replace`, with a toast "Replaced <title>" or "That's the same file — nothing changed."
+  3. Paperclip (Decision 8): new `Lessons/Attachments/LessonAttachmentIndex.swift`. It holds the set of lesson ids with their own attachments, read with one dictionary-result fetch, and refreshes on a `DidSave` that touches `LessonAttachment`. Mind the background-save closure isolation memory: the filter closure is `nonisolated`. It's injected through the environment where the library builds its pills. `MiniLessonPill` and `pillView(for:)` draw a small `paperclip` symbol with the accessibility label "Has a file".
+  4. Tests: `LessonAttachmentIndexTests`: add → in the set, remove last → out, a sequence-scope file doesn't badge siblings, and one fetch per refresh (registeredObjects-count technique from memory).
+  5. Pictures: iPad and Mac renders of the Files card (one PDF with a note, one replaced) and of a scope-map row with a paperclip.
+- Cost: ~2–3% of weekly (feature-phase; both platforms).
+- Done when: iOS and macOS builds are clean with no warnings. `-only-testing:` passes for `LessonAttachmentIndexTests` and any existing `LessonAttachmentsSection` or ScopeMap suites (1 simulator). The renders show the date, the note, Replace in the menu and the paperclip. Committed on its own branch. `~/.claude/bin/sim-lease --done` before reporting.
+- Hand off: no.
+
+## Phase 4: Combine, full checks, review (main session, here)
+- Who: main session (Opus 5.5, high), plus one Opus review agent (`review-council:correctness-reviewer` or a `Plan` agent) over the combined diff, focused on path safety, file loss on replace or remove, and false success receipts.
+- Steps:
+  1. Merge Phase 2's and Phase 3's branches into this branch. Conflicts are unlikely: 2 is `Services/MCPServer/` + Settings, 3 is `Lessons/Attachments/` views + ScopeMap. If `LessonAttachmentsSection.swift` conflicts, keep Phase 1's service calls.
+  2. Full builds: iOS app, macOS app, and the Daybook Assistant scheme, which shares the model and compiles notebook files by path.
+  3. The whole notebook iOS suite, once.
+  4. Run the review and fix what holds up.
+  5. Docs: `docs/Technical notes/DATA_MODELS.md` (schema 21; its count is already stale at 19), the project `CLAUDE.md` (schema 21, backup v43, Xcode 27.1), and a new "Lesson files" paragraph in `docs/How Cosmic Daybook works/` if one fits.
+- Cost: ~2–3% of weekly.
+- Done when: all three schemes build clean with no warnings, the whole suite passes (a known flaky test is named, not waved off), the review findings are fixed or answered in one line each, and it's committed.
+- Hand off: no. Phase 5 can follow here.
+
+## Phase 5: Ship and the real attach (main session, here or fresh)
+- Who: main session (Opus 5.5, medium). Mostly running scripts and waiting on Danny.
+- Steps (Danny's steps become Tide rows under `Release` / `Check on a device`):
+  1. One Debug Mac run with `CLOUDKIT_ENVIRONMENT=Development` and `-InitializeCloudKitSchema` (CLOUDKIT_GUIDE.md:41, 93-98), as done for schema 20. Check `CD_modifiedAt` on `CD_LessonAttachment` in Development.
+  2. Deploy schema 21 to Production, by Danny or by Claude in the browser pane at his word, as for schema 20. Danny backs up first.
+  3. Merge to main (fast-forward, push), then `Scripts/install_release.sh` on the Mac. Danny quits the app first.
+  4. Danny: Settings › Claude Desktop › Folders Claude can attach files from › Add Folder… › `~/Documents/Workplaces/YYLI`. If macOS asks about Documents access, allow it (G4).
+  5. Claude calls `attach_file_to_lesson` with lesson `A95CD496-5284-414B-836A-DB8DD50E4157`, the `circle-area-of-a-circle.pdf` path, and title "Area of a Circle — remade album pages". Then it calls the same thing again with `replace_existing: true`, and again with `false` to see the refusal. Check with `list_lesson_attachments`: one attachment, and `recent_mcp_writes` shows attach + replace. On the installed app, prove the sandbox check is real: a file just outside YYLI and a symlink inside YYLI pointing outside must both be refused. Make the symlink in the scratchpad's test folder inside YYLI, then delete it.
+  6. Danny: open it in Quick Look from the lesson on the Mac.
+  7. TestFlight via `roll-out` (iPhone/iPad + Mac). Danny installs on the iPad and checks that the file is on the lesson and opens.
+- Cost: ~1–2% of weekly.
+- Done when: Done-when items 1–4 of the request are true. Items 2 (Mac Quick Look, iPad) are Danny's checks in Tide; the phase closes when he ticks them.
+- Hand off: optional. If this session is long by then, fresh.
+
+## Starting a phase
+Read the plan usage (`get_usage`) and note the weekly % used next to the phase under Progress ("started at N%").
+
+## Ending a phase
+1. Check every "Done when" item for the phase.
+2. Tick the phase under Progress and note anything that differed from the plan. Read the plan usage again and note the actual cost (end % minus start %).
+3. Add a row to the log in `~/.claude/skills/plan-efficiently/references/cost-estimates.md`.
+4. Update the build board (https://claude.ai/artifact/WAKaFZGNPQsfKD4A5GbqsM) with the `build-board` skill.
+5. Make every "not verified", "for your review" or "check on a device" item from this phase a row in Tide's `Areas/App Development/Cosmic Daybook/To do.md` (`add_action`), skipping ones already there. Tide holds the row; the line here keeps one plain sentence plus the row's `tide://` link.
+6. Run /close-out. It sets this plan's status line (`> **Working on it.**` after a phase, `> **Done <date>** (<commit>).` after the last, checked against main) and runs `docs-index`.
+7. If the next phase is a fresh session, print its starter prompt: "Model: <from its Who line>" on the first line, then "In Maria's Notebook, read docs/Plans/Plan - Lesson file attachments.md and do Phase <N>. Follow its Starting a phase and Ending a phase steps."
+
+## Open questions
+None. Phase 5 step 4 may show a macOS Documents-access prompt; Apple doesn't say whether it appears on top of a folder grant.
