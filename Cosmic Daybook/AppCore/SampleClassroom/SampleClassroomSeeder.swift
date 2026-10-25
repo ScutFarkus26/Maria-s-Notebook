@@ -14,6 +14,7 @@ enum SampleClassroomSeeder {
         let fileBookmark: Data?
         let fileRelativePath: String
         let attachedAt: Date?
+        let modifiedAt: Date?
         let fileType: String
         let fileSizeBytes: Int64
         let scopeRaw: String

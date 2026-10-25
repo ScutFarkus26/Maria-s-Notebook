@@ -116,7 +116,12 @@ nonisolated public enum BackupWriter {
     ///   Purely additive; a v41 reader would skip them silently, hence the
     ///   version. Bookings are derived from planned lessons, and the booking
     ///   publisher rewrites or removes restored ones on its next run.
-    public static let formatVersion: Int = 42
+    /// - v43: `LessonAttachment` entries carry `modifiedAt` (schema 21), when a
+    ///   lesson file, its name or its note last changed. Purely additive; an
+    ///   older backup's rows read it as their `attachedAt`
+    ///   (`BackupFieldsAddedLater.standIns`). The files themselves are still
+    ///   not in the backup.
+    public static let formatVersion: Int = 43
 
     public enum WriterError: LocalizedError {
         case entityEncodingFailed(entityName: String, underlying: Error)

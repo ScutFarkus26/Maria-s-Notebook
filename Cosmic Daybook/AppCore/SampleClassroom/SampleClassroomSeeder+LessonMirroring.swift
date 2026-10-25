@@ -24,6 +24,7 @@ extension SampleClassroomSeeder {
                         fileBookmark: attachment.fileBookmark,
                         fileRelativePath: attachment.fileRelativePath,
                         attachedAt: attachment.attachedAt,
+                        modifiedAt: attachment.modifiedAt,
                         fileType: attachment.fileType,
                         fileSizeBytes: attachment.fileSizeBytes,
                         scopeRaw: attachment.scopeRaw,
@@ -147,6 +148,7 @@ extension SampleClassroomSeeder {
                 attachment.fileBookmark = attachmentSnapshot.fileBookmark
                 attachment.fileRelativePath = attachmentSnapshot.fileRelativePath
                 attachment.attachedAt = attachmentSnapshot.attachedAt
+                attachment.modifiedAt = attachmentSnapshot.modifiedAt
                 attachment.fileType = attachmentSnapshot.fileType
                 attachment.fileSizeBytes = attachmentSnapshot.fileSizeBytes
                 attachment.scopeRaw = attachmentSnapshot.scopeRaw

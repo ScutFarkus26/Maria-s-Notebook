@@ -65,6 +65,30 @@ nonisolated enum BackupFieldsAddedLater {
         guard let added = attributes[entityName] else { return [] }
         return added.compactMap { formatVersion < $0.value ? $0.key : nil }.sorted()
     }
+
+    /// An attribute added later whose value an older backup's row already
+    /// holds under another name.
+    struct StandIn: Sendable, Equatable {
+        /// The attribute the older rows lack.
+        let attribute: String
+        /// The attribute of the same row read in its place.
+        let from: String
+        /// The first format whose rows carry `attribute` themselves.
+        let version: Int
+    }
+
+    /// Unlike `attributes`, these are filled from the row rather than kept
+    /// from the record: a lesson file in a backup from before v43 was last
+    /// changed when it was attached, as far as that backup knows, and the rest
+    /// of its row (name, file, size) is restored as of then too.
+    static let standIns: [String: [StandIn]] = [
+        "LessonAttachment": [StandIn(attribute: "modifiedAt", from: "attachedAt", version: 43)]
+    ]
+
+    /// The stand-ins a backup of `formatVersion` needs for `entityName`'s rows.
+    static func standIns(from formatVersion: Int, in entityName: String) -> [StandIn] {
+        (standIns[entityName] ?? []).filter { formatVersion < $0.version }
+    }
 }
 
 /// The values a restore keeps because its backup predates them: noted as each
@@ -83,6 +107,20 @@ final class BackupPredatedValues {
 
     init(formatVersion: Int) {
         self.formatVersion = formatVersion
+    }
+
+    /// `rows` with each attribute this backup predates read from its stand-in
+    /// (`BackupFieldsAddedLater.standIns`) where the row has none of its own.
+    func standingIn<Kind: ModelRowKind>(for rows: [ModelRow<Kind>]) -> [ModelRow<Kind>] {
+        let standIns = BackupFieldsAddedLater.standIns(from: formatVersion, in: Kind.spec.entityName)
+        guard !standIns.isEmpty else { return rows }
+        return rows.map { row in
+            var row = row
+            for standIn in standIns where row.values[standIn.attribute] == nil {
+                row.values[standIn.attribute] = row.values[standIn.from]
+            }
+            return row
+        }
     }
 
     /// Notes `object`'s values for the attributes this backup predates.

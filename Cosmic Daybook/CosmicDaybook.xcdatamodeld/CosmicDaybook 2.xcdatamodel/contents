@@ -78,6 +78,7 @@
         <attribute name="scopeRaw" attributeType="String" defaultValueString="lesson"/>
         <attribute name="notes" attributeType="String" defaultValueString=""/>
         <attribute name="thumbnailData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="lesson" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Lesson" inverseName="attachments" inverseEntity="Lesson"/>
     </entity>
     <!-- ==================== Note ==================== -->

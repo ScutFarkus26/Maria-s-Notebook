@@ -175,8 +175,10 @@ extension BackupRestoreRun {
         let index = self.index
 
         if let lessonAttachments = try rows(\.lessonAttachments) {
+            // Before v43 a row has no `modifiedAt`; it reads as its `attachedAt`.
             BackupEntityImporter.importRows(
-                lessonAttachments, as: CDLessonAttachment.self, into: viewContext,
+                index.predatedValues.standingIn(for: lessonAttachments),
+                as: CDLessonAttachment.self, into: viewContext,
                 existing: { try index.existing(CDLessonAttachment.self, id: $0) },
                 parents: ["lesson": { try index.related(CDLesson.self, id: $0) }]
             )

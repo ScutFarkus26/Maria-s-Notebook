@@ -14,6 +14,9 @@ nonisolated public class CDLessonAttachment: NSManagedObject {
     @NSManaged public var scopeRaw: String
     @NSManaged public var notes: String
     @NSManaged public var thumbnailData: Data?
+    /// When the file, its name or its note last changed (schema 21). Nil on
+    /// records from before then, which read it as `attachedAt` (`lastChanged`).
+    @NSManaged public var modifiedAt: Date?
 
     // MARK: - Relationships
     @NSManaged public var lesson: CDLesson?
@@ -27,7 +30,9 @@ nonisolated public class CDLessonAttachment: NSManagedObject {
         self.fileName = ""
         self.fileBookmark = nil
         self.fileRelativePath = ""
-        self.attachedAt = Date()
+        let now = Date()
+        self.attachedAt = now
+        self.modifiedAt = now
         self.fileType = ""
         self.fileSizeBytes = 0
         self.scopeRaw = AttachmentScope.lesson.rawValue
