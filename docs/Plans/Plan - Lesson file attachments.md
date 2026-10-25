@@ -1,13 +1,13 @@
 # Lesson file attachments: Claude attaches a remade album PDF to a lesson
 
-> **Not started.** Written 2026-10-25 from Danny's /plan-efficiently request (session on branch `claude/cosmic-daybook-lesson-attachments-d7db1a`), with his four answers the same day.
+> **Working on it.** Written 2026-10-25 from Danny's /plan-efficiently request (session on branch `claude/cosmic-daybook-lesson-attachments-d7db1a`), with his four answers the same day. Approved by Danny 2026-10-25 ("Approved. Start Phase 1 here.").
 > In short: Claude can attach a PDF to a lesson through the cosmic-daybook connector, and Danny opens it in Quick Look from the lesson on the Mac and, after sync, on the iPad.
 
 ## Goal
 Danny is remaking his AMI albums as designed PDFs with illustrations. A lesson's write-up in the app is text only, so each remade lesson should carry its PDF. When this is done, Claude can call `attach_file_to_lesson` with a path under `~/Documents/Workplaces/YYLI/`. The PDF lands on the lesson's Files card, opens in Quick Look on the Mac, reaches the iPad through iCloud Drive, and a second call with `replace_existing: true` updates it in place instead of adding a copy. Claude can also list and remove a lesson's files and see them in `find_lessons` output. The app gets the pieces it's missing: Quick Look on the Mac, Replace with Newer Version, the date on each row, the source note, and a paperclip on lessons in the library.
 
 ## Progress
-- [ ] Phase 1: Attachment service + schema 21 `modifiedAt` (`feature-phase-deep`, this worktree's branch) · est. ~3–5% weekly
+- [ ] Phase 1: Attachment service + schema 21 `modifiedAt` (`feature-phase-deep`, this worktree's branch) · est. ~3–5% weekly · started at 54%
 - [ ] Phase 2: MCP tools + folder grant (`feature-phase`, own worktree) ‖ Phase 3 · est. ~2–3% weekly
 - [ ] Phase 3: App UI: Quick Look, replace, dates, paperclip (`feature-phase`, own worktree) ‖ Phase 2 · est. ~2–3% weekly
 - [ ] Phase 4: Combine, full builds, whole suite, review (main session, here) · est. ~2–3% weekly
