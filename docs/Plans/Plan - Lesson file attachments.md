@@ -10,7 +10,7 @@ Danny is remaking his AMI albums as designed PDFs with illustrations. A lesson's
 - [x] Phase 1: Attachment service + schema 21 `modifiedAt` (`feature-phase-deep`, this worktree's branch) · est. ~3–5% weekly · weekly 54% → 64% (noisy: ~2 h wall clock, other sessions likely running; the agent alone used ~525k tokens). Commits 4af068f4 (schema 21, backup v43) + 82c323ee (`LessonAttachmentService` and the Files card on it). 88 tests in 18 suites pass (new: LessonAttachmentServiceTests 18, LessonAttachmentModifiedAtTests 5); iOS build-for-testing and macOS compile-only clean (3 old slow-type-check notes in untouched files). Differed: `replace` returns replaced / noteChanged / unchanged and waits up to 15 s for an old file still in iCloud; 50 MB = 50,000,000 bytes; the card now refuses a plain folder (packages such as Pages still attach) and files over 50 MB; a rename whose save fails moves the file back; v42 backups give `modifiedAt = attachedAt`; two Schedules test pins changed from `== 20`/`== 42` to `>=`. Not yet checked: the card in the running app (Phase 3 renders) and the Assistant build (Phase 4).
 - [ ] Phase 2: MCP tools + folder grant (`feature-phase`, own worktree) ‖ Phase 3 · est. ~2–3% weekly · started at 64%
 - [ ] Phase 3: App UI: Quick Look, replace, dates, paperclip (`feature-phase`, own worktree) ‖ Phase 2 · est. ~2–3% weekly · started at 64%
-- [ ] Phase 4: Combine, full builds, whole suite, review (main session, here) · est. ~2–3% weekly · started at 64%
+- [ ] Phase 4: Combine, full builds, whole suite, review (main session, here) · est. ~2–3% weekly
 - [ ] Phase 5: Ship and the real attach (main session, here or fresh; Danny's steps in Tide) · est. ~1–2% weekly
 
 ## Cost
