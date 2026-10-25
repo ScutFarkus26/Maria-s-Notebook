@@ -23,9 +23,10 @@ private enum FileImportHelpers {
         logger.debug("Attempting to import: \(url.lastPathComponent) from path: \(url.path)")
     }
 
-    static func logImportSuccess(url: URL, relativePath: String, fileSize: Int64) {
-        logger.info("File copied to: \(url.path), relative path: \(relativePath), size: \(fileSize) bytes")
-        logger.info("Successfully imported attachment: \(url.lastPathComponent)")
+    static func logImportSuccess(_ attachment: CDLessonAttachment) {
+        logger.info(
+            "Attached a file at relative path: \(attachment.fileRelativePath), size: \(attachment.fileSizeBytes) bytes"
+        )
     }
 
     static func logImportError(_ error: Error) {
@@ -48,8 +49,7 @@ struct LessonAttachmentsSection: View {
     /// Why the Sample Class can't add files: its lessons are copies that point at
     /// the real notebook's files, and its file actions change records only.
     static let sampleClassFilesTitle = "Can't Add Files Here"
-    static let sampleClassFilesMessage = "The Sample Class shares your class's lesson files, "
-        + "so it can't add or change them. Switch to My Class to add a file."
+    static let sampleClassFilesMessage = LessonAttachmentService.Problem.sampleClassMessage
 
     let lesson: CDLesson
     @Environment(\.managedObjectContext) private var viewContext
@@ -70,6 +70,12 @@ struct LessonAttachmentsSection: View {
     @State private var deleteOriginalAfterImport = false
     /// What went wrong with an attachment, shown in one alert; the raw error is logged.
     @State private var attachmentProblem: (title: String, message: String)?
+
+    /// Every change to an attachment goes through the service, as the MCP
+    /// tools' do.
+    private var attachmentService: LessonAttachmentService {
+        LessonAttachmentService(context: viewContext, isSampleClassroom: isSampleClassroom)
+    }
 
     init(lesson: CDLesson) {
         self.lesson = lesson
@@ -322,31 +328,12 @@ struct LessonAttachmentsSection: View {
         }
 
         do {
-            let (destURL, relativePath) = try LessonFileStorage.importAttachment(
-                from: url,
-                forLesson: lesson,
-                scope: scope
+            // The card takes any file it's given; the service checks the size
+            // and, on a failed save, removes the copy it made.
+            let attachment = try attachmentService.add(
+                fileAt: url, to: lesson, scope: scope, allowedTypes: LessonAttachmentService.anyFile
             )
-            let fileSize = try FileManager.default.attributesOfItem(atPath: destURL.path)[.size] as? Int64 ?? 0
-            let bookmark = try LessonFileStorage.makeBookmark(for: destURL)
-            FileImportHelpers.logImportSuccess(url: destURL, relativePath: relativePath, fileSize: fileSize)
-
-            let attachment = CDLessonAttachment(context: viewContext)
-            attachment.fileName = url.lastPathComponent
-            attachment.fileBookmark = bookmark
-            attachment.fileRelativePath = relativePath
-            attachment.fileType = url.pathExtension.lowercased()
-            attachment.fileSizeBytes = fileSize
-            attachment.scope = scope
-            attachment.lesson = lesson
-
-            guard viewContext.safeSave() else {
-                // Nothing points at the copy just made, so it can go.
-                viewContext.delete(attachment)
-                try? LessonFileStorage.deleteIfManaged(destURL)
-                attachmentProblem = ("Couldn't Add the File", "Couldn't save the new attachment. Try again.")
-                return
-            }
+            FileImportHelpers.logImportSuccess(attachment)
 
             if trashOriginal {
                 do {
@@ -356,32 +343,30 @@ struct LessonAttachmentsSection: View {
                     Self.logger.warning("Failed to delete original file: \(error)")
                 }
             }
+        } catch LessonAttachmentService.Problem.saveFailed {
+            attachmentProblem = ("Couldn't Add the File", "Couldn't save the new attachment. Try again.")
+        } catch let problem as LessonAttachmentService.Problem {
+            attachmentProblem = ("Couldn't Add the File", problem.errorDescription ?? Self.addFallback)
         } catch {
             FileImportHelpers.logImportError(error)
             attachmentProblem = ("Couldn't Add the File", AppErrorMessages.importMessage(for: error))
         }
     }
 
+    private static let addFallback = "Couldn't add the file. Try again."
+
     // MARK: - Changes
 
     /// Deletes the attachment's record; its file goes to the Trash after the
-    /// save when nothing else points at it. In the Sample Class only the record goes.
+    /// save when nothing else points at it. In the Sample Class only the record
+    /// goes. A failed save undoes just this delete (the service's transaction),
+    /// so it isn't saved later by some other change after she was told to try again.
     private func deleteAttachment(_ attachment: CDLessonAttachment) {
-        let holder = attachment.lesson
-        let wasPrimary = holder?.primaryAttachmentIDUUID == attachment.id && attachment.id != nil
-        let path = attachment.fileRelativePath
-        // A failed save undoes just this delete, so it isn't saved later by
-        // some other change after she was told to try again.
-        let transaction = ContextMutationTransaction(context: viewContext)
-        if wasPrimary { holder?.primaryAttachmentID = nil }
-        viewContext.delete(attachment)
-        guard viewContext.safeSave() else {
-            transaction.rollback()
+        do {
+            try attachmentService.remove(attachment)
+        } catch {
             attachmentProblem = ("Couldn't Delete the Attachment", "Couldn't delete this attachment. Try again.")
-            return
         }
-        transaction.commit()
-        LessonFileStorage.trashUnreferencedFiles([path], in: viewContext, isSampleClassroom: isSampleClassroom)
     }
 
     private func togglePrimaryAttachment(_ attachment: CDLessonAttachment) {
@@ -394,27 +379,18 @@ struct LessonAttachmentsSection: View {
         viewContext.safeSave()
     }
 
-    /// Renames the file and the record. In the Sample Class only the name the
-    /// record shows changes; the file stays as the real notebook has it.
+    /// Renames the file and the record: the record keeps the name as typed,
+    /// the file on disk its sanitized form. In the Sample Class only the name
+    /// the record shows changes; the file stays as the real notebook has it.
     private func renameAttachment() {
         guard let attachment = attachmentToRename else { return }
 
         do {
-            if isSampleClassroom {
-                attachment.fileName = renameFileName.trimmed()
-            } else {
-                let renamedFile = try LessonFileStorage.renameAttachment(attachment, to: renameFileName)
-                attachment.fileName = renamedFile.fileName
-                attachment.fileRelativePath = renamedFile.relativePath
-                attachment.fileBookmark = try LessonFileStorage.makeBookmark(for: renamedFile.url)
-                attachment.fileType = renamedFile.fileType
-            }
-            if viewContext.safeSave() {
-                attachmentToRename = nil
-                renameFileName = ""
-            } else {
-                attachmentProblem = ("Couldn't Rename the Attachment", "Couldn't save the new name. Try again.")
-            }
+            try attachmentService.rename(attachment, to: renameFileName)
+            attachmentToRename = nil
+            renameFileName = ""
+        } catch LessonAttachmentService.Problem.saveFailed {
+            attachmentProblem = ("Couldn't Rename the Attachment", "Couldn't save the new name. Try again.")
         } catch {
             Self.logger.error("Failed to rename attachment: \(error)")
             attachmentProblem = ("Couldn't Rename the Attachment", "Couldn't rename this attachment. Try again.")

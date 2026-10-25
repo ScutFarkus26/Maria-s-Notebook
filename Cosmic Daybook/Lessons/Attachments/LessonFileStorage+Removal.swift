@@ -39,8 +39,13 @@ extension LessonFileStorage {
 
     /// The files among `relativePaths` that no lesson's Pages file and no
     /// attachment in `context` points at any more. Call it after the save that
-    /// dropped the references, so a failed save never loses a file.
-    static func unreferencedFiles(_ relativePaths: [String], in context: NSManagedObjectContext) -> [URL] {
+    /// dropped the references, so a failed save never loses a file. `storage`
+    /// is the Lesson Files folder unless a test passes its own.
+    static func unreferencedFiles(
+        _ relativePaths: [String],
+        in context: NSManagedObjectContext,
+        storage: ManagedPDFFileStorage = LessonFileStorage.storage
+    ) -> [URL] {
         var wanted: [String: String] = [:]
         for path in relativePaths where !path.trimmed().isEmpty {
             let key = pathKey(path)
@@ -62,7 +67,7 @@ extension LessonFileStorage {
 
         return wanted.filter { !referenced.contains($0.key) }
             .values.sorted()
-            .compactMap { try? resolve(relativePath: $0) }
+            .compactMap { try? storage.resolve(relativePath: $0) }
     }
 
     /// After a save that dropped references to `relativePaths`: moves the ones
@@ -77,14 +82,17 @@ extension LessonFileStorage {
     /// Moves managed files to the Trash (never straight to deletion), off the
     /// main thread and coordinated with iCloud. A file that can't be moved is
     /// logged and left where it is: a stray file costs nothing, a lost one does.
-    nonisolated static func moveToTrash(_ urls: [URL]) {
+    /// Only files inside `storage`'s folder are moved.
+    nonisolated static func moveToTrash(
+        _ urls: [URL], in storage: ManagedPDFFileStorage = LessonFileStorage.storage
+    ) {
         guard !urls.isEmpty else { return }
         Task.detached(priority: .utility) {
-            for url in urls { LessonFileStorage.moveToTrashNow(url) }
+            for url in urls { LessonFileStorage.moveToTrashNow(url, in: storage) }
         }
     }
 
-    nonisolated private static func moveToTrashNow(_ url: URL) {
+    nonisolated private static func moveToTrashNow(_ url: URL, in storage: ManagedPDFFileStorage) {
         guard storage.isManagedURL(url), UbiquitousFile.isAvailable(url) else { return }
         var coordinationError: NSError?
         var trashError: Error?

@@ -23,6 +23,8 @@ public enum LessonFileStorage {
     struct RenameAttachmentResult {
         let url: URL
         let relativePath: String
+        /// The name as it was typed, with the file's extension when it had
+        /// none; only the file on disk (`url`) has a sanitized name.
         let fileName: String
         let fileType: String
     }
@@ -86,10 +88,13 @@ public enum LessonFileStorage {
     // MARK: - Organizational Structure
 
     /// Returns the organizational path for a lesson: Area/Sequence
-    /// Creates the directory structure if it doesn't exist.
-    static func organizationalDirectory(forLesson lesson: CDLesson) throws -> URL {
+    /// Creates the directory structure if it doesn't exist. `storage` is the
+    /// Lesson Files folder unless a test passes its own.
+    static func organizationalDirectory(
+        forLesson lesson: CDLesson, in storage: ManagedPDFFileStorage = LessonFileStorage.storage
+    ) throws -> URL {
         logger.debug("Getting lesson files directory...")
-        let baseDir = try lessonFilesDirectory()
+        let baseDir = try storage.directory()
         logger.debug("Base directory: \(baseDir.path)")
 
         let sanitizedArea = ManagedPDFFileStorage.sanitizeFilenameComponent(lesson.area, fallback: "General")
@@ -167,48 +172,58 @@ public enum LessonFileStorage {
     ///   - sourceURL: The source file URL to import
     ///   - lesson: The lesson to attach the file to
     ///   - scope: The scope of the attachment (lesson, sequence, or area)
-    ///   - customName: Optional custom name for the attachment (if nil, uses source filename)
+    ///   - customName: Optional custom name (a stem, without the extension) for
+    ///     the file on disk; if nil, uses the source filename's stem. Either is
+    ///     sanitized here, and a name already on disk or held by a record gets
+    ///     a number, so the copy never lands on an existing file.
+    ///   - storage: The Lesson Files folder unless a test passes its own.
     /// - Returns: A tuple containing the destination URL and relative path
     static func importAttachment(
         from sourceURL: URL,
         forLesson lesson: CDLesson,
         scope: AttachmentScope = .lesson,
-        customName: String? = nil
+        customName: String? = nil,
+        in storage: ManagedPDFFileStorage = LessonFileStorage.storage
     ) throws -> (url: URL, relativePath: String) {
         logger.debug("Starting importAttachment for: \(sourceURL.lastPathComponent)")
         logger.debug("CDLesson: \(lesson.name), Scope: \(scope.rawValue)")
 
-        let destDir = try organizationalDirectory(forLesson: lesson)
+        let destDir = try organizationalDirectory(forLesson: lesson, in: storage)
         logger.debug("Destination directory: \(destDir.path)")
 
         let sourceExt = sourceURL.pathExtension
         let extWithDot = sourceExt.isEmpty ? "" : "." + sourceExt
 
-        let baseName: String
         let sourceStem = sourceURL.deletingPathExtension().lastPathComponent
-        if let customName {
-            baseName = ManagedPDFFileStorage.sanitizeFilenameComponent(customName, fallback: sourceStem)
-        } else {
-            baseName = ManagedPDFFileStorage.sanitizeFilenameComponent(sourceStem, fallback: "Attachment")
-        }
+        let sourceBaseName = ManagedPDFFileStorage.sanitizeFilenameComponent(sourceStem, fallback: "Attachment")
+        // A custom name that sanitizes to nothing (all Hebrew, say) falls back
+        // to the source's sanitized stem, never to a raw one.
+        let baseName = customName.map {
+            ManagedPDFFileStorage.sanitizeFilenameComponent($0, fallback: sourceBaseName)
+        } ?? sourceBaseName
 
         let destinationURL = uniqueAttachmentURL(
             in: destDir,
             scope: scope,
             name: AttachmentName(base: baseName, extWithDot: extWithDot),
             excluding: nil,
-            held: namesHeldByRecords(in: destDir, context: lesson.managedObjectContext, apartFrom: nil)
+            held: namesHeldByRecords(
+                in: destDir, context: lesson.managedObjectContext, apartFrom: nil, storage: storage
+            )
         )
         try UbiquitousFile.coordinatedCopy(from: sourceURL, to: destinationURL)
 
-        let relativePath = try self.relativePath(forManagedURL: destinationURL)
+        let relativePath = try storage.relativePath(forManagedURL: destinationURL)
         return (url: destinationURL, relativePath: relativePath)
     }
 
-    /// Renames a managed attachment file and returns updated file metadata.
+    /// Renames a managed attachment file and returns updated file metadata:
+    /// the file's sanitized new name on disk, and the name as typed for the
+    /// record (`RenameAttachmentResult.fileName`).
     static func renameAttachment(
         _ attachment: CDLessonAttachment,
-        to requestedFileName: String
+        to requestedFileName: String,
+        in storage: ManagedPDFFileStorage = LessonFileStorage.storage
     ) throws -> RenameAttachmentResult {
         let trimmedFileName = requestedFileName.trimmed()
         guard !trimmedFileName.isEmpty else {
@@ -219,7 +234,7 @@ public enum LessonFileStorage {
             throw CocoaError(.fileNoSuchFile)
         }
 
-        let currentURL = try resolve(relativePath: attachment.fileRelativePath)
+        let currentURL = try storage.resolve(relativePath: attachment.fileRelativePath)
         let requestedURL = URL(fileURLWithPath: trimmedFileName)
         let requestedExtension = requestedURL.pathExtension
         let currentExtension = currentURL.pathExtension
@@ -230,16 +245,19 @@ public enum LessonFileStorage {
             requestedStem,
             fallback: currentURL.deletingPathExtension().lastPathComponent
         )
-        let displayFileName = sanitizedBaseName + extWithDot
+        // The record keeps the name as typed ("Area of a Circle — remade");
+        // only the file on disk is sanitized.
+        let displayFileName = requestedExtension.isEmpty ? trimmedFileName + extWithDot : trimmedFileName
 
-        let destinationDirectory = try organizationalDirectory(forLesson: lesson)
+        let destinationDirectory = try organizationalDirectory(forLesson: lesson, in: storage)
         let destinationURL = uniqueAttachmentURL(
             in: destinationDirectory,
             scope: attachment.scope,
             name: AttachmentName(base: sanitizedBaseName, extWithDot: extWithDot),
             excluding: currentURL,
             held: namesHeldByRecords(
-                in: destinationDirectory, context: attachment.managedObjectContext, apartFrom: attachment
+                in: destinationDirectory, context: attachment.managedObjectContext, apartFrom: attachment,
+                storage: storage
             )
         )
 
@@ -247,7 +265,7 @@ public enum LessonFileStorage {
             try UbiquitousFile.coordinatedMove(from: currentURL, to: destinationURL)
         }
 
-        let relativePath = try relativePath(forManagedURL: destinationURL)
+        let relativePath = try storage.relativePath(forManagedURL: destinationURL)
         return RenameAttachmentResult(
             url: destinationURL,
             relativePath: relativePath,
@@ -316,9 +334,10 @@ public enum LessonFileStorage {
     private static func namesHeldByRecords(
         in directory: URL,
         context: NSManagedObjectContext?,
-        apartFrom attachment: CDLessonAttachment?
+        apartFrom attachment: CDLessonAttachment?,
+        storage: ManagedPDFFileStorage
     ) -> Set<String> {
-        guard let context, let folder = try? relativePath(forManagedURL: directory) else { return [] }
+        guard let context, let folder = try? storage.relativePath(forManagedURL: directory) else { return [] }
         let prefix = folder.lowercased() + "/"
         let request = CDFetchRequest(CDLessonAttachment.self)
         request.predicate = NSPredicate(format: "fileRelativePath BEGINSWITH[c] %@", prefix)
