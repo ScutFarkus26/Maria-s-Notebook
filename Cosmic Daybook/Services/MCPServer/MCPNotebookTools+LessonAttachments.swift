@@ -98,22 +98,29 @@ extension MCPNotebookTools {
         let replaceExisting = arguments["replace_existing"]?.boolValue ?? false
         let service = files.service(for: modelContext)
 
-        return try await files.folders.withReadAccess(to: path) { file in
+        return try await files.folders.withReadAccess(to: path) { file, recheck in
             do {
-                // The file is checked before the title, so a refusal is about the file.
-                _ = try LessonAttachmentService.validate(fileAt: file, allowedTypes: LessonAttachmentService.pdfOrImage)
+                // The file is checked before the title, so a refusal is about
+                // the file; and checked against the folders again where it
+                // really is now. The service checks once more right before it
+                // copies, from the very file it copies.
+                let checked = try LessonAttachmentService.validate(
+                    fileAt: file, allowedTypes: LessonAttachmentService.pdfOrImage
+                )
+                try recheck(checked.url)
                 if let existing = service.existingAttachment(titled: title, on: lesson) {
                     guard replaceExisting else {
                         throw MCPToolError(sameTitleRefusal(existing, on: lesson))
                     }
                     let outcome = try await service.replace(
-                        existing, withFileAt: file, notes: sourceNote, allowedTypes: LessonAttachmentService.pdfOrImage
+                        existing, withFileAt: file, notes: sourceNote, allowedTypes: LessonAttachmentService.pdfOrImage,
+                        confirmingSource: recheck
                     )
                     return replaceReceipt(outcome, existing, on: lesson)
                 }
                 let attachment = try service.add(
                     fileAt: file, to: lesson, scope: .lesson, title: title, notes: sourceNote ?? "",
-                    allowedTypes: LessonAttachmentService.pdfOrImage
+                    allowedTypes: LessonAttachmentService.pdfOrImage, confirmingSource: recheck
                 )
                 return "Attached \(describeFile(attachment)) to \(describeLesson(lesson)) \(cite(attachment))."
             } catch let problem as LessonAttachmentService.Problem {

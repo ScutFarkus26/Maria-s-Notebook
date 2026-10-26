@@ -101,6 +101,12 @@ final class LessonAttachmentService {
     /// extension added when it has none; nil keeps the file's own name. Only
     /// the copy's name on disk is sanitized. When the save fails, the copy is
     /// removed and nothing is left behind.
+    ///
+    /// `confirmingSource` is a last look at the file about to be copied, given
+    /// where it really is (symbolic links followed), right before the copy; it
+    /// throws to refuse it. The MCP tools pass their folder check
+    /// (`MCPAttachFolders.Recheck`), so a file swapped for a link leading out
+    /// of the guide's folders after the path was checked is never read.
     @discardableResult
     func add(
         fileAt url: URL,
@@ -108,7 +114,8 @@ final class LessonAttachmentService {
         scope: AttachmentScope = .lesson,
         title: String? = nil,
         notes: String = "",
-        allowedTypes: [UTType]
+        allowedTypes: [UTType],
+        confirmingSource: (URL) throws -> Void = { _ in }
     ) throws -> CDLessonAttachment {
         guard !isSampleClassroom else { throw Problem.sampleClass }
         guard !lesson.isDeleted, lesson.managedObjectContext != nil else { throw Problem.noLesson }
@@ -118,6 +125,7 @@ final class LessonAttachmentService {
         let named = givenTitle.flatMap { $0.isEmpty ? nil : $0 }
         let fileName = named.map { Self.fileName(title: $0, ext: ext) } ?? checked.url.lastPathComponent
 
+        try confirmingSource(checked.url)
         let copy = try LessonFileStorage.importAttachment(
             from: checked.url,
             forLesson: lesson,
@@ -160,16 +168,20 @@ final class LessonAttachmentService {
     /// `comparisonTimeout`) and has the same bytes, nothing is copied, and
     /// with the same note nothing is written at all (`.unchanged`). A missing
     /// old file is no obstacle. Hold any security-scoped access `url` needs
-    /// until this returns.
+    /// until this returns. `confirmingSource` is as for `add`, and runs twice:
+    /// before the comparison reads the new file, and again right before the
+    /// copy, since the comparison can wait for iCloud.
     func replace(
         _ attachment: CDLessonAttachment,
         withFileAt url: URL,
         notes: String? = nil,
-        allowedTypes: [UTType]
+        allowedTypes: [UTType],
+        confirmingSource: (URL) throws -> Void = { _ in }
     ) async throws -> ReplaceOutcome {
         guard !isSampleClassroom else { throw Problem.sampleClass }
         guard isLive(attachment) else { throw Problem.noLesson }
         let checked = try Self.validate(fileAt: url, allowedTypes: allowedTypes)
+        try confirmingSource(checked.url)
         let comparedPath = attachment.fileRelativePath
         let sameBytes = await hasSameBytes(relativePath: comparedPath, as: checked.url)
 
@@ -193,6 +205,7 @@ final class LessonAttachmentService {
         // A name this attachment never had, numbered past the old file's: not
         // the old one (still on disk, or held by this record when it hasn't
         // arrived yet), nor one an earlier replace sent to the Trash.
+        try confirmingSource(checked.url)
         let copy = try LessonFileStorage.importReplacement(
             from: checked.url, for: attachment, title: title, in: storage
         )

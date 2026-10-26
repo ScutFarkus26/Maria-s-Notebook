@@ -23,6 +23,11 @@ enum MCPAttachFolders {
 
     // MARK: - Reading a file
 
+    /// Says again, just before a file is read, whether it lies inside the
+    /// folders, given where it really is then; throws the same plain refusal
+    /// when it no longer does.
+    typealias Recheck = (URL) throws -> Void
+
     /// What a tool needs to read a file: the path rules, the folders, and
     /// security-scoped access to them. Tests pass scratch folders and no-op
     /// access.
@@ -31,6 +36,10 @@ enum MCPAttachFolders {
         var roots: @MainActor @Sendable () -> [URL]
         var startAccess: @Sendable (URL) -> Bool
         var stopAccess: @Sendable (URL) -> Void
+        /// Runs with the file's real location once the path has passed its
+        /// check. Nothing in the app; tests swap the file here, standing in
+        /// for another process changing it before it is read.
+        var afterCheck: @Sendable (URL) -> Void = { _ in }
 
         /// The granted folders and the album folders, through their bookmarks.
         static let live = Access(
@@ -42,16 +51,29 @@ enum MCPAttachFolders {
 
         /// Runs `body` with the real location of the file at `path`, while the
         /// folders are open, and closes them afterwards. Throws a plain refusal
-        /// when the path isn't a full one or lies outside every folder.
-        func withReadAccess<T>(to path: String, _ body: (URL) async throws -> T) async throws -> T {
+        /// when the path isn't a full one or lies outside every folder. The
+        /// file can change between this check and the read (a symbolic link
+        /// put in its place), so `body` also gets a `Recheck`, to run on the
+        /// very file it is about to copy.
+        func withReadAccess<T>(to path: String, _ body: (URL, Recheck) async throws -> T) async throws -> T {
             let folders = roots()
             // Access starts before the path is resolved: inside the sandbox
             // even reading where a symbolic link leads needs it.
             let opened = folders.filter { startAccess($0) }
             defer { opened.forEach { stopAccess($0) } }
+            let file = try located(path, in: folders)
+            afterCheck(file)
+            return try await body(file) { candidate in
+                _ = try located(candidate.path, in: folders)
+            }
+        }
+
+        /// Where the file at `path` really is, when that is inside `folders`;
+        /// otherwise the plain refusal.
+        private func located(_ path: String, in folders: [URL]) throws -> URL {
             switch containment.locate(path, in: folders) {
             case .inside(_, let file):
-                return try await body(file)
+                return file
             case .notAbsolute:
                 throw MCPToolError(
                     "\"\(path)\" isn't a full path. Give the file's whole path, starting with / or ~/."
