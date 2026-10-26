@@ -2,30 +2,39 @@ import SwiftUI
 import CoreData
 import OSLog
 import QuickLook
+import UniformTypeIdentifiers
 
 /// Row view for displaying a single attachment.
 ///
-/// On the Mac the actions show on hover, as before. iPhone and iPad have no
-/// hover, so there the row carries an actions menu, a tap opens the file in
-/// Quick Look, and Share opens the share sheet; the same actions are in the
-/// row's context menu everywhere. (They were Mac-only before.)
+/// A click (a tap on iPhone and iPad) opens the file in Quick Look. On the Mac
+/// the actions show on hover, and the context menu also offers "Open in
+/// <app>". iPhone and iPad have no hover, so there the row carries an actions
+/// menu; the same actions are in the row's context menu everywhere. Under the
+/// name: the size, when the file was added or last updated, and the note
+/// saying where it came from, when it has one.
 struct AttachmentRow: View {
     private static let logger = Logger.lessons
 
     let attachment: CDLessonAttachment
     /// Held by another lesson (shared with the sequence or area): viewable and
-    /// shareable here, renamed or deleted from the lesson that holds it.
+    /// shareable here, renamed, replaced or deleted from the lesson that holds it.
     let isInherited: Bool
     let isPrimary: Bool
     let onTogglePrimary: () -> Void
     let onRename: () -> Void
+    /// Replace with Newer Version…: the card picks the file and replaces it.
+    let onReplace: () -> Void
     let onDelete: () -> Void
 
     @State private var isHovering = false
     /// Why the attachment couldn't be opened or shared; the raw error is logged.
     @State private var problemMessage: String?
-    /// The file Quick Look is showing (iPhone and iPad).
+    /// The file Quick Look is showing.
     @State private var previewURL: URL?
+    #if os(macOS)
+    /// "Preview" for a PDF: the app "Open in <app>" names, nil when none is known.
+    @State private var defaultAppName: String?
+    #endif
 
     var body: some View {
         HStack(spacing: 12) {
@@ -55,10 +64,17 @@ struct AttachmentRow: View {
                     }
                 }
 
-                HStack(spacing: 8) {
-                    Text(attachment.fileSizeFormatted)
+                Text(Self.detailLine(for: attachment))
+                    .font(AppTheme.ScaledFont.captionSmall)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                if let note = Self.noteLine(for: attachment) {
+                    Text(note)
                         .font(AppTheme.ScaledFont.captionSmall)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .help(note)
                 }
             }
 
@@ -84,14 +100,17 @@ struct AttachmentRow: View {
         .background(isHovering ? Color.controlBackgroundColor() : Color.clear)
         .cornerRadius(6)
         .contentShape(Rectangle())
-        #if os(iOS)
         .onTapGesture { openAttachment() }
         .quickLookPreview($previewURL)
-        #endif
         .contextMenu { menuItems }
         .onHover { hovering in
             isHovering = hovering
         }
+        #if os(macOS)
+        .task(id: attachment.fileType) {
+            defaultAppName = Self.defaultAppName(forFileType: attachment.fileType)
+        }
+        #endif
         .alert("Couldn't Open the Attachment", isPresented: Binding(
             get: { problemMessage != nil },
             set: { if !$0 { problemMessage = nil } }
@@ -103,12 +122,22 @@ struct AttachmentRow: View {
     }
 
     private static let missingFileMessage = "Couldn't find this attachment's file. It may have been moved or deleted."
+    static let replaceLabel = "Replace with Newer Version…"
+    private static let replaceSymbol = "arrow.triangle.2.circlepath"
 
     @ViewBuilder
     private var menuItems: some View {
         Button { openAttachment() } label: {
             Label("View", systemImage: "eye")
         }
+        #if os(macOS)
+        Button { openInDefaultApp() } label: {
+            Label(
+                defaultAppName.map { "Open in \($0)" } ?? "Open in Default App",
+                systemImage: "arrow.up.forward.app"
+            )
+        }
+        #endif
         Button { shareAttachment() } label: {
             Label("Share", systemImage: "square.and.arrow.up")
         }
@@ -119,6 +148,9 @@ struct AttachmentRow: View {
             )
         }
         if !isInherited {
+            Button(action: onReplace) {
+                Label(Self.replaceLabel, systemImage: Self.replaceSymbol)
+            }
             Button(action: onRename) {
                 Label("Rename", systemImage: "pencil")
             }
@@ -153,6 +185,13 @@ struct AttachmentRow: View {
             .help("Share")
 
             if !isInherited {
+                Button(action: onReplace) {
+                    Image(systemName: Self.replaceSymbol)
+                        .font(.system(size: 12))
+                }
+                .buttonStyle(.borderless)
+                .help(Self.replaceLabel)
+
                 Button(action: onRename) {
                     Image(systemName: "pencil")
                         .font(.system(size: 12))
@@ -172,45 +211,20 @@ struct AttachmentRow: View {
     }
     #endif
 
-    private var fileIcon: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small)
-                .fill(fileTypeColor.opacity(UIConstants.OpacityConstants.light))
-
-            Image(systemName: fileTypeIcon)
-                .font(.system(size: 16))
-                .foregroundStyle(fileTypeColor)
-        }
-    }
-
-    private var fileTypeColor: Color {
-        switch attachment.fileType {
-        case "pdf": return .red
-        case "pages": return .orange
-        case "jpg", "jpeg", "png": return .blue
-        default: return .gray
-        }
-    }
-
-    private var fileTypeIcon: String {
-        switch attachment.fileType {
-        case "pdf": return "doc.fill"
-        case "pages": return "doc.richtext.fill"
-        case "jpg", "jpeg", "png": return "photo.fill"
-        default: return "doc"
-        }
-    }
-
     // MARK: - View and Share
 
-    /// The file once it is on this device (an iCloud file may still have to
-    /// download; see `UbiquitousFile`), or nil when it is missing.
+    /// The file once its current bytes are on this device, or nil when it is
+    /// missing. `readyURL` asks iCloud for the file whenever its status isn't
+    /// `.current`, a `.downloaded` copy included (since iOS 18.4 that can be a
+    /// stale one), and waits for the coordinated read that brings the current
+    /// version down (plan "Lesson file attachments", Decision 9).
     private func readyFileURL() async -> URL? {
         await LessonFileStorage.storage.readyURL(
             bookmark: attachment.fileBookmark, relativePath: attachment.fileRelativePath
         )
     }
 
+    /// Quick Look, on every platform.
     private func openAttachment() {
         Task {
             guard let fileURL = await readyFileURL() else {
@@ -218,16 +232,26 @@ struct AttachmentRow: View {
                 problemMessage = Self.missingFileMessage
                 return
             }
-            #if os(macOS)
+            previewURL = fileURL
+        }
+    }
+
+    #if os(macOS)
+    /// Opens the file in the app the Mac opens its kind with.
+    private func openInDefaultApp() {
+        Task {
+            guard let fileURL = await readyFileURL() else {
+                Self.logger.error("Couldn't find an attachment's file to open in another app")
+                problemMessage = Self.missingFileMessage
+                return
+            }
             if !NSWorkspace.shared.open(fileURL) {
                 Self.logger.error("NSWorkspace couldn't open an attachment")
                 problemMessage = "Couldn't open this attachment. Try again."
             }
-            #else
-            previewURL = fileURL
-            #endif
         }
     }
+    #endif
 
     private func shareAttachment() {
         Task {

@@ -70,6 +70,10 @@ struct LessonAttachmentsSection: View {
     @State private var deleteOriginalAfterImport = false
     /// What went wrong with an attachment, shown in one alert; the raw error is logged.
     @State private var attachmentProblem: (title: String, message: String)?
+    /// The attachment Replace with Newer Version… is picking a file for. One
+    /// picker for the card, not one per row.
+    @State private var attachmentToReplace: CDLessonAttachment?
+    @State private var showingReplacePicker = false
 
     /// Every change to an attachment goes through the service, as the MCP
     /// tools' do.
@@ -139,6 +143,16 @@ struct LessonAttachmentsSection: View {
             }
             .onDrop(of: [.pdf, .png, .jpeg, .fileURL], isTargeted: $isDropTargeted) { providers in
                 handleDrop(providers: providers)
+            }
+            .fileImporter(
+                isPresented: $showingReplacePicker,
+                allowedContentTypes: AttachmentReplacement.acceptedTypes,
+                allowsMultipleSelection: false
+            ) { result in
+                guard let attachment = attachmentToReplace else { return }
+                attachmentToReplace = nil
+                let service = attachmentService
+                Task { await AttachmentReplacement.replace(attachment, withPicked: result, using: service) }
             }
     }
 
@@ -263,6 +277,9 @@ struct LessonAttachmentsSection: View {
                         attachmentToRename = attachment
                         renameFileName = attachment.fileName
                     },
+                    onReplace: {
+                        beginReplace(attachment)
+                    },
                     onDelete: {
                         attachmentToDelete = attachment
                         showingDeleteAlert = true
@@ -354,6 +371,17 @@ struct LessonAttachmentsSection: View {
     }
 
     private static let addFallback = "Couldn't add the file. Try again."
+
+    /// Replace with Newer Version…: the picker, except in the Sample Class,
+    /// whose files are the real notebook's.
+    private func beginReplace(_ attachment: CDLessonAttachment) {
+        if isSampleClassroom {
+            attachmentProblem = ("Can't Replace Files Here", Self.sampleClassFilesMessage)
+        } else {
+            attachmentToReplace = attachment
+            showingReplacePicker = true
+        }
+    }
 
     // MARK: - Changes
 
