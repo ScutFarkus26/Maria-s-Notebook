@@ -96,7 +96,8 @@ struct BackupTimetableRoundTripTests {
         for entity in ["TimetableLane", "TimetableBlock", "TimetableChange", "TimetableBooking"] {
             #expect(CoreDataStack.sharedEntityNames.contains(entity))
         }
-        #expect(BackupWriter.formatVersion == 42)
+        // v42 brought them; later formats still carry them.
+        #expect(BackupWriter.formatVersion >= 42)
         #expect(BackupReader.supportedFormatVersions.contains(42))
         #expect(BackupReader.supportedFormatVersions.contains(41))
     }

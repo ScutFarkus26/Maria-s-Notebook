@@ -17,6 +17,7 @@
         <attribute name="dateLastPromoted" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="parentLockerID" optional="YES" attributeType="String"/>
+        <attribute name="bornAfterSunset" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <fetchIndex name="byName">
             <fetchIndexElement property="firstName" type="Binary" order="ascending"/>
             <fetchIndexElement property="lastName" type="Binary" order="ascending"/>

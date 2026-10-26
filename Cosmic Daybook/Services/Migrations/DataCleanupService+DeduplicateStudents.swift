@@ -28,6 +28,9 @@ nonisolated extension DataCleanupService {
         if canonical.parentLockerID?.isEmpty ?? true, let matched = duplicate.parentLockerID, !matched.isEmpty {
             canonical.parentLockerID = matched
         }
+        // Born after sunset (schema 21): either copy saying so keeps the
+        // child's Hebrew birthday on the right day.
+        if duplicate.bornAfterSunset && !canonical.bornAfterSunset { canonical.bornAfterSunset = true }
         if canonical.dateStarted == nil { canonical.dateStarted = duplicate.dateStarted }
         if canonical.previousLevelRaw == nil { canonical.previousLevelRaw = duplicate.previousLevelRaw }
         if canonical.dateLastPromoted == nil { canonical.dateLastPromoted = duplicate.dateLastPromoted }

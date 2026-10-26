@@ -45,7 +45,8 @@ struct StudentRepository: SavingRepository {
         birthday: Date,
         nickname: String? = nil,
         level: CDStudent.Level = .lower,
-        dateStarted: Date = Date()
+        dateStarted: Date = Date(),
+        bornAfterSunset: Bool = false
     ) -> CDStudent {
         let student = CDStudent(context: context)
         student.firstName = firstName
@@ -54,6 +55,7 @@ struct StudentRepository: SavingRepository {
         student.nickname = nickname
         student.level = level
         student.dateStarted = dateStarted
+        student.bornAfterSunset = bornAfterSunset
         return student
     }
 
@@ -71,7 +73,8 @@ struct StudentRepository: SavingRepository {
         level: CDStudent.Level? = nil,
         dateStarted: Date? = nil,
         enrollmentStatus: CDStudent.EnrollmentStatus? = nil,
-        dateWithdrawn: Date?? = nil
+        dateWithdrawn: Date?? = nil,
+        bornAfterSunset: Bool? = nil
     ) -> Bool {
         guard let student = fetchStudent(id: id) else { return false }
         let before = student.dictionaryWithValues(forKeys: Self.editableKeys) as NSDictionary
@@ -89,6 +92,7 @@ struct StudentRepository: SavingRepository {
         if let dateStarted { student.dateStarted = dateStarted }
         if let enrollmentStatus { student.enrollmentStatus = enrollmentStatus }
         if let dateWithdrawn { student.dateWithdrawn = dateWithdrawn }
+        Self.set(bornAfterSunset: bornAfterSunset, on: student)
 
         if !before.isEqual(to: student.dictionaryWithValues(forKeys: Self.editableKeys)) {
             student.modifiedAt = Date()
@@ -99,8 +103,16 @@ struct StudentRepository: SavingRepository {
     /// The attributes `updateStudent` can change.
     private static let editableKeys = [
         "firstName", "lastName", "birthday", "nickname", "levelRaw", "dateStarted", "enrollmentStatusRaw",
-        "dateWithdrawn"
+        "dateWithdrawn", "bornAfterSunset"
     ]
+
+    /// Sets the "Born after sunset" switch when it differs. Compared first: a
+    /// child stored before schema 21 holds no value, which reads as false, and
+    /// writing false over it would stamp an edit nobody made.
+    private static func set(bornAfterSunset: Bool?, on student: CDStudent) {
+        guard let bornAfterSunset, bornAfterSunset != student.bornAfterSunset else { return }
+        student.bornAfterSunset = bornAfterSunset
+    }
 
     // MARK: - Delete
 

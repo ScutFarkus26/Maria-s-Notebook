@@ -36,6 +36,7 @@ struct StudentDetailView: View {
     @State private var draftLastName = ""
     @State private var draftNickname = ""
     @State private var draftBirthday = Date()
+    @State private var draftBornAfterSunset = false
     @State private var draftLevel: CDStudent.Level = .lower
     @State private var draftStartDate = Date()
     /// The picker's stand-in when the child has no start date: saved only if
@@ -92,6 +93,8 @@ struct StudentDetailView: View {
                 draftLastName: $draftLastName,
                 draftNickname: $draftNickname,
                 draftBirthday: $draftBirthday,
+                draftBornAfterSunset: $draftBornAfterSunset,
+                hasDraftBirthday: Self.editedDate(draftBirthday, placeholder: placeholderBirthday) != nil,
                 draftLevel: $draftLevel,
                 draftStartDate: $draftStartDate,
                 draftEnrollmentStatus: $draftEnrollmentStatus,
@@ -152,7 +155,8 @@ struct StudentDetailView: View {
             level: draftLevel,
             dateStarted: Self.editedDate(draftStartDate, placeholder: placeholderStartDate),
             enrollmentStatus: draftEnrollmentStatus,
-            dateWithdrawn: .some(draftDateWithdrawn)
+            dateWithdrawn: .some(draftDateWithdrawn),
+            bornAfterSunset: draftBornAfterSunset
         )
         _ = repository.save(reason: "Edit student details")
         isEditing = false
@@ -167,6 +171,7 @@ struct StudentDetailView: View {
         draftNickname = student.nickname ?? ""
         draftBirthday = student.birthday ?? Date()
         placeholderBirthday = student.birthday == nil ? draftBirthday : nil
+        draftBornAfterSunset = student.bornAfterSunset
         draftLevel = student.level
         draftStartDate = student.dateStarted ?? Date()
         placeholderStartDate = student.dateStarted == nil ? draftStartDate : nil

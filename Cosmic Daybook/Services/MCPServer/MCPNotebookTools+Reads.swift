@@ -16,9 +16,10 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "list_students",
             title: "List Students",
-            description: "List the students in the classroom with their ids, levels, birthdays, "
-                + "ages, and enrollment dates. Former students (withdrawn or transferred) are "
-                + "excluded unless requested.",
+            description: "List the students in the classroom with their ids, levels, birthdays "
+                + "(with the Hebrew birthday in brackets, which moves a day for a child born after "
+                + "sunset), ages, and enrollment dates. Former students (withdrawn or transferred) "
+                + "are excluded unless requested.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -39,7 +40,9 @@ extension MCPNotebookTools {
                     var details = [student.level.rawValue.lowercased()]
                     if let birthday = student.birthday {
                         let age = AppCalendar.shared.dateComponents([.year], from: birthday, to: Date()).year ?? 0
-                        details.append("born \(dayString(birthday)), age \(age)")
+                        let hebrew = HebrewBirthday(birthday: birthday, bornAfterSunset: student.bornAfterSunset)
+                            .map { " (\($0.english))" } ?? ""
+                        details.append("born \(dayString(birthday))\(hebrew), age \(age)")
                     }
                     if let started = student.dateStarted {
                         details.append("started \(dayString(started))")

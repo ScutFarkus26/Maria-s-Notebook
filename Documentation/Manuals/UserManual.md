@@ -168,7 +168,7 @@ The sort button names the active order: **A–Z**, **Manual**, **Age** (each row
 
 On iPhone, swipe a row left to **Observe** (a quick note for that child) or start a **Lesson** with the child already on it. On iPad and Mac the same actions are in the row's context menu.
 
-On iPad and Mac, when no child is open, the right side shows **Class at a Glance**: who's absent, who's due for a lesson, who hasn't been observed lately, and whose birthday is this week. Tap any name to open the record. On the Mac the roster is a table: the selected child stays highlighted, the arrow keys move through the class, every column sorts, and **Age** and **Birthday** columns can be shown from the column header's menu. **Former** above the table lists students who have left.
+On iPad and Mac, when no child is open, the right side shows **Class at a Glance**: who's absent, who's due for a lesson, who hasn't been observed lately, and whose birthday or Hebrew birthday is this week. Tap any name to open the record. On the Mac the roster is a table: the selected child stays highlighted, the arrow keys move through the class, every column sorts, and **Age**, **Birthday** and **Hebrew Birthday** columns can be shown from the column header's menu. **Former** above the table lists students who have left.
 
 ## Adding a Student
 
@@ -178,6 +178,7 @@ Tap the **Add Student** button (or use the add icon). Fill in:
 - **Last Name** (required)
 - **Nickname** (optional — used for display if set)
 - **Birthday** (date picker)
+- **Born after sunset** — turn this on for a child born in the evening, since a Hebrew date begins at sunset
 - **Start Date** (when the student joined your class)
 - **Level** — Lower, Upper, or Adolescent
 
@@ -201,6 +202,8 @@ Nothing is deleted by a rollover:
 ## Student Detail View
 
 Tap any student to open their full profile. You'll see several tabs:
+
+Under **Birthday**, the profile shows the child's **Hebrew birthday** in English and in Hebrew, worked out from the date of birth; you never type it. If the child was born after sunset, edit the student and turn on **Born after sunset**, and the Hebrew birthday moves to the next day's date.
 
 ### Progress Tab
 

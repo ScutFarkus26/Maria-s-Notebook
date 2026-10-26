@@ -66,6 +66,21 @@ enum RosterSignalRules {
     static func daysUntilSoonBirthday(_ birthday: Date?, calendar: Calendar, today: Date = Date()) -> Int? {
         guard let birthday else { return nil }
         let next = RosterBirthday.nextOccurrence(of: birthday, using: calendar, today: today)
+        return soonDays(until: next, calendar: calendar, today: today)
+    }
+
+    /// The same for the child's Hebrew birthday, counted in local days through
+    /// the app's Gregorian calendar (`AppCalendar.shared`).
+    static func daysUntilSoonHebrewBirthday(
+        _ birthday: Date?, bornAfterSunset: Bool, calendar: Calendar = AppCalendar.shared, today: Date = Date()
+    ) -> Int? {
+        guard let next = RosterBirthday.nextHebrewOccurrence(
+            of: birthday, bornAfterSunset: bornAfterSunset, using: calendar, today: today
+        ) else { return nil }
+        return soonDays(until: next, calendar: calendar, today: today)
+    }
+
+    private static func soonDays(until next: Date, calendar: Calendar, today: Date) -> Int? {
         let days = calendar.dateComponents(
             [.day], from: calendar.startOfDay(for: today), to: calendar.startOfDay(for: next)
         ).day ?? .max

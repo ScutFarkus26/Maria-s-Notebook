@@ -10,6 +10,7 @@ struct AddStudentView: View {
     @State private var lastName = ""
     @State private var nickname = ""
     @State private var birthday = Date()
+    @State private var bornAfterSunset = false
     @State private var startDate = Date()
     @State private var level: CDStudent.Level = .lower
 
@@ -32,6 +33,7 @@ struct AddStudentView: View {
 
                 Section {
                     DatePicker("Birthday", selection: $birthday, displayedComponents: .date)
+                    BornAfterSunsetToggle(isOn: $bornAfterSunset, birthday: birthday)
                 }
 
                 Section {
@@ -62,7 +64,8 @@ struct AddStudentView: View {
                         birthday: birthday,
                         nickname: nickname.isEmpty ? nil : nickname,
                         level: level,
-                        dateStarted: startDate
+                        dateStarted: startDate,
+                        bornAfterSunset: bornAfterSunset
                     )
                     if repository.save(reason: "Adding student") {
                         dismiss()
@@ -73,7 +76,7 @@ struct AddStudentView: View {
             }
         }
         .padding(24)
-        .frame(width: 420, height: 420)
+        .frame(width: 420, height: 490)
         .saveErrorAlert()
     }
 }

@@ -38,7 +38,8 @@ enum BackupServiceHelpers {
                 modifiedAt: s.modifiedAt,
                 previousLevelRaw: s.previousLevelRaw,
                 dateLastPromoted: s.dateLastPromoted,
-                parentLockerID: s.parentLockerID
+                parentLockerID: s.parentLockerID,
+                bornAfterSunset: s.bornAfterSunset
             )
         }
     }

@@ -116,7 +116,11 @@ nonisolated public enum BackupWriter {
     ///   Purely additive; a v41 reader would skip them silently, hence the
     ///   version. Bookings are derived from planned lessons, and the booking
     ///   publisher rewrites or removes restored ones on its next run.
-    public static let formatVersion: Int = 42
+    /// - v43: `Student` entries carry `bornAfterSunset` (schema 21), the
+    ///   switch that moves a child's Hebrew birthday one day on. Purely
+    ///   additive; every v43 row says yes or no, and restoring an older
+    ///   backup leaves a child's own switch (a new child reads as born by day).
+    public static let formatVersion: Int = 43
 
     public enum WriterError: LocalizedError {
         case entityEncodingFailed(entityName: String, underlying: Error)

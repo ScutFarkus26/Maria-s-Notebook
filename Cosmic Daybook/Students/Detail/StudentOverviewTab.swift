@@ -14,6 +14,9 @@ struct StudentOverviewTab: View {
     @Binding var draftLastName: String
     @Binding var draftNickname: String
     @Binding var draftBirthday: Date
+    @Binding var draftBornAfterSunset: Bool
+    /// False while a child with no birthday on file still shows the picker's stand-in date.
+    let hasDraftBirthday: Bool
     @Binding var draftLevel: CDStudent.Level
     @Binding var draftStartDate: Date
     @Binding var draftEnrollmentStatus: CDStudent.EnrollmentStatus
@@ -141,6 +144,8 @@ struct StudentOverviewTab: View {
                     draftLastName: $draftLastName,
                     draftNickname: $draftNickname,
                     draftBirthday: $draftBirthday,
+                    draftBornAfterSunset: $draftBornAfterSunset,
+                    hasDraftBirthday: hasDraftBirthday,
                     draftLevel: $draftLevel,
                     draftStartDate: $draftStartDate,
                     draftEnrollmentStatus: $draftEnrollmentStatus,

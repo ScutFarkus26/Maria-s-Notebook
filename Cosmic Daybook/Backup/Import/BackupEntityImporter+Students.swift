@@ -39,6 +39,9 @@ extension BackupEntityImporter {
             // An older backup (before v40) has none: `BackupFieldsAddedLater`
             // puts the record's own match back.
             student.parentLockerID = dto.parentLockerID
+            // An older backup (before v43) has no answer: the child keeps her
+            // own, and a new one reads as born by day (the model's default).
+            if let v = dto.bornAfterSunset { student.bornAfterSunset = v }
             // Preserve the original modification time (awakeFromInsert stamped "now");
             // older backups lack the field, so those keep the import-time stamp.
             if let v = dto.modifiedAt { student.modifiedAt = v }

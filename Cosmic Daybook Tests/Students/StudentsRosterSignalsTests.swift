@@ -202,6 +202,27 @@ struct StudentsRosterSignalsTests {
         #expect(RosterSignalText.observed(fourteenDays, calendar: calendar, now: now) == "Observed 2 wks ago")
     }
 
+    // Hebcal: 2016-03-24 = 14 Adar II 5776 (Purim); 14 Adar II 5787 = 2027-03-23, a Tuesday.
+    @Test("Birthdays This Week lists a Hebrew birthday, on its own line when both fall that week")
+    func glanceListsHebrewBirthday() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let calendar = AppCalendar.shared
+        let ezra = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ezra", lastName: "Cohen")
+        ezra.birthday = try #require(calendar.date(from: DateComponents(year: 2016, month: 3, day: 24)))
+        let ada = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ada", lastName: "Stone")
+        ada.birthday = try #require(calendar.date(from: DateComponents(year: 2016, month: 9, day: 1)))
+        let now = try #require(calendar.date(from: DateComponents(year: 2027, month: 3, day: 20, hour: 10)))
+
+        let glance = ClassGlance.make(
+            students: [ezra, ada], signals: { _ in StudentSignals() }, attendanceTaken: false,
+            calendar: calendar, now: now
+        )
+        #expect(glance.birthdays.map(\.value) == ["Hebrew birthday · 14 Adar II, Tue", "Turns 11 Wed"])
+        let ezraID = try #require(ezra.id)
+        #expect(glance.birthdays.map(\.studentID) == [ezraID, ezraID])
+        #expect(Set(glance.birthdays.map(\.id)).count == 2)
+    }
+
     @Test("Observation dates read as dictionaries equal the object path (SQLite)")
     func observationDatesDictionaryMatchesObjects() throws {
         let context = try CoreDataTestHelpers.makeSplitStoreContext()

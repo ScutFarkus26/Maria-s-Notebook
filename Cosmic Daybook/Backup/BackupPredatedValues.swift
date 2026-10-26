@@ -45,7 +45,9 @@ nonisolated enum BackupFieldsAddedLater {
         ],
         "Student": [
             "nickname": 20, "dateWithdrawn": 20, "previousLevelRaw": 20, "dateLastPromoted": 20,
-            "parentLockerID": 40
+            "parentLockerID": 40,
+            // The importer also sets it only when the row has it.
+            "bornAfterSunset": 43
         ],
         "Note": [
             "reportedBy": 20, "reporterName": 20, "communityTopicID": 20, "schoolDayOverrideID": 20,

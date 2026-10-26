@@ -87,7 +87,8 @@ struct TimetableMigrationTests {
             let names = Set((model.entities(forConfigurationName: configuration) ?? []).compactMap(\.name))
             #expect(Self.schedulesTypes.isSubset(of: names), "\(configuration)")
         }
-        #expect(CoreDataStack.currentSchemaVersion == 20)
+        // Schema 20 brought them; later schemas still have them.
+        #expect(CoreDataStack.currentSchemaVersion >= 20)
     }
 
     @Test("Schema-19 stores open with schema 20: what was there stays, and both stores take Schedules rows")

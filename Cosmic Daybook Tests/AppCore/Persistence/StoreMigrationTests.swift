@@ -59,7 +59,7 @@ struct StoreMigrationTests {
     ]
     private static let attributesAddedLater: [String: Set<String>] = [
         "Lesson": ["albumID", "albumPageIndex", "isKeyLesson"],
-        "Student": ["dateLastPromoted", "parentLockerID"],
+        "Student": ["dateLastPromoted", "parentLockerID", "bornAfterSunset"],
         "Supply": [
             "levelRaw", "sourceRaw", "urlString", "levelChangedAt", "levelChangedByID", "levelChangedByName"
         ]
@@ -183,12 +183,17 @@ struct StoreMigrationTests {
         lesson.setValue("Biology Album.pdf", forKey: "albumID")
         lesson.setValue(Int32(42), forKey: "albumPageIndex")
         student.setValue(Date(timeIntervalSinceReferenceDate: 0), forKey: "dateLastPromoted")
+        // Schema 21's switch reads as off on a child from before it, and takes a value.
+        #expect((student.value(forKey: "bornAfterSunset") as? Bool ?? false) == false)
+        student.setValue(true, forKey: "bornAfterSunset")
         try context.save()
 
         context.refreshAllObjects()
         let reread = try #require(try fetchOne("Lesson", id: lessonID, in: context))
         #expect(reread.value(forKey: "albumID") as? String == "Biology Album.pdf")
         #expect(reread.value(forKey: "albumPageIndex") as? Int32 == 42)
+        let rereadStudent = try #require(try fetchOne("Student", id: studentID, in: context))
+        #expect(rereadStudent.value(forKey: "bornAfterSunset") as? Bool == true)
 
         // 5. Tables the newer model adds accept inserts — the `no such table:
         //    ZGUARDIAN` / `ZALBUMBOOKMARK` case.

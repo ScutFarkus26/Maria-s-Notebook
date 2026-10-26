@@ -129,7 +129,12 @@ nonisolated extension CoreDataStack {
     ///   Assistant can show who is with the guide). Four additive entities in
     ///   the classroom share, written only on the guide's devices
     ///   (`TimetableService`, `ScheduleBookingPublisher`).
-    nonisolated static let currentSchemaVersion = 20
+    /// - `21` — `Student.bornAfterSunset` (shared): the "Born after sunset"
+    ///   switch that moves a child's Hebrew birthday one day on, since a
+    ///   Hebrew date begins at sunset. The Hebrew date itself is worked out
+    ///   from `birthday` wherever it's shown, never stored. Additive optional
+    ///   Boolean, default NO.
+    nonisolated static let currentSchemaVersion = 21
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"
