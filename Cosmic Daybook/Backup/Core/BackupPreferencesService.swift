@@ -115,7 +115,10 @@ nonisolated enum BackupPreferencesService {
         // under different filenames.
         UserDefaultsKeys.albumsFolderBookmarks,
         UserDefaultsKeys.albumsFingerprints,
-        UserDefaultsKeys.albumsLastSeenModDates
+        UserDefaultsKeys.albumsLastSeenModDates,
+        // Claude Desktop's attach folders: bookmarks again, so only this Mac
+        // can use them, and merged with its own list the same way.
+        UserDefaultsKeys.aiMCPAttachFolderBookmarks
     ]
 
     /// Key prefixes whose every stored key is included (per-date attendance locks).
@@ -151,7 +154,7 @@ nonisolated enum BackupPreferencesService {
 
     static func mergePolicy(for key: String) -> MergePolicy {
         switch key {
-        case UserDefaultsKeys.albumsFolderBookmarks:
+        case UserDefaultsKeys.albumsFolderBookmarks, UserDefaultsKeys.aiMCPAttachFolderBookmarks:
             return .unionArray
         case UserDefaultsKeys.albumsFingerprints, UserDefaultsKeys.albumsLastSeenModDates:
             return .mergeDictionaryLocalWins

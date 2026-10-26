@@ -42,7 +42,9 @@ enum SettingsExportService {
         // Album folders and files on this device; they mean nothing elsewhere.
         UserDefaultsKeys.albumsFolderBookmarks,
         UserDefaultsKeys.albumsFingerprints,
-        UserDefaultsKeys.albumsLastSeenModDates
+        UserDefaultsKeys.albumsLastSeenModDates,
+        // The folders Claude Desktop may attach files from, as bookmarks.
+        UserDefaultsKeys.aiMCPAttachFolderBookmarks
     ]
 
     /// Every setting the file carries. The per-date attendance locks

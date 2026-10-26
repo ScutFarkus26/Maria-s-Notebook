@@ -171,7 +171,8 @@ enum SettingsCopy {
                 return ["To-dos", "Todos", "Share to-dos", "Connection address", "Classroom to-dos",
                         "New to-dos go to", "Show in the notebook"]
             case .claudeDesktop:
-                return ["Claude", "MCP", "Anthropic", "Allow Claude Desktop access"]
+                return ["Claude", "MCP", "Anthropic", "Allow Claude Desktop access",
+                        ClaudeDesktopFolders.title, ClaudeDesktopFolders.add, "Attach files", "Lesson files"]
             case .appleIntelligence:
                 return ["AI", "On this device", "On-device", "Private Cloud Compute", "Private Cloud",
                         "Allow Private Cloud Compute"]
@@ -242,6 +243,20 @@ enum SettingsCopy {
             + "\u{201C}your guide.\u{201D} Change it any time; their phones follow, old entries included."
         static let waiting = "Saved on this device. Your assistants will see it once iCloud is reachable."
         static let notSaved = "Not saved: the Apple Account on this device changed while saving. Type your name again."
+    }
+
+    /// The Claude Desktop card's list of folders Claude may attach lesson
+    /// files from (`ClaudeDesktopSettingsView`, `MCPAttachFolders`). Mac only.
+    enum ClaudeDesktopFolders {
+        static let title = "Folders Claude can attach files from"
+        static let footer = "Claude can attach a PDF or a picture from these folders to a lesson, "
+            + "and from your album folders. It copies the file into the lesson, so it reaches "
+            + "your iPad too. Nothing else in these folders is read."
+        static let empty = "No folders yet."
+        static let add = "Add Folder…"
+        static let remove = "Remove"
+        static let removeHelp = "Stop letting Claude attach files from this folder"
+        static let notAdded = "Couldn’t add that folder. Choose it again."
     }
 
     /// The note- and meeting-template editor (`TemplateEditorSheet`).
