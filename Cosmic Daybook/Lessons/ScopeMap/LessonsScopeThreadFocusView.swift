@@ -55,6 +55,8 @@ struct LessonsScopeThreadFocusView: View {
     @State private var dropTargetLessonID: UUID?
     @State private var dropTargetSection: String?
     @State private var sectionOrderVersion: Int = 0
+    /// Which lessons hold a file of their own (the pills' paperclip).
+    @Environment(\.lessonAttachmentIndex) private var attachmentIndex
 
     private var color: Color {
         AppColors.color(forArea: threadKey.area)
@@ -195,6 +197,8 @@ struct LessonsScopeThreadFocusView: View {
     @ViewBuilder
     private func pillView(for lesson: CDLesson) -> some View {
         let isDropTarget = (dropTargetLessonID == lesson.id)
+        // Read here, not in the label: the drag preview renders the label on its own.
+        let hasFile = attachmentIndex?.hasFile(lesson) ?? false
 
         AppPillButton(
             isSelected: false,
@@ -206,6 +210,9 @@ struct LessonsScopeThreadFocusView: View {
                         .fill(color)
                         .frame(width: 8, height: 8)
                     Text(lesson.name)
+                    if hasFile {
+                        LessonFileBadge(size: 11)
+                    }
                 }
             }
         )
