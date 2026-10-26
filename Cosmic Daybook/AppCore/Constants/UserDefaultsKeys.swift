@@ -95,6 +95,11 @@ nonisolated enum UserDefaultsKeys {
     /// Off by default: exposing notebook data to MCP clients (Claude
     /// Desktop) is an explicit teacher choice. macOS only.
     static let aiMCPServerEnabled = "AI.mcpServerEnabled"
+    /// Security-scoped bookmarks ([Data]) of the folders Claude Desktop may
+    /// attach lesson files from (Settings › Claude Desktop). macOS only; kept
+    /// on this Mac (a bookmark opens only on the Mac that made it), so never
+    /// synced or moved to another device, but backed up.
+    static let aiMCPAttachFolderBookmarks = "AI.mcpAttachFolderBookmarks"
 
     // MARK: - Parent Reports
 

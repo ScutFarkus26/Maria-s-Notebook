@@ -37,9 +37,10 @@ enum MCPNotebookTools {
     static func makeTools(
         context: @escaping MCPContextProvider = { AppBootstrapping.getSharedCoreDataStack().viewContext },
         dependencies: @escaping MCPDependenciesProvider = { MCPAppServices.dependencies },
-        journal: MCPWriteJournal = .shared
+        journal: MCPWriteJournal = .shared,
+        lessonFiles: MCPLessonFiles = .live
     ) -> [MCPToolDefinition] {
-        rosterAndLessonTools(context: context, journal: journal)
+        rosterAndLessonTools(context: context, journal: journal, lessonFiles: lessonFiles)
             + observationTools(context: context)
             + scheduleAndWorkTools(context: context)
             + dayToDayTools(context: context)
@@ -73,7 +74,8 @@ enum MCPNotebookTools {
 
     private static func rosterAndLessonTools(
         context: @escaping MCPContextProvider,
-        journal: MCPWriteJournal
+        journal: MCPWriteJournal,
+        lessonFiles: MCPLessonFiles
     ) -> [MCPToolDefinition] {
         [
             listStudentsTool(context: context),
@@ -88,6 +90,9 @@ enum MCPNotebookTools {
             createLessonTool(context: context),
             updateLessonTool(context: context),
             reorderLessonsTool(context: context),
+            attachFileToLessonTool(context: context, files: lessonFiles),
+            listLessonAttachmentsTool(context: context),
+            removeLessonAttachmentTool(context: context, files: lessonFiles),
             searchAlbumsTool(),
             albumPageTool(),
             albumMarksTool(context: context),

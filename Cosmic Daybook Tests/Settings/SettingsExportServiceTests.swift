@@ -35,6 +35,8 @@ struct SettingsExportServiceTests {
         #expect(!keys.contains("LastBackupTimeInterval"))
         #expect(!keys.contains(UserDefaultsKeys.lastBackupTimeInterval))
         #expect(!keys.contains(UserDefaultsKeys.albumsFolderBookmarks))
+        #expect(!keys.contains(UserDefaultsKeys.aiMCPAttachFolderBookmarks))
+        #expect(BackupPreferencesService.preferenceKeys.contains(UserDefaultsKeys.aiMCPAttachFolderBookmarks))
         #expect(!keys.contains(UserDefaultsKeys.aiMCPServerEnabled))
         #expect(keys.count == SettingsExportService.transferKeys.count, "a key is listed twice")
     }

@@ -22,7 +22,8 @@ extension MCPNotebookTools {
             description: "Look up lessons in the guide's curriculum by name, area, or sequence. "
                 + "Call this before record_presentation to get the exact lesson, and to check "
                 + "which of several similar lessons the guide means. Each result is "
-                + "[lesson id=<uuid>] — pass the id or the exact name to record_presentation.",
+                + "[lesson id=<uuid>] — pass the id or the exact name to record_presentation. A lesson "
+                + "with files of its own ends with \" · files: <titles>\".",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -67,7 +68,8 @@ extension MCPNotebookTools {
         guard !matches.isEmpty else {
             return "No lessons matched \"\(query)\"."
         }
-        return matches.map { "- \(describeLesson($0.lesson))" }.joined(separator: "\n")
+        let files = LessonFileTitles(in: modelContext)
+        return matches.map { "- \(describeLesson($0.lesson))\(files.suffix(for: $0.lesson))" }.joined(separator: "\n")
     }
 
     /// Lower ranks sort first: exact name, then a name containing the term,

@@ -21,6 +21,7 @@ Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-04 so that file keeps 
 Details (indexes, costs, annotations, identity repair, lesson links): `docs/Technical notes/ALBUMS.md`.
 
 - The PDFs stay where they live (security-scoped bookmarks); never copy them into the container.
+- **Remade lesson PDFs are lesson files, not albums (2026-10-25).** `attach_file_to_lesson` copies a remade album PDF (from an album folder or a folder granted in Settings › Claude Desktop) into the lesson's Lesson Files on purpose: that copy is what reaches the iPad through iCloud Drive. The rule above is about the album library, which still never copies its PDFs.
 - `AlbumLibrary.shared` is app-lifetime and deliberately not in `AppDependencies`.
 - **Album identity is the PDF filename**; `AlbumIdentityRepair` remaps it after a rename.
 - Indexes load lazily (`bootstrapIfNeeded`, `ensureIndexed`), never at launch, and one embedding model is used per process.

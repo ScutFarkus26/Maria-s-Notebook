@@ -38,6 +38,8 @@ struct ClaudeDesktopSettingsView: View {
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                Divider()
+                ClaudeDesktopFolderList()
             }
         }
         .onChange(of: mcpServerEnabled) { _, _ in

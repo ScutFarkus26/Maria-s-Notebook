@@ -89,12 +89,14 @@ struct BackupPreferencesServiceTests {
         #expect(merged == ["print-a": "Biology (renamed).pdf", "print-b": "Geometry.pdf"])
     }
 
-    @Test("Merge policies are wired to the album keys and nothing else")
+    @Test("Merge policies are wired to the album keys and Claude's attach folders, and nothing else")
     func mergePolicyWiring() {
         #expect(BackupPreferencesService.mergePolicy(for: UserDefaultsKeys.albumsFolderBookmarks) == .unionArray)
         #expect(BackupPreferencesService.mergePolicy(for: UserDefaultsKeys.albumsFingerprints) == .mergeDictionaryLocalWins)
         #expect(BackupPreferencesService.mergePolicy(for: UserDefaultsKeys.albumsLastSeenModDates) == .mergeDictionaryLocalWins)
-        for key in BackupPreferencesService.preferenceKeys where !key.hasPrefix("Albums.") {
+        #expect(BackupPreferencesService.mergePolicy(for: UserDefaultsKeys.aiMCPAttachFolderBookmarks) == .unionArray)
+        for key in BackupPreferencesService.preferenceKeys
+        where !key.hasPrefix("Albums.") && key != UserDefaultsKeys.aiMCPAttachFolderBookmarks {
             #expect(BackupPreferencesService.mergePolicy(for: key) == .replace, "\(key)")
         }
     }
@@ -112,6 +114,7 @@ struct BackupPreferencesServiceTests {
             UserDefaultsKeys.generalTestStudentNames,
             UserDefaultsKeys.lessonPlanningSystemPrompt,
             UserDefaultsKeys.albumsFingerprints,
+            UserDefaultsKeys.aiMCPAttachFolderBookmarks,
             "AttendanceEmail.nameOrder"
         ]
         for key in mustHave {
