@@ -17,9 +17,10 @@ import UniformTypeIdentifiers
 ///
 /// The file rules it keeps (`UbiquitousFile`, `LessonFileStorage+Removal`):
 /// - A file in Lesson Files is written once under a new name and never
-///   rewritten in place. A replace copies the new file in under a name of its
-///   own, saves the record pointing at it, and only then sends the old file to
-///   the Trash; it never deletes first.
+///   rewritten in place. A replace copies the new file in under a name the
+///   attachment never had (numbered past the old file's), saves the record
+///   pointing at it, and only then sends the old file to the Trash; it never
+///   deletes first.
 /// - A file leaves the disk only after the save that dropped its record, only
 ///   when nothing else points at it, and to the Trash.
 /// - A failed save takes back exactly this change (`ContextMutationTransaction`,
@@ -173,7 +174,7 @@ final class LessonAttachmentService {
         let sameBytes = await hasSameBytes(relativePath: comparedPath, as: checked.url)
 
         // Anything could have happened to the record while the comparison waited.
-        guard isLive(attachment), let lesson = attachment.lesson else { throw Problem.noLesson }
+        guard isLive(attachment) else { throw Problem.noLesson }
         let oldPath = attachment.fileRelativePath
         let newNotes = notes?.trimmed()
         let notesChange = newNotes.map { $0 != attachment.notes } ?? false
@@ -189,10 +190,11 @@ final class LessonAttachmentService {
 
         let title = attachment.title
         let ext = checked.url.pathExtension
-        // A new name: the old file is still on disk (or held by this record
-        // when it hasn't arrived yet), so the copy never lands on it.
-        let copy = try LessonFileStorage.importAttachment(
-            from: checked.url, forLesson: lesson, scope: attachment.scope, customName: title, in: storage
+        // A name this attachment never had, numbered past the old file's: not
+        // the old one (still on disk, or held by this record when it hasn't
+        // arrived yet), nor one an earlier replace sent to the Trash.
+        let copy = try LessonFileStorage.importReplacement(
+            from: checked.url, for: attachment, title: title, in: storage
         )
         do {
             let bookmark = try storage.makeBookmark(for: copy.url)

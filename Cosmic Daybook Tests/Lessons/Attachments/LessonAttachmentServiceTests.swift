@@ -290,7 +290,8 @@ struct LessonAttachmentServiceTests {
         #expect(attachment.fileType == "png")
         #expect(attachment.fileName == "Area of a Circle — chart.png")
         #expect(attachment.title == "Area of a Circle — chart")
-        #expect(attachment.fileRelativePath == "Geometry/Circle/Area of a Circle - chart.png")
+        // Numbered past the PDF's name, as every replace is.
+        #expect(attachment.fileRelativePath == "Geometry/Circle/Area of a Circle - chart-2.png")
         #expect(try Data(contentsOf: scratch.file(of: attachment)) == pngBytes)
         #expect(scratch.trash.given.count == 1)
     }

@@ -29,11 +29,6 @@ public enum LessonFileStorage {
         let fileType: String
     }
 
-    private struct AttachmentName {
-        let base: String
-        let extWithDot: String
-    }
-
     /// Returns the root directory URL where lesson files are stored, creating it if needed.
     public static func lessonFilesDirectory() throws -> URL {
         try storage.directory()
@@ -191,25 +186,47 @@ public enum LessonFileStorage {
         let destDir = try organizationalDirectory(forLesson: lesson, in: storage)
         logger.debug("Destination directory: \(destDir.path)")
 
-        let sourceExt = sourceURL.pathExtension
-        let extWithDot = sourceExt.isEmpty ? "" : "." + sourceExt
-
-        let sourceStem = sourceURL.deletingPathExtension().lastPathComponent
-        let sourceBaseName = ManagedPDFFileStorage.sanitizeFilenameComponent(sourceStem, fallback: "Attachment")
-        // A custom name that sanitizes to nothing (all Hebrew, say) falls back
-        // to the source's sanitized stem, never to a raw one.
-        let baseName = customName.map {
-            ManagedPDFFileStorage.sanitizeFilenameComponent($0, fallback: sourceBaseName)
-        } ?? sourceBaseName
-
         let destinationURL = uniqueAttachmentURL(
             in: destDir,
             scope: scope,
-            name: AttachmentName(base: baseName, extWithDot: extWithDot),
+            name: attachmentName(for: sourceURL, customName: customName),
             excluding: nil,
             held: namesHeldByRecords(
                 in: destDir, context: lesson.managedObjectContext, apartFrom: nil, storage: storage
             )
+        )
+        try UbiquitousFile.coordinatedCopy(from: sourceURL, to: destinationURL)
+
+        let relativePath = try storage.relativePath(forManagedURL: destinationURL)
+        return (url: destinationURL, relativePath: relativePath)
+    }
+
+    /// Imports the new file for a replace of `attachment`: into its lesson's
+    /// folder under `title` (a stem), as `importAttachment` would, but
+    /// numbered past the attachment's current file ("Foo-3.pdf" after
+    /// "Foo-2.pdf", "Foo-2.pdf" after "Foo.pdf"). A replace sends the old file
+    /// to the Trash, so starting from the bare name again would put the next
+    /// copy under the name iCloud has just deleted, and names would flip
+    /// Foo ↔ Foo-2. Counting on gives each copy a name this attachment never
+    /// had (`UbiquitousFile`: written once under a new name, never rewritten).
+    static func importReplacement(
+        from sourceURL: URL,
+        for attachment: CDLessonAttachment,
+        title: String,
+        in storage: ManagedPDFFileStorage = LessonFileStorage.storage
+    ) throws -> (url: URL, relativePath: String) {
+        guard let lesson = attachment.lesson else { throw CocoaError(.fileNoSuchFile) }
+        let destDir = try organizationalDirectory(forLesson: lesson, in: storage)
+        let name = attachmentName(for: sourceURL, customName: title)
+        let destinationURL = uniqueAttachmentURL(
+            in: destDir,
+            scope: attachment.scope,
+            name: name,
+            excluding: nil,
+            held: namesHeldByRecords(
+                in: destDir, context: attachment.managedObjectContext, apartFrom: nil, storage: storage
+            ),
+            firstNumber: numberAfter(attachment, named: name)
         )
         try UbiquitousFile.coordinatedCopy(from: sourceURL, to: destinationURL)
 
@@ -272,84 +289,5 @@ public enum LessonFileStorage {
             fileName: displayFileName,
             fileType: resolvedExtension.lowercased()
         )
-    }
-
-    // MARK: - Private Helpers
-
-    private static func scopePrefix(for scope: AttachmentScope) -> String {
-        switch scope {
-        case .lesson: return ""
-        case .sequence: return "[Sequence] "
-        case .area: return "[Area] "
-        }
-    }
-
-    /// Like `ManagedPDFFileStorage.uniqueDestination`, except the attachment's own
-    /// current URL counts as free so a rename to the same name is a no-op. A
-    /// name held by a file still in iCloud (not downloaded here yet) is taken,
-    /// as it is there, and so is one in `held`: an attachment record synced
-    /// from another device whose file hasn't reached this one at all.
-    private static func uniqueAttachmentURL(
-        in directory: URL,
-        scope: AttachmentScope,
-        name: AttachmentName,
-        excluding currentURL: URL?,
-        held: Set<String>
-    ) -> URL {
-        let fm = FileManager.default
-        let scopePrefix = scopePrefix(for: scope)
-
-        func candidateURL(counter: Int?) -> URL {
-            let filename: String
-            if let counter {
-                filename = "\(scopePrefix)\(name.base)-\(counter)\(name.extWithDot)"
-            } else {
-                filename = "\(scopePrefix)\(name.base)\(name.extWithDot)"
-            }
-            return directory.appendingPathComponent(filename, isDirectory: false)
-        }
-
-        var counter: Int?
-        while true {
-            let candidate = candidateURL(counter: counter)
-            if let currentURL, candidate.standardizedFileURL == currentURL.standardizedFileURL {
-                return candidate
-            }
-            let taken = fm.fileExists(atPath: candidate.path)
-                || fm.fileExists(atPath: UbiquitousFile.placeholderURL(for: candidate).path)
-                || held.contains(candidate.lastPathComponent.lowercased())
-            if !taken {
-                return candidate
-            }
-
-            counter = (counter ?? 1) + 1
-        }
-    }
-
-    /// The file names (lowercased: iCloud Drive ignores case) that attachment
-    /// records in `context` hold directly inside `directory`, `apartFrom`'s
-    /// own aside. A record synced from another device can arrive before its
-    /// file does, and a second file under its name would collide with that
-    /// one when it lands.
-    private static func namesHeldByRecords(
-        in directory: URL,
-        context: NSManagedObjectContext?,
-        apartFrom attachment: CDLessonAttachment?,
-        storage: ManagedPDFFileStorage
-    ) -> Set<String> {
-        guard let context, let folder = try? storage.relativePath(forManagedURL: directory) else { return [] }
-        let prefix = folder.lowercased() + "/"
-        let request = CDFetchRequest(CDLessonAttachment.self)
-        request.predicate = NSPredicate(format: "fileRelativePath BEGINSWITH[c] %@", prefix)
-        var held = Set<String>()
-        for record in context.safeFetch(request) where record !== attachment && !record.isDeleted {
-            let path = record.fileRelativePath.lowercased()
-            guard path.hasPrefix(prefix) else { continue }
-            let name = path.dropFirst(prefix.count)
-            if !name.isEmpty, !name.contains("/") {
-                held.insert(String(name))
-            }
-        }
-        return held
     }
 }
