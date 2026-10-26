@@ -14,7 +14,7 @@ struct MCPToolRegistryTests {
         let tools = MCPNotebookTools.makeTools(context: { context })
 
         let names: [String] = tools.map(\.name)
-        #expect(names.count == 94)
+        #expect(names.count == 97)
         #expect(Set(names).count == names.count)
 
         let encoder = JSONEncoder()
@@ -29,7 +29,8 @@ struct MCPToolRegistryTests {
             "list_lessons_by_area", "create_lesson", "update_lesson", "reorder_lessons",
             "discard_presentation", "update_presentation_roster", "clear_year_plan",
             "student_curriculum_map", "class_curriculum_map", "students_pending",
-            "students_ready", "mastery_candidates", "data_checks", "send_attendance_to_school"
+            "students_ready", "mastery_candidates", "data_checks", "send_attendance_to_school",
+            "attach_file_to_lesson", "list_lesson_attachments", "remove_lesson_attachment"
         ]
         #expect(added.isSubset(of: Set(names)))
     }
@@ -50,10 +51,10 @@ struct MCPToolRegistryTests {
         "update_observation", "update_presentation_roster", "update_project",
         "update_student", "update_todo", "update_work", "update_year_plan_entry",
         "set_school_days", "update_school_calendar", "change_schedule_day", "update_order_items",
-        "mark_supplies",
+        "mark_supplies", "attach_file_to_lesson",
         // deletes and retirements
         "clear_year_plan", "discard_presentation", "remove_student_from_work",
-        "skip_year_plan_entries", "set_timetable",
+        "skip_year_plan_entries", "set_timetable", "remove_lesson_attachment",
         "create_backup", "draft_parent_report",
         // sends outside the notebook
         "send_attendance_to_school"
@@ -62,7 +63,7 @@ struct MCPToolRegistryTests {
     /// The tools that delete or retire rows.
     private static let destructiveTools: Set<String> = [
         "clear_year_plan", "discard_presentation", "remove_student_from_work",
-        "skip_year_plan_entries", "set_timetable"
+        "skip_year_plan_entries", "set_timetable", "remove_lesson_attachment"
     ]
 
     /// The tools that reach outside the notebook: only the send to the

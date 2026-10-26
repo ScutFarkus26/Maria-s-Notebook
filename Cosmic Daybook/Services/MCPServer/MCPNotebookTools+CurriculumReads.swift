@@ -31,7 +31,8 @@ extension MCPNotebookTools {
                 + "find_lessons returns. An area listing groups by sub-area in the order the "
                 + "scope map shows them. Within a sub-area, lessons that carry a section sit "
                 + "under a \"Section: <name>\" heading in the map's band order, with the rest "
-                + "under \"No section\"; a sub-area with no sections is a plain numbered list.",
+                + "under \"No section\"; a sub-area with no sections is a plain numbered list. A lesson "
+                + "with files of its own ends with \" · files: <titles>\".",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -59,15 +60,19 @@ extension MCPNotebookTools {
     ) throws -> String {
         let lessons = allCurriculumLessons(in: modelContext)
         let area = try resolveArea(try requireString(arguments, "area"), from: lessons)
+        // One read of every lesson's files for the whole listing, which has no cap.
+        let files = LessonFileTitles(in: modelContext)
 
         if let subArea = nonEmpty(arguments["sub_area"]?.stringValue) {
             let sequence = try resolveSequence(subArea, inArea: area, from: lessons)
             let inSequence = lessonsInSequence(sequence, area: area, from: lessons)
-            return sequenceBlock(sequence, area: area, lessons: inSequence)
+            return sequenceBlock(sequence, area: area, lessons: inSequence, files: files)
         }
 
         let blocks = orderedSequences(inArea: area, from: lessons).map { sequence in
-            sequenceBlock(sequence, area: area, lessons: lessonsInSequence(sequence, area: area, from: lessons))
+            sequenceBlock(
+                sequence, area: area, lessons: lessonsInSequence(sequence, area: area, from: lessons), files: files
+            )
         }
         let total = blocks.isEmpty ? 0 : lessons.filter { sameFiling($0.area, area) }.count
         return "\(area): \(total) lesson(s) in \(blocks.count) sub-area(s)\n\n" + blocks.joined(separator: "\n\n")
@@ -77,12 +82,14 @@ extension MCPNotebookTools {
     /// headings. `lessons` arrive in taught order and keep those positions
     /// whichever band they land in. A sub-area with no sections prints the
     /// plain numbered list it always did.
-    private static func sequenceBlock(_ sequence: String, area: String, lessons: [CDLesson]) -> String {
+    private static func sequenceBlock(
+        _ sequence: String, area: String, lessons: [CDLesson], files: LessonFileTitles
+    ) -> String {
         let storedSequence: String = sequence == ungroupedSequenceLabel ? "" : sequence
         let header = "\(filingLabel(area: area, sequence: storedSequence)) — \(lessons.count) lesson(s)"
         let bands = LessonSectionGrouping.bands(for: lessons, area: area, sequence: storedSequence)
         guard bands.contains(where: { !$0.name.isEmpty }) else {
-            return header + "\n" + numberedLessonLines(lessons)
+            return header + "\n" + numberedLessonLines(lessons, files: files)
         }
         let positions: [NSManagedObjectID: Int] = Dictionary(
             uniqueKeysWithValues: lessons.enumerated().map { ($0.element.objectID, $0.offset + 1) }
@@ -90,7 +97,7 @@ extension MCPNotebookTools {
         let blocks: [String] = bands.map { band in
             let heading: String = band.name.isEmpty ? "No section" : "Section: \(band.name)"
             let lines: [String] = band.lessons.map { lesson in
-                "\(positions[lesson.objectID] ?? 0). \(describeLesson(lesson))"
+                "\(positions[lesson.objectID] ?? 0). \(describeLesson(lesson))\(files.suffix(for: lesson))"
             }
             return ([heading] + lines).joined(separator: "\n")
         }
