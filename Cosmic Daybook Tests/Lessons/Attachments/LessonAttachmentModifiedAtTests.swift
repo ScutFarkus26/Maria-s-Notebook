@@ -147,8 +147,8 @@ struct LessonAttachmentModifiedAtTests {
                 #expect((18...BackupWriter.formatVersion).contains(standIn.version))
             }
         }
-        #expect(BackupFieldsAddedLater.standIns(from: 42, in: "LessonAttachment").map(\.attribute) == ["modifiedAt"])
-        #expect(BackupFieldsAddedLater.standIns(from: 43, in: "LessonAttachment").isEmpty)
+        #expect(BackupFieldsAddedLater.standIns(from: 43, in: "LessonAttachment").map(\.attribute) == ["modifiedAt"])
+        #expect(BackupFieldsAddedLater.standIns(from: 44, in: "LessonAttachment").isEmpty)
     }
 
     // MARK: - Schema 21
