@@ -8,7 +8,7 @@ Cosmic Daybook is a comprehensive teacher planning and classroom management app 
 - Swift 6.0 / SwiftUI
 - Core Data + NSPersistentCloudKitContainer (two-store architecture)
 - iOS 27.0+ / macOS 27.0+ / visionOS 27.0+
-- Xcode 27.0 (27A266a) at `/Applications/Xcode.app` — the only Xcode installed, and what `xcode-select` points at, so `xcodebuild`/`xcrun` need no `DEVELOPER_DIR`
+- Xcode 27.1 (27A9275) at `/Applications/Xcode.app` — the only Xcode installed, and what `xcode-select` points at, so `xcodebuild`/`xcrun` need no `DEVELOPER_DIR`
 
 ## Build & Run
 
@@ -163,7 +163,7 @@ MVVM with services on `NSPersistentCloudKitContainer` (private and shared stores
 
 ## Data Model
 
-93 entities (schema 20): 70 private-only, 15 in the classroom share, 8 dormant tombstones. Core Data rules: `CD` prefix, no unique constraints, enums as raw `String`, foreign keys as `String`, every property optional or defaulted, `modifiedAt` for conflicts. Integrity rules and the entity table: `docs/Technical notes/DATA_MODELS.md`.
+93 entities (schema 21): 70 private-only, 15 in the classroom share, 8 dormant tombstones. Core Data rules: `CD` prefix, no unique constraints, enums as raw `String`, foreign keys as `String`, every property optional or defaulted, `modifiedAt` for conflicts. Integrity rules and the entity table: `docs/Technical notes/DATA_MODELS.md`.
 
 ## Sharing Model
 
@@ -237,7 +237,7 @@ Rules: `docs/Technical notes/PARENTLOCKER.md`. The password stays in the Keychai
 
 ## Backup System
 
-Format v42; rules: `docs/Technical notes/BACKUP_SYSTEM.md`. A new entity or attribute needs a line in `Backup/BackupEntityTable.swift` and a format-version bump; merge restore is an upsert, never delete and reinsert.
+Format v43; rules: `docs/Technical notes/BACKUP_SYSTEM.md`. A new entity or attribute needs a line in `Backup/BackupEntityTable.swift` and a format-version bump; merge restore is an upsert, never delete and reinsert.
 
 ## Todos for Danny
 
