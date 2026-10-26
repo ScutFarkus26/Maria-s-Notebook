@@ -83,6 +83,8 @@ struct StudentEditForm: View {
     @Binding var draftLastName: String
     @Binding var draftNickname: String
     @Binding var draftBirthday: Date
+    @Binding var draftBornAfterSunset: Bool
+    let hasDraftBirthday: Bool
     @Binding var draftLevel: CDStudent.Level
     @Binding var draftStartDate: Date
     @Binding var draftEnrollmentStatus: CDStudent.EnrollmentStatus
@@ -99,6 +101,7 @@ struct StudentEditForm: View {
             TextField("Nickname", text: $draftNickname)
                 .textFieldStyle(.roundedBorder)
             DatePicker("Birthday", selection: $draftBirthday, displayedComponents: .date)
+            BornAfterSunsetToggle(isOn: $draftBornAfterSunset, birthday: hasDraftBirthday ? draftBirthday : nil)
             DatePicker("Start Date", selection: $draftStartDate, displayedComponents: .date)
             Picker("Level", selection: $draftLevel) {
                 Text(CDStudent.Level.lower.rawValue).tag(CDStudent.Level.lower)
@@ -195,6 +198,11 @@ struct StudentInfoRows: View {
         student.birthday.map { DateFormatters.longDate.string(from: $0) } ?? Self.notOnFile
     }
 
+    /// Nil with no birthday on file.
+    private var hebrewBirthday: HebrewBirthday? {
+        student.birthday.flatMap { HebrewBirthday(birthday: $0, bornAfterSunset: student.bornAfterSunset) }
+    }
+
     private var ageDescription: String {
         student.birthday.map { AgeUtils.verboseAgeString(for: $0) } ?? Self.notOnFile
     }
@@ -240,6 +248,9 @@ struct StudentInfoRows: View {
     private var rowsContent: some View {
         InfoRowView(icon: "person", title: "Nickname", value: student.nickname ?? "-")
         InfoRowView(icon: "calendar", title: "Birthday", value: formattedBirthday)
+        if let hebrewBirthday {
+            HebrewBirthdayInfoRow(birthday: hebrewBirthday)
+        }
         if let ds = student.dateStarted {
             InfoRowView(
                 icon: "calendar.badge.clock", title: "Start Date",

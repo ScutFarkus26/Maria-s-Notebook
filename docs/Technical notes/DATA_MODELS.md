@@ -66,6 +66,7 @@ The primary entity representing a student in the classroom.
 | `manualOrder` | Int | Manual sort order |
 | `dateStarted` | Date? | When student enrolled |
 | `parentLockerID` | String? | The child's `student_id` on the school's ParentLocker site, stored once matched by name (schema 18); written only on the guide's devices |
+| `bornAfterSunset` | Bool | Born after sunset, so the child's Hebrew birthday is the next day's (schema 21; optional, default NO, a record from before it reads as false). The Hebrew date is worked out from `birthday` wherever it's shown, never stored |
 | `modifiedAt` | Date | Last modification timestamp |
 
 **Computed Properties:**
@@ -544,7 +545,7 @@ Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-02 so that file keeps 
 
 Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-04 so that file keeps only a pointer and the few rules a session needs before touching this area. These are still rules: follow them.
 
-**93 entities** defined in `CosmicDaybook.xcdatamodeld` (schema 21; schema 19 added `TodoItem.tideLink`, the Tide action a to-do is shared with, `docs/Technical notes/TIDE_SHARING.md`; schema 20 added the Schedules timetable types, `docs/Plans/Plan - Schedules.md`; schema 21 added `LessonAttachment.modifiedAt`, when a lesson file was last replaced, renamed or given a note, read as `attachedAt` on older rows, `docs/Plans/Plan - Lesson file attachments.md`): 70 private-only, 11 in the classroom share (schema 16 added `ClassroomPerson`, the shared list of names people set for themselves; `Sharing/ClassroomNames.swift`; schema 17 added `SupplyTransaction.changedByID`, who changed a staple's level, so its history line shows that person's current name; schema 18 added how attendance goes to the school, `AttendanceEmailSettings.sendMethodRaw` and `parentLockerSite`, the channel of each send, `AttendanceEmailSend.channelRaw`, and the child's ParentLocker match, `Student.parentLockerID`), 8 dormant tombstones.
+**93 entities** defined in `CosmicDaybook.xcdatamodeld` (schema 22; schema 19 added `TodoItem.tideLink`, the Tide action a to-do is shared with, `docs/Technical notes/TIDE_SHARING.md`; schema 20 added Schedules' four shared types; schema 21 added `Student.bornAfterSunset`, the switch that moves a child's Hebrew birthday one day on; schema 22 added `LessonAttachment.modifiedAt`, when a lesson file was last replaced, renamed or given a note, read as `attachedAt` on older rows, `docs/Plans/Plan - Lesson file attachments.md`): 70 private-only, 15 in the classroom share (schema 16 added `ClassroomPerson`, the shared list of names people set for themselves; `Sharing/ClassroomNames.swift`; schema 17 added `SupplyTransaction.changedByID`, who changed a staple's level, so its history line shows that person's current name; schema 18 added how attendance goes to the school, `AttendanceEmailSettings.sendMethodRaw` and `parentLockerSite`, the channel of each send, `AttendanceEmailSend.channelRaw`, and the child's ParentLocker match, `Student.parentLockerID`), 8 dormant tombstones.
 
 **Core Models:**
 

@@ -129,11 +129,16 @@ nonisolated extension CoreDataStack {
     ///   Assistant can show who is with the guide). Four additive entities in
     ///   the classroom share, written only on the guide's devices
     ///   (`TimetableService`, `ScheduleBookingPublisher`).
-    /// - `21` — `LessonAttachment.modifiedAt` (private): when a lesson file, its
+    /// - `21` — `Student.bornAfterSunset` (shared): the "Born after sunset"
+    ///   switch that moves a child's Hebrew birthday one day on, since a
+    ///   Hebrew date begins at sunset. The Hebrew date itself is worked out
+    ///   from `birthday` wherever it's shown, never stored. Additive optional
+    ///   Boolean, default NO.
+    /// - `22` — `LessonAttachment.modifiedAt` (private): when a lesson file, its
     ///   name or its note last changed, so a replaced file reads "Updated"
     ///   (plan "Lesson file attachments"; `LessonAttachmentService`). Additive
     ///   optional Date; older records read it as `attachedAt`.
-    nonisolated static let currentSchemaVersion = 21
+    nonisolated static let currentSchemaVersion = 22
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"

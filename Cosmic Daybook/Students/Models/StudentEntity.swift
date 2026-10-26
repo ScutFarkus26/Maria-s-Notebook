@@ -21,6 +21,11 @@ nonisolated public class CDStudent: NSManagedObject {
     /// matched by name so later sends go by ID and survive a rename (schema
     /// 18). Only the guide's devices write it.
     @NSManaged public var parentLockerID: String?
+    /// Born after sunset: a Hebrew date begins at sunset, so the child's
+    /// Hebrew birthday is the next day's (schema 21). The Hebrew date itself
+    /// is worked out wherever it's shown, never stored. A record from before
+    /// schema 21 holds no value, which reads as false.
+    @NSManaged public var bornAfterSunset: Bool
     @NSManaged public var modifiedAt: Date?
 
     // Schema 9 removed the `trackEnrollments` relationship: it pulled a
@@ -46,6 +51,7 @@ nonisolated public class CDStudent: NSManagedObject {
         self.dateWithdrawn = nil
         self.previousLevelRaw = nil
         self.dateLastPromoted = nil
+        self.bornAfterSunset = false
         self.modifiedAt = Date()
     }
 }

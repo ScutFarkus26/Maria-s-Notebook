@@ -23,6 +23,7 @@ run `docs-index`; edit only the Other documents section by hand.
 
 | Plan | What it is | Status | Date |
 |---|---|---|---|
+| [Plan - Hebrew birthdays](<Plans/Plan - Hebrew birthdays.md>) | each child's page shows their Hebrew birthday in English and Hebrew, worked out from their date of birth and a new "Born after sunset" switch, and it also appears in the roster table, Birthdays This Week and the MCP student list. | Done (4b37da8b) | 2026-10-25 |
 | [Plan - Daybook Assistant bug hunt 2026-10-20 fixes](<Plans/Plan - Daybook Assistant bug hunt 2026-10-20 fixes.md>) | fix every finding with five fix agents (at most three at once), each owning its own files, review the combined work, fix what the reviews find, land it on main, and send the Daybook Assistant to the Assistants TestFlight group by morning. | Done (5533235a) | 2026-10-20 |
 | [Plan - Simplify the app](<Plans/Plan - Simplify the app.md>) | fewer, fuller screens (one class grid, Logs folded into the screens it repeats, one Library, one Clubs & Projects), two levels of readiness, one day note, a to-do list shared with Tide, no Ask AI, and a six-group sidebar, without losing anything Danny uses. | Done (b4141b4a) | 2026-10-19 |
 | [Plan - Bug hunt 2026-10-17 fixes](<Plans/Plan - Bug hunt 2026-10-17 fixes.md>) | fix every finding with eight fix agents in rolling slots of at most three, each owning its own files, then four reviews, fix what they find with fresh small agents or the main session, and land it on main without rolling out. | Done (91e3c447) | 2026-10-18 |

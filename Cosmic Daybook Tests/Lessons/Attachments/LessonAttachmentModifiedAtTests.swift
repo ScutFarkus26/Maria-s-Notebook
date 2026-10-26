@@ -3,10 +3,10 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-/// Lesson file attachments, Phase 1: `LessonAttachment.modifiedAt` (schema 21,
-/// backup v43). A store from schema 20 opens with it, a backup carries it, and
+/// Lesson file attachments, Phase 1: `LessonAttachment.modifiedAt` (schema 22,
+/// backup v44). A store from schema 21 opens with it, a backup carries it, and
 /// a row from an older backup reads it as its `attachedAt`.
-@Suite("Lesson files: modifiedAt (schema 21, backup v43)", .serialized)
+@Suite("Lesson files: modifiedAt (schema 22, backup v44)", .serialized)
 @MainActor
 struct LessonAttachmentModifiedAtTests {
 
@@ -77,7 +77,7 @@ struct LessonAttachmentModifiedAtTests {
 
         let entry = try #require(entries.first { $0.entityName == "LessonAttachment" })
         #expect(String(bytes: entry.ndjson, encoding: .utf8)?.contains(#""modifiedAt""#) == true)
-        #expect(BackupWriter.formatVersion == 43)
+        #expect(BackupWriter.formatVersion == 44)
         #expect(BackupReader.supportedFormatVersions.contains(43))
         #expect(BackupReader.supportedFormatVersions.contains(42))
 
@@ -153,8 +153,8 @@ struct LessonAttachmentModifiedAtTests {
 
     // MARK: - Schema 21
 
-    /// The model as schema 20 had it: no `LessonAttachment.modifiedAt`.
-    private func schema20Model() throws -> NSManagedObjectModel {
+    /// The model as schema 21 had it: no `LessonAttachment.modifiedAt`.
+    private func schema21Model() throws -> NSManagedObjectModel {
         let url = try #require(Bundle.main.url(forResource: CoreDataStack.modelName, withExtension: "momd"))
         let loaded = try #require(NSManagedObjectModel(contentsOf: url))
         let model = try #require(loaded.copy() as? NSManagedObjectModel)
@@ -205,18 +205,18 @@ struct LessonAttachmentModifiedAtTests {
         })
     }
 
-    @Test("A schema-20 store opens with schema 21: its lesson files stay, with no modifiedAt until one is set")
-    func schema20StoreMigrates() throws {
-        #expect(CoreDataStack.currentSchemaVersion == 21)
+    @Test("A schema-21 store opens with schema 22: its lesson files stay, with no modifiedAt until one is set")
+    func schema21StoreMigrates() throws {
+        #expect(CoreDataStack.currentSchemaVersion == 22)
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("lesson-files-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let id = UUID()
 
-        // 1. Schema 20: a lesson with a file, in the guide's private store.
+        // 1. Schema 21: a lesson with a file, in the guide's private store.
         try autoreleasepool {
-            let old = container(try schema20Model(), in: directory)
+            let old = container(try schema21Model(), in: directory)
             try load(old)
             let context = old.viewContext
             let store = try privateStore(of: old)
@@ -236,7 +236,7 @@ struct LessonAttachmentModifiedAtTests {
             }
         }
 
-        // 2. Schema 21, prepared exactly as `CoreDataStack.init` prepares it.
+        // 2. Schema 22, prepared exactly as `CoreDataStack.init` prepares it.
         let model = try CoreDataStack.sharedModel()
         let new = container(model, in: directory)
         try CoreDataStack.prepareStoresForLoad(container: new, model: model)

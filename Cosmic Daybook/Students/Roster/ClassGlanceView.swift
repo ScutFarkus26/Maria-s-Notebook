@@ -201,8 +201,11 @@ struct ClassGlance {
         let studentID: UUID
         let value: String
         let isWarning: Bool
+        /// A Hebrew birthday line: a child whose two birthdays fall in the
+        /// same week has two lines in Birthdays This Week.
+        var isHebrewBirthday = false
 
-        var id: UUID { studentID }
+        var id: String { isHebrewBirthday ? "\(studentID)-hebrew" : studentID.uuidString }
     }
 
     let date: Date
@@ -226,7 +229,7 @@ struct ClassGlance {
         var away: [Entry] = []
         var due: [(Entry, Int)] = []
         var unobserved: [(Entry, Date)] = []
-        var birthdays: [(Entry, Int)] = []
+        var birthdays: [(entry: Entry, days: Int)] = []
 
         for student in students {
             guard let id = student.id else { continue }
@@ -252,13 +255,10 @@ struct ClassGlance {
                 )
                 unobserved.append((entry, s.lastObserved ?? .distantPast))
             }
-            if let days = RosterSignalRules.daysUntilSoonBirthday(student.birthday, calendar: calendar, today: now) {
-                let turning = turningAge(student.birthday, inDays: days, calendar: calendar, today: now)
-                let when = days == 0 ? "today" : RosterSignalText.birthday(inDays: days, calendar: calendar, today: now)
-                    .replacingOccurrences(of: "Birthday ", with: "")
-                let value = turning.map { "Turns \($0) \(when)" } ?? (days == 0 ? "Today" : when)
-                birthdays.append((Entry(student: student, studentID: id, value: value, isWarning: days == 0), days))
-            }
+            birthdays += [
+                birthdayEntry(student, id: id, calendar: calendar, today: now),
+                hebrewBirthdayEntry(student, id: id, today: now)
+            ].compactMap { $0 }
         }
 
         return ClassGlance(
@@ -269,8 +269,45 @@ struct ClassGlance {
             away: away,
             due: due.sorted { $0.1 > $1.1 }.map(\.0),
             unobserved: unobserved.sorted { $0.1 < $1.1 }.map(\.0),
-            birthdays: birthdays.sorted { $0.1 < $1.1 }.map(\.0)
+            birthdays: birthdays.sorted {
+                ($0.days, $0.entry.isHebrewBirthday ? 1 : 0) < ($1.days, $1.entry.isHebrewBirthday ? 1 : 0)
+            }.map(\.entry)
         )
+    }
+
+    /// "Turns 10 Tue" when the child's birthday falls in the coming week.
+    private static func birthdayEntry(
+        _ student: CDStudent, id: UUID, calendar: Calendar, today: Date
+    ) -> (entry: Entry, days: Int)? {
+        guard let days = RosterSignalRules.daysUntilSoonBirthday(student.birthday, calendar: calendar, today: today)
+        else { return nil }
+        let turning = turningAge(student.birthday, inDays: days, calendar: calendar, today: today)
+        let when = days == 0 ? "today" : RosterSignalText.birthday(inDays: days, calendar: calendar, today: today)
+            .replacingOccurrences(of: "Birthday ", with: "")
+        let value = turning.map { "Turns \($0) \(when)" } ?? (days == 0 ? "Today" : when)
+        return (Entry(student: student, studentID: id, value: value, isWarning: days == 0), days)
+    }
+
+    /// "Hebrew birthday · 14 Adar II, Tue" when the child's Hebrew birthday
+    /// falls in the same window as the Gregorian one. Read with the app's
+    /// Gregorian calendar, never the device's (`HebrewBirthday`).
+    private static func hebrewBirthdayEntry(
+        _ student: CDStudent, id: UUID, today: Date
+    ) -> (entry: Entry, days: Int)? {
+        let calendar = AppCalendar.shared
+        guard let days = RosterSignalRules.daysUntilSoonHebrewBirthday(
+                student.birthday, bornAfterSunset: student.bornAfterSunset, calendar: calendar, today: today
+              ),
+              let day = calendar.date(byAdding: .day, value: days, to: calendar.startOfDay(for: today)),
+              let dayAndMonth = HebrewBirthday.englishDayAndMonth(on: day, calendar: calendar)
+        else { return nil }
+        let when = days == 0 ? "today" : day.formatted(.dateTime.weekday(.abbreviated))
+        let entry = Entry(
+            student: student, studentID: id,
+            value: "Hebrew birthday · \(dayAndMonth), \(when)", isWarning: days == 0,
+            isHebrewBirthday: true
+        )
+        return (entry, days)
     }
 
     private static func turningAge(_ birthday: Date?, inDays days: Int, calendar: Calendar, today: Date) -> Int? {

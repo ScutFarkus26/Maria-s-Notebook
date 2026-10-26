@@ -6,8 +6,8 @@ import SwiftUI
 /// arrow keys walk the class and the record beside the table follows.
 ///
 /// The visible columns are the signals a guide scans for (lesson age, last
-/// observed, next lesson); Age and Birthday are there too, hidden until chosen
-/// from the header's context menu, and every column sorts.
+/// observed, next lesson); Age, Birthday and Hebrew Birthday are there too,
+/// hidden until chosen from the header's context menu, and every column sorts.
 struct StudentsTableView: View {
     let students: [CDStudent]
     let signals: (UUID) -> StudentSignals
@@ -25,6 +25,9 @@ struct StudentsTableView: View {
         students.compactMap { student in
             guard let id = student.id else { return nil }
             let s = signals(id)
+            let hebrewBirthday = student.birthday.flatMap {
+                HebrewBirthday(birthday: $0, bornAfterSunset: student.bornAfterSunset)
+            }
             return StudentTableRow(
                 id: id,
                 student: student,
@@ -40,6 +43,10 @@ struct StudentsTableView: View {
                 ageSortValue: student.birthday?.timeIntervalSinceReferenceDate ?? .greatestFiniteMagnitude,
                 birthdayLabel: student.birthday.map { DateFormatters.shortMonthDay.string(from: $0) },
                 daysUntilBirthday: student.birthday.flatMap { AgeUtils.daysUntilNextBirthday(for: $0) },
+                hebrewBirthday: hebrewBirthday?.english,
+                hebrewBirthdaySortValue: hebrewBirthday.map {
+                    $0.hebrewComponents.month * 100 + $0.hebrewComponents.day
+                } ?? .max,
                 soonBirthdayDays: showsSignals
                     ? RosterSignalRules.daysUntilSoonBirthday(student.birthday, calendar: calendar)
                     : nil
@@ -108,6 +115,15 @@ struct StudentsTableView: View {
             }
             .width(min: 120, ideal: 160)
             .customizationID("birthday")
+            .defaultVisibility(.hidden)
+
+            TableColumn("Hebrew Birthday", value: \.hebrewBirthdaySortValue) { row in
+                Text(row.hebrewBirthday ?? "—")
+                    .foregroundStyle(row.hebrewBirthday == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
+                    .lineLimit(1)
+            }
+            .width(min: 120, ideal: 150)
+            .customizationID("hebrewBirthday")
             .defaultVisibility(.hidden)
         }
         .contextMenu(forSelectionType: UUID.self) { ids in
@@ -183,6 +199,10 @@ nonisolated struct StudentTableRow: Identifiable {
     let ageSortValue: TimeInterval
     let birthdayLabel: String?
     let daysUntilBirthday: Int?
+    /// "14 Adar II 5784"; nil with no birthday on file.
+    let hebrewBirthday: String?
+    /// The Hebrew month, then the day (Tishri first); none sorts last.
+    let hebrewBirthdaySortValue: Int
     let soonBirthdayDays: Int?
 
     /// Youngest level first, the order the iPhone and iPad sections use.

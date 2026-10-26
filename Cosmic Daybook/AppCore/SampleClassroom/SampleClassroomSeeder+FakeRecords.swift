@@ -12,6 +12,12 @@ extension SampleClassroomSeeder {
         let birthMonth: Int
         let birthDay: Int
         let level: CDStudent.Level
+        /// A fixed birth year, for a birthday that must fall in a Hebrew leap
+        /// year's Adar II; otherwise the child is `age` this year.
+        var bornIn: Int?
+        /// A Hebrew date begins at sunset, so this child's Hebrew birthday is
+        /// the next day's (schema 21).
+        var bornAfterSunset = false
     }
 
     private static let fakeStudents: [FakeStudent] = [
@@ -33,11 +39,13 @@ extension SampleClassroomSeeder {
         ),
         .init(
             id: UUID(uuidString: "A0000000-0000-0000-0000-000000000005")!,
-            firstName: "Ezra", lastName: "Bloom", age: 10, birthMonth: 4, birthDay: 25, level: .upper
+            // Purim of a leap year: 14 Adar II 5776.
+            firstName: "Ezra", lastName: "Bloom", age: 10, birthMonth: 3, birthDay: 24, level: .upper, bornIn: 2016
         ),
         .init(
             id: UUID(uuidString: "A0000000-0000-0000-0000-000000000006")!,
-            firstName: "Tamar", lastName: "Reed", age: 10, birthMonth: 9, birthDay: 11, level: .upper
+            firstName: "Tamar", lastName: "Reed", age: 10, birthMonth: 9, birthDay: 11, level: .upper,
+            bornAfterSunset: true
         ),
         .init(
             id: UUID(uuidString: "A0000000-0000-0000-0000-000000000007")!,
@@ -69,10 +77,11 @@ extension SampleClassroomSeeder {
             student.level = seed.level
             student.manualOrder = Int64(index)
             student.birthday = calendar.date(from: DateComponents(
-                year: currentYear - seed.age,
+                year: seed.bornIn ?? currentYear - seed.age,
                 month: seed.birthMonth,
                 day: seed.birthDay
             ))
+            student.bornAfterSunset = seed.bornAfterSunset
             student.dateStarted = calendar.date(byAdding: .month, value: -(index + 1), to: now)
             student.modifiedAt = now
         }

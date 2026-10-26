@@ -68,8 +68,8 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "update_student",
             title: "Update Student",
-            description: "Edit a student's profile: nickname, first or last name, birthday, or level. "
-                + "Only the fields provided are changed.",
+            description: "Edit a student's profile: nickname, first or last name, birthday, level, "
+                + "or whether they were born after sunset. Only the fields provided are changed.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -84,7 +84,13 @@ extension MCPNotebookTools {
                     "first_name": ["type": "string", "description": "New first name"],
                     "last_name": ["type": "string", "description": "New last name"],
                     "birthday": ["type": "string", "description": "New birthday as YYYY-MM-DD"],
-                    "level": ["type": "string", "description": "New level: \"lower\", \"upper\", or \"adolescent\""]
+                    "level": ["type": "string", "description": "New level: \"lower\", \"upper\", or \"adolescent\""],
+                    "born_after_sunset": [
+                        "type": "boolean",
+                        "description": .string("Whether the child was born after sunset. A Hebrew date begins "
+                            + "at sunset, so true moves their Hebrew birthday to the next day's date; "
+                            + "false moves it back")
+                    ]
                 ],
                 "required": ["student"]
             ],
@@ -107,7 +113,8 @@ extension MCPNotebookTools {
         let edits = try parseStudentEdits(from: arguments)
         guard !edits.descriptions.isEmpty else {
             throw MCPToolError(
-                "No changes were provided. Pass nickname, first_name, last_name, birthday, or level."
+                "No changes were provided. Pass nickname, first_name, last_name, birthday, level, "
+                    + "or born_after_sunset."
             )
         }
 
@@ -118,7 +125,8 @@ extension MCPNotebookTools {
             lastName: edits.lastName,
             birthday: edits.birthday,
             nickname: edits.nickname,
-            level: edits.level
+            level: edits.level,
+            bornAfterSunset: edits.bornAfterSunset
         ) else {
             throw MCPToolError("The student record could not be updated.")
         }
@@ -134,6 +142,7 @@ extension MCPNotebookTools {
         var birthday: Date?
         var nickname: String?
         var level: CDStudent.Level?
+        var bornAfterSunset: Bool?
         var descriptions: [String] = []
     }
 
@@ -170,6 +179,10 @@ extension MCPNotebookTools {
             }
             edits.level = level
             edits.descriptions.append("level → \(level.rawValue.lowercased())")
+        }
+        if let bornAfterSunset = arguments["born_after_sunset"]?.boolValue {
+            edits.bornAfterSunset = bornAfterSunset
+            edits.descriptions.append("born after sunset → \(bornAfterSunset ? "yes" : "no")")
         }
         return edits
     }

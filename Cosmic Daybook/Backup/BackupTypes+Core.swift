@@ -36,6 +36,10 @@ nonisolated public struct StudentDTO: Codable, Sendable {
     /// The child's match on the school's ParentLocker site (format v40+).
     /// Optional so older backups decode; restoring one keeps the record's own.
     public var parentLockerID: String?
+    /// Whether the child was born after sunset, which moves her Hebrew
+    /// birthday one day on (format v43+). Every v43 row says yes or no.
+    /// Optional so older backups decode; restoring one keeps the record's own.
+    public var bornAfterSunset: Bool?
 }
 
 nonisolated public struct LessonDTO: Codable, Sendable {

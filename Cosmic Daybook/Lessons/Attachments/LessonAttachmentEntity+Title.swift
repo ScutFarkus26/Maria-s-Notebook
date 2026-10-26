@@ -19,7 +19,7 @@ nonisolated extension CDLessonAttachment {
     }
 
     /// When the file, its name or its note last changed: `modifiedAt`, or
-    /// `attachedAt` on a record from before schema 21, which has none.
+    /// `attachedAt` on a record from before schema 22, which has none.
     var lastChanged: Date? {
         modifiedAt ?? attachedAt
     }

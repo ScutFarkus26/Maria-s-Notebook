@@ -249,7 +249,7 @@ struct AttachmentRowTextTests {
         #expect(AttachmentRow.changeLine(for: file, now: later) == "Updated \(day(later))")
     }
 
-    @Test("A record from before schema 21 reads its attached day; one from another year has the year")
+    @Test("A record from before schema 22 reads its attached day; one from another year has the year")
     func olderRecords() throws {
         let context = try CoreDataTestHelpers.makeContext()
         let predated = attachment(attachedAt: october25, modifiedAt: nil, in: context)

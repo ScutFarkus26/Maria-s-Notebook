@@ -53,4 +53,50 @@ struct RosterBirthdayTests {
         let today = day(2026, 9, 22)
         #expect(RosterBirthday.nextOccurrence(of: nil, using: calendar, today: today) == today)
     }
+
+    // MARK: - Hebrew birthday
+
+    // Hebcal: 2024-03-24 = 14 Adar II 5784 (Purim); 2024-03-23 = 13 Adar II 5784;
+    // 14 Adar II 5787 = 2027-03-23.
+
+    @Test("A Hebrew birthday today counts as today, and born after sunset takes the next day's date")
+    func hebrewBirthdayToday() {
+        let today = day(2027, 3, 23)
+        let born = day(2024, 3, 24)
+        #expect(RosterBirthday.nextHebrewOccurrence(of: born, bornAfterSunset: false, using: calendar, today: today)
+            == today)
+        #expect(RosterSignalRules.daysUntilSoonHebrewBirthday(
+            born, bornAfterSunset: false, calendar: calendar, today: today
+        ) == 0)
+        // Born the evening before: the same Hebrew date.
+        #expect(RosterSignalRules.daysUntilSoonHebrewBirthday(
+            day(2024, 3, 23), bornAfterSunset: true, calendar: calendar, today: today
+        ) == 0)
+        // Born that day in daylight: 13 Adar II, a day earlier, already past.
+        #expect(RosterSignalRules.daysUntilSoonHebrewBirthday(
+            day(2024, 3, 23), bornAfterSunset: false, calendar: calendar, today: today
+        ) == nil)
+    }
+
+    @Test("A Hebrew birthday on the window's last day counts; the day after doesn't")
+    func hebrewBirthdayOnTheWindowsLastDay() {
+        let born = day(2024, 3, 24)
+        #expect(RosterSignalRules.birthdaySoonDays == 6)
+        #expect(RosterSignalRules.daysUntilSoonHebrewBirthday(
+            born, bornAfterSunset: false, calendar: calendar, today: day(2027, 3, 17)
+        ) == 6)
+        #expect(RosterSignalRules.daysUntilSoonHebrewBirthday(
+            born, bornAfterSunset: false, calendar: calendar, today: day(2027, 3, 16)
+        ) == nil)
+    }
+
+    @Test("No birthday on file has no Hebrew birthday")
+    func missingBirthdayHasNoHebrewBirthday() {
+        let today = day(2026, 9, 22)
+        #expect(RosterBirthday.nextHebrewOccurrence(of: nil, bornAfterSunset: true, using: calendar, today: today)
+            == nil)
+        #expect(RosterSignalRules.daysUntilSoonHebrewBirthday(
+            nil, bornAfterSunset: false, calendar: calendar, today: today
+        ) == nil)
+    }
 }

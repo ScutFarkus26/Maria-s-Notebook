@@ -45,7 +45,9 @@ nonisolated enum BackupFieldsAddedLater {
         ],
         "Student": [
             "nickname": 20, "dateWithdrawn": 20, "previousLevelRaw": 20, "dateLastPromoted": 20,
-            "parentLockerID": 40
+            "parentLockerID": 40,
+            // The importer also sets it only when the row has it.
+            "bornAfterSunset": 43
         ],
         "Note": [
             "reportedBy": 20, "reporterName": 20, "communityTopicID": 20, "schoolDayOverrideID": 20,
@@ -78,11 +80,11 @@ nonisolated enum BackupFieldsAddedLater {
     }
 
     /// Unlike `attributes`, these are filled from the row rather than kept
-    /// from the record: a lesson file in a backup from before v43 was last
+    /// from the record: a lesson file in a backup from before v44 was last
     /// changed when it was attached, as far as that backup knows, and the rest
     /// of its row (name, file, size) is restored as of then too.
     static let standIns: [String: [StandIn]] = [
-        "LessonAttachment": [StandIn(attribute: "modifiedAt", from: "attachedAt", version: 43)]
+        "LessonAttachment": [StandIn(attribute: "modifiedAt", from: "attachedAt", version: 44)]
     ]
 
     /// The stand-ins a backup of `formatVersion` needs for `entityName`'s rows.

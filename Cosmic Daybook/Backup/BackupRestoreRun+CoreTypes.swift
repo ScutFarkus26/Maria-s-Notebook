@@ -175,7 +175,7 @@ extension BackupRestoreRun {
         let index = self.index
 
         if let lessonAttachments = try rows(\.lessonAttachments) {
-            // Before v43 a row has no `modifiedAt`; it reads as its `attachedAt`.
+            // Before v44 a row has no `modifiedAt`; it reads as its `attachedAt`.
             // A merge keeps a record's own file when the row's has gone since
             // (a replace or a rename after the backup; `keepingLiveLessonFiles`).
             let lessonFiles = BackupLessonFiles.storage

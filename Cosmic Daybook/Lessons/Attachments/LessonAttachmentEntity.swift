@@ -14,7 +14,7 @@ nonisolated public class CDLessonAttachment: NSManagedObject {
     @NSManaged public var scopeRaw: String
     @NSManaged public var notes: String
     @NSManaged public var thumbnailData: Data?
-    /// When the file, its name or its note last changed (schema 21). Nil on
+    /// When the file, its name or its note last changed (schema 22). Nil on
     /// records from before then, which read it as `attachedAt` (`lastChanged`).
     @NSManaged public var modifiedAt: Date?
 
