@@ -176,8 +176,18 @@ extension BackupRestoreRun {
 
         if let lessonAttachments = try rows(\.lessonAttachments) {
             // Before v43 a row has no `modifiedAt`; it reads as its `attachedAt`.
-            BackupEntityImporter.importRows(
+            // A merge keeps a record's own file when the row's has gone since
+            // (a replace or a rename after the backup; `keepingLiveLessonFiles`).
+            let lessonFiles = BackupLessonFiles.storage
+            let attachmentRows = BackupEntityImporter.keepingLiveLessonFiles(
                 index.predatedValues.standingIn(for: lessonAttachments),
+                existing: { id in
+                    BackupEntityImporter.existingEntity(id: id) { try index.existing(CDLessonAttachment.self, id: $0) }
+                },
+                isPresent: { BackupLessonFiles.isPresent($0, in: lessonFiles) }
+            )
+            BackupEntityImporter.importRows(
+                attachmentRows,
                 as: CDLessonAttachment.self, into: viewContext,
                 existing: { try index.existing(CDLessonAttachment.self, id: $0) },
                 parents: ["lesson": { try index.related(CDLesson.self, id: $0) }]
