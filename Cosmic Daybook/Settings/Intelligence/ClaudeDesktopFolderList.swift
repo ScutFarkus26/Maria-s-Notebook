@@ -62,7 +62,7 @@ struct ClaudeDesktopFolderList: View {
                 .foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 0) {
                 Text(folder.lastPathComponent)
-                Text(Self.displayPath(of: folder))
+                Text(Self.location(of: folder))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -81,13 +81,15 @@ struct ClaudeDesktopFolderList: View {
         folders = MCPAttachFolders.grantedFolders()
     }
 
-    /// The folder's path with the real home folder shown as "~" (in the
-    /// sandbox `abbreviatingWithTildeInPath` would use the app's container).
-    static func displayPath(of folder: URL) -> String {
+    /// Where the folder is, in Finder's words rather than as a path:
+    /// "Documents › Workplaces › YYLI" for a folder in the home folder (the
+    /// real one: in the sandbox `abbreviatingWithTildeInPath` would use the
+    /// app's container), every folder name from the top otherwise.
+    static func location(of folder: URL) -> String {
         let path = folder.standardizedFileURL.path
         let home = PathContainment.realHome.standardizedFileURL.path
-        guard PathContainment.contains(home, path) else { return path }
-        return "~" + path.dropFirst(home.count)
+        let shown = PathContainment.contains(home, path) ? String(path.dropFirst(home.count)) : path
+        return shown.split(separator: "/").joined(separator: " › ")
     }
 }
 #endif
