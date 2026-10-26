@@ -28,6 +28,8 @@ struct ThreadRow: View {
     var onReorderSections: (() -> Void)?
 
     @State private var isPinned: Bool = false
+    /// Which lessons hold a file of their own (the pills' paperclip).
+    @Environment(\.lessonAttachmentIndex) private var attachmentIndex
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
@@ -225,7 +227,7 @@ struct ThreadRow: View {
     /// Right-click (long press on iOS) jumps to the lesson's album page; the
     /// row's own click still drills into the thread.
     private func pill(for lesson: CDLesson) -> some View {
-        MiniLessonPill(name: lesson.name, color: color)
+        MiniLessonPill(name: lesson.name, color: color, hasFile: attachmentIndex?.hasFile(lesson) ?? false)
             .contextMenu { ShowInAlbumButton(lesson: lesson) }
     }
 
@@ -259,25 +261,33 @@ struct ThreadRow: View {
 }
 
 /// Compact named pill representing a single lesson in the scope-and-sequence map.
-/// Shows the lesson name directly on the pill, tinted in the area color.
+/// Shows the lesson name directly on the pill, tinted in the area color, with
+/// a paperclip when the lesson holds a file of its own.
 struct MiniLessonPill: View {
     let name: String
     let color: Color
+    var hasFile: Bool = false
 
     var body: some View {
-        Text(name)
-            .font(.system(size: 11, weight: .medium, design: .rounded))
-            .foregroundStyle(.primary)
-            .lineLimit(1)
-            .fixedSize(horizontal: true, vertical: false)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 4)
-            .capsuleFill(color.opacity(0.18), style: .continuous)
-            .overlay(
-                Capsule(style: .continuous)
-                    .stroke(color.opacity(0.55), lineWidth: 0.75)
-            )
-            .help(name)
-            .accessibilityLabel(name)
+        HStack(spacing: 3) {
+            Text(name)
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+            if hasFile {
+                LessonFileBadge()
+            }
+        }
+        .fixedSize(horizontal: true, vertical: false)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 4)
+        .capsuleFill(color.opacity(0.18), style: .continuous)
+        .overlay(
+            Capsule(style: .continuous)
+                .stroke(color.opacity(0.55), lineWidth: 0.75)
+        )
+        .help(name)
+        // "Area of a Circle, Has a file" with the paperclip; the name alone without.
+        .accessibilityElement(children: .combine)
     }
 }

@@ -28,6 +28,8 @@ extension LessonsRootView {
             lessonsFilterBar
             Divider()
             mapOrThreadView
+                // One paperclip index for the map and the thread it drills into.
+                .lessonAttachmentIndex()
         }
     }
 
