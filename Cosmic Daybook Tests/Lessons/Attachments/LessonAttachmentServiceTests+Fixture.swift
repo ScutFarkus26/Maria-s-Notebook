@@ -70,15 +70,18 @@ extension LessonAttachmentServiceTests {
             try stack.viewContext.save()
         }
 
-        /// The service over this scratch folder, saving with `save`.
+        /// The service over this scratch folder, saving with `save`, with
+        /// `otherNotebooks` (none by default, whatever the app has showing)
+        /// as the other stores that use these files.
         func service(
             isSampleClassroom: Bool = false,
-            save: @escaping (NSManagedObjectContext) throws -> Void = { try $0.save() }
+            save: @escaping (NSManagedObjectContext) throws -> Void = { try $0.save() },
+            otherNotebooks: @escaping () -> [NSManagedObjectContext] = { [] }
         ) -> LessonAttachmentService {
             let trash = self.trash
             return LessonAttachmentService(
                 context: context, storage: storage, isSampleClassroom: isSampleClassroom,
-                save: save, trash: { trash.move($0) }
+                save: save, trash: { trash.move($0) }, otherNotebooks: otherNotebooks
             )
         }
 

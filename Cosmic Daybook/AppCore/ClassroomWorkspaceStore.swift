@@ -121,6 +121,7 @@ final class ClassroomWorkspaceStore {
 
         if workspace == .myClass {
             selection = .myClass
+            LessonFileStorage.showingSampleClass = nil
             return
         }
 
@@ -168,8 +169,11 @@ final class ClassroomWorkspaceStore {
 
     /// Shows the Sample Class, once its store is prepared.
     private func showSampleClass() {
-        guard sampleStack != nil else { return }
+        guard let sampleStack else { return }
         selection = .sampleClass
+        // Its lessons use the real notebook's files: while it shows, a change
+        // there (Claude's, over MCP) keeps the ones it uses.
+        LessonFileStorage.showingSampleClass = sampleStack.viewContext
         Self.logger.info("Switched to isolated Sample Class")
     }
 

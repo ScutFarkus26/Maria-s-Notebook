@@ -9,7 +9,8 @@
 //  dropped its record has succeeded, only when no other record still points
 //  at it (another lesson's Pages file or attachment), and to the Trash rather
 //  than straight to deletion. In the Sample Class nothing on disk is touched:
-//  its lessons are copies that point at the real notebook's files.
+//  its lessons are copies that point at the real notebook's files, and while
+//  it shows, the real notebook keeps the files they use (`showingSampleClass`).
 //
 
 import CoreData
@@ -37,14 +38,26 @@ extension LessonFileStorage {
         return try? relativePath(forManagedURL: url)
     }
 
+    /// The Sample Class's records while it is showing. Its lessons are copies
+    /// that point at the real notebook's files (`SampleClassroomSeeder`), so
+    /// while it shows, a change in the real notebook (one of Claude's, over
+    /// MCP) must neither trash nor move a file one of them uses. Set by
+    /// `ClassroomWorkspaceStore` as the Sample Class shows and cleared as it
+    /// leaves; each time it opens, its copies are pointed at the files as they
+    /// are then, so while it isn't showing nothing of its needs keeping.
+    static weak var showingSampleClass: NSManagedObjectContext?
+
     /// The files among `relativePaths` that no lesson's Pages file and no
-    /// attachment in `context` points at any more. Call it after the save that
-    /// dropped the references, so a failed save never loses a file. `storage`
-    /// is the Lesson Files folder unless a test passes its own.
+    /// attachment in `context` points at any more, `apartFrom` aside, nor any
+    /// in `others` (nil: the Sample Class while it shows). Call it after the
+    /// save that dropped the references, so a failed save never loses a file.
+    /// `storage` is the Lesson Files folder unless a test passes its own.
     static func unreferencedFiles(
         _ relativePaths: [String],
         in context: NSManagedObjectContext,
-        storage: ManagedPDFFileStorage = LessonFileStorage.storage
+        storage: ManagedPDFFileStorage = LessonFileStorage.storage,
+        apartFrom attachment: CDLessonAttachment? = nil,
+        alsoIn others: [NSManagedObjectContext]? = nil
     ) -> [URL] {
         var wanted: [String: String] = [:]
         for path in relativePaths where !path.trimmed().isEmpty {
@@ -53,6 +66,21 @@ extension LessonFileStorage {
         }
         guard !wanted.isEmpty else { return [] }
 
+        var referenced = referencedPaths(in: context, apartFrom: attachment)
+        for other in others ?? showingSampleClass.map({ [$0] }) ?? [] where other !== context {
+            referenced.formUnion(referencedPaths(in: other, apartFrom: nil))
+        }
+
+        return wanted.filter { !referenced.contains($0.key) }
+            .values.sorted()
+            .compactMap { try? storage.resolve(relativePath: $0) }
+    }
+
+    /// The files (`pathKey`) that `context`'s lessons' Pages files and its
+    /// attachments, `attachment` aside, point at.
+    private static func referencedPaths(
+        in context: NSManagedObjectContext, apartFrom attachment: CDLessonAttachment?
+    ) -> Set<String> {
         var referenced = Set<String>()
         let lessons = CDFetchRequest(CDLesson.self)
         lessons.predicate = NSPredicate(format: "pagesFileRelativePath != nil AND pagesFileRelativePath != ''")
@@ -61,13 +89,10 @@ extension LessonFileStorage {
         }
         let attachments = CDFetchRequest(CDLessonAttachment.self)
         attachments.predicate = NSPredicate(format: "fileRelativePath != ''")
-        for attachment in context.safeFetch(attachments) where !attachment.isDeleted {
-            referenced.insert(pathKey(attachment.fileRelativePath))
+        for record in context.safeFetch(attachments) where !record.isDeleted && record !== attachment {
+            referenced.insert(pathKey(record.fileRelativePath))
         }
-
-        return wanted.filter { !referenced.contains($0.key) }
-            .values.sorted()
-            .compactMap { try? storage.resolve(relativePath: $0) }
+        return referenced
     }
 
     /// After a save that dropped references to `relativePaths`: moves the ones

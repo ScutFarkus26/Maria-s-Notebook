@@ -72,6 +72,7 @@ final class LessonAttachmentService {
     let isSampleClassroom: Bool
     private let save: (NSManagedObjectContext) throws -> Void
     private let trash: ([URL]) -> Void
+    private let otherNotebooks: () -> [NSManagedObjectContext]
 
     /// - Parameters:
     ///   - storage: the Lesson Files folder; tests pass a scratch one.
@@ -80,18 +81,24 @@ final class LessonAttachmentService {
     ///   - save: how the context is saved; tests make it fail.
     ///   - trash: where files nothing uses any more go, after the save that let
     ///     go of them. Nil: the Trash, through `LessonFileStorage.moveToTrash`.
+    ///   - otherNotebooks: other stores open here whose records use these same
+    ///     files; a file one of them uses is never trashed, and a rename copies
+    ///     it rather than take it from them. Nil: the Sample Class while it
+    ///     shows (`LessonFileStorage.showingSampleClass`).
     init(
         context: NSManagedObjectContext,
         storage: ManagedPDFFileStorage = LessonFileStorage.storage,
         isSampleClassroom: Bool = false,
         save: @escaping (NSManagedObjectContext) throws -> Void = { try $0.save() },
-        trash: (([URL]) -> Void)? = nil
+        trash: (([URL]) -> Void)? = nil,
+        otherNotebooks: (() -> [NSManagedObjectContext])? = nil
     ) {
         self.context = context
         self.storage = storage
         self.isSampleClassroom = isSampleClassroom
         self.save = save
         self.trash = trash ?? { LessonFileStorage.moveToTrash($0, in: storage) }
+        self.otherNotebooks = otherNotebooks ?? { LessonFileStorage.showingSampleClass.map { [$0] } ?? [] }
     }
 
     // MARK: - Adding
@@ -231,70 +238,41 @@ final class LessonAttachmentService {
         return .replaced
     }
 
-    /// Whether the stored file at `relativePath` has the same bytes as the
-    /// file at `url`. False when the stored file isn't on this device and
-    /// doesn't come down within `comparisonTimeout`.
-    private func hasSameBytes(relativePath: String, as url: URL) async -> Bool {
-        guard !relativePath.trimmed().isEmpty,
-              let stored = try? storage.resolve(relativePath: relativePath),
-              let local = await UbiquitousFile.ensureLocal(stored, timeout: Self.comparisonTimeout) else {
-            return false
-        }
-        return await Self.sameContents(local, url)
-    }
-
-    /// Two regular files of the same size with the same bytes, read a
-    /// megabyte at a time off the main actor.
-    @concurrent
-    nonisolated private static func sameContents(_ lhs: URL, _ rhs: URL) async -> Bool {
-        let keys: Set<URLResourceKey> = [.isRegularFileKey, .fileSizeKey]
-        guard let left = try? lhs.resourceValues(forKeys: keys),
-              let right = try? rhs.resourceValues(forKeys: keys),
-              left.isRegularFile == true, right.isRegularFile == true,
-              left.fileSize == right.fileSize,
-              let leftHandle = try? FileHandle(forReadingFrom: lhs),
-              let rightHandle = try? FileHandle(forReadingFrom: rhs) else { return false }
-        defer {
-            try? leftHandle.close()
-            try? rightHandle.close()
-        }
-        do {
-            while true {
-                let leftChunk = try leftHandle.read(upToCount: 1 << 20) ?? Data()
-                let rightChunk = try rightHandle.read(upToCount: 1 << 20) ?? Data()
-                guard leftChunk == rightChunk else { return false }
-                if leftChunk.isEmpty { return true }
-            }
-        } catch {
-            return false
-        }
-    }
-
     // MARK: - Renaming, notes, removing
 
     /// Renames the attachment: the record keeps `requestedName` as typed (with
     /// the file's extension added when it has none), and the file on disk
     /// takes its sanitized form. In the Sample Class, or for a record with no
-    /// file, only the record changes. When the save fails, the record and the
-    /// file go back to their old names. Returns whether anything changed.
+    /// file, only the record changes. A file another record also uses (a
+    /// synced copy, the Sample Class's while it shows) is copied to the new
+    /// name and left where it is for them; when its bytes aren't on this
+    /// device to copy, only the record changes, as in the Sample Class. When
+    /// the save fails, the record and the file go back to their old names and
+    /// a copy is removed. Returns whether anything changed.
     @discardableResult
     func rename(_ attachment: CDLessonAttachment, to requestedName: String) throws -> Bool {
         let typed = requestedName.trimmed()
         guard !typed.isEmpty else { throw Problem.emptyName }
         if isSampleClassroom || attachment.fileRelativePath.trimmed().isEmpty {
-            guard typed != attachment.fileName else { return false }
-            try commit {
-                attachment.fileName = typed
-                attachment.modifiedAt = Date()
-            }
-            return true
+            return try renameRecord(attachment, to: typed)
         }
 
         let oldPath = attachment.fileRelativePath
         let oldURL = try storage.resolve(relativePath: oldPath)
-        let renamed = try LessonFileStorage.renameAttachment(attachment, to: typed, in: storage)
-        let moved = oldURL.standardizedFileURL != renamed.url.standardizedFileURL
-        guard moved || renamed.fileName != attachment.fileName || renamed.fileType != attachment.fileType else {
+        let shared = LessonFileStorage.unreferencedFiles(
+            [oldPath], in: context, storage: storage, apartFrom: attachment, alsoIn: otherNotebooks()
+        ).isEmpty
+        if shared, UbiquitousFile.needsDownload(oldURL) {
+            // A copy would wait on the main thread for iCloud.
+            let named = URL(fileURLWithPath: typed).pathExtension.isEmpty && !attachment.fileType.isEmpty
+                ? typed + "." + attachment.fileType : typed
+            return try renameRecord(attachment, to: named)
+        }
+        let renamed = try LessonFileStorage.renameAttachment(
+            attachment, to: typed, keepingOriginal: shared, in: storage
+        )
+        let changedFile = oldURL.standardizedFileURL != renamed.url.standardizedFileURL
+        guard changedFile || renamed.fileName != attachment.fileName || renamed.fileType != attachment.fileType else {
             return false
         }
         do {
@@ -307,8 +285,20 @@ final class LessonAttachmentService {
                 attachment.modifiedAt = Date()
             }
         } catch {
-            if moved { moveBack(renamed.url, to: oldURL) }
+            if changedFile {
+                if shared { removeCopy(renamed.url) } else { moveBack(renamed.url, to: oldURL) }
+            }
             throw error
+        }
+        return true
+    }
+
+    /// Gives the record `name` and leaves its file as it is.
+    private func renameRecord(_ attachment: CDLessonAttachment, to name: String) throws -> Bool {
+        guard name != attachment.fileName else { return false }
+        try commit {
+            attachment.fileName = name
+            attachment.modifiedAt = Date()
         }
         return true
     }
@@ -367,10 +357,13 @@ final class LessonAttachmentService {
     }
 
     /// After the save that let go of `paths`: the files nothing else uses go
-    /// to the Trash. Never in the Sample Class.
+    /// to the Trash, nothing in this notebook and nothing in `otherNotebooks`
+    /// (the Sample Class while it shows). Never in the Sample Class.
     private func trashUnreferenced(_ paths: [String]) {
         guard !isSampleClassroom else { return }
-        let unused = LessonFileStorage.unreferencedFiles(paths, in: context, storage: storage)
+        let unused = LessonFileStorage.unreferencedFiles(
+            paths, in: context, storage: storage, alsoIn: otherNotebooks()
+        )
         if !unused.isEmpty { trash(unused) }
     }
 

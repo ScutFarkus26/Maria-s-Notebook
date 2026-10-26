@@ -236,10 +236,13 @@ public enum LessonFileStorage {
 
     /// Renames a managed attachment file and returns updated file metadata:
     /// the file's sanitized new name on disk, and the name as typed for the
-    /// record (`RenameAttachmentResult.fileName`).
+    /// record (`RenameAttachmentResult.fileName`). `keepingOriginal` copies
+    /// the file to its new name and leaves it where it is, for a file other
+    /// records use too.
     static func renameAttachment(
         _ attachment: CDLessonAttachment,
         to requestedFileName: String,
+        keepingOriginal: Bool = false,
         in storage: ManagedPDFFileStorage = LessonFileStorage.storage
     ) throws -> RenameAttachmentResult {
         let trimmedFileName = requestedFileName.trimmed()
@@ -279,7 +282,11 @@ public enum LessonFileStorage {
         )
 
         if currentURL.standardizedFileURL != destinationURL.standardizedFileURL {
-            try UbiquitousFile.coordinatedMove(from: currentURL, to: destinationURL)
+            if keepingOriginal {
+                try UbiquitousFile.coordinatedCopy(from: currentURL, to: destinationURL)
+            } else {
+                try UbiquitousFile.coordinatedMove(from: currentURL, to: destinationURL)
+            }
         }
 
         let relativePath = try storage.relativePath(forManagedURL: destinationURL)
