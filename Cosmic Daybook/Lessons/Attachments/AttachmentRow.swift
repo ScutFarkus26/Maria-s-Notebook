@@ -31,6 +31,8 @@ struct AttachmentRow: View {
     @State private var problemMessage: String?
     /// The file Quick Look is showing.
     @State private var previewURL: URL?
+    /// iCloud is sending the file to this device for a View, Open or Share.
+    @State private var isDownloading = false
     #if os(macOS)
     /// "Preview" for a PDF: the app "Open in <app>" names, nil when none is known.
     @State private var defaultAppName: String?
@@ -41,6 +43,14 @@ struct AttachmentRow: View {
             // File type icon
             fileIcon
                 .frame(width: 32, height: 32)
+                .opacity(isDownloading ? 0.4 : 1)
+                .overlay {
+                    if isDownloading {
+                        ProgressView()
+                            .controlSize(.small)
+                            .accessibilityLabel("Downloading from iCloud")
+                    }
+                }
 
             // File info
             VStack(alignment: .leading, spacing: 2) {
@@ -121,7 +131,6 @@ struct AttachmentRow: View {
         }
     }
 
-    private static let missingFileMessage = "Couldn't find this attachment's file. It may have been moved or deleted."
     static let replaceLabel = "Replace with Newer Version…"
     private static let replaceSymbol = "arrow.triangle.2.circlepath"
 
@@ -213,38 +222,44 @@ struct AttachmentRow: View {
 
     // MARK: - View and Share
 
-    /// The file once its current bytes are on this device, or nil when it is
-    /// missing. `readyURL` asks iCloud for the file whenever its status isn't
+    /// Hands `use` the file once its current bytes are on this device, with
+    /// a spinner on the row while iCloud sends them. These are `readyURL`'s
+    /// two steps: the download is asked for whenever the file's status isn't
     /// `.current`, a `.downloaded` copy included (since iOS 18.4 that can be a
-    /// stale one), and waits for the coordinated read that brings the current
-    /// version down (plan "Lesson file attachments", Decision 9).
-    private func readyFileURL() async -> URL? {
-        await LessonFileStorage.storage.readyURL(
-            bookmark: attachment.fileBookmark, relativePath: attachment.fileRelativePath
-        )
+    /// stale one), and a coordinated read waits for the current version (plan
+    /// "Lesson file attachments", Decision 9). Kept apart here so a file that
+    /// doesn't come down in time is told from one that isn't there at all
+    /// (`unavailableMessage(for:)`). `purpose` names the action in the log.
+    private func withReadyFile(to purpose: String, _ use: @escaping @MainActor (URL) -> Void) {
+        guard !isDownloading else { return }
+        Task {
+            let resolved = LessonFileStorage.storage.resolveURL(
+                bookmark: attachment.fileBookmark, relativePath: attachment.fileRelativePath
+            )
+            var ready: URL?
+            if let resolved {
+                isDownloading = UbiquitousFile.needsDownload(resolved)
+                ready = await UbiquitousFile.ensureLocal(resolved)
+                isDownloading = false
+            }
+            guard let ready else {
+                Self.logger.error("Couldn't get an attachment's file ready to \(purpose, privacy: .public)")
+                problemMessage = Self.unavailableMessage(for: resolved)
+                return
+            }
+            use(ready)
+        }
     }
 
     /// Quick Look, on every platform.
     private func openAttachment() {
-        Task {
-            guard let fileURL = await readyFileURL() else {
-                Self.logger.error("Couldn't find an attachment's file to open")
-                problemMessage = Self.missingFileMessage
-                return
-            }
-            previewURL = fileURL
-        }
+        withReadyFile(to: "open") { previewURL = $0 }
     }
 
     #if os(macOS)
     /// Opens the file in the app the Mac opens its kind with.
     private func openInDefaultApp() {
-        Task {
-            guard let fileURL = await readyFileURL() else {
-                Self.logger.error("Couldn't find an attachment's file to open in another app")
-                problemMessage = Self.missingFileMessage
-                return
-            }
+        withReadyFile(to: "open in another app") { fileURL in
             if !NSWorkspace.shared.open(fileURL) {
                 Self.logger.error("NSWorkspace couldn't open an attachment")
                 problemMessage = "Couldn't open this attachment. Try again."
@@ -254,12 +269,7 @@ struct AttachmentRow: View {
     #endif
 
     private func shareAttachment() {
-        Task {
-            guard let fileURL = await readyFileURL() else {
-                Self.logger.error("Couldn't find an attachment's file to share")
-                problemMessage = Self.missingFileMessage
-                return
-            }
+        withReadyFile(to: "share") { fileURL in
             #if os(macOS)
             let picker = NSSharingServicePicker(items: [fileURL])
             if let view = NSApp.keyWindow?.contentView {

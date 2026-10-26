@@ -2,8 +2,8 @@
 //  AttachmentRow+Details.swift
 //  Cosmic Daybook
 //
-//  An attachment row's icon, the lines under its name, and the Mac's
-//  "Open in <app>" name.
+//  An attachment row's icon, the lines under its name, what it says when
+//  its file can't be opened yet, and the Mac's "Open in <app>" name.
 //
 
 #if os(macOS)
@@ -75,6 +75,24 @@ extension AttachmentRow {
     static func noteLine(for attachment: CDLessonAttachment) -> String? {
         let note = attachment.notes.trimmed()
         return note.isEmpty ? nil : note
+    }
+
+    // MARK: - A file that can't be opened
+
+    /// What to say when the file couldn't be made ready to open or share:
+    /// that iCloud is still sending it to this device (`stillInICloud`), or
+    /// that it isn't there at all.
+    static func unavailableMessage(stillInICloud: Bool) -> String {
+        stillInICloud
+            ? "This file is still downloading from iCloud. Try again in a moment."
+            : "Couldn't find this attachment's file. It may have been moved or deleted."
+    }
+
+    /// The same for the file at `url` (nil when none was found): still in
+    /// iCloud when the file or its placeholder is there but its bytes didn't
+    /// come down in time, missing when nothing is there.
+    static func unavailableMessage(for url: URL?) -> String {
+        unavailableMessage(stillInICloud: url.map(UbiquitousFile.isAvailable) ?? false)
     }
 
     #if os(macOS)
