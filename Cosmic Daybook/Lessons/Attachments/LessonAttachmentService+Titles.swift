@@ -10,24 +10,27 @@ import Foundation
 
 extension LessonAttachmentService {
     /// The lesson's own attachment (lesson scope, held by this lesson) whose
-    /// title is `title`: the same sanitized stem, in any case. Sequence- and
-    /// area-wide files never match. The oldest wins if there are several.
+    /// title is `title` (`sameTitle`); a ".<ext>" of the attachment's own kind
+    /// on the end of `title` is let off. Sequence- and area-wide files never
+    /// match. The oldest wins if there are several.
     func existingAttachment(titled title: String, on lesson: CDLesson) -> CDLessonAttachment? {
+        let wanted = title.trimmed()
         let own = ((lesson.attachments?.allObjects as? [CDLessonAttachment]) ?? [])
             .filter { !$0.isDeleted && $0.scope == .lesson }
             .sorted { ($0.attachedAt ?? .distantPast) < ($1.attachedAt ?? .distantPast) }
         return own.first { attachment in
-            let wanted = Self.titleKey(CDLessonAttachment.titleStem(of: title, fileType: attachment.fileType))
-            return !wanted.isEmpty && wanted == Self.titleKey(attachment.title)
+            Self.sameTitle(CDLessonAttachment.titleStem(of: wanted, fileType: attachment.fileType), attachment.title)
         }
     }
 
-    /// How two titles compare: their sanitized stems, lowercased. A title that
-    /// sanitizes to nothing (all Hebrew, say) compares as itself, lowercased.
-    nonisolated static func titleKey(_ title: String) -> String {
-        let trimmed = title.trimmed()
-        let sanitized = ManagedPDFFileStorage.sanitizeFilenameComponent(trimmed, fallback: "")
-        return (sanitized.isEmpty ? trimmed : sanitized).lowercased()
+    /// Whether two titles are the same: trimmed, then compared as written,
+    /// in any case and with or without accents. Never through the name on
+    /// disk, which keeps ASCII only: "Fractions ½" and "Fractions ¼", or two
+    /// Hebrew titles, would read as one there. An empty title matches nothing.
+    nonisolated static func sameTitle(_ lhs: String, _ rhs: String) -> Bool {
+        let left = lhs.trimmed()
+        guard !left.isEmpty else { return false }
+        return left.compare(rhs.trimmed(), options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
     }
 
     /// `title` with `.ext` on the end, unless it already ends that way.

@@ -172,7 +172,7 @@ extension LessonAttachmentServiceTests {
 
     // MARK: - Finding by title
 
-    @Test("Title matching uses the sanitized stem in any case, and skips sequence, area and other lessons' files")
+    @Test("Title matching uses the title as written in any case, and skips sequence, area and other lessons' files")
     func existingAttachmentByTitle() throws {
         let scratch = try Scratch()
         defer { scratch.remove() }
@@ -185,13 +185,20 @@ extension LessonAttachmentServiceTests {
         #expect(own.fileRelativePath == "Geometry/Circle/Area of a Circle - remade.pdf")
         own.attachedAt = Self.earlier
         try scratch.context.save()
-        // A second file of the same title gets a "-2" on disk; the title is
-        // what matches, and the older file wins.
+        // A second file whose title has a hyphen for the dash: on disk the two
+        // names are alike (it gets a "-2"), but the titles are two.
         let second = try service.add(
             fileAt: try scratch.write(Self.pdf(), named: "a2.pdf"), to: scratch.lesson,
             title: "AREA of a Circle - remade", allowedTypes: allowed
         )
         #expect(second.fileRelativePath == "Geometry/Circle/AREA of a Circle - remade-2.pdf")
+        #expect(service.existingAttachment(titled: "Area of a Circle — remade", on: scratch.lesson) == own)
+        // The same title twice: the older file wins.
+        let third = try service.add(
+            fileAt: try scratch.write(Self.pdf(), named: "a3.pdf"), to: scratch.lesson,
+            title: "area of a circle — REMADE", allowedTypes: allowed
+        )
+        #expect(third != own)
         #expect(service.existingAttachment(titled: "Area of a Circle — remade", on: scratch.lesson) == own)
         _ = try service.add(
             fileAt: try scratch.write(Self.pdf(), named: "b.pdf"), to: scratch.lesson, scope: .sequence,
@@ -207,7 +214,8 @@ extension LessonAttachmentServiceTests {
             allowedTypes: allowed
         )
 
-        #expect(service.existingAttachment(titled: "area of a circle - REMADE", on: scratch.lesson) == own)
+        #expect(service.existingAttachment(titled: "area of a circle — REMADE", on: scratch.lesson) == own)
+        #expect(service.existingAttachment(titled: "area of a circle - REMADE", on: scratch.lesson) == second)
         #expect(service.existingAttachment(titled: "Area of a Circle — remade.pdf", on: scratch.lesson) == own)
         #expect(service.existingAttachment(titled: "Area of a Circle", on: scratch.lesson) == nil)
         #expect(service.existingAttachment(titled: "Circle Chart", on: scratch.lesson) == nil, "sequence-wide")
