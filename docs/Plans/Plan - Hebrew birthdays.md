@@ -1,6 +1,6 @@
 # Hebrew birthdays
 
-> **Working on it.** Written 2026-10-14 from Danny's ask: "add a Hebrew birthday field to each child and calculate their Hebrew birthday based on their date of birth" (session on branch `claude/hebrew-birthday-field-96c8b9`). He asked for it to run autonomously once approved.
+> **Done 2026-10-25** (4b37da8b). Written 2026-10-14 from Danny's ask: "add a Hebrew birthday field to each child and calculate their Hebrew birthday based on their date of birth" (session on branch `claude/hebrew-birthday-field-96c8b9`). He asked for it to run autonomously once approved.
 > In short: each child's page shows their Hebrew birthday in English and Hebrew, worked out from their date of birth and a new "Born after sunset" switch, and it also appears in the roster table, Birthdays This Week and the MCP student list.
 
 Build board: https://claude.ai/artifact/WAKaFZGNPQsfKD4A5GbqsM (add one milestone, "Hebrew birthdays", with the four phases as its steps).
@@ -17,7 +17,7 @@ Every child has a Hebrew birthday that Danny never has to type. The app works it
 - [x] Phase 1 (started at 53%): Born-after-sunset field: schema 21, backup v43 (agent) ‖ Phase 2 · est. ~1.5–2% weekly · 951deda7: 50 tests in 14 suites + the whole Assistant suite (514) pass. Differed: two Schedules tests pinned schema 20 / v42 and now say `>=`; the dedup case is its own suite; `ClassroomShareRelease.copyAttributes` carries the flag (tested); sample class: Ezra born 14 Adar II 5776, Tamar after sunset.
 - [x] Phase 2 (started at 53%): Hebrew birthday calculator (agent) ‖ Phase 1 · est. ~0.5% weekly · a94fab24: 17 tests (26 cases) pass in the default zone and GMT-10; the naive version failed the zone tests. Differed: added `englishDayAndMonth(on:)` for Phase 3; `nextOccurrence` builds the 1st of the month and adds days rather than `nextDate`; 30 Heshvan test uses 5785→5786 per Hebcal. Phases 1 + 2 together: 53→64% (~11%, far over the ~2–2.5% estimate; possibly noisy).
 - [x] Phase 3 (started at 64%): Show it: child's page, roster column, Birthdays This Week, MCP (agent, after 1 and 2 are combined) · est. ~0.5–1% weekly · 8ab8c938: iOS + macOS compile + Assistant builds clean; 60 tests in 6 suites pass; actual ~6% (64→70, possibly noisy). Differed: the simulator panel was declined, so screens were checked as rendered images (Ezra 14 Adar II 5776 with the Hebrew under it; Tamar 8 → 9 Elul with the switch); the real switch on a device is a Tide check. The two views live in a new `Students/Detail/HebrewBirthdayViews.swift` (lint length); on a phone the date shows on two lines; the note under the switch shows the date as it will be saved; the sample class has no launch argument.
-- [ ] Phase 4 (started at 70%): Review, fixes, full builds and suites, land on main (main session) · est. ~1–2% weekly
+- [x] Phase 4 (started at 70%): Review, fixes, full builds and suites, land on main (main session) · est. ~1–2% weekly · squashed to main 4b37da8b and pushed. Review (one Opus Plan agent): no high findings; fixed the switch's note naming today's Hebrew date for a child with no birthday, and added the install_release hold; left as is: `update_student` journals a no-op write, as it already does for every field. iOS + macOS (compile) + Assistant builds clean; whole suites 4,296 notebook tests in 710 suites and 514 Assistant tests in 76 suites pass. Actual ~4% (70→74). Whole plan 53→74% (~21% vs 3.5–5.5% estimated). The Development schema run wasn't done here (Danny's Tide row).
 
 All four run from this session without stopping for Danny (he asked for an autonomous run). Phases 1 and 2 run at once in agent worktrees. They share no files, but both builds wait on the one Mac build lock, so this saves only a little time.
 
@@ -165,5 +165,11 @@ Read the plan usage (`get_usage`) and note the weekly % used next to the phase u
 6. Run /close-out. It sets this plan's status line (`> **Working on it.**` after a phase, `> **Done <date>** (<commit>).` after the last, checked against main) and runs `docs-index`.
 7. The next phase runs in this session (no fresh session in this plan).
 
+## Danny's steps
+
+- Put schema 21 into CloudKit (Development run, then Production): [Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Put%20schema%2021%20%28Hebrew%20birthdays%27%20Born%20after%20sunset%29%20into%20CloudKit%3A%20one%20Development%20run%2C%20then%20deploy%20to%20Production)
+- Roll out to every device together, then lift the install_release hold: [Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20schema%2021%20is%20in%20Production%2C%20roll%20out%20Hebrew%20birthdays%20%28main%204b37da8b%20or%20later%29%20to%20the%20Mac%2C%20iPhone%2C%20iPad%20and%20the%20Assistant%20together)
+- Check a child's Hebrew birthday and the switch on a device: [Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20Hebrew%20birthdays%20roll-out%2C%20check%20one%20child%27s%20Hebrew%20birthday%20on%20the%20iPhone%20and%20Mac%20against%20a%20date%20you%20know%2C%20and%20flip%20Born%20after%20sunset)
+
 ## Open questions
-- Should this run also deploy schema 21 to CloudKit Production and roll out to TestFlight, as the ParentLocker run did? The plan leaves both to Danny as Tide rows unless he says so at approval.
+None. Danny chose at approval to do the Production deploy and the roll-out himself.
