@@ -208,9 +208,9 @@ struct StudentsRosterSignalsTests {
         let context = try CoreDataTestHelpers.makeContext()
         let calendar = AppCalendar.shared
         let ezra = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ezra", lastName: "Cohen")
-        ezra.birthday = try #require(calendar.date(from: DateComponents(year: 2016, month: 3, day: 24)))
+        ezra.birthday = calendar.date(from: DateComponents(year: 2016, month: 3, day: 24))
         let ada = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ada", lastName: "Stone")
-        ada.birthday = try #require(calendar.date(from: DateComponents(year: 2016, month: 9, day: 1)))
+        ada.birthday = calendar.date(from: DateComponents(year: 2016, month: 9, day: 1))
         let now = try #require(calendar.date(from: DateComponents(year: 2027, month: 3, day: 20, hour: 10)))
 
         let glance = ClassGlance.make(
