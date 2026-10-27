@@ -13,6 +13,8 @@ struct PresentationWhoWasThereSection<AddButton: View>: View {
     let isToday: Bool
     let onToggle: (UUID) -> Void
     let onRemove: (UUID) -> Void
+    /// Opens the split sheet with this child already picked.
+    let onSplit: (UUID) -> Void
     @ViewBuilder let addButton: AddButton
 
     var body: some View {
@@ -83,6 +85,11 @@ struct PresentationWhoWasThereSection<AddButton: View>: View {
         )
         .accessibilityAddTraits(isPresent ? .isSelected : [])
         .contextMenu {
+            if students.count > 1 {
+                Button("Split Off to a Different Group…", systemImage: "person.2.slash") {
+                    onSplit(id)
+                }
+            }
             Button("Remove from This Presentation", systemImage: "person.badge.minus", role: .destructive) {
                 onRemove(id)
             }

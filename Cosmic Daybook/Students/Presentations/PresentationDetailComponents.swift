@@ -14,7 +14,7 @@ struct MoveStudentsSheet: View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("Move Students to New Lesson")
+                Text("Split Off to a Different Group")
                     .font(AppTheme.ScaledFont.titleSmall)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -24,7 +24,7 @@ struct MoveStudentsSheet: View {
             Divider()
             
             VStack(alignment: .leading, spacing: 16) {
-                Text("Select students who didn't attend. They'll be moved to a new lesson with \"\(lessonName)\".")
+                Text("Pick the children who should go to a different group. They'll leave this presentation and get a plan of their own for \"\(lessonName)\", ready to schedule.")
                     .font(AppTheme.ScaledFont.body)
                     .foregroundStyle(.secondary)
                 
@@ -62,7 +62,7 @@ struct MoveStudentsSheet: View {
                         onMove()
                     } label: {
                         Label(
-                            "Move \(studentsToMove.count) student\(studentsToMove.count == 1 ? "" : "s")",
+                            "Split Off \(studentsToMove.count) \(studentsToMove.count == 1 ? "Child" : "Children")",
                             systemImage: "arrow.right.circle.fill"
                         )
                     }
@@ -119,7 +119,7 @@ struct MovedStudentsBanner: View {
     
     var body: some View {
         VStack(spacing: 4) {
-            Text("Students moved to new lesson")
+            Text("Split off to their own group")
                 .font(AppTheme.ScaledFont.captionSemibold)
             
             if !studentNames.isEmpty {

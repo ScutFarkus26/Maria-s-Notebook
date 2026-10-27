@@ -233,6 +233,7 @@ extension PresentationDetailContentView {
             isToday: calendar.isDateInToday(session.presentedDay),
             onToggle: { session.togglePresent($0) },
             onRemove: { vm.selectedStudentIDs.remove($0) },
+            onSplit: { openMoveStudentsSheet(preselecting: $0) },
             addButton: { addChildrenButton }
         )
         .sheet(isPresented: $vm.showingFindStudentsSheet) {
@@ -241,14 +242,25 @@ extension PresentationDetailContentView {
     }
 
     var addChildrenButton: some View {
-        Button {
-            vm.showingStudentPickerPopover = true
-        } label: {
-            Label("Add or Remove Children", systemImage: "person.2.badge.gearshape")
-        }
-        .buttonStyle(.borderless)
-        .popover(isPresented: $vm.showingStudentPickerPopover, arrowEdge: .top) {
-            studentPickerPopover
+        HStack(spacing: 20) {
+            Button {
+                vm.showingStudentPickerPopover = true
+            } label: {
+                Label("Add or Remove Children", systemImage: "person.2.badge.gearshape")
+            }
+            .buttonStyle(.borderless)
+            .popover(isPresented: $vm.showingStudentPickerPopover, arrowEdge: .top) {
+                studentPickerPopover
+            }
+
+            if selectedStudentsList.count > 1 {
+                Button {
+                    openMoveStudentsSheet()
+                } label: {
+                    Label("Split Off to a Different Group", systemImage: "person.2.slash")
+                }
+                .buttonStyle(.borderless)
+            }
         }
     }
 
@@ -261,7 +273,7 @@ extension PresentationDetailContentView {
             areaColor: areaColor,
             onRemove: { id in vm.selectedStudentIDs.remove(id) },
             onOpenPicker: { vm.showingStudentPickerPopover = true },
-            onOpenMove: openMoveStudentsSheet,
+            onOpenMove: { openMoveStudentsSheet() },
             canMoveStudents: false,
             onOpenFindStudents: { vm.showingFindStudentsSheet = true },
             onOpenMoveAbsent: {},
@@ -311,8 +323,8 @@ extension PresentationDetailContentView {
         .presentationDragIndicator(.visible)
     }
 
-    func openMoveStudentsSheet() {
-        vm.studentsToMove = []
+    func openMoveStudentsSheet(preselecting id: UUID? = nil) {
+        vm.studentsToMove = id.map { [$0] } ?? []
         vm.showingMoveStudentsSheet = true
     }
 
