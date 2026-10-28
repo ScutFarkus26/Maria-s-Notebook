@@ -24,30 +24,33 @@ struct MoveStudentsSheet: View {
             Divider()
             
             VStack(alignment: .leading, spacing: 16) {
-                Text("Pick the children who should go to a different group. They'll leave this presentation and get a plan of their own for \"\(lessonName)\", ready to schedule.")
+                Text("Pick the children who should go to a different group. They'll leave this presentation and get a plan of their own for \"\(lessonName)\", ready to schedule. This happens straight away; an Undo shows at the top for a few seconds.")
                     .font(AppTheme.ScaledFont.body)
                     .foregroundStyle(.secondary)
                 
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(students, id: \.objectID) { student in
-                        let studentID = student.id ?? UUID()
-                        MoveStudentRow(
-                            student: student,
-                            isSelected: studentsToMove.contains(studentID)
-                        ) {
-                            if studentsToMove.contains(studentID) {
-                                studentsToMove.remove(studentID)
-                            } else {
-                                studentsToMove.insert(studentID)
+                // A whole-class presentation is taller than a phone: the list
+                // scrolls so the footer's Split Off button stays in reach.
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(students, id: \.objectID) { student in
+                            let studentID = student.id ?? UUID()
+                            MoveStudentRow(
+                                student: student,
+                                isSelected: studentsToMove.contains(studentID)
+                            ) {
+                                if studentsToMove.contains(studentID) {
+                                    studentsToMove.remove(studentID)
+                                } else {
+                                    studentsToMove.insert(studentID)
+                                }
                             }
                         }
                     }
                 }
             }
             .padding(24)
-            
-            Spacer()
-            
+            .frame(maxHeight: .infinity, alignment: .top)
+
             // Footer
             VStack(spacing: 0) {
                 Divider()
@@ -112,19 +115,22 @@ struct MoveStudentRow: View {
     }
 }
 
-// MARK: - Banner Views
+// MARK: - Split Banner
 
-struct MovedStudentsBanner: View {
-    let studentNames: [String]
-    
+/// Says who was split off, with an Undo while the split can still be taken back.
+struct SplitOffBanner: View {
+    let names: [String]
+    let onUndo: (() -> Void)?
+
     var body: some View {
-        VStack(spacing: 4) {
-            Text("Split off to their own group")
+        HStack(spacing: 12) {
+            Text("Split off \(names.formatted(.list(type: .and))) into a group of their own.")
                 .font(AppTheme.ScaledFont.captionSemibold)
-            
-            if !studentNames.isEmpty {
-                Text(studentNames.joined(separator: ", "))
-                    .font(AppTheme.ScaledFont.captionSmall)
+            if let onUndo {
+                Button("Undo", action: onUndo)
+                    .font(AppTheme.ScaledFont.captionSemibold)
+                    .underline()
+                    .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 12)
@@ -137,5 +143,7 @@ struct MovedStudentsBanner: View {
         .foregroundStyle(.white)
         .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.moderate), radius: 6, x: 0, y: 3)
         .padding(.top, 8)
+        .padding(.horizontal, 16)
     }
 }
+

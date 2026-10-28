@@ -74,8 +74,9 @@ final class PresentationDetailViewModel {
 
     // MARK: - Move Students UI State
     var studentsToMove: Set<UUID> = []
-    var showMovedBanner: Bool = false
-    var movedStudentNames: [String] = []
+    /// The split the banner offers to undo; nil once it hides.
+    var lastSplit: PresentationSplit?
+    @ObservationIgnored var splitBannerTask: Task<Void, Never>?
 
     // MARK: - Autosave State
     var notesDirty: Bool = false

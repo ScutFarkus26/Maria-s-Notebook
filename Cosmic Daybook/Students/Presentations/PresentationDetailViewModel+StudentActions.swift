@@ -7,7 +7,8 @@ extension PresentationDetailViewModel {
 
     // MARK: - Move Students
 
-    /// Handles the "Move Students" action, creating a new lesson for them and removing them from this one
+    /// Splits `studentsToMove` off onto a plan of their own and saves at once,
+    /// then shows the banner with its Undo for a few seconds.
     func moveStudentsToInbox(
         studentsAll: [CDStudent],
         lessonAssignmentsAll: [CDLessonAssignment],
@@ -15,10 +16,7 @@ extension PresentationDetailViewModel {
     ) {
         guard !studentsToMove.isEmpty, let currentLesson = lessonObject(from: lessons) else { return }
 
-        let actions = PresentationDetailActions()
-
-        // Perform move using helper
-        self.movedStudentNames = actions.moveStudentsToInbox(
+        let split = PresentationDetailActions().moveStudentsToInbox(
             from: lessonAssignment,
             currentLesson: currentLesson,
             studentsToMove: studentsToMove,
@@ -26,26 +24,28 @@ extension PresentationDetailViewModel {
             lessonAssignmentsAll: lessonAssignmentsAll,
             context: viewContext
         )
-
-        // Remove students from current VM state
         selectedStudentIDs.subtract(studentsToMove)
-
-        // Sync to model immediately so the view updates
-        let remainingUUIDs = Set(lessonAssignment.resolvedStudentIDs).subtracting(studentsToMove)
-        lessonAssignment.studentIDs = remainingUUIDs.map(\.uuidString)
-        saveCoordinator.save(viewContext, reason: "Moving students to inbox")
-
+        studentsToMove.removeAll()
+        saveCoordinator.save(viewContext, reason: "Splitting children off to their own group")
         PresentationDetailUtilities.notifyInboxRefresh()
 
-        // UI Updates
-        studentsToMove.removeAll()
-        showMovedBanner = true
-
-        // Hide banner after delay
-        Task { [weak self] in
-            guard let self else { return }
-            try? await Task.sleep(for: .seconds(3))
-            showMovedBanner = false
+        lastSplit = split
+        splitBannerTask?.cancel()
+        splitBannerTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(8))
+            guard !Task.isCancelled else { return }
+            self?.lastSplit = nil
         }
+    }
+
+    /// Takes the last split back: the children return to this presentation.
+    func undoLastSplit() {
+        guard let split = lastSplit else { return }
+        splitBannerTask?.cancel()
+        lastSplit = nil
+        guard PresentationDetailActions().undoSplit(split, context: viewContext) else { return }
+        selectedStudentIDs.formUnion(split.studentIDs)
+        saveCoordinator.save(viewContext, reason: "Undoing a split")
+        PresentationDetailUtilities.notifyInboxRefresh()
     }
 }

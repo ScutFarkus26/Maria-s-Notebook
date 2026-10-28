@@ -73,9 +73,9 @@ final class PresentationDetailActions {
     }
 
     // Puts `studentsToMove` on a plan of their own for `currentLesson` (an
-    // undated draft with exactly them, reused when one exists). Their
-    // year-plan entries promoted into `source` follow them to it; taking
-    // them off `source` is the caller's.
+    // undated draft with exactly them, reused when one exists) and takes them
+    // off `source`. Their year-plan entries promoted into `source`, and the
+    // notes about only them, follow them to it. Saving is the caller's.
     // swiftlint:disable:next function_parameter_count
     func moveStudentsToInbox(
         from source: CDLessonAssignment,
@@ -84,8 +84,8 @@ final class PresentationDetailActions {
         studentsAll: [CDStudent],
         lessonAssignmentsAll: [CDLessonAssignment],
         context: NSManagedObjectContext
-    ) -> [String] {
-        guard !studentsToMove.isEmpty else { return [] }
+    ) -> PresentationSplit? {
+        guard !studentsToMove.isEmpty else { return nil }
 
         let movedStudentNames = studentsAll
             .filter { guard let sid = $0.id else { return false }; return studentsToMove.contains(sid) }
@@ -113,13 +113,74 @@ final class PresentationDetailActions {
                 context: context
             )
         }
-        PresentationRecordCleanup.moveStudents(
-            Set(studentsToMove.map(\.uuidString)), from: source, to: destination, in: context
-        )
 
-        context.safeSave()
-        PresentationDetailUtilities.notifyInboxRefresh()
-        return movedStudentNames
+        let ids = Set(studentsToMove.map(\.uuidString))
+        let entries = source.id.map {
+            PresentationRecordCleanup.entries(promotedInto: $0.uuidString, studentIDs: ids, in: context)
+        } ?? []
+        let notes = PresentationRecordCleanup.ownNotes(of: ids, on: source)
+        // A given presentation's history rows go with the move and can't come
+        // back, so only a split of a plan not yet given can be undone.
+        let canUndo = !source.isPresented
+        PresentationRecordCleanup.moveStudents(ids, from: source, to: destination, notes: notes, in: context)
+        source.studentIDs = source.resolvedStudentIDs.filter { !studentsToMove.contains($0) }.map(\.uuidString)
+
+        return PresentationSplit(
+            names: movedStudentNames,
+            studentIDs: studentsToMove,
+            source: source,
+            destination: destination,
+            madeDestination: existing == nil,
+            notes: notes,
+            entries: entries,
+            canUndo: canUndo
+        )
     }
 
+    /// Puts a split back as it was: the children on `source` again, their
+    /// entries and notes with them, and a plan the split made deleted.
+    /// Returns false, changing nothing, when either plan has since been given
+    /// or deleted. Saving is the caller's.
+    @discardableResult
+    func undoSplit(_ split: PresentationSplit, context: NSManagedObjectContext) -> Bool {
+        let source = split.source
+        let destination = split.destination
+        guard split.canUndo, !source.isDeleted, !destination.isDeleted,
+              !source.isPresented, !destination.isPresented,
+              let sourceID = source.id?.uuidString else { return false }
+
+        let onSource = Set(source.resolvedStudentIDs)
+        source.studentIDs += split.studentIDs.subtracting(onSource).map(\.uuidString)
+        for entry in split.entries where !entry.isDeleted {
+            entry.promotedAssignmentID = sourceID
+        }
+        PresentationRecordCleanup.moveNotes(
+            from: destination, to: source,
+            only: split.notes.filter { !$0.isDeleted && $0.lessonAssignment == destination }
+        )
+        if split.madeDestination {
+            let rest = destination.resolvedStudentIDs.filter { !split.studentIDs.contains($0) }
+            let hasNotes = !((destination.unifiedNotes as? Set<CDNote>) ?? []).filter { !$0.isDeleted }.isEmpty
+            if rest.isEmpty && !hasNotes {
+                context.delete(destination)
+            } else {
+                destination.studentIDs = rest.map(\.uuidString)
+            }
+        }
+        return true
+    }
+}
+
+/// What one split did, so its message's Undo can put it back.
+struct PresentationSplit {
+    let names: [String]
+    let studentIDs: Set<UUID>
+    let source: CDLessonAssignment
+    let destination: CDLessonAssignment
+    /// The split made `destination`, rather than reusing a draft that had
+    /// exactly these children.
+    let madeDestination: Bool
+    let notes: [CDNote]
+    let entries: [CDYearPlanEntry]
+    let canUndo: Bool
 }

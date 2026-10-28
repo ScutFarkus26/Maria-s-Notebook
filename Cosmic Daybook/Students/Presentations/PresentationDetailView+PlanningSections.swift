@@ -242,25 +242,33 @@ extension PresentationDetailContentView {
     }
 
     var addChildrenButton: some View {
-        HStack(spacing: 20) {
+        // Side by side where they fit; stacked on a phone, where together
+        // they are wider than the screen.
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 20) { childrenButtons }
+            VStack(alignment: .leading, spacing: 10) { childrenButtons }
+        }
+        .popover(isPresented: $vm.showingStudentPickerPopover, arrowEdge: .top) {
+            studentPickerPopover
+        }
+    }
+
+    @ViewBuilder
+    private var childrenButtons: some View {
+        Button {
+            vm.showingStudentPickerPopover = true
+        } label: {
+            Label("Add or Remove Children", systemImage: "person.2.badge.gearshape")
+        }
+        .buttonStyle(.borderless)
+
+        if selectedStudentsList.count > 1 {
             Button {
-                vm.showingStudentPickerPopover = true
+                openMoveStudentsSheet()
             } label: {
-                Label("Add or Remove Children", systemImage: "person.2.badge.gearshape")
+                Label("Split Off to a Different Group", systemImage: "person.2.slash")
             }
             .buttonStyle(.borderless)
-            .popover(isPresented: $vm.showingStudentPickerPopover, arrowEdge: .top) {
-                studentPickerPopover
-            }
-
-            if selectedStudentsList.count > 1 {
-                Button {
-                    openMoveStudentsSheet()
-                } label: {
-                    Label("Split Off to a Different Group", systemImage: "person.2.slash")
-                }
-                .buttonStyle(.borderless)
-            }
         }
     }
 

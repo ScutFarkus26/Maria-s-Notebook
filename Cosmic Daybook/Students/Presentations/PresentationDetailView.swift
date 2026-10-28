@@ -213,8 +213,11 @@ struct PresentationDetailContentView: View {
             AddStudentView()
         }
         .overlay(alignment: .top) {
-            if vm.showMovedBanner {
-                MovedStudentsBanner(studentNames: vm.movedStudentNames)
+            if let split = vm.lastSplit {
+                SplitOffBanner(
+                    names: split.names,
+                    onUndo: split.canUndo ? { vm.undoLastSplit() } : nil
+                )
             }
         }
         .sheet(isPresented: $vm.showingMoveStudentsSheet) {
