@@ -119,6 +119,52 @@ struct PresentationSplitTests {
         #expect(source.resolvedStudentIDs.count == 2)
     }
 
+    @Test("Undo leaves off the saved plan a child who was only added in the open sheet")
+    func undoLeavesOffChildAddedInSheet() throws {
+        let room = try makeRoom()
+        let source = PresentationFactory.makeDraft(lesson: room.lesson, students: [room.ada, room.ben], context: room.context)
+        #expect(CoreDataTestHelpers.save(room.context))
+
+        // Cy is on the sheet's roster but not yet saved on the plan.
+        let result = try split([room.cy], off: source, in: room)
+        #expect(result.wereOnSource.isEmpty)
+        #expect(PresentationDetailActions().undoSplit(result, context: room.context))
+        #expect(CoreDataTestHelpers.save(room.context))
+
+        #expect(Set(source.resolvedStudentIDs) == Set(try [room.ada, room.ben].map { try #require($0.id) }))
+        #expect(plans(room.context) == [source])
+    }
+
+    @Test("Undo on a new presentation leaves it empty, so Cancel still throws it away")
+    func undoOnNewPresentationLeavesItEmpty() throws {
+        let room = try makeRoom()
+        // What File › New makes: a placeholder lesson and no children, saved,
+        // with the lesson and children picked in the sheet.
+        let source = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [], context: room.context)
+        #expect(CoreDataTestHelpers.save(room.context))
+
+        let result = try split([room.ada], off: source, in: room)
+        #expect(PresentationDetailActions().undoSplit(result, context: room.context))
+        #expect(CoreDataTestHelpers.save(room.context))
+
+        #expect(source.studentIDs.isEmpty)
+        #expect(plans(room.context) == [source])
+    }
+
+    @Test("A split uses the lesson the plan is saved with, not an unsaved Change Lesson")
+    func splitUsesSavedLesson() throws {
+        let room = try makeRoom()
+        let other = CoreDataTestHelpers.seedLesson(in: room.context, name: "Subtraction", sequence: "Fractions")
+        let source = PresentationFactory.makeDraft(lesson: room.lesson, students: [room.ada, room.ben], context: room.context)
+        let fresh = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [], context: room.context)
+        #expect(CoreDataTestHelpers.save(room.context))
+        let lessons = [room.lesson, other]
+
+        #expect(PresentationDetailActions.splitLesson(for: source, edited: other, lessons: lessons) == room.lesson)
+        // A new presentation has no saved lesson, so the one picked in the sheet.
+        #expect(PresentationDetailActions.splitLesson(for: fresh, edited: other, lessons: lessons) == other)
+    }
+
     @Test("Undo changes nothing once the new plan has been given")
     func undoRefusedAfterGiven() throws {
         let room = try makeRoom()

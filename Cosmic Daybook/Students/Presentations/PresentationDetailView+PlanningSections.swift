@@ -51,7 +51,7 @@ extension PresentationDetailContentView {
             vm.showingFindStudentsSheet = true
         }
         if selectedStudentsList.count > 1 && !vm.isPresented {
-            Button("Move Students…", systemImage: "arrow.right.square") {
+            Button("Split Off to a Different Group…", systemImage: "person.2.slash") {
                 openMoveStudentsSheet()
             }
         }
@@ -348,7 +348,7 @@ extension PresentationDetailContentView {
 
     var moveStudentsSheet: some View {
         MoveStudentsSheet(
-            lessonName: currentLessonName,
+            lessonName: vm.splitLesson(from: lessons)?.name ?? currentLessonName,
             students: selectedStudentsList,
             studentsToMove: $vm.studentsToMove,
             selectedStudentIDs: vm.selectedStudentIDs,

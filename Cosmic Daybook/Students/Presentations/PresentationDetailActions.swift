@@ -72,6 +72,16 @@ final class PresentationDetailActions {
         }
     }
 
+    /// The lesson a split puts the children on: the one `source` is saved
+    /// with, since the split saves at once while a Change Lesson waits for
+    /// Save, and the entries that follow the children are for the saved one.
+    /// A new presentation has no saved lesson yet, so it takes `edited`.
+    static func splitLesson(
+        for source: CDLessonAssignment, edited: CDLesson?, lessons: [CDLesson]
+    ) -> CDLesson? {
+        source.lesson ?? lessons.first { $0.id == source.resolvedLessonID } ?? edited
+    }
+
     // Puts `studentsToMove` on a plan of their own for `currentLesson` (an
     // undated draft with exactly them, reused when one exists) and takes them
     // off `source`. Their year-plan entries promoted into `source`, and the
@@ -122,12 +132,14 @@ final class PresentationDetailActions {
         // A given presentation's history rows go with the move and can't come
         // back, so only a split of a plan not yet given can be undone.
         let canUndo = !source.isPresented
+        let wereOnSource = studentsToMove.intersection(source.resolvedStudentIDs)
         PresentationRecordCleanup.moveStudents(ids, from: source, to: destination, notes: notes, in: context)
         source.studentIDs = source.resolvedStudentIDs.filter { !studentsToMove.contains($0) }.map(\.uuidString)
 
         return PresentationSplit(
             names: movedStudentNames,
             studentIDs: studentsToMove,
+            wereOnSource: wereOnSource,
             source: source,
             destination: destination,
             madeDestination: existing == nil,
@@ -137,8 +149,10 @@ final class PresentationDetailActions {
         )
     }
 
-    /// Puts a split back as it was: the children on `source` again, their
-    /// entries and notes with them, and a plan the split made deleted.
+    /// Puts a split back as it was: the children who were saved on `source`
+    /// on it again (one added in the open sheet goes back to the sheet only,
+    /// the caller's), their entries and notes with them, and a plan the
+    /// split made deleted.
     /// Returns false, changing nothing, when either plan has since been given
     /// or deleted. Saving is the caller's.
     @discardableResult
@@ -150,7 +164,7 @@ final class PresentationDetailActions {
               let sourceID = source.id?.uuidString else { return false }
 
         let onSource = Set(source.resolvedStudentIDs)
-        source.studentIDs += split.studentIDs.subtracting(onSource).map(\.uuidString)
+        source.studentIDs += split.wereOnSource.subtracting(onSource).map(\.uuidString)
         for entry in split.entries where !entry.isDeleted {
             entry.promotedAssignmentID = sourceID
         }
@@ -175,6 +189,9 @@ final class PresentationDetailActions {
 struct PresentationSplit {
     let names: [String]
     let studentIDs: Set<UUID>
+    /// Those of `studentIDs` saved on `source` when it was split; the rest
+    /// had only been added in the open sheet.
+    let wereOnSource: Set<UUID>
     let source: CDLessonAssignment
     let destination: CDLessonAssignment
     /// The split made `destination`, rather than reusing a draft that had

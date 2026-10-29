@@ -7,6 +7,13 @@ extension PresentationDetailViewModel {
 
     // MARK: - Move Students
 
+    /// The lesson a split puts the children on, which the split sheet names.
+    func splitLesson(from lessons: [CDLesson]) -> CDLesson? {
+        PresentationDetailActions.splitLesson(
+            for: lessonAssignment, edited: lessonObject(from: lessons), lessons: lessons
+        )
+    }
+
     /// Splits `studentsToMove` off onto a plan of their own and saves at once,
     /// then shows the banner with its Undo for a few seconds.
     func moveStudentsToInbox(
@@ -14,11 +21,11 @@ extension PresentationDetailViewModel {
         lessonAssignmentsAll: [CDLessonAssignment],
         lessons: [CDLesson]
     ) {
-        guard !studentsToMove.isEmpty, let currentLesson = lessonObject(from: lessons) else { return }
+        guard !studentsToMove.isEmpty, let lesson = splitLesson(from: lessons) else { return }
 
         let split = PresentationDetailActions().moveStudentsToInbox(
             from: lessonAssignment,
-            currentLesson: currentLesson,
+            currentLesson: lesson,
             studentsToMove: studentsToMove,
             studentsAll: studentsAll,
             lessonAssignmentsAll: lessonAssignmentsAll,
