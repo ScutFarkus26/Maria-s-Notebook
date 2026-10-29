@@ -29,9 +29,12 @@ struct LifecycleService {
     // MARK: - CDLessonPresentation Helpers
 
     /// Upsert CDLessonPresentation idempotently by (presentationID, studentID).
-    /// If exists: moves presentedAt and lastObservedAt to `presentedAt`, since the
-    /// row records this one presentation and a corrected date is its date, and
-    /// moves it to `lessonID` when the presentation's lesson was changed.
+    /// If exists: moves presentedAt to `presentedAt`, since the row records this
+    /// one presentation and a corrected date is its date, and moves it to
+    /// `lessonID` when the presentation's lesson was changed. lastObservedAt
+    /// follows a corrected date unless it is a later observation the new date
+    /// doesn't pass; a save that keeps the date leaves it alone, since Recall
+    /// and later observations move it on.
     /// If not exists: creates new with state .presented.
     @discardableResult
     static func upsertLessonPresentation(
@@ -49,9 +52,14 @@ struct LifecycleService {
 
         if let existing {
             if existing.presentedAt != presentedAt {
+                let oldDate = existing.presentedAt
                 existing.presentedAt = presentedAt
+                if let observed = existing.lastObservedAt, observed != oldDate, observed > presentedAt {
+                    // A later observation still stands.
+                } else {
+                    existing.lastObservedAt = presentedAt
+                }
             }
-            existing.lastObservedAt = presentedAt
             if !lessonID.isEmpty, existing.lessonID != lessonID {
                 moveHistoryRow(existing, toLesson: lessonID)
             }

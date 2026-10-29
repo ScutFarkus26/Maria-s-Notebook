@@ -291,8 +291,10 @@ extension BackupRestoreRun {
     /// the same row (same `id`, as when CloudKit brings back the original) is
     /// kept, never folded, and reads take the newest. A row the store already
     /// holds with a newer `modifiedAt` (a rename since the backup) is left as
-    /// it is: a Merge restore must not put an old name back over a new one,
-    /// which would then go to every device as the newest.
+    /// it is: a restore must not put an old name back over a new one, which
+    /// would then go to every device as the newest. A Replace restore doesn't
+    /// clear these rows first, so it keeps a rename too
+    /// (`BackupEntityRegistry.mergedOnReplaceEntityNames`).
     func importV38Entities() throws {
         let viewContext = context
         let index = self.index
@@ -307,8 +309,8 @@ extension BackupRestoreRun {
     }
 
     /// The ids of `rows` whose record the store already holds with a newer
-    /// `modifiedAt` than the row's (or the row has none). Only a Merge restore
-    /// finds any: a Replace has cleared the store first.
+    /// `modifiedAt` than the row's (or the row has none). A Replace restore
+    /// finds them as a Merge does: it leaves these rows in place.
     static func rowsOlderThanStored(
         _ rows: [ClassroomPersonDTO],
         existing: (UUID) throws -> CDClassroomPerson?

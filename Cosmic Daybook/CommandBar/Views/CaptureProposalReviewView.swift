@@ -168,12 +168,13 @@ private extension CaptureProposalReviewView {
     }
 
     /// A name the organizer couldn't place on one child, with what was said
-    /// about her. Picking her with Edit settles it; Leave Out says it's nobody
-    /// in the class. Save waits until one or the other.
+    /// about her. Choose settles it on the child picked (so does adding a
+    /// child the name could be with Edit); Leave Out says it's nobody in the
+    /// class. Save waits until one or the other.
     private func unplacedNameRow(_ name: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 3) {
-                Label("Who is “\(name)”? Pick the child with Edit.", systemImage: "exclamationmark.triangle")
+                Label("Who is “\(name)”?", systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.orange)
                 if let said = proposal.unplacedWords[name]?.observation, !said.isEmpty {
                     Text("You said: \(said)")
@@ -181,6 +182,18 @@ private extension CaptureProposalReviewView {
                 }
             }
             Spacer()
+            Menu("Choose") {
+                ForEach(students.uniqueByID) { student in
+                    if let data = studentData(student) {
+                        Button(student.shortName) {
+                            proposal.placeUnplacedName(name, on: data, named: student.shortName)
+                        }
+                    }
+                }
+            }
+            .menuStyle(.button)
+            .buttonStyle(.borderless)
+            .fixedSize()
             Button("Leave Out") {
                 proposal.leaveOutUnplacedName(name)
             }
@@ -360,18 +373,12 @@ private extension CaptureProposalReviewView {
     }
 
     private func setStudent(_ student: CDStudent, isSelected: Bool) {
-        guard let id = student.id else { return }
-        let roster = students.uniqueByID.compactMap { child -> StudentData? in
-            guard let childID = child.id else { return nil }
-            return StudentData(
-                id: childID, firstName: child.firstName, lastName: child.lastName, nickname: child.nickname
-            )
-        }
-        proposal.setStudent(
-            StudentData(id: id, firstName: student.firstName, lastName: student.lastName, nickname: student.nickname),
-            named: student.shortName,
-            isSelected: isSelected,
-            roster: roster
-        )
+        guard let data = studentData(student) else { return }
+        proposal.setStudent(data, named: student.shortName, isSelected: isSelected)
+    }
+
+    private func studentData(_ student: CDStudent) -> StudentData? {
+        guard let id = student.id else { return nil }
+        return StudentData(id: id, firstName: student.firstName, lastName: student.lastName, nickname: student.nickname)
     }
 }

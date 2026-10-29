@@ -153,18 +153,23 @@ enum ChecklistBatchActionExecutor {
         }) {
             ChecklistRosterRemoval.remove(studentIDString, from: existing, in: context)
         } else {
+            guard let studentID = student.id else { return }
+            let plan: CDLessonAssignment
             if let sequence = allLAs.first(where: { !$0.isPresented && $0.scheduledFor == nil }) {
                 if !sequence.studentIDs.contains(studentIDString) {
                     sequence.studentIDs.append(studentIDString)
                 }
+                plan = sequence
             } else {
-                guard let lessonID = lesson.id, let studentID = student.id else { return }
-                _ = PresentationFactory.makeDraft(
+                guard let lessonID = lesson.id else { return }
+                plan = PresentationFactory.makeDraft(
                     lessonID: lessonID,
                     studentIDs: [studentID],
                     context: context
                 )
             }
+            // The plan answers her year-plan entry, as the cell's own toggle does.
+            YearPlanPromotionService.promoteMatchingEntry(for: studentID, into: plan, context: context)
         }
     }
 

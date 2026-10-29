@@ -64,27 +64,44 @@ extension BackupRestoreRun {
     ///
     /// - A link this device had that the restored scope doesn't name is
     ///   removed; one the backup carries stays, as every backed-up row does.
-    /// - A child a multi-child scope names but no link covers gets one.
+    /// - A child with more than one link keeps one, the one `syncStudentLinks`
+    ///   keeps (`CDNoteStudentLink.keeper`), so every device keeps the same.
+    ///   A merge kept both the device's link and the backup's under another
+    ///   id, so the note named the child twice (bug hunt 2026-10-29).
+    /// - A child a multi-child scope names but no link covers gets one, with
+    ///   the id every device gives it.
     func matchStudentLinksToScope() throws {
         for id in restoredNoteIDs {
             guard let note = try index.related(CDNote.self, id: id) else { continue }
             let (named, linkedByScope) = Self.studentsNamed(by: note.scope)
-            var covered = Set<String>()
+            var linksByStudent: [String: [CDNoteStudentLink]] = [:]
             for link in note.studentLinks?.allObjects as? [CDNoteStudentLink] ?? [] where !link.isDeleted {
-                let student = link.studentID.uppercased()
-                if named.contains(student) || link.id.map(restoredLinkIDs.contains) == true {
-                    covered.insert(student)
-                } else {
+                linksByStudent[link.studentID.uppercased(), default: []].append(link)
+            }
+            for (student, links) in linksByStudent {
+                // A child the scope doesn't name stays only by a link the backup carries.
+                let candidates = named.contains(student)
+                    ? links : links.filter { $0.id.map(restoredLinkIDs.contains) == true }
+                let keeper = CDNoteStudentLink.keeper(of: candidates, stableID: stableLinkID(note, student))
+                for link in links where link !== keeper {
                     context.delete(link)
                 }
             }
-            for student in linkedByScope where covered.insert(student.uuidString.uppercased()).inserted {
+            for student in linkedByScope where linksByStudent[student.uuidString.uppercased()] == nil {
                 let link = CDNoteStudentLink(context: context)
+                if let noteID = note.id { link.id = CDNoteStudentLink.stableID(noteID: noteID, studentID: student) }
                 link.noteID = note.id?.uuidString ?? ""
                 link.studentID = student.uuidString
                 link.note = note
             }
         }
+    }
+
+    /// The id every device gives `note`'s link to `student` (an uppercased
+    /// id), when both ids are whole.
+    private func stableLinkID(_ note: CDNote, _ student: String) -> UUID? {
+        guard let noteID = note.id, let studentID = UUID(uuidString: student) else { return nil }
+        return CDNoteStudentLink.stableID(noteID: noteID, studentID: studentID)
     }
 
     /// The children a scope names (uppercased ids), and those it gives a

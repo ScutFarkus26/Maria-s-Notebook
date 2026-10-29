@@ -27,6 +27,10 @@ nonisolated extension UserDefaultsKeys {
     static var tideFirstRunConfirmedAt: String { CloudKitEnvironment.scoped("Tide.firstRunConfirmedAt") }
     /// The notebook to-dos (uuid strings) the first run linked to a Tide action.
     static var tideFirstRunLinked: String { CloudKitEnvironment.scoped("Tide.firstRunLinked") }
+    /// Linked to-dos (uuid string → their action's address) whose Tide action
+    /// doesn't carry the notebook line, kept after a to-do is deleted so its
+    /// action doesn't come back.
+    static var tideUnmarkedLinks: String { CloudKitEnvironment.scoped("Tide.unmarkedLinks") }
     /// When the last sync with Tide finished.
     static var tideLastSyncAt: String { CloudKitEnvironment.scoped("Tide.lastSyncAt") }
 }

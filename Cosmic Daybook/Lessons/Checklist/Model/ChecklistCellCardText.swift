@@ -114,7 +114,13 @@ enum ChecklistCellCardText {
                 .map { $0.prefix(1).uppercased() + $0.dropFirst() + "." }
                 ?? "Nothing holds it back; not presented or planned yet."
         case .planned:
-            detail = record.plannedFor.map { "Planned for \(dateText($0))." } ?? "In the Inbox."
+            if let plannedFor = record.plannedFor {
+                detail = "Planned for \(dateText(plannedFor))."
+            } else {
+                // Planned by her year plan alone: no presentation holds her yet.
+                detail = state?.isScheduled == false && state?.isOnYearPlan == true
+                    ? "On the year plan." : "In the Inbox."
+            }
         case .presented:
             // The title already says "Presented.", so the line only adds the date.
             detail = record.presentedOn.map { "On \(dateText($0))." } ?? "No date recorded."

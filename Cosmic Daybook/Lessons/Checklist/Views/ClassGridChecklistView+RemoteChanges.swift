@@ -8,10 +8,13 @@ import Foundation
 
 extension ClassGridChecklistView {
     /// Imported entities that can move a cell: its lesson, its child, the plans and
-    /// presentations, the work, and the history rows that carry mastery marks (a mark made
-    /// on another device turns the cell green).
+    /// presentations, the work and who is on it (a participant row says whose a copy is),
+    /// the history rows that carry mastery marks (a mark made on another device turns the
+    /// cell green), the recall checks the readiness rule reads, and the year plan, which
+    /// makes a cell Planned. The last three were missing until bug hunt 2026-10-29 #15.
     nonisolated static let remoteRefreshEntityNames: Set<String> = [
-        "LessonAssignment", "Lesson", "Student", "WorkModel", "LessonPresentation"
+        "LessonAssignment", "Lesson", "Student", "WorkModel", "LessonPresentation",
+        "WorkParticipantEntity", "LessonRecallCheck", "YearPlanEntry"
     ]
 
     /// Imports from another device that touched the grid's records, settled for a second so a

@@ -29,6 +29,7 @@ extension PresentationDetailViewModel {
             studentsToMove: studentsToMove,
             studentsAll: studentsAll,
             lessonAssignmentsAll: lessonAssignmentsAll,
+            keepOnSource: selectedStudentIDs,
             context: viewContext
         )
         selectedStudentIDs.subtract(studentsToMove)

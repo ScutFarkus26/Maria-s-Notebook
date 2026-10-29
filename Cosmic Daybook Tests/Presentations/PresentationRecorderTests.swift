@@ -144,6 +144,36 @@ struct PresentationRecorderTests {
         #expect(entry.promotedAssignmentID == fixture.assignment.id?.uuidString)
     }
 
+    @Test("A note about only the child who wasn't there goes with her; Undo brings it back")
+    func absentChildsNoteGoesWithHer() throws {
+        let fixture = try makeFixture(requiresPractice: false)
+        let presentID = try #require(fixture.present.id)
+        let absentID = try #require(fixture.absent.id)
+        let hers = CoreDataTestHelpers.seedNote(in: fixture.context, body: "Theo wants to try it")
+        hers.lessonAssignment = fixture.assignment
+        hers.scope = .student(absentID)
+        let shared = CoreDataTestHelpers.seedNote(in: fixture.context, body: "Maya and Theo together")
+        shared.lessonAssignment = fixture.assignment
+        shared.scope = .students([presentID, absentID])
+        try fixture.context.save()
+
+        let result = try PresentationRecorder.record(
+            fixture.assignment, presentIDs: [presentID], on: fixture.today,
+            context: fixture.context, saveCoordinator: fixture.coordinator
+        )
+        let madePlan = try #require(
+            try plans(for: fixture.lesson, in: fixture.context).first { $0 !== fixture.assignment }
+        )
+        #expect(hers.lessonAssignment == madePlan)
+        #expect(shared.lessonAssignment == fixture.assignment)
+
+        try ImmediatePresentationRecordingService.undo(
+            result.undoToken, context: fixture.context, saveCoordinator: fixture.coordinator
+        )
+        #expect(!hers.isDeleted)
+        #expect(hers.lessonAssignment == fixture.assignment)
+    }
+
     @Test("Without a practice rule, one click records and keeps watching")
     func quickRecordKeepsWatching() throws {
         let fixture = try makeFixture(requiresPractice: false)

@@ -44,6 +44,8 @@ enum TodayAbsentMover {
         fileprivate let schedules: [ScheduleSnapshot]
         /// The moved children's year-plan entries for these lessons.
         fileprivate let entries: [EntrySnapshot]
+        /// Notes about only the moved children, with the lesson each came off.
+        fileprivate let notes: [(note: CDNote, lessonID: NSManagedObjectID)]
     }
 
     fileprivate struct ScheduleSnapshot {
@@ -92,6 +94,7 @@ enum TodayAbsentMover {
         var rosters: [(objectID: NSManagedObjectID, studentIDs: [String])] = []
         var schedules: [ScheduleSnapshot] = []
         var entries: [EntrySnapshot] = []
+        var notes: [(note: CDNote, lessonID: NSManagedObjectID)] = []
 
         for assignment in lessons {
             let away = absentChildren(on: assignment, absent: absent)
@@ -109,6 +112,8 @@ enum TodayAbsentMover {
                 continue
             }
             rosters.append((assignment.objectID, assignment.studentIDs))
+            notes += PresentationRecordCleanup.ownNotes(of: Set(away.map(\.uuidString)), on: assignment)
+                .map { ($0, assignment.objectID) }
             let plan = PresentationRecorder.keepOnPlan(
                 away, takenOffOf: assignment, lesson: lesson, keeping: present, context: context
             )
@@ -128,7 +133,8 @@ enum TodayAbsentMover {
             createdPlanIDs: created.map(\.objectID),
             rosters: rosters,
             schedules: schedules,
-            entries: entries
+            entries: entries,
+            notes: notes
         )
         // Today shows `MoveError.saveFailed` in a toast, so the global alert stays quiet.
         guard saveCoordinator.save(
@@ -171,6 +177,11 @@ enum TodayAbsentMover {
 
     /// Writes the receipt's "before" back, without saving.
     private static func restore(_ receipt: Receipt, in context: NSManagedObjectContext) {
+        // Before the plans go: their notes cascade with them.
+        for (note, lessonID) in receipt.notes where !note.isDeleted {
+            guard let lesson = object(lessonID, CDLessonAssignment.self, in: context) else { continue }
+            note.lessonAssignment = lesson
+        }
         for id in receipt.createdPlanIDs {
             if let plan = try? context.existingObject(with: id), !plan.isDeleted {
                 context.delete(plan)

@@ -184,10 +184,6 @@ struct CommandBarDictationFinishFix1011ReviewB2Tests {
 struct CommandBarUnmatchedNameFix1011ReviewB2Tests {
     private let maya = StudentData(id: UUID(), firstName: "Maya", lastName: "Levy", nickname: nil)
     private let eli = StudentData(id: UUID(), firstName: "Eli", lastName: "Stern", nickname: nil)
-    private let sarahAdler = StudentData(id: UUID(), firstName: "Sarah", lastName: "Adler", nickname: nil)
-    private let sarahBloom = StudentData(id: UUID(), firstName: "Sarah", lastName: "Bloom", nickname: nil)
-
-    private var roster: [StudentData] { [maya, eli, sarahAdler, sarahBloom] }
 
     private func proposal(unresolved: [String]) -> CaptureProposal {
         var capture = CaptureProposal(
@@ -206,10 +202,10 @@ struct CommandBarUnmatchedNameFix1011ReviewB2Tests {
         return capture
     }
 
-    @Test("A misheard name that matches nobody is settled by picking the child, who gets its words")
-    func pickSettlesTheOnlyUnmatchedName() throws {
+    @Test("A misheard name that matches nobody is settled by choosing its child, who gets its words")
+    func chooseSettlesTheUnmatchedName() throws {
         var capture = proposal(unresolved: ["Eddie"])
-        capture.setStudent(eli, named: "Eli S", isSelected: true, roster: roster)
+        capture.placeUnplacedName("Eddie", on: eli, named: "Eli S")
 
         #expect(capture.unresolvedStudentNames.isEmpty)
         #expect(capture.unplacedWords.isEmpty)
@@ -217,18 +213,47 @@ struct CommandBarUnmatchedNameFix1011ReviewB2Tests {
         #expect(entry.observation == "Built the chain.")
     }
 
+    // Bug hunt 2026-10-29, #18: adding a child with Edit, with one misheard
+    // name left, gave her its words and follow-up.
+    @Test("Adding a child with Edit leaves a misheard name and what was said about it alone")
+    func addingAChildDoesNotTakeAnUnmatchedName() throws {
+        var capture = proposal(unresolved: ["Eddie"])
+        capture.unplacedWords["Eddie"]?.followUp = .practice
+        capture.setStudent(eli, named: "Eli S", isSelected: true)
+
+        #expect(capture.unresolvedStudentNames == ["Eddie"])
+        #expect(capture.unplacedWords["Eddie"]?.observation == "Built the chain.")
+        let entry = try #require(capture.studentEntries.first { $0.studentID == eli.id })
+        #expect(entry.observation.isEmpty)
+        #expect(entry.followUp == .none)
+    }
+
+    @Test("Choosing a child already listed for a misheard name adds its words to hers")
+    func chooseAListedChild() throws {
+        var capture = proposal(unresolved: ["Eddie"])
+        capture.studentEntries[0].observation = "Counted the links."
+        capture.placeUnplacedName("Eddie", on: maya, named: "Maya L")
+
+        #expect(capture.unresolvedStudentNames.isEmpty)
+        #expect(capture.studentEntries.count == 1)
+        #expect(capture.studentEntries[0].observation == "Counted the links. Built the chain.")
+    }
+
     @Test("A shared first name isn't settled by picking a child it can't be")
     func sharedNameNeedsItsOwnChild() {
         var capture = proposal(unresolved: ["Sarah"])
-        capture.setStudent(eli, named: "Eli S", isSelected: true, roster: roster)
+        capture.setStudent(eli, named: "Eli S", isSelected: true)
         #expect(capture.unresolvedStudentNames == ["Sarah"])
         #expect(capture.unplacedWords["Sarah"] != nil)
     }
 
-    @Test("With two names that match nobody, one pick can't say which it was")
-    func twoUnmatchedNamesStayUnsettled() {
+    @Test("With two names that match nobody, choosing one settles only that one")
+    func twoUnmatchedNamesSettleOneAtATime() {
         var capture = proposal(unresolved: ["Eddie", "Zev"])
-        capture.setStudent(eli, named: "Eli S", isSelected: true, roster: roster)
+        capture.setStudent(eli, named: "Eli S", isSelected: true)
         #expect(capture.unresolvedStudentNames == ["Eddie", "Zev"])
+        capture.placeUnplacedName("Zev", on: eli, named: "Eli S")
+        #expect(capture.unresolvedStudentNames == ["Eddie"])
+        #expect(capture.unplacedWords["Eddie"] != nil)
     }
 }

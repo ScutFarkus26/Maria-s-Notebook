@@ -20,6 +20,11 @@ extension ClassroomSharingService {
             ToastService.shared.showError(shareError ?? "")
             return
         }
+        // A lead guide's notebook can't join another class: Leave couldn't
+        // take it off again (`leadsItsOwnClass`).
+        if leadsItsOwnClass(invitedAs: metadata.participantRole) {
+            throw ClassroomJoinRefusal.leadsOwnClass
+        }
         // Another guide's class while this device is still in one: joining
         // would mix the two in one store (`ClassroomJoinRefusal`).
         if await isInAnotherGuidesClass(than: metadata, sharedStore: store) {
@@ -86,7 +91,7 @@ extension ClassroomSharingService {
     /// (`keepsFailedInvitation`).
     func joinFailed(_ error: Error, invitation: CKShare.Metadata?, attempt: Int) {
         if let refusal = error as? ClassroomJoinRefusal {
-            Self.joinLogger.notice("Refused an invitation to another guide's class while in one")
+            Self.joinLogger.notice("Refused an invitation to another guide's class: \(String(describing: refusal))")
             if attempt == joinAttempt { ToastService.shared.showError(refusal.message) }
             return
         }

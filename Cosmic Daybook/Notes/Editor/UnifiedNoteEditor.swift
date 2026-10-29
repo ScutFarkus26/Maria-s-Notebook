@@ -109,6 +109,8 @@ struct UnifiedNoteEditor: View {
     /// The note's text when the editor opened ("" for a new note): what
     /// counts as unsaved, and text the name finder leaves alone.
     @State var openedBodyText: String?
+    /// Everything Save writes, as the editor opened it (`hasUnsavedChanges`).
+    @State var openedEdit: NoteEditorSave.Edit?
     /// Shown when Save fails; the editor stays open with her changes.
     @State var saveErrorMessage: String?
     @State var isConfirmingDiscard = false
@@ -166,6 +168,7 @@ struct UnifiedNoteEditor: View {
         .onAppear {
             setupInitialState()
             openedBodyText = bodyText
+            openedEdit = currentEdit
         }
         .task {
             guard let note = initialNote, shouldShowStudentSelection else { return }

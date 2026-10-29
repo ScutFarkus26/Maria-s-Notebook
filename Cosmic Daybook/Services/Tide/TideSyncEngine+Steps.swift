@@ -212,11 +212,22 @@ extension TideSyncEngine {
 
     /// Every open action of the picked lists that no notebook to-do holds
     /// becomes one. One that came from the notebook never comes back as a
-    /// second copy, even when its to-do is gone.
+    /// second copy, even when its to-do is gone: by its notebook line, or,
+    /// for one whose note couldn't take the line, by its address, once for
+    /// each to-do deleted here (`TideSyncState.unmarkedLinks`).
     func showTideActions(in run: inout Run) {
+        let present = Set(run.todos.map(\.id.uuidString))
+        var deletedHere: [String: Int] = [:]
+        for (id, link) in state.unmarkedLinks where !present.contains(id) {
+            deletedHere[link, default: 0] += 1
+        }
         for action in run.actions where action.isOpen && action.notebookID == nil {
             guard let file = action.file, run.shown.contains(file), !run.claimed.contains(action.key),
                   let link = action.actionLink?.string else { continue }
+            if let count = deletedHere[link], count > 0 {
+                deletedHere[link] = count - 1
+                continue
+            }
             let notes = TideNotebookMarker.removing(from: action.note)
             let due = TideDay.date(action.due, calendar: calendar)
             let id = store.add(title: action.action, notes: notes, due: due, link: link)
@@ -234,16 +245,26 @@ extension TideSyncEngine {
     /// Writes the `notebook:` line into the note of each linked action that
     /// lacks one (made in Tide, or matched at the first run), after Danny's
     /// own words, so a reword or a move in Tide keeps the link.
+    ///
+    /// Until the line is written, the action is known by its address alone,
+    /// which is kept (`TideSyncState.unmarkedLinks`) so the action doesn't
+    /// come back as a new to-do if this one is deleted.
     func markLinkedActions(in run: inout Run) async throws {
         for todo in run.todos where !todo.isCompleted && todo.tideLink != nil {
-            guard let action = run.actionFor[todo.id], action.notebookID == nil, let file = action.file,
-                  !unmarkable.contains(action.key) else { continue }
+            guard let action = run.actionFor[todo.id], let file = action.file else { continue }
+            guard action.notebookID == nil else {
+                state.unmarkedLinks[todo.id.uuidString] = nil
+                continue
+            }
+            state.unmarkedLinks[todo.id.uuidString] = action.actionLink?.string
+            guard !unmarkable.contains(action.key) else { continue }
             let existing = (action.note ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             let marker = TideNotebookMarker.line(for: todo.id)
             do {
                 _ = try await tools.updateNote(
                     file: file, action: action.action, note: existing.isEmpty ? marker : existing + "\n\n" + marker
                 )
+                state.unmarkedLinks[todo.id.uuidString] = nil
                 run.report.marked += 1
             } catch let error as TideToolError where error.isTemporary {
                 continue

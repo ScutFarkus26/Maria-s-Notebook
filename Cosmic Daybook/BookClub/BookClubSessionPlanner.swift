@@ -92,12 +92,20 @@ enum BookClubSessionPlanner {
         /// The members leaders rotate through, in roster order.
         var roster: [UUID]
         var rotateLeader: Bool
+        /// The rotation the unheld meetings' leaders were picked by, when
+        /// leaders she picked by hand should outlast the rebuild (an edit to
+        /// the session's day or start); nil re-leads every rebuilt meeting.
+        var keepingLeadersPickedAgainst: LeaderRotation?
     }
 
     /// Replaces the session's unheld meetings with new ones for the readings no
     /// held meeting covered, dated by the schedule's cadence from its start. Held
     /// meetings are left exactly as they are. Leaders rotate through the roster by
-    /// reading, as a freshly generated schedule's do. Updates `endDate`. Doesn't save.
+    /// reading, as a freshly generated schedule's do, except that a reading
+    /// whose unheld meeting had a leader picked by hand keeps her, while she is
+    /// still on the roster (`Schedule.keepingLeadersPickedAgainst`; bug hunt
+    /// 2026-10-29, #22: a new day or start date used to wipe them). Updates
+    /// `endDate`. Doesn't save.
     @discardableResult
     static func regenerateUnheldMeetings(
         of session: CDBookClubSession,
@@ -107,6 +115,9 @@ enum BookClubSessionPlanner {
     ) -> [CDBookClubMeeting] {
         let meetings = session.orderedMeetings
         let unmet = unmetReadings(schedule.readings, meetings: meetings)
+        let handPicked = schedule.keepingLeadersPickedAgainst.map {
+            handPickedLeaders(of: meetings, against: $0, roster: schedule.roster)
+        } ?? [:]
         for meeting in meetings where !meeting.isCompleted {
             context.delete(meeting)
         }
@@ -127,13 +138,29 @@ enum BookClubSessionPlanner {
             meeting.ordinal = Int32(reading.ordinal)
             meeting.date = generated.date
             meeting.readingLabel = reading.label
-            meeting.leaderStudentID = leader(
+            meeting.leaderStudentID = (handPicked[reading.ordinal] ?? leader(
                 forReading: reading.ordinal, roster: schedule.roster, rotate: schedule.rotateLeader
-            )?.uuidString ?? ""
+            ))?.uuidString ?? ""
             created.append(meeting)
         }
         updateEndDate(of: session)
         return created
+    }
+
+    /// The leaders she picked by hand for unheld meetings, by reading: any
+    /// leader when `rotation` didn't rotate, otherwise one other than the
+    /// rotation gave that reading. Only those still on `roster` count.
+    private static func handPickedLeaders(
+        of meetings: [CDBookClubMeeting], against rotation: LeaderRotation, roster: [UUID]
+    ) -> [Int: UUID] {
+        var picked: [Int: UUID] = [:]
+        for meeting in meetings where !meeting.isCompleted {
+            let ordinal = Int(meeting.ordinal)
+            guard let current = meeting.leaderStudentUUID, roster.contains(current),
+                  current != rotation.leader(forReading: ordinal), picked[ordinal] == nil else { continue }
+            picked[ordinal] = current
+        }
+        return picked
     }
 
     /// Writes edited reading labels onto every meeting given that reading, held

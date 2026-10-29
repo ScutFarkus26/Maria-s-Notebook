@@ -24,7 +24,8 @@ extension BookClubSessionPlanner {
     /// Updates `session` in place. Meetings already held keep their mark, date
     /// and leader; an edited reading label reaches every meeting given that
     /// reading; the meetings not yet held are rebuilt only when the schedule
-    /// changed, and only re-led when just the roster or rotation changed.
+    /// changed, keeping the leaders she picked by hand, and only re-led when
+    /// just the roster or rotation changed.
     /// Doesn't save.
     static func applyEdits(
         _ edits: SessionEdits,
@@ -59,7 +60,8 @@ extension BookClubSessionPlanner {
                 ),
                 cadence: edits.cadence,
                 roster: edits.roster,
-                rotateLeader: edits.rotateLeader
+                rotateLeader: edits.rotateLeader,
+                keepingLeadersPickedAgainst: previousRotation
             )
             regenerateUnheldMeetings(of: session, schedule: schedule, calendar: calendar, context: context)
         } else {

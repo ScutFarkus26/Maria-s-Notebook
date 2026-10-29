@@ -136,22 +136,29 @@ extension ClassAreaChecklistViewModel {
         )
     }
 
+    /// Add to Inbox: her on the lesson's Inbox draft, or a new one. The plan answers her
+    /// year-plan entry for the lesson, so the entry is promoted into it rather than left
+    /// as a second plan beside it.
     func addStudentToUnscheduledLesson(
         student: CDStudent, studentIDString: String, lesson: CDLesson,
         in allLAs: [CDLessonAssignment], context: NSManagedObjectContext
     ) {
+        guard let studentID = student.id else { return }
+        let plan: CDLessonAssignment
         if let sequence = allLAs.first(where: { !$0.isPresented && $0.scheduledFor == nil }) {
             if !sequence.studentIDs.contains(studentIDString) {
                 sequence.studentIDs.append(studentIDString)
             }
+            plan = sequence
         } else {
-            guard let lessonID = lesson.id, let studentID = student.id else { return }
-            _ = PresentationFactory.makeDraft(
+            guard let lessonID = lesson.id else { return }
+            plan = PresentationFactory.makeDraft(
                 lessonID: lessonID,
                 studentIDs: [studentID],
                 context: context
             )
         }
+        YearPlanPromotionService.promoteMatchingEntry(for: studentID, into: plan, context: context)
     }
 
     func markComplete(student: CDStudent, lesson: CDLesson, context: NSManagedObjectContext) {

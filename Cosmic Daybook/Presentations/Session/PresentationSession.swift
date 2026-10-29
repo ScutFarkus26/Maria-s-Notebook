@@ -51,6 +51,9 @@ final class PresentationSession {
     /// Set once Done or Later has handled the session, so closing the sheet
     /// afterwards does nothing more.
     private(set) var isFinished = false
+    /// Set when How It Went first opens, so going back to Edit Details and
+    /// on again keeps the decisions made, rather than reading them afresh.
+    private(set) var hasOpenedHowItWent = false
 
     init(presentationID: UUID) {
         self.presentationID = presentationID
@@ -83,6 +86,15 @@ final class PresentationSession {
 
     func showHowItWent() {
         phase = .howItWent
+        hasOpenedHowItWent = true
+    }
+
+    /// Undo took the recording back, so a new one reads its decisions afresh
+    /// and closing the sheet keeps no draft for it.
+    func forgetHowItWent() {
+        hasOpenedHowItWent = false
+        everyone = .continueObserving
+        overrides = [:]
     }
 
     func showWho() {

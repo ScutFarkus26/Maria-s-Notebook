@@ -99,6 +99,32 @@ struct TodayAbsentMoverTests {
         #expect(fixture.theoEntry.promotedAssignmentID == assignmentID)
     }
 
+    @Test("A note about only the absent child moves with her to tomorrow, and Undo brings it back")
+    func absentChildsNoteMovesWithHer() throws {
+        let fixture = try makeFixture()
+        let theoID = try #require(fixture.theo.id)
+        let hers = CoreDataTestHelpers.seedNote(in: fixture.context, body: "Theo wants to try it")
+        hers.lessonAssignment = fixture.assignment
+        hers.scope = .student(theoID)
+        let groupNote = CoreDataTestHelpers.seedNote(in: fixture.context, body: "Bring the stamp game")
+        groupNote.lessonAssignment = fixture.assignment
+        try fixture.context.save()
+
+        let receipt = try #require(try TodayAbsentMover.moveAbsent(
+            from: [fixture.assignment], absent: [theoID], to: fixture.tomorrow,
+            context: fixture.context, saveCoordinator: fixture.coordinator
+        ))
+        let plan = try #require(
+            try plans(for: fixture.lesson, in: fixture.context).first { $0 !== fixture.assignment }
+        )
+        #expect(hers.lessonAssignment == plan)
+        #expect(groupNote.lessonAssignment == fixture.assignment)
+
+        try TodayAbsentMover.undo(receipt, context: fixture.context, saveCoordinator: fixture.coordinator)
+        #expect(!hers.isDeleted)
+        #expect(hers.lessonAssignment == fixture.assignment)
+    }
+
     @Test("A lesson whose children are all absent moves whole, and Undo moves it back")
     func everyoneAbsentMovesTheLesson() throws {
         let fixture = try makeFixture()

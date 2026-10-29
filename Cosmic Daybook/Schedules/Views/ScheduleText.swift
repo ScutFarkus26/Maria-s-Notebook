@@ -102,6 +102,14 @@ enum ScheduleText {
         return nil
     }
 
+    /// "Bring Back Recess at 11:00": the menu item that takes back a block's
+    /// cancel for the day.
+    static func bringBack(_ values: TimetableBlockValues) -> String {
+        let time = TimetableDay.clockText(values.startMinute)
+        let title = values.title.trimmed()
+        return title.isEmpty ? "Bring Back the \(time) Block" : "Bring Back \(title) at \(time)"
+    }
+
     /// "Morah Devora is out today".
     static func outLine(_ name: String, isToday: Bool) -> String {
         "\(name.trimmed()) is out \(isToday ? "today" : "this day")"

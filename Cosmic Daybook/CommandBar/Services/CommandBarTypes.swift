@@ -202,25 +202,19 @@ extension CaptureProposal {
     /// for Etty D, not "Sarah"), and brings what was said about that name
     /// into her entry. Taking a child off again leaves the names alone.
     ///
-    /// A name that matches nobody in `roster` (a misheard "Eddie") can't be
-    /// settled that way. When it is the only name left, the child she picks
-    /// is taken to be who was meant, so what was said about it isn't lost
-    /// to Leave Out (review (b) 2026-10-11). Without a roster no name is
-    /// taken to match nobody.
-    mutating func setStudent(
-        _ student: StudentData, named displayName: String, isSelected: Bool, roster: [StudentData]? = nil
-    ) {
+    /// A name that matches nobody (a misheard "Eddie") is settled only by
+    /// choosing its child on its own row (`placeUnplacedName`). Adding a
+    /// child here used to settle it too when it was the only name left, so a
+    /// child added for another reason took its words and follow-up (bug
+    /// hunt 2026-10-29, #18).
+    mutating func setStudent(_ student: StudentData, named displayName: String, isSelected: Bool) {
         guard isSelected else {
             studentEntries.removeAll { $0.studentID == student.id }
             return
         }
         guard !studentEntries.contains(where: { $0.studentID == student.id }) else { return }
         var entry = StudentCaptureProposal(studentID: student.id, studentName: displayName)
-        var settled = unresolvedStudentNames.filter { Self.name($0, couldMean: student) }
-        if settled.isEmpty, let roster, unresolvedStudentNames.count == 1, let only = unresolvedStudentNames.first,
-           !roster.contains(where: { Self.name(only, couldMean: $0) }) {
-            settled = [only]
-        }
+        let settled = unresolvedStudentNames.filter { Self.name($0, couldMean: student) }
         for name in settled {
             guard let words = unplacedWords.removeValue(forKey: name) else { continue }
             entry.take(words)
@@ -230,6 +224,19 @@ extension CaptureProposal {
         studentEntries.sort { lhs, rhs in
             lhs.studentName.localizedStandardCompare(rhs.studentName) == .orderedAscending
         }
+    }
+
+    /// The guide says who an unplaced name was: `student` is added to the
+    /// children if she isn't one yet, and what was said about the name goes
+    /// to her, so a misheard name's words aren't lost to Leave Out (review
+    /// (b) 2026-10-11).
+    mutating func placeUnplacedName(_ name: String, on student: StudentData, named displayName: String) {
+        guard unresolvedStudentNames.contains(name) else { return }
+        setStudent(student, named: displayName, isSelected: true)
+        unresolvedStudentNames.removeAll { $0 == name }
+        guard let words = unplacedWords.removeValue(forKey: name),
+              let index = studentEntries.firstIndex(where: { $0.studentID == student.id }) else { return }
+        studentEntries[index].take(words)
     }
 
     /// The guide says a name is nobody in her class: it, and what was said

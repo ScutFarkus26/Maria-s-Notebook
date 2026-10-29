@@ -69,6 +69,19 @@ extension ClassroomSharingService {
         return Self.holdsClassroom(store, in: context)
     }
 
+    /// Whether this notebook leads a class of its own, so it can't join one
+    /// invited as `participantRole`: its row is a lead guide's, and the
+    /// invitation isn't to its own share. Joined anyway, the class came in
+    /// beside the guide's own and the row it pinned was an assistant's, which
+    /// the notebook never reads over a lead guide's
+    /// (`CDClassroomMembership.current`), so Leave did nothing (bug hunt
+    /// 2026-10-29). The Daybook Assistant reads assistant rows only and
+    /// never refuses here.
+    func leadsItsOwnClass(invitedAs participantRole: CKShare.ParticipantRole) -> Bool {
+        guard participantRole != .owner else { return false }
+        return CDClassroomMembership.current(in: context)?.role == .leadGuide
+    }
+
     /// Whether the invitation's owner is another guide than the pinned one.
     /// An owner that can't be told (none written, CloudKit's stand-in, or
     /// none on the invitation) is no reason to refuse.
@@ -124,13 +137,21 @@ enum ClassroomLeaveError: LocalizedError {
 }
 
 /// Why an invitation wasn't accepted, though it worked: the device is in
-/// another guide's class (`ClassroomSharingService.isInAnotherGuidesClass`).
-/// Nothing moved; leaving that class first lets the invitation through.
+/// another guide's class (`ClassroomSharingService.isInAnotherGuidesClass`),
+/// or the notebook leads its own (`leadsItsOwnClass`). Nothing moved; leaving
+/// that class first lets the invitation through.
 enum ClassroomJoinRefusal: Error {
     case alreadyInAClass
+    case leadsOwnClass
 
     var message: String {
-        "You're already in a class. Leave it in Classroom first, then open the new invitation."
+        switch self {
+        case .alreadyInAClass:
+            "You're already in a class. Leave it in Classroom first, then open the new invitation."
+        case .leadsOwnClass:
+            "This notebook runs your own class, so it can't join another guide's class too. "
+                + "Open the invitation in the Daybook Assistant instead."
+        }
     }
 }
 

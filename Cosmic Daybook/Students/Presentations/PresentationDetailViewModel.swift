@@ -72,6 +72,11 @@ final class PresentationDetailViewModel {
     var showingMoveStudentsSheet: Bool = false
     var showingFindStudentsSheet: Bool = false
 
+    /// Earlier, Date Unknown waiting on its save: the children not ticked as
+    /// there, kept on a plan of their own, and what the sheet showed before.
+    private(set) var undatedKeptOnPlan: Set<UUID> = []
+    @ObservationIgnored private var beforeUndated: (isPresented: Bool, givenAt: Date?, needsAnother: Bool)?
+
     // MARK: - Move Students UI State
     var studentsToMove: Set<UUID> = []
     /// The split the banner offers to undo; nil once it hides.
@@ -162,6 +167,27 @@ final class PresentationDetailViewModel {
             || UUID(uuidString: lessonAssignment.lessonID) != editingLessonID
     }
 
+    /// Earlier, Date Unknown: marks the sheet given without a date, for the
+    /// Save that follows, with `keepingOnPlan` left on a plan of their own.
+    func beginUndatedRecording(keepingOnPlan: Set<UUID>) {
+        beforeUndated = (isPresented, givenAt, needsAnotherPresentation)
+        undatedKeptOnPlan = keepingOnPlan
+        isPresented = true
+        givenAt = nil
+        needsAnotherPresentation = false
+    }
+
+    /// An Earlier, Date Unknown that didn't save (its alert was cancelled, or
+    /// the save failed) leaves the sheet as it was, not given.
+    func takeBackUnsavedRecording() {
+        undatedKeptOnPlan = []
+        guard let before = beforeUndated else { return }
+        beforeUndated = nil
+        isPresented = before.isPresented
+        givenAt = before.givenAt
+        needsAnotherPresentation = before.needsAnother
+    }
+
     /// Holds `plans` and raises the alert that asks about them.
     func offerWorkRetraction(_ plans: [WorkRemovalPlan]) {
         pendingWorkRetraction = plans
@@ -203,7 +229,16 @@ final class PresentationDetailViewModel {
         }
 
         // 1. Apply local edits to the model
+        let keptOnPlan = undatedKeptOnPlan
+        selectedStudentIDs.subtract(keptOnPlan)
         applyEditsToModel(studentsAll: studentsAll, lessons: lessons, calendar: calendar)
+        if !keptOnPlan.isEmpty, let lesson = lessonObject(from: lessons) {
+            PresentationRecorder.keepOnPlan(
+                keptOnPlan, takenOffOf: lessonAssignment, lesson: lesson,
+                keeping: studentsAll.compactMap(\.id).filter(selectedStudentIDs.contains),
+                context: viewContext
+            )
+        }
 
         // 2. Engagement Lifecycle (Record Presentation)
         handleEngagementLifecycle()
@@ -212,9 +247,13 @@ final class PresentationDetailViewModel {
         //    stays open with the guide's edits on screen.
         guard saveCoordinator.save(viewContext, reason: "Saving lesson assignment") else {
             transaction.rollback()
+            selectedStudentIDs.formUnion(keptOnPlan)
+            takeBackUnsavedRecording()
             return
         }
         transaction.commit()
+        undatedKeptOnPlan = []
+        beforeUndated = nil
 
         // Reset autosave state
         notesAutosaveTask?.cancel()
@@ -247,7 +286,8 @@ final class PresentationDetailViewModel {
                     _ = try LifecycleService.recordPresentation(
                         from: lessonAssignment,
                         presentedAt: AppCalendar.startOfDay(givenAt),
-                        modelContext: viewContext
+                        modelContext: viewContext,
+                        followExistingRows: false
                     )
                 } catch {
                     Self.logger.debug("LifecycleService error: \(error)")

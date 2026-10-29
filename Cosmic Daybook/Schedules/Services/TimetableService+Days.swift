@@ -34,6 +34,24 @@ extension TimetableService {
         return changes(on: day, matching: NSPredicate(format: "blockID ==[c] %@", id), in: context, calendar: calendar)
     }
 
+    /// What `block` shows on `day` by that day's own change: the newest
+    /// change's values when it is a "changed" one (the newest wins, as
+    /// `ScheduleDayResolver` reads it). Nil with no change, or a cancel.
+    static func changedValues(
+        of block: CDTimetableBlock,
+        on day: Date,
+        in context: NSManagedObjectContext,
+        calendar: Calendar = AppCalendar.shared
+    ) -> TimetableBlockValues? {
+        let newest = changes(of: block, on: day, in: context, calendar: calendar).max { lhs, rhs in
+            let left = lhs.modifiedAt ?? .distantPast
+            let right = rhs.modifiedAt ?? .distantPast
+            if left != right { return left < right }
+            return (lhs.id?.uuidString ?? "") < (rhs.id?.uuidString ?? "")
+        }
+        return newest?.kind == .changed ? newest?.values : nil
+    }
+
     /// Whether `lane`'s person is out on `day`.
     static func isOut(
         _ lane: CDTimetableLane,
@@ -133,7 +151,7 @@ extension TimetableService {
     /// updated (two devices may each have made one), never folded, so no
     /// device's delete can take another's out of the share; readers take the
     /// newest, and all of them now say the same.
-    private static func upsertChange( // swiftlint:disable:this function_parameter_count
+    static func upsertChange( // swiftlint:disable:this function_parameter_count
         _ kind: TimetableChangeKind,
         values: TimetableBlockValues,
         for block: CDTimetableBlock,

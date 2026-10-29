@@ -39,9 +39,31 @@ struct BackupEntityRegistry {
     /// leaves them as they are and the next sync brings them up to date.
     static let keptOnRestoreEntityNames: Set<String> = ["ClassroomMembership", "Reminder", "CalendarEvent"]
 
+    /// Types a Replace restore updates as a Merge does, rather than clearing.
+    ///
+    /// `ClassroomPerson` rows are the names people in the classroom set for
+    /// themselves, an assistant's written from her own phone. Cleared, a
+    /// Replace put back each name as the backup had it, over a rename made
+    /// since, and that old name then went to every device as the newest (bug
+    /// hunt 2026-10-29). Left in place, the restore's newer-wins check
+    /// (`BackupRestoreRun.rowsOlderThanStored`) keeps a rename, and a name
+    /// set since the backup stays.
+    static let mergedOnReplaceEntityNames: Set<String> = ["ClassroomPerson"]
+
     /// Entity type names for progress reporting and error messages
     static func entityName(for type: NSManagedObject.Type) -> String {
         String(describing: type)
+    }
+}
+
+nonisolated extension BackupEntity {
+    /// Whether a backup of `formatVersion` can hold this type's records
+    /// (`firstFormat`). One that can't has none of them, which says nothing
+    /// about the notebook's: a Replace restore from it leaves them as they
+    /// are, where clearing them emptied the type with nothing to put back (a
+    /// v41 backup emptied Schedules; bug hunt 2026-10-29).
+    func isCarried(by formatVersion: Int) -> Bool {
+        formatVersion >= firstFormat
     }
 }
 

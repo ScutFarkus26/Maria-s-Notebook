@@ -50,7 +50,8 @@ nonisolated struct TideSyncSettings: Equatable, Sendable {
 
 /// What the sync remembers between runs, in UserDefaults on this Mac, per
 /// CloudKit environment's notebook. Bounded by the open to-dos: an entry
-/// goes when its to-do is closed on both sides or gone.
+/// goes when its to-do is closed on both sides or gone; `unmarkedLinks`, by
+/// Tide's open actions instead.
 nonisolated struct TideSyncState: Equatable, Sendable {
     /// The linked to-dos (uuid strings) both apps last agreed were open. A
     /// tick is carried only from here, so an untick on either side is never
@@ -64,6 +65,12 @@ nonisolated struct TideSyncState: Equatable, Sendable {
     var firstRunConfirmedAt: Date?
     /// The to-dos the first run linked (uuid strings).
     var firstRunLinked: [String] = []
+    /// Linked to-dos (uuid string) whose action's note doesn't carry the
+    /// notebook line yet, with the action's address. Kept after the to-do
+    /// goes: deleted here, it would otherwise come back on the next run, as
+    /// its action looks like one made in Tide (bug hunt 2026-10-29). An
+    /// entry goes when its action is marked, or gone from Tide's lists.
+    var unmarkedLinks: [String: String] = [:]
     var lastSyncAt: Date?
 
     init() {}
@@ -73,6 +80,7 @@ nonisolated struct TideSyncState: Equatable, Sendable {
         fromTide = Set(defaults.stringArray(forKey: UserDefaultsKeys.tideFromTide) ?? [])
         firstRunConfirmedAt = defaults.object(forKey: UserDefaultsKeys.tideFirstRunConfirmedAt) as? Date
         firstRunLinked = defaults.stringArray(forKey: UserDefaultsKeys.tideFirstRunLinked) ?? []
+        unmarkedLinks = defaults.dictionary(forKey: UserDefaultsKeys.tideUnmarkedLinks) as? [String: String] ?? [:]
         lastSyncAt = defaults.object(forKey: UserDefaultsKeys.tideLastSyncAt) as? Date
     }
 
@@ -81,6 +89,7 @@ nonisolated struct TideSyncState: Equatable, Sendable {
         defaults.set(fromTide.sorted(), forKey: UserDefaultsKeys.tideFromTide)
         defaults.set(firstRunConfirmedAt, forKey: UserDefaultsKeys.tideFirstRunConfirmedAt)
         defaults.set(firstRunLinked, forKey: UserDefaultsKeys.tideFirstRunLinked)
+        defaults.set(unmarkedLinks, forKey: UserDefaultsKeys.tideUnmarkedLinks)
         defaults.set(lastSyncAt, forKey: UserDefaultsKeys.tideLastSyncAt)
     }
 
@@ -94,10 +103,17 @@ nonisolated struct TideSyncState: Equatable, Sendable {
     /// The to-dos with a tick that may still have to go across.
     var openIDs: Set<UUID> { Set(agreedOpen.keys.compactMap(UUID.init(uuidString:))) }
 
-    /// Forgets every to-do not among `ids`.
+    /// Forgets every to-do not among `ids`. `unmarkedLinks` outlives its
+    /// to-do (`keepUnmarkedLinks`).
     mutating func keep(only ids: Set<UUID>) {
         let kept = Set(ids.map(\.uuidString))
         agreedOpen = agreedOpen.filter { kept.contains($0.key) && $0.value }
         fromTide = fromTide.intersection(kept)
+    }
+
+    /// Forgets each unmarked link whose address isn't among `addresses`
+    /// (every action of this read): its action is gone from Tide's lists.
+    mutating func keepUnmarkedLinks(at addresses: Set<String>) {
+        unmarkedLinks = unmarkedLinks.filter { addresses.contains($0.value) }
     }
 }

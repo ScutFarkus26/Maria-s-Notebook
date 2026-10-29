@@ -81,6 +81,8 @@ final class AutoBackupManager {
     /// Where this device keeps the name of its own folder in `Auto/`
     /// (`AutoBackupFolders.deviceFolderName`).
     private let deviceDefaults: UserDefaults
+    /// Where it marks that name as its own (the Keychain; for tests, a stand-in).
+    private let deviceMark: AutoBackupFolders.DeviceMark
     /// The `Auto/` folder to write into instead of the backup folder's: for
     /// tests, which must never write into the real one. Nil in the app.
     private let autoFolderOverride: URL?
@@ -98,10 +100,12 @@ final class AutoBackupManager {
     init(
         coordinator: BackupCoordinator,
         deviceDefaults: UserDefaults = .standard,
+        deviceMark: AutoBackupFolders.DeviceMark = .keychain,
         autoFolder: URL? = nil
     ) {
         self.coordinator = coordinator
         self.deviceDefaults = deviceDefaults
+        self.deviceMark = deviceMark
         self.autoFolderOverride = autoFolder
 
         // Load last scheduled backup date from UserDefaults
@@ -394,7 +398,8 @@ final class AutoBackupManager {
     private func deviceFolder(in autoFolder: URL) -> URL {
         let name = AutoBackupFolders.deviceFolderName(
             defaults: deviceDefaults,
-            kind: AutoBackupFolders.currentDeviceKind()
+            kind: AutoBackupFolders.currentDeviceKind(),
+            mark: deviceMark
         )
         return AutoBackupFolders.deviceFolder(in: autoFolder, named: name)
     }

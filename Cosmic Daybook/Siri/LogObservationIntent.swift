@@ -42,6 +42,9 @@ struct LogObservationIntent: AppIntent {
 
         let context = try await AppBootstrapping.sharedCoreDataStackForIntent().viewContext
 
+        // A child who has left only when no one in the class has her name.
+        try await preferChildInClass(in: context)
+
         // Confirm the student still exists (could have been removed/synced away).
         guard let cdStudent = context.object(CDStudent.self, id: student.id),
               let studentID = cdStudent.id else {
@@ -63,6 +66,53 @@ struct LogObservationIntent: AppIntent {
         Logger.notes.info("Logged observation via Siri for student \(studentID.uuidString, privacy: .public)")
         // The short name, so the two Ettys are told apart ("Etty D").
         return .result(dialog: "Saved your observation about \(cdStudent.shortName).")
+    }
+
+    /// Siri's name matching looks through children who have left before any
+    /// current child whose name only sounds alike, which keeps "Mark Leah
+    /// here" from marking Lea. A note is different: filed on Leah, who has
+    /// left, it is lost to the class, while Lea is who the guide almost
+    /// certainly meant (bug hunt 2026-10-29, #20). So when the child Siri
+    /// found has left and children in the class have her name, or one that
+    /// sounds just like it, one of them is taken instead, and Siri asks which
+    /// when there are several. The parameter is set to her, so the
+    /// confirmation that follows names her.
+    @MainActor
+    private func preferChildInClass(in context: NSManagedObjectContext) async throws {
+        let current = StudentEntityQuery.entities(SiriHost.roster(in: context))
+        let stayIns = Self.currentChildren(
+            for: student.matcherCandidate, among: current.map(\.matcherCandidate)
+        )
+        let candidates = current.filter { entity in stayIns.contains { $0.id == entity.id } }
+        switch candidates.count {
+        case 0:
+            return
+        case 1:
+            student = candidates[0]
+        default:
+            student = try await $student.requestDisambiguation(
+                among: candidates, dialog: "Which child did you mean?"
+            )
+        }
+    }
+
+    /// The children in the class (`current`) a note meant for `found` should
+    /// go to instead: none while she is in the class herself, otherwise those
+    /// whose first name or nickname is hers or sounds just like it (Lea for
+    /// Leah, Etty for Eddie: `StudentNameMatcher.soundFolded`, then
+    /// `soundKey`). A name only near hers is a guess and doesn't count.
+    nonisolated static func currentChildren(
+        for found: StudentNameMatcher.Candidate, among current: [StudentNameMatcher.Candidate]
+    ) -> [StudentNameMatcher.Candidate] {
+        guard !current.contains(where: { $0.id == found.id }) else { return [] }
+        func sounds(_ name: String) -> String {
+            StudentNameMatcher.soundKey(StudentNameMatcher.soundFolded(name))
+        }
+        func givenNames(_ candidate: StudentNameMatcher.Candidate) -> [String] {
+            [candidate.firstName, candidate.nickname ?? ""].map(sounds).filter { !$0.isEmpty }
+        }
+        let hers = Set(givenNames(found))
+        return current.filter { !hers.isDisjoint(with: givenNames($0)) }
     }
 }
 

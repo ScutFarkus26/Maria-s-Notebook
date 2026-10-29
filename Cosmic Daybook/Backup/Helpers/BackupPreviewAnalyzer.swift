@@ -27,12 +27,14 @@ enum BackupPreviewAnalyzer {
     ///   - digest: The backup's row counts and IDs
     ///   - viewContext: The model context for checking existing entities
     ///   - mode: The restore mode (replace or merge)
+    ///   - formatVersion: The backup's format: replace leaves the types it predates
     ///   - entityExists: Closure to check if an entity exists by type and ID
     /// - Returns: Analysis result with insert/skip/delete counts per entity type
     static func analyze(
         digest: BackupPreviewDigest,
         viewContext: NSManagedObjectContext,
         mode: BackupService.RestoreMode,
+        formatVersion: Int,
         entityExists: @escaping (NSManagedObject.Type, UUID) -> Bool
     ) -> AnalysisResult {
         // Use separate dictionaries to avoid Swift exclusivity violations
@@ -52,6 +54,7 @@ enum BackupPreviewAnalyzer {
             analyzeReplaceMode(
                 digest: digest,
                 viewContext: viewContext,
+                formatVersion: formatVersion,
                 assign: assign
             )
         } else {
@@ -72,24 +75,32 @@ enum BackupPreviewAnalyzer {
     private static func analyzeReplaceMode(
         digest: BackupPreviewDigest,
         viewContext: NSManagedObjectContext,
+        formatVersion: Int,
         assign: (_ key: String, _ ins: Int, _ sk: Int, _ del: Int) -> Void
     ) {
-        // Replace-mode restore deletes every type in BackupEntityRegistry.allTypes
-        // (BackupService+Helpers.deleteAll) and re-inserts the payload, so the
-        // preview enumerates that same registry. A hand-picked subset here once
-        // under-reported the destructive-restore consent numbers by ~35 types.
+        // Replace-mode restore deletes every type in BackupEntityTable, but for
+        // those BackupService+Helpers.deleteAll leaves, and re-inserts the
+        // payload, so the preview enumerates that same table with the same
+        // exceptions. A hand-picked subset here once under-reported the
+        // destructive-restore consent numbers by ~35 types.
         let model = viewContext.persistentStoreCoordinator?.managedObjectModel
         let insertCounts = insertCountsByDisplayName(digest)
 
-        for type in BackupEntityRegistry.allTypes {
+        for entity in BackupEntityTable.entities {
+            let type = entity.managedType()
             let registryName = BackupEntityRegistry.entityName(for: type)
             guard !BackupEntityRegistry.notYetBackedUpEntityNames.contains(registryName) else { continue }
             let key = displayName(forEntityTypeName: registryName)
             // Types the restore leaves as they are (this device's pin, the
-            // mirrored Apple reminders and events) are neither cleared nor
-            // restored, so the consent numbers don't count them.
-            guard !BackupEntityRegistry.keptOnRestoreEntityNames.contains(key) else { continue }
-            assign(key, insertCounts[key] ?? 0, 0, existingCount(of: type, model: model, in: viewContext))
+            // mirrored Apple reminders and events, and any the backup is too
+            // old to hold) are neither cleared nor restored, so the consent
+            // numbers don't count them.
+            guard !BackupEntityRegistry.keptOnRestoreEntityNames.contains(key),
+                  entity.isCarried(by: formatVersion) else { continue }
+            // The names people set are updated in place, never cleared.
+            let deletes = BackupEntityRegistry.mergedOnReplaceEntityNames.contains(key)
+                ? 0 : existingCount(of: type, model: model, in: viewContext)
+            assign(key, insertCounts[key] ?? 0, 0, deletes)
         }
 
         // Deprecated payload sections with no live entity behind them: nothing

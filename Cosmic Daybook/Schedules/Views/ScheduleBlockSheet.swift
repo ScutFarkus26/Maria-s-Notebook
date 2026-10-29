@@ -4,7 +4,9 @@
 // can name who teaches it (a person's lane, or anyone else by name); a
 // person's block can list the children she takes. Saving or deleting a block
 // that repeats asks Only This Day or This Day and After, the way Calendar
-// asks about a repeating event.
+// asks about a repeating event. Save writes only the fields that were
+// changed, so what the sheet doesn't show, and a change made for one day,
+// stay as they were.
 
 import SwiftUI
 
@@ -151,8 +153,12 @@ struct ScheduleBlockSheet: View {
     private var timeSection: some View {
         Section("Time") {
             DatePicker("Starts", selection: $start, displayedComponents: .hourAndMinute)
-            Stepper(value: $length, in: 5...480, step: 5) {
+            Stepper {
                 LabeledContent("Length", value: Self.lengthText(length))
+            } onIncrement: {
+                length = Self.stepped(length, by: 1)
+            } onDecrement: {
+                length = Self.stepped(length, by: -1)
             }
         }
     }
@@ -214,29 +220,34 @@ extension ScheduleBlockSheet {
         }
     }
 
-    private var values: TimetableBlockValues {
-        let isRoom = lane?.kind == .room
-        let teacherLane: UUID? = if isRoom, case .lane(let id) = teacher { id } else { nil }
-        let name = isRoom && teacher == .someoneElse ? teacherName.trimmed() : ""
-        let children = lane?.kind == .person
-            ? students.compactMap { $0.id }.filter(childIDs.contains).map(\.uuidString)
-            : []
-        return TimetableBlockValues(
-            startMinute: TimetableDay.minute(of: start, calendar: model.calendar),
-            lengthMinutes: length,
-            title: title.trimmed(),
-            note: note.trimmed(),
-            teacherLaneID: teacherLane,
-            teacherName: name,
-            studentIDs: children
+    /// A block's length on the sheet, in minutes.
+    static let lengthRange = 5...480
+
+    /// `length` one step of five minutes up (`by: 1`) or down (`by: -1`),
+    /// onto the five-minute marks: 47 goes to 50 or 45.
+    static func stepped(_ length: Int, by direction: Int) -> Int {
+        let next = direction > 0 ? (length / 5 + 1) * 5 : ((length - 1) / 5) * 5
+        return min(max(next, lengthRange.lowerBound), lengthRange.upperBound)
+    }
+
+    /// The values the sheet starts from: the block as `day` shows it, or a new block's.
+    private var original: TimetableBlockValues {
+        if case .edit(let block, _, _) = mode { block.values } else { TimetableBlockValues(startMinute: 9 * 60) }
+    }
+
+    /// What Save changes: only the fields Danny changed.
+    private var changes: TimetableService.BlockEdit {
+        let fields = Fields(
+            startMinute: TimetableDay.minute(of: start, calendar: model.calendar), length: length, title: title,
+            note: note, teacher: teacher, teacherName: teacherName, childIDs: childIDs
         )
+        return fields.edit(from: original, laneKind: lane?.kind, studentOrder: students.compactMap(\.id))
     }
 
     private func load() {
         guard !loaded else { return }
         loaded = true
         let fallbackLane = model.editableLanes.first?.id
-        var initial = TimetableBlockValues(startMinute: 9 * 60)
         switch mode {
         case .new(let lane, let weekday):
             laneID = lane ?? fallbackLane
@@ -245,29 +256,32 @@ extension ScheduleBlockSheet {
             laneID = lane ?? fallbackLane
         case .edit(let block, _, _):
             laneID = block.laneID
-            initial = block.values
         }
+        let initial = Fields(original)
         start = model.calendar.date(
             bySettingHour: initial.startMinute / 60, minute: initial.startMinute % 60, second: 0, of: day
         ) ?? day
-        length = max(5, (initial.lengthMinutes / 5) * 5)
+        length = initial.length
         title = initial.title
         note = initial.note
-        if let id = initial.teacherLaneID {
-            teacher = .lane(id)
-        } else if !initial.teacherName.trimmed().isEmpty {
-            teacher = .someoneElse
-            teacherName = initial.teacherName
-        }
-        childIDs = Set(initial.studentIDs.compactMap(UUID.init(uuidString:)))
+        teacher = initial.teacher
+        teacherName = initial.teacherName
+        childIDs = initial.childIDs
     }
 
     // MARK: - Saving
 
     private func askOrSave() {
-        if case .edit(let block, let day, true) = mode {
-            question = ScheduleScopeQuestion(action: .change, blockID: block.id, day: day)
-            return
+        if case .edit(let block, let day, let repeats) = mode {
+            // Nothing changed: nothing to write, and nothing to ask.
+            guard !changes.isEmpty else {
+                dismiss()
+                return
+            }
+            if repeats {
+                question = ScheduleScopeQuestion(action: .change, blockID: block.id, day: day)
+                return
+            }
         }
         finish(.change, .everyWeek)
     }
@@ -286,15 +300,94 @@ extension ScheduleBlockSheet {
         let saved: Bool
         switch (mode, action) {
         case (.new, _):
-            saved = model.addBlock(values, laneID: laneID, on: Weekday.schoolDays.filter(weekdays.contains))
+            saved = model.addBlock(
+                changes.applied(to: original), laneID: laneID, on: Weekday.schoolDays.filter(weekdays.contains)
+            )
         case (.oneOff(_, let day), _):
-            saved = model.addOneOff(values, laneID: laneID, on: day)
+            saved = model.addOneOff(changes.applied(to: original), laneID: laneID, on: day)
         case (.edit(let block, let day, _), .change):
-            saved = model.edit(blockID: block.id, to: values, scope: scope, on: day)
+            saved = model.edit(blockID: block.id, applying: changes, scope: scope, on: day)
         case (.edit(let block, let day, _), .delete):
             saved = model.delete(blockID: block.id, scope: scope, on: day)
         }
         // On failure the save alert says so and the sheet stays open.
         if saved { dismiss() }
+    }
+}
+
+// MARK: - Fields
+
+extension ScheduleBlockSheet {
+
+    /// The sheet's fields, as it loads them from a block's values and as
+    /// Danny leaves them. Save writes only what differs, so a field the sheet
+    /// doesn't show (a room's children, a person's teacher), or shows on its
+    /// own scale (an odd length, the children as a set), keeps its stored value.
+    struct Fields: Equatable {
+        var startMinute: Int
+        var length: Int
+        var title: String
+        var note: String
+        var teacher: Teacher
+        var teacherName: String
+        var childIDs: Set<UUID>
+    }
+}
+
+extension ScheduleBlockSheet.Fields {
+
+    /// The fields as the sheet shows `values`.
+    init(_ values: TimetableBlockValues) {
+        var teacher = ScheduleBlockSheet.Teacher.none
+        var teacherName = ""
+        if let id = values.teacherLaneID {
+            teacher = .lane(id)
+        } else if !values.teacherName.trimmed().isEmpty {
+            teacher = .someoneElse
+            teacherName = values.teacherName
+        }
+        let range = ScheduleBlockSheet.lengthRange
+        self.init(
+            startMinute: values.startMinute,
+            length: min(max(values.lengthMinutes, range.lowerBound), range.upperBound),
+            title: values.title,
+            note: values.note,
+            teacher: teacher,
+            teacherName: teacherName,
+            childIDs: Set(values.studentIDs.compactMap(UUID.init(uuidString:)))
+        )
+    }
+
+    /// What Save changes on `original`: each field that differs from how the
+    /// sheet showed it, and only the fields it shows for a lane of `laneKind` (a
+    /// room's teacher, a person's children). The children kept keep their
+    /// order; those newly chosen follow, in `studentOrder`.
+    func edit(
+        from original: TimetableBlockValues, laneKind: TimetableLaneKind?, studentOrder: [UUID]
+    ) -> TimetableService.BlockEdit {
+        let before = Self(original)
+        var edit = TimetableService.BlockEdit()
+        if startMinute != before.startMinute { edit.startMinute = startMinute }
+        if length != before.length { edit.lengthMinutes = length }
+        if title.trimmed() != before.title.trimmed() { edit.title = title.trimmed() }
+        if note.trimmed() != before.note.trimmed() { edit.note = note.trimmed() }
+        if laneKind == .room, whoTeaches != before.whoTeaches { edit.teacher = whoTeaches }
+        if laneKind == .person, childIDs != before.childIDs {
+            // An ID the sheet can't read can't be unchosen there, so it stays.
+            let kept = original.studentIDs.filter { UUID(uuidString: $0).map(childIDs.contains) ?? true }
+            let keptIDs = Set(kept.compactMap(UUID.init(uuidString:)))
+            let added = studentOrder.filter { childIDs.contains($0) && !keptIDs.contains($0) }
+            edit.studentIDs = kept + added.map(\.uuidString)
+        }
+        return edit
+    }
+
+    /// Who teaches, as a block stores it.
+    private var whoTeaches: TimetableService.BlockEdit.Teacher {
+        switch teacher {
+        case .none: TimetableService.BlockEdit.Teacher(laneID: nil, name: "")
+        case .lane(let id): TimetableService.BlockEdit.Teacher(laneID: id, name: "")
+        case .someoneElse: TimetableService.BlockEdit.Teacher(laneID: nil, name: teacherName.trimmed())
+        }
     }
 }

@@ -70,6 +70,34 @@ struct WorkRepository: Repository {
         }
     }
 
+    /// Moves the open work a presentation gave onto `lessonID`, as Change
+    /// Lesson moves its history rows: practice for the lesson she wasn't given
+    /// would otherwise stay open. Work already done stays the record of what
+    /// was practised. A title Tide made from the old lesson's name takes the
+    /// new one's. Doesn't save.
+    @discardableResult
+    func relinkOpenWork(presentationID: UUID, toLesson lessonID: UUID, lessons: [CDLesson]) -> Int {
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(
+            format: "presentationID == %@ AND lessonID != %@", presentationID.uuidString, lessonID.uuidString
+        )
+        let stale = context.safeFetch(request).filter { !$0.isDeleted && $0.isOpen }
+        let newName = lessons.first { $0.id == lessonID }?.name
+        for work in stale {
+            let oldName = UUID(uuidString: work.lessonID).flatMap { old in lessons.first { $0.id == old }?.name }
+            if let oldName, let newName {
+                for prefix in ["Practice: ", "Follow up: "] where work.title == prefix + oldName {
+                    work.title = prefix + newName
+                }
+            }
+            work.lessonID = lessonID.uuidString
+            work.trackID = nil
+            work.trackStepID = nil
+            linkWorkToTrack(work, lessonID: lessonID)
+        }
+        return stale.count
+    }
+
     /// Resolves the presentationID for a work item
     private func resolvePresentationID(studentID: UUID, lessonID: UUID, presentationID: UUID?) -> UUID? {
         if let presentationID {

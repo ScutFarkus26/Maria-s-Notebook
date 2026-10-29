@@ -38,6 +38,11 @@ final class PresentationDetailActions {
         lessonAssignment.studentIDs = selectedStudentIDs.map(\.uuidString)
         if let lesson = lessons.first(where: { $0.id == editingLessonID }) {
             lessonAssignment.lesson = lesson
+            // Note labels and history read the saved name first.
+            if lessonChanged, lessonAssignment.lessonTitleSnapshot != nil {
+                lessonAssignment.lessonTitleSnapshot = lesson.name
+                lessonAssignment.lessonSectionSnapshot = lesson.section
+            }
         }
 
         // State transitions: presented > scheduled > draft
@@ -68,6 +73,11 @@ final class PresentationDetailActions {
                 // history rows move to the new lesson with it, so the year
                 // plan and the regive guard read the lesson she was given.
                 LifecycleService.relinkHistoryRows(of: lessonAssignment, in: context)
+                if lessonChanged, let id = lessonAssignment.id {
+                    WorkRepository(context: context).relinkOpenWork(
+                        presentationID: id, toLesson: editingLessonID, lessons: lessons
+                    )
+                }
             }
         }
     }
@@ -85,7 +95,10 @@ final class PresentationDetailActions {
     // Puts `studentsToMove` on a plan of their own for `currentLesson` (an
     // undated draft with exactly them, reused when one exists) and takes them
     // off `source`. Their year-plan entries promoted into `source`, and the
-    // notes about only them, follow them to it. Saving is the caller's.
+    // notes about only them, follow them to it. A plan the split would leave
+    // with no saved child keeps `keepOnSource` (the open sheet's other
+    // children) instead, since Cancel throws an empty plan away, its notes
+    // with it. Saving is the caller's.
     // swiftlint:disable:next function_parameter_count
     func moveStudentsToInbox(
         from source: CDLessonAssignment,
@@ -93,6 +106,7 @@ final class PresentationDetailActions {
         studentsToMove: Set<UUID>,
         studentsAll: [CDStudent],
         lessonAssignmentsAll: [CDLessonAssignment],
+        keepOnSource: Set<UUID> = [],
         context: NSManagedObjectContext
     ) -> PresentationSplit? {
         guard !studentsToMove.isEmpty else { return nil }
@@ -134,12 +148,17 @@ final class PresentationDetailActions {
         let canUndo = !source.isPresented
         let wereOnSource = studentsToMove.intersection(source.resolvedStudentIDs)
         PresentationRecordCleanup.moveStudents(ids, from: source, to: destination, notes: notes, in: context)
-        source.studentIDs = source.resolvedStudentIDs.filter { !studentsToMove.contains($0) }.map(\.uuidString)
+        let remaining = source.resolvedStudentIDs.filter { !studentsToMove.contains($0) }
+        let keep = remaining.isEmpty && !wereOnSource.isEmpty && !source.isPresented
+            ? studentsAll.compactMap(\.id).filter { keepOnSource.subtracting(studentsToMove).contains($0) }
+            : []
+        source.studentIDs = (remaining + keep).map(\.uuidString)
 
         return PresentationSplit(
             names: movedStudentNames,
             studentIDs: studentsToMove,
             wereOnSource: wereOnSource,
+            keptOnSource: Set(keep),
             source: source,
             destination: destination,
             madeDestination: existing == nil,
@@ -151,8 +170,8 @@ final class PresentationDetailActions {
 
     /// Puts a split back as it was: the children who were saved on `source`
     /// on it again (one added in the open sheet goes back to the sheet only,
-    /// the caller's), their entries and notes with them, and a plan the
-    /// split made deleted.
+    /// the caller's, and one the split saved there comes off again), their
+    /// entries and notes with them, and a plan the split made deleted.
     /// Returns false, changing nothing, when either plan has since been given
     /// or deleted. Saving is the caller's.
     @discardableResult
@@ -163,8 +182,8 @@ final class PresentationDetailActions {
               !source.isPresented, !destination.isPresented,
               let sourceID = source.id?.uuidString else { return false }
 
-        let onSource = Set(source.resolvedStudentIDs)
-        source.studentIDs += split.wereOnSource.subtracting(onSource).map(\.uuidString)
+        let kept = source.resolvedStudentIDs.filter { !split.keptOnSource.contains($0) }
+        source.studentIDs = (kept + split.wereOnSource.subtracting(kept)).map(\.uuidString)
         for entry in split.entries where !entry.isDeleted {
             entry.promotedAssignmentID = sourceID
         }
@@ -192,6 +211,8 @@ struct PresentationSplit {
     /// Those of `studentIDs` saved on `source` when it was split; the rest
     /// had only been added in the open sheet.
     let wereOnSource: Set<UUID>
+    /// Children of the open sheet the split saved on `source` so it kept one.
+    let keptOnSource: Set<UUID>
     let source: CDLessonAssignment
     let destination: CDLessonAssignment
     /// The split made `destination`, rather than reusing a draft that had

@@ -66,6 +66,12 @@ struct BackupPreviewDigestTests {
                 preview.totalDeletes -= preview.entityDeletes.removeValue(forKey: kept) ?? 0
                 preview.entitySkips.removeValue(forKey: kept)
             }
+            // Since 2026-10-29 a Replace updates the names people set in
+            // place, and its preview counts none of them as removed.
+            for merged in BackupEntityRegistry.mergedOnReplaceEntityNames {
+                preview.totalDeletes -= preview.entityDeletes[merged] ?? 0
+                preview.entityDeletes[merged] = 0
+            }
         }
         return preview
     }

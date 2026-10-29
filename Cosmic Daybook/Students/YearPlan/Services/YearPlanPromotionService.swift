@@ -52,17 +52,27 @@ enum YearPlanPromotionService {
         into assignment: CDLessonAssignment,
         context: NSManagedObjectContext
     ) -> Int {
-        guard let assignmentID = assignment.id?.uuidString else { return 0 }
-        var promoted = 0
-        for studentID in assignment.resolvedStudentIDs {
-            guard let entry = findMatchingEntry(
-                lessonID: assignment.lessonID, studentID: studentID, context: context
-            ) else { continue }
-            entry.status = .promoted
-            entry.promotedAssignmentID = assignmentID
-            promoted += 1
-        }
-        return promoted
+        assignment.resolvedStudentIDs.filter {
+            promoteMatchingEntry(for: $0, into: assignment, context: context)
+        }.count
+    }
+
+    /// Promotes one child's matching planned entry into `assignment`, for a
+    /// caller that puts her on a plan other children may already be on (the
+    /// Checklist's Inbox toggle), so their entries are left as they are.
+    /// Returns whether one was promoted. Does not save.
+    @discardableResult
+    static func promoteMatchingEntry(
+        for studentID: UUID,
+        into assignment: CDLessonAssignment,
+        context: NSManagedObjectContext
+    ) -> Bool {
+        guard let assignmentID = assignment.id?.uuidString,
+              let entry = findMatchingEntry(lessonID: assignment.lessonID, studentID: studentID, context: context)
+        else { return false }
+        entry.status = .promoted
+        entry.promotedAssignmentID = assignmentID
+        return true
     }
 
     /// Returns the earliest planned date across all matching Year Plan entries for the

@@ -118,6 +118,7 @@ final class BackupCoordinator {
             digest: archive.digest,
             viewContext: viewContext,
             mode: mode,
+            formatVersion: archive.manifest.formatVersion,
             entityExists: { type, id in
                 idIndex.exists(type, id: id)
             }

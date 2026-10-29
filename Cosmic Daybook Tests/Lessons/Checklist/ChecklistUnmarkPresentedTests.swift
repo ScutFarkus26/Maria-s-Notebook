@@ -176,6 +176,8 @@ struct ChecklistUnmarkPresentedTests {
         #expect(fixture.assignments().isEmpty)
         #expect(brunoEntry.status == .planned)
         #expect(brunoEntry.promotedAssignmentID == nil)
-        #expect(fixture.status(fixture.bruno) == .ready)
+        // Her year plan still holds the lesson, so the cell is Planned, not Ready (bug hunt
+        // 2026-10-29 #12).
+        #expect(fixture.status(fixture.bruno) == .planned)
     }
 }

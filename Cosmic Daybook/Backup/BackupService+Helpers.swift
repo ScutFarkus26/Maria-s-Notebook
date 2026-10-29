@@ -39,14 +39,19 @@ extension BackupService {
     /// it was cleared, so a failure part-way left an emptied notebook for the
     /// checkpoint to rebuild record by record.)
     ///
+    /// Types a backup of `formatVersion` can't hold are left as they are
+    /// (`BackupEntity.isCarried(by:)`), as are the names people set
+    /// (`BackupEntityRegistry.mergedOnReplaceEntityNames`).
+    ///
     /// Returns the names of any entities that could not be cleared, so callers can surface
     /// them as warnings instead of swallowing them silently.
     @discardableResult
-    func deleteAll(viewContext: NSManagedObjectContext) throws -> [String] {
+    func deleteAll(viewContext: NSManagedObjectContext, formatVersion: Int) throws -> [String] {
         var failedEntities: [String] = []
         let store = BackupRestoreScope.privateStore(of: viewContext)
 
-        for type in BackupEntityRegistry.allTypes {
+        for entity in BackupEntityTable.entities {
+            let type = entity.managedType()
             // Resolve the MODEL entity name by matching the managed-object class,
             // not by stripping "CD" from the Swift type name. Several classes are
             // @objc-renamed (e.g. CDCommunityTopicEntity -> model "CommunityTopic"),
@@ -65,6 +70,11 @@ extension BackupService {
             guard !BackupEntityRegistry.notYetBackedUpEntityNames.contains(entityName) else { continue }
             // Nor one the restore leaves alone on purpose (this device's pin).
             guard !BackupEntityRegistry.keptOnRestoreEntityNames.contains(entityName) else { continue }
+            // Nor one it updates in place (the names people set for themselves).
+            guard !BackupEntityRegistry.mergedOnReplaceEntityNames.contains(entityName) else { continue }
+            // Nor one the backup is too old to hold: it has none of them to
+            // put back, so clearing them would only empty the type.
+            guard entity.isCarried(by: formatVersion) else { continue }
 
             do {
                 try deleteEvery(entityName, in: viewContext, store: store)

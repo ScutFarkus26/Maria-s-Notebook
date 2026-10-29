@@ -39,15 +39,7 @@ extension ClassAreaChecklistViewModel {
         guard let studentUUID = student.id, let lessonUUID = lesson.id else { return }
         markPresentedNoRecompute(student: student, lesson: lesson, context: context)
 
-        let workRequest = CDFetchRequest(CDWorkModel.self)
-        workRequest.predicate = NSPredicate(
-            format: "statusRaw IN %@ AND lessonID == %@", WorkStatus.openRawValues, lessonUUID.uuidString
-        )
-        let studentKey = studentUUID.uuidString
-        let open = context.safeFetch(workRequest).first { work in
-            let participants = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
-            return participants.contains { $0.studentID == studentKey }
-        }
+        let open = openWork(of: studentUUID, onLesson: lessonUUID, context: context)
 
         do {
             if let open {
@@ -68,5 +60,23 @@ extension ClassAreaChecklistViewModel {
         } catch {
             Self.logger.warning("Failed to set practice work for student \(studentUUID): \(error)")
         }
+    }
+
+    /// Her open work on the lesson, by the cell's own rule (`WorkVisibility`): the copy
+    /// she owns first, then a shared row she is on. Group work is one linked copy per
+    /// child, each naming the whole group, so the first open row naming her could be a
+    /// classmate's, and moving it changed the classmate's work (bug hunt 2026-10-29 #10).
+    /// Every row of the lesson is read, closed ones too: her closed copy is what says a
+    /// classmate's open copy isn't hers.
+    private func openWork(
+        of studentID: UUID, onLesson lessonID: UUID, context: NSManagedObjectContext
+    ) -> CDWorkModel? {
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(format: "lessonID == %@", lessonID.uuidString)
+        request.relationshipKeyPathsForPrefetching = ["participants"]
+        let rows = context.safeFetch(request).filter { !$0.isDeleted }
+        let visibility = WorkVisibility(rows: rows)
+        let open = rows.filter { $0.status.isOpen && visibility.isVisible($0, to: studentID) }
+        return open.first { WorkGrouping.owner(of: $0) == studentID } ?? ClassGridEngine.cellWork(open)
     }
 }

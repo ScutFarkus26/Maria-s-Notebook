@@ -201,6 +201,9 @@ nonisolated struct ScheduleDay: Sendable, Equatable {
     /// and one-offs ("1 change today").
     let changeCount: Int
     let warnings: [Warning]
+    /// The blocks cancelled for this day only, with their every-week values,
+    /// so each cancel can be taken back on its own.
+    var cancelledBlocks: [Block] = []
 
     var isChanged: Bool { changeCount > 0 }
 

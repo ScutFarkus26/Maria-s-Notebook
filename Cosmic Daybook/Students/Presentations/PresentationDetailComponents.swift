@@ -3,7 +3,8 @@ import CoreData
 
 // MARK: - Move Students Sheet
 struct MoveStudentsSheet: View {
-    let lessonName: String
+    /// The lesson the children get a plan for; nil until one is picked.
+    let lessonName: String?
     let students: [CDStudent]
     @Binding var studentsToMove: Set<UUID>
     let selectedStudentIDs: Set<UUID>
@@ -24,7 +25,7 @@ struct MoveStudentsSheet: View {
             Divider()
             
             VStack(alignment: .leading, spacing: 16) {
-                Text("Pick the children who should go to a different group. They'll leave this presentation and get a plan of their own for \"\(lessonName)\", ready to schedule. This happens straight away; an Undo shows at the top for a few seconds.")
+                Text(explanation)
                     .font(AppTheme.ScaledFont.body)
                     .foregroundStyle(.secondary)
                 
@@ -70,7 +71,7 @@ struct MoveStudentsSheet: View {
                         )
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(studentsToMove.isEmpty || studentsToMove.count == selectedStudentIDs.count)
+                    .disabled(lessonName == nil || studentsToMove.isEmpty || studentsToMove.count == selectedStudentIDs.count)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
@@ -78,6 +79,13 @@ struct MoveStudentsSheet: View {
             }
         }
         .frame(minWidth: 400, minHeight: 450)
+    }
+
+    private var explanation: String {
+        guard let lessonName else {
+            return "Pick this presentation's lesson first. The children you split off get a plan of their own for it."
+        }
+        return "Pick the children who should go to a different group. They'll leave this presentation and get a plan of their own for \"\(lessonName)\", ready to schedule. This happens straight away; an Undo shows at the top for a few seconds."
     }
 }
 

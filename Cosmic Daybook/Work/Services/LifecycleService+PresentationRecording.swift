@@ -18,7 +18,8 @@ extension LifecycleService {
         from lessonAssignment: CDLessonAssignment,
         presentedAt: Date,
         modelContext: NSManagedObjectContext,
-        beginFollowUp: Bool = true
+        beginFollowUp: Bool = true,
+        followExistingRows: Bool = true
     ) throws -> CDLessonAssignment {
         let lessonIDStr = lessonAssignment.lessonID
         let studentIDStrs = try knownStudentIDs(namedBy: lessonAssignment, context: modelContext)
@@ -78,7 +79,10 @@ extension LifecycleService {
                 presentedAt: presentedAt,
                 context: modelContext
             )
-            if beginFollowUp {
+            // Recording again follows every child; a Save of a presentation
+            // already given (`followExistingRows` false) follows only a child
+            // it adds, since the rest were followed, or settled, already.
+            if beginFollowUp && (followExistingRows || historyRow.isInserted) {
                 PresentationFollowUpService.beginFollowing(historyRow, at: presentedAt)
             }
         }

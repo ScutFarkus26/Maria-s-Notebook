@@ -90,7 +90,7 @@ final class ClassGridChildrenModel {
         // Each assignment's studentIDs blob decoded once, not once per student;
         // each student's slice keeps the fetch order the per-student filter had.
         let assignmentsByStudent = Self.groupByStudent(allAssignments)
-        let workByStudent = Dictionary(grouping: allWork, by: \.studentID)
+        let workByStudent = Self.groupByStudent(allWork, visibility: WorkVisibility(rows: allWork))
 
         // Cards
         var cards: [StudentProgressionCard] = []
@@ -226,6 +226,21 @@ final class ClassGridChildrenModel {
         return grouped
     }
 
+    /// studentID → the work that counts as hers, by the Checklist's rule
+    /// (`WorkVisibility`): the rows she owns, and a shared row she is on (project
+    /// work: one row, several children) even though another child owns it. Filing
+    /// work by owner alone left a child's shared project work off her card (bug
+    /// hunt 2026-10-29 #16); a classmate's linked copy that names her still isn't hers.
+    static func groupByStudent(_ works: [CDWorkModel], visibility: WorkVisibility) -> [String: [CDWorkModel]] {
+        var grouped: [String: [CDWorkModel]] = [:]
+        for work in works {
+            for studentID in WorkGrouping.studentIDs(of: work) where visibility.isVisible(work, to: studentID) {
+                grouped[studentID.uuidString, default: []].append(work)
+            }
+        }
+        return grouped
+    }
+
     // MARK: - Fetching
 
     private func fetchAllAssignments(context: NSManagedObjectContext) -> [CDLessonAssignment] {
@@ -234,9 +249,12 @@ final class ClassGridChildrenModel {
         return context.safeFetch(request)
     }
 
+    /// Every row, open and closed, with who is on it: a child's closed copy is what
+    /// tells her classmate's open copy apart from a row she shares.
     private func fetchAllWork(context: NSManagedObjectContext) -> [CDWorkModel] {
         let request = CDFetchRequest(CDWorkModel.self)
         request.fetchBatchSize = 200
-        return context.safeFetch(request)
+        request.relationshipKeyPathsForPrefetching = ["participants"]
+        return context.safeFetch(request).filter { !$0.isDeleted }
     }
 }

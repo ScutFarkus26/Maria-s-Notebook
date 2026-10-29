@@ -148,6 +148,10 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
     public let lastActivityDate: Date?
     public let isStale: Bool
     public let isInboxPlan: Bool
+    /// A year-plan entry still waiting for this lesson (planned, not yet promoted to a
+    /// presentation). It counts as Planned, as on the Groups page and in the ready queue
+    /// (`PresentationRecordIndex.openPlanByLesson`), not Ready.
+    public let isOnYearPlan: Bool
     public let blockingReason: BlockingReason
     /// The child has a mastery mark on the lesson (see `ChecklistDisplayStatus.mastered`).
     public let isMastered: Bool
@@ -166,7 +170,7 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
             allWorkClosed: isComplete,
             hasActiveWork: isWorkActive,
             isPresented: isPresented,
-            isPlanned: isScheduled,
+            isPlanned: isScheduled || isOnYearPlan,
             blockingReason: blockingReason
         )
     }
@@ -190,6 +194,7 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
         lastActivityDate: Date?,
         isStale: Bool,
         isInboxPlan: Bool = false,
+        isOnYearPlan: Bool = false,
         blockingReason: BlockingReason = .none,
         isMastered: Bool = false,
         checkFirstReasons: [String] = []
@@ -207,6 +212,7 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
         self.lastActivityDate = lastActivityDate
         self.isStale = isStale
         self.isInboxPlan = isInboxPlan
+        self.isOnYearPlan = isOnYearPlan
         self.blockingReason = blockingReason
         self.isMastered = isMastered
         self.checkFirstReasons = checkFirstReasons

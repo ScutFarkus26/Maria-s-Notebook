@@ -139,7 +139,7 @@ struct ChecklistStatusBar: View {
         switch status {
         case .notReady: return "Not presented, and the lesson before still holds it back"
         case .ready: return "Not presented or planned, and the lesson before is confirmed"
-        case .planned: return "In the Inbox or on a dated plan"
+        case .planned: return "In the Inbox, on a dated plan or on the year plan"
         case .presented: return "Presented"
         case .practicing: return "Practice work is open"
         case .reviewing: return "Work is in review, or closed without a mastery mark"

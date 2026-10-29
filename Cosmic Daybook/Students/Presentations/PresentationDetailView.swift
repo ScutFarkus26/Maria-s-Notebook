@@ -155,6 +155,7 @@ struct PresentationDetailContentView: View {
             onCancel: {
                 vm.pendingWorkRetraction = []
                 howItWentAfterSave = false
+                vm.takeBackUnsavedRecording()
             }
         )
         .alert(errorTitle, isPresented: errorIsPresented) {
@@ -167,8 +168,9 @@ struct PresentationDetailContentView: View {
         }
         .onDisappear {
             // Closing the sheet mid-way acts as Later: nothing is lost, so
-            // nothing needs confirming.
-            if session.phase == .howItWent, !session.isFinished {
+            // nothing needs confirming. That holds after going back to Edit
+            // Details too, whose Save or Cancel closes the sheet.
+            if session.hasOpenedHowItWent, vm.lessonAssignment.isPresented, !session.isFinished {
                 saveLater(closing: false)
             }
         }

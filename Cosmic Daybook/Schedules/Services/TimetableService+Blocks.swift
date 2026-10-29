@@ -14,6 +14,38 @@ extension TimetableService {
         var values: TimetableBlockValues
     }
 
+    /// What an edit sets on a block, field by field; a field left nil keeps
+    /// what is there. The block sheet sends only what Danny changed, so a
+    /// field it doesn't show (a room's children), one he left alone (an odd
+    /// length, the children's order) and a change made for one day only keep
+    /// their stored values.
+    struct BlockEdit: Sendable, Equatable {
+        var startMinute: Int?
+        var lengthMinutes: Int?
+        var title: String?
+        var note: String?
+        var teacher: Teacher?
+        var studentIDs: [String]?
+
+        /// Nothing set: saving it would change nothing.
+        var isEmpty: Bool { self == BlockEdit() }
+
+        /// `values` with what this edit sets.
+        func applied(to values: TimetableBlockValues) -> TimetableBlockValues {
+            var result = values
+            if let startMinute { result.startMinute = startMinute }
+            if let lengthMinutes { result.lengthMinutes = lengthMinutes }
+            if let title { result.title = title }
+            if let note { result.note = note }
+            if let teacher {
+                result.teacherLaneID = teacher.laneID
+                result.teacherName = teacher.name
+            }
+            if let studentIDs { result.studentIDs = studentIDs }
+            return result
+        }
+    }
+
     // MARK: - Adding
 
     /// Adds a weekly block to `lane` on each of `weekdays`, one block per day.
@@ -56,19 +88,7 @@ extension TimetableService {
 
     // MARK: - Editing
 
-    /// Edits `block` as seen on `day`. Returns the block that shows `values`
-    /// from then on: the copy for This Day and After on a block that began
-    /// before `day`, otherwise `block` itself.
-    ///
-    /// - Only This Day records a "changed" change for `day` (one already
-    ///   there is updated; values equal to the block's remove it).
-    /// - This Day and After ends `block` the day before and starts a copy
-    ///   with `values` on `day`; the day's own change goes, and later days'
-    ///   changes move to the copy. A block that begins on or after `day` is
-    ///   edited in place.
-    /// - Every week edits the block itself.
-    ///
-    /// A one-off is edited in place whatever the scope.
+    /// Edits `block` as seen on `day` to `values` in full (see the edit below).
     @discardableResult
     static func edit(
         _ block: CDTimetableBlock,
@@ -79,20 +99,73 @@ extension TimetableService {
         now: Date = Date(),
         calendar: Calendar = AppCalendar.shared
     ) -> CDTimetableBlock {
+        edit(
+            block, applying: BlockEdit(setting: values), scope: scope, on: day, in: context, now: now,
+            calendar: calendar
+        )
+    }
+
+    /// Edits `block` as seen on `day`, changing only what `edit` sets: every
+    /// other field keeps the block's own value, and on `day` what that day's
+    /// own change has, so a change made for one day stays on its day. Returns
+    /// the block that shows the edit from then on: the copy for This Day and
+    /// After on a block that began before `day`, otherwise `block` itself.
+    ///
+    /// - Only This Day records a "changed" change for `day`: the day's values
+    ///   with the edit (one already there is updated; values equal to the
+    ///   block's remove it).
+    /// - This Day and After ends `block` the day before and starts a copy on
+    ///   `day`, the block's own values with the edit; later days' changes
+    ///   move to the copy, and `day` keeps its own change with the edit. A
+    ///   block that begins on or after `day` is edited in place, and an edit
+    ///   that leaves the weekly values as they were changes `day` alone.
+    /// - Every week edits the block itself, and `day`'s own change with it.
+    ///
+    /// A one-off is edited in place whatever the scope.
+    @discardableResult
+    static func edit(
+        _ block: CDTimetableBlock,
+        applying edit: BlockEdit,
+        scope: EditScope,
+        on day: Date,
+        in context: NSManagedObjectContext,
+        now: Date = Date(),
+        calendar: Calendar = AppCalendar.shared
+    ) -> CDTimetableBlock {
         let day = calendar.startOfDay(for: day)
         if block.isOneOff {
-            touch(block, with: values, now: now)
+            touch(block, with: edit.applied(to: block.values), now: now)
             return block
         }
+        let own = changedValues(of: block, on: day, in: context, calendar: calendar)
+        let dayValues = edit.applied(to: own ?? block.values)
+        let weekly = edit.applied(to: block.values)
         switch scope {
         case .everyWeek:
-            touch(block, with: values, now: now)
+            touch(block, with: weekly, now: now)
+            if own != nil {
+                setDayValues(dayValues, for: block, on: day, in: context, now: now, calendar: calendar)
+            }
             return block
         case .onlyThisDay:
-            setDayValues(values, for: block, on: day, in: context, now: now, calendar: calendar)
+            setDayValues(dayValues, for: block, on: day, in: context, now: now, calendar: calendar)
             return block
         case .thisDayAndAfter:
-            return split(block, from: day, values: values, in: context, now: now, calendar: calendar)
+            // A block that ended before the day has nothing on or after it to edit.
+            guard isRunning(block, onOrAfter: day, calendar: calendar) else { return block }
+            guard weekly != block.values else {
+                setDayValues(dayValues, for: block, on: day, in: context, now: now, calendar: calendar)
+                return block
+            }
+            // The day keeps what it showed with the edit, unless that is every week's now.
+            if dayValues == weekly {
+                undoChanges(to: block, on: day, in: context, calendar: calendar)
+            } else {
+                upsertChange(
+                    .changed, values: dayValues, for: block, on: day, in: context, now: now, calendar: calendar
+                )
+            }
+            return split(block, from: day, values: weekly, in: context, now: now, calendar: calendar)
         }
     }
 
@@ -217,7 +290,8 @@ extension TimetableService {
         if block.apply(values) { block.modifiedAt = now }
     }
 
-    /// This Day and After: see `edit`.
+    /// This Day and After: see `edit`, which has already set the day's own
+    /// change, so it moves to the copy with the later days'.
     private static func split( // swiftlint:disable:this function_parameter_count
         _ block: CDTimetableBlock,
         from day: Date,
@@ -229,8 +303,8 @@ extension TimetableService {
         // A block that ended before the day has nothing on or after it to edit.
         guard isRunning(block, onOrAfter: day, calendar: calendar) else { return block }
         let later = changes(of: block, from: day, in: context, calendar: calendar)
-        // The day's own change goes: the edit is what that day shows now.
-        for change in later where change.day.map({ calendar.isDate($0, inSameDayAs: day) }) ?? true {
+        // A change with no day is no day's: it goes.
+        for change in later where change.day == nil {
             context.delete(change)
         }
         if let from = block.validFrom, calendar.startOfDay(for: from) >= day {
@@ -291,5 +365,22 @@ extension TimetableService {
     private static func sameSlot(_ lhs: TimetableBlockValues, _ rhs: TimetableBlockValues) -> Bool {
         lhs.startMinute == rhs.startMinute && lhs.lengthMinutes == rhs.lengthMinutes
             && lhs.title.foldedKey() == rhs.title.foldedKey()
+    }
+}
+
+extension TimetableService.BlockEdit {
+    /// Who teaches: the person lane and the typed name are set together.
+    struct Teacher: Sendable, Equatable {
+        var laneID: UUID?
+        var name: String
+    }
+
+    /// Every field: the block becomes `values`.
+    init(setting values: TimetableBlockValues) {
+        self.init(
+            startMinute: values.startMinute, lengthMinutes: values.lengthMinutes, title: values.title,
+            note: values.note, teacher: Teacher(laneID: values.teacherLaneID, name: values.teacherName),
+            studentIDs: values.studentIDs
+        )
     }
 }

@@ -73,12 +73,17 @@ extension SchedulesPageModel {
         return save("Add to this day")
     }
 
+    /// Changes only what `edit` sets (the block sheet's own changes): the
+    /// rest keeps its stored values, and a change made for `day` alone stays
+    /// on that day.
     @discardableResult
     func edit(
-        blockID: UUID, to values: TimetableBlockValues, scope: TimetableService.EditScope, on day: Date
+        blockID: UUID, applying edit: TimetableService.BlockEdit, scope: TimetableService.EditScope, on day: Date
     ) -> Bool {
         guard let block = storedBlock(blockID) else { return false }
-        TimetableService.edit(block, to: values, scope: scope, on: day, in: context, now: now(), calendar: calendar)
+        TimetableService.edit(
+            block, applying: edit, scope: scope, on: day, in: context, now: now(), calendar: calendar
+        )
         return save("Edit a schedule block")
     }
 

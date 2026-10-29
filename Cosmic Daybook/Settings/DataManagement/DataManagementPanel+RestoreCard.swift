@@ -31,7 +31,7 @@ extension DataManagementPanel {
                     )
                     restoreModeLine(
                         .replace,
-                        "**Replace:** Make this device match the backup exactly."
+                        "**Replace:** Make this device match the backup. Anything the backup is too old to hold, like Schedules, stays as it is."
                     )
                 }
 

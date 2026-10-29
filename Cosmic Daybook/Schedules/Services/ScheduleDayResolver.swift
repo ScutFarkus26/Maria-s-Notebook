@@ -19,9 +19,12 @@ import Foundation
 ///    person's lane. It is the same block, so a change to it shows in both.
 /// 5. **The guide's lessons** go in the `isGuide` lane: a half's lessons in one
 ///    ordered list, a lesson with a set time at its time. A lesson whose
-///    children are all adolescents goes into the guide's turn that half (or
-///    the turn its set time falls in); with no turn that half it stays in the
-///    list with a note. A lesson that mixes levels stays in the list.
+///    children are all adolescents goes into the guide's turn in the
+///    adolescent room that half (or the turn its set time falls in); with no
+///    turn that half it stays in the list with a note. A lesson that mixes
+///    levels stays in the list. Only the adolescent room's blocks are those
+///    turns (`isAdolescentRoom`), not a block he teaches in our class; when no
+///    room's name says which it is, any room's are.
 /// 6. **Warnings**, gentle: a child with another person in the same half as
 ///    one of the guide's lessons; an adolescents-only lesson with no turn that
 ///    half; a set-time lesson, not adolescents-only, during a guide's turn.
@@ -30,6 +33,13 @@ nonisolated enum ScheduleDayResolver {
     /// The note on an adolescents-only lesson with no turn that half.
     static func noTurnNote(_ half: ScheduleDayHalf) -> String {
         "No turn in the adolescent room \(half.thisHalf)"
+    }
+
+    /// Whether `lane` is the adolescent room, by its name ("Adolescent room",
+    /// "Adolescents"): lanes carry no other mark of it.
+    static func isAdolescentRoom(_ lane: TimetableLaneSnapshot) -> Bool {
+        lane.kind == .room
+            && lane.name.range(of: "adolescen", options: [.caseInsensitive, .diacriticInsensitive]) != nil
     }
 
     // MARK: - Resolving
@@ -60,7 +70,8 @@ nonisolated enum ScheduleDayResolver {
         return ScheduleDay(
             day: day, isSchoolDay: true,
             lanes: dayLanes(blocks: blocks, placement: placement, guideLane: guideLane, context: context),
-            changeCount: blocks.changeCount, warnings: warnings.sorted(by: warningOrder)
+            changeCount: blocks.changeCount, warnings: warnings.sorted(by: warningOrder),
+            cancelledBlocks: blocks.cancelled
         )
     }
 
@@ -83,12 +94,18 @@ nonisolated enum ScheduleDayResolver {
         let lanesByID: [UUID: TimetableLaneSnapshot]
         let personIDs: Set<UUID>
         let roomIDs: Set<UUID>
+        /// The rooms where a block the guide teaches is his turn for his
+        /// adolescents' lessons: the adolescent room, or every room when no
+        /// room's name says which it is.
+        let turnRoomIDs: Set<UUID>
         let levels: [String: CDStudent.Level]
 
         init(lanes: [TimetableLaneSnapshot], levels: [String: CDStudent.Level]) {
             lanesByID = Dictionary(lanes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
             personIDs = Set(lanes.filter { $0.kind == .person }.map(\.id))
             roomIDs = Set(lanes.filter { $0.kind == .room }.map(\.id))
+            let adolescentRooms = Set(lanes.filter(ScheduleDayResolver.isAdolescentRoom).map(\.id))
+            turnRoomIDs = adolescentRooms.isEmpty ? roomIDs : adolescentRooms
             self.levels = Dictionary(
                 levels.map { ($0.key.uppercased(), $0.value) }, uniquingKeysWith: { first, _ in first }
             )
@@ -98,6 +115,8 @@ nonisolated enum ScheduleDayResolver {
     /// The day's blocks with the day's values (rules 2 and 3), in time order.
     private struct DayBlocks {
         var blocks: [ScheduleDay.Block] = []
+        /// Cancelled for the day only, with their own values.
+        var cancelled: [ScheduleDay.Block] = []
         var outLanes: Set<UUID> = []
         var changeCount = 0
     }
@@ -124,15 +143,21 @@ nonisolated enum ScheduleDayResolver {
             var values = block.values
             let change = blockChange[block.id]
             if change != nil || block.isOneOff { result.changeCount += 1 }
-            if change?.kind == .cancelled { continue }
-            if let change { values = change.values }
+            if let change, change.kind != .cancelled { values = change.values }
             let teacher = values.teacherLaneID.flatMap { context.personIDs.contains($0) && $0 != laneID ? $0 : nil }
-            result.blocks.append(ScheduleDay.Block(
+            let dayBlock = ScheduleDay.Block(
                 id: block.id, laneID: laneID, values: values, isOneOff: block.isOneOff, isChanged: change != nil,
                 teacherLaneID: teacher, teacherIsOut: teacher.map(result.outLanes.contains) ?? false
-            ))
+            )
+            // A cancelled block is off the day, and kept aside to be brought back.
+            if change?.kind == .cancelled {
+                result.cancelled.append(dayBlock)
+            } else {
+                result.blocks.append(dayBlock)
+            }
         }
         result.blocks.sort(by: blockOrder)
+        result.cancelled.sort(by: blockOrder)
         return result
     }
 
@@ -193,9 +218,9 @@ nonisolated enum ScheduleDayResolver {
         blocks: inout [ScheduleDay.Block],
         context: DayContext
     ) -> LessonPlacement {
-        // The guide's turns: a room's blocks he teaches, unless he's out.
+        // The guide's turns in the adolescent room, unless he's out.
         let turns = guideIsOut ? [] : blocks.indices.filter {
-            blocks[$0].teacherLaneID == guideLane.id && context.roomIDs.contains(blocks[$0].laneID)
+            blocks[$0].teacherLaneID == guideLane.id && context.turnRoomIDs.contains(blocks[$0].laneID)
         }
         var placement = LessonPlacement()
         for snapshot in lessons {

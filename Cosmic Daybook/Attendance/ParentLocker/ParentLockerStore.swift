@@ -242,12 +242,16 @@ final class ParentLockerCoreDataStore: ParentLockerStore {
         let request = CDFetchRequest(CDStudent.self)
         request.predicate = NSPredicate(format: "id IN %@", Array(matches.keys))
         var changed = false
+        // Each change is stamped as an edit, so the duplicate cleanup can
+        // tell a cleared match from a copy that never had one.
+        let now = Date()
         for student in context.safeFetch(request) {
             guard let id = student.id, let wanted = matches[id] else { continue }
             let value = wanted?.trimmingCharacters(in: .whitespaces)
             let stored = value?.isEmpty == false ? value : nil
             if student.parentLockerID != stored {
                 student.parentLockerID = stored
+                student.modifiedAt = now
                 changed = true
             }
         }
@@ -262,6 +266,7 @@ final class ParentLockerCoreDataStore: ParentLockerStore {
             )
             for student in context.safeFetch(holders) {
                 student.parentLockerID = nil
+                student.modifiedAt = now
                 changed = true
             }
         }

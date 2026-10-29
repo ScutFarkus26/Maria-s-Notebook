@@ -23,11 +23,12 @@ extension MCPNotebookTools {
             name: "set_timetable",
             title: "Set Timetable",
             description: "Replace one lane's weekly blocks from a day on, This Day and After style: the "
-                + "lane's running weekly blocks end the day before (weeks already past still read as they "
-                + "were), and the blocks given start on that day. One-offs stay. Called without confirm it "
-                + "only reports what would end and what would start; nothing is written until it is "
-                + "called again with confirm: true. Each block names its weekdays, a start time, a length "
-                + "or an end, a title, and optionally a note, who teaches it, and the children by name. "
+                + "lane's running weekly blocks end the day before, their one-day changes from that day on "
+                + "go with them, and the blocks given start on that day. The days before it still read as "
+                + "they were; a from day already past changes the days since then too. One-offs stay. "
+                + "Called without confirm it only reports what would end, go and start; nothing is written "
+                + "until it is called again with confirm: true. Each block names its weekdays, a start time, "
+                + "a length or an end, a title, and optionally a note, who teaches it, and the children by name. "
                 + "Times are school times: 9:30, 1:15 (1:00 to 6:59 without am or pm is the afternoon). "
                 + "A first name two children share needs the full name.",
             inputSchema: [
@@ -130,30 +131,23 @@ extension MCPNotebookTools {
         }
 
         let laneName = existing?.name ?? reference
-        let running = existing.map { lane in
+        let ending = existing.map { lane in
             TimetableService.blocks(of: lane, in: modelContext).filter {
                 !$0.isOneOff && TimetableService.isRunning($0, onOrAfter: from, calendar: calendar)
-            }.count
-        } ?? 0
+            }
+        } ?? []
+        let running = ending.count
+        // Their one-day changes from that day on go with them.
+        let dropped = droppedChanges(of: ending, from: from, in: modelContext)
         let when = "\(weekdayName(from)) \(dayString(from))"
-        let names = studentNameIndex(in: modelContext)
 
         guard arguments["confirm"]?.boolValue == true else {
             MCPCallOutcome.markNothingWritten()
-            var lines = [
-                "set_timetable refused — nothing has been changed.",
-                "Re-call with confirm: true to replace \(laneName)'s week from \(when)."
-                    + (creating ? " There is no lane by that name, so a new person lane would be made." : ""),
-                "\(running) running weekly block\(running == 1 ? "" : "s") would end the day before "
-                    + "(weeks already past keep them); \(week.count) would start.",
-                "", "The new week:"
-            ]
-            lines.append(contentsOf: week.map {
-                "- \($0.weekday.rawValue) \(TimetableDay.rangeText($0.values)) "
-                    + (nonEmpty($0.values.title) ?? "Untitled")
-                    + (previewKids($0.values, names: names))
-            })
-            return lines.joined(separator: "\n")
+            return setTimetablePreview(
+                laneName: laneName, when: when, creating: creating, running: running, dropped: dropped,
+                week: week, isPast: from < calendar.startOfDay(for: Date()),
+                names: studentNameIndex(in: modelContext)
+            )
         }
 
         if lanes.isEmpty { lanes = TimetableService.makeStarterLanes(in: modelContext) }
@@ -163,9 +157,66 @@ extension MCPNotebookTools {
             throw MCPToolError("The timetable could not be saved.")
         }
         let days = Set(week.map(\.weekday)).count
+        let ended = running == 1 ? "1 earlier block ends" : "\(running) earlier blocks end"
+        let gone = dropped.isEmpty ? "" : ", with \(dropped.count) one-day change\(dropped.count == 1 ? "" : "s") "
+            + "of \(running == 1 ? "its" : "their") own"
         return "Set [lane id=\(lane.id?.uuidString ?? "unknown")] \(lane.name)'s week from \(when): "
             + "\(week.count) block\(week.count == 1 ? "" : "s") on \(days) day\(days == 1 ? "" : "s"); "
-            + "\(running) earlier block\(running == 1 ? "" : "s") end the day before."
+            + "\(ended) the day before\(gone)."
+    }
+
+    /// What set_timetable would do, for the call without confirm.
+    private static func setTimetablePreview( // swiftlint:disable:this function_parameter_count
+        laneName: String, when: String, creating: Bool, running: Int, dropped: [String],
+        week: [TimetableService.WeeklyBlock], isPast: Bool, names: [String: String]
+    ) -> String {
+        var lines = [
+            "set_timetable refused — nothing has been changed.",
+            "Re-call with confirm: true to replace \(laneName)'s week from \(when)."
+                + (creating ? " There is no lane by that name, so a new person lane would be made." : ""),
+            "\(running) running weekly block\(running == 1 ? "" : "s") would end the day before; "
+                + "\(week.count) would start. "
+                + (isPast
+                    ? "\(when) is already past, so the days between it and today would read the new week too; "
+                        + "only the days before it keep the old week."
+                    : "The days before \(when) keep the old week.")
+        ]
+        if !dropped.isEmpty {
+            lines += ["", "These one-day changes would go with the blocks that end:"] + dropped
+        }
+        lines += ["", "The new week:"]
+        lines += week.map {
+            "- \($0.weekday.rawValue) \(TimetableDay.rangeText($0.values)) "
+                + (nonEmpty($0.values.title) ?? "Untitled")
+                + (previewKids($0.values, names: names))
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    /// The one-day changes `blocks` have on `day` and after, which go when the
+    /// blocks end the day before: "- Monday 2026-11-02: 9:00–9:45 Circle, cancelled".
+    private static func droppedChanges(
+        of blocks: [CDTimetableBlock], from day: Date, in modelContext: NSManagedObjectContext
+    ) -> [String] {
+        let entries = blocks.flatMap { block in
+            TimetableService.changes(of: block, from: day, in: modelContext)
+                .filter { $0.day != nil }
+                .map { (change: $0, block: block) }
+        }
+        return entries.sorted { lhs, rhs in
+            let left = lhs.change.day ?? .distantPast
+            let right = rhs.change.day ?? .distantPast
+            return left != right ? left < right : lhs.block.startMinute < rhs.block.startMinute
+        }.map { entry in
+            let values = entry.change.values
+            let what = switch entry.change.kind {
+            case .cancelled: "cancelled"
+            case .changed: "changed to \(TimetableDay.rangeText(values)) \(nonEmpty(values.title) ?? "Untitled")"
+            default: "changed"
+            }
+            let on = entry.change.day ?? day
+            return "- \(weekdayName(on)) \(dayString(on)): \(blockLabel(entry.block)), \(what)"
+        }
     }
 
     private static func previewKids(_ values: TimetableBlockValues, names: [String: String]) -> String {
@@ -186,8 +237,8 @@ extension MCPNotebookTools {
                 + "out that day: their blocks go and their turns in a room read Out), back_in (undo out), "
                 + "undo (take away one block's change, or with no block every change that day; that "
                 + "one needs confirm: true). Name a block by block_id from weekly_schedules, or by lane "
-                + "plus its start and/or part of its title. Refuses a day with no school. For a new "
-                + "timetable from a day on, use set_timetable.",
+                + "plus its start and/or part of its title; either way it must be on that day. Refuses a "
+                + "day with no school. For a new timetable from a day on, use set_timetable.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -398,6 +449,8 @@ extension MCPNotebookTools {
             guard let id = UUID(uuidString: reference), let block = all.first(where: { $0.id == id }) else {
                 throw MCPToolError("No block with id \(reference). weekly_schedules shows the ids.")
             }
+            // A block of another day would be changed there, or get a change no day reads.
+            try requireOnDay(block, day)
             return block
         }
         let lane = try timetableLane(requireString(arguments, "lane"), in: lanes)
@@ -424,6 +477,29 @@ extension MCPNotebookTools {
         let list = candidates.map { "\(blockLabel($0)) [block id=\($0.id?.uuidString ?? "unknown")]" }
         throw MCPToolError("More than one block of \(lane.name) matches on \(when): "
             + list.joined(separator: "; ") + ". Pass block_id.")
+    }
+
+    /// Refuses a block that isn't on `day`, saying which day it is on.
+    private static func requireOnDay(_ block: CDTimetableBlock, _ day: Date) throws {
+        let calendar = AppCalendar.shared
+        if let snapshot = TimetableBlockSnapshot(block),
+           ScheduleDayResolver.applies(snapshot, on: day, calendar: calendar) { return }
+        let reason: String
+        if let onDay = block.onDay {
+            reason = "is a one-off on \(weekdayName(onDay)) \(dayString(onDay))"
+        } else if let weekday = block.weekday, weekday != TimetableDay.weekday(of: day, calendar: calendar) {
+            reason = "is on \(weekday.rawValue)s"
+        } else if let from = block.validFrom, calendar.startOfDay(for: from) > calendar.startOfDay(for: day) {
+            reason = "starts on \(weekdayName(from)) \(dayString(from))"
+        } else if let until = block.validUntil {
+            reason = "ended on \(weekdayName(until)) \(dayString(until))"
+        } else {
+            reason = "is on no day of the week"
+        }
+        let when = "\(weekdayName(day)) \(dayString(day))"
+        throw MCPToolError("\(blockLabel(block)) [block id=\(block.id?.uuidString ?? "unknown")] \(reason), "
+            + "not on \(when); nothing was changed. Pass the date it is on, or a block that is on \(when) "
+            + "(weekly_schedules with that date lists them).")
     }
 
     private static func blockLabel(_ block: CDTimetableBlock) -> String {

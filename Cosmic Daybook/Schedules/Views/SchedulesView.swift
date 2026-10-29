@@ -242,6 +242,12 @@ struct SchedulesPage: View {
             Button("Add to This Day…", systemImage: "calendar.badge.plus") {
                 sheet = .block(.oneOff(laneID: nil, day: model.day))
             }
+            // A block cancelled for the day isn't on it to tap, so it comes back from here.
+            ForEach(model.resolved.cancelledBlocks) { block in
+                Button(ScheduleText.bringBack(block.values), systemImage: "arrow.uturn.backward") {
+                    model.undoChange(blockID: block.id, on: model.day)
+                }
+            }
             if model.resolved.isChanged {
                 Button("Undo This Day’s Changes", systemImage: "arrow.uturn.backward") {
                     model.undoAllChanges(on: model.day)

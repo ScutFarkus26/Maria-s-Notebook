@@ -61,7 +61,7 @@ struct AutoBackupFoldersFix1010J2aTests {
         Set(try FileManager.default.contentsOfDirectory(atPath: folder.path).filter { $0.hasPrefix(prefix) })
     }
 
-    private static func manager(defaults: UserDefaults, autoFolder: URL) -> AutoBackupManager {
+    private static func manager(defaults: UserDefaults, suite: String, autoFolder: URL) -> AutoBackupManager {
         AutoBackupManager(
             coordinator: BackupCoordinator(
                 backupService: BackupService(),
@@ -69,8 +69,29 @@ struct AutoBackupFoldersFix1010J2aTests {
                 appRouter: AppRouter()
             ),
             deviceDefaults: defaults,
+            deviceMark: mark(suite),
             autoFolder: autoFolder
         )
+    }
+
+    /// Where a test device's Keychain mark is kept: its own suite, under a
+    /// key a copy of its defaults made for another device leaves out, as a
+    /// device backup leaves out a Keychain item on that device only.
+    private static let markKey = "Fix1010J2a.keychainMark"
+
+    /// The Keychain mark of the device whose defaults are `suite`'s. Never
+    /// the real Keychain: every test device would share it.
+    private static func mark(_ suite: String) -> AutoBackupFolders.DeviceMark {
+        let key = markKey
+        return AutoBackupFolders.DeviceMark(
+            read: { UserDefaults(suiteName: suite)?.string(forKey: key) },
+            write: { UserDefaults(suiteName: suite)?.set($0, forKey: key) }
+        )
+    }
+
+    /// This device's folder name, as the device whose defaults are `suite`'s.
+    private static func folderName(_ defaults: UserDefaults, _ suite: String, kind: String) -> String {
+        AutoBackupFolders.deviceFolderName(defaults: defaults, kind: kind, mark: mark(suite))
     }
 
     /// The keep-N setting the managers read (Settings › Automatic backups).
@@ -89,22 +110,88 @@ struct AutoBackupFoldersFix1010J2aTests {
             UserDefaults.standard.removePersistentDomain(forName: padSuite)
         }
 
-        let macName = AutoBackupFolders.deviceFolderName(defaults: mac, kind: "Mac")
+        let macName = Self.folderName(mac, macSuite, kind: "Mac")
         #expect(macName.hasPrefix("Mac-"))
-        #expect(AutoBackupFolders.deviceFolderName(defaults: mac, kind: "Mac") == macName, "the same ever after")
-        #expect(AutoBackupFolders.deviceFolderName(defaults: mac, kind: "iPad") == macName, "kind read only once")
+        #expect(Self.folderName(mac, macSuite, kind: "Mac") == macName, "the same ever after")
+        #expect(Self.folderName(mac, macSuite, kind: "iPad") == macName, "kind read only once")
         #expect(mac.string(forKey: AutoBackupFolders.deviceFolderKey) == macName)
 
-        let padName = AutoBackupFolders.deviceFolderName(defaults: pad, kind: "iPad")
+        let padName = Self.folderName(pad, padSuite, kind: "iPad")
         #expect(padName.hasPrefix("iPad-"))
         #expect(padName != macName)
 
         // Never carried to another device: not synced, not backed up, not transferred.
-        let key = AutoBackupFolders.deviceFolderKey
-        #expect(!SyncedPreferencesStore.syncedKeys.contains(key))
-        #expect(!SyncedPreferencesStore.syncedKeyPrefixes.contains { key.hasPrefix($0) })
-        #expect(!BackupPreferencesService.isBackedUp(key))
-        #expect(!SettingsExportService.transferKeys.contains(key))
+        for key in [AutoBackupFolders.deviceFolderKey, AutoBackupFolders.deviceFolderMarkedKey] {
+            #expect(!SyncedPreferencesStore.syncedKeys.contains(key))
+            #expect(!SyncedPreferencesStore.syncedKeyPrefixes.contains { key.hasPrefix($0) })
+            #expect(!BackupPreferencesService.isBackedUp(key))
+            #expect(!SettingsExportService.transferKeys.contains(key))
+        }
+    }
+
+    // MARK: - A device set up from another's backup (bug hunt 2026-10-29)
+
+    @Test("A device set up from another's device backup makes a folder of its own; the other keeps its own")
+    func restoredDeviceMakesItsOwnFolder() throws {
+        let (old, oldSuite) = try Self.deviceDefaults()
+        let (new, newSuite) = try Self.deviceDefaults()
+        defer {
+            UserDefaults.standard.removePersistentDomain(forName: oldSuite)
+            UserDefaults.standard.removePersistentDomain(forName: newSuite)
+        }
+        let oldName = Self.folderName(old, oldSuite, kind: "iPhone")
+
+        // The new iPhone restored from the old one's backup: its defaults
+        // come across, its Keychain item on that device only doesn't.
+        for key in [AutoBackupFolders.deviceFolderKey, AutoBackupFolders.deviceFolderMarkedKey] {
+            new.set(old.object(forKey: key), forKey: key)
+        }
+        #expect(new.string(forKey: AutoBackupFolders.deviceFolderKey) == oldName)
+
+        let newName = Self.folderName(new, newSuite, kind: "iPhone")
+        #expect(newName != oldName, "a folder of its own, not the old iPhone's")
+        #expect(newName.hasPrefix("iPhone-"))
+        #expect(new.string(forKey: AutoBackupFolders.deviceFolderKey) == newName)
+        #expect(Self.folderName(new, newSuite, kind: "iPhone") == newName, "the same ever after")
+        #expect(Self.folderName(old, oldSuite, kind: "iPhone") == oldName, "the old iPhone keeps its own")
+    }
+
+    @Test("A name an older build made stays the device's and is marked; the mark outlasts the defaults")
+    func unmarkedNameIsKeptAndMarked() throws {
+        let (defaults, suite) = try Self.deviceDefaults()
+        defer { UserDefaults.standard.removePersistentDomain(forName: suite) }
+        defaults.set("Mac-1A2B3C4D", forKey: AutoBackupFolders.deviceFolderKey)
+
+        #expect(Self.folderName(defaults, suite, kind: "Mac") == "Mac-1A2B3C4D", "its backups stay where they are")
+        #expect(defaults.bool(forKey: AutoBackupFolders.deviceFolderMarkedKey))
+        #expect(defaults.string(forKey: Self.markKey) == "Mac-1A2B3C4D")
+
+        // The app deleted and put back: the defaults go, the Keychain item stays.
+        defaults.removeObject(forKey: AutoBackupFolders.deviceFolderKey)
+        defaults.removeObject(forKey: AutoBackupFolders.deviceFolderMarkedKey)
+        #expect(Self.folderName(defaults, suite, kind: "Mac") == "Mac-1A2B3C4D")
+        #expect(defaults.string(forKey: AutoBackupFolders.deviceFolderKey) == "Mac-1A2B3C4D")
+    }
+
+    @Test("A Keychain that can't be read keeps the stored name; one that won't take the mark keeps a new one")
+    func keychainTroubleKeepsTheName() throws {
+        struct Locked: Error {}
+        let (defaults, suite) = try Self.deviceDefaults()
+        let (fresh, freshSuite) = try Self.deviceDefaults()
+        defer {
+            UserDefaults.standard.removePersistentDomain(forName: suite)
+            UserDefaults.standard.removePersistentDomain(forName: freshSuite)
+        }
+        defaults.set("iPad-0LD00000", forKey: AutoBackupFolders.deviceFolderKey)
+        defaults.set(true, forKey: AutoBackupFolders.deviceFolderMarkedKey)
+        let locked = AutoBackupFolders.DeviceMark(read: { throw Locked() }, write: { _ in throw Locked() })
+        #expect(AutoBackupFolders.deviceFolderName(defaults: defaults, kind: "iPad", mark: locked) == "iPad-0LD00000")
+
+        let refusing = AutoBackupFolders.DeviceMark(read: { nil }, write: { _ in throw Locked() })
+        let name = AutoBackupFolders.deviceFolderName(defaults: fresh, kind: "iPad", mark: refusing)
+        #expect(name.hasPrefix("iPad-"))
+        #expect(!fresh.bool(forKey: AutoBackupFolders.deviceFolderMarkedKey), "not marked, so not taken for a copy")
+        #expect(AutoBackupFolders.deviceFolderName(defaults: fresh, kind: "iPad", mark: refusing) == name)
     }
 
     @Test("A stored name that isn't one plain folder name is replaced")
@@ -113,7 +200,7 @@ struct AutoBackupFoldersFix1010J2aTests {
         defer { UserDefaults.standard.removePersistentDomain(forName: suite) }
         for bad in ["", "..", "a/b", ".hidden", "AutoBackup-x"] {
             defaults.set(bad, forKey: AutoBackupFolders.deviceFolderKey)
-            let name = AutoBackupFolders.deviceFolderName(defaults: defaults, kind: "Mac")
+            let name = Self.folderName(defaults, suite, kind: "Mac")
             #expect(name != bad && name.hasPrefix("Mac-"), "\(bad.debugDescription) → \(name)")
         }
     }
@@ -127,7 +214,7 @@ struct AutoBackupFoldersFix1010J2aTests {
         let keep = Self.retention
         try await Self.withAutoFolder { auto in
             let mine = AutoBackupFolders.deviceFolder(
-                in: auto, named: AutoBackupFolders.deviceFolderName(defaults: defaults, kind: "Mac")
+                in: auto, named: Self.folderName(defaults, suite, kind: "Mac")
             )
             let theirs = auto.appendingPathComponent("iPad-OTHER0", isDirectory: true)
             let ownOld = try Self.seed(keep + 2, in: mine)
@@ -139,7 +226,7 @@ struct AutoBackupFoldersFix1010J2aTests {
             CoreDataTestHelpers.seedStudent(in: stack.viewContext, firstName: "Ada", lastName: "Lovelace")
             #expect(CoreDataTestHelpers.save(stack.viewContext))
 
-            let result = await Self.manager(defaults: defaults, autoFolder: auto)
+            let result = await Self.manager(defaults: defaults, suite: suite, autoFolder: auto)
                 .performManualBackup(viewContext: stack.viewContext)
             guard case .success(_, let written) = result else {
                 Issue.record("the backup wasn't written: \(result)")
@@ -170,16 +257,16 @@ struct AutoBackupFoldersFix1010J2aTests {
         let keep = Self.retention
         try await Self.withAutoFolder { auto in
             let macFolder = AutoBackupFolders.deviceFolder(
-                in: auto, named: AutoBackupFolders.deviceFolderName(defaults: mac, kind: "Mac")
+                in: auto, named: Self.folderName(mac, macSuite, kind: "Mac")
             )
             let padFolder = AutoBackupFolders.deviceFolder(
-                in: auto, named: AutoBackupFolders.deviceFolderName(defaults: pad, kind: "iPad")
+                in: auto, named: Self.folderName(pad, padSuite, kind: "iPad")
             )
             try Self.seed(keep, in: macFolder)
             try Self.seed(keep, in: padFolder)
 
             let stack = try CoreDataTestHelpers.makeInMemoryStack()
-            let padManager = Self.manager(defaults: pad, autoFolder: auto)
+            let padManager = Self.manager(defaults: pad, suite: padSuite, autoFolder: auto)
             // The iPad on the charger backs up again and again: each round one
             // more automatic backup, then a run that trims (any trigger does).
             for round in 0..<3 {

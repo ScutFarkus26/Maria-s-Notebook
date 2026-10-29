@@ -139,9 +139,10 @@ struct SchedulesPageModelTests {
         let block = try #require(model.resolved.lane(room.id)?.items.first?.block)
         #expect(model.isRepeating(blockID: block.id))
 
-        var changed = block.values
-        changed.title = "Field day"
-        #expect(model.edit(blockID: block.id, to: changed, scope: .onlyThisDay, on: Support.monday))
+        #expect(model.edit(
+            blockID: block.id, applying: TimetableService.BlockEdit(title: "Field day"), scope: .onlyThisDay,
+            on: Support.monday
+        ))
         #expect(titles(room, in: model.resolved) == ["Field day"])
         #expect(model.resolved.changeCount == 1)
         #expect(model.resolved.lane(room.id)?.items.first?.block?.isChanged == true)
@@ -153,14 +154,84 @@ struct SchedulesPageModelTests {
         #expect(titles(room, in: model.resolved) == ["Work cycle"])
         #expect(!model.resolved.isChanged)
 
-        var later = block.values
-        later.startMinute = Support.minutes(8, 45)
-        #expect(model.edit(blockID: block.id, to: later, scope: .thisDayAndAfter, on: Support.monday))
+        #expect(model.edit(
+            blockID: block.id, applying: TimetableService.BlockEdit(startMinute: Support.minutes(8, 45)),
+            scope: .thisDayAndAfter, on: Support.monday
+        ))
         #expect(model.resolved.lane(room.id)?.items.first?.startMinute == Support.minutes(8, 45))
         model.day = Support.nextMonday
         #expect(model.resolved.lane(room.id)?.items.first?.startMinute == Support.minutes(8, 45))
         model.day = Support.lastMonday
         #expect(model.resolved.lane(room.id)?.items.first?.startMinute == Support.minutes(9))
+    }
+
+    @Test("Editing a changed day from that day on takes the edit to later weeks, and the day's change stays its own")
+    func editOnAChangedDay() throws {
+        let context = try Support.context()
+        let (model, lanes) = try setUpPage(context)
+        let room = lanes[0]
+        model.day = Support.lastMonday
+        #expect(model.addBlock(
+            TimetableBlockValues(startMinute: Support.minutes(9), lengthMinutes: 60, title: "Work cycle"),
+            laneID: room.id, on: [.monday]
+        ))
+        model.day = Support.monday
+        let block = try #require(model.resolved.lane(room.id)?.items.first?.block)
+        #expect(model.edit(
+            blockID: block.id, applying: TimetableService.BlockEdit(startMinute: Support.minutes(10, 30)),
+            scope: .onlyThisDay, on: Support.monday
+        ))
+
+        // The sheet sends only the title typed, not the day's 10:30.
+        let moved = try #require(model.resolved.lane(room.id)?.items.first?.block)
+        #expect(moved.values.startMinute == Support.minutes(10, 30))
+        #expect(model.edit(
+            blockID: moved.id, applying: TimetableService.BlockEdit(title: "Morning work"),
+            scope: .thisDayAndAfter, on: Support.monday
+        ))
+        let monday = try #require(model.resolved.lane(room.id)?.items.first?.block)
+        #expect(monday.values.title == "Morning work")
+        #expect(monday.values.startMinute == Support.minutes(10, 30))
+        #expect(monday.isChanged)
+        model.day = Support.nextMonday
+        let nextWeek = try #require(model.resolved.lane(room.id)?.items.first?.block)
+        #expect(nextWeek.values.title == "Morning work")
+        #expect(nextWeek.values.startMinute == Support.minutes(9), "the day's own time stayed on its day")
+        #expect(!model.resolved.isChanged)
+        model.day = Support.lastMonday
+        #expect(titles(room, in: model.resolved) == ["Work cycle"])
+    }
+
+    @Test("A block cancelled for the day comes back on its own, and the day's other changes stay")
+    func bringBack() throws {
+        let context = try Support.context()
+        let (model, lanes) = try setUpPage(context)
+        let room = lanes[0]
+        model.day = Support.lastMonday
+        #expect(model.addBlock(
+            TimetableBlockValues(startMinute: Support.minutes(9), lengthMinutes: 60, title: "Work cycle"),
+            laneID: room.id, on: [.monday]
+        ))
+        #expect(model.addBlock(
+            TimetableBlockValues(startMinute: Support.minutes(11), lengthMinutes: 30, title: "Recess"),
+            laneID: room.id, on: [.monday]
+        ))
+        model.day = Support.monday
+        let items = model.resolved.lane(room.id)?.items.compactMap(\.block) ?? []
+        let work = try #require(items.first { $0.values.title == "Work cycle" })
+        let recess = try #require(items.first { $0.values.title == "Recess" })
+        #expect(model.cancel(blockID: recess.id, on: Support.monday))
+        #expect(model.edit(
+            blockID: work.id, applying: TimetableService.BlockEdit(title: "Field day"), scope: .onlyThisDay,
+            on: Support.monday
+        ))
+        #expect(titles(room, in: model.resolved) == ["Field day"])
+        #expect(model.resolved.cancelledBlocks.map(\.values.title) == ["Recess"])
+
+        #expect(model.undoChange(blockID: recess.id, on: Support.monday))
+        #expect(titles(room, in: model.resolved) == ["Field day", "Recess"])
+        #expect(model.resolved.cancelledBlocks.isEmpty)
+        #expect(model.resolved.changeCount == 1, "the other block's change for the day stays")
     }
 
     @Test("Cancel This Day and Delete: one date, or from that day on")

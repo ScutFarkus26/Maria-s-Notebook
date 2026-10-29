@@ -22,6 +22,10 @@ extension PresentationDetailContentView {
     func saveAndDone(retractingWork plans: [WorkRemovalPlan]) {
         let thenHowItWent = howItWentAfterSave
         howItWentAfterSave = false
+        // Undo restores the record as Record left it and deletes only the rows
+        // Record made, so once the children or the lesson change after it, an
+        // Undo would leave a child given who is no longer on it.
+        let changesRecord = vm.isPresented && vm.hasUnsavedRosterOrLesson
         vm.save(
             studentsAll: studentsAll,
             lessons: lessons,
@@ -29,6 +33,7 @@ extension PresentationDetailContentView {
             calendar: calendar,
             retractingWork: plans
         ) {
+            if changesRecord { session.undoToken = nil }
             if thenHowItWent {
                 showHowItWent()
             } else {

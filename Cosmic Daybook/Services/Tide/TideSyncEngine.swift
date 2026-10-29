@@ -31,7 +31,8 @@ import OSLog
 ///   (an automatic work check-in) and not someday, with its line and the
 ///   children's names in the note, and a later planned day as Tide's start.
 /// - **Show**: every open action of the lists Danny picked that no notebook
-///   to-do holds becomes one.
+///   to-do holds becomes one, unless its to-do was deleted here before the
+///   action took the notebook line (`TideSyncState.unmarkedLinks`).
 /// - **Wording**: once sent, Tide keeps the wording; a title edit here
 ///   doesn't travel. A to-do made in Tide follows Tide's words and due date
 ///   (its note is copied once); one the first run matched keeps its own.
@@ -125,6 +126,7 @@ final class TideSyncEngine {
         }
 
         state.keep(only: Set(run.todos.map(\.id)))
+        state.keepUnmarkedLinks(at: Set(run.actions.compactMap { $0.actionLink?.string }))
         state.lastSyncAt = now
         persist(state)
         guard store.save() else { return .stopped(.saveFailed) }

@@ -5,7 +5,8 @@ import Foundation
 
 /// Reads the day out of a capture like "Yesterday I gave Maya the binomial
 /// cube" or "On Tuesday I showed Leah the map". Only days in the last school
-/// week count (today and the seven days before it), never a day still to come;
+/// week count (today and the seven days before it), never a day still to come
+/// ("next Tuesday" is passed over: the day is when the lesson was given);
 /// anything else, or no day at all, means today. The review screen shows the
 /// day so she can change it.
 nonisolated enum CaptureDateParser {
@@ -62,20 +63,64 @@ nonisolated enum CaptureDateParser {
 
     private static let weekdays = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
 
-    /// "Tuesday" or "on Tuesday" is the latest Tuesday up to today; "last
-    /// Tuesday" said on a Tuesday is the week before.
+    /// A weekday counts only where it reads as the day something happened
+    /// (bug hunt 2026-10-29, #19: any weekday anywhere used to): "on
+    /// Tuesday", "last Tuesday", "this past Tuesday", "this Tuesday", or
+    /// "Tuesday" standing alone as the date, opening a sentence or closing
+    /// one ("I gave her the cube Tuesday."), "Tuesday morning" too. One that
+    /// describes something else names no day: "her Tuesday work plan",
+    /// "Monday's spelling", "by Friday", "every Monday".
+    ///
+    /// "Tuesday" is the latest Tuesday up to today; "last Tuesday" said on a
+    /// Tuesday is the week before; "this Tuesday" is this week's. "Next
+    /// Tuesday" (and "this Tuesday" when it hasn't come yet) is still to come:
+    /// a lesson can't have been given then, so it is passed over, and the day
+    /// comes from her other words or is today.
     private static func weekdayMentions(in text: String, todayStart: Date, calendar: Calendar) -> [Mention] {
         let todayWeekday = calendar.component(.weekday, from: todayStart)
-        return text.matches(of: /\b(last )?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/)
-            .compactMap { match in
-                guard let index = weekdays.firstIndex(of: String(match.output.2)) else { return nil }
-                var daysBack = (todayWeekday - (index + 1) + 7) % 7
-                if daysBack == 0 && match.output.1 != nil { daysBack = 7 }
-                return Mention(
-                    position: match.range.lowerBound,
-                    day: calendar.date(byAdding: .day, value: -daysBack, to: todayStart)
-                )
+        let pattern = #/
+            \b (?: (on|last|this\ past|past|this\ coming|coming|next|this) \  )?
+            (sunday|monday|tuesday|wednesday|thursday|friday|saturday) \b
+            /#
+        return text.matches(of: pattern).compactMap { match in
+            guard let index = weekdays.firstIndex(of: String(match.output.2)) else { return nil }
+            let weekday = index + 1
+            let daysBack = (todayWeekday - weekday + 7) % 7
+            let offset: Int
+            switch match.output.1.map(String.init) {
+            case "on"?, "past"?, "this past"?:
+                offset = -daysBack
+            case "last"?:
+                offset = daysBack == 0 ? -7 : -daysBack
+            case "this"?:
+                // This week's, which may be still to come.
+                offset = weekday - todayWeekday
+            case "next"?, "coming"?, "this coming"?:
+                offset = daysBack == 0 ? 7 : 7 - daysBack
+            default:
+                guard weekdayStandsAlone(match.range, in: text) else { return nil }
+                offset = -daysBack
             }
+            return Mention(
+                position: match.range.lowerBound,
+                day: calendar.date(byAdding: .day, value: offset, to: todayStart)
+            )
+        }
+    }
+
+    /// Whether a weekday with nothing before it is said as the date: it opens
+    /// a sentence ("Tuesday I showed Leah the map"), not as a possessive, or
+    /// it closes a clause ("…the map Tuesday.", "…Tuesday morning, and"),
+    /// and isn't a deadline or a habit ("by Friday", "every Monday").
+    private static func weekdayStandsAlone(_ range: Range<String.Index>, in text: String) -> Bool {
+        let before = text[..<range.lowerBound].trimmingCharacters(in: .whitespacesAndNewlines)
+        let after = text[range.upperBound...]
+        if before.isEmpty || ".!?;:\n".contains(before.last ?? " ") {
+            return after.prefixMatch(of: /['’]s\b/) == nil
+        }
+        let previousWord = before.split(whereSeparator: { !$0.isLetter }).last.map(String.init) ?? ""
+        guard !["by", "until", "till", "every", "each", "for", "before"].contains(previousWord) else { return false }
+        return after.prefixMatch(of: /(?: (?:morning|afternoon|evening))?\s*(?:$|[,.;:!?—])/) != nil
     }
 
     private static let months = [

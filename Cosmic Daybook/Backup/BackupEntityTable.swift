@@ -34,6 +34,9 @@ nonisolated struct BackupEntity: Sendable {
     let field: PartialKeyPath<BackupPayload> & Sendable
     /// The Core Data class, for the registry and replace-mode clearing.
     let managedType: @Sendable () -> NSManagedObject.Type
+    /// The first backup format that carries this type (0: every format the
+    /// app reads). A Replace from an older one leaves it (`isCarried(by:)`).
+    let firstFormat: Int
     let collector: BackupService.EntityCollector
     let serialization: BackupWriter.EntitySerialization
     let decoder: BackupImporter.EntityDecoder
@@ -60,6 +63,7 @@ nonisolated struct BackupEntity: Sendable {
             name: name,
             field: field,
             managedType: { Object.self },
+            firstFormat: 0,
             collector: .required(name, type, field, transform, announcing: announcement),
             serialization: BackupWriter.serialization(name) { $0[keyPath: field] },
             decoder: BackupImporter.rows(DTO.self, field),
@@ -74,17 +78,20 @@ nonisolated struct BackupEntity: Sendable {
     }
 
     /// A type stored in one of the payload's later-format (optional) arrays.
+    /// `since`: the first format carrying it, if after v17 (the oldest read).
     static func optional<Object: NSManagedObject, DTO: BackupRowDTO>(
         _ name: String,
         _ type: Object.Type,
         _ field: WritableKeyPath<BackupPayload, [DTO]?> & Sendable,
         _ transform: @escaping @MainActor ([Object]) -> [DTO],
+        since firstFormat: Int = 0,
         announcing announcement: BackupService.CollectionAnnouncement? = nil
     ) -> BackupEntity {
         BackupEntity(
             name: name,
             field: field,
             managedType: { Object.self },
+            firstFormat: firstFormat,
             collector: .optional(name, type, field, transform, announcing: announcement),
             serialization: BackupWriter.serialization(name) { $0[keyPath: field] ?? [] },
             decoder: BackupImporter.optionalRows(DTO.self, field),
@@ -282,58 +289,66 @@ nonisolated enum BackupEntityTable {
     /// parent communications), v21 (teaching-album annotations), v27 (orders),
     /// v30 (attendance day locks), v31 (supply transactions), v34 (front-desk
     /// emails and their settings), v38 (the names people set for themselves)
-    /// and v42 (Schedules).
+    /// and v42 (Schedules), each with the format it joined (`since`). Locked
+    /// days say v23: from then until v30 a backup carried them as
+    /// `Attendance.locked.<date>` settings, which a restore turns into lock
+    /// records (`AttendanceDayLocks.carryOverRestoredLocks`).
     private static let laterFormatEntities: [BackupEntity] = [
         .optional(
-            "DayPad", CDDayPad.self, \.dayPads, DayPadDTO.rows,
+            "DayPad", CDDayPad.self, \.dayPads, DayPadDTO.rows, since: 18,
             announcing: .init(0.97, "Collecting stories, book club & year plan\u{2026}")
         ),
-        .optional("YearPlanEntry", CDYearPlanEntry.self, \.yearPlanEntries, YearPlanEntryDTO.rows),
+        .optional("YearPlanEntry", CDYearPlanEntry.self, \.yearPlanEntries, YearPlanEntryDTO.rows, since: 18),
         .optional(
             "LessonSequenceSettings", CDLessonSequenceSettings.self, \.lessonSequenceSettings,
-            LessonSequenceSettingsDTO.rows
+            LessonSequenceSettingsDTO.rows, since: 18
         ),
-        .optional("Story", CDStory.self, \.stories, BackupDTOTransformers.toDTOs),
-        .optional("BookClubPacket", CDBookClubPacket.self, \.bookClubPackets, BackupDTOTransformers.toDTOs),
-        .optional("BookClubSession", CDBookClubSession.self, \.bookClubSessions, BookClubSessionDTO.rows),
-        .optional("BookClubMeeting", CDBookClubMeeting.self, \.bookClubMeetings, BookClubMeetingDTO.rows),
+        .optional("Story", CDStory.self, \.stories, BackupDTOTransformers.toDTOs, since: 18),
+        .optional("BookClubPacket", CDBookClubPacket.self, \.bookClubPackets, BackupDTOTransformers.toDTOs, since: 18),
+        .optional("BookClubSession", CDBookClubSession.self, \.bookClubSessions, BookClubSessionDTO.rows, since: 18),
+        .optional("BookClubMeeting", CDBookClubMeeting.self, \.bookClubMeetings, BookClubMeetingDTO.rows, since: 18),
         .optional(
-            "Guardian", CDGuardian.self, \.guardians, GuardianDTO.rows,
+            "Guardian", CDGuardian.self, \.guardians, GuardianDTO.rows, since: 20,
             announcing: .init(0.98, "Collecting guardians & parent communications\u{2026}")
         ),
         .optional(
-            "ParentCommunication", CDParentCommunication.self, \.parentCommunications, ParentCommunicationDTO.rows
+            "ParentCommunication", CDParentCommunication.self, \.parentCommunications, ParentCommunicationDTO.rows,
+            since: 20
         ),
         .optional(
-            "AlbumBookmark", CDAlbumBookmark.self, \.albumBookmarks, AlbumBookmarkDTO.rows,
+            "AlbumBookmark", CDAlbumBookmark.self, \.albumBookmarks, AlbumBookmarkDTO.rows, since: 21,
             announcing: .init(0.99, "Collecting album bookmarks & notes\u{2026}")
         ),
-        .optional("AlbumPageNote", CDAlbumPageNote.self, \.albumPageNotes, AlbumPageNoteDTO.rows),
-        .optional("AlbumRecentVisit", CDAlbumRecentVisit.self, \.albumRecentVisits, AlbumRecentVisitDTO.rows),
+        .optional("AlbumPageNote", CDAlbumPageNote.self, \.albumPageNotes, AlbumPageNoteDTO.rows, since: 21),
         .optional(
-            "AlbumReadingPosition", CDAlbumReadingPosition.self, \.albumReadingPositions, AlbumReadingPositionDTO.rows
-        ),
-        .optional("AlbumHighlight", CDAlbumHighlight.self, \.albumHighlights, BackupDTOTransformers.toDTOs),
-        .optional("AlbumPageInk", CDAlbumPageInk.self, \.albumPageInk, BackupDTOTransformers.toDTOs),
-        .optional("OrderItem", CDOrderItem.self, \.orderItems, OrderItemDTO.rows),
-        .optional(
-            "AttendanceDayLock", CDAttendanceDayLock.self, \.attendanceDayLocks, AttendanceDayLockDTO.rows
+            "AlbumRecentVisit", CDAlbumRecentVisit.self, \.albumRecentVisits, AlbumRecentVisitDTO.rows, since: 21
         ),
         .optional(
-            "SupplyTransaction", CDSupplyTransaction.self, \.supplyTransactions, SupplyTransactionDTO.rows
+            "AlbumReadingPosition", CDAlbumReadingPosition.self, \.albumReadingPositions, AlbumReadingPositionDTO.rows,
+            since: 21
+        ),
+        .optional("AlbumHighlight", CDAlbumHighlight.self, \.albumHighlights, BackupDTOTransformers.toDTOs, since: 21),
+        .optional("AlbumPageInk", CDAlbumPageInk.self, \.albumPageInk, BackupDTOTransformers.toDTOs, since: 21),
+        .optional("OrderItem", CDOrderItem.self, \.orderItems, OrderItemDTO.rows, since: 27),
+        .optional(
+            "AttendanceDayLock", CDAttendanceDayLock.self, \.attendanceDayLocks, AttendanceDayLockDTO.rows, since: 23
         ),
         .optional(
-            "AttendanceEmailSend", CDAttendanceEmailSend.self, \.attendanceEmailSends, AttendanceEmailSendDTO.rows
+            "SupplyTransaction", CDSupplyTransaction.self, \.supplyTransactions, SupplyTransactionDTO.rows, since: 31
+        ),
+        .optional(
+            "AttendanceEmailSend", CDAttendanceEmailSend.self, \.attendanceEmailSends, AttendanceEmailSendDTO.rows,
+            since: 34
         ),
         .optional(
             "AttendanceEmailSettings", CDAttendanceEmailSettings.self, \.attendanceEmailSettings,
-            AttendanceEmailSettingsDTO.rows
+            AttendanceEmailSettingsDTO.rows, since: 34
         ),
-        .optional("ClassroomPerson", CDClassroomPerson.self, \.classroomPeople, ClassroomPersonDTO.rows),
-        .optional("TimetableLane", CDTimetableLane.self, \.timetableLanes, TimetableLaneDTO.rows),
-        .optional("TimetableBlock", CDTimetableBlock.self, \.timetableBlocks, TimetableBlockDTO.rows),
-        .optional("TimetableChange", CDTimetableChange.self, \.timetableChanges, TimetableChangeDTO.rows),
-        .optional("TimetableBooking", CDTimetableBooking.self, \.timetableBookings, TimetableBookingDTO.rows)
+        .optional("ClassroomPerson", CDClassroomPerson.self, \.classroomPeople, ClassroomPersonDTO.rows, since: 38),
+        .optional("TimetableLane", CDTimetableLane.self, \.timetableLanes, TimetableLaneDTO.rows, since: 42),
+        .optional("TimetableBlock", CDTimetableBlock.self, \.timetableBlocks, TimetableBlockDTO.rows, since: 42),
+        .optional("TimetableChange", CDTimetableChange.self, \.timetableChanges, TimetableChangeDTO.rows, since: 42),
+        .optional("TimetableBooking", CDTimetableBooking.self, \.timetableBookings, TimetableBookingDTO.rows, since: 42)
     ]
 }
 

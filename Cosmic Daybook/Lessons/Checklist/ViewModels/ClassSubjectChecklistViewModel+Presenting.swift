@@ -27,6 +27,9 @@ extension ClassAreaChecklistViewModel {
         guard !chosen.isEmpty else { return nil }
         let draft = PresentationFactory.makeDraft(lesson: lesson, students: chosen, context: context)
         draft.syncSnapshotsFromRelationships()
+        // The draft answers each child's year-plan entry for the lesson, so a draft the
+        // sheet saves isn't a second plan beside it; discarding it puts them back.
+        YearPlanPromotionService.promoteMatchingEntries(into: draft, context: context)
         context.safeSave()
         return draft
     }

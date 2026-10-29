@@ -84,7 +84,7 @@ extension BackupService {
         if mode == .replace {
             progress(RestoreProgress.clearing, "Clearing existing data\u{2026}")
             appRouter.signalAppDataWillBeReplaced()
-            let failedEntities = try deleteAll(viewContext: viewContext)
+            let failedEntities = try deleteAll(viewContext: viewContext, formatVersion: envelope.formatVersion)
             if !failedEntities.isEmpty {
                 // Replace mode must fully clear the store before importing. If some
                 // types couldn't be cleared, abort so the transaction manager rolls

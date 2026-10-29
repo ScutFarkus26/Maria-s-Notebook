@@ -5,7 +5,8 @@
 // Shared by the presentation sheet's Record button and the Ready row's
 // one-click Presented, so both take an absent child off the same way: onto a
 // plan of her own for the same lesson (an existing On Deck plan for exactly
-// those children is reused), with her promoted year-plan entry following her.
+// those children is reused), with her promoted year-plan entry and the notes
+// about only her following her.
 
 import CoreData
 import Foundation
@@ -102,8 +103,10 @@ enum PresentationRecorder {
     }
 
     /// Takes `absent` off `assignment` onto a plan of their own and returns
-    /// that plan (inserted, or an existing unscheduled one reused). Does not
-    /// save. Also used by Today's "Move them to tomorrow"
+    /// that plan (inserted, or an existing unscheduled one reused). Notes
+    /// about only them go with them, as a group move carries them (bug hunt
+    /// 2026-10-29 #13); a note for the group, or one naming a child who was
+    /// there, stays. Does not save. Also used by Today's "Move them to tomorrow"
     /// (`TodayAbsentMover`).
     @discardableResult
     static func keepOnPlan(
@@ -137,17 +140,25 @@ enum PresentationRecorder {
             plan = PresentationFactory.makeDraft(lesson: lesson, students: students, context: context)
         }
         YearPlanPromotionService.promoteMatchingEntries(into: plan, context: context)
+        PresentationRecordCleanup.moveNotes(
+            from: assignment, to: plan,
+            only: PresentationRecordCleanup.ownNotes(of: Set(absent.map(\.uuidString)), on: assignment)
+        )
         return plan
     }
 
     /// What taking the absent children off at Record changed, so Undo can put
-    /// them back: the roster as it was, the plan made for them, and their
-    /// year-plan entries for the lesson (pointed back at this presentation).
+    /// them back: the roster as it was, the plan made for them, their
+    /// year-plan entries for the lesson (pointed back at this presentation)
+    /// and the notes about only them that went with them.
     struct AbsentSplit {
         let studentIDs: [String]
         let modifiedAt: Date?
         let absent: Set<UUID>
         let entries: [YearPlanReleasePreimage.Entry]
+        /// Held, not by id: a note added in the sheet has only a temporary id
+        /// until the save.
+        let carriedNotes: [CDNote]
         /// The plan Record made for them; an existing plan it reused is left alone.
         var createdPlanObjectID: NSManagedObjectID?
 
@@ -166,14 +177,19 @@ enum PresentationRecorder {
                     objectID: $0.objectID, statusRaw: $0.statusRaw, promotedAssignmentID: $0.promotedAssignmentID
                 )
             }
+            carriedNotes = PresentationRecordCleanup.ownNotes(of: Set(absent.map(\.uuidString)), on: assignment)
         }
 
-        /// Puts the roster back, removes the plan Record made for the absent
-        /// children (unless it has since become something else) and restores
-        /// their entries. Does not save.
+        /// Puts the roster and the carried notes back, removes the plan Record
+        /// made for the absent children (unless it has since become something
+        /// else) and restores their entries. Does not save.
         func restore(onto assignment: CDLessonAssignment, in context: NSManagedObjectContext) {
             assignment.studentIDs = studentIDs
             assignment.modifiedAt = modifiedAt
+            // Before the plan goes: its notes cascade with it.
+            for note in carriedNotes where !note.isDeleted {
+                note.lessonAssignment = assignment
+            }
             if let createdPlanObjectID,
                let plan = context.existing(CDLessonAssignment.self, createdPlanObjectID),
                !plan.isDeleted, !plan.isPresented, plan.scheduledFor == nil,

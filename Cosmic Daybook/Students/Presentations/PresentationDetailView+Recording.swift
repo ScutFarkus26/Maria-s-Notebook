@@ -85,7 +85,8 @@ extension PresentationDetailContentView {
     private var saveButton: some View {
         Button("Save", action: handleSaveAndDone)
             .keyboardShortcut("s", modifiers: .command)
-            .disabled(vm.selectedStudentIDs.isEmpty)
+            // A new presentation's lesson is a placeholder until one is picked.
+            .disabled(vm.selectedStudentIDs.isEmpty || currentLesson == nil)
             .help("Save changes to the plan without recording it")
     }
 
@@ -187,6 +188,12 @@ extension PresentationDetailContentView {
         }
         let day = AppCalendar.startOfDay(session.presentedDay)
 
+        // A failed record takes back everything below, the sheet's edits
+        // included, so the alert's "Nothing was changed" is true and the next
+        // save elsewhere doesn't commit them.
+        let hadChanges = viewContext.hasChanges
+        let transaction = ContextMutationTransaction(context: viewContext)
+
         // Lesson and roster edits land first, so the record matches the sheet.
         vm.applyEditsToModel(studentsAll: studentsAll, lessons: lessons, calendar: calendar)
 
@@ -198,6 +205,7 @@ extension PresentationDetailContentView {
                 context: viewContext,
                 saveCoordinator: vm.saveCoordinator
             )
+            transaction.commit()
             session.undoToken = result.undoToken
             session.keptOnPlanNames = studentsAll
                 .filter { $0.id.map(result.keptOnPlan.contains) ?? false }
@@ -208,24 +216,32 @@ extension PresentationDetailContentView {
             vm.needsAnotherPresentation = false
             showHowItWent()
         } catch {
+            transaction.rollback()
+            // A step that saved before the failure is in the store; saving the
+            // rollback puts the store back too.
+            if !hadChanges && viewContext.hasChanges {
+                _ = vm.saveCoordinator.save(
+                    viewContext, reason: "Taking back a recording that failed", alertOnFailure: false
+                )
+            }
             showNotRecorded(error)
         }
     }
 
     /// An earlier presentation whose day nobody knows: it is marked given
-    /// without a date (never today's) and the sheet closes.
+    /// without a date (never today's) and the sheet closes. A child not ticked
+    /// as there stays on the plan, on one of her own, as Record keeps her.
     func recordUndated() {
         guard currentLesson != nil else {
             showNotRecorded(PresentationRecorder.RecordError.missingLesson)
             return
         }
-        guard !vm.selectedStudentIDs.isEmpty else {
+        let present = session.presentIDs.intersection(vm.selectedStudentIDs)
+        guard !present.isEmpty else {
             showNotRecorded(PresentationRecorder.RecordError.nobodyPresent)
             return
         }
-        vm.isPresented = true
-        vm.givenAt = nil
-        vm.needsAnotherPresentation = false
+        vm.beginUndatedRecording(keepingOnPlan: vm.selectedStudentIDs.subtracting(present))
         handleSaveAndDone()
     }
 
@@ -239,6 +255,7 @@ extension PresentationDetailContentView {
             )
             session.undoToken = nil
             session.keptOnPlanNames = []
+            session.forgetHowItWent()
             vm.isPresented = vm.lessonAssignment.isPresented
             vm.givenAt = vm.lessonAssignment.presentedAt
             vm.needsAnotherPresentation = vm.lessonAssignment.needsAnotherPresentation
@@ -267,12 +284,15 @@ extension PresentationDetailContentView {
 
     func showHowItWent() {
         guard let lesson = currentLesson else { return }
-        let rules = LessonProgressionRules.resolve(for: lesson, context: viewContext)
-        session.loadDecisions(
-            studentIDs: recordedStudentIDs,
-            defaultDecision: rules.requiresPractice ? .practice : .continueObserving,
-            context: viewContext
-        )
+        // Back from Edit Details, the decisions she made are still hers.
+        if !session.hasOpenedHowItWent {
+            let rules = LessonProgressionRules.resolve(for: lesson, context: viewContext)
+            session.loadDecisions(
+                studentIDs: recordedStudentIDs,
+                defaultDecision: rules.requiresPractice ? .practice : .continueObserving,
+                context: viewContext
+            )
+        }
         session.showHowItWent()
     }
 

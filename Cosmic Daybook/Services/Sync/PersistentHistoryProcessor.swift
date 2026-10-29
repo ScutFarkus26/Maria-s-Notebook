@@ -62,9 +62,9 @@ actor PersistentHistoryProcessor {
     nonisolated private static let schoolDayEntityNames: Set<String> = ["NonSchoolDay", "SchoolDayOverride"]
 
     /// Entities the Upcoming pane, the progress map, the class checklist, the
-    /// attendance roll, the ready queue (`ReadyQueueLoader.inputEntities`) and
-    /// Restock read (`LessonPresentation` carries the mastery marks the
-    /// checklist colors green), the names people go by (`ClassroomPerson`),
+    /// attendance roll, the ready queue (`ReadyQueueLoader.inputEntities`, its
+    /// recall checks included) and Restock read (`LessonPresentation` carries
+    /// the mastery marks the checklist colors green), the names people go by (`ClassroomPerson`),
     /// which those lines are worded with, and the Schedules timetables and
     /// bookings (`Timetable*`), which the Schedules page and Today follow. A
     /// batch that touched any of them posts
@@ -75,7 +75,7 @@ actor PersistentHistoryProcessor {
     nonisolated static let presentationEntityNames: Set<String> = [
         "LessonAssignment", "Lesson", "LessonPresentation", "Student", "WorkModel",
         "AttendanceRecord", "AttendanceDayLock", "AttendanceEmailSend", "AttendanceEmailSettings",
-        "YearPlanEntry", "WorkParticipantEntity", "LessonSequenceSettings",
+        "YearPlanEntry", "WorkParticipantEntity", "LessonRecallCheck", "LessonSequenceSettings",
         "Supply", "SupplyTransaction", "OrderItem", "ClassroomPerson",
         "TimetableLane", "TimetableBlock", "TimetableChange", "TimetableBooking"
     ]

@@ -37,7 +37,8 @@ struct BackupRestorePreviewFix1010J2aTests {
         let (context, _) = try Self.splitNotebook()
 
         let analysis = BackupPreviewAnalyzer.analyze(
-            digest: BackupPreviewDigest(), viewContext: context, mode: .replace, entityExists: { _, _ in false }
+            digest: BackupPreviewDigest(), viewContext: context, mode: .replace,
+            formatVersion: BackupWriter.formatVersion, entityExists: { _, _ in false }
         )
 
         #expect(analysis.deletes["Student"] == 2, "the shared classroom's 3 children stay")

@@ -39,9 +39,24 @@ extension UnifiedNoteEditor {
         }
     }
 
-    /// Whether closing now would throw away what she typed or attached.
+    /// Whether closing now would throw away anything Save writes: the text,
+    /// photo, children, tags, "Include in report" or "Needs follow-up" (bug
+    /// hunt 2026-10-29, #21: it used to look only at the text and photo).
     var hasUnsavedChanges: Bool {
-        bodyText.trimmed() != (openedBodyText ?? "").trimmed() || imagePath != originalImagePath
+        guard let openedEdit else { return false }
+        return currentEdit != openedEdit
+    }
+
+    /// What Save would write, as the editor holds it now.
+    var currentEdit: NoteEditorSave.Edit {
+        NoteEditorSave.Edit(
+            body: bodyText,
+            children: selectedStudentIDs,
+            tags: tags,
+            includeInReport: includeInReport,
+            needsFollowUp: needsFollowUp,
+            imagePath: imagePath
+        )
     }
 
     /// Cancel: asks first when there are edits to lose.
@@ -144,6 +159,26 @@ enum NoteEditorSave {
         case existing(CDNote, originalImagePath: String?)
         /// A new note; `attach` hangs it on the record it was written on.
         case new(attach: (CDNote) -> Void)
+    }
+
+    /// Everything the editor saves, to tell whether closing loses any of it.
+    /// Text compares trimmed, as Save writes it.
+    struct Edit: Equatable {
+        var body: String
+        var children: Set<UUID>
+        var tags: [String]
+        var includeInReport: Bool
+        var needsFollowUp: Bool
+        var imagePath: String?
+
+        static func == (lhs: Edit, rhs: Edit) -> Bool {
+            lhs.body.trimmed() == rhs.body.trimmed()
+                && lhs.children == rhs.children
+                && lhs.tags == rhs.tags
+                && lhs.includeInReport == rhs.includeInReport
+                && lhs.needsFollowUp == rhs.needsFollowUp
+                && lhs.imagePath == rhs.imagePath
+        }
     }
 
     enum Outcome {

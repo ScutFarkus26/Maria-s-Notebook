@@ -171,12 +171,15 @@ enum AttendanceRules {
         if let set = row.leavesAt { return set }
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: day)
+        // Clock times, not minutes from midnight: on the day the clocks
+        // change, midnight plus twelve hours is 11:00 or 1:00.
         guard calendar.isDate(day, inSameDayAs: now) else {
-            return calendar.date(byAdding: .hour, value: 12, to: start) ?? start
+            return calendar.date(bySettingHour: 12, minute: 0, second: 0, of: start) ?? start
         }
         let minutes = calendar.component(.hour, from: now) * 60 + calendar.component(.minute, from: now)
         let rounded = (minutes / 30 + 1) * 30
-        return calendar.date(byAdding: .minute, value: rounded, to: start) ?? now
+        guard rounded < 24 * 60 else { return calendar.date(byAdding: .day, value: 1, to: start) ?? now }
+        return calendar.date(bySettingHour: rounded / 60, minute: rounded % 60, second: 0, of: start) ?? now
     }
 
     /// `time`'s hour and minute on `day`: a picker's answer, put on the
@@ -185,7 +188,7 @@ enum AttendanceRules {
         let calendar = Calendar.current
         let parts = calendar.dateComponents([.hour, .minute], from: time)
         let start = calendar.startOfDay(for: day)
-        return calendar.date(byAdding: .minute, value: (parts.hour ?? 0) * 60 + (parts.minute ?? 0), to: start)
+        return calendar.date(bySettingHour: parts.hour ?? 0, minute: parts.minute ?? 0, second: 0, of: start)
             ?? time
     }
 

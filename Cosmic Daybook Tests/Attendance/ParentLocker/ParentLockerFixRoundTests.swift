@@ -195,7 +195,9 @@ struct ParentLockerFixRoundTests {
         #expect(AttendanceEmailLog.latestSend(on: Device.morning, in: context) == nil)
         #expect(AttendanceEmailLog.sends(on: Device.morning, in: context).isEmpty)
         #expect(AttendanceEmailLog.thirdPersonSummary(on: Device.morning, in: context) == nil)
-        let day = ParentLockerCoreDataStore(context: context, sendRecorded: { _ in }, fixedRole: .assistant)
+        let day = ParentLockerCoreDataStore(
+            context: context, sendRecorded: { _ in }, fixedRole: .assistant, lateDefaults: Self.lateDefaults()
+        )
             .day(Device.morning, withChildren: false)
         #expect(!day.sentToParentLocker)
         #expect(!day.isAfter, "not a reason to go live")
@@ -212,12 +214,19 @@ struct ParentLockerFixRoundTests {
     }
 
     /// A sync on a real notebook context, as the apps make it, over the fake site.
+    /// Settings of their own, so a day another test left closed on the
+    /// simulator's shared settings can't read as closed here.
+    private static func lateDefaults() -> UserDefaults {
+        let name = "ParentLockerFixRoundTests.\(UUID().uuidString)"
+        return UserDefaults(suiteName: name) ?? .standard
+    }
+
     private static func sync(
         on context: NSManagedObjectContext, site: FakeParentLocker, clock: FakeParentLockerClock,
         role: CDClassroomMembership.ClassroomRole = .leadGuide
     ) -> ParentLockerSync {
         var dependencies = ParentLockerSync.Dependencies(store: ParentLockerCoreDataStore(
-            context: context, sendRecorded: { _ in }, fixedRole: role
+            context: context, sendRecorded: { _ in }, fixedRole: role, lateDefaults: lateDefaults()
         ))
         dependencies.secrets = FakeParentLockerSecrets()
         dependencies.makeTransport = { _, cookies, _ in FakeParentLockerTransport(site: site, cookies: cookies) }

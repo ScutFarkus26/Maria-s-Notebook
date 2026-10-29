@@ -135,6 +135,7 @@ extension ClassGridEngine {
                     today: today,
                     blockingReason: verdict.blockingReason,
                     isMastered: records.masteryMarks[lessonIDString]?.contains(studentKey) ?? false,
+                    isOnYearPlan: records.yearPlanned[lessonIDString]?.contains(studentKey) ?? false,
                     checkFirstReasons: verdict.checkFirstReasons
                 )
             }
@@ -144,12 +145,14 @@ extension ClassGridEngine {
 
     // MARK: - Private Helpers
 
-    /// A batch's assignments and work, by lesson ID string and then by student key, and
-    /// the row lessons' mastery marks (lesson ID string → student keys).
+    /// A batch's assignments and work, by lesson ID string and then by student key, the
+    /// row lessons' mastery marks and the children whose year plan still waits for each
+    /// (lesson ID string → student keys).
     private struct LessonRecordIndex {
         let assignments: [String: [String: [CDLessonAssignment]]]
         let works: [String: [String: [CDWorkModel]]]
         let masteryMarks: [String: Set<String>]
+        let yearPlanned: [String: Set<String>]
     }
 
     /// The row lessons' records, in one fetch per entity, plus their mastery marks.
@@ -160,7 +163,8 @@ extension ClassGridEngine {
         return LessonRecordIndex(
             assignments: assignmentsByLesson(assignments),
             works: worksByLesson(works, visibility: WorkVisibility(rows: works)),
-            masteryMarks: PresentationRecordIndex.masteryMarks(lessonIDs: rowIDs, in: context)
+            masteryMarks: PresentationRecordIndex.masteryMarks(lessonIDs: rowIDs, in: context),
+            yearPlanned: yearPlannedByLesson(lessonIDs: fetchIDs, context: context)
         )
     }
 
@@ -234,6 +238,7 @@ extension ClassGridEngine {
         today: Date,
         blockingReason: BlockingReason = .none,
         isMastered: Bool = false,
+        isOnYearPlan: Bool = false,
         checkFirstReasons: [String] = []
     ) -> StudentChecklistRowState {
         let nonPresented = studentLAs.filter { !$0.isPresented }
@@ -266,6 +271,7 @@ extension ClassGridEngine {
             lastActivityDate: lastActivityDate,
             isStale: isStale,
             isInboxPlan: isInboxPlan,
+            isOnYearPlan: isOnYearPlan,
             blockingReason: blockingReason,
             isMastered: isMastered,
             checkFirstReasons: checkFirstReasons
@@ -309,6 +315,25 @@ extension ClassGridEngine {
         request.predicate = NSPredicate(format: "lessonID IN %@", lessonIDs)
         request.relationshipKeyPathsForPrefetching = ["participants"]
         return context.safeFetch(request)
+    }
+
+    /// The children each lesson's year plan still waits for: entries still planned. A
+    /// promoted entry's presentation already speaks for it, and a skipped one is no plan
+    /// (`PresentationRecordIndex`'s rule). Until 2026-10-29 the Checklist read no year
+    /// plan, so a child with the lesson on hers showed Ready, and the row's Plan put her
+    /// on a second plan (bug hunt 2026-10-29 #12).
+    private static func yearPlannedByLesson(
+        lessonIDs: [String], context: NSManagedObjectContext
+    ) -> [String: Set<String>] {
+        let request: NSFetchRequest<CDYearPlanEntry> = CDFetchRequest(CDYearPlanEntry.self)
+        request.predicate = NSPredicate(
+            format: "lessonID IN %@ AND statusRaw == %@", lessonIDs, YearPlanEntryStatus.planned.rawValue
+        )
+        var result: [String: Set<String>] = [:]
+        for entry in context.safeFetch(request) where !entry.isDeleted {
+            result[entry.lessonID, default: []].insert(entry.studentID)
+        }
+        return result
     }
 
     /// Assignments indexed by lesson and then by student key. Each student's list

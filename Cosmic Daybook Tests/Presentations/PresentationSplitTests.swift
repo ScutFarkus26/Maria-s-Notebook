@@ -33,7 +33,8 @@ struct PresentationSplitTests {
     }
 
     private func split(
-        _ moving: [CDStudent], off source: CDLessonAssignment, in room: Room
+        _ moving: [CDStudent], off source: CDLessonAssignment, in room: Room,
+        sheetRoster: [CDStudent] = []
     ) throws -> PresentationSplit {
         let split = PresentationDetailActions().moveStudentsToInbox(
             from: source,
@@ -41,6 +42,7 @@ struct PresentationSplitTests {
             studentsToMove: Set(try moving.map { try #require($0.id) }),
             studentsAll: [room.ada, room.ben, room.cy],
             lessonAssignmentsAll: plans(room.context),
+            keepOnSource: Set(try sheetRoster.map { try #require($0.id) }),
             context: room.context
         )
         #expect(CoreDataTestHelpers.save(room.context))
@@ -149,6 +151,41 @@ struct PresentationSplitTests {
 
         #expect(source.studentIDs.isEmpty)
         #expect(plans(room.context) == [source])
+    }
+
+    @Test("Splitting off every saved child keeps the sheet's other children on the plan, and its notes with it")
+    func splitOfEverySavedChildKeepsSheetChildren() throws {
+        let room = try makeRoom()
+        let source = PresentationFactory.makeDraft(lesson: room.lesson, students: [room.ada, room.ben], context: room.context)
+        let groupNote = CoreDataTestHelpers.seedNote(in: room.context, body: "Whole group")
+        groupNote.lessonAssignment = source
+        #expect(CoreDataTestHelpers.save(room.context))
+
+        // Cy was added in the sheet; Ada and Ben, the plan's saved children, go.
+        let result = try split([room.ada, room.ben], off: source, in: room, sheetRoster: [room.ada, room.ben, room.cy])
+        let cyID = try #require(room.cy.id)
+
+        // Not left empty, so Cancel keeps the plan and its note.
+        #expect(source.resolvedStudentIDs == [cyID])
+        #expect(result.keptOnSource == [cyID])
+        #expect(groupNote.lessonAssignment == source)
+
+        #expect(PresentationDetailActions().undoSplit(result, context: room.context))
+        #expect(CoreDataTestHelpers.save(room.context))
+        #expect(Set(source.resolvedStudentIDs) == Set(try [room.ada, room.ben].map { try #require($0.id) }))
+        #expect(plans(room.context) == [source])
+    }
+
+    @Test("A split leaves a new presentation's sheet children unsaved, so Cancel still throws it away")
+    func splitLeavesNewPresentationEmpty() throws {
+        let room = try makeRoom()
+        let source = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [], context: room.context)
+        #expect(CoreDataTestHelpers.save(room.context))
+
+        let result = try split([room.ada], off: source, in: room, sheetRoster: [room.ada, room.ben])
+
+        #expect(source.studentIDs.isEmpty)
+        #expect(result.keptOnSource.isEmpty)
     }
 
     @Test("A split uses the lesson the plan is saved with, not an unsaved Change Lesson")

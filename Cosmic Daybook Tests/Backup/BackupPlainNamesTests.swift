@@ -27,7 +27,8 @@ struct BackupPlainNamesTests {
         // Merge lists the types it compares one by one (18 today); replace, every backed-up type.
         for (mode, atLeast) in [(BackupService.RestoreMode.merge, 18), (.replace, 70)] {
             let analysis = BackupPreviewAnalyzer.analyze(
-                digest: BackupPreviewDigest(), viewContext: context, mode: mode, entityExists: { _, _ in false }
+                digest: BackupPreviewDigest(), viewContext: context, mode: mode,
+                formatVersion: BackupWriter.formatVersion, entityExists: { _, _ in false }
             )
             let keys = Set(analysis.inserts.keys).union(analysis.skips.keys).union(analysis.deletes.keys)
             #expect(keys.count >= atLeast, "\(mode): \(keys.count) types")

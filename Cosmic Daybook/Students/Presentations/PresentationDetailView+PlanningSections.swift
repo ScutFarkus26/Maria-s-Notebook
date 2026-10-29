@@ -348,7 +348,7 @@ extension PresentationDetailContentView {
 
     var moveStudentsSheet: some View {
         MoveStudentsSheet(
-            lessonName: vm.splitLesson(from: lessons)?.name ?? currentLessonName,
+            lessonName: vm.splitLesson(from: lessons)?.name,
             students: selectedStudentsList,
             studentsToMove: $vm.studentsToMove,
             selectedStudentIDs: vm.selectedStudentIDs,

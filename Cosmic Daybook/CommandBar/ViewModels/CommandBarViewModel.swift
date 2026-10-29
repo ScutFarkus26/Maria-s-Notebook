@@ -177,7 +177,7 @@ final class CommandBarViewModel {
         // her, and what was said about her lost (bug hunt 2026-10-11 #46).
         if !proposal.unresolvedStudentNames.isEmpty {
             let names = ListFormatter.localizedString(byJoining: proposal.unresolvedStudentNames.map { "“\($0)”" })
-            return "Choose who \(names) \(proposal.unresolvedStudentNames.count == 1 ? "is" : "are") with Edit, "
+            return "Choose who \(names) \(proposal.unresolvedStudentNames.count == 1 ? "is" : "are"), "
                 + "or tap Leave Out."
         }
 
