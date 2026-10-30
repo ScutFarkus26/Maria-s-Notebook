@@ -1,6 +1,7 @@
 // MeetingFormPane.swift
 // The meeting form, in the order a meeting runs: last week's focus, the
-// child's reflection, lesson requests, the guide's private notes, next meeting.
+// child's reflection, lesson requests, what the guide owes her, the guide's
+// private notes, next meeting.
 
 import SwiftUI
 import CoreData
@@ -25,6 +26,14 @@ struct MeetingFormPane: View {
 
             section(title: "Lesson Requests", caption: "Matched lessons go to the inbox when you complete") {
                 LessonRequestField(draft: draft)
+            }
+            Divider()
+
+            section(
+                title: "For Me to Do",
+                caption: "What you owe her. New lines go to your to-dos when you complete."
+            ) {
+                ForMeToDoSection(draft: draft)
             }
             Divider()
 

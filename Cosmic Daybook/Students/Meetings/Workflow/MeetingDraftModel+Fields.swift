@@ -18,6 +18,10 @@ extension MeetingDraftModel {
         var noteWorkIDs: Set<UUID> = []
         /// Work whose decision (reviewed, Re-present, Ready for Next) or receipt changed.
         var decisionWorkIDs: Set<UUID> = []
+        /// For Me to Do lines added, edited or removed.
+        var newTodoIDs: Set<UUID> = []
+        /// For Me to Do to-dos ticked or unticked.
+        var doneTodoIDs: Set<UUID> = []
     }
 
     /// The draft's single-value fields, for `Changes`.
@@ -60,6 +64,23 @@ extension MeetingDraftModel {
             result[key] = value
         }
         return result
+    }
+
+    /// Mine for the lines in `kept` (where they are, or gone when removed
+    /// here), theirs for the rest; theirs keep their order and mine added
+    /// here follow.
+    static func merged(
+        _ mine: [MeetingNewTodo], _ theirs: [MeetingNewTodo], keeping kept: Set<UUID>
+    ) -> [MeetingNewTodo] {
+        let mineByID = byID(mine)
+        let theirIDs = Set(theirs.map(\.id))
+        let fromTheirs = theirs.compactMap { line in kept.contains(line.id) ? mineByID[line.id] : line }
+        return fromTheirs + mine.filter { kept.contains($0.id) && !theirIDs.contains($0.id) }
+    }
+
+    /// The lines by their ids.
+    static func byID(_ lines: [MeetingNewTodo]) -> [UUID: MeetingNewTodo] {
+        Dictionary(lines.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
     /// The work whose entry differs between two versions of a keyed field.

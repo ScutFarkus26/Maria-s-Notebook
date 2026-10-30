@@ -8,7 +8,7 @@ struct PendingFocusItem: Identifiable, Equatable {
 }
 
 /// One child's meeting in progress: the form, the focus checklist, the work
-/// decisions and the lesson requests. The header, decision cards, form and
+/// decisions, the lesson requests and what the guide owes her (For Me to Do). The header, decision cards, form and
 /// footer all read this one object, so a layout switch (a window resized
 /// across the wide/narrow line) rebuilds views without losing anything.
 ///
@@ -18,8 +18,8 @@ struct PendingFocusItem: Identifiable, Equatable {
 ///
 /// The child's meeting can be open in two windows (Mac, iPad), each with its
 /// own model on the one stored draft. A model writes only what it changed,
-/// field by field, and item by item for focus ticks, each work's note and
-/// each work's decision and receipt, taking the rest from the stored draft;
+/// field by field, and item by item for focus ticks, each work's note,
+/// each work's decision and receipt, and each For Me to Do line and tick, taking the rest from the stored draft;
 /// and it takes up the stored draft's changes as they come (bug hunt
 /// 2026-10-10, #11 and its review).
 @Observable @MainActor
@@ -71,6 +71,15 @@ final class MeetingDraftModel {
     /// holds more than one.
     var closeTokens: [UUID: [MeetingCloseToken]] = [:] {
         didSet { changed(\.decisionWorkIDs, Self.changedKeys(oldValue, closeTokens)) }
+    }
+
+    /// For Me to Do: lines typed for her, filed as to-dos naming her on Complete.
+    var newTodos: [MeetingNewTodo] = [] {
+        didSet { changed(\.newTodoIDs, Self.changedKeys(Self.byID(oldValue), Self.byID(newTodos))) }
+    }
+    /// For Me to Do: her open to-dos ticked here, completed on Complete.
+    var doneTodoIDs: Set<UUID> = [] {
+        didSet { changed(\.doneTodoIDs, oldValue.symmetricDifference(doneTodoIDs)) }
     }
 
     /// Focus items carried from earlier meetings.
@@ -127,7 +136,9 @@ final class MeetingDraftModel {
             requestLessonIDs: requestLessonIDs.map(\.uuidString),
             representWorkIDs: representWorkIDs.map(\.uuidString),
             readyWorkIDs: readyWorkIDs.map(\.uuidString),
-            closeTokens: Dictionary(uniqueKeysWithValues: closeTokens.map { ($0.key.uuidString, $0.value) })
+            closeTokens: Dictionary(uniqueKeysWithValues: closeTokens.map { ($0.key.uuidString, $0.value) }),
+            newTodos: newTodos,
+            doneTodoIDs: doneTodoIDs.map(\.uuidString).sorted()
         )
     }
 
@@ -238,6 +249,8 @@ final class MeetingDraftModel {
         representWorkIDs = []
         readyWorkIDs = []
         closeTokens = [:]
+        newTodos = []
+        doneTodoIDs = []
         storedFocusText = ""
         storedIsCompleted = false
         isLoading = false
@@ -294,6 +307,8 @@ final class MeetingDraftModel {
         update(\.representWorkIDs, to: Self.merged(representWorkIDs, Self.ids(stored.representWorkIDs), keeping: work))
         update(\.readyWorkIDs, to: Self.merged(readyWorkIDs, Self.ids(stored.readyWorkIDs), keeping: work))
         update(\.closeTokens, to: Self.merged(closeTokens, Self.keyed(stored.closeTokens), keeping: work))
+        update(\.newTodos, to: Self.merged(newTodos, stored.newTodos ?? [], keeping: mine.newTodoIDs))
+        update(\.doneTodoIDs, to: Self.merged(doneTodoIDs, Self.ids(stored.doneTodoIDs), keeping: mine.doneTodoIDs))
     }
 
     /// The stored free-text requests. Text still in the request field reaches

@@ -1,6 +1,17 @@
 import Foundation
 import CoreData
 
+// MARK: - New To-Do
+
+/// A line typed in the meeting's For Me to Do: something the guide owes the
+/// child. Kept in the draft until Complete files it as a to-do naming her.
+struct MeetingNewTodo: Codable, Equatable, Identifiable, Sendable {
+    var id = UUID()
+    var text: String
+    /// The day it is due, if the guide gave one.
+    var dueDate: Date?
+}
+
 // MARK: - Meeting Persistence Service
 
 /// Meeting drafts (one JSON blob per child in UserDefaults) and meeting history (Core Data).
@@ -44,6 +55,14 @@ enum MeetingPersistenceService {
         /// Absent in drafts saved before 2026-10-09.
         var closeTokens: [String: [MeetingCloseToken]]?
 
+        /// To-dos the guide owes the child, typed in For Me to Do; each
+        /// becomes a to-do naming her on Complete. Absent in drafts saved
+        /// before 2026-10-30.
+        var newTodos: [MeetingNewTodo]?
+        /// Her open to-dos ticked in For Me to Do, as uuidStrings; each is
+        /// completed on Complete. Absent in drafts saved before 2026-10-30.
+        var doneTodoIDs: [String]?
+
         var isEmpty: Bool {
             reflectionText.trimmed().isEmpty &&
             focusText.trimmed().isEmpty &&
@@ -57,7 +76,9 @@ enum MeetingPersistenceService {
             (requestLessonIDs ?? []).isEmpty &&
             (representWorkIDs ?? []).isEmpty &&
             (readyWorkIDs ?? []).isEmpty &&
-            (closeTokens ?? [:]).isEmpty
+            (closeTokens ?? [:]).isEmpty &&
+            (newTodos ?? []).allSatisfy { $0.text.trimmed().isEmpty } &&
+            (doneTodoIDs ?? []).isEmpty
         }
 
         /// `self` with every nil workflow field taken from `stored`.
@@ -72,6 +93,8 @@ enum MeetingPersistenceService {
             merged.representWorkIDs = representWorkIDs ?? stored.representWorkIDs
             merged.readyWorkIDs = readyWorkIDs ?? stored.readyWorkIDs
             merged.closeTokens = closeTokens ?? stored.closeTokens
+            merged.newTodos = newTodos ?? stored.newTodos
+            merged.doneTodoIDs = doneTodoIDs ?? stored.doneTodoIDs
             return merged
         }
     }

@@ -5,7 +5,8 @@ import Foundation
 extension MeetingDraftModel {
 
     /// Files the meeting: history, work reviews, focus changes, requested
-    /// lessons to the inbox, today's booking cleared and the next one booked.
+    /// lessons to the inbox, For Me to Do's lines and ticks, today's booking
+    /// cleared and the next one booked.
     /// Re-present work changed since the meeting plans nothing and is named
     /// in a toast (bug hunt 2026-10-10, #13). Returns false (form kept) when
     /// the save fails.
@@ -25,8 +26,8 @@ extension MeetingDraftModel {
         completed.requestsText = (requestLessonIDs.compactMap(lessonName) + allRequestTexts).joined(separator: "; ")
 
         // Everything below lands in one save, or none of it does: a failed
-        // save takes back the history entry, reviews and inbox drafts, so
-        // trying Complete again doesn't file them twice.
+        // save takes back the history entry, reviews, inbox drafts and
+        // to-dos, so trying Complete again doesn't file them twice.
         let transaction = ContextMutationTransaction(context: context)
         guard let meeting = MeetingPersistenceService.saveToHistory(
             studentID: studentID, data: completed, context: context, save: false
@@ -50,6 +51,7 @@ extension MeetingDraftModel {
         MeetingLessonDecisions.fileRequests(
             requestLessonIDs, skipping: filed.planned, studentID: studentID, context: context
         )
+        fileTodos(context: context)
         _ = MeetingScheduler.completeBooking(studentID: studentID, heldOn: Date(), context: context)
 
         // A failure shows the "Couldn't Save" alert and keeps the form open
@@ -69,5 +71,32 @@ extension MeetingDraftModel {
         clear()
         refreshFocusItems(context: context)
         return true
+    }
+
+    /// For Me to Do: each new line becomes an open to-do naming her, with her
+    /// student tag, its due day and where it came from; each ticked to-do is
+    /// completed the way the rest of the app completes one, so a repeating
+    /// one rolls forward. One deleted or completed elsewhere since is left
+    /// alone. Does not save.
+    private func fileTodos(context: NSManagedObjectContext) {
+        let lines = newTodos.filter { !$0.text.trimmed().isEmpty }
+        if !lines.isEmpty {
+            let names = context.object(CDStudent.self, id: studentID).map { [$0.fullName] } ?? []
+            let note = "From the meeting on \(DateFormatters.shortMonthDay.string(from: Date()))"
+            for line in lines {
+                let todo = CDTodoItem(context: context)
+                todo.title = line.text.trimmed()
+                todo.notes = note
+                todo.studentIDsArray = [studentID.uuidString]
+                todo.dueDate = line.dueDate
+                todo.tagsArray = TodoTagHelper.syncStudentTags(existingTags: [], studentNames: names)
+            }
+        }
+        for id in doneTodoIDs {
+            guard let todo = context.object(CDTodoItem.self, id: id), !todo.isDeleted, !todo.isCompleted else {
+                continue
+            }
+            TodoCompletionService.complete(todo)
+        }
     }
 }
