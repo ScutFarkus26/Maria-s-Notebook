@@ -1,6 +1,6 @@
 # Reports and to-dos in meetings
 
-> **Working on it.** Written 2026-10-30 from Danny's talk-through (branch `claude/keep-working-practice-difference-35b458`); mockups of both columns and the Reports view were shown in the session, and Danny said "Yes, build it".
+> **Done 2026-10-30** (a7e23c1d). Written the same day from Danny's talk-through (branch `claude/keep-working-practice-difference-35b458`); mockups of both columns and the Reports view were shown in the session, and Danny said "Yes, build it" and then "Yes, merge to main". Not rolled out.
 > In short: a child's reports get five stages, ending with presenting to the class, and are tracked as report work on the meeting's left column, on a new Reports view in Lessons & Work, and on Today on the day she presents. The meeting's right column gets a For Me to Do section for your own to-dos about her.
 
 ## What Danny wants
@@ -98,7 +98,7 @@ Open Work · 4
 - [x] The day she presents, ticked on Today, presents the report (`TodayCheckInFollowUpActions`).
 - [x] Screens drawn at phone and Mac widths, light and dark (the meeting's Reports section and the Reports view; For Me to Do at 340 and 420 points).
 - [x] Whole iOS suite and the Mac build: 4,485 tests passed (26 new), and the Mac app builds with no new warnings.
-- [ ] On main.
+- [x] On main: fast-forwarded to a7e23c1d and pushed, 2026-10-30.
 
 ## What changed from this plan
 - **Presented is the report's status, not its fifth step.** Setting Presented ticks the four steps before it and closes every open copy as Finished; a report closed as Finished or Mastered reads as Presented. So undoing the close (Clear Meeting, another stage, Rest) moves the stage back by itself, and a report with steps of its own closes on its last one.
