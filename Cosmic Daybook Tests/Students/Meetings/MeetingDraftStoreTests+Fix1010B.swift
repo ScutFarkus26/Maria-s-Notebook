@@ -194,21 +194,23 @@ extension MeetingDraftStoreTests {
         #expect(room.work.status == .mastered)
     }
 
-    @Test("Complete doesn't put the next lesson On Deck for Ready work reopened after the meeting")
+    @Test("Ready for Next still puts the next lesson On Deck for work changed after the meeting")
     @MainActor
-    func completeSkipsReadyChangedSince() throws {
+    func completePlansReadyChangedSince() throws {
         let room = try makeDecisionRoom()
         defer { MeetingPersistenceService.clearCurrent(studentID: room.child) }
         let draft = MeetingDraftModel(studentID: room.child)
         draft.load(context: room.context)
-        draft.readyForNext(room.work, context: room.context)
+        draft.decide(room.work, status: .done, context: room.context)
+        draft.setReadyForNext(true, for: room.work)
 
-        try WorkLogService.log([.init(work: room.work, status: .active)], context: room.context)
+        // Ready for Next never set the status, so a change to it says nothing about readiness.
+        try WorkLogService.log([.init(work: room.work, status: .mastered)], context: room.context)
         #expect(draft.complete(context: room.context, saveCoordinator: .preview) { _ in nil })
 
-        #expect(openPlans(for: room.second, in: room.context).isEmpty)
-        #expect(!room.given.confirmedStudentIDs.contains(room.child.uuidString))
-        #expect(room.work.status == .active)
+        #expect(openPlans(for: room.second, in: room.context).map(\.resolvedStudentIDs) == [[room.child]])
+        #expect(room.given.confirmedStudentIDs == [room.child.uuidString])
+        #expect(room.work.status == .mastered)
     }
 
     @Test("Complete still plans a Re-present whose work is as the meeting left it")
@@ -249,7 +251,7 @@ extension MeetingDraftStoreTests {
         let draft = MeetingDraftModel(studentID: room.child)
         draft.load(context: room.context)
         draft.represent(room.work, context: room.context)
-        draft.readyForNext(other, context: room.context)
+        draft.represent(other, context: room.context)
         let stored = MeetingPersistenceService.loadCurrent(studentID: room.child)
         let erased = "Everything written for Ora L's meeting so far will be erased."
 
@@ -288,7 +290,7 @@ extension MeetingDraftStoreTests {
         try expectAsBeforeTheMeeting(room)
     }
 
-    @Test("Ready for Next after Re-present on resting work keeps the rest to put back")
+    @Test("Switching choices on resting work keeps the rest to put back")
     @MainActor
     func switchingOutcomesKeepsTheRest() throws {
         let room = try makeDecisionRoom()
@@ -300,7 +302,8 @@ extension MeetingDraftStoreTests {
         let draft = MeetingDraftModel(studentID: room.child)
         draft.load(context: room.context)
         draft.represent(room.work, context: room.context)
-        draft.readyForNext(room.work, context: room.context)
+        draft.decide(room.work, status: .done, context: room.context)
+        draft.represent(room.work, context: room.context)
         #expect(room.work.restingUntil == nil)
         draft.discard(context: room.context)
         #expect(room.work.restingUntil == restUntil)

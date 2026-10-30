@@ -57,8 +57,9 @@ final class MeetingDraftModel {
     var representWorkIDs: Set<UUID> = [] {
         didSet { changed(\.decisionWorkIDs, oldValue.symmetricDifference(representWorkIDs)) }
     }
-    /// Work decided as Ready for Next: closed now with no mastery mark, its
-    /// next lesson put On Deck on Complete.
+    /// Work switched to Ready for Next: its next lesson goes On Deck on
+    /// Complete. A switch beside the card's choice, not a choice itself: it
+    /// leaves the work's status alone and goes with any choice but Re-present.
     var readyWorkIDs: Set<UUID> = [] {
         didSet { changed(\.decisionWorkIDs, oldValue.symmetricDifference(readyWorkIDs)) }
     }
@@ -76,10 +77,10 @@ final class MeetingDraftModel {
     private(set) var activeFocusItems: [CDStudentFocusItem] = []
     /// When the draft last reached disk; nil until something is written.
     private(set) var savedAt: Date?
-    /// Lessons with a next lesson in their sequence, worked out once when the
-    /// draft loads, so a card's Ready for Next reads a set rather than the
-    /// catalog (bug hunt 2026-10-09, #13).
-    private(set) var lessonsWithNext: Set<UUID> = []
+    /// The next lesson's name for each lesson with one in its sequence,
+    /// worked out once when the draft loads, so a card's Ready for Next reads
+    /// a table rather than the catalog (bug hunt 2026-10-09, #13).
+    private(set) var nextLessonNames: [UUID: String] = [:]
 
     /// The student record's Meetings tab writes these two; the workflow
     /// doesn't show them, so its saves carry them through untouched.
@@ -107,7 +108,7 @@ final class MeetingDraftModel {
         takeUp(readStored())
         savedAt = data.isEmpty ? nil : Date()
         activeFocusItems = FocusItemService.fetchActive(studentID: studentID, context: context)
-        lessonsWithNext = Self.lessonsWithNext(in: context)
+        nextLessonNames = Self.nextLessonNames(in: context)
     }
 
     var data: MeetingPersistenceService.CurrentMeetingData {
@@ -203,10 +204,11 @@ final class MeetingDraftModel {
         }
     }
 
-    /// Clear Meeting: Re-present and Ready for Next closed their work at once
-    /// but plan their lessons only on Complete, so that work goes back as it
-    /// was before the meeting rather than staying closed with nothing
-    /// planned (`MeetingLessonDecisions.takeBack`). Then the form is emptied.
+    /// Clear Meeting: Re-present closed its work at once but plans its lesson
+    /// only on Complete, so that work goes back as it was before the meeting
+    /// rather than staying closed with nothing planned
+    /// (`MeetingLessonDecisions.takeBack`). Ready for Next changed nothing
+    /// yet and just goes. Then the form is emptied.
     /// When the work couldn't be put back, the form and the stored draft stay,
     /// receipts and all, for another try (bug hunt 2026-10-10, #12).
     @discardableResult

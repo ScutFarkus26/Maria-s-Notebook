@@ -3,6 +3,10 @@ import CoreData
 
 /// One work item's decision in a meeting: the outcomes are one-tap buttons,
 /// and once one is chosen the card ticks itself off and offers a note.
+///
+/// Two rows, one choice between them (2026-10-30): keep going or finished,
+/// then Mastered, Re-present or Rest. Ready for Next is a switch below them
+/// that goes with any choice but Re-present.
 struct WorkDecisionCard: View {
     @ObservedObject var work: CDWorkModel
     let title: String
@@ -19,35 +23,22 @@ struct WorkDecisionCard: View {
     private var isReady: Bool { workID.map(draft.readyWorkIDs.contains) ?? false }
     /// Re-present and Ready for Next need a lesson to plan; manual work has none.
     private var hasLesson: Bool { UUID(uuidString: work.lessonID) != nil }
-    /// Ready for Next needs a next lesson to put On Deck: at the end of a
-    /// sequence it would close the work and plan nothing (bug hunt
-    /// 2026-10-09, #13). Still shown when already chosen, so it can be undone.
-    private var offersReadyForNext: Bool { isReady || draft.hasNextLesson(after: work.lessonID) }
+    /// What Ready for Next puts On Deck. At the end of a sequence there is
+    /// nothing, and the switch isn't offered (bug hunt 2026-10-09, #13).
+    private var nextLessonName: String? { draft.nextLessonName(after: work.lessonID) }
 
-    private enum Outcome: CaseIterable {
-        case keepWorking, practice, mastered
-
-        var label: String {
-            switch self {
-            case .keepWorking: "Keep Working"
-            case .practice: "Practice"
-            case .mastered: "Mastered"
-            }
-        }
-
-        var status: WorkStatus {
-            switch self {
-            case .keepWorking: .active
-            case .practice: .keepPracticing
-            case .mastered: .mastered
-            }
-        }
+    /// "Keep Practicing" for practice work, "Keep Working" for an assignment.
+    static func keepGoingLabel(for kind: WorkKind) -> String {
+        kind == .practiceLesson ? "Keep Practicing" : "Keep Working"
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             header
             outcomeButtons
+            if hasLesson, isReady || nextLessonName != nil {
+                readyForNextSwitch
+            }
             if isReviewed, let workID {
                 TextField("Note…", text: noteBinding(workID), axis: .vertical)
                     .textFieldStyle(.roundedBorder)
@@ -104,53 +95,93 @@ struct WorkDecisionCard: View {
     }
 
     private var outcomeButtons: some View {
-        FlowLayout(spacing: 6) {
-            ForEach(Outcome.allCases, id: \.self) { outcome in
-                outcomeButton(
-                    outcome.label,
-                    selected: isReviewed && !work.isResting && !isRepresenting && !isReady
-                        && work.status == outcome.status
-                ) {
-                    draft.decide(work, status: outcome.status, context: viewContext)
-                }
+        VStack(alignment: .leading, spacing: 6) {
+            FlowLayout(spacing: 6) {
+                statusButton(Self.keepGoingLabel(for: work.displayKind), status: .active)
+                statusButton("Finished", status: .done)
+                    .help("Closes this work with no verdict")
             }
-            if hasLesson {
-                outcomeButton("Re-present", selected: isReviewed && isRepresenting) {
-                    draft.represent(work, context: viewContext)
-                }
-                .help("Closes this work as Incomplete and plans the lesson again when you complete the meeting")
-                if offersReadyForNext {
-                    outcomeButton("Ready for Next", selected: isReviewed && isReady) {
-                        draft.readyForNext(work, context: viewContext)
+            FlowLayout(spacing: 6) {
+                statusButton("Mastered", status: .mastered)
+                if hasLesson {
+                    outcomeButton("Re-present", selected: isReviewed && isRepresenting) {
+                        draft.represent(work, context: viewContext)
                     }
-                    .help(
-                        "Closes this work without marking it mastered and puts the next lesson On Deck "
-                            + "when you complete the meeting"
-                    )
+                    .help("Closes this work as Incomplete and plans the lesson again when you complete the meeting")
                 }
-            }
-            outcomeButton(work.isResting ? "Resting" : "Rest…", selected: isReviewed && work.isResting) {
-                restUntil = AppCalendar.addingDays(14, to: Date())
-                isPickingRest = true
-            }
-            .popover(isPresented: $isPickingRest) {
-                VStack(spacing: 12) {
-                    Text("Rest until…")
-                        .font(.headline)
-                    DatePicker("Rest until", selection: $restUntil, in: Date()..., displayedComponents: .date)
-                        .datePickerStyle(.graphical)
-                        .labelsHidden()
-                        .frame(maxWidth: 300)
-                    Button("Let It Rest") {
-                        draft.rest(work, until: restUntil, context: viewContext)
-                        isPickingRest = false
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-                .padding()
-                .presentationCompactAdaptation(.popover)
+                restButton
             }
         }
+    }
+
+    /// A choice that sets the work's status; Re-present and Rest have their own.
+    private func statusButton(_ label: String, status: WorkStatus) -> some View {
+        outcomeButton(
+            label, selected: isReviewed && !work.isResting && !isRepresenting && work.status == status
+        ) {
+            draft.decide(work, status: status, context: viewContext)
+        }
+    }
+
+    private var restButton: some View {
+        outcomeButton(work.isResting ? "Resting" : "Rest…", selected: isReviewed && work.isResting) {
+            restUntil = AppCalendar.addingDays(14, to: Date())
+            isPickingRest = true
+        }
+        .popover(isPresented: $isPickingRest) {
+            VStack(spacing: 12) {
+                Text("Rest until…")
+                    .font(.headline)
+                DatePicker("Rest until", selection: $restUntil, in: Date()..., displayedComponents: .date)
+                    .datePickerStyle(.graphical)
+                    .labelsHidden()
+                    .frame(maxWidth: 300)
+                Button("Let It Rest") {
+                    draft.rest(work, until: restUntil, context: viewContext)
+                    isPickingRest = false
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .padding()
+            .presentationCompactAdaptation(.popover)
+        }
+    }
+
+    /// Ready for Next beside the choice, not one of them: it leaves the
+    /// work's status alone, so it's drawn as a switch rather than a button.
+    private var readyForNextSwitch: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle(isOn: readyBinding) {
+                HStack(spacing: 4) {
+                    Text("Ready for Next")
+                        .layoutPriority(1)
+                    if let nextLessonName {
+                        Text("· \(nextLessonName)")
+                            .foregroundStyle(isReady ? AppColors.success : .secondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
+            .toggleStyle(ReadyForNextToggleStyle())
+            .disabled(isRepresenting)
+            .help(
+                isRepresenting
+                    ? "Re-present plans this lesson again, so there's no next lesson yet"
+                    : "Puts the next lesson On Deck when you complete the meeting"
+            )
+            if isReady {
+                Text("Goes On Deck when you complete the meeting")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var readyBinding: Binding<Bool> {
+        Binding(
+            get: { isReady },
+            set: { draft.setReadyForNext($0, for: work) }
+        )
     }
 
     private func outcomeButton(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
@@ -180,5 +211,41 @@ struct WorkDecisionCard: View {
             get: { draft.workNotes[id] ?? "" },
             set: { draft.workNotes[id] = $0 }
         )
+    }
+}
+
+/// A checkbox in a capsule: dashed while off, green while on, so it reads
+/// as something added to the card's choice rather than one of them.
+private struct ReadyForNextToggleStyle: ToggleStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        Button {
+            configuration.isOn.toggle()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: configuration.isOn ? "checkmark.square.fill" : "square")
+                    .foregroundStyle(configuration.isOn ? AppColors.success : .secondary)
+                configuration.label
+            }
+            .font(.subheadline)
+            .foregroundStyle(Color.primary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .frame(minHeight: 32)
+            .background(
+                Capsule().fill(configuration.isOn ? AppColors.success.opacity(0.15) : Color.clear)
+            )
+            .overlay(
+                Capsule().strokeBorder(
+                    configuration.isOn ? AppColors.success.opacity(0.6) : Color.secondary.opacity(0.5),
+                    style: StrokeStyle(lineWidth: 1, dash: configuration.isOn ? [] : [4, 3])
+                )
+            )
+            .contentShape(Capsule())
+            .opacity(isEnabled ? 1 : 0.4)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(configuration.isOn ? [.isToggle, .isSelected] : .isToggle)
     }
 }

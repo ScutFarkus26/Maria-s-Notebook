@@ -275,7 +275,7 @@ struct MeetingDraftStoreTests {
         #expect(draft.representWorkIDs.isEmpty)
     }
 
-    @Test("Ready for Next closes the work unmastered, confirms her and puts the next lesson On Deck once")
+    @Test("Mastered with Ready for Next stays Mastered, confirms her and puts the next lesson On Deck once")
     @MainActor
     func readyForNextPlansTheNextLesson() throws {
         let context = try CoreDataTestHelpers.makeContext()
@@ -296,8 +296,9 @@ struct MeetingDraftStoreTests {
         let draft = MeetingDraftModel(studentID: child)
         draft.load(context: context)
         draft.represent(work, context: context)
-        draft.readyForNext(work, context: context)
-        #expect(work.status == .done)
+        draft.decide(work, status: .mastered, context: context)
+        draft.setReadyForNext(true, for: work)
+        #expect(work.status == .mastered)
         #expect(draft.representWorkIDs.isEmpty)
         #expect(draft.readyWorkIDs == [try #require(work.id)])
         // The next lesson asked for by name too still goes On Deck once.
@@ -309,10 +310,11 @@ struct MeetingDraftStoreTests {
         #expect(onDeck.first?.lessonID == second.id?.uuidString)
         #expect(onDeck.first?.resolvedStudentIDs == [child])
         #expect(given.confirmedStudentIDs == [child.uuidString])
+        #expect(work.status == .mastered)
         #expect(draft.readyWorkIDs.isEmpty)
     }
 
-    @Test("Clear Meeting puts Re-present and Ready work back to Working")
+    @Test("Clear Meeting puts Re-present work back to Working, drops Ready for Next, and keeps other choices")
     @MainActor
     func clearReopensPendingWork() throws {
         let context = try CoreDataTestHelpers.makeContext()
@@ -326,12 +328,13 @@ struct MeetingDraftStoreTests {
         let draft = MeetingDraftModel(studentID: child)
         draft.load(context: context)
         draft.represent(represented, context: context)
-        draft.readyForNext(ready, context: context)
+        draft.decide(ready, status: .done, context: context)
+        draft.setReadyForNext(true, for: ready)
         draft.decide(mastered, status: .mastered, context: context)
         draft.discard(context: context)
 
         #expect(represented.status == .active)
-        #expect(ready.status == .active)
+        #expect(ready.status == .done)
         #expect(mastered.status == .mastered)
         #expect(draft.representWorkIDs.isEmpty && draft.readyWorkIDs.isEmpty)
         #expect(Store.loadCurrent(studentID: child).isEmpty)

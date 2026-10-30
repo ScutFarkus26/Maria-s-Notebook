@@ -1,12 +1,13 @@
 import CoreData
 import Foundation
 
-// Clear: the Re-present and Ready for Next work a meeting closed goes back as
-// it was before the meeting, and the confirmation names it first.
+// Clear: the Re-present work a meeting closed goes back as it was before the
+// meeting, and the confirmation names it first. Ready for Next closed nothing
+// (2026-10-30), so it just goes with the draft.
 extension MeetingLessonDecisions {
 
-    /// Puts the Re-present and Ready for Next work in `draft` back as it was
-    /// before the meeting, through each card's `WorkLogService` receipt. Work
+    /// Puts the Re-present work in `draft` back as it was before the
+    /// meeting, through each card's `WorkLogService` receipt. Work
     /// changed after the meeting is left alone and named in a toast; work
     /// whose receipt can't be read (a draft saved before receipts were kept)
     /// goes back to Working as it always has. One save; nothing is written
@@ -14,7 +15,7 @@ extension MeetingLessonDecisions {
     /// its receipts for another try (bug hunt 2026-10-10, #12).
     @discardableResult
     static func takeBack(_ draft: Draft, context: NSManagedObjectContext) -> Bool {
-        let works = pendingWork(in: draft, context: context)
+        let works = representedWork(in: draft, context: context)
         guard !works.isEmpty else { return true }
         let tokens = draft.closeTokens ?? [:]
 
@@ -59,12 +60,12 @@ extension MeetingLessonDecisions {
         return "\(list) were changed after the meeting, so they were left as they are."
     }
 
-    /// The Re-present and Ready for Next work Clear would change: work whose
-    /// receipts it can take back, and closed work it reopens for want of a
-    /// receipt. Work changed after the meeting isn't in it; Clear leaves that be.
+    /// The Re-present work Clear would change: work whose receipts it can
+    /// take back, and closed work it reopens for want of a receipt. Work
+    /// changed after the meeting isn't in it; Clear leaves that be.
     static func workClearWouldChange(_ draft: Draft, context: NSManagedObjectContext) -> [CDWorkModel] {
         let tokens = draft.closeTokens ?? [:]
-        return pendingWork(in: draft, context: context).filter { work in
+        return representedWork(in: draft, context: context).filter { work in
             let workReceipts = receipts(of: work, in: tokens)
             guard isReadable(workReceipts, in: context) else { return work.status.isClosed }
             return MeetingCloseToken.canTakeBack(workReceipts, from: work)

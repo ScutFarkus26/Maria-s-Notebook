@@ -42,7 +42,7 @@ nonisolated struct MeetingCloseToken: Codable, Equatable, Sendable {
     /// The work's last-touched time as the meeting left it; anything that
     /// logs or reviews the work afterwards moves it.
     var leftLastTouchedAt: Date?
-    /// The rest the card's choice ended (Re-present or Ready for Next on
+    /// The rest the card's choice ended (Re-present, or another choice, on
     /// resting work), put back when the choice is taken back (bug hunt
     /// 2026-10-10, #15). Absent in receipts kept before then, and when the
     /// work wasn't resting.

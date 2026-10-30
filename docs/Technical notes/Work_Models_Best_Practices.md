@@ -180,10 +180,13 @@ The work editor carries a new title or kind to every linked copy. Status
 logs, removal, delete clean-up, the grid menu and MCP check-ins all go
 through this rule.
 
-**Undo from a meeting.** Re-present and Ready for Next close the work at
-once. The meeting keeps each close's `UndoToken` with its stored draft
-(`MeetingCloseToken`, object IDs as URIs), so Clear, Rest or another outcome
-can undo it after a relaunch. Before undoing, it checks the work is still as
+**Undo from a meeting.** A meeting card's choice (Keep Working or Keep
+Practicing, Finished, Mastered, Re-present) sets the work's status at once;
+Ready for Next is a switch beside it that sets no status and only plans the
+next lesson when the meeting is filed (2026-10-30). The meeting keeps each
+close's `UndoToken` with its stored draft (`MeetingCloseToken`, object IDs as
+URIs), so Rest or another choice can undo it after a relaunch, and Clear can
+undo a Re-present. Before undoing, it checks the work is still as
 the meeting left it, because `undo` itself only checks the rows still exist.
 
 ### WorkCompletionRecord

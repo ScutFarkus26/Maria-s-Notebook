@@ -6,9 +6,9 @@ extension MeetingDraftModel {
 
     /// Files the meeting: history, work reviews, focus changes, requested
     /// lessons to the inbox, today's booking cleared and the next one booked.
-    /// Re-present and Ready for Next work changed since the meeting plans
-    /// nothing and is named in a toast (bug hunt 2026-10-10, #13). Returns
-    /// false (form kept) when the save fails.
+    /// Re-present work changed since the meeting plans nothing and is named
+    /// in a toast (bug hunt 2026-10-10, #13). Returns false (form kept) when
+    /// the save fails.
     func complete(
         context: NSManagedObjectContext,
         saveCoordinator: SaveCoordinator,

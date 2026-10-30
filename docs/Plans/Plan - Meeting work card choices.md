@@ -1,6 +1,6 @@
 # Meeting work card choices: two rows, and Ready for Next on its own
 
-> **Not started.** Written 2026-10-30 from Danny's talk-through (branch `claude/keep-working-practice-difference-35b458`).
+> **Working on it.** Written 2026-10-30 from Danny's talk-through (branch `claude/keep-working-practice-difference-35b458`); a clickable mockup was shown in the session, and Danny said "Yes, build it".
 > In short: the meeting's work card asks "keep going or finished?" in one row and "Mastered, Re-present or Rest" in another, and Ready for Next becomes an on/off add-on that goes with any of them except Re-present.
 
 Follows [Plan - Re-present and Ready for Next in meetings](<Plan - Re-present and Ready for Next in meetings.md>) (done 2026-10-07, a8e7dd98), which made Ready for Next an outcome of its own.
@@ -49,5 +49,5 @@ Follows [Plan - Re-present and Ready for Next in meetings](<Plan - Re-present an
 - Whole suite once at the end.
 
 ## Progress
-- [ ] Build and test
+- [x] Build and test (2026-10-30, branch `claude/keep-working-practice-difference-35b458`). 55 meeting draft tests pass (12 new or rewritten; the two new ones are in `MeetingDraftStoreTests+CardChoices.swift`); the whole iOS suite passes, 4,459 tests in 734 suites; the macOS build is clean. The card was drawn with a throwaway test at 393 and 470 points wide, light and dark, and matches the mockup. Differed: the switch names the next lesson on one line and shortens the name, not "Ready for Next", when the card is narrow; filing Ready for Next no longer checks whether the work changed after the meeting, since it never set a status. Not seen: the card in the running app on any device, and the Mac layout ([Tide row](<tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20hold%20a%20meeting%20on%20the%20Mac%20and%20try%20the%20new%20work%20card%3A%20Keep%20Practicing%20or%20Keep%20Working%20and%20Finished%2C%20then%20Mastered%2C%20Re-present%20and%20Rest%2C%20with%20Ready%20for%20Next%20as%20its%20own%20switch>)).
 - [ ] Merge to main

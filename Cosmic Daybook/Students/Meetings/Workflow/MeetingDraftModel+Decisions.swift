@@ -21,32 +21,43 @@ extension MeetingDraftModel {
     }
 
     /// The work didn't take: it closes as Incomplete now, and Complete plans
-    /// its lesson again as a second pass.
+    /// its lesson again as a second pass. That leaves no next lesson to be
+    /// ready for, so Ready for Next switches off.
     func represent(_ work: CDWorkModel, context: NSManagedObjectContext) {
         guard apply(.incomplete, to: work, context: context) else { return }
-        if let id = work.id { representWorkIDs.insert(id) }
+        if let id = work.id {
+            representWorkIDs.insert(id)
+            readyWorkIDs.remove(id)
+        }
         flush()
     }
 
-    /// She's ready to move on: the work closes with no mastery mark (ready
-    /// isn't mastered), and Complete confirms her on the lesson and puts the
-    /// next one in the sequence On Deck.
-    func readyForNext(_ work: CDWorkModel, context: NSManagedObjectContext) {
-        guard apply(.done, to: work, context: context) else { return }
-        if let id = work.id { readyWorkIDs.insert(id) }
+    /// She's ready to move on (2026-10-30): Complete confirms her on the
+    /// lesson (not a mastery mark) and puts the next one in the sequence On
+    /// Deck. A switch beside the card's choice: the work's status is left
+    /// as it is, and it isn't the card's decision. Refused while Re-present
+    /// is chosen, which plans this lesson again instead.
+    func setReadyForNext(_ isReady: Bool, for work: CDWorkModel) {
+        takeUpStored()
+        guard let id = work.id, !(isReady && representWorkIDs.contains(id)) else { return }
+        if isReady {
+            readyWorkIDs.insert(id)
+        } else {
+            readyWorkIDs.remove(id)
+        }
         flush()
     }
 
     /// Resting work is open: a status the card set in this meeting is taken
-    /// back, and Re-present or Ready work with no receipt to take back goes
-    /// back to Working, as Clear does (bug hunt 2026-10-09, #10). Work changed
-    /// since keeps its status and rests.
+    /// back, and Re-present work with no receipt to take back goes back to
+    /// Working, as Clear does (bug hunt 2026-10-09, #10). Work changed since
+    /// keeps its status and rests. Ready for Next stays as it is.
     func rest(_ work: CDWorkModel, until date: Date, context: NSManagedObjectContext) {
         takeUpStored()
         let transaction = ContextMutationTransaction(context: context)
-        let wasLessonDecision = work.id.map { representWorkIDs.contains($0) || readyWorkIDs.contains($0) } ?? false
+        let wasRepresent = work.id.map(representWorkIDs.contains) ?? false
         let takeBack = takeBackEarlierChoice(on: work, context: context)
-        if wasLessonDecision, takeBack == .nothing || takeBack == .unreadable, work.status.isClosed {
+        if wasRepresent, takeBack == .nothing || takeBack == .unreadable, work.status.isClosed {
             do {
                 try WorkLogService.log([.init(work: work, status: .active)], context: context, saveImmediately: false)
             } catch {
@@ -64,7 +75,7 @@ extension MeetingDraftModel {
         }
         transaction.commit()
         guard let id = work.id else { return }
-        forgetLessonDecision(id)
+        representWorkIDs.remove(id)
         closeTokens[id] = nil
         reviewedWorkIDs.insert(id)
         flush()
@@ -104,16 +115,11 @@ extension MeetingDraftModel {
         }
         transaction.commit()
         guard let id = work.id else { return true }
-        forgetLessonDecision(id)
+        // Another choice replaces a Re-present chosen earlier.
+        representWorkIDs.remove(id)
         closeTokens[id] = token.map { [$0] }
         reviewedWorkIDs.insert(id)
         return true
-    }
-
-    /// Another outcome replaces a Re-present or Ready for Next chosen earlier.
-    private func forgetLessonDecision(_ id: UUID) {
-        representWorkIDs.remove(id)
-        readyWorkIDs.remove(id)
     }
 
     /// Takes back, in memory, the statuses the card's earlier choices set in

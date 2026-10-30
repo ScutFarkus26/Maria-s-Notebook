@@ -19,7 +19,7 @@ extension MeetingDraftStoreTests {
         #expect(CoreDataTestHelpers.save(room.context))
         let draft = MeetingDraftModel(studentID: room.child)
         draft.load(context: room.context)
-        draft.readyForNext(room.work, context: room.context)
+        draft.setReadyForNext(true, for: room.work)
 
         #expect(draft.complete(context: room.context, saveCoordinator: .preview) { _ in nil })
         #expect(openPlans(for: room.second, in: room.context).isEmpty)
@@ -39,7 +39,7 @@ extension MeetingDraftStoreTests {
         #expect(CoreDataTestHelpers.save(room.context))
         let draft = MeetingDraftModel(studentID: room.child)
         draft.load(context: room.context)
-        draft.readyForNext(room.work, context: room.context)
+        draft.setReadyForNext(true, for: room.work)
 
         #expect(draft.complete(context: room.context, saveCoordinator: .preview) { _ in nil })
         #expect(openPlans(for: room.second, in: room.context).isEmpty)
@@ -148,6 +148,7 @@ extension MeetingDraftStoreTests {
         let draft = MeetingDraftModel(studentID: room.child)
         draft.load(context: room.context)
         #expect(draft.hasNextLesson(after: try #require(room.first.id).uuidString))
+        #expect(draft.nextLessonName(after: try #require(room.first.id).uuidString) == "Dot Board")
         #expect(!draft.hasNextLesson(after: try #require(room.second.id).uuidString))
         #expect(!draft.hasNextLesson(after: try #require(loose.id).uuidString))
         #expect(!draft.hasNextLesson(after: try #require(tiedA.id).uuidString))

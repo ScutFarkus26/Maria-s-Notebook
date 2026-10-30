@@ -108,20 +108,26 @@ extension MeetingDraftStoreTests {
         #expect(draft.reviewedWorkIDs.contains(try #require(room.work.id)))
     }
 
-    @Test("Re-present, then Ready for Next, then Clear puts the work back as it was")
+    @Test("Re-present switches Ready for Next off, and Clear puts the work back as it was")
     @MainActor
     func representReadyClear() throws {
         let room = try makeDecisionRoom()
         defer { MeetingPersistenceService.clearCurrent(studentID: room.child) }
+        let workID = try #require(room.work.id)
         let draft = MeetingDraftModel(studentID: room.child)
         draft.load(context: room.context)
 
+        draft.setReadyForNext(true, for: room.work)
+        #expect(draft.readyWorkIDs == [workID])
+        try expectAsBeforeTheMeeting(room)
+
         draft.represent(room.work, context: room.context)
-        draft.readyForNext(room.work, context: room.context)
-        #expect(room.work.status == .done)
-        // Ready replaced Re-present: one close, not two.
-        #expect(try completionRecords(room.work, in: room.context).count == 1)
-        #expect(draft.closeTokens[try #require(room.work.id)]?.count == 1)
+        #expect(room.work.status == .incomplete)
+        #expect(draft.readyWorkIDs.isEmpty)
+        // Re-present plans this lesson again: there's no next one to be ready for.
+        draft.setReadyForNext(true, for: room.work)
+        #expect(draft.readyWorkIDs.isEmpty)
+        #expect((MeetingPersistenceService.loadCurrent(studentID: room.child).readyWorkIDs ?? []).isEmpty)
 
         draft.discard(context: room.context)
         try expectAsBeforeTheMeeting(room)
@@ -138,7 +144,7 @@ extension MeetingDraftStoreTests {
         let draft = MeetingDraftModel(studentID: room.child)
         draft.load(context: room.context)
         draft.represent(room.work, context: room.context)
-        draft.readyForNext(other, context: room.context)
+        draft.represent(other, context: room.context)
         draft.flush()
 
         // Only the stored draft is left after a relaunch.
@@ -153,21 +159,22 @@ extension MeetingDraftStoreTests {
         #expect(try completionRecords(other, in: room.context).isEmpty)
     }
 
-    @Test("Rest after Ready for Next reopens the work instead of resting it closed")
+    @Test("Rest after Finished reopens the work instead of resting it closed, and keeps Ready for Next")
     @MainActor
     func restAfterReadyReopens() throws {
         let room = try makeDecisionRoom()
         defer { MeetingPersistenceService.clearCurrent(studentID: room.child) }
         let draft = MeetingDraftModel(studentID: room.child)
         draft.load(context: room.context)
-        draft.readyForNext(room.work, context: room.context)
+        draft.decide(room.work, status: .done, context: room.context)
+        draft.setReadyForNext(true, for: room.work)
 
         draft.rest(room.work, until: AppCalendar.addingDays(14, to: Date()), context: room.context)
         #expect(room.work.status == .active)
         #expect(room.work.restingUntil != nil)
         #expect(room.laterCheckIn.status == .scheduled)
         #expect(try completionRecords(room.work, in: room.context).isEmpty)
-        #expect(draft.readyWorkIDs.isEmpty)
+        #expect(draft.readyWorkIDs == [try #require(room.work.id)])
         #expect(draft.closeTokens.isEmpty)
         #expect(!room.context.hasChanges)
     }
@@ -284,7 +291,8 @@ extension MeetingDraftStoreTests {
         let draft = MeetingDraftModel(studentID: room.child)
         draft.load(context: room.context)
         draft.represent(room.work, context: room.context)
-        draft.readyForNext(other, context: room.context)
+        draft.decide(other, status: .done, context: room.context)
+        draft.setReadyForNext(true, for: other)
         draft.flush()
 
         var tab = MeetingPersistenceService.CurrentMeetingData()

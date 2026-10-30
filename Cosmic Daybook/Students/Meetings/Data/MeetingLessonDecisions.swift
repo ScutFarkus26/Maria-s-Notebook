@@ -2,9 +2,10 @@ import CoreData
 import Foundation
 
 /// Re-present and Ready for Next on a meeting's work cards: what filing the
-/// meeting plans, and what Clear takes back. Both decisions close their work
-/// the moment the card is tapped but plan their lessons only when the meeting
-/// is filed, and they ride in the child's stored draft until then.
+/// meeting plans, and what Clear takes back. Re-present closes its work the
+/// moment the card is tapped; Ready for Next is a switch that leaves the
+/// work's status alone (2026-10-30). Both plan their lessons only when the
+/// meeting is filed, and they ride in the child's stored draft until then.
 ///
 /// The Meetings workflow's draft model and the student record's Meetings tab
 /// both come through here, so the tab's Clear and Save to History treat the
@@ -20,24 +21,24 @@ enum MeetingLessonDecisions {
         /// The lessons planned (or found already planned), so a lesson
         /// request for one isn't filed twice.
         var planned: Set<UUID> = []
-        /// Work changed after the meeting (marked Mastered, reopened, closed
-        /// another way): nothing was planned for it (bug hunt 2026-10-10, #13).
+        /// Re-present work changed after the meeting (marked Mastered,
+        /// reopened, closed another way): nothing was planned for it (bug
+        /// hunt 2026-10-10, #13).
         var changedSince: [CDWorkModel] = []
     }
 
-    /// Plans each re-presented work's lesson again as a second pass, and puts
-    /// each ready work's next lesson On Deck, for work still as the meeting
-    /// left it. Nothing here saves; the caller files it with the meeting in
-    /// one save, then names `changedSince` (`changedSinceMessage`).
+    /// Plans each re-presented work's lesson again as a second pass, for work
+    /// still as the meeting left it, and puts each ready work's next lesson
+    /// On Deck, whatever its status now: Ready for Next never set one.
+    /// Nothing here saves; the caller files it with the meeting in one save,
+    /// then names `changedSince` (`changedSinceMessage`).
     static func file(_ draft: Draft, studentID: UUID, context: NSManagedObjectContext) throws -> Filed {
         let tokens = draft.closeTokens ?? [:]
         var filed = Filed()
         try planRepresentations(
             uuids(draft.representWorkIDs), tokens: tokens, studentID: studentID, context: context, into: &filed
         )
-        planNextLessons(
-            uuids(draft.readyWorkIDs), tokens: tokens, studentID: studentID, context: context, into: &filed
-        )
+        planNextLessons(uuids(draft.readyWorkIDs), studentID: studentID, context: context, into: &filed)
         return filed
     }
 
@@ -217,18 +218,13 @@ enum MeetingLessonDecisions {
     /// the next lesson in its sequence On Deck, unless she already has it
     /// planned, or has had it or mastered it already (bug hunt 2026-10-09, #11).
     private static func planNextLessons(
-        _ workIDs: Set<UUID>, tokens: [String: [MeetingCloseToken]], studentID: UUID,
-        context: NSManagedObjectContext, into filed: inout Filed
+        _ workIDs: Set<UUID>, studentID: UUID, context: NSManagedObjectContext, into filed: inout Filed
     ) {
         guard !workIDs.isEmpty else { return }
         let allLessons = context.safeFetch(CDFetchRequest(CDLesson.self))
         let child = studentID.uuidString
         for workID in workIDs {
             guard let (work, lesson) = workAndLesson(workID, context: context) else { continue }
-            guard isAsTheMeetingLeftIt(work, decided: .done, tokens: tokens, context: context) else {
-                filed.changedSince.append(work)
-                continue
-            }
             presentation(of: work, context: context)?.confirmStudent(studentID)
             resolveFollowUp(of: work, studentID: studentID, as: .readyForNextPresentation, context: context)
             guard let next = PlanNextLessonService.findNextLesson(after: lesson, in: allLessons),
@@ -274,9 +270,10 @@ enum MeetingLessonDecisions {
         )
     }
 
-    /// The work the draft's Re-present and Ready for Next decisions closed.
-    static func pendingWork(in draft: Draft, context: NSManagedObjectContext) -> [CDWorkModel] {
-        let ids = uuids(draft.representWorkIDs).union(uuids(draft.readyWorkIDs))
+    /// The work the draft's Re-present decisions closed. Ready for Next
+    /// closes nothing, so Clear has nothing of it to take back.
+    static func representedWork(in draft: Draft, context: NSManagedObjectContext) -> [CDWorkModel] {
+        let ids = uuids(draft.representWorkIDs)
         guard !ids.isEmpty else { return [] }
         let request = CDFetchRequest(CDWorkModel.self)
         request.predicate = NSPredicate(format: "id IN %@", Array(ids))
