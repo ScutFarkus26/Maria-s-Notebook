@@ -1,6 +1,6 @@
 # Reports and to-dos in meetings
 
-> **Not started.** Written 2026-10-30 from Danny's talk-through (branch `claude/keep-working-practice-difference-35b458`); a mockup of the right column was shown in the session. Waiting for his go-ahead.
+> **Working on it.** Written 2026-10-30 from Danny's talk-through (branch `claude/keep-working-practice-difference-35b458`); mockups of both columns and the Reports view were shown in the session, and Danny said "Yes, build it".
 > In short: a child's reports get five stages, ending with presenting to the class, and are tracked as report work on the meeting's left column, on a new Reports view in Lessons & Work, and on Today on the day she presents. The meeting's right column gets a For Me to Do section for your own to-dos about her.
 
 ## What Danny wants
