@@ -1,6 +1,6 @@
 // MeetingContextPane.swift
-// What happened since the last meeting: work needing a decision, open work,
-// lessons given, and past meetings.
+// What happened since the last meeting: work needing a decision, her
+// reports, open work, lessons given, and past meetings.
 
 import SwiftUI
 import CoreData
@@ -8,6 +8,7 @@ import CoreData
 struct MeetingContextPane: View {
     let stuckWork: [CDWorkModel]
     let openWork: [CDWorkModel]
+    var reports: [CDWorkModel] = []
     let lessonsSince: [CDLessonAssignment]
     let meetings: [CDStudentMeeting]
     let lastMeetingDate: Date?
@@ -24,7 +25,8 @@ struct MeetingContextPane: View {
         static let openWork = Sections(rawValue: 2)
         static let lessons = Sections(rawValue: 4)
         static let meetings = Sections(rawValue: 8)
-        static let all: Sections = [.decisions, .openWork, .lessons, .meetings]
+        static let reports = Sections(rawValue: 16)
+        static let all: Sections = [.decisions, .reports, .openWork, .lessons, .meetings]
     }
 
     @Environment(\.managedObjectContext) private var viewContext
@@ -34,6 +36,7 @@ struct MeetingContextPane: View {
     @State private var meetingToShow: CDStudentMeeting?
     @State private var meetingToDelete: CDStudentMeeting?
     @State private var showAllMeetings = false
+    @State private var isStartingReport = false
 
     private var decidedCount: Int {
         stuckWork.filter { $0.id.map(draft.reviewedWorkIDs.contains) ?? false }.count
@@ -44,6 +47,7 @@ struct MeetingContextPane: View {
             if sections.contains(.decisions) && !stuckWork.isEmpty {
                 decisionsSection
             }
+            if sections.contains(.reports) { reportsSection }
             if sections.contains(.openWork) { openWorkSection }
             if sections.contains(.lessons) { lessonsSection }
             if sections.contains(.meetings) { meetingsSection }
@@ -56,6 +60,9 @@ struct MeetingContextPane: View {
         }
         .sheet(item: $meetingToShow) { meeting in
             MeetingDetailSheet(meeting: meeting)
+        }
+        .sheet(isPresented: $isStartingReport) {
+            StartReportSheet(studentID: draft.studentID) { isStartingReport = false }
         }
         .confirmationDialog(
             "Delete Meeting?",
@@ -93,6 +100,29 @@ struct MeetingContextPane: View {
                     onDetails: work.id.map { id in { detailWorkID = id } }
                 )
             }
+        }
+    }
+
+    /// Her reports under their own header (2026-10-30), each a card with its
+    /// stages, and a way to start one.
+    private var reportsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionHeader(reports.isEmpty ? "Reports" : "Reports · \(reports.count)")
+            ForEach(reports) { report in
+                ReportDecisionCard(
+                    report: report,
+                    title: workTitle(report),
+                    draft: draft,
+                    onDetails: report.id.map { id in { detailWorkID = id } }
+                )
+            }
+            Button {
+                isStartingReport = true
+            } label: {
+                Label("Start a Report", systemImage: "plus")
+                    .font(.subheadline)
+            }
+            .buttonStyle(.borderless)
         }
     }
 

@@ -88,10 +88,34 @@ Open Work · 4
 - iOS build and those suites; a macOS compile; the left column, the right column and the Reports view drawn at phone and Mac widths, light and dark, with the Sample Class.
 - Whole suite once at the end.
 
+## Progress
+- [x] Report stages (`Work/Steps/ReportStages.swift`, `+Start`): 12 tests in `ReportStagesTests`.
+- [x] Reports on the meeting's left column, with `ReportDecisionCard` and the stage as the card's decision: 4 tests in `MeetingDraftStoreTests+Reports`.
+- [x] Start a Report (`StartReportSheet`).
+- [x] For Me to Do (`ForMeToDoSection`, built by a helper agent): 10 tests in `MeetingDraftStoreTests+ForMeToDo`.
+- [x] Reports view in Lessons & Work (`LessonsAndWorkReportsView`, `ReportBoard`).
+- [x] The stage on the Progress tab.
+- [x] The day she presents, ticked on Today, presents the report (`TodayCheckInFollowUpActions`).
+- [x] Screens drawn at phone and Mac widths, light and dark (the meeting's Reports section and the Reports view; For Me to Do at 340 and 420 points).
+- [x] Whole iOS suite and the Mac build: 4,485 tests passed (26 new), and the Mac app builds with no new warnings.
+- [ ] On main.
+
+## What changed from this plan
+- **Presented is the report's status, not its fifth step.** Setting Presented ticks the four steps before it and closes every open copy as Finished; a report closed as Finished or Mastered reads as Presented. So undoing the close (Clear Meeting, another stage, Rest) moves the stage back by itself, and a report with steps of its own closes on its last one.
+- **Only Today's tick presents a report.** Ticking the "Present to the class" check-in on Today moves the report to Presented; completing it from the work detail doesn't (yet).
+- **Start a Report needs a lesson.** Work always comes from a lesson, so there's no "No lesson" choice. It offers lessons whose default kind of work is Report, and any lesson with "Report" in its name, so Research Report and Book Report show up without changing them.
+- **Reports aren't stuck.** They take weeks, so they leave Needs a Decision and the iPhone's stuck count. The iPhone meeting header gets its own "N reports" chip, which opens the same sheet.
+- **The Reports view's stage control is a menu** on both the Mac and the iPhone, not a swipe. A report presenting in the next two weeks shows under Presenting Soon and under its stage.
+- **For Me to Do** also lists her Someday to-dos. A new to-do's note reads "From the meeting on Oct 30". Text typed but not added (Return or +) is dropped when you move to another child.
+
 ## Open questions
 1. Linked copies move together (section 1). If Leora is at a different stage from Toba on the same report, should they ever be set apart?
 2. Marking the "Present to the class" day done moves the report to Presented (section 1). Should that need a tap in the meeting instead?
 
-## Data steps for Danny (after it's built)
-- Set the Research Report and Book Report lessons' default kind of work to Report, so they're offered in Start a report.
-- Start Toba's three reports (and the other children's) from their next meetings, or ask a session to add them over MCP.
+## For Danny
+In Tide, Cosmic Daybook's To do:
+- Try reports and For Me to Do in a meeting after the next roll-out: [row](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20try%20reports%20in%20a%20Mac%20meeting%3A%20set%20a%20stage%2C%20Presents%20on%E2%80%A6%2C%20Start%20a%20Report%2C%20then%20the%20Reports%20view%20in%20Lessons%20%26%20Work)
+- Start Toba's three reports from her next meeting: [row](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20start%20Toba%27s%20three%20reports%20from%20her%20next%20meeting%3A%20Fossils%20and%20Birds%20with%20Maya%2C%20Squishies%20with%20Leora)
+- Review the two open questions and what changed from the plan: [row](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Review%20the%20choices%20in%20Cosmic%20Daybook%27s%20reports%20plan%3A%20linked%20copies%20always%20move%20together%2C%20and%20ticking%20the%20day%20she%20presents%20on%20Today%20presents%20the%20report)
+
+Setting the Research Report and Book Report lessons' default kind of work to Report is optional: Start a Report already offers any lesson with "Report" in its name.

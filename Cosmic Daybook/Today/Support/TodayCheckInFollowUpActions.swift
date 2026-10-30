@@ -19,6 +19,10 @@ enum TodayCheckInFollowUpActions {
     /// the rule `WorkCheckInService.markCompleted` kept, kept deliberately.
     /// Later overdue check-ins keep their days, as a log from the week strip
     /// leaves them.
+    ///
+    /// The day she presents a report to the class is the exception
+    /// (2026-10-30): done means she presented it, so the report and its
+    /// linked copies move to Presented and close as Finished.
     static func markCheckedIn(
         _ item: WorkCheckInFollowUp,
         at now: Date = Date(),
@@ -27,14 +31,33 @@ enum TodayCheckInFollowUpActions {
     ) throws {
         let checkIn = item.checkIn
         let dueDate = checkIn.date
+        // Takes back the report's stage ticks too, if the log doesn't save.
+        let transaction = ContextMutationTransaction(context: context)
         checkIn.date = now
+        let entries = presentedEntries(for: item, at: now, context: context) ?? [.init(work: item.work)]
         do {
-            try WorkLogService.log(
-                [.init(work: item.work)], on: now, context: context, saveCoordinator: saveCoordinator
-            )
+            try WorkLogService.log(entries, on: now, context: context, saveCoordinator: saveCoordinator)
         } catch {
+            transaction.rollback()
             checkIn.date = dueDate
             throw error
         }
+        transaction.commit()
+    }
+
+    /// For the day she presents an open report: every moving copy at its
+    /// last stage, and the closes to log. Nil for any other check-in.
+    private static func presentedEntries(
+        for item: WorkCheckInFollowUp, at now: Date, context: NSManagedObjectContext
+    ) -> [WorkLogService.Entry]? {
+        let report = item.work
+        guard ReportStages.isReport(report), ReportStages.isPresentDay(item.checkIn), report.status.isOpen else {
+            return nil
+        }
+        let last = ReportStages.titles(of: report).count - 1
+        let entries = ReportStages.set(
+            stage: last, on: ReportStages.movingCopies(of: report, in: context), day: now, context: context
+        )
+        return entries.isEmpty ? nil : entries
     }
 }

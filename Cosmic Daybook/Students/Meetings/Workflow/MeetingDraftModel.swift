@@ -8,9 +8,10 @@ struct PendingFocusItem: Identifiable, Equatable {
 }
 
 /// One child's meeting in progress: the form, the focus checklist, the work
-/// decisions, the lesson requests and what the guide owes her (For Me to Do). The header, decision cards, form and
-/// footer all read this one object, so a layout switch (a window resized
-/// across the wide/narrow line) rebuilds views without losing anything.
+/// decisions, the lesson requests and what the guide owes her (For Me to
+/// Do). The header, decision cards, form and footer all read this one
+/// object, so a layout switch (a window resized across the wide/narrow line)
+/// rebuilds views without losing anything.
 ///
 /// Drafts are saved on a short debounce after the last change and flushed
 /// when the meeting is left, then removed when it is completed or cleared. A
@@ -19,9 +20,9 @@ struct PendingFocusItem: Identifiable, Equatable {
 /// The child's meeting can be open in two windows (Mac, iPad), each with its
 /// own model on the one stored draft. A model writes only what it changed,
 /// field by field, and item by item for focus ticks, each work's note,
-/// each work's decision and receipt, and each For Me to Do line and tick, taking the rest from the stored draft;
-/// and it takes up the stored draft's changes as they come (bug hunt
-/// 2026-10-10, #11 and its review).
+/// each work's decision and receipt, and each For Me to Do line and tick,
+/// taking the rest from the stored draft; and it takes up the stored draft's
+/// changes as they come (bug hunt 2026-10-10, #11 and its review).
 @Observable @MainActor
 final class MeetingDraftModel {
     typealias Draft = MeetingPersistenceService.CurrentMeetingData

@@ -409,6 +409,14 @@ struct StudentProgressTab: View {
     }
 
     // MARK: - Report Card
+
+    /// "Writing · assigned 3 weeks ago": the report's stage first (2026-10-30).
+    private func reportSubtitle(_ report: CDWorkModel) -> String {
+        let assigned = (report.assignedAt ?? Date()).formatted(.relative(presentation: .named))
+        guard let stage = ReportStages.stageName(of: report) else { return "Assigned \(assigned)" }
+        return "\(stage) · assigned \(assigned)"
+    }
+
     @ViewBuilder
     private func reportCard(report: CDWorkModel) -> some View {
         let progress = report.stepProgress
@@ -421,7 +429,7 @@ struct StudentProgressTab: View {
                     iconName: "doc.text.fill",
                     color: .green,
                     title: viewModel.reportTitle(for: report),
-                    subtitle: "Assigned \((report.assignedAt ?? Date()).formatted(.relative(presentation: .named)))",
+                    subtitle: reportSubtitle(report),
                     isComplete: isComplete,
                     isActive: false
                 )

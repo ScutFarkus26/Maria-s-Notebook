@@ -117,7 +117,8 @@ private struct MeetingSessionContent: View {
         let summary = MeetingSessionSummary(
             stuck: sessionWork.stuck.count,
             focusCarried: draft.activeFocusItems.count,
-            lessonsSince: lessons.count
+            lessonsSince: lessons.count,
+            reports: sessionWork.reports.count
         )
 
         Group {
@@ -203,7 +204,7 @@ private struct MeetingSessionContent: View {
                 VStack(alignment: .leading, spacing: 16) {
                     MeetingSummaryChips(summary: summary, isButtons: true) { chip in
                         switch chip {
-                        case .stuck: compactSheet = .decisions
+                        case .stuck, .reports: compactSheet = .decisions
                         case .focus: adaptiveWithAnimation { proxy.scrollTo("focus", anchor: .top) }
                         case .lessons: compactSheet = .lessons
                         case .meetings: compactSheet = .meetings
@@ -257,6 +258,7 @@ private struct MeetingSessionContent: View {
         MeetingContextPane(
             stuckWork: sessionWork.stuck,
             openWork: sessionWork.open,
+            reports: sessionWork.reports,
             lessonsSince: lessons,
             meetings: meetings,
             lastMeetingDate: lastMeetingDate,

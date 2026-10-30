@@ -18,13 +18,17 @@
 
 import Foundation
 
-/// The two halves of the workspace. Not a `TriageBucket` — kind and state are
-/// orthogonal, and every kind carries the full set of states.
+/// The parts of the workspace. Not a `TriageBucket` — kind and state are
+/// orthogonal, and the two halves carry the full set of states. Reports
+/// (2026-10-30) is a third view over report work, by stage, with no History
+/// of its own: what was presented this year is a section in it.
 enum WorkspaceKind: String, CaseIterable, Identifiable, Sendable {
     /// Lessons to give: what is ready, what is brewing, what needs following.
     case presentations
     /// Children's work: what needs checking, what needs a day.
     case work
+    /// Children's reports, by stage.
+    case reports
 
     var id: Self { self }
 
@@ -32,6 +36,7 @@ enum WorkspaceKind: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .presentations: "Presentations"
         case .work: "Work"
+        case .reports: "Reports"
         }
     }
 
@@ -39,6 +44,7 @@ enum WorkspaceKind: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .presentations: "tray.full"
         case .work: "square.and.pencil"
+        case .reports: "doc.text"
         }
     }
 
@@ -46,6 +52,7 @@ enum WorkspaceKind: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .presentations: "Search children or lessons"
         case .work: "Search children, lessons, or work"
+        case .reports: "Search children or reports"
         }
     }
 

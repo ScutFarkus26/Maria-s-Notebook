@@ -156,6 +156,9 @@ extension WorksAgendaView {
             // An unresolved follow-up is the one presentation state that isn't
             // in the planning inbox, so it needs its own pill.
             break
+        case .reports:
+            // A route never lands on Reports: it names a lesson or work.
+            break
         }
     }
 

@@ -94,17 +94,21 @@ enum MeetingWorkSnapshotHelper {
 
     // MARK: - One child's meeting (Meetings workflow)
 
-    /// The meeting's two work lists, from the child's own work rows.
+    /// The meeting's work lists, from the child's own work rows.
     struct SessionWork {
         /// Open work older than the overdue setting: each needs a decision.
         let stuck: [CDWorkModel]
         let open: [CDWorkModel]
+        /// Her reports, open or resting, in a section of their own: a report
+        /// takes weeks, so it's never stuck (2026-10-30).
+        var reports: [CDWorkModel] = []
     }
 
-    /// Splits a child's work into stuck and open. An item reviewed in this
-    /// meeting stays in its list after its status closes it (or it is set
-    /// resting), so the card shows the choice that was made. Work resting
-    /// from an earlier decision isn't stuck: it waits with the open work.
+    /// Splits a child's work into stuck, open and reports. An item reviewed
+    /// in this meeting stays in its list after its status closes it (or it
+    /// is set resting), so the card shows the choice that was made. Work
+    /// resting from an earlier decision isn't stuck: it waits with the open
+    /// work.
     static func sessionWork(
         _ work: [CDWorkModel],
         workOverdueDays: Int,
@@ -113,14 +117,17 @@ enum MeetingWorkSnapshotHelper {
     ) -> SessionWork {
         let overdueBefore = AppCalendar.shared.date(byAdding: .day, value: -workOverdueDays, to: now) ?? .distantPast
         let isReviewed = { (item: CDWorkModel) in item.id.map(reviewed.contains) ?? false }
-        let shown = work.filter { $0.status.isOpen || isReviewed($0) }
+        let visible = work.filter { $0.status.isOpen || isReviewed($0) }
+        let reports = visible.filter(ReportStages.isReport)
+        let shown = visible.filter { !ReportStages.isReport($0) }
         let stuck = shown.filter {
             ($0.createdAt ?? now) < overdueBefore && (isReviewed($0) || !$0.isResting(asOf: now))
         }
         let stuckIDs = Set(stuck.compactMap(\.id))
         return SessionWork(
             stuck: stuck,
-            open: shown.filter { work in work.id.map { !stuckIDs.contains($0) } ?? true }
+            open: shown.filter { work in work.id.map { !stuckIDs.contains($0) } ?? true },
+            reports: reports.sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
         )
     }
 

@@ -17,7 +17,7 @@ struct MeetingCompactSheet: View {
 
         var sections: MeetingContextPane.Sections {
             switch self {
-            case .decisions: [.decisions, .openWork]
+            case .decisions: [.decisions, .reports, .openWork]
             case .lessons: [.lessons]
             case .meetings: [.meetings]
             }
@@ -53,6 +53,7 @@ struct MeetingCompactSheet: View {
         MeetingContextPane(
             stuckWork: sessionWork.stuck,
             openWork: sessionWork.open,
+            reports: sessionWork.reports,
             lessonsSince: lessons,
             meetings: meetings,
             lastMeetingDate: lastMeetingDate,

@@ -81,10 +81,36 @@ extension MeetingDraftModel {
         flush()
     }
 
-    /// One card's choice, saved, without writing the draft. The newest
-    /// receipt for the work is read from the stored draft first, in case
-    /// the choice before this one was made in another window.
+    /// A report's stage from its card (2026-10-30): set on every linked copy
+    /// still open or presented, and the card's decision, as a status choice
+    /// is. Presented closes the copies as Finished with a receipt, so another
+    /// stage, or Rest, takes the close back; an earlier stage reopens copies
+    /// presented before. One save; returns false, with nothing changed or
+    /// recorded, when it didn't save.
+    @discardableResult
+    func setStage(_ stage: Int, of report: CDWorkModel, context: NSManagedObjectContext) -> Bool {
+        let applied = apply(to: report, context: context) {
+            ReportStages.set(stage: stage, on: ReportStages.movingCopies(of: report, in: context), context: context)
+        }
+        guard applied else { return false }
+        flush()
+        return true
+    }
+
     private func apply(_ status: WorkStatus, to work: CDWorkModel, context: NSManagedObjectContext) -> Bool {
+        apply(to: work, context: context) {
+            work.status == status ? [] : [.init(work: work, status: status)]
+        }
+    }
+
+    /// One card's choice, saved, without writing the draft: `changes` makes
+    /// whatever the choice changes besides the status and returns the
+    /// statuses to log. The newest receipt for the work is read from the
+    /// stored draft first, in case the choice before this one was made in
+    /// another window.
+    private func apply(
+        to work: CDWorkModel, context: NSManagedObjectContext, changes: () -> [WorkLogService.Entry]
+    ) -> Bool {
         takeUpStored()
         let transaction = ContextMutationTransaction(context: context)
         _ = takeBackEarlierChoice(on: work, context: context)
@@ -92,12 +118,11 @@ extension MeetingDraftModel {
         // back puts the rest back too (bug hunt 2026-10-10, #15).
         let endedRest = work.isResting ? work.restingUntil : nil
         if endedRest != nil { MeetingReviewService.clearWorkResting(work) }
+        let entries = changes()
         var receipt: WorkLogService.Receipt?
-        if work.status != status {
+        if !entries.isEmpty {
             do {
-                receipt = try WorkLogService.log(
-                    [.init(work: work, status: status)], context: context, saveImmediately: false
-                )
+                receipt = try WorkLogService.log(entries, context: context, saveImmediately: false)
             } catch {
                 transaction.rollback()
                 ToastService.shared.showError(Self.decisionFailure)

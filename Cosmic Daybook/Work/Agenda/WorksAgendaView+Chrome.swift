@@ -22,8 +22,11 @@ extension WorksAgendaView {
         }
 
         // The half's live list or its History, beside the half it belongs to.
+        // Reports has no History.
         ToolbarItem(placement: .principal) {
-            workspaceListPicker
+            if workspaceKind != .reports {
+                workspaceListPicker
+            }
         }
 
         ToolbarItemGroup(placement: .primaryAction) {
@@ -113,10 +116,12 @@ extension WorksAgendaView {
             .clipRounded(UIConstants.CornerRadius.control)
             .padding(.horizontal, 16)
             .padding(.bottom, 4)
-            // The half's live list or its History.
-            workspaceListPicker
-                .padding(.horizontal, 16)
-                .padding(.bottom, 4)
+            // The half's live list or its History. Reports has no History.
+            if workspaceKind != .reports {
+                workspaceListPicker
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 4)
+            }
             if showsWorkGrid {
                 WorkKindFilterChipBar(visibleKinds: visibleKinds)
                     .padding(.bottom, 4)

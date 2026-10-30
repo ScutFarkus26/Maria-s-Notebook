@@ -333,6 +333,13 @@ struct WorksAgendaView: View {
                 onSchedule: schedule,
                 onDeleted: refreshAfterSave
             )
+
+        case .reports:
+            LessonsAndWorkReportsView(
+                searchText: debouncedSearchText,
+                studentsByID: studentsByID,
+                onOpenWork: openDetail
+            )
         }
     }
 

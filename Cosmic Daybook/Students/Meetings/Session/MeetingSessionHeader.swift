@@ -17,6 +17,7 @@ struct MeetingSessionSummary: Equatable {
     var stuck: Int
     var focusCarried: Int
     var lessonsSince: Int
+    var reports = 0
 }
 
 // MARK: - Header band
@@ -105,7 +106,7 @@ struct MeetingSessionHeader<MoreMenu: View>: View {
 /// Stuck work, carried focus, lessons since. On a phone they are buttons that
 /// open each part of the context.
 struct MeetingSummaryChips: View {
-    enum Chip { case stuck, focus, lessons, meetings }
+    enum Chip { case stuck, reports, focus, lessons, meetings }
 
     let summary: MeetingSessionSummary
     let isButtons: Bool
@@ -117,6 +118,10 @@ struct MeetingSummaryChips: View {
                 if summary.stuck > 0 {
                     chip(.stuck, "\(summary.stuck) stuck work", systemImage: "exclamationmark.triangle",
                          tint: AppColors.warning, emphasized: true)
+                }
+                if summary.reports > 0 {
+                    chip(.reports, "\(summary.reports) report\(summary.reports == 1 ? "" : "s")",
+                         systemImage: "doc.text", tint: .secondary, emphasized: false)
                 }
                 if summary.focusCarried > 0 {
                     chip(.focus, "\(summary.focusCarried) focus carried", systemImage: "scope",

@@ -18,6 +18,7 @@ extension WorksAgendaView {
         switch workspaceKind {
         case .presentations: WorkspaceList.resolved(rawValue: presentationsListRaw)
         case .work: WorkspaceList.resolved(rawValue: workListRaw)
+        case .reports: .open
         }
     }
 
@@ -41,6 +42,7 @@ extension WorksAgendaView {
         switch kind {
         case .presentations: presentationsListRaw = list.rawValue
         case .work: workListRaw = list.rawValue
+        case .reports: break
         }
     }
 
@@ -64,7 +66,7 @@ extension WorksAgendaView {
                 embeddedSearchText: debouncedSearchText,
                 focusedAssignmentID: focusedPresentationID
             )
-        case .work:
+        case .work, .reports:
             WorksLogView(
                 embeddedSearchText: debouncedSearchText,
                 completedOnly: true,

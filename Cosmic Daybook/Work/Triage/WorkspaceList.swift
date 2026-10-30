@@ -25,7 +25,7 @@ enum WorkspaceList: String, CaseIterable, Identifiable, Sendable {
     func title(in kind: WorkspaceKind) -> String {
         switch (self, kind) {
         case (.open, .presentations): "Upcoming"
-        case (.open, .work): "Open"
+        case (.open, .work), (.open, .reports): "Open"
         case (.history, _): "History"
         }
     }
@@ -36,7 +36,7 @@ enum WorkspaceList: String, CaseIterable, Identifiable, Sendable {
         switch (self, kind) {
         case (.open, _): kind.searchPrompt
         case (.history, .presentations): "Search lessons given"
-        case (.history, .work): "Search finished work"
+        case (.history, .work), (.history, .reports): "Search finished work"
         }
     }
 
