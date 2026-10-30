@@ -272,5 +272,63 @@ check "with -g -a <installed copy> and the MCP-only arguments ($(cat "$T/open.lo
     grep -qxF -- "-g -a $T/Installed/Cosmic Daybook.app --args -CosmicDaybookMCPAutolaunch YES -ApplePersistenceIgnoreState YES" "$T/open.log"
 check "relayed the AUTH line and the request" [ "$RELAYED" = 1 ]
 
+echo "== 10. The app quits mid-request, stays away, then comes back: plain errors, the bridge stays up and connects again =="
+reset_case
+# A dummy app that answers every request with an empty result, except
+# "quit", where it closes without answering and exits (the app quitting
+# while a tool call is still running). Connections that send no AUTH line
+# (the bridge's -z probes) are skipped.
+cat > "$T/fake-server.pl" <<'EOF'
+use strict; use warnings; use IO::Socket::INET; use JSON::PP;
+my $server = IO::Socket::INET->new(LocalAddr => '127.0.0.1', LocalPort => $ARGV[0], Listen => 5, ReuseAddr => 1) or die;
+while (my $client = $server->accept) {
+    $client->autoflush(1);
+    defined(my $auth = <$client>) or next;
+    while (my $line = <$client>) {
+        my $request = decode_json($line);
+        exit 0 if $request->{method} eq 'quit';
+        print $client JSON::PP->new->canonical->encode({ jsonrpc => "2.0", id => $request->{id}, result => {} }), "\n";
+    }
+}
+EOF
+fake_app() {
+    # Not holding the bridge's input open: a 7>&- on the call would leave
+    # bash's saved copy of fd 7 (as fd 10) in the child, so close it in a subshell.
+    spawn sh -c 'exec 7>&-; exec /usr/bin/perl "$@"' sh "$T/fake-server.pl" "$TEST_PORT"
+    local deadline=$((SECONDS + 10))
+    until port_open || [ $SECONDS -ge $deadline ]; do sleep 0.1; done
+}
+wait_for_out() {  # wait_for_out <text>: up to 10 s for the bridge to write a line containing it
+    local deadline=$((SECONDS + 10))
+    until grep -qF -- "$1" "$T/out" 2>/dev/null || [ $SECONDS -ge $deadline ]; do sleep 0.1; done
+    grep -qF -- "$1" "$T/out" 2>/dev/null
+}
+fake_app
+rm -f "$T/in"; mkfifo "$T/in"
+COSMIC_DAYBOOK_NO_AUTOLAUNCH=1 "$BRIDGE" < "$T/in" > "$T/out" 2> "$T/err" &
+BRIDGE_PID=$!
+CHILDREN="$CHILDREN $BRIDGE_PID"
+exec 7> "$T/in"
+printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"ping"}' >&7
+check "a request before the quit is answered" wait_for_out '"id":1,"jsonrpc":"2.0","result":{}'
+printf '%s\n' '{"jsonrpc":"2.0","id":2,"method":"quit"}' >&7
+check "the request the app quit on gets a plain error" wait_for_out '"id":2'
+check "  saying it closed before it answered" grep -q '"id":2.*closed before it answered\|closed before it answered.*"id":2' "$T/out"
+check "the bridge is still running" kill -0 "$BRIDGE_PID"
+printf '%s\n' '{"jsonrpc":"2.0","id":3,"method":"ping"}' >&7
+check "a request while the app is away gets the not-listening message" wait_for_out '"id":3'
+check "  naming the Settings switch" grep -q '"id":3.*enable Claude Desktop access in Settings\|enable Claude Desktop access in Settings.*"id":3' "$T/out"
+check "the bridge is still running" kill -0 "$BRIDGE_PID"
+fake_app
+printf '%s\n' '{"jsonrpc":"2.0","id":4,"method":"ping"}' >&7
+check "once the app is back, the next request is answered" wait_for_out '"id":4,"jsonrpc":"2.0","result":{}'
+check "  on a fresh connection" grep -q 'Connected to Cosmic Daybook again' "$T/err"
+exec 7>&-
+# kill -0 still finds a child that has exited until it is waited for (a zombie).
+running() { case "$(/bin/ps -o stat= -p "$1" 2>/dev/null)" in ""|Z*) return 1;; *) return 0;; esac; }
+deadline=$((SECONDS + 10))
+while running "$BRIDGE_PID" && [ $SECONDS -lt $deadline ]; do sleep 0.1; done
+check "the bridge exits once the client closes its input" eval '! running "$BRIDGE_PID"'
+
 echo "== $LABEL: $PASS passed, $FAIL failed =="
 [ "$FAIL" = 0 ]

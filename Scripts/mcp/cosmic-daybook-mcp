@@ -5,9 +5,17 @@
 #
 # The app listens on loopback TCP (the App Sandbox cannot bind Unix
 # sockets anywhere external clients could reach without TCC prompts).
-# MCP clients speak newline-delimited JSON-RPC over stdio; netcat relays
-# the byte streams verbatim after a one-line AUTH preamble carrying the
-# per-install token the app wrote to ~/.cosmic-daybook/mcp.token.
+# MCP clients speak newline-delimited JSON-RPC over stdio; a small Perl
+# relay (macOS's own /usr/bin/perl, core modules only) passes the lines
+# through verbatim after a one-line AUTH preamble carrying the per-install
+# token the app wrote to ~/.cosmic-daybook/mcp.token.
+#
+# The relay outlives the app. When the app quits or restarts, it answers
+# any request still waiting with a plain error (the app may have saved a
+# change before it went), and the next request connects again, after the
+# same checks and launch as below. Claude Desktop never restarts a bridge
+# that exits, so a bridge that died with the app left every later call
+# failing with no message until Claude itself was quit (2026-10-29).
 #
 # When the server is not up, the bridge launches the app — only when no
 # copy is running already (a second copy would open the same store) and
@@ -23,6 +31,14 @@
 #   { "mcpServers": { "cosmic-daybook": { "command": "<absolute path to this script>" } } }
 #
 set -eu
+
+# Before it connects again, the relay runs this script with
+# COSMIC_DAYBOOK_BRIDGE_CHECK=1: the checks and launch below run as usual,
+# their message comes back to the relay on stdout, and the script stops
+# before relaying.
+if [ -n "${COSMIC_DAYBOOK_BRIDGE_CHECK:-}" ]; then
+    exec </dev/null 2>&1 >/dev/null
+fi
 
 BUNDLE_ID="DanielSDeBerry.MariasNoteBook"
 PORT=43117
@@ -142,5 +158,170 @@ if [ ! -r "$TOKEN_FILE" ]; then
     exit 1
 fi
 
-# Prepend the AUTH line, then relay stdio verbatim.
-{ printf 'AUTH %s\n' "$(cat "$TOKEN_FILE")"; exec /bin/cat; } | exec /usr/bin/nc 127.0.0.1 "$PORT"
+[ -z "${COSMIC_DAYBOOK_BRIDGE_CHECK:-}" ] || exit 0
+
+# Send the AUTH line, then relay lines both ways until the client goes.
+# Arguments: this script (to run the checks again), the port, the token file.
+RELAY=$(cat <<'PERL'
+use strict;
+use warnings;
+use IO::Socket::INET;
+use IO::Select;
+use JSON::PP;
+
+my ($bridge, $port, $token_file) = @ARGV;
+$SIG{PIPE} = 'IGNORE';
+binmode STDIN;
+binmode STDOUT;
+
+my $json = JSON::PP->new->canonical->allow_nonref;
+my $closed_message = "Cosmic Daybook closed before it answered (it quit or restarted). "
+    . "If this was a change, check whether it was saved before you try again.";
+my ($sock, $from_server, $from_client, $client_done) = (undef, '', '', 0);
+# Requests sent to the app and not answered yet, by id (as JSON text).
+my %pending;
+
+sub write_all {
+    my ($fh, $data) = @_;
+    while (length $data) {
+        my $n = syswrite($fh, $data);
+        if (!defined $n) {
+            next if $!{EINTR};
+            return 0;
+        }
+        substr($data, 0, $n, '');
+    }
+    return 1;
+}
+
+# The client reading stdout has gone: nothing left to relay to.
+sub to_client { write_all(\*STDOUT, "$_[0]\n") or exit 0 }
+
+sub fail_request {
+    my ($id, $message) = @_;
+    to_client($json->encode({ jsonrpc => '2.0', id => $id,
+        error => { code => -32000, message => $message } }));
+}
+
+sub one_line { my $text = shift; $text =~ s/\s+/ /g; $text =~ s/^ | $//g; $text }
+
+sub connect_server {
+    open(my $tf, '<', $token_file)
+        or return (0, "Couldn't read the connection key. Turn on Claude Desktop access in Cosmic Daybook's Settings, then try again.");
+    my $token = <$tf> // '';
+    close($tf);
+    $token =~ s/\s+\z//;
+    my $s = IO::Socket::INET->new(PeerAddr => '127.0.0.1', PeerPort => $port, Proto => 'tcp')
+        or return (0, "Couldn't reach Cosmic Daybook. Check that it's open, then try again.");
+    binmode $s;
+    write_all($s, "AUTH $token\n")
+        or return (0, "Couldn't reach Cosmic Daybook. Check that it's open, then try again.");
+    ($sock, $from_server) = ($s, '');
+    return (1, '');
+}
+
+# Runs the bridge's own checks again (launching the app when it would),
+# then connects.
+sub reconnect {
+    local $ENV{COSMIC_DAYBOOK_BRIDGE_CHECK} = 1;
+    my $pid = open(my $check, '-|');
+    return (0, "Couldn't reach Cosmic Daybook. Try again.") unless defined $pid;
+    if ($pid == 0) {
+        exec { $bridge } $bridge;
+        exit 127;
+    }
+    my $said = do { local $/; <$check> } // '';
+    close($check);
+    return (0, one_line($said) || "Couldn't reach Cosmic Daybook. Check that it's open, then try again.")
+        if $? != 0;
+    return connect_server();
+}
+
+sub server_closed {
+    close($sock);
+    ($sock, $from_server) = (undef, '');
+    print STDERR "Cosmic Daybook closed the connection; the next request connects again.\n";
+    fail_request($_, $closed_message) for values %pending;
+    %pending = ();
+}
+
+sub send_line {
+    my ($line) = @_;
+    my $message = eval { $json->decode($line) };
+    my $is_request = ref $message eq 'HASH' && defined $message->{method} && exists $message->{id};
+    if (!$sock) {
+        my ($ok, $why) = reconnect();
+        if (!$ok) {
+            print STDERR "$why\n";
+            fail_request($message->{id}, $why) if $is_request;
+            return;
+        }
+        print STDERR "Connected to Cosmic Daybook again.\n";
+    }
+    $pending{$json->encode($message->{id})} = $message->{id} if $is_request;
+    server_closed() unless write_all($sock, "$line\n");
+}
+
+# Splits complete lines off the front of a buffer.
+sub take_lines {
+    my ($buffer) = @_;
+    my @lines;
+    while ((my $i = index($$buffer, "\n")) >= 0) {
+        my $line = substr($$buffer, 0, $i + 1, '');
+        $line =~ s/\r?\n\z//;
+        push @lines, $line if length $line;
+    }
+    return @lines;
+}
+
+sub read_client {
+    my $n = sysread(STDIN, my $chunk, 65536);
+    if (!defined $n) {
+        return if $!{EINTR} || $!{EAGAIN};
+        $n = 0;
+    }
+    if ($n == 0) {
+        $client_done = 1;
+        send_line($from_client) if length $from_client;
+        shutdown($sock, 1) if $sock;
+        return;
+    }
+    $from_client .= $chunk;
+    send_line($_) for take_lines(\$from_client);
+}
+
+sub read_server {
+    my $n = sysread($sock, my $chunk, 65536);
+    if (!defined $n) {
+        return if $!{EINTR} || $!{EAGAIN};
+        $n = 0;
+    }
+    return server_closed() if $n == 0;
+    $from_server .= $chunk;
+    for my $line (take_lines(\$from_server)) {
+        my $message = eval { $json->decode($line) };
+        delete $pending{$json->encode($message->{id})}
+            if ref $message eq 'HASH' && !defined $message->{method} && exists $message->{id};
+        to_client($line);
+    }
+}
+
+my ($ok, $why) = connect_server();
+if (!$ok) {
+    print STDERR "$why\n";
+    exit 1;
+}
+while (1) {
+    my $select = IO::Select->new();
+    $select->add(\*STDIN) unless $client_done;
+    $select->add($sock) if $sock;
+    last unless $select->count;
+    for my $fh ($select->can_read) {
+        if ($sock && $fh == $sock) { read_server() } else { read_client() }
+    }
+    last if $client_done && (!$sock || !%pending);
+}
+exit 0;
+PERL
+)
+exec /usr/bin/perl -e "$RELAY" "$0" "$PORT" "$TOKEN_FILE"

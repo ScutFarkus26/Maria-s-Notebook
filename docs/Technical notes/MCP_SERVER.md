@@ -22,8 +22,21 @@ Claude Desktop ──stdio──▶ Scripts/mcp/cosmic-daybook-mcp (nc relay)
 
 - **Transport.** MCP stdio framing (newline-delimited UTF-8 JSON-RPC 2.0,
   spec revision 2025-06-18) carried over loopback TCP. The bridge script
-  sends one `AUTH <token>` line, then relays bytes verbatim with `nc`, so
-  the whole protocol lives in the app.
+  sends one `AUTH <token>` line, then relays lines verbatim through a small
+  Perl relay (macOS's `/usr/bin/perl`, core modules only), so the whole
+  protocol lives in the app.
+- **The bridge outlives the app** (2026-10-29). Claude Desktop starts a
+  bridge once and never restarts it, and the old `nc` relay exited with the
+  app: after any quit or restart of the app, Claude still listed the tools
+  but every call failed with no message until Claude itself was quit. Now a
+  request the app was still answering when it went gets a plain error
+  ("closed before it answered … check whether it was saved"), never a
+  resend, since the app may have saved a change first; the next request
+  runs the bridge's checks again (`COSMIC_DAYBOOK_BRIDGE_CHECK=1`, which
+  may launch the app as below) and connects on a fresh `AUTH` line. The
+  server keeps no per-connection state, so no new `initialize` is needed.
+  The bridge writes each drop and reconnect to stderr, which Claude Desktop
+  keeps in `~/Library/Logs/Claude/mcp-server-cosmic-daybook.log` (times in UTC).
 - **Why TCP, not a Unix socket.** Tried and rejected empirically: the App
   Sandbox only permits *binding* Unix sockets inside the app's own (group)
   container — a `temporary-exception.files...read-write` entitlement grants
@@ -529,8 +542,9 @@ ambiguity comes back as a tool error naming the candidates.
    (`ps` state `T`), whether it is merely running or holding the port, is
    reported with its pid instead of being waited on or relayed to. Set
    `COSMIC_DAYBOOK_NO_AUTOLAUNCH=1` in the server's `env` to never launch.
-   `Scripts/mcp/test-cosmic-daybook-mcp.sh` checks these decisions against a
-   copy of the bridge on a test port, without touching the app.
+   `Scripts/mcp/test-cosmic-daybook-mcp.sh` checks these decisions, and the
+   reconnect after the app quits mid-request, against a copy of the bridge
+   on a test port, without touching the app.
 
 The same bridge works for Claude Code:
 `claude mcp add cosmic-daybook -- "/Users/dannydeberry/Developer/Cosmic Daybook/Scripts/mcp/cosmic-daybook-mcp"`.
