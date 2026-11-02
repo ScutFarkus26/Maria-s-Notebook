@@ -231,7 +231,9 @@ extension AssistantIdentitySuites {
             calendar.timeZone = try #require(TimeZone(identifier: "America/Chicago"))
             let date = try #require(calendar.date(from: day))
 
-            let time = ArrivalReminder.clockTime(ArrivalReminder.defaultMinutes, on: date, calendar: calendar)
+            let time = try #require(
+                FrontDeskEmailReminder.clockTime(ArrivalReminder.defaultMinutes, on: date, calendar: calendar)
+            )
 
             let parts = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: time)
             #expect(parts.year == day.year && parts.month == day.month && parts.day == day.day)

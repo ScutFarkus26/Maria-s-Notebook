@@ -103,7 +103,7 @@ enum FrontDeskEmailReminder {
             defer { day = calendar.date(byAdding: .day, value: 1, to: day) ?? day }
             guard !nonSchoolDays.contains(day) else { continue }
             if day == today, todayIsDone { continue }
-            guard let fire = calendar.date(byAdding: .minute, value: minutes, to: day), fire > now else { continue }
+            guard let fire = clockTime(minutes, on: day, calendar: calendar), fire > now else { continue }
             dates.append(fire)
         }
         return dates
@@ -225,8 +225,15 @@ enum FrontDeskEmailReminder {
     /// "9:00 AM" for minutes after midnight.
     static func timeString(_ minutes: Int, calendar: Calendar = .current) -> String {
         let midnight = calendar.startOfDay(for: Date())
-        let time = calendar.date(byAdding: .minute, value: minutes, to: midnight) ?? midnight
+        let time = clockTime(minutes, on: midnight, calendar: calendar) ?? midnight
         return time.formatted(date: .omitted, time: .shortened)
+    }
+
+    /// `minutes` after midnight as a clock time on `day`. Clock times, not
+    /// minutes from midnight: on the day the clocks change, midnight plus
+    /// 8:15 is 7:15 or 9:15.
+    nonisolated static func clockTime(_ minutes: Int, on day: Date, calendar: Calendar) -> Date? {
+        calendar.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: day)
     }
 }
 

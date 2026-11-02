@@ -248,4 +248,24 @@ struct AttendanceEmailLogTests {
         #expect(FrontDeskEmailReminder.isReminder("frontdesk-2026-10-14"))
         #expect(!FrontDeskEmailReminder.isReminder("arrival-2026-10-14"))
     }
+
+    @Test("The reminder fires at the set time on the Sundays the clocks change", arguments: [
+        DateComponents(year: 2026, month: 11, day: 1),
+        DateComponents(year: 2027, month: 3, day: 14)
+    ])
+    func reminderOnClockChangeDays(day: DateComponents) throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "America/Chicago"))
+        let sunday = try #require(calendar.date(from: day))
+
+        let dates = FrontDeskEmailReminder.fireDates(
+            from: sunday, minutes: 9 * 60, nonSchoolDays: [], count: 1, todayIsDone: false, calendar: calendar
+        )
+
+        let fire = try #require(dates.first)
+        let parts = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: fire)
+        #expect(parts.year == day.year && parts.month == day.month && parts.day == day.day)
+        #expect(parts.hour == 9)
+        #expect(parts.minute == 0)
+    }
 }
