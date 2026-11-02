@@ -5,8 +5,7 @@ import Testing
 
 /// Pins the Presentations overview's cheaper paths to the ones they replaced:
 /// the view model's assignment-refetch gate, the one-fetch attendance lookup
-/// behind Recently Missed, the Suggested Next count, and the week strip's
-/// per-day grouping.
+/// behind Recently Missed, and the Suggested Next count.
 @MainActor
 @Suite("Presentations energy pass")
 struct PresentationsEnergyPassTests {
@@ -229,40 +228,6 @@ struct PresentationsEnergyPassTests {
             )
             let ranked = vm.rankedSuggestions(among: candidates, allLessonAssignments: candidates)
             #expect(slices.count(.suggestedNext) == ranked.count, "size \(size)")
-        }
-    }
-
-    // MARK: - Week strip grouping
-
-    @Test("Grouping by day once matches each column filtering the whole table")
-    func weekStripGroupingMatchesPerColumnFilter() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let calendar = AppCalendar.shared
-        let today = calendar.startOfDay(for: Date())
-        let days = (0..<5).compactMap { calendar.date(byAdding: .day, value: $0, to: today) }
-        let base = Date(timeIntervalSince1970: 1_800_000_000)
-
-        var all: [CDLessonAssignment] = []
-        for index in 0..<40 {
-            let assignment = CDLessonAssignment(context: context)
-            let day = calendar.date(byAdding: .day, value: index % 7 - 1, to: today) ?? today
-            // Several legacy midnight rows per day (ties broken by createdAt), some timed.
-            let offset = index.isMultiple(of: 3) ? 0 : Double(index * 600)
-            assignment.scheduledFor = index % 9 == 4 ? nil : day.addingTimeInterval(offset)
-            assignment.createdAt = base.addingTimeInterval(Double((index * 37) % 40))
-            if index % 5 == 0 { assignment.stateRaw = LessonAssignmentState.presented.rawValue }
-            all.append(assignment)
-        }
-
-        let grouped = WeekPlanSection.scheduledByDay(all, days: days, calendar: calendar)
-        for day in days {
-            let old = all.filter { la in
-                guard let scheduled = la.scheduledFor, !la.isGiven else { return false }
-                return calendar.isDate(scheduled, inSameDayAs: day)
-            }
-            .sorted(by: LessonAssignmentOrdering.isOrderedBefore)
-            let new = grouped[calendar.startOfDay(for: day)] ?? []
-            #expect(new.map(\.objectID) == old.map(\.objectID))
         }
     }
 }

@@ -5,7 +5,7 @@
 // It sits next to the ready presentations rather than replacing them, because
 // the guide's question is three things at once: who has waited, what could they
 // have, and which day does it go on. Tapping a name narrows the lessons beside
-// it; the calendar is pinned below. Left, then center, then down.
+// it. Left, then center.
 //
 // Replaces two earlier lists that answered the same question in two places and
 // disagreed about who belonged on it.

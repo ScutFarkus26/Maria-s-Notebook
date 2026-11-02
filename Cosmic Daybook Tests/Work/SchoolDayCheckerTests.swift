@@ -142,15 +142,6 @@ final class SchoolDayCheckerTests {
         #expect(SchoolDayChecker.schoolDaysBetween(start: monday, end: friday, using: ctx) == 3)
     }
 
-    @Test("nextSchoolDays skips the weekend and returns exactly the requested count")
-    func nextSchoolDaysSkipsWeekend() throws {
-        let stack = try CoreDataTestHelpers.makeInMemoryStack()
-        let ctx = stack.viewContext
-
-        let result = SchoolDayChecker.nextSchoolDays(from: friday, count: 3, using: ctx)
-        #expect(result == [friday, nextMonday, nextTuesday])
-    }
-
     // MARK: - Bulk/per-day consistency
 
     @Test("nonSchoolDaySet matches the per-day rule for every day in range")

@@ -1,9 +1,9 @@
 // ReadyToPresentSection+Line.swift
 // What makes a backlog line a presentation rather than a picture of one: it
-// drags onto the calendar, opens on a tap, joins a selection on a command-
-// click, carries the presentation's context menu, and can be ringed and
-// scrolled to by a deep link. Its chips' move menus are named actions here
-// too, since the line is one element to VoiceOver.
+// opens on a tap, joins a selection on a command-click, carries the
+// presentation's context menu, and can be ringed and scrolled to by a deep
+// link. Its chips' move menus are named actions here too, since the line is
+// one element to VoiceOver.
 //
 // Every line — a single-group row, or one group of a lesson with several —
 // goes through `backlogLine`, so the two shapes cannot drift apart on any of
@@ -62,7 +62,7 @@ extension ReadyToPresentSection {
                     }
                 }
             }
-        return draggableLine(line, la: la, chips: chips, order: context.displayOrder)
+        return line
             .id(la.id ?? UUID())
             .focusHighlight(isFocused)
             .workspaceSelectionRing(
@@ -98,36 +98,6 @@ extension ReadyToPresentSection {
         }
         Divider()
         deleteButton(for: la)
-    }
-
-    /// A line with no id cannot be resolved by any drop handler, and the drop
-    /// would report success while doing nothing — so it simply isn't a drag
-    /// source.
-    @ViewBuilder
-    private func draggableLine(
-        _ line: some View, la: CDLessonAssignment, chips: [BacklogChip], order: [UUID]
-    ) -> some View {
-        if let id = la.id {
-            line.draggable(
-                selection.dragPayload(startingAt: id, inOrder: order, make: UnifiedCalendarDragPayload.presentation)
-            ) {
-                dragPreview(for: la, names: chips.map(\.name))
-            }
-        } else {
-            line
-        }
-    }
-
-    /// Drag previews render detached from the app's environment, so anything
-    /// the preview could read has to be re-injected — a preview whose
-    /// `@FetchRequest`s have no context is a crash at drag lift.
-    private func dragPreview(for la: CDLessonAssignment, names: [String]) -> some View {
-        BacklogDragPreview(
-            title: viewModel.lessonTitle(for: la),
-            areaColor: areaColor(for: la),
-            names: names
-        )
-        .environment(\.managedObjectContext, viewContext)
     }
 
     private func accessibilityLabel(

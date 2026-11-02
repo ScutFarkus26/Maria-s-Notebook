@@ -8,7 +8,7 @@
 //     nothing at all. It is on the whole card now.
 //  2. Change Status ▸ Practice / Follow-Up had empty bodies. Two menu items
 //     that looked live, clicked fine, and changed nothing. (The status items
-//     are `WorkLogStatusMenu` now, shared with the Scheduled strip's pills.)
+//     are `WorkLogStatusMenu` now.)
 //  3. It ignored the command-click selection. Right-clicking one of four
 //     selected cards acted on one of them, which is the worst possible answer:
 //     it looks like it worked.
@@ -101,8 +101,7 @@ extension WorkCardGridContent {
     /// Today, the next school day, and — the point of the submenu — any other day.
     ///
     /// This used to be a menu with one item in it, so the only day a card could
-    /// name was today; every other day had to be reached by dragging the card
-    /// onto the Scheduled strip, which can only offer the days it is showing.
+    /// name was today.
     @ViewBuilder
     private func scheduleMenu(_ targets: [CDWorkModel]) -> some View {
         Menu {

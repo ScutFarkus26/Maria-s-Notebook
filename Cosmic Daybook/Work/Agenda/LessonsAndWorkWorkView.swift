@@ -2,11 +2,10 @@
 // The Work half of the Lessons & Work workspace.
 //
 // Children's work now reads the way presentations always did: a pill row of
-// states over a grid of cards, with the Scheduled calendar pinned below to
-// drag onto. Before this, work had no pill row at all — its states *were* the
-// workspace's top-level tabs, so moving from "what I have to check" to "what I
-// have to plan" meant leaving the Work list entirely and coming back through a
-// second picker.
+// states over a grid of cards. Before this, work had no pill row at all — its
+// states *were* the workspace's top-level tabs, so moving from "what I have to
+// check" to "what I have to plan" meant leaving the Work list entirely and
+// coming back through a second picker.
 //
 // The pills are `WorkFilterChip`, which is `TriageBucket` in the workspace's
 // vocabulary. Nothing about where a work item belongs changed; only where the
@@ -53,8 +52,8 @@ struct LessonsAndWorkWorkView: View {
     /// Puts a work item on a day to be checked. The day is the caller's — this
     /// half names today, tomorrow, and whatever the calendar returns.
     let onSchedule: (CDWorkModel, Date) -> Void
-    /// Re-triages the workspace after a deletion, so the pill counts and the
-    /// pinned calendar drop the record in the same pass.
+    /// Re-triages the workspace after a deletion, so the pill counts drop
+    /// the record in the same pass.
     let onDeleted: () -> Void
 
     /// Whether the selection bar's calendar is up.
@@ -141,8 +140,8 @@ struct LessonsAndWorkWorkView: View {
                 Button("Schedule Today") { schedule(on: AppCalendar.startOfDay(Date())) }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
-                // Today was the only day this bar could name. Dragging reaches
-                // the others, but only the handful the strip below is showing.
+                // Today was the only day this bar could name; this reaches
+                // the others.
                 Button("Another Day…") { isPickingCheckDay = true }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
@@ -291,7 +290,7 @@ struct LessonsAndWorkWorkView: View {
         case .toSchedule:
             return "Work with a due date or a scheduled check-in appears under Scheduled."
         case .scheduled:
-            return "Drag work onto a day below to put it on the calendar."
+            return "To give work a day, choose Schedule from its menu."
         case .beforeLesson:
             return "No child in a lesson planned for the next three school days "
                 + "has work open from earlier in that sequence."

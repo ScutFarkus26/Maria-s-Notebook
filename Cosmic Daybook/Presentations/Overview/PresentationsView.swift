@@ -91,8 +91,8 @@ struct PresentationsView: View {
 
     /// True when the Ready list is capable of revealing this presentation.
     ///
-    /// A given presentation is history and a scheduled one belongs to the
-    /// Scheduled calendar, so neither can be shown here — claiming them would
+    /// A given presentation is history and a scheduled one is in no list,
+    /// so neither can be shown here — claiming them would
     /// leave a deep link pointing at a list that does not contain the record.
     static func canRevealInReadyList(isPresented: Bool, scheduledFor: Date?) -> Bool {
         !isPresented && scheduledFor == nil
@@ -103,8 +103,7 @@ struct PresentationsView: View {
     /// A given one carries its unresolved responsibility, which is what Follow
     /// Up holds; an unscheduled one is in the planning inbox, under Brewing
     /// while the children's work still holds it back and Ready otherwise; a
-    /// scheduled one belongs to the Scheduled calendar pinned below, so no
-    /// state here claims it.
+    /// scheduled one opens in its own detail, so no state here claims it.
     static func chipRevealing(
         isPresented: Bool,
         scheduledFor: Date?,

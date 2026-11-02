@@ -5,13 +5,13 @@
 //
 //   Attention    what needs me
 //   To Schedule  what I still must plan
-//   Scheduled    what is on a day — the calendar pinned beneath both halves
+//   Scheduled    what is on a day
 //
 // These are states, not places. The workspace is split by *kind* first
 // (`WorkspaceKind`), and each half offers its states as a pill row —
 // `WorkFilterChip` for work, `PresentationsFilterChip` for presentations.
-// Scheduled is a bucket like the others but never a list you switch to: it is
-// the surface the rest are dragged onto, so it stays on screen.
+// Scheduled is a bucket like the others. Work shows it as a pill; a scheduled
+// presentation is in no list, and a route to one opens its detail.
 //
 // Every open presentation and every open work item lands in exactly one of
 // them — the buckets do not overlap and they leave no gaps. Finished records

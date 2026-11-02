@@ -115,8 +115,6 @@ nonisolated enum UserDefaultsKeys {
     static let presentationHistoryNameDisplayStyle = "PresentationHistory.nameDisplayStyle"
     static let lessonsAgendaMissWindow = "LessonsAgenda.missWindow"
     static let planningRecentWindowDays = "Planning.recentWindowDays"
-    /// What the merged calendar shows: a `CalendarKindFilter` raw value.
-    static let calendarVisibleKinds = "Calendar.visibleKinds"
 
     // MARK: - Quick CDNote Button
     static let quickNoteButtonOffsetX = "QuickNoteButton.offsetX"
@@ -169,11 +167,6 @@ nonisolated enum UserDefaultsKeys {
     // MARK: - Work
     static let workAgendaHideScheduled = "WorkAgenda.hideScheduled"
     static let workAgendaVisibleKinds = "WorkAgenda.visibleKinds"
-    /// Whether the Scheduled calendar pane is open beneath the list it is
-    /// scheduled from. Collapsing it hands the whole screen back to the list.
-    static let workAgendaCalendarExpanded = "WorkAgenda.calendarExpanded"
-    /// The calendar pane's share of the workspace height, 0.2–0.7.
-    static let workAgendaCalendarFraction = "WorkAgenda.calendarFraction"
 
     // MARK: - Migrations
     static let retiredAIKeysRemovedV1 = "Migration.retiredAIKeysRemoved.v1"

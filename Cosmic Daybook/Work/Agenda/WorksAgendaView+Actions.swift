@@ -1,5 +1,5 @@
 // WorksAgendaView+Actions.swift
-// Calendar navigation and work item action methods for WorksAgendaView.
+// Opening records and work item action methods for WorksAgendaView.
 
 import SwiftUI
 import CoreData
@@ -136,12 +136,13 @@ extension WorksAgendaView {
 
         let placement = placementFor(request)
         guard placement.bucket != .scheduled || placement.kind == .work else {
-            // A scheduled presentation is already on screen in the pinned pane,
-            // so open it and let the calendar reveal the record rather than
-            // switching the half above it.
-            isCalendarExpanded = true
-            // History hides the calendar, so the half goes back to its list.
-            setList(.open, for: workspaceKind)
+            // No list holds a scheduled lesson, so it opens in its own detail
+            // and the half on screen stays as it was.
+            focusedPresentationID = nil
+            if let id = request.presentationID,
+               let assignment = viewContext.object(CDLessonAssignment.self, id: id) {
+                openPresentation(assignment)
+            }
             return
         }
 
@@ -190,6 +191,7 @@ extension WorksAgendaView {
         return (kind, request.scope)
     }
 
+    /// A lesson's detail: its own window on the Mac, a sheet elsewhere.
     func openPresentation(_ assignment: CDLessonAssignment) {
         #if os(macOS)
         guard let id = assignment.id else { return }
@@ -197,11 +199,6 @@ extension WorksAgendaView {
         #else
         selectedLessonAssignment = assignment
         #endif
-    }
-
-    func openWork(id: UUID) {
-        guard let work = fetchWork(id: id) else { return }
-        openDetail(work)
     }
 
     @ViewBuilder

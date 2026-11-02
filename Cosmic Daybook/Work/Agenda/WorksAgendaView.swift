@@ -3,7 +3,7 @@
 //
 // Helpers live in:
 // - WorksAgendaView+DataHelpers.swift  (cache loading, filtering, display helpers)
-// - WorksAgendaView+Actions.swift      (calendar navigation, work item actions)
+// - WorksAgendaView+Actions.swift      (opening records, work item actions)
 
 import Combine
 import CoreData
@@ -129,14 +129,9 @@ struct WorksAgendaView: View {
     /// silently carry a selection of presentations into a bulk work action.
     @State var presentationSelection = WorkspaceMultiSelection()
     @State var workSelection = WorkspaceMultiSelection()
-    @AppStorage(UserDefaultsKeys.workAgendaCalendarExpanded) var isCalendarExpanded: Bool = true
-    @AppStorage(UserDefaultsKeys.workAgendaCalendarFraction) var calendarFraction: Double = 0.42
-    /// The share while a drag is in flight, so the pane tracks the finger
-    /// without writing to storage on every frame.
-    @State var liveCalendarFraction: Double?
-    @State var calendarResizeStartFraction: Double?
 
     @State var selected: SelectionToken?
+    /// The lesson a route opened on iPhone and iPad (`openPresentation`).
     @State var selectedLessonAssignment: CDLessonAssignment?
     @State var focusedPresentationID: UUID?
     @State var focusedWorkID: UUID?
@@ -286,20 +281,18 @@ struct WorksAgendaView: View {
         #endif
     }
 
-    /// The half's live list over the Scheduled calendar, or its History,
-    /// which fills the workspace (`WorksAgendaView+History.swift`).
+    /// The half's live list, or its History (`WorksAgendaView+History.swift`).
+    /// Either fills the workspace.
     @ViewBuilder
     private var workspaceBody: some View {
         if showsHistory {
             workspaceHistory
         } else {
-            workspaceSplit
+            workspaceWorkbench
         }
     }
 
-    /// The half the guide is working in. Scheduled is neither of them — it is
-    /// the pane underneath, because a schedule is a destination, not a peer
-    /// list you switch to.
+    /// The half the guide is working in.
     @ViewBuilder
     var workspaceWorkbench: some View {
         switch workspaceKind {

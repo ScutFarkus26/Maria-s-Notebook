@@ -12,8 +12,8 @@
 //   Ready, filtered by the same student and search.
 // - Missed is lessons that were *scheduled* in the last 14 days and not given
 //   because a child was absent. Being scheduled, none of them is in Ready; the
-//   flag gathers them back into the backlog so they can be dragged onto a new
-//   day, which is why it sits with Ready's flags rather than being a state.
+//   flag gathers them back into the backlog so they can be given a new day,
+//   which is why it sits with Ready's flags rather than being a state.
 
 import CoreData
 import SwiftUI

@@ -168,7 +168,7 @@ struct ReadyToPresentSection: View {
             flagContent(
                 slices.recentlyMissed, flag: .recentlyMissed, slices: slices,
                 explanation: "Scheduled in the last 14 days but not given, because a child was absent. "
-                    + "Drag one onto a day to give it again.",
+                    + "Open one to give it a new day.",
                 empty: ("No Missed Lessons", "No scheduled lessons were missed in the last 14 days.")
             )
         }

@@ -2,13 +2,11 @@
 // Command-click selection of several cards at once, for both halves of the
 // Lessons & Work workspace.
 //
-// The workspace's whole scheduling gesture is "drag a card onto a day". That
-// worked one card at a time, so giving five children the same lesson day, or
-// clearing a morning's worth of checked work, was five separate drags.
+// Giving five children the same lesson day, or logging a morning's worth of
+// checked work, one card at a time was five separate trips.
 //
 // Command-click adds a card to the selection; a plain click clears it and does
-// what a click always did. A selection is then a single drag — every selected
-// card lands on the day you drop onto — and a single bulk action.
+// what a click always did. A selection is then a single bulk action.
 //
 // Why the modifier is read from `NSEvent` rather than from a
 // `TapGesture().modifiers(.command)`: that gesture modifier is macOS-only *and*
@@ -93,40 +91,6 @@ final class WorkspaceMultiSelection {
         toggle(id)
         return true
     }
-
-    /// What a drag starting on `id` should carry.
-    ///
-    /// Dragging a selected card drags the whole selection; dragging an
-    /// unselected one is still a single-card drag, and does not disturb the
-    /// selection. The payloads are newline-joined —
-    /// `UnifiedCalendarDragPayload.parseAll` reads them all back, and every
-    /// older drop site that still calls `parse` takes the first line.
-    ///
-    /// `order` is the cards as the screen lists them. A day column lands a
-    /// batch in payload order, so a selection carries the guide's order, top
-    /// to bottom, rather than the order the ids happen to sort in (review of
-    /// bug hunt 2026-10-17 #47). Without it the dragged card leads and the
-    /// rest follow by id.
-    func dragPayload(
-        startingAt id: UUID,
-        inOrder order: [UUID]? = nil,
-        make: (UUID) -> UnifiedCalendarDragPayload
-    ) -> String {
-        guard ids.contains(id), ids.count > 1 else {
-            return make(id).stringRepresentation
-        }
-        let byID: (UUID, UUID) -> Bool = { $0.uuidString < $1.uuidString }
-        guard let order else {
-            let rest = ids.subtracting([id]).sorted(by: byID)
-            return UnifiedCalendarDragPayload.joined(([id] + rest).map(make))
-        }
-        // On screen first, in the screen's order; anything selected that the
-        // list no longer names (it is pruned on the next pass) after, by id.
-        var seen = Set<UUID>()
-        let listed = order.filter { ids.contains($0) && seen.insert($0).inserted }
-        let unlisted = ids.subtracting(listed).sorted(by: byID)
-        return UnifiedCalendarDragPayload.joined((listed + unlisted).map(make))
-    }
 }
 
 // MARK: - The bar that appears while a selection is live
@@ -145,9 +109,6 @@ struct WorkspaceSelectionBar<Actions: View>: View {
                     .foregroundStyle(Color.accentColor)
                 Text("\(selection.count) \(noun)\(selection.count == 1 ? "" : "s") selected")
                     .font(.caption.weight(.semibold))
-                Text("Drag any of them to put them all on a day")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
                 Spacer()
                 actions
                 Button("Clear") { selection.clear() }

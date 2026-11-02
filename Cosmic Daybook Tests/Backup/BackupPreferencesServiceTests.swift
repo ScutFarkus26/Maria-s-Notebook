@@ -65,7 +65,8 @@ struct BackupPreferencesServiceTests {
         let data = try JSONEncoder().encode(original)
         let decoded = try JSONDecoder().decode(PreferencesDTO.self, from: data)
         #expect(decoded.values == original.values)
-        #expect(BackupPreferencesService.nativeValue(for: try #require(decoded.values["Todo.tagOrder"])) as? [String] == ["a", "b"])
+        let tagOrder = try #require(decoded.values["Todo.tagOrder"])
+        #expect(BackupPreferencesService.nativeValue(for: tagOrder) as? [String] == ["a", "b"])
     }
 
     @Test("Album folder bookmarks union with the device's own list")
@@ -92,8 +93,9 @@ struct BackupPreferencesServiceTests {
     @Test("Merge policies are wired to the album keys and Claude's attach folders, and nothing else")
     func mergePolicyWiring() {
         #expect(BackupPreferencesService.mergePolicy(for: UserDefaultsKeys.albumsFolderBookmarks) == .unionArray)
-        #expect(BackupPreferencesService.mergePolicy(for: UserDefaultsKeys.albumsFingerprints) == .mergeDictionaryLocalWins)
-        #expect(BackupPreferencesService.mergePolicy(for: UserDefaultsKeys.albumsLastSeenModDates) == .mergeDictionaryLocalWins)
+        for key in [UserDefaultsKeys.albumsFingerprints, UserDefaultsKeys.albumsLastSeenModDates] {
+            #expect(BackupPreferencesService.mergePolicy(for: key) == .mergeDictionaryLocalWins, "\(key)")
+        }
         #expect(BackupPreferencesService.mergePolicy(for: UserDefaultsKeys.aiMCPAttachFolderBookmarks) == .unionArray)
         for key in BackupPreferencesService.preferenceKeys
         where !key.hasPrefix("Albums.") && key != UserDefaultsKeys.aiMCPAttachFolderBookmarks {
@@ -133,5 +135,29 @@ struct BackupPreferencesServiceTests {
             #expect(!keys.contains(key), "must not export \(key)")
         }
         #expect(BackupPreferencesService.preferenceKeyPrefixes == ["Attendance.locked."])
+    }
+
+    @Test("The Scheduled pane's settings are no longer backed up, and an old backup carrying them still restores")
+    func scheduledPaneKeysRetired() throws {
+        // Open or closed, its height, and which kinds it showed: nothing reads
+        // them since the pane went on hold (2026-11-01).
+        let retired = ["WorkAgenda.calendarExpanded", "WorkAgenda.calendarFraction", "Calendar.visibleKinds"]
+        for key in retired {
+            #expect(!BackupPreferencesService.preferenceKeys.contains(key), "\(key)")
+            // A restore applies only what `isBackedUp` accepts, so an old
+            // backup's values for these are passed over, not an error.
+            #expect(!BackupPreferencesService.isBackedUp(key), "\(key)")
+        }
+        // An older preferences.json carrying them still decodes whole.
+        let old = PreferencesDTO(values: [
+            "WorkAgenda.calendarExpanded": .bool(true),
+            "WorkAgenda.calendarFraction": .double(0.42),
+            "Calendar.visibleKinds": .string("everything"),
+            UserDefaultsKeys.workAgendaHideScheduled: .bool(false)
+        ])
+        let decoded = try JSONDecoder().decode(PreferencesDTO.self, from: JSONEncoder().encode(old))
+        #expect(decoded.values.count == 4)
+        let restored = decoded.values.keys.filter(BackupPreferencesService.isBackedUp)
+        #expect(restored == [UserDefaultsKeys.workAgendaHideScheduled])
     }
 }

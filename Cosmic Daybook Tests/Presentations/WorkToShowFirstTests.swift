@@ -270,24 +270,6 @@ struct WorkToShowFirstTests {
         #expect(found["lesson"]?[ben]?.map(\.work) == [try #require(copies[ben])])
         #expect(found["lesson"]?[ben]?.first?.isHersAlone == true, "his own linked copy")
     }
-
-    // MARK: - Words
-
-    @Test("The card line and the Mac tooltip read plainly")
-    func words() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let first = lesson("Bead Addition", step: 1, in: context)
-        let second = lesson("Stamp Game Addition", step: 2, in: context)
-        let third = lesson("Dot Game", step: 3, in: context)
-        try work(for: ada, on: first, in: context)
-        try work(for: ada, on: second, in: context)
-        let items = try #require(try find(third, for: [ada], lessons: [first, second, third], in: context)[ada])
-
-        #expect(WorkToShowFirst.countLine(2) == "2 to check first")
-        #expect(WorkToShowFirst.helpText(for: items) == "Still open from earlier: Bead Addition and 1 more")
-        #expect(WorkToShowFirst.helpText(for: Array(items.prefix(1))) == "Still open from earlier: Bead Addition")
-        #expect(items[0].summary == "Bead Addition, Working")
-    }
 }
 
 /// A store coordinator that counts the fetches its contexts run. Every

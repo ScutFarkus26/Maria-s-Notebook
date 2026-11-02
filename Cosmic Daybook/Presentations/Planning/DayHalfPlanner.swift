@@ -1,6 +1,6 @@
 // DayHalfPlanner.swift
-// Which half of the day a scheduled presentation sits in, and how a day is
-// numbered so that half survives every reorder.
+// Which half of the day a scheduled presentation sits in, and how a stored
+// moment is read back as a half or a time.
 //
 // A scheduled presentation has no time — the guide plans an order, not a
 // timetable — so `scheduledFor` carries that order as second-spaced offsets
@@ -73,8 +73,8 @@ enum ScheduledMoment: Equatable, Sendable {
     case time(Date)
 }
 
-/// Pure placement rules for a day's presentations. No Core Data, so the whole
-/// AM/PM gesture is testable without a store.
+/// Reads a stored `scheduledFor` back as a half or a time. No Core Data, so
+/// it is testable without a store.
 enum DayHalfPlanner {
     /// Reads a stored moment back as the thing it was written to mean.
     ///
@@ -101,114 +101,5 @@ enum DayHalfPlanner {
             }
         }
         return .time(date)
-    }
-
-    /// One presentation's place in a day: which record, and which half.
-    ///
-    /// `keptTime` is a time the guide actually set (`moment(of:)` reads it as
-    /// `.time`), for a card the gesture isn't moving. Renumbering the day
-    /// leaves it there, so a `schedule_presentation` at 10:30 stays 10:30 when
-    /// something else on the day is dragged, flipped or balanced.
-    struct Placement: Equatable, Sendable {
-        let id: UUID
-        var period: DayPeriod
-        var keptTime: Date?
-
-        init(id: UUID, period: DayPeriod, keptTime: Date? = nil) {
-            self.id = id
-            self.period = period
-            self.keptTime = keptTime
-        }
-    }
-
-    /// The stored time a card keeps through a renumbering: its own, when it is
-    /// a time the guide set rather than an ordering slot. Nil for a slot, or
-    /// for no schedule at all.
-    static func keptTime(of scheduledFor: Date?, using calendar: Calendar = AppCalendar.shared) -> Date? {
-        guard let scheduledFor, case .time = moment(of: scheduledFor, using: calendar) else { return nil }
-        return scheduledFor
-    }
-
-    /// The half a dropped presentation inherits.
-    ///
-    /// `periods` is the day's *other* presentations in order, and `index` is
-    /// where the drop lands among them, so `index - 1` is the card the guide
-    /// dropped under — that card's half is the answer, which is the whole
-    /// gesture: drop a lesson beneath a morning lesson and it is a morning
-    /// lesson.
-    ///
-    /// A drop at the very top has nothing above to copy, so it joins the run it
-    /// landed in front of instead; that keeps the pill where the guide aimed it
-    /// rather than opening a morning above an afternoon-only day. An empty day
-    /// is a morning.
-    static func inheritedPeriod(insertingAt index: Int, into periods: [DayPeriod]) -> DayPeriod {
-        if index > 0, index - 1 < periods.count { return periods[index - 1] }
-        return periods.first ?? .morning
-    }
-
-    /// The day reordered after one presentation changes halves: it leaves its
-    /// own run and joins the end of the other one.
-    ///
-    /// The end, because "put this in the afternoon" says which half and not
-    /// which slot — and landing last is the only position that does not push
-    /// some other lesson down to make room.
-    static func movingToEndOfHalf(
-        _ movedID: UUID,
-        to period: DayPeriod,
-        in placements: [Placement]
-    ) -> [Placement] {
-        var remaining = placements.filter { $0.id != movedID }
-        // Days are always morning-then-afternoon, so the slot after the last
-        // card of this half is the end of the run. With no run to join, a
-        // morning goes to the front and an afternoon to the back.
-        let insertionIndex = remaining.lastIndex { $0.period == period }.map { $0 + 1 }
-            ?? (period == .morning ? 0 : remaining.count)
-        remaining.insert(Placement(id: movedID, period: period), at: insertionIndex)
-        return remaining
-    }
-
-    /// Second-spaced times for a day's presentations, in list order, each
-    /// counting from its own half's base hour.
-    ///
-    /// A placement carrying a `keptTime` comes back at that time and takes no
-    /// slot. A slot after it in the list counts on from it rather than from
-    /// the base hour, so the card still draws below the kept one (review
-    /// 2026-10-11 (c) #5).
-    ///
-    /// `spacingSeconds` must stay whole for the same reason
-    /// `PlanningDropUtils.assignSequentialTimes` requires it: backups encode
-    /// dates to whole-second precision, so sub-second offsets would collapse
-    /// the order into ties across an export and restore.
-    static func times(
-        for placements: [Placement],
-        on day: Date,
-        using calendar: Calendar,
-        spacingSeconds: Int
-    ) -> [UUID: Date] {
-        let startOfDay = calendar.startOfDay(for: day)
-        var ranks: [DayPeriod: Int] = [:]
-        var latest: [DayPeriod: Date] = [:]
-        var result: [UUID: Date] = [:]
-        for placement in placements {
-            if let kept = placement.keptTime {
-                result[placement.id] = kept
-                latest[placement.period] = max(latest[placement.period] ?? kept, kept)
-                continue
-            }
-            let rank = ranks[placement.period, default: 0]
-            ranks[placement.period] = rank + 1
-            // Set on the clock rather than added to midnight, which is off
-            // by an hour on the daylight-saving Sundays.
-            let base = calendar.date(
-                bySettingHour: placement.period.baseHour, minute: 0, second: 0, of: startOfDay
-            ) ?? startOfDay
-            var time = calendar.date(byAdding: .second, value: rank * spacingSeconds, to: base) ?? base
-            if let floor = latest[placement.period], time <= floor {
-                time = calendar.date(byAdding: .second, value: spacingSeconds, to: floor) ?? floor
-            }
-            latest[placement.period] = time
-            result[placement.id] = time
-        }
-        return result
     }
 }

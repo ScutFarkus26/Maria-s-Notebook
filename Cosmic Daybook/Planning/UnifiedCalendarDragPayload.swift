@@ -1,11 +1,10 @@
 import Foundation
 import UniformTypeIdentifiers
 
-/// Unified drag payload for all calendar drag operations:
+/// Unified drag payload for calendar drag operations:
 /// presentations (CDLessonAssignment), work check-ins (CDWorkCheckIn),
 /// work items (CDWorkModel), and year plan entries (CDYearPlanEntry).
-/// Used across WeekPlanSection, WorkAgendaCalendarPane, planning views,
-/// and the student Year Plan calendar.
+/// Used by the student Year Plan calendar and the Consolidate sheet's pills.
 nonisolated public enum UnifiedCalendarDragPayload: Equatable {
     case presentation(UUID)
     case workCheckIn(UUID)
@@ -37,25 +36,9 @@ nonisolated public enum UnifiedCalendarDragPayload: Equatable {
         }
     }
 
-    /// Joins several payloads into one drag string.
-    ///
-    /// A command-click selection drags as a single item carrying every record
-    /// in it. One payload per line keeps the format backwards compatible:
-    /// `parse` reads the first line, so a drop site that has not been taught
-    /// about multi-drag still schedules the card the guide was dragging rather
-    /// than failing to parse and silently doing nothing.
-    nonisolated public static func joined(_ payloads: [UnifiedCalendarDragPayload]) -> String {
-        payloads.map(\.stringRepresentation).joined(separator: "\n")
-    }
-
-    /// Every payload in a drag string, in order.
-    nonisolated public static func parseAll(_ s: String) -> [UnifiedCalendarDragPayload] {
-        s.split(whereSeparator: \.isNewline).compactMap { parse(String($0)) }
-    }
-
     nonisolated public static func parse(_ s: String) -> UnifiedCalendarDragPayload? {
-        // Only the first line: a multi-record drag reaching a single-record
-        // drop site schedules the card under the pointer.
+        // Only the first line: a string carrying several records reads as
+        // the first of them.
         let firstLine = s.split(whereSeparator: \.isNewline).first.map(String.init) ?? s
         let trimmed = firstLine.trimmed()
         if trimmed.hasPrefix("PRESENTATION:"), let id = UUID(uuidString: String(trimmed.dropFirst(13))) {
