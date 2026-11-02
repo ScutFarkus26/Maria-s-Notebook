@@ -37,6 +37,8 @@ struct MeetingsLogView: View {
     @State private var selectedCompletion: CompletionFilter = .all
     @State private var searchText: String = ""
     @State private var selectedAgeRanges: Set<AgeRange> = []
+    /// Nil for every level.
+    @State private var selectedLevel: CDStudent.Level?
 
     private var effectiveSearchText: String {
         embeddedSearchText ?? searchText
@@ -56,19 +58,33 @@ struct MeetingsLogView: View {
         Dictionary(students.compactMap { s in s.id.map { ($0, s) } }, uniquingKeysWith: { first, _ in first })
     }
 
+    /// The levels the children are in, youngest first: the Level menu's choices.
+    private var levels: [CDStudent.Level] {
+        let present = Set(students.map(\.level))
+        return CDStudent.Level.allCases.filter(present.contains)
+    }
+
     // Filtered meetings
     private var filteredMeetings: [CDStudentMeeting] {
-        allMeetings.filter { meeting in
+        let byID = studentsByID
+        return allMeetings.filter { meeting in
             // CDStudent filter
             if !selectedStudentIDs.isEmpty {
                 guard let studentID = meeting.studentIDUUID else { return false }
                 if !selectedStudentIDs.contains(studentID) { return false }
             }
 
+            // Level filter
+            if let selectedLevel {
+                guard let studentID = meeting.studentIDUUID,
+                      let student = byID[studentID] else { return false }
+                if student.level != selectedLevel { return false }
+            }
+
             // Age filter
             if !selectedAgeRanges.isEmpty {
                 guard let studentID = meeting.studentIDUUID,
-                      let student = studentsByID[studentID] else { return false }
+                      let student = byID[studentID] else { return false }
                 if !AgeRange.matchesAny(student.birthday ?? Date(), in: selectedAgeRanges) { return false }
             }
 
@@ -88,7 +104,7 @@ struct MeetingsLogView: View {
                 var matches = false
 
                 if let studentID = meeting.studentIDUUID,
-                   let student = studentsByID[studentID] {
+                   let student = byID[studentID] {
                     let name = student.shortName.lowercased()
                     if name.contains(query) { matches = true }
                 }
@@ -119,7 +135,17 @@ struct MeetingsLogView: View {
 
     // MARK: - Filter Bar
 
+    /// Scrolls sideways when the chips don't fit (an iPhone), so each keeps
+    /// its label on one line.
     private var filterBar: some View {
+        ScrollView(.horizontal) {
+            filterChips
+        }
+        .scrollIndicators(.hidden)
+        .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+    }
+
+    private var filterChips: some View {
         HStack(spacing: 12) {
             MultiSelectFilterMenu(
                 items: students,
@@ -129,6 +155,16 @@ struct MeetingsLogView: View {
                 summary: FilterSelectionSummary(allLabel: "All Students"),
                 systemImage: "person.3"
             )
+
+            if levels.count > 1 {
+                SingleSelectFilterMenu(
+                    items: levels,
+                    selection: $selectedLevel,
+                    label: \.title,
+                    systemImage: "graduationcap",
+                    allLabel: "All Levels"
+                )
+            }
 
             MultiSelectFilterMenu(
                 items: AgeRange.allCases,
@@ -145,8 +181,6 @@ struct MeetingsLogView: View {
                 label: { $0.rawValue },
                 systemImage: "checkmark.circle"
             )
-
-            Spacer()
         }
         .padding(.horizontal, 12)
     }

@@ -1,9 +1,14 @@
 import SwiftUI
 
-/// The Meetings toolbar's one menu: how often each child meets, which ages
-/// show, and how Up Next is ordered.
+/// The Meetings toolbar's one menu: which level shows, how often each child
+/// meets, which ages show, and how Up Next is ordered.
 struct MeetingsFilterMenu: View {
     @Binding var cadenceDays: Int
+    /// The chosen level; nil shows every level.
+    @Binding var level: CDStudent.Level?
+    /// The levels the enrolled children are in. With only one, the menu
+    /// offers no Level choice.
+    var levels: [CDStudent.Level]
     @Binding var selectedAgeRanges: Set<AgeRange>
     @Binding var orderRaw: String
     var iconOnly = false
@@ -14,6 +19,15 @@ struct MeetingsFilterMenu: View {
 
     var body: some View {
         Menu {
+            // First: the choice that changes most, in reach without scrolling the menu on a phone.
+            if levels.count > 1 {
+                Section("Level") {
+                    checkButton("All Levels", checked: level == nil) { level = nil }
+                    ForEach(levels, id: \.self) { choice in
+                        checkButton(choice.title, checked: level == choice) { level = choice }
+                    }
+                }
+            }
             Section("Meet Every") {
                 ForEach(Self.cadenceChoices, id: \.self) { days in
                     checkButton("\(days) days", checked: cadenceDays == days) { cadenceDays = days }
@@ -45,7 +59,7 @@ struct MeetingsFilterMenu: View {
                     .labelStyle(.titleAndIcon)
             }
         }
-        .help("Cadence, ages and order")
+        .help("Level, cadence, ages and order")
     }
 
     // Checkmarked buttons, not an inline Picker: a String-tagged Picker inside
@@ -67,6 +81,9 @@ struct MeetingsFilterMenu: View {
         case 1: ages = selectedAgeRanges.first?.rawValue ?? "1 age"
         default: ages = "\(selectedAgeRanges.count) ages"
         }
-        return "Every \(cadenceDays) days · \(ages)"
+        // A chosen level stands in for "All ages".
+        guard let level else { return "Every \(cadenceDays) days · \(ages)" }
+        let parts = ["Every \(cadenceDays) days", level.title] + (selectedAgeRanges.isEmpty ? [] : [ages])
+        return parts.joined(separator: " · ")
     }
 }

@@ -31,20 +31,55 @@ struct MeetingsWorkflowView: View {
     @AppStorage(UserDefaultsKeys.meetingsScreenView) var screenViewRaw: String = MeetingsScreenView.queue.rawValue
     @AppStorage(UserDefaultsKeys.meetingsWorkflowDaysSinceThreshold) private var cadenceDays: Int = 7
     @AppStorage(Self.orderKey) private var orderRaw: String = MeetingQueueOrder.need.rawValue
+    /// The level the queue shows (`CDStudent.Level`'s raw value); empty for every level.
+    @AppStorage(Self.levelKey) private var levelRaw: String = ""
     @SyncedAppStorage("WorkAge.overdueDays") private var workOverdueDays: Int = WorkAgeDefaults.overdueDays
 
     private static let customOrderKey = "MeetingsWorkflow.customStudentOrder"
     private static let orderKey = "MeetingsWorkflow.queueOrder"
+    private static let levelKey = "MeetingsWorkflow.level"
 
     // MARK: - Derived
 
     private var order: MeetingQueueOrder { MeetingQueueOrder(rawValue: orderRaw) ?? .need }
 
-    /// Enrolled children (test students hidden when the setting is off), age filter applied.
+    /// Enrolled children, test students hidden when the setting is off.
+    private var enrolledStudents: [CDStudent] {
+        testStudents.visible(dependencies.roster.enrolled)
+    }
+
+    /// The levels the enrolled children are in, youngest first.
+    private var enrolledLevels: [CDStudent.Level] {
+        let present = Set(enrolledStudents.map(\.level))
+        return CDStudent.Level.allCases.filter(present.contains)
+    }
+
+    /// The saved level, or nil for every level. Also nil when the menu offers
+    /// no choice (one level enrolled) or no enrolled child is in the saved
+    /// level any more (after a rollover), so the queue never empties behind a
+    /// choice that can't be undone.
+    private var level: CDStudent.Level? {
+        guard let saved = CDStudent.Level(rawValue: levelRaw) else { return nil }
+        let levels = enrolledLevels
+        return levels.count > 1 && levels.contains(saved) ? saved : nil
+    }
+
+    /// Enrolled children, level and age filters applied.
     private var classStudents: [CDStudent] {
-        let enrolled = testStudents.visible(dependencies.roster.enrolled)
-        guard !selectedAgeRanges.isEmpty else { return enrolled }
-        return enrolled.filter { AgeRange.matchesAny($0.birthday ?? Date(), in: selectedAgeRanges) }
+        let enrolled = enrolledStudents
+        let chosen = level
+        guard chosen != nil || !selectedAgeRanges.isEmpty else { return enrolled }
+        return enrolled.filter { student in
+            (chosen == nil || student.level == chosen)
+                && AgeRange.matchesAny(student.birthday ?? Date(), in: selectedAgeRanges)
+        }
+    }
+
+    /// "3 of 8 met · every 7 days", led by the level when one is chosen.
+    private func queueSubtitle(_ queue: MeetingQueueArrangement) -> String {
+        let counts = "\(queue.met.count) of \(queue.total) met · every \(cadenceDays) days"
+        guard let level else { return counts }
+        return "\(level.title) · \(counts)"
     }
 
     private var rules: MeetingQueueRules {
@@ -99,9 +134,7 @@ struct MeetingsWorkflowView: View {
 
         screen(queue: queue, byID: byID, rows: rows)
             .navigationTitle("Meetings")
-            .navigationSubtitle(
-                screenView == .queue ? "\(queue.met.count) of \(queue.total) met · every \(cadenceDays) days" : ""
-            )
+            .navigationSubtitle(screenView == .queue ? queueSubtitle(queue) : "")
             .inlineNavigationTitle()
             .searchable(text: $searchText, prompt: screenView == .queue ? "Search" : "Search meetings")
             .toolbar { toolbarContent }
@@ -216,11 +249,13 @@ struct MeetingsWorkflowView: View {
         #if os(macOS)
         ToolbarItem(placement: .principal) { screenViewPicker }
         #endif
-        // The queue's cadence, ages and order; History has filters of its own.
+        // The queue's level, cadence, ages and order; History has filters of its own.
         if screenView == .queue {
             ToolbarItem(placement: .primaryAction) {
                 MeetingsFilterMenu(
                     cadenceDays: $cadenceDays,
+                    level: Binding(get: { level }, set: { levelRaw = $0?.rawValue ?? "" }),
+                    levels: enrolledLevels,
                     selectedAgeRanges: $selectedAgeRanges,
                     orderRaw: $orderRaw,
                     iconOnly: isCompact

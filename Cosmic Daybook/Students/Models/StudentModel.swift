@@ -9,6 +9,15 @@ nonisolated extension CDStudent {
         case upper = "Upper"
         case adolescent = "Adolescent"
 
+        /// The level's name on screen: "Upper Elementary", "Adolescent".
+        var title: String {
+            switch self {
+            case .lower: return "Lower Elementary"
+            case .upper: return "Upper Elementary"
+            case .adolescent: return "Adolescent"
+            }
+        }
+
         /// The level a student typically moves to at a year rollover; nil at the top of the ladder.
         var suggestedPromotionTarget: Level? {
             switch self {
