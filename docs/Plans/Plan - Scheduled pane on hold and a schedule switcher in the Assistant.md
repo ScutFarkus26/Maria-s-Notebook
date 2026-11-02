@@ -1,6 +1,6 @@
 # Scheduled pane on hold, and a schedule switcher in the Assistant
 
-> **Working on it.** Written 2026-11-01 from Danny's talk-through (branch `claude/scheduled-section-hold-531dbc`). Approved the same day ("Yes, that's it").
+> **Done 2026-11-01** (6a6892a4, f72f51fa). Written 2026-11-01 from Danny's talk-through (branch `claude/scheduled-section-hold-531dbc`). Approved the same day ("Yes, that's it").
 > In short: take the Scheduled pane under Lessons & Work out of the code and keep it at a git tag so it can be brought back or read, and give Daybook Assistant's Schedule tab a switcher between the four schedules in place of the mixed list.
 
 ## What Danny wants
@@ -97,6 +97,7 @@ Becomes, as in the mockup:
   - Words changed: the Scheduled pill's empty line reads "To give work a day, choose Schedule from its menu." Missed lessons say "Open one to give it a new day." The selection bar's drag hint is gone.
   - Left as they were: about 15 code comments that compare a write to "the Scheduled strip's" (`WorkLogService`, `WorkTypes`, the Today rows, the MCP work-status tool). They change nothing; reword them when the code around them is next touched.
 - [x] The Assistant's schedule switcher (f72f51fa, 2026-11-01). `AssistantScheduleTests` and `AssistantScheduleNowTests` pass (12 tests, 2 new). Checked on the iPhone SE (iOS 26.5) with the practice class on all four schedules. The first try, a segmented control, cut "Adolescent room" short, so the switcher became a row of buttons sized to their names.
-- [ ] Full builds and the whole suite
-- [ ] Docs, the build board and Tide rows
-- [ ] Merge to main and push, with the tag
+- [x] Full builds and the whole suite (2026-11-01). iOS, macOS and Daybook Assistant build. The notebook suite passes 4,368 of 4,369 and the Assistant suite 515 of 516. The two misses (`TodayAppearanceGateTests` "one-year window", `AssistantOnboardingTests` reminder picker) fail only because 2026-11-01 was a clock change, and pass with `TEST_RUNNER_TZ=UTC`. A separate session is fixing them.
+- [x] Docs, the build board and Tide rows: manual 69e40fe6; the pane's six rows dropped in Tide.
+- [x] Merge to main and push, with the tag (fast-forwarded to 69e40fe6, 2026-11-01).
+- Not seen: the new Lessons & Work layout running in the app. The removal was checked by builds and tests only.
