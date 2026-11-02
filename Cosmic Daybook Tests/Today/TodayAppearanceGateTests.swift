@@ -197,12 +197,22 @@ struct TodayAppearanceGateTests {
         #expect(viewModel.readyForNext == freshQueue(context))
     }
 
-    @Test("The count is recomputed once the one-year window passes an assignment it read")
-    func windowMovingRecomputes() throws {
+    /// Today, and the Sundays the clocks fall back and spring forward in the
+    /// US time zones.
+    @Test("The count is recomputed once the one-year window passes an assignment it read", arguments: [
+        nil,
+        DateComponents(year: 2026, month: 11, day: 1),
+        DateComponents(year: 2027, month: 3, day: 14)
+    ])
+    func windowMovingRecomputes(day: DateComponents?) throws {
         let context = try CoreDataTestHelpers.makeContext()
         let calendar = AppCalendar.shared
-        // Early in a day, so the checks below stay on the same day.
-        let base = AppCalendar.startOfDay(Date()).addingTimeInterval(3600)
+        // Noon as a clock time, so the checks below stay on the same day and
+        // clear of the night's clock change. It was midnight plus an hour: on
+        // the day the clocks fall back, two hours after that is 2:00, the same
+        // clock time as `created` a year before, so the window hadn't passed it.
+        let today = try day.map { try #require(calendar.date(from: $0)) } ?? Date()
+        let base = try #require(calendar.date(bySettingHour: 12, minute: 0, second: 0, of: today))
         let lesson = CoreDataTestHelpers.seedLesson(in: context)
         let student = CoreDataTestHelpers.seedStudent(in: context, firstName: "Tamar", lastName: "L")
         let yearAgo = try #require(calendar.date(byAdding: .year, value: -1, to: base))

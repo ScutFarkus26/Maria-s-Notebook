@@ -343,14 +343,18 @@ extension ArrivalReminder {
     /// Minutes after midnight, as the time a picker shows.
     static func timeOfDay(_ minutes: Binding<Int>, calendar: Calendar = .current) -> Binding<Date> {
         Binding(
-            get: {
-                let midnight = calendar.startOfDay(for: Date())
-                return calendar.date(byAdding: .minute, value: minutes.wrappedValue, to: midnight) ?? Date()
-            },
+            get: { clockTime(minutes.wrappedValue, on: Date(), calendar: calendar) },
             set: { date in
                 let parts = calendar.dateComponents([.hour, .minute], from: date)
                 minutes.wrappedValue = (parts.hour ?? 8) * 60 + (parts.minute ?? 15)
             }
         )
+    }
+
+    /// `minutes` after midnight as a clock time on `day`. Clock times, not
+    /// minutes from midnight: on the day the clocks change, midnight plus
+    /// 8:15 is 7:15 or 9:15.
+    nonisolated static func clockTime(_ minutes: Int, on day: Date, calendar: Calendar) -> Date {
+        calendar.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: day) ?? day
     }
 }

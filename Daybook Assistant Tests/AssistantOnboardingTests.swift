@@ -216,11 +216,27 @@ extension AssistantIdentitySuites {
             #expect(parts.hour == 8)
             #expect(parts.minute == 15)
 
-            let midnight = Calendar.current.startOfDay(for: Date())
             time.wrappedValue = try #require(
-                Calendar.current.date(byAdding: .minute, value: 7 * 60 + 40, to: midnight)
+                Calendar.current.date(bySettingHour: 7, minute: 40, second: 0, of: Date())
             )
             #expect(stored.value == 7 * 60 + 40)
+        }
+
+        @Test("The reminder time is a clock time on the Sundays the clocks change", arguments: [
+            DateComponents(year: 2026, month: 11, day: 1),
+            DateComponents(year: 2027, month: 3, day: 14)
+        ])
+        func reminderTimeOnClockChangeDays(day: DateComponents) throws {
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = try #require(TimeZone(identifier: "America/Chicago"))
+            let date = try #require(calendar.date(from: day))
+
+            let time = ArrivalReminder.clockTime(ArrivalReminder.defaultMinutes, on: date, calendar: calendar)
+
+            let parts = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: time)
+            #expect(parts.year == day.year && parts.month == day.month && parts.day == day.day)
+            #expect(parts.hour == 8)
+            #expect(parts.minute == 15)
         }
     }
 }
