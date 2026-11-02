@@ -398,12 +398,12 @@ A work item has one status, and it is per child. Two statuses keep the work open
 
 Work closed before September 2026 with no verdict shows as **Finished** too, since both mean closed with no verdict.
 
-Closing a work logs it, like recording a presentation: the completion is recorded for the child, that day's check-in is marked done, any later check-ins are skipped, and the work leaves the Scheduled strip. Changing the status back to Working or Needs Review reopens it.
+Closing a work logs it, like recording a presentation: the completion is recorded for the child, that day's check-in is marked done, and any later check-ins are skipped. Changing the status back to Working or Needs Review reopens it.
 
 ### Logging a check
 
-- **Right-click a work** — on a pill in the Scheduled strip or on a card in Lessons & Work — and pick a status under **Log as**. When several children share the work, the menu offers **Everyone** and then one submenu per child, so one right-click can say "all three mastered it, but Naomi needs another go".
-- **Click a pill in the Scheduled strip** to open the log sheet: one row per child with her status and a note. Nothing is written until you press **Log Check**. A child you leave untouched still has her check-in marked done, because the check happened.
+- **Right-click a work card** in Lessons & Work and pick a status under **Log as**. When several children share the work, the menu offers **Everyone** and then one submenu per child, so one right-click can say "all three mastered it, but Naomi needs another go".
+- The Scheduled strip that sat under Lessons & Work, with its pills, dragging onto a day, Move All Forward, Clear All and Balance AM/PM, is on hold since November 2026. To put work on a day, use **Schedule** on the work card's menu or the work's own Scheduled Check-Ins; to plan a lesson for a day, use the date in the lesson's detail.
 - Every log can be undone from the toast for a few seconds.
 
 ## Check-Ins

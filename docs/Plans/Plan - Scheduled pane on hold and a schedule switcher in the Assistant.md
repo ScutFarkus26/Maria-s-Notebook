@@ -55,8 +55,10 @@
 What's there now: `Daybook Assistant/Schedule/AssistantScheduleView.swift` shows every lane in one list. A "Show" menu in the toolbar (`laneMenu`) narrows it to one lane, with an "Only …" line and "Show Everyone" in the header.
 
 Becomes, as in the mockup:
-- **A segmented control at the top of the tab with one segment per lane**, in the lanes' order. Each segment carries the lane's name as Danny set it in the notebook, with the guide's lane under his name. With his four lanes that reads Daily (or whatever he names our class), Adolescent, Mr. Danny and Morah Devorah.
-  - With more than four lanes it becomes a menu, so the names stay readable.
+- **A row of buttons at the top of the tab, one per lane**, in the lanes' order. Each button carries the lane's name as Danny set it in the notebook, with the guide's lane under his name. With his four lanes that reads Daily (or whatever he names our class), Adolescent, Mr. Danny and Morah Devorah.
+  - Each button is as wide as its name, with a dot in the lane's color. The chosen one is filled.
+  - The row slides sideways when the names don't fit, and a chosen lane past the edge is scrolled into view.
+  - Changed while building: the mockup's equal-width segmented control cut "Adolescent room" to "Adolescen…" on the iPhone SE, the smallest phone the assistants carry. Buttons sized to their names also cover any number of lanes, so no menu is needed past four.
   - With one lane there is no switcher.
 - **One schedule at a time.** "Everyone", the toolbar's Show menu, the "Only …" line and "Show Everyone" go.
 - The first time, the tab opens on the first lane. After that it opens on the lane last chosen on that phone. If the guide removes that lane, it goes back to the first.
@@ -87,9 +89,14 @@ Becomes, as in the mockup:
 - The Assistant's Schedule tab drawn with its practice class on each of the four schedules.
 
 ## Progress
-- [ ] Tag `on-hold/scheduled-pane`
-- [ ] Take the Scheduled pane out (commit: )
-- [ ] The Assistant's schedule switcher (commit: )
+- [x] Tag `on-hold/scheduled-pane`, on c446109a, the last commit with the pane.
+- [x] Take the Scheduled pane out (6a6892a4, 2026-11-01). 82 files: 41 deleted (7,516 lines), 41 changed. iOS and macOS builds pass, and the 25 test suites it touches pass (175 tests).
+  - Removed beyond the plan, because only the strip used them: `PlanningDropUtils`, `UnifiedCalendarDragPayload.joined` and `parseAll`, `BacklogDragPreview`, `WorkCheckInService`'s unscheduling, `SchoolDayChecker.nextSchoolDays`, `openWork(id:)` and two `UIConstants` paddings.
+  - Kept against the plan: the iOS lesson sheet (`selectedLessonAssignment`). It's how `openPresentation` shows a lesson on iPhone and iPad, and the route to a scheduled lesson now uses it.
+  - Old preference backups that carry the pane's three keys still restore, since a restore skips keys no longer listed. No format bump; a new test in `BackupPreferencesServiceTests` checks this.
+  - Words changed: the Scheduled pill's empty line reads "To give work a day, choose Schedule from its menu." Missed lessons say "Open one to give it a new day." The selection bar's drag hint is gone.
+  - Left as they were: about 15 code comments that compare a write to "the Scheduled strip's" (`WorkLogService`, `WorkTypes`, the Today rows, the MCP work-status tool). They change nothing; reword them when the code around them is next touched.
+- [x] The Assistant's schedule switcher (f72f51fa, 2026-11-01). `AssistantScheduleTests` and `AssistantScheduleNowTests` pass (12 tests, 2 new). Checked on the iPhone SE (iOS 26.5) with the practice class on all four schedules. The first try, a segmented control, cut "Adolescent room" short, so the switcher became a row of buttons sized to their names.
 - [ ] Full builds and the whole suite
 - [ ] Docs, the build board and Tide rows
 - [ ] Merge to main and push, with the tag
