@@ -236,7 +236,9 @@ enum AssistantScheduleRows {
     /// Who is where at `minute`: each person (out, in a room on a turn, at
     /// one of their own blocks, or, for the guide, in our room), then each
     /// room with a block under way. Nil when the day has no blocks at all.
-    static func nowCard(for day: ScheduleDay, minute: Int, names: Names) -> NowCard? {
+    /// With a `lane`, only that schedule's line: a room with nothing under
+    /// way says so.
+    static func nowCard(for day: ScheduleDay, minute: Int, names: Names, lane filter: UUID? = nil) -> NowCard? {
         let blocks = day.lanes.flatMap(\.items).compactMap(\.block)
         guard day.isSchoolDay, let first = blocks.map(\.values.startMinute).min(),
               let last = blocks.map(\.values.endMinute).max() else { return nil }
@@ -261,7 +263,17 @@ enum AssistantScheduleRows {
                 rooms.append(line("\(laneName): \(title.isEmpty ? "busy" : title)\(until(entry))."))
             }
         }
-        return .lines(people + rooms)
+        guard let filter else { return .lines(people + rooms) }
+        let shown = (people + rooms).filter { $0.id == filter }
+        guard shown.isEmpty, let index = day.lanes.firstIndex(where: { $0.id == filter }) else {
+            return .lines(shown)
+        }
+        let room = day.lanes[index].lane
+        let roomName = name(of: room, guideName: names.guideName)
+        return .lines([NowLine(
+            id: filter, text: "Nothing under way in \(roomPhrase(roomName)) now.",
+            laneColorRaw: room.colorRaw, laneIndex: index
+        )])
     }
 
     /// Where one person is: out, in a room on a turn, at one of their own

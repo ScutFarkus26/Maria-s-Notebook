@@ -95,6 +95,49 @@ struct AssistantScheduleTests: AssistantScheduleFixture {
         #expect(rows.first?.children == ["Maya S", "Eli B"])
     }
 
+    // MARK: - One schedule at a time
+
+    @Test("The tab settles on one schedule: the first, else the one chosen before, and another when it's removed")
+    func settlesOnOneSchedule() throws {
+        let lanes = makeLanes()
+        block(lanes.ourClass, 8 * 60 + 30, 15, "Morning meeting")
+        block(lanes.adolescent, 9 * 60, 90, "Humanities", teacher: lanes.guide)
+        block(lanes.coTeacher, 9 * 60, 45, "Chumash group")
+        #expect(context.safeSave())
+        let tab = model()
+
+        // Nothing chosen on this phone yet: the first lane, our class.
+        tab.settleLane(preferring: nil)
+        #expect(tab.laneFilter == lanes.ourClass.id)
+        #expect(tab.rows.map(\.title) == ["Morning meeting"])
+
+        // A lane shown stays shown; a remembered one counts only when none is.
+        tab.settleLane(preferring: lanes.coTeacher.id)
+        #expect(tab.laneFilter == lanes.ourClass.id)
+        tab.laneFilter = nil
+        tab.settleLane(preferring: lanes.coTeacher.id)
+        #expect(tab.laneFilter == lanes.coTeacher.id)
+        #expect(tab.rows.map(\.title) == ["Chumash group"])
+        #expect(tab.rows.allSatisfy { $0.laneID == lanes.coTeacher.id })
+
+        // A remembered lane the guide no longer has: the first.
+        tab.laneFilter = nil
+        tab.settleLane(preferring: UUID())
+        #expect(tab.laneFilter == lanes.ourClass.id)
+
+        // The guide removes the lane shown: the next load lets go of it, and
+        // the tab settles on the first, not the remembered one that's gone.
+        tab.laneFilter = lanes.coTeacher.id
+        let removed = lanes.coTeacher.id
+        context.delete(lanes.coTeacher)
+        #expect(context.safeSave())
+        tab.load()
+        #expect(tab.laneFilter == nil)
+        tab.settleLane(preferring: removed)
+        #expect(tab.laneFilter == lanes.ourClass.id)
+        #expect(!tab.laneOptions.contains { $0.name == "Morah Devora" })
+    }
+
     // MARK: - The guide's lessons
 
     @Test("An adolescents-only booking goes into the guide's turn; a mixed one is a With row")

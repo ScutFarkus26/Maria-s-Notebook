@@ -1,9 +1,10 @@
 import SwiftUI
 import CoreData
 
-/// The Schedule tab, which only reads: the header line with previous and
-/// next day, a Now card on today, and the day as one list in time order,
-/// each row tagged with its lane. The guide's lessons show as "With Danny"
+/// The Schedule tab, which only reads: one schedule at a time, picked at the
+/// top (our class, the adolescent room, the guide, Morah Devora), with the
+/// header line, previous and next day, a Now card on today, and that
+/// schedule's day in time order. The guide's lessons show as "With Danny"
 /// rows with the children only, never a lesson's name.
 ///
 /// The model is made the first time the tab shows, and follows imports only
@@ -51,6 +52,9 @@ struct AssistantScheduleTab: View {
         return model
     }
 
+    /// Where the schedule last chosen on this phone is kept, by lane ID.
+    static let chosenLaneKey = "Assistant.schedule.chosenLane"
+
     /// Launched with `-AssistantShowSchedule`: the app opens on this tab
     /// (Debug only), for screenshots.
     static var isRequestedAtLaunch: Bool {
@@ -70,6 +74,7 @@ struct AssistantScheduleView: View {
     /// The time the Now card reads, moved on each minute while the tab shows.
     @State private var clock = Date()
     @Environment(\.scenePhase) private var scenePhase
+    @AppStorage(AssistantScheduleTab.chosenLaneKey) private var chosenLane = ""
 
     var body: some View {
         NavigationStack {
@@ -83,10 +88,15 @@ struct AssistantScheduleView: View {
             .listStyle(.insetGrouped)
             .listSectionSpacing(.compact)
             .contentMargins(.top, 4, for: .scrollContent)
+            .safeAreaInset(edge: .top, spacing: 0) { laneSwitcher }
             .navigationTitle("Schedule")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbar }
             .refreshable { model.load() }
+        }
+        // Lanes arrive, or the guide removes the one shown: settle on one.
+        .onChange(of: model.laneOptions, initial: true) {
+            model.settleLane(preferring: UUID(uuidString: chosenLane))
         }
         .sheet(isPresented: $showingDatePicker) {
             AssistantDatePickerSheet(date: model.day, earliest: nil) { model.show($0) }
@@ -123,9 +133,6 @@ struct AssistantScheduleView: View {
         }
         ToolbarItem(placement: .principal) {
             dayStepper
-        }
-        ToolbarItem(placement: .topBarTrailing) {
-            laneMenu
         }
         ToolbarItem(placement: .topBarTrailing) {
             Button {
@@ -174,24 +181,62 @@ struct AssistantScheduleView: View {
         }
     }
 
-    private var laneMenu: some View {
-        Menu {
-            Picker("Show", selection: Binding(get: { model.laneFilter }, set: { model.laneFilter = $0 })) {
-                Text("Everyone").tag(UUID?.none)
-                ForEach(model.laneOptions) { lane in
-                    Text(lane.name).tag(UUID?.some(lane.id))
+    // MARK: - Switcher
+
+    /// One button per schedule, as wide as its name, in a row that slides
+    /// sideways when the names don't fit: equal segments cut "Adolescent
+    /// room" short on the iPhone SE. One lane needs no switcher.
+    @ViewBuilder
+    private var laneSwitcher: some View {
+        if model.laneOptions.count > 1 {
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal) {
+                    HStack(spacing: 8) {
+                        ForEach(model.laneOptions) { lane in
+                            laneButton(lane).id(lane.id)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                }
+                .scrollIndicators(.hidden)
+                .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+                // A schedule chosen past the edge comes into view.
+                .onChange(of: model.laneFilter, initial: true) { _, lane in
+                    if let lane { proxy.scrollTo(lane, anchor: .center) }
                 }
             }
-        } label: {
-            Label(
-                "Show",
-                systemImage: model.laneFilter == nil
-                    ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill"
-            )
-            .labelStyle(.iconOnly)
+            .background(Color(uiColor: .systemGroupedBackground))
         }
-        .disabled(model.laneOptions.isEmpty)
-        .accessibilityLabel("Show one lane")
+    }
+
+    /// Shows that schedule, and remembers it on this phone.
+    private func laneButton(_ lane: AssistantScheduleRows.LaneOption) -> some View {
+        let isChosen = model.laneFilter == lane.id
+        return Button {
+            model.laneFilter = lane.id
+            chosenLane = lane.id.uuidString
+        } label: {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(isChosen ? Color.white : AssistantScheduleStyle.color(lane.colorRaw, index: lane.index))
+                    .frame(width: 8, height: 8)
+                    .accessibilityHidden(true)
+                Text(lane.name)
+                    .lineLimit(1)
+            }
+            .font(.subheadline.weight(isChosen ? .semibold : .regular))
+            .foregroundStyle(isChosen ? Color.white : Color.primary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(
+                isChosen ? Color.accentColor : Color(uiColor: .secondarySystemGroupedBackground),
+                in: Capsule()
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isChosen ? .isSelected : [])
+        .accessibilityHint("Shows this schedule")
     }
 
     // MARK: - Sections
@@ -215,19 +260,6 @@ struct AssistantScheduleView: View {
                     Text(line)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                }
-                if let filter = model.laneFilter, let lane = model.laneOptions.first(where: { $0.id == filter }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "line.3.horizontal.decrease")
-                            .accessibilityHidden(true)
-                        Text("Only \(lane.name)")
-                            .lineLimit(1)
-                        Spacer(minLength: 8)
-                        Button("Show Everyone") { model.laneFilter = nil }
-                            .buttonStyle(.borderless)
-                    }
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
                 }
             }
             .padding(.vertical, 2)
@@ -290,7 +322,7 @@ struct AssistantScheduleView: View {
                         .foregroundStyle(.secondary)
                 }
                 ForEach(rows) { row in
-                    AssistantScheduleRowView(row: row)
+                    AssistantScheduleRowView(row: row, showsLane: model.laneFilter == nil)
                 }
             }
         }

@@ -85,6 +85,36 @@ struct AssistantScheduleNowTests: AssistantScheduleFixture {
         #expect(lines.contains { $0.text == "Morah Devora is out today." })
     }
 
+    @Test("The Now card shows only the schedule chosen, and a room with nothing under way says so")
+    func nowCardFollowsTheSchedule() throws {
+        let lanes = makeLanes()
+        block(lanes.ourClass, 8 * 60 + 30, 7 * 60, "School day")
+        block(lanes.adolescent, 9 * 60, 90, "Humanities", teacher: lanes.guide)
+        block(lanes.coTeacher, 9 * 60, 45, "Chumash group")
+        #expect(context.safeSave())
+        let tab = model()
+
+        func texts(at date: Date) -> [String] {
+            guard case .lines(let lines) = tab.nowCard(at: date) else { return [] }
+            return lines.map(\.text)
+        }
+        let expected: [(UUID?, String)] = [
+            (lanes.ourClass.id, "Our class: School day until 3:30."),
+            (lanes.adolescent.id, "Adolescent room: Humanities until 10:30."),
+            (lanes.guide.id, "Danny is in the adolescent room until 10:30."),
+            (lanes.coTeacher.id, "Morah Devora: Chumash group until 9:45.")
+        ]
+        for (lane, line) in expected {
+            tab.laneFilter = lane
+            #expect(texts(at: morning) == [line])
+        }
+
+        // 8:45: school has started, the adolescent room's first block hasn't.
+        let early = try #require(AppCalendar.shared.date(byAdding: .minute, value: 8 * 60 + 45, to: monday))
+        tab.laneFilter = lanes.adolescent.id
+        #expect(texts(at: early) == ["Nothing under way in the adolescent room now."])
+    }
+
     @Test("Without a name from the guide or Apple, the guide reads Your guide")
     func guideFallbackName() throws {
         let lanes = makeLanes()

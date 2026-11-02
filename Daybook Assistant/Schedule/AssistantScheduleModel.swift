@@ -22,9 +22,11 @@ final class AssistantScheduleModel {
     private(set) var headerLine = ""
     /// Why the day has no school, when it hasn't.
     private(set) var dayOff: AssistantAttendanceViewModel.DayOff?
-    /// The lanes the filter menu offers, in order.
+    /// The lanes the switcher offers, in order.
     private(set) var laneOptions: [AssistantScheduleRows.LaneOption] = []
-    /// One lane only, or nil for every lane.
+    /// The schedule shown, or nil for every lane at once. The tab always
+    /// shows one once there are lanes (`settleLane`); nil is the whole day
+    /// as the resolver worked it out.
     var laneFilter: UUID?
     /// Children's short names ("Maya S") by upper-cased student ID.
     private(set) var childNames: [String: String] = [:]
@@ -84,8 +86,17 @@ final class AssistantScheduleModel {
     func nowCard(at date: Date) -> AssistantScheduleRows.NowCard? {
         guard let resolved, resolved.isSchoolDay, calendar.isDate(day, inSameDayAs: date) else { return nil }
         return AssistantScheduleRows.nowCard(
-            for: resolved, minute: TimetableDay.minute(of: date, calendar: calendar), names: names
+            for: resolved, minute: TimetableDay.minute(of: date, calendar: calendar), names: names, lane: laneFilter
         )
+    }
+
+    /// One schedule at a time: keeps the one shown while the guide still has
+    /// it, else the one last chosen on this phone, else the first.
+    func settleLane(preferring remembered: UUID?) {
+        let ids = laneOptions.map(\.id)
+        if let laneFilter, ids.contains(laneFilter) { return }
+        let lane = remembered.flatMap { ids.contains($0) ? $0 : nil } ?? ids.first
+        if laneFilter != lane { laneFilter = lane }
     }
 
     var names: AssistantScheduleRows.Names {
@@ -140,7 +151,7 @@ final class AssistantScheduleModel {
             )
         }
         if laneOptions != options { laneOptions = options }
-        // A lane the guide removed: back to every lane.
+        // A lane the guide removed: the tab picks another (`settleLane`).
         if let laneFilter, !options.contains(where: { $0.id == laneFilter }) { self.laneFilter = nil }
         let header = HebrewDateText.headerLine(for: start, calendar: calendar)
         if headerLine != header { headerLine = header }

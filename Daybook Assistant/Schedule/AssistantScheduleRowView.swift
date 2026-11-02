@@ -4,6 +4,8 @@ import SwiftUI
 /// is, the children and the note.
 struct AssistantScheduleRowView: View {
     let row: AssistantScheduleRows.Row
+    /// Off when the list shows one schedule, whose name the switcher shows.
+    var showsLane = true
 
     private var laneColor: Color { AssistantScheduleStyle.color(row.laneColorRaw, index: row.laneIndex) }
 
@@ -18,13 +20,15 @@ struct AssistantScheduleRowView: View {
                     Text(row.time)
                         .font(.subheadline.weight(.semibold))
                         .monospacedDigit()
-                    Text(row.laneName)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(laneColor)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 1)
-                        .background(laneColor.opacity(0.14), in: Capsule())
-                        .lineLimit(1)
+                    if showsLane {
+                        Text(row.laneName)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(laneColor)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1)
+                            .background(laneColor.opacity(0.14), in: Capsule())
+                            .lineLimit(1)
+                    }
                     Spacer(minLength: 0)
                     if let marker = row.marker {
                         Text(marker)
