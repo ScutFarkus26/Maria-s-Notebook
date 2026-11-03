@@ -150,35 +150,4 @@ struct StudentDepartureYearPlanTests {
         // Skipped, never deleted.
         #expect(survivors == 5)
     }
-
-    @Test("a departed child gets no new year-plan entries from an auto-populated sequence")
-    func autoPopulateSkipsDepartedChildren() async throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let leaving = CoreDataTestHelpers.seedStudent(
-            in: context, firstName: "Naomi", lastName: "Levin", enrollmentStatus: .withdrawn
-        )
-        let staying = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Pardo")
-        let first = CoreDataTestHelpers.seedLesson(
-            in: context, name: "The Position of Two Lines", area: "Geometry", sequence: "Lines"
-        )
-        first.orderInSequence = 0
-        let second = CoreDataTestHelpers.seedLesson(
-            in: context, name: "Parallel Lines", area: "Geometry", sequence: "Lines"
-        )
-        second.orderInSequence = 1
-        let assignment = PresentationFactory.makeDraft(
-            lesson: first, students: [leaving, staying], context: context
-        )
-        CoreDataTestHelpers.save(context)
-
-        await SequenceAutoPopulateService.autoPopulateSequence(
-            for: assignment, scheduledDate: Date(), context: context
-        )
-
-        let leavingID: String = try #require(leaving.id).uuidString
-        let stayingID: String = try #require(staying.id).uuidString
-        let studentIDs: [String] = allEntries(in: context).map(\.studentID)
-        #expect(studentIDs.contains(leavingID) == false)
-        #expect(studentIDs.contains(stayingID))
-    }
 }

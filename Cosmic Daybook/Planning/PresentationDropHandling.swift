@@ -127,21 +127,19 @@ enum PresentationDropHandling {
         }
     }
 
-    /// Fills in the year plan entries a newly scheduled presentation implies.
-    /// A presentation that is not scheduled implies nothing, so nothing runs.
-    static func autoPopulateSequence(
+    /// A presentation that landed on a day: each child's planned year-plan entry for
+    /// the lesson follows it there (`YearPlanPromotionService`), and nothing is laid on
+    /// the lessons after. One that is not scheduled implies nothing, so nothing runs.
+    static func promoteYearPlanEntries(
         for assignment: CDLessonAssignment,
         fallbackDate: () -> Date,
         context: NSManagedObjectContext
     ) {
         guard assignment.state == .scheduled else { return }
-        let scheduledDate = assignment.scheduledFor ?? fallbackDate()
-        Task {
-            await SequenceAutoPopulateService.autoPopulateSequence(
-                for: assignment,
-                scheduledDate: scheduledDate,
-                context: context
-            )
-        }
+        let day = assignment.scheduledFor ?? fallbackDate()
+        let promoted = YearPlanPromotionService.promoteMatchingEntries(
+            into: assignment, scheduledFor: day, context: context
+        )
+        if promoted > 0 { _ = context.safeSave() }
     }
 }

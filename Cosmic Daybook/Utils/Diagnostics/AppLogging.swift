@@ -72,7 +72,6 @@ nonisolated extension Logger {
     nonisolated static let parshaSuggestionService = Logger.app(category: "ParshaSuggestionService")
     nonisolated static let searchIndex = Logger.app(category: "SearchIndex")
     nonisolated static let searchIndexSnapshot = Logger.app(category: "SearchIndexSnapshot")
-    nonisolated static let sequenceAutoPopulate = Logger.app(category: "SequenceAutoPopulate")
     nonisolated static let spotlight = Logger.app(category: "Spotlight")
     nonisolated static let templateSeeder = Logger.app(category: "TemplateSeeder")
     nonisolated static let yearPlanPromotion = Logger.app(category: "YearPlanPromotion")

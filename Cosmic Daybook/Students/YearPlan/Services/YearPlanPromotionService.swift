@@ -57,6 +57,34 @@ enum YearPlanPromotionService {
         }.count
     }
 
+    /// A presentation put on a day: each child's still-planned entry for the
+    /// lesson is promoted into it and moved to that day, so the year plan shows
+    /// it where the calendar does. It lays nothing on the lessons after. Until
+    /// 2026-11-03 scheduling one lesson also wrote an entry on every later lesson
+    /// of its sequence (`SequenceAutoPopulateService`, three school days apart),
+    /// which dressed whole strands Planned on the Checklist and kept each child
+    /// out of Ready for lessons she hadn't reached; Add Sequence on the year plan
+    /// is the way to lay one out on purpose. Returns how many entries were
+    /// promoted. Does not save.
+    @discardableResult
+    static func promoteMatchingEntries(
+        into assignment: CDLessonAssignment,
+        scheduledFor day: Date,
+        context: NSManagedObjectContext
+    ) -> Int {
+        guard let assignmentID = assignment.id?.uuidString else { return 0 }
+        let planned = AppCalendar.startOfDay(day)
+        return assignment.resolvedStudentIDs.filter { studentID in
+            guard let entry = findMatchingEntry(
+                lessonID: assignment.lessonID, studentID: studentID, context: context
+            ) else { return false }
+            entry.status = .promoted
+            entry.promotedAssignmentID = assignmentID
+            entry.plannedDate = planned
+            return true
+        }.count
+    }
+
     /// Promotes one child's matching planned entry into `assignment`, for a
     /// caller that puts her on a plan other children may already be on (the
     /// Checklist's Inbox toggle), so their entries are left as they are.

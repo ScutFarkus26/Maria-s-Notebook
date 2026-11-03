@@ -166,10 +166,11 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
     /// until the lesson carries a mastery mark; a mark is Mastered with or without work.
     ///
     /// A presentation plan (dated or in the Inbox) is Planned wherever it sits. A year-plan
-    /// entry is Planned only once the lesson before has been given: scheduling one lesson
-    /// lays an entry on every later lesson of its sequence (`SequenceAutoPopulateService`),
-    /// and marking them all Planned dressed whole strands in orange (2026-11-03). The entry
-    /// still counts for the Ready count and the row's Plan, so she isn't planned twice.
+    /// entry is Planned only once the lesson before has been given: until 2026-11-03
+    /// scheduling one lesson laid an entry on every later lesson of its sequence, and
+    /// marking them all Planned dressed whole strands in orange. Entries laid that way, or
+    /// by Add Sequence, still wait on later lessons; such an entry still counts for the
+    /// Ready count and the row's Plan, so she isn't planned twice.
     public var displayStatus: ChecklistDisplayStatus {
         .resolve(
             isMastered: isMastered,

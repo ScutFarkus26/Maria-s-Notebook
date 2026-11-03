@@ -113,7 +113,7 @@ struct WeekDayColumnDropDelegate: PresentationDropTarget {
 
         for id in placed {
             if let droppedItem = assignmentsByID[id] {
-                PresentationDropHandling.autoPopulateSequence(
+                PresentationDropHandling.promoteYearPlanEntries(
                     for: droppedItem, fallbackDate: { day }, context: viewContext
                 )
             }
