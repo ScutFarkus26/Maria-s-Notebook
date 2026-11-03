@@ -144,10 +144,12 @@ final class SyncEventLogger {
         defaults.removeObject(forKey: storageKey)
     }
 
-    /// Writes any pending change now instead of after `saveDelay`.
+    /// Writes any pending change now instead of after `saveDelay`; nothing
+    /// when none waits (it runs on every trip to the background).
     func flushPendingSave() {
-        saveTask?.cancel()
-        saveTask = nil
+        guard let saveTask else { return }
+        saveTask.cancel()
+        self.saveTask = nil
         saveEvents()
     }
 

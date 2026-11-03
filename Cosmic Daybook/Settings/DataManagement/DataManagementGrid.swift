@@ -216,26 +216,19 @@ struct DataManagementPanel: View {
         }
         .fileExporter(
             isPresented: $showingExporter,
-            document: viewModel.exportData.map { BackupPackageDocument(data: $0) },
-            contentType: UTType(exportedAs: "com.cosmic-daybook.backup"),
-            defaultFilename: viewModel.defaultBackupFilename()
-        ) { result in
-            switch result {
-            case .success:
-                viewModel.setLastBackupNow()
-                viewModel.resultSummary = BackupResultNote(text: "Saved the backup.", tone: .success)
-            case .failure(let error as CocoaError) where error.code == .userCancelled:
-                viewModel.resultSummary = BackupResultNote(text: "Backup canceled.", tone: .neutral)
-            case .failure(let error):
-                viewModel.showBackupFailure(error, operation: "save the backup")
-            }
-            viewModel.exportData = nil
-        }
+            document: viewModel.exportFileURL.map { BackupPackageDocument(fileURL: $0) },
+            contentTypes: [UTType(exportedAs: "com.cosmic-daybook.backup")],
+            defaultFilename: viewModel.exportFileURL?.deletingPathExtension().lastPathComponent
+                ?? viewModel.defaultBackupFilename(),
+            onCompletion: { viewModel.fileExporterFinished($0) },
+            // So the temporary file goes when the guide cancels, too.
+            onCancellation: { viewModel.fileExporterFinished(.failure(CocoaError(.userCancelled))) }
+        )
         #if os(iOS)
         // `performExport` hands over the file this way when the backup folder
         // can't be written (macOS shows its own Save panel instead).
-        .onChange(of: viewModel.exportData) { _, data in
-            showingExporter = data != nil
+        .onChange(of: viewModel.exportFileURL) { _, url in
+            showingExporter = url != nil
         }
         #endif
         .fileImporter(

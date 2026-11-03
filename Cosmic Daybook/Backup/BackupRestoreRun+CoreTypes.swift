@@ -118,7 +118,8 @@ extension BackupRestoreRun {
         try BackupEntityImporter.importProjectSessions(
             rows(\.projectSessions),
             into: viewContext,
-            existing: { try index.existing(CDProjectSession.self, id: $0) }
+            existing: { try index.existing(CDProjectSession.self, id: $0) },
+            projectCheck: { try index.related(CDProject.self, id: $0) }
         )
     }
 

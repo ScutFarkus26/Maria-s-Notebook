@@ -19,7 +19,8 @@ extension CloudKitSyncStatusService {
     /// intent, the MCP server): an import that finished before then was
     /// missed, and the gate stayed armed until some later import. With iCloud
     /// sync on but no iCloud account signed in, nothing will download, so the
-    /// gate opens at once. Ends once the gate opens.
+    /// holds lift for the session (`followAccountForFirstDownload`). Ends once
+    /// the gate opens.
     static func watchForFirstDownload(
         on stack: CoreDataStack,
         accountStatus: @escaping @MainActor () async throws -> CKAccountStatus = {
@@ -27,23 +28,32 @@ extension CloudKitSyncStatusService {
         }
     ) {
         guard FirstDownloadGate.isPending(), firstDownloadWatch == nil else { return }
-        // Subscribed before the task starts, so nothing posted meanwhile is missed.
-        let events = NotificationCenter.default.messages(
-            of: NSPersistentCloudKitContainer.self, for: .eventChanged, bufferSize: 256
+        // A plain observer, listening as this returns and buffering while the
+        // account is asked about: a `messages(of:for:)` sequence listens only
+        // once it is first iterated, after that question, and an import that
+        // finished meanwhile was missed (2026-11-03 review).
+        let (events, continuation) = AsyncStream<NSPersistentCloudKitContainer.Event>.makeStream(
+            bufferingPolicy: .bufferingNewest(256)
         )
+        let center = NotificationCenter.default
+        let observer = center.addObserver(
+            forName: NSPersistentCloudKitContainer.eventChangedNotification, object: nil, queue: nil
+        ) { note in
+            let key = NSPersistentCloudKitContainer.eventNotificationUserInfoKey
+            if let event = note.userInfo?[key] as? NSPersistentCloudKitContainer.Event { continuation.yield(event) }
+        }
+        // The token only goes back to the center that made it.
+        nonisolated(unsafe) let token = observer
         firstDownloadWatch = Task { [weak stack] in
-            defer { firstDownloadWatch = nil }
-            if let stack, stack.isCloudKitActive, let status = try? await accountStatus(),
-               FirstDownloadGate.nothingWillDownload(accountStatus: status, cloudKitActive: true) {
-                logger.notice("No iCloud account is signed in, so nothing will download: holds lifted for this session")
-                // Lifted for the session, not opened: the gate stays armed, so
-                // a later launch with an account signed in waits for the download.
-                FirstDownloadGate.liftForSession()
-                runWhatTheGateHeld(context: stack.viewContext)
-                return
+            defer {
+                center.removeObserver(token)
+                continuation.finish()
+                firstDownloadWatch = nil
             }
-            for await message in events {
-                let event = message.event
+            if let stack, stack.isCloudKitActive {
+                await followAccountForFirstDownload(context: stack.viewContext, accountStatus: accountStatus)
+            }
+            for await event in events {
                 guard event.type == .import, event.endDate != nil, event.succeeded else { continue }
                 guard let stack else { return }
                 finishFirstDownloadIfNeeded(
@@ -54,6 +64,59 @@ extension CloudKitSyncStatusService {
                 if !FirstDownloadGate.isPending() { return }
             }
         }
+    }
+
+    /// The watch's account step. With no iCloud account signed in, asked
+    /// twice (`waitBeforeRecheck` apart: an account change or a minute),
+    /// nothing will download now: the holds lift for this session and what
+    /// the gate held runs. A Mac opening at login gets `noAccount` for a
+    /// moment while the account signs in, and one answer lifted the holds
+    /// for the whole session, so the download that followed went unguarded
+    /// (bug hunt 2026-11-02, #26; `noteSetupWithoutAccount` asks twice for
+    /// the same reason). The lift is taken back once an account change
+    /// reports an account (`waitForAccountChange` between looks), and the
+    /// watch goes on to wait for the import. Returns at once when an account
+    /// is there; otherwise once one signs in. `setLifted` is the session's
+    /// lift (`FirstDownloadGate.liftForSession`, `endSessionLift`), which the
+    /// tests keep to themselves, since the real one is the whole process's.
+    static func followAccountForFirstDownload(
+        context: NSManagedObjectContext,
+        accountStatus: @escaping @MainActor () async throws -> CKAccountStatus,
+        defaults: UserDefaults = .standard,
+        setLifted: @escaping @MainActor (Bool) -> Void = { lifted in
+            if lifted { FirstDownloadGate.liftForSession() } else { FirstDownloadGate.endSessionLift() }
+        },
+        waitBeforeRecheck: @escaping @MainActor () async -> Void = {
+            await CloudKitSyncStatusService.accountChangeOrTimeout(.seconds(60))
+        },
+        waitForAccountChange: @escaping @MainActor () async -> Void = {
+            await CloudKitSyncStatusService.accountChangeOrTimeout(.seconds(30 * 60))
+        }
+    ) async {
+        let noAccount: @MainActor () async -> Bool = {
+            guard let status = try? await accountStatus() else { return false }
+            return FirstDownloadGate.nothingWillDownload(accountStatus: status, cloudKitActive: true)
+        }
+        guard await noAccount() else { return }
+        await waitBeforeRecheck()
+        guard FirstDownloadGate.isPending(defaults: defaults), await noAccount() else { return }
+        logger.notice("No iCloud account is signed in, so nothing will download: holds lifted for this session")
+        // Lifted for the session, not opened: the gate stays armed, so a
+        // later launch with an account signed in waits for the download.
+        setLifted(true)
+        runWhatTheGateHeld(context: context)
+
+        // An account that signs in brings the download: hold for it again.
+        var signedIn = false
+        while !signedIn, !Task.isCancelled {
+            await waitForAccountChange()
+            if let status = try? await accountStatus() {
+                signedIn = status != .noAccount && status != .couldNotDetermine
+            }
+        }
+        guard signedIn, FirstDownloadGate.isArmed(defaults: defaults) else { return }
+        setLifted(false)
+        logger.notice("An iCloud account signed in: the holds wait for the first download again")
     }
 
     /// `configure`'s call: starts the watch if the stack's load didn't (it

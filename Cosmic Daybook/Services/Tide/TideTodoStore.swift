@@ -38,9 +38,10 @@ protocol TideTodoStore: AnyObject {
     func reopen(_ id: UUID, due: Date?)
     /// Brings a to-do that was made in Tide into line with its words and date.
     func update(_ id: UUID, title: String, due: Date?)
-    /// A new notebook to-do for an action made in Tide. Returns its id.
+    /// A new notebook to-do for an action made in Tide, planned for
+    /// `scheduled` when Tide's start is a later day. Returns its id.
     @discardableResult
-    func add(title: String, notes: String, due: Date?, link: String) -> UUID
+    func add(title: String, notes: String, due: Date?, scheduled: Date?, link: String) -> UUID
     /// Saves what changed. False when the save failed.
     func save() -> Bool
 }
@@ -140,7 +141,7 @@ final class NotebookTideTodoStore: TideTodoStore {
     }
 
     @discardableResult
-    func add(title: String, notes: String, due: Date?, link: String) -> UUID {
+    func add(title: String, notes: String, due: Date?, scheduled: Date?, link: String) -> UUID {
         var id = UUID()
         write {
             let todo = CDTodoItem(context: context)
@@ -149,6 +150,7 @@ final class NotebookTideTodoStore: TideTodoStore {
             todo.title = title
             todo.notes = notes
             todo.dueDate = due
+            todo.scheduledDate = scheduled
             todo.tideLink = link
             objects[id] = todo
         }

@@ -124,11 +124,14 @@ struct BackupSparseRowTests {
         for match in row.matches(of: uuid) where !known.contains(String(match.output)) {
             text = text.replacingOccurrences(of: String(match.output), with: "<new id>")
         }
-        let date = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/
-        let formatter = ISO8601DateFormatter()
+        // Whole seconds (older archives, and a time with no fraction) or
+        // milliseconds (`BackupDateCoding`, since 2026-11): the export's "now"
+        // almost always has a fraction.
+        let date = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z/
         for match in row.matches(of: date) {
-            if let value = formatter.date(from: String(match.output)), abs(value.timeIntervalSinceNow) < 3_600 {
-                text = text.replacingOccurrences(of: String(match.output), with: "<now>")
+            let found = String(match.output.0)
+            if let value = BackupDateCoding.date(from: found), abs(value.timeIntervalSinceNow) < 3_600 {
+                text = text.replacingOccurrences(of: found, with: "<now>")
             }
         }
         return text

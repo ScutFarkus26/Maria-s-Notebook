@@ -12,9 +12,11 @@ nonisolated extension ClassroomShareRelease {
 
     static let logger = Logger(subsystem: "CosmicDaybook", category: "ClassroomShareRelease")
 
-    /// The steps of one batch, for progress and for tests.
+    /// The steps of one batch, for progress and for tests: a move's five, and a twin
+    /// cleanup's four (`+Twins`).
     enum Step: String, Sendable {
         case copied, copiesConfirmed, copiesChecked, originalsDeleted, originalsGone
+        case sharedConfirmed, twinsChecked, twinsDeleted, twinsGone
     }
 
     /// What the run needs from outside the store. The app's reaches CloudKit
@@ -49,6 +51,10 @@ nonisolated extension ClassroomShareRelease {
         /// are confirmed at the end of the next (`run`).
         var awaitingGone: @Sendable () -> [CKRecord.ID] = { [] }
         var setAwaitingGone: @Sendable ([CKRecord.ID]) -> Void = { _ in }
+        /// Of these records, the ones whose objects are in this Mac's store: back after a
+        /// re-download, say. A stopped run's deletes that are back aren't waited on
+        /// (`confirmLeftovers`).
+        var heldHere: @Sendable ([CKRecord.ID]) async -> Set<CKRecord.ID> = { _ in [] }
     }
 
     /// How a run went.
@@ -58,6 +64,12 @@ nonisolated extension ClassroomShareRelease {
         /// Records another device deleted during the run: their copies went too
         /// (`settleVanished`), so they aren't counted as moved.
         var deletedElsewhere = 0
+        /// Records a stopped run left twice that belong in the share after all, back to one
+        /// copy: the shared one (`+Twins`).
+        var twinsCleaned = 0
+        /// A stopped run's deletes iCloud still hadn't confirmed when the wait ran out: taken
+        /// off the list anyway, so the run can finish (`confirmLeftovers`).
+        var unconfirmed = 0
         var batchesDone = 0
         var batchesPlanned = 0
         /// Why the run stopped, in plain words; nil when it finished.
@@ -69,10 +81,13 @@ nonisolated extension ClassroomShareRelease {
     // MARK: - Running
 
     /// Carries out `batches` in order, stopping at the first problem. The first batch is
-    /// the canary. `progress` hears (batches done, batches planned) after each batch.
+    /// the canary. `progress` hears (batches done, batches planned) after each batch. The
+    /// writes go through `stack`'s own kind of context (`runContext`): saved with the app's
+    /// author, the history processor and another running copy of the app read them as this
+    /// copy's (bug hunt 2026-11-02, #53).
     static func run(
         _ batches: [Batch],
-        container: NSPersistentCloudKitContainer,
+        stack: CoreDataStack,
         storeID: String,
         environment: Environment,
         progress: @escaping @Sendable (Int, Int) async -> Void = { _, _ in }
@@ -86,9 +101,20 @@ nonisolated extension ClassroomShareRelease {
             return report
         }
         for batch in batches {
+            if !batch.twinCleanups.isEmpty {
+                do {
+                    try await runTwinCleanup(batch, stack: stack, environment: environment)
+                } catch {
+                    return stopped(by: error)
+                }
+                report.batchesDone += 1
+                report.twinsCleaned += batch.twinCleanups.count
+                await progress(report.batchesDone, report.batchesPlanned)
+                continue
+            }
             let settled: Set<NSManagedObjectID>
             do {
-                settled = try await runBatch(batch, container: container, storeID: storeID, environment: environment)
+                settled = try await runBatch(batch, stack: stack, storeID: storeID, environment: environment)
             } catch {
                 return stopped(by: error)
             }
@@ -100,14 +126,10 @@ nonisolated extension ClassroomShareRelease {
             await progress(report.batchesDone, report.batchesPlanned)
         }
         // A stopped run's deletes still awaiting iCloud: this run's saves exported them.
-        let leftover = environment.awaitingGone()
-        if !leftover.isEmpty {
-            do {
-                try await waitForGone(leftover, environment: environment)
-                removeAwaitingGone(leftover, environment: environment)
-            } catch {
-                return stopped(by: error)
-            }
+        do {
+            report.unconfirmed = try await confirmLeftovers(environment.awaitingGone(), environment: environment)
+        } catch {
+            return stopped(by: error)
         }
         logger.notice(
             "Release finished: \(report.studentsMoved) students, \(report.attendanceMoved) attendance records"
@@ -128,17 +150,21 @@ nonisolated extension ClassroomShareRelease {
         if await env.anotherCopyOpen() { throw RunError.anotherCopyOpen }
     }
 
+    /// How many times a batch checks again when a record changed between its check and its
+    /// delete (`RunError.changedDuringRun`) before the run stops.
+    static let changeRetries = 3
+
     /// One batch, in the five steps. Returns the sources of the moves another device
     /// deleted meanwhile (`settleVanished`): those went, copy and all, rather than moved.
     @discardableResult
     static func runBatch(
         _ batch: Batch,
-        container: NSPersistentCloudKitContainer,
+        stack: CoreDataStack,
         storeID: String,
         environment env: Environment
     ) async throws -> Set<NSManagedObjectID> {
         try await checkCanGoOn(env)
-        let context = container.newBackgroundContext()
+        let context = await runContext(stack)
         // The originals' iCloud records, read while they're all here: one that another device
         // deletes during the batch can't be looked up once the delete reaches this Mac.
         let startRecords = await env.recordIDs(batch.moves.flatMap(\.sharedRows))
@@ -152,53 +178,61 @@ nonisolated extension ClassroomShareRelease {
         await env.afterStep(.copied, batch)
 
         // 2. iCloud has every copy, outside any share.
-        let confirmed = try await waitForCopies(Array(keepers.values), environment: env)
+        var confirmed = try await waitForCopies(Array(keepers.values), environment: env)
         await env.afterStep(.copiesConfirmed, batch)
 
-        // 3. Each copy is still here; anything the original changed since is brought over.
-        await env.exportIdle()
-        let checked = try await checkCopies(batch.moves, keepers: keepers, context: context)
-        saved = Date()
-        if !checked.changed.isEmpty {
-            try await makeSureItExports(
-                after: saved, nudging: checked.changed.first, context: context, environment: env
-            )
-            try await waitForNewerCopies(checked.changed, than: confirmed, environment: env)
-        }
-        let settled = try await settleVanished(
-            checked.vanished, records: startRecords, keepers: keepers, context: context, environment: env
-        )
-        await env.afterStep(.copiesChecked, batch)
-
-        // 4. The shared originals go (but not those deleted elsewhere, settled above),
-        // each only while its private copy is still here, checked again in the delete's
-        // own pass: a copy another device deleted after step 3 keeps its original.
-        let remaining = batch.moves.filter { !settled.contains($0.source) }
-        let originals = remaining.flatMap(\.sharedRows)
-        let originalRecords = Array(await env.recordIDs(originals).values)
-        guard originalRecords.count == originals.count else { throw RunError.originalNotMirrored }
-        await env.exportIdle()
-        // Added to the list, never in place of it: an earlier stopped run's deletes on it
-        // still need iCloud's confirmation.
-        let awaiting = env.awaitingGone()
-        let onList = Set(awaiting)
-        let added = originalRecords.filter { !onList.contains($0) }
-        env.setAwaitingGone(awaiting + added)
-        do {
-            try await deleteOriginals(originals, keeping: remaining.compactMap { keepers[$0.source] }, context: context)
+        // Steps 3 and 4, and again from 3 when an original changed after its copy was
+        // checked: the run can take many minutes, and the Mac's main window still edits
+        // (bug hunt 2026-11-02, #37). Step 3 brings the change over; nothing is lost.
+        var settled = Set<NSManagedObjectID>()
+        var retries = 0
+        while true {
+            // 3. Each copy is still here; anything the original changed since is brought over.
+            await env.exportIdle()
+            let checking = batch.moves.filter { !settled.contains($0.source) }
+            let checked = try await checkCopies(checking, keepers: keepers, context: context)
             saved = Date()
-        } catch {
-            removeAwaitingGone(added, environment: env) // this batch deleted nothing
-            throw error
-        }
-        try await makeSureItExports(after: saved, nudging: keepers.values.first, context: context, environment: env)
-        await env.afterStep(.originalsDeleted, batch)
+            if !checked.changed.isEmpty {
+                try await makeSureItExports(
+                    after: saved, nudging: checked.changed.first, context: context, environment: env
+                )
+                let newer = try await waitForNewerCopies(checked.changed, than: confirmed, environment: env)
+                confirmed.merge(newer) { $1 }
+            }
+            settled.formUnion(try await settleVanished(
+                checked.vanished, records: startRecords, keepers: keepers, context: context, environment: env
+            ))
+            await env.afterStep(.copiesChecked, batch)
 
-        // 5. iCloud no longer has them.
-        try await waitForGone(originalRecords, environment: env)
-        removeAwaitingGone(originalRecords, environment: env)
-        await env.afterStep(.originalsGone, batch)
-        return settled
+            // 4. The shared originals go (but not those deleted elsewhere, settled above),
+            // each only while its private copy is still here and holds every change of the
+            // original's, checked again in the delete's own pass: a copy another device
+            // deleted after step 3 keeps its original, and an original changed since goes
+            // back to step 3.
+            let remaining = batch.moves.filter { !settled.contains($0.source) }
+            let originals = remaining.flatMap(\.sharedRows)
+            let originalRecords = Array(await env.recordIDs(originals).values)
+            guard originalRecords.count == originals.count else { throw RunError.originalNotMirrored }
+            await env.exportIdle()
+            do {
+                try await deleteListed(originalRecords, environment: env) {
+                    try await deleteOriginals(remaining, keepers: keepers, context: context)
+                }
+            } catch RunError.changedDuringRun where retries < changeRetries {
+                retries += 1
+                logger.notice("An original changed after its copy was checked; checking again")
+                continue
+            }
+            saved = Date()
+            try await makeSureItExports(after: saved, nudging: keepers.values.first, context: context, environment: env)
+            await env.afterStep(.originalsDeleted, batch)
+
+            // 5. iCloud no longer has them.
+            try await waitForGone(originalRecords, environment: env)
+            removeAwaitingGone(originalRecords, environment: env)
+            await env.afterStep(.originalsGone, batch)
+            return settled
+        }
     }
 
     // MARK: - The steps
@@ -270,36 +304,21 @@ nonisolated extension ClassroomShareRelease {
         }
     }
 
-    /// Waits until the server holds a newer version of each of `changed` than `confirmed`.
-    private static func waitForNewerCopies(
+    /// Waits until the server holds a newer version of each of `changed` than `confirmed`;
+    /// returns those versions' dates, against which a later change is confirmed in turn.
+    static func waitForNewerCopies(
         _ changed: [NSManagedObjectID], than confirmed: [NSManagedObjectID: Date], environment env: Environment
-    ) async throws {
-        _ = try await waitFor("the updated copies", environment: env) { () -> Bool? in
+    ) async throws -> [NSManagedObjectID: Date] {
+        try await waitFor("the updated copies", environment: env) { () -> [NSManagedObjectID: Date]? in
             let records = await env.recordIDs(changed)
             let onServer = try await env.serverRecords(Array(records.values))
-            let newer = changed.allSatisfy { id in
-                guard let record = records[id], let date = onServer[record] else { return false }
-                return date > (confirmed[id] ?? .distantPast)
+            var newer: [NSManagedObjectID: Date] = [:]
+            for id in changed {
+                guard let record = records[id], let date = onServer[record],
+                      date > (confirmed[id] ?? .distantPast) else { return nil }
+                newer[id] = date
             }
-            return newer ? true : nil
-        }
-    }
-
-    /// Deletes `originals`, unless one of `copies` has gone from this Mac since it
-    /// was checked: then nothing is deleted and the run stops (`copyVanished`).
-    private static func deleteOriginals(
-        _ originals: [NSManagedObjectID], keeping copies: [NSManagedObjectID], context: NSManagedObjectContext
-    ) async throws {
-        try await context.perform {
-            context.refreshAllObjects()
-            guard copies.allSatisfy({ (try? context.existingObject(with: $0)) != nil }) else {
-                throw RunError.copyVanished
-            }
-            for id in originals {
-                // Gone already (another run finished it): nothing to delete.
-                if let object = try? context.existingObject(with: id) { context.delete(object) }
-            }
-            if context.hasChanges { try context.save() }
+            return newer
         }
     }
 
@@ -348,8 +367,11 @@ nonisolated extension ClassroomShareRelease {
         return left.timeIntervalSince(right) > 1
     }
 
-    static func sameAttributes(_ lhs: NSManagedObject, _ rhs: NSManagedObject) -> Bool {
+    static func sameAttributes(
+        _ lhs: NSManagedObject, _ rhs: NSManagedObject, except skipped: Set<String> = []
+    ) -> Bool {
         lhs.entity.attributesByName.keys.allSatisfy { name in
+            guard !skipped.contains(name) else { return true }
             let left = lhs.value(forKey: name) as? NSObject
             let right = rhs.value(forKey: name) as? NSObject
             return left == right || (left?.isEqual(right) ?? false)

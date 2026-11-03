@@ -16,6 +16,11 @@ nonisolated extension ClassroomShareRelease {
         case originalNotMirrored
         case storeUnavailable
         case anotherCopyOpen
+        /// A record changed between its check and its delete, on every try
+        /// (`changeRetries`): nothing of that batch was deleted.
+        case changedDuringRun
+        /// A twin cleanup's shared original left this Mac partway: its private copy stays.
+        case sharedOriginalGone
 
         /// What the guide reads. Plain on purpose: the specifics are in `details`.
         var errorDescription: String? {
@@ -28,9 +33,12 @@ nonisolated extension ClassroomShareRelease {
             case .copyVanished:
                 return "Something changed on another device during the run, so this stopped. Nothing is lost. "
                     + "Make sure every device has the latest Cosmic Daybook, then try again."
-            case .originalVanished:
+            case .originalVanished, .sharedOriginalGone:
                 return "Something changed on another device during the run, so this stopped. Nothing is lost. "
                     + "Run it again later."
+            case .changedDuringRun:
+                return "Some of last year's items kept changing while this ran, so it stopped. Nothing is lost. "
+                    + "Run it again when nothing is being edited."
             case .copyLandedInShare, .originalNotMirrored:
                 return "Something unexpected happened, so this stopped. Nothing is lost. Try again later."
             case .storeUnavailable:
@@ -56,6 +64,11 @@ nonisolated extension ClassroomShareRelease {
             case .originalNotMirrored: return "A shared original had no CloudKit record to check."
             case .storeUnavailable: return "The private store isn't open."
             case .anotherCopyOpen: return "Another running copy of the app has the store open."
+            case .changedDuringRun:
+                return "A record changed after it was checked and before its delete, on every try. "
+                    + "None of that batch's records were deleted."
+            case .sharedOriginalGone:
+                return "A shared record left this Mac while its private copy was being removed. The copy was kept."
             }
         }
     }
@@ -66,6 +79,15 @@ nonisolated extension ClassroomShareRelease {
     static func stopMessage(for error: Error) -> (message: String, details: String) {
         if let runError = error as? RunError {
             return (runError.errorDescription ?? "", runError.details)
+        }
+        if let missing = error as? CloudKitServerCheck.ZoneMissing {
+            // The share's zone is gone (stopped from another device, say): not a network
+            // problem, and never read as the records being deleted (#41).
+            return (
+                "iCloud no longer has your classroom share, so this stopped. Nothing is lost. "
+                    + "Check Settings › Classroom, then try again.",
+                missing.errorDescription ?? "A share zone is gone from iCloud."
+            )
         }
         let ns = error as NSError
         if ns.domain == NSCocoaErrorDomain {

@@ -149,7 +149,10 @@ enum SettingsExportService {
 
     /// Version 1's names for its settings. It wrote every one, with the app
     /// default in place of a value never set, so importing it sets them all.
-    /// Its `backupEncrypt` is skipped: nothing reads it.
+    /// Its `backupEncrypt` is skipped: nothing reads it. So are its
+    /// `autoBackupEnabled` and `autoBackupRetentionCount`: the automatic-backup
+    /// settings are each device's own since 2026-11, and a version-2 file
+    /// leaves them out (bug hunt 2026-11-02, #19).
     private static let version1Keys: [Version1Key] = [
         .init("lessonAgeWarningDays", "LessonAge.warningDays", .int),
         .init("lessonAgeOverdueDays", "LessonAge.overdueDays", .int),
@@ -164,8 +167,6 @@ enum SettingsExportService {
         .init("lessonPlanningTimeout", UserDefaultsKeys.lessonPlanningTimeout, .int),
         .init("lessonPlanningDefaultDepth", UserDefaultsKeys.lessonPlanningDefaultDepth, .string),
         .init("lessonPlanningTemperature", UserDefaultsKeys.lessonPlanningTemperature, .double),
-        .init("autoBackupEnabled", UserDefaultsKeys.autoBackupEnabled, .bool),
-        .init("autoBackupRetentionCount", UserDefaultsKeys.autoBackupRetentionCount, .int),
         .init("attendanceEmailEnabled", "AttendanceEmail.enabled", .bool),
         .init("attendanceEmailTo", "AttendanceEmail.to", .string),
         .init("attendanceEmailFrom", "AttendanceEmail.from", .string),

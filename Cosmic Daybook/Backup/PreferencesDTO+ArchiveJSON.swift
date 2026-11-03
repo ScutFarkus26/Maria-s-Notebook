@@ -6,7 +6,7 @@ nonisolated extension PreferencesDTO {
     func archiveJSON() throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
+        encoder.dateEncodingStrategy = BackupDateCoding.encodingStrategy
         return try encoder.encode(self)
     }
 }

@@ -208,7 +208,13 @@ extension BackupRestoreRun {
             )
         }
 
-        if let noteStudentLinks = try rows(\.noteStudentLinks) {
+        if var noteStudentLinks = try rows(\.noteStudentLinks) {
+            // A note a Merge kept as it is here keeps its own links.
+            if !keptNoteIDs.isEmpty {
+                noteStudentLinks.removeAll { link in
+                    link.string("noteID").flatMap(UUID.init(uuidString:)).map(keptNoteIDs.contains) == true
+                }
+            }
             BackupEntityImporter.importRows(
                 noteStudentLinks, as: CDNoteStudentLink.self, into: viewContext,
                 existing: { try index.existing(CDNoteStudentLink.self, id: $0) },

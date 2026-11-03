@@ -155,7 +155,7 @@ private struct BackupSummaryViewPreview: View {
             createdAt: Date(),
             entityCounts: ["Student": 24, "Lesson": 180, "LessonAssignment": 312],
             warnings: [],
-            notes: [BackupWriter.photoNote(includesPhotos: true, photoCount: 12)]
+            notes: [BackupWriter.photoNote(includesPhotos: true, photoCount: 12, referencedCount: 52)]
         ))
     }
 }

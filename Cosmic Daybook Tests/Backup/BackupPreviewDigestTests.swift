@@ -10,7 +10,11 @@ import Testing
 // a store holding all, none or part of the backup; for archives with a row
 // that does not decode, an entity this version does not know, and entities
 // written twice; the same errors for a broken archive; and the decode runs off
-// the main thread.
+// the main thread. Since 2026-11-02 the numbers differ from the old ones only
+// where the restore changed (`expectSameAsOld`): a Merge counts every type and
+// keeps a record changed since the backup (#1, #22), and a Replace updates the
+// classroom share's records in place and leaves a type whose entry didn't
+// decode (#2, #10).
 @Suite("Backup restore preview digest")
 @MainActor
 struct BackupPreviewDigestTests {
@@ -97,10 +101,64 @@ struct BackupPreviewDigestTests {
         for mode in BackupService.RestoreMode.allCases {
             let old = try await legacyPreview(of: url, into: context, mode: mode)
             let new = try await preview(of: url, into: context, mode: mode)
-            #expect(new == old, "\(situation), \(mode.rawValue)")
+            // The analysis the preview shows, with the records it keeps.
+            let archive = try await BackupImporter.decodePreview(at: url)
+            let index = EntityIDIndexCache(context: context)
+            let analysis = BackupPreviewAnalyzer.analyze(
+                digest: archive.digest, viewContext: context, mode: mode,
+                formatVersion: archive.manifest.formatVersion, entityExists: { index.exists($0, id: $1) }
+            )
+            let label = "\(situation), \(mode.rawValue)"
+            #expect(new.entityInserts == analysis.inserts, "\(label): the preview shows the analysis")
+            #expect(new.entitySkips == analysis.skips, "\(label)")
+            #expect(new.entityDeletes == analysis.deletes, "\(label)")
+            #expect(new.entityKept == analysis.kept, "\(label): the preview passes on what it keeps")
+            #expect(new.warnings == old.warnings, "\(label): warnings")
+            expectSameAsOld(analysis, old, digest: archive.digest, mode: mode, label)
             let skips = new.entitySkips.values.reduce(0, +)
             let numbers = new.totalInserts + skips + new.totalDeletes
-            #expect(numbers > 0, "\(situation), \(mode.rawValue): a preview with numbers to compare")
+            #expect(numbers > 0, "\(label): a preview with numbers to compare")
+        }
+    }
+
+    /// The new numbers against the old preview's, where the restore is the
+    /// same: equal; where it changed on 2026-11-02, what the old numbers
+    /// become. A Merge splits the old "already here" into updated and kept,
+    /// and doesn't count a planned lesson it drops for a lessonID that isn't
+    /// an id. A Replace updates a classroom-share record the backup holds in
+    /// place (old: removed and added), and leaves a type whose entry didn't
+    /// decode (old: all removed).
+    private static func expectSameAsOld(
+        _ new: BackupPreviewAnalyzer.AnalysisResult,
+        _ old: RestorePreview,
+        digest: BackupPreviewDigest,
+        mode: BackupService.RestoreMode,
+        _ label: String
+    ) {
+        for key in Set(old.entityInserts.keys).union(old.entityDeletes.keys).sorted() {
+            let oldIns = old.entityInserts[key] ?? 0
+            let oldSk = old.entitySkips[key] ?? 0
+            let oldDel = old.entityDeletes[key] ?? 0
+            let (ins, sk) = (new.inserts[key] ?? 0, new.skips[key] ?? 0)
+            let (del, kept) = (new.deletes[key] ?? 0, new.kept[key] ?? 0)
+            let archiveName = key == "WorkParticipant" ? "WorkParticipantEntity" : key
+            if mode == .merge {
+                let dropped = key == "LessonAssignment"
+                    ? digest.lessonAssignments.filter { UUID(uuidString: $0.lessonID) == nil }.count : 0
+                #expect(ins == oldIns, "\(label): \(key) added")
+                #expect(sk + kept + dropped == oldSk, "\(label): \(key) already here")
+                #expect(del == 0 && oldDel == 0, "\(label): \(key) removed")
+            } else if digest.skippedEntityNames.contains(archiveName) {
+                #expect(new.inserts[key] == nil && new.deletes[key] == nil, "\(label): \(key) left as it is")
+            } else if BackupEntityRegistry.updatedInPlaceOnReplaceEntityNames.contains(key) {
+                #expect(ins + sk == oldIns, "\(label): \(key) added or updated")
+                #expect(del + sk == oldDel, "\(label): \(key) removed or updated")
+            } else if BackupEntityRegistry.mergedOnReplaceEntityNames.contains(key) {
+                #expect(ins + sk + kept == oldIns, "\(label): \(key)")
+                #expect(del == 0 && oldDel == 0, "\(label): \(key) never removed")
+            } else {
+                #expect(ins == oldIns && sk == oldSk && del == oldDel, "\(label): \(key)")
+            }
         }
     }
 

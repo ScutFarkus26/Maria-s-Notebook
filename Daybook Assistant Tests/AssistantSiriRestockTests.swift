@@ -142,6 +142,19 @@ struct AssistantSiriRestockTests {
         let count = Mutex(0)
     }
 
+    @Test("Added as View only, Siri changes nothing and says why in the tab's words")
+    func viewOnlyRefuses() throws {
+        let towels = try staple("Paper Towels")
+        let viewOnly = AssistantSiriRestock(stack: stack, author: Self.ana, readOnly: { true })
+        #expect(throws: AssistantRestockSiriError.viewOnly) { try viewOnly.mark(try id(towels), as: .out) }
+        #expect(throws: AssistantRestockSiriError.viewOnly) { try viewOnly.addToOfficeRun("Glue sticks") }
+        #expect(towels.level == .stocked)
+        #expect(RestockService.openNeeds(in: context).isEmpty)
+        #expect(!context.hasChanges)
+        #expect(String(localized: AssistantRestockSiriError.viewOnly.localizedStringResource)
+            == AssistantSyncStatusView.viewOnlyMessage)
+    }
+
     @Test("A spoken name finds its staple: any case, a plural, a leading 'the', or one word of it")
     func names() throws {
         let towels = try staple("Paper Towels")

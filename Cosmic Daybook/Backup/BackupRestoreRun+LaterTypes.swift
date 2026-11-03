@@ -291,37 +291,21 @@ extension BackupRestoreRun {
     /// the same row (same `id`, as when CloudKit brings back the original) is
     /// kept, never folded, and reads take the newest. A row the store already
     /// holds with a newer `modifiedAt` (a rename since the backup) is left as
-    /// it is: a restore must not put an old name back over a new one, which
-    /// would then go to every device as the newest. A Replace restore doesn't
-    /// clear these rows first, so it keeps a rename too
+    /// it is (`rows` leaves it out): a restore must not put an old name back
+    /// over a new one, which would then go to every device as the newest. A
+    /// Replace restore doesn't clear these rows first, and leaves them out
+    /// too, so it keeps a rename as well
     /// (`BackupEntityRegistry.mergedOnReplaceEntityNames`).
     func importV38Entities() throws {
         let viewContext = context
         let index = self.index
 
         if let people = try rows(\.classroomPeople) {
-            let renamedSince = Self.rowsOlderThanStored(people) { try index.existing(CDClassroomPerson.self, id: $0) }
             BackupEntityImporter.importRows(
-                people.filter { !renamedSince.contains($0.id) }, as: CDClassroomPerson.self, into: viewContext,
+                people, as: CDClassroomPerson.self, into: viewContext,
                 existing: { try index.existing(CDClassroomPerson.self, id: $0) }
             )
         }
-    }
-
-    /// The ids of `rows` whose record the store already holds with a newer
-    /// `modifiedAt` than the row's (or the row has none). A Replace restore
-    /// finds them as a Merge does: it leaves these rows in place.
-    static func rowsOlderThanStored(
-        _ rows: [ClassroomPersonDTO],
-        existing: (UUID) throws -> CDClassroomPerson?
-    ) -> Set<UUID> {
-        var older = Set<UUID>()
-        for row in rows {
-            guard let stored = try? existing(row.id), let storedAt = stored.modifiedAt else { continue }
-            let restoredAt: Date? = if case .date(let date) = row.values["modifiedAt"] { date } else { nil }
-            if restoredAt.map({ storedAt > $0 }) ?? true { older.insert(row.id) }
-        }
-        return older
     }
 }
 

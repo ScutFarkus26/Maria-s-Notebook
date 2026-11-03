@@ -22,9 +22,9 @@ struct AssistantSendingFix1020RoundB {
         #expect(stuck.contains("Quit the app and open it again, then leave"))
         #expect(!stuck.contains("in a minute"))
         let note = AssistantBootstrapper.afterWaitNote
-        #expect(note(true, true) == "Your marks aren't sending. Quit the app and open it again, then leave.")
-        #expect(note(true, false).contains("Check that this iPhone is online"))
-        #expect(note(false, true) == "Your marks have reached your guide. You can leave now.")
+        #expect(note(true, true, nil) == "Your marks aren't sending. Quit the app and open it again, then leave.")
+        #expect(note(true, false, nil).contains("Check that this iPhone is online"))
+        #expect(note(false, true, nil) == "Your marks have reached your guide. You can leave now.")
     }
 
     @Test("Wait doesn't spin while a share call is stuck past the watchdog")
@@ -164,7 +164,8 @@ struct AssistantSendingFix1020RoundB {
         let stack = try AssistantTestSupport.makeStack()
         let record = AssistantSyncRecord(viewContext: stack.viewContext, defaults: AssistantTestSupport.makeDefaults())
         let keepAlive = UnsentChangesKeepAlive(viewContext: stack.viewContext)
-        let unsent = AssistantBootstrapper.unsentMarksNow(waitingForShare:keepAlive:syncRecord:)
+        let unsentByKind = AssistantBootstrapper.unsentMarksNow(waitingForShare:otherChanges:keepAlive:syncRecord:)
+        let unsent = { unsentByKind($0, 0, $1, $2) }
         #expect(unsent(0, keepAlive, record) == nil)
         #expect(unsent(2, keepAlive, record) == .counted(2))
 

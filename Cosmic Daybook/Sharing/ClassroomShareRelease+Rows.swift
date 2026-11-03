@@ -42,7 +42,7 @@ nonisolated extension ClassroomShareRelease {
             return Row(
                 objectID: id, entity: facts.entity, recordID: facts.recordID,
                 studentKey: facts.studentKey, isShared: zone != nil, belongs: facts.belongs,
-                backupGap: facts.backupGap
+                backupGap: facts.backupGap, datedThisYear: facts.datedThisYear
             )
         }
     }
@@ -54,6 +54,7 @@ nonisolated extension ClassroomShareRelease {
         let studentKey: String
         let belongs: Bool
         let backupGap: BackupGap?
+        let datedThisYear: Bool
 
         init(_ object: NSManagedObject, belonging: Set<String>, scope: ClassroomShareScope) {
             entity = object.entity.name ?? ""
@@ -62,11 +63,13 @@ nonisolated extension ClassroomShareRelease {
                 studentKey = ClassroomShareScope.normalizedID(recordID?.uuidString ?? "")
                 belongs = belonging.contains(studentKey)
                 backupGap = recordID == nil ? .noID : nil
+                datedThisYear = false
             } else {
                 let studentID = object.value(forKey: "studentID") as? String ?? ""
                 let date = object.value(forKey: "date") as? Date
                 studentKey = ClassroomShareScope.normalizedID(studentID)
                 belongs = scope.attendanceBelongs(date: date, studentID: studentID, belongingStudentIDs: belonging)
+                datedThisYear = scope.isThisYear(date)
                 // The same tests as the backup's own (`BackupServiceHelpers.toDTOs`).
                 if recordID == nil {
                     backupGap = .noID

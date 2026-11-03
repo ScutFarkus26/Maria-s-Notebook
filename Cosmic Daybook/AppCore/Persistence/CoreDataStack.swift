@@ -268,6 +268,7 @@ final class CoreDataStack {
         // that the (possibly migrated) stores are open.
         if !inMemory {
             restampSchemaVersion(in: container, writingToDisk: surgeryAllowed)
+            if surgeryAllowed { removeCopiesLeftBehind(by: container, opensAppStores: opensAppStores) }
         }
 
         #if DEBUG

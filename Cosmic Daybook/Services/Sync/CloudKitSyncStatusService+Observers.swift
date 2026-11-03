@@ -1,6 +1,11 @@
 import Foundation
 import CoreData
 import OSLog
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 // MARK: - Observer Setup
 
@@ -99,8 +104,39 @@ extension CloudKitSyncStatusService {
     func stopObserving() {
         Task { [weak self] in
             self?.removeAllObservers()
-            self?.cloudKitEventTask?.cancel()
-            self?.cloudKitEventTask = nil
+            self?.stopCloudKitEventStream()
+        }
+    }
+
+    // MARK: - Background and quit
+
+    /// Writes what waits to be written when the app backgrounds or quits: the
+    /// sync date, so the next launch reads what write-through would have left,
+    /// and Sync History's last rows, which wait a second after the latest; a
+    /// "sync stopped" row logged just before quitting is the one the guide
+    /// would open Sync History for (bug hunt 2026-11-02, #28).
+    func flushForBackgroundOrQuit(eventLogger: SyncEventLogger = .shared) {
+        flushPersistedSyncDate()
+        eventLogger.flushPendingSave()
+    }
+
+    /// Flushes the pending date and history rows when the app backgrounds or quits.
+    func observeLifecycleForSyncDateFlush() {
+        #if os(iOS)
+        let names: [Notification.Name] = [
+            UIApplication.didEnterBackgroundNotification, UIApplication.willTerminateNotification
+        ]
+        #elseif os(macOS)
+        let names: [Notification.Name] = [
+            NSApplication.willResignActiveNotification, NSApplication.willTerminateNotification
+        ]
+        #else
+        let names: [Notification.Name] = []
+        #endif
+        lifecycleObservers = names.map { name in
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.flushForBackgroundOrQuit() }
+            }
         }
     }
 }

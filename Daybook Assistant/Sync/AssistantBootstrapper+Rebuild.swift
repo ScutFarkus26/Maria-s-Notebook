@@ -1,6 +1,7 @@
 import Foundation
 import CloudKit
 import OSLog
+import UIKit
 
 // Rebuilding the stack without losing what's under way (bug hunt 2026-10-20):
 // a join running on the old stack (#8), the screen she's on (#22), and the
@@ -88,6 +89,24 @@ extension AssistantBootstrapper {
         if case .starting = phase { true } else { false }
     }
 
+    /// How long the screens have to let go of the old stack's objects
+    /// before its stores come off.
+    nonisolated static let screensLetGo: Duration = .milliseconds(300)
+
+    func letScreensGo() async {
+        try? await Task.sleep(for: Self.screensLetGo)
+    }
+
+    /// Whether any window of the app shows a sheet or other presented
+    /// screen: a rebuild for a stall waits rather than take it down
+    /// (`sendStalled`, bug hunt 2026-11-02 #42).
+    static func anySheetIsUp() -> Bool {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .contains { $0.rootViewController?.presentedViewController != nil }
+    }
+
     /// Whether the Sample Class opens again after a relaunch or a rebuild:
     /// only on the join screen, and not while a join runs, whose progress
     /// the join screen shows (bug hunt 2026-10-20 #21).
@@ -98,13 +117,20 @@ extension AssistantBootstrapper {
     // MARK: - The class store's failed setup
 
     /// Follows the open stack's filing hold for a setup that failed without
-    /// a usable account, including one that failed before this listened.
-    func followFailedSetup() {
+    /// a usable account, and for a mirroring delegate that died, including
+    /// either before this listened. A dead delegate is a mirroring stop on
+    /// `stack` (bug hunt 2026-11-02 #5): the hold alone waited for good.
+    func followFailedSetup(on stack: CoreDataStack) {
         guard let hold = stacks.filingHold() else { return }
         hold.onSetupFailedForAccount = { [weak self] in
             Task { await self?.rebuildIfSetupFailed() }
         }
+        hold.onMirroringDied = { [weak self, weak container = stack.container] in
+            guard let self, let container else { return }
+            mirroringStopped(in: container)
+        }
         if hold.setupFailedForAccount { Task { await rebuildIfSetupFailed() } }
+        if hold.mirroringDied { mirroringStopped(in: stack.container) }
     }
 
     /// The class store's setup failed without an account, and the account

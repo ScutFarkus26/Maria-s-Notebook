@@ -70,16 +70,26 @@ extension ClassroomSharingService {
     }
 
     /// Whether this notebook leads a class of its own, so it can't join one
-    /// invited as `participantRole`: its row is a lead guide's, and the
-    /// invitation isn't to its own share. Joined anyway, the class came in
-    /// beside the guide's own and the row it pinned was an assistant's, which
-    /// the notebook never reads over a lead guide's
+    /// invited as `participantRole`: its row is a lead guide's, or its own
+    /// store holds children, and the invitation isn't to its own share. Joined
+    /// anyway, the class came in beside the guide's own and the row it pinned
+    /// was an assistant's, which the notebook never reads over a lead guide's
     /// (`CDClassroomMembership.current`), so Leave did nothing (bug hunt
-    /// 2026-10-29). The Daybook Assistant reads assistant rows only and
-    /// never refuses here.
+    /// 2026-10-29). A notebook never shared has no row at all: it joined, and
+    /// every mark she then took for her own children went into the other
+    /// guide's class, for Leave to delete (bug hunt 2026-11-02, #8). The
+    /// Daybook Assistant reads assistant rows only and never refuses here.
     func leadsItsOwnClass(invitedAs participantRole: CKShare.ParticipantRole) -> Bool {
         guard participantRole != .owner else { return false }
-        return CDClassroomMembership.current(in: context)?.role == .leadGuide
+        #if ASSISTANT_APP
+        return false
+        #else
+        if CDClassroomMembership.current(in: context)?.role == .leadGuide { return true }
+        let ownStore = container.persistentStoreCoordinator.persistentStores.first {
+            $0.configurationName == CoreDataStack.privateConfiguration
+        }
+        return ownStore.map { Self.holdsClassroom($0, in: context) } ?? false
+        #endif
     }
 
     /// Whether the invitation's owner is another guide than the pinned one.

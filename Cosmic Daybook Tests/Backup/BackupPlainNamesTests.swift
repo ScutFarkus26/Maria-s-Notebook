@@ -24,8 +24,8 @@ struct BackupPlainNamesTests {
     @Test("Every type the restore preview lists has a plain name, in both modes")
     func everyPreviewTypeHasAName() throws {
         let context = try CoreDataTestHelpers.makeContext()
-        // Merge lists the types it compares one by one (18 today); replace, every backed-up type.
-        for (mode, atLeast) in [(BackupService.RestoreMode.merge, 18), (.replace, 70)] {
+        // Both list every backed-up type (Merge listed 18 until 2026-11-02).
+        for (mode, atLeast) in [(BackupService.RestoreMode.merge, 70), (.replace, 70)] {
             let analysis = BackupPreviewAnalyzer.analyze(
                 digest: BackupPreviewDigest(), viewContext: context, mode: mode,
                 formatVersion: BackupWriter.formatVersion, entityExists: { _, _ in false }
@@ -143,13 +143,45 @@ struct BackupPlainNamesTests {
 
     // MARK: - The finished backup's note
 
-    @Test("A finished backup's photo note is information, in plain words")
+    // Bug hunt 2026-11-02 #13: the note gave only the photos that went in, so
+    // 12 of 52 read as all of them, and named files the guide doesn't call so.
+    @Test("A finished backup's photo note is information, in plain words, and counts what was left out")
     func photoNote() {
-        #expect(BackupWriter.photoNote(includesPhotos: true, photoCount: 1)
-            == "Includes 1 note photo. Imported documents and file attachments aren't in backups.")
-        #expect(BackupWriter.photoNote(includesPhotos: true, photoCount: 12)
-            == "Includes 12 note photos. Imported documents and file attachments aren't in backups.")
-        #expect(BackupWriter.photoNote(includesPhotos: false, photoCount: 0)
-            == "Note photos, imported documents and file attachments aren't in this backup.")
+        let files = "Lesson files, documents and story PDFs aren't in backups."
+        #expect(BackupWriter.photoNote(includesPhotos: true, photoCount: 1, referencedCount: 1)
+            == "Includes 1 note photo. \(files)")
+        #expect(BackupWriter.photoNote(includesPhotos: true, photoCount: 12, referencedCount: 12)
+            == "Includes 12 note photos. \(files)")
+        #expect(BackupWriter.photoNote(includesPhotos: true, photoCount: 12, referencedCount: 52)
+            == "Includes 12 of 52 note photos. The other 40 aren't on this device, so they're left out. \(files)")
+        #expect(BackupWriter.photoNote(includesPhotos: true, photoCount: 1, referencedCount: 2)
+            == "Includes 1 of 2 note photos. The other one isn't on this device, so it's left out. \(files)")
+        #expect(BackupWriter.photoNote(includesPhotos: true, photoCount: 0, referencedCount: 0)
+            == "There are no note photos to include. \(files)")
+        #expect(BackupWriter.photoNote(includesPhotos: false, photoCount: 0, referencedCount: 52)
+            == "Note photos aren't in this backup. \(files)")
+    }
+
+    @Test("Back Up Now's banner gives the file, the notes, and a warning during a first download")
+    func savedBanner() {
+        let note = BackupWriter.photoNote(includesPhotos: true, photoCount: 12, referencedCount: 52)
+        #expect(SettingsViewModel.savedText(fileName: "Backup.mtbbackup", notes: [note], firstDownloadPending: false)
+            == "Saved backup as Backup.mtbbackup. \(note)")
+        #expect(SettingsViewModel.savedText(fileName: "Backup.mtbbackup", notes: [note], firstDownloadPending: true)
+            == "Saved backup as Backup.mtbbackup. \(note) \(AutoBackupManager.firstDownloadWarning)")
+    }
+
+    @Test("The Overview's Back Up Now gives the same first-download warning, for a Partial- file")
+    func overviewBackUpNowWarns() {
+        let saved = "Backed up just now. The copy is in your backup folder."
+        #expect(SettingsDashboardViewModel.succeededText(partial: false) == saved)
+        #expect(SettingsDashboardViewModel.succeededText(partial: true)
+            == "\(saved) \(AutoBackupManager.firstDownloadWarning)")
+        // The Overview judges by the file it got back, which a first download names Partial-.
+        let name = AutoBackupManager.fileNamePrefix("ManualBackup", firstDownloadPending: true) + "-2026-11-03"
+        #expect(AutoBackupFolders.isPartial(name))
+        #expect(!AutoBackupFolders.isPartial(
+            AutoBackupManager.fileNamePrefix("ManualBackup", firstDownloadPending: false) + "-2026-11-03"
+        ))
     }
 }

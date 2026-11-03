@@ -1,6 +1,6 @@
 # Sharing to-dos with Tide
 
-**Last Updated:** 2026-10-19 (plan "Simplify the app", Phase 10, and its review fixes)
+**Last Updated:** 2026-11-03 (bug hunt 2026-11-02, findings 3, 11 and 46 to 51: edits go to Tide, ticks outlive clearing)
 
 The notebook's to-dos and Danny's classroom to-dos in Tide are one list: every open notebook to-do goes to Tide except the automatic work check-ins and Someday ones, the to-dos in the Tide lists he picks show in the notebook, and a tick on either side ticks the other. Code: `Services/Tide/`; Settings › Connections › Tide (`Settings/Sync/TideSyncSettingsView.swift`).
 
@@ -50,14 +50,15 @@ Per linked to-do the sync remembers only whether both apps last agreed it was op
 "Gone" is ticked, dropped, deleted or moved out of the area's lists; all four close the copy, judged only for the lists the sharing covers (the picked ones and the one new to-dos go to). An action moved in Tide to a list the notebook doesn't show is still found by its line: the copy stays open with its new address. A list Danny unpicks, or one gone from Tide, leaves its to-dos alone. A to-do whose state was lost (restored from a backup, say) is never ticked on either side.
 
 - **Sent**: open, no link, no linked work, not Someday, not refused before with the same title. Subtasks, Someday, repeats and linked work don't travel; a notebook repeat's next occurrence goes as a new action. A due date goes only when it is today or later (Tide refuses a past one); a day the to-do is planned for after today goes as Tide's `start`, so it waits out of Next Actions until then, as it waits in Upcoming here.
-- **Shown**: open actions of the picked lists that no to-do holds and that didn't come from the notebook. Title, note and due date are copied; afterwards the to-do follows Tide's words and due date (`TideSyncState.fromTide`), and a note or children added here stay.
-- **Wording**: once sent, Tide keeps the wording; a title edit here doesn't travel (said in the to-do's editor). A first-run match keeps the notebook's own words, note and date.
+- **Shown**: open actions of the picked lists that no to-do holds and that didn't come from the notebook. Title, note and due date are copied; a later start in Tide plans it for that day here rather than showing it due now. Afterwards a reword or due date changed in Tide comes here (`TideSyncState.fromTide`), a new title or due date made here goes to Tide (see Wording), and a note or children added here stay.
+- **Wording**: for a to-do **sent from here**, Tide keeps the wording; a title edit here doesn't travel (the editor says so). For a to-do **made in Tide** (since 2026-11-03, `TideSyncEngine+Edits`), edits go to Tide: a new title goes across by `update_action`, and a due date set here goes across too when Tide hasn't changed it meanwhile (`TideSyncState.agreedDue` remembers the date both last agreed on; a change in Tide comes here and wins over one made here since). Tide takes only a due date of today or later: a past one stays here and is said once; a change Tide refuses stays here and is reported ("Tide wouldn't take the change to …"). Edits held back are remembered for the session only. Before 2026-11-03 every edit here to such a to-do was undone on the next run. A first-run match keeps the notebook's own words, note and date.
 - **First run**: until Danny confirms, a run only reads and proposes word matches (`TideWordMatch`) between open notebook to-dos and unfinished Tide actions (open, waiting or someday) in the shared lists. A work check-in can be matched: it is linked, never sent, and its tick goes across both ways. Nothing is linked, sent or shown until Link and Start. The matched to-dos are kept in `Tide.firstRunLinked`.
 
 ## Refusals
 
 - **Can't be aimed**: Tide names an action by its words, among every row of its list, ticked ones included (`MCPQueue.namedAction`, exact match, else a unique close one), and only `delete_action` takes a position as well. So a tick of an action whose words appear twice in its list (a weekly to-do sent each week, say) is refused as ambiguous. The sync asks again every run and says so plainly ("Tide can't tell which … to tick off … Tick it off in Tide"); once Danny ticks it there, the copy here is already closed and the sync stops asking. A positional `complete_action` in Tide would fix it ([Tide row](tide://box/Areas/App%20Development/Tide/To%20do.md?text=Let%20Tide%27s%20complete_action%20take%20a%20position%20and%20revision%2C%20as%20delete_action%20does%2C%20so%20Cosmic%20Daybook%20can%20tick%20an%20action%20whose%20words%20appear%20twice%20in%20its%20list)).
-- **Passing by**: "isn't in Tide's store yet" and "Tide is still opening" are tried again next run, never reported as Tide not taking a to-do.
+- **Ticks outlive clearing (2026-11-03):** a to-do ticked here while both apps last agreed it was open is remembered with its link (`TideSyncState.pendingTicks`), so Clear Completed or a delete before the Mac told Tide still ticks its action; the entry goes once the tick has gone across. A tick and a delete arriving together from another device can't be recovered without a model change. A repeat ticked on both sides rolls once, not twice.
+- **Passing by**: "isn't in Tide's store yet" and "Tide is still opening" are tried again next run, never reported as Tide not taking a to-do. "Tide is still opening" asks again after the usual change wait, not the 3-minute timer (2026-11-03). While Low Power Mode or heat pauses the sync, the status says "Paused while this Mac saves energy", not "Up to date"; Sync Now still shares.
 - **The heading gone**: the saved heading isn't checked against the read (it shows only headings that hold an unfinished action). Tide refuses a heading the list doesn't have, and the status says "The heading … isn't in Tide's … list any more. Pick another in Settings."; sending resumes once one is picked.
 - **Anything else** a send meets is named in the status ("Tide wouldn't take …"), with Tide's words under Details, and not sent again until its title changes.
 - A stale revision stops the sending for the run; the next run reads again. Never retried blindly.
@@ -69,7 +70,7 @@ Two CloudKit copies of a to-do with the same id: the sync uses the linked one, a
 ## Screens
 
 - Todos: a "From Tide" section in the sidebar, one row per Tide list.
-- A child's page: open shared to-dos that name her (`TideNameMatcher`: full name, the short "Maya S" form, or a first name no other child has; two Ettys make "Etty" name nobody) or list her as a child.
+- A child's page: open shared to-dos that name her (`TideNameMatcher`: full name or the short "Maya S" form anywhere; a first name no other child has only where it is written with a capital, and one that is also an everyday word (Mark, May, Will, Grace, Rose) only on a "For …" line; two Ettys make "Etty" name nobody) or list her as a child.
 - Today: no change; a Tide to-do with a due date shows with the rest by the Todos screen's own Today rule.
 
 ## Not checked by an agent

@@ -5,9 +5,10 @@ import CoreData
 import SwiftUI
 
 /// The open to-dos shared with Tide that name this child, by her full name,
-/// her short form ("Maya S") or her first name when no other child has it
-/// (`TideNameMatcher`), or that list her among their children. Hidden when
-/// there are none.
+/// her short form ("Maya S") or her first name when no other child has it,
+/// written with a capital, and on a "For …" line when it is also an everyday
+/// word like Mark or May (`TideNameMatcher`), or that list her among their
+/// children. Hidden when there are none.
 struct StudentTideTodosSection: View {
     let student: CDStudent
 

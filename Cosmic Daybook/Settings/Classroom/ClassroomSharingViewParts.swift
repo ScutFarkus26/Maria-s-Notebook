@@ -38,6 +38,84 @@ struct ClassroomShareBanner: View {
     }
 }
 
+/// The top of the Classroom pane: the state of the classroom share for the
+/// lead guide, in plain words. The "not in the share" count is read-only: it
+/// shows drift, it never fixes it.
+struct ClassroomShareStatusCard: View {
+    let service: ClassroomSharingService?
+    let contents: ClassroomShareContents?
+
+    @ViewBuilder
+    var body: some View {
+        if service?.currentRole == .leadGuide {
+            if service?.isSharing != true {
+                if FirstDownloadGate.isPending() {
+                    ClassroomShareBanner(
+                        icon: "icloud.and.arrow.down",
+                        tint: .secondary,
+                        title: "Still downloading from iCloud",
+                        message: "Classroom sharing can be set up once the notebook has finished downloading."
+                    )
+                } else {
+                    ClassroomShareBanner(
+                        icon: "person.2.slash",
+                        tint: .secondary,
+                        title: "Not shared yet",
+                        message: Self.notSharedMessage
+                    )
+                }
+            } else if let contents {
+                if contents.outside > 0 {
+                    ClassroomShareBanner(
+                        icon: "exclamationmark.triangle.fill",
+                        tint: AppColors.warning,
+                        title: Self.outsideTitle(contents.outside),
+                        message: Self.outsideMessage(contents)
+                    )
+                } else {
+                    ClassroomShareBanner(
+                        icon: "checkmark.circle.fill",
+                        tint: AppColors.success,
+                        title: "Classroom shared",
+                        message: "The share holds \(contents.summary)."
+                    )
+                }
+            }
+        }
+    }
+
+    private static func outsideTitle(_ count: Int) -> String {
+        count == 1
+            ? "1 classroom item isn't shared with your assistant yet"
+            : "\(count.formatted()) classroom items aren't shared with your assistant yet"
+    }
+
+    /// What the share holds, then which of them can't be added (in an old
+    /// share, bug hunt 2026-11-02, #32) and, on iPhone and iPad, where the
+    /// rest are added.
+    private static func outsideMessage(_ contents: ClassroomShareContents) -> String {
+        var message = "Your assistant can't see them. The share holds \(contents.summary)."
+        if let elsewhere = contents.inOtherShareLine { message += " " + elsewhere }
+        #if !os(macOS)
+        if contents.addable > 0 {
+            message += contents.inOtherShare > 0 ? " Add the rest" : " Add them"
+            message += " on your Mac, in Settings › Classroom."
+        }
+        #endif
+        return message
+    }
+
+    /// Setting up is on the Mac only: two devices setting up at once made two
+    /// share zones (bug hunt 2026-11-02, #30).
+    #if os(macOS)
+    private static let notSharedMessage = "Set up classroom sharing once, here on your Mac, to give an assistant "
+        + "your class list, attendance and school calendar."
+    #else
+    private static let notSharedMessage = "Set up classroom sharing on your Mac, in Settings › Classroom, to give "
+        + "an assistant your class list, attendance and school calendar."
+    #endif
+}
+
 /// One person in the classroom share: who, their role and whether they've
 /// joined, and what they're allowed to do.
 struct ClassroomParticipantRow: View {
@@ -99,7 +177,8 @@ struct ClassroomParticipantRow: View {
         return "\(role) · \(status)"
     }
 
-    /// The same two words the Mac's Manage Sharing sheet offers.
+    /// The words the Manage Sharing sheet shows. It adds everyone as "Can
+    /// make changes"; "View only" is someone added that way before 2026-11.
     private var permission: String {
         switch participant.permission {
         case .readWrite: return "Can make changes"

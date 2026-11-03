@@ -15,6 +15,12 @@ protocol BackupRestoreSource: AnyObject {
     var envelope: BackupEnvelope { get }
     /// The settings the backup carries.
     var preferences: PreferencesDTO { get }
+    /// The types whose entry is in the backup but couldn't be read (every row
+    /// of it skipped, with a warning). The backup says nothing about them, so a
+    /// Replace leaves them as they are, and won't run without a required one.
+    /// A type with no entry at all is one the notebook had none of: the
+    /// archive carries only non-empty entries.
+    var skippedEntityNames: Set<String> { get }
 
     /// A payload whose `entity` field holds that type's rows, deduplicated.
     /// The restore reads nothing else from it.
@@ -31,11 +37,16 @@ protocol BackupRestoreSource: AnyObject {
 final class BackupPayloadSource: BackupRestoreSource {
     let envelope: BackupEnvelope
     let preferences: PreferencesDTO
+    let skippedEntityNames: Set<String>
     private var payload: BackupPayload
 
-    init(_ payload: BackupPayload, envelope: BackupEnvelope) {
+    /// - Parameter skipped: the archive entries that didn't decode
+    ///   (`BackupImporter.DecodedArchive.skippedEntityNames`); none for a
+    ///   payload built in memory.
+    init(_ payload: BackupPayload, envelope: BackupEnvelope, skipped: Set<String> = []) {
         self.payload = payload
         self.envelope = envelope
+        skippedEntityNames = skipped
         preferences = payload.preferences
     }
 
@@ -55,10 +66,21 @@ final class BackupPayloadSource: BackupRestoreSource {
 /// queue, and nothing may suspend between a restore's clear and its save.
 final class BackupRestoreRun {
     let context: NSManagedObjectContext
+    let mode: BackupService.RestoreMode
     /// One fetch per entity type, built lazily, so a type sees the parents
     /// imported before it in this same restore.
     let index: BackupEntityIndex
     private let source: any BackupRestoreSource
+
+    /// For each classroom-share type a Replace updates in place, the ids of
+    /// the backup's rows: what stays once the import is done
+    /// (`BackupService.deleteSharedRecordsTheBackupLacks`).
+    private(set) var sharedIDsInBackup: [String: Set<UUID>] = [:]
+
+    /// The notes a Merge left as they are here, changed since the backup
+    /// (`keepingNewer`): the backup's links to children for them are left
+    /// too, or a note would show under a child it no longer names.
+    private(set) var keptNoteIDs = Set<UUID>()
 
     /// The links of every restored note that has any, rewired once every type
     /// they point at is in (`BackupEntityImporter.relinkNoteRelationships`).
@@ -75,9 +97,10 @@ final class BackupRestoreRun {
     /// summary: reminders aren't restored, so those links stay off.
     var notesMissingTheirReminder = 0
 
-    init(source: any BackupRestoreSource, context: NSManagedObjectContext) {
+    init(source: any BackupRestoreSource, context: NSManagedObjectContext, mode: BackupService.RestoreMode) {
         self.source = source
         self.context = context
+        self.mode = mode
         index = BackupEntityIndex(
             context: context,
             formatVersion: source.envelope.formatVersion,
@@ -97,15 +120,68 @@ final class BackupRestoreRun {
         }
     }
 
-    /// The rows of the type stored in `field`, deduplicated.
-    func rows<DTO>(_ field: WritableKeyPath<BackupPayload, [DTO]>) throws -> [DTO] {
-        try source.rows(of: importing(field))[keyPath: field]
+    /// The rows of the type stored in `field`, deduplicated, less those the
+    /// restore leaves to the newer record already here (`keepingNewer`).
+    func rows<DTO: BackupRowDTO>(_ field: WritableKeyPath<BackupPayload, [DTO]>) throws -> [DTO] {
+        let entity = try importing(field)
+        return try keepingNewer(source.rows(of: entity)[keyPath: field], of: entity)
     }
 
-    /// The rows of the later-format type stored in `field`, deduplicated; nil
-    /// when the backup has no entry for it (or none that decodes).
-    func rows<DTO>(_ field: WritableKeyPath<BackupPayload, [DTO]?>) throws -> [DTO]? {
-        try source.rows(of: importing(field))[keyPath: field]
+    /// The rows of the later-format type stored in `field`, deduplicated, less
+    /// those the restore leaves to the newer record already here; nil when the
+    /// backup has no entry for it (or none that decodes).
+    func rows<DTO: BackupRowDTO>(_ field: WritableKeyPath<BackupPayload, [DTO]?>) throws -> [DTO]? {
+        let entity = try importing(field)
+        guard let rows = try source.rows(of: entity)[keyPath: field] else {
+            noteSharedIDs([DTO](), of: entity)
+            return nil
+        }
+        return try keepingNewer(rows, of: entity)
+    }
+
+    /// `rows` less each one whose record is already here and changed since
+    /// (`BackupMergeRule.keepsStored`): a Merge adds what's missing and never
+    /// rewinds a record changed since the backup (bug hunt 2026-11-02, #1),
+    /// nor reopens a to-do done since. A row or record with no change date
+    /// (a type without one, an older backup's row) is taken, as a Merge
+    /// always took every row. A Replace takes every row, but for the types
+    /// it updates as a Merge does (the names people set,
+    /// `BackupEntityRegistry.mergedOnReplaceEntityNames`), where a name here
+    /// with a date also stands against a backup row with none, as it has
+    /// since 2026-10-29.
+    private func keepingNewer<DTO: BackupRowDTO>(_ rows: [DTO], of entity: BackupEntity) throws -> [DTO] {
+        noteSharedIDs(rows, of: entity)
+        let isName = BackupEntityRegistry.mergedOnReplaceEntityNames.contains(entity.name)
+        guard mode == .merge || isName else { return rows }
+        let type = entity.managedType()
+        var taken: [DTO] = []
+        taken.reserveCapacity(rows.count)
+        for row in rows {
+            if let stored = try index.storedStamp(type, id: row.id),
+               BackupMergeRule.keepsStored(
+                   stored, rowChangedAt: row.rowModifiedAt, rowCompletedAt: row.rowCompletedAt,
+                   keepsDatedOverDateless: isName
+               ) {
+                if entity.name == "Note" { keptNoteIDs.insert(row.id) }
+                continue
+            }
+            taken.append(row)
+        }
+        return taken
+    }
+
+    /// Keeps the ids of a classroom-share type's rows for a Replace, which
+    /// updates those records in place and then deletes only the ones the
+    /// backup lacks (bug hunt 2026-11-02, #2). Not for a type the backup is
+    /// too old to hold, nor one whose entry it couldn't read: it says nothing
+    /// about those, and they stay as they are.
+    private func noteSharedIDs<DTO: BackupRowDTO>(_ rows: [DTO], of entity: BackupEntity) {
+        guard mode == .replace,
+              BackupEntityRegistry.updatedInPlaceOnReplaceEntityNames.contains(entity.name),
+              entity.isCarried(by: source.envelope.formatVersion),
+              !source.skippedEntityNames.contains(entity.name)
+        else { return }
+        sharedIDsInBackup[entity.name] = Set(rows.map(\.id))
     }
 
     /// The type stored in `field`, as its import begins ("import <Entity>" for

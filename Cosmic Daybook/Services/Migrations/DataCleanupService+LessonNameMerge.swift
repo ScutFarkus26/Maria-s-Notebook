@@ -332,23 +332,33 @@ nonisolated extension DataCleanupService {
     }
 
     /// A track that stepped through both copies keeps one step for the lesson.
+    /// The records that named the dropped step name the kept one instead, as
+    /// the track title merge does: they kept the dropped step's id until
+    /// 2026-11-02 (bug hunt 2026-11-02, #59), harmless only while every
+    /// reader also matched by lesson.
     private static func repointTrackSteps(from old: UUID, to new: UUID, in context: NSManagedObjectContext) {
         let request = CDFetchRequest(CDTrackStep.self)
         request.predicate = NSPredicate(format: "lessonTemplateID == %@", old as CVarArg)
-        let moved = context.safeFetch(request)
+        let moved = context.safeFetch(request).filter { !$0.isDeleted }
         guard !moved.isEmpty else { return }
 
         let existing = CDFetchRequest(CDTrackStep.self)
         existing.predicate = NSPredicate(format: "lessonTemplateID == %@", new as CVarArg)
-        let tracksAlreadyStepping = Set(context.safeFetch(existing).compactMap { $0.track?.objectID })
+        var keptByTrack: [NSManagedObjectID: CDTrackStep] = [:]
+        for step in context.safeFetch(existing) where !step.isDeleted {
+            if let trackID = step.track?.objectID, keptByTrack[trackID] == nil { keptByTrack[trackID] = step }
+        }
 
+        var remap: [String: String] = [:]
         for step in moved {
-            if let trackID = step.track?.objectID, tracksAlreadyStepping.contains(trackID) {
+            if let trackID = step.track?.objectID, let kept = keptByTrack[trackID] {
+                if let oldID = step.id?.uuidString, let newID = kept.id?.uuidString { remap[oldID] = newID }
                 context.delete(step)
             } else {
                 step.lessonTemplateID = new
             }
         }
+        repointTrackStepIDs(remap, in: context)
     }
 
     // MARK: - Helpers

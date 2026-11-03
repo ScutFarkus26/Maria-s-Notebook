@@ -1,9 +1,11 @@
 // RestockView+ShareBanner.swift
 // The lead guide's banner for Restock records her assistant can't see yet:
 // staples, needs or their history that belong in the classroom share and
-// aren't in it. Its button only opens Settings › Classroom, where "Add them
-// to the share" lives; the page never shares anything itself (sharing
-// already-shared records broke the Mac's export on 2026-09-28).
+// aren't in it. On the Mac its button only opens Settings › Classroom, where
+// "Add them to the share" lives; on iPhone and iPad it says to do that on the
+// Mac, the only place adding to the share runs (bug hunt 2026-11-02, #30).
+// The page never shares anything itself (sharing already-shared records
+// broke the Mac's export on 2026-09-28).
 
 import SwiftUI
 import CoreData
@@ -42,6 +44,15 @@ nonisolated struct RestockShareGap: Equatable, Sendable {
         }
         let isOne = things.count == 1 && staples + needs == 1
         return "\(things.joined(separator: " and ")) \(isOne ? "isn't" : "aren't") shared with your assistant yet."
+    }
+
+    /// Where she adds them: Settings › Classroom on the Mac (#30).
+    static var detail: String {
+        #if os(macOS)
+        "Your assistant can't see them. Add them to the share in Settings › Classroom."
+        #else
+        "Your assistant can't see them. Add them to the share on your Mac, in Settings › Classroom."
+        #endif
     }
 
     private static func count(_ number: Int, _ one: String, _ many: String) -> String {
@@ -84,7 +95,7 @@ extension RestockView {
             Text(title)
                 .font(.subheadline.weight(.semibold))
                 .fixedSize(horizontal: false, vertical: true)
-            Text("Your assistant can't see them. Add them to the share in Settings › Classroom.")
+            Text(RestockShareGap.detail)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -92,11 +103,15 @@ extension RestockView {
         .accessibilityElement(children: .combine)
     }
 
+    /// On the Mac only: Settings on iPhone and iPad can't add them (#30).
+    @ViewBuilder
     private var shareBannerButton: some View {
+        #if os(macOS)
         Button("Open Settings") { openClassroomSettings() }
             .buttonStyle(.bordered)
             .controlSize(.small)
             .help("Open Settings › Classroom, where you can add them to the share")
+        #endif
     }
 
     /// Reads which of Restock's records are missing from the share: once per
@@ -121,16 +136,13 @@ extension RestockView {
         shareGap = contents.map(RestockShareGap.init)
     }
 
-    /// Settings › Classroom: the Mac's Settings window, or the Settings page.
-    /// (On iPhone, Settings opens at its list; Classroom is one tap from there.)
+    #if os(macOS)
+    /// Settings › Classroom, in the Mac's Settings window.
     func openClassroomSettings() {
         UserDefaults.standard.set(
             SettingsCategory.classroom.rawValue, forKey: UserDefaultsKeys.settingsSelectedCategory
         )
-        #if os(macOS)
         openSettings()
-        #else
-        appRouter.navigateTo(.settings)
-        #endif
     }
+    #endif
 }

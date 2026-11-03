@@ -57,6 +57,19 @@ extension AssistantRestockModel {
         staple.isDeleted || staple.managedObjectContext == nil
     }
 
+    /// Where a staple's need sorts on the office run, by its level: Out
+    /// first, then Low, then the rest.
+    static func rank(of level: RestockLevel?) -> Int {
+        switch level {
+        case .out: 0
+        case .low: 1
+        case .stocked, nil: 2
+        }
+    }
+
+    /// The types Restock writes, all in the classroom share.
+    static let restockEntities: Set<String> = ["Supply", "SupplyTransaction", "OrderItem"]
+
     /// What "We need…" did.
     enum AddResult: Equatable {
         /// A new need on the office run or the order list.

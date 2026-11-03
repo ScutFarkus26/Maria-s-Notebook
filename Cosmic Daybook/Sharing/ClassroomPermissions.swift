@@ -17,6 +17,13 @@ import Foundation
 /// The actual store routing (private vs shared) is handled by CoreDataStack.
 enum ClassroomPermissions {
 
+    /// The guide added this device's account to the classroom share as View
+    /// only. Set by `ClassroomSharingService` from what Core Data and the
+    /// share say (`readPermission`), never guessed from a failed save. While
+    /// set, an assistant writes nothing: her marks saved on the phone and
+    /// never reached the guide (bug hunt 2026-11-02 #29).
+    static var shareIsViewOnly = false
+
     /// Whether the given role can write (create/update) the named entity.
     static func canWrite(
         entityName: String,
@@ -26,7 +33,7 @@ enum ClassroomPermissions {
         case .leadGuide:
             return true
         case .assistant:
-            return assistantWritableEntities.contains(entityName)
+            return !shareIsViewOnly && assistantWritableEntities.contains(entityName)
         }
     }
 

@@ -17,7 +17,6 @@ struct RestockView: View {
     @Environment(\.dependencies) var dependencies
     #if os(iOS)
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
-    @Environment(\.appRouter) var appRouter
     #else
     @Environment(\.openSettings) var openSettings
     #endif

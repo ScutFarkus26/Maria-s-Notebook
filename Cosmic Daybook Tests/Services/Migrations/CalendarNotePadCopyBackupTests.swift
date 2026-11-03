@@ -108,9 +108,11 @@ struct CalendarNotePadCopyBackupTests {
         defer { BackupTestUtil.cleanup(url) }
         try await BackupTestUtil.writeCurrentBackup(from: source, to: url)
 
-        // Into a notebook where she has since taken the line off: the backup's
-        // pad comes back with it (the restore's own doing), and the marked note
-        // adds nothing to it, then or after she takes it off again.
+        // Into a notebook where she has since taken the line off. The pad was
+        // changed after the backup, so a Merge keeps it as she left it (newer
+        // wins, bug hunt 2026-11-02 #1: until then the backup's pad came back
+        // with the line), and the marked note adds nothing to it, then or
+        // after she changes it again.
         let picturePad = try #require(try fixtures.pads(on: pictureDay, in: source).first)
         picturePad.setBody("Photos moved to 11/2")
         #expect(CoreDataTestHelpers.save(source))
@@ -118,10 +120,10 @@ struct CalendarNotePadCopyBackupTests {
         #expect(CalendarNotePadCopy.isCopied(try note(photos.id, in: source)))
         #expect(fixtures.copy(source) == CalendarNotePadCopy.Outcome())
         let padAfterRestore = try #require(try fixtures.pads(on: pictureDay, in: source).first)
-        #expect(padAfterRestore.body == "Picture day")
-        padAfterRestore.setBody("Photos moved to 11/2")
+        #expect(padAfterRestore.body == "Photos moved to 11/2")
+        padAfterRestore.setBody("Photos on 11/2")
         #expect(CoreDataTestHelpers.save(source))
         #expect(fixtures.copy(source) == CalendarNotePadCopy.Outcome())
-        #expect(padAfterRestore.body == "Photos moved to 11/2")
+        #expect(padAfterRestore.body == "Photos on 11/2")
     }
 }

@@ -38,14 +38,19 @@ extension MCPNotebookTools {
     }
 
     /// A failed backup is a tool error, not a receipt that reads like success.
+    /// One written while this device's first download from iCloud was under
+    /// way (its name starts `Partial-`) says it may be missing some of the
+    /// notebook: until 2026-11 it read like any other (bug hunt 2026-11-02 #14).
     static func backupReceipt(_ result: AutoBackupManager.BackupResult) throws -> String {
         switch result {
         case .success(let date, let url):
             let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64)
                 .map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) }
             let sizeText = size.map { " (\($0))" } ?? ""
-            return "Backup written \(dayString(date)) at \(timeString(date)): "
+            let receipt = "Backup written \(dayString(date)) at \(timeString(date)): "
                 + "[backup path=\(url.path)]\(sizeText)"
+            guard AutoBackupFolders.isPartial(url.lastPathComponent) else { return receipt }
+            return receipt + "\nWarning: " + AutoBackupManager.firstDownloadWarning
         case .failure(_, let error):
             throw MCPToolError("The backup could not be written", underlying: error)
         case .skippedNoChanges:

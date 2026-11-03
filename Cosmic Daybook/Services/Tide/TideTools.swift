@@ -22,19 +22,25 @@ nonisolated struct TideAction: Decodable, Equatable, Sendable {
     let state: String
     /// YYYY-MM-DD.
     let due: String?
+    /// YYYY-MM-DD: before this day it waits out of Next Actions.
+    let start: String?
+    /// Its repeat rule ("every week"), for one that rolls on when ticked.
+    let repeatRule: String?
     /// Sent by every reply except `list_actions`.
     let link: String?
     /// Its list's revision, which a positioned write needs.
     let revision: String
 
     private enum CodingKeys: String, CodingKey {
-        case action, note, file, heading, position, of, state, due, link, revision
+        case action, note, file, heading, position, of, state, due, start, link, revision
         case partOf = "part_of"
+        case repeatRule = "repeat"
     }
 
     init(
         action: String, note: String? = nil, file: String?, heading: String? = nil, partOf: String? = nil,
-        position: Int, of: Int, state: String = "open", due: String? = nil, link: String? = nil, revision: String
+        position: Int, of: Int, state: String = "open", due: String? = nil, start: String? = nil,
+        repeatRule: String? = nil, link: String? = nil, revision: String
     ) {
         self.action = action
         self.note = note
@@ -45,6 +51,8 @@ nonisolated struct TideAction: Decodable, Equatable, Sendable {
         self.of = of
         self.state = state
         self.due = due
+        self.start = start
+        self.repeatRule = repeatRule
         self.link = link
         self.revision = revision
     }
@@ -52,6 +60,8 @@ nonisolated struct TideAction: Decodable, Equatable, Sendable {
     /// Not ticked, not dropped: open, waiting on someone or parked someday.
     var isUnfinished: Bool { ["open", "waiting", "someday"].contains(state) }
     var isOpen: Bool { state == "open" }
+    /// A repeat: ticking it rolls its dates on rather than finishing it.
+    var repeats: Bool { !(repeatRule ?? "").isEmpty }
 
     /// This read's name for the row: two actions with the same words in one
     /// list share an address, so the sync tells them apart by where they sit.
@@ -232,6 +242,16 @@ struct TideTools {
         return try await call("update_action", arguments, as: TideWriteReply.self)
     }
 
+    /// Rewords the action with these words in `file` (`text`), sets its due
+    /// date or clears it (`due`, "" clears), or both; nil leaves a field as
+    /// it is. Tide refuses a due date newly set in the past.
+    func updateAction(file: String, action: String, text: String?, due: String?) async throws -> TideWriteReply {
+        var arguments: [String: JSONValue] = ["file": .string(file), "action": .string(action)]
+        if let text { arguments["text"] = .string(text) }
+        if let due { arguments["due"] = .string(due) }
+        return try await call("update_action", arguments, as: TideWriteReply.self)
+    }
+
     /// Ticks the action with these words in `file`.
     func completeAction(file: String, action: String) async throws -> TideWriteReply {
         try await call("complete_action", ["file": .string(file), "action": .string(action)], as: TideWriteReply.self)
@@ -239,6 +259,23 @@ struct TideTools {
 
     /// The actions of one list in one state, every file whether it feeds or not.
     func actions(inFile file: String, state: String, limit: Int) async throws -> [TideAction] {
+        try await listActions(inFile: file, state: state, limit: limit).rows
+    }
+
+    /// Whether `file` holds a ticked or dropped action with these words. A
+    /// reply cut short counts as yes: the sync then does what it did before
+    /// it could ask.
+    func hasClosedAction(inFile file: String, words: String) async throws -> Bool {
+        for state in ["done", "dropped"] {
+            let reply = try await listActions(inFile: file, state: state, limit: 500)
+            if reply.cut || reply.rows.contains(where: { $0.action == words }) { return true }
+        }
+        return false
+    }
+
+    private func listActions(
+        inFile file: String, state: String, limit: Int
+    ) async throws -> (rows: [TideAction], cut: Bool) {
         let arguments: [String: JSONValue] = [
             "file": .string(file), "state": .string(state), "feeds": .bool(false), "limit": .int(limit)
         ]
@@ -248,11 +285,12 @@ struct TideTools {
         guard let items = try? JSONDecoder().decode([JSONValue].self, from: Data(reply.text.utf8)) else {
             throw TideToolError.unreadable("list_actions reply wasn't an array")
         }
-        return items.compactMap { item in
+        let rows = items.compactMap { item -> TideAction? in
             guard item.objectValue?["truncated"] == nil,
                   let data = try? JSONEncoder().encode(item) else { return nil }
             return try? JSONDecoder().decode(TideAction.self, from: data)
         }
+        return (rows, items.contains { $0.objectValue?["truncated"] != nil })
     }
 
     private func call<T: Decodable>(

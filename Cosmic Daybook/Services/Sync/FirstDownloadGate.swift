@@ -18,11 +18,13 @@ import Synchronization
 /// The gate is armed when `CoreDataStack` loads without a private store file
 /// and CloudKit on, and it opens on the first import event for the private
 /// store that finishes successfully — an import event ends only once
-/// everything it fetched is in the store — or straight away when no iCloud
-/// account is signed in, since then nothing will download. It is persisted, so
-/// a relaunch mid-download stays held. While it is armed: zone repair
-/// (automatic and manual) and the orphan guard do nothing, and the template
-/// seeder waits.
+/// everything it fetched is in the store. With no iCloud account signed in
+/// (asked twice, a minute or an account change apart) nothing will download,
+/// so it is lifted for the session, and the lift is taken back if an account
+/// signs in. It is persisted, so a relaunch mid-download stays held. While it
+/// is pending: zone repair (automatic and manual) and the orphan guard do
+/// nothing, and the template seeder waits; while it is armed, lifted or not,
+/// the one-time launch repairs wait (`isArmed`).
 nonisolated enum FirstDownloadGate {
 
     static let key = UserDefaultsKeys.firstDownloadPending
@@ -31,23 +33,29 @@ nonisolated enum FirstDownloadGate {
 
     /// True while the first download into a fresh private store is still under way.
     static func isPending(defaults: UserDefaults = .standard) -> Bool {
-        defaults.bool(forKey: key) && !liftedForSession.withLock { $0 }
+        isPending(defaults: defaults, liftedForSession: isLiftedForSession)
+    }
+
+    /// `isPending` with the session's lift given: the tests' way to ask,
+    /// since the real lift is the whole process's.
+    static func isPending(defaults: UserDefaults, liftedForSession lifted: Bool) -> Bool {
+        defaults.bool(forKey: key) && !lifted
+    }
+
+    /// True while the gate is armed, whether or not this session lifted it.
+    /// The one-time launch repairs ask this, not `isPending`: one that ran on
+    /// the empty store of a session lifted for want of an account marked
+    /// itself done, and never ran on the notebook once it had downloaded
+    /// (bug hunt 2026-11-02, #58). Lifting is right for what runs again
+    /// (zone repair, the template seed), not for "done once" flags.
+    static func isArmed(defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: key)
     }
 
     private static let liftedForSession = Mutex(false)
 
     /// When the gate was armed; nil for one armed by an older build.
     static var armedAtKey: String { key + ".armedAt" }
-
-    /// Whether the gate was armed within `interval`. A first download that
-    /// never finishes (imports refused) mustn't hold back what only waits
-    /// politely, like automatic backups, for days.
-    static func armedRecently(within interval: TimeInterval, now: Date = Date(),
-                              defaults: UserDefaults = .standard) -> Bool {
-        guard defaults.object(forKey: armedAtKey) != nil else { return false }
-        let armed = Date(timeIntervalSinceReferenceDate: defaults.double(forKey: armedAtKey))
-        return now.timeIntervalSince(armed) < interval
-    }
 
     /// Lets maintenance run for the rest of this session while the gate itself
     /// stays armed: no iCloud account is signed in, so nothing will download
@@ -56,6 +64,17 @@ nonisolated enum FirstDownloadGate {
     /// momentary at login (2026-10-05 review); the next launch asks again.
     static func liftForSession() {
         liftedForSession.withLock { $0 = true }
+    }
+
+    /// Takes back `liftForSession`: an iCloud account signed in after all,
+    /// and the download it brings is held for again (bug hunt 2026-11-02, #26).
+    static func endSessionLift() {
+        liftedForSession.withLock { $0 = false }
+    }
+
+    /// Whether this session lifted the gate (`liftForSession`).
+    static var isLiftedForSession: Bool {
+        liftedForSession.withLock { $0 }
     }
 
     /// Holds maintenance back until the private store's first import finishes.

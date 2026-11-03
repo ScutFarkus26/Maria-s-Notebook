@@ -148,6 +148,43 @@ struct BackupCollectionPagingTests {
         #expect(summary.entityCounts["AttendanceRecord"] == saved.count - 1)
     }
 
+    // Bug hunt 2026-11-02 #16: pages were read by offset, so a row deleted
+    // elsewhere (a CloudKit import) between two pages moved every later row
+    // back one, and the row at the boundary was in neither page.
+    @Test("A note deleted elsewhere while the first page is read leaves no other note out")
+    func deleteBetweenPagesLosesNoOtherRow() throws {
+        let store = try Fixtures.makeStore()
+        defer { store.remove() }
+        try Self.seedNotes(in: store.context)
+        let saved = try Self.savedIDs("Note", in: store.context)
+        let first = try Self.savedRow("Note", at: 0, in: store.context)
+        let deleted = try #require(first.value(forKey: "id") as? UUID)
+
+        let elsewhere = store.stack.container.newBackgroundContext()
+        var pages = 0
+        let collected: [UUID] = BackupService().fetchAndTransformInBatches(CDNote.self, using: store.context) { notes in
+            pages += 1
+            if pages == 1 {
+                // Committed by another context, as an import is.
+                elsewhere.performAndWait {
+                    let request = NSFetchRequest<NSManagedObject>(entityName: "Note")
+                    request.predicate = NSPredicate(format: "id == %@", deleted as CVarArg)
+                    if let row = try? elsewhere.fetch(request).first {
+                        elsewhere.delete(row)
+                        try? elsewhere.save()
+                    }
+                }
+            }
+            return notes.compactMap(\.id)
+        }
+
+        #expect(try Self.savedIDs("Note", in: store.context).count == saved.count - 1, "the delete was saved")
+        #expect(pages == 2)
+        // The deleted note was read with the first page; every other note once.
+        #expect(collected.count == saved.count)
+        #expect(Set(collected) == Set(saved))
+    }
+
     @Test("An in-memory store past one page: every saved note once, and unsaved changes as on disk")
     func inMemoryStoreIsReadWhole() throws {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()

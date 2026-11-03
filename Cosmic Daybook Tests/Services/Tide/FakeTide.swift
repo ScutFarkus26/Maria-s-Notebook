@@ -38,6 +38,14 @@ final class FakeTide: TideTransport {
     var editBeforeNextAdd = false
     /// Titles whose next write Tide answers "isn't in Tide's store yet".
     var notReadyOnce: Set<String> = []
+    /// Titles whose note Tide won't change, as when Danny's own note
+    /// changed under the read.
+    var refusedNotes: Set<String> = []
+    /// Answers the next this many calls "still opening", as Tide does while
+    /// it reads its store.
+    var stillOpeningCalls = 0
+    /// Tide's today, for its "due already past" rule.
+    var today = "2026-10-19"
     /// The headings each list has, when a test cares; a write naming another
     /// is refused, as Tide refuses it.
     var headings: [String: Set<String>] = [:]
@@ -56,6 +64,10 @@ final class FakeTide: TideTransport {
             if Task.isCancelled { throw CancellationError() }
         }
         if let failure { throw failure }
+        if stillOpeningCalls > 0 {
+            stillOpeningCalls -= 1
+            return Self.plainError("Tide is still opening its store. Try again in a moment.")
+        }
         switch name {
         case "get_area": return getArea(arguments)
         case "add_action": return addAction(arguments)
@@ -65,43 +77,6 @@ final class FakeTide: TideTransport {
         default: return Self.plainError("Unknown tool: \(name)")
         }
     }
-
-    // MARK: - Test helpers
-
-    @discardableResult
-    func add(_ text: String, in file: String = upperEl, heading: String? = "This week", note: String? = nil,
-             due: String? = nil, repeats: Bool = false) -> TideActionLink {
-        actions.append(Action(text: text, note: note, file: file, heading: heading, due: due, repeats: repeats))
-        bump(file)
-        return TideActionLink(file: file, text: text)
-    }
-
-    func action(_ text: String) -> Action? { actions.first { $0.text == text } }
-
-    func action(notebookID id: UUID) -> Action? {
-        actions.first { $0.note?.contains("notebook:\(id.uuidString)") == true }
-    }
-
-    func setState(_ state: String, of text: String) {
-        guard let index = actions.firstIndex(where: { $0.text == text }) else { return }
-        actions[index].state = state
-        bump(actions[index].file)
-    }
-
-    func reword(_ text: String, to newText: String) {
-        guard let index = actions.firstIndex(where: { $0.text == text }) else { return }
-        actions[index].text = newText
-        bump(actions[index].file)
-    }
-
-    func move(_ text: String, to file: String) {
-        guard let index = actions.firstIndex(where: { $0.text == text }) else { return }
-        bump(actions[index].file)
-        actions[index].file = file
-        bump(file)
-    }
-
-    func revision(of file: String) -> String { "rev-\(revisions[file] ?? 0)" }
 
     // MARK: - Tools
 
@@ -173,7 +148,7 @@ final class FakeTide: TideTransport {
         }
         bump(actions[index].file)
         if actions[index].repeats {
-            actions[index].due = "2026-10-26"
+            actions[index].due = Self.weekAfter(actions[index].due) ?? "2026-10-26"
             return writeReply(at: index, outcome: "rolled")
         }
         let wasClosed = actions[index].state == "done"
@@ -181,17 +156,31 @@ final class FakeTide: TideTransport {
         return writeReply(at: index, outcome: wasClosed ? "already_closed" : "completed")
     }
 
-    /// A note-only `update_action`.
+    /// `update_action` with a note, new words (`text`) or a due date ("" clears).
     private func updateAction(_ arguments: [String: JSONValue]) -> TideToolReply {
         let index: Int
         switch named(arguments) {
         case .success(let found): index = found
         case .failure(let refusal): return refusal.reply
         }
-        guard let note = arguments["note"]?.stringValue else {
+        let note = arguments["note"]?.stringValue
+        let text = arguments["text"]?.stringValue
+        let due = arguments["due"]?.stringValue
+        guard note != nil || text != nil || due != nil else {
             return Self.refusal(rule: "nothing to change", fix: "pass a field, text, or a position")
         }
-        actions[index].note = note
+        if note != nil, refusedNotes.contains(actions[index].text) {
+            return Self.refusal(rule: "That note would lose some of Danny's own words.", fix: "read the note again")
+        }
+        if let due, !due.isEmpty, due < today {
+            return Self.refusal(
+                rule: "due \(due) is already in the past — a deadline that has gone is not a deadline",
+                fix: "set the day it is actually wanted by, or leave due off"
+            )
+        }
+        if let note { actions[index].note = note }
+        if let text { actions[index].text = text }
+        if let due { actions[index].due = due.isEmpty ? nil : due }
         bump(actions[index].file)
         return writeReply(at: index, outcome: nil)
     }
@@ -254,6 +243,8 @@ final class FakeTide: TideTransport {
         if let heading = action.heading { row["heading"] = heading }
         if let note = action.note { row["note"] = note }
         if let due = action.due { row["due"] = due }
+        if let start = action.start { row["start"] = start }
+        if action.repeats { row["repeat"] = "every week" }
         if link { row["link"] = TideActionLink(file: action.file, text: action.text).string }
         return row
     }
@@ -285,6 +276,55 @@ final class FakeTide: TideTransport {
     private static func plainError(_ message: String) -> TideToolReply {
         let data = (try? JSONSerialization.data(withJSONObject: ["ok": false, "error": message])) ?? Data()
         return TideToolReply(text: String(bytes: data, encoding: .utf8) ?? "", isError: true)
+    }
+}
+
+extension FakeTide {
+    // MARK: - Test helpers
+
+    @discardableResult
+    func add(_ text: String, in file: String = upperEl, heading: String? = "This week", note: String? = nil,
+             due: String? = nil, start: String? = nil, repeats: Bool = false) -> TideActionLink {
+        actions.append(Action(text: text, note: note, file: file, heading: heading, due: due, start: start,
+                              repeats: repeats))
+        bump(file)
+        return TideActionLink(file: file, text: text)
+    }
+
+    func action(_ text: String) -> Action? { actions.first { $0.text == text } }
+
+    func action(notebookID id: UUID) -> Action? {
+        actions.first { $0.note?.contains("notebook:\(id.uuidString)") == true }
+    }
+
+    func setState(_ state: String, of text: String) {
+        guard let index = actions.firstIndex(where: { $0.text == text }) else { return }
+        actions[index].state = state
+        bump(actions[index].file)
+    }
+
+    func reword(_ text: String, to newText: String) {
+        guard let index = actions.firstIndex(where: { $0.text == text }) else { return }
+        actions[index].text = newText
+        bump(actions[index].file)
+    }
+
+    func move(_ text: String, to file: String) {
+        guard let index = actions.firstIndex(where: { $0.text == text }) else { return }
+        bump(actions[index].file)
+        actions[index].file = file
+        bump(file)
+    }
+
+    func revision(of file: String) -> String { "rev-\(revisions[file] ?? 0)" }
+
+    /// The day a week after `day`, "YYYY-MM-DD".
+    static func weekAfter(_ day: String?) -> String? {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC") ?? .current
+        guard let day, let date = TideDay.date(day, calendar: calendar),
+              let next = calendar.date(byAdding: .day, value: 7, to: date) else { return nil }
+        return TideDay.string(next, calendar: calendar)
     }
 }
 

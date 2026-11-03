@@ -23,6 +23,10 @@ extension AssistantBootstrapper {
     func leaveClassroom() async throws {
         let attacher = AssistantShareAttacher.shared
         guard !attacher.sendingLooksStuck else { throw AssistantLeaveError.sendingStuck }
+        // Taken out of the class, there's no share of hers to purge: the pin
+        // may name a class she has joined since, which Leave purged (bug
+        // hunt 2026-11-02 #6). Read before the wait.
+        let classIsGone = removedFromClass
         isLeavingHere = true
         attacher.hold()
         defer {
@@ -33,8 +37,14 @@ extension AssistantBootstrapper {
         guard await attacher.waitUntilIdle(upTo: Self.leaveWaitLimit) else {
             throw attacher.sendingLooksStuck ? AssistantLeaveError.sendingStuck : AssistantLeaveError.stillSending
         }
-        if removedFromClass { sharingService?.updateShareState(nil) }
-        try await sharingService?.leaveClassroom()
+        if classIsGone, !removedFromClass {
+            // Joined a class while this waited: "Not in This Class" is over,
+            // and its Leave isn't the new class's.
+            Self.leaveLogger.notice("Joined a class while Leave waited; nothing was left")
+            return
+        }
+        if classIsGone { sharingService?.updateShareState(nil) }
+        try await sharingService?.leaveClassroom(classroomIsGone: classIsGone)
         // Nothing came off (no service yet, or a row it wouldn't leave): the
         // class and its waiting marks stay.
         guard !hasOwnMembership() else { return }
@@ -67,6 +77,9 @@ extension AssistantBootstrapper {
     /// reminders go, and the screen goes back to joining.
     func backToJoining() async {
         removedFromClass = false
+        // View only was that class's: the next one says for itself (#29).
+        sharingService?.noteViewOnly(false)
+        ClassroomPermissions.shareIsViewOnly = false
         AssistantClassroomLocalState.forget()
         await ArrivalReminder.cancelAll()
         await FrontDeskEmailReminder.cancelAll()
@@ -79,22 +92,33 @@ extension AssistantBootstrapper {
     /// Marks this iPhone holds that haven't reached the guide: some waiting
     /// to go into the share (counted), or an edit iCloud hasn't uploaded yet.
     /// A new mark is the share step's to count, so it's never uncounted.
+    /// Only attendance marks are counted as marks; her Restock changes and
+    /// front-desk sends are "other changes" (bug hunt 2026-11-02 #43).
     enum UnsentMarks: Equatable {
-        case counted(Int)
+        case counted(Int, otherChanges: Bool = false)
+        /// Only changes that aren't marks wait for the share.
+        case otherChanges
         case uncounted
 
         var message: String {
             let what = switch self {
-            case .counted(1): "1 mark hasn't reached your guide yet."
-            case .counted(let count): "\(count) marks haven't reached your guide yet."
+            case .counted(1, otherChanges: false): "1 mark hasn't reached your guide yet."
+            case .counted(let count, otherChanges: false): "\(count) marks haven't reached your guide yet."
+            case .counted(1, otherChanges: true): "1 mark and other changes haven't reached your guide yet."
+            case .counted(let count, otherChanges: true):
+                "\(count) marks and other changes haven't reached your guide yet."
+            case .otherChanges: "Some of your changes haven't reached your guide yet."
             case .uncounted: "Your latest marks haven't reached your guide yet."
             }
             return what + " If you leave now, they're lost. Wait tries to send them first."
         }
     }
 
-    nonisolated static func unsentMarks(waitingForShare: Int, unsentSave: Bool) -> UnsentMarks? {
-        if waitingForShare > 0 { return .counted(waitingForShare) }
+    nonisolated static func unsentMarks(
+        waitingForShare: Int, otherChanges: Int = 0, unsentSave: Bool
+    ) -> UnsentMarks? {
+        if waitingForShare > 0 { return .counted(waitingForShare, otherChanges: otherChanges > 0) }
+        if otherChanges > 0 { return .otherChanges }
         return unsentSave ? .uncounted : nil
     }
 
@@ -105,8 +129,10 @@ extension AssistantBootstrapper {
     /// saved before a relaunch and never uploaded went unwarned (bug hunt
     /// 2026-10-20 #12).
     func unsentMarks() -> UnsentMarks? {
-        Self.unsentMarksNow(
-            waitingForShare: AssistantShareAttacher.shared.pending.count,
+        let waiting = AssistantShareAttacher.shared.waitingByKind()
+        return Self.unsentMarksNow(
+            waitingForShare: waiting.marks,
+            otherChanges: waiting.otherChanges,
             keepAlive: AssistantStack.keepAlive,
             syncRecord: AssistantStack.syncRecord
         )
@@ -114,10 +140,14 @@ extension AssistantBootstrapper {
 
     /// `unsentMarks()` from the pieces it reads: the tests pass their own.
     static func unsentMarksNow(
-        waitingForShare: Int, keepAlive: UnsentChangesKeepAlive?, syncRecord: AssistantSyncRecord?
+        waitingForShare: Int,
+        otherChanges: Int = 0,
+        keepAlive: UnsentChangesKeepAlive?,
+        syncRecord: AssistantSyncRecord?
     ) -> UnsentMarks? {
         unsentMarks(
             waitingForShare: waitingForShare,
+            otherChanges: otherChanges,
             unsentSave: (keepAlive?.hasUnsentWork ?? false) || (syncRecord?.hasUnsentSave ?? false)
         )
     }
@@ -154,7 +184,11 @@ extension AssistantBootstrapper {
         upTo limit: Duration
     ) async -> UnsentMarks? {
         let unsent = {
-            unsentMarksNow(waitingForShare: attacher.pending.count, keepAlive: keepAlive, syncRecord: syncRecord)
+            let waiting = attacher.waitingByKind()
+            return unsentMarksNow(
+                waitingForShare: waiting.marks, otherChanges: waiting.otherChanges,
+                keepAlive: keepAlive, syncRecord: syncRecord
+            )
         }
         guard !sendingStopped, !attacher.sendingLooksStuck else { return unsent() }
         let deadline = ContinuousClock.now + limit
@@ -171,12 +205,28 @@ extension AssistantBootstrapper {
 
     /// What Leave's Wait says when it's done: the marks went; sending is
     /// stuck, which only reopening the app ends (it said "Check that this
-    /// iPhone is online", item 3); or some are still on their way.
-    nonisolated static func afterWaitNote(stillUnsent: Bool, needsRelaunch: Bool) -> String {
+    /// iPhone is online", item 3); or some are still on their way. Under a
+    /// filing hold Wait tries nothing, and returned at once telling an
+    /// online iPhone to check it was online (bug hunt 2026-11-02 #45): a
+    /// dead delegate needs a relaunch, and iCloud not set up yet says so.
+    nonisolated static func afterWaitNote(
+        stillUnsent: Bool, needsRelaunch: Bool, filingWait: AssistantFilingHold.Wait?
+    ) -> String {
         guard stillUnsent else { return "Your marks have reached your guide. You can leave now." }
-        return needsRelaunch
-            ? "Your marks aren't sending. Quit the app and open it again, then leave."
-            : "Some marks still haven't gone. Check that this iPhone is online, then try again."
+        if needsRelaunch || filingWait == .mirroringDied {
+            return "Your marks aren't sending. Quit the app and open it again, then leave."
+        }
+        if filingWait == .iCloudNotReady {
+            return "iCloud isn't ready on this iPhone yet, so your marks haven't gone. Wait a minute, then try again."
+        }
+        return "Some marks still haven't gone. Check that this iPhone is online, then try again."
+    }
+
+    /// `afterWaitNote` for this iPhone now.
+    func noteAfterWait(stillUnsent: Bool) -> String {
+        Self.afterWaitNote(
+            stillUnsent: stillUnsent, needsRelaunch: sendingNeedsRelaunch, filingWait: AssistantStack.filingWait
+        )
     }
 
     /// How long Leave waits for a running attach before saying to try again.

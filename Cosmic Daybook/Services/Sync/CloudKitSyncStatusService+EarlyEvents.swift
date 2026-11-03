@@ -20,14 +20,27 @@ struct CloudKitEventValues {
     let error: (any Error)?
     let startDate: Date
     let storeIdentifier: String?
+    /// When it finished. An event buffered until `configure` is dated by
+    /// this, not by when it was handled: "Last synced: now" for an import
+    /// that ended before the window appeared, and a failure "since" the
+    /// configure time, were both wrong (bug hunt 2026-11-02, #27).
+    var endDate: Date?
 }
 
 extension CloudKitEventValues {
     init(_ event: NSPersistentCloudKitContainer.Event) {
         self.init(
             type: event.type, isFinished: event.endDate != nil, succeeded: event.succeeded,
-            error: event.error, startDate: event.startDate, storeIdentifier: event.storeIdentifier
+            error: event.error, startDate: event.startDate, storeIdentifier: event.storeIdentifier,
+            endDate: event.endDate
         )
+    }
+
+    /// The event a CloudKit event notification carries; nil for any other.
+    init?(notification: Notification) {
+        let key = NSPersistentCloudKitContainer.eventNotificationUserInfoKey
+        guard let event = notification.userInfo?[key] as? NSPersistentCloudKitContainer.Event else { return nil }
+        self.init(event)
     }
 }
 
@@ -87,21 +100,43 @@ extension CloudKitSyncStatusService {
         startCloudKitEventStream()
     }
 
-    /// Makes the one event stream, if it isn't running yet. The stream is
-    /// made here, not inside the task, so nothing posted before the task
-    /// first runs is missed; the buffer is generous because a dropped
-    /// "finished" event would leave the syncing indicator on.
-    func startCloudKitEventStream() {
-        guard cloudKitEventTask == nil else { return }
-        let events = NotificationCenter.default.messages(
-            of: NSPersistentCloudKitContainer.self, for: .eventChanged, bufferSize: 256
-        )
-        cloudKitEventTask = Task { [weak self] in
-            for await message in events {
-                guard let self else { return }
-                self.receive(CloudKitEventValues(message.event))
+    /// Starts the one event listener, if it isn't running yet: a plain
+    /// observer, listening as this returns, so the setup events the stores
+    /// post as they open (`AppBootstrapping.startStoreObservers` starts this
+    /// just before) aren't missed. A `messages(of:for:)` sequence listens
+    /// only once it is first iterated: made here and iterated in a task, it
+    /// missed whatever came before the task first ran (2026-11-03 review).
+    /// Each event is handled on the main queue, in the order posted, and
+    /// none is dropped (a dropped "finished" event would leave the syncing
+    /// indicator on).
+    ///
+    /// - Parameters:
+    ///   - center: where the events are posted (a test's own center).
+    ///   - read: a notification's event, or nil for one that isn't.
+    func startCloudKitEventStream(
+        on center: NotificationCenter = .default,
+        reading read: @escaping @MainActor (Notification) -> CloudKitEventValues?
+            = CloudKitEventValues.init(notification:)
+    ) {
+        guard cloudKitEventObserver == nil else { return }
+        cloudKitEventObserver = center.addObserver(
+            forName: NSPersistentCloudKitContainer.eventChangedNotification, object: nil, queue: .main
+        ) { [weak self] note in
+            // On the main queue: the notification is read where it's handled.
+            nonisolated(unsafe) let note = note
+            MainActor.assumeIsolated {
+                guard let self, let event = read(note) else { return }
+                self.receive(event)
             }
         }
+        cloudKitEventCenter = center
+    }
+
+    /// Stops the event listener `startCloudKitEventStream` started.
+    func stopCloudKitEventStream() {
+        if let observer = cloudKitEventObserver { cloudKitEventCenter?.removeObserver(observer) }
+        cloudKitEventObserver = nil
+        cloudKitEventCenter = nil
     }
 
     /// One event from the stream: handled, or kept until `configure`. Only
@@ -149,7 +184,8 @@ extension CloudKitSyncStatusService {
     func handleCloudKitEvent(_ event: CloudKitEventValues) {
         handleCloudKitEvent(
             type: event.type, isFinished: event.isFinished, succeeded: event.succeeded,
-            error: event.error, startDate: event.startDate, storeIdentifier: event.storeIdentifier
+            error: event.error, startDate: event.startDate, storeIdentifier: event.storeIdentifier,
+            endDate: event.endDate
         )
     }
 }

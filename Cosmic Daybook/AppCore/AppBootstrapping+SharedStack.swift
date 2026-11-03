@@ -84,6 +84,19 @@ extension AppBootstrapping {
     /// What `getSharedCoreDataStack` hands a caller that came too early.
     private static let notOpenYetStandIn = makeInMemoryStack()
 
+    /// The stack, or the empty stand-in while the stores are still opening,
+    /// for the one reader that may come that early by design: the
+    /// environment's default dependencies (`AppDependenciesKey`), which any
+    /// view can read before the notebook is open. `getSharedCoreDataStack`
+    /// asserts there, which would stop a Debug launch at the first such view
+    /// (bug hunt 2026-11-02, #56); this only logs.
+    static func sharedCoreDataStackOrStandIn() -> CoreDataStack {
+        if let existing = _sharedCoreDataStack { return existing }
+        if isRunningUnitTests { return getSharedCoreDataStack() }
+        Logger.container.notice("A view read the default dependencies before the notebook's stores were open")
+        return notOpenYetStandIn
+    }
+
     /// Opens the stack `sharedStackLoad` shares: in memory under XCTest
     /// (#15), else the launch's fallback chain, with each attempt's stores
     /// opened off the main thread. The stack's observers start as soon as

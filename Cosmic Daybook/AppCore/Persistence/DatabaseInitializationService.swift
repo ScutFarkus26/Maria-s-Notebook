@@ -49,6 +49,12 @@ enum DatabaseInitializationService {
         UserDefaults.standard.set(inMemory, forKey: UserDefaultsKeys.inMemoryStoreSession)
     }
 
+    /// Whether this session runs on the in-memory store (`markInMemorySession`).
+    /// The launch repairs don't run then (`AppBootstrapper`).
+    static func isInMemorySession(defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: UserDefaultsKeys.inMemoryStoreSession)
+    }
+
     // MARK: - Error Handling
 
     /// Centralized error handling for database initialization failures. The

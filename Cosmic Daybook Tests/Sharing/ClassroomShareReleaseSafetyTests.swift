@@ -156,16 +156,22 @@ extension ClassroomShareReleaseTests {
         copy.date = schoolDay(-200)
         copy.modifiedAt = schoolDay(-200)
         #expect(CoreDataTestHelpers.save(ctx))
-        let records = await fix.cloud.environment().recordIDs(fix.departedMarks.map(\.objectID))
-        fix.cloud.awaiting = Array(records.values) // the deletes never reached iCloud
+        let marks = fix.departedMarks.map(\.objectID)
+        let records = await fix.cloud.environment().recordIDs(marks)
+        // Deleted here; the deletes never reached iCloud.
+        try deleteHere(marks, in: fix)
+        fix.cloud.keepOnServer(marks)
+        fix.cloud.awaiting = Array(records.values)
         fix.cloud.exportStartAnswers = [false]
 
         let env = fix.cloud.environment(patience: .milliseconds(300)) // gives up on purpose
         let report = await ClassroomShareRelease.finishStopped(
-            container: fix.stack.container, storeID: fix.storeID, environment: env
+            stack: fix.stack, storeID: fix.storeID, environment: env
         )
-        #expect(report.stoppedBecause != nil)
-        #expect(fix.cloud.awaiting.count == 3)
+        // iCloud never confirmed them: the list clears after the wait, with a line (#41).
+        #expect(report.stoppedBecause == nil)
+        #expect(report.unconfirmed == 3)
+        #expect(fix.cloud.awaiting.isEmpty)
         #expect(fix.cloud.exportStartQuestions == 2) // asked, nudged, asked again
         ctx.refresh(copy, mergeChanges: false)
         #expect((copy.modifiedAt ?? .distantPast) > schoolDay(-200))

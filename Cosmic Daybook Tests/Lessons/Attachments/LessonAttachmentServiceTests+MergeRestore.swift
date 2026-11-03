@@ -27,6 +27,18 @@ extension LessonAttachmentServiceTests {
         return read
     }
 
+    /// `payload` with its lesson-file rows' change dates removed, as a backup
+    /// from before v44 has them: a merge takes such a row whatever is here.
+    static func undated(_ payload: BackupPayload) -> BackupPayload {
+        var undated = payload
+        undated.lessonAttachments = payload.lessonAttachments?.map { row in
+            var row = row
+            row.values["modifiedAt"] = nil
+            return row
+        }
+        return undated
+    }
+
     /// Merges `payload` into the scratch notebook, checking lesson files in
     /// its scratch Lesson Files folder.
     static func mergeRestore(_ payload: BackupPayload, into scratch: Scratch) async throws {
@@ -67,7 +79,15 @@ extension LessonAttachmentServiceTests {
         try #require(livePath != backedUpPath)
         #expect(!FileManager.default.fileExists(atPath: try scratch.storage.resolve(relativePath: backedUpPath).path))
 
+        // The record changed since the backup, so a merge keeps it whole
+        // (newer wins, bug hunt 2026-11-02, #1).
         try await Self.mergeRestore(backup, into: scratch)
+        #expect(attachment.notes == "Remade")
+        #expect(attachment.fileRelativePath == livePath)
+
+        // A row with no change date (a backup from before v44) is still taken,
+        // and keeps the record's live file.
+        try await Self.mergeRestore(Self.undated(backup), into: scratch)
 
         #expect(attachment.fileRelativePath == livePath)
         #expect(attachment.fileSizeBytes == Int64(newBytes.count))
@@ -121,7 +141,8 @@ extension LessonAttachmentServiceTests {
         )
         #expect(attachment.fileRelativePath != backedUpPath)
 
-        try await Self.mergeRestore(backup, into: scratch)
+        // Undated, so the merge takes the row over the record changed since (#1).
+        try await Self.mergeRestore(Self.undated(backup), into: scratch)
 
         #expect(attachment.fileRelativePath == backedUpPath)
         #expect(attachment.fileSizeBytes == backedUpSize)

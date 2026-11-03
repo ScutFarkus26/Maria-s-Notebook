@@ -19,9 +19,23 @@ import CoreData
 import Foundation
 
 /// A backup row type. Every DTO carries its record's `id`, which the payload
-/// deduplicator keys on.
+/// deduplicator keys on, and says when its record last changed, which a Merge
+/// weighs against the record already here (`BackupRestoreRun.rows`).
 nonisolated protocol BackupRowDTO: Codable, Sendable {
     var id: UUID { get }
+    /// When the row's record last changed (`BackupMergeRule.changeDateAttribute`:
+    /// its `modifiedAt`, or a note's `updatedAt`): nil for a type without one
+    /// (a Merge then takes the backup's row, as it always has) or a row that
+    /// lacks it (an older backup's, or a record that never had one).
+    var rowModifiedAt: Date? { get }
+    /// When the row's record was done, for a type a Merge judges by that
+    /// (`BackupMergeRule.completionEntityNames`); nil for the rest, and for
+    /// a row that isn't done.
+    var rowCompletedAt: Date? { get }
+}
+
+nonisolated extension BackupRowDTO {
+    var rowCompletedAt: Date? { nil }
 }
 
 /// One backed-up entity type and everything derived from it.
@@ -37,6 +51,13 @@ nonisolated struct BackupEntity: Sendable {
     /// The first backup format that carries this type (0: every format the
     /// app reads). A Replace from an older one leaves it (`isCarried(by:)`).
     let firstFormat: Int
+    /// Stored in one of the payload's always-present arrays: a type every
+    /// notebook's backup holds, which a Replace won't run without
+    /// (`BackupService.importRows`).
+    let isRequired: Bool
+    /// This type's rows in a payload, or nil when the payload has no entry
+    /// for it (a later-format array left nil).
+    let rowsIn: @Sendable (BackupPayload) -> [any BackupRowDTO]?
     let collector: BackupService.EntityCollector
     let serialization: BackupWriter.EntitySerialization
     let decoder: BackupImporter.EntityDecoder
@@ -64,6 +85,8 @@ nonisolated struct BackupEntity: Sendable {
             field: field,
             managedType: { Object.self },
             firstFormat: 0,
+            isRequired: true,
+            rowsIn: { $0[keyPath: field] },
             collector: .required(name, type, field, transform, announcing: announcement),
             serialization: BackupWriter.serialization(name) { $0[keyPath: field] },
             decoder: BackupImporter.rows(DTO.self, field),
@@ -92,6 +115,8 @@ nonisolated struct BackupEntity: Sendable {
             field: field,
             managedType: { Object.self },
             firstFormat: firstFormat,
+            isRequired: false,
+            rowsIn: { $0[keyPath: field] },
             collector: .optional(name, type, field, transform, announcing: announcement),
             serialization: BackupWriter.serialization(name) { $0[keyPath: field] ?? [] },
             decoder: BackupImporter.optionalRows(DTO.self, field),
@@ -210,7 +235,11 @@ nonisolated enum BackupEntityTable {
         .optional(
             "LessonPresentation", CDLessonPresentation.self, \.lessonPresentations, BackupDTOTransformers.toDTOs
         ),
-        .optional("LessonRecallCheck", CDLessonRecallCheck.self, \.recallChecks, LessonRecallCheckDTO.rows),
+        // Joined during v19 (2026-06-25) without a bump, so v20 is the first
+        // format whose every backup carries recall checks (bug hunt 2026-11-02, #10).
+        .optional(
+            "LessonRecallCheck", CDLessonRecallCheck.self, \.recallChecks, LessonRecallCheckDTO.rows, since: 20
+        ),
         .optional("SampleWork", CDSampleWork.self, \.sampleWorks, BackupDTOTransformers.toDTOs),
         .optional("SampleWorkStep", CDSampleWorkStep.self, \.sampleWorkSteps, SampleWorkStepDTO.rows)
     ]
@@ -351,49 +380,3 @@ nonisolated enum BackupEntityTable {
         .optional("TimetableBooking", CDTimetableBooking.self, \.timetableBookings, TimetableBookingDTO.rows, since: 42)
     ]
 }
-
-// MARK: - Row types
-
-// Each DTO already has `id: UUID`; conforming here is what lets its table row compile.
-extension StudentDTO: BackupRowDTO {}
-extension LessonDTO: BackupRowDTO {}
-extension LessonAssignmentDTO: BackupRowDTO {}
-extension NoteDTO: BackupRowDTO {}
-extension NonSchoolDayDTO: BackupRowDTO {}
-extension SchoolDayOverrideDTO: BackupRowDTO {}
-extension StudentMeetingDTO: BackupRowDTO {}
-extension CommunityTopicDTO: BackupRowDTO {}
-extension CommunityAttachmentDTO: BackupRowDTO {}
-extension AttendanceRecordDTO: BackupRowDTO {}
-extension WorkCompletionRecordDTO: BackupRowDTO {}
-extension ProjectDTO: BackupRowDTO {}
-extension ProjectSessionDTO: BackupRowDTO {}
-extension ProjectRoleDTO: BackupRowDTO {}
-extension WorkModelDTO: BackupRowDTO {}
-extension WorkCheckInDTO: BackupRowDTO {}
-extension WorkParticipantEntityDTO: BackupRowDTO {}
-extension PracticeSessionDTO: BackupRowDTO {}
-extension LessonPresentationDTO: BackupRowDTO {}
-extension SampleWorkDTO: BackupRowDTO {}
-extension NoteTemplateDTO: BackupRowDTO {}
-extension ReminderDTO: BackupRowDTO {}
-extension CalendarEventDTO: BackupRowDTO {}
-extension SequenceTrackDTO: BackupRowDTO {}
-extension DocumentDTO: BackupRowDTO {}
-extension SupplyDTO: BackupRowDTO {}
-extension ProcedureDTO: BackupRowDTO {}
-extension ScheduleSlotDTO: BackupRowDTO {}
-extension IssueDTO: BackupRowDTO {}
-extension IssueActionDTO: BackupRowDTO {}
-extension DevelopmentSnapshotDTO: BackupRowDTO {}
-extension TodoItemDTO: BackupRowDTO {}
-extension TodoTemplateDTO: BackupRowDTO {}
-extension TodayAgendaOrderDTO: BackupRowDTO {}
-extension PlanningRecommendationDTO: BackupRowDTO {}
-extension ResourceDTO: BackupRowDTO {}
-extension GoingOutChecklistItemDTO: BackupRowDTO {}
-extension ScheduledMeetingDTO: BackupRowDTO {}
-extension StoryDTO: BackupRowDTO {}
-extension BookClubPacketDTO: BackupRowDTO {}
-extension AlbumHighlightDTO: BackupRowDTO {}
-extension AlbumPageInkDTO: BackupRowDTO {}

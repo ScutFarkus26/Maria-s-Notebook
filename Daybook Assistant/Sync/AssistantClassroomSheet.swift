@@ -342,9 +342,7 @@ extension AssistantClassroomSheet {
         isSendingFirst = true
         let stillUnsent = await bootstrapper.sendUnsentMarks()
         isSendingFirst = false
-        leaveNote = AssistantBootstrapper.afterWaitNote(
-            stillUnsent: stillUnsent != nil, needsRelaunch: bootstrapper.sendingNeedsRelaunch
-        )
+        leaveNote = bootstrapper.noteAfterWait(stillUnsent: stillUnsent != nil)
     }
 
     private func leave() async {

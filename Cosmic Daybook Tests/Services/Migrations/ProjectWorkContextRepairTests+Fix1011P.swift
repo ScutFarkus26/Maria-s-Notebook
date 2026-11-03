@@ -5,10 +5,12 @@ import Testing
 
 // Bug hunt 2026-10-11, #65. Uniform check-in work was saved naming its
 // project check-in (`sourceContextID`) without the type every project reader
-// filters on. A one-time repair per device stamps the type on exactly that
-// work: an empty type and a context id that is a project check-in's id. It
-// waits for the first download, saves its own change, and only fills an
-// empty field, so two devices running it converge.
+// filters on. A repair stamps the type on exactly that work: an empty type
+// and a context id that is a project check-in's id. It waits for the first
+// download, saves its own change, and only fills an empty field, so two
+// devices running it converge. It ran once per device until 2026-11-02; a
+// Replace from an older backup then brought the rows back untyped for good,
+// so it runs every launch now (bug hunt 2026-11-02, #24).
 
 @Suite("Project check-in work repair (Fix1011P)")
 @MainActor
@@ -82,65 +84,55 @@ struct ProjectWorkContextRepairTests {
         #expect(!context.hasChanges)
     }
 
-    @Test("Runs once per device, saves, and then stays done")
-    func runsOnce() throws {
+    @Test("Runs every launch and saves: rows a Replace brings back untyped are typed again")
+    func runsEveryLaunch() throws {
         let context = try CoreDataTestHelpers.makeContext()
-        let defaults = try isolatedDefaults()
         let seeded = seed(context)
         #expect(CoreDataTestHelpers.save(context))
 
-        let first = DataCleanupService.repairProjectWorkContextTypeIfDue(
-            using: context, firstDownloadPending: false, defaults: defaults
-        )
+        let first = DataCleanupService.repairProjectWorkContextTypeIfDue(using: context, firstDownloadPending: false)
         #expect(first == 2)
         #expect(!context.hasChanges, "it saves its own changes")
-        #expect(defaults.bool(forKey: UserDefaultsKeys.projectWorkContextRepairDone))
 
+        // A Replace from a backup older than 2026-10-11 writes the row back as it was.
         seeded.untyped[0].sourceContextTypeRaw = nil
         #expect(CoreDataTestHelpers.save(context))
-        let again = DataCleanupService.repairProjectWorkContextTypeIfDue(
-            using: context, firstDownloadPending: false, defaults: defaults
-        )
-        #expect(again == nil)
+        let again = DataCleanupService.repairProjectWorkContextTypeIfDue(using: context, firstDownloadPending: false)
+        #expect(again == 1)
+        #expect(seeded.untyped[0].sourceContextType == .projectSession)
+        #expect(!context.hasChanges)
+
+        let quiet = DataCleanupService.repairProjectWorkContextTypeIfDue(using: context, firstDownloadPending: false)
+        #expect(quiet == 0, "a launch with nothing untyped changes nothing")
     }
 
-    @Test("While the first download is pending it waits and isn't marked done")
+    @Test("While the first download is pending it waits")
     func waitsForFirstDownload() throws {
         let context = try CoreDataTestHelpers.makeContext()
-        let defaults = try isolatedDefaults()
         let seeded = seed(context)
         #expect(CoreDataTestHelpers.save(context))
 
-        let pending = DataCleanupService.repairProjectWorkContextTypeIfDue(
-            using: context, firstDownloadPending: true, defaults: defaults
-        )
+        let pending = DataCleanupService.repairProjectWorkContextTypeIfDue(using: context, firstDownloadPending: true)
         #expect(pending == nil)
         #expect(seeded.untyped[0].sourceContextTypeRaw == nil)
-        #expect(!defaults.bool(forKey: UserDefaultsKeys.projectWorkContextRepairDone))
 
-        let later = DataCleanupService.repairProjectWorkContextTypeIfDue(
-            using: context, firstDownloadPending: false, defaults: defaults
-        )
+        let later = DataCleanupService.repairProjectWorkContextTypeIfDue(using: context, firstDownloadPending: false)
         #expect(later == 2)
     }
 
     @Test("A pass whose earlier steps left unsaved changes doesn't run it")
     func skipsWithLeftoverChanges() throws {
         let context = try CoreDataTestHelpers.makeContext()
-        let defaults = try isolatedDefaults()
         let seeded = seed(context)
         #expect(CoreDataTestHelpers.save(context))
         CoreDataTestHelpers.seedNote(in: context, body: "Left unsaved by an earlier step.")
 
-        let result = DataCleanupService.repairProjectWorkContextTypeIfDue(
-            using: context, firstDownloadPending: false, defaults: defaults
-        )
+        let result = DataCleanupService.repairProjectWorkContextTypeIfDue(using: context, firstDownloadPending: false)
         #expect(result == nil)
         #expect(seeded.untyped[0].sourceContextTypeRaw == nil)
-        #expect(!defaults.bool(forKey: UserDefaultsKeys.projectWorkContextRepairDone))
     }
 
-    @Test("Reset Local Cache forgets the repair ran, so a fresh download is checked again")
+    @Test("Reset Local Cache clears the retired done flag")
     func resetLocalCacheClearsFlag() throws {
         let defaults = try isolatedDefaults()
         defaults.set(true, forKey: UserDefaultsKeys.projectWorkContextRepairDone)
@@ -153,14 +145,9 @@ struct ProjectWorkContextRepairTests {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
         let seeded = seed(stack.viewContext)
         #expect(CoreDataTestHelpers.save(stack.viewContext))
-        let suiteName = "ProjectWorkContextRepairTests.\(UUID().uuidString)"
-
         let background = stack.newBackgroundContext()
         let changed: Int? = await background.perform {
-            guard let defaults = UserDefaults(suiteName: suiteName) else { return nil }
-            return DataCleanupService.repairProjectWorkContextTypeIfDue(
-                using: background, firstDownloadPending: false, defaults: defaults
-            )
+            DataCleanupService.repairProjectWorkContextTypeIfDue(using: background, firstDownloadPending: false)
         }
         #expect(changed == 2)
         stack.viewContext.refreshAllObjects()

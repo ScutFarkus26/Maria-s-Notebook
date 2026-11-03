@@ -342,7 +342,7 @@ struct AppDependenciesKey: @preconcurrency EnvironmentKey {
         return notOpenYet
     }
 
-    private static let notOpenYet = AppDependencies(coreDataStack: AppBootstrapping.getSharedCoreDataStack())
+    private static let notOpenYet = AppDependencies(coreDataStack: AppBootstrapping.sharedCoreDataStackOrStandIn())
 }
 
 extension EnvironmentValues {

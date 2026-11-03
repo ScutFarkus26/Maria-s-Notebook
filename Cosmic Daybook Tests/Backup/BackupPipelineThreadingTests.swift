@@ -133,12 +133,12 @@ struct BackupPipelineThreadingTests {
 
         let preferencesEncoder = JSONEncoder()
         preferencesEncoder.outputFormatting = [.sortedKeys]
-        preferencesEncoder.dateEncodingStrategy = .iso8601
+        preferencesEncoder.dateEncodingStrategy = BackupDateCoding.encodingStrategy
         let expectedPreferences = try preferencesEncoder.encode(payload.preferences)
         #expect(bodies["preferences.json"] == expectedPreferences)
 
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = BackupDateCoding.decodingStrategy
         let manifestData = try #require(bodies["manifest.json"])
         let written = try decoder.decode(BackupArchiveManifest.self, from: manifestData)
         #expect(written.formatVersion == BackupWriter.formatVersion)

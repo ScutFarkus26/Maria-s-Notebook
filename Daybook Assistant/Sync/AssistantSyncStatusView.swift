@@ -61,6 +61,11 @@ struct AssistantSyncStatusView: View {
         /// Core Data's upload until the battery is back or the phone is
         /// plugged in (Apple's TN3163).
         case lowPowerMode
+        /// Marks wait under the filing hold (`AssistantFilingHold`): the
+        /// class's iCloud setup failed, or its sync stopped, on a phone with
+        /// a usable network (or none known yet). The line read "Sending to
+        /// iCloud…" all the while (bug hunt 2026-11-02 #5).
+        case waitingForICloud
     }
 
     /// When iCloud sync has stopped on this iPhone (`AssistantBootstrapper.sendingStopped`).
@@ -83,7 +88,8 @@ struct AssistantSyncStatusView: View {
             shareOffline: AssistantShareAttacher.shared.isOffline,
             shareStuck: AssistantShareAttacher.shared.sendingLooksStuck,
             network: AssistantStack.networkWatch?.current,
-            hold: hold
+            hold: hold,
+            filingHeld: AssistantStack.filingWait != nil
         )
     }
 
@@ -99,6 +105,8 @@ struct AssistantSyncStatusView: View {
     /// app before it gets here. A failed export of another kind with an edit
     /// waiting reads as trying again, not as offline. A hold is named only
     /// once sending has failed or stuck, not while a first try may still go.
+    /// Marks under the filing hold (`filingHeld`) wait for iCloud on this
+    /// phone, or for a network when it has none.
     static func status(
         hasUnsavedChanges: Bool,
         lastEditSave: Double,
@@ -108,10 +116,15 @@ struct AssistantSyncStatusView: View {
         shareOffline: Bool = false,
         shareStuck: Bool = false,
         network: AssistantNetworkWatch.PathState? = nil,
-        hold: AssistantNetworkWatch.Hold? = nil
+        hold: AssistantNetworkWatch.Hold? = nil,
+        filingHeld: Bool = false
     ) -> Status {
         let editWaits = lastEditSave > lastExportStart
         guard hasUnsavedChanges || waitingForShare > 0 || editWaits else { return .sent }
+        if filingHeld, waitingForShare > 0 {
+            if let network, !network.usable { return .offline }
+            return .waitingForICloud
+        }
         let noConnection = (shareOffline && waitingForShare > 0) || (lastExportFailure == .network && editWaits)
         if noConnection || (shareStuck && waitingForShare > 0) {
             guard let network, network.usable else { return .offline }
@@ -175,6 +188,10 @@ struct AssistantSyncStatusView: View {
                 Image(systemName: "icloud.slash")
                 Text(problem)
                     .foregroundStyle(.orange)
+            } else if bootstrapper.sharingService?.isViewOnly == true {
+                Image(systemName: "eye")
+                Text(Self.viewOnlyMessage)
+                    .foregroundStyle(.orange)
             } else if bootstrapper.sendingStopped || (bootstrapper.sendingNeedsRelaunch && hold == nil) {
                 // iCloud sync stopped, or the class's iCloud setup failed,
                 // and rebuilding the stack once didn't bring it back, or a
@@ -214,12 +231,23 @@ struct AssistantSyncStatusView: View {
                     Image(systemName: "icloud.slash")
                     Text(Self.lowPowerModeMessage)
                         .foregroundStyle(.orange)
+                case .waitingForICloud:
+                    Image(systemName: "icloud.slash")
+                    Text(Self.waitingForICloudMessage)
                 }
             }
         }
     }
 
     static let tryingAgainMessage = "Couldn't send yet. Trying again."
+    /// Nothing for her to do: setup tries again by itself, and a stopped
+    /// sync rebuilds the stack (or the line says to reopen the app).
+    static let waitingForICloudMessage = "Not sent yet. iCloud isn't ready on this iPhone. Trying again."
+
+    /// The guide added her to the share as View only: her marks can't reach
+    /// him, so marking is off (`ClassroomPermissions.shareIsViewOnly`) and
+    /// the line says why, and what to ask for (bug hunt 2026-11-02 #29).
+    nonisolated static let viewOnlyMessage = "Your guide added you to view only. Ask them to let you make changes."
     static let offlineMessage = "Not sent yet. They'll go when you're back online."
 
     /// Nothing for her to do: the app retries, and restarts its own sending

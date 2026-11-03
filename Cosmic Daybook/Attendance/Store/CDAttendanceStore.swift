@@ -31,6 +31,13 @@ struct CDAttendanceStore { // swiftlint:disable:this type_body_length
         self.context = context
         self.calendar = calendar
         self.role = role ?? CDClassroomMembership.currentRole(in: context)
+        #if !ASSISTANT_APP
+        // A notebook joined as an assistant puts its marks into the share
+        // itself, as the Daybook Assistant does (bug hunt 2026-11-02 #33).
+        if self.role == .assistant, let container = CoreDataStack.cloudKitContainer(for: context) {
+            AssistantRoleShareFiling.shared.watch(context, container: container)
+        }
+        #endif
     }
 
     private var canWrite: Bool {

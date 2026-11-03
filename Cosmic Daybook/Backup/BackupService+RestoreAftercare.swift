@@ -1,7 +1,7 @@
 // BackupService+RestoreAftercare.swift
 // What a restore does around its records: the student links its notes need,
 // the denormalized day it repairs after saving, the album warning it gives,
-// and how it says it failed after its save.
+// how it says it failed after its save, and its wait for iCloud.
 
 import CoreData
 import Foundation
@@ -112,6 +112,126 @@ extension BackupRestoreRun {
         case .all: ([], [])
         case .student(let student): ([student.uuidString.uppercased()], [])
         case .students(let students): (Set(students.map { $0.uuidString.uppercased() }), students)
+        }
+    }
+}
+
+/// Outcome of waiting for `NSPersistentCloudKitContainer` to finish the post-restore export.
+nonisolated enum CloudExportWaitResult: Sendable {
+    /// No CloudKit-backed store, or the wait completed and a `.export` event succeeded.
+    case completed
+    /// `.export` event arrived but reported `succeeded == false`. Carries a localized description
+    /// (not the underlying `Error` — `any Error` doesn't cross task boundaries cleanly).
+    case failed(reason: String?)
+    /// Timed out before any complete `.export` event arrived. Sync is still running in the background.
+    case timedOut
+}
+
+// MARK: - CloudKit Export Wait
+
+/// What a restore hears from iCloud about its export, listened for from
+/// before its save (bug hunt 2026-11-02, #23). The observer is added as
+/// `listening` returns, so a quick export that finishes during the save is
+/// buffered for the wait. A `NotificationCenter.messages` sequence would not
+/// do: it starts listening only when it is first iterated, which is after
+/// the save. `stop()` removes the observer; call it when the restore ends.
+///
+/// Each finished export comes with when it started, so the wait counts only
+/// one that started once the restore had saved (`awaitCloudKitExport`): an
+/// export of the edits saved just before the restore
+/// (`saveEditsMadeBeforeRestore`) can finish during the restore's save, and
+/// was taken for the restore's (2026-11-03 review).
+nonisolated struct CloudExportListener: Sendable {
+    /// A finished export: when it started, and how it went.
+    struct Export: Sendable {
+        let startedAt: Date
+        let result: CloudExportWaitResult
+    }
+
+    /// The finished exports, in the order they were posted.
+    let results: AsyncStream<Export>
+    /// False when the restore has no export to wait for: nothing is observed.
+    let waits: Bool
+    let stop: @Sendable () -> Void
+
+    /// Starts listening for `name` on `center` as it returns, when `waits`.
+    /// `result` reads a notification: a finished export, or nil to keep
+    /// listening. The observer is formed here, outside the main actor,
+    /// because CloudKit posts its events on its own queue.
+    static func listening(
+        on center: NotificationCenter = .default,
+        to name: Notification.Name = NSPersistentCloudKitContainer.eventChangedNotification,
+        waits: Bool,
+        result: @escaping @Sendable (Notification) -> Export? = CloudExportListener.exportResult
+    ) -> CloudExportListener {
+        let (results, continuation) = AsyncStream<Export>.makeStream(
+            bufferingPolicy: .bufferingNewest(16)
+        )
+        guard waits else {
+            continuation.finish()
+            return CloudExportListener(results: results, waits: false) {}
+        }
+        let observer = center.addObserver(forName: name, object: nil, queue: nil) { note in
+            if let finished = result(note) { continuation.yield(finished) }
+        }
+        // The token is only handed back to the center that made it.
+        nonisolated(unsafe) let token = observer
+        return CloudExportListener(results: results, waits: true) {
+            center.removeObserver(token)
+            continuation.finish()
+        }
+    }
+
+    /// A CloudKit event notification's export when it is a finished one;
+    /// nil for imports, setups and exports still running.
+    static func exportResult(_ note: Notification) -> Export? {
+        let key = NSPersistentCloudKitContainer.eventNotificationUserInfoKey
+        guard let event = note.userInfo?[key] as? NSPersistentCloudKitContainer.Event,
+              event.type == .export, event.endDate != nil else { return nil }
+        return Export(
+            startedAt: event.startDate,
+            result: event.succeeded ? .completed : .failed(reason: event.error?.localizedDescription)
+        )
+    }
+}
+
+extension BackupService {
+    /// Listens for the export of a restore into `viewContext`, from now: the
+    /// restore makes it before its save. Waits for nothing unless the restore
+    /// went into the app's notebook while it syncs: in-memory tests, iCloud
+    /// sync off, the local-only fallback and the database-error screen's
+    /// fresh notebook (`FreshNotebookRestore`) never export, and would only
+    /// wait 30 seconds to say sync is "still running in the background".
+    func cloudExportListener(for viewContext: NSManagedObjectContext) -> CloudExportListener {
+        CloudExportListener.listening(waits: BackupRestoreScope.syncsWithICloud(viewContext))
+    }
+
+    /// Waits for the first finished export `listener` heard that started at
+    /// or after `savedAt` (the restore's save), up to `timeout`; at once
+    /// when the restore has none to wait for. An export that started before
+    /// the save, however late it finished, doesn't carry the restore, as
+    /// `UnsentChangesKeepAlive` judges it.
+    func awaitCloudKitExport(
+        _ listener: CloudExportListener,
+        startedFrom savedAt: Date,
+        timeout: Duration
+    ) async -> CloudExportWaitResult {
+        guard listener.waits else { return .completed }
+        let results = listener.results
+        return await withTaskGroup(of: CloudExportWaitResult.self) { group in
+            group.addTask {
+                for await export in results where export.startedAt >= savedAt {
+                    return export.result
+                }
+                return .timedOut
+            }
+            group.addTask {
+                try? await Task.sleep(for: timeout)
+                return .timedOut
+            }
+            let first = await group.next() ?? .timedOut
+            group.cancelAll()
+            return first
         }
     }
 }

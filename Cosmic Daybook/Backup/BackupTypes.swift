@@ -367,8 +367,13 @@ nonisolated public struct BackupOperationSummary: Identifiable, Sendable {
 nonisolated public struct RestorePreview: Codable, Sendable, Equatable {
     public var mode: String
     public var entityInserts: [String: Int]
+    /// Records already here that the restore brings to the backup's version.
     public var entitySkips: [String: Int]
     public var entityDeletes: [String: Int]
+    /// Records already here that the restore leaves as they are: changed
+    /// here since the backup, or a to-do done since (a Merge's newer wins,
+    /// `BackupMergeRule`; bug hunt 2026-11-02, #1).
+    public var entityKept: [String: Int]
     public var totalInserts: Int
     public var totalDeletes: Int
     public var warnings: [String]
@@ -376,6 +381,7 @@ nonisolated public struct RestorePreview: Codable, Sendable, Equatable {
         mode: String,
         entityInserts: [String: Int], entitySkips: [String: Int],
         entityDeletes: [String: Int],
+        entityKept: [String: Int] = [:],
         totalInserts: Int, totalDeletes: Int,
         warnings: [String]
     ) {
@@ -383,8 +389,12 @@ nonisolated public struct RestorePreview: Codable, Sendable, Equatable {
         self.entityInserts = entityInserts
         self.entitySkips = entitySkips
         self.entityDeletes = entityDeletes
+        self.entityKept = entityKept
         self.totalInserts = totalInserts
         self.totalDeletes = totalDeletes
         self.warnings = warnings
     }
+
+    /// How many records the restore leaves as they are.
+    public var totalKept: Int { entityKept.values.reduce(0, +) }
 }

@@ -51,7 +51,7 @@ nonisolated struct TideSyncSettings: Equatable, Sendable {
 /// What the sync remembers between runs, in UserDefaults on this Mac, per
 /// CloudKit environment's notebook. Bounded by the open to-dos: an entry
 /// goes when its to-do is closed on both sides or gone; `unmarkedLinks`, by
-/// Tide's open actions instead.
+/// Tide's open actions instead, and `pendingTicks` once its tick has gone.
 nonisolated struct TideSyncState: Equatable, Sendable {
     /// The linked to-dos (uuid strings) both apps last agreed were open. A
     /// tick is carried only from here, so an untick on either side is never
@@ -71,7 +71,23 @@ nonisolated struct TideSyncState: Equatable, Sendable {
     /// its action looks like one made in Tide (bug hunt 2026-10-29). An
     /// entry goes when its action is marked, or gone from Tide's lists.
     var unmarkedLinks: [String: String] = [:]
+    /// Tide's due date ("YYYY-MM-DD", "" for none) of each linked to-do both
+    /// apps last agreed was open, as the last run that saw both open read
+    /// it: what an edit to the date on either side is measured from, and how
+    /// a repeat ticked in Tide too is told from one still to tick (bug hunt
+    /// 2026-11-02 #3, #46).
+    var agreedDue: [String: String] = [:]
+    /// Linked to-dos (uuid string → their action's address) ticked here
+    /// while both apps last agreed they were open, whose tick hasn't reached
+    /// Tide yet. Kept after the to-do goes: cleared or deleted before the Mac
+    /// told Tide, the tick still goes across (bug hunt 2026-11-02 #11).
+    var pendingTicks: [String: String] = [:]
     var lastSyncAt: Date?
+
+    /// Named and scoped per CloudKit environment as the keys in
+    /// `UserDefaultsKeys+Tide` are.
+    private static var agreedDueKey: String { CloudKitEnvironment.scoped("Tide.agreedDue") }
+    private static var pendingTicksKey: String { CloudKitEnvironment.scoped("Tide.pendingTicks") }
 
     init() {}
 
@@ -81,6 +97,8 @@ nonisolated struct TideSyncState: Equatable, Sendable {
         firstRunConfirmedAt = defaults.object(forKey: UserDefaultsKeys.tideFirstRunConfirmedAt) as? Date
         firstRunLinked = defaults.stringArray(forKey: UserDefaultsKeys.tideFirstRunLinked) ?? []
         unmarkedLinks = defaults.dictionary(forKey: UserDefaultsKeys.tideUnmarkedLinks) as? [String: String] ?? [:]
+        agreedDue = defaults.dictionary(forKey: Self.agreedDueKey) as? [String: String] ?? [:]
+        pendingTicks = defaults.dictionary(forKey: Self.pendingTicksKey) as? [String: String] ?? [:]
         lastSyncAt = defaults.object(forKey: UserDefaultsKeys.tideLastSyncAt) as? Date
     }
 
@@ -90,6 +108,8 @@ nonisolated struct TideSyncState: Equatable, Sendable {
         defaults.set(firstRunConfirmedAt, forKey: UserDefaultsKeys.tideFirstRunConfirmedAt)
         defaults.set(firstRunLinked, forKey: UserDefaultsKeys.tideFirstRunLinked)
         defaults.set(unmarkedLinks, forKey: UserDefaultsKeys.tideUnmarkedLinks)
+        defaults.set(agreedDue, forKey: Self.agreedDueKey)
+        defaults.set(pendingTicks, forKey: Self.pendingTicksKey)
         defaults.set(lastSyncAt, forKey: UserDefaultsKeys.tideLastSyncAt)
     }
 
@@ -104,11 +124,15 @@ nonisolated struct TideSyncState: Equatable, Sendable {
     var openIDs: Set<UUID> { Set(agreedOpen.keys.compactMap(UUID.init(uuidString:))) }
 
     /// Forgets every to-do not among `ids`. `unmarkedLinks` outlives its
-    /// to-do (`keepUnmarkedLinks`).
+    /// to-do (`keepUnmarkedLinks`), and so does a tick still to go across;
+    /// for a to-do still here, the tick goes the usual way while it is
+    /// agreed open.
     mutating func keep(only ids: Set<UUID>) {
         let kept = Set(ids.map(\.uuidString))
         agreedOpen = agreedOpen.filter { kept.contains($0.key) && $0.value }
         fromTide = fromTide.intersection(kept)
+        pendingTicks = pendingTicks.filter { !kept.contains($0.key) || agreedOpen[$0.key] == true }
+        agreedDue = agreedDue.filter { agreedOpen[$0.key] == true || pendingTicks[$0.key] != nil }
     }
 
     /// Forgets each unmarked link whose address isn't among `addresses`

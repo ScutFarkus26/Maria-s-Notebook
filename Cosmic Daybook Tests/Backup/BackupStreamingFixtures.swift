@@ -141,7 +141,7 @@ enum BackupStreamingFixtures {
 
         func manifest() throws -> BackupArchiveManifest {
             let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
+            decoder.dateDecodingStrategy = BackupDateCoding.decodingStrategy
             return try decoder.decode(BackupArchiveManifest.self, from: try #require(bodies["manifest.json"]))
         }
     }
@@ -160,11 +160,12 @@ enum BackupStreamingFixtures {
         return contents
     }
 
-    /// `preferences.json` exactly as the old writer encoded it.
+    /// `preferences.json` exactly as the old writer encoded it, with the
+    /// archive's dates (`BackupDateCoding`, the same for whole seconds).
     static func legacyPreferencesJSON(_ payload: BackupPayload) throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
+        encoder.dateEncodingStrategy = BackupDateCoding.encodingStrategy
         return try encoder.encode(payload.preferences)
     }
 
@@ -178,7 +179,7 @@ enum BackupStreamingFixtures {
         guard entityName == "Note" else { return ndjson }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
+        encoder.dateEncodingStrategy = BackupDateCoding.encodingStrategy
         var result = Data()
         for line in ndjson.split(separator: 0x0A) {
             var bytes = Data(line)

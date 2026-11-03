@@ -16,8 +16,9 @@ nonisolated extension BackupImporter {
     /// Streams the archive one entity entry at a time and decodes every row
     /// exactly as a restore decodes it — with the entity's full DTO type,
     /// through `visitRows`, so an entry the restore would skip is skipped here
-    /// with the same warning — but keeps only each row's ID and the entry's
-    /// row count. One entry's bytes and one record are in memory at a time.
+    /// with the same warning — but keeps only each row's ID and `modifiedAt`,
+    /// the entry's row count, and which entries didn't decode. One entry's
+    /// bytes and one record are in memory at a time.
     /// The old preview decoded the whole archive (every entry's bytes, then
     /// every record) to answer the same questions. `@concurrent`: runs off the
     /// main actor.
@@ -25,16 +26,19 @@ nonisolated extension BackupImporter {
     static func decodePreview(at url: URL) async throws -> DecodedPreview {
         BackupPipelineProbe.reach("decode preview")
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = BackupDateCoding.decodingStrategy
         var digest = BackupPreviewDigest()
         var warnings: [String] = []
+        var unreadable = BackupEntriesRead()
 
         let manifest = try BackupReader.streamEntities(
             from: url,
             keyProvider: { try BackupEncryptionKeyStore.requireKey() },
             body: { entry in
                 var rows = BackupPreviewDigest.EntityRows(entityName: entry.entityName)
-                if let warning = visitRows(of: entry, using: decoder, { rows.add($0) }) {
+                let warning = visitRows(of: entry, using: decoder, { rows.add($0) })
+                unreadable.note(entry.entityName, decoded: warning == nil)
+                if let warning {
                     // Skipped, as the restore skips it: nothing of it counts.
                     warnings.append(warning)
                 } else {
@@ -42,6 +46,7 @@ nonisolated extension BackupImporter {
                 }
             }
         )
+        digest.skippedEntityNames = unreadable.skipped
         return DecodedPreview(manifest: manifest, digest: digest, warnings: warnings)
     }
 }

@@ -20,16 +20,32 @@ struct BackupPackageDocument: FileDocument, Sendable {
         return [.data]
     }
     
-    var data: Data
-    
-    init(data: Data) { self.data = data }
-    
+    /// The backup's bytes: a finished file on disk (Back Up Now's), or bytes
+    /// read in by the system.
+    private enum Contents: Sendable {
+        case file(URL)
+        case data(Data)
+    }
+
+    private let contents: Contents
+
+    /// A finished backup file, which the exporter copies from disk. Until
+    /// 2026-11 the whole backup, photos and all, was read into memory first
+    /// (bug hunt 2026-11-02 #9). The file must stay until the exporter is done.
+    init(fileURL: URL) { contents = .file(fileURL) }
+
     init(configuration: ReadConfiguration) throws {
         guard let file = configuration.file.regularFileContents else { throw CocoaError(.fileReadCorruptFile) }
-        self.data = file
+        contents = .data(file)
     }
-    
+
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        FileWrapper(regularFileWithContents: data)
+        switch contents {
+        case .file(let url):
+            // No `.immediate`: the bytes are read as the wrapper is written out.
+            try FileWrapper(url: url, options: [])
+        case .data(let data):
+            FileWrapper(regularFileWithContents: data)
+        }
     }
 }

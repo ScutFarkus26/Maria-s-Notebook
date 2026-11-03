@@ -379,6 +379,7 @@ struct BackupRestoreKeepsTests {
             local.id = noteID
             local.scope = .students([before])
             local.syncStudentLinks(in: context)
+            local.updatedAt = backedUp.updatedAt?.addingTimeInterval(-60) // older: a Merge takes the backup's
             try context.save()
 
             try await Repair.restore(rows, into: context, mode: .merge)

@@ -26,6 +26,10 @@ enum AssistantStack {
     /// attacher before each pass and before each chunk.
     static var filingStopReason: String? { filingHold?.stopReason }
 
+    /// What filing waits for now, or nil: the sync line and Leave's Wait
+    /// say so (bug hunt 2026-11-02 #5, #45).
+    static var filingWait: AssistantFilingHold.Wait? { filingHold?.wait }
+
     /// The open stack, if any, without opening one.
     static var current: CoreDataStack? { stack }
 
@@ -73,8 +77,11 @@ enum AssistantStack {
                 }
             )
             let record = AssistantSyncRecord(viewContext: made.viewContext)
-            // A successful sync proves iCloud can be reached.
-            record.onSharedStoreSynced = { if attacher.isOffline { attacher.retryWaiting() } }
+            // A successful sync proves iCloud can be reached, and may have
+            // brought the share marks saved before it waited for (#44).
+            record.onSharedStoreSynced = {
+                if attacher.isOffline { attacher.retryWaiting() } else { attacher.shareArrived() }
+            }
             syncRecord = record
             networkWatch?.stop()
             networkWatch = .live { attacher.retryWaiting() }

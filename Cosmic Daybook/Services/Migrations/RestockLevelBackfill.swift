@@ -38,7 +38,9 @@ nonisolated enum RestockLevelBackfill {
         now: Date = Date()
     ) -> Int {
         let flag = UserDefaultsKeys.restockLevelsFromCounts
-        guard !defaults.bool(forKey: flag), !FirstDownloadGate.isPending(defaults: defaults) else { return 0 }
+        // Armed, not merely pending: a session lifted for want of an account
+        // would set the flag on an empty store (bug hunt 2026-11-02, #58).
+        guard !defaults.bool(forKey: flag), !FirstDownloadGate.isArmed(defaults: defaults) else { return 0 }
         let role = CDClassroomMembership.currentRole(in: context)
         // An assistant's notebook never decides the classroom's shelf.
         guard role == .leadGuide else { return 0 }

@@ -27,6 +27,34 @@ extension AssistantShareAttacher {
         retryWaiting()
     }
 
+    /// What waits, by kind, for Leave's warning: her attendance marks, and
+    /// the other changes the guide would lose (Restock lines, front-desk
+    /// sends). Her own name in the class's list isn't counted: leaving takes
+    /// it off anyway. Every record used to count as a mark, so one mark and
+    /// her name read "2 marks haven't reached your guide" (bug hunt
+    /// 2026-11-02 #43).
+    func waitingByKind() -> (marks: Int, otherChanges: Int) {
+        let coordinator = lastContext?.persistentStoreCoordinator
+        var marks = 0, otherChanges = 0
+        for uri in pending {
+            switch Self.entityName(of: uri, in: coordinator) {
+            case "AttendanceRecord": marks += 1
+            case "ClassroomPerson": break
+            default: otherChanges += 1
+            }
+        }
+        return (marks, otherChanges)
+    }
+
+    /// The entity a waiting record's URI names: from the store, or, with
+    /// the store gone (a rebuilt stack), from the URI itself, which names it
+    /// before the record's own number (`x-coredata://<store>/<Entity>/p<n>`).
+    nonisolated static func entityName(of uri: URL, in coordinator: NSPersistentStoreCoordinator?) -> String? {
+        if let id = coordinator?.managedObjectID(forURIRepresentation: uri) { return id.entity.name }
+        let parts = uri.pathComponents
+        return parts.count >= 2 ? parts[parts.count - 2] : nil
+    }
+
     /// One minute after the first failed pass in a row, doubling each time
     /// after, and never more than ten.
     static func rest(afterFailures failures: Int) -> TimeInterval {

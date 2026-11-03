@@ -20,8 +20,16 @@ struct TideSyncReport: Equatable {
     var relinked = 0
     /// Linked actions given their notebook line this run.
     var marked = 0
+    /// To-dos made in Tide whose new title or due date here went across.
+    var edited = 0
     /// Titles Tide wouldn't take.
     var notSent: [String] = []
+    /// To-dos made in Tide whose edit here Tide wouldn't take: changed here
+    /// only, and not tried again until they change here once more.
+    var notCarried: [String] = []
+    /// To-dos made in Tide given a due date here that has already passed,
+    /// which Tide doesn't take: the date stays here only.
+    var pastDue: [String] = []
     /// Ticks Tide couldn't aim: its list has more than one action with the
     /// words. Asked again every run.
     var notTicked: [String] = []

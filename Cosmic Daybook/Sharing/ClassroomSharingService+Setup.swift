@@ -39,6 +39,9 @@ extension ClassroomSharingService {
     /// that stopped partway ("Add them to the share"). It never moves a record
     /// out of another share, and on a device that didn't make the pin it waits
     /// until the notebook has imported since the pin arrived (`resumePin`).
+    /// A share no pin names, from a setup that stopped before its pin saved,
+    /// is pinned and finished the same way (`setupStart`). The Settings button
+    /// is on the Mac only.
     ///
     /// Holds `ClassroomShareAttachLock` throughout, so the orphan guard's pass
     /// waits rather than sharing the same records beside it. Refuses, rather
@@ -157,14 +160,21 @@ extension ClassroomSharingService {
     /// `container.share([seed], to: nil)`: between `setupBlocker` and here,
     /// setup reads the server's zones and every classroom record, seconds on
     /// a big class, and sync can stop or a hold start meanwhile (2026-10-10
-    /// review, #2). Nil when sync lets it go ahead.
-    static func shareCreationBlocker(sync: CloudKitSyncStatusService = .shared) -> ClassroomShareError? {
+    /// review, #2). `serverZones` is the server's list of share zones, read
+    /// again just before: another of the guide's devices can have made the
+    /// share since preflight read it, and two setups at once made two share
+    /// zones (bug hunt 2026-11-02, #30). Nil when it can go ahead.
+    static func shareCreationBlocker(
+        sync: CloudKitSyncStatusService = .shared, serverZones: Set<String> = []
+    ) -> ClassroomShareError? {
         if let hold = sync.shareFilingHold { return ClassroomShareError(hold) }
-        return sync.mirroringDelegateFailed ? .mirroringStopped : nil
+        if sync.mirroringDelegateFailed { return .mirroringStopped }
+        return serverZones.isEmpty ? nil : .otherShareZonesExist(serverZones.count)
     }
 
     /// Refuses unless setup is safe right now; returns the private store and
-    /// the pinned share when one already exists (a resumed setup).
+    /// the pinned share when one already exists (a resumed setup), or one it
+    /// pinned just now (`adoptUnpinnedShare`).
     private func setupPreflight(coreDataStack: CoreDataStack) async throws -> (NSPersistentStore, CKShare?) {
         if let blocker = Self.setupBlocker(coreDataStack: coreDataStack) { throw blocker }
         guard let store = coreDataStack.privatePersistentStore else { throw ClassroomShareError.sharedStoreUnavailable }
@@ -172,24 +182,50 @@ extension ClassroomSharingService {
 
         let serverZones = try await Self.fetchServerShareZoneNames()
         let localShares = try container.fetchShares(in: store)
-        let pinned = CDClassroomMembership.classroomShare(among: localShares, in: viewContext)
-        if let pinned {
-            guard serverZones == [pinned.recordID.zoneID.zoneName] else {
-                throw ClassroomShareError.otherShareZonesExist(serverZones.count)
-            }
-        } else if let zone = CDClassroomMembership.pinnedZoneName(in: viewContext), serverZones.contains(zone) {
-            throw ClassroomShareError.shareStillSyncing
-        } else if !serverZones.isEmpty || !localShares.isEmpty {
-            throw ClassroomShareError.otherShareZonesExist(max(serverZones.count, localShares.count))
+        let start = Self.setupStart(
+            serverZones: serverZones,
+            localShareZones: localShares.map(\.recordID.zoneID.zoneName),
+            pinnedZone: CDClassroomMembership.pinnedZoneName(in: viewContext)
+        )
+        func share(in zone: String) -> CKShare? { localShares.first { $0.recordID.zoneID.zoneName == zone } }
+        switch start {
+        case .create:
+            return (store, nil)
+        case .resume(let zone):
+            guard let pinned = share(in: zone) else { throw ClassroomShareError.shareStillSyncing }
+            return (store, pinned)
+        case .adopt(let zone):
+            guard let unpinned = share(in: zone) else { throw ClassroomShareError.otherShareZonesExist(1) }
+            return (store, try adoptUnpinnedShare(unpinned, in: viewContext))
+        case .refuse(let error):
+            throw error
         }
-        return (store, pinned)
+    }
+
+    /// Pins a share no pin names (`SetupStart.adopt`); setup then goes on as a
+    /// resumed one (`resumePin`). Unless this device made the share (it noted
+    /// that before the pin's save failed), that waits for an import first: the
+    /// share may be another device's whose pin hasn't arrived, and records in
+    /// it could still read as outside it here (bug hunt 2026-11-02, #31).
+    private func adoptUnpinnedShare(_ share: CKShare, in viewContext: NSManagedObjectContext) throws -> CKShare {
+        let zone = share.recordID.zoneID.zoneName
+        Self.setupLogger.notice("Classroom setup: pinning the share no pin names, in zone \(zone, privacy: .public)")
+        ClassroomRepository(context: viewContext).pinClassroom(
+            zoneName: zone,
+            role: .leadGuide,
+            ownerIdentity: share.owner.userIdentity.userRecordID?.recordName ?? "self"
+        )
+        try savePin(in: viewContext)
+        updateShareState(share)
+        return share
     }
 
     /// Creates the share seeded with `seed`, pins its zone and publishes it.
     private func createPinnedShare(
         seed: NSManagedObjectID, in viewContext: NSManagedObjectContext
     ) async throws -> CKShare {
-        if let stop = Self.shareCreationBlocker() { throw stop }
+        let serverZones = try await Self.fetchServerShareZoneNames()
+        if let stop = Self.shareCreationBlocker(serverZones: serverZones) { throw stop }
         let share: CKShare
         do {
             share = try await ClassroomShareAttach.createShareOffMain(seedID: seed, container: container)

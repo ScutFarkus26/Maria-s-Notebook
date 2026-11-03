@@ -20,7 +20,6 @@ struct ClassroomMembersSheet: View {
     let onDone: () -> Void
 
     @State private var address = ""
-    @State private var permission: CKShare.ParticipantPermission = .readWrite
     @State private var isWorking = false
     @State private var errorMessage: String?
     @State private var confirmingRemoveAll = false
@@ -168,7 +167,6 @@ struct ClassroomMembersSheet: View {
                 suggestions = []
             }
             .fixedSize()
-            permissionPicker
             addButton
         }
         #else
@@ -179,7 +177,6 @@ struct ClassroomMembersSheet: View {
                 .keyboardType(.emailAddress)
                 .textContentType(.emailAddress)
             HStack(spacing: AppTheme.Spacing.small) {
-                permissionPicker
                 Spacer()
                 addButton
                     .buttonStyle(.borderedProminent)
@@ -194,15 +191,6 @@ struct ClassroomMembersSheet: View {
             .onSubmit(add)
     }
 
-    private var permissionPicker: some View {
-        Picker("Permission", selection: $permission) {
-            Text("Can make changes").tag(CKShare.ParticipantPermission.readWrite)
-            Text("View only").tag(CKShare.ParticipantPermission.readOnly)
-        }
-        .labelsHidden()
-        .fixedSize()
-    }
-
     private var addButton: some View {
         Button("Add", action: add)
             .keyboardShortcut(.defaultAction)
@@ -213,7 +201,7 @@ struct ClassroomMembersSheet: View {
         let entered = address
         guard !entered.trimmed().isEmpty else { return }
         run("add \(entered.trimmed())") {
-            try await service.addMember(entered, permission: permission)
+            try await service.addMember(entered)
             address = ""
         }
     }
@@ -300,6 +288,7 @@ private struct ClassroomMemberRow: View {
 
     private var statusLine: String {
         let status = member.acceptanceStatus == .accepted ? "Joined" : "Invited"
+        // Someone added as view only before that choice went (`addMember`).
         let access = member.permission == .readWrite ? "Can make changes" : "View only"
         return "\(status) · \(access)"
     }

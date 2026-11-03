@@ -58,13 +58,20 @@ final class SharedStoreOrphanGuard {
     /// The sync status a pass checks first; a test sets its own.
     var syncStatus: () -> CloudKitSyncStatusService = { .shared }
 
+    /// Where the lock two copies of the app take to change the waiting list
+    /// lives (`ListLock`): beside the stores, unless a test gives its own.
+    private let listLockDirectory: URL?
+    /// Opened on the first change to the waiting list.
+    private(set) lazy var listLock = ListLock(directory: listLockDirectory ?? CoreDataStack.storeDirectory())
+
     private var saveObservation: NotificationCenter.ObservationToken?
     private var remoteChangeTask: Task<Void, Never>?
     private var flushTask: Task<Void, Never>?
     private var flushAgain = false
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, listLockDirectory: URL? = nil) {
         self.defaults = defaults
+        self.listLockDirectory = listLockDirectory
     }
 
     /// Begins observing `coreDataStack`'s view-context saves. Idempotent for
@@ -146,6 +153,9 @@ final class SharedStoreOrphanGuard {
         handleSaved(ids, in: stack)
         await waitUntilIdle()
     }
+
+    /// Whether an attach pass is running or due.
+    var isBusy: Bool { flushTask != nil }
 
     /// Returns once no attach pass is running or due.
     func waitUntilIdle() async {

@@ -31,6 +31,11 @@ enum BackupImporter {
         /// The archive's note photos, written to a temporary folder as they
         /// were read (`BackupPhotos`); nil when it has none.
         var stagedPhotos: URL?
+        /// The entity types this version knows whose every entry in the
+        /// archive failed to decode (a warning each): the backup says nothing
+        /// about them, so a Replace leaves them as they are
+        /// (`BackupRestoreSource.skippedEntityNames`; bug hunt 2026-11-02, #10).
+        var skippedEntityNames: Set<String> = []
     }
 
     // MARK: - Public API
@@ -52,9 +57,10 @@ enum BackupImporter {
     nonisolated static func decodeArchive(at url: URL) async throws -> DecodedArchive {
         BackupPipelineProbe.reach("decode")
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = BackupDateCoding.decodingStrategy
         var payload = BackupPayload.collecting(preferences: PreferencesDTO(values: [:]))
         var warnings: [String] = []
+        var unreadable = BackupEntriesRead()
         var staging: URL?
         do {
             let backup = try BackupReader.streamBackup(
@@ -62,9 +68,9 @@ enum BackupImporter {
                 keyProvider: { try BackupEncryptionKeyStore.requireKey() },
                 entity: { entry in
                     autoreleasepool {
-                        if let warning = decode(entry, into: &payload, using: decoder) {
-                            warnings.append(warning)
-                        }
+                        let warning = decode(entry, into: &payload, using: decoder)
+                        unreadable.note(entry.entityName, decoded: warning == nil)
+                        if let warning { warnings.append(warning) }
                     }
                 },
                 photo: { name, data in
@@ -79,7 +85,8 @@ enum BackupImporter {
                 payload: payload,
                 warnings: warnings,
                 encrypted: BackupArchive.isEncryptedArchive(at: url),
-                stagedPhotos: staging
+                stagedPhotos: staging,
+                skippedEntityNames: unreadable.skipped
             )
         } catch {
             if let staging { try? FileManager.default.removeItem(at: staging) }
@@ -140,7 +147,8 @@ enum BackupImporter {
             fileName: url.lastPathComponent,
             entityCounts: decoded.manifest.entityCounts
         )
-        return (BackupPayloadSource(decoded.payload, envelope: envelope), decoded.warnings, decoded.stagedPhotos)
+        let source = BackupPayloadSource(decoded.payload, envelope: envelope, skipped: decoded.skippedEntityNames)
+        return (source, decoded.warnings, decoded.stagedPhotos)
     }
 
     // MARK: - Payload Reconstruction
@@ -157,7 +165,7 @@ enum BackupImporter {
         from decoded: BackupReader.DecodedBackup
     ) -> (payload: BackupPayload, warnings: [String]) {
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = BackupDateCoding.decodingStrategy
 
         // Initialize with empty arrays; we fill the ones we have entries for.
         var payload = BackupPayload.collecting(
@@ -223,10 +231,27 @@ enum BackupImporter {
     }
 
     private nonisolated static func unreadableEntryWarning(_ entityName: String, _ error: Error) -> String {
-        let message = "\(entityName) records could not be read from this backup " +
-            "and were skipped: \(error.localizedDescription)"
+        let message = "\(entityName)\(unreadableEntrySuffix)\(error.localizedDescription)"
         logger.warning("\(message, privacy: .public)")
         return message
+    }
+
+    private nonisolated static let unreadableEntrySuffix =
+        " records could not be read from this backup and were skipped: "
+
+    /// The types every notebook's backup holds (`BackupEntity.isRequired`)
+    /// that `warnings` say couldn't be read: a Replace from that backup
+    /// refuses to run (bug hunt 2026-11-02, #10), so its preview says so
+    /// before Restore Now. Read from the warnings the preview already
+    /// carries; a type written twice whose second entry did read still
+    /// counts here, though the restore itself would run.
+    nonisolated static func requiredTypesUnreadable(in warnings: [String]) -> [String] {
+        let required = Set(BackupEntityTable.entities.filter(\.isRequired).map(\.name))
+        return warnings.compactMap { warning in
+            guard let range = warning.range(of: unreadableEntrySuffix) else { return nil }
+            let name = String(warning[..<range.lowerBound])
+            return required.contains(name) ? name : nil
+        }
     }
 
     // MARK: - Per-Entity Dispatch
@@ -236,4 +261,21 @@ enum BackupImporter {
     nonisolated static var handledEntityNames: [String] {
         Array(entityDecoders.keys)
     }
+}
+
+/// Which known entity types' entries decoded and which didn't, as an archive
+/// is read: a type is skipped when an entry of it failed and none decoded (a
+/// second, readable entry of a type fills its field, as `decode` keeps it).
+/// An entity this version doesn't know isn't counted: it has no field.
+nonisolated struct BackupEntriesRead: Sendable {
+    private var decoded = Set<String>()
+    private var failed = Set<String>()
+
+    mutating func note(_ entityName: String, decoded wasDecoded: Bool) {
+        guard BackupImporter.entityDecoders[entityName] != nil else { return }
+        if wasDecoded { decoded.insert(entityName) } else { failed.insert(entityName) }
+    }
+
+    /// The known types with an unreadable entry and no readable one.
+    var skipped: Set<String> { failed.subtracting(decoded) }
 }

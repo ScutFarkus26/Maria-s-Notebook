@@ -23,6 +23,8 @@ import Foundation
 /// `OrphanStudentGrace` as the second line). A run stopped anywhere leaves at most both
 /// copies; the next run finds the private copy (a "twin") and only deletes. One stopped
 /// after its last deletes leaves nothing to plan; finishing it only checks iCloud (`+Finish`).
+/// A twin whose shared original belongs in the share after all (the child came back before
+/// the run was finished) goes instead, and the shared original stays (`+Twins`).
 ///
 /// This file is the plan — pure, so it is tested without CloudKit. `+Run` carries it out.
 nonisolated enum ClassroomShareRelease {
@@ -43,6 +45,9 @@ nonisolated enum ClassroomShareRelease {
         /// Why a backup can't hold this record, or nil. Such a record is never planned: the
         /// run's backup check would refuse every time. The preview names it instead.
         var backupGap: BackupGap?
+        /// A mark dated this school year (`ClassroomShareScope.isThisYear`); false for a
+        /// student. One that still doesn't belong is of a child no longer in the notebook.
+        var datedThisYear = false
     }
 
     /// What keeps a record out of a backup: `BackupServiceHelpers.toDTOs` leaves out a
@@ -64,12 +69,27 @@ nonisolated enum ClassroomShareRelease {
         let sharedRows: [NSManagedObjectID]
     }
 
+    /// A record a stopped run left on both sides whose shared original belongs in the share
+    /// after all: the child came back before the run was finished, or the school-year start
+    /// moved earlier. The shared original stays; its private copies go (`+Twins`).
+    struct TwinCleanup: Sendable, Equatable {
+        let entity: String
+        let studentKey: String
+        /// The shared original, which stays.
+        let shared: NSManagedObjectID
+        /// The private copies a stopped run made, which go.
+        let twins: [NSManagedObjectID]
+    }
+
     /// Moves carried out together: one departed child with all her records, or a slice of
-    /// earlier-year attendance.
+    /// earlier-year attendance. Or, in batches of their own, a slice of twin cleanups.
     struct Batch: Sendable, Equatable {
         /// The departed child the batch is about, or nil for earlier-year attendance.
         let studentKey: String?
         let moves: [Move]
+        /// Records a stopped run left twice that belong in the share after all. A batch
+        /// holds these or moves, never both.
+        var twinCleanups: [TwinCleanup] = []
     }
 
     /// Earlier-year attendance of children still in the share goes in slices this size.
@@ -80,9 +100,21 @@ nonisolated enum ClassroomShareRelease {
     // MARK: - Planning
 
     /// The moves `rows` call for, in batches: the smallest departed child first (the
-    /// canary), then the other children, then earlier-year attendance in slices.
+    /// canary), then the other children, then earlier-year attendance in slices. Last come
+    /// the twins of records that belong after all (`twinCleanups`), in slices too.
     static func plan(_ rows: [Row]) -> [Batch] {
-        let moves = self.moves(in: rows)
+        var batches = moveBatches(moves(in: rows))
+        let cleanups = twinCleanups(in: rows)
+        var start = 0
+        while start < cleanups.count {
+            let end = min(start + attendanceSliceSize, cleanups.count)
+            batches.append(Batch(studentKey: nil, moves: [], twinCleanups: Array(cleanups[start..<end])))
+            start = end
+        }
+        return batches
+    }
+
+    private static func moveBatches(_ moves: [Move]) -> [Batch] {
         guard !moves.isEmpty else { return [] }
 
         let departed = Set(moves.filter { $0.entity == "Student" }.map(\.studentKey))
@@ -119,16 +151,8 @@ nonisolated enum ClassroomShareRelease {
     /// Every record with a shared row outside the scope, grouped by its `id` so an earlier
     /// run's private copy is found and reused rather than copied again.
     static func moves(in rows: [Row]) -> [Move] {
-        var groups: [String: [Row]] = [:]
-        for row in rows {
-            // A row without an id can't have a twin; it is its own group.
-            let key = row.recordID.map { "\(row.entity)|\($0.uuidString)" }
-                ?? "\(row.entity)|\(row.objectID.uriRepresentation().absoluteString)"
-            groups[key, default: []].append(row)
-        }
-
         var moves: [Move] = []
-        for group in groups.values {
+        for group in groupedByRecord(rows) {
             let shared = group.filter(\.isShared).sorted(by: rowOrder)
             // Only records the share holds and shouldn't: a copy's `belongs` matches its
             // original's, since both carry the same values. One a backup can't hold stays
@@ -144,6 +168,43 @@ nonisolated enum ClassroomShareRelease {
             ))
         }
         return moves.sorted(by: moveOrder)
+    }
+
+    /// Every record whose shared original belongs this year and has a private copy beside
+    /// it, which only a stopped run makes (bug hunt 2026-11-02, #38). No move plans one, its
+    /// original belonging, and dedup leaves a record on both sides of the share alone
+    /// (`DedupShareBoundary`): without this both copies stayed for good, and an edit to the
+    /// private one never reached the assistants.
+    static func twinCleanups(in rows: [Row]) -> [TwinCleanup] {
+        var cleanups: [TwinCleanup] = []
+        for group in groupedByRecord(rows) {
+            let shared = group.filter(\.isShared).sorted(by: rowOrder)
+            // One a backup can't hold stays as it is: the run's backup check would refuse.
+            guard let source = shared.first, source.belongs, source.backupGap == nil else { continue }
+            let twins = group.filter { !$0.isShared }.sorted(by: rowOrder)
+            guard !twins.isEmpty else { continue }
+            cleanups.append(TwinCleanup(
+                entity: source.entity, studentKey: source.studentKey, shared: source.objectID,
+                twins: twins.map(\.objectID)
+            ))
+        }
+        return cleanups.sorted { lhs, rhs in
+            if lhs.entity != rhs.entity { return lhs.entity == "Student" }
+            return lhs.shared.uriRepresentation().absoluteString < rhs.shared.uriRepresentation().absoluteString
+        }
+    }
+
+    /// The rows by record (entity and `id`), so a record's shared original and a stopped
+    /// run's private copy of it are seen together. A row without an id can't have a copy; it
+    /// is its own group.
+    private static func groupedByRecord(_ rows: [Row]) -> [[Row]] {
+        var groups: [String: [Row]] = [:]
+        for row in rows {
+            let key = row.recordID.map { "\(row.entity)|\($0.uuidString)" }
+                ?? "\(row.entity)|\(row.objectID.uriRepresentation().absoluteString)"
+            groups[key, default: []].append(row)
+        }
+        return Array(groups.values)
     }
 
     /// The shared records that don't belong but stay in the share, because a backup can't

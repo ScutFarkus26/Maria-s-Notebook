@@ -25,9 +25,15 @@ extension DataManagementPanel {
 
                 // Both explained before the choice; the chosen one reads brighter.
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
+                    // Newer wins where a record notes when it changed; the
+                    // kinds that don't are named (bug hunt 2026-11-02, #1).
                     restoreModeLine(
                         .merge,
-                        "**Merge:** Add what's in the backup and keep everything else."
+                        """
+                        **Merge:** Add what's in the backup and keep most of what you've changed since. Lessons, \
+                        work, presentations, meetings and to-dos go back to the backup's version, but a to-do \
+                        you've ticked stays done.
+                        """
                     )
                     restoreModeLine(
                         .replace,

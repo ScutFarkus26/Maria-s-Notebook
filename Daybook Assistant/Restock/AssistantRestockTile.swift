@@ -16,6 +16,9 @@ struct AssistantRestockTile: View {
     let onSetLevel: (RestockLevel) -> Void
     let onNote: () -> Void
     let onHistory: () -> Void
+    /// False while the share is View only (bug hunt 2026-11-02 #29): a tap
+    /// does nothing, and holding gives who set it and History alone.
+    var canChange = true
 
     static let height: CGFloat = 92
 
@@ -87,6 +90,7 @@ struct AssistantRestockTile: View {
     }
 
     private func tapped() {
+        guard canChange else { return }
         if onTap() {
             taps += 1
         } else {
@@ -98,12 +102,26 @@ struct AssistantRestockTile: View {
     private var accessibility: AssistantRestockTileAccessibility {
         AssistantRestockTileAccessibility(
             name: name, level: level, markedBy: markedBy, hasNote: hasNote,
-            onTap: { _ = onTap() }, onSetLevel: onSetLevel, onNote: onNote, onHistory: onHistory
+            onTap: { _ = onTap() }, onSetLevel: onSetLevel, onNote: onNote, onHistory: onHistory,
+            canChange: canChange
         )
     }
 
     @ViewBuilder
     private var menu: some View {
+        if canChange {
+            changeMenu
+        } else {
+            Section {
+                Button("History", systemImage: "clock", action: onHistory)
+            } header: {
+                Text(menuHeader)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var changeMenu: some View {
         Section {
             ForEach(RestockLevel.allCases) { choice in
                 Button {
@@ -152,9 +170,11 @@ struct AssistantRestockTileAccessibility: ViewModifier {
     let onSetLevel: (RestockLevel) -> Void
     let onNote: () -> Void
     let onHistory: () -> Void
+    var canChange = true
 
     private var hint: String {
-        level.afterTap.map { "Double tap to mark \($0.displayName.lowercased())" } ?? "Touch and hold for more"
+        guard canChange else { return "" }
+        return level.afterTap.map { "Double tap to mark \($0.displayName.lowercased())" } ?? "Touch and hold for more"
     }
 
     func body(content: Content) -> some View {
@@ -164,12 +184,21 @@ struct AssistantRestockTileAccessibility: ViewModifier {
             .accessibilityValue(Text(verbatim: markedBy ?? ""))
             .accessibilityHint(Text(verbatim: hint))
             .accessibilityAddTraits(.isButton)
-            .accessibilityAction(.default) { onTap() }
+            .accessibilityAction(.default) { if canChange { onTap() } }
             .accessibilityActions { actions }
     }
 
     @ViewBuilder
     private var actions: some View {
+        if canChange {
+            changeActions
+        } else {
+            Button("History", action: onHistory)
+        }
+    }
+
+    @ViewBuilder
+    private var changeActions: some View {
         let others: [RestockLevel] = RestockLevel.allCases.filter { $0 != level }
         ForEach(others) { (choice: RestockLevel) in
             Button(AssistantRestockTile.menuTitle(for: choice)) { onSetLevel(choice) }

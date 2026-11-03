@@ -30,7 +30,13 @@ final class SettingsViewModel {
     var operationSummary: BackupOperationSummary?
     var restorePreviewData: RestorePreview?
     var defaultFolderName: String = ""
-    var exportData: Data?
+    /// A finished backup in the temporary folder, for the iOS file exporter
+    /// when the backup folder couldn't take it: the exporter copies the file,
+    /// never reading it into memory. Removed once the exporter is done.
+    var exportFileURL: URL?
+    /// The notes of the backup at `exportFileURL`, kept until the file
+    /// exporter has saved it (`fileExporterFinished`).
+    var pendingExportNotes: [String] = []
     /// The message of the backup or restore alert, and its title.
     var importError: String?
     var importErrorTitle = "Couldn't Restore"
@@ -39,8 +45,8 @@ final class SettingsViewModel {
     // Internal
     /// The notebook backups are made of and restored into: the guide's own
     /// (`DataManagementGrid` makes this view model with it).
-    private let dependencies: AppDependencies
-    private var coordinator: BackupCoordinator { dependencies.backupCoordinator }
+    let dependencies: AppDependencies
+    var coordinator: BackupCoordinator { dependencies.backupCoordinator }
     private var pendingImportURL: URL?
     /// Restore Now was pressed on the preview: the restore starts once the
     /// sheet has gone (`restorePreviewDismissed`).
@@ -91,101 +97,6 @@ final class SettingsViewModel {
         }
     }
 
-    private func uniquedURL(in folder: URL, base: String, ext: String) -> URL {
-        var candidate = folder.appendingPathComponent(base).appendingPathExtension(ext)
-        var i = 2
-        while FileManager.default.fileExists(atPath: candidate.path) {
-            candidate = folder.appendingPathComponent("\(base) (\(i))").appendingPathExtension(ext)
-            i += 1
-        }
-        return candidate
-    }
-
-    // MARK: - Export
-    // swiftlint:disable:next function_body_length
-    func performExport(viewContext: NSManagedObjectContext) async {
-        // However it ends: a backup that failed part-way left the card's
-        // progress bar up, and Back up now and Import off, until a relaunch.
-        defer { backupProgress = 0; backupMessage = "" }
-        do {
-            backupProgress = 0; backupMessage = "Preparing…"; resultSummary = nil
-            let tmpName = defaultBackupFilename()
-            let tmp = FileManager.default.temporaryDirectory
-                .appendingPathComponent(tmpName)
-                .appendingPathExtension(BackupFile.fileExtension)
-            safeRemoveItem(at: tmp, context: "performExport-cleanup")
-            // Export through the archive implementation — produces the current AEA-framed format.
-            // At-rest protection comes from FileVault / iOS Data Protection / iCloud Drive.
-            _ = try await coordinator.exportBackup(
-                viewContext: viewContext,
-                to: tmp
-            ) { [weak self] progress, message in
-                self?.backupProgress = progress
-                self?.backupMessage = message
-            }
-            // Attempt seamless save to default folder if configured
-            if let folder = BackupDestination.resolveDefaultFolder() {
-                let needsAccess = folder.startAccessingSecurityScopedResource()
-                defer { if needsAccess { folder.stopAccessingSecurityScopedResource() } }
-                let base = tmpName
-                let dest = uniquedURL(in: folder, base: base, ext: BackupFile.fileExtension)
-                do {
-                    try FileManager.default.copyItem(at: tmp, to: dest)
-                    setLastBackupNow()
-                    resultSummary = BackupResultNote(text: "Saved backup as \(dest.lastPathComponent).", tone: .success)
-                    dependencies.toastService.showSuccess("Backup saved successfully")
-                    safeRemoveItem(at: tmp, context: "performExport-seamlessSave")
-                    loadDefaultFolderName()
-                    return
-                } catch {
-                    // Fall back to interactive save below
-                }
-            }
-#if os(macOS)
-            // macOS: Present a Save dialog and write the backup
-            let panel = NSSavePanel()
-            panel.title = "Save Backup"
-            panel.canCreateDirectories = true
-            panel.isExtensionHidden = false
-            panel.allowedContentTypes = [UTType(filenameExtension: BackupFile.fileExtension) ?? .data]
-            let ext = BackupFile.fileExtension
-            let suggested = tmpName.hasSuffix("." + ext) ? tmpName : (tmpName + "." + ext)
-            panel.nameFieldStringValue = suggested
-
-            let response = panel.runModal()
-            if response == .OK, let destURL = panel.url {
-                var finalURL = destURL
-                if finalURL.pathExtension.isEmpty {
-                    finalURL = destURL.appendingPathExtension(BackupFile.fileExtension)
-                }
-                if FileManager.default.fileExists(atPath: finalURL.path) {
-                    safeRemoveItem(at: finalURL, context: "performExport-overwrite")
-                }
-                do {
-                    try FileManager.default.copyItem(at: tmp, to: finalURL)
-                    setLastBackupNow()
-                    resultSummary = BackupResultNote(
-                        text: "Saved backup as \(finalURL.lastPathComponent).", tone: .success
-                    )
-                    dependencies.toastService.showSuccess("Backup saved successfully")
-                    loadDefaultFolderName()
-                } catch {
-                    showBackupFailure(error, operation: "save the backup")
-                }
-            } else {
-                resultSummary = BackupResultNote(text: "Backup canceled.", tone: .neutral)
-            }
-            safeRemoveItem(at: tmp, context: "performExport-macOSCleanup")
-#else
-            // iOS/iPadOS: provide data for SwiftUI fileExporter to present a save sheet
-            let data = try Data(contentsOf: tmp)
-            exportData = data
-#endif
-        } catch {
-            showBackupFailure(error, operation: "save the backup")
-        }
-    }
-
     // MARK: - Restore Quick Action
 
     /// Locates the most recent auto-backup file (any device's, across the
@@ -196,7 +107,7 @@ final class SettingsViewModel {
     /// auto-backup files exist.
     @discardableResult
     func restoreMostRecentAutoBackup(viewContext: NSManagedObjectContext) async -> Bool {
-        guard let candidate = coordinator.backupStatus().mostRecentAutoBackupURL else {
+        guard let newest = coordinator.backupStatus().mostRecentAutoBackupURL else {
             #if os(macOS)
             let when = "each time you quit Cosmic Daybook"
             #else
@@ -207,8 +118,29 @@ final class SettingsViewModel {
                 "To restore now, choose Import and pick a backup file."
             return false
         }
+        // The newest may be another device's, not downloaded here yet (#18).
+        guard let candidate = await downloadedBackup(newest) else {
+            importErrorTitle = "Couldn't Download the Backup"
+            importError = "The newest automatic backup is still in iCloud and couldn't be downloaded to this " +
+                "device. Check that it's online, then try again."
+            return true
+        }
         await previewImportedURL(viewContext: viewContext, url: candidate)
         return true
+    }
+
+    /// How long Restore last automatic backup waits for the newest backup to
+    /// download: a backup with photos can be large.
+    private static let backupDownloadTimeout: Duration = .seconds(300)
+
+    /// `url` with its bytes on this device, downloading them from iCloud first
+    /// (the card's progress bar says so); nil when that failed.
+    private func downloadedBackup(_ url: URL) async -> URL? {
+        guard UbiquitousFile.needsDownload(url) else { return url }
+        importProgress = 0.05
+        importMessage = "Downloading the backup from iCloud…"
+        defer { importProgress = 0; importMessage = "" }
+        return await UbiquitousFile.ensureLocal(url, timeout: Self.backupDownloadTimeout)
     }
 
     // MARK: - Import / Preview
@@ -324,7 +256,7 @@ final class SettingsViewModel {
         importError = AppErrorMessages.backupMessage(for: error, operation: operation)
     }
 
-    private func safeRemoveItem(at url: URL, context: String = #function) {
+    func safeRemoveItem(at url: URL, context: String = #function) {
         do {
             try FileManager.default.removeItem(at: url)
         } catch let error as NSError where

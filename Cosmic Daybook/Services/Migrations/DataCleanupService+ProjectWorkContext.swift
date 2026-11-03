@@ -51,29 +51,29 @@ nonisolated extension DataCleanupService {
         return changed
     }
 
-    /// Runs `repairProjectWorkContextType` once on this device, from the launch
-    /// pass: never while the first download from iCloud is under way
+    /// Runs `repairProjectWorkContextType` from the launch pass, every launch:
+    /// never while the first download from iCloud is under way
     /// (`FirstDownloadGate`), since check-ins still on their way down would
     /// leave their work unmatched, and never on a pass whose earlier steps left
-    /// changes they couldn't save. It saves its own changes, and counts as done
-    /// only once they're saved. Every device runs it; it only fills an empty
-    /// field, with the same value everywhere, so two devices converge.
+    /// changes they couldn't save. It saves its own changes. It ran once per
+    /// device until 2026-11-02, so a Replace from a backup older than
+    /// 2026-10-11 brought those rows back untyped for good (bug hunt
+    /// 2026-11-02, #24); after a run its fetch finds nothing to change. Every
+    /// device runs it; it only fills an empty field, with the same value
+    /// everywhere, so two devices converge.
     ///
     /// Returns how many rows it changed, or nil when it didn't run or couldn't save.
     @discardableResult
     static func repairProjectWorkContextTypeIfDue(
         using context: NSManagedObjectContext,
-        firstDownloadPending: Bool,
-        defaults: UserDefaults = .standard
+        firstDownloadPending: Bool
     ) -> Int? {
-        let flag = UserDefaultsKeys.projectWorkContextRepairDone
-        guard !firstDownloadPending, !defaults.bool(forKey: flag), !context.hasChanges else { return nil }
+        guard !firstDownloadPending, !context.hasChanges else { return nil }
         let changed = repairProjectWorkContextType(using: context)
         guard !context.hasChanges || context.safeSave() else {
             context.rollback()
             return nil
         }
-        defaults.set(true, forKey: flag)
         return changed
     }
 }

@@ -15,10 +15,10 @@ nonisolated extension UserDefaultsKeys {
     /// environment; Reset Local Cache clears it, so a fresh download is checked again.
     static var noteScopeIndexRepairDone: String { CloudKitEnvironment.scoped("DataMigrations.noteScopeIndexRepairDone") }
 
-    /// Set once the one-time repair of project check-in work saved with no
-    /// context type has run and saved on this device
-    /// (`DataCleanupService.repairProjectWorkContextTypeIfDue`). Per store
-    /// environment; Reset Local Cache clears it, so a fresh download is checked again.
+    /// Retired: set by the old one-time repair of project check-in work saved
+    /// with no context type. That repair now runs every launch, since a Replace
+    /// from an older backup can bring the bad rows back (bug hunt 2026-11-02,
+    /// #24); nothing sets the flag, and Reset Local Cache still clears an old one.
     static var projectWorkContextRepairDone: String {
         CloudKitEnvironment.scoped("DataMigrations.projectWorkContextRepairDone")
     }

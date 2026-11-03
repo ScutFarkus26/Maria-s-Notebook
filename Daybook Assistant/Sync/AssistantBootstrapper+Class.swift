@@ -96,17 +96,42 @@ extension AssistantBootstrapper {
     /// waiting marks on it. If iCloud still can't be reached after that, the
     /// attacher's rests go on, and the line keeps saying so. Nothing is
     /// deferred: the attacher tells again after its next failed rounds.
+    ///
+    /// On a network where iCloud stays out of reach, that rebuilt the stack
+    /// every ten minutes all session, each time taking down the screen she
+    /// was on (bug hunt 2026-11-02 #42). Now a stall rebuilds once, and
+    /// again only after a send has worked since; never while a sheet is up
+    /// (asked again once the rebuild's waits are over), and the screens stay
+    /// up through its waits (`rebuildStack`).
     func sendStalled() {
         let settled = switch phase {
         case .ready, .needsClassroom: !isLeavingHere && !isRebuilding
         case .starting, .failed: false
         }
-        switch Self.stallResponse(settled: settled, rebuiltRecently: rebuiltForStallRecently) {
+        let sends = sendsSoFar()
+        switch Self.stallResponse(
+            settled: settled,
+            sheetUp: sheetIsUp(),
+            rebuiltRecently: rebuiltForStallRecently,
+            rebuiltBefore: sendsAtStallRebuild != nil,
+            sentSince: sendsAtStallRebuild.map { sends > $0 } ?? false
+        ) {
         case .ignore:
             break
         case .rebuild:
+            let before = (at: rebuiltForStallAt, sends: sendsAtStallRebuild)
             rebuiltForStallAt = now()
-            Task { await rebuildStack(because: "Sending to iCloud has stalled on a usable network") }
+            sendsAtStallRebuild = sends
+            Task {
+                let rebuilt = await rebuildStack(
+                    because: "Sending to iCloud has stalled on a usable network", unless: sheetIsUp
+                )
+                // Dropped for a sheet: the next stall may try again.
+                if !rebuilt {
+                    rebuiltForStallAt = before.at
+                    sendsAtStallRebuild = before.sends
+                }
+            }
         }
     }
 
@@ -114,12 +139,16 @@ extension AssistantBootstrapper {
         case ignore, rebuild
     }
 
-    /// What a stall calls for: a rebuild while the app is settled, unless one
-    /// for a stall ran within `stallRebuildWindow` (it didn't help, so iCloud
-    /// is out of reach for now, and rebuilding round and round would only
-    /// flash "Starting…" at her).
-    nonisolated static func stallResponse(settled: Bool, rebuiltRecently: Bool) -> StallResponse {
-        settled && !rebuiltRecently ? .rebuild : .ignore
+    /// What a stall calls for: a rebuild while the app is settled and no
+    /// sheet is up, once; after that, only once a send has worked since, and
+    /// never within `stallRebuildWindow` of the last (a rebuild that didn't
+    /// help means iCloud is out of reach for now, and rebuilding round and
+    /// round would only take her screen down).
+    nonisolated static func stallResponse(
+        settled: Bool, sheetUp: Bool, rebuiltRecently: Bool, rebuiltBefore: Bool, sentSince: Bool
+    ) -> StallResponse {
+        guard settled, !sheetUp, !rebuiltRecently else { return .ignore }
+        return !rebuiltBefore || sentSince ? .rebuild : .ignore
     }
 
     /// How long after a rebuild for a stall the next stall is left alone.
@@ -130,7 +159,13 @@ extension AssistantBootstrapper {
         return now().timeIntervalSince(last) < Self.stallRebuildWindow
     }
 
+    /// Told by the share attacher (a round's own attach found the stop) and
+    /// by the open stack's filing hold (an import or export said its
+    /// delegate died, which no round reached while the hold kept every pass
+    /// waiting, bug hunt 2026-11-02 #5). A stop already rebuilt for, heard
+    /// again from the other, isn't the rebuilt stack stopping too.
     func mirroringStopped(in container: NSPersistentCloudKitContainer) {
+        guard container !== stopRebuiltContainer else { return }
         // A rebuild under way counts as starting, though the join screen
         // stays up through it (`rebuildShowsStarting`).
         let settled = switch phase {
@@ -138,7 +173,7 @@ extension AssistantBootstrapper {
         case .starting, .failed: false
         }
         switch Self.mirroringStopResponse(
-            onOpenStack: AssistantStack.current?.container === container,
+            onOpenStack: stacks.current()?.container === container,
             settled: settled,
             rebuiltBefore: rebuiltForMirroringStopRecently
         ) {
@@ -148,6 +183,7 @@ extension AssistantBootstrapper {
             deferredStop = container
         case .rebuild:
             rebuiltForMirroringStopAt = now()
+            stopRebuiltContainer = container
             Task { await rebuildStack(because: "CloudKit mirroring stopped") }
         case .giveUp:
             Self.classLogger.error("CloudKit mirroring stopped again on the rebuilt stack")
@@ -169,15 +205,12 @@ extension AssistantBootstrapper {
 
     /// Before a rebuild takes the stores off: a running attach finishes on
     /// the old stack (one cut off read "no shared store" and dropped its
-    /// marks), up to a limit, since a `share(_:to:)` can hang. At least as
-    /// long as the screens had before to let go of the old stack's objects.
+    /// marks), up to a limit, since a `share(_:to:)` can hang. The screens
+    /// stay up meanwhile; they let go afterwards (`letScreensGo`).
     func waitForAttachBeforeRebuild(_ attacher: AssistantShareAttacher) async {
-        let started = ContinuousClock.now
         if !(await attacher.waitUntilIdle(upTo: .seconds(10))) {
             Self.classLogger.notice("An attach still running; rebuilding anyway, its marks stay waiting")
         }
-        let grace = Duration.milliseconds(300) - (ContinuousClock.now - started)
-        if grace > .zero { try? await Task.sleep(for: grace) }
     }
 
     // MARK: - Giving up marks not sent
@@ -196,7 +229,7 @@ extension AssistantBootstrapper {
             let ids = waiting.compactMap { coordinator.managedObjectID(forURIRepresentation: $0) }
                 .filter { $0.persistentStore === sharedStore }
             do {
-                let deleted = try await CDAttendanceStore.deleteUnsharedRecords(ids, container: stack.container)
+                let deleted = try await CDAttendanceStore.deleteUnsharedRecords(ids, in: stack)
                 Self.classLogger.notice("Leave deleted \(deleted, privacy: .public) mark(s) the guide never had")
             } catch {
                 let detail = error.localizedDescription
@@ -242,7 +275,7 @@ extension AssistantBootstrapper {
         let ids = uris.compactMap { coordinator.managedObjectID(forURIRepresentation: $0) }
             .filter { $0.persistentStore === sharedStore }
         do {
-            let deleted = try await CDAttendanceStore.deleteUnsharedRecords(ids, container: stack.container)
+            let deleted = try await CDAttendanceStore.deleteUnsharedRecords(ids, in: stack)
             defaults.removeObject(forKey: Self.leftBehindKey)
             Self.classLogger.notice("Deleted \(deleted, privacy: .public) mark(s) left behind by Leave")
         } catch {
@@ -315,13 +348,21 @@ extension AssistantBootstrapper {
         }
         guard stack === coreDataStack, let sharedStore = stack.sharedPersistentStore else { return }
         let found = shares.contains { $0.recordID.zoneID.zoneName == zone }
-        if found { AssistantClassroomLocalState.noteShareSeen(inZone: zone) }
+        if found {
+            AssistantClassroomLocalState.noteShareSeen(inZone: zone)
+            // Marks saved before the share was here wait for it: they go now,
+            // not after a rest of up to ten minutes (bug hunt 2026-11-02 #44).
+            AssistantShareAttacher.shared.shareArrived()
+        }
         // The share arrived after her membership (a new iPhone's download):
         // the read at becoming ready found none, and the guide's name read
         // "Your guide" until a relaunch (bug hunt 2026-10-20 #13).
         if found, let service = sharingService, service.currentShare == nil {
             Task { await service.refreshShareInBackground() }
         }
+        // View only or not, read again with each share read: the guide can
+        // change it (#29).
+        if found { await sharingService?.readPermission() }
         let removed = Self.removedFromClass(
             pinnedShareFound: found,
             sawPinnedShareBefore: AssistantClassroomLocalState.sawShare(inZone: zone),

@@ -26,6 +26,21 @@ nonisolated enum AutoBackupFolders {
     /// Manual backups (`ManualBackup-`) go in the same folder and are kept.
     static let trimmedPrefixes = ["AutoBackup-", "ScheduledBackup-", "PreOp-"]
 
+    /// Put before the usual name of a backup written while this device's
+    /// first download from iCloud was still under way, so of a notebook that
+    /// may be half there (`Partial-AutoBackup-…`). Such a backup never counts
+    /// toward the complete ones kept, so it can't push one out, and it is
+    /// never the "most recent" one offered for a restore (bug hunt 2026-11-02
+    /// #14). The automatic ones are trimmed among themselves, keep-N as well;
+    /// a manual one is kept like any manual backup. It can still be restored
+    /// by choosing it with Import.
+    static let partialPrefix = "Partial-"
+
+    /// Whether `name` is a backup written during a first download.
+    static func isPartial(_ name: String) -> Bool {
+        name.hasPrefix(partialPrefix)
+    }
+
     // MARK: - This device's folder
 
     /// Where this device keeps its folder's name. In the device's own
@@ -138,15 +153,19 @@ nonisolated enum AutoBackupFolders {
     ) {
         trim(deviceFolder, keeping: count, delete: delete)
         trim(autoFolder, keeping: count, delete: delete)
+        // The ones written during a first download, by themselves.
+        trim(deviceFolder, keeping: count, prefixes: trimmedPrefixes.map { partialPrefix + $0 }, delete: delete)
     }
 
     /// Deletes the oldest automatic backups directly inside `folder` (by
-    /// creation date) until `count` are left. Subfolders, manual backups and
-    /// other files stay. Never fewer than one, so the backup just written
-    /// survives a keep-0 setting.
+    /// creation date) until `count` are left. Subfolders, manual backups,
+    /// partial backups (`partialPrefix`) and other files stay. Never fewer
+    /// than one, so the backup just written survives a keep-0 setting.
+    /// `prefixes` names the backups trimmed together.
     static func trim(
         _ folder: URL,
         keeping count: Int,
+        prefixes: [String] = trimmedPrefixes,
         delete: (URL) throws -> Void = UbiquitousFile.coordinatedDelete
     ) {
         let files: [URL]
@@ -163,7 +182,7 @@ nonisolated enum AutoBackupFolders {
 
         let autoBackups = files.filter { url in
             let name = url.lastPathComponent
-            return trimmedPrefixes.contains { name.hasPrefix($0) } && !isDirectory(url)
+            return prefixes.contains { name.hasPrefix($0) } && !isDirectory(url)
         }
         let oldestFirst = autoBackups.sorted { creationDate(of: $0) < creationDate(of: $1) }
 
@@ -192,12 +211,36 @@ nonisolated enum AutoBackupFolders {
         return files
     }
 
-    /// The newest backup by modification date across `autoFolders`, whichever
-    /// device made it, or nil when there is none.
+    /// The newest complete backup across `autoFolders`, whichever device
+    /// made it, or nil when there is none. Newest by the time in its name
+    /// (`AutoBackup-<ISO 8601>`), or by its modification date when the name
+    /// has none. A backup another device made that isn't downloaded here yet
+    /// counts (`UbiquitousFile.contentsOfDirectory`): until 2026-11 an iPad saw
+    /// only its own, older file and offered it as the newest (#18). The caller
+    /// brings a chosen one down first (`UbiquitousFile.ensureLocal`). A partial
+    /// backup (`partialPrefix`) never counts.
     static func mostRecentBackup(in autoFolders: [URL]) -> URL? {
         autoFolders
             .flatMap(backupFiles(in:))
-            .max { modificationDate(of: $0) < modificationDate(of: $1) }
+            .filter { !isPartial($0.lastPathComponent) }
+            .max { backupDate(of: $0) < backupDate(of: $1) }
+    }
+
+    /// When the backup at `url` was made: the time its name carries, or its
+    /// modification date.
+    static func backupDate(of url: URL) -> Date {
+        timestamp(inName: url.lastPathComponent) ?? modificationDate(of: url)
+    }
+
+    /// The time in an automatic or manual backup's name
+    /// (`<prefix>-<ISO 8601, fractional seconds>.<extension>`), or nil.
+    static func timestamp(inName name: String) -> Date? {
+        var stem = (name as NSString).deletingPathExtension
+        if stem.hasPrefix(partialPrefix) { stem.removeFirst(partialPrefix.count) }
+        guard let prefix = (trimmedPrefixes + ["ManualBackup-"]).first(where: { stem.hasPrefix($0) }) else {
+            return nil
+        }
+        return BackupDateCoding.date(from: String(stem.dropFirst(prefix.count)))
     }
 
     // MARK: - File details
@@ -205,10 +248,9 @@ nonisolated enum AutoBackupFolders {
     private static func contents(of folder: URL) -> [URL] {
         guard FileManager.default.fileExists(atPath: folder.path) else { return [] }
         do {
-            return try FileManager.default.contentsOfDirectory(
+            return try UbiquitousFile.contentsOfDirectory(
                 at: folder,
-                includingPropertiesForKeys: [.contentModificationDateKey, .isDirectoryKey],
-                options: [.skipsHiddenFiles]
+                includingPropertiesForKeys: [.contentModificationDateKey, .isDirectoryKey]
             )
         } catch {
             logger.warning("Failed to list directory contents: \(error.localizedDescription, privacy: .public)")

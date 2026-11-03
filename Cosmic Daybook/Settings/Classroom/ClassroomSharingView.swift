@@ -23,13 +23,14 @@ struct ClassroomSharingView: View {
     @State private var resultMessage: String?
     @State private var isPreparingShare = false
     @State private var isSettingUp = false
+    @State private var isStoppingSharing = false
     @State private var contents: ClassroomShareContents?
 
     private var service: ClassroomSharingService? { sharingService }
 
     var body: some View {
         VStack(spacing: SettingsStyle.groupSpacing) {
-            shareStatusCard
+            ClassroomShareStatusCard(service: service, contents: contents)
             if service?.currentRole == .leadGuide, service?.isSharing == true {
                 ClassroomLastYearCard(contents: contents) { await refreshContents() }
                 if ClassroomAttendanceCatchUp.isAvailableHere {
@@ -80,57 +81,12 @@ struct ClassroomSharingView: View {
 
     // MARK: - What the share holds
 
+    /// Not only while the scene is active: the screen's first read runs as it
+    /// appears, often before then, and the status banner and the Last Year
+    /// card stayed empty until the next phase change (bug hunt 2026-11-02, #41).
     private func refreshContents() async {
-        guard scenePhase == .active, service?.currentRole == .leadGuide else { return }
+        guard service?.currentRole == .leadGuide else { return }
         contents = await ClassroomSharingService.shareContents(coreDataStack: dependencies.coreDataStack)
-    }
-
-    /// Plain-language state of the classroom share for the lead guide. The
-    /// "not in the share" count is read-only: it shows drift, it never fixes it.
-    @ViewBuilder
-    private var shareStatusCard: some View {
-        if service?.currentRole == .leadGuide {
-            if service?.isSharing != true {
-                if FirstDownloadGate.isPending() {
-                    ClassroomShareBanner(
-                        icon: "icloud.and.arrow.down",
-                        tint: .secondary,
-                        title: "Still downloading from iCloud",
-                        message: "Classroom sharing can be set up once the notebook has finished downloading."
-                    )
-                } else {
-                    ClassroomShareBanner(
-                        icon: "person.2.slash",
-                        tint: .secondary,
-                        title: "Not shared yet",
-                        message: "Set up classroom sharing once, on one of your devices, to give an assistant " +
-                            "your class list, attendance and school calendar."
-                    )
-                }
-            } else if let contents {
-                if contents.outside > 0 {
-                    ClassroomShareBanner(
-                        icon: "exclamationmark.triangle.fill",
-                        tint: AppColors.warning,
-                        title: Self.outsideTitle(contents.outside),
-                        message: "Your assistant can't see them. The share holds \(contents.summary)."
-                    )
-                } else {
-                    ClassroomShareBanner(
-                        icon: "checkmark.circle.fill",
-                        tint: AppColors.success,
-                        title: "Classroom shared",
-                        message: "The share holds \(contents.summary)."
-                    )
-                }
-            }
-        }
-    }
-
-    private static func outsideTitle(_ count: Int) -> String {
-        count == 1
-            ? "1 classroom item isn't shared with your assistant yet"
-            : "\(count.formatted()) classroom items aren't shared with your assistant yet"
     }
 
     // MARK: - Role Display
@@ -163,14 +119,24 @@ struct ClassroomSharingView: View {
     @ViewBuilder
     private var leadGuideActions: some View {
         VStack(spacing: AppTheme.Spacing.small) {
+            // Setting up, and adding to the share, run on the Mac only (#30).
+            // Records in an old share can't be added (#32).
             if service?.isSharing == true {
                 manageSharingButton
-                if (contents?.outside ?? 0) > 0 {
+                #if os(macOS)
+                if (contents?.addable ?? 0) > 0 {
                     setUpButton(title: "Add them to the share", prominent: false)
                 }
+                #endif
                 stopSharingButton
             } else {
+                #if os(macOS)
                 setUpButton(title: "Set up classroom sharing", prominent: true)
+                #else
+                Text("Classroom sharing is set up on your Mac.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                #endif
             }
         }
         .confirmationDialog(
@@ -243,27 +209,55 @@ struct ClassroomSharingView: View {
         Button(role: .destructive) {
             showingStopSharingConfirmation = true
         } label: {
-            Label("Stop sharing…", systemImage: "xmark.circle")
-                .frame(maxWidth: .infinity)
+            HStack(spacing: AppTheme.Spacing.small) {
+                if isStoppingSharing {
+                    ProgressView().controlSize(.small)
+                }
+                Label("Stop sharing…", systemImage: "xmark.circle")
+                    .frame(maxWidth: .infinity)
+            }
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
+        .disabled(isStoppingSharing)
         .confirmationDialog(
             "Stop sharing?",
             isPresented: $showingStopSharingConfirmation,
             titleVisibility: .visible
         ) {
             Button("Stop sharing", role: .destructive) {
-                Task {
-                    do {
-                        try await service?.removeAllMembers()
-                    } catch {
-                        errorMessage = AppErrorMessages.sharingMessage(for: error, action: "stop sharing")
-                    }
-                }
+                Task { await stopSharing() }
             }
         } message: {
             Text("Your assistant will lose access to your students, attendance and school calendar.")
+        }
+    }
+
+    /// Removes everyone, one run at a time: a second click ran a second removal
+    /// against a share the first had just changed, and could say "Couldn't
+    /// stop sharing" after it had worked, under an old error that never cleared
+    /// (bug hunt 2026-11-02, #40). The members sheet's "Remove everyone…" works
+    /// the same way.
+    private func stopSharing() async {
+        guard let svc = service, !isStoppingSharing else { return }
+        isStoppingSharing = true
+        defer { isStoppingSharing = false }
+        errorMessage = nil
+        resultMessage = nil
+        do {
+            try await svc.removeAllMembers()
+            resultMessage = "Everyone else was removed from your classroom. It stays set up, so you can add "
+                + "your assistant again later."
+        } catch {
+            let ns = error as NSError
+            Logger.classroomSharing.error(
+                "Stop sharing failed: \(ns.domain, privacy: .public) \(ns.code, privacy: .public)"
+            )
+            errorMessage = AppErrorMessages.sharingMessage(for: error, action: "stop sharing")
+            // The share is gone: deleted on another device. Stop showing it here.
+            if case ClassroomSharingService.MemberError.noShare = error {
+                svc.handleSharingStopped()
+            }
         }
     }
 

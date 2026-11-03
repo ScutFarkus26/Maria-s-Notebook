@@ -47,6 +47,8 @@ final class AssistantRestockModel {
     @ObservationIgnored private var lastShown: Shown?
     /// The last failed save, until one works.
     private(set) var errorMessage: String?
+    /// Added to the share as View only (#29): the tab changes nothing, as the grid marks nothing.
+    var isViewOnly = false
     /// The one-off need the last "We need…" made that didn't save, so the
     /// same sheet's next tap replaces it with what the sheet says now (a new
     /// quantity, name or source) instead of saving the old one or adding a
@@ -89,6 +91,8 @@ final class AssistantRestockModel {
     /// name arrives.
     private(set) var guideName: String?
     private let currentAuthor: @MainActor () -> RestockAuthor
+    /// Whether the permission matrix attendance goes by (`ClassroomPermissions`) refuses Restock now.
+    let readOnlyNow: @MainActor () -> Bool
     private let saveDelay: Duration
     /// The time now; tests fix it.
     let now: () -> Date
@@ -103,16 +107,19 @@ final class AssistantRestockModel {
     ///   - author: who this phone's changes are stamped with, as she is at the moment.
     ///   - saveDelay: how long a burst of taps waits before it saves.
     ///   - save: nil saves through `AssistantSave`.
+    ///   - readOnly: whether the share lets this phone change nothing now.
     init(
         context: NSManagedObjectContext,
         container: NSPersistentCloudKitContainer?,
         author: @escaping @MainActor () -> RestockAuthor,
         saveDelay: Duration = .milliseconds(800),
         now: @escaping () -> Date = Date.init,
-        save: Save? = nil
+        save: Save? = nil,
+        readOnly: @escaping @MainActor () -> Bool = { AssistantRestockModel.refusedByShare }
     ) {
         self.context = context
         self.currentAuthor = author
+        self.readOnlyNow = readOnly
         let first = author()
         self.author = first
         self.guideName = first.names.guideName
@@ -133,7 +140,8 @@ final class AssistantRestockModel {
     /// never in a loop.
     func load(reconcile: Bool = true) {
         author = currentAuthor()
-        if reconcile, RestockService.reconcile(in: context, store: store, now: now()) > 0 {
+        // Reconciling writes: never while View only, whose saves never send.
+        if mayChange(), reconcile, RestockService.reconcile(in: context, store: store, now: now()) > 0 {
             save()
         }
         let staples = RestockService.staples(in: context, store: store)
@@ -184,28 +192,20 @@ final class AssistantRestockModel {
         return Self.rank(of: staple(for: need)?.level)
     }
 
-    private static func rank(of level: RestockLevel?) -> Int {
-        switch level {
-        case .out: 0
-        case .low: 1
-        case .stocked, nil: 2
-        }
-    }
-
     // MARK: - The shelf
 
     /// A tap on a staple's tile: Stocked → Low → Out. Returns false on Out,
     /// where a tap does nothing and the tile says to hold for more.
     @discardableResult
     func tap(_ staple: CDSupply) -> Bool {
-        guard !stapleIsGone(staple), let next = staple.level.afterTap else { return false }
+        guard mayChange(), !stapleIsGone(staple), let next = staple.level.afterTap else { return false }
         setLevel(staple, to: next)
         return true
     }
 
     /// The hold menu's We have plenty / Running low / Out.
     func setLevel(_ staple: CDSupply, to level: RestockLevel) {
-        guard !stapleIsGone(staple) else { return }
+        guard mayChange(), !stapleIsGone(staple) else { return }
         author = currentAuthor()
         let before = staple.level
         guard RestockService.setLevel(staple, to: level, by: author, at: now(), in: context) else { return }
@@ -215,7 +215,8 @@ final class AssistantRestockModel {
 
     /// The hold menu's Add a Note… (empty text removes it).
     func setNote(_ text: String?, for staple: CDSupply) {
-        guard !stapleIsGone(staple), RestockService.setNote(staple, to: text ?? "", at: now()) else { return }
+        guard mayChange(), !stapleIsGone(staple),
+              RestockService.setNote(staple, to: text ?? "", at: now()) else { return }
         changed()
     }
 
@@ -230,6 +231,7 @@ final class AssistantRestockModel {
     /// since (`RestockService.canUndo`); once something has, the tick just
     /// goes.
     func toggleCheckOff(_ need: CDOrderItem) {
+        guard mayChange() else { return }
         author = currentAuthor()
         if let id = need.id, let checkOff = checkOffs.removeValue(forKey: id) {
             tickedRanks[id] = nil
@@ -272,6 +274,7 @@ final class AssistantRestockModel {
     /// closes on anything but `.notSaved`.
     @discardableResult
     func addNeed(_ text: String, source: RestockSource, quantity: Int) -> AddResult {
+        guard mayChange() else { return .nothing }
         discardUnsavedAdd()
         let entry = Self.entry(text)
         if let staple = staple(named: entry) {
@@ -393,7 +396,4 @@ final class AssistantRestockModel {
     private func notedHistory(for staple: CDSupply) {
         if let id = staple.id?.uuidString.uppercased() { staplesWithHistory.insert(id) }
     }
-
-    /// The types Restock writes, all in the classroom share.
-    static let restockEntities: Set<String> = ["Supply", "SupplyTransaction", "OrderItem"]
 }

@@ -162,7 +162,7 @@ nonisolated public enum BackupReader {
         }
 
         var manifest: BackupArchiveManifest?
-        try BackupArchive.read(from: url, encryptionKey: keyProvider) { path, data in
+        try readTryingEachKey(url, keyProvider: keyProvider) { path, data in
             switch path {
             case "manifest.json":
                 manifest = try decodeManifest(from: data)
@@ -213,7 +213,7 @@ nonisolated public enum BackupReader {
         var lineCounts: [String: Int] = [:]
         var photoCount = 0
 
-        try BackupArchive.read(from: url, encryptionKey: keyProvider) { path, data in
+        try readTryingEachKey(url, keyProvider: keyProvider) { path, data in
             switch path {
             case "manifest.json":
                 manifest = try decodeManifest(from: data)
@@ -239,11 +239,54 @@ nonisolated public enum BackupReader {
         return StructureVerification(manifest: manifest, entryLineCounts: lineCounts, photoCount: photoCount)
     }
 
+    // MARK: - Keys
+
+    /// `BackupArchive.read` with `keyProvider`'s key and, when that key can't
+    /// open an encrypted archive (nothing was read from it), with each other
+    /// backup key this device holds, oldest first. A device may hold more than
+    /// one: one made on a new device before iCloud Keychain brought the older
+    /// one stays beside it (`BackupEncryptionKeyStore`), and backups made with
+    /// either must open. When none opens the archive, the first key's error is
+    /// thrown; an error after the archive opened is thrown as it is.
+    private static func readTryingEachKey(
+        _ url: URL,
+        keyProvider: () throws -> SymmetricKey,
+        consumer: (_ path: String, _ data: Data) throws -> Bool
+    ) throws {
+        var opened = false
+        var firstKey: SymmetricKey?
+        func reading(_ path: String, _ data: Data) throws -> Bool {
+            opened = true
+            return try consumer(path, data)
+        }
+        do {
+            try BackupArchive.read(from: url, encryptionKey: {
+                let key = try keyProvider()
+                firstKey = key
+                return key
+            }, consumer: reading)
+        } catch {
+            // A plain archive, or no key to try: nothing else to try either.
+            guard !opened, let firstKey else { throw error }
+            let others = ((try? BackupEncryptionKeyStore.readingKeys()) ?? []).filter { $0 != firstKey }
+            for key in others {
+                do {
+                    try BackupArchive.read(from: url, encryptionKey: { key }, consumer: reading)
+                    logger.notice("Backup opened with another of this device's backup keys")
+                    return
+                } catch where !opened {
+                    continue
+                }
+            }
+            throw error
+        }
+    }
+
     // MARK: - Decode Helpers
 
     private static func decodeManifest(from data: Data) throws -> BackupArchiveManifest {
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = BackupDateCoding.decodingStrategy
         do {
             return try decoder.decode(BackupArchiveManifest.self, from: data)
         } catch {
@@ -253,7 +296,7 @@ nonisolated public enum BackupReader {
 
     private static func decodePreferences(from data: Data) throws -> PreferencesDTO {
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = BackupDateCoding.decodingStrategy
         return try decoder.decode(PreferencesDTO.self, from: data)
     }
 

@@ -45,7 +45,12 @@ enum MigrationRunner {
         let bgContext = coreDataStack.newBackgroundContext()
         let container = coreDataStack.container
         let firstDownloadPending = FirstDownloadGate.isPending()
-        let noteScopeRepairDue = DataMigrations.noteScopeIndexRepairDue(firstDownloadPending: firstDownloadPending)
+        // The one-time repairs wait while the gate is armed, even when this
+        // session lifted it for want of an account: run on that empty store,
+        // they marked themselves done and never ran on the notebook once it
+        // had downloaded (bug hunt 2026-11-02, #58).
+        let firstDownloadArmed = FirstDownloadGate.isArmed()
+        let noteScopeRepairDue = DataMigrations.noteScopeIndexRepairDue(firstDownloadPending: firstDownloadArmed)
         // The post-import dedup waits while this pass runs (and this pass waits
         // for one already running): two passes on two contexts could each fold
         // the same rows from a view the other is changing.
@@ -61,6 +66,7 @@ enum MigrationRunner {
                         context,
                         container: container,
                         firstDownloadPending: firstDownloadPending,
+                        firstDownloadArmed: firstDownloadArmed,
                         noteScopeRepairDue: noteScopeRepairDue,
                         lastImport: lastImport
                     )
@@ -234,6 +240,7 @@ enum MigrationRunner {
         _ context: NSManagedObjectContext,
         container: NSPersistentCloudKitContainer,
         firstDownloadPending: Bool,
+        firstDownloadArmed: Bool = FirstDownloadGate.isArmed(),
         noteScopeRepairDue: Bool,
         lastImport: @escaping @Sendable (ImportStoreKind) -> Date?
     ) -> [String: Int] {
@@ -259,14 +266,19 @@ enum MigrationRunner {
         DataMigrations.mergeWorkCompletionOutcomes(using: context)
         // The check-in repair's first run counts only once what it did is saved.
         if !context.hasChanges || context.safeSave() {
-            DataMigrations.markCheckInLinkRepairRun(firstDownloadPending: firstDownloadPending)
+            DataMigrations.markCheckInLinkRepairRun(firstDownloadPending: firstDownloadArmed)
             if noteScopeRepairDue { DataMigrations.markNoteScopeIndexRepairDone() }
         }
         // Multi-child notes get the student links their scope names, once per
         // device after the first download; it saves on its own (see +NoteScopeIndex).
-        DataCleanupService.repairNoteStudentLinksIfDue(using: context, firstDownloadPending: firstDownloadPending)
-        // Uniform check-in work saved without its project type, once per device
-        // after the first download; it saves on its own (see +ProjectWorkContext).
+        DataCleanupService.repairNoteStudentLinksIfDue(using: context, firstDownloadPending: firstDownloadArmed)
+        // Project sessions an older restore left off their project, every
+        // launch outside the first download; it saves on its own (see +ProjectSessionLinks).
+        DataCleanupService.relinkUnlinkedProjectSessionsIfDue(
+            using: context, firstDownloadPending: firstDownloadPending
+        )
+        // Uniform check-in work saved without its project type, every launch
+        // outside the first download; it saves on its own (see +ProjectWorkContext).
         DataCleanupService.repairProjectWorkContextTypeIfDue(using: context, firstDownloadPending: firstDownloadPending)
         return results
     }

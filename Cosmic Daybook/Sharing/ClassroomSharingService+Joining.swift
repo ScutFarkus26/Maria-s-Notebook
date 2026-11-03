@@ -20,8 +20,9 @@ extension ClassroomSharingService {
             ToastService.shared.showError(shareError ?? "")
             return
         }
-        // A lead guide's notebook can't join another class: Leave couldn't
-        // take it off again (`leadsItsOwnClass`).
+        // A notebook with a class of its own can't join another guide's:
+        // Leave couldn't take it off again, or her own marks would go into
+        // that class (`leadsItsOwnClass`).
         if leadsItsOwnClass(invitedAs: metadata.participantRole) {
             throw ClassroomJoinRefusal.leadsOwnClass
         }

@@ -17,6 +17,9 @@ import OSLog
 // oldest. Once it is shared (pinned) nothing is dropped for length; that is
 // logged. The 2026-10-05 hunt found the old cap dropping a new device's
 // unattached marks behind entries that were already shared.
+//
+// Every change reads and writes the list inside `listLock` (`+ListLock`):
+// two copies of the Mac app share the list (bug hunt 2026-11-02, #35).
 
 extension SharedStoreOrphanGuard {
 
@@ -57,14 +60,17 @@ extension SharedStoreOrphanGuard {
     /// there. Never drops anything itself: past the cap a prune decides.
     func add(_ uris: [String]) {
         guard !uris.isEmpty else { return }
-        let incoming = Set(uris)
-        var entries = pendingEntries.filter { !incoming.contains($0.uri) }
-        var seen = Set<String>()
-        for uri in uris where seen.insert(uri).inserted {
-            entries.append(Entry(uri: uri, stamp: nextStamp()))
+        let count: Int = listLock.withLock {
+            let incoming = Set(uris)
+            var entries = pendingEntries.filter { !incoming.contains($0.uri) }
+            var seen = Set<String>()
+            for uri in uris where seen.insert(uri).inserted {
+                entries.append(Entry(uri: uri, stamp: nextStamp()))
+            }
+            write(entries)
+            return entries.count
         }
-        write(entries)
-        if entries.count > Self.maxPending { pruneSoon() }
+        if count > Self.maxPending { pruneSoon() }
     }
 
     private func nextStamp() -> TimeInterval {
@@ -72,9 +78,10 @@ extension SharedStoreOrphanGuard {
         return lastStamp
     }
 
+    /// Inside `listLock` (`+ListLock`), as every change to the list is.
     private func write(_ entries: [Entry]) {
         guard !entries.isEmpty else {
-            clearPending()
+            removeList()
             return
         }
         defaults.set(entries.map(\.uri), forKey: Self.pendingKey)
@@ -84,6 +91,10 @@ extension SharedStoreOrphanGuard {
 
     /// Forgets the waiting list.
     func clearPending() {
+        listLock.withLock { removeList() }
+    }
+
+    private func removeList() {
         defaults.removeObject(forKey: Self.pendingKey)
         defaults.removeObject(forKey: Self.stampsKey)
     }
@@ -91,13 +102,15 @@ extension SharedStoreOrphanGuard {
     /// Forgets `uris`, whenever they were added, and keeps the rest.
     func removePending(_ uris: [String]) {
         let done = Set(uris)
-        write(pendingEntries.filter { !done.contains($0.uri) })
+        listLock.withLock { write(pendingEntries.filter { !done.contains($0.uri) }) }
     }
 
     /// Forgets the entries a pass took (`taken`, as it found them), except
-    /// those in `keeping` and any added again since (their stamp moved).
+    /// those in `keeping` and any added again since (their stamp moved). The
+    /// list is read again inside the lock: another copy of the app may have
+    /// added to it since the pass took its entries (#35).
     func forget(_ taken: [Entry], except keeping: Set<String> = []) {
-        write(Self.remaining(pendingEntries, after: taken, keeping: keeping))
+        listLock.withLock { write(Self.remaining(pendingEntries, after: taken, keeping: keeping)) }
     }
 
     /// `current` less the entries of `taken` still as they were taken, except
@@ -154,14 +167,16 @@ extension SharedStoreOrphanGuard {
         }
         guard let pinnedAt else { return }
         let made = pinnedAt.timeIntervalSinceReferenceDate
-        let entries = pendingEntries
-        let kept = entries.filter { $0.stamp == 0 || $0.stamp >= made }
-        guard kept.count < entries.count else { return }
-        let forgotten = entries.count - kept.count
-        Self.logger.notice(
-            "Classroom share pinned on another device: forgot \(forgotten, privacy: .public) listed before it"
-        )
-        write(kept)
+        listLock.withLock {
+            let entries = pendingEntries
+            let kept = entries.filter { $0.stamp == 0 || $0.stamp >= made }
+            guard kept.count < entries.count else { return }
+            let forgotten = entries.count - kept.count
+            Self.logger.notice(
+                "Classroom share pinned on another device: forgot \(forgotten, privacy: .public) listed before it"
+            )
+            write(kept)
+        }
     }
 
     /// Whether this build has looked for a pin on this device and found none.
@@ -262,14 +277,21 @@ extension SharedStoreOrphanGuard {
         }
         forget(taken, except: keeping)
 
-        let entries = pendingEntries
-        guard entries.count > Self.maxPending else { return }
-        if CDClassroomMembership.pinnedZoneName(in: stack.viewContext) != nil {
-            Self.logger.error("Classroom attach list holds \(entries.count, privacy: .public) records; none dropped")
-            return
+        guard pendingURIs.count > Self.maxPending else { return }
+        let pinned = CDClassroomMembership.pinnedZoneName(in: stack.viewContext) != nil
+        listLock.withLock {
+            let entries = pendingEntries
+            guard entries.count > Self.maxPending else { return }
+            if pinned {
+                let count = entries.count
+                Self.logger.error("Classroom attach list holds \(count, privacy: .public) records; none dropped")
+                return
+            }
+            let dropped = entries.count - Self.maxPending
+            Self.logger.error(
+                "Classroom attach list full, class not shared: \(dropped, privacy: .public) oldest dropped"
+            )
+            write(Array(entries.dropFirst(dropped)))
         }
-        let dropped = entries.count - Self.maxPending
-        Self.logger.error("Classroom attach list full, class not shared: \(dropped, privacy: .public) oldest dropped")
-        write(Array(entries.dropFirst(dropped)))
     }
 }

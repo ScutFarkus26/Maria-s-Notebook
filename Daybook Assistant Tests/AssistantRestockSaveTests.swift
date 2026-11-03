@@ -5,7 +5,8 @@ import Testing
 
 // "We need…" naming a staple with a quantity, and what the tab does when a
 // save fails: the sheet stays open and the office run says so (bug hunt
-// 2026-10-09 #21, #26).
+// 2026-10-09 #21, #26). And a share that's View only, where nothing is
+// changed or saved at all (bug hunt 2026-11-02 #29).
 @Suite("Assistant Restock: We need… and saves that fail")
 @MainActor
 struct AssistantRestockSaveTests {
@@ -113,4 +114,48 @@ struct AssistantRestockSaveTests {
         #expect(tab.flush())
         #expect(tab.errorMessage == nil)
     }
+
+    // MARK: - View only (bug hunt 2026-11-02 #29)
+
+    @Test("Added as View only, the tab changes nothing and says so; let make changes, it changes again")
+    func viewOnlyChangesNothing() throws {
+        // Out, with its need left unopened: the load's reconcile would open it.
+        let paper = try staple("Toilet Paper")
+        let towels = try staple("Paper Towels", level: .low)
+        paper.levelRaw = RestockLevel.out.rawValue
+        #expect(context.safeSave())
+        let share = ShareSwitch()
+        let tab = AssistantRestockModel(
+            context: context, container: nil, author: { AssistantRestockTestSupport.ana }, saveDelay: .seconds(600),
+            readOnly: { share.viewOnly }
+        )
+        tab.load()
+        #expect(tab.isViewOnly)
+        #expect(!context.hasChanges, "no reconcile: its saves would never reach the guide")
+        let need = try #require(tab.officeRun.first)
+        let openNeeds = RestockService.openNeeds(in: context).count
+
+        #expect(!tab.tap(towels))
+        tab.setLevel(towels, to: .stocked)
+        tab.setNote("Top shelf", for: towels)
+        tab.toggleCheckOff(need)
+        #expect(tab.addNeed("Glue sticks", source: .office, quantity: 1) == .nothing)
+        #expect(towels.level == .low && towels.notes.isEmpty)
+        #expect(!tab.isCheckedOff(need))
+        #expect(RestockService.openNeeds(in: context).count == openNeeds)
+        #expect(!context.hasChanges)
+        #expect(AssistantSyncStatusView.viewOnlyMessage
+            == "Your guide added you to view only. Ask them to let you make changes.")
+
+        share.viewOnly = false
+        #expect(tab.tap(towels), "a change notes the share's new state at once")
+        #expect(!tab.isViewOnly)
+        #expect(towels.level == .out)
+    }
+}
+
+/// The share's View only state, flipped mid-test (main-actor, so the model's
+/// `readOnly` closure can read it).
+@MainActor private final class ShareSwitch {
+    var viewOnly = true
 }

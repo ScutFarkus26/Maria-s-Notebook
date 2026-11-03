@@ -56,6 +56,7 @@ struct BackupErrorTextTests {
             BackupEncryptionKeyStore.KeyStoreError.keychainRead(-25_300),
             BackupEncryptionKeyStore.KeyStoreError.keychainWrite(-25_300),
             BackupEncryptionKeyStore.KeyStoreError.keyUnavailableForRestore,
+            BackupEncryptionKeyStore.KeyStoreError.keyNotHereYet,
             BackupDestination.FolderRejection.insideGitRepository(Self.path),
             BackupDestination.FolderRejection.insideAppBundle(Self.path),
             BackupDestination.FolderRejection.systemProtected(Self.path),

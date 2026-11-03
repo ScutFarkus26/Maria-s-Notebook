@@ -86,9 +86,7 @@ nonisolated enum BackupPhotos {
         var files: [File] = []
         var skipped = 0
         for name in names {
-            guard let url = PhotoStorageService.photoURL(for: name),
-                  !UbiquitousFile.needsDownload(url),
-                  FileManager.default.fileExists(atPath: url.path) else {
+            guard let url = localURL(for: name) else {
                 skipped += 1
                 continue
             }
@@ -98,6 +96,24 @@ nonisolated enum BackupPhotos {
             logger.notice("Backup leaves out \(skipped, privacy: .public) note photo(s) not on this device")
         }
         return files
+    }
+
+    /// The total size of the photo files for `names` a backup would hold:
+    /// those on this device, as `localFiles` finds them.
+    static func localBytes(for names: [String]) -> Int64 {
+        names.reduce(into: Int64(0)) { total, name in
+            guard let url = localURL(for: name),
+                  let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize else { return }
+            total += Int64(size)
+        }
+    }
+
+    /// Where the photo `name` is, when its bytes are on this device.
+    private static func localURL(for name: String) -> URL? {
+        guard let url = PhotoStorageService.photoURL(for: name),
+              !UbiquitousFile.needsDownload(url),
+              FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return url
     }
 
     // MARK: Restore

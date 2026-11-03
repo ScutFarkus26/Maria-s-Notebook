@@ -28,13 +28,24 @@ final class UnsentChangesKeepAlive {
 
     private static var installed: UnsentChangesKeepAlive?
 
-    /// When the view context last saved changes, while no finished export
-    /// has covered that save: an export counts only if it started after the
-    /// newest save. Keeping the first save instead let an export that began
-    /// between two saves cover both (2026-10-05): she marks A, an upload
-    /// starts, she marks B, the upload finishes, and Leave counted B as
-    /// gone.
-    private(set) var unsentSince: Date?
+    /// Per store, by identifier: when the view context last saved changes to
+    /// it, while no finished export of that store has covered that save. An
+    /// export counts only if it started after the newest save. Keeping the
+    /// first save instead let an export that began between two saves cover
+    /// both (2026-10-05): she marks A, an upload starts, she marks B, the
+    /// upload finishes, and Leave counted B as gone. And only that store's
+    /// export: in the notebook any store's export ended the wait, so the
+    /// private store's could let the iPad sleep while the classroom share's,
+    /// which carries the mark the Assistant needs, was still to go (bug hunt
+    /// 2026-11-02, #25). An object whose store isn't known is kept under
+    /// `anyStore`, which any store's export covers.
+    private(set) var unsentSinceByStore: [String: Date] = [:]
+
+    /// The key for a saved object whose store isn't known.
+    nonisolated static let anyStore = ""
+
+    /// The newest save still waiting for its store's export, or nil.
+    var unsentSince: Date? { unsentSinceByStore.values.max() }
     private let isBusy: @MainActor () -> Bool
     private let hasWaitingWork: @MainActor () -> Bool
     private let waitForWork: @MainActor () async -> Void
@@ -45,7 +56,8 @@ final class UnsentChangesKeepAlive {
 
     /// Watches `stack` from now on, replacing whatever was watched before.
     /// `isBusy` and `waitForWork` add the app's own sending (the Assistant's
-    /// share attach) to what leaving the foreground waits for.
+    /// share attach, the notebook's filing into the classroom share) to what
+    /// leaving the foreground waits for.
     static func install(
         for stack: CoreDataStack,
         isBusy: @escaping @MainActor () -> Bool = { false },
@@ -76,9 +88,10 @@ final class UnsentChangesKeepAlive {
         observers.append(center.addObserver(
             forName: .NSManagedObjectContextDidSave, object: viewContext, queue: nil
         ) { [weak self] note in
-            guard Self.leavesSomethingToUpload(in: note) else { return }
+            let stores = Self.storesLeftToUpload(in: note)
+            guard !stores.isEmpty else { return }
             let now = Date()
-            MainActor.assumeIsolated { self?.saved(at: now) }
+            MainActor.assumeIsolated { self?.saved(at: now, stores: stores) }
         })
         observers.append(center.addObserver(
             forName: NSPersistentCloudKitContainer.eventChangedNotification, object: nil, queue: .main
@@ -96,7 +109,8 @@ final class UnsentChangesKeepAlive {
             guard configuration == CoreDataStack.sharedConfiguration else { return }
             #endif
             let started = event.startDate
-            MainActor.assumeIsolated { self?.exported(startedAt: started) }
+            let store = event.storeIdentifier
+            MainActor.assumeIsolated { self?.exported(startedAt: started, storeIdentifier: store) }
         })
         #if canImport(UIKit)
         observers.append(center.addObserver(
@@ -112,7 +126,7 @@ final class UnsentChangesKeepAlive {
     }
 
     /// Whether leaving the foreground now would leave anything behind.
-    var hasUnsentWork: Bool { unsentSince != nil || isBusy() }
+    var hasUnsentWork: Bool { !unsentSinceByStore.isEmpty || isBusy() }
 
     /// Whether leaving the foreground now keeps the app awake: something
     /// unsent, or the app's own sending has something to try. Marks resting
@@ -120,20 +134,28 @@ final class UnsentChangesKeepAlive {
     /// untried. Leave reads `hasUnsentWork`, which counts them its own way.
     var needsKeepAlive: Bool { hasUnsentWork || hasWaitingWork() }
 
-    func saved(at date: Date) {
-        unsentSince = date
+    /// A save left something for `stores` (identifiers) to send.
+    func saved(at date: Date, stores: Set<String> = [UnsentChangesKeepAlive.anyStore]) {
+        for store in stores { unsentSinceByStore[store] = date }
     }
 
-    func exported(startedAt start: Date) {
-        guard let since = unsentSince, start >= since else { return }
-        unsentSince = nil
+    /// A store's export that started at `start` went up: it covers that
+    /// store's saves from before it started. With no store named (the
+    /// tests' one-store stack), it covers every store's.
+    func exported(startedAt start: Date, storeIdentifier: String? = nil) {
+        let covered = unsentSinceByStore.filter { store, since in
+            start >= since && (storeIdentifier == nil || store == storeIdentifier || store == Self.anyStore)
+        }
+        guard !covered.isEmpty else { return }
+        for store in covered.keys { unsentSinceByStore[store] = nil }
+        guard unsentSinceByStore.isEmpty else { return }
         settle()
     }
 
     /// The changes waiting to go were taken off this device (the Assistant's
     /// Leave): there is nothing left to send.
     func forgetUnsent() {
-        unsentSince = nil
+        unsentSinceByStore = [:]
         settle()
     }
 
@@ -145,21 +167,26 @@ final class UnsentChangesKeepAlive {
     }
 
     /// Whether a save of `changed` leaves something for CloudKit to send.
-    /// In the Assistant only the shared store's changes go anywhere that
-    /// matters: her membership row lives in her private store, and counting
-    /// it made Leave warn of unsent marks right after she joined. A stack
-    /// with one store (the tests') has no other store to tell them from.
     nonisolated static func leavesSomethingToSend(_ changed: [NSManagedObject]) -> Bool {
-        guard !changed.isEmpty else { return false }
+        !storesToSend(changed).isEmpty
+    }
+
+    /// The stores, by identifier, a save of `changed` leaves something for
+    /// CloudKit to send from (`anyStore` for an object whose store isn't
+    /// known). In the Assistant only the shared store's changes go anywhere
+    /// that matters: her membership row lives in her private store, and
+    /// counting it made Leave warn of unsent marks right after she joined. A
+    /// stack with one store (the tests') has no other store to tell them from.
+    nonisolated static func storesToSend(_ changed: [NSManagedObject]) -> Set<String> {
+        let touched = changed.map { $0.objectID.persistentStore }
         #if ASSISTANT_APP
-        let touched = changed.compactMap { $0.objectID.persistentStore }
         let isShared = { (store: NSPersistentStore) in store.configurationName == CoreDataStack.sharedConfiguration }
-        let stores = touched.first?.persistentStoreCoordinator?.persistentStores ?? []
-        guard stores.contains(where: isShared) else { return true }
-        return touched.contains(where: isShared)
-        #else
-        return true
+        let stores = touched.lazy.compactMap { $0 }.first?.persistentStoreCoordinator?.persistentStores ?? []
+        if stores.contains(where: isShared) {
+            return Set(touched.compactMap { $0 }.filter(isShared).map { $0.identifier ?? anyStore })
+        }
         #endif
+        return Set(touched.map { $0?.identifier ?? anyStore })
     }
 
     /// Whether the save in `note` leaves something only CloudKit's own
@@ -172,19 +199,25 @@ final class UnsentChangesKeepAlive {
     /// said "Not sent yet" all morning though every mark had gone (2026-10-22).
     /// The notebook's every change goes by the upload.
     nonisolated static func leavesSomethingToUpload(in note: Notification) -> Bool {
+        !storesLeftToUpload(in: note).isEmpty
+    }
+
+    /// The stores the save in `note` leaves something to upload from
+    /// (`leavesSomethingToUpload`), by identifier.
+    nonisolated static func storesLeftToUpload(in note: Notification) -> Set<String> {
         #if ASSISTANT_APP
         let keys = [NSUpdatedObjectsKey, NSDeletedObjectsKey]
         #else
         let keys = [NSInsertedObjectsKey, NSUpdatedObjectsKey, NSDeletedObjectsKey]
         #endif
         let changed = keys.flatMap { key in Array((note.userInfo?[key] as? Set<NSManagedObject>) ?? []) }
-        return leavesSomethingToSend(changed)
+        return storesToSend(changed)
     }
 
     /// Returns once CloudKit has exported the saves made so far, or `limit`
     /// has passed.
     func waitUntilSent(upTo limit: Duration) async {
-        guard unsentSince != nil else { return }
+        guard !unsentSinceByStore.isEmpty else { return }
         let sleep = sleep
         let timer = Task { [weak self] in
             try? await sleep(limit)

@@ -40,6 +40,29 @@ struct ClassroomJoinLeadGuideTests {
         #expect(!service.leadsItsOwnClass(invitedAs: .privateUser))
     }
 
+    /// Bug hunt 2026-11-02, #8: with no membership row at all the join went
+    /// through, and every mark she took for her own children went into the
+    /// other guide's class, for Leave to delete.
+    @Test("A notebook never shared whose own store holds children refuses another guide's invitation")
+    func unsharedNotebookWithChildrenRefuses() throws {
+        let stack = try CoreDataTestHelpers.makeInMemoryStack()
+        let privateStore = try stack.container.persistentStoreCoordinator.addPersistentStore(
+            type: .inMemory,
+            configuration: CoreDataStack.privateConfiguration,
+            at: URL(fileURLWithPath: "/dev/null/private-\(UUID().uuidString)")
+        )
+        let context = stack.viewContext
+        let service = ClassroomSharingService(container: stack.container, context: context)
+        #expect(!service.leadsItsOwnClass(invitedAs: .privateUser), "no children of its own yet: it may join")
+
+        let child = CoreDataTestHelpers.seedStudent(in: context)
+        context.assign(child, to: privateStore)
+        try context.save()
+        #expect(CDClassroomMembership.current(in: context) == nil, "never shared: no membership row")
+        #expect(service.leadsItsOwnClass(invitedAs: .privateUser))
+        #expect(!service.leadsItsOwnClass(invitedAs: .owner), "the invitation to its own share")
+    }
+
     @Test("The refusal says what happened and what to do, in plain words")
     func refusalIsPlain() {
         let message = ClassroomJoinRefusal.leadsOwnClass.message

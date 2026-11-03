@@ -10,6 +10,11 @@ import OSLog
 /// restore's own changes are discarded and the notebook is as it was.
 nonisolated private enum RestoreClearError: ExplainedBackupError {
     case replaceClearIncomplete([String])
+    /// A type every notebook's backup holds (`BackupEntity.isRequired`) whose
+    /// entry couldn't be read: a Replace would keep today's records of it
+    /// beside the backup's everything else, so it doesn't start (bug hunt
+    /// 2026-11-02, #10). The archive names, for the plain nouns.
+    case requiredTypesUnreadable([String])
 
     /// The types that wouldn't clear ride along for the log (`executeWithRollback` logs it).
     var errorDescription: String? {
@@ -17,6 +22,10 @@ nonisolated private enum RestoreClearError: ExplainedBackupError {
         case .replaceClearIncomplete:
             return "The restore stopped because some of your current notebook couldn't be cleared first. "
                 + "Your notebook was put back the way it was. Try again."
+        case .requiredTypesUnreadable(let names):
+            let nouns = names.map { BackupPlainNames.noun(for: $0).lowercased() }.joined(separator: ", ")
+            return "Part of this backup couldn't be read (\(nouns)), so Replace didn't change anything. "
+                + "Choose Merge to add what could be read, or restore another backup."
         }
     }
 }
@@ -58,17 +67,6 @@ private enum RestoreProgress {
     static let denormalizedRepair: Double = 0.92
     static let cloudSync: Double = 0.96
     static let done: Double = 1.00
-}
-
-/// Outcome of waiting for `NSPersistentCloudKitContainer` to finish the post-restore export.
-enum CloudExportWaitResult: Sendable {
-    /// No CloudKit-backed store, or the wait completed and a `.export` event succeeded.
-    case completed
-    /// `.export` event arrived but reported `succeeded == false`. Carries a localized description
-    /// (not the underlying `Error` — `any Error` doesn't cross task boundaries cleanly).
-    case failed(reason: String?)
-    /// Timed out before any complete `.export` event arrived. Sync is still running in the background.
-    case timedOut
 }
 
 // MARK: - Restore
@@ -143,14 +141,15 @@ extension BackupService {
         // Subscribe to CloudKit export events BEFORE saving — a fast export
         // could otherwise complete between save() and subscription, leaving
         // the user staring at a 30-second timeout for an event that already
-        // fired.
-        let cloudExportWait = Task {
-            await awaitCloudKitExport(viewContext: viewContext, timeout: .seconds(30))
-        }
-        defer { cloudExportWait.cancel() }
+        // fired. The observer is added here, in this turn, and buffers from
+        // then. (A `Task` made to subscribe didn't run until this turn first
+        // suspended, after the save; bug hunt 2026-11-02, #23.)
+        let exportListener = cloudExportListener(for: viewContext)
+        defer { exportListener.stop() }
 
+        let savedAt: Date
         do {
-            try saveRestore(in: viewContext, progress: progress)
+            savedAt = try saveRestore(in: viewContext, progress: progress)
         } catch let error as BackupRestoreSavedError {
             // Saved: the checkpoint's rollback follows, and it signals on its own.
             throw error
@@ -173,7 +172,7 @@ extension BackupService {
         // to upload the new records. Block briefly so users see a definitive "synced" message
         // when possible; on timeout, surface that sync is continuing in the background.
         progress(RestoreProgress.cloudSync, "Syncing to iCloud\u{2026}")
-        let cloudResult = await cloudExportWait.value
+        let cloudResult = await awaitCloudKitExport(exportListener, startedFrom: savedAt, timeout: .seconds(30))
         let warnings = restoreWarnings(
             albumIDs: run.albumIDs, notesMissingTheirReminder: run.notesMissingTheirReminder, cloudResult: cloudResult
         )
@@ -191,13 +190,19 @@ extension BackupService {
         )
     }
 
-    /// The restore's one save and the repair after it. A failure before the
-    /// save completes throws the save's own error, with every unsaved change
-    /// discarded; one after it throws `BackupRestoreSavedError`.
-    private func saveRestore(in viewContext: NSManagedObjectContext, progress: ProgressCallback) throws {
+    /// The restore's one save and the repair after it; returns when the save
+    /// was done, for the iCloud wait (`awaitCloudKitExport`). A failure
+    /// before the save completes throws the save's own error, with every
+    /// unsaved change discarded; one after it throws `BackupRestoreSavedError`.
+    private func saveRestore(in viewContext: NSManagedObjectContext, progress: ProgressCallback) throws -> Date {
         try discardingChangesOnFailure(in: viewContext) {
             progress(RestoreProgress.saving, "Saving\u{2026}")
             BackupRestoreScope.assignInsertsToPrivateStore(in: viewContext)
+            // Noted as the save begins: CloudKit can start the export of it
+            // on its own queue as soon as the save posts its did-save, before
+            // `save()` returns here (the keep-alive notes a save then too,
+            // `UnsentChangesKeepAlive`). Exports started earlier don't count.
+            let savedAt = Date()
             // The restore's one save: replace mode's clear and every record
             // together. Until it succeeds the store holds none of the restore.
             try viewContext.save()
@@ -209,6 +214,7 @@ extension BackupService {
             } catch {
                 throw BackupRestoreSavedError(underlying: error)
             }
+            return savedAt
         }
     }
 
@@ -261,9 +267,18 @@ extension BackupService {
         progress: ProgressCallback
     ) throws -> BackupRestoreRun {
         if mode == .replace {
+            let unreadable = BackupEntityTable.entities
+                .filter { $0.isRequired && source.skippedEntityNames.contains($0.name) }
+                .map(\.name)
+            guard unreadable.isEmpty else { throw RestoreClearError.requiredTypesUnreadable(unreadable) }
+
             progress(RestoreProgress.clearing, "Clearing existing data\u{2026}")
             appRouter.signalAppDataWillBeReplaced()
-            let failedEntities = try deleteAll(viewContext: viewContext, formatVersion: source.envelope.formatVersion)
+            let failedEntities = try deleteAll(
+                viewContext: viewContext,
+                formatVersion: source.envelope.formatVersion,
+                skipped: source.skippedEntityNames
+            )
             if !failedEntities.isEmpty {
                 // Replace mode must fully clear the store before importing. If some
                 // types couldn't be cleared, abort rather than import on top of a
@@ -276,8 +291,13 @@ extension BackupService {
         // One fetch per entity type instead of one fetch per record. Built
         // lazily so child-type lookups see parents inserted earlier in this
         // same restore (see BackupEntityIndex).
-        let run = BackupRestoreRun(source: source, context: viewContext)
+        let run = BackupRestoreRun(source: source, context: viewContext, mode: mode)
         try importEveryType(run, progress: progress)
+        if mode == .replace {
+            // The classroom share's records were updated where they are; now
+            // the ones the backup lacks go.
+            try deleteSharedRecordsTheBackupLacks(run.sharedIDsInBackup, viewContext: viewContext)
+        }
         // An older backup's rows lack attributes added since; the records it
         // updated keep their own values for those.
         run.index.predatedValues.putBack()
@@ -371,47 +391,5 @@ extension BackupService {
             )
         }
         return warnings
-    }
-
-    // MARK: - CloudKit Export Wait
-
-    /// Waits for an `NSPersistentCloudKitContainer` `.export` event to complete after a restore.
-    /// Returns at once when the restore went into a notebook that doesn't sync (see the guard).
-    private func awaitCloudKitExport(
-        viewContext: NSManagedObjectContext,
-        timeout: Duration
-    ) async -> CloudExportWaitResult {
-        // Skip the wait unless the restore went into the app's notebook while it
-        // syncs: in-memory tests, iCloud sync off, the local-only fallback and
-        // the database-error screen's fresh notebook (`FreshNotebookRestore`)
-        // never export, and would only wait 30 seconds to say sync is "still
-        // running in the background".
-        guard BackupRestoreScope.syncsWithICloud(viewContext) else { return .completed }
-
-        let events = NotificationCenter.default.messages(
-            of: NSPersistentCloudKitContainer.self, for: .eventChanged, bufferSize: 256
-        )
-
-        return await withTaskGroup(of: CloudExportWaitResult.self) { group in
-            group.addTask {
-                for await message in events {
-                    let event = message.event
-                    guard event.type == .export, event.endDate != nil else { continue }
-                    if event.succeeded {
-                        return .completed
-                    } else {
-                        return .failed(reason: event.error?.localizedDescription)
-                    }
-                }
-                return .timedOut
-            }
-            group.addTask {
-                try? await Task.sleep(for: timeout)
-                return .timedOut
-            }
-            let first = await group.next() ?? .timedOut
-            group.cancelAll()
-            return first
-        }
     }
 }

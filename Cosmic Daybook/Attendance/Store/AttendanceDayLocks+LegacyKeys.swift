@@ -67,7 +67,9 @@ extension AttendanceDayLocks {
         defaults: UserDefaults = .standard
     ) {
         let flag = UserDefaultsKeys.attendanceLocksCarriedOver
-        guard !defaults.bool(forKey: flag), !FirstDownloadGate.isPending() else { return }
+        // Armed, not merely pending: a session lifted for want of an account
+        // would set the flag on an empty store (bug hunt 2026-11-02, #58).
+        guard !defaults.bool(forKey: flag), !FirstDownloadGate.isArmed(defaults: defaults) else { return }
         let keys = store.storedKeys(withPrefix: legacyKeyPrefix)
         let values = Dictionary(uniqueKeysWithValues: keys.map { ($0, store.bool(forKey: $0) as Any) })
         migrateLegacyKeys(values, role: CDClassroomMembership.currentRole(in: context), in: context)

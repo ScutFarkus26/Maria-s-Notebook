@@ -13,7 +13,7 @@ nonisolated extension BackupImporter {
     @concurrent
     static func recordIDs(at url: URL, of entityNames: Set<String>) async throws -> [String: Set<UUID>] {
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = BackupDateCoding.decodingStrategy
         var ids: [String: Set<UUID>] = [:]
         _ = try BackupReader.streamEntities(
             from: url,

@@ -24,14 +24,26 @@ extension TideSyncEngine {
 
     /// Each linked to-do against its action, then a tick on either side since
     /// the two last agreed.
-    func judgeLinkedTodos(in run: inout Run) {
+    func judgeLinkedTodos(in run: inout Run, now: Date) async throws {
+        var found = [TideAction?](repeating: nil, count: run.todos.count)
+        var lost: [Int] = []
         for index in run.todos.indices {
             guard let stored = run.todos[index].tideLink.flatMap(TideActionLink.init) else { continue }
-            let action = currentAction(for: stored, at: index, in: &run)
+            found[index] = currentAction(for: stored, at: index, in: &run)
+            if found[index] == nil, run.judged.contains(stored.file),
+               state.unmarkedLinks[run.todos[index].id.uuidString] != nil {
+                lost.append(index)
+            }
+        }
+        for index in lost {
+            found[index] = try await findUnmarked(at: index, among: lost, in: &run)
+        }
+        for index in run.todos.indices {
+            guard let stored = run.todos[index].tideLink.flatMap(TideActionLink.init) else { continue }
             // Gone from a list the sharing doesn't cover (unpicked, or no
             // longer in Tide) says nothing: leave the to-do be.
-            if action == nil, !run.judged.contains(stored.file) { continue }
-            judge(index, against: action, in: &run)
+            if found[index] == nil, !run.judged.contains(stored.file) { continue }
+            judge(index, against: found[index], now: now, in: &run)
         }
     }
 
@@ -45,8 +57,12 @@ extension TideSyncEngine {
         if let held = run.actionFor[id] { return held }
         if let named = run.byNotebookID[id], !run.claimed.contains(named.key) {
             if let link = named.actionLink?.string, link != stored.string {
-                store.link(id, to: link, title: named.action)
-                run.setLink(link, title: named.action, at: index)
+                // Tide's words come only when they changed there: moved with
+                // the same words, a title edited here stays (and, for one
+                // made in Tide, goes across).
+                let words = named.action == stored.text ? nil : named.action
+                store.link(id, to: link, title: words)
+                run.setLink(link, title: words, at: index)
                 run.report.relinked += 1
             }
             run.hold(named, at: index)
@@ -60,19 +76,72 @@ extension TideSyncEngine {
         return action
     }
 
+    /// A to-do known by its address alone (its action never took the
+    /// notebook line), not at it now: Tide moved or reworded the action, or
+    /// it was ticked, dropped or deleted there. Its words alone in another
+    /// list are a move; the one new action of its own list, while nothing
+    /// with its words was ticked or dropped there, is a reword. Anything else
+    /// closes it, as before (bug hunt 2026-11-02 #51).
+    private func findUnmarked(at index: Int, among lost: [Int], in run: inout Run) async throws -> TideAction? {
+        guard let stored = run.todos[index].tideLink.flatMap(TideActionLink.init) else { return nil }
+        let held = Set(run.todos.compactMap(\.tideLink)).union(state.unmarkedLinks.values)
+        let new = run.actions.filter { action in
+            guard action.notebookID == nil, !run.claimed.contains(action.key),
+                  let link = action.actionLink?.string else { return false }
+            return !held.contains(link)
+        }
+        let moved = new.filter { $0.action == stored.text }
+        let reworded = new.filter { $0.isOpen && $0.file == stored.file }
+        let lostHere = lost.filter { run.todos[$0].tideLink.flatMap(TideActionLink.init)?.file == stored.file }
+        let action: TideAction
+        if moved.count == 1, let only = moved.first {
+            action = only
+        } else if reworded.count == 1, lostHere.count == 1, let only = reworded.first {
+            // A new action beside one ticked there would look the same. Tide
+            // not ready stops the run, asked again soon; a refusal closes it.
+            do {
+                if try await tools.hasClosedAction(inFile: stored.file, words: stored.text) { return nil }
+            } catch let error as TideToolError where !error.isTemporary {
+                return nil
+            }
+            action = only
+        } else {
+            return nil
+        }
+        guard let link = action.actionLink?.string else { return nil }
+        let words = action.action == stored.text ? nil : action.action
+        store.link(run.todos[index].id, to: link, title: words)
+        run.setLink(link, title: words, at: index)
+        run.hold(action, at: index)
+        run.report.relinked += 1
+        return action
+    }
+
     /// A tick on either side since the two last agreed. A to-do the sync
     /// knows nothing about (no agreed state) is never ticked on either side.
-    private func judge(_ index: Int, against action: TideAction?, in run: inout Run) {
+    private func judge(_ index: Int, against action: TideAction?, now: Date, in run: inout Run) {
         let todo = run.todos[index]
+        let key = todo.id.uuidString
         let agreedOpen = state[todo: todo.id]
         switch (todo.isCompleted, action) {
         case (false, let action?):
             state[todo: todo.id] = true
-            if state.fromTide.contains(todo.id.uuidString) { followTide(todo, action) }
+            if state.fromTide.contains(key) {
+                compareWithTide(index, action, now: now, in: &run)
+            } else {
+                state.agreedDue[key] = action.due ?? ""
+            }
         case (true, let action?):
             // A tick here goes across only from open; from closed, Tide
             // reopened it, and an untick isn't carried.
-            if agreedOpen { run.ticks.append((todo.id, action)) }
+            guard agreedOpen else { break }
+            if hasRolledOn(action, since: state.agreedDue[key]) {
+                // Ticked in Tide too, which rolled the repeat on: the tick
+                // is there already, and the copy moves on with it (#46).
+                run.rolledThere.append((todo.id, action.due))
+            } else {
+                run.ticks.append((todo.id, action))
+            }
         case (false, nil):
             // Ticked, dropped, deleted or moved out in Tide. After both were
             // closed, an untick here isn't carried back.
@@ -84,51 +153,6 @@ extension TideSyncEngine {
             state[todo: todo.id] = false
         case (true, nil):
             state[todo: todo.id] = false
-        }
-    }
-
-    /// A to-do made in Tide keeps Tide's words and due date. Its note was
-    /// copied when it came in; a note added here stays.
-    private func followTide(_ todo: TideNotebookTodo, _ action: TideAction) {
-        let due = TideDay.date(action.due, calendar: calendar)
-        guard todo.title != action.action || !TideDay.sameDay(todo.dueDate, due, calendar) else { return }
-        store.update(todo.id, title: action.action, due: due)
-    }
-
-    /// Ticks made here, before the sends: a repeat that rolls in Tide reopens
-    /// its copy here, which must not take a just-sent next occurrence with it.
-    func carryTicks(in run: inout Run) async throws {
-        var reopened = false
-        defer {
-            // A reopened copy may have taken its unsent next occurrence with
-            // it (`TodoCompletionService.reopen`): send from the notebook as it is.
-            if reopened { run.todos = store.todos(alsoClosed: state.openIDs) }
-        }
-        for tick in run.ticks {
-            guard let file = tick.action.file else { continue }
-            do {
-                let reply = try await tools.completeAction(file: file, action: tick.action.action)
-                run.revisions[file] = reply.revision
-                if reply.outcome == "rolled" || reply.outcome == "routine_rolled" {
-                    // A repeat in Tide moved on rather than finishing: so does the copy.
-                    store.reopen(tick.id, due: TideDay.date(reply.action?.due, calendar: calendar))
-                    state[todo: tick.id] = true
-                    reopened = true
-                } else {
-                    state[todo: tick.id] = false
-                }
-                run.report.tickedInTide += 1
-            } catch let error as TideToolError where error.isAmbiguous || error.isTemporary {
-                // Tide can't tell which action the words name (the list has
-                // more than one with them), or isn't ready: asked again next
-                // run, and said plainly until Danny ticks it off in Tide.
-                if error.isAmbiguous { run.report.notTicked.append(tick.action.action) }
-                run.report.details.append("\(tick.action.action): \(error.details)")
-            } catch let error as TideToolError {
-                // Tide won't tick it (dropped there already): it stays ticked here.
-                state[todo: tick.id] = false
-                run.report.details.append("\(tick.action.action): \(error.details)")
-            }
         }
     }
 
@@ -153,6 +177,7 @@ extension TideSyncEngine {
                 store.link(todo.id, to: link, title: reply.action?.action)
                 run.setLink(link, title: reply.action?.action, at: index)
                 state[todo: todo.id] = true
+                state.agreedDue[todo.id.uuidString] = reply.action?.due ?? new.due ?? ""
                 run.report.sent += 1
                 // Saved at once, so stopping now can't send it twice.
                 _ = store.save()
@@ -215,7 +240,7 @@ extension TideSyncEngine {
     /// second copy, even when its to-do is gone: by its notebook line, or,
     /// for one whose note couldn't take the line, by its address, once for
     /// each to-do deleted here (`TideSyncState.unmarkedLinks`).
-    func showTideActions(in run: inout Run) {
+    func showTideActions(in run: inout Run, now: Date) {
         let present = Set(run.todos.map(\.id.uuidString))
         var deletedHere: [String: Int] = [:]
         for (id, link) in state.unmarkedLinks where !present.contains(id) {
@@ -230,13 +255,20 @@ extension TideSyncEngine {
             }
             let notes = TideNotebookMarker.removing(from: action.note)
             let due = TideDay.date(action.due, calendar: calendar)
-            let id = store.add(title: action.action, notes: notes, due: due, link: link)
+            // A later start in Tide plans it for that day here (#48), as a
+            // later planned day here goes as Tide's start.
+            let scheduled = TideDay.date(action.start, calendar: calendar).flatMap { start in
+                calendar.startOfDay(for: start) > calendar.startOfDay(for: now) ? start : nil
+            }
+            let id = store.add(title: action.action, notes: notes, due: due, scheduled: scheduled, link: link)
             run.todos.append(TideNotebookTodo(
                 id: id, title: action.action, notes: notes, isCompleted: false, hasLinkedWork: false,
-                isSomeday: false, tideLink: link, studentIDs: [], dueDate: due, scheduledDate: nil, createdAt: nil
+                isSomeday: false, tideLink: link, studentIDs: [], dueDate: due, scheduledDate: scheduled,
+                createdAt: nil
             ))
             run.hold(action, at: run.todos.count - 1)
             state[todo: id] = true
+            state.agreedDue[id.uuidString] = action.due ?? ""
             state.fromTide.insert(id.uuidString)
             run.report.pulled += 1
         }
@@ -257,7 +289,7 @@ extension TideSyncEngine {
                 continue
             }
             state.unmarkedLinks[todo.id.uuidString] = action.actionLink?.string
-            guard !unmarkable.contains(action.key) else { continue }
+            guard unmarkable[action.key] != action.revision else { continue }
             let existing = (action.note ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             let marker = TideNotebookMarker.line(for: todo.id)
             do {
@@ -267,11 +299,12 @@ extension TideSyncEngine {
                 state.unmarkedLinks[todo.id.uuidString] = nil
                 run.report.marked += 1
             } catch let error as TideToolError where error.isTemporary {
-                continue
+                run.report.tryAgain = true
             } catch let error as TideToolError {
                 // Two actions with these words, or Danny's note changed under
-                // the read: the link still holds by address.
-                unmarkable.insert(action.key)
+                // the read: the link still holds by address, and the line is
+                // asked for again once the list changes.
+                unmarkable[action.key] = action.revision
                 Self.logger.notice("Tide note not marked: \(error.details, privacy: .private)")
             }
         }

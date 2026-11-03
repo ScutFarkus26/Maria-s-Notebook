@@ -33,7 +33,9 @@ enum BackupFetchHelper {
 ///   actually updates a matching row (then only that row is faulted in). The
 ///   map is built the first time a type is imported — i.e. before that type's
 ///   own rows are inserted — which is exactly right: replace-mode has already
-///   cleared the store, and duplicates within a type were removed as the
+///   cleared the store (all but the types it updates in place,
+///   `BackupEntityRegistry.updatedInPlaceOnReplaceEntityNames` and
+///   `mergedOnReplaceEntityNames`), and duplicates within a type were removed as the
 ///   restore's source handed the type over (`BackupRestoreSource`), so the
 ///   only thing that should count as "already exists" is a pre-restore row
 ///   (merge mode). Dictionary fetches don't see pending inserts, which
@@ -69,6 +71,9 @@ final class BackupEntityIndex {
     /// restore updates (`BackupPredatedValues`).
     let predatedValues: BackupPredatedValues
     private var existingObjectIDs: [ObjectIdentifier: [UUID: NSManagedObjectID]] = [:]
+    /// Each stored record's dates for a Merge's newer-wins check, read with
+    /// the id map (types that have one, `BackupMergeRule`).
+    private var storedStamps: [NSManagedObjectID: BackupMergeRule.Stored] = [:]
     private var relationshipMaps: [ObjectIdentifier: [UUID: NSManagedObject]] = [:]
 
     /// - Parameters:
@@ -105,20 +110,42 @@ final class BackupEntityIndex {
         return object
     }
 
+    /// The dates of the record `existing` would update for `id`, for a
+    /// Merge's newer-wins check (`BackupRestoreRun.keepingNewer`): when it
+    /// last changed and, for a to-do, when it was done (`BackupMergeRule`).
+    /// Nil when there is no such record, when it has neither date, and when
+    /// the clear is deleting it. Reads the dates fetched with the id map;
+    /// loads nothing.
+    func storedStamp(_ type: NSManagedObject.Type, id: UUID) throws -> BackupMergeRule.Stored? {
+        let key = ObjectIdentifier(type)
+        if existingObjectIDs[key] == nil {
+            existingObjectIDs[key] = try buildObjectIDMap(type)
+        }
+        guard let objectID = existingObjectIDs[key]?[id], let stamp = storedStamps[objectID] else {
+            return nil
+        }
+        if let registered = context.registeredObject(for: objectID), registered.isDeleted { return nil }
+        return stamp
+    }
+
     /// Relationship-target lookup. See the type-level note: built lazily at
     /// child-import time, so it includes parents inserted in this restore.
+    /// Never a record deleted since its map was built (a Replace deletes the
+    /// classroom-share records the backup lacks once the import is in).
     func related<T: NSManagedObject>(_ type: T.Type, id: UUID) throws -> T? {
         let key = ObjectIdentifier(type)
         if relationshipMaps[key] == nil {
             relationshipMaps[key] = try buildMap(type)
         }
-        return relationshipMaps[key]?[id] as? T
+        guard let object = relationshipMaps[key]?[id] as? T, !object.isDeleted else { return nil }
+        return object
     }
 
-    /// Reads just the `id` column plus each row's objectID — one narrow query
-    /// per type, no live objects (only same-id copies are faulted in, to pick
-    /// the one cleanup keeps).
-    private func buildObjectIDMap<T: NSManagedObject>(_ type: T.Type) throws -> [UUID: NSManagedObjectID] {
+    /// Reads just the `id` column (and the dates a Merge weighs, for a type
+    /// that has them: `BackupMergeRule`) plus each row's objectID — one
+    /// narrow query per type, no live objects (only same-id copies are
+    /// faulted in, to pick the one cleanup keeps).
+    private func buildObjectIDMap(_ type: NSManagedObject.Type) throws -> [UUID: NSManagedObjectID] {
         guard let entityName = BackupFetchHelper.entityName(for: type, in: context) else {
             return [:]
         }
@@ -129,7 +156,10 @@ final class BackupEntityIndex {
 
         let request = NSFetchRequest<NSDictionary>(entityName: entityName)
         request.resultType = .dictionaryResultType
-        request.propertiesToFetch = ["id", objectIDColumn]
+        let dates = context.persistentStoreCoordinator?.managedObjectModel
+            .entitiesByName[entityName].map(BackupMergeRule.Columns.init)
+        let dateKeys: [Any] = dates?.keys ?? []
+        request.propertiesToFetch = ["id", objectIDColumn] + dateKeys
         if let store { request.affectedStores = [store] }
         let rows = try context.fetch(request)
 
@@ -138,6 +168,7 @@ final class BackupEntityIndex {
         map.reserveCapacity(rows.count)
         for row in rows {
             guard let id = row["id"] as? UUID, let objectID = row["objectID"] as? NSManagedObjectID else { continue }
+            if let stamp = dates?.stored(from: row) { storedStamps[objectID] = stamp }
             if let first = map[id] {
                 copies[id, default: [first]].append(objectID)
             } else {
@@ -211,13 +242,21 @@ enum BackupRestoreScope {
     /// Gives every record the restore inserted to the private store before
     /// the save. Core Data would put most there anyway (the private store is
     /// added first), but nothing then depends on store order.
+    ///
+    /// Only new records, with a temporary ID: the importers `insert` every
+    /// record they write, and Core Data then lists a saved record it updates
+    /// among `insertedObjects` too. Assigning one of those throws ("can't
+    /// reassign an object … once it has been saved"), and a Merge, or a
+    /// Replace updating the classroom share in place, updates saved records
+    /// (bug hunt 2026-11-02, #2).
     static func assignInsertsToPrivateStore(in context: NSManagedObjectContext) {
         guard let store = privateStore(of: context),
               let model = context.persistentStoreCoordinator?.managedObjectModel
         else { return }
         let entities = model.entities(forConfigurationName: CoreDataStack.privateConfiguration) ?? []
         let homes = Set(entities.compactMap(\.name))
-        for object in context.insertedObjects where homes.contains(object.entity.name ?? "") {
+        for object in context.insertedObjects
+        where object.objectID.isTemporaryID && homes.contains(object.entity.name ?? "") {
             context.assign(object, to: store)
         }
     }

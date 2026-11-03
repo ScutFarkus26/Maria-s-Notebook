@@ -6,15 +6,24 @@ import OSLog
 ///
 /// This extracts the analysis logic from BackupService.previewImport() for better
 /// testability and separation of concerns. It reads a `BackupPreviewDigest` —
-/// row counts and IDs — which is all the analysis ever needed from a backup.
+/// row counts, IDs and change dates — which is all the analysis needs from a
+/// backup. Both modes go over every backed-up type (`BackupEntityTable`), as
+/// the restore does: until 2026-11-02 a Merge's preview counted 15 hand-picked
+/// types, and showed "Nothing would change" for a backup of thousands of work
+/// records (bug hunt 2026-11-02, #22).
 enum BackupPreviewAnalyzer {
     private static let logger = Logger.backup
 
     /// Result of analyzing a backup payload against the current database state.
     struct AnalysisResult {
         var inserts: [String: Int] = [:]
+        /// Records already here that the restore brings to the backup's version.
         var skips: [String: Int] = [:]
         var deletes: [String: Int] = [:]
+        /// Records already here that the restore leaves as they are, changed
+        /// here since the backup (a Merge's newer wins, `BackupMergeRule`;
+        /// bug hunt 2026-11-02, #1). The preview shows them as "kept".
+        var kept: [String: Int] = [:]
         var warnings: [String] = []
 
         var totalInserts: Int { inserts.values.reduce(0, +) }
@@ -24,7 +33,7 @@ enum BackupPreviewAnalyzer {
     /// Analyzes a backup's digest to determine what changes would occur during restore.
     ///
     /// - Parameters:
-    ///   - digest: The backup's row counts and IDs
+    ///   - digest: The backup's row counts, IDs and change dates
     ///   - viewContext: The model context for checking existing entities
     ///   - mode: The restore mode (replace or merge)
     ///   - formatVersion: The backup's format: replace leaves the types it predates
@@ -37,37 +46,16 @@ enum BackupPreviewAnalyzer {
         formatVersion: Int,
         entityExists: @escaping (NSManagedObject.Type, UUID) -> Bool
     ) -> AnalysisResult {
-        // Use separate dictionaries to avoid Swift exclusivity violations
-        // (can't have closure capturing result while also passing &result.warnings)
-        var inserts: [String: Int] = [:]
-        var skips: [String: Int] = [:]
-        var deletes: [String: Int] = [:]
-        var warnings: [String] = []
-
-        func assign(_ key: String, ins: Int, sk: Int = 0, del: Int = 0) {
-            inserts[key] = ins
-            skips[key] = sk
-            deletes[key] = del
-        }
-
+        var result = AnalysisResult()
+        let store = StoredRecords(context: viewContext, exists: entityExists)
         if mode == .replace {
             analyzeReplaceMode(
-                digest: digest,
-                viewContext: viewContext,
-                formatVersion: formatVersion,
-                assign: assign
+                digest: digest, viewContext: viewContext, formatVersion: formatVersion, store: store, into: &result
             )
         } else {
-            analyzeMergeMode(
-                digest: digest,
-                viewContext: viewContext,
-                entityExists: entityExists,
-                assign: assign,
-                warnings: &warnings
-            )
+            analyzeMergeMode(digest: digest, viewContext: viewContext, store: store, into: &result)
         }
-
-        return AnalysisResult(inserts: inserts, skips: skips, deletes: deletes, warnings: warnings)
+        return result
     }
 
     // MARK: - Replace Mode Analysis
@@ -76,7 +64,8 @@ enum BackupPreviewAnalyzer {
         digest: BackupPreviewDigest,
         viewContext: NSManagedObjectContext,
         formatVersion: Int,
-        assign: (_ key: String, _ ins: Int, _ sk: Int, _ del: Int) -> Void
+        store: StoredRecords,
+        into result: inout AnalysisResult
     ) {
         // Replace-mode restore deletes every type in BackupEntityTable, but for
         // those BackupService+Helpers.deleteAll leaves, and re-inserts the
@@ -87,27 +76,52 @@ enum BackupPreviewAnalyzer {
         let insertCounts = insertCountsByDisplayName(digest)
 
         for entity in BackupEntityTable.entities {
-            let type = entity.managedType()
-            let registryName = BackupEntityRegistry.entityName(for: type)
-            guard !BackupEntityRegistry.notYetBackedUpEntityNames.contains(registryName) else { continue }
-            let key = displayName(forEntityTypeName: registryName)
             // Types the restore leaves as they are (this device's pin, the
-            // mirrored Apple reminders and events, and any the backup is too
-            // old to hold) are neither cleared nor restored, so the consent
-            // numbers don't count them.
-            guard !BackupEntityRegistry.keptOnRestoreEntityNames.contains(key),
-                  entity.isCarried(by: formatVersion) else { continue }
-            // The names people set are updated in place, never cleared.
-            let deletes = BackupEntityRegistry.mergedOnReplaceEntityNames.contains(key)
-                ? 0 : existingCount(of: type, model: model, in: viewContext)
-            assign(key, insertCounts[key] ?? 0, 0, deletes)
+            // mirrored Apple reminders and events, any the backup is too old
+            // to hold, and any whose entry didn't decode) are neither cleared
+            // nor restored, so the consent numbers don't count them.
+            guard let key = previewKey(for: entity), entity.isCarried(by: formatVersion),
+                  !digest.skippedEntityNames.contains(entity.name) else { continue }
+            let type = entity.managedType()
+            if BackupEntityRegistry.mergedOnReplaceEntityNames.contains(key) {
+                // The names people set are updated as a Merge updates them, never cleared.
+                countMerge(digest.stamps(entity.name), of: type, as: key, store, into: &result)
+            } else if BackupEntityRegistry.updatedInPlaceOnReplaceEntityNames.contains(key) {
+                // The classroom share's records are updated where they are;
+                // only those the backup lacks go (bug hunt 2026-11-02, #2).
+                let inBackup = Set(digest.ids(entity.name))
+                let here = storedIDs(of: type, model: model, in: viewContext)
+                let hereIDs = Set(here.compactMap { $0 })
+                result.inserts[key] = inBackup.subtracting(hereIDs).count
+                result.skips[key] = inBackup.intersection(hereIDs).count
+                result.deletes[key] = here.filter { $0.map { !inBackup.contains($0) } ?? true }.count
+            } else {
+                result.inserts[key] = insertCounts[key] ?? 0
+                result.skips[key] = 0
+                result.deletes[key] = existingCount(of: type, model: model, in: viewContext)
+            }
         }
 
         // Deprecated payload sections with no live entity behind them: nothing
         // gets deleted, but old backups may still carry records.
-        assign("ProjectAssignmentTemplate", digest.projectAssignmentTemplateCount, 0, 0)
-        assign("ProjectTemplateWeek", digest.projectTemplateWeekCount, 0, 0)
-        assign("ProjectWeekRoleAssignment", digest.projectWeekRoleAssignmentCount, 0, 0)
+        result.inserts["ProjectAssignmentTemplate"] = digest.projectAssignmentTemplateCount
+        result.inserts["ProjectTemplateWeek"] = digest.projectTemplateWeekCount
+        result.inserts["ProjectWeekRoleAssignment"] = digest.projectWeekRoleAssignmentCount
+        for key in ["ProjectAssignmentTemplate", "ProjectTemplateWeek", "ProjectWeekRoleAssignment"] {
+            result.skips[key] = 0
+            result.deletes[key] = 0
+        }
+    }
+
+    /// The key `entity`'s counts go under ("CDCommunityTopicEntity" →
+    /// "CommunityTopic"); nil for a type the restore never writes (not yet
+    /// backed up, or left as it is on every restore).
+    private static func previewKey(for entity: BackupEntity) -> String? {
+        let registryName = BackupEntityRegistry.entityName(for: entity.managedType())
+        guard !BackupEntityRegistry.notYetBackedUpEntityNames.contains(registryName) else { return nil }
+        let key = displayName(forEntityTypeName: registryName)
+        guard !BackupEntityRegistry.keptOnRestoreEntityNames.contains(key) else { return nil }
+        return key
     }
 
     /// "CDCommunityTopicEntity" → "CommunityTopic"
@@ -118,17 +132,19 @@ enum BackupPreviewAnalyzer {
         return result
     }
 
+    /// The model entity behind `type`; nil for a legacy stub the model lacks.
+    private static func modelEntityName(of type: NSManagedObject.Type, model: NSManagedObjectModel?) -> String? {
+        let className = NSStringFromClass(type)
+        return model?.entitiesByName.first(where: { $0.value.managedObjectClassName == className })?.key
+    }
+
     private static func existingCount(
         of type: NSManagedObject.Type,
         model: NSManagedObjectModel?,
         in viewContext: NSManagedObjectContext
     ) -> Int {
         // Skip types whose entity doesn't exist in the Core Data model (legacy stubs)
-        let className = NSStringFromClass(type)
-        guard let entityName = model?.entitiesByName
-            .first(where: { $0.value.managedObjectClassName == className })?.key else {
-            return 0
-        }
+        guard let entityName = modelEntityName(of: type, model: model) else { return 0 }
         // The private store only: a replace restore clears only that one
         // (`BackupRestoreScope`), so a classroom someone else shared with this
         // notebook isn't counted as removed.
@@ -139,6 +155,26 @@ enum BackupPreviewAnalyzer {
         } catch {
             logger.warning("Failed to count \(entityName): \(error)")
             return 0
+        }
+    }
+
+    /// Every one of the notebook's records of `type`, by `id` (nil for one
+    /// without), as the in-place Replace sees them.
+    private static func storedIDs(
+        of type: NSManagedObject.Type,
+        model: NSManagedObjectModel?,
+        in viewContext: NSManagedObjectContext
+    ) -> [UUID?] {
+        guard let entityName = modelEntityName(of: type, model: model) else { return [] }
+        let request = NSFetchRequest<NSDictionary>(entityName: entityName)
+        request.resultType = .dictionaryResultType
+        request.propertiesToFetch = ["id"]
+        BackupRestoreScope.limitToNotebook(request, in: viewContext)
+        do {
+            return try viewContext.fetch(request).map { $0["id"] as? UUID }
+        } catch {
+            logger.warning("Failed to read \(entityName) ids: \(error)")
+            return []
         }
     }
 
@@ -180,29 +216,76 @@ enum BackupPreviewAnalyzer {
     private static func analyzeMergeMode(
         digest: BackupPreviewDigest,
         viewContext: NSManagedObjectContext,
-        entityExists: @escaping (NSManagedObject.Type, UUID) -> Bool,
-        assign: (_ key: String, _ ins: Int, _ sk: Int, _ del: Int) -> Void,
-        warnings: inout [String]
+        store: StoredRecords,
+        into result: inout AnalysisResult
     ) {
-        // Students
-        let studentCounts = BackupCountHelpers.countInsertAndSkip(
-            items: digest.ids("Student"),
-            type: CDStudent.self,
-            context: viewContext,
-            exists: { entityExists(CDStudent.self, $0) }
-        )
-        assign("Student", studentCounts.insert, studentCounts.skip, 0)
+        for entity in BackupEntityTable.entities {
+            guard let key = previewKey(for: entity) else { continue }
+            if entity.name == "LessonAssignment" {
+                analyzeLessonAssignmentMerge(digest: digest, viewContext: viewContext, store: store, into: &result)
+            } else {
+                countMerge(digest.stamps(entity.name), of: entity.managedType(), as: key, store, into: &result)
+            }
+        }
+        for key in ["ProjectAssignmentTemplate", "ProjectTemplateWeek", "ProjectWeekRoleAssignment"] {
+            result.inserts[key] = 0
+            result.skips[key] = 0
+            result.deletes[key] = 0
+        }
+    }
 
-        // Lessons
-        let lessonCounts = BackupCountHelpers.countInsertAndSkip(
-            items: digest.ids("Lesson"),
-            type: CDLesson.self,
-            context: viewContext,
-            exists: { entityExists(CDLesson.self, $0) }
-        )
-        assign("Lesson", lessonCounts.insert, lessonCounts.skip, 0)
+    /// Sorts `rows` as a Merge restores them: a new record is added, one
+    /// changed here since the backup (or a to-do done since) is kept, and
+    /// any other already here takes the backup's version (an older record,
+    /// or a type or row without a change date): `BackupMergeRule`.
+    private static func countMerge(
+        _ rows: [BackupPreviewDigest.RowStamp],
+        of type: NSManagedObject.Type,
+        as key: String,
+        _ store: StoredRecords,
+        into result: inout AnalysisResult
+    ) {
+        var counts = MergeCounts(keepsDatedOverDateless: BackupEntityRegistry.mergedOnReplaceEntityNames.contains(key))
+        for row in rows {
+            counts.add(row, of: type, store)
+        }
+        result.inserts[key] = counts.ins
+        result.skips[key] = counts.sk
+        result.deletes[key] = 0
+        if counts.kept > 0 { result.kept[key] = counts.kept }
+    }
 
-        // Build lesson lookup sets for presentation/assignment analysis
+    private struct MergeCounts {
+        /// The names people set: one here with a date stands against a
+        /// backup row with none (`BackupRestoreRun.keepingNewer`).
+        var keepsDatedOverDateless = false
+        var ins = 0
+        var sk = 0
+        var kept = 0
+        var missingLesson = 0
+
+        mutating func add(_ row: BackupPreviewDigest.RowStamp, of type: NSManagedObject.Type, _ store: StoredRecords) {
+            if !store.exists(type, row.id) {
+                ins += 1
+            } else if let stored = store.stamp(of: type, id: row.id),
+                      BackupMergeRule.keepsStored(
+                          stored, rowChangedAt: row.modifiedAt, rowCompletedAt: row.completedAt,
+                          keepsDatedOverDateless: keepsDatedOverDateless
+                      ) {
+                kept += 1
+            } else {
+                sk += 1
+            }
+        }
+    }
+
+    private static func analyzeLessonAssignmentMerge(
+        digest: BackupPreviewDigest,
+        viewContext: NSManagedObjectContext,
+        store: StoredRecords,
+        into result: inout AnalysisResult
+    ) {
+        // Build lesson lookup sets for the missing-lesson warning.
         let lessonsInStore: Set<UUID>
         do {
             let request = CDFetchRequest(CDLesson.self)
@@ -214,115 +297,70 @@ enum BackupPreviewAnalyzer {
         }
         let lessonsInPayload = Set(digest.ids("Lesson"))
 
-        analyzeLessonAssignmentMerge(
-            digest: digest, lessonsInStore: lessonsInStore, lessonsInPayload: lessonsInPayload,
-            entityExists: entityExists, assign: assign, warnings: &warnings
-        )
-        analyzeSimpleEntityMerge(
-            digest: digest, entityExists: entityExists, assign: assign
-        )
-        analyzeFilteredEntityMerge(
-            digest: digest, entityExists: entityExists, assign: assign
-        )
-    }
-
-    // MARK: - Merge Mode Helpers
-
-    private struct ImportAnalysis { var ins = 0; var sk = 0; var missingLesson = 0 }
-
-    // swiftlint:disable:next function_parameter_count
-    private static func analyzeLessonAssignmentMerge(
-        digest: BackupPreviewDigest,
-        lessonsInStore: Set<UUID>,
-        lessonsInPayload: Set<UUID>,
-        entityExists: @escaping (NSManagedObject.Type, UUID) -> Bool,
-        assign: (_ key: String, _ ins: Int, _ sk: Int, _ del: Int) -> Void,
-        warnings: inout [String]
-    ) {
-        let analysis = digest.lessonAssignments.reduce(
-            into: ImportAnalysis()
-        ) { (acc: inout ImportAnalysis, la: BackupPreviewDigest.AssignmentReference) in
-            guard let lessonUUID = UUID(uuidString: la.lessonID) else {
-                // The importer skips assignments whose lessonID isn't a valid UUID.
-                acc.sk += 1
-                return
-            }
-            if entityExists(CDLessonAssignment.self, la.id) {
-                acc.sk += 1
-                return
-            }
+        var counts = MergeCounts()
+        for assignment in digest.lessonAssignments {
+            // The importer drops assignments whose lessonID isn't a valid
+            // UUID: nothing changes for them, so they aren't counted.
+            guard let lessonUUID = UUID(uuidString: assignment.lessonID) else { continue }
+            let isNew = !store.exists(CDLessonAssignment.self, assignment.id)
+            counts.add(.init(id: assignment.id, modifiedAt: assignment.modifiedAt), of: CDLessonAssignment.self, store)
             // The importer inserts assignments even when the lesson is missing
             // from both the payload and the library — they restore unlinked,
             // they are NOT skipped (BackupEntityImporter+Lessons).
-            acc.ins += 1
-            if !lessonsInStore.contains(lessonUUID) && !lessonsInPayload.contains(lessonUUID) {
-                acc.missingLesson += 1
+            if isNew && !lessonsInStore.contains(lessonUUID) && !lessonsInPayload.contains(lessonUUID) {
+                counts.missingLesson += 1
             }
         }
-        assign("LessonAssignment", analysis.ins, analysis.sk, 0)
-        if analysis.missingLesson > 0 {
-            warnings.append(
-                "\(analysis.missingLesson) lesson assignments reference lessons missing "
+        result.inserts["LessonAssignment"] = counts.ins
+        result.skips["LessonAssignment"] = counts.sk
+        result.deletes["LessonAssignment"] = 0
+        if counts.kept > 0 { result.kept["LessonAssignment"] = counts.kept }
+        if counts.missingLesson > 0 {
+            result.warnings.append(
+                "\(counts.missingLesson) lesson assignments reference lessons missing "
                 + "from both this backup and the library; they will be restored but "
                 + "stay unlinked until their lesson exists."
             )
         }
     }
+}
 
-    private static func analyzeSimpleEntityMerge(
-        digest: BackupPreviewDigest,
-        entityExists: @escaping (NSManagedObject.Type, UUID) -> Bool,
-        assign: (_ key: String, _ ins: Int, _ sk: Int, _ del: Int) -> Void
-    ) {
-        func assignCounts(_ key: String, type: NSManagedObject.Type) {
-            let ids = digest.ids(key)
-            let existing = ids.filter { entityExists(type, $0) }
-            let new = ids.filter { !entityExists(type, $0) }
-            assign(key, new.count, existing.count, 0)
-        }
+/// What the analysis asks of the notebook: whether a record is here (the
+/// caller's lookup), and the dates a Merge weighs by `id` (`BackupMergeRule`),
+/// one narrow fetch per type the first time the analysis asks (types with
+/// such a date only). Where synced copies share an `id`, the latest dates
+/// stand for them all.
+private final class StoredRecords {
+    let exists: (NSManagedObject.Type, UUID) -> Bool
+    private let context: NSManagedObjectContext
+    private var stamps: [ObjectIdentifier: [UUID: BackupMergeRule.Stored]] = [:]
 
-        // WorkPlanItem removed in Phase 6 - migrated to CDWorkCheckIn
-        assignCounts("Note", type: CDNote.self)
-        assignCounts("NonSchoolDay", type: CDNonSchoolDay.self)
-        assignCounts("SchoolDayOverride", type: CDSchoolDayOverride.self)
-        assignCounts("StudentMeeting", type: CDStudentMeeting.self)
-        assignCounts("CommunityTopic", type: CDCommunityTopicEntity.self)
-        assignCounts("ProposedSolution", type: CDProposedSolutionEntity.self)
+    init(context: NSManagedObjectContext, exists: @escaping (NSManagedObject.Type, UUID) -> Bool) {
+        self.context = context
+        self.exists = exists
     }
 
-    private static func analyzeFilteredEntityMerge(
-        digest: BackupPreviewDigest,
-        entityExists: @escaping (NSManagedObject.Type, UUID) -> Bool,
-        assign: (_ key: String, _ ins: Int, _ sk: Int, _ del: Int) -> Void
-    ) {
-        func countFiltered(_ entityName: String, type: NSManagedObject.Type) -> (ins: Int, sk: Int) {
-            let ids = digest.ids(entityName)
-            let existing = ids.filter { entityExists(type, $0) }
-            let new = ids.filter { !entityExists(type, $0) }
-            return (new.count, existing.count)
+    func stamp(of type: NSManagedObject.Type, id: UUID) -> BackupMergeRule.Stored? {
+        let key = ObjectIdentifier(type)
+        if stamps[key] == nil { stamps[key] = fetch(type) }
+        return stamps[key]?[id]
+    }
+
+    private func fetch(_ type: NSManagedObject.Type) -> [UUID: BackupMergeRule.Stored] {
+        guard let entityName = BackupFetchHelper.entityName(for: type, in: context),
+              let entity = context.persistentStoreCoordinator?.managedObjectModel.entitiesByName[entityName]
+        else { return [:] }
+        let dates = BackupMergeRule.Columns(entity)
+        guard !dates.keys.isEmpty else { return [:] }
+        let request = NSFetchRequest<NSDictionary>(entityName: entityName)
+        request.resultType = .dictionaryResultType
+        request.propertiesToFetch = ["id"] + dates.keys
+        BackupRestoreScope.limitToNotebook(request, in: context)
+        var byID: [UUID: BackupMergeRule.Stored] = [:]
+        for row in (try? context.fetch(request)) ?? [] {
+            guard let id = row["id"] as? UUID, let stamp = dates.stored(from: row) else { continue }
+            byID[id] = byID[id].map { $0.latest(with: stamp) } ?? stamp
         }
-
-        let attachmentCounts = countFiltered("CommunityAttachment", type: CDCommunityAttachment.self)
-        assign("CommunityAttachment", attachmentCounts.ins, attachmentCounts.sk, 0)
-
-        let attendanceCounts = countFiltered("AttendanceRecord", type: CDAttendanceRecord.self)
-        assign("AttendanceRecord", attendanceCounts.ins, attendanceCounts.sk, 0)
-
-        let completionCounts = countFiltered("WorkCompletionRecord", type: CDWorkCompletionRecord.self)
-        assign("WorkCompletionRecord", completionCounts.ins, completionCounts.sk, 0)
-
-        let projectCounts = countFiltered("Project", type: CDProject.self)
-        assign("Project", projectCounts.ins, projectCounts.sk, 0)
-
-        assign("ProjectAssignmentTemplate", 0, 0, 0)
-
-        let sessionCounts = countFiltered("ProjectSession", type: CDProjectSession.self)
-        assign("ProjectSession", sessionCounts.ins, sessionCounts.sk, 0)
-
-        let roleCounts = countFiltered("ProjectRole", type: CDProjectRole.self)
-        assign("ProjectRole", roleCounts.ins, roleCounts.sk, 0)
-
-        assign("ProjectTemplateWeek", 0, 0, 0)
-        assign("ProjectWeekRoleAssignment", 0, 0, 0)
+        return byID
     }
 }

@@ -96,6 +96,15 @@ final class AssistantShareAttacher {
     /// wait out the full rest rather than riding along with every tap.
     @ObservationIgnored var triedEarly = false
     @ObservationIgnored var earlyTryFailed = false
+    /// How many rounds have put marks in, this launch: a stall rebuilds the
+    /// stack again only once one has since the last (bug hunt 2026-11-02 #42,
+    /// `AssistantBootstrapper.sendStalled`).
+    @ObservationIgnored private(set) var sendsSoFar = 0
+    /// The last round found no classroom share to put the marks in: on a
+    /// phone that has just joined, before the share has come down. Its
+    /// arrival tries them at once (`shareArrived`); they waited out a rest of
+    /// up to ten minutes with nothing retrying them (#44).
+    @ObservationIgnored private(set) var waitsForTheShare = false
     /// A `retryWaiting()` came mid-round (the network back, the phone
     /// locking, a rest ending, the filing hold lifting): a failed round goes
     /// again at once, not after a rest (bug hunt 2026-10-16 #1).
@@ -256,6 +265,15 @@ final class AssistantShareAttacher {
         flush(container: lastContainer, context: lastContext)
     }
 
+    /// The classroom share is here now (`AssistantBootstrapper` read it, or
+    /// the class's store synced): marks the last round couldn't put in for
+    /// want of it are tried now, rest or no rest.
+    func shareArrived() {
+        guard waitsForTheShare else { return }
+        waitsForTheShare = false
+        retryWaiting()
+    }
+
     /// Coming back to the app is a good moment: the phone may have found
     /// Wi-Fi, and she's about to look at whether her marks went.
     private func retryOnReturnToForeground() {
@@ -306,8 +324,12 @@ final class AssistantShareAttacher {
             // Marks saved during the pass stay; of these, only what failed.
             forget(found.gone + found.ids.map { $0.uriRepresentation() })
             remember(result.left.map { $0.uriRepresentation() })
+            waitsForTheShare = result.noShare
             let someWentIn = result.left.count < found.ids.count
-            if someWentIn { isOffline = false }
+            if someWentIn {
+                isOffline = false
+                sendsSoFar += 1
+            }
             if retryAskedDuringRound, goesAgainAtOnce(result, on: container, someWentIn: someWentIn) { continue }
             guard afterRound(result, on: container, backlogDue: backlogDue, wasEarly: wasEarly, someWentIn: someWentIn)
             else { return }
@@ -411,6 +433,7 @@ extension AssistantShareAttacher {
         isOffline = false
         triedEarly = false
         earlyTryFailed = false
+        waitsForTheShare = false
         defaults.removeObject(forKey: Self.listKey)
         notePendingCount()
     }

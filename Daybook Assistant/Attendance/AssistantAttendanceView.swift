@@ -241,6 +241,7 @@ struct AssistantAttendanceView: View {
             // Undo belongs to the day it was offered on.
             lateUndo = nil
         }
+        .modifier(ViewOnlyReload(viewModel: viewModel))
         .onChange(of: noteRow?.id) { _, editing in
             noteDay = editing == nil ? nil : viewModel?.date
             viewModel?.pauseRemoteReloads(editing != nil)
@@ -552,5 +553,17 @@ extension AssistantAttendanceView {
         case .cleared:
             break
         }
+    }
+}
+
+/// Added as View only, or let make changes: the day loads again, so marking
+/// turns off or on (bug hunt 2026-11-02 #29). Its own modifier: one more in
+/// the screen's body took it past the compiler's type-check budget.
+private struct ViewOnlyReload: ViewModifier {
+    let viewModel: AssistantAttendanceViewModel?
+    @Environment(AssistantBootstrapper.self) private var bootstrapper
+
+    func body(content: Content) -> some View {
+        content.onChange(of: bootstrapper.sharingService?.isViewOnly) { viewModel?.load() }
     }
 }

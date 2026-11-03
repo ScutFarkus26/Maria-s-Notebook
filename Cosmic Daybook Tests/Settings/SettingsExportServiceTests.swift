@@ -25,7 +25,66 @@ struct SettingsExportServiceTests {
         #expect(keys.contains("Orders.recipientEmail"))
         #expect(keys.contains(UserDefaultsKeys.aiAllowAutomaticPrivateCloud))
         #expect(keys.contains(UserDefaultsKeys.quickCaptureButtonVisible))
-        #expect(keys.contains(UserDefaultsKeys.autoBackupIntervalHours))
+    }
+
+    /// The automatic-backup switch, how often and how many to keep are each
+    /// device's own since 2026-11, like its backup folder: neither a backup
+    /// nor a settings file carries them, and neither sets them (bug hunt
+    /// 2026-11-02, #19).
+    private static let automaticBackupKeys = [
+        UserDefaultsKeys.autoBackupEnabled,
+        UserDefaultsKeys.autoBackupRetentionCount,
+        UserDefaultsKeys.autoBackupScheduledEnabled,
+        UserDefaultsKeys.autoBackupIntervalHours
+    ]
+
+    @Test("The automatic-backup settings stay on each device: not exported, not backed up, not imported")
+    func automaticBackupSettingsStayOnTheDevice() throws {
+        let keys = Set(SettingsExportService.transferKeys)
+        for key in Self.automaticBackupKeys {
+            #expect(!keys.contains(key), "\(key) isn't exported")
+            #expect(!BackupPreferencesService.isBackedUp(key), "\(key) isn't restored from a backup")
+        }
+
+        let (source, sourceName) = try makeStore()
+        defer { source.removePersistentDomain(forName: sourceName) }
+        source.set(false, forKey: UserDefaultsKeys.autoBackupEnabled)
+        source.set(3, forKey: UserDefaultsKeys.autoBackupRetentionCount)
+        source.set(false, forKey: UserDefaultsKeys.autoBackupScheduledEnabled)
+        source.set(48, forKey: UserDefaultsKeys.autoBackupIntervalHours)
+        source.set(9, forKey: UserDefaultsKeys.schoolYearStartMonth)
+        let exported = try #require(SettingsExportService.exportSettings(defaults: source, syncedStore: nil))
+        let text = try #require(String(data: exported, encoding: .utf8))
+        for key in Self.automaticBackupKeys {
+            #expect(!text.contains("\"\(key)\""), "\(key) isn't in the file")
+        }
+
+        // A file that carries them anyway (hand-edited, or from a build
+        // before 2026-11) leaves this device's choices as they are.
+        let file: [String: Any] = [
+            "exportVersion": SettingsExportService.currentVersion,
+            "exportDate": "2026-10-30T12:00:00Z",
+            "appVersion": "1.0",
+            "settings": [
+                UserDefaultsKeys.autoBackupEnabled: ["type": "bool", "value": false],
+                UserDefaultsKeys.autoBackupRetentionCount: ["type": "int", "value": 3],
+                UserDefaultsKeys.autoBackupScheduledEnabled: ["type": "bool", "value": false],
+                UserDefaultsKeys.autoBackupIntervalHours: ["type": "int", "value": 48],
+                UserDefaultsKeys.schoolYearStartMonth: ["type": "int", "value": 9]
+            ]
+        ]
+        let (target, targetName) = try makeStore()
+        defer { target.removePersistentDomain(forName: targetName) }
+        target.set(true, forKey: UserDefaultsKeys.autoBackupEnabled)
+        target.set(12, forKey: UserDefaultsKeys.autoBackupIntervalHours)
+        try SettingsExportService.importSettings(
+            from: try JSONSerialization.data(withJSONObject: file), defaults: target, syncedStore: nil
+        )
+        #expect(target.integer(forKey: UserDefaultsKeys.schoolYearStartMonth) == 9, "the rest of the file applies")
+        #expect(target.object(forKey: UserDefaultsKeys.autoBackupEnabled) as? Bool == true)
+        #expect(target.integer(forKey: UserDefaultsKeys.autoBackupIntervalHours) == 12)
+        #expect(target.object(forKey: UserDefaultsKeys.autoBackupRetentionCount) == nil)
+        #expect(target.object(forKey: UserDefaultsKeys.autoBackupScheduledEnabled) == nil)
     }
 
     @Test("The export leaves out what belongs to this device")
@@ -54,6 +113,7 @@ struct SettingsExportServiceTests {
         source.set(true, forKey: UserDefaultsKeys.aiAllowAutomaticPrivateCloud)
         source.set(false, forKey: UserDefaultsKeys.quickCaptureButtonVisible)
         source.set(0.7, forKey: UserDefaultsKeys.lessonPlanningTemperature)
+        // Each device's own (#19): stays behind.
         source.set(6, forKey: UserDefaultsKeys.autoBackupIntervalHours)
         // Any backed-up key will do: this one checks a date survives the trip.
         source.set(when, forKey: UserDefaultsKeys.lessonsAgendaMissWindow)
@@ -77,7 +137,7 @@ struct SettingsExportServiceTests {
         #expect(target.object(forKey: UserDefaultsKeys.aiAllowAutomaticPrivateCloud) as? Bool == true)
         #expect(target.object(forKey: UserDefaultsKeys.quickCaptureButtonVisible) as? Bool == false)
         #expect(target.double(forKey: UserDefaultsKeys.lessonPlanningTemperature) == 0.7)
-        #expect(target.integer(forKey: UserDefaultsKeys.autoBackupIntervalHours) == 6)
+        #expect(target.object(forKey: UserDefaultsKeys.autoBackupIntervalHours) == nil)
         #expect(target.object(forKey: UserDefaultsKeys.lessonsAgendaMissWindow) as? Date == when)
         #expect(target.stringArray(forKey: UserDefaultsKeys.todoTagOrder) == tagOrder)
         #expect(
@@ -88,7 +148,7 @@ struct SettingsExportServiceTests {
         #expect(target.double(forKey: "LastBackupTimeInterval") == 456.0)
     }
 
-    @Test("A version-1 file still imports, without the stale encrypt setting")
+    @Test("A version-1 file still imports, without the stale encrypt setting or the automatic-backup settings")
     func versionOneImports() throws {
         let (target, name) = try makeStore()
         defer { target.removePersistentDomain(forName: name) }
@@ -111,8 +171,9 @@ struct SettingsExportServiceTests {
         #expect(target.integer(forKey: "LessonAge.warningDays") == 5)
         #expect(target.string(forKey: UserDefaultsKeys.lessonPlanningDefaultDepth) == "deep")
         #expect(target.double(forKey: UserDefaultsKeys.lessonPlanningTemperature) == 0.4)
-        #expect(target.object(forKey: UserDefaultsKeys.autoBackupEnabled) as? Bool == false)
-        #expect(target.integer(forKey: UserDefaultsKeys.autoBackupRetentionCount) == 20)
+        // Each device's own (#19).
+        #expect(target.object(forKey: UserDefaultsKeys.autoBackupEnabled) == nil)
+        #expect(target.object(forKey: UserDefaultsKeys.autoBackupRetentionCount) == nil)
         #expect(target.string(forKey: "AttendanceEmail.to") == "office@example.com")
         #expect(target.object(forKey: "Backup.encrypt") == nil)
     }

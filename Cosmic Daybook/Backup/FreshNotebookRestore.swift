@@ -13,8 +13,9 @@ import OSLog
 /// backup goes into a new notebook made for it, in a folder of its own beside
 /// the stores (`Restoring`). Only once that restore has saved is the notebook
 /// that wouldn't open moved aside, into a dated folder beside the stores, and
-/// the new one moved into its place. The old one is kept, never deleted: it
-/// may hold work done since the backup. A restore that fails or is refused
+/// the new one moved into its place. The old one is kept while iCloud sync
+/// stays off, and for a month at least, never deleted at once: it may hold
+/// work done since the backup. A restore that fails or is refused
 /// leaves it exactly where it was. The next launch opens the restored notebook
 /// as usual.
 ///
@@ -101,9 +102,12 @@ struct FreshNotebookRestore {
     /// The folder the new notebook is made in, beside the stores.
     static let stagingFolderName = "Restoring"
 
-    /// The dated folder the notebook that wouldn't open is moved to.
+    /// The dated folder the notebook that wouldn't open is moved to. A
+    /// launch with iCloud sync on deletes it once it's a month old
+    /// (`CoreDataStack.trimSetAsideNotebooks`), reading the date back from
+    /// this name.
     static func keptFolderName(at date: Date) -> String {
-        "Set aside " + date.ISO8601Format().replacingOccurrences(of: ":", with: ".")
+        CoreDataStack.setAsideFolderPrefix + date.ISO8601Format().replacingOccurrences(of: ":", with: ".")
     }
 
     /// The store files' folder; the lock lives in it.

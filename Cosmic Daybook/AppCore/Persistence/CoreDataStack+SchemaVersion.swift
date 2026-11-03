@@ -268,6 +268,17 @@ nonisolated extension CoreDataStack {
                         #else
                         // The shared store mirrors the CloudKit shared
                         // database; a rebuilt store re-imports from the server.
+                        // Only an empty one is moved aside: a notebook joined
+                        // to someone else's classroom keeps its marks and
+                        // name rows there, perhaps not yet sent, and the
+                        // error screen's Re-download says so where this
+                        // rebuild said nothing (bug hunt 2026-11-02, #52).
+                        if storeHoldsRows(storeURL: url, configuration: description.configuration, model: model) {
+                            throw CoreDataStackError.storeSchemaIncoherent(
+                                storeName: url.lastPathComponent,
+                                detail: findings.sorted().joined(separator: ", ")
+                            )
+                        }
                         // Moving it aside under another copy would pull it
                         // from under that copy's connection.
                         guard surgeryAllowed else { throw CoreDataStackError.storeInUseByAnotherCopy }

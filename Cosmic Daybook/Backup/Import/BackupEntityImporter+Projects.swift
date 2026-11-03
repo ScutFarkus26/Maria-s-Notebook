@@ -60,11 +60,14 @@ extension BackupEntityImporter {
 
     // MARK: - CDProject Sessions
 
-    /// Imports project sessions from DTOs.
+    /// Imports project sessions from DTOs, each linked to its project
+    /// (`projectCheck`): the app reaches a project's sessions through the
+    /// relationship, not the `projectID` string (bug hunt 2026-11-02, #7).
     static func importProjectSessions(
         _ dtos: [ProjectSessionDTO],
         into viewContext: NSManagedObjectContext,
-        existing: ExistingLookup<CDProjectSession>
+        existing: ExistingLookup<CDProjectSession>,
+        projectCheck: EntityLookup<CDProject>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -75,6 +78,12 @@ extension BackupEntityImporter {
                 session.id = dto.id
                 session.createdAt = dto.createdAt
                 session.projectID = dto.projectID.uuidString
+                do {
+                    if let project = try projectCheck(dto.projectID) { session.project = project }
+                } catch {
+                    let desc = error.localizedDescription
+                    Logger.backup.warning("Failed to find the project for a session: \(desc, privacy: .public)")
+                }
                 session.meetingDate = dto.meetingDate
                 session.chapterOrPages = dto.chapterOrPages
                 session.agendaItemsJSON = dto.agendaItemsJSON

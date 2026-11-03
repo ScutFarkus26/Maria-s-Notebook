@@ -59,13 +59,13 @@ nonisolated enum BackupPreferencesService {
         "WorkAge.freshColorHex",
         "WorkAge.warningColorHex",
         "WorkAge.overdueColorHex",
-        // Backup
+        // Backup. Not the automatic-backup switches, how often and how many
+        // to keep: each device's own, like its backup folder. Until 2026-11
+        // they were carried, so restoring a backup made with automatic
+        // backups off turned them off here (bug hunt 2026-11-02 #19); an
+        // older backup that carries them is left alone for them (`isBackedUp`).
         "LastBackupTimeInterval",
         UserDefaultsKeys.lastBackupTimeInterval,
-        UserDefaultsKeys.autoBackupEnabled,
-        UserDefaultsKeys.autoBackupRetentionCount,
-        UserDefaultsKeys.autoBackupScheduledEnabled,
-        UserDefaultsKeys.autoBackupIntervalHours,
         UserDefaultsKeys.backupIncludesNotePhotos,
         // AI
         UserDefaultsKeys.aiAllowAutomaticPrivateCloud,

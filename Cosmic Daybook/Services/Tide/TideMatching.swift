@@ -76,6 +76,13 @@ nonisolated enum TideWordMatch {
 /// or the classroom's short form ("Maya S", `CDStudent.shortName`), or her
 /// bare first name when no other child has it. Two Ettys or two Sarahs make
 /// "Etty" and "Sarah" name nobody; "Etty K" still names the one.
+///
+/// A bare first name names her only as a name is written, with a capital
+/// ("Check Maya's map", not "the maya blue paper"), and one that is also an
+/// everyday word (Mark, May, Will, Grace, Rose) only on a "For …" line, as
+/// the notebook writes it when it sends a to-do: otherwise "Mark attendance
+/// sheets" or "Order paper in May" would land on a child's page (bug hunt
+/// 2026-11-02 #49).
 nonisolated struct TideNameMatcher: Sendable {
     struct Child: Sendable, Equatable {
         let id: UUID
@@ -83,7 +90,27 @@ nonisolated struct TideNameMatcher: Sendable {
         let lastName: String
     }
 
-    private let patterns: [(id: UUID, forms: [String])]
+    private struct Pattern: Sendable {
+        let id: UUID
+        /// Full name and short form: anywhere, in any case.
+        let forms: [String]
+        /// The bare first name, when no other child has it.
+        let first: String?
+        let firstIsEverydayWord: Bool
+    }
+
+    private let patterns: [Pattern]
+
+    /// First names that are also everyday words, folded.
+    private static let everydayWords: Set<String> = [
+        "may", "june", "april", "august", "summer", "autumn", "winter", "dawn", "eve", "noel",
+        "mark", "will", "bill", "pat", "sue", "drew", "chase", "grant", "frank", "jack", "rob", "don",
+        "grace", "hope", "faith", "joy", "charity", "mercy", "patience", "honor", "liberty", "harmony", "melody",
+        "rose", "lily", "ivy", "daisy", "violet", "iris", "holly", "hazel", "olive", "sage", "basil", "heather",
+        "ruby", "pearl", "jade", "amber", "crystal", "ginger", "cherry", "penny", "sunny", "sky", "star",
+        "river", "brook", "rain", "storm", "eden", "art", "rich", "miles", "reed", "wade", "dale", "glen",
+        "lane", "ray", "gene", "carol", "dot", "max", "gray", "grey", "ash", "hunter", "clay", "cliff"
+    ]
 
     init(children: [Child]) {
         func fold(_ text: String) -> String {
@@ -99,32 +126,43 @@ nonisolated struct TideNameMatcher: Sendable {
             let short = shorts[index]
             if short != firsts[index], shorts.filter({ $0 == short }).count == 1 { forms.append(short) }
             let first = firsts[index]
-            if !first.isEmpty, firsts.filter({ $0 == first }).count == 1 { forms.append(first) }
-            return (child.id, forms)
+            let unique = !first.isEmpty && firsts.filter({ $0 == first }).count == 1
+            return Pattern(id: child.id, forms: forms, first: unique ? first : nil,
+                           firstIsEverydayWord: Self.everydayWords.contains(first))
         }
     }
 
     /// The children `text` names.
     func children(namedIn text: String) -> Set<UUID> {
-        let folded = text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+        let forLines = text.components(separatedBy: .newlines).filter { line in
+            line.trimmingCharacters(in: .whitespaces).lowercased().hasPrefix("for ")
+        }.joined(separator: "\n")
         var named = Set<UUID>()
-        for pattern in patterns where pattern.forms.contains(where: { Self.contains(folded, word: $0) }) {
-            named.insert(pattern.id)
+        for pattern in patterns {
+            if pattern.forms.contains(where: { Self.contains(text, word: $0) }) {
+                named.insert(pattern.id)
+            } else if let first = pattern.first {
+                let byFirstName = Self.contains(forLines, word: first)
+                    || (!pattern.firstIsEverydayWord && Self.contains(text, word: first, capitalized: true))
+                if byFirstName { named.insert(pattern.id) }
+            }
         }
         return named
     }
 
-    /// Whether `word` appears in `text` with no letter or digit right before
-    /// or after it, so "Etty K" isn't found in "Etty Klein".
-    private static func contains(_ text: String, word: String) -> Bool {
+    /// Whether `word` appears in `text`, in any case and accents, with no
+    /// letter or digit right before or after it, so "Etty K" isn't found in
+    /// "Etty Klein"; `capitalized`, only where it starts with a capital.
+    private static func contains(_ text: String, word: String, capitalized: Bool = false) -> Bool {
         guard !word.isEmpty else { return false }
         var searchRange = text.startIndex..<text.endIndex
-        while let found = text.range(of: word, range: searchRange) {
+        while let found = text.range(of: word, options: [.caseInsensitive, .diacriticInsensitive], range: searchRange) {
             let before = found.lowerBound == text.startIndex ? nil : text[text.index(before: found.lowerBound)]
             let after = found.upperBound == text.endIndex ? nil : text[found.upperBound]
             let isWordStart = before.map { !$0.isLetter && !$0.isNumber } ?? true
             let isWordEnd = after.map { !$0.isLetter && !$0.isNumber } ?? true
-            if isWordStart && isWordEnd { return true }
+            let isCapital = !capitalized || text[found.lowerBound].isUppercase
+            if isWordStart && isWordEnd && isCapital { return true }
             searchRange = found.upperBound..<text.endIndex
         }
         return false

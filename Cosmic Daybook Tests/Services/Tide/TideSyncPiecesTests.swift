@@ -31,6 +31,20 @@ struct TideSyncPiecesTests {
         #expect(Self.matcher.children(namedIn: "Etty Kleinman's folder").isEmpty, "Etty K isn't Etty Kleinman")
     }
 
+    @Test("A first name that is also an everyday word names her only on a For line; any needs its capital")
+    func everydayFirstNames() {
+        let mark = TideNameMatcher.Child(id: UUID(), firstName: "Mark", lastName: "Levin")
+        let may = TideNameMatcher.Child(id: UUID(), firstName: "May", lastName: "Cohen")
+        let matcher = TideNameMatcher(children: [mark, may, Self.maya])
+        #expect(matcher.children(namedIn: "Mark attendance sheets").isEmpty)
+        #expect(matcher.children(namedIn: "Order paper in May").isEmpty)
+        #expect(matcher.children(namedIn: "Reading folders\nFor Mark and May.") == [mark.id, may.id])
+        #expect(matcher.children(namedIn: "Check in with Mark L about the trip") == [mark.id],
+                "the short form still names him")
+        #expect(matcher.children(namedIn: "Use the maya blue paper").isEmpty, "a name is written with a capital")
+        #expect(matcher.children(namedIn: "Maya's map test") == [Self.maya.id])
+    }
+
     @Test("Two children sharing a short form leave it to their full names")
     func sharedShortForm() {
         let one = TideNameMatcher.Child(id: UUID(), firstName: "Sarah", lastName: "Cohen")

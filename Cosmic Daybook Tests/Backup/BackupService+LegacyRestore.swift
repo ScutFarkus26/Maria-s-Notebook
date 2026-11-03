@@ -14,7 +14,10 @@ import OSLog
 // (`legacyDecodeArchive`, `legacyImportPayload`, `legacyImportDecoded`,
 // `legacyRelinkNoteRelationships`, `LegacyBackupPayloadDeduplicator`),
 // `CloudExportWaitResult` is the app's, and the SwiftLint findings the old
-// code carried are silenced where they fall. The restore equivalence and
+// code carried are silenced where they fall. It shares the app's importers and
+// `deleteAll`, so it carries the 2026-11-02 hunt's fixes to them: sessions
+// linked to their project (#7), and a Replace that leaves the classroom-share
+// types to be updated in place (#2). The restore equivalence and
 // peak-memory tests compare the new restore against it, so do not "fix" or
 // modernise this code: its only job is to be the old code.
 
@@ -382,7 +385,8 @@ extension BackupService {
         try BackupEntityImporter.importProjectSessions(
             payload.projectSessions,
             into: viewContext,
-            existing: { try index.existing(CDProjectSession.self, id: $0) }
+            existing: { try index.existing(CDProjectSession.self, id: $0) },
+            projectCheck: { try index.related(CDProject.self, id: $0) }
         )
     }
 
@@ -956,7 +960,7 @@ extension BackupService {
         // v38: the names people set for themselves, kept in step with the
         // live restore (a newer rename stands since 2026-10-06).
         if let people = payload.classroomPeople {
-            let renamedSince = BackupRestoreRun.rowsOlderThanStored(people) {
+            let renamedSince = Self.legacyRowsOlderThanStored(people) {
                 try index.existing(CDClassroomPerson.self, id: $0)
             }
             BackupEntityImporter.importRows(
@@ -964,6 +968,24 @@ extension BackupService {
                 existing: { try index.existing(CDClassroomPerson.self, id: $0) }
             )
         }
+    }
+
+    /// The ids of `rows` whose record the store already holds with a newer
+    /// `modifiedAt` than the row's (or the row has none). A Replace restore
+    /// finds them as a Merge does: it leaves these rows in place. (The live
+    /// restore's `BackupRestoreRun.rowsOlderThanStored` until 2026-11-02, when
+    /// `keepingNewer` took its place.)
+    private static func legacyRowsOlderThanStored(
+        _ rows: [ClassroomPersonDTO],
+        existing: (UUID) throws -> CDClassroomPerson?
+    ) -> Set<UUID> {
+        var older = Set<UUID>()
+        for row in rows {
+            guard let stored = try? existing(row.id), let storedAt = stored.modifiedAt else { continue }
+            let restoredAt: Date? = if case .date(let date) = row.values["modifiedAt"] { date } else { nil }
+            if restoredAt.map({ storedAt > $0 }) ?? true { older.insert(row.id) }
+        }
+        return older
     }
 
     /// v42+ entities: Schedules, kept in step with the live restore.

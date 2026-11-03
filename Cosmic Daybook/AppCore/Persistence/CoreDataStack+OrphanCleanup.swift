@@ -209,8 +209,7 @@ nonisolated extension CoreDataStack {
         model: NSManagedObjectModel = NSManagedObjectModel(),
         options: [String: NSObject]? = nil
     ) -> URL? {
-        let backupURL = storeURL.deletingPathExtension()
-            .appendingPathExtension("premigration.sqlite")
+        let backupURL = premigrationCopyURL(for: storeURL)
         guard FileManager.default.fileExists(atPath: storeURL.path) else { return nil }
         do {
             // An earlier backup is ours alone; nothing else ever opens it.
@@ -232,6 +231,38 @@ nonisolated extension CoreDataStack {
             cleanupLogger.error("\(msg, privacy: .public)")
             try? removeStoreFiles(at: backupURL)
             return nil
+        }
+    }
+
+    /// Where ``backUpStoreBeforeMigration(storeURL:model:options:)`` copies
+    /// `storeURL`: `private.premigration.sqlite` beside `private.sqlite`.
+    static func premigrationCopyURL(for storeURL: URL) -> URL {
+        storeURL.deletingPathExtension().appendingPathExtension("premigration.sqlite")
+    }
+
+    /// Where ``quarantineIncoherentStore(storeURL:findings:)`` moves `storeURL`.
+    static func quarantineURL(for storeURL: URL) -> URL {
+        storeURL.appendingPathExtension("incoherent")
+    }
+
+    /// Deletes the copies of `storeURLs` made before a migration, once the
+    /// migrated stores have loaded and been stamped: each is a whole second
+    /// notebook, and until 2026-11 every one stayed on the device for good
+    /// (bug hunt 2026-11-02, #55). Only with the store files to this copy of
+    /// the app; the copies are ours alone, and nothing else opens them.
+    static func removePremigrationCopies(of storeURLs: [URL]) {
+        for storeURL in storeURLs {
+            let copy = premigrationCopyURL(for: storeURL)
+            guard FileManager.default.fileExists(atPath: copy.path) else { continue }
+            do {
+                try removeStoreFiles(at: copy)
+                let name = storeURL.lastPathComponent
+                cleanupLogger.info("Removed the copy of \(name, privacy: .public) made before its migration")
+            } catch {
+                let msg = "Couldn't remove the copy of \(storeURL.lastPathComponent) made before its migration: " +
+                    "\(error.localizedDescription)"
+                cleanupLogger.error("\(msg, privacy: .public)")
+            }
         }
     }
 
@@ -380,7 +411,7 @@ nonisolated extension CoreDataStack {
     /// SQLite writes a store as three files; all of them move together.
     private static var storeFileSuffixes: [String] { ["", "-wal", "-shm"] }
 
-    private static func removeStoreFiles(at baseURL: URL) throws {
+    static func removeStoreFiles(at baseURL: URL) throws {
         for suffix in storeFileSuffixes {
             let url = URL(fileURLWithPath: baseURL.path + suffix)
             if FileManager.default.fileExists(atPath: url.path) {
@@ -659,7 +690,7 @@ nonisolated extension CoreDataStack {
             "(\(list)) — quarantining so a fresh store can be rebuilt from CloudKit"
         cleanupLogger.fault("\(msg, privacy: .public)")
 
-        let quarantineURL = storeURL.appendingPathExtension("incoherent")
+        let quarantineURL = quarantineURL(for: storeURL)
         do {
             try removeStoreFiles(at: quarantineURL)
             for suffix in storeFileSuffixes {
@@ -674,6 +705,41 @@ nonisolated extension CoreDataStack {
             let failMsg = "Could not quarantine \(storeURL.lastPathComponent): \(error.localizedDescription)"
             cleanupLogger.fault("\(failMsg, privacy: .public)")
         }
+    }
+
+    /// Whether a store holds any rows of `configuration`'s entities. A
+    /// notebook's shared store that holds none mirrors nothing this device
+    /// could have written there (the lead guide's, whose classroom lives in
+    /// his private store), so moving it aside loses nothing. One that holds
+    /// rows is a notebook joined to someone else's classroom, with marks and
+    /// name rows perhaps not yet sent: it must not be moved aside without a
+    /// word (bug hunt 2026-11-02, #52). A store that can't be read counts as
+    /// holding rows.
+    static func storeHoldsRows(storeURL: URL, configuration: String?, model: NSManagedObjectModel) -> Bool {
+        guard FileManager.default.fileExists(atPath: storeURL.path) else { return false }
+        var handle: OpaquePointer?
+        guard sqlite3_open_v2(storeURL.path, &handle, SQLITE_OPEN_READONLY, nil) == SQLITE_OK, let handle else {
+            if handle != nil { sqlite3_close(handle) }
+            return true
+        }
+        defer { sqlite3_close(handle) }
+        // Opening reads nothing; a file that isn't a database fails here, at its first read.
+        var check: OpaquePointer?
+        defer { sqlite3_finalize(check) }
+        guard sqlite3_prepare_v2(handle, "SELECT count(*) FROM sqlite_master", -1, &check, nil) == SQLITE_OK,
+              sqlite3_step(check) == SQLITE_ROW else { return true }
+        for entity in entities(of: model, configuration: configuration) where entity.superentity == nil {
+            guard let entityName = entity.name else { continue }
+            let table = "Z\(entityName.uppercased())"
+            guard tableExists(db: handle, name: table) else { continue }
+            var stmt: OpaquePointer?
+            defer { sqlite3_finalize(stmt) }
+            guard sqlite3_prepare_v2(handle, "SELECT 1 FROM \"\(table)\" LIMIT 1", -1, &stmt, nil) == SQLITE_OK else {
+                return true
+            }
+            if sqlite3_step(stmt) == SQLITE_ROW { return true }
+        }
+        return false
     }
 
     private static func tableColumns(db: OpaquePointer, table: String) -> Set<String> {

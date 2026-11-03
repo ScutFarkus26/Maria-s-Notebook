@@ -103,19 +103,24 @@ struct SettingsDashboardView: View {
                 }
             }
 
-            if model.backupRun == .succeeded {
-                Label("Backed up just now. The copy is in your backup folder.", systemImage: "checkmark.circle.fill")
+            if case .succeeded(let partial) = model.backupRun {
+                Label(
+                    SettingsDashboardViewModel.succeededText(partial: partial),
+                    systemImage: partial ? "info.circle.fill" : "checkmark.circle.fill"
+                )
                     .font(.subheadline)
-                    .foregroundStyle(AppColors.success)
+                    .foregroundStyle(partial ? AppColors.warning : AppColors.success)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
                     .transition(.opacity)
             }
         }
         .adaptiveAnimation(.easeInOut(duration: 0.25), value: items)
         // A small cheer when the guide's own backup is the notebook's first, or
-        // clears the last item; never for a warning that clears by itself.
+        // clears the last item; never for a warning that clears by itself, nor
+        // for a backup that may be missing some of the notebook.
         .settingsCelebration(
-            trigger: model.backupRun == .succeeded && (items.isEmpty || model.madeFirstBackup)
+            trigger: model.backupRun == .succeeded(partial: false) && (items.isEmpty || model.madeFirstBackup)
         )
     }
 

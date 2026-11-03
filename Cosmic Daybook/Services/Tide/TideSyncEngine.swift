@@ -26,16 +26,23 @@ import OSLog
 /// - **Ticks** go first, from what both apps last agreed
 ///   (`TideSyncState.agreedOpen`): a tick here goes to `complete_action`; an
 ///   action gone from Tide ticks the copy here. An untick on either side
-///   isn't carried.
+///   isn't carried. A tick here outlives its to-do (`pendingTicks`), so
+///   clearing it before the Mac has told Tide doesn't lose it; a repeat
+///   Tide already rolled on (ticked there too) isn't ticked again.
 /// - **Send**: every open notebook to-do with no Tide link, no linked work
 ///   (an automatic work check-in) and not someday, with its line and the
 ///   children's names in the note, and a later planned day as Tide's start.
 /// - **Show**: every open action of the lists Danny picked that no notebook
 ///   to-do holds becomes one, unless its to-do was deleted here before the
-///   action took the notebook line (`TideSyncState.unmarkedLinks`).
+///   action took the notebook line (`TideSyncState.unmarkedLinks`). A later
+///   start in Tide plans it for that day here. It is saved, with what the
+///   sync remembers, before any note is marked.
 /// - **Wording**: once sent, Tide keeps the wording; a title edit here
-///   doesn't travel. A to-do made in Tide follows Tide's words and due date
-///   (its note is copied once); one the first run matched keeps its own.
+///   doesn't travel. A to-do made in Tide takes a reword or a new due date
+///   there, and a new title or due date here goes to Tide (`update_action`):
+///   the due date measured from the one both last agreed
+///   (`TideSyncState.agreedDue`), Tide's change winning. Its note is copied
+///   once; one the first run matched keeps its own words.
 ///
 /// Nothing is linked, sent or shown until Danny confirms the first run's
 /// matches (`TideFirstRunProposal`). Every notebook change goes through
@@ -51,8 +58,13 @@ final class TideSyncEngine {
     /// the title changes, so a refusal isn't repeated every few minutes.
     var refusedSends: [UUID: String] = [:]
     /// Actions whose note Tide wouldn't take the notebook line in (two with
-    /// the same words, say): not asked again this session.
-    var unmarkable: Set<String> = []
+    /// the same words, say), with their list's revision then: asked again
+    /// once the list has changed.
+    var unmarkable: [String: String] = [:]
+    /// Edits made here to to-dos made in Tide that Tide wouldn't take, or a
+    /// due date already past: not tried, or said, again until they change
+    /// here (`isHeld`).
+    var heldEdits: Set<String> = []
     /// The last area read, for Settings' pickers: one read per run.
     private(set) var lastArea: TideArea?
 
@@ -93,6 +105,9 @@ final class TideSyncEngine {
         do {
             area = try await tools.area(TideSyncSettings.area)
         } catch {
+            // A tick made here is remembered even while Tide can't be
+            // reached, so clearing the to-do before it answers doesn't lose it.
+            if notePendingTicks(in: store.todos(alsoClosed: state.openIDs)) { persist(state) }
             return .stopped(TideSyncProblem(readingArea: error))
         }
         lastArea = area
@@ -113,11 +128,17 @@ final class TideSyncEngine {
         }
 
         do {
+            notePendingTicks(in: run.todos)
             adoptSentActions(in: &run)
-            judgeLinkedTodos(in: &run)
+            try await judgeLinkedTodos(in: &run, now: now)
             try await carryTicks(in: &run)
+            try await carryEdits(in: &run)
             try await send(in: &run, now: now)
-            showTideActions(in: &run)
+            showTideActions(in: &run, now: now)
+            // Saved before any note is marked: a note naming a to-do that
+            // never reached the store keeps its action out for good.
+            persist(state)
+            guard store.save() else { return .stopped(.saveFailed) }
             try await markLinkedActions(in: &run)
         } catch {
             _ = store.save()
@@ -126,7 +147,9 @@ final class TideSyncEngine {
         }
 
         state.keep(only: Set(run.todos.map(\.id)))
-        state.keepUnmarkedLinks(at: Set(run.actions.compactMap { $0.actionLink?.string }))
+        // An action reworded this run is known by its new address.
+        let addresses = (run.actions + Array(run.actionFor.values)).compactMap { $0.actionLink?.string }
+        state.keepUnmarkedLinks(at: Set(addresses))
         state.lastSyncAt = now
         persist(state)
         guard store.save() else { return .stopped(.saveFailed) }
@@ -134,6 +157,16 @@ final class TideSyncEngine {
         Self.logger.info("Tide sync: sent \(report.sent), showed \(report.pulled)")
         Self.logger.info("Tide sync: closed \(report.closedHere) here, ticked \(report.tickedInTide) in Tide")
         return .synced(run.report)
+    }
+
+    /// An edit made here to a to-do made in Tide: its words, its due date
+    /// ("" clears it), or both; nil leaves that one as Tide has it.
+    struct Edit {
+        let id: UUID
+        let title: String
+        let action: TideAction
+        let text: String?
+        let due: String?
     }
 
     /// What one run is working from.
@@ -160,6 +193,11 @@ final class TideSyncEngine {
         var actionFor: [UUID: TideAction] = [:]
         /// Linked to-dos ticked here while open in Tide.
         var ticks: [(id: UUID, action: TideAction)] = []
+        /// Linked to-dos ticked here whose repeat Tide already rolled on,
+        /// with its new due date: ticked there too.
+        var rolledThere: [(id: UUID, due: String?)] = []
+        /// Edits made here to to-dos made in Tide, to go across.
+        var edits: [Edit] = []
         /// Each list's revision after this run's own writes to it.
         var revisions: [String: String] = [:]
         var report = TideSyncReport()

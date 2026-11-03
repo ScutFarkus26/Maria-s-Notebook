@@ -41,6 +41,9 @@ struct ClassroomReleaseSheet: View {
         switch model?.stage ?? .loading {
         case .loading:
             ProgressView("Reading what the share holds…")
+        case .blocked(let reason):
+            Label(reason, systemImage: "hand.raised.fill")
+                .foregroundStyle(AppColors.warning)
         case .ready(let preview, let blocker):
             ready(preview, blocker: blocker)
         case .backingUp:
@@ -118,10 +121,18 @@ struct ClassroomReleaseSheet: View {
             Text(Self.olderLine(preview.olderAttendanceOfChildrenWhoLeft, children: "children no longer in your class"))
                 .font(.callout)
         }
+        if preview.thisYearsAttendanceOfChildrenGone > 0 {
+            Text(Self.goneLine(preview.thisYearsAttendanceOfChildrenGone))
+                .font(.callout)
+        }
         if preview.unfinished > 0 {
             Text(preview.unfinished == 1
                 ? "1 item from a run that stopped partway is finished too."
                 : "\(preview.unfinished.formatted()) items from a run that stopped partway are finished too.")
+                .font(.callout)
+        }
+        if preview.heldTwice > 0 {
+            Text(Self.heldTwiceLine(preview.heldTwice))
                 .font(.callout)
         }
     }
@@ -136,14 +147,6 @@ struct ClassroomReleaseSheet: View {
         }
         .font(.callout)
         .foregroundStyle(.secondary)
-    }
-
-    /// "412 attendance marks from before that day, for children in this year's class, stop
-    /// being shared too."
-    static func olderLine(_ count: Int, children: String) -> String {
-        count == 1
-            ? "1 attendance mark from before that day, for \(children), stops being shared too."
-            : "\(count.formatted()) attendance marks from before that day, for \(children), stop being shared too."
     }
 
     /// The records a backup can't hold, so the run leaves them shared: named, so the
@@ -162,24 +165,6 @@ struct ClassroomReleaseSheet: View {
             }
         }
         .font(.callout)
-    }
-
-    /// "A mark for Maya Cedar with no date".
-    static func leftSharedLine(_ record: ClassroomShareRelease.LeftShared) -> String {
-        let day = record.date?.formatted(date: .abbreviated, time: .omitted)
-        if record.entity == "Student" {
-            return "\(record.childName ?? "A child")'s record is incomplete"
-        }
-        switch record.gap {
-        case .noDate:
-            return record.childName.map { "A mark for \($0) with no date" } ?? "A mark with no date or child"
-        case .noChild:
-            let mark = day.map { "A mark from \($0)" } ?? "A mark"
-            return record.childName.map { "\(mark) whose link to \($0) is damaged" } ?? "\(mark) not linked to a child"
-        case .noID:
-            let mark = record.childName.map { "A mark for \($0)" } ?? "A mark"
-            return day.map { "\(mark) from \($0) is incomplete" } ?? "\(mark) is incomplete"
-        }
     }
 
     private func childLine(_ child: ClassroomShareRelease.DepartingChild) -> String {
@@ -209,35 +194,23 @@ struct ClassroomReleaseSheet: View {
                 Label("Done.", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(AppColors.success)
             }
-            if report.batchesPlanned > 0 {
+            if report.batchesPlanned > 0,
+               report.studentsMoved + report.attendanceMoved > 0 || report.twinsCleaned == 0 {
                 Text(Self.movedLine(report))
                     .font(.callout)
+            }
+            if let twins = Self.twinsCleanedLine(report) {
+                Text(twins).font(.callout)
             }
             if let deleted = Self.deletedElsewhereLine(report) {
                 Text(deleted).font(.callout)
             }
+            if let unconfirmed = Self.unconfirmedLine(report) {
+                Text(unconfirmed).font(.callout)
+            }
             if let shareNow {
                 Text(shareNow).font(.callout).foregroundStyle(.secondary)
             }
-        }
-    }
-
-    /// "3 children and 412 attendance marks are no longer shared."
-    static func movedLine(_ report: ClassroomShareRelease.Report) -> String {
-        let children = report.studentsMoved == 1 ? "1 child" : "\(report.studentsMoved.formatted()) children"
-        let marks = report.attendanceMoved == 1
-            ? "1 attendance mark" : "\(report.attendanceMoved.formatted()) attendance marks"
-        return "\(children) and \(marks) are no longer shared. They're still in your notebook."
-    }
-
-    /// Records another device deleted while the run went: not moved, so not in `movedLine`.
-    static func deletedElsewhereLine(_ report: ClassroomShareRelease.Report) -> String? {
-        switch report.deletedElsewhere {
-        case 0: return nil
-        case 1: return "1 item was deleted on another device while this ran, so it's gone from your notebook too."
-        default:
-            return "\(report.deletedElsewhere.formatted()) items were deleted on another device while this ran, "
-                + "so they're gone from your notebook too."
         }
     }
 
@@ -271,9 +244,114 @@ struct ClassroomReleaseSheet: View {
                     }
                 }
                 .keyboardShortcut(.defaultAction)
-            case .loading, .backingUp, .running:
+            case .loading:
+                // Reading can wait a while on iCloud; the guide can always leave.
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+            case .blocked:
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("Try Again") {
+                    Task { await model?.load() }
+                }
+                .keyboardShortcut(.defaultAction)
+            case .backingUp, .running:
                 EmptyView()
             }
+        }
+    }
+}
+
+// MARK: - The sheet's words
+
+extension ClassroomReleaseSheet {
+    /// "412 attendance marks from before that day, for children in this year's class, stop
+    /// being shared too."
+    static func olderLine(_ count: Int, children: String) -> String {
+        count == 1
+            ? "1 attendance mark from before that day, for \(children), stops being shared too."
+            : "\(count.formatted()) attendance marks from before that day, for \(children), stop being shared too."
+    }
+
+    /// "3 attendance marks from this school year, for children no longer in your notebook,
+    /// stop being shared too." Not "from before that day": they aren't (#41).
+    static func goneLine(_ count: Int) -> String {
+        count == 1
+            ? "1 attendance mark from this school year, for a child no longer in your notebook, "
+                + "stops being shared too."
+            : "\(count.formatted()) attendance marks from this school year, for children no longer in your "
+                + "notebook, stop being shared too."
+    }
+
+    /// "2 items a run that stopped partway left in your notebook twice go back to one copy,
+    /// the one your assistants see."
+    static func heldTwiceLine(_ count: Int) -> String {
+        count == 1
+            ? "1 item a run that stopped partway left in your notebook twice goes back to one copy, "
+                + "the one your assistants see."
+            : "\(count.formatted()) items a run that stopped partway left in your notebook twice go back to "
+                + "one copy, the one your assistants see."
+    }
+
+    /// "A mark for Maya Cedar with no date".
+    static func leftSharedLine(_ record: ClassroomShareRelease.LeftShared) -> String {
+        let day = record.date?.formatted(date: .abbreviated, time: .omitted)
+        if record.entity == "Student" {
+            return "\(record.childName ?? "A child")'s record is incomplete"
+        }
+        switch record.gap {
+        case .noDate:
+            return record.childName.map { "A mark for \($0) with no date" } ?? "A mark with no date or child"
+        case .noChild:
+            let mark = day.map { "A mark from \($0)" } ?? "A mark"
+            return record.childName.map { "\(mark) whose link to \($0) is damaged" } ?? "\(mark) not linked to a child"
+        case .noID:
+            let mark = record.childName.map { "A mark for \($0)" } ?? "A mark"
+            return day.map { "\(mark) from \($0) is incomplete" } ?? "\(mark) is incomplete"
+        }
+    }
+
+    /// "3 children and 412 attendance marks are no longer shared."
+    static func movedLine(_ report: ClassroomShareRelease.Report) -> String {
+        let children = report.studentsMoved == 1 ? "1 child" : "\(report.studentsMoved.formatted()) children"
+        let marks = report.attendanceMoved == 1
+            ? "1 attendance mark" : "\(report.attendanceMoved.formatted()) attendance marks"
+        return "\(children) and \(marks) are no longer shared. They're still in your notebook."
+    }
+
+    /// Records another device deleted while the run went: not moved, so not in `movedLine`.
+    static func deletedElsewhereLine(_ report: ClassroomShareRelease.Report) -> String? {
+        switch report.deletedElsewhere {
+        case 0: return nil
+        case 1: return "1 item was deleted on another device while this ran, so it's gone from your notebook too."
+        default:
+            return "\(report.deletedElsewhere.formatted()) items were deleted on another device while this ran, "
+                + "so they're gone from your notebook too."
+        }
+    }
+
+    /// Records a stopped run left twice, back to one copy (`ClassroomShareRelease.TwinCleanup`).
+    static func twinsCleanedLine(_ report: ClassroomShareRelease.Report) -> String? {
+        switch report.twinsCleaned {
+        case 0: return nil
+        case 1: return "1 item that was in your notebook twice is back to one copy, the one your assistants see."
+        default:
+            return "\(report.twinsCleaned.formatted()) items that were in your notebook twice are back to one copy, "
+                + "the one your assistants see."
+        }
+    }
+
+    /// A stopped run's deletes iCloud hadn't confirmed when the wait ran out: the run
+    /// finished anyway (`ClassroomShareRelease.confirmLeftovers`), and says so.
+    static func unconfirmedLine(_ report: ClassroomShareRelease.Report) -> String? {
+        switch report.unconfirmed {
+        case 0: return nil
+        case 1:
+            return "iCloud hasn't confirmed yet that 1 item left the share. It's already out of the share "
+                + "on this Mac, and iCloud usually catches up by itself."
+        default:
+            return "iCloud hasn't confirmed yet that \(report.unconfirmed.formatted()) items left the share. "
+                + "They're already out of the share on this Mac, and iCloud usually catches up by itself."
         }
     }
 }

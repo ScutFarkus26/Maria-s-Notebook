@@ -2,6 +2,7 @@ import Foundation
 import CoreData
 import CloudKit
 import OSLog
+import Observation
 
 /// Whether her marks may go into the classroom share now, read from the
 /// classroom share store's own CloudKit events.
@@ -21,12 +22,27 @@ import OSLog
 /// waits is tried at once (`onLift`). One per stack (`AssistantStack`), so a
 /// rebuilt stack starts with none, listening from before its stores open:
 /// a setup that fails at once is heard too.
+///
+/// A dead delegate is also a mirroring stop: only a new container sends
+/// again, and a hold for one never lifts by itself. It's told once a stack
+/// (`onMirroringDied`), and the bootstrapper rebuilds the stack (bug hunt
+/// 2026-11-02 #5). Observed, so the sync line can say marks wait for it.
 @MainActor
+@Observable
 final class AssistantFilingHold {
     private static let logger = Logger.app(category: "filingHold")
 
     /// Why filing waits, as the end of "…couldn't be added because …" (logged).
     nonisolated static let reason = "iCloud isn't ready to send marks yet"
+
+    /// What a hold waits for, as the sync line and Leave's Wait word it.
+    nonisolated enum Wait: Sendable, Equatable {
+        /// The store's iCloud setup failed (the account, the network): it
+        /// sets up again by itself.
+        case iCloudNotReady
+        /// The mirroring delegate died: nothing sends until a new container.
+        case mirroringDied
+    }
 
     /// One finished event of the classroom share's store.
     nonisolated struct Event: Sendable, Equatable {
@@ -43,19 +59,33 @@ final class AssistantFilingHold {
     /// Held stores, by identifier, and the start of the latest failure.
     private(set) var heldSince: [String: Date] = [:]
     /// Told when the last hold lifts.
-    var onLift: (@MainActor () -> Void)?
+    @ObservationIgnored var onLift: (@MainActor () -> Void)?
     /// The store's setup failed for want of a usable iCloud account, at
     /// least once on this stack. Never cleared, unlike the hold: an import
     /// can work once the account arrives while sharing never does on that
     /// container, so the bootstrapper rebuilds it (bug hunt 2026-10-20 #9).
     private(set) var setupFailedForAccount = false
     /// Told the first time `setupFailedForAccount` is set.
-    var onSetupFailedForAccount: (@MainActor () -> Void)?
+    @ObservationIgnored var onSetupFailedForAccount: (@MainActor () -> Void)?
+    /// An import or export of the store said its mirroring delegate died,
+    /// at least once on this stack. Never cleared: the delegate stays dead
+    /// for the container's life, whatever lifts the hold.
+    private(set) var mirroringDied = false
+    /// Told the first time `mirroringDied` is set. The hold alone waited for
+    /// a sync a dead delegate never makes: every pass stopped at it, and
+    /// nothing rebuilt the stack or said so until she quit (#5).
+    @ObservationIgnored var onMirroringDied: (@MainActor () -> Void)?
     /// Written in `listen` only; read again in `deinit`.
-    private nonisolated(unsafe) var observer: (any NSObjectProtocol)?
+    @ObservationIgnored private nonisolated(unsafe) var observer: (any NSObjectProtocol)?
 
     /// Why filing waits now, or nil.
     var stopReason: String? { heldSince.isEmpty ? nil : Self.reason }
+
+    /// What filing waits for now, or nil.
+    var wait: Wait? {
+        guard !heldSince.isEmpty else { return nil }
+        return mirroringDied ? .mirroringDied : .iCloudNotReady
+    }
 
     deinit {
         if let observer { NotificationCenter.default.removeObserver(observer) }
@@ -90,6 +120,10 @@ final class AssistantFilingHold {
             if event.type == .setup, event.accountUnavailable, !setupFailedForAccount {
                 setupFailedForAccount = true
                 onSetupFailedForAccount?()
+            }
+            if event.killedDelegate, !mirroringDied {
+                mirroringDied = true
+                onMirroringDied?()
             }
         }
     }

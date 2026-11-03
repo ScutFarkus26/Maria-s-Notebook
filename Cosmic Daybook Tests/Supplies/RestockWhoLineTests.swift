@@ -124,6 +124,17 @@ struct RestockWhoLineTests {
         #expect(RestockShareGap().title == nil)
     }
 
+    @Test("Away from the Mac, the banner sends her to the Mac, the only place adding to the share runs")
+    func bannerSaysWhereToAddThem() {
+        #if os(macOS)
+        #expect(RestockShareGap.detail
+            == "Your assistant can't see them. Add them to the share in Settings › Classroom.")
+        #else
+        #expect(RestockShareGap.detail
+            == "Your assistant can't see them. Add them to the share on your Mac, in Settings › Classroom.")
+        #endif
+    }
+
     @Test("The per-type count adds up to the whole-share count Settings shows")
     func perTypeOutsideMatchesTotal() {
         let whole = contents(

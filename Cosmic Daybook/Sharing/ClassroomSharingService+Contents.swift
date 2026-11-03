@@ -24,7 +24,9 @@ extension ClassroomSharingService {
         let (everything, inScope) = await classroomRecordIDsWithScope(
             storeID: storeID, container: container, scope: scope, entities: entities
         )
-        return await countInShare(everything, inScope: inScope, zone: pinnedZone, container: container)
+        return await countInShare(everything, inScope: inScope, zone: pinnedZone, container: container) { ids in
+            try container.fetchShares(matching: ids).mapValues { $0.recordID.zoneID.zoneName }
+        }
     }
 
     /// Every record of the share's types, and the ones `scope` keeps, in one read.
@@ -44,12 +46,16 @@ extension ClassroomSharingService {
         }
     }
 
+    /// Counts what `zone`'s share holds. `shareZones` answers, for each record
+    /// in a share, its share's zone (`fetchShares(matching:)`; a test stands
+    /// in for it).
     @concurrent
-    private static func countInShare(
+    static func countInShare(
         _ everything: [String: [NSManagedObjectID]],
         inScope: [String: [NSManagedObjectID]],
         zone: String?,
-        container: NSPersistentCloudKitContainer
+        container: NSPersistentCloudKitContainer,
+        shareZones: @Sendable ([NSManagedObjectID]) throws -> [NSManagedObjectID: String]
     ) async -> ClassroomShareContents? {
         var contents = ClassroomShareContents()
         var sharedIDs = Set<NSManagedObjectID>()
@@ -61,11 +67,12 @@ extension ClassroomSharingService {
                 contents.inScopeAndShared[entity] = 0
                 continue
             }
-            guard let shares = try? container.fetchShares(matching: ids) else { return nil }
-            let shared = Set(shares.filter { $0.value.recordID.zoneID.zoneName == zone }.keys)
+            guard let zones = try? shareZones(ids) else { return nil }
+            let shared = Set(zones.filter { $0.value == zone }.keys)
             sharedIDs.formUnion(shared)
             contents.inShare[entity] = shared.count
             contents.inScopeAndShared[entity] = scoped.filter { shared.contains($0) }.count
+            contents.inScopeInOtherShare[entity] = scoped.filter { zones[$0] != nil && !shared.contains($0) }.count
         }
         contents.mixedDuplicates = await mixedDuplicateCount(everything, sharedIDs: sharedIDs, container: container)
         return contents
@@ -149,6 +156,11 @@ nonisolated struct ClassroomShareContents: Sendable, Equatable {
     var inScope: [String: Int] = [:]
     /// Per type, records that should be shared and are.
     var inScopeAndShared: [String: Int] = [:]
+    /// Per type, records that should be shared and are in another share
+    /// instead: a share zone left from before (the 2026-09 incident).
+    /// `share(_:to:)` can't move a record out of a share, so "Add them to the
+    /// share" never adds these (bug hunt 2026-11-02, #32).
+    var inScopeInOtherShare: [String: Int] = [:]
     /// Records held twice, in the share and outside it: a release caught partway.
     var mixedDuplicates = 0
 
@@ -163,6 +175,31 @@ nonisolated struct ClassroomShareContents: Sendable, Equatable {
     /// Records of one type that belong in the share and aren't in it.
     func outside(of entity: String) -> Int {
         max(0, (inScope[entity] ?? 0) - (inScopeAndShared[entity] ?? 0))
+    }
+
+    /// Records that belong in the share and are in another share instead
+    /// (`inScopeInOtherShare`).
+    var inOtherShare: Int {
+        inScope.keys.reduce(0) { $0 + inOtherShare(of: $1) }
+    }
+
+    func inOtherShare(of entity: String) -> Int {
+        min(inScopeInOtherShare[entity] ?? 0, outside(of: entity))
+    }
+
+    /// Records that belong in the share and are in no share: what "Add them to
+    /// the share" can add.
+    var addable: Int { outside - inOtherShare }
+
+    /// "2 of them are in an old classroom share from before, so they can't be
+    /// added from here." Nil when none are.
+    var inOtherShareLine: String? {
+        let count = inOtherShare
+        guard count > 0 else { return nil }
+        return count == 1
+            ? "1 of them is in an old classroom share from before, so it can't be added from here."
+            : "\(count.formatted()) of them are in an old classroom share from before, "
+                + "so they can't be added from here."
     }
 
     /// Records in the share that no longer belong there (earlier school years).

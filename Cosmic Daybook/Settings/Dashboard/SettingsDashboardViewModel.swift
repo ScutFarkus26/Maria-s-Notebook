@@ -13,11 +13,23 @@ final class SettingsDashboardViewModel {
     enum BackupRun: Equatable {
         case idle
         case running
-        case succeeded
+        /// `partial`: written while this device is still downloading the
+        /// notebook from iCloud (a `Partial-` file), so it may be missing some.
+        case succeeded(partial: Bool)
         case failed(String)
     }
 
+    /// What the Overview says once Back Up Now has written a backup: the
+    /// same first-download warning as Settings › Backups (`SettingsViewModel.savedText`,
+    /// bug hunt 2026-11-02 #14), which the Overview left out until 2026-11-03.
+    static func succeededText(partial: Bool) -> String {
+        let saved = "Backed up just now. The copy is in your backup folder."
+        return partial ? "\(saved) \(AutoBackupManager.firstDownloadWarning)" : saved
+    }
+
     private(set) var lastBackup: Date?
+    /// When this device's automatic backups started failing, if they're on and are.
+    private(set) var automaticBackupFailingSince: Date?
     private(set) var unsharedClassroomRecords: Int?
     private(set) var carriedOverPlans: Int?
     private(set) var calendarAccessLost = false
@@ -43,6 +55,8 @@ final class SettingsDashboardViewModel {
     func items(syncHealth: CloudKitHealthCheck.SyncHealth) -> [SettingsAttentionItem] {
         SettingsAttention.items(for: SettingsAttentionInputs(
             lastBackup: lastBackup,
+            automaticBackupFailingSince: automaticBackupFailingSince,
+            deviceKind: AutoBackupFolders.currentDeviceKind(),
             syncHealth: syncHealth,
             unsharedClassroomRecords: unsharedClassroomRecords,
             carriedOverPlans: carriedOverPlans,
@@ -53,13 +67,20 @@ final class SettingsDashboardViewModel {
 
     // MARK: - Reading
 
-    /// The newer of the last backup made from the Backups card and the newest
-    /// file in the backup folder, which automatic backups also write to.
+    /// This device's last backup: the newer of the last one made from the
+    /// Backups card and the last one it wrote into its own folder
+    /// (automatic, or Back up now here), and whether its automatic backups
+    /// are failing. Another device's backups no longer count (#12). Until this
+    /// device has written one since 2026-11, the newest file in the backup
+    /// folder stands in, as it did before.
     func refreshLastBackup() {
-        let automatic = dependencies.backupCoordinator.backupStatus().mostRecentAutoBackupURL.flatMap {
-            try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
-        }
-        lastBackup = [backupSettings.lastBackupDate, automatic].compactMap { $0 }.max()
+        let manager = dependencies.autoBackupManager
+        let ownFolder = manager.lastBackupOnThisDevice ?? dependencies.backupCoordinator.backupStatus()
+            .mostRecentAutoBackupURL.flatMap {
+                try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+            }
+        lastBackup = [backupSettings.lastBackupDate, ownFolder].compactMap { $0 }.max()
+        automaticBackupFailingSince = manager.automaticBackupsOn ? manager.automaticBackupFailingSince : nil
     }
 
     /// Calendar or Reminders access that was on when the guide set it up and is off now.
@@ -117,11 +138,13 @@ final class SettingsDashboardViewModel {
         backupRun = .running
         let result = await dependencies.autoBackupManager.performManualBackup(viewContext: viewContext)
         switch result {
-        case .success(let date, _):
+        case .success(let date, let url):
             backupSettings.setLastBackupNow()
             madeFirstBackup = lastBackup == nil
             lastBackup = date
-            backupRun = .succeeded
+            // The write worked, so the backups do (`AutoBackupManager`).
+            automaticBackupFailingSince = nil
+            backupRun = .succeeded(partial: AutoBackupFolders.isPartial(url.lastPathComponent))
         case .failure(_, let error):
             backupRun = .failed(AppErrorMessages.backupMessage(for: error, operation: "back up your notebook"))
         case .skippedNoChanges:

@@ -52,14 +52,32 @@ enum SiriSyncKeepAlive {
 /// Waits for the next CloudKit export to go up (`ends`), or a time limit. Created
 /// before the save it follows, so an export that finishes quickly is caught;
 /// an export that started earlier doesn't hold that save, so it doesn't count.
+/// In the notebook it must also be an export of a store that save wrote to:
+/// any store's export ended the wait, so the private store's could end it
+/// while the classroom share's, holding a co-teacher's marks, was still to go
+/// (bug hunt 2026-11-02, #25). The save is the first one on the main thread
+/// after the watch is made: Siri's commit makes it and saves straight after,
+/// with nothing in between.
 @MainActor
 final class SiriExportWatch {
     private var observer: (any NSObjectProtocol)?
+    private var saveObserver: (any NSObjectProtocol)?
     private var finished = false
     private var continuation: CheckedContinuation<Void, Never>?
+    /// The stores the watched save wrote to, by identifier; nil until it has saved.
+    private(set) var savedStores: Set<String>?
 
     init() {
         let created = Date()
+        saveObserver = NotificationCenter.default.addObserver(
+            forName: .NSManagedObjectContextDidSave, object: nil, queue: nil
+        ) { [weak self] note in
+            guard Thread.isMainThread else { return }
+            let stores = Set(UnsentChangesKeepAlive.changedObjects(in: note).map {
+                $0.objectID.persistentStore?.identifier ?? UnsentChangesKeepAlive.anyStore
+            })
+            MainActor.assumeIsolated { self?.noteSave(stores) }
+        }
         observer = NotificationCenter.default.addObserver(
             forName: NSPersistentCloudKitContainer.eventChangedNotification,
             object: nil,
@@ -71,11 +89,26 @@ final class SiriExportWatch {
             let container = note.object as? NSPersistentCloudKitContainer
             let configuration = container?.persistentStoreCoordinator.persistentStores
                 .first { $0.identifier == event.storeIdentifier }?.configurationName
-            guard Self.ends(
-                type: event.type, ended: event.endDate != nil, succeeded: event.succeeded,
-                startedSinceWatching: event.startDate >= created, storeConfiguration: configuration
-            ) else { return }
-            MainActor.assumeIsolated { self?.stop() }
+            let type = event.type, ended = event.endDate != nil, succeeded = event.succeeded
+            let startedSinceWatching = event.startDate >= created, store = event.storeIdentifier
+            MainActor.assumeIsolated {
+                guard let self, Self.ends(
+                    type: type, ended: ended, succeeded: succeeded,
+                    startedSinceWatching: startedSinceWatching, storeConfiguration: configuration,
+                    storeIdentifier: store, savedStores: self.savedStores
+                ) else { return }
+                self.stop()
+            }
+        }
+    }
+
+    /// The watched save: its stores are what an export must be of.
+    private func noteSave(_ stores: Set<String>) {
+        guard savedStores == nil else { return }
+        savedStores = stores
+        if let saveObserver {
+            NotificationCenter.default.removeObserver(saveObserver)
+            self.saveObserver = nil
         }
     }
 
@@ -84,19 +117,24 @@ final class SiriExportWatch {
     /// conflict) keeps it waiting, since the marks are still on the phone.
     /// In the Assistant it must also be the shared store's: her marks go to
     /// the classroom share, and her private store's export says nothing about
-    /// them. Pure, for the tests.
+    /// them. In the notebook it must be of a store the save wrote to
+    /// (`savedStores`; any store before the save is known). Pure, for the tests.
     nonisolated static func ends(
         type: NSPersistentCloudKitContainer.EventType,
         ended: Bool,
         succeeded: Bool,
         startedSinceWatching: Bool,
-        storeConfiguration: String?
+        storeConfiguration: String?,
+        storeIdentifier: String? = nil,
+        savedStores: Set<String>? = nil
     ) -> Bool {
         guard type == .export, ended, succeeded, startedSinceWatching else { return false }
         #if ASSISTANT_APP
         return storeConfiguration == CoreDataStack.sharedConfiguration
         #else
-        return true
+        guard let savedStores, let storeIdentifier,
+              !savedStores.contains(UnsentChangesKeepAlive.anyStore) else { return true }
+        return savedStores.contains(storeIdentifier)
         #endif
     }
 
@@ -113,10 +151,11 @@ final class SiriExportWatch {
     /// Ends the wait (or stops watching before one starts).
     func stop() {
         finished = true
-        if let observer {
-            NotificationCenter.default.removeObserver(observer)
-            self.observer = nil
+        for token in [observer, saveObserver].compactMap({ $0 }) {
+            NotificationCenter.default.removeObserver(token)
         }
+        observer = nil
+        saveObserver = nil
         continuation?.resume()
         continuation = nil
     }

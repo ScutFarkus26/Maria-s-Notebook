@@ -149,7 +149,16 @@ final class AppBootstrapper {
         syncPreferred ? nil : now
     }
 
+    // swiftlint:disable:next function_body_length
     private static func runPostLaunchMigrations(coreDataStack: CoreDataStack) async {
+        // Safe mode: the stores didn't open and this session runs on an empty
+        // store in memory. The repairs would find nothing, set their done
+        // flags and wipe the check-in grace ledger, and the next good launch
+        // would skip them for good (bug hunt 2026-11-02, #57).
+        guard !DatabaseInitializationService.isInMemorySession() else {
+            logger.notice("Post-launch migrations skipped: this session runs on a temporary store")
+            return
+        }
         let start = Date()
         let migrations = LaunchSignposts.begin("PostLaunchMigrations")
         defer { LaunchSignposts.end("PostLaunchMigrations", migrations) }
@@ -300,6 +309,10 @@ final class AppBootstrapper {
     /// the view context, and the guide's unsaved edits aren't rolled back with
     /// it. Their flags stay as they were, so the steps run again next launch
     /// (2026-10-05). The steps only insert and update.
+    ///
+    /// Nothing runs, and it returns false, in a session on the temporary
+    /// in-memory store (safe mode): the steps' flags would count as done on
+    /// an empty store (bug hunt 2026-11-02, #57).
     @discardableResult
     static func runLaunchBatch(
         in context: NSManagedObjectContext,
@@ -307,6 +320,7 @@ final class AppBootstrapper {
         defaults: UserDefaults = .standard,
         steps: () -> Void
     ) -> Bool {
+        guard !DatabaseInitializationService.isInMemorySession(defaults: defaults) else { return false }
         context.processPendingChanges()
         let pendingBefore = context.insertedObjects.union(context.updatedObjects).union(context.deletedObjects)
         let flagsBefore = oneShotFlags.map { ($0, defaults.object(forKey: $0)) }

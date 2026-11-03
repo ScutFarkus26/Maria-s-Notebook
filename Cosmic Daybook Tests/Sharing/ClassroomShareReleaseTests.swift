@@ -80,7 +80,7 @@ struct ClassroomShareReleaseTests {
     ) async throws -> ClassroomShareRelease.Report {
         let batches = try await plan(fix, environment: env)
         return await ClassroomShareRelease.run(
-            batches, container: fix.stack.container, storeID: fix.storeID, environment: env
+            batches, stack: fix.stack, storeID: fix.storeID, environment: env
         )
     }
 
@@ -231,7 +231,7 @@ struct ClassroomShareReleaseTests {
         #expect(studentMove.existingTwin == twin.objectID)
 
         let report = await ClassroomShareRelease.run(
-            batches, container: fix.stack.container, storeID: fix.storeID, environment: env
+            batches, stack: fix.stack, storeID: fix.storeID, environment: env
         )
         #expect(report.stoppedBecause == nil)
         #expect(count("Student", in: fix) == 2) // one copy of each child, not three
@@ -314,23 +314,55 @@ extension ClassroomShareReleaseTests {
 
         cloud.stop = nil
         let finished = await ClassroomShareRelease.finishStopped(
-            container: fix.stack.container, storeID: fix.storeID, environment: cloud.environment()
+            stack: fix.stack, storeID: fix.storeID, environment: cloud.environment()
         )
         #expect(finished.stoppedBecause == nil)
         #expect(cloud.awaiting.isEmpty)
     }
 
-    @Test("Finishing waits for iCloud: while the originals are still there, the list is kept")
-    func finishKeepsListUntilGone() async throws {
+    @Test("Finishing waits for iCloud; when it never confirms, the list clears and the guide is told")
+    func finishClearsListAfterTheWait() async throws {
         let fix = try fixture()
-        let records = await fix.cloud.environment().recordIDs(fix.departedMarks.map(\.objectID))
-        fix.cloud.awaiting = Array(records.values) // still on the server
+        let marks = fix.departedMarks.map(\.objectID)
+        let records = await fix.cloud.environment().recordIDs(marks)
+        // Deleted here, still on the server (bug hunt 2026-11-02, #41: the list could keep
+        // the card on "Finish" for good).
+        try deleteHere(marks, in: fix)
+        fix.cloud.keepOnServer(marks)
+        fix.cloud.awaiting = Array(records.values)
         let env = fix.cloud.environment(patience: .milliseconds(300)) // gives up on purpose
         let report = await ClassroomShareRelease.finishStopped(
-            container: fix.stack.container, storeID: fix.storeID, environment: env
+            stack: fix.stack, storeID: fix.storeID, environment: env
+        )
+        #expect(report.stoppedBecause == nil)
+        #expect(report.unconfirmed == 3)
+        #expect(fix.cloud.awaiting.isEmpty)
+        let line = ClassroomReleaseSheet.unconfirmedLine(report)
+        #expect(line?.hasPrefix("iCloud hasn't confirmed yet that 3 items") == true)
+    }
+
+    @Test("Finishing stopped by a sync problem keeps the list for next time")
+    func finishStoppedBySyncKeepsList() async throws {
+        let fix = try fixture()
+        let marks = fix.departedMarks.map(\.objectID)
+        let records = await fix.cloud.environment().recordIDs(marks)
+        try deleteHere(marks, in: fix)
+        fix.cloud.keepOnServer(marks)
+        fix.cloud.awaiting = Array(records.values)
+        fix.cloud.stop = "Classroom share export failed"
+        let report = await ClassroomShareRelease.finishStopped(
+            stack: fix.stack, storeID: fix.storeID, environment: fix.cloud.environment()
         )
         #expect(report.stoppedBecause != nil)
+        #expect(report.unconfirmed == 0)
         #expect(fix.cloud.awaiting.count == 3)
+    }
+
+    /// Deletes `ids` here, as a run's step 4 did.
+    func deleteHere(_ ids: [NSManagedObjectID], in fix: Fixture) throws {
+        let ctx = fix.stack.viewContext
+        for id in ids { ctx.delete(try ctx.existingObject(with: id)) }
+        #expect(CoreDataTestHelpers.save(ctx))
     }
 
     @Test("A copy edited after a stopped run keeps the edit; the original's older values don't win")

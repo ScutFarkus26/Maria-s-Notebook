@@ -210,7 +210,8 @@ extension CloudKitSyncStatusService {
         succeeded: Bool,
         error: (any Error)?,
         startDate: Date,
-        storeIdentifier: String? = nil
+        storeIdentifier: String? = nil,
+        endDate: Date? = nil
     ) {
         // Events fire twice: once when started (isFinished == false) and once when finished
         guard isFinished else {
@@ -239,19 +240,22 @@ extension CloudKitSyncStatusService {
             noteCloudImportActivity()
         }
 
+        // Dated by when it finished: an event buffered until `configure` is
+        // handled later than it happened.
+        let finishedAt = endDate ?? Date()
         let store = syncedStore(forIdentifier: storeIdentifier)
-        storeHealth.recordFinishedEvent(store: store, type: type, succeeded: succeeded, error: error)
+        storeHealth.recordFinishedEvent(store: store, type: type, succeeded: succeeded, error: error, at: finishedAt)
 
         if succeeded {
             handleSuccessfulCloudKitEvent(
                 type: type, store: store, typeDescription: typeDescription,
-                startDate: startDate, storeIdentifier: storeIdentifier
+                startDate: startDate, storeIdentifier: storeIdentifier, finishedAt: finishedAt
             )
         } else {
             handleFailedCloudKitEvent(
                 type: type, store: store,
                 typeDescription: "\(store.displayName) \(typeDescription.lowercased())", error: error,
-                startDate: startDate
+                startDate: startDate, finishedAt: finishedAt
             )
         }
 
@@ -268,7 +272,8 @@ extension CloudKitSyncStatusService {
         store: SyncedStore,
         typeDescription: String,
         startDate: Date,
-        storeIdentifier: String?
+        storeIdentifier: String?,
+        finishedAt: Date = Date()
     ) {
         Self.logger.debug("CloudKit \(typeDescription) succeeded")
         SyncEventLogger.shared.log("cloudkit", status: "success", message: Self.historyLine(succeeded: type))
@@ -300,11 +305,10 @@ extension CloudKitSyncStatusService {
             if store == .notebook, filingHooks.waitsForImportAfterPin() { filingHooks.wakeFiling() }
         }
 
-        let now = Date()
-        recordSuccessfulSync(at: now)
+        recordSuccessfulSync(at: finishedAt)
         let operation = "\(typeDescription) completed"
         if lastOperation != operation { lastOperation = operation }
-        lastOperationDate = now
+        lastOperationDate = finishedAt
         clearSyncErrorInMemory()
         if pendingSyncCount != 0 { pendingSyncCount = 0 }
         retryLogic.resetRetryCount()
@@ -352,33 +356,13 @@ extension CloudKitSyncStatusService {
         unpersistedSyncDate = nil
     }
 
-    /// Flushes the pending date when the app backgrounds or quits, so the
-    /// next launch reads the same value it would have with write-through.
-    func observeLifecycleForSyncDateFlush() {
-        #if os(iOS)
-        let names: [Notification.Name] = [
-            UIApplication.didEnterBackgroundNotification, UIApplication.willTerminateNotification
-        ]
-        #elseif os(macOS)
-        let names: [Notification.Name] = [
-            NSApplication.willResignActiveNotification, NSApplication.willTerminateNotification
-        ]
-        #else
-        let names: [Notification.Name] = []
-        #endif
-        lifecycleObservers = names.map { name in
-            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.flushPersistedSyncDate() }
-            }
-        }
-    }
-
     private func handleFailedCloudKitEvent(
         type: NSPersistentCloudKitContainer.EventType,
         store: SyncedStore,
         typeDescription: String,
         error: (any Error)?,
-        startDate: Date
+        startDate: Date,
+        finishedAt: Date = Date()
     ) {
         recordEventFailure(type: type, store: store, typeDescription: typeDescription, error: error)
         if let error {
@@ -389,7 +373,7 @@ extension CloudKitSyncStatusService {
             }
         }
         lastOperation = "\(typeDescription) failed"
-        lastOperationDate = Date()
+        lastOperationDate = finishedAt
         if isSyncing { isSyncing = false }
         syncingTask?.cancel()
         syncingTask = nil

@@ -18,6 +18,7 @@ public struct RestorePreviewView: View {
                 Divider()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
+                        refusalSection
                         totalsSection
                         entityBreakdownSection
                         warningsSection
@@ -55,8 +56,36 @@ public struct RestorePreviewView: View {
         if mode == "replace" {
             return "Replace: everything in your notebook is removed and replaced by what's in the backup."
         } else {
-            return "Merge: what's in the backup is added, and anything already here is updated to match it. "
-                + "Nothing else changes."
+            // A record changed here since the backup is kept, not counted as
+            // updated (bug hunt 2026-11-02, #1). The types with no change
+            // date can't be judged (`BackupMergeRule`), so they're named.
+            return "Merge: what's in the backup is added, and what you've changed since is kept. "
+                + "The records counted as updated go back to the backup's version. Lessons, work, "
+                + "presentations, meetings and to-dos don't note when they were changed, so a change "
+                + "made to one of them since the backup goes back too, but a to-do you've ticked since "
+                + "stays done. Nothing else changes."
+        }
+    }
+
+    /// The types every backup holds that this one couldn't read: a Replace
+    /// from it won't run (bug hunt 2026-11-02, #10), so it isn't offered.
+    private var unreadableRequiredTypes: [String] {
+        guard preview.mode.lowercased() == "replace" else { return [] }
+        return BackupImporter.requiredTypesUnreadable(in: preview.warnings)
+    }
+
+    @ViewBuilder
+    private var refusalSection: some View {
+        let unreadable = unreadableRequiredTypes
+        if !unreadable.isEmpty {
+            let nouns = unreadable.map { BackupPlainNames.noun(for: $0).lowercased() }.joined(separator: ", ")
+            Label(
+                "Part of this backup couldn't be read (\(nouns)), so it can't replace your notebook. "
+                    + "Choose Merge to add what could be read, or restore another backup.",
+                systemImage: "exclamationmark.octagon.fill"
+            )
+            .font(.subheadline)
+            .foregroundStyle(AppColors.destructive)
         }
     }
 
@@ -67,6 +96,11 @@ public struct RestorePreviewView: View {
             HStack(spacing: 16) {
                 Label("Adding: \(preview.totalInserts)", systemImage: "plus.circle.fill")
                     .foregroundStyle(AppColors.success)
+                if preview.totalKept > 0 {
+                    // Changed here since the backup: left as they are.
+                    Label("Keeping: \(preview.totalKept)", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
                 Label("Removing: \(preview.totalDeletes)", systemImage: "trash.fill")
                     .foregroundStyle(preview.totalDeletes > 0 ? AppColors.destructive : .secondary)
             }
@@ -92,12 +126,15 @@ public struct RestorePreviewView: View {
                             .frame(width: 200, alignment: .leading)
                         let ins = inserts[key] ?? 0
                         let sk = skips[key] ?? 0
+                        let kept = keeps[key] ?? 0
                         let del = deletes[key] ?? 0
                         if ins > 0 { chip(text: "+\(ins)", color: .green, system: "plus") }
-                        // Already in the notebook: a merge updates them to match the backup.
+                        // Already in the notebook, and brought to the backup's version.
                         if sk > 0 {
-                            chip(text: "already here \(sk)", color: .secondary, system: "arrow.triangle.2.circlepath")
+                            chip(text: "updated \(sk)", color: .secondary, system: "arrow.triangle.2.circlepath")
                         }
+                        // Already in the notebook, changed since the backup: left as it is.
+                        if kept > 0 { chip(text: "kept \(kept)", color: .secondary, system: "checkmark") }
                         if del > 0 { chip(text: "-\(del)", color: .red, system: "trash") }
                         Spacer()
                     }
@@ -150,6 +187,7 @@ public struct RestorePreviewView: View {
                 Label("Restore Now", systemImage: "arrow.triangle.2.circlepath")
             }
             .buttonStyle(.borderedProminent)
+            .disabled(!unreadableRequiredTypes.isEmpty)
         }
         .padding(16)
     }
@@ -158,11 +196,12 @@ public struct RestorePreviewView: View {
     private var inserts: [String: Int] { BackupPlainNames.grouped(preview.entityInserts) }
     private var skips: [String: Int] { BackupPlainNames.grouped(preview.entitySkips) }
     private var deletes: [String: Int] { BackupPlainNames.grouped(preview.entityDeletes) }
+    private var keeps: [String: Int] { BackupPlainNames.grouped(preview.entityKept) }
 
-    /// The kinds with something to add, update or remove; one with nothing either way isn't a change.
+    /// The kinds with something to add, update, keep or remove; one with nothing either way isn't listed.
     private var allEntityKeys: Set<String> {
-        Set(inserts.keys).union(skips.keys).union(deletes.keys).filter { key in
-            (inserts[key] ?? 0) + (skips[key] ?? 0) + (deletes[key] ?? 0) > 0
+        Set(inserts.keys).union(skips.keys).union(keeps.keys).union(deletes.keys).filter { key in
+            (inserts[key] ?? 0) + (skips[key] ?? 0) + (keeps[key] ?? 0) + (deletes[key] ?? 0) > 0
         }
     }
 
@@ -188,6 +227,7 @@ private struct RestorePreviewViewPreview: View {
             entityInserts: ["Student": 3, "Lesson": 1, "LessonAssignment": 4],
             entitySkips: ["Student": 2, "Lesson": 0, "LessonAssignment": 1],
             entityDeletes: ["Student": 0, "Lesson": 0, "LessonAssignment": 0],
+            entityKept: ["Student": 1],
             totalInserts: 8,
             totalDeletes: 0,
             warnings: [

@@ -62,6 +62,7 @@ struct AssistantTabs: View {
             restock?.load(reconcile: false)
         }
         .modifier(RestockFollowsScene(model: restock))
+        .modifier(RestockFollowsViewOnly(model: restock))
         .modifier(ReminderSwitchesFollower())
         // The one place the first run asks anything (review (d), #2): setup on
         // the first run after joining, then one name sheet whenever a name is
@@ -110,6 +111,18 @@ struct AssistantTabs: View {
         model.load()
         restock = model
         return model
+    }
+}
+
+/// Added to the share as View only, or let make changes: the tab loads
+/// again, so changing turns off or on, as the attendance grid's marking does
+/// (bug hunt 2026-11-02 #29).
+private struct RestockFollowsViewOnly: ViewModifier {
+    let model: AssistantRestockModel?
+    @Environment(AssistantBootstrapper.self) private var bootstrapper
+
+    func body(content: Content) -> some View {
+        content.onChange(of: bootstrapper.sharingService?.isViewOnly) { model?.load() }
     }
 }
 

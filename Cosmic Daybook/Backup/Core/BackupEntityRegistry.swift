@@ -46,9 +46,24 @@ struct BackupEntityRegistry {
     /// Replace put back each name as the backup had it, over a rename made
     /// since, and that old name then went to every device as the newest (bug
     /// hunt 2026-10-29). Left in place, the restore's newer-wins check
-    /// (`BackupRestoreRun.rowsOlderThanStored`) keeps a rename, and a name
-    /// set since the backup stays.
+    /// (`BackupRestoreRun.keepingNewer`) keeps a rename, and a name set since
+    /// the backup stays.
     static let mergedOnReplaceEntityNames: Set<String> = ["ClassroomPerson"]
+
+    /// The classroom-share types (`CoreDataStack.sharedEntityNames`) a Replace
+    /// restore updates in place by `id`, deleting only the records the backup
+    /// lacks, rather than clearing them and inserting them again.
+    ///
+    /// On the lead guide's Mac these records live in the classroom share's
+    /// zone. Cleared and inserted again, every one became a new record in the
+    /// private default zone: one export deleted the whole class from iCloud,
+    /// so the Assistant's phone emptied, and the copies reached the share only
+    /// when the orphan guard filed them minutes later (bug hunt 2026-11-02,
+    /// #2). Updated in place, each keeps its CloudKit identity and zone, and
+    /// the Assistant sees edits rather than a wipe. The names people set are
+    /// left out: a Replace merges them (`mergedOnReplaceEntityNames`).
+    static let updatedInPlaceOnReplaceEntityNames: Set<String> =
+        CoreDataStack.sharedEntityNames.subtracting(mergedOnReplaceEntityNames)
 
     /// Entity type names for progress reporting and error messages
     static func entityName(for type: NSManagedObject.Type) -> String {

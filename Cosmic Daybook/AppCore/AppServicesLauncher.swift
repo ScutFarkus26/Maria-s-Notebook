@@ -109,9 +109,16 @@ final class AppServicesLauncher {
         // internally — we just need to ensure the app is registered.
         #if os(iOS)
         UIApplication.shared.registerForRemoteNotifications()
-        // A mark tapped just before the iPad or iPhone locks still goes out.
+        // A mark tapped just before the iPad or iPhone locks still goes out:
+        // leaving the foreground waits for the orphan guard to file it into
+        // the classroom share, then for its store's export (bug hunt
+        // 2026-11-02, #25; until then it waited for neither).
         if coreDataStack.isCloudKitActive {
-            UnsentChangesKeepAlive.install(for: coreDataStack)
+            UnsentChangesKeepAlive.install(
+                for: coreDataStack,
+                isBusy: { SharedStoreOrphanGuard.shared.isBusy },
+                waitForWork: { await SharedStoreOrphanGuard.shared.waitUntilIdle() }
+            )
         }
         #elseif os(macOS)
         NSApplication.shared.registerForRemoteNotifications()

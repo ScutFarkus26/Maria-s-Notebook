@@ -42,8 +42,13 @@ extension BackupService {
     /// (2026-09-27: of 1,205 notes, the second 1,000-row page held 1, so the
     /// backup had 1,001).
     ///
-    /// Pages come from the store alone (`includesPendingChanges = false`), so
-    /// each saved row lands on exactly one page and a short page is the last.
+    /// Pages come from the store alone (`includesPendingChanges = false`): the
+    /// type's saved rows are listed once, by object ID, and each page reads
+    /// the next `batchSize` of those IDs (`SELF IN`), in the listed order.
+    /// Until 2026-11 each page was read by offset instead, so a row a CloudKit
+    /// import deleted between two pages shifted every later row back by one
+    /// and the row at the page boundary was in neither page (bug hunt
+    /// 2026-11-02 #16); a row deleted now is just missing from its page.
     /// Unsaved edits still reach the backup: a fetch hands back the context's
     /// own object, pending updates and all; a row the context has deleted is
     /// left out; rows it has inserted are added once, after the saved ones.
@@ -83,43 +88,18 @@ extension BackupService {
             return []
         }
 
-        let pageSize = Self.readsWhole(coordinator) ? 0 : batchSize
-        var allDTOs: [DTO] = []
-        var offset = 0
-
-        while true {
-            // Fetch, transform, and release in one autoreleasepool
-            let page: (dtos: [DTO], rowCount: Int)? = autoreleasepool {
-                let descriptor = NSFetchRequest<T>(entityName: entityName)
-                BackupRestoreScope.limitToNotebook(descriptor, in: context)
-                descriptor.fetchOffset = offset
-                descriptor.fetchLimit = pageSize  // 0: no limit
-                descriptor.includesPendingChanges = false
-
-                let batch: [T]
-                do {
-                    batch = try context.fetch(descriptor)
-                } catch {
-                    let typeName = String(describing: T.self)
-                    let desc = error.localizedDescription
-                    Self.logger.warning(
-                        "Batch fetch failed \(typeName, privacy: .public): \(desc, privacy: .public)"
-                    )
-                    return nil
-                }
-
-                // Transform to DTOs immediately while models are in scope.
-                // Batch objects are released when autoreleasepool exits.
-                return (transform(batch.filter { !$0.isDeleted }), batch.count)
-            }
-
-            guard let page else { break }
-            allDTOs.append(contentsOf: page.dtos)
-
-            // Rows, not DTOs: a transformer skips malformed rows, and a skipped
-            // row must not end the table.
-            if pageSize == 0 || page.rowCount < pageSize { break }
-            offset += pageSize
+        var allDTOs: [DTO]
+        if Self.readsWhole(coordinator) {
+            // One fetch, so nothing can shift between pages.
+            let descriptor = NSFetchRequest<T>(entityName: entityName)
+            BackupRestoreScope.limitToNotebook(descriptor, in: context)
+            descriptor.includesPendingChanges = false
+            let rows = fetchLoggingFailure(descriptor, typeName: typeName, in: context) ?? []
+            allDTOs = autoreleasepool { transform(rows.filter { !$0.isDeleted }) }
+        } else {
+            allDTOs = transformInPagesByID(
+                T.self, entityName: entityName, using: context, batchSize: batchSize, transform: transform
+            )
         }
 
         // Unsaved inserts, in a stable order so two collections agree.
@@ -134,6 +114,62 @@ extension BackupService {
         }
 
         return allDTOs
+    }
+
+    /// The saved rows of `entityName` as DTOs, a page of `batchSize` object
+    /// IDs at a time from one listing of the IDs (`fetchAndTransformInBatches`).
+    private func transformInPagesByID<T: NSManagedObject, DTO>(
+        _ type: T.Type,
+        entityName: String,
+        using context: NSManagedObjectContext,
+        batchSize: Int,
+        transform: ([T]) -> [DTO]
+    ) -> [DTO] {
+        let typeName = String(describing: T.self)
+        let listing = NSFetchRequest<NSManagedObjectID>(entityName: entityName)
+        BackupRestoreScope.limitToNotebook(listing, in: context)
+        listing.resultType = .managedObjectIDResultType
+        listing.includesPendingChanges = false
+        let ids = fetchLoggingFailure(listing, typeName: typeName, in: context) ?? []
+
+        var dtos: [DTO] = []
+        var start = 0
+        while start < ids.count {
+            let pageIDs = Array(ids[start..<min(start + batchSize, ids.count)])
+            start += pageIDs.count
+            // Fetch, transform, and release in one autoreleasepool
+            let page: [DTO]? = autoreleasepool {
+                let descriptor = NSFetchRequest<T>(entityName: entityName)
+                descriptor.predicate = NSPredicate(format: "SELF IN %@", pageIDs)
+                descriptor.includesPendingChanges = false
+                guard let rows = fetchLoggingFailure(descriptor, typeName: typeName, in: context) else {
+                    return nil
+                }
+                // In the listed order, as the pages by offset were.
+                let place = Dictionary(uniqueKeysWithValues: pageIDs.enumerated().map { ($1, $0) })
+                let batch = rows.filter { !$0.isDeleted }
+                    .sorted { (place[$0.objectID] ?? 0) < (place[$1.objectID] ?? 0) }
+                // Transform to DTOs immediately while models are in scope.
+                // Batch objects are released when autoreleasepool exits.
+                return transform(batch)
+            }
+            guard let page else { break }
+            dtos.append(contentsOf: page)
+        }
+        return dtos
+    }
+
+    /// `request`'s results, or nil (logged) when the fetch failed.
+    private func fetchLoggingFailure<R: NSFetchRequestResult>(
+        _ request: NSFetchRequest<R>, typeName: String, in context: NSManagedObjectContext
+    ) -> [R]? {
+        do {
+            return try context.fetch(request)
+        } catch {
+            let desc = error.localizedDescription
+            Self.logger.warning("Batch fetch failed \(typeName, privacy: .public): \(desc, privacy: .public)")
+            return nil
+        }
     }
 
     /// Whether every store behind `coordinator` is in memory, so the export

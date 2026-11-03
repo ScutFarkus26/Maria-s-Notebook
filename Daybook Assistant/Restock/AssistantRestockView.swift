@@ -24,9 +24,8 @@ struct AssistantRestockView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Tap a tile when something runs low")
+                    subLine
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
                         .padding(.horizontal, 4)
                     if let error = model.errorMessage {
                         AssistantRestockSaveProblem(message: error) { _ = model.flush() }
@@ -95,15 +94,30 @@ struct AssistantRestockView: View {
 
     // MARK: - Pieces
 
+    /// What a tap does, or, added to the share as View only, the sync line's
+    /// words for it (bug hunt 2026-11-02 #29): the shelf shows, nothing changes.
+    @ViewBuilder
+    private var subLine: some View {
+        if model.isViewOnly {
+            Label(AssistantSyncStatusView.viewOnlyMessage, systemImage: "eye")
+                .foregroundStyle(.orange)
+        } else {
+            Text("Tap a tile when something runs low")
+                .foregroundStyle(.secondary)
+        }
+    }
+
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
-            Button {
-                showingWeNeed = true
-            } label: {
-                Label("We need…", systemImage: "plus")
+        if !model.isViewOnly {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showingWeNeed = true
+                } label: {
+                    Label("We need…", systemImage: "plus")
+                }
+                .accessibilityHint("Ask for something that isn't on the shelf")
             }
-            .accessibilityHint("Ask for something that isn't on the shelf")
         }
         ToolbarItem(placement: .topBarTrailing) {
             Button {
@@ -190,7 +204,8 @@ struct AssistantRestockView: View {
                 model.setLevel(staple, to: level)
             },
             onNote: { noteStaple = staple },
-            onHistory: { historyStaple = staple }
+            onHistory: { historyStaple = staple },
+            canChange: !model.isViewOnly
         )
     }
 

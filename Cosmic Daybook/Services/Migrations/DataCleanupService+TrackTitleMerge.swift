@@ -301,6 +301,13 @@ nonisolated extension DataCleanupService {
             if let stepID = work.trackStepID, let kept = remap[stepID] { work.trackStepID = kept }
         }
         // A step id can travel without its track id; catch those too.
+        repointTrackStepIDs(remap, in: context)
+    }
+
+    /// Every presentation, mark and work row that names a dropped step (a
+    /// key of `remap`, by id string) names the step it was folded into
+    /// instead. The lesson name merge drops steps too (bug hunt 2026-11-02, #59).
+    static func repointTrackStepIDs(_ remap: [String: String], in context: NSManagedObjectContext) {
         for (oldStep, newStep) in remap {
             for assignment in fetch(CDLessonAssignment.self, where: "trackStepID == %@", oldStep, in: context) {
                 assignment.trackStepID = newStep

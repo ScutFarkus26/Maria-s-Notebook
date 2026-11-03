@@ -1,0 +1,148 @@
+import CoreData
+import Foundation
+import Testing
+@testable import CosmicDaybook
+
+// Bug hunt 2026-11-02, #7, #57 and #59.
+//
+// #7: restore set a project session's `projectID` but never its project, so
+// restored sessions vanished from their book club or project; the launch now
+// links those an older restore left.
+// #57: a safe-mode launch (the stores didn't open; an empty store in memory)
+// ran the one-time launch steps and marked them done for good.
+// #59: the lesson name merge deleted a duplicate track step and left the
+// presentations, marks and work that named it pointing at nothing.
+
+@Suite("Launch repairs: sessions relinked, safe mode, track steps (hunt 11-02)")
+@MainActor
+struct LaunchRepairsHunt1102Tests {
+
+    private func isolatedDefaults() throws -> (UserDefaults, String) {
+        let suiteName = "LaunchRepairsHunt1102Tests.\(UUID().uuidString)"
+        return (try #require(UserDefaults(suiteName: suiteName)), suiteName)
+    }
+
+    // MARK: - #7
+
+    @Test("A session naming its project but not linked to it is linked; one naming no project here is left")
+    func unlinkedSessionsAreRelinked() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let project = CDProject(context: context)
+        project.title = "Book club"
+        let projectID = try #require(project.id)
+        let restored = CDProjectSession(context: context)
+        restored.projectID = projectID.uuidString
+        let elsewhere = CDProjectSession(context: context)
+        elsewhere.projectID = UUID().uuidString
+        let loose = CDProjectSession(context: context)
+        loose.projectID = ""
+        #expect(CoreDataTestHelpers.save(context))
+        #expect(restored.project == nil)
+
+        let linked = DataCleanupService.relinkUnlinkedProjectSessionsIfDue(using: context, firstDownloadPending: false)
+
+        #expect(linked == 1)
+        #expect(restored.project == project)
+        #expect(elsewhere.project == nil)
+        #expect(loose.project == nil)
+        #expect(!context.hasChanges, "it saves what it linked")
+        #expect(DataCleanupService.relinkUnlinkedProjectSessionsIfDue(using: context, firstDownloadPending: false) == 0)
+    }
+
+    @Test("Nothing is linked while the first download runs, or over changes not yet saved")
+    func relinkWaitsForTheDownloadAndUnsavedChanges() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let project = CDProject(context: context)
+        let session = CDProjectSession(context: context)
+        session.projectID = try #require(project.id).uuidString
+        #expect(CoreDataTestHelpers.save(context))
+
+        let relink = { (pending: Bool) in
+            DataCleanupService.relinkUnlinkedProjectSessionsIfDue(using: context, firstDownloadPending: pending)
+        }
+        #expect(relink(true) == nil)
+        project.title = "Being typed"
+        #expect(relink(false) == nil)
+        #expect(session.project == nil)
+    }
+
+    // MARK: - #57
+
+    @Test("In a session on the temporary in-memory store the launch steps don't run or set their flags")
+    func safeModeRunsNoLaunchSteps() throws {
+        let (defaults, suiteName) = try isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defaults.set(true, forKey: UserDefaultsKeys.inMemoryStoreSession)
+        let flag = "LaunchRepairsHunt1102Tests.stepDone"
+        let context = try CoreDataTestHelpers.makeContext()
+        var ran = false
+
+        let saved = AppBootstrapper.runLaunchBatch(in: context, oneShotFlags: [flag], defaults: defaults) {
+            ran = true
+            CoreDataTestHelpers.seedStudent(in: context, firstName: "Dee")
+            defaults.set(true, forKey: flag)
+        }
+
+        #expect(!saved)
+        #expect(!ran)
+        #expect(!defaults.bool(forKey: flag))
+        #expect(!context.hasChanges)
+
+        // The next launch that opens the stores runs them.
+        defaults.set(false, forKey: UserDefaultsKeys.inMemoryStoreSession)
+        #expect(AppBootstrapper.runLaunchBatch(in: context, oneShotFlags: [flag], defaults: defaults) {
+            ran = true
+            defaults.set(true, forKey: flag)
+        })
+        #expect(ran)
+        #expect(defaults.bool(forKey: flag))
+    }
+
+    // MARK: - #59
+
+    @Test("A track that stepped through both copies keeps one step, and what named the dropped one names it")
+    func lessonMergeRepointsDroppedSteps() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let kept = CoreDataTestHelpers.seedLesson(in: context, name: "Rectangle", area: "Geometry", sequence: "Area")
+        let duplicate = CoreDataTestHelpers.seedLesson(
+            in: context, name: "Rectangle", area: "Geometry", sequence: "Area"
+        )
+        let keptID = try #require(kept.id)
+        let duplicateID = try #require(duplicate.id)
+        let track = CDTrackEntity(context: context)
+        let keptStep = CDTrackStep(context: context)
+        keptStep.lessonTemplateID = keptID
+        keptStep.track = track
+        let droppedStep = CDTrackStep(context: context)
+        droppedStep.lessonTemplateID = duplicateID
+        droppedStep.track = track
+        // Another track stepped only through the duplicate: its step moves over.
+        let otherTrack = CDTrackEntity(context: context)
+        let movedStep = CDTrackStep(context: context)
+        movedStep.lessonTemplateID = duplicateID
+        movedStep.track = otherTrack
+        let droppedID = try #require(droppedStep.id).uuidString
+        let keptStepID = try #require(keptStep.id).uuidString
+        let movedID = try #require(movedStep.id).uuidString
+
+        let assignment = CDLessonAssignment(context: context)
+        assignment.trackStepID = droppedID
+        let mark = CDLessonPresentation(context: context)
+        mark.trackStepID = droppedID
+        let work = CoreDataTestHelpers.seedWorkModel(in: context, lessonID: duplicateID)
+        work.trackStepID = droppedID
+        let onMoved = CoreDataTestHelpers.seedWorkModel(in: context, lessonID: duplicateID)
+        onMoved.trackStepID = movedID
+        #expect(CoreDataTestHelpers.save(context))
+
+        DataCleanupService.repointLessonReferences(from: duplicateID, to: keptID, in: context)
+
+        #expect(droppedStep.isDeleted)
+        #expect(!keptStep.isDeleted)
+        #expect(movedStep.lessonTemplateID == keptID)
+        #expect(assignment.trackStepID == keptStepID)
+        #expect(mark.trackStepID == keptStepID)
+        #expect(work.trackStepID == keptStepID)
+        #expect(onMoved.trackStepID == movedID, "a step that moved keeps its id")
+    }
+}

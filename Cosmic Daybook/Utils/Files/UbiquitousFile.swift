@@ -46,7 +46,17 @@ nonisolated enum UbiquitousFile {
     /// `.<name>.icloud` next to where the file will be.
     static func placeholderURL(for url: URL) -> URL {
         url.deletingLastPathComponent()
-            .appendingPathComponent(".\(url.lastPathComponent).icloud", isDirectory: false)
+            .appendingPathComponent(".\(url.lastPathComponent)\(placeholderSuffix)", isDirectory: false)
+    }
+
+    private static let placeholderSuffix = ".icloud"
+
+    /// The item a placeholder file named `name` stands in for, or nil when
+    /// `name` isn't a placeholder's.
+    private static func itemName(ofPlaceholder name: String) -> String? {
+        guard name.hasPrefix("."), name.hasSuffix(placeholderSuffix),
+              name.count > 1 + placeholderSuffix.count else { return nil }
+        return String(name.dropFirst().dropLast(placeholderSuffix.count))
     }
 
     /// True when the file is on the device, or is an iCloud item waiting to be
@@ -311,5 +321,80 @@ nonisolated enum UbiquitousFile {
     private final class CoordinatorBox: @unchecked Sendable {
         let value: NSFileCoordinator
         init(_ value: NSFileCoordinator) { self.value = value }
+    }
+}
+
+// MARK: - Listing and checked copies (bug hunt 2026-11-02)
+
+nonisolated extension UbiquitousFile {
+
+    /// Every item in `folder` by its real name, as `contentsOfDirectory` with
+    /// `.skipsHiddenFiles` lists them, plus the iCloud items not downloaded to
+    /// this device yet, which iOS lists only as hidden placeholders: a backup
+    /// another device made is in the folder too, though its bytes aren't
+    /// (bug hunt 2026-11-02 #18). `needsDownload` says which those are, and
+    /// `ensureLocal` brings one down. Throws as `contentsOfDirectory` does.
+    static func contentsOfDirectory(
+        at folder: URL, includingPropertiesForKeys keys: [URLResourceKey]?
+    ) throws -> [URL] {
+        let fileManager = FileManager.default
+        var items = try fileManager.contentsOfDirectory(
+            at: folder, includingPropertiesForKeys: keys, options: [.skipsHiddenFiles]
+        )
+        var names = Set(items.map(\.lastPathComponent))
+        let everything = try fileManager.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil, options: [])
+        for entry in everything {
+            guard let name = itemName(ofPlaceholder: entry.lastPathComponent),
+                  !name.hasPrefix("."), names.insert(name).inserted else { continue }
+            items.append(folder.appendingPathComponent(name, isDirectory: false))
+        }
+        return items
+    }
+
+    // MARK: - Checked copies
+
+    /// Copies `source` over `destination` (made or replaced) the way Apple
+    /// recommends for a file that replaces whatever is in its way: under a
+    /// coordinated read of the source and a coordinated `.forReplacing` write
+    /// of the destination, the copy is made in an item replacement directory
+    /// on the destination's volume, checked to be the same size as the
+    /// source, and only then swapped in with `replaceItemAt`. A copy cut
+    /// short (a full disk, a quit) never sits under the real name. Runs off
+    /// the main thread; `timeout` bounds the wait for access as
+    /// `coordinatedCopy(from:to:timeout:)` does.
+    static func coordinatedCopy(from source: URL, replacing destination: URL, timeout: Duration) async throws {
+        let read = NSFileAccessIntent.readingIntent(with: source, options: .withoutChanges)
+        let write = NSFileAccessIntent.writingIntent(with: destination, options: .forReplacing)
+        try await coordinate([read, write], timeout: timeout) {
+            try copyCheckedThenReplace(from: read.url, to: write.url)
+        }
+    }
+
+    /// A copy whose size doesn't match its source's.
+    struct CopyIncomplete: LocalizedError {
+        var errorDescription: String? { "The copy didn't finish. Try again." }
+    }
+
+    /// The body of `coordinatedCopy(from:replacing:timeout:)`.
+    static func copyCheckedThenReplace(from source: URL, to destination: URL) throws {
+        let fileManager = FileManager.default
+        let exists = fileManager.fileExists(atPath: destination.path)
+        let staging = try fileManager.url(
+            for: .itemReplacementDirectory, in: .userDomainMask,
+            appropriateFor: exists ? destination : destination.deletingLastPathComponent(), create: true
+        )
+        defer { try? fileManager.removeItem(at: staging) }
+        let staged = staging.appendingPathComponent(destination.lastPathComponent, isDirectory: false)
+        try fileManager.copyItem(at: source, to: staged)
+        guard try fileSize(staged) == fileSize(source) else { throw CopyIncomplete() }
+        if exists {
+            _ = try fileManager.replaceItemAt(destination, withItemAt: staged)
+        } else {
+            try fileManager.moveItem(at: staged, to: destination)
+        }
+    }
+
+    private static func fileSize(_ url: URL) throws -> Int {
+        try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? -1
     }
 }

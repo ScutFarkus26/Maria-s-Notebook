@@ -37,7 +37,10 @@ struct AssistantOfficeRunView: View {
                     .foregroundStyle(Color(.secondaryLabel))
                     .textCase(nil)
             } footer: {
-                if !model.officeRun.isEmpty {
+                if model.isViewOnly {
+                    // Added as View only (#29): the rows show, nothing checks off.
+                    Text(AssistantSyncStatusView.viewOnlyMessage)
+                } else if !model.officeRun.isEmpty {
                     Text("Checking off a regular supply marks it Stocked for everyone.")
                 }
             }
@@ -93,14 +96,17 @@ struct AssistantOfficeRunView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(model.isViewOnly)
         // Holding a row says who asked for it; a tap is the same as "Got it".
         .contextMenu {
             Section {
-                Button(
-                    done ? "Undo" : "Got it",
-                    systemImage: done ? "arrow.uturn.backward" : "checkmark",
-                    action: toggle
-                )
+                if !model.isViewOnly {
+                    Button(
+                        done ? "Undo" : "Got it",
+                        systemImage: done ? "arrow.uturn.backward" : "checkmark",
+                        action: toggle
+                    )
+                }
             } header: {
                 Text(model.runWho(need))
             }
@@ -108,7 +114,7 @@ struct AssistantOfficeRunView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(spokenTitle(need, done: done, tag: tag))
         .accessibilityValue(detail)
-        .accessibilityHint(done ? "Double tap to undo" : "Double tap when you have it")
+        .accessibilityHint(model.isViewOnly ? "" : done ? "Double tap to undo" : "Double tap when you have it")
         .accessibilityAddTraits(.isButton)
     }
 

@@ -85,6 +85,8 @@ struct BackupSendMethodRoundTripTests {
         row.id = Self.settingsID
         row.sendMethodRaw = "parentLocker"
         row.parentLockerSite = "other.parentlocker.com"
+        // Older than the backup's row, so a merge takes the backup's (newer wins, bug hunt 2026-11-02, #1).
+        row.modifiedAt = ISO8601DateFormatter().date(from: "2026-09-01T12:00:00Z")
         let send = CDAttendanceEmailSend(context: target)
         send.id = Self.sendID
         send.channelRaw = "parentLocker"

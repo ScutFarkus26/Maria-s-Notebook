@@ -39,11 +39,22 @@ extension ClassroomShareRelease {
         if FirstDownloadGate.isPending() {
             return "This Mac is still downloading your notebook from iCloud. Try again once it has finished."
         }
+        if let reason = scopeBlocker() { return reason }
         if let reason = syncBlocker() { return reason }
         if CDClassroomMembership.pinnedZoneName(in: context) == nil {
             return "Your classroom isn't shared yet, so there's nothing to remove."
         }
         return anotherCopyBlocker()
+    }
+
+    /// The school-year start this Mac knows is only the September 1 fallback
+    /// (`ClassroomShareScope.isProvisional`): the class's own start hasn't arrived from
+    /// iCloud yet. Going by the fallback could take this year's first weeks out of the share,
+    /// and the start-date check (`cutoffBlocker`) looks back only two weeks (bug hunt
+    /// 2026-11-02, #39).
+    static func scopeBlocker(_ scope: ClassroomShareScope = ClassroomShareScope()) -> String? {
+        guard scope.isProvisional else { return nil }
+        return "Your school-year start hasn't reached this Mac yet. Open Settings › School year, then try again."
     }
 
     /// Another instance of the app on this Mac (a hidden one opened for Claude, say) holds the
@@ -131,7 +142,8 @@ nonisolated extension ClassroomShareRelease.Environment {
         let privateStore = container.persistentStoreCoordinator.persistentStores.first {
             $0.configurationName == CoreDataStack.privateConfiguration
         }
-        let exports = ClassroomShareExportActivity(storeIdentifier: privateStore?.identifier)
+        let privateStoreID = privateStore?.identifier
+        let exports = ClassroomShareExportActivity(storeIdentifier: privateStoreID)
         return Self(
             // Both read the mirroring metadata, which can wait on an export: off the main actor.
             shareZones: { ids in
@@ -175,8 +187,39 @@ nonisolated extension ClassroomShareRelease.Environment {
             exportIdle: { await exports.waitUntilIdle() },
             exportStarted: { await exports.waitForStart(after: $0) },
             awaitingGone: { savedAwaitingGone() },
-            setAwaitingGone: { saveAwaitingGone($0) }
+            setAwaitingGone: { saveAwaitingGone($0) },
+            heldHere: { await heldHere($0, container: container, privateStoreID: privateStoreID) }
         )
+    }
+
+    /// Of `records`, those of a student or mark in the private store. Nothing looks up an
+    /// object by its CloudKit record, so the store's students and marks are looked up the
+    /// other way; only a stopped run's leftovers ask. Reads the mirroring metadata, which can
+    /// wait on an export: off the main actor.
+    @concurrent
+    private static func heldHere(
+        _ records: [CKRecord.ID], container: NSPersistentCloudKitContainer, privateStoreID: String?
+    ) async -> Set<CKRecord.ID> {
+        let context = container.newBackgroundContext()
+        let ids: [NSManagedObjectID] = context.performAndWait {
+            guard let privateStoreID,
+                  let store = ClassroomShareRelease.store(privateStoreID, in: context) else { return [] }
+            var ids: [NSManagedObjectID] = []
+            for entity in ["Student", "AttendanceRecord"] {
+                let request = NSFetchRequest<NSManagedObjectID>(entityName: entity)
+                request.resultType = .managedObjectIDResultType
+                request.affectedStores = [store]
+                ids += (try? context.fetch(request)) ?? []
+            }
+            return ids
+        }
+        let wanted = Set(records)
+        var held = Set<CKRecord.ID>()
+        for start in stride(from: 0, to: ids.count, by: 500) {
+            let chunk = Array(ids[start..<min(start + 500, ids.count)])
+            held.formUnion(container.recordIDs(for: chunk).values.filter(wanted.contains))
+        }
+        return held
     }
 
     /// The live `awaitingGone` list: record name, zone name and owner of each.

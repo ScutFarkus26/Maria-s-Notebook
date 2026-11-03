@@ -23,9 +23,13 @@ enum BackupEntityImporter {
     /// Returns the pre-restore record with that ID, or nil when none exists.
     /// Importers populate whichever object comes back — the existing one or a
     /// freshly inserted one — so a merge restore updates records in place
-    /// (backup wins for any ID present in the backup; records absent from the
-    /// backup are left alone). In replace mode the store has already been
-    /// cleared, so the lookup always returns nil and every record is inserted.
+    /// (records absent from the backup are left alone, and so are records
+    /// changed here since the backup: `BackupRestoreRun.rows` holds back the
+    /// rows whose stored record has a later `modifiedAt`). In replace mode the
+    /// store has already been cleared, so the lookup returns nil and every
+    /// record is inserted, but for the types a Replace updates in place: the
+    /// names people set and the classroom share's records
+    /// (`BackupEntityRegistry.updatedInPlaceOnReplaceEntityNames`).
     typealias ExistingLookup<T: NSManagedObject> = (UUID) throws -> T?
 
     /// Type alias for a function that resolves a relationship target by ID.

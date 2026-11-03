@@ -7,8 +7,11 @@ import Foundation
 enum SettingsAttentionItem: Hashable, Identifiable {
     /// iCloud reports an error (`isError`) or is running behind.
     case syncProblem(isError: Bool)
-    /// No backup for a week or more; nil days means there has never been one.
-    case backupDue(daysSinceLastBackup: Int?)
+    /// No backup from this device for a week or more (nil days: never), or
+    /// this device's automatic backups failing (`failing`). One row either
+    /// way, fixed the same way: Back up now, run in place, whose own failure
+    /// shows under the row.
+    case backupDue(daysSinceLastBackup: Int?, failing: AutomaticBackupFailure? = nil)
     /// Classroom records the lead guide owns that aren't in the classroom share.
     case unsharedClassroomRecords(Int)
     /// Year-plan targets left over from a school year that has ended.
@@ -54,7 +57,9 @@ enum SettingsAttentionItem: Hashable, Identifiable {
         switch self {
         case .syncProblem(let isError):
             return isError ? "iCloud sync has a problem" : "iCloud sync is running behind"
-        case .backupDue(let days):
+        case .backupDue(_, let failing?):
+            return failing.title
+        case .backupDue(let days, nil):
             guard let days else { return "No backup yet" }
             return "Last backup was \(days) \(days == 1 ? "day" : "days") ago"
         case .unsharedClassroomRecords(let count):
@@ -75,7 +80,9 @@ enum SettingsAttentionItem: Hashable, Identifiable {
             return isError
                 ? "Recent changes may not have reached your other devices yet."
                 : "Changes are taking longer than usual to reach your other devices."
-        case .backupDue(let days):
+        case .backupDue(_, .some):
+            return "Back up now so there's a fresh copy. If that doesn't work either, the reason shows here."
+        case .backupDue(let days, nil):
             return days == nil
                 ? "Make one now so there's always a copy of your notebook to go back to."
                 : "A fresh one keeps this week's work safe."
@@ -118,11 +125,36 @@ enum SettingsAttentionItem: Hashable, Identifiable {
     }
 }
 
+/// This device's automatic backups failing since `since`
+/// (`AutoBackupManager.automaticBackupFailingSince`), worded for `device`
+/// ("Mac", "iPad", "iPhone").
+struct AutomaticBackupFailure: Hashable {
+    let device: String
+    let since: Date
+    /// Whether `since` is today, worded "didn't work" rather than "since".
+    var isToday = false
+
+    var title: String {
+        isToday
+            ? "This \(device)'s last automatic backup didn't work"
+            : "This \(device)'s automatic backups haven't worked since "
+                + since.formatted(date: .long, time: .omitted)
+    }
+}
+
 /// What the Overview knows when it decides which rows to show. Nil counts
 /// mean "doesn't apply here" (not the lead guide, sharing not set up, the
 /// sweep already run this year) or "not read yet".
 struct SettingsAttentionInputs {
+    /// This device's last backup: one it wrote itself, by hand or
+    /// automatically. Another device's backups don't count, or a Mac that
+    /// backs up hid an iPad that hadn't for weeks (bug hunt 2026-11-02 #12).
     var lastBackup: Date?
+    /// When this device's automatic backups started failing; nil while they
+    /// work, or when they're off.
+    var automaticBackupFailingSince: Date?
+    /// What this device is called in the failing row.
+    var deviceKind = "device"
     var syncHealth: CloudKitHealthCheck.SyncHealth = .unknown
     var unsharedClassroomRecords: Int?
     var carriedOverPlans: Int?
@@ -151,8 +183,14 @@ enum SettingsAttention {
         case .healthy, .syncing, .offline, .unknown: break
         }
 
-        if let lastBackup = inputs.lastBackup {
-            let days = daysSince(lastBackup, now: now, calendar: calendar)
+        let days = inputs.lastBackup.map { daysSince($0, now: now, calendar: calendar) }
+        if let failingSince = inputs.automaticBackupFailingSince {
+            items.append(.backupDue(daysSinceLastBackup: days, failing: AutomaticBackupFailure(
+                device: inputs.deviceKind,
+                since: failingSince,
+                isToday: calendar.isDate(failingSince, inSameDayAs: now)
+            )))
+        } else if let days {
             if days >= backupStaleAfterDays {
                 items.append(.backupDue(daysSinceLastBackup: days))
             }

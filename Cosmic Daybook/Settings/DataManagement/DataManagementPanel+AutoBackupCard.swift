@@ -64,6 +64,7 @@ extension DataManagementPanel {
                 .controlSize(.small)
 
                 footnote("Photos make each backup larger: every kept backup holds its own copy.")
+                footnote("Lesson files, documents and story PDFs aren't in backups.")
             }
         }
         // AutoBackupManager reads the switch and the interval only when it

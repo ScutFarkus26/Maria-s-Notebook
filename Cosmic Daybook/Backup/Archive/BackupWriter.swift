@@ -232,18 +232,10 @@ nonisolated public enum BackupWriter {
             createdAt: Date(),
             entityCounts: manifest.entityCounts,
             warnings: [],
-            notes: [Self.photoNote(includesPhotos: includesPhotos, photoCount: manifest.photoCount ?? 0)]
+            notes: [Self.photoNote(
+                includesPhotos: includesPhotos, photoCount: manifest.photoCount ?? 0, referencedCount: photoNames.count
+            )]
         )
-    }
-
-    /// What a finished backup says about photos and files: information, not a
-    /// warning (leaving documents and attachments out is by design).
-    static func photoNote(includesPhotos: Bool, photoCount: Int) -> String {
-        guard includesPhotos else {
-            return "Note photos, imported documents and file attachments aren't in this backup."
-        }
-        let photos = photoCount == 1 ? "1 note photo" : "\(photoCount.formatted()) note photos"
-        return "Includes \(photos). Imported documents and file attachments aren't in backups."
     }
 
     // MARK: - Off-Main Pipeline
@@ -470,7 +462,7 @@ nonisolated public enum BackupWriter {
     static func encodeManifest(_ manifest: BackupArchiveManifest) throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .prettyPrinted]
-        encoder.dateEncodingStrategy = .iso8601
+        encoder.dateEncodingStrategy = BackupDateCoding.encodingStrategy
         return try encoder.encode(manifest)
     }
 
@@ -481,7 +473,8 @@ nonisolated public enum BackupWriter {
         // Sorted keys for deterministic output (helpful for diffing). No pretty-printing
         // inside NDJSON entries — each line is one JSON object.
         encoder.outputFormatting = [.sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
+        // Milliseconds kept (`BackupDateCoding`).
+        encoder.dateEncodingStrategy = BackupDateCoding.encodingStrategy
         return encoder
     }
 
@@ -527,5 +520,32 @@ nonisolated public struct BackupEntityEntry: Sendable {
         self.storeName = storeName
         self.count = count
         self.ndjson = ndjson
+    }
+}
+
+// MARK: - The Finished Backup's Note
+
+nonisolated extension BackupWriter {
+
+    /// What a finished backup says about photos and files: information, not a
+    /// warning (leaving files out is by design). `photoCount` photos went in
+    /// of the `referencedCount` the notes use; the rest weren't on this device
+    /// (`BackupPhotos.localFiles`). Until 2026-11 it gave only the count that
+    /// went in, so 12 of 52 read as all of them (bug hunt 2026-11-02 #13).
+    static func photoNote(includesPhotos: Bool, photoCount: Int, referencedCount: Int) -> String {
+        let files = "Lesson files, documents and story PDFs aren't in backups."
+        guard includesPhotos else {
+            return "Note photos aren't in this backup. \(files)"
+        }
+        guard referencedCount > 0 else { return "There are no note photos to include. \(files)" }
+        let leftOut = max(0, referencedCount - photoCount)
+        guard leftOut > 0 else {
+            let photos = photoCount == 1 ? "1 note photo" : "\(photoCount.formatted()) note photos"
+            return "Includes \(photos). \(files)"
+        }
+        let rest = leftOut == 1
+            ? "The other one isn't on this device, so it's left out."
+            : "The other \(leftOut.formatted()) aren't on this device, so they're left out."
+        return "Includes \(photoCount.formatted()) of \(referencedCount.formatted()) note photos. \(rest) \(files)"
     }
 }

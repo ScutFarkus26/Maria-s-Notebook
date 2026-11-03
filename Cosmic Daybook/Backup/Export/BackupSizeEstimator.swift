@@ -38,40 +38,33 @@ enum BackupSizeEstimator {
     /// Expected compression ratio for LZFSE compression
     static let compressionRatio: Double = 3.0
 
-    /// Estimates the backup size in bytes based on current entity counts.
+    /// Estimates the backup size in bytes based on current entity counts,
+    /// plus the note photos on this device when backups include them (photo
+    /// files are already compressed, so counted at their own size).
     ///
     /// - Parameter viewContext: The model context to count entities from
     /// - Returns: Estimated compressed backup size in bytes
-    static func estimateBackupSize(viewContext: NSManagedObjectContext) -> Int64 {
+    static func estimateBackupSize(
+        viewContext: NSManagedObjectContext, includesPhotos: Bool = BackupPhotos.includesNotePhotos
+    ) -> Int64 {
         let counts = countEntities(viewContext: viewContext)
-        return estimateFromCounts(counts)
+        let photoBytes = includesPhotos
+            ? BackupPhotos.localBytes(for: BackupPhotos.referencedFilenames(in: viewContext)) : 0
+        return estimateFromCounts(counts) + photoBytes
     }
 
-    /// Counts all exportable entities in the database.
+    /// Counts every backed-up entity type (`BackupEntityTable`) in the
+    /// notebook. Until 2026-11 a hand-kept list counted 15 of the 82 types,
+    /// so the card's estimate left out most of the notebook (bug hunt
+    /// 2026-11-02 #21).
     ///
     /// - Parameter viewContext: The model context to count entities from
     /// - Returns: Dictionary mapping entity type names to counts
     static func countEntities(viewContext: NSManagedObjectContext) -> [String: Int] {
         var counts: [String: Int] = [:]
-
-        counts["Student"] = safeFetchCount(CDStudent.self, using: viewContext)
-        counts["Lesson"] = safeFetchCount(CDLesson.self, using: viewContext)
-        counts["Note"] = safeFetchCount(CDNote.self, using: viewContext)
-        counts["NonSchoolDay"] = safeFetchCount(CDNonSchoolDay.self, using: viewContext)
-        counts["SchoolDayOverride"] = safeFetchCount(CDSchoolDayOverride.self, using: viewContext)
-        counts["StudentMeeting"] = safeFetchCount(CDStudentMeeting.self, using: viewContext)
-        counts["CommunityTopic"] = safeFetchCount(CDCommunityTopicEntity.self, using: viewContext)
-        counts["ProposedSolution"] = safeFetchCount(CDProposedSolutionEntity.self, using: viewContext)
-        counts["CommunityAttachment"] = safeFetchCount(CDCommunityAttachment.self, using: viewContext)
-        counts["AttendanceRecord"] = safeFetchCount(CDAttendanceRecord.self, using: viewContext)
-        counts["WorkCompletionRecord"] = safeFetchCount(CDWorkCompletionRecord.self, using: viewContext)
-        counts["Project"] = safeFetchCount(CDProject.self, using: viewContext)
-        counts["ProjectAssignmentTemplate"] = 0 // Deprecated
-        counts["ProjectSession"] = safeFetchCount(CDProjectSession.self, using: viewContext)
-        counts["ProjectRole"] = safeFetchCount(CDProjectRole.self, using: viewContext)
-        counts["ProjectTemplateWeek"] = 0 // Deprecated
-        counts["ProjectWeekRoleAssignment"] = 0 // Deprecated
-
+        for entity in BackupEntityTable.entities {
+            counts[entity.name] = safeFetchCount(entity.managedType(), using: viewContext)
+        }
         return counts
     }
 
@@ -92,21 +85,24 @@ enum BackupSizeEstimator {
 
     // MARK: - Private Helpers
 
-    private static func safeFetchCount<T: NSManagedObject>(
-        _ type: T.Type, using context: NSManagedObjectContext
+    /// The rows of `type` a backup would hold: the notebook's own, as the
+    /// export reads them (`BackupRestoreScope.limitToNotebook`).
+    private static func safeFetchCount(
+        _ type: NSManagedObject.Type, using context: NSManagedObjectContext
     ) -> Int {
         // The name comes from this context's model, and a type it doesn't hold is
         // skipped: `T.entity()` is ambiguous once a process has loaded more than one
         // model, and a wrong entity name throws an ObjC NSException that Swift
         // catch cannot intercept.
-        guard let entityName = BackupFetchHelper.entityName(for: T.self, in: context) else {
+        guard let entityName = BackupFetchHelper.entityName(for: type, in: context) else {
             return 0
         }
-        let descriptor = NSFetchRequest<T>(entityName: entityName)
+        let descriptor = NSFetchRequest<NSManagedObject>(entityName: entityName)
+        BackupRestoreScope.limitToNotebook(descriptor, in: context)
         do {
             return try context.count(for: descriptor)
         } catch {
-            logger.warning("Failed to fetch count for \(T.self): \(error)")
+            logger.warning("Failed to fetch count for \(entityName, privacy: .public): \(error)")
             return 0
         }
     }

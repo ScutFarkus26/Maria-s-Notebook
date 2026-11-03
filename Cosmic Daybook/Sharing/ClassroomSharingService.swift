@@ -22,6 +22,9 @@ final class ClassroomSharingService {
     /// Written here and by joining (`+Joining`) only.
     var shareError: String?
     private(set) var currentShare: CKShare?
+    /// The guide added this account as View only (`readPermission`); the
+    /// Daybook Assistant says so and turns marking off (bug hunt 2026-11-02 #29).
+    private(set) var isViewOnly = ClassroomPermissions.shareIsViewOnly
 
     // Joining. Written by `+Joining` only; internal so that file can.
 
@@ -216,6 +219,46 @@ final class ClassroomSharingService {
         let found = CDClassroomMembership.classroomShare(among: shares, in: context)
         publishShare(found)
         publishParticipants(of: found)
+        if found != nil { await readPermission() }
+    }
+
+    // MARK: - View only
+
+    /// Whether the guide added this account as View only, after joining and
+    /// with each share read: from `canModifyManagedObjects(in:)` and this
+    /// account's place in the share, never from a failed save. Assistants only.
+    func readPermission() async {
+        guard currentRole == .assistant, let storeID = sharedStore?.identifier else { return }
+        let canModify = await Self.canModifyObjects(inStoreWithIdentifier: storeID, container: container)
+        let permission = currentShare?.currentUserParticipant?.permission
+        noteViewOnly(Self.isViewOnly(canModifyStore: canModify, participantPermission: permission))
+    }
+
+    /// Core Data's answer, off the main actor; true for a store that's gone.
+    @concurrent
+    nonisolated static func canModifyObjects(
+        inStoreWithIdentifier storeID: String,
+        container: NSPersistentCloudKitContainer
+    ) async -> Bool {
+        let stores = container.persistentStoreCoordinator.persistentStores
+        guard let store = stores.first(where: { $0.identifier == storeID }) else { return true }
+        return container.canModifyManagedObjects(in: store)
+    }
+
+    /// View only: the store can't be changed, or the share says read-only.
+    nonisolated static func isViewOnly(
+        canModifyStore: Bool, participantPermission: CKShare.ParticipantPermission?
+    ) -> Bool {
+        !canModifyStore || participantPermission == .readOnly
+    }
+
+    /// What `readPermission` found; false when she leaves (here or elsewhere).
+    func noteViewOnly(_ viewOnly: Bool) {
+        ClassroomPermissions.shareIsViewOnly = viewOnly
+        guard isViewOnly != viewOnly else { return }
+        isViewOnly = viewOnly
+        let access = viewOnly ? "view only" : "can make changes"
+        Self.logger.notice("This account's access to the classroom: \(access, privacy: .public)")
     }
 
     private func publishParticipants(of share: CKShare?) {
@@ -248,7 +291,11 @@ final class ClassroomSharingService {
 
     /// Leaves the current shared classroom (assistant only).
     /// Purges local shared data and removes the membership record.
-    func leaveClassroom() async throws {
+    ///
+    /// `classroomIsGone` (the Assistant's "Not in This Class"): nothing is
+    /// purged, since the pin may name a class she has joined since, whose
+    /// share Leave found and purged (bug hunt 2026-11-02 #6).
+    func leaveClassroom(classroomIsGone: Bool = false) async throws {
         loadCurrentMembership() // a row synced in after init left a stale role
         guard currentRole == .assistant else {
             Self.logger.warning("Only assistants can leave a classroom")
@@ -259,17 +306,24 @@ final class ClassroomSharingService {
         // The shares are read off the main actor, which a running download
         // would otherwise freeze (bug hunt 2026-10-20 #10).
         if let store = sharedStore {
-            let shares = if let storeID = store.identifier {
-                try await ClassroomShareAttach.shares(inStoreWithIdentifier: storeID, container: container)
-            } else {
-                try container.fetchShares(in: store)
+            var shares: [CKShare] = []
+            var pinned: CKShare?
+            if !classroomIsGone {
+                shares = if let storeID = store.identifier {
+                    try await ClassroomShareAttach.shares(inStoreWithIdentifier: storeID, container: container)
+                } else {
+                    try container.fetchShares(in: store)
+                }
+                pinned = currentShare ?? CDClassroomMembership.classroomShare(among: shares, in: context)
             }
-            let pinned = currentShare ?? CDClassroomMembership.classroomShare(among: shares, in: context)
-            let holdsClassroom = Self.holdsClassroom(store, in: context)
-            if let zoneID = try Self.shareToLeave(pinned: pinned, among: shares, holdsClassroom: holdsClassroom)?
-                .recordID.zoneID {
+            let holdsClassroom = !classroomIsGone && Self.holdsClassroom(store, in: context)
+            if let zoneID = try Self.zoneToPurge(
+                classroomIsGone: classroomIsGone, pinned: pinned, among: shares, holdsClassroom: holdsClassroom
+            ) {
                 Self.logger.notice("Purging shared zone: \(zoneID.zoneName, privacy: .public)")
                 try await container.purgeObjectsAndRecordsInZone(with: zoneID, in: store)
+            } else if classroomIsGone {
+                Self.logger.notice("The class was already taken off; Leave purges nothing")
             }
         }
 
@@ -292,7 +346,17 @@ final class ClassroomSharingService {
         participants = []
         isSharing = false
         currentRole = .leadGuide
+        noteViewOnly(false)
         Self.logger.info("Left classroom successfully")
+    }
+
+    /// The zone Leave purges: none when the class is gone already, else the
+    /// share `shareToLeave` names (which may throw rather than guess).
+    nonisolated static func zoneToPurge(
+        classroomIsGone: Bool, pinned: CKShare?, among shares: [CKShare], holdsClassroom: Bool
+    ) throws -> CKRecordZone.ID? {
+        guard !classroomIsGone else { return nil }
+        return try shareToLeave(pinned: pinned, among: shares, holdsClassroom: holdsClassroom)?.recordID.zoneID
     }
 
     // MARK: - Private

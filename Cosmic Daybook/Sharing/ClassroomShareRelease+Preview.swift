@@ -36,21 +36,29 @@ extension ClassroomShareRelease {
         /// Earlier-year attendance of children who aren't (they left earlier, or their
         /// record is gone) and aren't leaving the share in this run.
         let olderAttendanceOfChildrenWhoLeft: Int
+        /// This year's attendance of children no longer in the notebook: without her record a
+        /// child doesn't belong, nor do her marks. Not "from before" the start (#41).
+        let thisYearsAttendanceOfChildrenGone: Int
         /// Records a stopped run left on both sides; this run finishes them.
         let unfinished: Int
+        /// Records a stopped run left on both sides that belong in the share after all: only
+        /// their private copy goes (`TwinCleanup`).
+        let heldTwice: Int
         /// Records that stay shared because a backup can't hold them.
         let leftShared: [LeftShared]
         let batches: [Batch]
 
         var isEmpty: Bool { batches.isEmpty }
-        var recordCount: Int { batches.reduce(0) { $0 + $1.moves.count } }
+        var recordCount: Int { batches.reduce(0) { $0 + $1.moves.count + $1.twinCleanups.count } }
         /// Every record the run touches: each shared original, and any private copy a
-        /// stopped run left. The backup must hold each one (`checkBackup`).
+        /// stopped run left (both of a twin cleanup's too). The backup must hold each one
+        /// (`checkBackup`).
         var records: [NSManagedObjectID] { ClassroomShareRelease.records(in: batches) }
     }
 
     nonisolated static func records(in batches: [Batch]) -> [NSManagedObjectID] {
         batches.flatMap(\.moves).flatMap { move in move.sharedRows + [move.existingTwin].compactMap { $0 } }
+            + batches.flatMap(\.twinCleanups).flatMap { [$0.shared] + $0.twins }
     }
 
     // MARK: - Reading
@@ -78,10 +86,16 @@ extension ClassroomShareRelease {
         let inClass = Set(rows.filter { $0.entity == "Student" && $0.belongs }.map(\.studentKey))
         let olderMoves = batches.filter { $0.studentKey == nil }.flatMap(\.moves)
         let older = olderMoves.filter { inClass.contains($0.studentKey) }.count
+        // Of the others', those dated this year are of children no longer in the notebook: a
+        // child here with a mark this year is in this year's class.
+        let thisYear = Set(rows.filter(\.datedThisYear).map(\.objectID))
+        let gone = olderMoves.filter { !inClass.contains($0.studentKey) && thisYear.contains($0.source) }.count
         let described = await describe(batches, leftShared: leftShared(in: rows), container: container)
         return Preview(
             cutoff: cutoff, children: described.children, olderAttendance: older,
-            olderAttendanceOfChildrenWhoLeft: olderMoves.count - older, unfinished: unfinished,
+            olderAttendanceOfChildrenWhoLeft: olderMoves.count - older - gone,
+            thisYearsAttendanceOfChildrenGone: gone, unfinished: unfinished,
+            heldTwice: batches.reduce(0) { $0 + $1.twinCleanups.count },
             leftShared: described.leftShared, batches: batches
         )
     }

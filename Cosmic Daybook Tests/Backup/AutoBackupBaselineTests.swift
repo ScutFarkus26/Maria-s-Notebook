@@ -53,28 +53,17 @@ struct AutoBackupBaselineTests {
         #expect(!tracker.hasChangesSinceLastBackup(in: context))
     }
 
-    @Test("Automatic backups wait during a first download; manual ones never do")
-    func automaticBackupsWaitForTheFirstDownload() {
-        for trigger in [AutoBackupManager.BackupTrigger.appQuit, .scheduled, .background] {
-            #expect(AutoBackupManager.waitsForFirstDownload(trigger, firstDownloadPending: true))
-            #expect(!AutoBackupManager.waitsForFirstDownload(trigger, firstDownloadPending: false))
+    // Bug hunt 2026-11-02 #14: the wait lasted a day at most, and then a
+    // half-downloaded notebook's backups took the usual names and trimmed the
+    // whole ones. Now they are written, under a name that marks them.
+    @Test("A backup made during a first download is named Partial-; one made after isn't")
+    func backupsDuringTheFirstDownloadAreMarked() {
+        for prefix in ["AutoBackup", "ScheduledBackup", "ManualBackup"] {
+            #expect(AutoBackupManager.fileNamePrefix(prefix, firstDownloadPending: true) == "Partial-" + prefix)
+            #expect(AutoBackupManager.fileNamePrefix(prefix, firstDownloadPending: false) == prefix)
         }
-        #expect(!AutoBackupManager.waitsForFirstDownload(.manual, firstDownloadPending: true))
-    }
-
-    @Test("A first download that never finishes holds backups back for a day at most")
-    func firstDownloadWaitHasALimit() throws {
-        let defaults = try #require(UserDefaults(suiteName: "AutoBackupBaselineTests.armedAt"))
-        defer { defaults.removePersistentDomain(forName: "AutoBackupBaselineTests.armedAt") }
-        let now = Date()
-        // Armed by an older build: no time recorded, so nothing is held back.
-        #expect(!FirstDownloadGate.armedRecently(within: 86_400, now: now, defaults: defaults))
-        FirstDownloadGate.arm(defaults: defaults)
-        #expect(FirstDownloadGate.armedRecently(within: 86_400, now: now, defaults: defaults))
-        let nextDay = now.addingTimeInterval(90_000)
-        #expect(!FirstDownloadGate.armedRecently(within: 86_400, now: nextDay, defaults: defaults))
-        FirstDownloadGate.open(defaults: defaults)
-        #expect(defaults.object(forKey: FirstDownloadGate.armedAtKey) == nil)
+        #expect(AutoBackupFolders.isPartial("Partial-AutoBackup-2026-11-02T08:00:00.000Z.mtbbackup"))
+        #expect(!AutoBackupFolders.isPartial("AutoBackup-2026-11-02T08:00:00.000Z.mtbbackup"))
     }
 
     @Test("Only the notebook's two-store layout gets the history processor")

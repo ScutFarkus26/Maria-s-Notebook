@@ -70,6 +70,8 @@ final class TideSyncService {
     /// When the last run ended, so coming to the front right after one
     /// doesn't start another.
     private var lastRunEnded: ContinuousClock.Instant?
+    /// Runs in a row that found Tide still opening; past four, the usual wait.
+    private var stillOpeningRuns = 0
 
     private static let logger = Logger(subsystem: "CosmicDaybook", category: "TideSync")
 
@@ -130,13 +132,18 @@ final class TideSyncService {
         let key = PersistentHistoryProcessor.changedEntityNamesKey
         let center = NotificationCenter.default
         // Heard as it is posted, on the view context's own (main) queue, so a
-        // change the sync makes is heard while the store says it is writing.
+        // change the sync makes is heard while the store says it is writing,
+        // and a deleted to-do can still be read.
         observers.append(center.addObserver(
             forName: .NSManagedObjectContextObjectsDidChange, object: context, queue: nil
         ) { [weak self] note in
             guard Thread.isMainThread, !ManagedObjectChangeScope.touched(names, in: note.userInfo).isEmpty
             else { return }
-            MainActor.assumeIsolated { self?.todosChanged() }
+            let ticks = TideSyncService.deletedTicks(in: note.userInfo)
+            MainActor.assumeIsolated {
+                if !ticks.isEmpty { self?.currentEngine()?.rememberDeletedTicks(ticks) }
+                self?.todosChanged()
+            }
         })
         observers.append(center.addObserver(
             forName: .presentationDataDidChange, object: nil, queue: .main
@@ -242,7 +249,7 @@ final class TideSyncService {
     private func perform(userInitiated: Bool, confirming matches: [TideFirstRunProposal.Match]?) async {
         guard policy == .live else { return showIdleStatus() }
         guard settings.isOn, let engine = currentEngine() else { return showIdleStatus() }
-        if !userInitiated, shouldDefer() { return }
+        if !userInitiated, shouldDefer() { return show(TideSyncMessages.paused) }
         if matches != nil || statusMessage == TideSyncMessages.off || statusMessage == TideSyncMessages.needsAddress {
             show(TideSyncMessages.syncing)
         }
@@ -257,6 +264,10 @@ final class TideSyncService {
     private func apply(_ result: TideSyncResult, engine: TideSyncEngine) {
         statusIsAway = false
         if let area = engine.lastArea { showLists(of: area) }
+        // Still opening passes in moments: asked again soon, a few times,
+        // rather than after the usual three minutes.
+        stillOpeningRuns = result == .stopped(.stillOpening) ? stillOpeningRuns + 1 : 0
+        if (1...4).contains(stillOpeningRuns) { followUp = true }
         switch result {
         case .synced(let report):
             proposal = nil
@@ -354,6 +365,10 @@ extension TideSyncService {
             show(TideSyncMessages.notTicked(report.notTicked), details: report.details, problem: true)
         } else if !report.notSent.isEmpty {
             show(TideSyncMessages.notSent(report.notSent), details: report.details, problem: true)
+        } else if !report.notCarried.isEmpty {
+            show(TideSyncMessages.notCarried(report.notCarried), details: report.details, problem: true)
+        } else if !report.pastDue.isEmpty {
+            show(TideSyncMessages.pastDue(report.pastDue), details: report.details, problem: true)
         } else if report.destinationGone {
             show(TideSyncMessages.destinationGone, problem: true)
         } else if report.tryAgain {

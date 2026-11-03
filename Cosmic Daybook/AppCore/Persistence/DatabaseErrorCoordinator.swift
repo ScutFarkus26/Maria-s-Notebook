@@ -165,11 +165,15 @@ final class DatabaseErrorCoordinator {
         return try await restore.run(backup: url, restoringWith: coordinator, progress: progress)
     }
 
-    /// What the screen says once the backup is restored.
+    /// What the screen says once the backup is restored, including how long
+    /// the notebook that wouldn't open is kept (`CoreDataStack.trimSetAsideNotebooks`:
+    /// while sync is off, and a month at least).
     static func restoredMessage(warnings: [String]) -> String {
         var lines = [
-            "Open Cosmic Daybook again to use your notebook. The notebook that wouldn't open is kept "
-                + "on this device, set aside. iCloud sync stays off."
+            "Open Cosmic Daybook again to use your notebook. iCloud sync stays off, and while it's off, "
+                + "the notebook that wouldn't open is kept on this device, set aside. Once you turn sync "
+                + "on again, it's deleted when it's a month old, so get help moving anything you still "
+                + "need from it before then."
         ]
         lines += warnings
         return lines.joined(separator: "\n\n")

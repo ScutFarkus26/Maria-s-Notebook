@@ -7,8 +7,8 @@ Cosmic Daybook is a comprehensive teacher planning and classroom management app 
 **Tech Stack:**
 - Swift 6.0 / SwiftUI
 - Core Data + NSPersistentCloudKitContainer (two-store architecture)
-- iOS 27.0+ / macOS 27.0+ / visionOS 27.0+
-- Xcode 27.1 (27A9275) at `/Applications/Xcode.app` — the only Xcode installed, and what `xcode-select` points at, so `xcodebuild`/`xcrun` need no `DEVELOPER_DIR`
+- iOS 27.0+ / macOS 27.0+ / visionOS 27.0+ for the notebook. The Daybook Assistant's deployment target is iOS 18.0 (`project.pbxproj`), so in any file it compiles (about 90 notebook files, among them `Sharing/*` and `AppCore/Persistence/*`) an iOS 26 or 27 API needs `#available`.
+- Xcode 27.2 (27B52) at `/Applications/Xcode.app` — the only Xcode installed, and what `xcode-select` points at, so `xcodebuild`/`xcrun` need no `DEVELOPER_DIR`
 
 ## Build & Run
 
@@ -168,10 +168,10 @@ MVVM with services on `NSPersistentCloudKitContainer` (private and shared stores
 
 ## Sharing Model
 
-- **Lead Guide** — full read/write on everything; the only role that sets up sharing or locks a day
-- **Assistant** — the Daybook Assistant: reads the classroom share, writes attendance on any unlocked day, marks staples, checks off the office run and adds needs (Restock), and sets her own name (`ClassroomNames`)
-- These roles are app conventions, not access control: CloudKit enforces only the share participant's permission, over all eleven share types. "Attendance, Restock and your own name only", "only the guide locks" and "a locked day refuses edits" hold because the apps enforce them (`ClassroomPermissions`, `CDAttendanceStore`), and `recordedBy`/`recordedByName` are stamped by the writing device.
-- Classroom share (11 types, schema 18): Student (schema 21 adds `bornAfterSunset`, which moves the Hebrew birthday a day), AttendanceRecord, NonSchoolDay, SchoolDayOverride, AttendanceDayLock, AttendanceEmailSend, AttendanceEmailSettings (schema 12), Supply, SupplyTransaction, OrderItem (schema 15), ClassroomPerson (schema 16: the name each person sets, looked up when a line is worded; `ClassroomNames` is the only reader and writer)
+- **Lead Guide** — full read/write on everything; the only role that sets up sharing (on the Mac only) or locks a day
+- **Assistant** — the Daybook Assistant: reads the classroom share, writes attendance on any unlocked day, marks staples, checks off the office run and adds needs (Restock), and sets her own name (`ClassroomNames`). An assistant added as View only (the Add Member picker no longer offers it, but older members may hold it) changes nothing: attendance and Restock both refuse
+- These roles are app conventions, not access control: CloudKit enforces only the share participant's permission, over all 15 share types. "Attendance, Restock and your own name only", "only the guide locks" and "a locked day refuses edits" hold because the apps enforce them (`ClassroomPermissions`, `CDAttendanceStore`), and `recordedBy`/`recordedByName` are stamped by the writing device.
+- Classroom share (15 types, listed in `CoreDataStack.sharedEntityNames`; schema 22 is current): Student (schema 21 adds `bornAfterSunset`, which moves the Hebrew birthday a day), AttendanceRecord, NonSchoolDay, SchoolDayOverride, AttendanceDayLock, AttendanceEmailSend, AttendanceEmailSettings (schema 12), Supply, SupplyTransaction, OrderItem (schema 15), ClassroomPerson (schema 16: the name each person sets, looked up when a line is worded; `ClassroomNames` is the only reader and writer), and the four Schedules types TimetableLane, TimetableBlock, TimetableChange and TimetableBooking (schema 20: only the guide's devices write them, assistants read)
 - **This school year only (2026-09-30):** students who are enrolled or left during this school year, and attendance from its first day on (`ClassroomShareScope`); last year leaves the share only by the Mac's Settings › Classroom › Remove Last Year from the Share (`ClassroomShareRelease`). See CloudKit.
 - Everything else is the guide's own (70 types): lessons, tracks, notes, work, todos, projects, meetings, ClassroomMembership, …
 

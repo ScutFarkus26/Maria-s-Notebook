@@ -1,6 +1,7 @@
 import CloudKit
 import CoreData
 import Foundation
+import Synchronization
 @testable import CosmicDaybook
 
 /// The fake iCloud for the release tests: it "syncs" instantly — the server holds whatever
@@ -14,6 +15,9 @@ nonisolated final class FakeReleaseCloud: @unchecked Sendable {
     private var shared = Set<NSManagedObjectID>()
     var serverLags = false
     var stop: String?
+    /// The share's zone is gone from the server (the share was stopped): its records are
+    /// answered with `CloudKitServerCheck.ZoneMissing`, as the server's `zoneNotFound` is.
+    var shareZoneGone = false
     /// Server calls that fail with a network error before the server answers.
     var networkFailuresLeft = 0
     /// Answers to "did an export start?", in order; then true.
@@ -117,19 +121,7 @@ nonisolated final class FakeReleaseCloud: @unchecked Sendable {
                 }
                 return records
             },
-            serverRecords: { records in
-                if self.takeNetworkFailure() { throw CKError(.networkFailure) }
-                if self.serverLags { return [:] }
-                let coordinator = self.container.persistentStoreCoordinator
-                var found: [CKRecord.ID: Date] = [:]
-                for record in records {
-                    guard let url = URL(string: record.recordName),
-                          let id = coordinator.managedObjectID(forURIRepresentation: url),
-                          self.exists(id) || self.isKeptOnServer(id) else { continue }
-                    found[record] = Date()
-                }
-                return found
-            },
+            serverRecords: { try self.serverAnswer($0) },
             stopReason: { self.stop },
             sleep: { _ in
                 try self.countWait(limit: patience == nil ? FakeReleaseCloud.finishingWaits : nil)
@@ -139,8 +131,54 @@ nonisolated final class FakeReleaseCloud: @unchecked Sendable {
             exportStarted: { _ in self.nextExportStartAnswer() },
             afterStep: afterStep,
             awaitingGone: { self.awaiting },
-            setAwaitingGone: { self.awaiting = $0 }
+            setAwaitingGone: { self.awaiting = $0 },
+            heldHere: { self.heldHere($0) }
         )
+    }
+
+    /// What the fake server holds of `records`: those whose object is here or kept on the
+    /// server, each dated now. Records in the share zone throw `ZoneMissing` while
+    /// `shareZoneGone`.
+    func serverAnswer(_ records: [CKRecord.ID]) throws -> [CKRecord.ID: Date] {
+        if takeNetworkFailure() { throw CKError(.networkFailure) }
+        if serverLags { return [:] }
+        var found: [CKRecord.ID: Date] = [:]
+        var inMissingZones = Set<CKRecord.ID>()
+        for record in records {
+            if shareZoneGone, record.zoneID.zoneName == FakeReleaseCloud.shareZone {
+                inMissingZones.insert(record)
+                continue
+            }
+            guard let id = objectID(of: record), exists(id) || isKeptOnServer(id) else { continue }
+            found[record] = Date()
+        }
+        if !inMissingZones.isEmpty {
+            throw CloudKitServerCheck.ZoneMissing(found: found, inMissingZones: inMissingZones)
+        }
+        return found
+    }
+
+    /// Of `records`, those whose object is in the store.
+    func heldHere(_ records: [CKRecord.ID]) -> Set<CKRecord.ID> {
+        Set(records.filter { record in objectID(of: record).map(exists) ?? false })
+    }
+
+    /// The object a fake record names: its record name is the object's URI.
+    private func objectID(of record: CKRecord.ID) -> NSManagedObjectID? {
+        guard let url = URL(string: record.recordName) else { return nil }
+        return container.persistentStoreCoordinator.managedObjectID(forURIRepresentation: url)
+    }
+}
+
+/// True the first time it's asked, false after: a step hook that acts once.
+nonisolated final class ReleaseTestOnce: Sendable {
+    private let done = Mutex(false)
+
+    func claim() -> Bool {
+        done.withLock { done in
+            defer { done = true }
+            return !done
+        }
     }
 }
 

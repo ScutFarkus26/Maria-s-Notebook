@@ -130,6 +130,7 @@ final class BackupCoordinator {
             entityInserts: analysis.inserts,
             entitySkips: analysis.skips,
             entityDeletes: analysis.deletes,
+            entityKept: analysis.kept,
             totalInserts: analysis.totalInserts,
             totalDeletes: analysis.totalDeletes,
             warnings: analysis.warnings + archive.warnings

@@ -203,6 +203,7 @@ struct BackupRestoreTransactionTests {
             fileName: "spy", entityCounts: [:]
         )
         let preferences = PreferencesDTO(values: [:])
+        let skippedEntityNames: Set<String> = []
         var asked: [String] = []
 
         func rows(of entity: BackupEntity) -> BackupPayload {
@@ -253,6 +254,15 @@ struct BackupRestoreTransactionTests {
             try await BackupImporter.restore(
                 from: url, into: target.viewContext, mode: .replace, appRouter: AppRouter(), progress: { _, _ in }
             )
+        }
+
+        // With no iCloud export to wait for, the restore no longer suspends
+        // after its save (bug hunt 2026-11-02, #23), so the queued task runs
+        // once this test gives up the main actor; it must find the save done.
+        var yields = 0
+        while look.unsavedChanges == nil, yields < 100 {
+            await Task.yield()
+            yields += 1
         }
 
         let steps = recorder.reached

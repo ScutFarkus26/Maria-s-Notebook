@@ -195,13 +195,92 @@ extension CoreDataStack {
         return name.isEmpty ? "Set aside" : name
     }
 
+    /// How the error screen's restore names the folder it moves the notebook
+    /// that wouldn't open into (`FreshNotebookRestore.keptFolderName`).
+    nonisolated static let setAsideFolderPrefix = "Set aside "
+
+    /// How long a notebook the error screen's restore set aside is kept,
+    /// at least: never while iCloud sync is off (`trimSetAsideNotebooks`).
+    /// `DatabaseErrorCoordinator.restoredMessage` says so.
+    nonisolated static let setAsideKeepTime: TimeInterval = 30 * 24 * 60 * 60
+
+    /// Deletes the folders the error screen's restore set the old notebook
+    /// aside in, once they're older than `keepFor`: each is a whole
+    /// classroom's notebook, and they used to stay on the device for good
+    /// (bug hunt 2026-11-02, #55). A month is time to notice work the backup
+    /// didn't have and get help moving it over. Nothing goes:
+    /// - while iCloud sync is off on this device. That restore runs only
+    ///   with sync off, so the notebook it set aside may hold the only copy
+    ///   of work done since the backup; while sync stays off nothing else
+    ///   has it (2026-11-03 review);
+    /// - while a restore is unfinished (the folder its note names *is* the
+    ///   notebook);
+    /// - nor a folder whose name carries no date.
+    ///
+    /// Returns the names of the folders deleted.
+    @discardableResult
+    nonisolated static func trimSetAsideNotebooks(
+        in directory: URL,
+        now: Date = Date(),
+        keepFor: TimeInterval = setAsideKeepTime,
+        syncIsOn: Bool = syncPreferred(in: .standard)
+    ) -> [String] {
+        guard syncIsOn, unfinishedRestoreFolder(in: directory) == nil else { return [] }
+        let fm = FileManager.default
+        guard let names = try? fm.contentsOfDirectory(atPath: directory.path) else { return [] }
+        var deleted: [String] = []
+        for name in names.sorted() {
+            guard let setAsideAt = setAsideDate(folderName: name), now.timeIntervalSince(setAsideAt) > keepFor else {
+                continue
+            }
+            do {
+                try fm.removeItem(at: directory.appendingPathComponent(name, isDirectory: true))
+                deleted.append(name)
+            } catch {
+                logger.error("Couldn't remove an old set-aside notebook: \(error.localizedDescription)")
+            }
+        }
+        if !deleted.isEmpty {
+            logger.notice("Removed \(deleted.count) notebook(s) set aside by a restore over a month ago")
+        }
+        return deleted
+    }
+
+    /// Once `container`'s stores have opened and been stamped: the copies
+    /// made before a migration (this launch's, or one an earlier launch
+    /// left) have done their job, and, for the app's own stores, a notebook
+    /// a restore set aside a month ago goes too (bug hunt 2026-11-02, #55).
+    /// Only with the store files to this copy of the app.
+    nonisolated static func removeCopiesLeftBehind(by container: NSPersistentContainer, opensAppStores: Bool) {
+        removePremigrationCopies(of: container.persistentStoreDescriptions.compactMap(\.url))
+        if opensAppStores { trimSetAsideNotebooks(in: storeDirectory()) }
+    }
+
+    /// When a restore set a notebook aside, from its folder's name
+    /// (`Set aside 2026-11-02T10.15.30Z`, perhaps with ` 2` after it); nil
+    /// for any other name.
+    nonisolated static func setAsideDate(folderName: String) -> Date? {
+        guard folderName.hasPrefix(setAsideFolderPrefix) else { return nil }
+        let stamp = folderName.dropFirst(setAsideFolderPrefix.count)
+            .split(separator: " ").first.map(String.init) ?? ""
+        return try? Date(stamp.replacingOccurrences(of: ".", with: ":"), strategy: .iso8601)
+    }
+
     /// A second copy becomes the primary once the other copies have quit
     /// (`StoreProcessLock.promoteIfAlone`); true when it is now the primary.
     @discardableResult
     nonisolated static func promoteToPrimaryIfAlone() -> Bool { storeLock.promoteIfAlone() }
 
-    /// How long a launch waits for another copy in the middle of store surgery.
-    nonisolated static let storeLockWait: Duration = .seconds(10)
+    /// How long a launch waits for another copy in the middle of store
+    /// surgery: long enough for a big notebook's migration and the copy made
+    /// before it. Ten seconds wasn't, and the message that followed told the
+    /// guide to quit the copy that was migrating (bug hunt 2026-11-02, #54).
+    /// That copy's hold ends when its `openStores` returns or throws, or when
+    /// it quits (a `flock` goes with its process), so only a copy that is
+    /// stuck keeps this one waiting the whole time; quitting it is then the
+    /// right advice. The wait is off the main thread, behind "Opening your
+    /// notebook…" (`startOpening`).
+    nonisolated static let storeLockWait: Duration = .seconds(10 * 60)
 
     /// Takes the app's store files at launch: true when this copy has them to
     /// itself, so store surgery may run; false when another copy has them open
@@ -212,6 +291,7 @@ extension CoreDataStack {
         wait: Duration = storeLockWait
     ) throws -> Bool {
         if lock.tryExclusive() { return true }
+        logger.notice("Another copy of the app has the notebook's store files: waiting for any update it is making")
         guard lock.holdShared(timeout: wait) else {
             throw CoreDataStackError.storeInUseByAnotherCopy
         }
@@ -231,18 +311,39 @@ extension CoreDataStack {
     /// launch knows it downloads everything (`FirstDownloadGate`), so the
     /// empty files go too. The launch reset holds the store lock, so no other
     /// copy of the app has them open.
+    ///
+    /// The store's other copies go with it (`leftoverStoreItems`): the one
+    /// made before a migration, a quarantined shared store, and the folder of
+    /// attachments Core Data keeps outside the database. A Re-download used
+    /// to leave every one on the device for good (bug hunt 2026-11-02, #55).
     nonisolated static func resetStores(
         _ urls: [URL] = [privateStoreURL(), sharedStoreURL(), unifiedStoreURL()]
     ) throws {
         let fm = FileManager.default
         let coordinator = NSPersistentStoreCoordinator(managedObjectModel: NSManagedObjectModel())
-        for url in urls where fm.fileExists(atPath: url.path) {
-            try coordinator.destroyPersistentStore(at: url, type: .sqlite, options: nil)
-            for file in storeFiles(for: url) where fm.fileExists(atPath: file.path) {
+        for url in urls {
+            if fm.fileExists(atPath: url.path) {
+                try coordinator.destroyPersistentStore(at: url, type: .sqlite, options: nil)
+            }
+            for file in storeFiles(for: url) + leftoverStoreItems(for: url) where fm.fileExists(atPath: file.path) {
                 try fm.removeItem(at: file)
             }
         }
         logger.info("Core Data stores reset")
+    }
+
+    /// What belongs to the store at `storeURL` besides its file and journal:
+    /// the copy made before a migration (`private.premigration.sqlite`), a
+    /// quarantined shared store (`shared.sqlite.incoherent`), each with its
+    /// journal, and `.<name>_SUPPORT`, where Core Data keeps attributes stored
+    /// outside the database (attachments, album ink).
+    nonisolated static func leftoverStoreItems(for storeURL: URL) -> [URL] {
+        let name = storeURL.deletingPathExtension().lastPathComponent
+        let support = storeURL.deletingLastPathComponent()
+            .appendingPathComponent(".\(name)_SUPPORT", isDirectory: true)
+        return storeFiles(for: premigrationCopyURL(for: storeURL))
+            + storeFiles(for: quarantineURL(for: storeURL))
+            + [support]
     }
 
     /// A SQLite store's file and its companions. SQLite names them by
@@ -315,7 +416,8 @@ extension CoreDataStack {
         defaults.removeObject(forKey: UserDefaultsKeys.noteScopeIndexRepairDone)
         // ...and for multi-child notes missing their student links.
         defaults.removeObject(forKey: UserDefaultsKeys.noteStudentLinkRepairDone)
-        // ...and for project check-in work saved without its type.
+        // The project check-in work repair's done flag, retired 2026-11-02
+        // (it runs every launch now), so an old one isn't left behind.
         defaults.removeObject(forKey: UserDefaultsKeys.projectWorkContextRepairDone)
         #endif
         clearLocalCacheResetRequest(in: defaults)

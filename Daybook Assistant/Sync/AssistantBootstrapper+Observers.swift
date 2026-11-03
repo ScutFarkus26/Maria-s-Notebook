@@ -112,14 +112,24 @@ extension AssistantBootstrapper {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            MainActor.assumeIsolated {
-                // Joined while looking at the sample: the real class wins.
-                self?.leaveSampleClass()
-                self?.refreshMembership()
-                // A name she gave before (in the sample, or another class)
-                // joins this class's list.
-                self?.writeWaitingName()
-            }
+            MainActor.assumeIsolated { self?.joinedClassroom() }
         }
+    }
+
+    /// A join finished: its membership row is written.
+    ///
+    /// Joined again after being taken out of a class, "Not in This Class"
+    /// stayed up until the next import, the membership read returning early
+    /// on a phase already ready, and its Leave purged the class she had just
+    /// joined (bug hunt 2026-11-02 #6). The new class is read at once now.
+    func joinedClassroom() {
+        // Joined while looking at the sample: the real class wins.
+        leaveSampleClass()
+        removedFromClass = false
+        refreshMembership()
+        checkStillInClass()
+        // A name she gave before (in the sample, or another class) joins
+        // this class's list.
+        writeWaitingName()
     }
 }

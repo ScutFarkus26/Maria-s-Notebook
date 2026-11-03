@@ -55,7 +55,12 @@ extension ClassroomSharingService {
     /// Adds the person with this Apple Account email or phone number. CloudKit
     /// sends nothing itself: they still need the classroom link, which only
     /// opens for people added here.
-    func addMember(_ address: String, permission: CKShare.ParticipantPermission) async throws {
+    ///
+    /// Always as "Can make changes". The sheet used to offer "View only", but
+    /// the Daybook Assistant goes by her role, not the share's permission: a
+    /// view-only assistant could still mark attendance, and her marks never
+    /// reached the guide (bug hunt 2026-11-02, #29).
+    func addMember(_ address: String) async throws {
         let address = address.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !address.isEmpty else { throw MemberError.emptyAddress }
 
@@ -75,7 +80,7 @@ extension ClassroomSharingService {
                 ? MemberError.alreadyMember(address)
                 : MemberError.alreadyInvited(address)
         }
-        participant.permission = permission
+        participant.permission = .readWrite
         share.addParticipant(participant)
         do {
             try await save(share)

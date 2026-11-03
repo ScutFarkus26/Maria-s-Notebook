@@ -102,6 +102,14 @@ final class AssistantBootstrapper {
     /// network (`sendStalled`): the next stall within `stallRebuildWindow`
     /// is left to the attacher's own rests.
     @ObservationIgnored var rebuiltForStallAt: Date?
+    /// The attacher's count of rounds that put marks in (`sendsSoFar`) at
+    /// the last rebuild for a stall: another rebuild for one waits until a
+    /// send has worked since (bug hunt 2026-11-02 #42). Nil before the first.
+    @ObservationIgnored var sendsAtStallRebuild: Int?
+    /// The container a mirroring stop has already rebuilt: the filing hold
+    /// and the attacher can both report the same stop, and the second report
+    /// read as the rebuilt stack stopping too (#5).
+    @ObservationIgnored weak var stopRebuiltContainer: NSPersistentCloudKitContainer?
     /// Taken out of the class (`checkStillInClass`).
     var removedFromClass = false
     @ObservationIgnored var classCheck: Task<Void, Never>?
@@ -116,6 +124,11 @@ final class AssistantBootstrapper {
     /// tests pass their own (`Stacks`).
     @ObservationIgnored let stacks: Stacks
     @ObservationIgnored let now: @MainActor () -> Date
+    /// Whether a sheet is up (the Mail composer, the Classroom screen, a
+    /// sign-in): a rebuild for a stall waits rather than take it down (#42).
+    @ObservationIgnored let sheetIsUp: @MainActor () -> Bool
+    /// The attacher's `sendsSoFar`; tests pass their own.
+    @ObservationIgnored let sendsSoFar: @MainActor () -> Int
 
     init(
         fetchAccountStatus: @escaping @MainActor () async throws -> CKAccountStatus = {
@@ -126,13 +139,17 @@ final class AssistantBootstrapper {
         },
         accountRetryDelay: Duration = .seconds(10),
         stacks: Stacks = .live,
-        now: @escaping @MainActor () -> Date = Date.init
+        now: @escaping @MainActor () -> Date = Date.init,
+        sheetIsUp: @escaping @MainActor () -> Bool = { AssistantBootstrapper.anySheetIsUp() },
+        sendsSoFar: @escaping @MainActor () -> Int = { AssistantShareAttacher.shared.sendsSoFar }
     ) {
         self.fetchAccountStatus = fetchAccountStatus
         self.fetchUserRecordName = fetchUserRecordName
         self.accountRetryDelay = accountRetryDelay
         self.stacks = stacks
         self.now = now
+        self.sheetIsUp = sheetIsUp
+        self.sendsSoFar = sendsSoFar
     }
 
     func start() async {
@@ -197,7 +214,7 @@ final class AssistantBootstrapper {
         if sampleWasChosen { phase = .needsClassroom }
 
         refreshMembership()
-        followFailedSetup()
+        followFailedSetup(on: stack)
         // A test's stack is in memory: no ParentLocker sync (one per app,
         // `ParentLockerSync.current`), and nothing asked of iCloud.
         guard stacks.isLive else { return }
@@ -223,9 +240,9 @@ final class AssistantBootstrapper {
 
     /// Builds the stack again: once iCloud is signed in (see
     /// `stackNeedsAccount`), or once after CloudKit mirroring stopped
-    /// (`mirroringStopped(in:)`). The screens let go of the old one first,
-    /// so nothing reads its objects once its stores are gone, and a running
-    /// attach finishes on it (`waitForAttachBeforeRebuild`).
+    /// (`mirroringStopped(in:)`). A running attach finishes on the old one
+    /// first (`waitForAttachBeforeRebuild`), and the screens let go of it
+    /// (`screensLetGo`), so nothing reads its objects once its stores are gone.
     ///
     /// A join running on the old stack finishes first, up to its own limit:
     /// a rebuild under it lost the join (bug hunt 2026-10-20 #8). If it
@@ -233,22 +250,53 @@ final class AssistantBootstrapper {
     /// "Starting…" shows only on a phone that has joined (`rebuildShowsStarting`):
     /// the join screen, or the Sample Class, stays up meanwhile, so setup
     /// keeps its page (#22).
-    func rebuildStack(because reason: String) async {
+    ///
+    /// The screens stay up through those waits, up to half a minute: they
+    /// came down at once, so every rebuild flashed "Starting…" and took any
+    /// sheet down with it (bug hunt 2026-11-02 #42). They come down only for
+    /// the swap itself. `abandon`, asked once the waits are over, drops a
+    /// rebuild that should no longer happen (a sheet came up meanwhile); it
+    /// returns false then, and true otherwise, a rebuild already running
+    /// included.
+    @discardableResult
+    func rebuildStack(because reason: String, unless abandon: (@MainActor () -> Bool)? = nil) async -> Bool {
         guard !isRebuilding else {
             Self.logger.info("\(reason, privacy: .public); a rebuild is already running")
-            return
+            return true
         }
-        await rebuildOnce(because: reason)
+        let rebuilt = await rebuildOnce(because: reason, unless: abandon)
+        // A stop heard while this ran waited for it to end.
+        settleDeferredStop()
+        guard rebuilt else { return false }
         // The new stack's setup may have failed for the account at once,
         // while this ran: heard then, it waited for now (`rebuildIfSetupFailed`).
         await rebuildIfSetupFailed()
+        return true
     }
 
-    private func rebuildOnce(because reason: String) async {
+    private func rebuildOnce(because reason: String, unless abandon: (@MainActor () -> Bool)?) async -> Bool {
         isRebuilding = true
         defer { isRebuilding = false }
         Self.logger.info("\(reason, privacy: .public); rebuilding the Core Data stack")
-        let failedJoin = await waitForJoinBeforeRebuild(on: sharingService)
+        var failedJoin = await waitForJoinBeforeRebuild(on: sharingService)
+        let attacher = AssistantShareAttacher.shared
+        attacher.hold()
+        defer { attacher.release() }
+        await waitForAttachBeforeRebuild(attacher)
+        // The join screen stayed up through that wait: a join started on it
+        // meanwhile finishes too.
+        if failedJoin == nil { failedJoin = await waitForJoinBeforeRebuild(on: sharingService) }
+        if failedJoin == nil, abandon?() == true {
+            Self.logger.notice("The rebuild isn't needed now; the stack stays as it is")
+            // Left the Sample Class meanwhile, expecting the new stack
+            // (`leaveSampleClass`): back to the open one.
+            if coreDataStack == nil, !AssistantSampleClass.isChosen, let open = stacks.current() {
+                coreDataStack = open
+                refreshMembership()
+                writeWaitingName()
+            }
+            return false
+        }
         let joined = if case .ready = phase { true } else { false }
         let inSample = AssistantSampleClass.isChosen
         if Self.rebuildShowsStarting(ready: joined, starting: isStartingPhase, inSample: inSample) {
@@ -259,10 +307,7 @@ final class AssistantBootstrapper {
             coreDataStack = nil
         }
         sharingService = nil
-        let attacher = AssistantShareAttacher.shared
-        attacher.hold()
-        defer { attacher.release() }
-        await waitForAttachBeforeRebuild(attacher)
+        await letScreensGo()
         // The new stack's service takes it when it's built.
         if let failedJoin { ShareInvitationInbox.keep(failedJoin) }
         do {
@@ -273,6 +318,7 @@ final class AssistantBootstrapper {
             coreDataStack = nil
             phase = .failed(AssistantStartupProblem(error, storesOpen: AssistantStack.isOpen))
         }
+        return true
     }
 
     /// The "Can't start" screen's way out: delete this iPhone's copies of the

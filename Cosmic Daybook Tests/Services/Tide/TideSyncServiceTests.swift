@@ -19,7 +19,7 @@ struct TideSyncServiceTests {
         private let suite = "TideSyncServiceTests-\(UUID().uuidString)"
         let service: TideSyncService
 
-        init(confirmed: Bool = true) throws {
+        init(confirmed: Bool = true, defers: Bool = false) throws {
             context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
             defaults = try #require(UserDefaults(suiteName: suite))
             if confirmed {
@@ -36,7 +36,7 @@ struct TideSyncServiceTests {
             let tide = tide
             service = TideSyncService(
                 defaults: defaults, policy: .live, timing: timing, keeper: keeper,
-                shouldDefer: { false }, makeTransport: { _ in tide }
+                shouldDefer: { defers }, makeTransport: { _ in tide }
             )
             service.settings.isOn = true
         }
@@ -148,6 +148,51 @@ struct TideSyncServiceTests {
 
         #expect(await rig.eventually { added.tideLink != nil })
         #expect(rig.calls("get_area") == 2)
+    }
+
+    @Test("Ticked and cleared at once, before any run: the tick is read as the to-do goes, and reaches Tide")
+    func tickThenClearRightAway() async throws {
+        let rig = try Rig()
+        rig.tide.add("Order bead chains", in: FakeTide.roomSetup, heading: nil)
+        rig.start()
+        let request = CDFetchRequest(CDTodoItem.self)
+        #expect(await rig.eventually {
+            !rig.service.isSyncing && rig.calls("update_action") == 1 && !rig.context.safeFetch(request).isEmpty
+        })
+        let todo = try #require(rig.context.safeFetch(request).first)
+
+        TodoCompletionService.complete(todo)
+        rig.context.delete(todo)
+        #expect(CoreDataTestHelpers.save(rig.context))
+
+        #expect(await rig.eventually { rig.tide.action("Order bead chains")?.state == "done" })
+    }
+
+    @Test("Tide still opening: asked again in moments, not after the usual wait")
+    func stillOpeningIsAskedAgainSoon() async throws {
+        let rig = try Rig()
+        let todo = rig.todo("Plan the field trip")
+        rig.tide.stillOpeningCalls = 1
+        rig.start()
+
+        #expect(await rig.eventually { todo.tideLink != nil })
+        #expect(rig.calls("get_area") == 2)
+        #expect(rig.service.statusMessage == TideSyncMessages.upToDate)
+    }
+
+    @Test("Saving energy pauses the sharing and says so, rather than leaving \"Up to date\"; Sync Now still runs")
+    func deferredRunSaysPaused() async throws {
+        let rig = try Rig(defers: true)
+        let todo = rig.todo("Plan the field trip")
+        rig.start()
+
+        #expect(await rig.eventually { rig.service.statusMessage == TideSyncMessages.paused })
+        #expect(!rig.service.statusIsProblem)
+        #expect(rig.calls("get_area") == 0)
+
+        await rig.service.syncNow()
+        #expect(await rig.eventually { todo.tideLink != nil })
+        #expect(rig.service.statusMessage == TideSyncMessages.upToDate)
     }
 
     @Test("The sync's own changes don't start another run")

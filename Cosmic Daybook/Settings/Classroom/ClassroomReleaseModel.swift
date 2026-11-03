@@ -9,6 +9,9 @@ import OSLog
 final class ClassroomReleaseModel {
     enum Stage: Equatable {
         case loading
+        /// Can't start right now, for this reason, found before reading the share: reading it
+        /// waits on iCloud's sync, which may be what has stopped.
+        case blocked(String)
         /// Ready to confirm, or blocked with the reason.
         case ready(ClassroomShareRelease.Preview, blocker: String?)
         case backingUp
@@ -43,16 +46,40 @@ final class ClassroomReleaseModel {
     func load() async {
         stage = .loading
         notice = nil
+        // The checks come first: with sync stopped, reading the share could wait for good,
+        // with nothing to show meanwhile (bug hunt 2026-11-02, #36).
+        if let reason = ClassroomShareRelease.blocker(
+            coreDataStack: dependencies.coreDataStack, isRestoring: isRestoring()
+        ) {
+            stage = .blocked(reason)
+            return
+        }
+        guard let preview = await readPreview() else { return }
+        stage = .ready(preview, blocker: blocker(for: preview))
+    }
+
+    /// How long reading the share may take before the sheet stops waiting for it.
+    static let readTimeLimit: Duration = .seconds(120)
+
+    /// The share read and planned, within `readTimeLimit`. Nil, with the stage set to say
+    /// why, when it can't be read; nil and nothing said when the sheet closed meanwhile.
+    private func readPreview() async -> ClassroomShareRelease.Preview? {
         let stack = dependencies.coreDataStack
         do {
-            guard let preview = try await ClassroomShareRelease.preview(coreDataStack: stack) else {
-                stage = .failed(Self.unreadable)
-                return
+            let read = try await CloudKitServerCheck.withTimeout(Self.readTimeLimit) {
+                try await ClassroomShareRelease.preview(coreDataStack: stack)
             }
-            stage = .ready(preview, blocker: blocker(for: preview))
+            if let read { return read }
+            stage = .failed(Self.unreadable)
+        } catch is CancellationError {
+            // The sheet closed: there's no one to tell.
+        } catch is CloudKitServerCheck.TimedOut {
+            Self.logger.error("Release: reading the share took too long; stopped waiting")
+            stage = .failed(Self.tooSlow)
         } catch {
             stage = Self.readFailed(error)
         }
+        return nil
     }
 
     /// Every reason not to start, the last one being the cutoff check (#1 in the plan): a
@@ -108,7 +135,7 @@ final class ClassroomReleaseModel {
         stage = .backingUp
         // The backup is made before anything is touched; then the plan is made again, since
         // the preview may be minutes old, and the backup must hold every record it names.
-        guard let backup = await makeBackup(), let fresh = await replan(),
+        guard let backup = await makeBackup(), let fresh = await readPreview(),
               stillAsConfirmed(fresh, confirmed: preview),
               await checkBackup(backup, holds: fresh) else { return }
 
@@ -122,7 +149,7 @@ final class ClassroomReleaseModel {
         stage = .running(done: 0, total: fresh.batches.count)
         let report = await ClassroomShareRelease.run(
             fresh.batches,
-            container: stack.container,
+            stack: stack,
             storeID: storeID,
             environment: .live(container: stack.container)
         ) { [weak self] done, total in
@@ -159,10 +186,10 @@ final class ClassroomReleaseModel {
     /// the flag would never clear: only iCloud's confirmation is left to wait for. Nothing in
     /// the notebook changes, so no backup is made.
     private func finishStoppedRun(zone: String, storeID: String) async {
-        let container = dependencies.coreDataStack.container
+        let stack = dependencies.coreDataStack
         stage = .running(done: 0, total: 1)
         let report = await ClassroomShareRelease.finishStopped(
-            container: container, storeID: storeID, environment: .live(container: container)
+            stack: stack, storeID: storeID, environment: .live(container: stack.container)
         )
         if report.stoppedBecause == nil {
             UserDefaults.standard.removeObject(forKey: ClassroomShareRelease.inProgressKey)
@@ -206,19 +233,10 @@ final class ClassroomReleaseModel {
         }
     }
 
-    private func replan() async -> ClassroomShareRelease.Preview? {
-        do {
-            if let planned = try await ClassroomShareRelease.preview(coreDataStack: dependencies.coreDataStack) {
-                return planned
-            }
-            stage = .failed(Self.unreadable)
-        } catch {
-            stage = Self.readFailed(error)
-        }
-        return nil
-    }
-
     private static let unreadable = "Couldn't read the classroom share right now. Reopen Settings and try again."
+
+    private static let tooSlow = "Reading the classroom share from iCloud is taking too long, so it stopped. "
+        + "Check that sync is working in Settings › Sync and backup, then try again."
 
     private static func readFailed(_ error: Error) -> Stage {
         let ns = error as NSError

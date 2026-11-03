@@ -59,8 +59,8 @@ final class CloudKitSyncStatusService {
     /// Number of pending local saves waiting for CloudKit confirmation.
     var pendingLocalChanges: Int { pendingSyncCount }
 
-    /// Retry attempt diagnostics for settings UI.
-    var retryAttempt: Int { retryLogic.retryAttempt }
+    /// Retry attempt diagnostics: the waiting retry's number, else the last one run.
+    var retryAttempt: Int { retryLogic.retryAttempt + (retryLogic.hasPendingRetry ? 1 : 0) }
 
     /// Maximum retry attempts for settings UI.
     var maxRetryAttempts: Int { retryLogic.maxRetryCount }
@@ -210,10 +210,10 @@ final class CloudKitSyncStatusService {
     /// Diagnostics: how many debounced remote-change passes have run this session.
     private(set) var remoteChangeHandlingCount = 0
 
-    /// The CloudKit event stream: one per process, made by whichever comes
-    /// first, the stores opening (`beginEarlyEventCapture`) or `configure`.
-    /// Outside `messageObservationTasks`, so reconfiguring doesn't end it.
-    @ObservationIgnored var cloudKitEventTask: Task<Void, Never>?
+    /// The CloudKit event listener and its center: one per process, started by whichever comes first,
+    /// the stores opening (`beginEarlyEventCapture`) or `configure`; reconfiguring doesn't end it.
+    @ObservationIgnored var cloudKitEventObserver: (any NSObjectProtocol)?
+    @ObservationIgnored var cloudKitEventCenter: NotificationCenter?
     /// False until `configure`: events that arrive before it wait in `bufferedEvents`.
     @ObservationIgnored var handlesCloudKitEvents = false
     @ObservationIgnored var bufferedEvents: [CloudKitEventValues] = []

@@ -66,7 +66,7 @@ struct AssistantSyncFix1020RoundB {
         let rebuild = Task { await bootstrapper.rebuildStack(because: "test: mirroring stopped") }
         #expect(await waitUntil { bootstrapper.isRebuilding })
         fake.holds[0].follow(Self.failedSetup())
-        await rebuild.value
+        _ = await rebuild.value
         #expect(await waitUntil { !bootstrapper.isRebuilding })
         try #require(fake.rebuilds == 2)
 
@@ -173,7 +173,7 @@ struct AssistantSyncFix1020RoundB {
         bootstrapper.leaveSampleClass()
         #expect(bootstrapper.coreDataStack == nil, "not the stack about to be closed")
 
-        await rebuild.value
+        _ = await rebuild.value
         #expect(fake.rebuilds == 2)
         #expect(bootstrapper.coreDataStack === fake.opened.last)
         #expect(Self.isReady(bootstrapper))

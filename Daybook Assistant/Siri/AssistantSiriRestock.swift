@@ -12,6 +12,9 @@ struct AssistantSiriRestock {
     let author: RestockAuthor
     /// Saves the context; true when it worked.
     private let save: @MainActor (NSManagedObjectContext) -> Bool
+    /// Whether the share lets this phone change nothing now, as the tab asks
+    /// (`AssistantRestockModel.refusedByShare`, bug hunt 2026-11-02 #29).
+    private let readOnly: @MainActor () -> Bool
 
     var context: NSManagedObjectContext { stack.viewContext }
 
@@ -32,11 +35,13 @@ struct AssistantSiriRestock {
     init(
         stack: CoreDataStack,
         author: RestockAuthor,
-        save: @escaping @MainActor (NSManagedObjectContext) -> Bool = { $0.safeSave() }
+        save: @escaping @MainActor (NSManagedObjectContext) -> Bool = { $0.safeSave() },
+        readOnly: @escaping @MainActor () -> Bool = { AssistantRestockModel.refusedByShare }
     ) {
         self.stack = stack
         self.author = author
         self.save = save
+        self.readOnly = readOnly
     }
 
     /// The classroom share's store; nil with one store (the sample class, tests).
@@ -97,6 +102,7 @@ struct AssistantSiriRestock {
     /// "We're out of" / "We're low on": sets the staple's level. Low never
     /// takes an Out staple back up; that's the shelf's hold menu or a check-off.
     func mark(_ supplyID: UUID, as level: RestockLevel) throws -> Outcome {
+        guard !readOnly() else { throw AssistantRestockSiriError.viewOnly }
         guard let staple = staple(id: supplyID) else { throw AssistantRestockSiriError.notFound }
         return try setLevel(staple, to: level == .low && staple.level == .out ? .out : level)
     }
@@ -109,6 +115,7 @@ struct AssistantSiriRestock {
     /// sheet's does, so "Glue sticks." is the "Glue sticks" already listed
     /// (bug hunt 2026-10-20, #32).
     func addToOfficeRun(_ spoken: String) throws -> Outcome {
+        guard !readOnly() else { throw AssistantRestockSiriError.viewOnly }
         let name = AssistantRestockModel.entry(spoken)
         guard !name.isEmpty else { throw AssistantRestockSiriError.noName }
         let staples = RestockService.staples(in: context, store: Self.sharedStore(of: context))
@@ -230,12 +237,15 @@ enum AssistantRestockSiriError: Error, Equatable, CustomLocalizedStringResourceC
     case notFound
     case noName
     case saveFailed
+    /// Added to the share as View only (bug hunt 2026-11-02 #29).
+    case viewOnly
 
     var localizedStringResource: LocalizedStringResource {
         switch self {
         case .notFound: "I couldn't find that on the shelf."
         case .noName: "I didn't catch what we need."
         case .saveFailed: "Something went wrong saving that. Please try again."
+        case .viewOnly: "\(AssistantSyncStatusView.viewOnlyMessage)"
         }
     }
 }
