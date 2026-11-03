@@ -1,4 +1,5 @@
 import CoreData
+import CoreGraphics
 import Foundation
 import Testing
 @testable import CosmicDaybook
@@ -82,8 +83,8 @@ struct WithinDayOrderingTests {
 
     // MARK: - Order survives a round trip
 
-    @Test("A day's order survives being written and read back")
-    func dayOrderSurvivesRefetch() throws {
+    @Test("A dragged order survives being written and read back")
+    func draggedOrderSurvivesRefetch() throws {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
         let context = stack.viewContext
 
@@ -95,12 +96,14 @@ struct WithinDayOrderingTests {
         }
         #expect(CoreDataTestHelpers.save(context))
 
-        // Write the third item first, a second apart from the morning's start.
+        // Write the third item first, as a drag to the top would.
         let reordered = [ids[2], ids[0], ids[1]]
-        var times: [UUID: Date] = [:]
-        for (rank, id) in reordered.enumerated() {
-            times[id] = time(UIConstants.morningHour, 0, rank * UIConstants.scheduleSpacingSeconds, on: monday)
-        }
+        let times = PlanningDropUtils.assignSequentialTimes(
+            ids: reordered,
+            base: time(UIConstants.morningHour, on: monday),
+            calendar: AppCalendar.shared,
+            spacingSeconds: UIConstants.scheduleSpacingSeconds
+        )
         let request = CDFetchRequest(CDLessonAssignment.self)
         let all = context.safeFetch(request)
         for assignment in all {
@@ -135,5 +138,78 @@ struct WithinDayOrderingTests {
 
         #expect(LessonAssignmentOrdering.isOrderedBefore(earlier, later))
         #expect(!LessonAssignmentOrdering.isOrderedBefore(later, earlier))
+    }
+
+    // MARK: - Where the drop lands
+
+    @Test("Dropping between two cards inserts between them")
+    func insertionBetweenCards() {
+        let ids = [UUID(), UUID(), UUID()]
+        let frames: [UUID: CGRect] = [
+            ids[0]: CGRect(x: 0, y: 0, width: 300, height: 60),
+            ids[1]: CGRect(x: 0, y: 60, width: 300, height: 60),
+            ids[2]: CGRect(x: 0, y: 120, width: 300, height: 60)
+        ]
+        // Above the midpoint of the second card = between the first and second.
+        let result = PlanningDropUtils.reordered(
+            ids: ids, moving: ids[2], toLocationY: 70, frames: frames
+        )
+        #expect(result == [ids[0], ids[2], ids[1]])
+    }
+
+    @Test("Dragging downward lands where the indicator promised, not one slot lower")
+    func downwardDragIsNotOffByOne() {
+        // The dragged card is still in `frames` while it is being dragged, so a
+        // raw index would count a row that is about to be removed.
+        let ids = [UUID(), UUID(), UUID()]
+        let frames: [UUID: CGRect] = [
+            ids[0]: CGRect(x: 0, y: 0, width: 300, height: 60),
+            ids[1]: CGRect(x: 0, y: 60, width: 300, height: 60),
+            ids[2]: CGRect(x: 0, y: 120, width: 300, height: 60)
+        ]
+
+        // y=130 is inside the last card but above its midpoint, so the drop
+        // belongs *before* it — landing after it would be the off-by-one.
+        #expect(
+            PlanningDropUtils.reordered(
+                ids: ids, moving: ids[0], toLocationY: 130, frames: frames
+            ) == [ids[1], ids[0], ids[2]]
+        )
+
+        // Below the last midpoint is the only way to reach the end of the day.
+        #expect(
+            PlanningDropUtils.reordered(
+                ids: ids, moving: ids[0], toLocationY: 170, frames: frames
+            ) == [ids[1], ids[2], ids[0]]
+        )
+    }
+
+    @Test("Cards scrolled out of view do not shift the target slot")
+    func scrolledOutCardsDoNotShiftTheDrop() {
+        // A LazyVStack never runs the geometry reader for off-screen rows, so
+        // the frame set covers only part of the day.
+        let ids = [UUID(), UUID(), UUID(), UUID()]
+        let visibleOnly: [UUID: CGRect] = [
+            ids[2]: CGRect(x: 0, y: 0, width: 300, height: 60),
+            ids[3]: CGRect(x: 0, y: 60, width: 300, height: 60)
+        ]
+        // Dropped above the first *visible* card, which is third in the day.
+        let result = PlanningDropUtils.reordered(
+            ids: ids, moving: ids[0], toLocationY: 10, frames: visibleOnly
+        )
+        #expect(result == [ids[1], ids[0], ids[2], ids[3]])
+    }
+
+    // MARK: - Moving the week
+
+    @Test("Moving the week forward carries each lesson's place in its day")
+    func bulkMoveKeepsTimeOfDay() {
+        let tuesday = day(2026, 6, 9)
+        let moved = CalendarForwardShiftService.preservingTimeOfDay(
+            from: time(9, 0, 2, on: monday),
+            onto: tuesday,
+            using: AppCalendar.shared
+        )
+        #expect(moved == time(9, 0, 2, on: tuesday))
     }
 }

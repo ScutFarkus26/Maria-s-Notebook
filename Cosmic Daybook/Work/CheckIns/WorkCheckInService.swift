@@ -158,4 +158,90 @@ struct WorkCheckInService {
             bySettingHour: time.hour ?? 0, minute: time.minute ?? 0, second: time.second ?? 0, of: day
         ) ?? day
     }
+
+    // MARK: - Unscheduling
+
+    /// A check-in as it was before `unschedule` removed it, so Undo can put
+    /// the same record back.
+    struct RemovedCheckIn {
+        let id: UUID?
+        let workID: String
+        let work: NSManagedObjectID?
+        let date: Date?
+        let statusRaw: String
+        let purpose: String
+        let studentInitiated: Bool
+    }
+
+    /// What `unschedule` did with a check-in, enough for Undo.
+    enum Unscheduled {
+        /// It had no note and was deleted; this is what it was.
+        case removed(RemovedCheckIn)
+        /// It carries a note, so it was marked skipped where it was, note and
+        /// all, rather than deleted.
+        case skipped(NSManagedObjectID)
+    }
+
+    /// Whether a check-in carries a note of its own: one typed on the check.
+    /// A note logged on the work that day is linked to the check too, but it
+    /// is the work's (`note.work`), and deleting the check leaves it on the
+    /// work (`CDWorkCheckIn.prepareForDeletion`), so it doesn't count.
+    static func hasNote(_ checkIn: CDWorkCheckIn) -> Bool {
+        ((checkIn.notes as? Set<CDNote>) ?? []).contains { !$0.isDeleted && $0.work == nil }
+    }
+
+    /// Takes a scheduled check-in off the calendar, so its work goes back to
+    /// To Schedule. One carrying a note is marked skipped where it was, since
+    /// deleting it would lose the note; one with none is deleted, and what it
+    /// was comes back for Undo. A check-in that isn't scheduled is history and
+    /// is never touched (nil). The work's due date is the caller's to reset,
+    /// once every check-in it is clearing has gone. Does not save.
+    @discardableResult
+    func unschedule(_ checkIn: CDWorkCheckIn) -> Unscheduled? {
+        guard checkIn.status == .scheduled, !checkIn.isDeleted else { return nil }
+        if Self.hasNote(checkIn) {
+            checkIn.status = .skipped
+            return .skipped(checkIn.objectID)
+        }
+        let removed = RemovedCheckIn(
+            id: checkIn.id,
+            workID: checkIn.workID,
+            work: checkIn.resolvedWork(in: context)?.objectID,
+            date: checkIn.date,
+            statusRaw: checkIn.statusRaw,
+            purpose: checkIn.purpose,
+            studentInitiated: checkIn.studentInitiated
+        )
+        context.delete(checkIn)
+        return .removed(removed)
+    }
+
+    /// Puts a check-in `unschedule` skipped back on its day. False, changing
+    /// nothing, when it is gone or no longer skipped (logged since, say).
+    /// Does not save.
+    @discardableResult
+    func restoreSkipped(_ objectID: NSManagedObjectID) -> Bool {
+        guard let checkIn = context.existing(CDWorkCheckIn.self, objectID), checkIn.status == .skipped else {
+            return false
+        }
+        checkIn.status = .scheduled
+        return true
+    }
+
+    /// Puts back a check-in `unschedule` removed: the same id, day, purpose
+    /// and work. Nothing is made when a check-in with that id is back already
+    /// (sync brought it, or Undo ran twice). Does not save.
+    @discardableResult
+    func restore(_ removed: RemovedCheckIn) -> CDWorkCheckIn? {
+        if let id = removed.id, context.object(CDWorkCheckIn.self, id: id) != nil { return nil }
+        let checkIn = CDWorkCheckIn(context: context)
+        checkIn.id = removed.id ?? UUID()
+        checkIn.workID = removed.workID
+        checkIn.date = removed.date
+        checkIn.statusRaw = removed.statusRaw
+        checkIn.purpose = removed.purpose
+        checkIn.studentInitiated = removed.studentInitiated
+        checkIn.work = removed.work.flatMap { context.existing(CDWorkModel.self, $0) }
+        return checkIn
+    }
 }

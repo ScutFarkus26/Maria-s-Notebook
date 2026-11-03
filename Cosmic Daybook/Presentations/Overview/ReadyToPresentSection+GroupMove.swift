@@ -8,7 +8,9 @@
 // group she leaves empty is folded away. The toast offers Undo, as Presented
 // Today does. Merge Groups… stays the other way to the same result.
 //
-// The chip only adds a menu; a tap on the line still opens the lesson.
+// The whole line is still the drag source for the calendar; the chip only
+// adds a menu. Whether a long-press on iPad opens the menu rather than
+// lifting the line is undocumented, so it is a by-hand device check.
 
 import CoreData
 import SwiftUI

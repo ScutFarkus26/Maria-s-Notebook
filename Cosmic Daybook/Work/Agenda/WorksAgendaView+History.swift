@@ -5,8 +5,9 @@
 // These were the Presentations and Works logs under Logs, a screen that only
 // repeated this one (plan "Simplify the app", Phase 2). They are hosted here
 // as they were, paged and filtered as before, and read the workspace's search
-// field rather than one of their own. History fills the workspace, as the
-// live list does.
+// field rather than one of their own. History fills the workspace: the
+// Scheduled calendar is where open records are dragged, and nothing in a
+// history is dragged anywhere.
 
 import SwiftUI
 

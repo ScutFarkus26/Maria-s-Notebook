@@ -1,6 +1,10 @@
 import SwiftUI
 
 nonisolated enum UIConstants {
+    static let contentHorizontalPadding: CGFloat = 16
+
+    static let dropZoneInnerPadding: CGFloat = 12
+
     static let ageIndicatorWidth: CGFloat = 3
 
     static let morningHour: Int = 9

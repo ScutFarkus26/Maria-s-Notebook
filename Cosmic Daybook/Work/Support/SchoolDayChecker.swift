@@ -126,6 +126,29 @@ enum SchoolDayChecker {
         return count
     }
 
+    /// Computes a list of school days starting from a given date.
+    nonisolated static func nextSchoolDays(
+        from startDate: Date,
+        count: Int,
+        using context: NSManagedObjectContext
+    ) -> [Date] {
+        var result: [Date] = []
+        var cursor = AppCalendar.startOfDay(startDate)
+
+        let maxIterations = 1000
+        var iterations = 0
+
+        while result.count < count && iterations < maxIterations {
+            if isSchoolDay(cursor, using: context) {
+                result.append(cursor)
+            }
+            cursor = AppCalendar.addingDays(1, to: cursor)
+            iterations += 1
+        }
+
+        return result
+    }
+
     // MARK: - Private Helpers
 
     /// Start-of-day dates of all records of `type` whose date falls in

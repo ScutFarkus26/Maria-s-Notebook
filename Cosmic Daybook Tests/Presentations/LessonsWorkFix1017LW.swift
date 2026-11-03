@@ -1,12 +1,14 @@
 import Combine
 import CoreData
+import CoreGraphics
 import Foundation
 import Testing
 @testable import CosmicDaybook
 
 // Bug hunt 2026-10-17, findings #45–#48: screens that watched a narrower
 // signal than what they draw (the presentation history, the Progress
-// dashboard, the practice lists) and a batch Mark Presented that went
+// dashboard, the practice lists), a several-card drop that placed each card
+// against the column as it was drawn, and a batch Mark Presented that went
 // through the toggle.
 
 @Suite("Lessons, presentations and work (bug hunt 2026-10-17)")
@@ -93,6 +95,111 @@ struct LessonsWorkFix1017LW {
         #expect(CoreDataTestHelpers.save(context))
 
         #expect(touched.seen == [["LessonPresentation"], ["Lesson"]])
+    }
+
+    // MARK: - #47 Dropping several presentations on a day
+
+    @Test("#47: three presentations dropped on a day keep their order and get distinct times")
+    func batchDropKeepsOrderAndDistinctTimes() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let calendar = AppCalendar.shared
+        let monday = AppCalendar.startOfDay(try #require(
+            calendar.date(from: DateComponents(year: 2026, month: 6, day: 8))
+        ))
+        let tuesday = try #require(calendar.date(byAdding: .day, value: 1, to: monday))
+
+        func scheduled(on day: Date) -> CDLessonAssignment {
+            let assignment = CDLessonAssignment(context: context)
+            // A lesson each, so no drop is read as a merge.
+            assignment.lessonID = UUID().uuidString
+            assignment.studentIDs = [UUID().uuidString]
+            assignment.schedule(onDay: day)
+            return assignment
+        }
+        let existing = scheduled(on: monday)
+        let dropped = [scheduled(on: tuesday), scheduled(on: tuesday), scheduled(on: tuesday)]
+        #expect(CoreDataTestHelpers.save(context))
+        let existingID = try #require(existing.id)
+        let droppedIDs = try dropped.map { try #require($0.id) }
+
+        // Monday as drawn: one card, 40 points tall.
+        let delegate = WeekDayColumnDropDelegate(
+            calendar: calendar,
+            viewContext: context,
+            saveCoordinator: .preview,
+            allLessonAssignments: [existing] + dropped,
+            day: monday,
+            orderedPresentationIDs: { [existingID] },
+            itemFramesProvider: { [existingID: CGRect(x: 0, y: 0, width: 200, height: 40)] },
+            onDropWorkCheckIns: { _, _ in },
+            onDropWork: { _, _ in },
+            onTargetChange: { _ in },
+            onInsertionIndexChange: { _ in }
+        )
+        // A command-click selection of all three, picked out of order and
+        // dragged by the middle one, dropped below the card: the payload is
+        // the one the backlog line builds, in the order on screen.
+        let selection = WorkspaceMultiSelection()
+        for id in droppedIDs.reversed() { selection.toggle(id) }
+        let text = selection.dragPayload(
+            startingAt: droppedIDs[1], inOrder: droppedIDs, make: UnifiedCalendarDragPayload.presentation
+        )
+        delegate.handleDroppedText(text, location: CGPoint(x: 100, y: 120))
+
+        let times = dropped.compactMap(\.scheduledFor)
+        #expect(times.count == 3)
+        #expect(dropped.allSatisfy { $0.scheduledForDay == monday })
+        // In the order they were dragged, each after the one before, all below Monday's card.
+        let existingTime = try #require(existing.scheduledFor)
+        #expect(times == times.sorted())
+        #expect(Set(times).count == 3)
+        #expect(times.allSatisfy { $0 > existingTime })
+        // Saved, once, with nothing left pending.
+        #expect(!context.hasChanges)
+    }
+
+    @Test("#47: a single drop still lands where it is dropped")
+    func singleDropStillReorders() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let calendar = AppCalendar.shared
+        let monday = AppCalendar.startOfDay(try #require(
+            calendar.date(from: DateComponents(year: 2026, month: 6, day: 8))
+        ))
+        func scheduled() -> CDLessonAssignment {
+            let assignment = CDLessonAssignment(context: context)
+            assignment.lessonID = UUID().uuidString
+            assignment.studentIDs = [UUID().uuidString]
+            assignment.schedule(onDay: monday)
+            return assignment
+        }
+        let first = scheduled(), second = scheduled()
+        first.setScheduledFor(calendar.date(bySettingHour: 9, minute: 0, second: 0, of: monday), using: calendar)
+        second.setScheduledFor(calendar.date(bySettingHour: 9, minute: 0, second: 1, of: monday), using: calendar)
+        #expect(CoreDataTestHelpers.save(context))
+        let firstID = try #require(first.id), secondID = try #require(second.id)
+
+        let delegate = WeekDayColumnDropDelegate(
+            calendar: calendar,
+            viewContext: context,
+            saveCoordinator: .preview,
+            allLessonAssignments: [first, second],
+            day: monday,
+            orderedPresentationIDs: { [firstID, secondID] },
+            itemFramesProvider: {
+                [firstID: CGRect(x: 0, y: 0, width: 200, height: 40),
+                 secondID: CGRect(x: 0, y: 40, width: 200, height: 40)]
+            },
+            onDropWorkCheckIns: { _, _ in },
+            onDropWork: { _, _ in },
+            onTargetChange: { _ in },
+            onInsertionIndexChange: { _ in }
+        )
+        // The second card dragged above the first.
+        delegate.handleDroppedText(UnifiedCalendarDragPayload.presentation(secondID).stringRepresentation,
+                                   location: CGPoint(x: 100, y: 5))
+        let firstTime = try #require(first.scheduledFor)
+        let secondTime = try #require(second.scheduledFor)
+        #expect(secondTime < firstTime)
     }
 
     // MARK: - #48 Practice lists

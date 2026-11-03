@@ -15,10 +15,11 @@
 //  copy of linked work, or a shared row she hasn't finished her part of. A
 //  classmate's open copy that names her is not hers.
 //
-//  Two surfaces read it: the present-a-lesson sheet ("Before you start") and
-//  the Work tab's "Before a Lesson" pill. Each asks for many lessons at once,
-//  and the answer for all of them is one fetch of the open rows on the earlier
-//  lessons that name one of the children, plus, only where one of those names more than
+//  Three surfaces read it: the Scheduled strip's cards (a mark on the chip),
+//  the present-a-lesson sheet ("Before you start") and the Work tab's
+//  "Before a Lesson" pill. Each asks for many lessons at once, and the answer
+//  for all of them is one fetch of the open rows on the earlier lessons that
+//  name one of the children, plus, only where one of those names more than
 //  one child, a second of every row on those lessons: a child's closed copy is
 //  what tells a classmate's open copy from a row she shares
 //  (`WorkVisibility(covering:)`'s rule).
@@ -279,6 +280,20 @@ enum WorkToShowFirst {
 // MARK: - Words
 
 extension WorkToShowFirst {
-    /// The mark on the sheet's rows and the Work half's pill.
+    /// The mark on a strip chip, the card's line, the sheet's rows and the
+    /// Work half's pill.
     nonisolated static let glyph = "arrow.uturn.backward.circle.fill"
+
+    /// "2 to check first", for a card or a section header.
+    static func countLine(_ count: Int) -> String {
+        "\(count) to check first"
+    }
+
+    /// A chip's tooltip on the Mac: what the child has open, without her
+    /// name (the chip says it). Kept near the 60–75 characters Apple advises.
+    static func helpText(for items: [Item]) -> String {
+        guard let first = items.first else { return "" }
+        if items.count == 1 { return "Still open from earlier: \(first.lessonName)" }
+        return "Still open from earlier: \(first.lessonName) and \(items.count - 1) more"
+    }
 }

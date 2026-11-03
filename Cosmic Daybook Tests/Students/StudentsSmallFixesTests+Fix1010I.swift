@@ -205,4 +205,14 @@ struct StudentsSmallFixesFix1010ITests {
             #expect(calendar.isDate(scheduled, inSameDayAs: date))
         }
     }
+
+    @Test("The day-half planner's base hours hold on the Sundays the clocks change")
+    func dayHalfTimesKeepTheHourAcrossDaylightSaving() throws {
+        let calendar = try newYork()
+        let spring = try #require(calendar.date(from: DateComponents(year: 2026, month: 3, day: 8)))
+        let placement = DayHalfPlanner.Placement(id: UUID(), period: .morning)
+        let times = DayHalfPlanner.times(for: [placement], on: spring, using: calendar, spacingSeconds: 1)
+        let time = try #require(times[placement.id])
+        #expect(calendar.component(.hour, from: time) == DayPeriod.morning.baseHour)
+    }
 }

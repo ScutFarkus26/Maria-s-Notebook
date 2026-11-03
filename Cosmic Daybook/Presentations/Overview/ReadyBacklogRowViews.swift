@@ -1,8 +1,10 @@
 // ReadyBacklogRowViews.swift
-// The small pieces a backlog row is drawn from: a child's chip, a flag badge
-// and the row's two layouts.
+// The small pieces a backlog row is drawn from: a child's chip, a flag badge,
+// the row's two layouts, and the drag preview.
 //
-// They take plain values, not managed objects, so a row costs no fetch.
+// They take plain values, not managed objects, so a row costs no fetch and a
+// drag preview — which renders detached from the app's environment — has
+// nothing to look up.
 
 import SwiftUI
 
@@ -120,5 +122,34 @@ struct BacklogRowLayout<Title: View, Content: View>: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+    }
+}
+
+/// What follows the pointer while a backlog line is dragged to the calendar.
+/// Reads nothing from the environment; the section still re-injects the
+/// context, as every drag preview in the app does, so a later edit that
+/// reaches for it cannot crash a drag lift.
+struct BacklogDragPreview: View {
+    let title: String
+    let areaColor: Color
+    let names: [String]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
+            BacklogLessonTitle(title: title, areaColor: areaColor)
+            if !names.isEmpty {
+                Text(names.joined(separator: ", "))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+        }
+        .padding(AppTheme.Spacing.small)
+        .frame(width: 240, alignment: .leading)
+        .background(
+            .background,
+            in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
+        )
+        .opacity(UIConstants.OpacityConstants.nearSolid)
     }
 }

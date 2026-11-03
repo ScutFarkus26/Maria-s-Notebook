@@ -3,15 +3,85 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-/// Bug hunt 2026-10-11, #11–#14: follow-ups leave with the child, "given
-/// earlier, date not recorded" takes the children off their other plans,
-/// Suggest stops rewarding a lesson whose children are all booked, and an
-/// undated presentation doesn't make a child read as just taught.
+/// Bug hunt 2026-10-11, #10–#14: a time set through Claude survives a
+/// rearranged day, follow-ups leave with the child, "given earlier, date not
+/// recorded" takes the children off their other plans, Suggest stops rewarding
+/// a lesson whose children are all booked, and an undated presentation doesn't
+/// make a child read as just taught.
 @Suite("Presentations (bug hunt 2026-10-11)")
 @MainActor
 struct PresentationsFix1011PrTests {
 
     private let calendar = AppCalendar.shared
+
+    private func at(_ hour: Int, _ minute: Int, _ second: Int = 0, on day: Date) throws -> Date {
+        try #require(calendar.date(bySettingHour: hour, minute: minute, second: second, of: day))
+    }
+
+    // MARK: - #10 A time set through Claude
+
+    @Test("Balancing a day leaves a card set to 10:30 at 10:30")
+    func balanceKeepsASetTime() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "Golden Beads")
+        let other = CoreDataTestHelpers.seedLesson(in: context, name: "Stamp Game")
+        let maya = CoreDataTestHelpers.seedStudent(in: context, firstName: "Maya", lastName: "Stone")
+        let ana = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ana", lastName: "Hart")
+        let day = try CoreDataTestHelpers.day("2026-10-14")
+        let first = PresentationFactory.makeScheduled(
+            lesson: lesson, students: [maya], scheduledFor: try at(9, 0, 0, on: day), context: context
+        )
+        let second = PresentationFactory.makeScheduled(
+            lesson: other, students: [maya], scheduledFor: try at(9, 0, 1, on: day), context: context
+        )
+        let tenThirty = try at(10, 30, on: day)
+        let timed = PresentationFactory.makeScheduled(
+            lesson: other, students: [ana], scheduledFor: tenThirty, context: context
+        )
+        #expect(CoreDataTestHelpers.save(context))
+
+        let result = try #require(DayBalanceService.balance(
+            day: day,
+            assignments: [first, second, timed].sorted(by: LessonAssignmentOrdering.isOrderedBefore),
+            calendar: calendar,
+            context: context
+        ))
+
+        #expect(result.movedCount == 1)
+        #expect(timed.scheduledFor == tenThirty)
+        // The clash itself was still cleared around it.
+        let halves = [first, second].compactMap(\.scheduledFor).map { DayPeriod(scheduledFor: $0) }
+        #expect(Set(halves) == [.morning, .afternoon])
+    }
+
+    @Test("Numbering a day skips a kept time and numbers the slots around it")
+    func numberingSkipsAKeptTime() throws {
+        let day = try CoreDataTestHelpers.day("2026-10-14")
+        let tenThirty = try at(10, 30, on: day)
+        let first = UUID(), timed = UUID(), second = UUID()
+        let slot = try at(9, 0, 3, on: day)
+        #expect(DayHalfPlanner.keptTime(of: tenThirty) == tenThirty)
+        #expect(DayHalfPlanner.keptTime(of: slot) == nil)
+        #expect(DayHalfPlanner.keptTime(of: nil) == nil)
+
+        let times = DayHalfPlanner.times(
+            for: [
+                .init(id: first, period: .morning),
+                .init(id: timed, period: .morning, keptTime: tenThirty),
+                .init(id: second, period: .morning)
+            ],
+            on: day,
+            using: calendar,
+            spacingSeconds: 1
+        )
+
+        let nine = try at(9, 0, 0, on: day)
+        #expect(times[timed] == tenThirty)
+        #expect(times[first] == nine)
+        // A slot after the kept time counts on from it, so it still draws
+        // below the 10:30 card (review 2026-10-11 (c) #5).
+        #expect(times[second] == tenThirty.addingTimeInterval(1))
+    }
 
     // MARK: - #11 Follow-ups for children who left
 

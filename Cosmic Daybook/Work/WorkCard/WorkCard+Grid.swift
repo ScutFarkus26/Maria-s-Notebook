@@ -7,7 +7,7 @@ import UIKit
 
 /// Grid mode content for WorkCard
 /// Displays: age indicator bar, title, student name, status, needs attention badge
-/// Supports: tap to open, context menu
+/// Supports: tap to open, context menu, drag for calendar scheduling
 struct WorkCardGridContent: View {
     let config: WorkCard.GridModeConfig
 
@@ -79,6 +79,14 @@ struct WorkCardGridContent: View {
             guard config.selection?.handleTap(on: config.work.id) != true else { return }
             config.onOpen(config.work)
         }
+        // A substituted id resolves to nothing on drop, and the drop reports
+        // success regardless — so a card with no id is not a drag source.
+        .modifier(WorkCardDragModifier(
+            workID: config.work.id,
+            title: displayTitle,
+            studentDisplay: config.studentDisplay,
+            selection: config.selection
+        ))
         .workspaceSelectionRing(config.selection?.contains(config.work.id) == true)
         // On the card, not on the metadata line it used to hang off — a menu
         // you can only reach by right-clicking "Adina T. • Practice • 110d" is
@@ -185,4 +193,36 @@ private struct WorkCardGridPreview: View {
 
 #Preview {
     WorkCardGridPreview()
+}
+
+/// Makes a work card draggable onto the calendar, and only when it has an id.
+private struct WorkCardDragModifier: ViewModifier {
+    let workID: UUID?
+    let title: String
+    let studentDisplay: String
+    /// Dragging a selected card drags every selected card.
+    let selection: WorkspaceMultiSelection?
+
+    func body(content: Content) -> some View {
+        if let workID {
+            let payload = selection?.dragPayload(
+                startingAt: workID,
+                make: UnifiedCalendarDragPayload.work
+            ) ?? UnifiedCalendarDragPayload.work(workID).stringRepresentation
+            content.draggable(payload) {
+                // Plain strings only, so the preview needs no environment.
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(title).font(.subheadline)
+                    Text(studentDisplay).font(.caption).foregroundStyle(.secondary)
+                }
+                .padding(8)
+                .surface(
+                    UIConstants.CornerRadius.medium,
+                    fill: Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
+                )
+            }
+        } else {
+            content
+        }
+    }
 }

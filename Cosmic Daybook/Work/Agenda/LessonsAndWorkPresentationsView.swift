@@ -2,7 +2,8 @@
 // The Presentations half of the Lessons & Work workspace.
 //
 // Who has waited longest, beside what you could give them — so choosing a
-// child and choosing a lesson never costs a screen change.
+// child and choosing a lesson never costs a screen change, and the Scheduled
+// calendar stays pinned below to drop onto.
 //
 // This was `LessonsAndWorkToScheduleView`, which carried a Presentations /
 // Work segmented picker of its own. That picker is now the workspace's

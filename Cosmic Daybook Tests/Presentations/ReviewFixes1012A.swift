@@ -5,8 +5,10 @@ import Testing
 
 /// Review findings on the 2026-10-12 presentation, work and year-plan fixes:
 /// deleting her own generated row says what goes with it (#47), a failed
-/// presentation save takes its work retraction back, the Lessons path's Plan
-/// reuses a child's waiting draft
+/// presentation save takes its work retraction back, Move All Forward keeps a
+/// work's due date on its earliest open check-in (#49; an overdue one comes
+/// to today since 2026-10-13) and takes back a
+/// failed save whole, the Lessons path's Plan reuses a child's waiting draft
 /// (#32), and a keep-observing entry flags only the note it was written into
 /// (#51).
 @Suite("Review fixes 2026-10-12 (A)")
@@ -126,6 +128,62 @@ struct ReviewFixes1012A {
         #expect(ettysWork.managedObjectContext == nil || ettysWork.isDeleted)
         #expect(Set(assignment.resolvedStudentIDs) == [oraID])
         #expect(!classroom.context.hasChanges)
+    }
+
+    // MARK: - 5. A work's due date after Move All Forward (#49)
+
+    @Test("Move All Forward brings an overdue check-in to today, and the work is due on it")
+    func forwardShiftKeepsDueOnEarliestOpenCheckIn() throws {
+        let classroom = try seed()
+        let monday = try CoreDataTestHelpers.day("2026-06-08")
+        let lastWeek = try CoreDataTestHelpers.day("2026-06-02")
+        let tuesday = try CoreDataTestHelpers.day("2026-06-09")
+        let work = CoreDataTestHelpers.seedWorkModel(in: classroom.context)
+        work.dueAt = lastWeek
+        let overdue = CDWorkCheckIn.make(for: work, on: lastWeek, in: classroom.context)
+        let upcoming = CDWorkCheckIn.make(for: work, on: monday, in: classroom.context)
+        #expect(CoreDataTestHelpers.save(classroom.context))
+
+        CalendarForwardShiftService.moveForwardOneDay(
+            in: classroom.context, calendar: AppCalendar.shared, from: monday,
+            // Monday is a school day: the one after Sunday (where overdue
+            // checks land is asked as "after yesterday", 2026-10-16 #4).
+            nextSchoolDay: { $0 < monday ? monday : tuesday }
+        )
+
+        #expect(overdue.date == monday)
+        #expect(upcoming.date == tuesday)
+        #expect(work.dueAt == monday)
+    }
+
+    // MARK: - 6. A failed Move All Forward save is taken back whole
+
+    @Test("A failed Move All Forward save leaves nothing edited behind")
+    func failedForwardShiftLeavesNothingDirty() throws {
+        let classroom = try seed()
+        let monday = try CoreDataTestHelpers.day("2026-06-08")
+        let tuesday = try CoreDataTestHelpers.day("2026-06-09")
+        let assignment = PresentationFactory.makeDraft(
+            lesson: classroom.lesson, students: [classroom.ora], context: classroom.context
+        )
+        assignment.schedule(for: monday.addingTimeInterval(9 * 3_600), using: AppCalendar.shared)
+        assignment.modifiedAt = try CoreDataTestHelpers.day("2026-06-01")
+        let work = CoreDataTestHelpers.seedWorkModel(in: classroom.context)
+        work.dueAt = monday
+        let checkIn = CDWorkCheckIn.make(for: work, on: monday, in: classroom.context)
+        #expect(CoreDataTestHelpers.save(classroom.context))
+        let stamped = assignment.modifiedAt
+
+        let result = CalendarForwardShiftService.moveForwardOneDayAndSave(
+            in: classroom.context, calendar: AppCalendar.shared, from: monday,
+            nextSchoolDay: { _ in tuesday }, persist: { false }
+        )
+
+        #expect(result == nil)
+        #expect(assignment.modifiedAt == stamped)
+        #expect(assignment.changedValues().isEmpty)
+        #expect(checkIn.changedValues().isEmpty)
+        #expect(work.changedValues().isEmpty)
     }
 
     // MARK: - 7. The Lessons path's Plan reuses a waiting draft (#32)

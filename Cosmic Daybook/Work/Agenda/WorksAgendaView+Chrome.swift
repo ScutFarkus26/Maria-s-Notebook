@@ -129,6 +129,61 @@ extension WorksAgendaView {
         }
     }
 
+    // MARK: - The pinned calendar pane
+    //
+    // The calendar sits under whichever list the guide is working from, so
+    // scheduling something is a drag downward rather than a trip to another
+    // screen. How tall it is lives in `WorksAgendaView+Split.swift`.
+
+    var calendarPane: some View {
+        VStack(spacing: 0) {
+            calendarPaneHeader
+            Divider()
+            WeekPlanSection(
+                focusedPresentationID: focusedPresentationID,
+                onSelectPresentation: openPresentation,
+                onOpenWork: openWork(id:)
+            )
+        }
+    }
+
+    /// Folded away, the calendar is only its header. The line above it belongs
+    /// to the seam in `WorksAgendaView+Split.swift`; drawing one here as well
+    /// is what used to double the rule whenever the calendar was collapsed.
+    var collapsedCalendarBar: some View {
+        calendarPaneHeader
+    }
+
+    var calendarPaneHeader: some View {
+        Button {
+            adaptiveWithAnimation(.snappy(duration: 0.2)) {
+                isCalendarExpanded.toggle()
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .rotationEffect(.degrees(isCalendarExpanded ? 90 : 0))
+                Label("Scheduled", systemImage: TriageBucket.scheduled.systemImage)
+                    .font(.subheadline.weight(.semibold))
+                    .labelStyle(.titleAndIcon)
+                Spacer()
+                if !isCalendarExpanded {
+                    Text("Show the week to drag onto it")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(isCalendarExpanded ? "Hide the schedule" : "Show the schedule")
+    }
+
     /// New Work opens in this window only: the router's request was obeyed by
     /// every open window (bug hunt 2026-10-11 #5). A window outside RootView
     /// has no per-window actions and falls back to the request.

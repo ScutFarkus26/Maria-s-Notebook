@@ -3,10 +3,10 @@
 //
 // A lesson planned for one group is one line — area dot, title, the children,
 // the flags. A lesson planned for several is one row whose groups are listed
-// under it, each still its own tap target, selection and context menu, with a
-// "Merge Groups…" button that opens the merge sheet for just that lesson.
-// Everything a row shows is resolved here from the view model's caches;
-// nothing on a row fetches.
+// under it, each still its own drag source, tap target, selection and context
+// menu, with a "Merge Groups…" button that opens the merge sheet for just
+// that lesson. Everything a row shows is resolved here from the view model's
+// caches; nothing on a row fetches.
 
 import CoreData
 import SwiftUI
@@ -19,6 +19,9 @@ struct BacklogRenderContext {
     let missedIDs: Set<UUID>
     let palette: StudentAgePalette
     let isCompact: Bool
+    /// Every line's presentation, top to bottom, so a dragged selection
+    /// carries the order the guide sees.
+    var displayOrder: [UUID] = []
 }
 
 /// How far a brewing presentation has come: some of its children are ready.
@@ -60,7 +63,7 @@ extension ReadyToPresentSection {
         state: PresentationsFilterChip,
         slices: ReadyToPresentSlices
     ) -> some View {
-        let context = renderContext(state: state, slices: slices)
+        var context = renderContext(state: state, slices: slices)
         let groups = ReadyBacklog.groupByLesson(
             assignments,
             lessonID: \.resolvedLessonID,
@@ -68,6 +71,7 @@ extension ReadyToPresentSection {
             waits: viewModel.daysSinceLastLessonByStudent,
             longestWaitFirst: state != .waitingForWork
         )
+        context.displayOrder = groups.flatMap(\.items).compactMap(\.id)
         return VStack(alignment: .leading, spacing: 0) {
             ForEach(groups) { group in
                 lessonRow(group, context: context)
