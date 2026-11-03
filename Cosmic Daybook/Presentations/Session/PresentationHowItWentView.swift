@@ -28,7 +28,7 @@ struct PresentationHowItWentView: View {
     @State private var showDatePicker = false
     @State private var pickedDay = AppCalendar.startOfDay(Date())
 
-    private var studentIDs: [UUID] { students.compactMap(\.id) }
+    var studentIDs: [UUID] { students.compactMap(\.id) }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -173,17 +173,33 @@ private extension PresentationHowItWentView {
                     ForEach(CaptureFollowUp.presentationChoices) { choice in
                         PresentationDecisionChip(
                             title: choice.chipTitle,
-                            look: session.everyone == choice ? .chosen : .plain
+                            look: session.everyone.shows(choice) ? .chosen : .plain
                         ) {
-                            session.setEveryone(choice)
+                            session.tapEveryone(choice)
                         }
                     }
                 }
             }
             checkInRow
+            followUpDetailRow
         }
         .padding(14)
         .background(Color.accentColor.opacity(UIConstants.OpacityConstants.subtle))
+    }
+
+    /// What the new follow-up work is, typed once for everyone getting it.
+    /// Shown only while Done would give someone new follow-up work.
+    @ViewBuilder
+    var followUpDetailRow: some View {
+        if session.pendingDecisions(for: studentIDs).values.contains(.followUpWork) {
+            rowLayout(label: Text("The follow-up work").font(.caption).foregroundStyle(.secondary)) {
+                TextField("What will they do?", text: $session.followUpDetail, axis: .vertical)
+                    .lineLimit(1...3)
+                    .textFieldStyle(.roundedBorder)
+                    .font(AppTheme.ScaledFont.callout)
+                    .accessibilityLabel("What the follow-up work is")
+            }
+        }
     }
 
     @ViewBuilder
@@ -202,14 +218,15 @@ private extension PresentationHowItWentView {
                     ForEach(CaptureFollowUp.presentationChoices) { choice in
                         PresentationDecisionChip(
                             title: choice.chipTitle,
-                            look: session.everyone == choice ? .chosen : .plain
+                            look: session.everyone.shows(choice) ? .chosen : .plain
                         ) {
-                            session.setEveryone(choice)
+                            session.tapEveryone(choice)
                         }
                     }
                 }
             }
             checkInRow
+            followUpDetailRow
             noteField(student)
         }
         .padding(14)
@@ -293,7 +310,7 @@ private extension PresentationHowItWentView {
 
     func childRow(_ student: CDStudent) -> some View {
         let id = student.id ?? UUID()
-        let current = session.decision(for: id)
+        let current = session.choice(for: id)
         return VStack(alignment: .leading, spacing: 8) {
             rowLayout(label: childLabel(student)) {
                 FlowLayout(spacing: 6) {
@@ -302,7 +319,7 @@ private extension PresentationHowItWentView {
                             title: choice.chipTitle,
                             look: look(for: choice, current: current, overridden: session.isOverridden(id))
                         ) {
-                            session.setDecision(choice, for: id)
+                            session.tap(choice, for: id)
                         }
                     }
                 }
@@ -314,10 +331,10 @@ private extension PresentationHowItWentView {
 
     func look(
         for choice: CaptureFollowUp,
-        current: CaptureFollowUp,
+        current: PresentationChoice,
         overridden: Bool
     ) -> PresentationDecisionChip.Look {
-        guard choice == current else { return .plain }
+        guard current.shows(choice) else { return .plain }
         return overridden ? .differs : .inherited
     }
 
@@ -337,56 +354,5 @@ private extension PresentationHowItWentView {
                 content()
             }
         }
-    }
-}
-
-// MARK: - What Done will do
-
-private extension PresentationHowItWentView {
-    var summaryLines: [String] {
-        let decisions = Dictionary(
-            studentIDs.map { ($0, session.decision(for: $0)) }, uniquingKeysWith: { first, _ in first }
-        )
-        let noteCount = (session.groupNote.trimmed().isEmpty ? 0 : 1)
-            + studentIDs.filter { !(session.childNotes[$0]?.trimmed().isEmpty ?? true) }.count
-        return PresentationSessionSummary.lines(.init(
-            children: students.compactMap { student in
-                student.id.map { PresentationSessionSummary.Child(id: $0, name: student.shortName) }
-            },
-            pending: session.pendingDecisions(for: studentIDs),
-            decisions: decisions,
-            checkIn: session.checkIn,
-            checkInChanged: session.checkInChanged,
-            noteCount: noteCount,
-            lessonName: lesson.name,
-            nextLessonName: nextLessonName
-        ))
-    }
-
-    var summaryCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("When you press Done")
-                .font(AppTheme.ScaledFont.captionSemibold)
-                .foregroundStyle(.secondary)
-            let lines = summaryLines
-            if lines.isEmpty {
-                Text("Nothing new to save. Done just closes.")
-                    .font(AppTheme.ScaledFont.callout)
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(lines, id: \.self) { line in
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text("•").foregroundStyle(Color.accentColor)
-                        Text(line).font(AppTheme.ScaledFont.callout)
-                    }
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(
-            Color.primary.opacity(UIConstants.OpacityConstants.whisper),
-            in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large, style: .continuous)
-        )
     }
 }

@@ -11,6 +11,8 @@ nonisolated enum PresentationSessionDraftStore {
         var everyone: String
         var overrides: [String: String]
         var checkInDay: Date?
+        /// Optional so a draft saved before it existed still reads.
+        var followUpDetail: String?
         var savedAt: Date
     }
 

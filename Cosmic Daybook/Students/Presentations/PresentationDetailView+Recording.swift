@@ -7,7 +7,6 @@ import CoreData
 import SwiftUI
 
 extension PresentationDetailContentView {
-
     // MARK: - Footer
 
     var footer: some View {
@@ -348,7 +347,7 @@ extension PresentationDetailContentView {
                 return
             }
         }
-        if session.pendingDecisions(for: ids).isEmpty && !session.checkInChanged {
+        if !session.hasPendingPlans(for: ids) && !session.checkInChanged {
             PresentationSessionDraftStore.clear(presentationID: presentationID)
         } else {
             PresentationSessionDraftStore.save(session.draft, presentationID: presentationID)
@@ -371,18 +370,8 @@ extension PresentationDetailContentView {
         defer { isSavingSession = false }
         do {
             try PresentationSessionCommit.apply(
-                PresentationSessionCommit.Input(
-                    assignment: vm.lessonAssignment,
-                    lesson: lesson,
-                    studentIDs: ids,
-                    groupNote: session.groupNote,
-                    childNotes: session.childNotes,
-                    decisions: session.pendingDecisions(for: ids),
-                    allDecisions: Dictionary(
-                        ids.map { ($0, session.decision(for: $0)) }, uniquingKeysWith: { first, _ in first }
-                    ),
-                    checkIn: session.checkIn,
-                    lessons: lessons
+                session.commitInput(
+                    assignment: vm.lessonAssignment, lesson: lesson, studentIDs: ids, lessons: lessons
                 ),
                 context: viewContext,
                 saveCoordinator: vm.saveCoordinator

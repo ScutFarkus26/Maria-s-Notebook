@@ -28,6 +28,13 @@ enum PresentationSessionCommit {
         let checkIn: PresentationCheckIn
         /// The catalog, for the next lesson in the sequence.
         let lessons: [CDLesson]
+        /// The new follow-up work's title; blank gives "Follow up: <lesson>".
+        var followUpDetail = ""
+        /// Children newly ready for the next lesson alongside their practice
+        /// or follow-up work.
+        var alsoReady: Set<UUID> = []
+        /// Children confirmed ready on the record whom the guide no longer marks ready.
+        var noLongerReady: Set<UUID> = []
     }
 
     struct Receipt: Equatable {
@@ -140,7 +147,8 @@ enum PresentationSessionCommit {
             // follow-up row is the reminder.
             let followUp: CaptureFollowUp = decision == .continueObserving && note.isEmpty ? .none : decision
             return CaptureFollowUpPersistence.Entry(
-                studentID: id, observation: note, followUp: followUp, followUpDetail: ""
+                studentID: id, observation: note, followUp: followUp,
+                followUpDetail: followUp == .followUpWork ? input.followUpDetail : ""
             )
         }
         receipt.workCount = try CaptureFollowUpPersistence.persist(
@@ -154,6 +162,15 @@ enum PresentationSessionCommit {
                 context: context
             )
         )
+
+        // Ready alongside work: confirmed as Ready for next confirms her; her
+        // row stays open for the work.
+        for id in input.studentIDs where input.alsoReady.contains(id) {
+            input.assignment.confirmStudent(id)
+        }
+        for id in input.studentIDs where input.noLongerReady.contains(id) {
+            input.assignment.unconfirmStudent(id)
+        }
 
         updateFollowUpRows(input, presentationID: presentationID, context: context, now: now)
         receipt.checkInCount = try scheduleCheckIns(
@@ -249,10 +266,11 @@ enum PresentationSessionCommit {
         return count
     }
 
-    /// Children newly ready for the next lesson get it On Deck, as one plan,
-    /// unless they are already on a plan for it.
+    /// Children newly ready for the next lesson, on its own or alongside work,
+    /// get it On Deck, as one plan, unless they are already on a plan for it.
     private static func planNextLesson(_ input: Input, context: NSManagedObjectContext) -> Bool {
         let ready = Set(input.decisions.filter { $0.value == .readyForNextLesson }.map(\.key))
+            .union(input.alsoReady)
         guard !ready.isEmpty,
               let next = PlanNextLessonService.findNextLesson(after: input.lesson, in: input.lessons),
               let nextID = next.id else { return false }
@@ -275,5 +293,15 @@ enum PresentationSessionCommit {
             return true
         }
         return false
+    }
+}
+
+private extension CDLessonAssignment {
+    /// Takes back a child's confirmation as ready for the next lesson.
+    func unconfirmStudent(_ studentID: UUID) {
+        let ids = confirmedStudentIDs
+        guard ids.contains(studentID.uuidString) else { return }
+        confirmedStudentIDs = ids.filter { $0 != studentID.uuidString }
+        modifiedAt = Date()
     }
 }

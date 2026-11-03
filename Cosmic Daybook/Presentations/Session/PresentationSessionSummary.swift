@@ -19,6 +19,12 @@ nonisolated enum PresentationSessionSummary {
         let noteCount: Int
         let lessonName: String
         let nextLessonName: String?
+        /// The follow-up work's title as typed; blank gives the lesson's default.
+        var followUpDetail = ""
+        /// Children newly ready for the next lesson alongside their work.
+        var alsoReady: Set<UUID> = []
+        /// Children ready on the record and no longer marked ready.
+        var noLongerReady: Set<UUID> = []
     }
 
     static func lines(_ input: Input) -> [String] {
@@ -33,7 +39,9 @@ nonisolated enum PresentationSessionSummary {
         }
         let followUp = names(.followUpWork)
         if !followUp.isEmpty {
-            lines.append("Follow-up work for \(list(followUp)) — “Follow up: \(input.lessonName)”")
+            let detail = input.followUpDetail.trimmed()
+            let title = detail.isEmpty ? "Follow up: \(input.lessonName)" : detail
+            lines.append("Follow-up work for \(list(followUp)) — “\(title)”")
         }
 
         let working = input.children.filter { input.decisions[$0.id]?.createsWork == true }.map(\.name)
@@ -51,15 +59,7 @@ nonisolated enum PresentationSessionSummary {
         if !represent.isEmpty {
             lines.append("\(list(represent)) will see it again: a re-presentation goes On Deck")
         }
-        let ready = names(.readyForNextLesson)
-        if !ready.isEmpty {
-            let subject = "\(list(ready)) \(ready.count == 1 ? "is" : "are")"
-            if let next = input.nextLessonName {
-                lines.append("\(subject) ready for the next lesson: \(next) goes On Deck")
-            } else {
-                lines.append("\(subject) confirmed ready for the next lesson")
-            }
-        }
+        lines += readinessLines(input)
         let watching = names(.continueObserving)
         if !watching.isEmpty {
             lines.append("\(list(watching)) \(watching.count == 1 ? "stays" : "stay") on your Following list")
@@ -68,6 +68,28 @@ nonisolated enum PresentationSessionSummary {
         if input.noteCount > 0 {
             let count = input.noteCount == 1 ? "1 note" : "\(input.noteCount) notes"
             lines.append("\(count), filed on this presentation")
+        }
+        return lines
+    }
+
+    /// Who goes on to the next lesson, and who no longer does.
+    private static func readinessLines(_ input: Input) -> [String] {
+        var lines: [String] = []
+        let ready = input.children
+            .filter { input.pending[$0.id] == .readyForNextLesson || input.alsoReady.contains($0.id) }
+            .map(\.name)
+        if !ready.isEmpty {
+            let subject = "\(list(ready)) \(ready.count == 1 ? "is" : "are")"
+            if let next = input.nextLessonName {
+                lines.append("\(subject) ready for the next lesson: \(next) goes On Deck")
+            } else {
+                lines.append("\(subject) confirmed ready for the next lesson")
+            }
+        }
+        let unready = input.children.filter { input.noLongerReady.contains($0.id) }.map(\.name)
+        if !unready.isEmpty {
+            let verb = unready.count == 1 ? "isn't" : "aren't"
+            lines.append("\(list(unready)) \(verb) marked ready for the next lesson any more")
         }
         return lines
     }

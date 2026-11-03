@@ -62,7 +62,10 @@ struct PresentationSessionCommitTests {
         all: [UUID: CaptureFollowUp]? = nil,
         notes: [UUID: String] = [:],
         groupNote: String = "",
-        checkIn: PresentationCheckIn = .nextWorkCycle
+        checkIn: PresentationCheckIn = .nextWorkCycle,
+        followUpDetail: String = "",
+        alsoReady: Set<UUID> = [],
+        noLongerReady: Set<UUID> = []
     ) throws -> PresentationSessionCommit.Receipt {
         let (ada, ben) = try ids(fixture)
         return try PresentationSessionCommit.apply(
@@ -75,7 +78,10 @@ struct PresentationSessionCommitTests {
                 decisions: decisions,
                 allDecisions: all ?? decisions,
                 checkIn: checkIn,
-                lessons: [fixture.lesson, fixture.nextLesson]
+                lessons: [fixture.lesson, fixture.nextLesson],
+                followUpDetail: followUpDetail,
+                alsoReady: alsoReady,
+                noLongerReady: noLongerReady
             ),
             context: fixture.context,
             saveCoordinator: fixture.coordinator
@@ -287,5 +293,67 @@ struct PresentationSessionCommitTests {
         #expect(session.decision(for: ada) == .practice)
         #expect(session.decision(for: ben) == .represent)
         #expect(session.pendingDecisions(for: [ada, ben]).isEmpty)
+    }
+}
+
+extension PresentationSessionCommitTests {
+    @Test("Follow-up work takes the typed title; practice keeps its own")
+    func followUpWorkTakesTypedTitle() throws {
+        let fixture = try makeFixture()
+        try record(fixture)
+        let (ada, ben) = try ids(fixture)
+
+        try commit(
+            fixture,
+            decisions: [ada: .followUpWork, ben: .practice],
+            followUpDetail: "  Build 3,456 with the beads  "
+        )
+
+        let works = try work(fixture)
+        #expect(works.first { $0.studentID == ada.uuidString }?.title == "Build 3,456 with the beads")
+        #expect(works.first { $0.studentID == ben.uuidString }?.title == "Practice: Golden Beads: Addition")
+    }
+
+    @Test("Practice with Ready for next gives the work, confirms her and plans the next lesson; off takes it back")
+    func practiceAndReady() throws {
+        let fixture = try makeFixture()
+        try record(fixture)
+        let (ada, ben) = try ids(fixture)
+        let presentationID = try #require(fixture.assignment.id)
+
+        let receipt = try commit(
+            fixture,
+            decisions: [ada: .practice, ben: .practice],
+            alsoReady: [ada]
+        )
+        #expect(try work(fixture).count == 2)
+        #expect(fixture.assignment.isStudentConfirmed(ada))
+        #expect(!fixture.assignment.isStudentConfirmed(ben))
+        #expect(receipt.nextLessonPlanned)
+        #expect(try rows(fixture)[ada.uuidString]?.followUpAction == .checkWork)
+
+        let state = PresentationSession.appliedState(presentationID: presentationID, in: fixture.context)
+        #expect(state.choices[ada] == PresentationChoice(.practice, alsoReady: true))
+        #expect(state.choices[ben] == PresentationChoice(.practice))
+
+        // Reopened: Ready shows on, and turning it off takes the confirmation back.
+        let session = PresentationSession(presentationID: presentationID)
+        let defaults = try #require(UserDefaults(suiteName: "PresentationSessionCommitTests.\(UUID().uuidString)"))
+        session.loadDecisions(
+            studentIDs: [ada, ben], defaultDecision: .continueObserving,
+            context: fixture.context, defaults: defaults
+        )
+        #expect(!session.hasPendingPlans(for: [ada, ben]))
+        session.tap(.readyForNextLesson, for: ada)
+        #expect(session.noLongerReady(for: [ada, ben]) == [ada])
+        try PresentationSessionCommit.apply(
+            session.commitInput(
+                assignment: fixture.assignment, lesson: fixture.lesson, studentIDs: [ada, ben],
+                lessons: [fixture.lesson, fixture.nextLesson]
+            ),
+            context: fixture.context, saveCoordinator: fixture.coordinator
+        )
+        #expect(!fixture.assignment.isStudentConfirmed(ada))
+        #expect(try work(fixture).count == 2)
     }
 }
