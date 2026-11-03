@@ -1,6 +1,6 @@
 # Sync, sharing, Core Data, migrations and backups bug hunt 2026-11-02
 
-> **All fixed 2026-11-03** (main `COMMIT`). Found at main `8803b6da`.
+> **All fixed 2026-11-03** (main `4180d0aa`). Found at main `8803b6da`.
 > In short: nine read-only reviewers each took one area (the Core Data stack, sync status and history, share setup and filing, Remove Last Year and the names, backup writing, backup restore, migrations and cleanups, the Daybook Assistant's sync, the Tide to-dos); 59 findings, the top ones in each area checked by hand against the code. The hunt itself changed nothing; seven fix agents and a cold review then fixed all 59 (see "Where the findings stand"), and what is left is checking on the devices.
 
 Paths are under `Cosmic Daybook/` unless they start with `Daybook Assistant/`.

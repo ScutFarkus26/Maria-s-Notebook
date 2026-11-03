@@ -1,6 +1,6 @@
 # Sync, sharing and backup fixes 2026-11
 
-> **Not started.** Written 2026-11-02 from the bug hunt of the same day.
+> **Done 2026-11-03** (4180d0aa). Written 2026-11-02 from the bug hunt of the same day.
 > In short: fix all 59 findings of the 2026-11-02 sync, sharing, Core Data, migrations and backups hunt in seven parallel fix agents, review the combined work cold, and land it on main.
 
 The report is [Sync, sharing, Core Data, migrations and backups bug hunt 2026-11-02](<../Reviews/Sync, sharing, Core Data, migrations and backups bug hunt 2026-11-02.md>). It has, for every finding, the scenario, the `file:line` places and the fix. This plan says who fixes what and how it lands; it does not repeat the findings. "#N" below is finding N in that report.
