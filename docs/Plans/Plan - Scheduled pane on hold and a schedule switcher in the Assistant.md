@@ -1,6 +1,6 @@
 # Scheduled pane on hold, and a schedule switcher in the Assistant
 
-> **Done 2026-11-01** (6a6892a4, f72f51fa). Written 2026-11-01 from Danny's talk-through (branch `claude/scheduled-section-hold-531dbc`). Approved the same day ("Yes, that's it").
+> **Done 2026-11-01** (6a6892a4, f72f51fa), **part 1 undone 2026-11-02** (see Progress). The Scheduled pane is back in Lessons & Work; the Assistant's switcher stays. Written 2026-11-01 from Danny's talk-through (branch `claude/scheduled-section-hold-531dbc`). Approved the same day ("Yes, that's it").
 > In short: take the Scheduled pane under Lessons & Work out of the code and keep it at a git tag so it can be brought back or read, and give Daybook Assistant's Schedule tab a switcher between the four schedules in place of the mixed list.
 
 ## What Danny wants
@@ -100,4 +100,5 @@ Becomes, as in the mockup:
 - [x] Full builds and the whole suite (2026-11-01). iOS, macOS and Daybook Assistant build. The notebook suite passes 4,368 of 4,369 and the Assistant suite 515 of 516. The two misses (`TodayAppearanceGateTests` "one-year window", `AssistantOnboardingTests` reminder picker) failed only because 2026-11-01 was a clock change. Both are fixed in f2b04668. The Today test itself was wrong, but the Assistant's reminder picker really did show an 8:15 reminder as 7:15 that day. Both tests now also run on the 2026-11-01 and 2027-03-14 clock changes.
 - [x] Docs, the build board and Tide rows: manual 69e40fe6; the pane's six rows dropped in Tide.
 - [x] Merge to main and push, with the tag (fast-forwarded to 69e40fe6, 2026-11-01).
-- Not seen: the new Lessons & Work layout running in the app. The removal was checked by builds and tests only. [In Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20check%20Lessons%20%26%20Work%20fills%20the%20screen%20now%20the%20Scheduled%20pane%20is%20gone).
+- [x] **Brought back 2026-11-02.** Danny opened Lessons & Work and asked "Where is the calendar? There should be a calendar on the bottom of this view that I drag lessons into." The removal commit 6a6892a4 was reverted on top of main (REVERT_COMMIT), cleanly, no conflicts: every file, service, setting and test the removal took out is back, including the ones removed beyond the plan. The tag `on-hold/scheduled-pane` stays as a record. The Assistant's switcher (part 2) and the clock-change fixes are untouched.
+- Moot now the pane is back: the Lessons & Work layout without it was never seen running in the app; its Tide row is dropped. The old row, for the record: [In Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20check%20Lessons%20%26%20Work%20fills%20the%20screen%20now%20the%20Scheduled%20pane%20is%20gone).
