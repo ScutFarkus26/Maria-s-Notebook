@@ -150,7 +150,8 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
     public let isInboxPlan: Bool
     /// A year-plan entry still waiting for this lesson (planned, not yet promoted to a
     /// presentation). It counts as Planned, as on the Groups page and in the ready queue
-    /// (`PresentationRecordIndex.openPlanByLesson`), not Ready.
+    /// (`PresentationRecordIndex.openPlanByLesson`), not Ready; but only once the lesson
+    /// before has been given (see `displayStatus`).
     public let isOnYearPlan: Bool
     public let blockingReason: BlockingReason
     /// The child has a mastery mark on the lesson (see `ChecklistDisplayStatus.mastered`).
@@ -163,6 +164,12 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
     /// The highest rung reached: mastered > reviewing > practicing > presented > planned,
     /// then ready or not yet ready by the blocking reason. Closed work counts as Reviewing
     /// until the lesson carries a mastery mark; a mark is Mastered with or without work.
+    ///
+    /// A presentation plan (dated or in the Inbox) is Planned wherever it sits. A year-plan
+    /// entry is Planned only once the lesson before has been given: scheduling one lesson
+    /// lays an entry on every later lesson of its sequence (`SequenceAutoPopulateService`),
+    /// and marking them all Planned dressed whole strands in orange (2026-11-03). The entry
+    /// still counts for the Ready count and the row's Plan, so she isn't planned twice.
     public var displayStatus: ChecklistDisplayStatus {
         .resolve(
             isMastered: isMastered,
@@ -170,9 +177,15 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
             allWorkClosed: isComplete,
             hasActiveWork: isWorkActive,
             isPresented: isPresented,
-            isPlanned: isScheduled || isOnYearPlan,
+            isPlanned: isScheduled || isNextOnYearPlan,
             blockingReason: blockingReason
         )
+    }
+
+    /// Her year plan's entry for this lesson is the one she's up to: the lesson before has
+    /// been given, or there is none.
+    public var isNextOnYearPlan: Bool {
+        isOnYearPlan && blockingReason != .prerequisiteNotPresented
     }
 
     /// Open work that hasn't been touched in a while, on a lesson not yet mastered.

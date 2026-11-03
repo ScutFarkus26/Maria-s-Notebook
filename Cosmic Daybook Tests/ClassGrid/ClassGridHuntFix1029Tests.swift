@@ -169,6 +169,30 @@ struct ClassGridHuntFix1029Tests {
         #expect(status.detail == "On the year plan.")
     }
 
+    @Test("a year-plan entry is Planned only on the lesson she's up to; the rest of the strand is Not yet")
+    func yearPlanMarksOnlyTheNextLesson() throws {
+        let fixture = try makeFixture { context, students, lessons in
+            // Ada: entries on both, nothing given. Bruno: Decimal 0 given, an entry on Decimal 1.
+            try yearPlanEntry(students[0], lessons[0], in: context)
+            try yearPlanEntry(students[0], lessons[1], in: context)
+            try yearPlanEntry(students[1], lessons[1], in: context)
+            let given = CDLessonAssignment(context: context)
+            given.lessonID = try #require(lessons[0].id).uuidString
+            given.studentIDs = [students[1].cloudKitKey]
+            given.markPresented(at: try CoreDataTestHelpers.day("2026-10-20"), snapshotLesson: false)
+        }
+        #expect(fixture.state(fixture.ada, fixture.decimal[0])?.displayStatus == .planned)
+        let adaNext = try #require(fixture.state(fixture.ada, fixture.decimal[1]))
+        #expect(adaNext.displayStatus == .notReady)
+        #expect(adaNext.isOnYearPlan)
+        #expect(!adaNext.isNextOnYearPlan)
+
+        // Decimal 0 given (not yet confirmed) is enough: her entry on Decimal 1 is the one she's up to.
+        let brunoNext = try #require(fixture.state(fixture.bruno, fixture.decimal[1]))
+        #expect(brunoNext.displayStatus == .planned)
+        #expect(brunoNext.isNextOnYearPlan)
+    }
+
     @Test("#12: Add to Inbox on a year-plan cell promotes her entry into the plan; Remove gives it back")
     func addToInboxReusesTheEntry() throws {
         var entry: CDYearPlanEntry?

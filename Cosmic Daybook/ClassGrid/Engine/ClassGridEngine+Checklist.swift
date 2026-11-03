@@ -321,7 +321,8 @@ extension ClassGridEngine {
     /// promoted entry's presentation already speaks for it, and a skipped one is no plan
     /// (`PresentationRecordIndex`'s rule). Until 2026-10-29 the Checklist read no year
     /// plan, so a child with the lesson on hers showed Ready, and the row's Plan put her
-    /// on a second plan (bug hunt 2026-10-29 #12).
+    /// on a second plan (bug hunt 2026-10-29 #12). The mark reads an entry as Planned only
+    /// on the lesson she's up to (`StudentChecklistRowState.isNextOnYearPlan`).
     private static func yearPlannedByLesson(
         lessonIDs: [String], context: NSManagedObjectContext
     ) -> [String: Set<String>] {
