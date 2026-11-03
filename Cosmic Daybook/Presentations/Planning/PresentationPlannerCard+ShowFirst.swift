@@ -80,12 +80,13 @@ extension PresentationPlannerCard {
 
     // MARK: - Work to check first
 
-    /// The chip's mark: a glyph as well as the amber ring.
+    /// The chip's mark: a small grey glyph, no ring. Rings are for absences
+    /// and clashes; this is a reminder, not a problem with the plan.
     var showFirstMark: some View {
         Image(systemName: WorkToShowFirst.glyph)
             .font(.caption2.weight(.bold))
             .imageScale(.small)
-            .foregroundStyle(AppColors.color(for: .brewing))
+            .foregroundStyle(.secondary)
             .accessibilityLabel("Has work to check first")
     }
 
@@ -100,8 +101,8 @@ extension PresentationPlannerCard {
                 Text(WorkToShowFirst.countLine(count))
                     .lineLimit(1)
             }
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(AppColors.color(for: .brewing))
+            .font(.caption2.weight(.medium))
+            .foregroundStyle(.secondary)
         }
     }
 }

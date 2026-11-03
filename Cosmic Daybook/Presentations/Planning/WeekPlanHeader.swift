@@ -92,29 +92,46 @@ struct WeekPlanHeader<Actions: View>: View {
         }
     }
 
-    /// Icons rather than swatches: they are the same glyphs the cards and the
-    /// chips draw, so the legend can be checked against a card at a glance.
+    /// The key to a card's name chips, drawn as small chips themselves: a
+    /// ringed one for each ring color, and the grey glyph for earlier work.
+    /// The colors and glyphs are the card's own, so the two always agree.
     private var legend: some View {
         HStack(spacing: 12) {
-            legendItem(
-                systemImage: "exclamationmark.triangle.fill",
-                color: AppColors.attention,
-                label: "Twice in one half"
-            )
-            legendItem(systemImage: "person.slash", color: .red, label: "Absent")
+            legendItem(label: "Two lessons in one half") {
+                ringSwatch(PresentationPlannerCard.clashRing) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(PresentationPlannerCard.clashRing)
+                }
+            }
+            legendItem(label: "Absent") {
+                ringSwatch(PresentationPlannerCard.absentRing) { EmptyView() }
+            }
+            legendItem(label: "Work to check first") {
+                Image(systemName: WorkToShowFirst.glyph)
+                    .foregroundStyle(.secondary)
+            }
         }
         .font(.caption2)
         .foregroundStyle(.secondary)
         .fixedSize()
     }
 
-    private func legendItem(systemImage: String, color: Color, label: String) -> some View {
+    private func legendItem(label: String, @ViewBuilder mark: () -> some View) -> some View {
         HStack(spacing: 4) {
-            Image(systemName: systemImage)
-                .foregroundStyle(color)
+            mark()
                 .accessibilityHidden(true)
             Text(label)
         }
         .accessibilityElement(children: .combine)
+    }
+
+    /// A blank name chip with the card's ring, its 1.5 pt stroke included.
+    /// A fixed size, so the absent swatch, which has nothing in it, matches.
+    private func ringSwatch(_ color: Color, @ViewBuilder content: () -> some View) -> some View {
+        content()
+            .imageScale(.small)
+            .frame(width: 24, height: 14)
+            .capsuleFill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+            .overlay(Capsule().stroke(color, lineWidth: 1.5))
     }
 }

@@ -24,7 +24,7 @@ struct PresentationPlannerCard: View {
     let cachedStudents: [CDStudent]
     /// Each child's open work from earlier in this lesson's sequence
     /// (`WorkToShowFirst`), read by the strip for every card at once. A child
-    /// with some gets an amber mark that opens the list.
+    /// with some gets a small grey mark that opens the list.
     var workToShowFirst: WorkToShowFirst.ByChild = [:]
     /// What the list's buttons do. Nil (a drag preview) keeps the mark but
     /// draws the chip as plain text.
@@ -198,10 +198,12 @@ struct PresentationPlannerCard: View {
         let isAbsent = attendanceCache[sid] == .absent
         let isDoubleBooked = doubleBookedStudentIDs.contains(sid)
         let hasWorkToShowFirst = workToShowFirst[sid] != nil
+        // Rings are kept for the two things that change the plan: a child
+        // who isn't there and a child booked twice in one half. Earlier work
+        // open is only a quiet glyph, so a ring always means one of those.
         let indicator: Color? = {
-            if isAbsent { return .red }
-            if isDoubleBooked { return AppColors.attention }
-            if hasWorkToShowFirst { return AppColors.color(for: .brewing) }
+            if isAbsent { return Self.absentRing }
+            if isDoubleBooked { return Self.clashRing }
             return nil
         }()
 
@@ -213,15 +215,14 @@ struct PresentationPlannerCard: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.caption2.weight(.bold))
                     .imageScale(.small)
-                    .foregroundStyle(AppColors.attention)
+                    .foregroundStyle(Self.clashRing)
                     .accessibilityLabel("Twice in one half")
             }
             Text(name)
                 .font(AppTheme.ScaledFont.captionSmallSemibold)
                 .foregroundStyle(isAbsent ? .secondary : .primary)
                 .lineLimit(1)
-            // Earlier work open: a glyph as well as the amber ring, so it
-            // doesn't rest on color alone. The card's line says the count.
+            // Earlier work open: the glyph alone. The card's line says the count.
             if hasWorkToShowFirst { showFirstMark }
         }
         .padding(.horizontal, 7)
@@ -232,6 +233,10 @@ struct PresentationPlannerCard: View {
                 .stroke(indicator ?? .clear, lineWidth: indicator == nil ? 0 : 1.5)
         )
     }
+
+    /// The chip rings, shared with the week header's key so the two agree.
+    static let absentRing: Color = .red
+    static let clashRing: Color = AppColors.attention
 
     // MARK: - Readiness footer
 
@@ -273,14 +278,14 @@ struct PresentationPlannerCard: View {
             if hasAbsentStudent {
                 Image(systemName: "person.slash")
                     .font(.caption)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Self.absentRing)
                     .accessibilityLabel("Student absent")
             }
             if hasDoubleBookedStudent {
                 // The legend's glyph for a clash, and the one on the chip.
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.caption)
-                    .foregroundStyle(AppColors.attention)
+                    .foregroundStyle(Self.clashRing)
                     .accessibilityLabel("Two lessons in the same half of the day")
             }
             if isOverdue {
