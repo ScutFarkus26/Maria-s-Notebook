@@ -4,12 +4,17 @@ import SQLite3
 import Testing
 @testable import CosmicDaybook
 
-// MARK: - Schema 23: the track entities leave the model
+// MARK: - Schema 23: the track entities leave the private store
 //
-// A store written at schema 22 (the bundle's model plus `TrackEntitiesStandIn`)
-// opens with the current model the way `CoreDataStack` opens it —
-// `prepareStoresForLoad`, then lightweight migration. The migration drops the
-// four tables and the columns that named them, and before it runs the
+// A store written at schema 22 (the bundle's model with the four track
+// entities routed to Private, plus `TrackEntitiesStandIn`'s columns) opens with
+// the current model the way `CoreDataStack` opens it — `prepareStoresForLoad`,
+// then lightweight migration. The four stay in the model as dormant tombstones
+// in no store, so the migration drops the columns that named them, leaves
+// their tables in the file where no store reads them (as the other tombstones'
+// are), and keeps the store's persistent history: deleting them from the model
+// would have expired every history token older than the last save, which
+// forces the CloudKit mirror into a full reset. Before the migration runs, the
 // preparation reads, straight from the file, whose each note on an enrollment
 // is (`EnrollmentNoteOwners`); the launch pass then moves those notes onto
 // that child (`docs/Plans/Plan - Retire the track entities.md`, Phase 3).
@@ -36,13 +41,21 @@ struct TrackEntitiesDropMigrationTests {
     /// What the schema-22 store held: a note on an enrollment that names no
     /// child, one on the same enrollment that names a classmate, one on an
     /// enrollment that is gone, a whole-class note on none, and a presentation
-    /// stamped with a track.
+    /// stamped with a track; saved three times, with the private store's
+    /// history token after each save, archived.
     private struct Seeded {
         let onEnrollment = UUID()
         let namesClassmate = UUID()
         let onGoneEnrollment = UUID()
         let wholeClass = UUID()
         let presentation = UUID()
+        var historyTokens: [Data] = []
+    }
+
+    /// What the private store's history holds after a token.
+    private struct HistoryRead {
+        let transactions: Int
+        let entities: Set<String>
     }
 
     /// A schema-22 note: its id, the enrollment it named, and its own scope.
@@ -107,8 +120,30 @@ struct TrackEntitiesDropMigrationTests {
         try JSONEncoder().encode(scope)
     }
 
+    private func insertNotes(
+        of seeded: Seeded, enrollment: UUID, into context: NSManagedObjectContext, store: NSPersistentStore
+    ) throws {
+        let notes: [OldNote] = [
+            OldNote(id: seeded.onEnrollment, enrollmentID: enrollment.uuidString, scope: .all),
+            OldNote(
+                id: seeded.namesClassmate, enrollmentID: enrollment.uuidString.lowercased(),
+                scope: .student(classmate)
+            ),
+            OldNote(id: seeded.onGoneEnrollment, enrollmentID: UUID().uuidString, scope: .all),
+            OldNote(id: seeded.wholeClass, enrollmentID: nil, scope: .all)
+        ]
+        for note in notes {
+            var values: [String: Any] = [
+                "id": note.id, "body": "Ready for the next fraction", "scopeBlob": try scopeBlob(note.scope),
+                "scopeIsAll": note.scope == .all
+            ]
+            if let enrollmentID = note.enrollmentID { values["studentTrackEnrollmentID"] = enrollmentID }
+            insert("Note", values, into: context, store: store)
+        }
+    }
+
     private func seedSchema22Stores(_ stores: TwoStores) throws -> Seeded {
-        let seeded = Seeded()
+        var seeded = Seeded()
         try autoreleasepool {
             let old = container(try schema22Model(), stores: stores)
             try load(old)
@@ -116,34 +151,29 @@ struct TrackEntitiesDropMigrationTests {
             let privateStore = try #require(old.persistentStoreCoordinator.persistentStores.first {
                 $0.configurationName == CoreDataStack.privateConfiguration
             })
+            func checkpoint() throws {
+                try context.save()
+                let token = try #require(old.persistentStoreCoordinator.currentPersistentHistoryToken(
+                    fromStores: [privateStore]
+                ))
+                seeded.historyTokens.append(
+                    try NSKeyedArchiver.archivedData(withRootObject: token, requiringSecureCoding: true)
+                )
+            }
             let enrollment = UUID()
             insert("Student", ["id": child, "firstName": "Ada"], into: context, store: privateStore)
             insert("Track", ["id": UUID(), "title": "Math — Fractions"], into: context, store: privateStore)
             insert("StudentTrackEnrollment", [
                 "id": enrollment, "studentID": child.uuidString, "trackID": "track-1"
             ], into: context, store: privateStore)
-            let notes: [OldNote] = [
-                OldNote(id: seeded.onEnrollment, enrollmentID: enrollment.uuidString, scope: .all),
-                OldNote(
-                    id: seeded.namesClassmate, enrollmentID: enrollment.uuidString.lowercased(),
-                    scope: .student(classmate)
-                ),
-                OldNote(id: seeded.onGoneEnrollment, enrollmentID: UUID().uuidString, scope: .all),
-                OldNote(id: seeded.wholeClass, enrollmentID: nil, scope: .all)
-            ]
-            for note in notes {
-                var values: [String: Any] = [
-                    "id": note.id, "body": "Ready for the next fraction", "scopeBlob": try scopeBlob(note.scope),
-                    "scopeIsAll": note.scope == .all
-                ]
-                if let enrollmentID = note.enrollmentID { values["studentTrackEnrollmentID"] = enrollmentID }
-                insert("Note", values, into: context, store: privateStore)
-            }
+            try checkpoint()
+            try insertNotes(of: seeded, enrollment: enrollment, into: context, store: privateStore)
+            try checkpoint()
             insert("LessonPresentation", [
                 "id": seeded.presentation, "studentID": child.uuidString, "lessonID": UUID().uuidString,
                 "trackID": "track-1", "trackStepID": "step-1"
             ], into: context, store: privateStore)
-            try context.save()
+            try checkpoint()
             for store in old.persistentStoreCoordinator.persistentStores {
                 try old.persistentStoreCoordinator.remove(store)
             }
@@ -186,11 +216,13 @@ struct TrackEntitiesDropMigrationTests {
         try load(new)
         let context = new.viewContext
 
-        // 2. The tables and the columns are gone; the rows that carried a
-        //    column are not.
-        #expect(Self.columns(of: "ZSTUDENTTRACKENROLLMENT", at: stores.privateURL).isEmpty)
-        #expect(Self.columns(of: "ZTRACK", at: stores.privateURL).isEmpty)
+        // 2. The columns are gone; the rows that carried a column are not.
+        //    The enrollments stay in their table, which no store reads now.
         #expect(!Self.columns(of: "ZNOTE", at: stores.privateURL).contains("ZSTUDENTTRACKENROLLMENTID"))
+        #expect(!Self.columns(of: "ZNOTE", at: stores.privateURL).isEmpty)
+        let privateNames = model.entities(forConfigurationName: CoreDataStack.privateConfiguration)?
+            .compactMap(\.name) ?? []
+        #expect(!privateNames.contains("StudentTrackEnrollment") && !privateNames.contains("Track"))
         #expect(!Self.columns(of: "ZLESSONPRESENTATION", at: stores.privateURL).contains("ZTRACKID"))
         #expect(!Self.columns(of: "ZLESSONPRESENTATION", at: stores.privateURL).isEmpty)
         let presentations = context.safeFetch(CDFetchRequest(CDLessonPresentation.self))
@@ -217,6 +249,55 @@ struct TrackEntitiesDropMigrationTests {
         withExtendedLifetime(modelHolder) {}
     }
 
+    @Test("History from before the migration still reads after it: the four left the store, not the model")
+    func historySurvivesTheMigration() throws {
+        let stores = try makeDirectory()
+        let standard = UserDefaults.standard
+        defer {
+            try? FileManager.default.removeItem(at: stores.directory)
+            standard.removeObject(forKey: EnrollmentNoteOwners.defaultsKey)
+        }
+        let modelHolder = try CoreDataTestHelpers.makeInMemoryStack()
+        let seeded = try seedSchema22Stores(stores)
+        #expect(seeded.historyTokens.count == 3)
+
+        let model = try CoreDataStack.sharedModel()
+        let new = container(model, stores: stores)
+        try CoreDataStack.prepareStoresForLoad(container: new, model: model)
+        standard.removeObject(forKey: EnrollmentNoteOwners.defaultsKey)
+        try load(new)
+
+        // The four are dormant tombstones: in the model, in neither store.
+        let privateNames = Set(model.entities(forConfigurationName: CoreDataStack.privateConfiguration)?
+            .compactMap(\.name) ?? [])
+        let sharedNames = Set(model.entities(forConfigurationName: CoreDataStack.sharedConfiguration)?
+            .compactMap(\.name) ?? [])
+        #expect(privateNames.contains("Note") && sharedNames.contains("Student"))
+        for name in TrackEntitiesStandIn.names {
+            #expect(model.entitiesByName[name] != nil, "\(name) left the model")
+            #expect(!privateNames.contains(name) && !sharedNames.contains(name), "\(name) is still in a store")
+        }
+
+        // Every token from before the migration still resolves, the first
+        // save's included (deleting the entities expired all but the last),
+        // and the saves after it are still there.
+        let privateStore = try #require(new.persistentStoreCoordinator.persistentStores.first {
+            $0.configurationName == CoreDataStack.privateConfiguration
+        })
+        for (index, data) in seeded.historyTokens.enumerated() {
+            let token = try #require(try NSKeyedUnarchiver.unarchivedObject(
+                ofClass: NSPersistentHistoryToken.self, from: data
+            ))
+            let read = try history(after: token, in: privateStore, context: new.viewContext)
+            #expect(read.transactions >= seeded.historyTokens.count - 1 - index, "after save \(index + 1)")
+        }
+        // The changes to the track entities themselves are still in it.
+        let all = try history(after: nil, in: privateStore, context: new.viewContext)
+        #expect(all.transactions >= seeded.historyTokens.count)
+        #expect(all.entities.isSuperset(of: ["Track", "StudentTrackEnrollment", "Note", "LessonPresentation"]))
+        withExtendedLifetime(modelHolder) {}
+    }
+
     @Test("A store already at schema 23 is read for nothing and stashes nothing")
     func currentStoreStashesNothing() throws {
         let stores = try makeDirectory()
@@ -239,6 +320,27 @@ struct TrackEntitiesDropMigrationTests {
         try CoreDataStack.prepareStoresForLoad(container: again, model: model)
         #expect(standard.object(forKey: EnrollmentNoteOwners.defaultsKey) == nil)
         #expect(EnrollmentNoteOwners.read(storeURL: stores.privateURL).isEmpty)
+    }
+
+}
+
+extension TrackEntitiesDropMigrationTests {
+
+    // MARK: - History
+
+    /// The private store's history after `token`, read on `context` (the
+    /// view context, on the main queue like this suite); throws when the
+    /// token has expired (`NSPersistentHistoryTokenExpiredError`).
+    private func history(
+        after token: NSPersistentHistoryToken?, in store: NSPersistentStore, context: NSManagedObjectContext
+    ) throws -> HistoryRead {
+        let request = NSPersistentHistoryChangeRequest.fetchHistory(after: token)
+        request.resultType = .transactionsAndChanges
+        request.affectedStores = [store]
+        let result = try context.execute(request) as? NSPersistentHistoryResult
+        let transactions = result?.result as? [NSPersistentHistoryTransaction] ?? []
+        let entities = transactions.flatMap { $0.changes ?? [] }.compactMap(\.changedObjectID.entity.name)
+        return HistoryRead(transactions: transactions.count, entities: Set(entities))
     }
 
     // MARK: - SQLite

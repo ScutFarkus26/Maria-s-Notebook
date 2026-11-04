@@ -138,15 +138,18 @@ nonisolated extension CoreDataStack {
     ///   name or its note last changed, so a replaced file reads "Updated"
     ///   (plan "Lesson file attachments"; `LessonAttachmentService`). Additive
     ///   optional Date; older records read it as `attachedAt`.
-    /// - `23` — the track entities leave the model (plan "Retire the track
-    ///   entities", Phase 3): `Track`, `TrackStep`, `SequenceTrack` and
-    ///   `StudentTrackEnrollment`, `trackID` and `trackStepID` on
-    ///   `LessonPresentation`, `LessonAssignment` and `WorkModel`, and
-    ///   `Note.studentTrackEnrollmentID`. Private store only; nothing has
-    ///   written them since the Phase 1 build, and a child's standing on a
-    ///   sequence is read from her presentations (`SequenceStanding`). A note
-    ///   that hung on an enrollment is read before the store migrates and
-    ///   moved onto the enrollment's child after (`EnrollmentNoteOwners`).
+    /// - `23` — the track entities leave the private store (plan "Retire the
+    ///   track entities", Phase 3): `Track`, `TrackStep`, `SequenceTrack` and
+    ///   `StudentTrackEnrollment` stay in the model as dormant tombstones in
+    ///   no store (`dormantTombstoneEntities`; deleting them would have
+    ///   truncated the store's persistent history), and `trackID` and
+    ///   `trackStepID` on `LessonPresentation`, `LessonAssignment` and
+    ///   `WorkModel`, and `Note.studentTrackEnrollmentID`, are dropped.
+    ///   Nothing has written them since the Phase 1 build, and a child's
+    ///   standing on a sequence is read from her presentations
+    ///   (`SequenceStanding`). A note that hung on an enrollment is read before
+    ///   the store migrates and moved onto the enrollment's child after
+    ///   (`EnrollmentNoteOwners`).
     nonisolated static let currentSchemaVersion = 23
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.

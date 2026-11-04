@@ -186,7 +186,7 @@ enum BackupImporter {
     /// that entity's DTO type. Returns the warning to surface when the entry is
     /// skipped — an entity this version does not know, or a row that does not
     /// decode (then the field keeps what it held) — and nil when it decoded or
-    /// is a type that left the model (`BackupEntityTable.retiredNames`).
+    /// is a type no store holds any more (`BackupEntityTable.retiredNames`).
     nonisolated static func decode(
         _ entry: BackupEntityEntry,
         into payload: inout BackupPayload,

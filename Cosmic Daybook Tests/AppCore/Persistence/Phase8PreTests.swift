@@ -73,9 +73,11 @@ final class Phase8PreTests {
         for name in ["Lesson", "Schedule", "Procedure", "ClassroomJob", "GoingOut"] {
             #expect(priv.contains(name), "\(name) is the guide's own since schema 9")
         }
-        // The track entities left the model at schema 23.
+        // The track entities left the private store at schema 23 and stay in
+        // the model as dormant tombstones.
         for name in TrackEntitiesStandIn.names {
             #expect(!priv.contains(name) && !CoreDataStack.sharedEntityNames.contains(name))
+            #expect(CoreDataStack.dormantTombstoneEntities.contains(name))
         }
         for name in ["Supply", "SupplyTransaction", "OrderItem"] {
             #expect(!priv.contains(name), "\(name) is in the classroom share since schema 15")

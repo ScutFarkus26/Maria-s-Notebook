@@ -317,6 +317,16 @@
         <attribute name="pdfFileRelativePath" attributeType="String" defaultValueString=""/>
         <attribute name="studentID" optional="YES" attributeType="String"/>
     </entity>
+    <!-- ==================== GroupTrack ==================== -->
+    <entity name="SequenceTrack" representedClassName="CDSequenceTrackEntity" renamingIdentifier="GroupTrack" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="area" attributeType="String" defaultValueString="" renamingIdentifier="subject"/>
+        <attribute name="sequence" attributeType="String" defaultValueString="" renamingIdentifier="group"/>
+        <attribute name="isSequential" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="isExplicitlyDisabled" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="track" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Track" inverseName="sequenceTrack" inverseEntity="Track"/>
+    </entity>
     <!-- ==================== Issue ==================== -->
     <entity name="Issue" representedClassName="CDIssue" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
@@ -435,6 +445,16 @@
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
+    <!-- ==================== StudentTrackEnrollment ==================== -->
+    <entity name="StudentTrackEnrollment" representedClassName="StudentTrackEnrollmentEntity" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="studentID" attributeType="String" defaultValueString=""/>
+        <attribute name="trackID" attributeType="String" defaultValueString=""/>
+        <attribute name="startedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="isActive" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <relationship name="track" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Track" inverseName="enrollments" inverseEntity="Track"/>
+    </entity>
     <!-- ==================== Supply ==================== -->
     <entity name="Supply" representedClassName="CDSupply" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
@@ -543,6 +563,23 @@
         <attribute name="defaultStudentIDs" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
         <attribute name="tags" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
         <attribute name="useCount" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+    </entity>
+    <!-- ==================== Track ==================== -->
+    <entity name="Track" representedClassName="TrackEntity" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="enrollments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="StudentTrackEnrollment" inverseName="track" inverseEntity="StudentTrackEnrollment"/>
+        <relationship name="sequenceTrack" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="SequenceTrack" inverseName="track" inverseEntity="SequenceTrack" renamingIdentifier="groupTrack"/>
+        <relationship name="steps" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="TrackStep" inverseName="track" inverseEntity="TrackStep"/>
+    </entity>
+    <!-- ==================== TrackStep ==================== -->
+    <entity name="TrackStep" representedClassName="TrackStepEntity" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="orderIndex" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="lessonTemplateID" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="track" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Track" inverseName="steps" inverseEntity="Track"/>
     </entity>
     <!-- ==================== WorkModel ==================== -->
     <entity name="WorkModel" representedClassName="CDWorkModel" syncable="YES">

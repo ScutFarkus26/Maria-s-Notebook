@@ -158,11 +158,12 @@ nonisolated enum BackupEntityTable {
     /// Every entity name, in archive order.
     static var names: [String] { entities.map(\.name) }
 
-    /// Types an older backup carries that left the model: their entries are
-    /// skipped without a warning, since nothing here could hold them and the
-    /// backup isn't from a newer version. The four came out at format 45
-    /// (schema 23, `docs/Plans/Plan - Retire the track entities.md`); what
-    /// they held is read off the lessons and the presentation record now.
+    /// Types an older backup carries that no store holds any more: their
+    /// entries are skipped without a warning, since nothing here could hold
+    /// them and the backup isn't from a newer version. The four came out at
+    /// format 45 (schema 23, `docs/Plans/Plan - Retire the track entities.md`;
+    /// they stay in the model only as dormant tombstones); what they held is
+    /// read off the lessons and the presentation record now.
     static let retiredNames: Set<String> = ["Track", "TrackStep", "SequenceTrack", "StudentTrackEnrollment"]
 
     /// The type whose rows `field` holds, or nil for a payload array no

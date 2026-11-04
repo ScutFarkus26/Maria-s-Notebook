@@ -20,7 +20,7 @@ struct BackupSparseRowTests {
 
     /// The entity types written through `ModelRow`, in the order the
     /// reference was recorded in: a type's fixed id comes from its place
-    /// here. `nil` holds the place of a type that left the model (the three
+    /// here. `nil` holds the place of a type no longer backed up (the three
     /// track types, schema 23), so every other type keeps the id it was
     /// recorded with.
     private static let recordedOrder: [String?] = [

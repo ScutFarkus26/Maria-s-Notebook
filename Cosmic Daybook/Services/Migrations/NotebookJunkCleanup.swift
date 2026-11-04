@@ -37,8 +37,8 @@
 //  (`WorkDeletionService` leaves them as meeting history).
 //
 //  Until schema 23 it also tidied the track entities (steps with no track,
-//  empty tracks, enrollments with no track); they left the model with
-//  `docs/Plans/Plan - Retire the track entities.md`.
+//  empty tracks, enrollments with no track); they left the private store
+//  with `docs/Plans/Plan - Retire the track entities.md`.
 //
 //  `run(in:today:apply:within:)` counts with `apply: false` and changes with
 //  `apply: true` through one code path, so the preview and the run can't

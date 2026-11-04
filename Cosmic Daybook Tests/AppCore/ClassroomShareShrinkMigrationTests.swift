@@ -18,9 +18,12 @@ import Testing
 // Objects are made with `insertNewObject(forEntityName:)` and read through KVC:
 // the schema-8 stand-in and the bundle's model are both loaded here, so the
 // class-to-entity lookup behind the `CD…(context:)` initializers is ambiguous.
-// Schema 23 took the track entities out of the model, so the stand-in adds
-// them back (`TrackEntitiesStandIn`), and the migration here goes past both
-// changes at once: the enrollment leaves with its entity, the child stays.
+// Schema 23 took the track entities out of the private store (they stay in
+// the model as dormant tombstones) and dropped the columns that named them, so
+// this schema-8 model routes the four to Private and the stand-in adds the
+// columns back (`TrackEntitiesStandIn`). The migration here goes past both
+// changes at once: the enrollment leaves with its store's configuration, the
+// child stays.
 
 @Suite("Classroom share shrink migration", .serialized)
 @MainActor
@@ -198,9 +201,11 @@ struct ClassroomShareShrinkMigrationTests {
         let context = new.viewContext
 
         // 3. The guide's child survives the relationship's removal (her
-        //    enrollment went with its entity at schema 23).
+        //    enrollment left the private store at schema 23).
         #expect(try fetch("Student", id: guideStudent, in: context) != nil)
-        #expect(model.entitiesByName["StudentTrackEnrollment"] == nil)
+        let privateNames = model.entities(forConfigurationName: CoreDataStack.privateConfiguration)?
+            .compactMap(\.name) ?? []
+        #expect(!privateNames.isEmpty && !privateNames.contains("StudentTrackEnrollment"))
 
         // 4. The shared store keeps its five types; the lesson it can no
         //    longer hold is gone from it (an assistant never needed it).

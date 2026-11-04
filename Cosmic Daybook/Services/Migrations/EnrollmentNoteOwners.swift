@@ -11,8 +11,9 @@
 //  enrollment's `studentID` (`docs/Plans/Plan - Retire the track entities.md`,
 //  Decisions).
 //
-//  The column and the enrollments are gone from the model, so Core Data can't
-//  read them any more. Two halves, one on each side of the migration:
+//  The column is gone from the model and the enrollments from the private
+//  store, so Core Data can't read them any more. Two halves, one on each side
+//  of the migration:
 //  - Before the private store migrates, `CoreDataStack.prepareStoresForLoad`
 //    reads note → child straight from the SQLite file, read-only, and keeps
 //    the list in UserDefaults (`stashOwners(readingStoreAt:)`). It reads only

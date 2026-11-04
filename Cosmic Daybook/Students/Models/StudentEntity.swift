@@ -30,7 +30,7 @@ nonisolated public class CDStudent: NSManagedObject {
 
     // Schema 9 removed the `trackEnrollments` relationship: it pulled a
     // child's tracks, steps and lessons into the classroom share. Schema 23
-    // removed the track entities themselves.
+    // retired the track entities themselves.
 
     // MARK: - Convenience Initializer
     @discardableResult
