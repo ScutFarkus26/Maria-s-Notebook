@@ -118,7 +118,7 @@ struct BackupCollectionPagingTests {
         let notes = BackupService().collectPayload(viewContext: store.context).notes
 
         #expect(notes.count == saved.count)
-        #expect(notes.first { $0.id == edited }?.body == "Edited, not saved")
+        #expect(notes.first { $0.id == edited }?.string("body") == "Edited, not saved")
     }
 
     @Test("A row the transformer skips costs only itself, even on a full page")
@@ -211,6 +211,6 @@ struct BackupCollectionPagingTests {
         let ids = changed.map(\.id)
         #expect(ids.count == saved.count)
         #expect(Set(ids) == Set(saved).subtracting([deletedID]).union([pending]))
-        #expect(changed.first { $0.id == editedID }?.body == "Edited, not saved")
+        #expect(changed.first { $0.id == editedID }?.string("body") == "Edited, not saved")
     }
 }

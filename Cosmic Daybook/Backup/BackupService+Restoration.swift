@@ -308,9 +308,7 @@ extension BackupService {
         // Notes import early, but many of their relationship targets (work,
         // check-ins, meetings, etc.) import in later phases — relink them now
         // that every target type is in the store.
-        try BackupEntityImporter.relinkNoteRelationships(
-            run.noteLinks, index: run.index
-        )
+        try run.relinkNotes()
         try run.matchStudentLinksToScope()
         return run
     }

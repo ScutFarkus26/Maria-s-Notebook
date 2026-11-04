@@ -8,8 +8,6 @@ import OSLog
 /// testability and separation of concerns.
 ///
 /// Domain-specific import methods are organized into extensions:
-/// - `BackupEntityImporter+Students.swift` -- student imports
-/// - `BackupEntityImporter+Lessons.swift` -- lesson imports
 /// - `BackupEntityImporter+Work.swift` -- work imports
 /// - `BackupEntityImporter+Projects.swift` -- project imports
 /// - `BackupEntityImporter+Calendar.swift` -- calendar imports

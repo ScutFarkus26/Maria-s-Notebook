@@ -50,7 +50,7 @@ struct BackupReplaceInPlaceTests {
 
         var backup = Fix1102.payload(of: context)
         backup.students = backup.students.filter { $0.id == adaID }
-        backup.students[0].firstName = "Ada (backup)"
+        backup.students[0].values["firstName"] = .string("Ada (backup)")
 
         let preview = Fix1102.analyze(BackupPreviewDigest(payload: backup), against: context, mode: .replace)
         #expect(preview.inserts["Student"] == 0)
@@ -79,8 +79,8 @@ struct BackupReplaceInPlaceTests {
         let objectID = ada.objectID
 
         var backup = Fix1102.payload(of: context)
-        backup.students[0].firstName = "Ada (backup)"
-        backup.students[0].modifiedAt = Date().addingTimeInterval(60)
+        backup.students[0].values["firstName"] = .string("Ada (backup)")
+        backup.students[0].values["modifiedAt"] = .date(Date().addingTimeInterval(60))
 
         // The importers `insert` the saved record they update; giving it a
         // store again used to throw at the save.

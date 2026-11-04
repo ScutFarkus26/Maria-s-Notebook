@@ -48,8 +48,8 @@ struct BackupMergeReviewFixTests {
         // The backup's copy of the second note is newer than this device's
         // (this device is behind).
         let behindRow = try #require(backup.notes.firstIndex { $0.id == behindID })
-        backup.notes[behindRow].body = "Cy read aloud to the class"
-        backup.notes[behindRow].updatedAt = Fix1102.at(50)
+        backup.notes[behindRow].values["body"] = .string("Cy read aloud to the class")
+        backup.notes[behindRow].values["updatedAt"] = .date(Fix1102.at(50))
 
         // Since the backup, here: the note now names Ada and Cy, not Bea.
         edited.body = "Ada and Cy built the tower"

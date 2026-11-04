@@ -296,8 +296,8 @@ struct BackupRestoreKeepsTests {
         for key in ["supplyID", "addedByID", "sourceRaw", "addedByName"] { needRow.values[key] = nil }
         old.orderItems = [needRow]
         var noteRow = try #require(old.notes.first)
-        noteRow.body = "For the report, edited"
-        noteRow.includeInReport = nil
+        noteRow.values["body"] = .string("For the report, edited")
+        noteRow.values["includeInReport"] = nil
         old.notes = [noteRow]
         let supplyID = need.supplyID
 

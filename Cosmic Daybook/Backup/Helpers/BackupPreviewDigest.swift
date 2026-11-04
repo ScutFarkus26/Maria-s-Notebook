@@ -18,6 +18,14 @@ nonisolated struct BackupPreviewDigest: Sendable, Equatable {
         let id: UUID
         let lessonID: String
         let modifiedAt: Date?
+
+        /// A row's reference. Every row read from a backup has a `lessonID`;
+        /// one made in memory without it reads as one with no lesson.
+        init(_ row: LessonAssignmentDTO) {
+            id = row.id
+            lessonID = row.string("lessonID") ?? ""
+            modifiedAt = row.rowModifiedAt
+        }
     }
 
     /// One row as the analysis sees it: its ID, and the dates a Merge's
@@ -54,9 +62,7 @@ nonisolated struct BackupPreviewDigest: Sendable, Equatable {
         mutating func add(_ row: any Sendable) {
             count += 1
             if let assignment = row as? LessonAssignmentDTO {
-                assignments.append(AssignmentReference(
-                    id: assignment.id, lessonID: assignment.lessonID, modifiedAt: assignment.modifiedAt
-                ))
+                assignments.append(AssignmentReference(assignment))
             } else if let row = row as? any BackupRowDTO {
                 stamps.append(RowStamp(row))
             }
@@ -91,9 +97,7 @@ nonisolated struct BackupPreviewDigest: Sendable, Equatable {
             guard let rows = entity.rowsIn(payload), !rows.isEmpty else { continue }
             rowStamps[entity.name] = rows.map { RowStamp($0) }
         }
-        lessonAssignments = payload.lessonAssignments.map {
-            AssignmentReference(id: $0.id, lessonID: $0.lessonID, modifiedAt: $0.modifiedAt)
-        }
+        lessonAssignments = payload.lessonAssignments.map(AssignmentReference.init)
         projectAssignmentTemplateCount = payload.projectAssignmentTemplates.count
         projectTemplateWeekCount = payload.projectTemplateWeeks.count
         projectWeekRoleAssignmentCount = payload.projectWeekRoleAssignments.count

@@ -1,4 +1,3 @@
-// swiftlint:disable file_length
 import Foundation
 import CoreData
 
@@ -10,33 +9,6 @@ import CoreData
 // re-add transformers for them here.
 
 extension BackupDTOTransformers {
-
-    // MARK: - CDLessonAssignment
-
-    static func toDTO(_ assignment: CDLessonAssignment) -> LessonAssignmentDTO {
-        LessonAssignmentDTO(
-            id: assignment.id ?? UUID(),
-            createdAt: assignment.createdAt ?? Date(),
-            modifiedAt: assignment.modifiedAt ?? Date(),
-            stateRaw: assignment.stateRaw,
-            scheduledFor: assignment.scheduledFor,
-            presentedAt: assignment.presentedAt,
-            lessonID: assignment.lessonID,
-            studentIDs: assignment.studentIDs,
-            lessonTitleSnapshot: assignment.lessonTitleSnapshot,
-            lessonSectionSnapshot: assignment.lessonSectionSnapshot,
-            needsPractice: assignment.needsPractice,
-            needsAnotherPresentation: assignment.needsAnotherPresentation,
-            followUpWork: assignment.followUpWork,
-            notes: assignment.notes,
-            trackID: assignment.trackID,
-            trackStepID: assignment.trackStepID,
-            migratedFromLegacyID: assignment.migratedFromStudentLessonID,
-            migratedFromPresentationID: assignment.migratedFromPresentationID,
-            manuallyUnblocked: assignment.manuallyUnblocked,
-            confirmedStudentIDs: assignment.confirmedStudentIDs
-        )
-    }
 
     // MARK: - CDCalendarEvent
 
@@ -258,10 +230,6 @@ extension BackupDTOTransformers {
     }
 
     // MARK: - Batch Transformations (Misc)
-
-    static func toDTOs(_ assignments: [CDLessonAssignment]) -> [LessonAssignmentDTO] {
-        assignments.map { toDTO($0) }
-    }
 
     static func toDTOs(_ events: [CDCalendarEvent]) -> [CalendarEventDTO] {
         events.map { toDTO($0) }

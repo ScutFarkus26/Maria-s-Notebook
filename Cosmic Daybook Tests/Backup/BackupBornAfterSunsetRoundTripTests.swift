@@ -44,8 +44,8 @@ struct BackupBornAfterSunsetRoundTripTests {
         let evening = CoreDataTestHelpers.seedStudent(in: context, firstName: "Maya", lastName: "Stone")
         evening.bornAfterSunset = true
         let daytime = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ezra", lastName: "Bloom")
-        let rows = BackupServiceHelpers.toDTOs([evening, daytime])
-        #expect(rows.map(\.bornAfterSunset) == [true, false])
+        let rows = StudentDTO.rows([evening, daytime])
+        #expect(rows.map { $0.values["bornAfterSunset"] } == [.bool(true), .bool(false)])
     }
 
     @Test("A v42 backup restores a new child born by day")
@@ -115,7 +115,7 @@ struct BackupBornAfterSunsetRoundTripTests {
         let (payload, warnings) = BackupImporter.reconstructPayload(from: decoded)
         #expect(warnings.isEmpty, "\(warnings)")
         let dto = try #require(payload.students.first, "the row decodes")
-        #expect(dto.bornAfterSunset == bornAfterSunset)
+        #expect(dto.values["bornAfterSunset"] == bornAfterSunset.map(ModelValue.bool))
         return payload
     }
 

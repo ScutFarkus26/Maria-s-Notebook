@@ -12,10 +12,6 @@ import Foundation
 // `updatedAt`. The rest have none, and a Merge takes the backup's row for
 // them (but a to-do done here stays done, `rowCompletedAt`).
 // `BackupMergeNewerWinsTests` checks every type against the model.
-nonisolated extension StudentDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension LessonDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension LessonAssignmentDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension NoteDTO: BackupRowDTO { var rowModifiedAt: Date? { updatedAt } }
 nonisolated extension NonSchoolDayDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension SchoolDayOverrideDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension StudentMeetingDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
@@ -29,8 +25,6 @@ nonisolated extension ProjectRoleDTO: BackupRowDTO { var rowModifiedAt: Date? { 
 nonisolated extension WorkModelDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension WorkCheckInDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension WorkParticipantEntityDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension LessonPresentationDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension SampleWorkDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension CalendarEventDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension SequenceTrackDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension DocumentDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }

@@ -174,19 +174,19 @@ nonisolated enum BackupEntityTable {
 
     private static let coreEntities: [BackupEntity] = [
         .required(
-            "Student", CDStudent.self, \.students, BackupServiceHelpers.toDTOs,
+            "Student", CDStudent.self, \.students, StudentDTO.rows,
             announcing: .init(0.0, "Collecting students\u{2026}")
         ),
         .required(
-            "Lesson", CDLesson.self, \.lessons, BackupServiceHelpers.toDTOs,
+            "Lesson", CDLesson.self, \.lessons, LessonDTO.rows,
             announcing: .init(0.06, "Collecting lessons\u{2026}")
         ),
         .required(
-            "LessonAssignment", CDLessonAssignment.self, \.lessonAssignments, BackupDTOTransformers.toDTOs,
+            "LessonAssignment", CDLessonAssignment.self, \.lessonAssignments, LessonAssignmentDTO.rows,
             announcing: .init(0.15, "Collecting lesson assignments\u{2026}")
         ),
         .required(
-            "Note", CDNote.self, \.notes, BackupServiceHelpers.toDTOs,
+            "Note", CDNote.self, \.notes, NoteDTO.rows,
             announcing: .init(0.24, "Collecting notes\u{2026}")
         ),
         .required(
@@ -238,14 +238,14 @@ nonisolated enum BackupEntityTable {
             announcing: .init(0.50, "Collecting lesson extras\u{2026}")
         ),
         .optional(
-            "LessonPresentation", CDLessonPresentation.self, \.lessonPresentations, BackupDTOTransformers.toDTOs
+            "LessonPresentation", CDLessonPresentation.self, \.lessonPresentations, LessonPresentationDTO.rows
         ),
         // Joined during v19 (2026-06-25) without a bump, so v20 is the first
         // format whose every backup carries recall checks (bug hunt 2026-11-02, #10).
         .optional(
             "LessonRecallCheck", CDLessonRecallCheck.self, \.recallChecks, LessonRecallCheckDTO.rows, since: 20
         ),
-        .optional("SampleWork", CDSampleWork.self, \.sampleWorks, BackupDTOTransformers.toDTOs),
+        .optional("SampleWork", CDSampleWork.self, \.sampleWorks, SampleWorkDTO.rows),
         .optional("SampleWorkStep", CDSampleWorkStep.self, \.sampleWorkSteps, SampleWorkStepDTO.rows)
     ]
 

@@ -13,15 +13,13 @@ extension BackupRestoreRun {
         let viewContext = context
         let index = self.index
 
-        _ = try BackupEntityImporter.importStudents(
-            rows(\.students),
-            into: viewContext,
+        try BackupEntityImporter.importRows(
+            rows(\.students), as: CDStudent.self, into: viewContext,
             existing: { try index.existing(CDStudent.self, id: $0) }
         )
 
-        try BackupEntityImporter.importLessons(
-            rows(\.lessons),
-            into: viewContext,
+        try BackupEntityImporter.importRows(
+            rows(\.lessons), as: CDLesson.self, into: viewContext,
             existing: { try index.existing(CDLesson.self, id: $0) }
         )
 
@@ -31,21 +29,38 @@ extension BackupRestoreRun {
             existing: { try index.existing(CDCommunityTopicEntity.self, id: $0) }
         )
 
-        try BackupEntityImporter.importLessonAssignments(
-            rows(\.lessonAssignments),
-            into: viewContext,
-            existing: { try index.existing(CDLessonAssignment.self, id: $0) },
-            lessonCheck: { try index.related(CDLesson.self, id: $0) }
+        try BackupEntityImporter.importRows(
+            rows(\.lessonAssignments), as: CDLessonAssignment.self, into: viewContext,
+            existing: { try index.existing(CDLessonAssignment.self, id: $0) }
         )
 
         let notes = try rows(\.notes)
-        try BackupEntityImporter.importNotes(
-            notes,
-            into: viewContext,
+        noteLinks = BackupEntityImporter.importRows(
+            notes, as: CDNote.self, into: viewContext,
             existing: { try index.existing(CDNote.self, id: $0) }
         )
-        noteLinks = notes.compactMap(BackupNoteLinks.init)
         restoredNoteIDs = notes.map(\.id)
+    }
+
+    /// Re-links every restored note to the records it points at
+    /// (`noteLinks`), once every type they can be is in: the restore calls it
+    /// after the last type. Each link is set to the record found by its id,
+    /// or to nothing; a failed lookup stops the restore.
+    func relinkNotes() throws {
+        let index = self.index
+        try BackupEntityImporter.relinkDeferred(
+            noteLinks,
+            owner: { try index.related(CDNote.self, id: $0) },
+            parents: [
+                "work": { try index.related(CDWorkModel.self, id: $0) },
+                "lessonAssignment": { try index.related(CDLessonAssignment.self, id: $0) },
+                "workCheckIn": { try index.related(CDWorkCheckIn.self, id: $0) },
+                "workCompletionRecord": { try index.related(CDWorkCompletionRecord.self, id: $0) },
+                "studentMeeting": { try index.related(CDStudentMeeting.self, id: $0) },
+                "projectSession": { try index.related(CDProjectSession.self, id: $0) },
+                "issue": { try index.related(CDIssue.self, id: $0) }
+            ]
+        )
     }
 
     func importCalendarAndRecordEntities() throws {
@@ -188,9 +203,8 @@ extension BackupRestoreRun {
         }
 
         if let lessonPresentations = try rows(\.lessonPresentations) {
-            try BackupEntityImporter.importLessonPresentations(
-                lessonPresentations,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                lessonPresentations, as: CDLessonPresentation.self, into: viewContext,
                 existing: { try index.existing(CDLessonPresentation.self, id: $0) }
             )
         }
@@ -203,11 +217,10 @@ extension BackupRestoreRun {
         }
 
         if let sampleWorks = try rows(\.sampleWorks) {
-            try BackupEntityImporter.importSampleWorks(
-                sampleWorks,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                sampleWorks, as: CDSampleWork.self, into: viewContext,
                 existing: { try index.existing(CDSampleWork.self, id: $0) },
-                lessonCheck: { try index.related(CDLesson.self, id: $0) }
+                parents: ["lesson": { try index.related(CDLesson.self, id: $0) }]
             )
         }
 

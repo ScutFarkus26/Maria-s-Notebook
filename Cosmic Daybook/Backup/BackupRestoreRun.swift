@@ -83,8 +83,8 @@ final class BackupRestoreRun {
     private(set) var keptNoteIDs = Set<UUID>()
 
     /// The links of every restored note that has any, rewired once every type
-    /// they point at is in (`BackupEntityImporter.relinkNoteRelationships`).
-    var noteLinks: [BackupNoteLinks] = []
+    /// they point at is in (`relinkNotes`).
+    var noteLinks: [BackupDeferredLinks] = []
     /// Every restored note, whose student links are made to match its scope
     /// once the links themselves are in (`matchStudentLinksToScope`).
     var restoredNoteIDs: [UUID] = []

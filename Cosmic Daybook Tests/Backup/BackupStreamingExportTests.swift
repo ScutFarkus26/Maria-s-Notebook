@@ -177,7 +177,7 @@ struct BackupStreamingExportTests {
         #expect(!phases.contains("collect in one pass"), "declined before collecting anything")
         #expect(summary.entityCounts["Lesson"] == 2, "the pending lesson is in the backup")
         let legacy = Fixtures.legacyPayload(of: store.context)
-        #expect(legacy.students.contains { $0.firstName == "Renamed, not saved" })
+        #expect(legacy.students.contains { $0.string("firstName") == "Renamed, not saved" })
         try Fixtures.expectLegacyEntries(try Fixtures.contents(of: url), for: legacy, unordered: ["Lesson"])
     }
 
