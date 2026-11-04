@@ -156,6 +156,9 @@ struct StudentProgressTabLoadScopeTests {
         #expect(standing.total == 2)
         #expect(standing.masteredCount == 1)
         #expect(standing.nextLesson?.objectID == seeded.secondLesson.objectID)
+        // Her open report on Bead Squares means she's working on it, so the card names
+        // no next lesson, as her timeline marks none (bug hunt 2026-11-03 #29).
+        #expect(viewModel.nextLessonByStanding[standing.id] == nil)
         #expect(standing.isInProgress)
         #expect(!standing.isFinished)
 

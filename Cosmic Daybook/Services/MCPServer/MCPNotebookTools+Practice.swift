@@ -98,9 +98,14 @@ extension MCPNotebookTools {
         }
         let shown: [CDPracticeSession] = Array(sorted.prefix(limit))
         let names = studentNameIndex(in: modelContext)
+        let workIDs = Set(shown.flatMap(\.workItemIDsArray).compactMap(UUID.init(uuidString:)))
+        let workRequest = CDFetchRequest(CDWorkModel.self)
+        workRequest.predicate = NSPredicate(format: "id IN %@", Array(workIDs))
+        let work = workIDs.isEmpty ? [] : modelContext.safeFetch(workRequest)
         var lines: [String] = ["\(sorted.count) practice session(s):"]
         for session in shown {
-            lines.append(contentsOf: practiceLines(session, names: names))
+            let sessionWork = work.filter { session.workItemIDsArray.contains($0.id?.uuidString ?? "") }
+            lines.append(contentsOf: practiceLines(session, names: names, work: sessionWork))
         }
         if sorted.count > shown.count {
             lines.append("(\(sorted.count - shown.count) more not shown.)")
@@ -109,7 +114,7 @@ extension MCPNotebookTools {
     }
 
     private static func practiceLines(
-        _ session: CDPracticeSession, names: [String: String]
+        _ session: CDPracticeSession, names: [String: String], work: [CDWorkModel]
     ) -> [String] {
         let id: String = session.id?.uuidString ?? "unknown"
         let who: [String] = session.studentIDsArray.compactMap { names[$0] }.sorted()
@@ -143,7 +148,10 @@ extension MCPNotebookTools {
         if let followUp = nonEmpty(session.followUpActions) {
             lines.append("    Follow-up: \(followUp)")
         }
-        if let checkIn = session.checkInScheduledFor {
+        // The work's own next check-in, as the practice card shows it: the day
+        // written on the session stays after that check-in is done, moved or
+        // deleted (bug hunt 2026-11-03 #46).
+        if let checkIn = PracticeSessionCard.checkInDate(for: session, workItems: work) {
             lines.append("    Check-in scheduled \(dayString(checkIn))")
         }
         return lines

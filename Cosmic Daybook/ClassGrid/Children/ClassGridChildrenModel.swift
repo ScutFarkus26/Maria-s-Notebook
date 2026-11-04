@@ -4,10 +4,13 @@
 //
 // For every enrolled student, finds the subjects (lesson.area) and sequences (lesson.sequence)
 // the student has "started" — meaning at least one of: a presented assignment, a scheduled or
-// draft assignment, or an active (non-complete) work item. Within each sequence, every lesson
-// becomes a mark with its status by the Checklist's rule (`LessonNodeStatus.resolve`, drawn as
-// `ChecklistDisplayStatus`), as StudentAreaProgressionViewModel does: only a mastery mark is
-// Mastered, closed work without one is Reviewing; a plan waiting undated in the inbox is Planned.
+// draft assignment, an active (non-complete) work item, or a mastery mark (a Checklist Mastered
+// writes only the mark; until 2026-11-03 such a sequence never reached her card, #28). Within
+// each sequence, every lesson becomes a mark with its status by the Checklist's rule
+// (`LessonNodeStatus.resolve`, drawn as `ChecklistDisplayStatus`), as StudentAreaProgressionViewModel
+// does: only a mastery mark is Mastered, closed work without one is Reviewing; a plan waiting
+// undated in the inbox is Planned, and so is the year-plan entry she's up to
+// (`YearPlanNextLessons`).
 // The area menu, search and children filter narrow the cards (`groups`), grouped by level.
 
 import Foundation
@@ -86,6 +89,19 @@ final class ClassGridChildrenModel {
         let masteryMarks = PresentationRecordIndex.masteryMarks(
             lessonIDs: Set(lessonsByPair.values.joined().compactMap { $0.id?.uuidString }), in: context
         )
+        // studentID → the lessons she has a mastery mark on.
+        var markedLessonsByStudent: [String: [String]] = [:]
+        for (lessonID, studentIDs) in masteryMarks {
+            for studentID in studentIDs { markedLessonsByStudent[studentID, default: []].append(lessonID) }
+        }
+        // lessonID → the children whose year plan has them up to it: Planned, as on the Checklist.
+        let yearPlanNext = YearPlanNextLessons.byLesson(
+            sequences: lessonsByPair.values.map { lessons in
+                lessons.sorted { $0.orderInSequence < $1.orderInSequence }.compactMap { $0.id?.uuidString }
+            },
+            students: Set(visibleStudents.compactMap { $0.id?.uuidString }),
+            in: context
+        )
 
         // Each assignment's studentIDs blob decoded once, not once per student;
         // each student's slice keeps the fetch order the per-student filter had.
@@ -118,9 +134,11 @@ final class ClassGridChildrenModel {
                 activePairs.insert(AreaSeqKey(area: area, sequence: sequence))
             }
 
-            // From open (non-complete) work items.
-            for work in workForStudent where work.status.isOpen {
-                guard let lessonIDUUID = UUID(uuidString: work.lessonID),
+            // From open (non-complete) work items, and from mastery marks.
+            let activeLessonIDs = workForStudent.filter(\.status.isOpen).map(\.lessonID)
+                + (markedLessonsByStudent[studentIDStr] ?? [])
+            for lessonIDStr in activeLessonIDs {
+                guard let lessonIDUUID = UUID(uuidString: lessonIDStr),
                       let lesson = lessonByID[lessonIDUUID] else { continue }
                 let area = lesson.area.trimmed()
                 let sequence = lesson.sequence.trimmed()
@@ -148,14 +166,16 @@ final class ClassGridChildrenModel {
                     let presentation = assignmentsForStudent.first {
                         $0.lessonID == lessonIDStr && ($0.isPresented || $0.presentedAt != nil)
                     }
-                    // Planned and not yet given: on a day, or a draft in the inbox.
+                    // Planned and not yet given: on a day, or a draft in the inbox, or the
+                    // year-plan entry she's up to.
                     let planned = assignmentsForStudent.filter {
                         $0.lessonID == lessonIDStr && !$0.isPresented && $0.presentedAt == nil
                     }
+                    let isNextOnYearPlan = yearPlanNext[lessonIDStr]?.contains(studentIDStr) ?? false
                     let status = ChecklistDisplayStatus(LessonNodeStatus.resolve(
                         isPresented: presentation != nil,
                         scheduledFor: planned.compactMap(\.scheduledFor).min(),
-                        isPlanned: !planned.isEmpty,
+                        isPlanned: !planned.isEmpty || isNextOnYearPlan,
                         isMastered: masteryMarks[lessonIDStr]?.contains(studentIDStr) ?? false,
                         workStatuses: (workByLesson[lessonIDStr] ?? []).map(\.status)
                     ))

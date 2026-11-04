@@ -11,15 +11,7 @@ import AppKit
 import PDFKit
 
 enum WorkPDFRenderer {
-    struct PrintItem: Identifiable {
-        let id: UUID
-        let lessonTitle: String
-        let studentName: String
-        let statusLabel: String
-        let ageDays: Int
-        let dueAt: Date?
-        let needsAttention: Bool
-    }
+    typealias PrintItem = WorkPrintSheet.Item
 
     // swiftlint:disable:next function_body_length
     static func renderPDF(
@@ -45,7 +37,7 @@ enum WorkPDFRenderer {
         let lightGrayColor = NSColor(white: 0.6, alpha: 1.0)
 
         // Group and sort
-        let grouped = groupItems(items, by: sortMode)
+        let grouped = WorkPrintSheet.group(items, by: sortMode)
         let groups = grouped.groups
         let groupOrder = grouped.groupOrder
 
@@ -166,66 +158,6 @@ enum WorkPDFRenderer {
     }
 
     // MARK: - Helpers
-
-    private struct GroupedItems {
-        let sorted: [PrintItem]
-        let groups: [String: [PrintItem]]
-        let groupOrder: [String]
-    }
-
-    private static func groupItems(
-        _ items: [PrintItem],
-        by sortMode: WorkAgendaSortMode
-    ) -> GroupedItems {
-        let sorted = items.sorted { lhs, rhs in
-            switch sortMode {
-            case .lesson: return lhs.lessonTitle.localizedCaseInsensitiveCompare(rhs.lessonTitle) == .orderedAscending
-            case .student: return lhs.studentName.localizedCaseInsensitiveCompare(rhs.studentName) == .orderedAscending
-            case .age: return lhs.ageDays > rhs.ageDays
-            case .needsAttention:
-                if lhs.needsAttention != rhs.needsAttention { return lhs.needsAttention }
-                return lhs.ageDays > rhs.ageDays
-            }
-        }
-
-        var groupOrder: [String] = []
-        var groups: [String: [PrintItem]] = [:]
-
-        for item in sorted {
-            let key = sequenceKey(for: item, sortMode: sortMode)
-            if groups[key] == nil {
-                groupOrder.append(key)
-                groups[key] = []
-            }
-            groups[key]?.append(item)
-        }
-
-        return GroupedItems(sorted: sorted, groups: groups, groupOrder: groupOrder)
-    }
-
-    private static func sequenceKey(for item: PrintItem, sortMode: WorkAgendaSortMode) -> String {
-        switch sortMode {
-        case .lesson: return item.lessonTitle
-        case .student: return item.studentName
-        case .age:
-            let days = item.ageDays
-            if days <= 0 {
-                return "Today"
-            } else if days <= 3 {
-                return "1-3 days"
-            } else if days <= 7 {
-                return "4-7 days"
-            } else if days <= 14 {
-                return "8-14 days"
-            } else if days <= 30 {
-                return "15-30 days"
-            } else {
-                return "30+ days"
-            }
-        case .needsAttention:
-            return item.needsAttention ? "Needs Attention" : "Other"
-        }
-    }
 
     private static func buildItemText(_ item: PrintItem, sortMode: WorkAgendaSortMode) -> String {
         var text = "☐ "

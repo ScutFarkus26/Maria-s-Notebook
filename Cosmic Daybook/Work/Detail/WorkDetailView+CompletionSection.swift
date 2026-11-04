@@ -247,7 +247,8 @@ extension WorkDetailView {
                 HStack(spacing: 6) {
                     Image(systemName: "person.2.fill")
                         .font(.system(size: 14, weight: .medium))
-                    Text("Also presented to:")
+                    // A draft or scheduled lesson hasn't been given to anyone yet.
+                    Text(presentation.isPresented ? "Also presented to:" : "Also planned for:")
                         .font(AppTheme.ScaledFont.captionSemibold)
                 }
                 .foregroundStyle(AppColors.success)

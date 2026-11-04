@@ -21,9 +21,12 @@ struct NewTodoForm: View {
     /// Optional initial title from the command bar
     private let initialTitle: String
 
-    init(initialTitle: String = "") {
+    /// `initialScheduledDate` is the When date the form starts with, e.g. the
+    /// day Today is showing.
+    init(initialTitle: String = "", initialScheduledDate: Date? = nil) {
         self.initialTitle = initialTitle
         title = initialTitle
+        _scheduledDate = State(initialValue: initialScheduledDate)
     }
 
     @State private var title: String

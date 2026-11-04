@@ -24,7 +24,6 @@ struct ReadyToPresentSection: View {
 
     let viewModel: PresentationsViewModel
     let blockingResults: [UUID: BlockingAlgorithmEngine.BlockingCheckResult]
-    let getBlockingWork: (CDLessonAssignment) -> [UUID: CDWorkModel]
     let coordinator: PresentationsCoordinator
     let filterState: PresentationsFilterState
     /// The one row to ring and scroll to: a deep link's target. Nil the rest

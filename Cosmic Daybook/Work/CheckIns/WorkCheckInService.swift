@@ -103,6 +103,43 @@ struct WorkCheckInService {
         checkIns(of: work, on: day).first { $0.status != .skipped && $0 !== excluding }
     }
 
+    // MARK: - Adding one by hand
+
+    /// What `addCheckIn` did.
+    enum AddOutcome {
+        /// Made. `askedFor` is the day picked when that wasn't a school day
+        /// and the check-in moved forward to the next one; nil when it is
+        /// on the day picked.
+        case added(CDWorkCheckIn, askedFor: Date?)
+        /// The day already has a scheduled or completed check-in, so none
+        /// was made.
+        case dayTaken(CDWorkCheckIn)
+        /// The work is closed: a check-in on it would never come due.
+        case workClosed
+    }
+
+    /// A check-in added by hand on the work page, held to the rules every
+    /// other way of adding one keeps (`update_work`'s add, Record Practice):
+    /// at the start of its day, a weekend or day off moved forward to the
+    /// next school day, never a second one on a day that has one, and none
+    /// on closed work, which the strip and Today never show (bug hunt
+    /// 2026-11-03 #37, #45). Does not save.
+    func addCheckIn(to work: CDWorkModel, on day: Date, purpose: String, note: String?) -> AddOutcome {
+        guard work.isOpen else { return .workClosed }
+        let asked = AppCalendar.startOfDay(day)
+        let landing = AppCalendar.startOfDay(
+            SchoolCalendarService.shared.schoolDaySync(onOrAfter: asked, using: context)
+        )
+        if let existing = blockingCheckIn(of: work, on: landing) {
+            return .dayTaken(existing)
+        }
+        let checkIn = CDWorkCheckIn.make(for: work, on: landing, purpose: purpose, in: context)
+        if let note, !note.trimmed().isEmpty {
+            checkIn.setLegacyNoteText(note.trimmed(), in: context)
+        }
+        return .added(checkIn, askedFor: landing == asked ? nil : asked)
+    }
+
     /// A work row whose child is on file but no longer enrolled. A row whose
     /// child can't be found is treated as hers, since nothing says she left.
     func ownerHasLeft(_ work: CDWorkModel) -> Bool {

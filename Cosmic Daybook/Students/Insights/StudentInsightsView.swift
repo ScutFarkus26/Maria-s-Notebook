@@ -42,9 +42,10 @@ struct StudentInsightsView: View {
                 // Header
                 headerSection
 
-                // Latest snapshot
+                // Latest snapshot, observed so Mark Reviewed redraws it: the flag is set
+                // on an object the view holds only in its array (bug hunt 2026-11-03 #30).
                 if let latest = snapshots.first {
-                    latestInsightsCard(latest)
+                    ObservedSnapshot(snapshot: latest) { latestInsightsCard($0) }
                 }
 
                 // Generate new analysis button
@@ -87,7 +88,8 @@ struct StudentInsightsView: View {
         } catch {
             Self.logger.error("Couldn't fetch development snapshots: \(error, privacy: .public)")
             errorTitle = "Couldn't Load Insights"
-            errorMessage = "Couldn't load \(student.firstName)'s past insights. Close this screen and open it again."
+            errorMessage = "Couldn't load \(StudentFormatter.displayName(for: student))'s past insights. "
+                + "Close this screen and open it again."
         }
     }
 
@@ -109,7 +111,8 @@ struct StudentInsightsView: View {
                 Self.logger.error("Insights analysis failed: \(error, privacy: .public)")
                 errorMessage = AppErrorMessages.aiMessage(
                     for: error,
-                    fallback: "Couldn't look over \(student.firstName)'s notes and work right now. Try again."
+                    fallback: "Couldn't look over \(StudentFormatter.displayName(for: student))'s notes and work "
+                        + "right now. Try again."
                 )
                 return
             }
@@ -148,6 +151,16 @@ struct StudentInsightsView: View {
                 )
             }
         }
+    }
+}
+
+/// Draws `content` again whenever `snapshot` changes.
+private struct ObservedSnapshot<Content: View>: View {
+    @ObservedObject var snapshot: CDDevelopmentSnapshotEntity
+    @ViewBuilder let content: (CDDevelopmentSnapshotEntity) -> Content
+
+    var body: some View {
+        content(snapshot)
     }
 }
 

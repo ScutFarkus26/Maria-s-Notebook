@@ -1,6 +1,6 @@
 # Bug hunt 2026-11-03 fixes
 
-> **Not started.** Written 2026-11-03 from the read-only hunt in <../Reviews/Bug hunt 2026-11-03.md> (60 findings in the oldest daily-use code). Waits for the weekly limit's reset on Sunday 2026-11-08 at 3 pm ([Tide row](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20weekly%20limit%20resets%20on%20Sunday%2C%20start%20a%20fresh%20session%20to%20run%20the%202026-11-03%20bug%20hunt%27s%20fix%20plan)).
+> **Working on it.** Written 2026-11-03 from the read-only hunt in <../Reviews/Bug hunt 2026-11-03.md> (60 findings in the oldest daily-use code). Phase 1 done 2026-11-04 on branch `claude/bug-hunt-phase-1-2bf78c` (95e3e0a7), not on main; Phase 2 next.
 > In short: fix every finding with nine fix agents in rolling slots of at most three, each owning its own files and writing a failing test first, then a cold review of the combined work, a fix round with fresh small agents, both whole suites, and land it on main without rolling out.
 
 The report has, for every finding, the scenario, the `file:line` places and a suggested fix. This plan says who fixes what, the decisions where the report left a choice, and how it lands; it doesn't repeat the findings. "#N" is finding N in the report. Paths are under `Cosmic Daybook/`.
@@ -22,8 +22,8 @@ Everything ends on main, built and tested for iOS, Mac and the Assistant, pushed
 
 ## Progress
 Build board: https://claude.ai/artifact/WAKaFZGNPQsfKD4A5GbqsM (if this session's organization can't reach it, use Daybook Bug Fixes, https://claude.ai/artifact/EqECVJ38VbFq3sWJ7gE7VR, as the 10-17 run did).
-- [ ] Phase 1: Nine fix agents in rolling slots of three — P ‖ C ‖ W1 first, then S1, S2, T, D, W2, L as slots free (session: fresh, Opus 5.5 high; agents in worktrees) · est. ~9–13% weekly
-- [ ] Phase 2: Combine, full builds and suites, cold review, fix round, docs, Tide rows, land on main (session: same as Phase 1) · est. ~3–5% weekly
+- [x] Phase 1: Nine fix agents in rolling slots of three — P ‖ C ‖ W1 first, then S1, S2, T, D, W2, L as slots free (session: fresh, Opus 5.5 high; agents in worktrees) · est. ~9–13% weekly · started 2026-11-03 at 97% (before the reset, at Danny's say-so) · done 2026-11-04, all nine merged into `claude/bug-hunt-phase-1-2bf78c` at 95e3e0a7. Cost not measurable: the weekly meter reset early during W1's run (97% → 26%), then rose 26 → 63% by the end, shared with other sessions (the Simplify round-two phases and Tide Phase 200 ran alongside). The agents used about 2.0M tokens. Each agent's tests passed on its own branch; nothing has been built or tested combined yet (Phase 2 step 2). Differences: see Decided during the run.
+- [ ] Phase 2: Combine, full builds and suites, cold review, fix round, docs, Tide rows, land on main (session: same as Phase 1) · est. ~3–5% weekly · started 2026-11-04 at 69%
 
 ## Cost
 
@@ -176,7 +176,36 @@ Read the plan usage (`get_usage`) and note the weekly % used next to the phase u
 7. If the next phase is a fresh session, print its starter prompt: "Model: Opus 5.5 high" on the first line, then "In the Maria's Notebook folder, read `docs/Plans/Plan - Bug hunt 2026-11-03 fixes.md` and do Phase <N>. Follow its Starting a phase and Ending a phase steps."
 
 ## Decided during the run
-(Filled in by the main session as it goes.)
+
+**Phase 1 (2026-11-03 → 11-04).** Started at Danny's say-so before the reset. The Agent tool's own worktrees start from the last *pushed* main, so the main session cut each agent's worktree by hand: P, C, W1, S1 and S2 from 3933bd3f (the plan's commit); D, W2 and L from the combine branch as it stood, so D could call S1's new `YearPlanPromotionService.moveEntries` and W2 could match W1's check-in count. Every agent committed failing tests before its fixes; all nine reported their new fix tests failing on the old code (P's test commit needs one `nonisolated` removed to compile alone). The merges had no conflicts.
+
+What the agents decided differently from the plan:
+- **C, D2/#5b:** the ready engine honors only "Requires Confirmation", not "Requires Practice"; the 10-18 test `ReadyForNextEngineTests.openWorkCountsWithoutThePracticeSetting` says open work never holds a child back. **P** went past D2 the other way: with no presentation on record, a mastery mark also counts as practice done. Phase 2's shared readiness fixture must check that the two engines now agree.
+- **P, D1:** the note-keeping on delete is P's own `Presentations/Workflow/PresentationDeletion.swift`, because C's helper is private. Two note-keeping paths now exist; the review should check that they behave the same. P also removed the blocking-work cache and `BlockingCacheBuilder.swift`.
+- **W1, D4:** she stays on the group plan *and* gets her own unlocked draft. The project-group fallback in Working With is removed rather than narrowed. #46 counts overdue check-ins too, and W2 made the practice card follow the same rule.
+- **S1, D7/#24:** the renumbering repair (`YearPlanEntryRepair`) runs on every load, not once. It writes only values that differ and doesn't save over another screen's unsaved edit. The review should weigh its cost and safety.
+- **S2:** a year-plan entry alone doesn't put a sequence on the Children card; only a mastery mark does.
+- **T, D12:** a Someday to-do joins Today when its deadline is today or earlier. Clear Completed is greyed out in Inbox, Today and Upcoming, which never list completed to-dos.
+- **D, D12:** on a weekend, a new to-do defaults to the later of the shown day and the real day.
+- **L, D14:** a drag makes no track, so the edit form copies Add Lesson's track code.
+- **W2:** `WorkRepository.updateWorkStatus` and `markWorkCompleted` now throw (they have no callers).
+
+Left for Phase 2 (cross-owner, step 1's stitches):
+- `ReadyGroupsFixture.requirePractice` sets `requiresTeacherConfirmation = false`, which the engine now honors. `SequenceLadderTests.tiersOnTheFrontier` and `ReadyGroupsTests.oneLessonMatchesTheCards` fail until it is `true` (C, untried).
+- `ReadyGroups+OneLesson`'s `marked` filter should admit any child given the previous lesson, and `ReadyGroups+Build.unconfirmed()` should skip lessons that don't require confirmation (`ProgressionRulesLookup`). Also check whether `ReadyQueueLoader` refreshes after lesson or sequence-setting edits (C).
+- #54: `NewTodoForm` needs `init(initialTitle: String = "", initialScheduledDate: Date? = nil)`, and `TodayView+Sheets.swift`'s `newTodoSheet(defaultDate:)` should pass it (D). Until then, Today's + starts a to-do with no date.
+- `Today/Views/Sections/TodayViewTodoSection.swift`'s `isShown` should use T's `TodoListFilter.isDue(_:by:)` for Someday to-dos (T).
+- `ClassGridChildrenView.reloadEntityNames` should add "YearPlanEntry" and "WorkParticipantEntity", and update the pinned list in `LessonsWorkFix1017LW.swift` (S2).
+- MCP `reschedule_presentation` should call `YearPlanPromotionService.moveEntries(promotedInto:to:)` (S1). `Services/MCPServer/MCPNotebookTools+Practice.swift:146` still reports the session's own check-in date (W1, #46).
+- `Work/Detail/WorkDetailView+CompletionSection.swift` shows "Also presented to:" on draft and scheduled presentations (W2). `Documentation/Manuals/DeveloperManual.md:806` lists the removed `fetchAllWorkModels`.
+- L: a lesson page closed mid-edit after Import… leaves an unused imported copy.
+- Existing test files edited outside their owners' rows, each for its own finding: `WorkScreensTests+Fix1010C.swift` (W1), `StudentProgressTabLoadScopeTests.swift` (S2), `TodoListTests+Fix1010F.swift` (T), `PresentationRecordsTests+Fix1010I.swift` (W2, one test of the removed helpers), `BlockingOwnWorkTests` (P, rewritten against the engine).
+
+Device checks the agents named, beyond the plan's list, for Phase 2 step 6 (rows only after landing, since none of this is on a device yet): Checklist Unmark/Remove Plan question and Couldn't Save alert; a new child's Checklist column after a sync; Merge Groups Remove of the last child; Brewing's holding-up marker and "N of M ready"; Presentation Info Re-present after Edit; check-in Delete question; Unlock on a group draft; dragging a presentation on the calendar moves its year-plan entry; Readjust's question; the student Overview updating after closing a work item; Insights Mark Reviewed; the template Edit Tags sheet closing on the Mac; a checklist tick updating "1/3"; card ages moving overnight on the Mac; printed Open Work by Age; Add Practice showing "Not rated"; Add Lesson's Add button on iPhone; Import… then Cancel on the Mac; a lesson moved to a new sub-area showing last.
+
+**Phase 2 (2026-11-04).** Step 1's stitches went in as 8e68c71d: the fixture now requires confirmation; the ready list's picker admits any child given the previous lesson and a group card offers no one for confirming when that lesson doesn't require it (`ReadyQueueSnapshot.confirmationNotRequired`); `ReadyQueueLoader` also rebuilds on sequence-setting edits; Today's + starts the to-do on the shown day; a Someday to-do joins Today's section when due; the Children card reloads on year-plan and work-participant changes; MCP `reschedule_presentation` moves the promoted year-plan entries and `practice_sessions` reports the work's real next check-in; "Also planned for:" on a presentation not yet given; two stale rows out of the Developer Manual. The shared readiness test is `ReadinessAgreementFix1103Tests` (six records through both engines, plus the ready list). Not done: L's Import… leftover copy when the page closes mid-edit (left as it is; the copy is unused and harmless).
+
+Main had moved 14 commits, with Phases 1 and 2 of retiring the track entities. Nine files conflicted. Main's side won wherever it removed track code: the Checklist's and the presentation sheet's track calls are gone, L's track refresh after a lesson move (and its two tests) was dropped since nothing writes a track any more, and S2's #29 (the card's Next Lesson is the timeline's Next) was ported onto main's `SequenceStanding` cards as `StudentProgressTabViewModel.nextLessonByStanding`.
 
 ## Open questions
 None. The four the plan was written with were settled by Danny on 2026-11-03 (see Decisions).

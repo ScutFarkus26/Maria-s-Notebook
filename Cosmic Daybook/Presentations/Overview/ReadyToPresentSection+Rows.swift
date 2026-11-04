@@ -212,7 +212,7 @@ extension ReadyToPresentSection {
     private func backlogChips(for la: CDLessonAssignment, context: BacklogRenderContext) -> [BacklogChip] {
         let students = viewModel.studentsByID
         let waits = viewModel.daysSinceLastLessonByStudent
-        let blocking = context.state == .waitingForWork ? getBlockingWork(la) : [:]
+        let blocking = context.state == .waitingForWork ? viewModel.blockingStudentIDs(of: la) : []
         let threshold = context.palette.overdueDays
         return la.resolvedStudentIDs.compactMap { sid in
             // Only the view model's visible roster: test and departed
@@ -228,13 +228,15 @@ extension ReadyToPresentSection {
             }
             return BacklogChip(
                 id: sid, name: student.shortName, waitBadge: badge, spokenWait: spoken,
-                isBlocking: blocking[sid] != nil
+                isBlocking: blocking.contains(sid)
             )
         }
     }
 
     /// Shown only when some but not all are ready: "0 of 3" says nothing a
     /// brewing lesson does not already say, and "3 of 3" is not brewing.
+    /// Counts the children the engine judged, the ones the chips show: a
+    /// departed or hidden child isn't one of the 3 (bug hunt 2026-11-03 #12).
     func partialReadiness(
         of la: CDLessonAssignment,
         context: BacklogRenderContext
@@ -242,7 +244,7 @@ extension ReadyToPresentSection {
         guard context.state == .waitingForWork,
               let result = la.id.flatMap({ blockingResults[$0] }) else { return nil }
         let ready = result.readyStudentIDs.count
-        let total = la.resolvedStudentIDs.count
+        let total = result.perStudentReadiness.count
         guard ready > 0, ready < total else { return nil }
         return BacklogReadiness(ready: ready, total: total, result: result)
     }

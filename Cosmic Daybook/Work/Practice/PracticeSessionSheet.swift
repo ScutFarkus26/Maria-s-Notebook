@@ -11,8 +11,11 @@ struct PracticeSessionSheet: View {
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     @Environment(\.dependencies) private var dependencies
+    @TestStudentVisibility private var testStudents
 
-    private var allStudents: [CDStudent] { dependencies.roster.enrolled }
+    private var allStudents: [CDStudent] {
+        WorkSheetRoster.students(enrolled: dependencies.roster.enrolled, testStudents: testStudents)
+    }
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)])
     private var allWork: FetchedResults<CDWorkModel>
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false)])

@@ -92,20 +92,22 @@ struct WorkScreensFix1010CTests {
         #expect(WorkLogService.checkIns(of: closed, in: context).isEmpty)
     }
 
-    @Test("Practice Overview counts only check-ins from today on")
+    /// Bug hunt 2026-11-03 #46 replaced the session dates with the work's own
+    /// check-ins: a finished or skipped one is history, as last month's date was.
+    @Test("Practice Overview counts the work's check-ins still scheduled, not finished ones")
     func upcomingCheckInsAreUpcoming() throws {
         let context = try makeContext()
-        let today = try CoreDataTestHelpers.day("2026-10-08")
-        let dates: [Date?] = [
-            AppCalendar.addingDays(-7, to: today), today, AppCalendar.addingDays(3, to: today), nil
-        ]
-        let sessions = dates.map { date -> CDPracticeSession in
-            let session = CDPracticeSession(context: context)
-            session.checkInScheduledFor = date
-            return session
-        }
-        let stats = PracticeStatsCalculator.calculate(from: sessions, today: today.addingTimeInterval(15 * 3600))
-        #expect(stats.upcomingCheckIns == 2)
+        let work = CoreDataTestHelpers.seedWorkModel(in: context, title: "Checkerboard")
+        let today = AppCalendar.startOfDay(Date())
+        CDWorkCheckIn.make(for: work, on: AppCalendar.addingDays(-7, to: today), status: .completed, in: context)
+        CDWorkCheckIn.make(for: work, on: today, in: context)
+        CDWorkCheckIn.make(for: work, on: AppCalendar.addingDays(3, to: today), in: context)
+        CDWorkCheckIn.make(for: work, on: AppCalendar.addingDays(4, to: today), status: .skipped, in: context)
+        CoreDataTestHelpers.save(context)
+
+        let page = WorkDetailViewModel(workID: try #require(work.id))
+        page.loadWork(modelContext: context, saveCoordinator: SaveCoordinator())
+        #expect(page.practiceStats(sessions: []).upcomingCheckIns == 2)
     }
 
     // MARK: - Practice partners (#58)

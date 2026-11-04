@@ -70,7 +70,10 @@ enum TodoListFilter: String, CaseIterable, Identifiable {
         case .inbox:
             return !todo.isCompleted && !todo.isSomeday && todo.tagsArray.isEmpty
         case .today:
-            return !todo.isCompleted && !todo.isSomeday && Self.isDueOrPlanned(todo, by: today)
+            // Someday keeps its deadline, and once that comes it is due like
+            // any other (bug hunt 2026-11-03, #57).
+            guard !todo.isCompleted else { return false }
+            return todo.isSomeday ? Self.isDue(todo, by: today) : Self.isDueOrPlanned(todo, by: today)
         case .upcoming:
             let hasDate = todo.scheduledDate != nil || todo.dueDate != nil
             return !todo.isCompleted && !todo.isSomeday && hasDate && !Self.isDueOrPlanned(todo, by: today)
@@ -94,5 +97,11 @@ enum TodoListFilter: String, CaseIterable, Identifiable {
         if let scheduled = todo.scheduledDate, scheduled < tomorrow { return true }
         if let due = todo.dueDate, due < tomorrow { return true }
         return false
+    }
+
+    /// Whether a todo's deadline falls on `today` or earlier.
+    static func isDue(_ todo: CDTodoItem, by today: Date) -> Bool {
+        guard let due = todo.dueDate else { return false }
+        return due < AppCalendar.addingDays(1, to: AppCalendar.startOfDay(today))
     }
 }

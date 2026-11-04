@@ -21,7 +21,17 @@ extension ButtonStyle where Self == SubtleRowButtonStyle {
 
 struct ReminderListRow: View {
     let reminder: CDReminder
+    /// The day Today shows: a reminder due on another day (an overdue one)
+    /// names the day, not only the time (bug hunt 2026-11-03 #59).
+    let shownDay: Date
     var onToggle: () -> Void
+
+    /// "3:00 PM" on the shown day, "Oct 28, 3:00 PM" on any other.
+    private func dueText(_ dueDate: Date) -> String {
+        let time = DateFormatters.shortTime.string(from: dueDate)
+        guard AppCalendar.startOfDay(dueDate) != AppCalendar.startOfDay(shownDay) else { return time }
+        return "\(DateFormatters.shortMonthDay.string(from: dueDate)), \(time)"
+    }
 
     private var accessibilityLabelText: String {
         var label = reminder.title
@@ -29,7 +39,7 @@ struct ReminderListRow: View {
             label = "Completed: \(label)"
         }
         if let dueDate = reminder.dueDate {
-            label += ", due at \(DateFormatters.shortTime.string(from: dueDate))"
+            label += ", due \(dueText(dueDate))"
         }
         return label
     }
@@ -68,7 +78,7 @@ struct ReminderListRow: View {
                             color: Color.secondary.opacity(UIConstants.OpacityConstants.half)
                         )
                     if let dueDate = reminder.dueDate {
-                        Text(dueDate, style: .time)
+                        Text(dueText(dueDate))
                             .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.tertiary)
                     }

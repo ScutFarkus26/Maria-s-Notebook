@@ -68,9 +68,6 @@ struct StudentDetailView: View {
     @State private var workCache: [CDWorkModel] = []
     @State var activeSheet: ActiveSheet?
 
-    private var lessonIDs: [UUID] { vm.lessons.compactMap(\.id) }
-    private var lessonAssignmentIDs: [UUID] { vm.lessonAssignments.compactMap(\.id) }
-
     private var selectedSection: StudentWorkspaceSection {
         StudentWorkspaceSection.migrating(storedValue: selectedSectionRaw)
     }
@@ -281,7 +278,7 @@ struct StudentDetailView: View {
                 } catch {
                     Self.logger.warning("Failed to delete student: \(error)")
                     ToastService.shared.showError(
-                        "Couldn't delete \(student.firstName). Nothing was changed. Try again."
+                        "Couldn't delete \(StudentFormatter.displayName(for: student)). Nothing was changed. Try again."
                     )
                     return
                 }
@@ -298,7 +295,7 @@ struct StudentDetailView: View {
         .sheet(isPresented: Binding(
             get: { selectedWorkID != nil },
             set: { if !$0 { selectedWorkID = nil } }
-        )) {
+        ), onDismiss: refreshWorkCache) {
             if let workID = selectedWorkID,
                let workModel = viewContext.resolveWorkModel(from: workID) {
                 WorkDetailView(workID: workModel.id ?? UUID()) {
@@ -317,13 +314,16 @@ struct StudentDetailView: View {
             vm.loadData(viewContext: viewContext)
             workCache = fetchWorkForStudent()
         }
-        .onChange(of: lessonIDs) { _, _ in
+        // Next Lessons and Working On follow changes made anywhere: the work sheet, another
+        // window, a sync. They reloaded only when the page's own lists changed, which only
+        // the page's own reload did (bug hunt 2026-11-03 #25).
+        .onPresentationDataChangeWhenVisible(of: ["LessonAssignment"], in: viewContext, catchUpOnAppear: false) {
             vm.loadData(viewContext: viewContext)
-            workCache = fetchWorkForStudent()
         }
-        .onChange(of: lessonAssignmentIDs) { _, _ in
-            vm.loadData(viewContext: viewContext)
-            workCache = fetchWorkForStudent()
+        .onPresentationDataChangeWhenVisible(
+            of: ["WorkModel", "WorkParticipantEntity"], in: viewContext, catchUpOnAppear: false
+        ) {
+            refreshWorkCache()
         }
         #if os(macOS)
         .onChange(of: selectedWorkID) { _, workID in
@@ -372,5 +372,13 @@ struct StudentDetailView: View {
         vm = StudentDetailViewModel(
             student: student, dependencies: AppDependenciesKey.defaultValue
         )
+    }
+}
+
+private extension StudentDetailView {
+    /// Working On again from the store: after a change anywhere, and when the work
+    /// sheet closes (closing a row there used to leave it listed).
+    func refreshWorkCache() {
+        workCache = fetchWorkForStudent()
     }
 }

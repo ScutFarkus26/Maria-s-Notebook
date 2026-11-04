@@ -65,13 +65,20 @@ extension PresentationDetailViewModel {
     /// missing record is made for this presentation and on its day (none for
     /// an undated one), so it follows the presentation when its lesson is
     /// changed or it is deleted, rather than standing alone dated today.
+    ///
+    /// `childStates` are the guide's own choices for single children, made on
+    /// the lesson's row of the sequence recap (`recapStateEdits`): each one
+    /// counts as a change for that child alone, so the row a Save makes for
+    /// her (a child added to a given presentation) carries it too (bug hunt
+    /// 2026-11-03 #18).
     func updateProficiencyState(
         lessonID: String,
         studentIDs: [String],
         state guideState: LessonPresentationState,
-        guideChangedState: Bool
+        guideChangedState: Bool,
+        childStates: [UUID: LessonPresentationState] = [:]
     ) {
-        let state = guideChangedState ? guideState : .presented
+        let groupState = guideChangedState ? guideState : .presented
         guard !studentIDs.isEmpty, !lessonID.isEmpty else { return }
 
         let allLessonPresentations = viewContext.safeFetch(
@@ -79,11 +86,15 @@ extension PresentationDetailViewModel {
         )
 
         for studentID in studentIDs {
+            let childState = UUID(uuidString: studentID).flatMap { childStates[$0] }
+            let changed = guideChangedState || childState != nil
+            let state = childState ?? groupState
+
             let existing = allLessonPresentations.filter {
                 $0.lessonID == lessonID && $0.studentID == studentID && !$0.isDeleted
             }
             if !existing.isEmpty {
-                guard guideChangedState else { continue }
+                guard changed else { continue }
                 for row in existing {
                     Self.apply(state, to: row)
                 }
@@ -103,9 +114,13 @@ extension PresentationDetailViewModel {
     // MARK: - Sibling-Lesson Mastery Updates
 
     /// Updates the mastery state for a single (lesson, student) pair from the Sequence Recap.
-    /// Used to change the status of past lessons in the group directly from the recap UI,
-    /// independent of the current lesson assignment being edited. Persists immediately and
-    /// recomputes the group recap so the badge + progress chip refresh.
+    /// Used to change the status of any lesson in the group directly from the recap UI,
+    /// the one this sheet is for included: its row is where one child's mastery of the
+    /// lesson just given is set, since the sheet has no group-wide control. Persists
+    /// immediately and recomputes the group recap so the badge + progress chip refresh.
+    ///
+    /// The choice is also remembered (`recapStateEdits`), so the rows a later Save or
+    /// Record makes for her on this lesson carry it rather than starting at Presented.
     func updateSiblingLessonProficiencyState(
         lessonID: String,
         studentID: String,
@@ -115,6 +130,15 @@ extension PresentationDetailViewModel {
         students: [CDStudent]
     ) {
         guard !lessonID.isEmpty, !studentID.isEmpty else { return }
+        rememberRecapStateEdit(state, lessonID: lessonID, studentID: studentID)
+        // The lesson on the sheet, not yet given: the choice waits for Record,
+        // which carries it onto the rows it makes. A row written now would
+        // read as given today, with no presentation behind it.
+        let isCurrent = currentLesson?.id != nil && currentLesson?.id == UUID(uuidString: lessonID)
+        if isCurrent, !lessonAssignment.isPresented {
+            recomputeSequenceRecap(currentLesson: currentLesson, students: students)
+            return
+        }
 
         let allLessonPresentations = viewContext.safeFetch(
             Self.presentationsRequest(lessonID: lessonID, studentIDs: [studentID])
@@ -133,15 +157,54 @@ extension PresentationDetailViewModel {
             let lp = CDLessonPresentation(context: viewContext)
             lp.studentID = studentID
             lp.lessonID = lessonID
-            lp.presentationID = nil
+            // On the lesson given here, the row is this presentation's.
+            lp.presentationID = isCurrent ? lessonAssignment.id?.uuidString : nil
             lp.state = state
-            lp.presentedAt = Date()
+            lp.presentedAt = isCurrent ? lessonAssignment.presentedAt : Date()
             lp.lastObservedAt = Date()
             lp.masteredAt = state == .proficient ? Date() : nil
         }
 
         _ = saveCoordinator.save(viewContext, reason: "Updating sibling lesson proficiency state")
         recomputeSequenceRecap(currentLesson: currentLesson, students: students)
+    }
+
+    // MARK: - The Recap's Choices
+
+    /// Notes one child's choice on the recap, keyed by the lesson and her id
+    /// as UUIDs read them, so the presentation's own spelling of either
+    /// doesn't matter.
+    private func rememberRecapStateEdit(_ state: LessonPresentationState, lessonID: String, studentID: String) {
+        guard let lesson = UUID(uuidString: lessonID), let student = UUID(uuidString: studentID) else { return }
+        recapStateEdits[SequenceRecapPairKey(lessonID: lesson.uuidString, studentID: student.uuidString)] = state
+    }
+
+    /// The children's choices made on the recap for `lessonID`, by child.
+    func recapStateEdits(forLesson lessonID: String) -> [UUID: LessonPresentationState] {
+        guard let lesson = UUID(uuidString: lessonID)?.uuidString else { return [:] }
+        var byChild: [UUID: LessonPresentationState] = [:]
+        for (key, state) in recapStateEdits where key.lessonID == lesson {
+            if let student = UUID(uuidString: key.studentID) { byChild[student] = state }
+        }
+        return byChild
+    }
+
+    /// After Record: the rows the recording made start at Presented, so the
+    /// choices made on the recap's row for this lesson before it are put on
+    /// them too, and saved. Nothing to do when none were made.
+    func applyRecapStateEditsAfterRecording() {
+        let edits = recapStateEdits(forLesson: lessonAssignment.lessonID)
+        guard !edits.isEmpty else { return }
+        updateProficiencyState(
+            lessonID: lessonAssignment.lessonID,
+            studentIDs: lessonAssignment.studentIDs,
+            state: .presented,
+            guideChangedState: false,
+            childStates: edits
+        )
+        if saveCoordinator.save(viewContext, reason: "Keeping the recap's mastery choices") {
+            recapStateEdits.removeAll()
+        }
     }
 
     /// The guide's mastery choice on one record: an existing mastered day is

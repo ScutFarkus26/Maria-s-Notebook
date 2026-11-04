@@ -147,12 +147,18 @@ extension TodayView {
 
     @ViewBuilder
     private func reminderRow(_ reminder: CDReminder) -> some View {
-        ReminderListRow(reminder: reminder, onToggle: { toggleReminder(reminder) })
+        // The state this row is drawn with: a sync may change the reminder
+        // before the tap, and the tap does what the row showed (#48).
+        let drawnCompleted = reminder.isCompleted
+        ReminderListRow(
+            reminder: reminder, shownDay: viewModel.date,
+            onToggle: { toggleReminder(reminder, drawnCompleted: drawnCompleted) }
+        )
             .id(reminder.id)
             .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
             .swipeActions(edge: .leading) {
                 Button {
-                    toggleReminder(reminder)
+                    toggleReminder(reminder, drawnCompleted: drawnCompleted)
                 } label: {
                     Label("Complete", systemImage: "checkmark")
                 }

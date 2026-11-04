@@ -174,17 +174,18 @@ enum SequenceRecapResolver {
         let directNotes = (buckets.directNotesByPair[pairKey] ?? [])
             .map { SequenceRecapNote(from: $0) }
             .sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
-        let lp = collected.presentationByPair[pairKey]
+        // All her rows for the lesson, not only the newest (#22).
+        let history = collected.presentationByPair[pairKey]
 
         return SequenceRecapLessonEntry(
             id: lessonInSequence.id,
             lessonName: lessonInSequence.name,
             isCurrentLesson: lessonInSequence.isCurrent,
-            outcomeState: lp?.state,
-            firstPresentedAt: lp?.presentedAt,
-            lastObservedAt: lp?.lastObservedAt,
-            masteredAt: lp?.masteredAt,
-            perStudentLessonNotes: lp?.notes,
+            outcomeState: history?.state,
+            firstPresentedAt: history?.firstPresentedAt,
+            lastObservedAt: history?.lastObservedAt,
+            masteredAt: history?.masteredAt,
+            perStudentLessonNotes: history?.notes,
             presentations: presentations,
             unattachedWorkItems: unattachedWorkItems,
             directNotes: directNotes

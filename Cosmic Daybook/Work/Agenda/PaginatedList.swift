@@ -84,13 +84,20 @@ final class PaginationState {
 /// A button that appears at the bottom of a list to load more items.
 struct LoadMoreButton: View {
     let remainingCount: Int
+    var pageSize: Int = 30
     let action: () -> Void
+
+    /// "Load 50 more": how many the next tap shows. It said 30 whatever the
+    /// list's page was (bug hunt 2026-11-03 #47).
+    static func title(remaining: Int, pageSize: Int) -> String {
+        "Load \(min(remaining, pageSize)) more"
+    }
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
                 Image(systemName: "arrow.down.circle")
-                Text("Load \(min(remainingCount, 30)) more")
+                Text(Self.title(remaining: remainingCount, pageSize: pageSize))
                 Text("(\(remainingCount) remaining)")
                     .foregroundStyle(.secondary)
             }
@@ -121,6 +128,7 @@ struct PaginatedListFooter: View {
                 if state.hasMore {
                     LoadMoreButton(
                         remainingCount: state.totalCount - state.displayedCount,
+                        pageSize: state.pageSize,
                         action: { state.loadMore() }
                     )
                 }

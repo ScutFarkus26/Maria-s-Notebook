@@ -45,23 +45,30 @@ enum YearPlanReleaseService {
     /// Takes the children on this presentation off any *other* pending plan for
     /// the same lesson that they were promoted into.
     ///
+    /// `only` limits it to those children, for a caller that adds one child to
+    /// a presentation others are already on (the Checklist's undated
+    /// "previously presented" record): the others' plans are left as they are.
+    ///
     /// Does not save — the recording flows own their own save. Idempotent: the
     /// second run finds nobody left to release.
     @discardableResult
     static func releaseRedundantPlans(
         after assignment: CDLessonAssignment,
+        only: Set<String>? = nil,
         in context: NSManagedObjectContext,
         dryRun: Bool = false
     ) -> Outcome {
         guard !assignment.lessonID.isEmpty else { return Outcome() }
         let assignmentID = assignment.id?.uuidString
+        let studentIDs = only.map { only in assignment.studentIDs.filter(only.contains) } ?? assignment.studentIDs
+        guard !studentIDs.isEmpty else { return Outcome() }
 
         // Group by plan first, so two girls released from the same Thursday
         // group are one decision about that group rather than two — which is
         // what makes "she was the last one on it" come out right.
         var releases: [String: [CDYearPlanEntry]] = [:]
         for entry in promotedEntries(
-            lessonID: assignment.lessonID, studentIDs: assignment.studentIDs, in: context
+            lessonID: assignment.lessonID, studentIDs: studentIDs, in: context
         ) {
             guard let otherID = entry.promotedAssignmentID, otherID != assignmentID else { continue }
             releases[otherID, default: []].append(entry)

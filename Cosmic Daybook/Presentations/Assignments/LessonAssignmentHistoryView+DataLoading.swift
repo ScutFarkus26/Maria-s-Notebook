@@ -101,9 +101,24 @@ extension LessonAssignmentHistoryView {
 
     // MARK: - Delete
 
+    /// The row's Delete: asks first, naming what stays (`PresentationDeletion`),
+    /// whenever the presentation was given or carries notes or marks.
+    func requestDelete(_ assignment: CDLessonAssignment) {
+        let visible = Dictionary(
+            safeStudents.compactMap { student in student.id.map { ($0, student) } },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let names = assignment.resolvedStudentIDs.compactMap { visible[$0]?.shortName }
+        if let request = PresentationDeletion.deleteRequest(for: assignment, childNames: names, in: viewContext) {
+            pendingDeletion = [request]
+        } else {
+            deleteAssignment(assignment)
+        }
+    }
+
+    /// Deletes it, keeping its notes on the children and their mastery marks.
     func deleteAssignment(_ assignment: CDLessonAssignment) {
-        PresentationRecordCleanup.prepareToDelete(assignment, in: viewContext)
-        viewContext.delete(assignment)
+        PresentationDeletion.delete(assignment, in: viewContext)
         dependencies.saveCoordinator.save(viewContext, reason: "Delete presentation")
         // Reload to reflect deletion
         loadAssignments(limit: loadedAssignments.count >= Self.initialLoadCount ? nil : Self.initialLoadCount)

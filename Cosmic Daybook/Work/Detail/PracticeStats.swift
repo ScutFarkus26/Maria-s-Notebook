@@ -13,23 +13,21 @@ struct PracticeStats {
 }
 
 struct PracticeStatsCalculator {
-    /// `today` is a parameter so tests can pin it.
-    static func calculate(from sessions: [CDPracticeSession], today: Date = Date()) -> PracticeStats {
+    /// `scheduledCheckIns` is how many check-ins the work itself has still
+    /// scheduled. The count used to come from the dates written on practice
+    /// sessions, which stayed after the real check-in Record Practice made was
+    /// done, moved or deleted (bug hunt 2026-11-03 #46).
+    static func calculate(from sessions: [CDPracticeSession], scheduledCheckIns: Int) -> PracticeStats {
         var stats = PracticeStats()
-        
+
         stats.totalSessions = sessions.count
         stats.totalDuration = formatDuration(from: sessions)
         stats.avgQuality = calculateAverage(values: sessions.compactMap(\.practiceQualityValue))
         stats.avgIndependence = calculateAverage(values: sessions.compactMap(\.independenceLevelValue))
         stats.topBehaviors = extractTopBehaviors(from: sessions, limit: 3)
         stats.needsReteaching = sessions.filter(\.needsReteaching).count
-        // Upcoming means today or later: a check-in date from last month is
-        // history, and used to keep counting here forever.
-        let startOfToday = AppCalendar.startOfDay(today)
-        stats.upcomingCheckIns = sessions.filter { session in
-            session.checkInScheduledFor.map { AppCalendar.startOfDay($0) >= startOfToday } ?? false
-        }.count
-        
+        stats.upcomingCheckIns = scheduledCheckIns
+
         return stats
     }
     

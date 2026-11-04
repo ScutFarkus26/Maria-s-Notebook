@@ -1,8 +1,10 @@
 // ClassAreaChecklistViewModel+LadderSteps.swift
 // The cell card's ladder steps and the P key: each moves a child up to its rung and
 // never down. Presented gives her the lesson today unless she already has it;
-// Practicing and Reviewing also open (or move) her practice work. Planned is the
-// Inbox toggle and Mastered is markComplete, both in +CellActions.
+// Practicing and Reviewing open (or move) her practice work, first putting her on
+// the undated presentation when she has none, since they say she has the lesson,
+// not that she was given it today (bug hunt 2026-11-03 #8). Planned is the Inbox
+// toggle and Mastered is markComplete, both in +CellActions.
 
 import Foundation
 import CoreData
@@ -21,23 +23,24 @@ extension ClassAreaChecklistViewModel {
         let allLAs = context.safeFetch(request)
         guard findGivenLessonContaining(student: studentIDString, in: allLAs) == nil else { return }
 
-        addStudentToGivenLesson(
+        let given = addStudentToGivenLesson(
             student: student, studentIDString: studentIDString,
             lesson: lesson, in: allLAs, context: context
         )
         upsertLessonPresentation(
             studentID: studentIDString, lessonID: lessonIDString,
-            state: .presented, context: context
+            state: .presented, givenOn: given?.presentedAt, context: context
         )
     }
 
-    /// Practicing (`.active`) or Reviewing (`.review`): presented first if she isn't, then
-    /// her open work on the lesson moved to `status`, or new work made for her.
+    /// Practicing (`.active`) or Reviewing (`.review`): on the undated presentation first
+    /// if she is on none, then her open work on the lesson moved to `status`, or new work
+    /// made for her.
     func markWorkNoRecompute(
         _ status: WorkStatus, student: CDStudent, lesson: CDLesson, context: NSManagedObjectContext
     ) {
         guard let studentUUID = student.id, let lessonUUID = lesson.id else { return }
-        markPresentedNoRecompute(student: student, lesson: lesson, context: context)
+        attachUndatedPresentationIfNone(student: student, lesson: lesson, context: context)
 
         let open = openWork(of: studentUUID, onLesson: lessonUUID, context: context)
 
@@ -60,6 +63,26 @@ extension ClassAreaChecklistViewModel {
         } catch {
             Self.logger.warning("Failed to set practice work for student \(studentUUID): \(error)")
         }
+    }
+
+    private func attachUndatedPresentationIfNone(
+        student: CDStudent, lesson: CDLesson, context: NSManagedObjectContext
+    ) {
+        let studentIDString = student.cloudKitKey
+        let lessonIDString = lesson.id?.uuidString ?? ""
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "lessonID == %@", lessonIDString)
+        let allLAs = context.safeFetch(request)
+        guard findGivenLessonContaining(student: studentIDString, in: allLAs) == nil else { return }
+
+        addStudentToUndatedLesson(
+            student: student, studentIDString: studentIDString,
+            lesson: lesson, in: allLAs, context: context
+        )
+        upsertLessonPresentation(
+            studentID: studentIDString, lessonID: lessonIDString,
+            state: .presented, givenOn: nil, context: context
+        )
     }
 
     /// Her open work on the lesson, by the cell's own rule (`WorkVisibility`): the copy

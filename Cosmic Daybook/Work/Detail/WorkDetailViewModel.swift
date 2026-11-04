@@ -23,7 +23,8 @@ final class WorkDetailViewModel {
     var resolvedStudentID: UUID?
 
     // Peer context
-    var workParticipants: [(student: CDStudent, completedAt: Date?)] = []  // work-level collaborators
+    var workParticipants: [(student: CDStudent, completedAt: Date?)] = []  // others on this shared row
+    var groupMeetingPeers: [CDStudent] = []  // the others a Group Meeting books, linked copies included
     var projectGroupMembers: [CDStudent] = []  // other students in the same project
     var lessonCohort: [LessonCohortEntry] = []  // progression peers with context
     var awaitingFollowUp: [CDStudent] = []  // received lesson but no work yet
@@ -36,6 +37,10 @@ final class WorkDetailViewModel {
     var showDeleteAlert = false
     var showUnlockNextLessonAlert = false
     var nextLessonToUnlock: CDLesson?
+    /// A check-in or note whose trash button was tapped, waiting on the
+    /// page's question before it goes (bug hunt 2026-11-03 #35).
+    var checkInPendingDelete: CDWorkCheckIn?
+    var notePendingDelete: CDNote?
 
     var status: WorkStatus = .active
     var workKind: WorkKind = .practiceLesson
@@ -43,14 +48,32 @@ final class WorkDetailViewModel {
     var checkInStyle: CheckInStyle = .flexible
     var completionNote: String = ""
 
+    /// What the row held when the page last read it: on load, and again when
+    /// the row changes underneath (`refreshHeaderFromStore`). A header field
+    /// still equal to its stored value is one the guide hasn't changed in
+    /// this sitting, and Save leaves it alone, so a status or title set
+    /// elsewhere while the page was open (the grid, Claude, another device)
+    /// isn't written back over (bug hunt 2026-11-03 #33).
+    private(set) var storedStatus: WorkStatus = .active
+    private(set) var storedTitle: String = ""
+    private(set) var storedKind: WorkKind = .practiceLesson
+    private(set) var storedCheckInStyle: CheckInStyle = .flexible
+
     /// The pills the header offers: every status a guide can choose, Finished
     /// among them since 2026-10-13.
     var statusChoices: [WorkStatus] { WorkStatus.pickable }
 
-    var newPlanDate: Date = Date()
+    /// The day picked for a new check-in. Nil until one is picked, meaning
+    /// today, read when the check-in is added: a default taken when the page
+    /// opened offered yesterday on a page left open overnight (#45).
+    var newPlanDate: Date?
     var newPlanPurpose: String = "progressCheck"
     var newPlanNote: String = ""
-    
+
+    /// The test-student setting the peer lists hide by; nil reads the
+    /// guide's own setting. Tests pin it.
+    var testStudentSettings: (show: Bool, names: String)?
+
     // MARK: - Dependencies
     private let workID: UUID
     private var modelContext: NSManagedObjectContext?
@@ -94,6 +117,7 @@ final class WorkDetailViewModel {
         self.workTitle = fetchedWork.title
         self.workKind = fetchedWork.displayKind
         self.checkInStyle = fetchedWork.checkInStyle
+        rememberStored(from: fetchedWork)
         // PERF: Parse UUIDs once on load instead of on every body evaluation
         self.resolvedLessonID = UUID(uuidString: fetchedWork.lessonID)
         self.resolvedStudentID = UUID(uuidString: fetchedWork.studentID)
@@ -102,7 +126,45 @@ final class WorkDetailViewModel {
         loadWorkNotes(for: fetchedWork)
         resolvePresentationID(for: fetchedWork, modelContext: modelContext)
     }
-    
+
+    /// Notes what the row holds now as the header's stored values.
+    func rememberStored(from work: CDWorkModel) {
+        storedStatus = work.status
+        storedTitle = work.title
+        storedKind = work.displayKind
+        storedCheckInStyle = work.checkInStyle
+    }
+
+    /// Reads the row again for the header fields the guide hasn't changed in
+    /// this sitting, so a status or title set elsewhere shows here, and Save
+    /// doesn't write the old one back. A field she has changed keeps her edit,
+    /// and Save writes it.
+    func refreshHeaderFromStore() {
+        guard let work, !work.isDeleted, work.managedObjectContext != nil else { return }
+        if status == storedStatus, status != work.status { status = work.status }
+        if workTitle == storedTitle, workTitle != work.title { workTitle = work.title }
+        if workKind == storedKind, workKind != work.displayKind { workKind = work.displayKind }
+        if checkInStyle == storedCheckInStyle, checkInStyle != work.checkInStyle {
+            checkInStyle = work.checkInStyle
+        }
+        rememberStored(from: work)
+    }
+
+    /// Re-reads the plans of this work's sequence. Unlock reads them, and
+    /// they change when it makes her a draft: a list read only when the page
+    /// opened offered the unlock again and made a second draft (#34).
+    func reloadLessonAssignments() {
+        guard let modelContext else { return }
+        let relatedLessonIDs = relatedLessons.compactMap { $0.id?.uuidString }
+        guard !relatedLessonIDs.isEmpty else {
+            relatedLessonAssignments = []
+            return
+        }
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "lessonID IN %@", relatedLessonIDs)
+        relatedLessonAssignments = modelContext.safeFetch(request)
+    }
+
     private func loadRelatedData(for workModel: CDWorkModel?, modelContext: NSManagedObjectContext) {
         guard let workModel else { return }
         
@@ -128,14 +190,7 @@ final class WorkDetailViewModel {
 
         // PERF: Load only lesson assignments for lessons in the same area+sequence
         // instead of loading all LessonAssignments via @Query
-        if !relatedLessons.isEmpty {
-            let relatedLessonIDs = Set(relatedLessons.compactMap { $0.id?.uuidString })
-            let allLARequest = CDFetchRequest(CDLessonAssignment.self)
-            let allLAs = modelContext.safeFetch(allLARequest)
-            relatedLessonAssignments = allLAs.filter { la in
-                relatedLessonIDs.contains(la.lessonID)
-            }
-        }
+        reloadLessonAssignments()
 
         // Load presentation
         relatedPresentation = workModel.fetchPresentation(from: modelContext)
@@ -150,166 +205,12 @@ final class WorkDetailViewModel {
         loadPeerData(for: workModel, modelContext: modelContext)
     }
 
-    // swiftlint:disable:next function_body_length
-    private func loadPeerData(for workModel: CDWorkModel, modelContext: NSManagedObjectContext) {
-        let primaryStudentID = workModel.studentID
-
-        // 1. Work participants
-        let participants = (workModel.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
-        let otherParticipants = participants.filter { $0.studentID != primaryStudentID }
-        let participantIDs = otherParticipants.compactMap { UUID(uuidString: $0.studentID) }
-
-        // 2. Project members (via sourceContextID → CDProjectSession → CDProject)
-        var projectMemberIDs = Set<UUID>()
-        if workModel.sourceContextType == .projectSession,
-           let sessionIDString = workModel.sourceContextID,
-           let sessionID = UUID(uuidString: sessionIDString) {
-            if let project = modelContext.object(CDProjectSession.self, id: sessionID)?.project {
-                projectMemberIDs = Set(
-                    project.memberStudentUUIDs.filter { $0.uuidString != primaryStudentID }
-                )
-            }
-        }
-
-        // 3. Fetch all work items for the same lesson by other students, each
-        // child's open row first and then her newest, so the cohort row and the
-        // tap target show the work she is on, not whichever row came back first.
-        let allWorkRequest = CDFetchRequest(CDWorkModel.self)
-        let allWork = modelContext.safeFetch(allWorkRequest)
-        let peerWorks = Self.preferredFirst(allWork
-            .filter { $0.lessonID == workModel.lessonID && $0.studentID != primaryStudentID })
-        let peerWorkStudentIDs = Set(peerWorks.compactMap { UUID(uuidString: $0.studentID) })
-
-        // 2b. Fallback for project work: if no project members found via sourceContextID,
-        // treat other students with project-kind work for the same lesson as the project sequence
-        if projectMemberIDs.isEmpty && workModel.kind == .research {
-            let projectPeerIDs = peerWorks
-                .filter { $0.kind == .research }
-                .compactMap { UUID(uuidString: $0.studentID) }
-            projectMemberIDs = Set(projectPeerIDs)
-        }
-
-        // 4. Lesson recipients who don't have work yet (awaiting follow-up)
-        let sameLessonAssignments = relatedLessonAssignments.filter {
-            $0.lessonID == workModel.lessonID && $0.state == .presented
-        }
-        var allLessonRecipientIDs = Set<UUID>()
-        for la in sameLessonAssignments {
-            let studentIDs = la.resolvedStudentIDs.filter { $0.uuidString != primaryStudentID }
-            allLessonRecipientIDs.formUnion(studentIDs)
-        }
-        let awaitingFollowUpIDs = allLessonRecipientIDs.subtracting(peerWorkStudentIDs)
-
-        // Collect all peer student IDs we need to resolve
-        var allPeerStudentIDs = Set<UUID>()
-        allPeerStudentIDs.formUnion(participantIDs)
-        allPeerStudentIDs.formUnion(projectMemberIDs)
-        allPeerStudentIDs.formUnion(peerWorkStudentIDs)
-        allPeerStudentIDs.formUnion(awaitingFollowUpIDs)
-
-        guard !allPeerStudentIDs.isEmpty else { return }
-
-        // Batch-fetch all students
-        let allStudents = modelContext.safeFetch(CDFetchRequest(CDStudent.self))
-        let studentsByID = Dictionary(
-            allStudents.compactMap { s in s.id.map { ($0, s) } },
-            uniquingKeysWith: { first, _ in first }
-        )
-        // Classmates lists name children still in the room; a child who has
-        // left keeps her rows, but isn't a classmate to compare with.
-        let classmatesByID = studentsByID.filter { $0.value.isEnrolled }
-
-        // Build lesson lookup for progression context
-        let lessonsByIDString: [String: CDLesson] = Dictionary(
-            relatedLessons.compactMap { l -> (String, CDLesson)? in
-                guard let idStr = l.id?.uuidString else { return nil }
-                return (idStr, l)
-            },
-            uniquingKeysWith: { first, _ in first }
-        )
-
-        // Resolve work participants (project collaborators)
-        let participantCompletedAt = Dictionary(
-            otherParticipants.compactMap { p in UUID(uuidString: p.studentID).map { ($0, p.completedAt) } },
-            uniquingKeysWith: { first, _ in first }
-        )
-        workParticipants = participantIDs.compactMap { id in
-            guard let student = studentsByID[id] else { return nil }
-            return (student: student, completedAt: participantCompletedAt[id] ?? nil)
-        }
-
-        // Resolve project sequence members
-        projectGroupMembers = projectMemberIDs
-            .compactMap { studentsByID[$0] }
-            .sorted { $0.firstName < $1.firstName }
-
-        // Build peer work ID lookup for tap navigation
-        peerWorkIDs = Dictionary(
-            peerWorks.compactMap { w in
-                guard let studentUUID = UUID(uuidString: w.studentID),
-                      let workUUID = w.id else { return nil }
-                return (studentUUID, workUUID)
-            },
-            uniquingKeysWith: { first, _ in first }
-        )
-
-        // Build lesson cohort — peers with work for same lesson, with progression context
-        // Exclude students already shown in the project sequence card
-        var seenStudentIDs = projectMemberIDs
-        var cohortEntries: [LessonCohortEntry] = []
-        for w in peerWorks {
-            guard let studentUUID = UUID(uuidString: w.studentID),
-                  let student = classmatesByID[studentUUID] else { continue }
-            guard seenStudentIDs.insert(studentUUID).inserted else { continue }
-
-            var currentWorkTitle: String?
-            if w.status.isClosed {
-                // Find their current active work in the same area/sequence progression
-                let progressionWork = allWork
-                    .filter { $0.studentID == w.studentID && $0.status.isOpen }
-                    .compactMap { (aw: CDWorkModel) -> (lessonID: String, order: Int64)? in
-                        guard let lesson = lessonsByIDString[aw.lessonID] else { return nil }
-                        return (lessonID: aw.lessonID, order: lesson.orderInSequence)
-                    }
-                    .min { $0.order < $1.order }
-
-                if let pw = progressionWork {
-                    currentWorkTitle = lessonsByIDString[pw.lessonID]?.name
-                }
-            }
-
-            cohortEntries.append(LessonCohortEntry(
-                student: student,
-                status: w.status,
-                currentWorkTitle: currentWorkTitle
-            ))
-        }
-        lessonCohort = cohortEntries.sorted {
-            if $0.sortKey != $1.sortKey { return $0.sortKey < $1.sortKey }
-            return $0.student.firstName < $1.student.firstName
-        }
-
-        // Resolve awaiting follow-up
-        awaitingFollowUp = awaitingFollowUpIDs
-            .compactMap { classmatesByID[$0] }
-            .sorted { $0.firstName < $1.firstName }
-    }
-    
     /// Re-reads the notes list only. Note actions call this rather than
     /// `loadWork`, which also resets the title, kind, status and check-in
     /// style fields to the stored row and threw away edits waiting for Save
     /// (and then filed a pending status note as a plain note).
     func reloadNotes() {
         loadWorkNotes(for: work)
-    }
-
-    /// Open rows before closed ones, then newest first: the order the cohort
-    /// and the tap targets take each child's first row in.
-    static func preferredFirst(_ works: [CDWorkModel]) -> [CDWorkModel] {
-        works.sorted { lhs, rhs in
-            if lhs.status.isOpen != rhs.status.isOpen { return lhs.status.isOpen }
-            return (lhs.createdAt ?? .distantPast) > (rhs.createdAt ?? .distantPast)
-        }
     }
 
     private func loadWorkNotes(for workModel: CDWorkModel?) {
@@ -327,20 +228,4 @@ final class WorkDetailViewModel {
         }
     }
     
-}
-
-// MARK: - Peer Context Types
-
-struct LessonCohortEntry {
-    let student: CDStudent
-    let status: WorkStatus
-    let currentWorkTitle: String?  // for completed peers: what they're working on now
-
-    var sortKey: Int {
-        switch status {
-        case .active: return 0
-        case .review: return 1
-        case .mastered, .keepPracticing, .incomplete, .done: return 2
-        }
-    }
 }

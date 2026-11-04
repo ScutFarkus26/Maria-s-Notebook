@@ -6,35 +6,16 @@ import CoreData
 
 extension TodoMainView {
     var filteredTodos: [CDTodoItem] {
-        var todos: [CDTodoItem]
-        if let list = selectedTideList {
-            todos = allTodos.filter { $0.tideListFile == list }
-        } else if let folder = selectedFolder {
-            // Show all todos that have any tag belonging to this folder
-            let folderTags = Set(allUsedTags.filter {
-                TodoTagHelper.tagPathComponents($0).count > 1 && TodoTagHelper.rootTagName($0) == folder
-            })
-            todos = allTodos.filter { todo in
-                todo.tagsArray.contains(where: { folderTags.contains($0) })
-            }
-        } else if let tag = selectedTag {
-            todos = allTodos.filter { $0.tagsArray.contains(tag) }
-        } else {
-            let filter = selectedFilter ?? .inbox
-            todos = allTodos.filter { filter.matches($0) }
-        }
+        let scope = listScope
+        let today = calendarDay
+        var todos = allTodos.filter { scope.contains($0, today: today) }
 
         // Hide completed from all views (except the dedicated Completed filter)
         if hideCompleted && selectedFilter != .completed {
             todos = todos.filter { !$0.isCompleted }
         }
 
-        let searchFiltered = searchText.isEmpty ? todos : todos.filter {
-            $0.title.localizedCaseInsensitiveContains(searchText) ||
-            $0.notes.localizedCaseInsensitiveContains(searchText)
-        }
-
-        return searchFiltered.sorted { lhs, rhs in
+        return todos.sorted { lhs, rhs in
             // Completed items always go to bottom
             if lhs.isCompleted != rhs.isCompleted {
                 return !lhs.isCompleted && rhs.isCompleted

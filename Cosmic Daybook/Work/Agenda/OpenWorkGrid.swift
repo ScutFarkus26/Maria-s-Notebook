@@ -86,6 +86,11 @@ struct OpenWorkGrid: View {
             ) { _ in
                 ageInputsVersion &+= 1
             }
+            // Ages count to today: on a Mac left open overnight every card
+            // kept yesterday's "Nd" and color (bug hunt 2026-11-03 #40).
+            .onCalendarDayChange {
+                ageInputsVersion &+= 1
+            }
     }
 
     private func grid(sections: [GridSection]) -> some View {
@@ -263,7 +268,7 @@ struct OpenWorkGrid: View {
         case .student:
             return item.student
         case .age:
-            return ageBucketLabel(forDays: item.ageDays)
+            return Self.ageSectionTitle(forDays: item.ageDays)
         case .needsAttention:
             return item.needsAttention ? "Needs Attention" : "Other"
         }
@@ -310,7 +315,8 @@ struct OpenWorkGrid: View {
     }
 
     /// Calendar days from the work's creation to `today`, a start of day.
-    private static func ageDays(for w: CDWorkModel, today: Date) -> Int {
+    /// Not private: the printed sheet groups by it too.
+    static func ageDays(for w: CDWorkModel, today: Date) -> Int {
         // Clamped to the school-year counter epoch (see `SchoolYearCounters`).
         let start = AppCalendar.startOfDay(SchoolYearCounters.countFrom(w.createdAt ?? .distantPast))
         let comps = AppCalendar.shared.dateComponents([.day], from: start, to: today)
@@ -327,9 +333,10 @@ struct OpenWorkGrid: View {
 
 }
 
-private extension OpenWorkGrid {
-    /// The Age sort's section for a card this many days old.
-    func ageBucketLabel(forDays days: Int) -> String {
+extension OpenWorkGrid {
+    /// The Age sort's section for a card this many days old. The printed
+    /// sheet uses it too.
+    static func ageSectionTitle(forDays days: Int) -> String {
         if days <= 0 {
             return "Today"
         } else if days <= 3 {

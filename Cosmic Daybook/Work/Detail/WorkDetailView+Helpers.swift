@@ -120,8 +120,8 @@ extension WorkDetailView {
                                     viewModel.status = s
 
                                     // When marking as complete with good outcome, offer to unlock next lesson
-                                    if let info = unlockInfo {
-                                        checkAndOfferUnlock(lessonID: info.lessonID, studentID: info.studentID)
+                                    if s == .mastered {
+                                        viewModel.offerUnlock()
                                     }
                                 }
                                 if s.isClosed {
@@ -135,9 +135,7 @@ extension WorkDetailView {
 
                     if viewModel.status.isOpen, likelyNextLesson != nil {
                         Button {
-                            if let info = unlockNextLessonInfo {
-                                checkAndOfferUnlock(lessonID: info.lessonID, studentID: info.studentID)
-                            }
+                            viewModel.offerUnlock()
                         } label: {
                             HStack(spacing: 6) {
                                 Image(systemName: "lock.open.fill")
@@ -235,7 +233,12 @@ extension WorkDetailView {
 
     @ViewBuilder
     func noteRow(_ note: CDNote) -> some View {
-        NoteRowView(note: note, onEdit: { activeSheet = .editNote(note) }, onDelete: { deleteNote(note) })
+        // The trash button asks first: the note is also on her Notes tab.
+        NoteRowView(
+            note: note,
+            onEdit: { activeSheet = .editNote(note) },
+            onDelete: { viewModel.notePendingDelete = note }
+        )
     }
 
     // MARK: - Action Methods
@@ -255,45 +258,6 @@ extension WorkDetailView {
             // work item that no longer exists.
             Task { close() }
         }
-    }
-
-    // PERF: Uses ViewModel's pre-loaded relatedLessons and relatedLessonAssignments
-    // instead of full-table @Query properties
-    func checkAndOfferUnlock(lessonID: UUID, studentID: UUID) {
-        let lessons = viewModel.relatedLessons
-        guard let currentLesson = lessons.first(where: { $0.id == lessonID }) else { return }
-
-        guard let nextLesson = PlanNextLessonService.findNextLesson(after: currentLesson, in: lessons) else {
-            return
-        }
-
-        let existingLAs = viewModel.relatedLessonAssignments.filter { la in
-            la.lessonIDUUID == nextLesson.id &&
-            la.resolvedStudentIDs.contains(studentID)
-        }
-
-        // Nothing to unlock if the next lesson is already unlocked, already on the
-        // schedule, or already presented for this student.
-        if existingLAs.contains(where: { $0.manuallyUnblocked || $0.scheduledFor != nil || $0.presentedAt != nil }) {
-            return
-        }
-
-        viewModel.nextLessonToUnlock = nextLesson
-        viewModel.showUnlockNextLessonAlert = true
-    }
-
-    func unlockNextLesson() {
-        guard let info = unlockNextLessonInfo else { return }
-
-        _ = UnlockNextLessonService.unlockNextLesson(
-            after: info.lessonID,
-            for: info.studentID,
-            context: modelContext,
-            lessons: viewModel.relatedLessons,
-            cdAssignments: viewModel.relatedLessonAssignments
-        )
-
-        saveCoordinator.save(modelContext, reason: "Unlocking next lesson")
     }
 
     func deleteNote(_ note: CDNote) {

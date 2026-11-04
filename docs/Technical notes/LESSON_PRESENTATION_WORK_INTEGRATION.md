@@ -327,6 +327,28 @@ This integration works with the Core Data persistence layer (`NSPersistentCloudK
 - `CDWorkModel.lessonID`
 - `CDLessonPresentation.needsPractice`, `needsAnotherPresentation`, `followUpWork`
 
+## Checklist marks, readiness and the year plan (bug hunt 2026-11-03)
+
+Fixed in the 2026-11-03 bug hunt (`../Reviews/Bug hunt 2026-11-03.md`). These are rules: follow them.
+
+**Checklist marks do what the presentation sheet's do.**
+- A mark that records a presentation (a cell or a batch) releases that child from the year-plan plan she was on, through `YearPlanReleaseService.releaseRedundantPlans`, as `LifecycleService` does. On a shared undated record only the child marked is released.
+- Mastered, Practicing or Reviewing on a lesson with no presentation attaches an undated presentation (the Previously Presented path), never one dated today. Mastered marks the latest history row by date given.
+- Unmark Presented, Remove Plan and Remove in Merge Groups ask first, name the notes, and keep them as the child's, filed under the lesson. Mastery marks stay. The cell's Clear, the history's Delete and Merge Groups share this rule; the note-keeping lives in `ChecklistCellRecords` and in `Presentations/Workflow/PresentationDeletion.swift`, and the two stamp and normalize notes alike.
+- A batch mark only adds; it never clears a mark.
+
+**One readiness rule across both engines.** The blocking engine (Presentations) and the ready engine (the Checklist, Ready and Brewing) read the same inputs:
+- A mastery mark counts as confirmation, and with no presentation on record it also counts as practice done.
+- A lesson's own "Requires Confirmation" is honored by both; with it off, a group card offers no one for confirming. The ready engine does not honor "Requires Practice": open work never holds a child back.
+- Brewing and "N of M ready" count enrolled, visible children only.
+- `ReadinessAgreementFix1103Tests` runs the same records through both engines and the ready list; change one engine and run it.
+
+**The year plan draws each lesson once.**
+- An entry follows its presentation: it is drawn at the day the presentation was given or is planned, and moves when the presentation moves (a drag, an absence, MCP `reschedule_presentation`). A lesson she was given without promotion is drawn once, at that day.
+- Entries are numbered by the lesson's own order in its sequence (`orderInSequence`), not by their place in an Add Sequence preview.
+- `YearPlanEntryRepair` runs whenever a child's year plan loads. It fixes numbering, the day of a promoted entry, and unpromoted entries, writing only values that differ (a second pass changes nothing), and it never saves over another screen's unsaved edit.
+- Add Sequence skips lessons a presentation or a mastery mark already satisfies (`YearPlanSatisfaction`). Readjust asks first ("Move 14 lessons in 3 sequences?"), says so when there is nothing to move, and has no Undo.
+
 ## Version History
 
 - **2026-02-04**: Initial implementation

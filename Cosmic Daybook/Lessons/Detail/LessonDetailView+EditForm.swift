@@ -109,12 +109,12 @@ extension LessonDetailView {
                     .foregroundStyle(.secondary)
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
                     HStack(spacing: AppTheme.Spacing.small) {
-                        if resolvedPagesURL != nil {
+                        if editFormPagesURL != nil {
                             Button("Remove") { removePagesFile() }
                         }
                         Button("Import\u{2026}") { beginPagesImport() }
                     }
-                    if let url = resolvedPagesURL {
+                    if let url = editFormPagesURL {
                         OpenInPagesButton(title: "Open in Pages") { openInPages(url) }
                             .padding(.top, AppTheme.Spacing.xsmall)
                     } else {

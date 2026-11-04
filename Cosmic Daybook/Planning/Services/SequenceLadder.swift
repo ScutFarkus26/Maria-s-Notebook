@@ -128,7 +128,8 @@ nonisolated struct SequenceLadder: Sendable, Equatable {
             items: snapshot.items.filter { lessonIDs.contains($0.nextLessonID) },
             index: snapshot.index,
             order: snapshot.order,
-            roster: snapshot.roster
+            roster: snapshot.roster,
+            confirmationNotRequired: snapshot.confirmationNotRequired
         )
         return ReadyGroups.build(from: scoped, schoolDaysSince: schoolDaysSince)
     }

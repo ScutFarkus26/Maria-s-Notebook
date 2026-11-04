@@ -47,8 +47,17 @@ struct RatingLevelSelector: View {
 
 // MARK: - CDStudent Understanding Selector
 
+/// Starts with nothing picked, since nothing is saved until a dot is tapped;
+/// a second tap on the picked dot clears it. It used to show Developing for
+/// every child while saving nothing, and a level once set couldn't be taken
+/// back (bug hunt 2026-11-03 #42).
 struct StudentUnderstandingSelector: View {
-    @Binding var level: Int
+    @Binding var level: Int?
+
+    /// The level after a tap on the `index`th dot.
+    static func level(afterTapping index: Int, current: Int?) -> Int? {
+        current == index ? nil : index
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -59,10 +68,10 @@ struct StudentUnderstandingSelector: View {
             HStack(spacing: 8) {
                 ForEach(1...5, id: \.self) { index in
                     Button {
-                        level = index
+                        level = Self.level(afterTapping: index, current: level)
                     } label: {
                         Circle()
-                            .fill(understandingColor(for: index).opacity(level >= index ? 1.0 : 0.2))
+                            .fill(understandingColor(for: index).opacity((level ?? 0) >= index ? 1.0 : 0.2))
                             .frame(width: 24, height: 24)
                     }
                     .buttonStyle(.plain)
@@ -70,7 +79,7 @@ struct StudentUnderstandingSelector: View {
 
                 Spacer()
 
-                Text(understandingLabel(for: level))
+                Text(level.map(understandingLabel(for:)) ?? "Not rated")
                     .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
             }
@@ -254,6 +263,14 @@ struct LessonContextCard: View {
     let lesson: CDLesson
     let presentation: Presentation?
 
+    /// What the card calls the presentation the work follows.
+    /// A draft with no day is Planned, as it reads elsewhere; it used to be
+    /// called Scheduled.
+    static func stateLabel(for presentation: Presentation) -> String {
+        if presentation.isPresented { return "Presented" }
+        return presentation.scheduledFor == nil ? "Planned" : "Scheduled"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
@@ -310,7 +327,7 @@ struct LessonContextCard: View {
                             .foregroundStyle(.indigo)
 
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(presentation.isPresented ? "Presented" : "Scheduled")
+                            Text(Self.stateLabel(for: presentation))
                                 .font(AppTheme.ScaledFont.captionSemibold)
 
                             if let date = presentation.presentedAt ?? presentation.scheduledFor {

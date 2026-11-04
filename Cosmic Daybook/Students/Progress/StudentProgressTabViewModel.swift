@@ -21,6 +21,8 @@ final class StudentProgressTabViewModel {
     /// Per-sequence activity, precomputed once in loadData so the view
     /// doesn't recompute it for every card on every render.
     private(set) var statsByStanding: [String: SequenceStats] = [:]
+    /// Each card's Next Lesson, by standing id; none when the timeline marks none.
+    private(set) var nextLessonByStanding: [String: CDLesson] = [:]
 
     // MARK: - Private State
     private var studentID: UUID?
@@ -67,10 +69,15 @@ final class StudentProgressTabViewModel {
         }
 
         var computed: [String: SequenceStats] = [:]
+        var nextLessons: [String: CDLesson] = [:]
         for standing in standings {
             computed[standing.id] = sequenceStats(for: standing, studentIDString: studentIDString, context: context)
+            if let studentID = student.id {
+                nextLessons[standing.id] = nextLesson(in: standing, studentID: studentID, context: context)
+            }
         }
         statsByStanding = computed
+        nextLessonByStanding = nextLessons
     }
 
     /// The lesson with this id, fetched once per load. Matches what the
@@ -149,6 +156,22 @@ final class StudentProgressTabViewModel {
             totalActivity: presentationCount + workCount + noteCount,
             lastActivityDate: dates.max()
         )
+    }
+
+    /// The lesson the timeline marks Next for her (`StudentLessonRecords`):
+    /// the first she has nothing on yet, not given, planned, practiced or
+    /// mastered. `SequenceStanding.nextLesson` is the first not given, so a
+    /// lesson waiting on a plan showed as "Next Lesson" while the timeline in
+    /// its sheet marked a later one Next (bug hunt 2026-11-03 #29).
+    private func nextLesson(
+        in standing: SequenceStanding, studentID: UUID, context: NSManagedObjectContext
+    ) -> CDLesson? {
+        let lessonIDs = standing.lessons.compactMap { $0.id?.uuidString }
+        guard !lessonIDs.isEmpty else { return nil }
+        let states = StudentLessonRecords(studentID: studentID, lessonIDs: lessonIDs, context: context)
+            .states(lessonIDs: lessonIDs)
+        guard let next = zip(lessonIDs, states).first(where: { $0.1.isNext })?.0 else { return nil }
+        return standing.lessons.first { $0.id?.uuidString == next }
     }
 
     // MARK: - Report Helpers

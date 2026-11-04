@@ -90,7 +90,7 @@ extension PracticeSessionSheet {
                 .font(AppTheme.ScaledFont.bodySemibold)
 
             StudentUnderstandingSelector(level: Binding(
-                get: { individualUnderstandingLevels[studentID] ?? 3 },
+                get: { individualUnderstandingLevels[studentID] },
                 set: { individualUnderstandingLevels[studentID] = $0 }
             ))
 

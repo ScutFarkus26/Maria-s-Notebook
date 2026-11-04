@@ -55,8 +55,8 @@ enum TodoCompletionService {
     /// of a repeat, that copy goes too, so tick, untick, tick leaves one next
     /// occurrence, not two (bug hunt 2026-10-10, P2 #22) — but only while the
     /// copy is still as `complete` made it: open, and with the same title,
-    /// notes, children, tags, priority and dates, no checklist, and not yet
-    /// shared with Tide. Does not save.
+    /// notes, children, tags, priority, dates and checklist (nothing ticked),
+    /// and not yet shared with Tide. Does not save.
     static func reopen(_ todo: CDTodoItem) {
         if let copy = untouchedNextOccurrence(of: todo, calendar: AppCalendar.shared) {
             copy.managedObjectContext?.delete(copy)
@@ -67,7 +67,9 @@ enum TodoCompletionService {
 
     /// The next occurrence of a repeating todo, inserted into the todo's
     /// context, or nil when the pattern yields no next date. Its dates follow
-    /// `TodoRepeatRule`, counted on the day the todo was completed.
+    /// `TodoRepeatRule`, counted on the day the todo was completed. Its
+    /// checklist is the todo's, every item unticked: the copy used to come
+    /// with none (bug hunt 2026-11-03, #49).
     @discardableResult
     static func nextOccurrence(after todo: CDTodoItem, calendar: Calendar) -> CDTodoItem? {
         let completedOn = todo.completedAt ?? Date()
@@ -87,7 +89,25 @@ enum TodoCompletionService {
         newTodo.customIntervalDays = todo.customIntervalDays
         newTodo.tags = todo.tags
         newTodo.linkedWorkItemID = todo.linkedWorkItemID
+        for item in checklist(of: todo) {
+            let copy = CDTodoSubtask(context: context)
+            copy.title = item.title
+            copy.orderIndex = item.orderIndex
+            newTodo.addToSubtasks(copy)
+        }
         return newTodo
+    }
+
+    /// `todo`'s checklist, in its order.
+    private static func checklist(of todo: CDTodoItem) -> [CDTodoSubtask] {
+        ((todo.subtasks as? Set<CDTodoSubtask>) ?? []).sorted { $0.orderIndex < $1.orderIndex }
+    }
+
+    /// Whether `copy`'s checklist is still the one `nextOccurrence` gave it
+    /// from `todo`: the same items in the same order, none ticked.
+    private static func isFreshChecklist(_ copy: CDTodoItem, from todo: CDTodoItem) -> Bool {
+        let items = checklist(of: copy)
+        return items.allSatisfy { !$0.isCompleted } && items.map(\.title) == checklist(of: todo).map(\.title)
     }
 
     /// `todo`'s repeat, with the date its own previous occurrence counted
@@ -137,7 +157,7 @@ enum TodoCompletionService {
                 // Once sent to Tide it isn't untouched: deleting it would
                 // leave its Tide action with no copy here.
                 && copy.tideLink == nil
-                && (copy.subtasks?.count ?? 0) == 0
+                && isFreshChecklist(copy, from: todo)
                 && isSameDate(copy.dueDate, expected.dueDate)
                 && isSameDate(copy.scheduledDate, expected.scheduledDate)
         }

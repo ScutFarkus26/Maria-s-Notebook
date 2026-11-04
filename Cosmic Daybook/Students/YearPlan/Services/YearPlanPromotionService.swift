@@ -9,7 +9,14 @@ enum YearPlanPromotionService {
     private static let logger = Logger.yearPlanPromotion
 
     /// Called after PlanNextLessonService creates a draft assignment.
-    /// Checks for a matching Year Plan entry and auto-promotes if the planned date is in the future.
+    /// Checks the children's matching Year Plan entries and, when any is planned
+    /// for today or later, schedules the draft for the earliest of those days and
+    /// promotes every child's entry into it on that day.
+    ///
+    /// One day for the whole group: this used to schedule the draft to each
+    /// child's date in turn, so it landed on whichever came last while the
+    /// others' entries kept their own dates (bug hunt 2026-11-03 #20). A plan
+    /// whose entries are all behind pace stays a draft, as before.
     ///
     /// - Parameters:
     ///   - assignment: The newly created draft assignment.
@@ -19,28 +26,19 @@ enum YearPlanPromotionService {
         context: NSManagedObjectContext
     ) {
         let today = AppCalendar.startOfDay(Date())
-
-        // For each student on this assignment, check for a matching Year Plan entry
-        for studentID in assignment.resolvedStudentIDs {
-            guard let entry = findMatchingEntry(
-                lessonID: assignment.lessonID,
-                studentID: studentID,
-                context: context
-            ) else { continue }
-
-            guard let plannedDate = entry.plannedDate else { continue }
-
-            if plannedDate >= today {
-                // Future or today: auto-schedule the assignment
-                assignment.schedule(for: plannedDate)
-                entry.status = .promoted
-                entry.promotedAssignmentID = assignment.id?.uuidString
-                logger.info("Auto-promoted entry for lesson \(assignment.lessonID) on \(plannedDate)")
-            } else {
-                // Past: don't auto-schedule, leave as draft, entry stays "planned" (behind pace)
+        let plannedDates = assignment.resolvedStudentIDs.compactMap { studentID in
+            findMatchingEntry(lessonID: assignment.lessonID, studentID: studentID, context: context)?.plannedDate
+        }
+        guard let day = plannedDates.filter({ $0 >= today }).min() else {
+            if !plannedDates.isEmpty {
+                // Past: don't auto-schedule, leave as draft, entries stay "planned" (behind pace)
                 logger.info("Year Plan entry is behind pace for lesson \(assignment.lessonID) — flagging")
             }
+            return
         }
+        assignment.schedule(for: day)
+        let promoted = promoteMatchingEntries(into: assignment, scheduledFor: day, context: context)
+        logger.info("Auto-promoted \(promoted) entries for lesson \(assignment.lessonID) on \(day)")
     }
 
     /// Promotes each child's matching planned entry into `assignment`, leaving
@@ -59,13 +57,16 @@ enum YearPlanPromotionService {
 
     /// A presentation put on a day: each child's still-planned entry for the
     /// lesson is promoted into it and moved to that day, so the year plan shows
-    /// it where the calendar does. It lays nothing on the lessons after. Until
-    /// 2026-11-03 scheduling one lesson also wrote an entry on every later lesson
-    /// of its sequence (`SequenceAutoPopulateService`, three school days apart),
-    /// which dressed whole strands Planned on the Checklist and kept each child
-    /// out of Ready for lessons she hadn't reached; Add Sequence on the year plan
-    /// is the way to lay one out on purpose. Returns how many entries were
-    /// promoted. Does not save.
+    /// it where the calendar does. An entry already promoted into it follows it
+    /// to the new day; a later move used to leave it on the day it was first
+    /// promoted for, drawn there as Promoted and then Given on a day nothing
+    /// happened (bug hunt 2026-11-03 #20). It lays nothing on the lessons
+    /// after. Until 2026-11-03 scheduling one lesson also wrote an entry on
+    /// every later lesson of its sequence (`SequenceAutoPopulateService`,
+    /// three school days apart), which dressed whole strands Planned on the
+    /// Checklist and kept each child out of Ready for lessons she hadn't
+    /// reached; Add Sequence on the year plan is the way to lay one out on
+    /// purpose. Returns how many entries were promoted or moved. Does not save.
     @discardableResult
     static func promoteMatchingEntries(
         into assignment: CDLessonAssignment,
@@ -74,7 +75,7 @@ enum YearPlanPromotionService {
     ) -> Int {
         guard let assignmentID = assignment.id?.uuidString else { return 0 }
         let planned = AppCalendar.startOfDay(day)
-        return assignment.resolvedStudentIDs.filter { studentID in
+        let promoted = assignment.resolvedStudentIDs.filter { studentID in
             guard let entry = findMatchingEntry(
                 lessonID: assignment.lessonID, studentID: studentID, context: context
             ) else { return false }
@@ -83,6 +84,30 @@ enum YearPlanPromotionService {
             entry.plannedDate = planned
             return true
         }.count
+        return promoted + moveEntries(promotedInto: assignmentID, to: planned, context: context)
+    }
+
+    /// Moves the entries promoted into the presentation `assignmentID` to
+    /// `day`, the presentation's own. Only those not already there change.
+    /// Returns how many moved. Does not save.
+    @discardableResult
+    static func moveEntries(
+        promotedInto assignmentID: String,
+        to day: Date,
+        context: NSManagedObjectContext
+    ) -> Int {
+        let req = CDFetchRequest(CDYearPlanEntry.self)
+        req.predicate = NSPredicate(
+            format: "promotedAssignmentID == %@ AND statusRaw == %@",
+            assignmentID, YearPlanEntryStatus.promoted.rawValue
+        )
+        var moved = 0
+        for entry in context.safeFetch(req) where !entry.isDeleted && entry.plannedDate != day {
+            entry.plannedDate = day
+            entry.modifiedAt = Date()
+            moved += 1
+        }
+        return moved
     }
 
     /// Promotes one child's matching planned entry into `assignment`, for a

@@ -5,27 +5,6 @@ import OSLog
 struct LifecycleService {
     static let logger = Logger.lifecycle
 
-    // MARK: - Fetch Helpers
-
-    static func fetchWorkModel(
-        presentationID: String,
-        studentID: String,
-        context: NSManagedObjectContext
-    ) throws -> CDWorkModel? {
-        // PERFORMANCE: Use predicate to filter at database level instead of loading all records
-        let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(format: "presentationID == %@ AND studentID == %@", presentationID, studentID)
-        request.fetchLimit = 1
-        return try context.fetch(request).first
-    }
-
-    static func fetchAllWorkModels(presentationID: String, context: NSManagedObjectContext) throws -> [CDWorkModel] {
-        // PERFORMANCE: Use predicate to filter at database level instead of loading all records
-        let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(format: "presentationID == %@", presentationID)
-        return try context.fetch(request)
-    }
-
     // MARK: - CDLessonPresentation Helpers
 
     /// Upsert CDLessonPresentation idempotently by (presentationID, studentID).

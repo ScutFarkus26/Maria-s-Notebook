@@ -8,10 +8,13 @@ import CoreData
 extension PresentationsView {
 
     /// What this screen reloads for. Pinned rather than the history
-    /// processor's whole set, which also carries the ready queue's inputs
-    /// (record rows, year-plan entries, work participants, sub-area rules).
+    /// processor's whole set, which also carries year-plan entries and recall
+    /// checks. Readiness reads work participants (a child's part of shared
+    /// work), sub-area rules and record rows (mastery marks) too, so a change
+    /// to any of them redraws Ready and Brewing (bug hunt 2026-11-03 #5, #6).
     static let watchedEntityNames: Set<String> = [
-        "LessonAssignment", "Lesson", "Student", "WorkModel",
+        "LessonAssignment", "Lesson", "Student", "WorkModel", "WorkParticipantEntity",
+        "LessonSequenceSettings", "LessonPresentation",
         "AttendanceRecord", "AttendanceDayLock", "AttendanceEmailSend", "AttendanceEmailSettings"
     ]
 
@@ -191,7 +194,6 @@ extension PresentationsView {
         ReadyToPresentSection(
             viewModel: viewModel,
             blockingResults: viewModel.blockingResults,
-            getBlockingWork: getBlockingWork,
             coordinator: coordinator,
             filterState: filterState,
             focusedLessonID: focusedPresentationID,

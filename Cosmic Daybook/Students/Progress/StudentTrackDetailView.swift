@@ -261,7 +261,8 @@ struct StudentTrackDetailView: View {
                         ProgressionLessonRow(
                             node: node,
                             areaColor: areaColor,
-                            onScheduleLesson: node.isNext ? {
+                            // Not for a child who has left the class (bug hunt 2026-11-03 #32).
+                            onScheduleLesson: node.isNext && progressionVM.canPlanLessons ? {
                                 planLesson(node)
                             } : nil
                         )
@@ -289,7 +290,9 @@ struct StudentTrackDetailView: View {
 
     /// Plans the lesson on the row tapped (the next one for the child), not the one after it.
     private func planLesson(_ node: LessonProgressionNode) {
-        progressionVM.planLesson(node.lesson, context: viewContext)
+        if let refusal = progressionVM.planLesson(node.lesson, context: viewContext) {
+            ToastService.shared.showError(refusal)
+        }
         progressionVM.configure(for: student, area: standing.area, sequence: standing.sequence, context: viewContext)
     }
 

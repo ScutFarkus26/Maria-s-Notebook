@@ -42,9 +42,17 @@ struct SampleWorkService {
         sampleWork.notes = notes.trimmed()
     }
 
-    /// Delete a sample work and its steps (cascade).
+    /// Delete a sample work and its steps (cascade), and number the rest
+    /// again from 1 so the list shows no gap (bug hunt 2026-11-03; 10-10 #58
+    /// did the same for work steps).
     func delete(_ sampleWork: CDSampleWork) {
+        let lesson = sampleWork.lesson as? CDLesson
+        lesson?.removeFromSampleWorks(sampleWork)
         context.delete(sampleWork)
+        guard let lesson else { return }
+        for (index, remaining) in lesson.orderedSampleWorks.enumerated() where remaining.orderIndex != Int64(index) {
+            remaining.orderIndex = Int64(index)
+        }
     }
 
     // MARK: - SampleWorkStep CRUD
@@ -75,9 +83,15 @@ struct SampleWorkService {
         step.instructions = instructions.trimmed()
     }
 
-    /// Delete a step.
+    /// Delete a step, and number the rest again from 1.
     func deleteStep(_ step: CDSampleWorkStep) {
+        let owner = step.sampleWork
+        owner?.removeFromSteps(step)
         context.delete(step)
+        guard let owner else { return }
+        for (index, remaining) in owner.orderedSteps.enumerated() where remaining.orderIndex != Int64(index) {
+            remaining.orderIndex = Int64(index)
+        }
     }
 
     // MARK: - Instantiation

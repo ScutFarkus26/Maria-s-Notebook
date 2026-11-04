@@ -44,31 +44,12 @@ struct WorkDetailView: View {
     /// every body pass (which included every keystroke in the title field).
     @State var presentationStatus: WorkPresentationStatusService.PresentationStatus?
 
-    // PERF: Uses ViewModel's cached resolvedLessonID/resolvedStudentID
-    // instead of parsing UUID(uuidString:) on every body evaluation.
-    var unlockInfo: (lessonID: UUID, studentID: UUID)? {
-        guard viewModel.status == .mastered,
-              let lessonID = viewModel.resolvedLessonID,
-              let studentID = viewModel.resolvedStudentID else {
-            return nil
-        }
-        return (lessonID, studentID)
-    }
-
     var representSheetInfo: (student: CDStudent, lessonID: UUID)? {
         guard let student = viewModel.relatedStudent,
               let lessonID = viewModel.resolvedLessonID else {
             return nil
         }
         return (student, lessonID)
-    }
-
-    var unlockNextLessonInfo: (lessonID: UUID, studentID: UUID)? {
-        guard let lessonID = viewModel.resolvedLessonID,
-              let studentID = viewModel.resolvedStudentID else {
-            return nil
-        }
-        return (lessonID, studentID)
     }
 
     init(workID: UUID, onDone: (() -> Void)? = nil, showRepresentButton: Bool = false) {
@@ -117,8 +98,12 @@ struct WorkDetailView: View {
         ) {
             reloadPracticeSessions()
         }
-        .onPresentationDataChange(of: ["LessonAssignment", "WorkModel"], in: modelContext) { _ in
+        // A status or title changed elsewhere (the grid, Claude, another
+        // device) reloads the header fields she hasn't touched, so Save
+        // doesn't write the old ones back.
+        .onPresentationDataChange(of: ["LessonAssignment", "WorkModel"], in: modelContext) { touched in
             reloadPresentationStatus()
+            if touched.contains("WorkModel") { viewModel.refreshHeaderFromStore() }
         }
         .onAppear {
             viewModel.loadWork(modelContext: modelContext, saveCoordinator: saveCoordinator)
@@ -225,7 +210,7 @@ struct WorkDetailView: View {
         }
         .alert("Unlock Next Lesson?", isPresented: $viewModel.showUnlockNextLessonAlert) {
             Button("Unlock") {
-                unlockNextLesson()
+                viewModel.unlockNextLesson(modelContext: modelContext, saveCoordinator: saveCoordinator)
             }
             Button("Not Yet", role: .cancel) { }
         } message: {
@@ -234,6 +219,34 @@ struct WorkDetailView: View {
                     ?? "this student"
                 Text("Ready to unlock \(nextLesson.name) for \(studentName)?")
             }
+        }
+        .alert(
+            "Delete This Check-In?",
+            isPresented: Binding(
+                get: { viewModel.checkInPendingDelete != nil },
+                set: { if !$0 { viewModel.checkInPendingDelete = nil } }
+            ),
+            presenting: viewModel.checkInPendingDelete
+        ) { checkIn in
+            Button("Delete", role: .destructive) {
+                viewModel.deleteCheckIn(checkIn, modelContext: modelContext, saveCoordinator: saveCoordinator)
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: { checkIn in
+            Text(WorkDetailViewModel.deleteMessage(for: checkIn))
+        }
+        .alert(
+            "Delete This Note?",
+            isPresented: Binding(
+                get: { viewModel.notePendingDelete != nil },
+                set: { if !$0 { viewModel.notePendingDelete = nil } }
+            ),
+            presenting: viewModel.notePendingDelete
+        ) { note in
+            Button("Delete", role: .destructive) { deleteNote(note) }
+            Button("Cancel", role: .cancel) { }
+        } message: { _ in
+            Text("It also comes off \(studentName())'s Notes tab. This can't be undone.")
         }
         .alert("Edit Note", isPresented: $viewModel.showEditNoteAlert) {
             TextField("Note", text: $viewModel.editingNoteDraft)

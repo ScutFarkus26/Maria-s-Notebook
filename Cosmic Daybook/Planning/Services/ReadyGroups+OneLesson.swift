@@ -19,9 +19,10 @@ import Foundation
 nonisolated extension ReadyGroups {
 
     /// The children in `studentIDs` that `build` would list as Ready on
-    /// `lessonID`'s card: confirmed or mastered on the lesson before it in its
-    /// sub-area, neither given nor planned this one, and Ready rather than
-    /// Ready, check first (`ReadyForNextEngine.readiness(of:)`).
+    /// `lessonID`'s card: given the lesson before it in its sub-area (and
+    /// confirmed or mastered on it, when that lesson requires confirmation),
+    /// neither given nor planned this one, and Ready rather than Ready, check
+    /// first (`ReadyForNextEngine.readiness(of:)`).
     ///
     /// - Parameters:
     ///   - lessonID: the lesson being planned, as a UUID string.
@@ -49,13 +50,11 @@ nonisolated extension ReadyGroups {
         let index = PresentationRecordIndex(
             lessonIDs: previous.union([lessonID]), students: studentIDs, in: context
         )
-        // Only a child with a mark on the previous lesson can be in the queue
-        // for this one, so only her work and recall checks are read.
+        // Only a child given the previous lesson can be in the queue for this
+        // one, so only her work and recall checks are read. Whether she needs
+        // a mark on it is the lesson's own setting, which the engine reads.
         let marked = studentIDs.filter { studentID in
-            previous.contains { lesson in
-                guard let given = index.given(student: studentID, lesson: lesson) else { return false }
-                return given.confirmed || given.mastered
-            }
+            previous.contains { index.given(student: studentID, lesson: $0) != nil }
         }
         guard !marked.isEmpty else { return [] }
 

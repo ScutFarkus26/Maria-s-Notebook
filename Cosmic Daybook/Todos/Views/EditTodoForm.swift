@@ -27,6 +27,8 @@ struct EditTodoForm: View {
                 }
             }
 
+            TodoChecklistSection(todo: todo)
+
             scheduleSection
 
             Section("Organization") {

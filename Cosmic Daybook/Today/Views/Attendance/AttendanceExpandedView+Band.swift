@@ -302,8 +302,7 @@ extension AttendanceExpandedView {
             Spacer(minLength: 0)
             if canLockDays {
                 Button("Unlock") {
-                    isEditing = true
-                    setLocked(false, for: date)
+                    changeLock(to: false)
                 }
                 .controlSize(.small)
             }

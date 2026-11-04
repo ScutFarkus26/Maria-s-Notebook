@@ -282,29 +282,4 @@ struct PresentationRecordsFix1010ITests {
         #expect(rows(room.context).count == 2)
         #expect(rows(room.context).allSatisfy { $0.state == .proficient })
     }
-
-    // MARK: - #58 Give Lesson saves once
-
-    @Test("Recording with practice leaves the work unsaved for the caller's one save")
-    func explodeWorkDoesNotSaveEachChild() async throws {
-        let stack = try CoreDataTestHelpers.makeInMemoryStack()
-        let context = stack.viewContext
-        let ada = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ada")
-        let ben = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ben")
-        let lesson = CoreDataTestHelpers.seedLesson(in: context)
-        #expect(CoreDataTestHelpers.save(context))
-        let assignment = try draft(lesson, [ada, ben], in: context)
-
-        let result = try LifecycleService.recordPresentationAndExplodeWork(
-            from: assignment, presentedAt: Date(), modelContext: context
-        )
-        #expect(result.work.count == 2)
-
-        let background = stack.newBackgroundContext()
-        let savedWork = await background.perform {
-            (try? background.count(for: CDFetchRequest(CDWorkModel.self))) ?? -1
-        }
-        #expect(savedWork == 0)
-        #expect(context.hasChanges)
-    }
 }

@@ -152,22 +152,24 @@ struct SequenceRecapLessonRow: View {
                 }
             }
         }
-        if !entry.isCurrentLesson {
-            SequenceRecapStatusPicker(
-                currentState: entry.outcomeState ?? .presented
-            ) { newState in
-                onUpdateState(entry.id, studentID, newState)
-            }
-            .padding(.top, 4)
+        // On every row, the current lesson's too: that row is where one
+        // child's mastery of the lesson just given is set (bug hunt
+        // 2026-11-03 #18; the redesign of 2026-10-01 dropped the group-wide
+        // control and left this row empty).
+        SequenceRecapStatusPicker(
+            currentState: entry.outcomeState ?? .presented
+        ) { newState in
+            onUpdateState(entry.id, studentID, newState)
         }
+        .padding(.top, 4)
     }
 }
 
 // MARK: - Status Picker
 
 /// Compact three-pill picker (Presented / Practicing / Mastered) shown inside an
-/// expanded sibling-lesson row. Drives the per-student CDLessonPresentation state
-/// for any lesson in the sequence — independent of the main edit form.
+/// expanded lesson row, the current lesson's included. Drives the per-student
+/// CDLessonPresentation state for any lesson in the sequence.
 struct SequenceRecapStatusPicker: View {
     let currentState: LessonPresentationState
     let onSelect: (LessonPresentationState) -> Void

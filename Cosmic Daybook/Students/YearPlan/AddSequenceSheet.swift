@@ -17,6 +17,15 @@ struct AddSequenceSheet: View {
                 .navigationBarTitleDisplayMode(.inline)
                 #endif
                 .toolbar { formToolbar }
+                .alert(
+                    "Couldn't Plan the Lessons",
+                    isPresented: refusalIsPresented,
+                    presenting: viewModel.refusalMessage
+                ) { _ in
+                    Button("OK") { viewModel.refusalMessage = nil }
+                } message: { message in
+                    Text(message)
+                }
                 .task {
                     viewModel.loadAreasAndSequences(context: viewContext)
                 }
@@ -85,12 +94,20 @@ struct AddSequenceSheet: View {
         }
         ToolbarItem(placement: .confirmationAction) {
             Button("Schedule All") {
-                viewModel.scheduleAll(student: student, context: viewContext)
+                // A refusal (she has left the class) says why and stays open.
+                guard viewModel.scheduleAll(student: student, context: viewContext) else { return }
                 onComplete()
                 dismiss()
             }
             .disabled(viewModel.previewItems.isEmpty)
         }
+    }
+
+    private var refusalIsPresented: Binding<Bool> {
+        Binding(
+            get: { viewModel.refusalMessage != nil },
+            set: { if !$0 { viewModel.refusalMessage = nil } }
+        )
     }
 
     private func refreshPreview() {
@@ -136,12 +153,16 @@ struct AddSequenceSheet: View {
             }
         }
 
-        if let lesson = viewModel.selectedLesson, viewModel.selectedSequence != nil {
+        if viewModel.selectedSequence != nil, viewModel.allLessonsPresentedInSequence {
+            // Nothing to plan: a lesson she has had is skipped (#23), and
+            // scheduling it is how a lesson is given again.
+            Text("Every lesson in this sequence has already been given.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else if let lesson = viewModel.selectedLesson, viewModel.selectedSequence != nil {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(viewModel.allLessonsPresentedInSequence
-                         ? "All lessons presented — restarting from:"
-                         : "Starting at:")
+                    Text("Starting at:")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Text(lesson.name)

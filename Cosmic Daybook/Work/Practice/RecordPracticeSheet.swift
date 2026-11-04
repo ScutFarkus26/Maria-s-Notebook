@@ -12,8 +12,11 @@ struct RecordPracticeSheet: View {
     @Environment(SaveCoordinator.self) var saveCoordinator
 
     @Environment(\.dependencies) private var dependencies
+    @TestStudentVisibility private var testStudents
 
-    var allStudents: [CDStudent] { dependencies.roster.enrolled }
+    var allStudents: [CDStudent] {
+        WorkSheetRoster.students(enrolled: dependencies.roster.enrolled, testStudents: testStudents)
+    }
     var allLessons: [CDLesson] { dependencies.lessonCatalog.all }
     @FetchRequest(sortDescriptors: []) private var allWork: FetchedResults<CDWorkModel>
 
@@ -57,6 +60,11 @@ struct RecordPracticeSheet: View {
     /// game"). Empty from the floating button and File › New.
     private let initialStudentIDs: Set<UUID>
 
+    /// The children named by the opener who are on the roster the chips show.
+    private var keptInitialStudentIDs: Set<UUID> {
+        WorkSheetRoster.keptPrefill(initialStudentIDs, roster: allStudents)
+    }
+
     /// - Parameters:
     ///   - lessonID: the lesson to start on; nil starts on the lesson picker.
     ///   - studentIDs: children to start selected, shown as chips even when
@@ -79,10 +87,18 @@ struct RecordPracticeSheet: View {
     /// Open practice work items for the selected lesson
     var openPracticeWork: [CDWorkModel] {
         guard let lessonID = lessonPickerVM.selectedLessonID else { return [] }
+        return Self.openPracticeWork(in: allWork, lessonID: lessonID)
+    }
+
+    /// The open practice work for `lessonID` among `works`.
+    static func openPracticeWork(in works: some Sequence<CDWorkModel>, lessonID: UUID) -> [CDWorkModel] {
+        // Untagged work is Practice, as it is everywhere else (`displayKind`);
+        // matching the stored kind left out older untagged work, so its child
+        // got no chip and no work item (bug hunt 2026-11-03 #43).
         let lessonIDString = lessonID.uuidString
-        return allWork.filter { work in
+        return works.filter { work in
             work.lessonID == lessonIDString &&
-            work.kindRaw == WorkKind.practiceLesson.rawValue &&
+            work.displayKind == .practiceLesson &&
             work.isOpen
         }
     }
@@ -179,6 +195,10 @@ struct RecordPracticeSheet: View {
             }
             .onAppear {
                 lessonPickerVM.configure(lessons: allLessons, students: allStudents)
+                // Named children who aren't on the chips' roster can't be
+                // seen or taken off, so they don't stay selected.
+                selectedStudentIDs = WorkSheetRoster.keptPrefill(selectedStudentIDs, roster: allStudents)
+                manuallyAddedStudentIDs = keptInitialStudentIDs
                 // Started on a lesson with nobody named: select its children
                 // with open practice work, as picking the lesson does.
                 if initialStudentIDs.isEmpty, lessonPickerVM.selectedLessonID != nil, selectedStudentIDs.isEmpty {
@@ -188,8 +208,8 @@ struct RecordPracticeSheet: View {
             .onChange(of: lessonPickerVM.selectedLessonID) { _, _ in
                 // Pre-select all students with open practice work for this lesson,
                 // keeping any the sheet was opened with (the command bar's names).
-                selectedStudentIDs = practiceStudentIDs.union(initialStudentIDs)
-                manuallyAddedStudentIDs = initialStudentIDs
+                selectedStudentIDs = practiceStudentIDs.union(keptInitialStudentIDs)
+                manuallyAddedStudentIDs = keptInitialStudentIDs
                 studentSearchText = ""
             }
         }

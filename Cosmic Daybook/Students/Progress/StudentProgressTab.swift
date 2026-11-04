@@ -279,7 +279,7 @@ struct StudentProgressTab: View {
 
     @ViewBuilder
     private func sequenceCardNextItem(_ standing: SequenceStanding, color: Color) -> some View {
-        if let lesson = standing.nextLesson {
+        if let lesson = viewModel.nextLessonByStanding[standing.id] {
             Divider().padding(.vertical, AppTheme.Spacing.xsmall)
             NextItemBanner(
                 iconName: "book.fill", label: "Next Lesson",
