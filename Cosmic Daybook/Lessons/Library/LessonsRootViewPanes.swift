@@ -176,14 +176,14 @@ extension LessonsRootView {
         }
     }
 
-    // MARK: - Track / Section sheet helpers
+    // MARK: - Rules / Section sheet helpers
 
     private func handleReorderSections(_ sequence: String, area: String) {
         reorderSectionsItem = SectionReorderItem(area: area, sequence: sequence)
     }
 
     private func handleConfigureTrack(_ sequence: String, area: String) {
-        trackSettingsItem = TrackSettingsItem(area: area, sequence: sequence)
+        sequenceRulesItem = SequenceRulesItem(area: area, sequence: sequence)
     }
 
     // MARK: - Lesson Detail Pane (Right)

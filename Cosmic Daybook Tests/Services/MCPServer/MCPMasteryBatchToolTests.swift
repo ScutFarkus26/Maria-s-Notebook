@@ -42,7 +42,9 @@ struct MCPMasteryBatchToolTests {
             in: context, name: "The Distributive Law of Multiplication", area: "Math", sequence: "Laws"
         )
         distributive.orderInSequence = 1
-        let track = try SequenceTrackService.getOrCreateTrack(area: "Math", sequence: "Laws", context: context)
+        let track = CoreDataTestHelpers.seedTrack(
+            in: context, area: "Math", sequence: "Laws", lessons: [commutative, distributive]
+        )
 
         for student in [avital, etty] {
             for (lesson, presented) in [(commutative, "2026-03-11"), (distributive, "2026-04-02")] {

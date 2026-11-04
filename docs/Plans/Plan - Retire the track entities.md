@@ -1,6 +1,6 @@
 # Retire the track entities
 
-> **Not started.** Written 2026-11-03 after a look at the two generations, before any new schema work (session on branch `claude/track-schema-generations-b064c1`).
+> **Working on it.** Phase 1 begun 2026-11-03. Written 2026-11-03 after a look at the two generations, before any new schema work (session on branch `claude/track-schema-generations-b064c1`).
 > In short: Track, TrackStep, SequenceTrack and StudentTrackEnrollment are an older, stored copy of what the lesson sequences, the Year Plan and LessonSequenceSettings now carry; stop writing them, show the same cards from the presentation record, then drop the four entities and the trackID columns.
 
 ## Why
@@ -59,8 +59,9 @@ Size: about 4,100 lines in the generation's own files, before the call sites.
 - `AddLessonView`, `BulkLessonInsertion` and the MCP `create_lesson` path stop calling `getOrCreateTrack`.
 - The Track Settings sheet loses "Use as Track" and the track type; it saves `LessonSequenceSettings` only.
 - Quick notes can no longer attach to an enrollment (`Notes/QuickCapture/QuickNoteViewModel+Saving.swift`, `CDUnifiedNotes+Helpers`).
-- The launch merge `mergeSameTitleTracks` and the junk-cleanup lines `emptyTracks` / `trackLessEnrollments` are retired (nothing new can make the junk).
-- Tests: the scoped-read and recording tests that assert an enrollment was created now assert nothing was; `TrackTitleMergeTests` goes.
+- The launch merge `mergeSameTitleTracks` and the junk-cleanup lines `emptyTracks` / `trackLessEnrollments` stay until phase 3, when the entities they tidy go too: retiring them earlier would have meant touching the dedup and cleanup tests twice for rows that are deleted wholesale a roll-out later. (Decided while building, 2026-11-03.)
+- The `mark_mastered` batch no longer saves part-way: finishing a track was the one inner save, so the "these were kept" reply and `noticingSaves` go with it.
+- Tests: the scoped-read and recording tests that pinned the writers go; the MCP mastery tests seed their track by hand (`CoreDataTestHelpers.seedTrack`).
 
 ### Phase 2 — Derived cards (roll-out A)
 
@@ -91,7 +92,7 @@ Not checked from here: how many enrollments and enrollment-linked notes the live
 
 ## Progress
 
-- [ ] Phase 1 — Stop writing
+- [x] Phase 1 — Stop writing (2026-11-03, on branch `claude/track-schema-generations-b064c1`; 4,618 tests pass)
 - [ ] Phase 2 — Derived cards
 - [ ] Roll-out A on every device
 - [ ] Phase 3 — Drop the schema

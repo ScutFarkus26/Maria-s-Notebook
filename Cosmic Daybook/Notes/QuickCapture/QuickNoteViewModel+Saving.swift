@@ -76,12 +76,6 @@ extension QuickNoteViewModel {
             scope = .all
         }
 
-        // Fetch CDStudentTrackEnrollmentEntity if selectedEnrollmentID is set
-        var studentTrackEnrollment: CDStudentTrackEnrollmentEntity?
-        if let enrollmentID = selectedEnrollmentID {
-            studentTrackEnrollment = viewContext.object(CDStudentTrackEnrollmentEntity.self, id: enrollmentID)
-        }
-
         // Fetch CDLesson if selectedLessonID is set
         var lesson: CDLesson?
         if let lessonID = selectedLessonID {
@@ -96,7 +90,6 @@ extension QuickNoteViewModel {
         newNote.includeInReport = includeInReport
         newNote.needsFollowUp = needsFollowUp
         newNote.lesson = lesson
-        newNote.studentTrackEnrollment = studentTrackEnrollment
         newNote.imagePath = attachedImagePath
         // A note about several children is found on their Notes tabs by its links.
         newNote.syncStudentLinks(in: viewContext)

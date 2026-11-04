@@ -114,8 +114,6 @@ struct ReadyGroupMoveTests {
         let source = try group(room.lesson, [room.ada, room.ben], in: room.context)
         source.lessonTitleSnapshot = "Golden Beads"
         source.lessonSectionSnapshot = "Decimal"
-        source.trackID = "track-1"
-        source.trackStepID = "step-1"
         source.manuallyUnblocked = true
         source.notes = "Bring the bead frame"
         source.followUpWork = "Practice exchanges"
@@ -137,8 +135,6 @@ struct ReadyGroupMoveTests {
         #expect(made.studentIDs == [try id(room.ada).uuidString])
         #expect(made.lessonTitleSnapshot == "Golden Beads")
         #expect(made.lessonSectionSnapshot == "Decimal")
-        #expect(made.trackID == "track-1")
-        #expect(made.trackStepID == "step-1")
         #expect(made.manuallyUnblocked)
         // Nothing that belongs to the source's own sitting comes along.
         #expect(made.notes.isEmpty)

@@ -188,12 +188,6 @@ extension ClassAreaChecklistViewModel {
             studentID: studentIDString, lessonID: lessonIDString,
             state: .proficient, context: context
         )
-        SequenceTrackService.autoEnrollInTrackIfNeeded(
-            lessonArea: lesson.area, lessonSequence: lesson.sequence, studentIDs: [studentIDString], context: context
-        )
-        SequenceTrackService.checkAndCompleteTrackIfNeeded(
-            lessonArea: lesson.area, lessonSequence: lesson.sequence, studentID: studentIDString, context: context
-        )
     }
 
     func togglePresented(student: CDStudent, lesson: CDLesson, context: NSManagedObjectContext) {
@@ -243,24 +237,12 @@ extension ClassAreaChecklistViewModel {
         if let sequence = allLAs.first(where: isGivenToday) {
             if !sequence.studentIDs.contains(studentIDString) {
                 sequence.studentIDs.append(studentIDString)
-                SequenceTrackService.autoEnrollInTrackIfNeeded(
-                    lessonArea: lesson.area,
-                    lessonSequence: lesson.sequence,
-                    studentIDs: [studentIDString],
-                    context: context
-                )
             }
         } else {
             guard let lessonUUID = lesson.id, let studentUUID = student.id else { return }
             _ = PresentationFactory.makePresented(
                 lessonID: lessonUUID,
                 studentIDs: [studentUUID],
-                context: context
-            )
-            SequenceTrackService.autoEnrollInTrackIfNeeded(
-                lessonArea: lesson.area,
-                lessonSequence: lesson.sequence,
-                studentIDs: [studentIDString],
                 context: context
             )
         }
@@ -310,24 +292,12 @@ extension ClassAreaChecklistViewModel {
         if let sequence = allLAs.first(where: isUndatedPresented) {
             if !sequence.studentIDs.contains(studentIDString) {
                 sequence.studentIDs.append(studentIDString)
-                SequenceTrackService.autoEnrollInTrackIfNeeded(
-                    lessonArea: lesson.area,
-                    lessonSequence: lesson.sequence,
-                    studentIDs: [studentIDString],
-                    context: context
-                )
             }
         } else {
             guard let lessonUUID = lesson.id, let studentUUID = student.id else { return }
             _ = PresentationFactory.makePreviouslyPresented(
                 lessonID: lessonUUID,
                 studentIDs: [studentUUID],
-                context: context
-            )
-            SequenceTrackService.autoEnrollInTrackIfNeeded(
-                lessonArea: lesson.area,
-                lessonSequence: lesson.sequence,
-                studentIDs: [studentIDString],
                 context: context
             )
         }

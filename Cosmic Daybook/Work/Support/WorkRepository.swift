@@ -35,41 +35,6 @@ struct WorkRepository: Repository {
         throw AssignmentError.studentNotEnrolled(name: student.fullName, status: student.enrollmentStatusRaw)
     }
 
-    // MARK: - CDTrackEntity Linking Helper
-
-    /// Links a work item to its associated track and step if the lesson belongs to a track
-    private func linkWorkToTrack(_ work: CDWorkModel, lessonID: UUID) {
-        guard let lesson = context.object(CDLesson.self, id: lessonID) else { return }
-
-        let area = lesson.area.trimmed()
-        let sequence = lesson.sequence.trimmed()
-
-        guard !area.isEmpty, !sequence.isEmpty,
-              SequenceTrackService.isTrack(area: area, sequence: sequence, context: context) else { return }
-
-        let track: CDTrackEntity
-        do {
-            track = try SequenceTrackService.getOrCreateTrack(
-                area: area,
-                sequence: sequence,
-                context: context
-            )
-        } catch {
-            Self.logger.warning("Failed to get or create track: \(error)")
-            return
-        }
-
-        work.trackID = track.id?.uuidString
-
-        let stepRequest = CDFetchRequest(CDTrackStep.self)
-        let steps = context.safeFetch(stepRequest)
-        if let step = steps.first(where: {
-            $0.track?.id == track.id && $0.lessonTemplateID == lessonID
-        }) {
-            work.trackStepID = step.id?.uuidString
-        }
-    }
-
     /// Moves the open work a presentation gave onto `lessonID`, as Change
     /// Lesson moves its history rows: practice for the lesson she wasn't given
     /// would otherwise stay open. Work already done stays the record of what
@@ -91,9 +56,6 @@ struct WorkRepository: Repository {
                 }
             }
             work.lessonID = lessonID.uuidString
-            work.trackID = nil
-            work.trackStepID = nil
-            linkWorkToTrack(work, lessonID: lessonID)
         }
         return stale.count
     }
@@ -183,9 +145,6 @@ struct WorkRepository: Repository {
         participant.studentID = studentID.uuidString
         participant.completedAt = nil
         participant.work = work
-
-        // Link to track if applicable
-        linkWorkToTrack(work, lessonID: lessonID)
 
         // If a sample work template was specified, copy its steps into the new work
         if let swID = sampleWorkID {

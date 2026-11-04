@@ -177,16 +177,9 @@ extension MCPNotebookTools {
     private static func apply(
         _ markings: [MasteryMarking], in modelContext: NSManagedObjectContext
     ) throws -> String {
-        var applied: [(MasteryMarking, MarkOutcome)] = []
-        // How many of the marks a finished track's own save has put on disk.
-        var savedCount = 0
-        for marking in markings {
-            let (outcome, saved) = noticingSaves(of: modelContext) { mark(marking, in: modelContext) }
-            applied.append((marking, outcome))
-            if saved { savedCount = applied.count }
-        }
+        let applied = markings.map { ($0, mark($0)) }
         guard modelContext.safeSave() else {
-            throw MCPToolError(failedSaveMessage(applied, savedCount: savedCount))
+            throw MCPToolError("The mastery marks could not be saved, so nothing was marked.")
         }
         return applied.map { marking, outcome in
             describeMarking(
@@ -196,27 +189,6 @@ extension MCPNotebookTools {
         }.joined(separator: "\n")
     }
 
-    /// The reply when the batch's save fails. Finishing a track saves at once
-    /// (`SequenceTrackService`), taking every mark before it to disk, so those
-    /// are named as kept rather than "nothing was marked".
-    private static func failedSaveMessage(
-        _ applied: [(MasteryMarking, MarkOutcome)], savedCount: Int
-    ) -> String {
-        func list(_ items: ArraySlice<(MasteryMarking, MarkOutcome)>) -> String {
-            items.filter { !$0.1.marked.isEmpty }
-                .map { "\"\($0.0.lesson.name)\" for \($0.1.marked.map(\.fullName).joined(separator: ", "))" }
-                .joined(separator: "; ")
-        }
-        let kept = list(applied.prefix(savedCount))
-        guard !kept.isEmpty else {
-            return "The mastery marks could not be saved, so nothing was marked."
-        }
-        let lost = list(applied.dropFirst(savedCount))
-        return "The mastery marks could not all be saved. These were saved before the failure, "
-            + "because finishing a track saves right away: \(kept)."
-            + (lost.isEmpty ? "" : " These were not marked: \(lost). Try them again.")
-    }
-
     /// Who one mark changed, and who was already mastered before it.
     private struct MarkOutcome {
         var marked: [CDStudent] = []
@@ -224,9 +196,7 @@ extension MCPNotebookTools {
     }
 
     /// Flips one lesson's rows in place without saving — the batch saves once.
-    private static func mark(
-        _ marking: MasteryMarking, in modelContext: NSManagedObjectContext
-    ) -> MarkOutcome {
+    private static func mark(_ marking: MasteryMarking) -> MarkOutcome {
         var outcome = MarkOutcome()
         for (student, row) in marking.rows {
             if row.state == .proficient {
@@ -239,16 +209,6 @@ extension MCPNotebookTools {
                 row.lastObservedAt = marking.assessedAt
             }
             outcome.marked.append(student)
-        }
-
-        let area = marking.lesson.area.trimmed()
-        let sequence = marking.lesson.sequence.trimmed()
-        guard !area.isEmpty, !sequence.isEmpty else { return outcome }
-        for student in outcome.marked {
-            guard let studentID = student.id?.uuidString else { continue }
-            SequenceTrackService.checkAndCompleteTrackIfNeeded(
-                lessonArea: area, lessonSequence: sequence, studentID: studentID, context: modelContext
-            )
         }
         return outcome
     }

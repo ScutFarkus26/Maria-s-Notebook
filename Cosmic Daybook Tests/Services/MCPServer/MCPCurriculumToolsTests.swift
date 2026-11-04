@@ -115,12 +115,6 @@ struct MCPCurriculumToolsTests {
         let subject: Int64 = try #require(byName["Subject"])
         #expect(byName["Predicate"] == subject + 1)
         #expect(byName["Direct Object"] == subject + 2)
-
-        let track = try SequenceTrackService.cdGetTrack(
-            area: "Language", sequence: "Logical Analysis", context: context
-        )
-        let steps = (track?.steps?.allObjects as? [CDTrackStep]) ?? []
-        #expect(steps.contains { $0.lessonTemplateID == created.id })
     }
 
     @Test("create_lesson places the lesson after an anchor in the same sub-area")

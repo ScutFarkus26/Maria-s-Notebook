@@ -250,27 +250,6 @@ struct AddLessonView: View {
             lessonFormat: lessonFormat,
             parentStoryID: lessonFormat == .story ? parentStoryID?.uuidString : nil
         )
-
-        let areaTrimmed: String = newLesson.area.trimmed()
-        let groupTrimmed: String = newLesson.sequence.trimmed()
-        if !areaTrimmed.isEmpty && !groupTrimmed.isEmpty {
-            let isTrack: Bool = SequenceTrackService.isTrack(
-                area: areaTrimmed, sequence: groupTrimmed, context: viewContext
-            )
-            if isTrack {
-                do {
-                    _ = try SequenceTrackService.getOrCreateTrack(
-                        area: areaTrimmed,
-                        sequence: groupTrimmed,
-                        context: viewContext
-                    )
-                } catch {
-                    let trackMsg = "Failed to create/update CDTrackEntity " +
-                        "for \(areaTrimmed)/\(groupTrimmed): \(error)"
-                    Self.logger.warning("\(trackMsg, privacy: .public)")
-                }
-            }
-        }
         return newLesson
     }
 }

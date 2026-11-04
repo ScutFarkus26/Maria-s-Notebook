@@ -46,7 +46,9 @@ struct MCPProficiencyMarkToolTests {
             in: context, name: "The Distributive Law of Multiplication", area: "Math", sequence: "Laws"
         )
         distributive.orderInSequence = 1
-        let track = try SequenceTrackService.getOrCreateTrack(area: "Math", sequence: "Laws", context: context)
+        let track = CoreDataTestHelpers.seedTrack(
+            in: context, area: "Math", sequence: "Laws", lessons: [commutative, distributive]
+        )
 
         for student in [avital, etty] {
             let row = CDLessonPresentation(context: context)

@@ -210,7 +210,7 @@ struct TrackTitleMergeTests {
 
     // MARK: - Runtime lookup
 
-    @Test("getOrCreateTrack lands on the twin with steps and never creates a third")
+    @Test("The lookup lands on the twin with steps")
     func lookupPrefersSteppedTwin() throws {
         let context = try CoreDataTestHelpers.makeContext()
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "Bells", area: "Music", sequence: "Tone Bars")
@@ -220,10 +220,8 @@ struct TrackTitleMergeTests {
             createdAt: try CoreDataTestHelpers.day("2026-03-01"), lessons: [lesson], in: context)
         CoreDataTestHelpers.save(context)
 
-        let found = try SequenceTrackService.getOrCreateTrack(area: "Music", sequence: "Tone Bars", context: context)
-        #expect(found.id == stepped.id)
+        let found = try SequenceTrackService.cdGetTrack(area: "Music", sequence: "Tone Bars", context: context)
+        #expect(found?.id == stepped.id)
         #expect(tracks(in: context).count == 2)
-        let again = try SequenceTrackService.cdGetTrack(area: "Music", sequence: "Tone Bars", context: context)
-        #expect(again?.id == stepped.id)
     }
 }
