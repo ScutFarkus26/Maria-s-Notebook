@@ -1,6 +1,6 @@
 # Retire the track entities
 
-> **Working on it.** Phases 1 and 2 done 2026-11-04; roll-out A, then Phase 3, remain. Written 2026-11-03 after a look at the two generations, before any new schema work (session on branch `claude/track-schema-generations-b064c1`).
+> **Working on it.** Phases 1 and 2 done 2026-11-04; Phase 3 is built on branch `claude/track-phase3-drop-schema` and waits for roll-out A on every device. Written 2026-11-03 after a look at the two generations, before any new schema work (session on branch `claude/track-schema-generations-b064c1`).
 > In short: Track, TrackStep, SequenceTrack and StudentTrackEnrollment are an older, stored copy of what the lesson sequences, the Year Plan and LessonSequenceSettings now carry; stop writing them, show the same cards from the presentation record, then drop the four entities and the trackID columns.
 
 ## Why
@@ -97,5 +97,5 @@ Not checked from here: how many enrollments and enrollment-linked notes the live
 - [x] Phase 1 — Stop writing (2026-11-03, on branch `claude/track-schema-generations-b064c1`; 4,618 tests pass)
 - [x] Phase 2 — Derived cards (2026-11-04, same branch; 4,624 tests in 758 suites pass)
 - [ ] Roll-out A on every device — build 300000000034 sent to TestFlight 2026-11-04 from main f32e0a66; installing it on each device is [Danny's row in Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Install%20TestFlight%20build%20300000000034%20of%20Cosmic%20Daybook%20on%20the%20Mac%2C%20iPad%20and%20iPhone%2C%20so%20the%20track%20tables%20can%20be%20dropped), and [checking a child's cards afterwards](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20installing%20build%20300000000034%2C%20open%20a%20child%27s%20Current%20Learning%20and%20History%20and%20check%20her%20sequence%20cards%2C%20counts%20and%20next%20lesson%20match%20what%20the%20old%20cards%20showed) is the second
-- [ ] Phase 3 — Drop the schema
+- [ ] Phase 3 — Drop the schema — built 2026-11-04 on branch `claude/track-phase3-drop-schema` (schema 23, backup format 45; the four entities stay as dormant tombstones so sync history survives; 4,619 tests in 759 suites pass). Lands on main only after every device runs 300000000034: [Danny's row in Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Once%20every%20device%20runs%20build%20300000000034%2C%20land%20Phase%203%20of%20the%20track%20plan%20%28branch%20claude%2Ftrack-phase3-drop-schema%2C%20schema%2023%29%20on%20main%20and%20roll%20out%20build%20B)
 - [ ] Roll-out B
