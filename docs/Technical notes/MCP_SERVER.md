@@ -143,9 +143,16 @@ Claude Desktop ──stdio──▶ Scripts/mcp/cosmic-daybook-mcp (nc relay)
   how an idle copy froze mid-quit on 2026-10-18, still accepting
   connections it never answered. A Dock click with no window open opens the main window: SwiftUI
   also consults the suppressed launch behavior there, so the delegate's
-  `applicationShouldHandleReopen` does it with an `openWindow` captured from
-  the menu bar's commands (`MainWindowOpenerCommands`); on a normal launch
-  `responds(to:)` hides that method. Closing the window again restarts the
+  `applicationShouldHandleReopen` does it through `MainWindowOpener`: with
+  an `openWindow` captured from the menu bar's commands
+  (`MainWindowOpenerCommands`) when SwiftUI has evaluated them, else by
+  performing SwiftUI's own File ▸ New Window menu item (found by its title,
+  else the first File item with an action and a target of its own; not by
+  ⌘N, which the app's New Lesson… shares). On macOS 27.2 the menu bar is built without
+  that commands body ever running while no window is open, so the captured
+  action was never there and a Dock click opened nothing (2026-11-03); the
+  menu item path is what opens it now. On a normal launch `responds(to:)`
+  hides the delegate method. Closing the window again restarts the
   countdown.
 - **Which copy it launches** (2026-09-26): `/Applications/Cosmic Daybook.app`
   by path when it exists — a Release build of `main` that
