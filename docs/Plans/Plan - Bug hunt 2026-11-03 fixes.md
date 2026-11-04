@@ -211,10 +211,12 @@ Main had moved 14 commits, with Phases 1 and 2 of retiring the track entities. N
 None. The four the plan was written with were settled by Danny on 2026-11-03 (see Decisions).
 
 ## Device checks
-After landing, each becomes a Tide row under Check on a device:
-- Mac: delete a given presentation from History; the notes are on the children's pages and the marks stand.
-- iPad: record a lesson for two children and mark one of them Mastered from the recap's current row on the sheet.
-- Mac: open Maya S's work in a window, mark it Mastered from the grid, add a note in the window and Save; it stays Mastered.
-- iPhone: tick a reminder in Apple Reminders; Today shows it done without a relaunch, and tapping it doesn't reopen it.
-- iPhone: Todos › Clear Completed asks with a count and removes only the shown list's.
-- Mac: a Saturday to-do shows on Saturday's Today.
+In Tide under Check on a device (added 2026-11-04):
+- Mac: delete a given presentation from History; the notes are on the children's pages and the marks stand. ([row](<tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20on%20the%20Mac%3A%20delete%20a%20given%20presentation%20from%20History%20and%20check%20the%20notes%20are%20on%20the%20children%27s%20pages%20and%20the%20marks%20stand>))
+- iPad: record a lesson for two children and mark one of them Mastered from the recap's current row on the sheet. ([row](<tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20on%20the%20iPad%3A%20record%20a%20lesson%20for%20two%20children%20and%20mark%20one%20Mastered%20from%20the%20recap%27s%20current%20row>))
+- Mac: open Maya S's work in a window, mark it Mastered from the grid, add a note in the window and Save; it stays Mastered. ([row](<tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20on%20the%20Mac%3A%20open%20a%20child%27s%20work%20in%20a%20window%2C%20mark%20it%20Mastered%20from%20the%20grid%2C%20add%20a%20note%20in%20the%20window%20and%20Save%2C%20and%20check%20it%20stays%20Mastered>))
+- iPhone: tick a reminder in Apple Reminders; Today shows it done without a relaunch, and tapping it doesn't reopen it. ([row](<tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20on%20my%20iPhone%3A%20tick%20a%20notebook%20reminder%20in%20Apple%20Reminders%20and%20check%20Today%20shows%20it%20done%20without%20a%20relaunch>))
+- iPhone: Todos › Clear Completed asks with a count and removes only the shown list's. ([row](<tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20on%20my%20iPhone%3A%20try%20Todos%20%E2%80%BA%20Clear%20Completed%20and%20check%20it%20asks%20with%20a%20count%20and%20clears%20only%20the%20list%20shown>))
+- Mac: a Saturday to-do shows on Saturday's Today. ([row](<tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20on%20the%20Mac%3A%20check%20a%20Saturday%20to-do%20shows%20on%20Saturday%27s%20Today%2C%20and%20that%20Today%27s%20%2B%20starts%20a%20to-do%20on%20the%20day%20shown>))
+- The agents' extra checks, in one row with the list in its note ([row](<tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20try%20the%20rest%20of%20the%202026-11-03%20bug-hunt%20fixes%20on%20the%20Mac%20and%20iPhone%20%28list%20in%20the%20note%29>)).
+- Under Review choices: whether open practice work should hold a child back in the Checklist and Today as it does in Presentations ([row](<tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Decide%20whether%20open%20practice%20work%20should%20hold%20a%20child%20back%20in%20the%20Checklist%20and%20Today%20the%20way%20it%20does%20in%20Presentations>)).
