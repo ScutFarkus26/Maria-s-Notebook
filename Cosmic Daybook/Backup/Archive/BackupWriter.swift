@@ -125,7 +125,15 @@ nonisolated public enum BackupWriter {
     ///   older backup's rows read it as their `attachedAt`
     ///   (`BackupFieldsAddedLater.standIns`). The files themselves are still
     ///   not in the backup.
-    public static let formatVersion: Int = 44
+    /// - v45: Simplify round two (schema 23). `WorkCheckIn` entries carry
+    ///   `durationMinutes`, how long a practice took (a practice session is
+    ///   now a check-in); purely additive, an older row reads it as unset. The
+    ///   retired types (`CoreDataStack.retiredEntities`: Apple Reminders
+    ///   copies, to-do subtasks and templates, Classroom Jobs and their
+    ///   assignments, practice sessions, note templates) are no longer
+    ///   written, and an older backup's entries for them are passed over
+    ///   without a warning (`BackupEntityTable.skippedOnImport`).
+    public static let formatVersion: Int = 45
 
     public enum WriterError: LocalizedError {
         case entityEncodingFailed(entityName: String, underlying: Error)

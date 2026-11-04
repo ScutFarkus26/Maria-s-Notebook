@@ -30,9 +30,6 @@
     "CalendarNote" : [
       "rejected"
     ],
-    "ClassroomJob" : [
-      "rejected"
-    ],
     "ClassroomMembership" : [
       "rejected"
     ],
@@ -46,9 +43,6 @@
       "rejected"
     ],
     "Guardian" : [
-      "rejected"
-    ],
-    "JobAssignment" : [
       "rejected"
     ],
     "LessonAttachment" : [
@@ -123,10 +117,6 @@
       "not found: kept",
       "not an id: kept"
     ],
-    "JobAssignment.job" : [
-      "not found: kept",
-      "not an id: kept"
-    ],
     "LessonAttachment.lesson" : [
       "not found: kept",
       "left out: kept"
@@ -166,59 +156,55 @@
   },
   "sparseExport" : {
     "AlbumBookmark" : [
-      "{\"albumID\":\"\",\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000000F\",\"lessonTitle\":\"\",\"modifiedAt\":\"<now>\",\"pageIndex\":0}",
+      "{\"albumID\":\"\",\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000000E\",\"lessonTitle\":\"\",\"modifiedAt\":\"<now>\",\"pageIndex\":0}",
       "{\"albumID\":\"\",\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"lessonTitle\":\"\",\"modifiedAt\":\"<now>\",\"pageIndex\":0}"
     ],
     "AlbumPageNote" : [
-      "{\"albumID\":\"\",\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000010\",\"lessonTitle\":\"\",\"modifiedAt\":\"<now>\",\"pageIndex\":0,\"text\":\"\"}",
+      "{\"albumID\":\"\",\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000000F\",\"lessonTitle\":\"\",\"modifiedAt\":\"<now>\",\"pageIndex\":0,\"text\":\"\"}",
       "{\"albumID\":\"\",\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"lessonTitle\":\"\",\"modifiedAt\":\"<now>\",\"pageIndex\":0,\"text\":\"\"}"
     ],
     "AlbumReadingPosition" : [
-      "{\"albumID\":\"\",\"id\":\"00000000-0000-4000-8000-000000000012\",\"modifiedAt\":\"<now>\",\"pageIndex\":0}",
+      "{\"albumID\":\"\",\"id\":\"00000000-0000-4000-8000-000000000011\",\"modifiedAt\":\"<now>\",\"pageIndex\":0}",
       "{\"albumID\":\"\",\"id\":\"<new id>\",\"modifiedAt\":\"<now>\",\"pageIndex\":0}"
     ],
     "AlbumRecentVisit" : [
-      "{\"albumID\":\"\",\"id\":\"00000000-0000-4000-8000-000000000011\",\"lessonTitle\":\"\",\"modifiedAt\":\"<now>\",\"pageIndex\":0,\"visitedAt\":\"<now>\"}",
+      "{\"albumID\":\"\",\"id\":\"00000000-0000-4000-8000-000000000010\",\"lessonTitle\":\"\",\"modifiedAt\":\"<now>\",\"pageIndex\":0,\"visitedAt\":\"<now>\"}",
       "{\"albumID\":\"\",\"id\":\"<new id>\",\"lessonTitle\":\"\",\"modifiedAt\":\"<now>\",\"pageIndex\":0,\"visitedAt\":\"<now>\"}"
     ],
     "AttendanceDayLock" : [
-      "{\"id\":\"00000000-0000-4000-8000-00000000001E\"}",
+      "{\"id\":\"00000000-0000-4000-8000-00000000001C\"}",
       "{\"id\":\"<new id>\"}"
     ],
     "AttendanceEmailSend" : [
-      "{\"channelRaw\":\"email\",\"id\":\"00000000-0000-4000-8000-000000000020\",\"wasConfirmedByHand\":false}",
+      "{\"channelRaw\":\"email\",\"id\":\"00000000-0000-4000-8000-00000000001E\",\"wasConfirmedByHand\":false}",
       "{\"channelRaw\":\"email\",\"id\":\"<new id>\",\"wasConfirmedByHand\":false}"
     ],
     "AttendanceEmailSettings" : [
-      "{\"deadlineMinutes\":540,\"groupByLevel\":false,\"id\":\"00000000-0000-4000-8000-000000000021\",\"isEnabled\":true,\"sendMethodRaw\":\"email\"}",
+      "{\"deadlineMinutes\":540,\"groupByLevel\":false,\"id\":\"00000000-0000-4000-8000-00000000001F\",\"isEnabled\":true,\"sendMethodRaw\":\"email\"}",
       "{\"deadlineMinutes\":540,\"groupByLevel\":false,\"id\":\"<new id>\",\"isEnabled\":true,\"sendMethodRaw\":\"email\"}"
     ],
     "BookClubMeeting" : [
-      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000001B\",\"isCompleted\":false,\"leaderStudentID\":\"\",\"modifiedAt\":\"<now>\",\"notes\":\"\",\"ordinal\":0,\"readingLabel\":\"\",\"sessionID\":\"\"}",
+      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000019\",\"isCompleted\":false,\"leaderStudentID\":\"\",\"modifiedAt\":\"<now>\",\"notes\":\"\",\"ordinal\":0,\"readingLabel\":\"\",\"sessionID\":\"\"}",
       "{\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"isCompleted\":false,\"leaderStudentID\":\"\",\"modifiedAt\":\"<now>\",\"notes\":\"\",\"ordinal\":0,\"readingLabel\":\"\",\"sessionID\":\"\"}"
     ],
     "BookClubSession" : [
-      "{\"cadenceRaw\":\"weekly\",\"createdAt\":\"<now>\",\"displayName\":\"\",\"id\":\"00000000-0000-4000-8000-00000000000C\",\"meetingWeekdayMask\":0,\"modifiedAt\":\"<now>\",\"notes\":\"\",\"packetID\":\"\",\"rotateLeader\":true,\"statusRaw\":\"planned\",\"studentIDsRaw\":\"\"}",
+      "{\"cadenceRaw\":\"weekly\",\"createdAt\":\"<now>\",\"displayName\":\"\",\"id\":\"00000000-0000-4000-8000-00000000000B\",\"meetingWeekdayMask\":0,\"modifiedAt\":\"<now>\",\"notes\":\"\",\"packetID\":\"\",\"rotateLeader\":true,\"statusRaw\":\"planned\",\"studentIDsRaw\":\"\"}",
       "{\"cadenceRaw\":\"weekly\",\"createdAt\":\"<now>\",\"displayName\":\"\",\"id\":\"<new id>\",\"meetingWeekdayMask\":0,\"modifiedAt\":\"<now>\",\"notes\":\"\",\"packetID\":\"\",\"rotateLeader\":true,\"statusRaw\":\"planned\",\"studentIDsRaw\":\"\"}"
     ],
     "CalendarNote" : [
-      "{\"createdAt\":\"<now>\",\"day\":1,\"id\":\"00000000-0000-4000-8000-000000000006\",\"modifiedAt\":\"<now>\",\"month\":1,\"text\":\"\",\"year\":2026}",
+      "{\"createdAt\":\"<now>\",\"day\":1,\"id\":\"00000000-0000-4000-8000-000000000005\",\"modifiedAt\":\"<now>\",\"month\":1,\"text\":\"\",\"year\":2026}",
       "{\"createdAt\":\"<now>\",\"day\":1,\"id\":\"<new id>\",\"modifiedAt\":\"<now>\",\"month\":1,\"text\":\"\",\"year\":2026}"
     ],
-    "ClassroomJob" : [
-      "{\"colorRaw\":\"blue\",\"createdAt\":\"<now>\",\"icon\":\"star\",\"id\":\"00000000-0000-4000-8000-000000000005\",\"isActive\":true,\"jobDescription\":\"\",\"maxStudents\":1,\"modifiedAt\":\"<now>\",\"name\":\"\",\"sortOrder\":0}",
-      "{\"colorRaw\":\"blue\",\"createdAt\":\"<now>\",\"icon\":\"star\",\"id\":\"<new id>\",\"isActive\":true,\"jobDescription\":\"\",\"maxStudents\":1,\"modifiedAt\":\"<now>\",\"name\":\"\",\"sortOrder\":0}"
-    ],
     "ClassroomMembership" : [
-      "{\"classroomZoneID\":\"\",\"id\":\"00000000-0000-4000-8000-000000000007\",\"joinedAt\":\"<now>\",\"modifiedAt\":\"<now>\",\"ownerIdentity\":\"\",\"roleRaw\":\"leadGuide\"}",
+      "{\"classroomZoneID\":\"\",\"id\":\"00000000-0000-4000-8000-000000000006\",\"joinedAt\":\"<now>\",\"modifiedAt\":\"<now>\",\"ownerIdentity\":\"\",\"roleRaw\":\"leadGuide\"}",
       "{\"classroomZoneID\":\"\",\"id\":\"<new id>\",\"joinedAt\":\"<now>\",\"modifiedAt\":\"<now>\",\"ownerIdentity\":\"\",\"roleRaw\":\"leadGuide\"}"
     ],
     "ClassroomPerson" : [
-      "{\"displayName\":\"\",\"id\":\"00000000-0000-4000-8000-000000000022\",\"recordName\":\"\",\"roleRaw\":\"assistant\"}",
+      "{\"displayName\":\"\",\"id\":\"00000000-0000-4000-8000-000000000020\",\"recordName\":\"\",\"roleRaw\":\"assistant\"}",
       "{\"displayName\":\"\",\"id\":\"<new id>\",\"recordName\":\"\",\"roleRaw\":\"assistant\"}"
     ],
     "DayPad" : [
-      "{\"body\":\"\",\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000009\",\"modifiedAt\":\"<now>\"}",
+      "{\"body\":\"\",\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000008\",\"modifiedAt\":\"<now>\"}",
       "{\"body\":\"\",\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"modifiedAt\":\"<now>\"}"
     ],
     "GoingOut" : [
@@ -226,15 +212,11 @@
       "{\"createdAt\":\"<now>\",\"curriculumLinkIDs\":\"\",\"destination\":\"\",\"followUpWork\":\"\",\"id\":\"<new id>\",\"modifiedAt\":\"<now>\",\"notes\":\"\",\"permissionStatusRaw\":\"pending\",\"purpose\":\"\",\"statusRaw\":\"proposed\",\"studentIDs\":[],\"supervisorName\":\"\",\"title\":\"\"}"
     ],
     "Guardian" : [
-      "{\"createdAt\":\"<now>\",\"email\":\"\",\"id\":\"00000000-0000-4000-8000-00000000000D\",\"name\":\"\",\"notes\":\"\",\"receivesReports\":true,\"relationshipRaw\":\"parent\",\"sortOrder\":0,\"studentID\":\"\"}",
+      "{\"createdAt\":\"<now>\",\"email\":\"\",\"id\":\"00000000-0000-4000-8000-00000000000C\",\"name\":\"\",\"notes\":\"\",\"receivesReports\":true,\"relationshipRaw\":\"parent\",\"sortOrder\":0,\"studentID\":\"\"}",
       "{\"createdAt\":\"<now>\",\"email\":\"\",\"id\":\"<new id>\",\"name\":\"\",\"notes\":\"\",\"receivesReports\":true,\"relationshipRaw\":\"parent\",\"sortOrder\":0,\"studentID\":\"\"}"
     ],
-    "JobAssignment" : [
-      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000001A\",\"isCompleted\":false,\"jobID\":\"\",\"modifiedAt\":\"<now>\",\"studentID\":\"\",\"weekStartDate\":\"<now>\"}",
-      "{\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"isCompleted\":false,\"jobID\":\"\",\"modifiedAt\":\"<now>\",\"studentID\":\"\",\"weekStartDate\":\"<now>\"}"
-    ],
     "LessonAttachment" : [
-      "{\"attachedAt\":\"<now>\",\"fileName\":\"\",\"fileRelativePath\":\"\",\"fileSizeBytes\":0,\"fileType\":\"\",\"id\":\"00000000-0000-4000-8000-000000000018\",\"notes\":\"\",\"scopeRaw\":\"lesson\"}",
+      "{\"attachedAt\":\"<now>\",\"fileName\":\"\",\"fileRelativePath\":\"\",\"fileSizeBytes\":0,\"fileType\":\"\",\"id\":\"00000000-0000-4000-8000-000000000017\",\"notes\":\"\",\"scopeRaw\":\"lesson\"}",
       "{\"attachedAt\":\"<now>\",\"fileName\":\"\",\"fileRelativePath\":\"\",\"fileSizeBytes\":0,\"fileType\":\"\",\"id\":\"<new id>\",\"notes\":\"\",\"scopeRaw\":\"lesson\"}"
     ],
     "LessonRecallCheck" : [
@@ -242,7 +224,7 @@
       "{\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"lessonID\":\"\",\"outcomeRaw\":\"retained\",\"sourceRaw\":\"observed\",\"studentID\":\"\"}"
     ],
     "LessonSequenceSettings" : [
-      "{\"area\":\"\",\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000000B\",\"modifiedAt\":\"<now>\",\"requiresPractice\":true,\"requiresTeacherConfirmation\":true,\"sequence\":\"\"}",
+      "{\"area\":\"\",\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000000A\",\"modifiedAt\":\"<now>\",\"requiresPractice\":true,\"requiresTeacherConfirmation\":true,\"sequence\":\"\"}",
       "{\"area\":\"\",\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"modifiedAt\":\"<now>\",\"requiresPractice\":true,\"requiresTeacherConfirmation\":true,\"sequence\":\"\"}"
     ],
     "MeetingTemplate" : [
@@ -250,26 +232,26 @@
       "{\"createdAt\":\"<now>\",\"focusPrompt\":\"\",\"guideNotesPrompt\":\"\",\"id\":\"<new id>\",\"isActive\":false,\"isBuiltIn\":false,\"name\":\"\",\"reflectionPrompt\":\"\",\"requestsPrompt\":\"\",\"sortOrder\":0}"
     ],
     "MeetingWorkReview" : [
-      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000001D\",\"meetingID\":\"\",\"noteText\":\"\",\"workID\":\"\"}",
+      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000001B\",\"meetingID\":\"\",\"noteText\":\"\",\"workID\":\"\"}",
       "{\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"meetingID\":\"\",\"noteText\":\"\",\"workID\":\"\"}"
     ],
     "NoteStudentLink" : [
-      "{\"id\":\"00000000-0000-4000-8000-000000000019\",\"noteID\":\"\",\"studentID\":\"\"}",
+      "{\"id\":\"00000000-0000-4000-8000-000000000018\",\"noteID\":\"\",\"studentID\":\"\"}",
       "{\"id\":\"<new id>\",\"noteID\":\"\",\"studentID\":\"\"}"
     ],
     "OrderItem" : [
-      "{\"addedByName\":\"\",\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000013\",\"modifiedAt\":\"<now>\",\"notes\":\"\",\"quantity\":1,\"requestedFrom\":\"\",\"sourceRaw\":\"order\",\"title\":\"\",\"urlString\":\"\"}",
+      "{\"addedByName\":\"\",\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000012\",\"modifiedAt\":\"<now>\",\"notes\":\"\",\"quantity\":1,\"requestedFrom\":\"\",\"sourceRaw\":\"order\",\"title\":\"\",\"urlString\":\"\"}",
       "{\"addedByName\":\"\",\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"modifiedAt\":\"<now>\",\"notes\":\"\",\"quantity\":1,\"requestedFrom\":\"\",\"sourceRaw\":\"order\",\"title\":\"\",\"urlString\":\"\"}"
     ],
     "ParentCommunication" : [
-      "{\"aiGenerated\":false,\"attachPDF\":false,\"body\":\"\",\"communicationTypeRaw\":\"custom\",\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000000E\",\"includeStudentReflection\":false,\"includedItemRefs\":\"\",\"notes\":\"\",\"recipientsSnapshot\":\"\",\"statusRaw\":\"draft\",\"studentID\":\"\",\"subject\":\"\",\"templateName\":\"\"}",
+      "{\"aiGenerated\":false,\"attachPDF\":false,\"body\":\"\",\"communicationTypeRaw\":\"custom\",\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000000D\",\"includeStudentReflection\":false,\"includedItemRefs\":\"\",\"notes\":\"\",\"recipientsSnapshot\":\"\",\"statusRaw\":\"draft\",\"studentID\":\"\",\"subject\":\"\",\"templateName\":\"\"}",
       "{\"aiGenerated\":false,\"attachPDF\":false,\"body\":\"\",\"communicationTypeRaw\":\"custom\",\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"includeStudentReflection\":false,\"includedItemRefs\":\"\",\"notes\":\"\",\"recipientsSnapshot\":\"\",\"statusRaw\":\"draft\",\"studentID\":\"\",\"subject\":\"\",\"templateName\":\"\"}"
     ],
     "ProposedSolution" : [
-      "{\"createdAt\":\"<now>\",\"details\":\"\",\"id\":\"00000000-0000-4000-8000-000000000014\",\"isAdopted\":false,\"proposedBy\":\"\",\"title\":\"\"}"
+      "{\"createdAt\":\"<now>\",\"details\":\"\",\"id\":\"00000000-0000-4000-8000-000000000013\",\"isAdopted\":false,\"proposedBy\":\"\",\"title\":\"\"}"
     ],
     "SampleWorkStep" : [
-      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000016\",\"instructions\":\"\",\"orderIndex\":0,\"title\":\"\"}",
+      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000015\",\"instructions\":\"\",\"orderIndex\":0,\"title\":\"\"}",
       "{\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"instructions\":\"\",\"orderIndex\":0,\"title\":\"\"}"
     ],
     "Schedule" : [
@@ -277,31 +259,31 @@
       "{\"colorHex\":\"#007AFF\",\"createdAt\":\"<now>\",\"icon\":\"calendar\",\"id\":\"<new id>\",\"modifiedAt\":\"<now>\",\"name\":\"\",\"notes\":\"\"}"
     ],
     "StudentFocusItem" : [
-      "{\"createdAt\":\"<now>\",\"createdInMeetingID\":\"\",\"id\":\"00000000-0000-4000-8000-000000000008\",\"sortOrder\":0,\"statusRaw\":\"active\",\"studentID\":\"\",\"text\":\"\"}",
+      "{\"createdAt\":\"<now>\",\"createdInMeetingID\":\"\",\"id\":\"00000000-0000-4000-8000-000000000007\",\"sortOrder\":0,\"statusRaw\":\"active\",\"studentID\":\"\",\"text\":\"\"}",
       "{\"createdAt\":\"<now>\",\"createdInMeetingID\":\"\",\"id\":\"<new id>\",\"sortOrder\":0,\"statusRaw\":\"active\",\"studentID\":\"\",\"text\":\"\"}"
     ],
     "StudentTrackEnrollment" : [
-      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000001C\",\"isActive\":true,\"studentID\":\"\",\"trackID\":\"\"}",
+      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000001A\",\"isActive\":true,\"studentID\":\"\",\"trackID\":\"\"}",
       "{\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"isActive\":true,\"studentID\":\"\",\"trackID\":\"\"}"
     ],
     "SupplyTransaction" : [
-      "{\"changedByID\":\"\",\"id\":\"00000000-0000-4000-8000-00000000001F\",\"quantityChange\":0,\"reason\":\"\",\"supplyID\":\"\"}",
+      "{\"changedByID\":\"\",\"id\":\"00000000-0000-4000-8000-00000000001D\",\"quantityChange\":0,\"reason\":\"\",\"supplyID\":\"\"}",
       "{\"changedByID\":\"\",\"id\":\"<new id>\",\"quantityChange\":0,\"reason\":\"\",\"supplyID\":\"\"}"
     ],
     "TimetableBlock" : [
-      "{\"id\":\"00000000-0000-4000-8000-000000000024\",\"laneID\":\"\",\"lengthMinutes\":30,\"note\":\"\",\"startMinute\":0,\"teacherName\":\"\",\"title\":\"\"}",
+      "{\"id\":\"00000000-0000-4000-8000-000000000022\",\"laneID\":\"\",\"lengthMinutes\":30,\"note\":\"\",\"startMinute\":0,\"teacherName\":\"\",\"title\":\"\"}",
       "{\"id\":\"<new id>\",\"laneID\":\"\",\"lengthMinutes\":30,\"note\":\"\",\"startMinute\":0,\"teacherName\":\"\",\"title\":\"\"}"
     ],
     "TimetableBooking" : [
-      "{\"halfRaw\":\"morning\",\"id\":\"00000000-0000-4000-8000-000000000026\",\"minute\":-1,\"order\":0,\"presentationID\":\"\"}",
+      "{\"halfRaw\":\"morning\",\"id\":\"00000000-0000-4000-8000-000000000024\",\"minute\":-1,\"order\":0,\"presentationID\":\"\"}",
       "{\"halfRaw\":\"morning\",\"id\":\"<new id>\",\"minute\":-1,\"order\":0,\"presentationID\":\"\"}"
     ],
     "TimetableChange" : [
-      "{\"id\":\"00000000-0000-4000-8000-000000000025\",\"kindRaw\":\"changed\",\"lengthMinutes\":30,\"note\":\"\",\"startMinute\":0,\"teacherName\":\"\",\"title\":\"\"}",
+      "{\"id\":\"00000000-0000-4000-8000-000000000023\",\"kindRaw\":\"changed\",\"lengthMinutes\":30,\"note\":\"\",\"startMinute\":0,\"teacherName\":\"\",\"title\":\"\"}",
       "{\"id\":\"<new id>\",\"kindRaw\":\"changed\",\"lengthMinutes\":30,\"note\":\"\",\"startMinute\":0,\"teacherName\":\"\",\"title\":\"\"}"
     ],
     "TimetableLane" : [
-      "{\"colorRaw\":\"\",\"id\":\"00000000-0000-4000-8000-000000000023\",\"isGuide\":false,\"kindRaw\":\"room\",\"name\":\"\",\"sortOrder\":0}",
+      "{\"colorRaw\":\"\",\"id\":\"00000000-0000-4000-8000-000000000021\",\"isGuide\":false,\"kindRaw\":\"room\",\"name\":\"\",\"sortOrder\":0}",
       "{\"colorRaw\":\"\",\"id\":\"<new id>\",\"isGuide\":false,\"kindRaw\":\"room\",\"name\":\"\",\"sortOrder\":0}"
     ],
     "Track" : [
@@ -309,15 +291,15 @@
       "{\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"title\":\"\"}"
     ],
     "TrackStep" : [
-      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000017\",\"orderIndex\":0}",
+      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000016\",\"orderIndex\":0}",
       "{\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"orderIndex\":0}"
     ],
     "WorkStep" : [
-      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000015\",\"instructions\":\"\",\"notes\":\"\",\"orderIndex\":0,\"title\":\"\"}",
+      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000014\",\"instructions\":\"\",\"notes\":\"\",\"orderIndex\":0,\"title\":\"\"}",
       "{\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"instructions\":\"\",\"notes\":\"\",\"orderIndex\":0,\"title\":\"\"}"
     ],
     "YearPlanEntry" : [
-      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000000A\",\"lessonID\":\"\",\"modifiedAt\":\"<now>\",\"orderInSequence\":0,\"sequenceGroupKey\":\"\",\"spacingSchoolDays\":3,\"statusRaw\":\"planned\",\"studentID\":\"\"}",
+      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000009\",\"lessonID\":\"\",\"modifiedAt\":\"<now>\",\"orderInSequence\":0,\"sequenceGroupKey\":\"\",\"spacingSchoolDays\":3,\"statusRaw\":\"planned\",\"studentID\":\"\"}",
       "{\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"lessonID\":\"\",\"modifiedAt\":\"<now>\",\"orderInSequence\":0,\"sequenceGroupKey\":\"\",\"spacingSchoolDays\":3,\"statusRaw\":\"planned\",\"studentID\":\"\"}"
     ]
   }

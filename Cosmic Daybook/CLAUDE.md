@@ -241,7 +241,7 @@ Rules: `docs/Technical notes/PARENTLOCKER.md`. The password stays in the Keychai
 
 ## Backup System
 
-Format v44; rules: `docs/Technical notes/BACKUP_SYSTEM.md`. A new entity or attribute needs a line in `Backup/BackupEntityTable.swift` and a format-version bump; merge restore is an upsert, never delete and reinsert.
+Format v45; rules: `docs/Technical notes/BACKUP_SYSTEM.md`. A new entity or attribute needs a line in `Backup/BackupEntityTable.swift` and a format-version bump; merge restore is an upsert, never delete and reinsert.
 
 ## Todos for Danny
 

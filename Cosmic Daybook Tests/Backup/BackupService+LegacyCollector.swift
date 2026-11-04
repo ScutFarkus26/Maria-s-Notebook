@@ -204,7 +204,7 @@ extension BackupService {
 
         progress(
             BackupProgress.progress(for: .collecting, subProgress: 0.85),
-            "Collecting going-outs, jobs & transitions\u{2026}"
+            "Collecting going-outs & transitions\u{2026}"
         )
         payload.goingOuts = fetchAndTransformInBatches(
             CDGoingOut.self, using: viewContext) { GoingOutDTO.rows($0) }
