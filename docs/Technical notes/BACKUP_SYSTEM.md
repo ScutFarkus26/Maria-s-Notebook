@@ -185,9 +185,10 @@ forgetting a new entity:
 - `BackupImporter.handledEntityNames` (what import reads)
 
 plus: every entity in the managed object model must be either in the registry
-or in an explicit exclusion list (the 8 removed-feature tombstones —
-`WorkCycle*`, `PrepChecklist*`, `TransitionPlan*`, `Initiative`). Adding an
-entity without backup coverage turns a test red.
+or in an explicit exclusion list (the 12 dormant tombstones —
+`WorkCycle*`, `PrepChecklist*`, `TransitionPlan*`, `Initiative`, and since
+schema 23 `Track`, `TrackStep`, `SequenceTrack`, `StudentTrackEnrollment`).
+Adding an entity without backup coverage turns a test red.
 
 ### Adding a new entity type
 
