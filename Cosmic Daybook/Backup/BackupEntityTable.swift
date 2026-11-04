@@ -190,26 +190,26 @@ nonisolated enum BackupEntityTable {
             announcing: .init(0.24, "Collecting notes\u{2026}")
         ),
         .required(
-            "NonSchoolDay", CDNonSchoolDay.self, \.nonSchoolDays, BackupServiceHelpers.toDTOs,
+            "NonSchoolDay", CDNonSchoolDay.self, \.nonSchoolDays, NonSchoolDayDTO.rows,
             announcing: .init(0.27, "Collecting calendar data\u{2026}")
         ),
-        .required("SchoolDayOverride", CDSchoolDayOverride.self, \.schoolDayOverrides, BackupServiceHelpers.toDTOs),
+        .required("SchoolDayOverride", CDSchoolDayOverride.self, \.schoolDayOverrides, SchoolDayOverrideDTO.rows),
         .required(
-            "StudentMeeting", CDStudentMeeting.self, \.studentMeetings, BackupServiceHelpers.toDTOs,
+            "StudentMeeting", CDStudentMeeting.self, \.studentMeetings, StudentMeetingDTO.rows,
             announcing: .init(0.30, "Collecting meetings\u{2026}")
         ),
         .required(
-            "CommunityTopic", CDCommunityTopicEntity.self, \.communityTopics, BackupServiceHelpers.toDTOs,
+            "CommunityTopic", CDCommunityTopicEntity.self, \.communityTopics, CommunityTopicDTO.rows,
             announcing: .init(0.33, "Collecting community data\u{2026}")
         ),
         .required(
             "ProposedSolution", CDProposedSolutionEntity.self, \.proposedSolutions, ProposedSolutionDTO.rows
         ),
         .required(
-            "CommunityAttachment", CDCommunityAttachment.self, \.communityAttachments, BackupServiceHelpers.toDTOs
+            "CommunityAttachment", CDCommunityAttachment.self, \.communityAttachments, CommunityAttachmentDTO.rows
         ),
         .required(
-            "AttendanceRecord", CDAttendanceRecord.self, \.attendance, BackupServiceHelpers.toDTOs,
+            "AttendanceRecord", CDAttendanceRecord.self, \.attendance, AttendanceRecordDTO.rows,
             announcing: .init(0.36, "Collecting attendance and work completions\u{2026}")
         ),
         .required(
@@ -254,7 +254,7 @@ nonisolated enum BackupEntityTable {
             "MeetingTemplate", CDMeetingTemplate.self, \.meetingTemplates, MeetingTemplateDTO.rows,
             announcing: .init(0.55, "Collecting templates & tracks\u{2026}")
         ),
-        .optional("CalendarEvent", CDCalendarEvent.self, \.calendarEvents, BackupDTOTransformers.toDTOs),
+        .optional("CalendarEvent", CDCalendarEvent.self, \.calendarEvents, CalendarEventDTO.rows),
         .optional("Track", CDTrackEntity.self, \.tracks, TrackDTO.rows),
         .optional("TrackStep", CDTrackStep.self, \.trackSteps, TrackStepDTO.rows),
         .optional(
@@ -301,7 +301,7 @@ nonisolated enum BackupEntityTable {
             "CalendarNote", CDCalendarNote.self, \.calendarNotes, CalendarNoteDTO.rows,
             announcing: .init(0.90, "Collecting calendar notes & meetings\u{2026}")
         ),
-        .optional("ScheduledMeeting", CDScheduledMeeting.self, \.scheduledMeetings, BackupDTOTransformers.toDTOs),
+        .optional("ScheduledMeeting", CDScheduledMeeting.self, \.scheduledMeetings, ScheduledMeetingDTO.rows),
         .optional(
             "ClassroomMembership", CDClassroomMembership.self, \.classroomMemberships, ClassroomMembershipDTO.rows,
             announcing: .init(0.93, "Collecting classroom memberships\u{2026}")

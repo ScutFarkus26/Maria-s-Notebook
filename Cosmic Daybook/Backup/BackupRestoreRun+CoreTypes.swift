@@ -23,9 +23,8 @@ extension BackupRestoreRun {
             existing: { try index.existing(CDLesson.self, id: $0) }
         )
 
-        try BackupEntityImporter.importCommunityTopics(
-            rows(\.communityTopics),
-            into: viewContext,
+        try BackupEntityImporter.importRows(
+            rows(\.communityTopics), as: CDCommunityTopicEntity.self, into: viewContext,
             existing: { try index.existing(CDCommunityTopicEntity.self, id: $0) }
         )
 
@@ -67,21 +66,22 @@ extension BackupRestoreRun {
         let viewContext = context
         let index = self.index
 
-        try BackupEntityImporter.importNonSchoolDays(
-            rows(\.nonSchoolDays),
-            into: viewContext,
+        let nonSchoolDays = try rows(\.nonSchoolDays)
+        BackupEntityImporter.importRows(
+            nonSchoolDays, as: CDNonSchoolDay.self, into: viewContext,
             existing: { try index.existing(CDNonSchoolDay.self, id: $0) }
         )
+        notifySchoolDayDataChanged(ifRestored: nonSchoolDays)
 
-        try BackupEntityImporter.importSchoolDayOverrides(
-            rows(\.schoolDayOverrides),
-            into: viewContext,
+        let schoolDayOverrides = try rows(\.schoolDayOverrides)
+        BackupEntityImporter.importRows(
+            schoolDayOverrides, as: CDSchoolDayOverride.self, into: viewContext,
             existing: { try index.existing(CDSchoolDayOverride.self, id: $0) }
         )
+        notifySchoolDayDataChanged(ifRestored: schoolDayOverrides)
 
-        try BackupEntityImporter.importStudentMeetings(
-            rows(\.studentMeetings),
-            into: viewContext,
+        try BackupEntityImporter.importRows(
+            rows(\.studentMeetings), as: CDStudentMeeting.self, into: viewContext,
             existing: { try index.existing(CDStudentMeeting.self, id: $0) }
         )
 
@@ -91,16 +91,14 @@ extension BackupRestoreRun {
             parents: ["topic": { try index.related(CDCommunityTopicEntity.self, id: $0) }]
         )
 
-        try BackupEntityImporter.importCommunityAttachments(
-            rows(\.communityAttachments),
-            into: viewContext,
+        try BackupEntityImporter.importRows(
+            rows(\.communityAttachments), as: CDCommunityAttachment.self, into: viewContext,
             existing: { try index.existing(CDCommunityAttachment.self, id: $0) },
-            topicCheck: { try index.related(CDCommunityTopicEntity.self, id: $0) }
+            parents: ["topic": { try index.related(CDCommunityTopicEntity.self, id: $0) }]
         )
 
-        try BackupEntityImporter.importAttendanceRecords(
-            rows(\.attendance),
-            into: viewContext,
+        try BackupEntityImporter.importRows(
+            rows(\.attendance), as: CDAttendanceRecord.self, into: viewContext,
             existing: { try index.existing(CDAttendanceRecord.self, id: $0) }
         )
 
@@ -109,6 +107,15 @@ extension BackupRestoreRun {
             into: viewContext,
             existing: { try index.existing(CDWorkCompletionRecord.self, id: $0) }
         )
+    }
+
+    /// A restore writes calendar rows through the view context, whose saves are
+    /// the app's own and so never reach the history-driven invalidation in
+    /// `PersistentHistoryProcessor`. Announce the change here instead, after
+    /// each school-day type that restored any rows.
+    private func notifySchoolDayDataChanged<Row>(ifRestored rows: [Row]) {
+        guard !rows.isEmpty else { return }
+        NotificationCenter.default.post(name: .schoolDayDataDidChange, object: nil)
     }
 
     func importProjectEntities() throws {

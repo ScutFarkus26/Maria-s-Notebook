@@ -37,9 +37,8 @@ extension BackupRestoreRun {
         }
 
         if let scheduledMeetings = try rows(\.scheduledMeetings) {
-            try BackupEntityImporter.importScheduledMeetings(
-                scheduledMeetings,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                scheduledMeetings, as: CDScheduledMeeting.self, into: viewContext,
                 existing: { try index.existing(CDScheduledMeeting.self, id: $0) }
             )
         }

@@ -2,27 +2,12 @@ import Foundation
 import CoreData
 
 // MARK: - Misc Transformers
-// (Calendar, Todo, CDTrackEntity, CDSupply, CDSchedule, CDIssue, CDProcedure, CDDocument, etc.)
+// (Todo, CDTrackEntity, CDSupply, CDSchedule, CDIssue, CDProcedure, CDDocument, etc.)
 
-// CDNonSchoolDay, CDSchoolDayOverride, CDStudentMeeting, CDAttendanceRecord, and
-// CDWorkCompletionRecord exports go through BackupServiceHelpers.toDTOs — do not
-// re-add transformers for them here.
+// CDWorkCompletionRecord's export goes through BackupServiceHelpers.toDTOs — do
+// not re-add a transformer for it here.
 
 extension BackupDTOTransformers {
-
-    // MARK: - CDCalendarEvent
-
-    static func toDTO(_ e: CDCalendarEvent) -> CalendarEventDTO {
-        CalendarEventDTO(
-            id: e.id ?? UUID(),
-            title: e.title,
-            startDate: e.startDate ?? Date(),
-            endDate: e.endDate ?? Date(),
-            location: e.location,
-            notes: e.notes,
-            isAllDay: e.isAllDay
-        )
-    }
 
     // MARK: - CDSequenceTrack
 
@@ -231,10 +216,6 @@ extension BackupDTOTransformers {
 
     // MARK: - Batch Transformations (Misc)
 
-    static func toDTOs(_ events: [CDCalendarEvent]) -> [CalendarEventDTO] {
-        events.map { toDTO($0) }
-    }
-
     static func toDTOs(_ sequenceTracks: [CDSequenceTrack]) -> [SequenceTrackDTO] {
         sequenceTracks.map { toDTO($0) }
     }
@@ -345,24 +326,4 @@ extension BackupDTOTransformers {
     static func toDTOs(_ items: [CDGoingOutChecklistItem]) -> [GoingOutChecklistItemDTO] {
         items.map { toDTO($0) }
     }
-
-    // MARK: - CDScheduledMeeting
-
-    static func toDTO(_ meeting: CDScheduledMeeting) -> ScheduledMeetingDTO {
-        ScheduledMeetingDTO(
-            id: meeting.id ?? UUID(),
-            studentID: meeting.studentID,
-            date: meeting.date ?? Date(),
-            createdAt: meeting.createdAt ?? Date(),
-            participantIDsData: meeting._participantIDsData,
-            workID: meeting.workID,
-            isGroupMeeting: meeting.isGroupMeeting,
-            purpose: meeting.purpose
-        )
-    }
-
-    static func toDTOs(_ meetings: [CDScheduledMeeting]) -> [ScheduledMeetingDTO] {
-        meetings.map { toDTO($0) }
-    }
-
 }

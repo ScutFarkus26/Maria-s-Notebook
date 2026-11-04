@@ -137,17 +137,3 @@ nonisolated public struct GoingOutChecklistItemDTO: Codable, Sendable {
     public var sortOrder: Int
     public var assignedToStudentID: String?
 }
-
-// MARK: - Scheduled Meeting DTO (format v12+)
-
-nonisolated public struct ScheduledMeetingDTO: Codable, Sendable {
-    public var id: UUID
-    public var studentID: String
-    public var date: Date
-    public var createdAt: Date
-    public var participantIDsData: Data?
-    public var workID: String?
-    public var isGroupMeeting: Bool?
-    /// Format v24+: what the meeting is about.
-    public var purpose: String?
-}

@@ -12,13 +12,13 @@ import OSLog
 ///   WorkParticipant
 /// - `BackupDTOTransformers+V18Entities.swift` — CDDayPad, CDYearPlanEntry,
 ///   CDLessonSequenceSettings, CDStory, Book Club entities
-/// - `BackupDTOTransformers+Misc.swift` — Calendar, Todo, CDTrackEntity,
-///   CDSupply, CDSchedule, CDIssue, CDProcedure, CDDocument, and remaining types
+/// - `BackupDTOTransformers+Misc.swift` — Todo, CDTrackEntity, CDSupply,
+///   CDSchedule, CDIssue, CDProcedure, CDDocument, and remaining types
 ///
-/// Entities NOT handled here (CDNonSchoolDay, CDSchoolDayOverride,
-/// CDStudentMeeting, CDAttendanceRecord, CDWorkCompletionRecord, CDProject,
-/// CDProjectSession, CDProjectRole, and the Community entities) are exported
-/// via `BackupServiceHelpers.toDTOs`, which carries their full field set.
+/// Entities NOT handled here (CDWorkCompletionRecord, CDProject,
+/// CDProjectSession, CDProjectRole) are exported via
+/// `BackupServiceHelpers.toDTOs`, which carries their full field set; the
+/// types backed up through `ModelRow` (ModelRowKinds*.swift) by their specs.
 /// Duplicating them here caused silent field loss in the past — keep a single
 /// transformer per entity.
 enum BackupDTOTransformers {

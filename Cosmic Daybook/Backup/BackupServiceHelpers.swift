@@ -9,34 +9,6 @@ enum BackupServiceHelpers {
 
     // MARK: - DTO Conversion
 
-    /// Converts an array of AttendanceRecords to AttendanceRecordDTOs
-    static func toDTOs(_ attendance: [CDAttendanceRecord]) -> [AttendanceRecordDTO] {
-        attendance.compactMap { a in
-            guard let aID = a.id,
-                  let aDate = a.date,
-                  let studentIDUUID = UUID(uuidString: a.studentID) else { return nil }
-            return AttendanceRecordDTO(
-                id: aID,
-                studentID: studentIDUUID,
-                date: aDate,
-                status: a.status.rawValue,
-                // As stored: the typed reason has no case for Close Arrival's
-                // "closeArrival", which it read as none and the backup dropped.
-                absenceReason: a.absenceReasonRaw == AbsenceReason.none.rawValue ? nil : a.absenceReasonRaw,
-                recordedBy: a.recordedBy,
-                recordedByID: a.recordedByID,
-                recordedByName: a.recordedByName,
-                modifiedAt: a.modifiedAt,
-                note: a.note,
-                markedAt: a.markedAt,
-                leftAt: a.leftAt,
-                leavesAt: a.leavesAt,
-                returnedAt: a.returnedAt,
-                statusBeforeLeavingRaw: a.statusBeforeLeavingRaw
-            )
-        }
-    }
-
     /// Converts an array of WorkCompletionRecords to WorkCompletionRecordDTOs
     static func toDTOs(_ workCompletions: [CDWorkCompletionRecord]) -> [WorkCompletionRecordDTO] {
         workCompletions.compactMap { r in
@@ -106,68 +78,4 @@ enum BackupServiceHelpers {
             )
         }
     }
-
-    // MARK: - Simple DTO Conversions
-
-    static func toDTOs(_ nonSchoolDays: [CDNonSchoolDay]) -> [NonSchoolDayDTO] {
-        nonSchoolDays.compactMap { nsd in
-            guard let nsdID = nsd.id, let nsdDate = nsd.date else { return nil }
-            return NonSchoolDayDTO(id: nsdID, date: nsdDate, reason: nsd.reason)
-        }
-    }
-
-    static func toDTOs(_ schoolDayOverrides: [CDSchoolDayOverride]) -> [SchoolDayOverrideDTO] {
-        schoolDayOverrides.compactMap { ovr in
-            guard let ovrID = ovr.id, let ovrDate = ovr.date else { return nil }
-            return SchoolDayOverrideDTO(id: ovrID, date: ovrDate)
-        }
-    }
-
-    static func toDTOs(_ studentMeetings: [CDStudentMeeting]) -> [StudentMeetingDTO] {
-        studentMeetings.compactMap { m in
-            guard let mID = m.id,
-                  let mDate = m.date,
-                  let studentIDUUID = UUID(uuidString: m.studentID) else { return nil }
-            return StudentMeetingDTO(
-                id: mID,
-                studentID: studentIDUUID,
-                date: mDate,
-                completed: m.completed,
-                reflection: m.reflection,
-                focus: m.focus,
-                requests: m.requests,
-                guideNotes: m.guideNotes
-            )
-        }
-    }
-
-    static func toDTOs(_ communityTopics: [CDCommunityTopicEntity]) -> [CommunityTopicDTO] {
-        communityTopics.compactMap { t in
-            guard let tID = t.id else { return nil }
-            return CommunityTopicDTO(
-                id: tID,
-                title: t.title,
-                issueDescription: t.issueDescription,
-                createdAt: t.createdAt ?? Date(),
-                addressedDate: t.addressedDate,
-                resolution: t.resolution,
-                raisedBy: t.raisedBy,
-                tags: t.tags
-            )
-        }
-    }
-
-    static func toDTOs(_ communityAttachments: [CDCommunityAttachment]) -> [CommunityAttachmentDTO] {
-        communityAttachments.compactMap { a in
-            guard let aID = a.id else { return nil }
-            return CommunityAttachmentDTO(
-                id: aID,
-                topicID: a.topic?.id,
-                filename: a.filename,
-                kind: a.kind.rawValue,
-                createdAt: a.createdAt ?? Date()
-            )
-        }
-    }
-
 }

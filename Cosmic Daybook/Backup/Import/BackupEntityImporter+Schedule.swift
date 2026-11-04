@@ -2,61 +2,10 @@ import Foundation
 import CoreData
 import OSLog
 
-// MARK: - Calendar/CDSchedule Imports
+// MARK: - CDSchedule Imports
 
 extension BackupEntityImporter {
     private static let logger = Logger.backup
-
-    // MARK: - Non-School Days
-
-    /// Imports non-school days from DTOs.
-    static func importNonSchoolDays(
-        _ dtos: [NonSchoolDayDTO],
-        into viewContext: NSManagedObjectContext,
-        existing: ExistingLookup<CDNonSchoolDay>
-    ) rethrows {
-        try importSimpleEntities(
-            dtos, into: viewContext,
-            existing: existing,
-            idExtractor: { $0.id },
-            entityBuilder: { dto, current in
-            let day = current ?? CDNonSchoolDay(context: viewContext)
-            day.id = dto.id
-            day.date = dto.date
-            day.reason = dto.reason
-            return day
-        })
-        notifySchoolDayDataChanged(ifImported: dtos)
-    }
-
-    // MARK: - School Day Overrides
-
-    /// Imports school day overrides from DTOs.
-    static func importSchoolDayOverrides(
-        _ dtos: [SchoolDayOverrideDTO],
-        into viewContext: NSManagedObjectContext,
-        existing: ExistingLookup<CDSchoolDayOverride>
-    ) rethrows {
-        try importSimpleEntities(
-            dtos, into: viewContext,
-            existing: existing,
-            idExtractor: { $0.id },
-            entityBuilder: { dto, current in
-            let override = current ?? CDSchoolDayOverride(context: viewContext)
-            override.id = dto.id
-            override.date = dto.date
-            return override
-        })
-        notifySchoolDayDataChanged(ifImported: dtos)
-    }
-
-    /// A restore writes calendar rows through the view context, whose saves are
-    /// the app's own and so never reach the history-driven invalidation in
-    /// `PersistentHistoryProcessor`. Announce the change here instead.
-    private static func notifySchoolDayDataChanged<T>(ifImported dtos: [T]) {
-        guard !dtos.isEmpty else { return }
-        NotificationCenter.default.post(name: .schoolDayDataDidChange, object: nil)
-    }
 
     // MARK: - CDSchedule Slots
 

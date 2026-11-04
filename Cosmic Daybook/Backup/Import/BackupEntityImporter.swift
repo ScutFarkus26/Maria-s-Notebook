@@ -10,7 +10,6 @@ import OSLog
 /// Domain-specific import methods are organized into extensions:
 /// - `BackupEntityImporter+Work.swift` -- work imports
 /// - `BackupEntityImporter+Projects.swift` -- project imports
-/// - `BackupEntityImporter+Calendar.swift` -- calendar imports
 /// - `BackupEntityImporter+Todo.swift` -- todo imports
 /// - `BackupEntityImporter+Misc.swift` -- misc entity imports
 enum BackupEntityImporter {

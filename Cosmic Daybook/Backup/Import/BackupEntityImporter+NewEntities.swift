@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 import OSLog
 
-// MARK: - CDGoingOut, CDCalendarNote, CDScheduledMeeting
+// MARK: - CDGoingOut
 
 extension BackupEntityImporter {
 
@@ -36,27 +36,4 @@ extension BackupEntityImporter {
             viewContext.insert(item)
         }
     }
-
-    // MARK: - CDScheduledMeeting
-
-    static func importScheduledMeetings(
-        _ dtos: [ScheduledMeetingDTO],
-        into viewContext: NSManagedObjectContext,
-        existing: ExistingLookup<CDScheduledMeeting>
-    ) rethrows {
-        for dto in dtos {
-            guard let studentUUID = UUID(uuidString: dto.studentID) else { continue }
-            let meeting = existingEntity(id: dto.id, existing: existing) ?? CDScheduledMeeting(context: viewContext)
-            meeting.id = dto.id
-            meeting.studentID = studentUUID.uuidString
-            meeting.date = dto.date
-            meeting.createdAt = dto.createdAt
-            meeting._participantIDsData = dto.participantIDsData
-            meeting.workID = dto.workID
-            meeting.isGroupMeeting = dto.isGroupMeeting ?? false
-            meeting.purpose = dto.purpose
-            viewContext.insert(meeting)
-        }
-    }
-
 }

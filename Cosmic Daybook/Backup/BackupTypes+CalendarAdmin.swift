@@ -2,28 +2,6 @@ import Foundation
 
 // MARK: - Calendar & Admin DTOs
 
-nonisolated public struct StudentMeetingDTO: Codable, Sendable {
-    public var id: UUID
-    public var studentID: UUID
-    public var date: Date
-    public var completed: Bool
-    public var reflection: String
-    public var focus: String
-    public var requests: String
-    public var guideNotes: String
-}
-
-nonisolated public struct CalendarEventDTO: Codable, Sendable {
-    public var id: UUID
-    public var title: String
-    public var startDate: Date
-    public var endDate: Date
-    public var location: String?
-    public var notes: String?
-    public var isAllDay: Bool
-    // EventKit IDs excluded - device-specific
-}
-
 nonisolated public struct ScheduleSlotDTO: Codable, Sendable {
     public var id: UUID
     public var scheduleID: String

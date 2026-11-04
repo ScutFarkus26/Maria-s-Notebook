@@ -109,7 +109,9 @@ struct BackupRestoreRepairTests {
         let sickID = try #require(sick.id)
         let presentID = try #require(present.id)
         let payload = Repair.payload(of: source)
-        let exported = Dictionary(uniqueKeysWithValues: payload.attendance.map { ($0.id, $0.absenceReason ?? "-") })
+        let exported = Dictionary(
+            uniqueKeysWithValues: payload.attendance.map { ($0.id, $0.string("absenceReason") ?? "-") }
+        )
         #expect(exported[automaticID] == "closeArrival")
         #expect(exported[sickID] == "sick")
         #expect(exported[presentID] == "-", "no reason is left out, as before")
@@ -286,10 +288,9 @@ struct BackupRestoreKeepsTests {
         // (and, here, no marker's name, which v28 does carry).
         var old = Repair.payload(of: context)
         var row = try #require(old.attendance.first)
-        row.status = AttendanceStatus.absent.rawValue
-        (row.note, row.recordedBy, row.recordedByID, row.recordedByName) = (nil, nil, nil, nil)
-        (row.markedAt, row.leftAt, row.leavesAt, row.returnedAt) = (nil, nil, nil, nil)
-        row.statusBeforeLeavingRaw = nil
+        row.values["status"] = .string(AttendanceStatus.absent.rawValue)
+        for key in ["note", "recordedBy", "recordedByID", "recordedByName"] { row.values[key] = nil }
+        for key in ["markedAt", "leftAt", "leavesAt", "returnedAt", "statusBeforeLeavingRaw"] { row.values[key] = nil }
         old.attendance = [row]
         var needRow = try #require(old.orderItems?.first)
         needRow.values["title"] = .string("Glue sticks")
