@@ -8,19 +8,14 @@ import OSLog
 /// testability and separation of concerns.
 ///
 /// Transformers are organized into domain-specific extensions:
-/// - `BackupDTOTransformers+Work.swift` — CDWorkCheckIn, CDWorkStep,
-///   WorkParticipant
 /// - `BackupDTOTransformers+V18Entities.swift` — CDDayPad, CDYearPlanEntry,
 ///   CDLessonSequenceSettings, CDStory, Book Club entities
 /// - `BackupDTOTransformers+Misc.swift` — Todo, CDTrackEntity, CDSupply,
 ///   CDSchedule, CDIssue, CDProcedure, CDDocument, and remaining types
 ///
-/// Entities NOT handled here (CDWorkCompletionRecord, CDProject,
-/// CDProjectSession, CDProjectRole) are exported via
-/// `BackupServiceHelpers.toDTOs`, which carries their full field set; the
-/// types backed up through `ModelRow` (ModelRowKinds*.swift) by their specs.
-/// Duplicating them here caused silent field loss in the past — keep a single
-/// transformer per entity.
+/// The types backed up through `ModelRow` (ModelRowKinds*.swift) are exported
+/// by their specs, not here. Duplicating them here caused silent field loss in
+/// the past — keep a single transformer per entity.
 enum BackupDTOTransformers {
     // MARK: - WorkPlanItem - REMOVED IN PHASE 6
     // WorkPlanItem has been migrated to CDWorkCheckIn and removed from schema

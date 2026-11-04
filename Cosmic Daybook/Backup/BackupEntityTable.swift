@@ -213,25 +213,25 @@ nonisolated enum BackupEntityTable {
             announcing: .init(0.36, "Collecting attendance and work completions\u{2026}")
         ),
         .required(
-            "WorkCompletionRecord", CDWorkCompletionRecord.self, \.workCompletions, BackupServiceHelpers.toDTOs
+            "WorkCompletionRecord", CDWorkCompletionRecord.self, \.workCompletions, WorkCompletionRecordDTO.rows
         ),
         .required(
-            "Project", CDProject.self, \.projects, BackupServiceHelpers.toDTOs,
+            "Project", CDProject.self, \.projects, ProjectDTO.rows,
             announcing: .init(0.39, "Collecting projects\u{2026}")
         ),
-        .required("ProjectSession", CDProjectSession.self, \.projectSessions, BackupServiceHelpers.toDTOs),
-        .required("ProjectRole", CDProjectRole.self, \.projectRoles, BackupServiceHelpers.toDTOs)
+        .required("ProjectSession", CDProjectSession.self, \.projectSessions, ProjectSessionDTO.rows),
+        .required("ProjectRole", CDProjectRole.self, \.projectRoles, ProjectRoleDTO.rows)
     ]
 
     private static let workAndLessonEntities: [BackupEntity] = [
         .optional(
-            "WorkModel", CDWorkModel.self, \.workModels, BackupDTOTransformers.toDTOs,
+            "WorkModel", CDWorkModel.self, \.workModels, WorkModelDTO.rows,
             announcing: .init(0.42, "Collecting work tracking\u{2026}")
         ),
-        .optional("WorkCheckIn", CDWorkCheckIn.self, \.workCheckIns, BackupDTOTransformers.toDTOs),
+        .optional("WorkCheckIn", CDWorkCheckIn.self, \.workCheckIns, WorkCheckInDTO.rows),
         .optional("WorkStep", CDWorkStep.self, \.workSteps, WorkStepDTO.rows),
         .optional(
-            "WorkParticipantEntity", CDWorkParticipantEntity.self, \.workParticipants, BackupDTOTransformers.toDTOs
+            "WorkParticipantEntity", CDWorkParticipantEntity.self, \.workParticipants, WorkParticipantEntityDTO.rows
         ),
         .optional(
             "LessonAttachment", CDLessonAttachment.self, \.lessonAttachments, LessonAttachmentDTO.rows,

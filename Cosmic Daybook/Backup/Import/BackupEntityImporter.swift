@@ -8,8 +8,6 @@ import OSLog
 /// testability and separation of concerns.
 ///
 /// Domain-specific import methods are organized into extensions:
-/// - `BackupEntityImporter+Work.swift` -- work imports
-/// - `BackupEntityImporter+Projects.swift` -- project imports
 /// - `BackupEntityImporter+Todo.swift` -- todo imports
 /// - `BackupEntityImporter+Misc.swift` -- misc entity imports
 enum BackupEntityImporter {

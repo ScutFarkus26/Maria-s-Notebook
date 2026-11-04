@@ -4,9 +4,6 @@ import CoreData
 // MARK: - Misc Transformers
 // (Todo, CDTrackEntity, CDSupply, CDSchedule, CDIssue, CDProcedure, CDDocument, etc.)
 
-// CDWorkCompletionRecord's export goes through BackupServiceHelpers.toDTOs — do
-// not re-add a transformer for it here.
-
 extension BackupDTOTransformers {
 
     // MARK: - CDSequenceTrack

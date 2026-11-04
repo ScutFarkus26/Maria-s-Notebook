@@ -106,8 +106,8 @@ struct BackupMergeNewerWinsTests {
         eve.values["firstName"] = .string("Eve")
         backup.students.append(eve)
         ids["Eve"] = eve.id
-        backup.projects[0].title = "Backup title"
-        backup.projects[0].modifiedAt = nil
+        backup.projects[0].values["title"] = .string("Backup title")
+        backup.projects[0].values["modifiedAt"] = nil
 
         // Since the backup, on this device.
         let stored = context.safeFetch(CDFetchRequest(CDStudent.self))

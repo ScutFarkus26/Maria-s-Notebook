@@ -110,17 +110,15 @@ struct WorkStatusMigrationTests {
     func importerFoldsLegacyBackups() throws {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
         let context = stack.viewContext
-        let dto = WorkModelDTO(
-            id: UUID(), title: "Golden beads", workTypeRaw: "Research", studentLessonID: nil,
-            createdAt: Date(), completedAt: Date(), kindRaw: "practiceLesson", statusRaw: "complete",
-            assignedAt: Date(), lastTouchedAt: nil, dueAt: nil, completionOutcomeRaw: "mastered",
-            studentID: UUID().uuidString, lessonID: UUID().uuidString, presentationID: nil,
-            trackID: nil, trackStepID: nil, scheduledNote: nil, scheduledReasonRaw: nil,
-            sourceContextTypeRaw: nil, sourceContextID: nil, sampleWorkID: nil,
-            checkInStyleRaw: nil, restingUntil: nil
-        )
+        let row = WorkModelDTO(id: UUID(), values: [
+            "title": .string("Golden beads"), "workTypeRaw": .string("Research"),
+            "createdAt": .date(Date()), "completedAt": .date(Date()), "kindRaw": .string("practiceLesson"),
+            "statusRaw": .string("complete"), "assignedAt": .date(Date()),
+            "completionOutcomeRaw": .string("mastered"),
+            "studentID": .string(UUID().uuidString), "lessonID": .string(UUID().uuidString)
+        ])
 
-        BackupEntityImporter.importWorkModels([dto], into: context, existing: { _ in nil })
+        BackupEntityImporter.importRows([row], as: CDWorkModel.self, into: context, existing: { _ in nil })
 
         let request = CDFetchRequest(CDWorkModel.self)
         let restored = try #require(context.safeFetch(request).first)

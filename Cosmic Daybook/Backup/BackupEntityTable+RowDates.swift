@@ -12,13 +12,6 @@ import Foundation
 // `updatedAt`. The rest have none, and a Merge takes the backup's row for
 // them (but a to-do done here stays done, `rowCompletedAt`).
 // `BackupMergeNewerWinsTests` checks every type against the model.
-nonisolated extension WorkCompletionRecordDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension ProjectDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension ProjectSessionDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension ProjectRoleDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension WorkModelDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension WorkCheckInDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension WorkParticipantEntityDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension SequenceTrackDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension DocumentDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension SupplyDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }

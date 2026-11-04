@@ -102,9 +102,8 @@ extension BackupRestoreRun {
             existing: { try index.existing(CDAttendanceRecord.self, id: $0) }
         )
 
-        try BackupEntityImporter.importWorkCompletionRecords(
-            rows(\.workCompletions),
-            into: viewContext,
+        try BackupEntityImporter.importRows(
+            rows(\.workCompletions), as: CDWorkCompletionRecord.self, into: viewContext,
             existing: { try index.existing(CDWorkCompletionRecord.self, id: $0) }
         )
     }
@@ -122,26 +121,26 @@ extension BackupRestoreRun {
         let viewContext = context
         let index = self.index
 
-        try BackupEntityImporter.importProjects(
-            rows(\.projects),
-            into: viewContext,
+        try BackupEntityImporter.importRows(
+            rows(\.projects), as: CDProject.self, into: viewContext,
             existing: { try index.existing(CDProject.self, id: $0) }
         )
 
-        try BackupEntityImporter.importProjectRoles(
-            rows(\.projectRoles),
-            into: viewContext,
+        try BackupEntityImporter.importRows(
+            rows(\.projectRoles), as: CDProjectRole.self, into: viewContext,
             existing: { try index.existing(CDProjectRole.self, id: $0) }
         )
 
         // Import of CDProjectTemplateWeek, CDProjectAssignmentTemplate, and
         // CDProjectWeekRoleAssignment skipped — entities deprecated.
 
-        try BackupEntityImporter.importProjectSessions(
-            rows(\.projectSessions),
-            into: viewContext,
+        // Each session is filed under its project: the app reaches a project's
+        // sessions through the link, not the `projectID` string (bug hunt
+        // 2026-11-02, #7).
+        try BackupEntityImporter.importRows(
+            rows(\.projectSessions), as: CDProjectSession.self, into: viewContext,
             existing: { try index.existing(CDProjectSession.self, id: $0) },
-            projectCheck: { try index.related(CDProject.self, id: $0) }
+            parents: ["project": { try index.related(CDProject.self, id: $0) }]
         )
     }
 
@@ -151,19 +150,17 @@ extension BackupRestoreRun {
 
         // CDWorkModel must be imported first — child entities reference it
         if let workModels = try rows(\.workModels) {
-            try BackupEntityImporter.importWorkModels(
-                workModels,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                workModels, as: CDWorkModel.self, into: viewContext,
                 existing: { try index.existing(CDWorkModel.self, id: $0) }
             )
         }
 
         if let workCheckIns = try rows(\.workCheckIns) {
-            try BackupEntityImporter.importWorkCheckIns(
-                workCheckIns,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                workCheckIns, as: CDWorkCheckIn.self, into: viewContext,
                 existing: { try index.existing(CDWorkCheckIn.self, id: $0) },
-                workCheck: { try index.related(CDWorkModel.self, id: $0) }
+                parents: ["work": { try index.related(CDWorkModel.self, id: $0) }]
             )
         }
 
@@ -176,11 +173,10 @@ extension BackupRestoreRun {
         }
 
         if let workParticipants = try rows(\.workParticipants) {
-            try BackupEntityImporter.importWorkParticipants(
-                workParticipants,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                workParticipants, as: CDWorkParticipantEntity.self, into: viewContext,
                 existing: { try index.existing(CDWorkParticipantEntity.self, id: $0) },
-                workCheck: { try index.related(CDWorkModel.self, id: $0) }
+                parents: ["work": { try index.related(CDWorkModel.self, id: $0) }]
             )
         }
     }

@@ -1,38 +1,5 @@
 import Foundation
 
-// MARK: - Work DTOs
-
-/// Modern DTO that captures all CDWorkModel fields (format v11+).
-nonisolated public struct WorkModelDTO: Codable, Sendable {
-    public var id: UUID
-    public var title: String
-    public var workTypeRaw: String
-    public var studentLessonID: UUID?
-    public var createdAt: Date
-    public var completedAt: Date?
-    // Modern work tracking
-    public var kindRaw: String?
-    public var statusRaw: String
-    public var assignedAt: Date
-    public var lastTouchedAt: Date?
-    public var dueAt: Date?
-    public var completionOutcomeRaw: String?
-    // CloudKit-compatible string FKs
-    public var studentID: String
-    public var lessonID: String
-    public var presentationID: String?
-    public var trackID: String?
-    public var trackStepID: String?
-    public var scheduledNote: String?
-    public var scheduledReasonRaw: String?
-    public var sourceContextTypeRaw: String?
-    public var sourceContextID: String?
-    public var sampleWorkID: String?
-    public var checkInStyleRaw: String?
-    // Format v14+
-    public var restingUntil: Date?
-}
-
 // MARK: - CDPlanningRecommendation DTO
 
 nonisolated public struct PlanningRecommendationDTO: Codable, Sendable {
@@ -73,31 +40,4 @@ nonisolated public struct ResourceDTO: Codable, Sendable {
     public var createdAt: Date
     public var modifiedAt: Date
     // CDNote: fileBookmark and thumbnailData are @externalStorage and excluded from backups by design
-}
-
-// MARK: - CDNoteStudentLink DTO
-
-nonisolated public struct WorkCheckInDTO: Codable, Sendable {
-    public var id: UUID
-    public var workID: String
-    public var date: Date
-    public var statusRaw: String
-    public var purpose: String
-    public var studentInitiated: Bool?
-    /// How long the practice lasted (schema 23; absent in older backups).
-    public var durationMinutes: Int?
-}
-
-nonisolated public struct WorkParticipantEntityDTO: Codable, Sendable {
-    public var id: UUID
-    public var studentID: String
-    public var completedAt: Date?
-    public var workID: UUID?
-}
-
-nonisolated public struct WorkCompletionRecordDTO: Codable, Sendable {
-    public var id: UUID
-    public var workID: UUID
-    public var studentID: UUID
-    public var completedAt: Date
 }
