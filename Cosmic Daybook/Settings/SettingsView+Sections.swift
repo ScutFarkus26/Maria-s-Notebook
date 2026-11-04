@@ -97,11 +97,6 @@ extension SettingsView {
                     .frame(maxWidth: .infinity)
             }
 
-            SettingsGroup(.reminders, collapsible: true) {
-                ReminderSyncSettingsView()
-                    .frame(maxWidth: .infinity)
-            }
-
             SettingsGroup(.tide, collapsible: true) {
                 TideSyncSettingsView()
                     .frame(maxWidth: .infinity)

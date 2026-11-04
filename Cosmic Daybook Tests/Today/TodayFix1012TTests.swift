@@ -208,11 +208,4 @@ struct TodayFix1012TTests {
         #expect(Set(students.map(\.objectID)) == [maya.objectID, naomi.objectID])
     }
 
-    // MARK: - #51 Reminders warning
-
-    @Test("The Reminders section stays up to say a sync failed, even with nothing synced")
-    func remindersShowWhenSyncFailed() {
-        #expect(TodaySectionVisibility.showsReminders(overdue: 0, dueToday: 0, anytime: 0, syncFailed: true))
-        #expect(!TodaySectionVisibility.showsReminders(overdue: 0, dueToday: 0, anytime: 0, syncFailed: false))
-    }
 }

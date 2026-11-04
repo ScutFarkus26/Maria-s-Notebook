@@ -150,8 +150,6 @@ extension BackupService {
             CDNoteTemplate.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.meetingTemplates = fetchAndTransformInBatches(
             CDMeetingTemplate.self, using: viewContext) { MeetingTemplateDTO.rows($0) }
-        payload.reminders = fetchAndTransformInBatches(
-            CDReminder.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.calendarEvents = fetchAndTransformInBatches(
             CDCalendarEvent.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.tracks = fetchAndTransformInBatches(
@@ -194,10 +192,6 @@ extension BackupService {
             CDDevelopmentSnapshotEntity.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.todoItems = fetchAndTransformInBatches(
             CDTodoItem.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
-        payload.todoSubtasks = fetchAndTransformInBatches(
-            CDTodoSubtask.self, using: viewContext) { TodoSubtaskDTO.rows($0) }
-        payload.todoTemplates = fetchAndTransformInBatches(
-            CDTodoTemplate.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.todayAgendaOrders = fetchAndTransformInBatches(
             CDTodayAgendaOrder.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
 

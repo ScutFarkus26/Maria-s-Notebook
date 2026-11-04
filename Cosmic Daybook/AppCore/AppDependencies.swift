@@ -38,7 +38,7 @@ import OSLog
 ///     var body: some View {
 ///         // Use services from dependencies
 ///         Button("Sync") {
-///             dependencies.reminderSync.syncReminders()
+///             dependencies.calendarSync.syncEvents()
 ///         }
 ///     }
 /// }
@@ -110,10 +110,11 @@ final class AppDependencies {
 
     // MARK: - Sync Services
     //
-    // Both EventKit services are process-wide singletons: each owns the
+    // The EventKit service is a process-wide singleton: it owns the
     // `EKEventStore` change observer and the sync state the Today card
-    // watches, so every reader must reach the same object. A My Class graph
-    // binds them to its store on each access. A Sample Class graph never
+    // watches, so every reader must reach the same object (Reminders sync
+    // was retired 2026-11-03). A My Class graph
+    // binds it to its store on each access. A Sample Class graph never
     // does: bound to the practice store, Today's sync there copied the real
     // Reminders and Calendar into it, a tick there ticked the real reminder,
     // and EventKit changes kept landing there back in My Class (bug hunt
@@ -121,14 +122,6 @@ final class AppDependencies {
     // comparison keeps a read from a view body from mutating an observed
     // property on every evaluation. Views read them here, never through
     // `.shared`.
-
-    var reminderSync: ReminderSyncService {
-        let service = ReminderSyncService.shared
-        if !isSampleClassroom, service.managedObjectContext !== viewContext {
-            service.managedObjectContext = viewContext
-        }
-        return service
-    }
 
     var calendarSync: CalendarSyncService {
         let service = CalendarSyncService.shared

@@ -86,27 +86,6 @@ extension TodayView {
         viewModel.reload()
     }
 
-    // MARK: - CDReminder Actions
-
-    /// Toggles the completion status of a reminder
-    func toggleReminder(_ reminder: CDReminder) {
-        if reminder.isCompleted {
-            reminder.markIncomplete()
-        } else {
-            reminder.markCompleted()
-        }
-        // A failed save shows the "Couldn't Save" alert; EventKit isn't told
-        // about a completion change that didn't persist.
-        guard saveCoordinator.save(viewContext, reason: "Update reminder") else { return }
-        viewModel.reload()
-
-        // Two-way sync: Update EventKit with the completion change
-        let sync = eventKitSync
-        Task<Void, Never> {
-            await sync.writeBackCompletion(of: reminder)
-        }
-    }
-
     // MARK: - Toast
 
     /// Shows a toast message with animation

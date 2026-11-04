@@ -27,10 +27,8 @@ enum SettingsCopy {
         // Templates
         case noteTemplates
         case meetingTemplates
-        case todoTemplates
         // Connections
         case appleCalendar
-        case reminders
         case tide
         // Intelligence
         case appleIntelligence
@@ -59,8 +57,8 @@ enum SettingsCopy {
             case .classroomSharing: return .classroom
             case .ageIndicators, .quickCapture: return .lookAndFeel
             case .attendanceEmail, .parentReports, .orderRequests: return .messages
-            case .noteTemplates, .meetingTemplates, .todoTemplates: return .templates
-            case .appleCalendar, .reminders, .tide: return .connections
+            case .noteTemplates, .meetingTemplates: return .templates
+            case .appleCalendar, .tide: return .connections
             case .appleIntelligence, .lessonPlanning, .siri, .claudeDesktop: return .intelligence
             case .iCloud, .backups, .settingsTransfer: return .syncBackup
             case .syncHistory, .maintenance, .cleanUp, .notebookStats, .testStudents: return .troubleshooting
@@ -80,9 +78,7 @@ enum SettingsCopy {
             case .orderRequests: return "Order requests"
             case .noteTemplates: return "Note templates"
             case .meetingTemplates: return "Meeting templates"
-            case .todoTemplates: return "To-do templates"
             case .appleCalendar: return "Apple Calendar events"
-            case .reminders: return "Reminders"
             case .tide: return "Tide"
             case .claudeDesktop: return "Claude Desktop"
             case .appleIntelligence: return "Apple Intelligence"
@@ -112,9 +108,7 @@ enum SettingsCopy {
             case .orderRequests: return "cart.fill"
             case .noteTemplates: return "note.text.badge.plus"
             case .meetingTemplates: return "person.2.wave.2.fill"
-            case .todoTemplates: return "checklist"
             case .appleCalendar: return "calendar.day.timeline.left"
-            case .reminders: return "bell.fill"
             case .tide: return "water.waves"
             case .claudeDesktop: return "desktopcomputer"
             case .appleIntelligence: return "apple.intelligence"
@@ -161,12 +155,8 @@ enum SettingsCopy {
                 return ["Templates", "Observations"]
             case .meetingTemplates:
                 return ["Templates", "Meetings", "Prompts"]
-            case .todoTemplates:
-                return ["Templates", "To-dos", "Todos"]
             case .appleCalendar:
                 return ["Calendar", "Calendars", "Events", "Today"]
-            case .reminders:
-                return ["Reminders list", "Show reminders from", "Today"]
             case .tide:
                 return ["To-dos", "Todos", "Share to-dos", "Connection address", "Classroom to-dos",
                         "New to-dos go to", "Show in the notebook"]

@@ -17,7 +17,7 @@ enum SettingsAttentionItem: Hashable, Identifiable {
     /// Year-plan targets left over from a school year that has ended.
     case carriedOverPlans(Int)
     /// Apple Calendar or Reminders was set up, and access has since been turned off.
-    case connectionAccessLost(calendar: Bool, reminders: Bool)
+    case connectionAccessLost
 
     var id: String {
         switch self {
@@ -68,9 +68,8 @@ enum SettingsAttentionItem: Hashable, Identifiable {
                 : "\(count) classroom items aren't shared with your assistant yet"
         case .carriedOverPlans(let count):
             return count == 1 ? "1 year-plan target carried over" : "\(count) year-plan targets carried over"
-        case .connectionAccessLost(let calendar, let reminders):
-            if calendar && reminders { return "Calendar and Reminders access is off" }
-            return calendar ? "Apple Calendar access is off" : "Reminders access is off"
+        case .connectionAccessLost:
+            return "Apple Calendar access is off"
         }
     }
 
@@ -159,7 +158,6 @@ struct SettingsAttentionInputs {
     var unsharedClassroomRecords: Int?
     var carriedOverPlans: Int?
     var calendarAccessLost = false
-    var remindersAccessLost = false
 }
 
 /// Decides which "Needs your attention" rows the Overview shows. Pure, so the
@@ -206,11 +204,8 @@ enum SettingsAttention {
             items.append(.carriedOverPlans(carriedOver))
         }
 
-        if inputs.calendarAccessLost || inputs.remindersAccessLost {
-            items.append(.connectionAccessLost(
-                calendar: inputs.calendarAccessLost,
-                reminders: inputs.remindersAccessLost
-            ))
+        if inputs.calendarAccessLost {
+            items.append(.connectionAccessLost)
         }
 
         return items

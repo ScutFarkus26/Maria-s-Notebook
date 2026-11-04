@@ -244,11 +244,9 @@ enum StudentDeletion {
         detach(idString, from: \CDPracticeSession.studentIDsArray,
                deleteWhenEmpty: true, in: context, report: &report)
 
-        // The rest stand without her: a todo, a template, an outing or a
-        // project is still the guide's with no child on it.
+        // The rest stand without her: a todo, an outing or a project is still
+        // the guide's with no child on it.
         detach(idString, from: \CDTodoItem.studentIDsArray,
-               deleteWhenEmpty: false, in: context, report: &report)
-        detach(idString, from: \CDTodoTemplate.defaultStudentIDsArray,
                deleteWhenEmpty: false, in: context, report: &report)
         detach(idString, from: \CDGoingOut.studentIDsArray,
                deleteWhenEmpty: false, in: context, report: &report)

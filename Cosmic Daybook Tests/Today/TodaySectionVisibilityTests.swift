@@ -52,29 +52,6 @@ struct TodaySectionVisibilityTests {
         #expect(TodaySectionVisibility.showsRestock(officeRun: 0, toOrder: 2))
     }
 
-    // MARK: - Reminders
-
-    @Test("An empty reminder list hides the section entirely")
-    func noRemindersHidesTheSection() {
-        #expect(TodaySectionVisibility.showsReminders(overdue: 0, dueToday: 0, anytime: 0) == false)
-        #expect(TodaySectionVisibility.showsAnytimeDisclosure(anytime: 0) == false)
-    }
-
-    @Test("Forty-one undated reminders show the section, but only as a collapsed disclosure")
-    func undatedRemindersStayBehindTheDisclosure() {
-        // The live notebook's standing pile: all undated, mostly last year's.
-        #expect(TodaySectionVisibility.showsReminders(overdue: 0, dueToday: 0, anytime: 41))
-        #expect(TodaySectionVisibility.showsAnytimeDisclosure(anytime: 41))
-    }
-
-    @Test("Overdue or due-today reminders show the section on the fold")
-    func datedRemindersShowTheSection() {
-        #expect(TodaySectionVisibility.showsReminders(overdue: 2, dueToday: 0, anytime: 0))
-        #expect(TodaySectionVisibility.showsReminders(overdue: 0, dueToday: 3, anytime: 0))
-        // Dated reminders alone offer no disclosure — there is nothing to hide.
-        #expect(TodaySectionVisibility.showsAnytimeDisclosure(anytime: 0) == false)
-    }
-
     // MARK: - Day pad
 
     @Test("The pad shows when it has writing on it, or when the guide opened it")

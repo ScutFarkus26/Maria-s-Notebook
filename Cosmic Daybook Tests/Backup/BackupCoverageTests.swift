@@ -27,12 +27,14 @@ final class BackupCoverageTests {
     ///
     /// If a NEW entity appears here, that's the signal to either back it up or
     /// consciously add it with a rationale. Removing one (by adding real backup
-    /// coverage) is the happy path.
-    private static let routedButIntentionallyNotBackedUp: Set<String> = [
+    /// coverage) is the happy path. The retired types
+    /// (`CoreDataStack.retiredEntities`: reminders, to-do subtasks and to-do
+    /// templates) keep their store and rows but are no longer backed up.
+    private static let routedButIntentionallyNotBackedUp: Set<String> = Set([
         "ProjectAssignmentTemplate",
         "ProjectTemplateWeek",
         "ProjectWeekRoleAssignment"
-    ]
+    ]).union(CoreDataStack.retiredEntities)
 
     /// Model entities routed to NEITHER store. Every other coverage test here
     /// starts from the routing sets, so an unrouted entity escapes all of them:

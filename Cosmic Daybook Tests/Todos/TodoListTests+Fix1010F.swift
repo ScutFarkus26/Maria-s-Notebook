@@ -4,8 +4,8 @@ import Testing
 @testable import CosmicDaybook
 
 /// The Todos screen's lists and quick moves (bug hunt 2026-10-10, P2 #25,
-/// #26, #28 and #30's Upcoming order).
-@Suite("Todos: Today, quick moves, templates and Upcoming")
+/// #26 and #30's Upcoming order; #28's templates retired 2026-11).
+@Suite("Todos: Today, quick moves and Upcoming")
 @MainActor
 struct TodoListFix1010Tests {
 
@@ -45,14 +45,11 @@ struct TodoListFix1010Tests {
         ]
 
         for todo in inToday {
-            #expect(TodoListFilter.today.matches(todo), "\(todo.title)")
-            #expect(!TodoListFilter.upcoming.matches(todo), "\(todo.title)")
+            #expect(TodoListFilter.isOnToday(todo), "\(todo.title)")
         }
         for todo in notInToday {
-            #expect(!TodoListFilter.today.matches(todo), "\(todo.title)")
+            #expect(!TodoListFilter.isOnToday(todo), "\(todo.title)")
         }
-        #expect(TodoListFilter.upcoming.matches(notInToday[0]))
-        #expect(TodoListFilter.upcoming.matches(notInToday[1]))
     }
 
     // MARK: - Quick moves
@@ -68,7 +65,7 @@ struct TodoListFix1010Tests {
         for todo in [someday, dueLater] {
             #expect(todo.scheduledDate == Self.today)
             #expect(!todo.isSomeday)
-            #expect(TodoListFilter.today.matches(todo))
+            #expect(TodoListFilter.isOnToday(todo))
         }
         #expect(dueLater.dueDate == AppCalendar.addingDays(4, to: Self.today))
         #expect(someday.dueDate == nil)
@@ -85,29 +82,6 @@ struct TodoListFix1010Tests {
             #expect(monday > date)
             #expect(monday <= AppCalendar.addingDays(7, to: AppCalendar.startOfDay(date)))
         }
-    }
-
-    // MARK: - Templates
-
-    @Test("A todo from a template tags its children by name and leaves out children who have left")
-    func templateTodoTagsEnrolledChildren() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let maya = CoreDataTestHelpers.seedStudent(in: context, firstName: "Maya", lastName: "Stone")
-        let leo = CoreDataTestHelpers.seedStudent(in: context, firstName: "Leo", lastName: "Park")
-        let template = CDTodoTemplate(context: context)
-        template.name = "Reading check"
-        template.title = "Hear them read"
-        template.tagsArray = ["Reading"]
-        template.defaultStudentIDsArray = [maya, leo].compactMap { $0.id?.uuidString }
-
-        let todo = TodoTemplateUse.makeTodo(from: template, enrolled: [maya], in: context)
-
-        #expect(todo.title == "Hear them read")
-        #expect(todo.studentIDsArray == [maya.id?.uuidString].compactMap { $0 })
-        #expect(todo.tagsArray.contains("Reading"))
-        #expect(todo.tagsArray.contains(TodoTagHelper.createStudentTag(name: maya.fullName)))
-        #expect(!todo.tagsArray.contains(TodoTagHelper.createStudentTag(name: leo.fullName)))
-        #expect(template.useCount == 1)
     }
 
     // MARK: - Upcoming

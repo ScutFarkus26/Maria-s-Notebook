@@ -276,9 +276,6 @@ nonisolated extension DataCleanupService {
         scope s: DeduplicationScope
     ) -> [String: Int] {
         var results: [String: Int] = [:]
-        if s.includes(CDReminder.self) {
-            results["Reminder (same EventKit item)"] = mergeSameEventKitReminders(using: context, container: c)
-        }
         if s.includes(CDCalendarEvent.self) {
             results["CalendarEvent (same EventKit occurrence)"] = mergeSameEventKitEvents(using: context, container: c)
         }
@@ -389,11 +386,7 @@ nonisolated extension DataCleanupService {
         )
 
         // Other models
-        results["Reminder"] = deduplicate(
-            CDReminder.self, using: context, container: c, scope: s, merge: mergeReminder
-        )
         results["TodoItem"] = deduplicate(CDTodoItem.self, using: context, container: c, scope: s, merge: mergeTodoItem)
-        results["TodoSubtask"] = deduplicate(CDTodoSubtask.self, using: context, container: c, scope: s)
         return results
     }
 }

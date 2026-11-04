@@ -38,7 +38,6 @@ nonisolated extension NotebookJunkCleanup.Counts {
                 "old track enrollment linked to its track", "old track enrollments linked to their tracks"
             ),
             Self.line(enrollmentsRemoved, "old track enrollment removed", "old track enrollments removed"),
-            Self.line(duplicateReminders, "duplicate reminder", "duplicate reminders"),
             Self.line(emptyNotes, "empty note", "empty notes"),
             Self.line(documentsWithoutFile, "document with no file", "documents with no file"),
             Self.line(emptyTracks, "empty track", "empty tracks"),

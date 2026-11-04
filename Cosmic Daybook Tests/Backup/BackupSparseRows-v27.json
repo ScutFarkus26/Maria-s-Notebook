@@ -105,9 +105,6 @@
     "TimetableLane" : [
       "rejected"
     ],
-    "TodoSubtask" : [
-      "rejected"
-    ],
     "Track" : [
       "rejected"
     ],
@@ -158,10 +155,6 @@
       "not found: kept",
       "not an id: kept"
     ],
-    "TodoSubtask.todo" : [
-      "not found: kept",
-      "left out: kept"
-    ],
     "TrackStep.track" : [
       "not found: kept",
       "left out: kept"
@@ -189,19 +182,19 @@
       "{\"albumID\":\"\",\"id\":\"<new id>\",\"lessonTitle\":\"\",\"modifiedAt\":\"<now>\",\"pageIndex\":0,\"visitedAt\":\"<now>\"}"
     ],
     "AttendanceDayLock" : [
-      "{\"id\":\"00000000-0000-4000-8000-00000000001F\"}",
+      "{\"id\":\"00000000-0000-4000-8000-00000000001E\"}",
       "{\"id\":\"<new id>\"}"
     ],
     "AttendanceEmailSend" : [
-      "{\"channelRaw\":\"email\",\"id\":\"00000000-0000-4000-8000-000000000021\",\"wasConfirmedByHand\":false}",
+      "{\"channelRaw\":\"email\",\"id\":\"00000000-0000-4000-8000-000000000020\",\"wasConfirmedByHand\":false}",
       "{\"channelRaw\":\"email\",\"id\":\"<new id>\",\"wasConfirmedByHand\":false}"
     ],
     "AttendanceEmailSettings" : [
-      "{\"deadlineMinutes\":540,\"groupByLevel\":false,\"id\":\"00000000-0000-4000-8000-000000000022\",\"isEnabled\":true,\"sendMethodRaw\":\"email\"}",
+      "{\"deadlineMinutes\":540,\"groupByLevel\":false,\"id\":\"00000000-0000-4000-8000-000000000021\",\"isEnabled\":true,\"sendMethodRaw\":\"email\"}",
       "{\"deadlineMinutes\":540,\"groupByLevel\":false,\"id\":\"<new id>\",\"isEnabled\":true,\"sendMethodRaw\":\"email\"}"
     ],
     "BookClubMeeting" : [
-      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000001C\",\"isCompleted\":false,\"leaderStudentID\":\"\",\"modifiedAt\":\"<now>\",\"notes\":\"\",\"ordinal\":0,\"readingLabel\":\"\",\"sessionID\":\"\"}",
+      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000001B\",\"isCompleted\":false,\"leaderStudentID\":\"\",\"modifiedAt\":\"<now>\",\"notes\":\"\",\"ordinal\":0,\"readingLabel\":\"\",\"sessionID\":\"\"}",
       "{\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"isCompleted\":false,\"leaderStudentID\":\"\",\"modifiedAt\":\"<now>\",\"notes\":\"\",\"ordinal\":0,\"readingLabel\":\"\",\"sessionID\":\"\"}"
     ],
     "BookClubSession" : [
@@ -221,7 +214,7 @@
       "{\"classroomZoneID\":\"\",\"id\":\"<new id>\",\"joinedAt\":\"<now>\",\"modifiedAt\":\"<now>\",\"ownerIdentity\":\"\",\"roleRaw\":\"leadGuide\"}"
     ],
     "ClassroomPerson" : [
-      "{\"displayName\":\"\",\"id\":\"00000000-0000-4000-8000-000000000023\",\"recordName\":\"\",\"roleRaw\":\"assistant\"}",
+      "{\"displayName\":\"\",\"id\":\"00000000-0000-4000-8000-000000000022\",\"recordName\":\"\",\"roleRaw\":\"assistant\"}",
       "{\"displayName\":\"\",\"id\":\"<new id>\",\"recordName\":\"\",\"roleRaw\":\"assistant\"}"
     ],
     "DayPad" : [
@@ -237,11 +230,11 @@
       "{\"createdAt\":\"<now>\",\"email\":\"\",\"id\":\"<new id>\",\"name\":\"\",\"notes\":\"\",\"receivesReports\":true,\"relationshipRaw\":\"parent\",\"sortOrder\":0,\"studentID\":\"\"}"
     ],
     "JobAssignment" : [
-      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000001B\",\"isCompleted\":false,\"jobID\":\"\",\"modifiedAt\":\"<now>\",\"studentID\":\"\",\"weekStartDate\":\"<now>\"}",
+      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000001A\",\"isCompleted\":false,\"jobID\":\"\",\"modifiedAt\":\"<now>\",\"studentID\":\"\",\"weekStartDate\":\"<now>\"}",
       "{\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"isCompleted\":false,\"jobID\":\"\",\"modifiedAt\":\"<now>\",\"studentID\":\"\",\"weekStartDate\":\"<now>\"}"
     ],
     "LessonAttachment" : [
-      "{\"attachedAt\":\"<now>\",\"fileName\":\"\",\"fileRelativePath\":\"\",\"fileSizeBytes\":0,\"fileType\":\"\",\"id\":\"00000000-0000-4000-8000-000000000019\",\"notes\":\"\",\"scopeRaw\":\"lesson\"}",
+      "{\"attachedAt\":\"<now>\",\"fileName\":\"\",\"fileRelativePath\":\"\",\"fileSizeBytes\":0,\"fileType\":\"\",\"id\":\"00000000-0000-4000-8000-000000000018\",\"notes\":\"\",\"scopeRaw\":\"lesson\"}",
       "{\"attachedAt\":\"<now>\",\"fileName\":\"\",\"fileRelativePath\":\"\",\"fileSizeBytes\":0,\"fileType\":\"\",\"id\":\"<new id>\",\"notes\":\"\",\"scopeRaw\":\"lesson\"}"
     ],
     "LessonRecallCheck" : [
@@ -257,11 +250,11 @@
       "{\"createdAt\":\"<now>\",\"focusPrompt\":\"\",\"guideNotesPrompt\":\"\",\"id\":\"<new id>\",\"isActive\":false,\"isBuiltIn\":false,\"name\":\"\",\"reflectionPrompt\":\"\",\"requestsPrompt\":\"\",\"sortOrder\":0}"
     ],
     "MeetingWorkReview" : [
-      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000001E\",\"meetingID\":\"\",\"noteText\":\"\",\"workID\":\"\"}",
+      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000001D\",\"meetingID\":\"\",\"noteText\":\"\",\"workID\":\"\"}",
       "{\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"meetingID\":\"\",\"noteText\":\"\",\"workID\":\"\"}"
     ],
     "NoteStudentLink" : [
-      "{\"id\":\"00000000-0000-4000-8000-00000000001A\",\"noteID\":\"\",\"studentID\":\"\"}",
+      "{\"id\":\"00000000-0000-4000-8000-000000000019\",\"noteID\":\"\",\"studentID\":\"\"}",
       "{\"id\":\"<new id>\",\"noteID\":\"\",\"studentID\":\"\"}"
     ],
     "OrderItem" : [
@@ -288,32 +281,28 @@
       "{\"createdAt\":\"<now>\",\"createdInMeetingID\":\"\",\"id\":\"<new id>\",\"sortOrder\":0,\"statusRaw\":\"active\",\"studentID\":\"\",\"text\":\"\"}"
     ],
     "StudentTrackEnrollment" : [
-      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000001D\",\"isActive\":true,\"studentID\":\"\",\"trackID\":\"\"}",
+      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000001C\",\"isActive\":true,\"studentID\":\"\",\"trackID\":\"\"}",
       "{\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"isActive\":true,\"studentID\":\"\",\"trackID\":\"\"}"
     ],
     "SupplyTransaction" : [
-      "{\"changedByID\":\"\",\"id\":\"00000000-0000-4000-8000-000000000020\",\"quantityChange\":0,\"reason\":\"\",\"supplyID\":\"\"}",
+      "{\"changedByID\":\"\",\"id\":\"00000000-0000-4000-8000-00000000001F\",\"quantityChange\":0,\"reason\":\"\",\"supplyID\":\"\"}",
       "{\"changedByID\":\"\",\"id\":\"<new id>\",\"quantityChange\":0,\"reason\":\"\",\"supplyID\":\"\"}"
     ],
     "TimetableBlock" : [
-      "{\"id\":\"00000000-0000-4000-8000-000000000025\",\"laneID\":\"\",\"lengthMinutes\":30,\"note\":\"\",\"startMinute\":0,\"teacherName\":\"\",\"title\":\"\"}",
+      "{\"id\":\"00000000-0000-4000-8000-000000000024\",\"laneID\":\"\",\"lengthMinutes\":30,\"note\":\"\",\"startMinute\":0,\"teacherName\":\"\",\"title\":\"\"}",
       "{\"id\":\"<new id>\",\"laneID\":\"\",\"lengthMinutes\":30,\"note\":\"\",\"startMinute\":0,\"teacherName\":\"\",\"title\":\"\"}"
     ],
     "TimetableBooking" : [
-      "{\"halfRaw\":\"morning\",\"id\":\"00000000-0000-4000-8000-000000000027\",\"minute\":-1,\"order\":0,\"presentationID\":\"\"}",
+      "{\"halfRaw\":\"morning\",\"id\":\"00000000-0000-4000-8000-000000000026\",\"minute\":-1,\"order\":0,\"presentationID\":\"\"}",
       "{\"halfRaw\":\"morning\",\"id\":\"<new id>\",\"minute\":-1,\"order\":0,\"presentationID\":\"\"}"
     ],
     "TimetableChange" : [
-      "{\"id\":\"00000000-0000-4000-8000-000000000026\",\"kindRaw\":\"changed\",\"lengthMinutes\":30,\"note\":\"\",\"startMinute\":0,\"teacherName\":\"\",\"title\":\"\"}",
+      "{\"id\":\"00000000-0000-4000-8000-000000000025\",\"kindRaw\":\"changed\",\"lengthMinutes\":30,\"note\":\"\",\"startMinute\":0,\"teacherName\":\"\",\"title\":\"\"}",
       "{\"id\":\"<new id>\",\"kindRaw\":\"changed\",\"lengthMinutes\":30,\"note\":\"\",\"startMinute\":0,\"teacherName\":\"\",\"title\":\"\"}"
     ],
     "TimetableLane" : [
-      "{\"colorRaw\":\"\",\"id\":\"00000000-0000-4000-8000-000000000024\",\"isGuide\":false,\"kindRaw\":\"room\",\"name\":\"\",\"sortOrder\":0}",
+      "{\"colorRaw\":\"\",\"id\":\"00000000-0000-4000-8000-000000000023\",\"isGuide\":false,\"kindRaw\":\"room\",\"name\":\"\",\"sortOrder\":0}",
       "{\"colorRaw\":\"\",\"id\":\"<new id>\",\"isGuide\":false,\"kindRaw\":\"room\",\"name\":\"\",\"sortOrder\":0}"
-    ],
-    "TodoSubtask" : [
-      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000018\",\"isCompleted\":false,\"orderIndex\":0,\"title\":\"\"}",
-      "{\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"isCompleted\":false,\"orderIndex\":0,\"title\":\"\"}"
     ],
     "Track" : [
       "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000002\",\"title\":\"\"}",

@@ -26,14 +26,6 @@ struct AppDependenciesSingleInstanceTests {
         #expect(dependencies.calendarSync.managedObjectContext === dependencies.viewContext)
     }
 
-    @Test("reminderSync is one object, the process-wide instance, bound to the store")
-    func reminderSyncIsSingleInstance() throws {
-        let dependencies = try CoreDataTestHelpers.makeDependencies()
-        #expect(dependencies.reminderSync === dependencies.reminderSync)
-        #expect(dependencies.reminderSync === ReminderSyncService.shared)
-        #expect(dependencies.reminderSync.managedObjectContext === dependencies.viewContext)
-    }
-
     @Test("toastService is one object, the process-wide instance")
     func toastServiceIsSingleInstance() throws {
         let dependencies = try CoreDataTestHelpers.makeDependencies()
@@ -46,11 +38,8 @@ struct AppDependenciesSingleInstanceTests {
         let first = try CoreDataTestHelpers.makeDependencies()
         let second = try CoreDataTestHelpers.makeDependencies()
         #expect(first.calendarSync === second.calendarSync)
-        #expect(first.reminderSync === second.reminderSync)
 
         #expect(second.calendarSync.managedObjectContext === second.viewContext)
         #expect(first.calendarSync.managedObjectContext === first.viewContext)
-        #expect(second.reminderSync.managedObjectContext === second.viewContext)
-        #expect(first.reminderSync.managedObjectContext === first.viewContext)
     }
 }

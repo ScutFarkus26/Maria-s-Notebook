@@ -27,9 +27,6 @@ struct TodoTodayRow: View {
         if todo.priority != .none {
             label += ", \(todo.priority.rawValue) priority"
         }
-        if let progress = todo.subtasksProgressText {
-            label += ", subtasks \(progress)"
-        }
         return label
     }
 
@@ -101,16 +98,6 @@ struct TodoTodayRow: View {
                                         .font(AppTheme.ScaledFont.caption)
                                 }
                                 .foregroundStyle(todo.isOverdue ? Color.red : Color.secondary)
-                            }
-
-                            if let progress = todo.subtasksProgressText {
-                                HStack(spacing: 3) {
-                                    Image(systemName: SFSymbol.List.checklist)
-                                        .font(.system(size: 10))
-                                    Text(progress)
-                                        .font(AppTheme.ScaledFont.caption)
-                                }
-                                .foregroundStyle(todo.allSubtasksCompleted ? Color.green : Color.secondary)
                             }
 
                             if todo.recurrence != .none {

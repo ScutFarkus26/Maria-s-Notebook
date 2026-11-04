@@ -35,6 +35,8 @@ nonisolated extension BackupImporter {
             from: url,
             keyProvider: { try BackupEncryptionKeyStore.requireKey() },
             body: { entry in
+                // Retired types an older backup holds count for nothing.
+                guard !BackupEntityTable.skippedOnImport.contains(entry.entityName) else { return }
                 var rows = BackupPreviewDigest.EntityRows(entityName: entry.entityName)
                 let warning = visitRows(of: entry, using: decoder, { rows.add($0) })
                 unreadable.note(entry.entityName, decoded: warning == nil)

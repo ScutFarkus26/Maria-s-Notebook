@@ -2,11 +2,9 @@ import SwiftUI
 
 // MARK: - Templates Pane
 
-/// Settings › Templates: the note, meeting and to-do template libraries.
+/// Settings › Templates: the note and meeting template libraries.
 struct SettingsTemplatesPane: View {
     var statsViewModel: SettingsStatsViewModel
-
-    @State private var isShowingTodoTemplates = false
 
     var body: some View {
         VStack(spacing: SettingsStyle.groupSpacing) {
@@ -29,15 +27,6 @@ struct SettingsTemplatesPane: View {
                         .settingsBreadcrumb("Settings › Templates")
                 }
             }
-
-            SettingsGroup(.todoTemplates) {
-                todoTemplatesRow
-            }
-        }
-        // TodoTemplatesView brings its own navigation stack and Done button,
-        // so it opens as a sheet here too, as it does from Todos.
-        .sheet(isPresented: $isShowingTodoTemplates) {
-            TodoTemplatesView()
         }
     }
 
@@ -64,29 +53,6 @@ struct SettingsTemplatesPane: View {
             destination()
         } label: {
             SettingsLinkRow(title: title, systemImage: "doc.on.doc", detail: Self.countText(count))
-        }
-        .buttonStyle(.plain)
-        #endif
-    }
-
-    @ViewBuilder
-    private var todoTemplatesRow: some View {
-        let count = statsViewModel.todoTemplatesCount
-        #if os(macOS)
-        HStack {
-            Text(Self.countText(count))
-                .foregroundStyle(.secondary)
-            Spacer()
-            Button("Manage to-do templates…") {
-                isShowingTodoTemplates = true
-            }
-            .buttonStyle(.bordered)
-        }
-        #else
-        Button {
-            isShowingTodoTemplates = true
-        } label: {
-            SettingsLinkRow(title: "Manage to-do templates", systemImage: "doc.on.doc", detail: Self.countText(count))
         }
         .buttonStyle(.plain)
         #endif

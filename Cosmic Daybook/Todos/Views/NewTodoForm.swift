@@ -30,15 +30,10 @@ struct NewTodoForm: View {
     @State private var notes = ""
     @State private var dueDate: Date?
     @State private var scheduledDate: Date?
-    @State private var isSomeday = false
-    @State private var priority: TodoPriority = .none
     @State private var recurrence: RecurrencePattern = .none
     @State private var repeatAfterCompletion = false
     @State private var customIntervalDays = 7
-    @State private var selectedTags: [String] = []
     @State private var selectedStudentIDs: Set<UUID> = []
-    @State private var subtaskTitles: [String] = []
-    @State private var newSubtaskTitle = ""
     @State private var estimatedHours = 0
     @State private var estimatedMinutes = 0
     @State private var isCreatingTodo = false
@@ -98,7 +93,7 @@ struct NewTodoForm: View {
                     TodoSchedulePickerButton(
                         scheduledDate: $scheduledDate,
                         dueDate: $dueDate,
-                        isSomeday: $isSomeday
+                        isSomeday: .constant(false)
                     )
                 }
 
@@ -116,52 +111,6 @@ struct NewTodoForm: View {
                 }
             }
 
-            // Priority
-            Section {
-                Picker("Priority", selection: $priority) {
-                    ForEach(TodoPriority.allCases, id: \.self) { p in
-                        HStack {
-                            Circle().fill(p.color).frame(width: 8, height: 8)
-                            Text(p.rawValue)
-                        }
-                        .tag(p)
-                    }
-                }
-            }
-
-            // Subtasks / Checklist
-            Section("Checklist") {
-                ForEach(subtaskTitles.indices, id: \.self) { index in
-                    HStack(spacing: 10) {
-                        Image(systemName: "circle")
-                            .font(.system(size: 16))
-                            .foregroundStyle(.secondary)
-                        Text(subtaskTitles[index])
-                            .font(AppTheme.ScaledFont.body)
-                        Spacer()
-                        Button {
-                            subtaskTitles.remove(at: index)
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 14))
-                                .foregroundStyle(.red.opacity(UIConstants.OpacityConstants.prominent))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-
-                HStack(spacing: 10) {
-                    Image(systemName: "plus.circle")
-                        .font(.system(size: 16))
-                        .foregroundStyle(Color.accentColor)
-                    TextField("Add subtask", text: $newSubtaskTitle)
-                        .font(AppTheme.ScaledFont.body)
-                        .onSubmit {
-                            addSubtask()
-                        }
-                }
-            }
-
             // Time Estimate
             Section("Time Estimate") {
                 HStack {
@@ -174,11 +123,6 @@ struct NewTodoForm: View {
                     }
                     .pickerStyle(.menu)
                 }
-            }
-
-            // Tags
-            Section("Tags") {
-                TagPicker(selectedTags: $selectedTags)
             }
 
             // Create
@@ -204,25 +148,15 @@ struct NewTodoForm: View {
         .saveErrorAlert()
     }
 
-    private func addSubtask() {
-        let trimmed = newSubtaskTitle.trimmed()
-        guard !trimmed.isEmpty else { return }
-        subtaskTitles.append(trimmed)
-        newSubtaskTitle = ""
-    }
-
     private func createTodo() {
         isCreatingTodo = true
         defer { isCreatingTodo = false }
-        // A checklist item typed but not yet entered with Return is kept.
-        addSubtask()
-
         let resolvedStudentIDs = resolveStudentIDs()
         let resolvedStudentNames = allStudents
             .filter { resolvedStudentIDs.contains($0.id ?? UUID()) }
             .map(\.fullName)
         let resolvedTags = TodoTagHelper.syncStudentTags(
-            existingTags: selectedTags,
+            existingTags: [],
             studentNames: resolvedStudentNames
         )
 
@@ -232,9 +166,7 @@ struct NewTodoForm: View {
         todo.studentIDsArray = resolvedStudentIDs.map(\.uuidString)
         todo.dueDate = dueDate
         todo.scheduledDate = scheduledDate
-        todo.priority = priority
         todo.recurrence = recurrence
-        todo.isSomeday = isSomeday
         todo.repeatAfterCompletion = repeatAfterCompletion
         if recurrence == .custom {
             todo.customIntervalDays = Int64(customIntervalDays)
@@ -247,21 +179,10 @@ struct NewTodoForm: View {
             todo.estimatedMinutes = Int64(totalEstimated)
         }
 
-        // Create subtasks
-        var subtasks: [CDTodoSubtask] = []
-        for (index, subtaskTitle) in subtaskTitles.enumerated() {
-            let subtask = CDTodoSubtask(context: viewContext)
-            subtask.title = subtaskTitle
-            subtask.orderIndex = Int64(index)
-            subtask.todo = todo
-            subtasks.append(subtask)
-        }
-
         guard dependencies.saveCoordinator.save(viewContext, reason: "Create todo") else {
             // The coordinator's alert says it didn't save; the form stays
             // open with what she typed, and the unsaved todo is taken back
             // so trying again doesn't make two.
-            subtasks.forEach(viewContext.delete)
             viewContext.delete(todo)
             return
         }

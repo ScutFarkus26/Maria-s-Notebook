@@ -1,8 +1,8 @@
 import Foundation
 import CoreData
 
-/// Copies EventKit's events and reminders onto the rows that mirror them,
-/// `CDCalendarEvent` and `CDReminder`, writing only what changed.
+/// Copies EventKit's events onto the rows that mirror them, `CDCalendarEvent`,
+/// writing only what changed. (Reminders sync was retired 2026-11-03.)
 ///
 /// A sync used to reassign every field of every row EventKit returned and
 /// stamp `lastSyncedAt = Date()` on each, so every sync saved every row it
@@ -21,126 +21,6 @@ enum EventKitMirror {
         var inserted = 0
         var updated = 0
         var deleted = 0
-    }
-
-    // MARK: - Reminders
-
-    /// Mirrors one fetch of a Reminders list: inserts rows for identifiers not
-    /// stored yet, updates stored rows that changed, and deletes stored rows of
-    /// this list that EventKit no longer returns.
-    ///
-    /// A reminder with no row of its own first takes over an unlinked copy of
-    /// itself, a row a restore brought back without its link, rather than
-    /// getting a second row beside it (`UnlinkedReminderPool`); that counts
-    /// as an update. Links stay this device's own: nothing is matched across
-    /// devices.
-    @discardableResult
-    static func reconcileReminders(
-        _ reminders: [ReminderSyncData], listID: String, in context: NSManagedObjectContext, now: Date
-    ) -> Outcome {
-        let stored = context.safeFetch(CDFetchRequest(CDReminder.self))
-        // Use uniquingKeysWith to handle potential duplicates from CloudKit sync
-        var storedByID = [String: CDReminder](
-            stored.compactMap { row in row.eventKitReminderID.map { ($0, row) } },
-            uniquingKeysWith: { first, _ in first }
-        )
-        var unlinked = UnlinkedReminderPool(stored)
-
-        var outcome = Outcome()
-        // An identifier EventKit repeats updated the same row each time, so
-        // the last entry is the one the row ended up holding. A row this pass
-        // inserts or takes over is filed too, so a repeat updates it rather
-        // than adding or taking another.
-        var latest: [String: (row: CDReminder, data: ReminderSyncData)] = [:]
-        for data in reminders {
-            let id = data.calendarItemIdentifier
-            if let row = storedByID[id] {
-                latest[id] = (row, data)
-            } else if let copy = unlinked.takeCopy(of: data) {
-                copy.eventKitReminderID = id
-                copy.eventKitCalendarID = listID
-                copy.lastSyncedAt = now
-                updateReminder(copy, from: data, now: now)
-                storedByID[id] = copy
-                outcome.updated += 1
-            } else {
-                storedByID[id] = insertReminder(data, listID: listID, in: context, now: now)
-                outcome.inserted += 1
-            }
-        }
-        for (row, data) in latest.values {
-            outcome.updated += updateReminder(row, from: data, now: now) ? 1 : 0
-        }
-
-        // Delete reminders that no longer exist in EventKit (orphan cleanup)
-        let currentIDs = Set(reminders.map(\.calendarItemIdentifier))
-        for row in stored {
-            if let ekID = row.eventKitReminderID,
-               !currentIDs.contains(ekID),
-               row.eventKitCalendarID == listID {
-                context.delete(row)
-                outcome.deleted += 1
-            }
-        }
-        return outcome
-    }
-
-    /// A new row for `data`, stamped `now`.
-    @discardableResult
-    static func insertReminder(
-        _ data: ReminderSyncData, listID: String, in context: NSManagedObjectContext, now: Date
-    ) -> CDReminder {
-        let reminder = CDReminder(context: context)
-        reminder.title = data.title
-        reminder.notes = data.notes
-        reminder.dueDate = data.dueDateComponents?.date
-        reminder.isCompleted = data.isCompleted
-        reminder.completedAt = data.completionDate
-        reminder.createdAt = data.creationDate ?? now
-        reminder.updatedAt = data.lastModifiedDate ?? now
-        reminder.eventKitReminderID = data.calendarItemIdentifier
-        reminder.eventKitCalendarID = listID
-        reminder.lastSyncedAt = now
-        return reminder
-    }
-
-    /// Copies `data` onto a stored row, assigning only the fields that differ,
-    /// and stamps `lastSyncedAt` when any did. Returns whether the row changed.
-    ///
-    /// A reminder EventKit reports no modification date for keeps the old
-    /// rule, `updatedAt` = the sync time, so that row is still rewritten on
-    /// every sync.
-    @discardableResult
-    static func updateReminder(_ reminder: CDReminder, from data: ReminderSyncData, now: Date) -> Bool {
-        var changed = false
-        if !isSameText(reminder.title, data.title) {
-            reminder.title = data.title
-            changed = true
-        }
-        if !isSameText(reminder.notes, data.notes) {
-            reminder.notes = data.notes
-            changed = true
-        }
-        let dueDate = data.dueDateComponents?.date
-        if !isSameInstant(reminder.dueDate, dueDate) {
-            reminder.dueDate = dueDate
-            changed = true
-        }
-        if reminder.isCompleted != data.isCompleted {
-            reminder.isCompleted = data.isCompleted
-            changed = true
-        }
-        if !isSameInstant(reminder.completedAt, data.completionDate) {
-            reminder.completedAt = data.completionDate
-            changed = true
-        }
-        let updatedAt = data.lastModifiedDate ?? now
-        if !isSameInstant(reminder.updatedAt, updatedAt) {
-            reminder.updatedAt = updatedAt
-            changed = true
-        }
-        if changed { reminder.lastSyncedAt = now }
-        return changed
     }
 
     // MARK: - Comparison

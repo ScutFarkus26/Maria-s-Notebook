@@ -59,33 +59,6 @@ extension BackupEntityImporter {
         })
     }
 
-    // MARK: - Todo Templates
-
-    static func importTodoTemplates(
-        _ dtos: [TodoTemplateDTO],
-        into viewContext: NSManagedObjectContext,
-        existing: ExistingLookup<CDTodoTemplate>
-    ) rethrows {
-        try importSimpleEntities(
-            dtos, into: viewContext,
-            existing: existing,
-            idExtractor: { $0.id },
-            entityBuilder: { dto, current in
-            let t = current ?? CDTodoTemplate(context: viewContext)
-            t.id = dto.id
-            t.name = dto.name
-            t.title = dto.title
-            t.notes = dto.notes
-            t.createdAt = dto.createdAt
-            t.priority = TodoPriority(rawValue: dto.priorityRaw) ?? .none
-            t.defaultEstimatedMinutes = Int64(dto.defaultEstimatedMinutes ?? 0)
-            t.defaultStudentIDs = dto.defaultStudentIDs as NSObject
-            t.useCount = Int64(dto.useCount)
-            t.tags = (dto.tags ?? []) as NSObject
-            return t
-        })
-    }
-
     // MARK: - Today Agenda Orders
 
     static func importTodayAgendaOrders(

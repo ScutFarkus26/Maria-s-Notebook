@@ -1,88 +1,76 @@
 // TodoListFilter.swift
-// Elegant full-screen todo list view inspired by Things and Bear
+// The Todos screen's lists.
 
 import SwiftUI
 
 // MARK: - Todo Filter
 
+/// The Todos screen's own lists (simplify round two, 2026-11-03). Tide is the
+/// to-do list; the notebook keeps what only it makes, the automatic work
+/// check-ins, plus the to-dos shared with Tide (by Tide list, in the sidebar's
+/// "From Tide" section), any typed here that haven't reached Tide yet, and
+/// what is done. "Not yet in Tide" shows only while it holds something, so
+/// nothing open is ever out of sight.
 enum TodoListFilter: String, CaseIterable, Identifiable {
-    case inbox
-    case today
-    case upcoming
-    case anytime
-    case someday
-    case completed
-    case all
+    case checkIns
+    case notInTide
+    case done
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .inbox: return "Inbox"
-        case .today: return "Today"
-        case .upcoming: return "Upcoming"
-        case .anytime: return "Anytime"
-        case .someday: return "Someday"
-        case .completed: return "Completed"
-        case .all: return "All"
+        case .checkIns: return "Check-ins"
+        case .notInTide: return "Not yet in Tide"
+        case .done: return "Done"
         }
     }
 
     var icon: String {
         switch self {
-        case .inbox: return "tray.fill"
-        case .today: return "star.fill"
-        case .upcoming: return "calendar"
-        case .anytime: return "clock"
-        case .someday: return "moon.zzz"
-        case .completed: return "checkmark.circle.fill"
-        case .all: return "list.bullet"
+        case .checkIns: return "arrow.triangle.2.circlepath"
+        case .notInTide: return "tray.fill"
+        case .done: return "checkmark.circle.fill"
         }
     }
 
     var color: Color {
         switch self {
-        case .inbox: return .blue
-        case .today: return .orange
-        case .upcoming: return .purple
-        case .anytime: return .gray
-        case .someday: return .brown
-        case .completed: return .green
-        case .all: return .primary
+        case .checkIns: return .orange
+        case .notInTide: return .blue
+        case .done: return .green
         }
     }
 
     var emptyMessage: String {
         switch self {
-        case .inbox: return "Your inbox is empty"
-        case .today: return "No tasks scheduled for today"
-        case .upcoming: return "No upcoming tasks"
-        case .anytime: return "No unscheduled tasks"
-        case .someday: return "No someday tasks"
-        case .completed: return "No completed tasks yet"
-        case .all: return "Add a task to get started"
+        case .checkIns: return "No check-ins waiting"
+        case .notInTide: return "Every to-do is in Tide"
+        case .done: return "Nothing done yet"
         }
     }
 
-    /// Whether `todo` belongs in this list on the day `today` falls on.
-    func matches(_ todo: CDTodoItem, today: Date = Date()) -> Bool {
+    /// Whether `todo` belongs in this list.
+    func matches(_ todo: CDTodoItem) -> Bool {
         switch self {
-        case .inbox:
-            return !todo.isCompleted && !todo.isSomeday && todo.tagsArray.isEmpty
-        case .today:
-            return !todo.isCompleted && !todo.isSomeday && Self.isDueOrPlanned(todo, by: today)
-        case .upcoming:
-            let hasDate = todo.scheduledDate != nil || todo.dueDate != nil
-            return !todo.isCompleted && !todo.isSomeday && hasDate && !Self.isDueOrPlanned(todo, by: today)
-        case .anytime:
-            return !todo.isCompleted && !todo.isSomeday && todo.scheduledDate == nil && todo.dueDate == nil
-        case .someday:
-            return !todo.isCompleted && todo.isSomeday
-        case .completed:
+        case .checkIns:
+            return !todo.isCompleted && hasLinkedWork(todo)
+        case .notInTide:
+            return !todo.isCompleted && !hasLinkedWork(todo) && todo.tideLink == nil
+        case .done:
             return todo.isCompleted
-        case .all:
-            return true
         }
+    }
+
+    /// A work check-in: a to-do the app made for a piece of work.
+    private func hasLinkedWork(_ todo: CDTodoItem) -> Bool {
+        !(todo.linkedWorkItemID ?? "").trimmed().isEmpty
+    }
+
+    /// Today's rule for a to-do: open, not parked, and planned or due by
+    /// `today` (the Today screen's to-do section reads it).
+    static func isOnToday(_ todo: CDTodoItem, today: Date = Date()) -> Bool {
+        !todo.isCompleted && !todo.isSomeday && isDueOrPlanned(todo, by: today)
     }
 
     /// Whether a todo's When date or its deadline falls on `today` or

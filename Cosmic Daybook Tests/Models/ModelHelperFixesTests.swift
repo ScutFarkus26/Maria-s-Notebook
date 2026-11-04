@@ -104,20 +104,6 @@ struct ModelHelperFixesTests {
         #expect(context.safeFetch(wholeClass).map(\.body) == ["Whole class went outside"])
     }
 
-    // MARK: - #46 A reminder's completion keeps its moment
-
-    @Test("Marking a reminder done stores the moment, not the start of the day")
-    func markCompletedStoresMoment() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let reminder = CDReminder(context: context)
-        let before = Date()
-        reminder.markCompleted()
-        let after = Date()
-        let completedAt = try #require(reminder.completedAt)
-        #expect(completedAt >= before && completedAt <= after)
-        #expect(reminder.isCompleted)
-    }
-
     // MARK: - #47 No birthday means no birthday
 
     @Test("A new student has no birthday until one is given")

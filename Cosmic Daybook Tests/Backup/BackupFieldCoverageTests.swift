@@ -489,14 +489,6 @@ final class BackupFieldCoverageTests {
         ),
         FieldSpec("MeetingTemplate"),
         FieldSpec(
-            "Reminder",
-            skips: [
-                "eventKitReminderID": eventKitReason,
-                "eventKitCalendarID": eventKitReason,
-                "lastSyncedAt": eventKitReason
-            ]
-        ),
-        FieldSpec(
             "CalendarEvent",
             skips: [
                 "eventKitEventID": eventKitReason,
@@ -591,11 +583,6 @@ final class BackupFieldCoverageTests {
                     + "notifications are rescheduled on the destination device",
                 "initiativeID": "orphaned schema: no @NSManaged accessor and no app usage"
             ]
-        ),
-        FieldSpec("TodoSubtask"),
-        FieldSpec(
-            "TodoTemplate",
-            overrides: ["priorityRaw": "Medium"]
         ),
         FieldSpec(
             "TodayAgendaOrder",

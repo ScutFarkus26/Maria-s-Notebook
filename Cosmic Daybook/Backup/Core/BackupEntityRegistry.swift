@@ -31,13 +31,13 @@ struct BackupEntityRegistry {
     /// there; cleared by a Replace restore, the device would forget the share
     /// it really has. So restore leaves the device's own rows as they are.
     ///
-    /// `Reminder` and `CalendarEvent` rows are copies of the device's EventKit
-    /// lists (`EventKitMirror` is their only writer), matched to them by
+    /// `CalendarEvent` rows are copies of the device's Apple Calendar
+    /// (`EventKitMirror` is their only writer), matched to it by
     /// EventKit identifiers a backup leaves out. Restored, each came back as
     /// a copy no sync could match, so the next sync added the real one again
     /// beside it; cleared, the next sync wrote every one again. So restore
     /// leaves them as they are and the next sync brings them up to date.
-    static let keptOnRestoreEntityNames: Set<String> = ["ClassroomMembership", "Reminder", "CalendarEvent"]
+    static let keptOnRestoreEntityNames: Set<String> = ["ClassroomMembership", "CalendarEvent"]
 
     /// Types a Replace restore updates as a Merge does, rather than clearing.
     ///

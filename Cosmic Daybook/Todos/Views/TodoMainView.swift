@@ -11,24 +11,16 @@ struct TodoMainView: View {
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.createdAt, ascending: false)])
     var allTodos: FetchedResults<CDTodoItem>
 
-    @State var selectedFilter: TodoListFilter? = .inbox
+    @State var selectedFilter: TodoListFilter? = .checkIns
     @State var searchText = ""
     @State var selectedTodo: CDTodoItem?
     @State private var isShowingNewTodo = false
-    @State private var isShowingTemplates = false
-    @State private var isShowingExport = false
     @State var sortBy: TodoSortOption = .dueDate
     @State var isSelectMode = false
     @State var selectedTodoIDs: Set<UUID> = []
-    @State var selectedTag: String?
-    @State var expandedTagGroups: Set<String> = [TodoTagHelper.studentTagParent]
-    @State var tagOrder: [String] = UserDefaults.standard.stringArray(forKey: UserDefaultsKeys.todoTagOrder) ?? []
     @AppStorage(UserDefaultsKeys.todoHideCompleted) var hideCompleted = false
-    @State var selectedFolder: String?
     /// A Tide list picked under "From Tide", by workspace path.
     @State var selectedTideList: String?
-    @State var isShowingNewFolder = false
-    @State var newFolderName = ""
     @State private var isShowingCompactList = false
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -36,9 +28,7 @@ struct TodoMainView: View {
 
     // PERF: Cached computed results to avoid recomputing on every body evaluation.
     // Refreshed via .onChange handlers when source data changes.
-    @State var cachedAllUsedTags: [String] = []
     @State var cachedFilterCounts: [TodoListFilter: Int] = [:]
-    @State var cachedTagCounts: [String: Int] = [:]
     /// Open shared to-dos per Tide list, by workspace path.
     @State var cachedTideListCounts: [String: Int] = [:]
 
@@ -46,15 +36,6 @@ struct TodoMainView: View {
         layout
             .sheet(isPresented: $isShowingNewTodo) {
                 newTodoSheet
-            }
-            .sheet(isPresented: $isShowingTemplates) {
-                TodoTemplatesView()
-            }
-            .sheet(isPresented: $isShowingExport) {
-                TodoExportView(todos: filteredTodos)
-            }
-            .sheet(isPresented: $isShowingNewFolder) {
-                newFolderSheet
             }
             .onAppear { refreshTagCaches() }
             .onReceive(
@@ -187,20 +168,6 @@ struct TodoMainView: View {
 
     private var moreMenu: some View {
         Menu {
-            Button {
-                isShowingTemplates = true
-            } label: {
-                Label("Templates", systemImage: "doc.on.doc")
-            }
-
-            Button {
-                isShowingExport = true
-            } label: {
-                Label("Export", systemImage: "square.and.arrow.up")
-            }
-
-            Divider()
-
             Button {
                 hideCompleted.toggle()
                 refreshTagCaches()

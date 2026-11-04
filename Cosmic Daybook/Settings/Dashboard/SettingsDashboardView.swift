@@ -227,7 +227,6 @@ struct SettingsDashboardView: View {
         let columns = Array(repeating: GridItem(.flexible(), spacing: AppTheme.Spacing.compact), count: columnCount)
         let aiReady = AIClientRouter.isAvailable
         let templates = statsViewModel.noteTemplatesCount + statsViewModel.meetingTemplatesCount
-            + statsViewModel.todoTemplatesCount
 
         return LazyVGrid(columns: columns, spacing: AppTheme.Spacing.compact) {
             DashboardStatusTile(

@@ -6,7 +6,7 @@
 // schedule, and the work gone quiet), the Needs-a-lesson card and
 // her todo list, then what she is
 // watching (ready-for-next, following presentations, recent observations),
-// then the external feeds she does not own (calendar, reminders), then the
+// then the external feeds she does not own (calendar), then the
 // monthly nudge, the pad, and last the retrospective of what is already done.
 // The iPad draws the same list, under the attendance band.
 //
@@ -66,7 +66,6 @@ extension TodayView {
         followingPresentationsListSection
         recentNotesListSection
         calendarEventsListSection
-        remindersListSection
         parentReportsListSection
         dayPadListSection
         doneTodayListSection
@@ -117,7 +116,6 @@ extension TodayView {
         followingPresentationsListSection
         recentNotesListSection
         calendarEventsListSection
-        remindersListSection
         parentReportsListSection
         dayPadListSection
         doneTodayListSection

@@ -87,16 +87,13 @@ struct SettingsAttentionTests {
         #expect(SettingsAttentionItem.carriedOverPlans(1).title == "1 year-plan target carried over")
     }
 
-    @Test("Lost Calendar or Reminders access is one row naming what's off")
+    @Test("Lost Calendar access is one row naming what's off")
     func connections() {
         var inputs = calm
-        inputs.remindersAccessLost = true
-        let reminders = SettingsAttention.items(for: inputs, now: now)
-        #expect(reminders == [.connectionAccessLost(calendar: false, reminders: true)])
         inputs.calendarAccessLost = true
-        let both = SettingsAttention.items(for: inputs, now: now)
-        #expect(both == [.connectionAccessLost(calendar: true, reminders: true)])
-        #expect(both.first?.title == "Calendar and Reminders access is off")
+        let lost = SettingsAttention.items(for: inputs, now: now)
+        #expect(lost == [.connectionAccessLost])
+        #expect(lost.first?.title == "Apple Calendar access is off")
     }
 
     @Test("Access counts as lost only for a connection that was set up")

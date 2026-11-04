@@ -4,7 +4,7 @@ import Testing
 
 /// Bug hunt 2026-10-17, #30: the EventKit sync services are process-wide and
 /// each read through a graph pointed them at that graph's store, so opening
-/// Today in the Sample Class copied the real Reminders and Calendar into the
+/// Today in the Sample Class copied the real Calendar (and Reminders, until 2026-11) into the
 /// practice store, and EventKit changes kept landing there back in My Class.
 /// A Sample Class graph hands out the same services but never moves them.
 ///
@@ -25,15 +25,11 @@ struct AppDependenciesFix1017StTests {
         #expect(!primary.isSampleClassroom)
         #expect(sample.isSampleClassroom)
 
-        _ = primary.reminderSync
         _ = primary.calendarSync
         // The same objects, so Today's status lines still read the real ones…
-        #expect(sample.reminderSync === ReminderSyncService.shared)
         #expect(sample.calendarSync === CalendarSyncService.shared)
         // …still on My Class's store after the Sample Class read them.
-        #expect(ReminderSyncService.shared.managedObjectContext === primary.viewContext)
         #expect(CalendarSyncService.shared.managedObjectContext === primary.viewContext)
-        #expect(ReminderSyncService.shared.managedObjectContext !== sample.viewContext)
         #expect(CalendarSyncService.shared.managedObjectContext !== sample.viewContext)
     }
 
@@ -41,8 +37,7 @@ struct AppDependenciesFix1017StTests {
     func myClassGraphsStillRebind() throws {
         let sample = try sampleDependencies()
         let primary = try CoreDataTestHelpers.makeDependencies()
-        _ = sample.reminderSync
-        #expect(primary.reminderSync.managedObjectContext === primary.viewContext)
+        _ = sample.calendarSync
         #expect(primary.calendarSync.managedObjectContext === primary.viewContext)
     }
 }

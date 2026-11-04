@@ -45,7 +45,7 @@ struct TodoRowCard: View {
     private var rowLabel: some View {
         HStack(spacing: 0) {
             TodoRowComponents.priorityEdge(
-                priority: todo.priority,
+                priority: .none,
                 trailingPadding: 11,
                 gutterWidth: 14
             )
@@ -74,9 +74,6 @@ struct TodoRowCard: View {
             }
 
             Spacer(minLength: 8)
-
-            // Subtask count
-            TodoRowComponents.subtaskProgressChip(todo: todo, iconSize: 11)
         }
         .padding(.trailing, 16)
         .padding(.vertical, 12)
@@ -147,12 +144,6 @@ struct TodoRowCard: View {
             Label("Edit", systemImage: "pencil")
         }
 
-        Button {
-            togglePriority()
-        } label: {
-            Label("Change Priority", systemImage: "flag")
-        }
-
         Divider()
 
         Menu("Move to...") {
@@ -174,12 +165,6 @@ struct TodoRowCard: View {
             } label: {
                 Label("Next Week", systemImage: "calendar.badge.plus")
             }
-            Button {
-                TodoScheduling.moveToSomeday(todo)
-                persist()
-            } label: {
-                Label("Someday", systemImage: "moon.zzz")
-            }
             Divider()
             Button {
                 TodoScheduling.removeDates(todo)
@@ -196,16 +181,6 @@ struct TodoRowCard: View {
         } label: {
             Label("Delete", systemImage: "trash")
         }
-    }
-
-    private func togglePriority() {
-        switch todo.priority {
-        case .none: todo.priority = .low
-        case .low: todo.priority = .medium
-        case .medium: todo.priority = .high
-        case .high: todo.priority = .none
-        }
-        viewContext.safeSave()
     }
 
     @ViewBuilder

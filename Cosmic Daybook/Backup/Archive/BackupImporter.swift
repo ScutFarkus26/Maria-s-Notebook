@@ -185,12 +185,14 @@ enum BackupImporter {
     /// Decodes one entity entry into its `BackupPayload` field, every row with
     /// that entity's DTO type. Returns the warning to surface when the entry is
     /// skipped — an entity this version does not know, or a row that does not
-    /// decode (then the field keeps what it held) — and nil when it decoded.
+    /// decode (then the field keeps what it held) — and nil when it decoded
+    /// or is a retired type left behind quietly (`BackupEntityTable.skippedOnImport`).
     nonisolated static func decode(
         _ entry: BackupEntityEntry,
         into payload: inout BackupPayload,
         using decoder: JSONDecoder
     ) -> String? {
+        if BackupEntityTable.skippedOnImport.contains(entry.entityName) { return nil }
         guard let entityDecoder = entityDecoders[entry.entityName] else {
             return unknownEntityWarning(entry.entityName)
         }
@@ -212,6 +214,7 @@ enum BackupImporter {
         using decoder: JSONDecoder,
         _ visit: (any Sendable) -> Void
     ) -> String? {
+        if BackupEntityTable.skippedOnImport.contains(entry.entityName) { return nil }
         guard let entityDecoder = entityDecoders[entry.entityName] else {
             return unknownEntityWarning(entry.entityName)
         }

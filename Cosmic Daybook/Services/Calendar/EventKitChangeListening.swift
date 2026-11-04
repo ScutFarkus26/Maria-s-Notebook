@@ -1,9 +1,10 @@
 import Foundation
 
-/// Whether the reminders mirror listens for `.EKEventStoreChanged`.
+/// Whether the calendar mirror listens for `.EKEventStoreChanged`.
 ///
 /// Danny decided (2026-09-25) that a configured list EventKit no longer has
-/// pauses listening. With 'Girls Class Reminders' gone, every refresh of the
+/// pauses listening. The rule began with the Reminders mirror (retired
+/// 2026-11-03); the calendar mirror keeps it. With 'Girls Class Reminders' gone, every refresh of the
 /// calendar daemon re-ran the failing sync: 39 attempts a day on the Mac, each
 /// walking the lists, redrawing Today and Settings, and adding two Sync
 /// History rows. The pause lasts until the list setting changes (listening
@@ -12,7 +13,7 @@ import Foundation
 /// the error stays on show as before. Calendar sync pauses the same way when
 /// none of its chosen calendars can be found (2026-10-17 hunt, #12), so
 /// "list" here is also the choice of calendars.
-nonisolated struct ReminderChangeListening: Equatable, Sendable {
+nonisolated struct EventKitChangeListening: Equatable, Sendable {
     /// True from a "list not found" until the setting changes or the list turns up.
     private(set) var isPaused = false
 

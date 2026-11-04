@@ -29,26 +29,6 @@ struct EditTodoForm: View {
 
             scheduleSection
 
-            Section("Organization") {
-                Picker("Priority", selection: $todo.priority) {
-                    ForEach(TodoPriority.allCases, id: \.self) { p in
-                        HStack {
-                            Circle().fill(priorityColorForPicker(p)).frame(width: 8, height: 8)
-                            Text(p.rawValue)
-                        }
-                        .tag(p)
-                    }
-                }
-
-            }
-
-            Section("Tags") {
-                TagPicker(selectedTags: Binding(
-                    get: { todo.tagsArray },
-                    set: { todo.tagsArray = $0 }
-                ))
-            }
-
             Section {
                 // Through `TodoCompletionService`, like every other tick: the
                 // completion date, a repeat's next occurrence, and taking it
@@ -79,8 +59,6 @@ struct EditTodoForm: View {
         .onChange(of: todo.title) { _, _ in saveTodoChanges() }
         .onChange(of: todo.notes) { _, _ in saveTodoChanges() }
         .onChange(of: todo.dueDate) { _, _ in saveTodoChanges() }
-        .onChange(of: todo.priority) { _, _ in saveTodoChanges() }
-        .onChange(of: todo.tags) { _, _ in saveTodoChanges() }
         .onChange(of: todo.isCompleted) { _, _ in saveTodoChanges() }
         .onChange(of: todo.recurrenceRaw) { _, _ in saveTodoChanges() }
         // The When popover and the repeat settings write straight to the todo too;
@@ -134,15 +112,6 @@ struct EditTodoForm: View {
     /// The custom interval as it repeats (`TodoRepeatRule.intervalDays`).
     private var customInterval: Int {
         todo.customIntervalDays > 0 ? Int(todo.customIntervalDays) : TodoRepeatRule.defaultCustomIntervalDays
-    }
-
-    private func priorityColorForPicker(_ priority: TodoPriority) -> Color {
-        switch priority {
-        case .none: return .gray
-        case .low: return .blue
-        case .medium: return .orange
-        case .high: return .red
-        }
     }
 
     private func formatCompletedDate(_ date: Date) -> String {

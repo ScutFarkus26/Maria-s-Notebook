@@ -13,63 +13,6 @@ struct SameSourceMergeTests {
     private let early = Date(timeIntervalSince1970: 1_780_000_000)
     private let late = Date(timeIntervalSince1970: 1_790_000_000)
 
-    // MARK: - Reminders
-
-    @Test("Reminders mirroring one EventKit reminder fold onto the oldest, keeping every note")
-    func remindersFoldByEventKitID() throws {
-        let stack = try CoreDataTestHelpers.makeInMemoryStack()
-        let ctx = stack.viewContext
-
-        let original = CDReminder(context: ctx)
-        original.title = "Order beads"
-        original.eventKitReminderID = "EK-1"
-        original.createdAt = early
-        original.lastSyncedAt = early
-
-        let mirrorCopy = CDReminder(context: ctx)
-        mirrorCopy.title = "Order golden beads"
-        mirrorCopy.isCompleted = true
-        mirrorCopy.eventKitReminderID = "EK-1"
-        mirrorCopy.createdAt = late
-        mirrorCopy.lastSyncedAt = late
-        let note = CDNote(context: ctx)
-        note.body = "Ask the office"
-        note.reminder = mirrorCopy
-
-        let other = CDReminder(context: ctx)
-        other.eventKitReminderID = "EK-2"
-        let notMirrored = CDReminder(context: ctx)
-        notMirrored.eventKitReminderID = nil
-        let alsoNotMirrored = CDReminder(context: ctx)
-        alsoNotMirrored.eventKitReminderID = nil
-        #expect(CoreDataTestHelpers.save(ctx))
-
-        let removed = DataCleanupService.mergeSameEventKitReminders(using: ctx, container: nil)
-
-        #expect(removed == 1)
-        let rows = ctx.safeFetch(CDFetchRequest(CDReminder.self))
-        #expect(rows.count == 4)
-        let survivor = try #require(rows.first { $0.eventKitReminderID == "EK-1" })
-        #expect(survivor.objectID == original.objectID)
-        // The copy synced more recently, so its mirrored fields win.
-        #expect(survivor.title == "Order golden beads")
-        #expect(survivor.isCompleted)
-        #expect(note.reminder?.objectID == original.objectID)
-    }
-
-    @Test("Reminders with distinct EventKit ids are left alone")
-    func distinctRemindersUntouched() throws {
-        let stack = try CoreDataTestHelpers.makeInMemoryStack()
-        let ctx = stack.viewContext
-        for index in 0..<3 {
-            CDReminder(context: ctx).eventKitReminderID = "EK-\(index)"
-        }
-        #expect(CoreDataTestHelpers.save(ctx))
-
-        #expect(DataCleanupService.mergeSameEventKitReminders(using: ctx, container: nil) == 0)
-        #expect(ctx.safeFetch(CDFetchRequest(CDReminder.self)).count == 3)
-    }
-
     // MARK: - Calendar events
 
     @Test("Events fold on identifier and start; other occurrences of a recurring event stay")
@@ -178,14 +121,16 @@ struct SameSourceMergeTests {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
         let ctx = stack.viewContext
         for _ in 0..<2 {
-            CDReminder(context: ctx).eventKitReminderID = "EK-1"
+            let row = CDMeetingTemplate(context: ctx)
+            row.name = "Standard Student Meeting"
+            row.reflectionPrompt = "How has your work been going?"
         }
         #expect(CoreDataTestHelpers.save(ctx))
 
         let results = DataCleanupService.deduplicateAllModels(using: ctx)
 
-        #expect(results["Reminder (same EventKit item)"] == 1)
-        #expect(ctx.safeFetch(CDFetchRequest(CDReminder.self)).count == 1)
+        #expect(results["MeetingTemplate (identical)"] == 1)
+        #expect(ctx.safeFetch(CDFetchRequest(CDMeetingTemplate.self)).count == 1)
     }
 }
 

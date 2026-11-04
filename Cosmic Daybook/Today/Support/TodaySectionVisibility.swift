@@ -2,8 +2,9 @@
 // The single rule that decides which Today sections the guide sees.
 //
 // Today used to render every section it owns whether or not the section had
-// anything in it: the reminders section arrived each morning holding forty-one
-// undated Apple Reminders from last year, the day pad announced itself while
+// anything in it: the reminders section (retired 2026-11-03) arrived each
+// morning holding forty-one undated Apple Reminders from last year, the day
+// pad announced itself while
 // the pad was empty, the parent-report nudge stayed up for three weeks after
 // the cycle closed. A screen that always looks the same tells the guide
 // nothing, so she stopped reading it.
@@ -38,7 +39,6 @@ enum TodaySection: String, CaseIterable, Sendable {
     case followingPresentations
     case recentNotes
     case calendarEvents
-    case reminders
     case parentReports
     case dayPad
     case doneToday
@@ -83,22 +83,6 @@ enum TodaySectionVisibility {
 
     /// The retrospective roll-up (lessons presented, work checked, meetings held).
     static func showsDoneToday(total: Int) -> Bool { total > 0 }
-
-    // MARK: Reminders
-
-    /// Reminders show when *any* bucket has something, including the undated
-    /// ones — they are still hers, they just do not belong on the fold — and
-    /// when the last sync failed, so the warning still has somewhere to show
-    /// when the failure is why nothing arrived (bug hunt 2026-10-12, #51).
-    static func showsReminders(overdue: Int, dueToday: Int, anytime: Int, syncFailed: Bool = false) -> Bool {
-        overdue > 0 || dueToday > 0 || anytime > 0 || syncFailed
-    }
-
-    /// The undated pile sits behind a disclosure that is offered only when
-    /// there is a pile. Whether it is *open* is the guide's stored choice
-    /// (`UserDefaultsKeys.todayAnytimeRemindersExpanded`), not this rule's
-    /// business — an anytime-only day still opens collapsed.
-    static func showsAnytimeDisclosure(anytime: Int) -> Bool { anytime > 0 }
 
     // MARK: Day pad
 
@@ -156,7 +140,6 @@ enum TodaySectionVisibility {
         .followingPresentations,
         .recentNotes,
         .calendarEvents,
-        .reminders,
         .parentReports,
         .dayPad,
         .doneToday

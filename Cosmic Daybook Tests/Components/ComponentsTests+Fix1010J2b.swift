@@ -76,7 +76,7 @@ struct ToastHandOffFix1010J2bTests {
 @Suite("Tag rename reaches every tagged row (Fix1010J2b)")
 @MainActor
 struct TagRenameFix1010J2bTests {
-    @Test("Renaming a tag changes it on todos, todo templates and resources")
+    @Test("Renaming a tag changes it on todos and resources")
     func renameReachesTemplatesAndResources() throws {
         let context = try CoreDataTestHelpers.makeContext()
         let old = TodoTagHelper.createTag(name: "Art", color: .blue)
@@ -85,8 +85,6 @@ struct TagRenameFix1010J2bTests {
 
         let todo = CDTodoItem(context: context)
         todo.tagsArray = [old, other]
-        let template = CDTodoTemplate(context: context)
-        template.tagsArray = [old]
         let resource = CDResource(context: context)
         resource.tagsArray = [other, old]
         let untouched = CDResource(context: context)
@@ -94,9 +92,8 @@ struct TagRenameFix1010J2bTests {
 
         let changed = TagRename.rename(old, to: new, in: context)
 
-        #expect(changed == 3)
+        #expect(changed == 2)
         #expect(todo.tagsArray == [new, other])
-        #expect(template.tagsArray == [new])
         #expect(resource.tagsArray == [other, new])
         #expect(untouched.tagsArray == [other])
     }

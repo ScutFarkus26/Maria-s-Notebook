@@ -240,11 +240,4 @@ struct MCPToolsFix1012ReviewB2Tests {
         #expect(text.contains("left"))
     }
 
-    @Test("list_reminders' description says only the synced list is shown")
-    func listRemindersDescriptionNamesTheSyncedList() throws {
-        let (tools, _) = try Fixture.makeTools()
-        let text = try Fixture.tool(named: "list_reminders", in: tools).description
-        #expect(text.contains("the one Reminders list chosen in Settings"))
-    }
-
 }

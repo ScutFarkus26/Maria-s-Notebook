@@ -109,15 +109,13 @@ struct SettingsStatsViewModelTests {
         _ = CDNoteTemplate(context: context)
         _ = CDNoteTemplate(context: context)
         _ = CDMeetingTemplate(context: context)
-        _ = CDTodoTemplateEntity(context: context)
 
         let stats = SettingsStatsViewModel()
         stats.loadCounts(context: context)
 
         #expect(stats.noteTemplatesCount == 2)
         #expect(stats.meetingTemplatesCount == 1)
-        #expect(stats.todoTemplatesCount == 1)
-        #expect(stats.total(of: .library) == 4)
+        #expect(stats.total(of: .library) == 3)
     }
 
     /// A class the model names differently (`@objc(TodoItemEntity)`), or a name

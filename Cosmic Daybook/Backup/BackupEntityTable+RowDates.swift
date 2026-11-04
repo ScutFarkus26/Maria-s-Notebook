@@ -33,7 +33,6 @@ nonisolated extension PracticeSessionDTO: BackupRowDTO { var rowModifiedAt: Date
 nonisolated extension LessonPresentationDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension SampleWorkDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension NoteTemplateDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension ReminderDTO: BackupRowDTO { var rowModifiedAt: Date? { updatedAt } }
 nonisolated extension CalendarEventDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension SequenceTrackDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension DocumentDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
@@ -48,7 +47,6 @@ nonisolated extension TodoItemDTO: BackupRowDTO {
     /// When the backup's to-do was done; nil when it wasn't.
     var rowCompletedAt: Date? { isCompleted ? completedAt : nil }
 }
-nonisolated extension TodoTemplateDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension TodayAgendaOrderDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension PlanningRecommendationDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
 nonisolated extension ResourceDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
@@ -98,12 +96,12 @@ nonisolated enum BackupMergeRule {
 
     /// The entities whose records carry an `updatedAt` that every edit sets
     /// and no `modifiedAt`: notes (the editor, the repository, quick capture
-    /// and every other writer set it) and the mirrored Apple reminders.
+    /// and every other writer set it).
     /// Other dates were checked and left out: a work record's
     /// `lastTouchedAt` isn't set by every edit (the work editor leaves it,
     /// and some paths clear it), and a presentation's `followUpUpdatedAt`
     /// dates only its follow-up.
-    static let updatedAtEntityNames: Set<String> = ["Note", "Reminder"]
+    static let updatedAtEntityNames: Set<String> = ["Note"]
 
     /// The entities whose done date a Merge stands by: a to-do done here
     /// is never reopened by a backup row that isn't done, or was done

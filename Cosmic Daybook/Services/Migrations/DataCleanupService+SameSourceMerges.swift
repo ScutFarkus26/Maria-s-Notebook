@@ -9,11 +9,11 @@ import CoreData
 // receiving (2026-09-28: +33 reminders, +8 calendar events and +7 templates
 // from one reset, on top of ~120 template copies from earlier ones):
 //
-// - Reminders and calendar events are mirrors of Apple items. The EventKit
-//   mirror inserted its own row for every item before the download brought
-//   the old one down. One EventKit reminder is one row; a calendar event
-//   keeps one row per occurrence (a recurring event reports one identifier for
-//   all of them), so events fold on identifier + start.
+// - Calendar events are mirrors of Apple items. The EventKit mirror inserted
+//   its own row for every item before the download brought the old one down.
+//   A calendar event keeps one row per occurrence (a recurring event reports
+//   one identifier for all of them), so events fold on identifier + start.
+//   (Reminders were folded the same way until their sync retired 2026-11-03.)
 // - Templates were seeded into the empty store beside the notebook's own
 //   copies still on their way down. They fold only when every field a guide
 //   can edit matches, so a copy someone changed is left alone.
@@ -25,34 +25,6 @@ import CoreData
 // rows on every dedup pass.
 
 nonisolated extension DataCleanupService {
-
-    /// Folds reminders mirroring one EventKit reminder onto one row, keeping
-    /// every note attached to any of them.
-    static func mergeSameEventKitReminders(
-        using context: NSManagedObjectContext,
-        container: NSPersistentCloudKitContainer?
-    ) -> Int {
-        let key: (CDReminder) -> String? = { $0.eventKitReminderID }
-        let prekey: ([String: Any]) -> String? = { $0["eventKitReminderID"] as? String }
-        guard hasCollisions(CDReminder.self, columns: ["eventKitReminderID"], key: prekey, in: context) else {
-            return 0
-        }
-        let fetch = CDFetchRequest(CDReminder.self)
-        fetch.predicate = NSPredicate(format: "eventKitReminderID != nil")
-        return fold(context.safeFetch(fetch), by: key, container: container, in: context) { canonical, duplicate in
-            mergeReminder(canonical: canonical, duplicate: duplicate)
-            if isFresher(duplicate.lastSyncedAt, than: canonical.lastSyncedAt) {
-                canonical.title = duplicate.title
-                canonical.notes = duplicate.notes
-                canonical.dueDate = duplicate.dueDate
-                canonical.isCompleted = duplicate.isCompleted
-                canonical.completedAt = duplicate.completedAt
-                canonical.updatedAt = duplicate.updatedAt
-                canonical.eventKitCalendarID = duplicate.eventKitCalendarID
-                canonical.lastSyncedAt = duplicate.lastSyncedAt
-            }
-        }
-    }
 
     /// Folds calendar events mirroring the same occurrence of one EventKit
     /// event — same identifier, same start to the millisecond.

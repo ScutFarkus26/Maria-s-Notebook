@@ -93,9 +93,6 @@ final class BackupRestoreRun {
     /// The albums the backup's bookmarks, page notes, highlights, ink and
     /// reading positions belong to, for the reattach warning.
     var albumIDs = Set<String>()
-    /// Notes the backup links to a reminder this device doesn't have, for the
-    /// summary: reminders aren't restored, so those links stay off.
-    var notesMissingTheirReminder = 0
 
     init(source: any BackupRestoreSource, context: NSManagedObjectContext, mode: BackupService.RestoreMode) {
         self.source = source

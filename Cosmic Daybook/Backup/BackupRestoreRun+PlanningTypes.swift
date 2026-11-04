@@ -1,5 +1,5 @@
 // BackupRestoreRun+PlanningTypes.swift
-// The restore order, second part: templates, reminders and calendar events,
+// The restore order, second part: templates and calendar events,
 // tracks, documents and supplies, schedules, issues, snapshots and todos,
 // recommendations, resources and note-student links.
 
@@ -27,11 +27,9 @@ extension BackupRestoreRun {
             )
         }
 
-        // Reminders and calendar events are copies of the device's EventKit
-        // lists, carried but never restored
-        // (`BackupEntityRegistry.keptOnRestoreEntityNames`): the next sync
-        // rebuilds them. Taking them still frees them in type order.
-        _ = try rows(\.reminders)
+        // Calendar events are copies of the device's Apple Calendar, carried
+        // but never restored (`BackupEntityRegistry.keptOnRestoreEntityNames`):
+        // the next sync rebuilds them. Taking them still frees them in type order.
         _ = try rows(\.calendarEvents)
     }
 
@@ -160,22 +158,6 @@ extension BackupRestoreRun {
                 todoItems,
                 into: viewContext,
                 existing: { try index.existing(CDTodoItem.self, id: $0) }
-            )
-        }
-
-        if let todoSubtasks = try rows(\.todoSubtasks) {
-            BackupEntityImporter.importRows(
-                todoSubtasks, as: CDTodoSubtask.self, into: viewContext,
-                existing: { try index.existing(CDTodoSubtask.self, id: $0) },
-                parents: ["todo": { try index.related(CDTodoItem.self, id: $0) }]
-            )
-        }
-
-        if let todoTemplates = try rows(\.todoTemplates) {
-            try BackupEntityImporter.importTodoTemplates(
-                todoTemplates,
-                into: viewContext,
-                existing: { try index.existing(CDTodoTemplate.self, id: $0) }
             )
         }
 

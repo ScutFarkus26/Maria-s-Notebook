@@ -174,18 +174,16 @@ struct EventKitMirrorEventTests {
     @Test("Rows an idle sync rewrites: every returned row with the old copy, none now")
     func idleSyncRowCounts() throws {
         let events = (0..<40).map { Fixture.occurrence("e\($0)", day: $0 % 30) }
-        let reminders = (0..<25).map { Fixture.reminder("r\($0)", modified: Fixture.firstSync) }
 
         let legacyContext = try CoreDataTestHelpers.makeContext()
-        Fixture.legacySync(events: events, reminders: reminders, in: legacyContext, now: Fixture.firstSync)
+        Fixture.legacySync(events: events, in: legacyContext, now: Fixture.firstSync)
         #expect(legacyContext.safeSave())
-        Fixture.legacySync(events: events, reminders: reminders, in: legacyContext, now: Fixture.secondSync)
-        #expect(legacyContext.updatedObjects.count == 65)
+        Fixture.legacySync(events: events, in: legacyContext, now: Fixture.secondSync)
+        #expect(legacyContext.updatedObjects.count == 40)
 
         let mirrorContext = try CoreDataTestHelpers.makeContext()
         for now in [Fixture.firstSync, Fixture.secondSync] {
             EventKitMirror.reconcileEvents(events, from: Fixture.schoolFetch, in: mirrorContext, now: now)
-            EventKitMirror.reconcileReminders(reminders, listID: "list", in: mirrorContext, now: now)
             if now == Fixture.firstSync { #expect(mirrorContext.safeSave()) }
         }
         #expect(mirrorContext.updatedObjects.isEmpty)

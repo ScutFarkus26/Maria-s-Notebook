@@ -48,30 +48,6 @@ final class AppBootstrapper {
         performEarlySetup(context: context)
         LaunchSignposts.end("EarlySetup", earlySetup)
 
-        // 4. Initialize CDReminder Sync Service (macOS only)
-        #if os(macOS)
-        let reminderStart = Date()
-        ReminderSyncService.shared.managedObjectContext = context
-        // Perform initial sync only if the user has configured a sync list in Settings.
-        // No default list is seeded — sync stays off until explicitly configured.
-        if ReminderSyncService.shared.syncListIdentifier != nil || ReminderSyncService.shared.syncListName != nil {
-            Task {
-                do {
-                    try await ReminderSyncService.shared.syncReminders()
-                    Self.logger.info("Bootstrap: Initial reminder sync completed")
-                } catch let error as ReminderSyncError where error.isConfigurationIssue {
-                    // Stale or missing configuration (e.g. the list was deleted in
-                    // Reminders) — surfaced in Settings, not an app failure.
-                    Self.logger.notice("Bootstrap: Initial reminder sync skipped: \(error.localizedDescription)")
-                } catch {
-                    Self.logger.error("Bootstrap: Initial reminder sync failed: \(error)")
-                }
-            }
-        }
-        let remElapsed = Self.formatSeconds(Date().timeIntervalSince(reminderStart))
-        Self.logger.info("Bootstrap: Reminder setup completed in \(remElapsed)")
-        #endif
-        
         // 5. Signal UI (allow first render; heavy migrations continue in background)
         let routerStart = Date()
         AppRouter.shared.refreshPlanningInbox()

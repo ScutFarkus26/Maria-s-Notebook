@@ -17,25 +17,16 @@ struct TodayFix1017StTests {
 
     // MARK: - #30 Sample Class
 
-    @Test("In the Sample Class, Today's syncs and its reminder write-back do nothing")
-    func sampleClassLeavesEventKitAlone() async throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let reminder = CDReminder(context: context)
-        reminder.title = "Call the office"
-        reminder.eventKitReminderID = "real-reminder"
-
+    @Test("In the Sample Class, Today's calendar sync does nothing")
+    func sampleClassLeavesEventKitAlone() async {
         for isSample in [true, false] {
             let calls = Calls()
             let sync = TodayEventKitSync(
                 isSampleClassroom: isSample,
-                reminders: { calls.names.append("reminders") },
-                calendar: { calls.names.append("calendar") },
-                writeBack: { _ in calls.names.append("writeBack") }
+                calendar: { calls.names.append("calendar") }
             )
-            await sync.syncReminders()
             await sync.syncCalendarEvents()
-            await sync.writeBackCompletion(of: reminder)
-            #expect(calls.names == (isSample ? [] : ["reminders", "calendar", "writeBack"]), "sample: \(isSample)")
+            #expect(calls.names == (isSample ? [] : ["calendar"]), "sample: \(isSample)")
         }
     }
 

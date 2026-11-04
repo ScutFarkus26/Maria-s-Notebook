@@ -74,14 +74,14 @@ final class CalendarSyncService {
     private let storeChangeObserver = EventKitChangeObserver()
 
     /// Paused while none of the chosen calendars can be found, the rule
-    /// Reminders has for a missing list (`ReminderChangeListening`): until
+    /// Reminders had for a missing list (`EventKitChangeListening`): until
     /// the choice of calendars changes or a sync finds them, an EventKit
     /// change would only re-run the same failing sync, adding two Sync
     /// History rows and a fresh error on Today each time (2026-10-17 hunt,
     /// #12). Listening goes on while paused, but a change only looks for the
     /// calendars (`handleEventStoreChanged`): stopping the observer missed
     /// the change that brought them back (review (b) 2026-10-17, #6).
-    @ObservationIgnored private var changeListening = ReminderChangeListening()
+    @ObservationIgnored private var changeListening = EventKitChangeListening()
     /// Calendar's calendar identifiers on this device; tests supply their own.
     @ObservationIgnored var calendarIdentifiersOnDevice: (() -> [String])?
 

@@ -5,7 +5,6 @@ import Foundation
 
 enum TodoSortOption: String, CaseIterable, Identifiable {
     case dueDate = "Due Date"
-    case priority = "Priority"
     case title = "Title"
     case created = "Created"
 

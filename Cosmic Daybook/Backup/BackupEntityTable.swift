@@ -158,6 +158,12 @@ nonisolated enum BackupEntityTable {
     /// Every entity name, in archive order.
     static var names: [String] { entities.map(\.name) }
 
+    /// Types older backups carry that are no longer written or restored: Apple
+    /// Reminders copies, to-do subtasks and to-do templates, retired in
+    /// Simplify round two (`CoreDataStack.retiredEntities`). A restore passes
+    /// over their entries without a warning; the records already here stay.
+    static let skippedOnImport: Set<String> = ["Reminder", "TodoSubtask", "TodoTemplate"]
+
     /// The type whose rows `field` holds, or nil for a payload array no
     /// backed-up type fills (the retired project types).
     static func entity(for field: AnyKeyPath) -> BackupEntity? {
@@ -250,7 +256,6 @@ nonisolated enum BackupEntityTable {
             announcing: .init(0.55, "Collecting templates & tracks\u{2026}")
         ),
         .optional("MeetingTemplate", CDMeetingTemplate.self, \.meetingTemplates, MeetingTemplateDTO.rows),
-        .optional("Reminder", CDReminder.self, \.reminders, BackupDTOTransformers.toDTOs),
         .optional("CalendarEvent", CDCalendarEvent.self, \.calendarEvents, BackupDTOTransformers.toDTOs),
         .optional("Track", CDTrackEntity.self, \.tracks, TrackDTO.rows),
         .optional("TrackStep", CDTrackStep.self, \.trackSteps, TrackStepDTO.rows),
@@ -278,8 +283,6 @@ nonisolated enum BackupEntityTable {
             announcing: .init(0.75, "Collecting snapshots & todos\u{2026}")
         ),
         .optional("TodoItem", CDTodoItem.self, \.todoItems, BackupDTOTransformers.toDTOs),
-        .optional("TodoSubtask", CDTodoSubtask.self, \.todoSubtasks, TodoSubtaskDTO.rows),
-        .optional("TodoTemplate", CDTodoTemplate.self, \.todoTemplates, BackupDTOTransformers.toDTOs),
         .optional("TodayAgendaOrder", CDTodayAgendaOrder.self, \.todayAgendaOrders, BackupDTOTransformers.toDTOs),
         .optional(
             "PlanningRecommendation", CDPlanningRecommendation.self, \.planningRecommendations,

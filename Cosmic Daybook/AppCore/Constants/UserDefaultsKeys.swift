@@ -157,11 +157,9 @@ nonisolated enum UserDefaultsKeys {
     static let planningCalendarShowHolidays = "PlanningCalendar.showHolidays"
     static let planningCalendarShowEvents = "PlanningCalendar.showEvents"
 
-    // MARK: - Calendar & Reminder Sync
+    // MARK: - Calendar Sync
     static let calendarSyncIdentifiers = "CalendarSync.syncCalendarIdentifiers"
     static let calendarSyncNames = "CalendarSync.syncCalendarNames"
-    static let reminderSyncListIdentifier = "ReminderSync.syncListIdentifier"
-    static let reminderSyncListName = "ReminderSync.syncListName"
 
     // MARK: - Checklist
     static let checklistSelectedArea = "Checklist.selectedArea"
@@ -224,10 +222,6 @@ nonisolated enum UserDefaultsKeys {
     // MARK: - Today
     static let todayDayPadExpanded = "Today.dayPadExpanded"
     static let todayDoneTodayExpanded = "Today.doneTodayExpanded"
-    /// Whether the undated ("Anytime") reminders are disclosed on Today.
-    /// Default closed: the standing pile of undated Apple Reminders belongs
-    /// in reach, not on the fold.
-    static let todayAnytimeRemindersExpanded = "Today.anytimeRemindersExpanded"
     /// Dynamic per-date keys for dismissable Today cards: "Today.dayCardDismissed.<yyyy-MM-dd>.<cardName>"
     static let todayDayCardDismissedPrefix = "Today.dayCardDismissed."
 

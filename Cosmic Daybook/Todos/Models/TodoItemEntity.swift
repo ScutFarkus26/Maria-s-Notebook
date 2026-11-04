@@ -40,8 +40,8 @@ nonisolated public class CDTodoItemEntity: NSManagedObject {
     /// (`TideActionLink`); nil for one not shared (schema 19).
     @NSManaged public var tideLink: String?
 
-    // MARK: - Relationships
-    @NSManaged public var subtasks: NSSet?
+    // The model's `subtasks` relationship stays (TodoSubtask is a retired
+    // type, rows kept; simplify round two, 2026-11-03), with no accessor here.
 
     // MARK: - Convenience Init
     @discardableResult
@@ -132,21 +132,6 @@ nonisolated extension CDTodoItem {
         return dueDate < AppCalendar.shared.startOfDay(for: Date())
     }
 
-    /// Get subtasks progress text
-    var subtasksProgressText: String? {
-        let items = subtasks as? Set<CDTodoSubtask> ?? []
-        guard !items.isEmpty else { return nil }
-        let completed = items.filter(\.isCompleted).count
-        return "\(completed)/\(items.count)"
-    }
-
-    /// Check if all subtasks are completed
-    var allSubtasksCompleted: Bool {
-        let items = subtasks as? Set<CDTodoSubtask> ?? []
-        guard !items.isEmpty else { return true }
-        return items.allSatisfy { $0.isCompleted }
-    }
-
     /// The effective date for sorting and grouping (scheduled date takes priority)
     var effectiveDate: Date? {
         scheduledDate ?? dueDate
@@ -166,19 +151,4 @@ nonisolated extension CDTodoItem {
     var tideListName: String? {
         tideLink.flatMap(TideActionLink.init)?.listName
     }
-}
-
-// MARK: - Generated Accessors for subtasks
-nonisolated extension CDTodoItem {
-    @objc(addSubtasksObject:)
-    @NSManaged public func addToSubtasks(_ value: CDTodoSubtask)
-
-    @objc(removeSubtasksObject:)
-    @NSManaged public func removeFromSubtasks(_ value: CDTodoSubtask)
-
-    @objc(addSubtasks:)
-    @NSManaged public func addToSubtasks(_ values: NSSet)
-
-    @objc(removeSubtasks:)
-    @NSManaged public func removeFromSubtasks(_ values: NSSet)
 }

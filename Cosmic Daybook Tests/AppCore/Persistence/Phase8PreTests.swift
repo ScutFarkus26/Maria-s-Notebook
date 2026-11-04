@@ -104,6 +104,67 @@ final class Phase8PreTests {
         #expect(overlap.isEmpty, "Entities in both stores: \(overlap)")
     }
 
+    // MARK: - Retired and tombstone types
+
+    @Test("Retired types stay in the private store with no class of their own")
+    func retiredEntitiesKeepTheirStore() throws {
+        let modelURL = try #require(Bundle.main.url(forResource: "CosmicDaybook", withExtension: "momd"))
+        let model = try #require(NSManagedObjectModel(contentsOf: modelURL))
+        for name in CoreDataStack.retiredEntities.sorted() {
+            let entity = try #require(model.entitiesByName[name], "\(name) left the model")
+            #expect(CoreDataStack.privateEntityNames.contains(name), "\(name) must keep its store")
+            #expect(entity.managedObjectClassName == "NSManagedObject", "\(name) still names a class")
+        }
+        #expect(CoreDataStack.retiredEntities.isDisjoint(with: CoreDataStack.dormantTombstoneEntities))
+    }
+
+    /// The repo folder, from `TEST_RUNNER_SOURCE_ROOT` or this file's path.
+    /// Nil when neither can be read: the compilation cache's prefix mapping
+    /// rewrites `#filePath` to `/^src/…`.
+    nonisolated private static var repoRoot: URL? {
+        let fromFilePath = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+        let candidates = [ProcessInfo.processInfo.environment["SOURCE_ROOT"].map { URL(fileURLWithPath: $0) }, fromFilePath]
+        return candidates.compactMap { $0 }.first { root in
+            FileManager.default.fileExists(atPath: root.appendingPathComponent("Cosmic Daybook.xcodeproj").path)
+        }
+    }
+
+    /// A fetch by entity name still compiles after a type's class is gone, so
+    /// the app's sources are read for one that names a retired or tombstone
+    /// type. The single allowed one is the launch step that clears the old
+    /// Apple Reminders links. With the compilation cache on, run it with
+    /// `TEST_RUNNER_SOURCE_ROOT=<repo folder>`; otherwise it is skipped.
+    @Test("No string fetch names a retired or tombstone type", .enabled(if: Phase8PreTests.repoRoot != nil))
+    func noStringFetchOfRetiredTypes() throws {
+        let retired = CoreDataStack.retiredEntities.union(CoreDataStack.dormantTombstoneEntities)
+        let allowed: Set<String> = ["MigrationRunner.swift: Reminder"]
+        let repoRoot = try #require(Self.repoRoot)
+        let pattern = try NSRegularExpression(pattern: #"(?:entityName|forEntityName):\s*"([A-Za-z]+)""#)
+        var scanned = 0
+        var hits: [String] = []
+        for folder in ["Cosmic Daybook", "Daybook Assistant"] {
+            let root = repoRoot.appendingPathComponent(folder)
+            guard let files = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil) else {
+                continue
+            }
+            for case let file as URL in files where file.pathExtension == "swift" {
+                let text = try String(contentsOf: file, encoding: .utf8)
+                scanned += 1
+                let range = NSRange(text.startIndex..., in: text)
+                for match in pattern.matches(in: text, range: range) {
+                    guard let nameRange = Range(match.range(at: 1), in: text) else { continue }
+                    let name = String(text[nameRange])
+                    let hit = "\(file.lastPathComponent): \(name)"
+                    if retired.contains(name), !allowed.contains(hit) { hits.append(hit) }
+                }
+            }
+        }
+        #expect(scanned > 100, "Couldn't read the app's sources from \(repoRoot.path)")
+        #expect(hits.isEmpty, "String fetches of retired types: \(hits.sorted())")
+    }
+
     // MARK: - Migration Infrastructure Baseline
 
     @Test("AppBootstrapper starts in idle state")

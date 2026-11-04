@@ -27,15 +27,17 @@ struct DedupSameIDChildTests {
         let dropped = CDTodoItem(context: context)
         dropped.id = todoID
         dropped.createdAt = late
-        let open = CDTodoSubtask(context: context)
-        open.id = subtaskID
-        open.title = "Order paper"
-        open.todo = kept
-        let ticked = CDTodoSubtask(context: context)
-        ticked.id = subtaskID
-        ticked.title = "Order paper"
-        ticked.isCompleted = true
-        ticked.todo = dropped
+        // Subtasks are retired (no class since 2026-11), but their rows stay
+        // and still move with their to-do.
+        let open = NSEntityDescription.insertNewObject(forEntityName: "TodoSubtask", into: context)
+        open.setValue(subtaskID, forKey: "id")
+        open.setValue("Order paper", forKey: "title")
+        open.setValue(kept, forKey: "todo")
+        let ticked = NSEntityDescription.insertNewObject(forEntityName: "TodoSubtask", into: context)
+        ticked.setValue(subtaskID, forKey: "id")
+        ticked.setValue("Order paper", forKey: "title")
+        ticked.setValue(true, forKey: "isCompleted")
+        ticked.setValue(dropped, forKey: "todo")
         #expect(CoreDataTestHelpers.save(context))
 
         let results = DataCleanupService.deduplicateAllModels(
@@ -44,9 +46,9 @@ struct DedupSameIDChildTests {
 
         #expect(results["TodoItem"] == 1)
         #expect(!ticked.isDeleted && ticked.managedObjectContext != nil)
-        #expect(ticked.todo === kept)
-        let subtasks = (kept.subtasks as? Set<CDTodoSubtask>) ?? []
+        #expect(ticked.value(forKey: "todo") as? CDTodoItem === kept)
+        let subtasks = (kept.value(forKey: "subtasks") as? Set<NSManagedObject>) ?? []
         #expect(subtasks.count == 2)
-        #expect(subtasks.contains { $0.isCompleted })
+        #expect(subtasks.contains { $0.value(forKey: "isCompleted") as? Bool == true })
     }
 }
