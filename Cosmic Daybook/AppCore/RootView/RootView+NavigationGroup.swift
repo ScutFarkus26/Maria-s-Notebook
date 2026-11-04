@@ -57,6 +57,17 @@ extension RootView {
         /// The groups with anything left once the primary tabs are taken out.
         static var secondaryGroups: [NavigationGroup] { all.filter { !$0.secondaryItems.isEmpty } }
 
+        /// This group's rows less the ones `filter` hides
+        /// (`NavigationRowVisibility`).
+        func items(shownBy filter: NavigationRowFilter) -> [NavigationItem] {
+            items.filter(filter.shows)
+        }
+
+        /// `secondaryItems` less the ones `filter` hides.
+        func secondaryItems(shownBy filter: NavigationRowFilter) -> [NavigationItem] {
+            secondaryItems.filter(filter.shows)
+        }
+
         /// The group that lists the item (its canonical target for an alias).
         static func containing(_ item: NavigationItem) -> NavigationGroup? {
             all.first { $0.items.contains(item.canonical) }

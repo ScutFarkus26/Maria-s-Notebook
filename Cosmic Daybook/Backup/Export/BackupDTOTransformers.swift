@@ -11,7 +11,7 @@ import OSLog
 /// - `BackupDTOTransformers+Core.swift` — CDLessonAttachment,
 ///   CDLessonPresentation, CDLessonRecallCheck, CDSampleWork, CDSampleWorkStep
 /// - `BackupDTOTransformers+Work.swift` — CDWorkCheckIn, CDWorkStep,
-///   WorkParticipant, CDPracticeSession
+///   WorkParticipant
 /// - `BackupDTOTransformers+V18Entities.swift` — CDDayPad, CDYearPlanEntry,
 ///   CDLessonSequenceSettings, CDStory, Book Club entities
 /// - `BackupDTOTransformers+Misc.swift` — Calendar, Todo, CDTrackEntity,

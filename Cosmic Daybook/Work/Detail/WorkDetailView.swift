@@ -30,14 +30,10 @@ struct WorkDetailView: View {
         viewModel.likelyNextLesson()
     }
 
-    /// This work's practice sessions, newest first. Loaded on appear and
-    /// whenever a practice session changes (see `reloadPracticeSessions`),
-    /// instead of a live unfiltered `@FetchRequest` over every session whose
-    /// transformable ids were decoded per session on every body pass.
-    @State var practiceSessions: [CDPracticeSession] = []
-    /// The ids this work's practice sessions named at the last load; the
-    /// participant lookup reloads when they change.
-    @State var practiceParticipantIDs: PracticeParticipantIDs?
+    /// This work's practice check-ins (`CDWorkCheckIn.isPractice`), newest
+    /// first. Loaded on appear and whenever a check-in changes (see
+    /// `reloadPracticeCheckIns`).
+    @State var practiceCheckIns: [CDWorkCheckIn] = []
 
     /// The "Next Presentation" card's status. Two assignment fetches, so it is
     /// loaded on appear and when an assignment or work changes rather than on
@@ -107,22 +103,21 @@ struct WorkDetailView: View {
                     #endif
             }
         }
-        // Another context's save too: a session logged elsewhere that newly
-        // names this work or child reaches this context only if it was registered here.
-        // Only while on screen, and once per burst: the reload reads every
-        // practice session, and `.onAppear` below reloads on return.
+        // Another context's save too: practice logged elsewhere on this work.
+        // Only while on screen, and once per burst; `.onAppear` below reloads
+        // on return.
         .onReceiveWhenVisible(
-            CoordinatorChangeSignal.coalescedChanges(of: ["PracticeSession"], in: modelContext),
+            CoordinatorChangeSignal.coalescedChanges(of: ["WorkCheckIn"], in: modelContext),
             catchUpOnAppear: false
         ) {
-            reloadPracticeSessions()
+            reloadPracticeCheckIns()
         }
         .onPresentationDataChange(of: ["LessonAssignment", "WorkModel"], in: modelContext) { _ in
             reloadPresentationStatus()
         }
         .onAppear {
             viewModel.loadWork(modelContext: modelContext, saveCoordinator: saveCoordinator)
-            reloadPracticeSessions()
+            reloadPracticeCheckIns()
             reloadPresentationStatus()
             if viewModel.work != nil {
                 #if DEBUG
@@ -141,11 +136,6 @@ struct WorkDetailView: View {
             }
         }
     }
-
-    /// The children and the work items this work's practice history names,
-    /// fetched once for the whole section — see `loadPracticeParticipants`.
-    @State var practiceStudents: [CDStudent] = []
-    @State var practiceWorkItems: [CDWorkModel] = []
 
     @State var activeSheet: ActiveSheet?
 
@@ -169,7 +159,7 @@ struct WorkDetailView: View {
                     if hasSteps || viewModel.workKind == .report {
                         stepsSection()
                     }
-                    if !practiceSessions.isEmpty { practiceOverviewSection() }
+                    if !practiceCheckIns.isEmpty { practiceOverviewSection() }
                     practiceHistorySection()
                     notesSection()
                     calendarSection()
@@ -258,7 +248,6 @@ extension WorkDetailView {
     /// The one sheet the detail view can show at a time. The three alerts
     /// (delete, unlock next lesson, edit check-in note) stay on the view model.
     enum ActiveSheet: Identifiable {
-        case practiceSession(CDPracticeSession)
         case peerWork(UUID)
         case represent
         case addNote
@@ -270,7 +259,6 @@ extension WorkDetailView {
 
         var id: String {
             switch self {
-            case .practiceSession(let session): return "practiceSession_\(session.id?.uuidString ?? "nil")"
             case .peerWork(let workID): return "peerWork_\(workID.uuidString)"
             case .represent: return "represent"
             case .addNote: return "addNote"
@@ -286,8 +274,6 @@ extension WorkDetailView {
     @ViewBuilder
     func sheetContent(for sheet: ActiveSheet, work: CDWorkModel) -> some View {
         switch sheet {
-        case .practiceSession(let session):
-            practiceSessionDetailSheet(session: session)
         case .peerWork(let workID):
             WorkDetailView(workID: workID) { activeSheet = nil }
         case .represent:
@@ -297,9 +283,10 @@ extension WorkDetailView {
         case .editNote(let note):
             noteEditorSheet(work: work, note: note)
         case .addPractice:
-            PracticeSessionSheet(initialWorkItem: work) { _ in
-                // Practice session saved - will automatically show in history
-            }
+            RecordPracticeSheet(
+                lessonID: UUID(uuidString: work.lessonID),
+                studentIDs: Set([UUID(uuidString: work.studentID)].compactMap { $0 })
+            )
         case .addStep:
             WorkStepEditorSheet(work: work, existingStep: nil) {
                 // Step was added - force refresh

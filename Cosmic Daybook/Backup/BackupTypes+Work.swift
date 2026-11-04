@@ -84,6 +84,8 @@ nonisolated public struct WorkCheckInDTO: Codable, Sendable {
     public var statusRaw: String
     public var purpose: String
     public var studentInitiated: Bool?
+    /// How long the practice lasted (schema 23; absent in older backups).
+    public var durationMinutes: Int?
 }
 
 nonisolated public struct WorkParticipantEntityDTO: Codable, Sendable {
@@ -91,30 +93,6 @@ nonisolated public struct WorkParticipantEntityDTO: Codable, Sendable {
     public var studentID: String
     public var completedAt: Date?
     public var workID: UUID?
-}
-
-nonisolated public struct PracticeSessionDTO: Codable, Sendable {
-    public var id: UUID
-    public var createdAt: Date
-    public var date: Date
-    public var duration: TimeInterval?
-    public var studentIDs: [String]
-    public var workItemIDs: [String]
-    public var sharedNotes: String
-    public var location: String?
-    public var practiceQuality: Int?
-    public var independenceLevel: Int?
-    public var askedForHelp: Bool
-    public var helpedPeer: Bool
-    public var struggledWithConcept: Bool
-    public var madeBreakthrough: Bool
-    public var needsReteaching: Bool
-    public var readyForCheckIn: Bool
-    public var readyForAssessment: Bool
-    public var checkInScheduledFor: Date?
-    public var followUpActions: String
-    public var materialsUsed: String
-    public var workStepID: String?
 }
 
 nonisolated public struct WorkCompletionRecordDTO: Codable, Sendable {

@@ -29,7 +29,6 @@ nonisolated extension ProjectRoleDTO: BackupRowDTO { var rowModifiedAt: Date? { 
 nonisolated extension WorkModelDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension WorkCheckInDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension WorkParticipantEntityDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension PracticeSessionDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension LessonPresentationDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension SampleWorkDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension NoteTemplateDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }

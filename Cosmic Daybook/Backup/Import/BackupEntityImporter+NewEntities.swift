@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 import OSLog
 
-// MARK: - CDGoingOut, CDClassroomJob, CDCalendarNote, CDScheduledMeeting
+// MARK: - CDGoingOut, CDCalendarNote, CDScheduledMeeting
 
 extension BackupEntityImporter {
 

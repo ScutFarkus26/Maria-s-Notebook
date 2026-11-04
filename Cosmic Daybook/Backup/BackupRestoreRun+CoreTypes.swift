@@ -161,14 +161,6 @@ extension BackupRestoreRun {
                 workCheck: { try index.related(CDWorkModel.self, id: $0) }
             )
         }
-
-        if let practiceSessions = try rows(\.practiceSessions) {
-            try BackupEntityImporter.importPracticeSessions(
-                practiceSessions,
-                into: viewContext,
-                existing: { try index.existing(CDPracticeSession.self, id: $0) }
-            )
-        }
     }
 
     func importLessonExtras() throws {

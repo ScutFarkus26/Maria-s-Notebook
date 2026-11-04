@@ -55,15 +55,6 @@ public enum GoingOutBackupRow: ModelRowKind {
     )
 }
 
-public typealias ClassroomJobDTO = ModelRow<ClassroomJobBackupRow>
-
-public enum ClassroomJobBackupRow: ModelRowKind {
-    public static let spec = ModelRowSpec(
-        "ClassroomJob",
-        filling: ["createdAt", "modifiedAt"]
-    )
-}
-
 public typealias CalendarNoteDTO = ModelRow<CalendarNoteBackupRow>
 
 public enum CalendarNoteBackupRow: ModelRowKind {
@@ -350,16 +341,6 @@ public enum NoteStudentLinkBackupRow: ModelRowKind {
     public static let spec = ModelRowSpec(
         "NoteStudentLink",
         parents: [ParentLink(key: "noteID", relationship: "note")]
-    )
-}
-
-public typealias JobAssignmentDTO = ModelRow<JobAssignmentBackupRow>
-
-public enum JobAssignmentBackupRow: ModelRowKind {
-    public static let spec = ModelRowSpec(
-        "JobAssignment",
-        filling: ["createdAt", "modifiedAt", "weekStartDate"],
-        parents: [ParentLink(key: "jobID", relationship: "job")]
     )
 }
 

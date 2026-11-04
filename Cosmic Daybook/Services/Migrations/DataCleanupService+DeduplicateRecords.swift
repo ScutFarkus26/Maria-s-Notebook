@@ -209,7 +209,6 @@ nonisolated extension DataCleanupService {
         if canonical.projectSession == nil { canonical.projectSession = duplicate.projectSession }
         if canonical.communityTopic == nil { canonical.communityTopic = duplicate.communityTopic }
         if canonical.reminder == nil { canonical.reminder = duplicate.reminder }
-        if canonical.practiceSession == nil { canonical.practiceSession = duplicate.practiceSession }
         if canonical.issue == nil { canonical.issue = duplicate.issue }
         if canonical.goingOutID == nil { canonical.goingOutID = duplicate.goingOutID }
         if canonical.schoolDayOverride == nil { canonical.schoolDayOverride = duplicate.schoolDayOverride }

@@ -98,7 +98,7 @@ nonisolated public struct BackupPayload: Codable, Sendable {
         case projects, projectAssignmentTemplates, projectSessions, projectRoles
         case projectTemplateWeeks, projectWeekRoleAssignments
         case workModels
-        case workCheckIns, workSteps, workParticipants, practiceSessions
+        case workCheckIns, workSteps, workParticipants
         case lessonAttachments, lessonPresentations, recallChecks
         case sampleWorks, sampleWorkSteps
         case noteTemplates, meetingTemplates
@@ -113,7 +113,6 @@ nonisolated public struct BackupPayload: Codable, Sendable {
         case todayAgendaOrders
         case planningRecommendations, resources, noteStudentLinks
         case goingOuts, goingOutChecklistItems
-        case classroomJobs, jobAssignments
         case calendarNotes, scheduledMeetings
         case classroomMemberships
         case meetingWorkReviews, studentFocusItems
@@ -164,7 +163,6 @@ nonisolated public struct BackupPayload: Codable, Sendable {
     public var workCheckIns: [WorkCheckInDTO]?
     public var workSteps: [WorkStepDTO]?
     public var workParticipants: [WorkParticipantEntityDTO]?
-    public var practiceSessions: [PracticeSessionDTO]?
 
     // CDLesson extras (format v8+)
     public var lessonAttachments: [LessonAttachmentDTO]?
@@ -227,10 +225,6 @@ nonisolated public struct BackupPayload: Codable, Sendable {
     // Going Out (format v12+)
     public var goingOuts: [GoingOutDTO]?
     public var goingOutChecklistItems: [GoingOutChecklistItemDTO]?
-
-    // Classroom Jobs (format v12+)
-    public var classroomJobs: [ClassroomJobDTO]?
-    public var jobAssignments: [JobAssignmentDTO]?
 
     // Calendar Notes (format v12+)
     public var calendarNotes: [CalendarNoteDTO]?

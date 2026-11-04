@@ -223,8 +223,8 @@ struct DedupChildRescueTests {
         #expect(notes.first?.work === kept)
     }
 
-    @Test("A note's practice session and issue carry over to the kept copy")
-    func noteKeepsSessionAndIssue() throws {
+    @Test("A note's issue carries over to the kept copy")
+    func noteKeepsIssue() throws {
         let context = try CoreDataTestHelpers.makeContext()
         let id = UUID()
         let kept = CoreDataTestHelpers.seedNote(in: context, body: "Worked well together.")
@@ -233,15 +233,12 @@ struct DedupChildRescueTests {
         let dropped = CoreDataTestHelpers.seedNote(in: context, body: "Worked well together.")
         dropped.id = id
         dropped.createdAt = late
-        let session = CDPracticeSession(context: context)
         let issue = CDIssue(context: context)
-        dropped.practiceSession = session
         dropped.issue = issue
         #expect(CoreDataTestHelpers.save(context))
 
         #expect(DataCleanupService.deduplicateNotesStrong(using: context) == 1)
 
-        #expect(kept.practiceSession === session)
         #expect(kept.issue === issue)
     }
 

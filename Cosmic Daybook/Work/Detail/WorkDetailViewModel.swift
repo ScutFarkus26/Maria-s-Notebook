@@ -72,12 +72,12 @@ final class WorkDetailViewModel {
         )
     }
     
-    func practiceSessions(allSessions: [CDPracticeSession]) -> [CDPracticeSession] {
+    /// This work's practice check-ins, newest first.
+    func practiceCheckIns(in context: NSManagedObjectContext) -> [CDWorkCheckIn] {
         guard let work else { return [] }
-        let workIDString = (work.id ?? UUID()).uuidString
-        return allSessions
-            .filter { $0.workItemIDsArray.contains(workIDString) }
-            .sorted { ($0.date ?? Date.distantPast) > ($1.date ?? Date.distantPast) }
+        return WorkLogService.checkIns(of: work, in: context)
+            .filter(\.isPractice)
+            .sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
     }
     
     // MARK: - Data Loading

@@ -149,6 +149,17 @@ nonisolated struct BackupEntity: Sendable {
 }
 
 nonisolated enum BackupEntityTable {
+    /// Types the backup no longer writes that older backups still carry. The
+    /// importer knows their sections and skips them without a warning: the
+    /// app has nowhere to put their rows, and a backup made before they were
+    /// retired should restore as cleanly as one made after (plan "Simplify
+    /// the app, round two", Phase 2).
+    static let skippedOnImport: Set<String> = [
+        "ClassroomJob",
+        "JobAssignment",
+        "PracticeSession"
+    ]
+
     /// Every backed-up entity type, in archive order. Split into groups only to
     /// keep each array literal quick to type-check.
     static let entities: [BackupEntity] =
@@ -227,7 +238,6 @@ nonisolated enum BackupEntityTable {
         .optional(
             "WorkParticipantEntity", CDWorkParticipantEntity.self, \.workParticipants, BackupDTOTransformers.toDTOs
         ),
-        .optional("PracticeSession", CDPracticeSession.self, \.practiceSessions, BackupDTOTransformers.toDTOs),
         .optional(
             "LessonAttachment", CDLessonAttachment.self, \.lessonAttachments, LessonAttachmentDTO.rows,
             announcing: .init(0.50, "Collecting lesson extras\u{2026}")
@@ -290,14 +300,12 @@ nonisolated enum BackupEntityTable {
         .optional("NoteStudentLink", CDNoteStudentLink.self, \.noteStudentLinks, NoteStudentLinkDTO.rows),
         .optional(
             "GoingOut", CDGoingOut.self, \.goingOuts, GoingOutDTO.rows,
-            announcing: .init(0.85, "Collecting going-outs, jobs & transitions\u{2026}")
+            announcing: .init(0.85, "Collecting going-outs & transitions\u{2026}")
         ),
         .optional(
             "GoingOutChecklistItem", CDGoingOutChecklistItem.self, \.goingOutChecklistItems,
             BackupDTOTransformers.toDTOs
         ),
-        .optional("ClassroomJob", CDClassroomJob.self, \.classroomJobs, ClassroomJobDTO.rows),
-        .optional("JobAssignment", CDJobAssignment.self, \.jobAssignments, JobAssignmentDTO.rows),
         .optional(
             "CalendarNote", CDCalendarNote.self, \.calendarNotes, CalendarNoteDTO.rows,
             announcing: .init(0.90, "Collecting calendar notes & meetings\u{2026}")

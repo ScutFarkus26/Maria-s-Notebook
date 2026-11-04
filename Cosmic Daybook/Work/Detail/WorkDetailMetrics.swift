@@ -30,38 +30,6 @@ struct MetricStatBox: View {
     }
 }
 
-struct QualityMetricBox: View {
-    let level: Double
-    let label: String
-    let icon: String
-    let color: Color
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(color)
-
-                Text(String(format: "%.1f", level))
-                    .font(AppTheme.ScaledFont.header)
-                    .foregroundStyle(.primary)
-
-                Text("/ 5")
-                    .font(AppTheme.ScaledFont.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Text(label)
-                .font(AppTheme.ScaledFont.caption)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .surface(UIConstants.CornerRadius.large, fill: color.opacity(UIConstants.OpacityConstants.subtle))
-    }
-}
-
 struct BehaviorPill: View {
     let behavior: String
 

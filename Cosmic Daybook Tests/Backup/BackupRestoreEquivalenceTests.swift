@@ -100,7 +100,7 @@ struct BackupRestoreEquivalenceTests {
 
         // Linked to parents that arrived after them in the archive.
         let links = [
-            ("WorkCheckIn", "work"), ("JobAssignment", "job"), ("ScheduleSlot", "schedule"),
+            ("WorkCheckIn", "work"), ("ScheduleSlot", "schedule"),
             ("IssueAction", "issue"), ("GoingOutChecklistItem", "goingOut")
         ]
         for (entity, relationship) in links {

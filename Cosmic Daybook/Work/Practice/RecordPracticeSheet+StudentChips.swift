@@ -228,33 +228,32 @@ extension RecordPracticeSheet {
         dismiss()
     }
 
+    /// One completed practice check-in on each child's work, with its note
+    /// (`PracticeCheckIns`), and the check-in to come when she asked for one.
     private func insertSession(for works: [CDWorkModel]) {
-        let session = CDPracticeSession(context: viewContext)
-        session.date = sessionDate
-        session.durationInterval = hasDuration ? TimeInterval(durationMinutes * 60) : nil
-        session.studentIDsArray = Array(selectedStudentIDs).map(\.uuidString)
-        session.workItemIDsArray = works.compactMap { $0.id?.uuidString }
-        session.sharedNotes = sessionNotes
-        session.location = nil
-
-        session.practiceQualityValue = practiceQuality
-        session.independenceLevelValue = independenceLevel
-
-        session.askedForHelp = askedForHelp
-        session.helpedPeer = helpedPeer
-        session.struggledWithConcept = struggledWithConcept
-        session.madeBreakthrough = madeBreakthrough
-        session.needsReteaching = needsReteaching
-        session.readyForCheckIn = readyForCheckIn
-        session.readyForAssessment = readyForAssessment
-
+        let practice = PracticeRecord(
+            date: sessionDate,
+            minutes: hasDuration ? durationMinutes : nil,
+            quality: practiceQuality,
+            independence: independenceLevel,
+            askedForHelp: askedForHelp,
+            helpedPeer: helpedPeer,
+            struggled: struggledWithConcept,
+            madeBreakthrough: madeBreakthrough,
+            needsReteaching: needsReteaching,
+            readyForCheckIn: readyForCheckIn,
+            readyForAssessment: readyForAssessment,
+            notes: sessionNotes,
+            followUp: followUpActions,
+            materials: materialsUsed
+        )
+        for work in works {
+            PracticeCheckIns.record(practice, on: work, in: viewContext)
+        }
         if scheduleCheckIn {
-            session.checkInScheduledFor = checkInDate
             // A real check-in on each child's work, which the calendar and
-            // Today show; the session's own date alone scheduled nothing.
+            // Today show.
             PracticeCheckInScheduler.schedule(on: checkInDate, for: works, in: viewContext)
         }
-        session.followUpActions = followUpActions
-        session.materialsUsed = materialsUsed
     }
 }

@@ -46,16 +46,6 @@ private enum DateRange {
         meeting.completed = true
     }
 
-    static func seedPractice(
-        _ notes: String, for student: CDStudent, daysOld: Int, in context: NSManagedObjectContext
-    ) throws {
-        let session = CDPracticeSession(context: context)
-        session.id = UUID()
-        session.date = daysAgo(daysOld)
-        session.studentIDsArray = [try #require(student.id).uuidString]
-        session.sharedNotes = notes
-    }
-
     /// The lesson carries the context, so the seeder stays inside SwiftLint's
     /// parameter budget.
     static func seedRecall(
@@ -272,40 +262,6 @@ struct MCPDateRangeHistoryToolsTests {
         ])
         #expect(output.contains("Sitting 24."))
         #expect(!output.contains("not shown"))
-    }
-
-    @Test("practice_sessions: since reaches past the year days_back stops at")
-    func practiceSinceReachesBeyondAYear() async throws {
-        let (tools, context) = try DateRange.makeTools()
-        let ana = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ana", lastName: "Perez")
-        CoreDataTestHelpers.save(context)
-        try DateRange.seedPractice("Bead frame, two years back.", for: ana, daysOld: 700, in: context)
-        try DateRange.seedPractice("Bead frame, yesterday.", for: ana, daysOld: 1, in: context)
-        CoreDataTestHelpers.save(context)
-        let toolDefinition = try DateRange.tool(named: "practice_sessions", in: tools)
-
-        let byDefault = try await toolDefinition.handler(["student_name": .string("Ana")])
-        #expect(byDefault.contains("Bead frame, yesterday."))
-        #expect(!byDefault.contains("two years back"))
-
-        let widened = try await toolDefinition.handler([
-            "student_name": .string("Ana"), "since": DateRange.dayText(1000)
-        ])
-        #expect(widened.contains("two years back"))
-
-        let capped = try await toolDefinition.handler([
-            "student_name": .string("Ana"),
-            "since": DateRange.dayText(1000), "until": DateRange.dayText(600)
-        ])
-        #expect(capped.contains("two years back"))
-        #expect(!capped.contains("yesterday"))
-
-        await #expect(throws: MCPToolError.self) {
-            _ = try await toolDefinition.handler([
-                "student_name": .string("Ana"),
-                "since": DateRange.dayText(1), "until": DateRange.dayText(700)
-            ])
-        }
     }
 
     @Test("recall_checks: since and until move the window off the rolling ninety days")

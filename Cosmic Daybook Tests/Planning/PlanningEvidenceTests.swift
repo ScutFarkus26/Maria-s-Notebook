@@ -66,13 +66,13 @@ final class PlanningEvidenceTests {
         )
         work.status = .review
 
-        let practice = CDPracticeSession(context: fixture.context)
-        practice.studentIDsArray = [studentID.uuidString]
-        practice.workItemIDsArray = [try #require(work.id).uuidString]
-        practice.practiceQualityValue = 5
-        practice.independenceLevelValue = 5
-        practice.readyForAssessment = true
-        practice.madeBreakthrough = true
+        PracticeCheckIns.record(
+            PracticeRecord(
+                date: Date(), minutes: 20, quality: 5, independence: 5,
+                madeBreakthrough: true, readyForAssessment: true
+            ),
+            on: work, in: fixture.context
+        )
 
         let note = CoreDataTestHelpers.seedNote(
             in: fixture.context,

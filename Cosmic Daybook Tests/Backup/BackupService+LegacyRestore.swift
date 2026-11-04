@@ -429,14 +429,6 @@ extension BackupService {
                 workCheck: { try index.related(CDWorkModel.self, id: $0) }
             )
         }
-
-        if let practiceSessions = payload.practiceSessions {
-            try BackupEntityImporter.importPracticeSessions(
-                practiceSessions,
-                into: viewContext,
-                existing: { try index.existing(CDPracticeSession.self, id: $0) }
-            )
-        }
     }
 
     private func importLessonExtras(
@@ -713,7 +705,7 @@ extension BackupService {
         }
     }
 
-    private func importV12Entities( // swiftlint:disable:this function_body_length
+    private func importV12Entities(
         from payload: BackupPayload,
         into viewContext: NSManagedObjectContext,
         index: BackupEntityIndex
@@ -731,21 +723,6 @@ extension BackupService {
                 into: viewContext,
                 existing: { try index.existing(CDGoingOutChecklistItem.self, id: $0) },
                 goingOutCheck: { try index.related(CDGoingOut.self, id: $0) }
-            )
-        }
-
-        if let classroomJobs = payload.classroomJobs {
-            BackupEntityImporter.importRows(
-                classroomJobs, as: CDClassroomJob.self, into: viewContext,
-                existing: { try index.existing(CDClassroomJob.self, id: $0) }
-            )
-        }
-
-        if let jobAssignments = payload.jobAssignments {
-            BackupEntityImporter.importRows(
-                jobAssignments, as: CDJobAssignment.self, into: viewContext,
-                existing: { try index.existing(CDJobAssignment.self, id: $0) },
-                parents: ["job": { try index.related(CDClassroomJob.self, id: $0) }]
             )
         }
 
@@ -1099,9 +1076,6 @@ extension BackupEntityImporter {
             }
             if let id = dto.reminderID {
                 note.reminder = try index.related(CDReminder.self, id: id)
-            }
-            if let id = dto.practiceSessionID {
-                note.practiceSession = try index.related(CDPracticeSession.self, id: id)
             }
             if let id = dto.issueID {
                 note.issue = try index.related(CDIssue.self, id: id)

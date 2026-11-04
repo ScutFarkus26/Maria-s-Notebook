@@ -5,7 +5,7 @@
 // a date nothing schedules from: no check-in appeared on the work, the
 // calendar or Today. It now makes a real check-in on each work row the
 // session covers, through `CDWorkCheckIn.make`, the one constructor every
-// other check-in uses. The session keeps the date too, for its own card.
+// other check-in uses.
 
 import CoreData
 import Foundation

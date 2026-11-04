@@ -1,14 +1,14 @@
 import SwiftUI
 import CoreData
 
-/// A visual timeline component showing the journey from lesson to presentations to work to practice sessions
+/// A visual timeline component showing the journey from lesson to presentations to work to practice
 struct LessonJourneyTimeline: View {
     let lesson: CDLesson
     let viewContext: NSManagedObjectContext
     
     @State private var presentations: [CDLessonAssignment] = []
     @State private var allWork: [CDWorkModel] = []
-    @State private var allSessions: [CDPracticeSession] = []
+    @State private var allSessions: [CDWorkCheckIn] = []
     @State private var isLoaded = false
 
     var body: some View {
@@ -72,9 +72,8 @@ struct LessonJourneyTimeline: View {
                 connectorLine()
                 workSection(work)
 
-                let sessions = allSessions.filter { session in
-                    work.contains { w in session.workItemIDsArray.contains(w.id?.uuidString ?? "") }
-                }
+                let workIDs = Set(work.compactMap { $0.id?.uuidString })
+                let sessions = allSessions.filter { workIDs.contains($0.workID) }
                 if !sessions.isEmpty {
                     connectorLine()
                     practiceSection(sessions)
@@ -172,7 +171,7 @@ struct LessonJourneyTimeline: View {
     }
 
     @ViewBuilder
-    private func practiceSection(_ sessions: [CDPracticeSession]) -> some View {
+    private func practiceSection(_ sessions: [CDWorkCheckIn]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 Image(systemName: "person.2.fill")
@@ -183,7 +182,7 @@ struct LessonJourneyTimeline: View {
                     .foregroundStyle(.secondary)
             }
 
-            ForEach(sessions.prefix(3)) { session in
+            ForEach(sessions.prefix(3), id: \.objectID) { session in
                 practiceSessionChip(session)
             }
 
@@ -225,9 +224,9 @@ struct LessonJourneyTimeline: View {
     }
     
     @ViewBuilder
-    private func practiceSessionChip(_ session: CDPracticeSession) -> some View {
+    private func practiceSessionChip(_ session: CDWorkCheckIn) -> some View {
         HStack(spacing: 6) {
-            Image(systemName: session.isGroupSession ? "person.2" : "person")
+            Image(systemName: "person")
                 .font(.system(size: 10))
                 .foregroundStyle(.purple)
             
@@ -249,7 +248,7 @@ struct LessonJourneyTimeline: View {
             }
         
         allWork = lesson.fetchAllWork(from: viewContext)
-        allSessions = lesson.fetchAllPracticeSessions(from: viewContext)
+        allSessions = lesson.fetchAllPracticeCheckIns(from: viewContext)
         
         isLoaded = true
     }

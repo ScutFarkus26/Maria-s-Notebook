@@ -45,7 +45,7 @@ nonisolated enum AttendanceNoteMove {
         if (note.studentLinks?.count ?? 0) > 0 { return false }
         let links: [NSManagedObject?] = [
             note.work, note.lessonAssignment, note.workCheckIn, note.workCompletionRecord,
-            note.studentMeeting, note.projectSession, note.reminder, note.practiceSession, note.issue
+            note.studentMeeting, note.projectSession, note.reminder, note.issue
         ]
         if links.contains(where: { $0 != nil }) { return false }
         let foreignKeys = [

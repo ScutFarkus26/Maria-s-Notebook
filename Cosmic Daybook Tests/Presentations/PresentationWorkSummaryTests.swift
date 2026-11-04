@@ -34,9 +34,10 @@ struct PresentationWorkSummaryTests {
         unrelated.presentationID = try #require(other.id).uuidString
 
         for (index, work) in (works + [unrelated]).enumerated() {
-            let session = CDPracticeSession(context: context)
-            session.date = Date(timeIntervalSince1970: 1_781_000_000 + Double(index) * 3_600)
-            session.workItemIDsArray = [try #require(work.id).uuidString]
+            PracticeCheckIns.record(
+                PracticeRecord(date: Date(timeIntervalSince1970: 1_781_000_000 + Double(index) * 3_600), minutes: 10),
+                on: work, in: context
+            )
         }
         try context.save()
 
@@ -49,9 +50,9 @@ struct PresentationWorkSummaryTests {
         #expect(summary.stats.completed == legacyStats.completed)
         #expect(summary.stats.total == legacyStats.total)
         #expect(summary.stats.completed == 1)
-        let legacySessions = presentation.fetchRelatedPracticeSessions(from: context)
-        #expect(summary.practiceSessions.map(\.objectID) == legacySessions.map(\.objectID))
-        #expect(summary.practiceSessions.count == 3)
+        let legacyPractice = presentation.fetchRelatedPracticeCheckIns(from: context, relatedWork: legacyWork)
+        #expect(summary.practiceCheckIns.map(\.objectID) == legacyPractice.map(\.objectID))
+        #expect(summary.practiceCheckIns.count == 3)
         for work in legacyWork {
             #expect(summary.student(for: work)?.objectID == work.fetchStudent(from: context)?.objectID)
         }

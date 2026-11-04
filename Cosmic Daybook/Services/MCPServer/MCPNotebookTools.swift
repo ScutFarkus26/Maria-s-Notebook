@@ -128,7 +128,6 @@ enum MCPNotebookTools {
             studentMeetingsTool(context: context),
             scheduledMeetingsTool(context: context),
             scheduleMeetingTool(context: context),
-            practiceSessionsTool(context: context),
             recallChecksTool(context: context)
         ]
     }
@@ -176,8 +175,6 @@ enum MCPNotebookTools {
             recordParentCommunicationTool(context: context),
             listGoingOutsTool(context: context),
             updateGoingOutTool(context: context),
-            classroomJobsTool(context: context),
-            assignJobTool(context: context),
             listSuppliesTool(context: context),
             adjustSupplyTool(context: context),
             markSuppliesTool(context: context),

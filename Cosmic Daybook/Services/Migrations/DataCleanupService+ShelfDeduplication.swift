@@ -28,7 +28,7 @@ nonisolated extension DataCleanupService {
     /// `ClassroomMembership`, where deleting a row can break sharing itself.
     ///
     /// Every other entity exposed to the same clone (Procedure, Story,
-    /// Schedule, GoingOut, ClassroomJob, BookClubPacket, TodoTemplate,
+    /// Schedule, GoingOut, BookClubPacket, TodoTemplate,
     /// LessonAttachment, CalendarNote) holds 0–1 rows today, so none of them
     /// can have a duplicate to fold yet.
     ///

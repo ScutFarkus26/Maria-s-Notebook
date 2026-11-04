@@ -12,7 +12,6 @@ nonisolated extension CDLessonAssignment: Identifiable {}
 nonisolated extension CDAttendanceRecord: Identifiable {}
 nonisolated extension CDIssue: Identifiable {}
 nonisolated extension CDProcedure: Identifiable {}
-nonisolated extension CDPracticeSession: Identifiable {}
 nonisolated extension CDStudentMeeting: Identifiable {}
 nonisolated extension CDCommunityTopicEntity: Identifiable {}
 nonisolated extension CDTrackEntity: Identifiable {}

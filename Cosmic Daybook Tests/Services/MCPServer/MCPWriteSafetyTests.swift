@@ -172,25 +172,6 @@ struct MCPWriteSafetyTests {
         #expect(output.contains("in the 30 days through"))
     }
 
-    @Test("practice_sessions: until alone reads the days_back days ending there")
-    func practiceUntilOnly() async throws {
-        let (tools, context) = try makeTools()
-        let ana = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ana", lastName: "Perez")
-        CoreDataTestHelpers.save(context)
-        let session = CDPracticeSession(context: context)
-        session.id = UUID()
-        session.date = daysAgo(400)
-        session.studentIDsArray = [try #require(ana.id).uuidString]
-        session.sharedNotes = "Bead frame, four hundred days back."
-        CoreDataTestHelpers.save(context)
-
-        let output = try await tool(named: "practice_sessions", in: tools).handler([
-            "student_name": .string("Ana"), "until": dayText(380)
-        ])
-
-        #expect(output.contains("Bead frame, four hundred days back."))
-    }
-
     // MARK: - D17: scheduling
 
     @Test("reschedule_presentation refuses a day school is out")

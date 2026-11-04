@@ -185,7 +185,6 @@ private enum FieldCoverage {
         "packetID": "BookClubPacket",
         "issueID": "Issue",
         "scheduleID": "Schedule",
-        "jobID": "ClassroomJob",
         "trackID": "Track",
         "trackStepID": "TrackStep",
         "meetingID": "StudentMeeting",
@@ -456,7 +455,6 @@ final class BackupFieldCoverageTests {
         ),
         FieldSpec("WorkStep"),
         FieldSpec("WorkParticipantEntity"),
-        FieldSpec("PracticeSession"),
         FieldSpec(
             "LessonAttachment",
             skips: [
@@ -624,8 +622,6 @@ final class BackupFieldCoverageTests {
         FieldSpec("NoteStudentLink"),
         FieldSpec("GoingOut"),
         FieldSpec("GoingOutChecklistItem"),
-        FieldSpec("ClassroomJob"),
-        FieldSpec("JobAssignment"),
         FieldSpec("CalendarNote"),
         FieldSpec(
             "ScheduledMeeting",

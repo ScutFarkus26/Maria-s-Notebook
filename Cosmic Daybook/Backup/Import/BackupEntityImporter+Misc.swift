@@ -112,9 +112,6 @@ extension BackupEntityImporter {
                 note.reminder = try index.related(CDReminder.self, id: id) ?? note.reminder
                 if note.reminder == nil { missingReminder += 1 }
             }
-            if let id = links.practiceSessionID {
-                note.practiceSession = try index.related(CDPracticeSession.self, id: id)
-            }
             if let id = links.issueID {
                 note.issue = try index.related(CDIssue.self, id: id)
             }

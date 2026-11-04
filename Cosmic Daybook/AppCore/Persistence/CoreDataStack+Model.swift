@@ -134,6 +134,9 @@ extension CoreDataStack {
         "CommunityTopic",
         "ProposedSolution",
         "CommunityAttachment",
+        // Classroom Jobs, retired 2026-11 (plan "Simplify the app, round
+        // two", Phase 2): no class, not backed up, but routed so a row any
+        // device still has stays, as `PracticeSession` below.
         "ClassroomJob",
         "JobAssignment",
         "NoteTemplate",
@@ -159,6 +162,10 @@ extension CoreDataStack {
         "WorkCheckIn",
         "WorkParticipantEntity",
         "WorkCompletionRecord",
+        // Retired 2026-11 (folded into check-ins by `PracticeCheckInCopy`),
+        // but routed on purpose: its rows stay, the copy reads them on every
+        // launch, and `Note.practiceSession` still points at it. A tombstone
+        // below would drop its table.
         "PracticeSession",
         "LessonAssignment",
         "StudentMeeting",
@@ -202,6 +209,9 @@ extension CoreDataStack {
     /// These are the Transition Planner, Work Cycle, Prep Checklist and
     /// Initiative features, removed end to end on 2026-06-11. No Swift code
     /// references their `CD*` classes, so nothing reads or writes them.
+    ///
+    /// Leaving both stores drops the entity's table on the next migration,
+    /// so only an empty type with no relationship from a live one belongs here.
     ///
     /// They stay in the model deliberately. The CloudKit schema is
     /// additive-only, and dropping entities from a mirrored model forces

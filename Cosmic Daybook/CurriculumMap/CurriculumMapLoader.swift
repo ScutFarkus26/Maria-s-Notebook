@@ -141,16 +141,21 @@ nonisolated enum CurriculumMapLoader {
         }
     }
 
+    /// Practice is a check-in (`CDWorkCheckIn.isPractice`), on one child's work.
     private static func practice(in context: NSManagedObjectContext) -> [CurriculumPracticeRef] {
-        let request = CDFetchRequest(CDPracticeSession.self)
+        let request = CDFetchRequest(CDWorkCheckIn.self)
+        request.predicate = NSPredicate(
+            format: "durationMinutes != nil OR purpose == %@", PracticeCheckIns.purpose
+        )
         request.fetchBatchSize = 200
-        return context.safeFetch(request).compactMap { session in
-            guard let id = session.id else { return nil }
+        return context.safeFetch(request).compactMap { checkIn in
+            guard let id = checkIn.id, let workID = UUID(uuidString: checkIn.workID) else { return nil }
+            let owner = checkIn.resolvedWork(in: context).flatMap { UUID(uuidString: $0.studentID) }
             return CurriculumPracticeRef(
                 id: id,
-                date: session.date,
-                studentIDs: session.resolvedStudentIDs,
-                workIDs: session.workItemIDsArray.compactMap(UUID.init(uuidString:))
+                date: checkIn.date,
+                studentIDs: owner.map { [$0] } ?? [],
+                workIDs: [workID]
             )
         }
     }
@@ -178,6 +183,6 @@ nonisolated enum CurriculumMapLoader {
     /// absent: an observation attaches to a presentation but does not move a cell.
     static let watchedEntityNames: Set<String> = [
         "Lesson", "Student", "LessonAssignment", "LessonPresentation",
-        "WorkModel", "WorkParticipantEntity", "PracticeSession", "LessonRecallCheck"
+        "WorkModel", "WorkParticipantEntity", "WorkCheckIn", "LessonRecallCheck"
     ]
 }

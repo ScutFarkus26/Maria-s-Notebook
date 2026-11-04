@@ -165,6 +165,9 @@ extension BackupService {
         // A backup from before Restock's levels (v36 and older) brings staples
         // back with counts only; they get levels from them, as at launch.
         RestockLevelBackfill.afterRestore(formatVersion: source.envelope.formatVersion, in: viewContext)
+        // A Replace clears check-ins and an older backup's practice sessions
+        // are skipped: the copies come back from the sessions still here.
+        PracticeCheckInCopy.runAndSave(in: viewContext)
         AlbumLibrary.shared.reloadAfterRestore()
         appRouter.signalAppDataDidRestore()
 

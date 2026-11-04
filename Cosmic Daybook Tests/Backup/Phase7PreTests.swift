@@ -17,7 +17,6 @@ final class Phase7PreTests {
         #expect(types.contains(where: { $0 == CDTrackEntity.self }))
         #expect(types.contains(where: { $0 == CDSchedule.self }))
         #expect(types.contains(where: { $0 == CDProcedure.self }))
-        #expect(types.contains(where: { $0 == CDClassroomJob.self }))
         #expect(types.contains(where: { $0 == CDGoingOut.self }))
     }
 
@@ -36,7 +35,7 @@ final class Phase7PreTests {
 
     // MARK: - Backup Payload Structure
 
-    @Test("BackupPayload has classroomJobs field (format v12)")
+    @Test("BackupPayload has its format v12 fields")
     func payloadHasV12Fields() {
         // Verify v12 payload fields exist (compile-time check + runtime)
         let payload = BackupPayload(
@@ -52,7 +51,6 @@ final class Phase7PreTests {
             preferences: PreferencesDTO(values: [:])
         )
         // v12 fields should be nil (optional arrays)
-        #expect(payload.classroomJobs == nil)
         #expect(payload.calendarNotes == nil)
         #expect(payload.scheduledMeetings == nil)
     }

@@ -1,7 +1,7 @@
 import Foundation
 import CoreData
 
-// MARK: - Work Transformers (CDWorkModel, CDWorkCheckIn, CDWorkStep, WorkParticipant, CDPracticeSession)
+// MARK: - Work Transformers (CDWorkModel, CDWorkCheckIn, CDWorkStep, WorkParticipant)
 
 extension BackupDTOTransformers {
 
@@ -45,7 +45,8 @@ extension BackupDTOTransformers {
             date: checkIn.date ?? Date(),
             statusRaw: checkIn.statusRaw,
             purpose: checkIn.purpose,
-            studentInitiated: checkIn.studentInitiated
+            studentInitiated: checkIn.studentInitiated,
+            durationMinutes: checkIn.durationMinutesValue
         )
     }
 
@@ -57,34 +58,6 @@ extension BackupDTOTransformers {
             studentID: participant.studentID,
             completedAt: participant.completedAt,
             workID: participant.work?.id
-        )
-    }
-
-    // MARK: - CDPracticeSession
-
-    static func toDTO(_ session: CDPracticeSession) -> PracticeSessionDTO {
-        PracticeSessionDTO(
-            id: session.id ?? UUID(),
-            createdAt: session.createdAt ?? Date(),
-            date: session.date ?? Date(),
-            duration: session.duration > 0 ? session.duration : nil,
-            studentIDs: (session.studentIDs as? [String]) ?? [],
-            workItemIDs: (session.workItemIDs as? [String]) ?? [],
-            sharedNotes: session.sharedNotes,
-            location: session.location,
-            practiceQuality: session.practiceQuality > 0 ? Int(session.practiceQuality) : nil,
-            independenceLevel: session.independenceLevel > 0 ? Int(session.independenceLevel) : nil,
-            askedForHelp: session.askedForHelp,
-            helpedPeer: session.helpedPeer,
-            struggledWithConcept: session.struggledWithConcept,
-            madeBreakthrough: session.madeBreakthrough,
-            needsReteaching: session.needsReteaching,
-            readyForCheckIn: session.readyForCheckIn,
-            readyForAssessment: session.readyForAssessment,
-            checkInScheduledFor: session.checkInScheduledFor,
-            followUpActions: session.followUpActions,
-            materialsUsed: session.materialsUsed,
-            workStepID: session.workStepID
         )
     }
 
@@ -100,9 +73,5 @@ extension BackupDTOTransformers {
 
     static func toDTOs(_ participants: [CDWorkParticipantEntity]) -> [WorkParticipantEntityDTO] {
         participants.map { toDTO($0) }
-    }
-
-    static func toDTOs(_ sessions: [CDPracticeSession]) -> [PracticeSessionDTO] {
-        sessions.map { toDTO($0) }
     }
 }

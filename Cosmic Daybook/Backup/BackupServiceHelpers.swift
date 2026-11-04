@@ -134,7 +134,6 @@ enum BackupServiceHelpers {
                 studentMeetingID: n.studentMeeting?.id,
                 projectSessionID: n.projectSession?.id,
                 reminderID: n.reminder?.id,
-                practiceSessionID: n.practiceSession?.id,
                 issueID: n.issue?.id
             )
         }

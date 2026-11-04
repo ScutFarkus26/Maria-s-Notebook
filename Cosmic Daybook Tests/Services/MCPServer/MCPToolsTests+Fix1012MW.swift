@@ -244,16 +244,6 @@ struct MCPToolsFix1012MWTests {
         ))
     }
 
-    // MARK: - #21: practice_sessions says how to reach further back
-
-    @Test("practice_sessions points to days_back, not limit, for older sessions")
-    func practiceSessionsDescriptionNamesDaysBack() throws {
-        let (tools, _) = try Fixture.makeTools()
-        let description = try Fixture.tool(named: "practice_sessions", in: tools).description
-        #expect(description.contains("days_back"))
-        #expect(!description.contains("raise limit"))
-    }
-
     // MARK: - #22: the smaller ones
 
     @Test("create_observation with one child named twice files a one-child note")
