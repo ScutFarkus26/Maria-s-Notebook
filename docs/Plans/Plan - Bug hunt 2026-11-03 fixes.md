@@ -1,6 +1,6 @@
 # Bug hunt 2026-11-03 fixes
 
-> **Not started.** Written 2026-11-03 from the read-only hunt in <../Reviews/Bug hunt 2026-11-03.md> (60 findings in the oldest daily-use code). Waits for the weekly limit's reset on Sunday 2026-11-08 at 3 pm.
+> **Not started.** Written 2026-11-03 from the read-only hunt in <../Reviews/Bug hunt 2026-11-03.md> (60 findings in the oldest daily-use code). Waits for the weekly limit's reset on Sunday 2026-11-08 at 3 pm ([Tide row](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20weekly%20limit%20resets%20on%20Sunday%2C%20start%20a%20fresh%20session%20to%20run%20the%202026-11-03%20bug%20hunt%27s%20fix%20plan)).
 > In short: fix every finding with nine fix agents in rolling slots of at most three, each owning its own files and writing a failing test first, then a cold review of the combined work, a fix round with fresh small agents, both whole suites, and land it on main without rolling out.
 
 The report has, for every finding, the scenario, the `file:line` places and a suggested fix. This plan says who fixes what, the decisions where the report left a choice, and how it lands; it doesn't repeat the findings. "#N" is finding N in the report. Paths are under `Cosmic Daybook/`.
