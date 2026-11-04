@@ -112,7 +112,7 @@ enum BackupRestoreFixtures {
         "AttendanceRecord", "WorkCompletionRecord", "Project", "ProjectRole", "ProjectSession",
         "WorkModel", "WorkCheckIn", "WorkStep", "WorkParticipantEntity",
         "LessonAttachment", "LessonPresentation", "LessonRecallCheck", "SampleWork", "SampleWorkStep",
-        "NoteTemplate", "MeetingTemplate", "CalendarEvent",
+        "MeetingTemplate", "CalendarEvent",
         "Track", "TrackStep", "StudentTrackEnrollment", "SequenceTrack",
         "Document", "Supply", "Procedure", "Schedule", "ScheduleSlot", "Issue", "IssueAction",
         "DevelopmentSnapshot", "TodoItem", "TodayAgendaOrder",

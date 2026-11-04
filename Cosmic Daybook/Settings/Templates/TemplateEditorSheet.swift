@@ -1,9 +1,9 @@
 // TemplateEditorSheet.swift
-// The shared create/edit sheet behind the meeting- and note-template editors.
-// The chrome (navigation title, Cancel/Save toolbar, save + dismiss, the
-// discard question, platform presentation) is identical; each editor supplies
-// a `TemplateEditing` adapter for its draft, its form sections and its Core
-// Data writes.
+// The create/edit sheet behind the meeting-template editor (note templates,
+// which shared it, were retired in 2026-11). The chrome is here (navigation
+// title, Cancel/Save toolbar, save + dismiss, the discard question, platform
+// presentation); the editor supplies a `TemplateEditing` adapter for its
+// draft, its form sections and its Core Data writes.
 
 import SwiftUI
 import CoreData

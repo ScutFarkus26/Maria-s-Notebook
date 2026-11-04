@@ -482,14 +482,6 @@ extension BackupService {
         into viewContext: NSManagedObjectContext,
         index: BackupEntityIndex
     ) throws {
-        if let noteTemplates = payload.noteTemplates {
-            try BackupEntityImporter.importNoteTemplates(
-                noteTemplates,
-                into: viewContext,
-                existing: { try index.existing(CDNoteTemplate.self, id: $0) }
-            )
-        }
-
         if let meetingTemplates = payload.meetingTemplates {
             BackupEntityImporter.importRows(
                 meetingTemplates, as: CDMeetingTemplate.self, into: viewContext,

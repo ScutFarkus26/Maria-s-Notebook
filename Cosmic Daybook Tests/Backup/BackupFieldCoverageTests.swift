@@ -474,17 +474,6 @@ final class BackupFieldCoverageTests {
             overrides: ["workKindRaw": "followUpAssignment"]
         ),
         FieldSpec("SampleWorkStep"),
-        FieldSpec(
-            "NoteTemplate",
-            // Written but not restored (below), so it comes back as the model
-            // default; holding that default keeps a restore-then-export of the
-            // golden backup identical (BackupGoldenOutputTests).
-            overrides: ["categoryRaw": "general"],
-            skips: [
-                "categoryRaw": "legacy category field — importer maps it into tags "
-                    + "(TagHelper.tagFromNoteCategory) instead of restoring it"
-            ]
-        ),
         FieldSpec("MeetingTemplate"),
         FieldSpec(
             "CalendarEvent",

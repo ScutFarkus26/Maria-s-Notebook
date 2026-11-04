@@ -139,7 +139,7 @@ extension CoreDataStack {
         // device still has stays, as `PracticeSession` below.
         "ClassroomJob",
         "JobAssignment",
-        "NoteTemplate",
+        "NoteTemplate", // retired 2026-11 (round-two Simplify, Phase 4): no class, rows kept
         "MeetingTemplate",
         "TodoTemplate",
         "Resource",
@@ -233,8 +233,9 @@ extension CoreDataStack {
     ]
 
     /// Entities whose features were removed but whose rows still exist: Apple
-    /// Reminders sync, to-do subtasks and to-do templates (2026-11, Simplify
-    /// round two).
+    /// Reminders sync, to-do subtasks and to-do templates, Classroom Jobs and
+    /// their assignments, practice sessions (copied into check-ins by
+    /// `PracticeCheckInCopy`) and note templates (2026-11, Simplify round two).
     ///
     /// Unlike the tombstones above they STAY in `privateEntityNames`. Taking a
     /// type with rows out of a store's configuration makes the next launch
@@ -242,9 +243,14 @@ extension CoreDataStack {
     /// store and keep syncing, but have no Swift class (the model's class
     /// name is blank), aren't backed up, and are skipped when an old backup
     /// is restored (`BackupEntityTable.skippedOnImport`). No code fetches
-    /// them by name except the one launch step that cleared their Apple
-    /// Reminders links; `Phase8PreTests` checks that.
+    /// them by name except the launch step that clears their Apple Reminders
+    /// links and the practice copy (`PracticeCheckInCopy`, `StudentDeletion`);
+    /// `Phase8PreTests` checks that.
     nonisolated static let retiredEntities: Set<String> = [
+        "ClassroomJob",
+        "JobAssignment",
+        "NoteTemplate",
+        "PracticeSession",
         "Reminder",
         "TodoSubtask",
         "TodoTemplate"

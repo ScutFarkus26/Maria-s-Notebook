@@ -25,7 +25,6 @@ enum SettingsCopy {
         case parentReports
         case orderRequests
         // Templates
-        case noteTemplates
         case meetingTemplates
         // Connections
         case appleCalendar
@@ -57,7 +56,7 @@ enum SettingsCopy {
             case .classroomSharing: return .classroom
             case .ageIndicators, .quickCapture: return .lookAndFeel
             case .attendanceEmail, .parentReports, .orderRequests: return .messages
-            case .noteTemplates, .meetingTemplates: return .templates
+            case .meetingTemplates: return .templates
             case .appleCalendar, .tide: return .connections
             case .appleIntelligence, .lessonPlanning, .siri, .claudeDesktop: return .intelligence
             case .iCloud, .backups, .settingsTransfer: return .syncBackup
@@ -76,7 +75,6 @@ enum SettingsCopy {
             case .attendanceEmail: return "Attendance to the School"
             case .parentReports: return "Parent reports"
             case .orderRequests: return "Order requests"
-            case .noteTemplates: return "Note templates"
             case .meetingTemplates: return "Meeting templates"
             case .appleCalendar: return "Apple Calendar events"
             case .tide: return "Tide"
@@ -106,7 +104,6 @@ enum SettingsCopy {
             case .attendanceEmail: return "checkmark.circle.fill"
             case .parentReports: return "envelope.badge.person.crop"
             case .orderRequests: return "cart.fill"
-            case .noteTemplates: return "note.text.badge.plus"
             case .meetingTemplates: return "person.2.wave.2.fill"
             case .appleCalendar: return "calendar.day.timeline.left"
             case .tide: return "water.waves"
@@ -151,8 +148,6 @@ enum SettingsCopy {
                 return ["Monthly reminder", "Reports"]
             case .orderRequests:
                 return ["Orders", "Restock", "Office", "Send requests to", "CC", "Copy", "Sign off", "Message"]
-            case .noteTemplates:
-                return ["Templates", "Observations"]
             case .meetingTemplates:
                 return ["Templates", "Meetings", "Prompts"]
             case .appleCalendar:
@@ -249,7 +244,7 @@ enum SettingsCopy {
         static let notAdded = "Couldn’t add that folder. Choose it again."
     }
 
-    /// The note- and meeting-template editor (`TemplateEditorSheet`).
+    /// The meeting-template editor (`TemplateEditorSheet`).
     enum TemplateEditor {
         static let discardTitle = "Discard your changes to this template?"
         static let discard = "Discard Changes"
@@ -264,7 +259,7 @@ enum SettingsCopy {
         static let saveFailed = "Couldn’t save the changes to last year’s plans, so nothing was changed. Try again."
     }
 
-    /// The note- and meeting-template lists (`TemplateManagementView`).
+    /// The meeting-template lists (`TemplateManagementView`).
     enum TemplateManagement {
         static let deleteFailedTitle = "Couldn’t Delete the Template"
         static let deleteFailed = "The template is still here. Try deleting it again."

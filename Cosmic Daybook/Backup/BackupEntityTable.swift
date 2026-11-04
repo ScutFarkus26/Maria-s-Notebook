@@ -149,17 +149,6 @@ nonisolated struct BackupEntity: Sendable {
 }
 
 nonisolated enum BackupEntityTable {
-    /// Types the backup no longer writes that older backups still carry. The
-    /// importer knows their sections and skips them without a warning: the
-    /// app has nowhere to put their rows, and a backup made before they were
-    /// retired should restore as cleanly as one made after (plan "Simplify
-    /// the app, round two", Phase 2).
-    static let skippedOnImport: Set<String> = [
-        "ClassroomJob",
-        "JobAssignment",
-        "PracticeSession"
-    ]
-
     /// Every backed-up entity type, in archive order. Split into groups only to
     /// keep each array literal quick to type-check.
     static let entities: [BackupEntity] =
@@ -169,11 +158,11 @@ nonisolated enum BackupEntityTable {
     /// Every entity name, in archive order.
     static var names: [String] { entities.map(\.name) }
 
-    /// Types older backups carry that are no longer written or restored: Apple
-    /// Reminders copies, to-do subtasks and to-do templates, retired in
-    /// Simplify round two (`CoreDataStack.retiredEntities`). A restore passes
-    /// over their entries without a warning; the records already here stay.
-    static let skippedOnImport: Set<String> = ["Reminder", "TodoSubtask", "TodoTemplate"]
+    /// Types older backups carry that are no longer written or restored: the
+    /// types retired in Simplify round two (`CoreDataStack.retiredEntities`).
+    /// A restore passes over their entries without a warning; the records
+    /// already here stay.
+    static var skippedOnImport: Set<String> { CoreDataStack.retiredEntities }
 
     /// The type whose rows `field` holds, or nil for a payload array no
     /// backed-up type fills (the retired project types).
@@ -262,10 +251,9 @@ nonisolated enum BackupEntityTable {
 
     private static let templateAndTrackEntities: [BackupEntity] = [
         .optional(
-            "NoteTemplate", CDNoteTemplate.self, \.noteTemplates, BackupDTOTransformers.toDTOs,
+            "MeetingTemplate", CDMeetingTemplate.self, \.meetingTemplates, MeetingTemplateDTO.rows,
             announcing: .init(0.55, "Collecting templates & tracks\u{2026}")
         ),
-        .optional("MeetingTemplate", CDMeetingTemplate.self, \.meetingTemplates, MeetingTemplateDTO.rows),
         .optional("CalendarEvent", CDCalendarEvent.self, \.calendarEvents, BackupDTOTransformers.toDTOs),
         .optional("Track", CDTrackEntity.self, \.tracks, TrackDTO.rows),
         .optional("TrackStep", CDTrackStep.self, \.trackSteps, TrackStepDTO.rows),

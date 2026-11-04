@@ -106,14 +106,11 @@ struct SettingsStatsViewModelTests {
     @Test("The Overview and Templates panes read the template counts")
     func templateCounts() throws {
         let context = try CoreDataTestHelpers.makeContext()
-        _ = CDNoteTemplate(context: context)
-        _ = CDNoteTemplate(context: context)
         _ = CDMeetingTemplate(context: context)
 
         let stats = SettingsStatsViewModel()
         stats.loadCounts(context: context)
 
-        #expect(stats.noteTemplatesCount == 2)
         #expect(stats.meetingTemplatesCount == 1)
         #expect(stats.total(of: .library) == 3)
     }

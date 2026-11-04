@@ -72,7 +72,6 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
     case documents
     case lessonFiles
     case communityFiles
-    case noteTemplates
     case meetingTemplates
 
     var id: String { rawValue }
@@ -88,7 +87,7 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
              .communityTopics, .procedures:
             return .classroom
         case .stories, .albumMarks, .documents, .lessonFiles, .communityFiles,
-             .noteTemplates, .meetingTemplates:
+             .meetingTemplates:
             return .library
         }
     }
@@ -120,7 +119,6 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
         case .documents: return "Documents"
         case .lessonFiles: return "Lesson files"
         case .communityFiles: return "Community files"
-        case .noteTemplates: return "Note templates"
         case .meetingTemplates: return "Meeting templates"
         }
     }
@@ -152,7 +150,6 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
         case .documents: return "doc.fill"
         case .lessonFiles: return "paperclip"
         case .communityFiles: return "paperclip.badge.ellipsis"
-        case .noteTemplates: return "note.text.badge.plus"
         case .meetingTemplates: return "person.2.wave.2.fill"
         }
     }
@@ -195,7 +192,6 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
         case .documents: return [CDDocument.self]
         case .lessonFiles: return [CDLessonAttachment.self]
         case .communityFiles: return [CDCommunityAttachmentEntity.self]
-        case .noteTemplates: return [CDNoteTemplateEntity.self]
         case .meetingTemplates: return [CDMeetingTemplateEntity.self]
         }
     }
@@ -225,7 +221,6 @@ final class SettingsStatsViewModel {
     private(set) var todoCompletedCount: Int = 0
     private(set) var issuesResolvedCount: Int = 0
 
-    var noteTemplatesCount: Int { count(of: .noteTemplates) }
     var meetingTemplatesCount: Int { count(of: .meetingTemplates) }
 
     func count(of kind: NotebookRecordKind) -> Int {

@@ -1,7 +1,8 @@
 // TemplateManagementView.swift
-// The shared "manage templates" settings screen. Meeting templates and note
-// templates render the same list, card rows, empty state and toolbar; each one
-// supplies a `TemplateManaging` adapter for the parts that differ.
+// The shared "manage templates" settings screen: the list, card rows, empty
+// state and toolbar. Meeting templates supply a `TemplateManaging` adapter for
+// the parts that are theirs (note templates, its other user, were retired in
+// 2026-11).
 
 import SwiftUI
 import CoreData

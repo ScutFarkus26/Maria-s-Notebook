@@ -675,7 +675,6 @@ CDStudent ←── studentID ──── CDLessonAssignment ───── le
 | `CDDocument` | Learning resources |
 | `CDIssue` / `CDIssueAction` | Issue tracking |
 | `CDProcedure` | Standard procedures |
-| `CDNoteTemplate` | Reusable observation templates |
 | `CDLessonAttachment` | Files attached to lessons |
 | `CDLessonPresentation` | Per-student mastery tracking |
 | `CDAlbumGroupOrder` / `CDAlbumGroupUIState` | UI state persistence |
@@ -1134,7 +1133,7 @@ Teacher task management with:
 | AI | Private Cloud Compute opt-in; lesson-planning prompt, temperature and timeout |
 | CloudKit | Sync enable/disable, status, deduplication |
 | Data | Statistics, export, import, test student filtering |
-| Templates | Meeting and note templates |
+| Templates | Meeting templates |
 
 ## Backup & Restore
 

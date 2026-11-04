@@ -137,7 +137,7 @@
         <relationship name="note" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Note" inverseName="studentLinks" inverseEntity="Note"/>
     </entity>
     <!-- ==================== NoteTemplate ==================== -->
-    <entity name="NoteTemplate" representedClassName="NoteTemplateEntity" syncable="YES">
+    <entity name="NoteTemplate" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="title" attributeType="String" defaultValueString=""/>

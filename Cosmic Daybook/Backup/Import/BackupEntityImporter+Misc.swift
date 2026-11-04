@@ -108,38 +108,6 @@ extension BackupEntityImporter {
         }
     }
 
-    // MARK: - CDNote Templates
-
-    static func importNoteTemplates(
-        _ dtos: [NoteTemplateDTO],
-        into viewContext: NSManagedObjectContext,
-        existing: ExistingLookup<CDNoteTemplate>
-    ) rethrows {
-        try importSimpleEntities(
-            dtos, into: viewContext,
-            existing: existing,
-            idExtractor: { $0.id },
-            entityBuilder: { dto, current in
-            let templateTags: [String]
-            if let dtoTags = dto.tags, !dtoTags.isEmpty {
-                templateTags = dtoTags
-            } else if !dto.categoryRaw.isEmpty, dto.categoryRaw != "general" {
-                templateTags = [TagHelper.tagFromNoteCategory(dto.categoryRaw)]
-            } else {
-                templateTags = []
-            }
-            let template = current ?? CDNoteTemplate(context: viewContext)
-            template.id = dto.id
-            template.createdAt = dto.createdAt
-            template.title = dto.title
-            template.body = dto.body
-            template.tags = templateTags as NSArray
-            template.sortOrder = Int64(dto.sortOrder)
-            template.isBuiltIn = dto.isBuiltIn
-            return template
-        })
-    }
-
     // MARK: - Community Topics
 
     /// Imports community topics from DTOs.

@@ -42,8 +42,8 @@ struct SettingsSearchTests {
     func firstInPaneOrder() {
         // "Templates" is a keyword of both template cards.
         #expect(SettingsSearch.matchingGroups(in: .templates, query: "templates")
-            == [.noteTemplates, .meetingTemplates])
-        #expect(SettingsSearch.firstMatchingGroup(in: .templates, query: "templates") == .noteTemplates)
+            == [.meetingTemplates])
+        #expect(SettingsSearch.firstMatchingGroup(in: .templates, query: "templates") == .meetingTemplates)
         // "Sync" is on the iCloud card and the Sync history card, in different categories.
         #expect(SettingsSearch.firstMatchingGroup(in: .syncBackup, query: "sync") == .iCloud)
         #expect(SettingsSearch.firstMatchingGroup(in: .troubleshooting, query: "sync") == .syncHistory)

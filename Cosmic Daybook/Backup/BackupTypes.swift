@@ -101,7 +101,7 @@ nonisolated public struct BackupPayload: Codable, Sendable {
         case workCheckIns, workSteps, workParticipants
         case lessonAttachments, lessonPresentations, recallChecks
         case sampleWorks, sampleWorkSteps
-        case noteTemplates, meetingTemplates
+        case meetingTemplates
         case calendarEvents
         case tracks, trackSteps, studentTrackEnrollments, sequenceTracks
         case documents
@@ -174,7 +174,6 @@ nonisolated public struct BackupPayload: Codable, Sendable {
     public var sampleWorkSteps: [SampleWorkStepDTO]?
 
     // Templates (format v8+)
-    public var noteTemplates: [NoteTemplateDTO]?
     public var meetingTemplates: [MeetingTemplateDTO]?
 
     // Calendar (format v8+)

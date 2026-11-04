@@ -2,22 +2,12 @@ import SwiftUI
 
 // MARK: - Templates Pane
 
-/// Settings › Templates: the note and meeting template libraries.
+/// Settings › Templates: the meeting template library.
 struct SettingsTemplatesPane: View {
     var statsViewModel: SettingsStatsViewModel
 
     var body: some View {
         VStack(spacing: SettingsStyle.groupSpacing) {
-            SettingsGroup(.noteTemplates) {
-                templateLibraryRow(
-                    count: statsViewModel.noteTemplatesCount,
-                    title: "Manage note templates"
-                ) {
-                    NoteTemplateManagementView()
-                        .settingsBreadcrumb("Settings › Templates")
-                }
-            }
-
             SettingsGroup(.meetingTemplates) {
                 templateLibraryRow(
                     count: statsViewModel.meetingTemplatesCount,

@@ -3,23 +3,27 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-/// Apple Reminders copies, to-do subtasks and to-do templates were retired in
+/// Apple Reminders copies, to-do subtasks, to-do templates, Classroom Jobs and
+/// their assignments, practice sessions and note templates were retired in
 /// Simplify round two (`CoreDataStack.retiredEntities`). A backup made before
 /// still restores: their entries are passed over without a warning, and
 /// everything else comes back.
 ///
 /// The fixture `BackupRetiredTypes-before.json` beside this file is the
 /// golden backup as it was recorded before the change (one row of every
-/// backed-up type, the three retired ones included), in the same
+/// backed-up type, the seven retired ones included), in the same
 /// `<store>/<Entity>` → NDJSON layout as `BackupGolden-v27.json`.
 @Suite("Backup: retired types in an older backup", .serialized)
 @MainActor
 struct RetiredTypesRestoreTests {
     private final class BundleToken {}
 
-    private static let retired = ["Reminder", "TodoSubtask", "TodoTemplate"]
+    private static let retired = [
+        "Reminder", "TodoSubtask", "TodoTemplate",
+        "ClassroomJob", "JobAssignment", "PracticeSession", "NoteTemplate"
+    ]
 
-    @Test("An older backup with reminders, subtasks and to-do templates restores without them, and without warnings")
+    @Test("An older backup with the retired types restores without them, and without warnings")
     func olderBackupRestoresWithoutRetiredRows() async throws {
         let fixture = try Self.loadFixture()
         for name in Self.retired {

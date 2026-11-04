@@ -144,8 +144,6 @@ extension BackupService {
         progress: @escaping ProgressCallback
     ) {
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.55), "Collecting templates & tracks\u{2026}")
-        payload.noteTemplates = fetchAndTransformInBatches(
-            CDNoteTemplate.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.meetingTemplates = fetchAndTransformInBatches(
             CDMeetingTemplate.self, using: viewContext) { MeetingTemplateDTO.rows($0) }
         payload.calendarEvents = fetchAndTransformInBatches(
