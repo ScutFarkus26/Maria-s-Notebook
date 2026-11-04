@@ -26,8 +26,6 @@ extension TodoMainView {
     /// Clears every sidebar selection, before one is picked.
     func clearSidebarSelection() {
         selectedFilter = nil
-        selectedTag = nil
-        selectedFolder = nil
         selectedTideList = nil
     }
 

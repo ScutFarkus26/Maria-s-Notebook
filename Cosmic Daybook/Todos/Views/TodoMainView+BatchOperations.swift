@@ -20,18 +20,6 @@ extension TodoMainView {
         }
     }
 
-    func batchSetHighPriority() {
-        adaptiveWithAnimation(.snappy(duration: 0.2)) {
-            let todos = allTodos.filter { $0.id.map { selectedTodoIDs.contains($0) } ?? false }
-            for todo in todos {
-                todo.priority = .high
-            }
-            dependencies.saveCoordinator.save(viewContext, reason: "Set todo priority")
-            selectedTodoIDs.removeAll()
-            isSelectMode = false
-        }
-    }
-
     /// Plans the selected todos for today, as the row's Today swipe does;
     /// their deadlines stay as they are.
     func batchMoveToToday() {

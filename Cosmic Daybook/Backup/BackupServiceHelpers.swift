@@ -133,7 +133,7 @@ enum BackupServiceHelpers {
                 workCompletionRecordID: n.workCompletionRecord?.id,
                 studentMeetingID: n.studentMeeting?.id,
                 projectSessionID: n.projectSession?.id,
-                reminderID: n.reminder?.id,
+                reminderID: nil,
                 practiceSessionID: n.practiceSession?.id,
                 issueID: n.issue?.id
             )

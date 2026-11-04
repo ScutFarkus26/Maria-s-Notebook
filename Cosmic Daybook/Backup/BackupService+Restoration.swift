@@ -174,7 +174,7 @@ extension BackupService {
         progress(RestoreProgress.cloudSync, "Syncing to iCloud\u{2026}")
         let cloudResult = await awaitCloudKitExport(exportListener, startedFrom: savedAt, timeout: .seconds(30))
         let warnings = restoreWarnings(
-            albumIDs: run.albumIDs, notesMissingTheirReminder: run.notesMissingTheirReminder, cloudResult: cloudResult
+            albumIDs: run.albumIDs, cloudResult: cloudResult
         )
 
         progress(RestoreProgress.done, "Done")
@@ -305,7 +305,7 @@ extension BackupService {
         // Notes import early, but many of their relationship targets (work,
         // check-ins, meetings, etc.) import in later phases — relink them now
         // that every target type is in the store.
-        run.notesMissingTheirReminder = try BackupEntityImporter.relinkNoteRelationships(
+        try BackupEntityImporter.relinkNoteRelationships(
             run.noteLinks, index: run.index
         )
         try run.matchStudentLinksToScope()
@@ -362,17 +362,13 @@ extension BackupService {
     }
 
     /// The restore's own warnings for the summary: the album reattach warning,
-    /// notes whose reminder isn't on this device, then how the post-restore
-    /// CloudKit export went.
+    /// then how the post-restore CloudKit export went.
     private func restoreWarnings(
-        albumIDs: Set<String>, notesMissingTheirReminder: Int, cloudResult: CloudExportWaitResult
+        albumIDs: Set<String>, cloudResult: CloudExportWaitResult
     ) -> [String] {
         var warnings: [String] = []
         if let albumWarning = albumReattachWarning(for: albumIDs) {
             warnings.append(albumWarning)
-        }
-        if notesMissingTheirReminder > 0 {
-            warnings.append(BackupWarningText.notesMissingTheirReminder(notesMissingTheirReminder))
         }
         switch cloudResult {
         case .completed:

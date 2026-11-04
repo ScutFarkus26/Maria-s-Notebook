@@ -18,11 +18,6 @@
 //  - Blank attendance rows: opening a day makes an unmarked row per child
 //    (`CDAttendanceStore.ensureRecords`), and nothing marked them. Only
 //    days before today, never a locked day, and only rows holding nothing.
-//  - Empty unlinked copies of a reminder (same title, due date and
-//    completion moment; no notes) that also exists linked to Apple Reminders
-//    or with notes (or, with neither, every empty copy but the oldest). An
-//    open reminder is never a copy of a completed one. `EventKitMirror` only
-//    ever cleans up linked rows.
 //  - Notes with no text, photo or tags that aren't pinned, flagged or in a report.
 //  - Tracks with no steps that nothing points at.
 //  - Work steps with no work, sample-work steps with no sample work, and
@@ -61,7 +56,6 @@ nonisolated enum NotebookJunkCleanup {
         var blankPresentations = 0
         var detachedWorkParticipants = 0
         var blankAttendance = 0
-        var duplicateReminders = 0
         var emptyNotes = 0
         var emptyTracks = 0
         var orphanWorkSteps = 0
@@ -83,7 +77,7 @@ nonisolated enum NotebookJunkCleanup {
         /// Records removed.
         var removed: Int {
             orphanTrackSteps + blankPresentations + detachedWorkParticipants + blankAttendance
-                + duplicateReminders + emptyNotes + emptyTracks + orphanWorkSteps + orphanSampleWorkSteps
+                + emptyNotes + emptyTracks + orphanWorkSteps + orphanSampleWorkSteps
                 + completionRecordsOfDeletedWork + presentationsOfDeletedLessons + enrollmentsRemoved
                 + documentsWithoutFile
         }
@@ -142,7 +136,6 @@ nonisolated enum NotebookJunkCleanup {
         }, into: &counts.presentationsOfDeletedLessons)
 
         remove(blankAttendance(in: context, today: today), into: &counts.blankAttendance)
-        remove(duplicateReminders(in: context), into: &counts.duplicateReminders)
         remove(emptyNotes(in: context), into: &counts.emptyNotes)
         remove(fetch(CDWorkCompletionRecord.self, nil, in: context).filter {
             !workIDs.contains(normalized($0.workID))
@@ -222,34 +215,6 @@ nonisolated enum NotebookJunkCleanup {
                 && record.markedAt == nil && record.leftAt == nil && record.leavesAt == nil
                 && record.returnedAt == nil
         }
-    }
-
-    /// Empty unlinked copies of a reminder (same title, due date and
-    /// completion): all of them when a linked copy or one with notes exists,
-    /// otherwise all but the oldest. A copy with notes text or note items is
-    /// never a copy, an open reminder never groups with a completed one, and
-    /// completed ones group only when they were completed at the same moment
-    /// (a weekly "Order paper" done on two days is two reminders, not copies).
-    static func duplicateReminders(in context: NSManagedObjectContext) -> [CDReminder] {
-        let reminders = fetch(CDReminder.self, nil, in: context)
-        let groups = Dictionary(grouping: reminders) { reminder in
-            let completion = reminder.isCompleted
-                ? "done@\(reminder.completedAt?.timeIntervalSince1970 ?? -1)" : "open"
-            return "\(reminder.title.folded())|\(reminder.dueDate?.timeIntervalSince1970 ?? -1)|\(completion)"
-        }
-        var doomed: [CDReminder] = []
-        for group in groups.values where group.count > 1 {
-            let empty = group.filter { reminder in
-                reminder.eventKitReminderID == nil && (reminder.notes ?? "").trimmed().isEmpty
-                    && (reminder.noteItems?.count ?? 0) == 0
-            }
-            if empty.count < group.count {
-                doomed += empty
-            } else {
-                doomed += empty.sorted(by: olderFirst).dropFirst()
-            }
-        }
-        return doomed
     }
 
     /// Notes with nothing in them and nothing set on them.

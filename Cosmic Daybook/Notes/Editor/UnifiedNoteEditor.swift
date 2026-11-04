@@ -56,7 +56,6 @@ struct UnifiedNoteEditor: View {
         case studentMeeting(CDStudentMeeting)
         case projectSession(CDProjectSession)
         case communityTopic(CDCommunityTopicEntity)
-        case reminder(CDReminder)
         case schoolDayOverride(CDSchoolDayOverride)
         case goingOut(CDGoingOut)
     }

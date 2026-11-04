@@ -137,7 +137,9 @@ enum TodoCompletionService {
                 // Once sent to Tide it isn't untouched: deleting it would
                 // leave its Tide action with no copy here.
                 && copy.tideLink == nil
-                && (copy.subtasks?.count ?? 0) == 0
+                // A copy with checklist rows (TodoSubtask, retired 2026-11-03,
+                // rows kept) isn't untouched either.
+                && ((copy.value(forKey: "subtasks") as? NSSet)?.count ?? 0) == 0
                 && isSameDate(copy.dueDate, expected.dueDate)
                 && isSameDate(copy.scheduledDate, expected.scheduledDate)
         }

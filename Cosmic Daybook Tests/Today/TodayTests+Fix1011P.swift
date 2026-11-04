@@ -43,7 +43,7 @@ struct TodayTests {
         let all = context.safeFetch(CDFetchRequest(CDTodoItem.self))
         let partition = TodayTodosSectionView<EmptyView>.partition(all, date: day, calendar: AppCalendar.shared)
         let shown = Set(partition.all.map(\.title))
-        let todosScreen = Set(all.filter { TodoListFilter.today.matches($0, today: day) }.map(\.title))
+        let todosScreen = Set(all.filter { TodoListFilter.isOnToday($0, today: day) }.map(\.title))
         #expect(shown == todosScreen)
         #expect(shown.contains("Planned yesterday, not done"))
 

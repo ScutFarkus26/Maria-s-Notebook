@@ -75,31 +75,4 @@ struct NotebookJunkCleanupKeepsNotesTests {
         #expect(context.safeFetch(CDFetchRequest(CDNote.self)).map(\.body) == ["Synced in from the iPad"])
     }
 
-    @Test("One reminder completed at two different moments is two reminders; one moment twice is a copy")
-    func completedRemindersGroupByMoment() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let due = try CoreDataTestHelpers.day("2026-09-11")
-        let monday = try CoreDataTestHelpers.day("2026-09-14").addingTimeInterval(9 * 3_600)
-        let friday = try CoreDataTestHelpers.day("2026-09-18").addingTimeInterval(14 * 3_600)
-        func done(_ title: String, at completedAt: Date, created: String) throws {
-            let row = CDReminder(context: context)
-            row.title = title
-            row.dueDate = due
-            row.isCompleted = true
-            row.completedAt = completedAt
-            row.createdAt = try CoreDataTestHelpers.day(created)
-        }
-        try done("Order paper", at: monday, created: "2025-04-26")
-        try done("Order paper", at: friday, created: "2025-05-01")
-        try done("Call the office", at: monday, created: "2025-04-26")
-        try done("Call the office", at: monday, created: "2025-05-01")
-        CoreDataTestHelpers.save(context)
-
-        let cleaned = clean(context)
-        #expect(cleaned.duplicateReminders == 1)
-        let left = context.safeFetch(CDFetchRequest(CDReminder.self))
-        #expect(left.filter { $0.title == "Order paper" }.count == 2)
-        #expect(left.filter { $0.title == "Call the office" }.map(\.createdAt)
-            == [try CoreDataTestHelpers.day("2025-04-26")])
-    }
 }

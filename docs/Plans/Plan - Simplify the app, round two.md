@@ -1,6 +1,6 @@
 # Simplify the app, round two
 
-> **Not started.** Written 2026-11-03 from a whole-app analysis (branch `claude/app-simplification-analysis-31a526`): line and file counts per folder, live record counts read from the notebook over the Claude connection, the open rows in Tide, and what the first Simplify plan left alone on purpose. Danny approved the substance the same day ("go with your plan": Reminders sync off, practice folded into check-ins); this version is the plan-efficiently pass over it, with an SDK check and an Opus review (15 findings, all taken) folded in.
+> **Working on it.** Written 2026-11-03 from a whole-app analysis (branch `claude/app-simplification-analysis-31a526`): line and file counts per folder, live record counts read from the notebook over the Claude connection, the open rows in Tide, and what the first Simplify plan left alone on purpose. Danny approved the substance the same day ("go with your plan": Reminders sync off, practice folded into check-ins); this version is the plan-efficiently pass over it, with an SDK check and an Opus review (15 findings, all taken) folded in.
 > In short: one to-do list (Tide), the kept-but-empty features made cheap rather than deleted, about 60 Claude tools instead of 97, Settings as a list, the backup finished as one table, two template kinds instead of four, and the device-check backlog worked down and then capped, without touching the core loop (lesson, work, check-in, readiness, Class Grid).
 
 Build board: the project's board is https://claude.ai/artifact/WAKaFZGNPQsfKD4A5GbqsM; this plan's phases join it as milestones when Danny says so.
@@ -34,7 +34,15 @@ Live record counts, read 2026-11-03:
 ## Progress
 
 - [ ] Phase 0: Work the device-check backlog, then cap it (session: Danny, with one fresh helper session on Sonnet) · est. <1% weekly
-- [ ] Phase 1: One to-do list (session: fresh, Opus xhigh) ‖ Phases 2, 3, 4 · est. 3–5%
+- [x] Phase 1: One to-do list (session: fresh, Opus xhigh) ‖ Phases 2, 3, 4 · est. 3–5% · started at 98%, ended at 37% after the weekly reset: cost unreadable. Branch `claude/simplify-two-phase-1-e5f749`, not merged (Phase 5 combines).
+  - Notebook iOS (build for testing), Mac compile and Assistant builds succeeded; the 13 `-only-testing:` suites passed, 78 tests, the source scan included.
+  - Open notebook to-dos: 15 before, 15 after. Nothing pushed to Tide from here (tests never touch the real Tide server); the ones without a Tide twin show under "Not yet in Tide" until Danny runs the sharing on the Mac.
+  - Differed from the plan: the three types are **not** tombstones. `dormantTombstoneEntities` means "routed to no store", which drops the table and its rows (Reminder has 123). They stay in `privateEntityNames` and are listed in a new `CoreDataStack.retiredEntities` (class names blanked, not backed up, skipped on import, `BackupCoverageTests` allows them). Phases 2 and 4 do the same.
+  - `EventKitMirror+OldRows.swift` stays: it adopts old *calendar event* rows, not reminders. `ReminderChangeListening.swift` became `EventKitChangeListening.swift` (calendar events still listen).
+  - The golden lost exactly the three sections, but every later entry's dates and numbers moved, because the field-coverage fixture numbers values in spec order. Checked instead: same 79 entries, same rows and field names in each. The sparse reference lost TodoSubtask and its ids moved down by one. The pre-change golden is kept as `BackupRetiredTypes-before.json`, the fixture `RetiredTypesRestoreTests` restores.
+  - A note's link to a retired reminder (`NoteDTO.reminderID`) is written empty now, so a Replace restore drops that link; the reminder row itself stays.
+  - Not seen on a device: Todos on the Mac with the Tide sharing run ([Tide row](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20round-two%20Simplify%20lands%2C%20open%20Todos%20on%20the%20Mac%2C%20run%20the%20Tide%20sharing%2C%20and%20check%20every%20open%20to-do%20ends%20up%20under%20From%20Tide)), and one Tide round trip ([Tide row](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20round-two%20Simplify%20lands%2C%20add%20a%20to-do%20in%20Tide%20and%20tick%20it%20in%20Cosmic%20Daybook%20on%20the%20Mac%2C%20and%20check%20Tide%20ticks%20it%20too)).
+  - `Phase8PreTests.noStringFetchOfRetiredTypes` reads the sources from `TEST_RUNNER_SOURCE_ROOT` (the compilation cache rewrites `#filePath`), and is skipped without it.
 - [ ] Phase 2: Empty features made cheap (session: fresh, Opus high) ‖ Phases 1, 3, 4 · est. 2–3%
 - [ ] Phase 3: Settings is a list (session: fresh, Opus high) ‖ Phases 1, 2, 4 · est. 2–3%
 - [ ] Phase 4: Two template kinds (session: fresh, Opus high) ‖ Phases 1, 2, 3 · est. 1–2%

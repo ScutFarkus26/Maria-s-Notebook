@@ -70,31 +70,6 @@ extension BackupEntityImporter {
         )
     }
 
-    // MARK: - Reminders
-
-    static func importReminders(
-        _ dtos: [ReminderDTO],
-        into viewContext: NSManagedObjectContext,
-        existing: ExistingLookup<CDReminder>
-    ) rethrows {
-        try importSimpleEntities(
-            dtos, into: viewContext,
-            existing: existing,
-            idExtractor: { $0.id },
-            entityBuilder: { dto, current in
-            let r = current ?? CDReminder(context: viewContext)
-            r.id = dto.id
-            r.title = dto.title
-            r.notes = dto.notes
-            r.dueDate = dto.dueDate
-            r.isCompleted = dto.isCompleted
-            r.completedAt = dto.completedAt
-            r.createdAt = dto.createdAt
-            r.updatedAt = dto.updatedAt
-            return r
-        })
-    }
-
     // MARK: - Calendar Events
 
     static func importCalendarEvents(

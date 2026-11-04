@@ -324,37 +324,27 @@ struct BackupRestoreKeepsTests {
 
     // MARK: - #36 EventKit's copies
 
-    @Test("Reminders and events aren't restored: the device's copies stay, and the next sync adds nothing")
+    @Test("Events aren't restored and retired reminders aren't cleared: the device's rows stay")
     func eventKitCopiesAreLeftForTheNextSync() async throws {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
         let context = stack.viewContext
-        let data = MirrorFixture.reminder("ek-1", modified: MirrorFixture.firstSync)
-        let reminder = EventKitMirror.insertReminder(data, listID: "list", in: context, now: MirrorFixture.firstSync)
         let event = EventKitMirror.insertEvent(
             MirrorFixture.event("ev-1"), calendarID: "cal-school", in: context, now: MirrorFixture.firstSync
         )
-        let note = CoreDataTestHelpers.seedNote(in: context, body: "About the paint order")
-        note.reminder = reminder
+        // Reminders are retired (Simplify round two): no class, not backed up,
+        // and a Replace restore leaves the rows already here.
+        let reminder = NSEntityDescription.insertNewObject(forEntityName: "Reminder", into: context)
+        reminder.setValue(UUID(), forKey: "id")
+        reminder.setValue("Call the office", forKey: "title")
         try context.save()
 
-        var payload = Repair.payload(of: context)
-        payload.reminders = (payload.reminders ?? []) + [ReminderDTO(
-            id: UUID(), title: "From another device", notes: nil, dueDate: nil, isCompleted: false,
-            completedAt: nil, createdAt: Repair.day, updatedAt: Repair.day
-        )]
-
+        let payload = Repair.payload(of: context)
         try await Repair.restore(payload, into: context, mode: .replace)
 
-        #expect(try Repair.all(CDReminder.self, in: context).map(\.objectID) == [reminder.objectID])
-        #expect(reminder.eventKitReminderID == "ek-1")
         #expect(try Repair.all(CDCalendarEvent.self, in: context).map(\.objectID) == [event.objectID])
         #expect(event.eventKitEventID == "ev-1")
-        let restoredNote = try #require(try Repair.all(CDNote.self, in: context).first)
-        #expect(restoredNote.reminder?.objectID == reminder.objectID, "the note still points at it")
-
-        let next = EventKitMirror.reconcileReminders([data], listID: "list", in: context, now: MirrorFixture.secondSync)
-        #expect(next == EventKitMirror.Outcome())
-        #expect(try Repair.all(CDReminder.self, in: context).count == 1)
+        let reminders = try context.fetch(NSFetchRequest<NSManagedObject>(entityName: "Reminder"))
+        #expect(reminders.map(\.objectID) == [reminder.objectID])
     }
 
     // MARK: - #37 Student links

@@ -30,7 +30,6 @@ extension UnifiedNoteEditor {
         case .studentMeeting: return "Meeting Note"
         case .projectSession: return "Session Note"
         case .communityTopic: return "Topic Note"
-        case .reminder: return "Reminder Note"
         case .schoolDayOverride: return "Override Note"
         case .goingOut: return "Going-Out Note"
         }

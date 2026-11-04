@@ -115,26 +115,6 @@ struct MCPTodoLibraryToolsFix1012MCTests {
         #expect(todo.isSomeday == false)
     }
 
-    // MARK: - #24: the tag filter compares tag names
-
-    @Test("list_todos filters by a tag's name and prints tag names without their color")
-    func tagFilterMatchesName() async throws {
-        let (tools, context) = try makeTools()
-        let urgent = seedTodo("Fix the pin map", in: context)
-        urgent.tagsArray = [TagHelper.createTag(name: "Urgent", color: .red)]
-        let other = seedTodo("Plan the field trip", in: context)
-        other.tagsArray = [TagHelper.createTag(name: "Planning", color: .green)]
-        #expect(CoreDataTestHelpers.save(context))
-
-        let output = try await call("list_todos", ["tag": .string("urgent")], in: tools)
-
-        #expect(output.hasPrefix("1 todo(s):"))
-        #expect(output.contains("Fix the pin map"))
-        #expect(!output.contains("Plan the field trip"))
-        #expect(output.contains("tags Urgent"))
-        #expect(!output.contains("Urgent|Red"))
-    }
-
     // MARK: - #29: archived book clubs, retired jobs, children who left
 
     @Test("book_club leaves archived sessions out unless finished ones are asked for")

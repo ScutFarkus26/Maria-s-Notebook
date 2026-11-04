@@ -122,9 +122,6 @@ extension UnifiedNoteEditor {
         case .communityTopic(let topic):
             note.communityTopic = topic
 
-        case .reminder(let reminder):
-            note.reminder = reminder
-
         case .schoolDayOverride(let override):
             note.schoolDayOverride = override
 

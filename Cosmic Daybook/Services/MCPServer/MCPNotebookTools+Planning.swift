@@ -160,14 +160,14 @@ extension MCPNotebookTools {
             name: "list_templates",
             title: "List Templates",
             description: "The reusable scaffolding the teacher has set up: meeting prompts, note "
-                + "templates, todo templates, and sample work with its steps. Naming a kind "
+                + "templates and sample work with its steps. Naming a kind "
                 + "returns just that kind.",
             inputSchema: [
                 "type": "object",
                 "properties": [
                     "kind": [
                         "type": "string",
-                        "enum": ["meeting", "note", "todo", "sample_work"],
+                        "enum": ["meeting", "note", "sample_work"],
                         "description": "Which templates to list (default: all kinds)"
                     ]
                 ]
@@ -188,9 +188,6 @@ extension MCPNotebookTools {
         }
         if kind == nil || kind == "note" {
             sections.append(contentsOf: noteTemplateSection(in: modelContext))
-        }
-        if kind == nil || kind == "todo" {
-            sections.append(contentsOf: todoTemplateSection(in: modelContext))
         }
         if kind == nil || kind == "sample_work" {
             sections.append(contentsOf: sampleWorkSection(in: modelContext))
@@ -226,19 +223,6 @@ extension MCPNotebookTools {
             return "- [noteTemplate id=\(id)] \(template.title)\(body)"
         }
         return ["Note templates:\n" + lines.joined(separator: "\n")]
-    }
-
-    private static func todoTemplateSection(in modelContext: NSManagedObjectContext) -> [String] {
-        let templates: [CDTodoTemplate] = modelContext
-            .safeFetch(CDFetchRequest(CDTodoTemplate.self))
-            .sorted { $0.useCount > $1.useCount }
-        guard !templates.isEmpty else { return [] }
-        let lines = templates.map { template -> String in
-            let id: String = template.id?.uuidString ?? "unknown"
-            let used: String = template.useCount > 0 ? " (used \(template.useCount)×)" : ""
-            return "- [todoTemplate id=\(id)] \(template.name): \(template.title)\(used)"
-        }
-        return ["Todo templates:\n" + lines.joined(separator: "\n")]
     }
 
     private static func sampleWorkSection(in modelContext: NSManagedObjectContext) -> [String] {

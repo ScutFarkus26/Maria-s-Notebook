@@ -505,14 +505,6 @@ extension BackupService {
             )
         }
 
-        if let reminders = payload.reminders {
-            try BackupEntityImporter.importReminders(
-                reminders,
-                into: viewContext,
-                existing: { try index.existing(CDReminder.self, id: $0) }
-            )
-        }
-
         if let calendarEvents = payload.calendarEvents {
             try BackupEntityImporter.importCalendarEvents(
                 calendarEvents,
@@ -655,22 +647,6 @@ extension BackupService {
                 todoItems,
                 into: viewContext,
                 existing: { try index.existing(CDTodoItem.self, id: $0) }
-            )
-        }
-
-        if let todoSubtasks = payload.todoSubtasks {
-            BackupEntityImporter.importRows(
-                todoSubtasks, as: CDTodoSubtask.self, into: viewContext,
-                existing: { try index.existing(CDTodoSubtask.self, id: $0) },
-                parents: ["todo": { try index.related(CDTodoItem.self, id: $0) }]
-            )
-        }
-
-        if let todoTemplates = payload.todoTemplates {
-            try BackupEntityImporter.importTodoTemplates(
-                todoTemplates,
-                into: viewContext,
-                existing: { try index.existing(CDTodoTemplate.self, id: $0) }
             )
         }
 
@@ -1096,9 +1072,6 @@ extension BackupEntityImporter {
             }
             if let id = dto.projectSessionID {
                 note.projectSession = try index.related(CDProjectSession.self, id: id)
-            }
-            if let id = dto.reminderID {
-                note.reminder = try index.related(CDReminder.self, id: id)
             }
             if let id = dto.practiceSessionID {
                 note.practiceSession = try index.related(CDPracticeSession.self, id: id)

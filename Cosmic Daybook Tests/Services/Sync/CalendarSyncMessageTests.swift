@@ -3,14 +3,14 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-// MARK: - Calendar and Reminders sync, in plain English
+// MARK: - Calendar sync, in plain English
 //
 // Today's header shows the services' `lastSyncError` as its tooltip, and the
 // sync settings pass the same errors through `AppErrorMessages.syncMessage`.
 // Both read the errors' own descriptions, so those say what happened and what
 // to do; the raw text goes to the log and Sync History's Details.
 
-@Suite("Calendar and Reminders sync: plain-English errors", .serialized)
+@Suite("Calendar sync: plain-English errors", .serialized)
 @MainActor
 struct CalendarSyncMessageTests {
 
@@ -22,10 +22,7 @@ struct CalendarSyncMessageTests {
         [
             CalendarSyncError.notAuthorized, CalendarSyncError.noCalendarConfigured,
             CalendarSyncError.calendarNotFound("School"), CalendarSyncError.calendarNotFound(""),
-            CalendarSyncError.modelContextUnavailable,
-            ReminderSyncError.notAuthorized, ReminderSyncError.noSyncListConfigured,
-            ReminderSyncError.listNotFound("Classroom"), ReminderSyncError.listNotFound(""),
-            ReminderSyncError.modelContextUnavailable
+            CalendarSyncError.modelContextUnavailable
         ]
     }
 
@@ -46,9 +43,6 @@ struct CalendarSyncMessageTests {
         #expect(CalendarSyncError.notAuthorized.errorDescription
             == "Cosmic Daybook doesn't have access to Calendar. "
             + "Turn it on in \(SystemSettingsApp.privacyPath("Calendars")).")
-        #expect(ReminderSyncError.notAuthorized.errorDescription
-            == "Cosmic Daybook doesn't have access to Reminders. "
-            + "Turn it on in \(SystemSettingsApp.privacyPath("Reminders")).")
     }
 
     @Test("A failed sync keeps the plain sentence for Today's header and logs the raw text as the detail")
@@ -66,10 +60,5 @@ struct CalendarSyncMessageTests {
             row.type == "calendar" && row.shownMessage == "Couldn't sync with Calendar"
                 && row.shownDetail?.contains("CalendarSyncError") == true
         })
-
-        let reminders = ReminderSyncService(context: nil, defaults: defaults)
-        reminders.authorizationStatus = .denied
-        await #expect(throws: ReminderSyncError.notAuthorized) { try await reminders.syncReminders(force: true) }
-        #expect(reminders.lastSyncError == ReminderSyncError.notAuthorized.errorDescription)
     }
 }

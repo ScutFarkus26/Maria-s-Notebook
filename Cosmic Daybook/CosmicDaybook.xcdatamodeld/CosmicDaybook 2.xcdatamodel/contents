@@ -407,7 +407,7 @@
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
     <!-- ==================== Reminder ==================== -->
-    <entity name="Reminder" representedClassName="CDReminder" syncable="YES">
+    <entity name="Reminder" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="title" attributeType="String" defaultValueString=""/>
         <attribute name="notes" optional="YES" attributeType="String"/>
@@ -547,7 +547,7 @@
         <relationship name="subtasks" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="TodoSubtask" inverseName="todo" inverseEntity="TodoSubtask"/>
     </entity>
     <!-- ==================== TodoSubtask ==================== -->
-    <entity name="TodoSubtask" representedClassName="TodoSubtaskEntity" syncable="YES">
+    <entity name="TodoSubtask" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="title" attributeType="String" defaultValueString=""/>
         <attribute name="isCompleted" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
@@ -557,7 +557,7 @@
         <relationship name="todo" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="TodoItem" inverseName="subtasks" inverseEntity="TodoItem"/>
     </entity>
     <!-- ==================== TodoTemplate ==================== -->
-    <entity name="TodoTemplate" representedClassName="TodoTemplateEntity" syncable="YES">
+    <entity name="TodoTemplate" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="name" attributeType="String" defaultValueString=""/>
         <attribute name="title" attributeType="String" defaultValueString=""/>

@@ -107,40 +107,10 @@ enum MirrorFixture {
         )
     }
 
-    static func reminder(
-        _ id: String,
-        title: String = "Order paint",
-        notes: String? = nil,
-        due: DateComponents? = nil,
-        completed: Bool = false,
-        completedAt: Date? = nil,
-        created: Date? = nil,
-        modified: Date?
-    ) -> ReminderSyncData {
-        ReminderSyncData(
-            title: title,
-            notes: notes,
-            dueDateComponents: due,
-            isCompleted: completed,
-            completionDate: completedAt,
-            creationDate: created,
-            lastModifiedDate: modified,
-            calendarItemIdentifier: id
-        )
-    }
-
     static func eventRows(in context: NSManagedObjectContext) -> [String: CDCalendarEvent] {
         let rows = context.safeFetch(CDFetchRequest(CDCalendarEvent.self))
         return Dictionary(
             rows.compactMap { row in row.eventKitEventID.map { ($0, row) } },
-            uniquingKeysWith: { first, _ in first }
-        )
-    }
-
-    static func reminderRows(in context: NSManagedObjectContext) -> [String: CDReminder] {
-        let rows = context.safeFetch(CDFetchRequest(CDReminder.self))
-        return Dictionary(
-            rows.compactMap { row in row.eventKitReminderID.map { ($0, row) } },
             uniquingKeysWith: { first, _ in first }
         )
     }
@@ -159,21 +129,10 @@ enum MirrorFixture {
         event.lastSyncedAt = now
     }
 
-    /// `ReminderSyncService.updateCDReminder` as it was.
-    static func legacyUpdate(_ reminder: CDReminder, from data: ReminderSyncData, now: Date) {
-        reminder.title = data.title
-        reminder.notes = data.notes
-        reminder.dueDate = data.dueDateComponents?.date
-        reminder.isCompleted = data.isCompleted
-        reminder.completedAt = data.completionDate
-        reminder.updatedAt = data.lastModifiedDate ?? now
-        reminder.lastSyncedAt = now
-    }
-
     /// The old sync loops without EventKit or the delete passes: a stored row
     /// EventKit returned was always reassigned, a new one inserted.
     static func legacySync(
-        events: [CalendarEventSyncData], reminders: [ReminderSyncData], in context: NSManagedObjectContext, now: Date
+        events: [CalendarEventSyncData], in context: NSManagedObjectContext, now: Date
     ) {
         let storedEvents = eventRows(in: context)
         for data in events {
@@ -181,14 +140,6 @@ enum MirrorFixture {
                 legacyUpdate(row, from: data, now: now)
             } else {
                 EventKitMirror.insertEvent(data, calendarID: "cal-school", in: context, now: now)
-            }
-        }
-        let storedReminders = reminderRows(in: context)
-        for data in reminders {
-            if let row = storedReminders[data.calendarItemIdentifier] {
-                legacyUpdate(row, from: data, now: now)
-            } else {
-                EventKitMirror.insertReminder(data, listID: "list", in: context, now: now)
             }
         }
     }

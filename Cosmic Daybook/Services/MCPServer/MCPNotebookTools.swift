@@ -196,7 +196,6 @@ enum MCPNotebookTools {
             updateCommunityTopicTool(context: context),
             listResourcesTool(context: context),
             bookClubTool(context: context),
-            listRemindersTool(context: context),
             dayPadTool(context: context)
         ]
     }

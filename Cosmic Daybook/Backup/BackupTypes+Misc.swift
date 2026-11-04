@@ -38,19 +38,6 @@ nonisolated public struct TodoItemDTO: Codable, Sendable {
     public var tideLink: String?
 }
 
-nonisolated public struct TodoTemplateDTO: Codable, Sendable {
-    public var id: UUID
-    public var name: String
-    public var title: String
-    public var notes: String
-    public var createdAt: Date
-    public var priorityRaw: String
-    public var defaultEstimatedMinutes: Int?
-    public var defaultStudentIDs: [String]
-    public var useCount: Int
-    public var tags: [String]?
-}
-
 // MARK: - CDTrackEntity DTOs
 
 nonisolated public struct SequenceTrackDTO: Codable, Sendable {

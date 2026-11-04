@@ -43,7 +43,6 @@ nonisolated public class CDNote: NSManagedObject {
     @NSManaged public var workCompletionRecord: CDWorkCompletionRecord?
     @NSManaged public var studentMeeting: CDStudentMeeting?
     @NSManaged public var projectSession: CDProjectSession?
-    @NSManaged public var reminder: CDReminder?
     @NSManaged public var practiceSession: CDPracticeSession?
     @NSManaged public var issue: CDIssue?
     @NSManaged public var studentLinks: NSSet?
@@ -129,7 +128,6 @@ nonisolated extension CDNote {
         if studentMeeting != nil { return "studentMeeting" }
         if projectSession != nil { return "projectSession" }
         if communityTopicID != nil { return "communityTopic" }
-        if reminder != nil { return "reminder" }
         if schoolDayOverrideID != nil { return "schoolDayOverride" }
         if studentTrackEnrollmentID != nil { return "studentTrackEnrollment" }
         if practiceSession != nil { return "practiceSession" }

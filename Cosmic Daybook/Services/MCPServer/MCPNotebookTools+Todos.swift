@@ -21,7 +21,7 @@ extension MCPNotebookTools {
             name: "list_todos",
             title: "List Todos",
             description: "The guide's todo list, filtered: open or completed, due within a "
-                + "window, someday items, tagged, or concerning one student. A todo tied to a "
+                + "window, or concerning one student. A todo tied to a "
                 + "piece of work shows linked_work_id and the work's title. For the broader "
                 + "\"what is owed right now\" across goals and flagged notes, use "
                 + "list_open_follow_ups instead.",
@@ -46,8 +46,6 @@ extension MCPNotebookTools {
             "student_name": ["type": "string", "description": "Only todos concerning this student"],
             "due_before": ["type": "string", "description": "Only todos due on or before this day, YYYY-MM-DD"],
             "due_after": ["type": "string", "description": "Only todos due on or after this day, YYYY-MM-DD"],
-            "include_someday": ["type": "boolean", "description": "Include someday/maybe items (default true)"],
-            "tag": ["type": "string", "description": "Only todos carrying this tag, by name (e.g. \"Urgent\")"],
             "limit": ["type": "integer", "description": "Maximum todos to return, 1-100 (default 40)"]
         ]
     ]
@@ -60,8 +58,6 @@ extension MCPNotebookTools {
         let studentName: String?
         let dueBefore: Date?
         let dueAfter: Date?
-        let includeSomeday: Bool
-        let tag: String?
         let limit: Int
 
         init(arguments: [String: JSONValue], in modelContext: NSManagedObjectContext) throws {
@@ -85,8 +81,6 @@ extension MCPNotebookTools {
 
             dueBefore = try dayArgument(arguments, "due_before")
             dueAfter = try dayArgument(arguments, "due_after")
-            includeSomeday = arguments["include_someday"]?.boolValue ?? true
-            tag = nonEmpty(arguments["tag"]?.stringValue)
             limit = intArgument(arguments, "limit", default: 40, range: 1...100)
         }
 
@@ -94,9 +88,7 @@ extension MCPNotebookTools {
             let done: Bool = todo.isCompleted
             if status == "open" && done { return false }
             if status == "completed" && !done { return false }
-            if !includeSomeday && todo.isSomeday { return false }
             if let studentID, !todo.studentIDsArray.contains(studentID.uuidString) { return false }
-            if let tag, !hasTag(todo, tag) { return false }
             return matchesDueWindow(todo)
         }
 
@@ -111,14 +103,6 @@ extension MCPNotebookTools {
             return true
         }
 
-        /// Tags are stored as "name|color" ("Urgent|Red"); Claude passes the
-        /// name it was shown, so the name is what's compared.
-        private func hasTag(_ todo: CDTodoItem, _ tag: String) -> Bool {
-            let wanted: String = TagHelper.tagName(tag).trimmed()
-            return todo.tagsArray.contains { candidate in
-                TagHelper.tagName(candidate).trimmed().caseInsensitiveCompare(wanted) == .orderedSame
-            }
-        }
     }
 
     private static func describeTodos(
@@ -164,24 +148,12 @@ extension MCPNotebookTools {
         if todo.isSomeday {
             details.append("someday")
         }
-        if todo.priority != .none {
-            details.append(todo.priority.rawValue.lowercased() + " priority")
-        }
         if todo.recurrence != .none {
             details.append("repeats")
-        }
-        // Student tags repeat the names listed next, so only the others print.
-        let tags: [String] = todo.tagsArray.filter { !TagHelper.isStudentTag($0) }.map(TagHelper.tagName)
-        if !tags.isEmpty {
-            details.append("tags \(tags.joined(separator: ", "))")
         }
         let who = todo.studentIDsArray.compactMap { names[$0] }
         if !who.isEmpty {
             details.append(who.joined(separator: ", "))
-        }
-        let subtasks = subtaskProgress(of: todo)
-        if subtasks.total > 0 {
-            details.append("\(subtasks.done)/\(subtasks.total) subtasks")
         }
         if let work = linkedWorkDetail(of: todo, titles: workTitles) {
             details.append(work)
@@ -189,11 +161,6 @@ extension MCPNotebookTools {
         let suffix = details.isEmpty ? "" : " (\(details.joined(separator: "; ")))"
         let id = todo.id?.uuidString ?? "unknown"
         return "- [todo id=\(id)] \(todo.title)\(suffix)"
-    }
-
-    private static func subtaskProgress(of todo: CDTodoItem) -> (done: Int, total: Int) {
-        let subtasks = (todo.subtasks?.allObjects as? [CDTodoSubtask]) ?? []
-        return (subtasks.filter(\.isCompleted).count, subtasks.count)
     }
 
     /// Student full names keyed by uuid string, for resolving the string
@@ -212,8 +179,8 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "update_todo",
             title: "Update Todo",
-            description: "Edit a todo by its id: title, notes, due or scheduled date, priority, "
-                + "someday flag, which students it concerns, or the piece of work it is about "
+            description: "Edit a todo by its id: title, notes, due or scheduled date, "
+                + "which students it concerns, or the piece of work it is about "
                 + "(work_id; clear_work_id removes the link). Link a todo to its work whenever "
                 + "it concerns one specific piece of work. Only the fields provided are "
                 + "changed. To mark one done, use resolve_follow_up.",
@@ -238,12 +205,7 @@ extension MCPNotebookTools {
             "clear_due_date": ["type": "boolean", "description": "Remove the due date"],
             "scheduled_date": [
                 "type": "string",
-                "description": "The day the guide means to do it, YYYY-MM-DD; takes it out of someday"
-            ],
-            "priority": todoPrioritySchema,
-            "is_someday": [
-                "type": "boolean",
-                "description": "Move to (or out of) someday/maybe; moving in clears the scheduled day"
+                "description": "The day the guide means to do it, YYYY-MM-DD"
             ],
             "student_names": [
                 "type": "array",
@@ -272,10 +234,6 @@ extension MCPNotebookTools {
             changes.append("notes")
         }
         changes += try applyTodoDates(arguments, to: todo)
-        if let priority = try todoPriorityArgument(arguments) {
-            todo.priority = priority
-            changes.append("priority \(priority.rawValue.lowercased())")
-        }
         changes += try applyTodoStudents(arguments, to: todo, in: modelContext)
         if let linkChange = applyTodoWorkLink(workLink, to: todo) {
             changes.append(linkChange)
@@ -321,15 +279,14 @@ extension MCPNotebookTools {
             : ["students \(students.map(\.fullName).joined(separator: ", "))"]
     }
 
-    /// The priority field as both `update_todo` and `add_follow_up` declare it.
+    /// The priority field `add_follow_up` declares.
     static let todoPrioritySchema: JSONValue = [
         "type": "string",
         "enum": ["None", "Low", "Medium", "High"],
         "description": "Priority level"
     ]
 
-    /// Parses an optional priority argument, shared so both todo writers name
-    /// the same allowed values in the same error.
+    /// Parses an optional priority argument for `add_follow_up`.
     static func todoPriorityArgument(
         _ arguments: [String: JSONValue], _ key: String = "priority"
     ) throws -> TodoPriority? {

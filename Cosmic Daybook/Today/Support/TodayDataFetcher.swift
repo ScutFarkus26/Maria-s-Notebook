@@ -8,13 +8,12 @@ import CoreData
 /// Not Sendable — intended for single-threaded use within TodayViewModel.reload().
 final class FetchErrorCollector {
     enum Category: String, CaseIterable {
-        case lessons, work, reminders, calendar, attendance, notes, meetings
+        case lessons, work, calendar, attendance, notes, meetings
 
         var displayName: String {
             switch self {
             case .lessons: return "today's lessons"
             case .work: return "work items"
-            case .reminders: return "reminders"
             case .calendar: return "calendar events"
             case .attendance: return "attendance"
             case .notes: return "recent notes"
@@ -263,69 +262,6 @@ enum TodayDataFetcher {
             errorCollector?.record(.work, error)
             logger.error("Error fetching completed work: \(error)")
             return []
-        }
-    }
-
-    // MARK: - CDReminder Fetching
-
-    /// Result of fetching reminders.
-    struct ReminderFetchResult {
-        let overdue: [CDReminder]
-        let today: [CDReminder]
-        let anytime: [CDReminder]
-    }
-
-    /// Fetches and categorizes reminders.
-    /// Only fetches reminders from the currently configured sync list.
-    static func fetchReminders(
-        day: Date,
-        nextDay: Date,
-        context: NSManagedObjectContext,
-        errorCollector: FetchErrorCollector? = nil
-    ) -> ReminderFetchResult {
-        do {
-            let startOfDay = AppCalendar.startOfDay(day)
-
-            // Get the configured sync list identifier
-            guard let syncListIdentifier = ReminderSyncService.shared.syncListIdentifier else {
-                return ReminderFetchResult(overdue: [], today: [], anytime: [])
-            }
-
-            // Only fetch incomplete reminders from the configured list
-            let incompleteRequest = CDFetchRequest(CDReminder.self)
-            incompleteRequest.predicate = NSPredicate(
-                format: "isCompleted == NO AND eventKitCalendarID == %@",
-                syncListIdentifier
-            )
-            let allReminders = try context.fetch(incompleteRequest)
-
-            var overdue: [CDReminder] = []
-            var today: [CDReminder] = []
-            var anytime: [CDReminder] = []
-
-            for reminder in allReminders {
-                guard let dueDate = reminder.dueDate else {
-                    anytime.append(reminder)
-                    continue
-                }
-                let dueDay = AppCalendar.startOfDay(dueDate)
-
-                if dueDay >= startOfDay && dueDay < nextDay {
-                    today.append(reminder)
-                } else if dueDay < startOfDay {
-                    overdue.append(reminder)
-                }
-            }
-
-            overdue.sort { ($0.dueDate ?? Date.distantPast) < ($1.dueDate ?? Date.distantPast) }
-            today.sort { ($0.dueDate ?? Date.distantPast) < ($1.dueDate ?? Date.distantPast) }
-            anytime.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
-
-            return ReminderFetchResult(overdue: overdue, today: today, anytime: anytime)
-        } catch {
-            errorCollector?.record(.reminders, error)
-            logger.error("Error loading reminders: \(error)")
-            return ReminderFetchResult(overdue: [], today: [], anytime: [])
         }
     }
 

@@ -320,17 +320,6 @@ public enum TrackStepBackupRow: ModelRowKind {
     )
 }
 
-public typealias TodoSubtaskDTO = ModelRow<TodoSubtaskBackupRow>
-
-public enum TodoSubtaskBackupRow: ModelRowKind {
-    public static let spec = ModelRowSpec(
-        "TodoSubtask",
-        filling: ["createdAt"],
-        parentIDs: ["todoID": "todo"],
-        parents: [ParentLink(key: "todoID", relationship: "todo")]
-    )
-}
-
 public typealias LessonAttachmentDTO = ModelRow<LessonAttachmentBackupRow>
 
 public enum LessonAttachmentBackupRow: ModelRowKind {

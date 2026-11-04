@@ -108,23 +108,6 @@ struct EventKitChangeObserverTests {
 @MainActor
 struct EventKitSyncThrottleTests {
 
-    @Test("A throttled automatic reminders sync keeps the last sync time")
-    func throttledReminderSyncKeepsLastSyncTime() async throws {
-        let isolated = try IsolatedDefaults()
-        defer { isolated.cleanUp() }
-        isolated.defaults.set("Class Reminders", forKey: UserDefaultsKeys.reminderSyncListName)
-        let service = ReminderSyncService(context: try CoreDataTestHelpers.makeContext(), defaults: isolated.defaults)
-        service.authorizationStatus = .fullAccess
-        let earlier = Date(timeIntervalSinceNow: -60)
-        service.lastSyncTime = earlier
-
-        await service.handleEventStoreChanged()
-
-        #expect(service.lastSyncTime == earlier)
-        #expect(!service.isSyncing)
-        #expect(service.lastSyncError == nil)
-    }
-
     @Test("A throttled automatic calendar sync keeps the last sync time")
     func throttledCalendarSyncKeepsLastSyncTime() async throws {
         let isolated = try IsolatedDefaults()
@@ -146,29 +129,26 @@ struct EventKitSyncThrottleTests {
     func throttledSyncReportsSkip() async throws {
         let isolated = try IsolatedDefaults()
         defer { isolated.cleanUp() }
-        let reminders = ReminderSyncService(context: try CoreDataTestHelpers.makeContext(), defaults: isolated.defaults)
         let calendar = CalendarSyncService(context: try CoreDataTestHelpers.makeContext(), defaults: isolated.defaults)
         let earlier = Date(timeIntervalSinceNow: -60)
-        reminders.lastSyncTime = earlier
         calendar.lastSyncTime = earlier
 
-        #expect(try await reminders.syncReminders() == false)
         #expect(try await calendar.syncEvents() == false)
-        #expect(reminders.lastSyncTime == earlier)
         #expect(calendar.lastSyncTime == earlier)
     }
 }
 
-/// Danny decided (2026-09-25) that a Reminders list EventKit no longer has
-/// pauses listening for store changes until the list setting changes; a new
-/// choice resumes listening and is tried once.
-@Suite("Reminders: a missing list pauses change observation")
+/// Danny decided (2026-09-25) that a list EventKit no longer has pauses
+/// listening for store changes until the setting changes; a new choice
+/// resumes listening and is tried once. Reminders sync was retired
+/// 2026-11-03; the calendar mirror keeps the rule.
+@Suite("EventKit: a missing list pauses change observation")
 @MainActor
-struct ReminderChangeListeningTests {
+struct EventKitChangeListeningTests {
 
     @Test("A missing list pauses listening until the setting changes")
     func pauseAndResume() {
-        var listening = ReminderChangeListening()
+        var listening = EventKitChangeListening()
         #expect(listening.shouldListen(hasFullAccess: true, isListConfigured: true))
 
         let firstMissStops = listening.pause()
@@ -190,42 +170,9 @@ struct ReminderChangeListeningTests {
 
     @Test("Listening still needs access and a configured list")
     func listeningNeedsAccessAndList() {
-        let listening = ReminderChangeListening()
+        let listening = EventKitChangeListening()
         #expect(!listening.shouldListen(hasFullAccess: false, isListConfigured: true))
         #expect(!listening.shouldListen(hasFullAccess: true, isListConfigured: false))
     }
 
-    @Test("The service pauses on a missing list, and a new list choice resumes it")
-    func servicePausesAndResumes() throws {
-        let isolated = try IsolatedDefaults()
-        defer { isolated.cleanUp() }
-        isolated.defaults.set("gone-list", forKey: UserDefaultsKeys.reminderSyncListIdentifier)
-        isolated.defaults.set("Girls Class Reminders", forKey: UserDefaultsKeys.reminderSyncListName)
-        let service = ReminderSyncService(context: try CoreDataTestHelpers.makeContext(), defaults: isolated.defaults)
-        // No access, so the restart the setting change schedules never reaches EventKit.
-        service.authorizationStatus = .denied
-
-        service.pauseChangeObservationForMissingList()
-        #expect(service.isChangeObservationPaused)
-        #expect(!service.isObservingChanges)
-        service.pauseChangeObservationForMissingList()
-        #expect(service.isChangeObservationPaused)
-
-        service.syncListIdentifier = "new-list"
-        #expect(!service.isChangeObservationPaused)
-        #expect(isolated.defaults.string(forKey: UserDefaultsKeys.reminderSyncListIdentifier) == "new-list")
-    }
-
-    @Test("Finding the list again resumes a paused service")
-    func serviceResumesWhenListFound() throws {
-        let isolated = try IsolatedDefaults()
-        defer { isolated.cleanUp() }
-        let service = ReminderSyncService(context: try CoreDataTestHelpers.makeContext(), defaults: isolated.defaults)
-        service.authorizationStatus = .denied
-
-        service.pauseChangeObservationForMissingList()
-        #expect(service.isChangeObservationPaused)
-        service.resumeChangeObservationIfPaused()
-        #expect(!service.isChangeObservationPaused)
-    }
 }

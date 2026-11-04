@@ -167,8 +167,9 @@ struct DedupChildRescueTests {
         let dropped = CDTodoItem(context: context)
         dropped.id = id
         dropped.createdAt = late
-        let subtask = CDTodoSubtask(context: context)
-        subtask.todo = dropped
+        // Subtasks are retired (no class since 2026-11); their rows still move.
+        let subtask = NSEntityDescription.insertNewObject(forEntityName: "TodoSubtask", into: context)
+        subtask.setValue(dropped, forKey: "todo")
         #expect(CoreDataTestHelpers.save(context))
 
         let results = DataCleanupService.deduplicateAllModels(
@@ -176,8 +177,8 @@ struct DedupChildRescueTests {
         )
 
         #expect(results["TodoItem"] == 1)
-        #expect(fetch(CDTodoSubtask.self, in: context).count == 1)
-        #expect(subtask.todo === kept)
+        #expect(try context.count(for: NSFetchRequest<NSManagedObject>(entityName: "TodoSubtask")) == 1)
+        #expect(subtask.value(forKey: "todo") as? CDTodoItem === kept)
     }
 
     @Test("A project's sessions stay linked, to the kept copy")

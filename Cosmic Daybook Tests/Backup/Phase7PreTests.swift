@@ -30,7 +30,6 @@ final class Phase7PreTests {
         #expect(types.contains(where: { $0 == CDTodoItem.self }))
         #expect(types.contains(where: { $0 == CDProject.self }))
         #expect(types.contains(where: { $0 == CDIssue.self }))
-        #expect(types.contains(where: { $0 == CDReminder.self }))
         #expect(types.contains(where: { $0 == CDCalendarNote.self }))
     }
 

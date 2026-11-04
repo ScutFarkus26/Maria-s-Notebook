@@ -33,7 +33,6 @@ final class SettingsDashboardViewModel {
     private(set) var unsharedClassroomRecords: Int?
     private(set) var carriedOverPlans: Int?
     private(set) var calendarAccessLost = false
-    private(set) var remindersAccessLost = false
     private(set) var backupRun: BackupRun = .idle
     /// True once this notebook's very first backup succeeds here, for a small celebration.
     private(set) var madeFirstBackup = false
@@ -60,8 +59,7 @@ final class SettingsDashboardViewModel {
             syncHealth: syncHealth,
             unsharedClassroomRecords: unsharedClassroomRecords,
             carriedOverPlans: carriedOverPlans,
-            calendarAccessLost: calendarAccessLost,
-            remindersAccessLost: remindersAccessLost
+            calendarAccessLost: calendarAccessLost
         ))
     }
 
@@ -83,16 +81,12 @@ final class SettingsDashboardViewModel {
         automaticBackupFailingSince = manager.automaticBackupsOn ? manager.automaticBackupFailingSince : nil
     }
 
-    /// Calendar or Reminders access that was on when the guide set it up and is off now.
+    /// Calendar access that was on when the guide set it up and is off now.
     func refreshConnections(defaults: UserDefaults = .standard) {
         let calendars = defaults.array(forKey: UserDefaultsKeys.calendarSyncIdentifiers) as? [String] ?? []
         calendarAccessLost = SettingsAttention.accessLost(
             configured: !calendars.isEmpty,
             status: EKEventStore.authorizationStatus(for: .event)
-        )
-        remindersAccessLost = SettingsAttention.accessLost(
-            configured: defaults.string(forKey: UserDefaultsKeys.reminderSyncListIdentifier) != nil,
-            status: EKEventStore.authorizationStatus(for: .reminder)
         )
     }
 

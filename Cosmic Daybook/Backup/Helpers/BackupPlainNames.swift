@@ -63,7 +63,6 @@ nonisolated enum BackupPlainNames {
         "SchoolDayOverride": "Extra school days",
         "CalendarEvent": "Calendar events",
         "CalendarNote": "Calendar notes",
-        "Reminder": "Reminders",
         "DayPad": "Day pads",
         "YearPlanEntry": "Year plan",
         // Work
@@ -118,8 +117,6 @@ nonisolated enum BackupPlainNames {
         "TimetableBooking": "Planned lesson times for the Assistant",
         // Todos and Today
         "TodoItem": "Todos",
-        "TodoSubtask": "Todo steps",
-        "TodoTemplate": "Todo templates",
         "TodayAgendaOrder": "Today's order",
         // Albums
         "AlbumBookmark": "Album bookmarks",

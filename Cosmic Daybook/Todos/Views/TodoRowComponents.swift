@@ -68,23 +68,6 @@ enum TodoRowComponents {
         }
     }
 
-    /// The "2/5" subtask badge. The card draws its icon a point larger.
-    @ViewBuilder
-    static func subtaskProgressChip(todo: CDTodoItem, iconSize: CGFloat) -> some View {
-        if let progressText = todo.subtasksProgressText {
-            HStack(spacing: 3) {
-                Image(systemName: "checklist")
-                    .font(.system(size: iconSize))
-                Text(progressText)
-                    .font(AppTheme.ScaledFont.captionSemibold)
-            }
-            .foregroundStyle(
-                todo.allSubtasksCompleted
-                    ? .green.opacity(UIConstants.OpacityConstants.prominent)
-                    : .secondary.opacity(UIConstants.OpacityConstants.half)
-            )
-        }
-    }
 }
 
 // MARK: - Completion Checkbox

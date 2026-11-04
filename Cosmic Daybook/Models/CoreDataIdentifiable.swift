@@ -19,8 +19,6 @@ nonisolated extension CDTrackEntity: Identifiable {}
 nonisolated extension CDTrackStep: Identifiable {}
 nonisolated extension CDSampleWork: Identifiable {}
 nonisolated extension CDTodoItem: Identifiable {}
-nonisolated extension CDTodoSubtask: Identifiable {}
-nonisolated extension CDTodoTemplate: Identifiable {}
 nonisolated extension CDProject: Identifiable {}
 nonisolated extension CDProjectSession: Identifiable {}
 nonisolated extension CDProjectRole: Identifiable {}
@@ -29,7 +27,6 @@ nonisolated extension CDWorkCheckIn: Identifiable {}
 nonisolated extension CDSchedule: Identifiable {}
 nonisolated extension CDScheduleSlot: Identifiable {}
 nonisolated extension CDScheduledMeeting: Identifiable {}
-nonisolated extension CDReminder: Identifiable {}
 nonisolated extension CDMeetingTemplate: Identifiable {}
 nonisolated extension CDNoteTemplate: Identifiable {}
 nonisolated extension CDSupply: Identifiable {}
@@ -59,8 +56,6 @@ nonisolated extension CDOrderItem: Identifiable {}
 // Public so the entities' own public members can spell their types this way.
 
 public typealias CDTodoItem = CDTodoItemEntity
-public typealias CDTodoSubtask = CDTodoSubtaskEntity
-public typealias CDTodoTemplate = CDTodoTemplateEntity
 public typealias CDMeetingTemplate = CDMeetingTemplateEntity
 public typealias CDNoteTemplate = CDNoteTemplateEntity
 public typealias CDSequenceTrack = CDSequenceTrackEntity

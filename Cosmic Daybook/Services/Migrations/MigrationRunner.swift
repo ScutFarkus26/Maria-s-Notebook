@@ -264,6 +264,8 @@ enum MigrationRunner {
         AttendanceNoteMove.run(using: context)
         // Rows still carrying the retired completion outcome (see +WorkStatusMerge).
         DataMigrations.mergeWorkCompletionOutcomes(using: context)
+        // Reminder rows forget the Apple Reminders items they mirrored.
+        clearRetiredReminderLinks(using: context)
         // The check-in repair's first run counts only once what it did is saved.
         if !context.hasChanges || context.safeSave() {
             DataMigrations.markCheckInLinkRepairRun(firstDownloadPending: firstDownloadArmed)
@@ -281,6 +283,29 @@ enum MigrationRunner {
         // outside the first download; it saves on its own (see +ProjectWorkContext).
         DataCleanupService.repairProjectWorkContextTypeIfDue(using: context, firstDownloadPending: firstDownloadPending)
         return results
+    }
+
+    /// Clears the Apple Reminders links (`eventKitReminderID`,
+    /// `eventKitCalendarID`) on `Reminder` rows, retired with Reminders sync
+    /// (Simplify round two, Phase 1). Only `Reminder`: `CalendarEvent` has an
+    /// `eventKitCalendarID` too and still mirrors Apple Calendar. The rows
+    /// themselves stay. Runs every launch, since rows can still arrive from
+    /// iCloud; once none carries a link, it is one empty fetch. Never saves;
+    /// the sweep's save covers it. This is the one place the retired type is
+    /// fetched by name (`Phase8PreTests` allows it).
+    @discardableResult
+    nonisolated static func clearRetiredReminderLinks(using context: NSManagedObjectContext) -> Int {
+        let request = NSFetchRequest<NSManagedObject>(entityName: "Reminder")
+        request.predicate = NSPredicate(format: "eventKitReminderID != nil OR eventKitCalendarID != nil")
+        let rows = context.safeFetch(request)
+        for row in rows {
+            row.setValue(nil, forKey: "eventKitReminderID")
+            row.setValue(nil, forKey: "eventKitCalendarID")
+        }
+        if !rows.isEmpty {
+            logger.info("Cleared Apple Reminders links on \(rows.count, privacy: .public) reminder(s)")
+        }
+        return rows.count
     }
 
     /// Runs the launch repairs on `context`'s queue, in the order they have

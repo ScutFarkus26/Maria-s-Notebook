@@ -107,7 +107,6 @@ nonisolated enum BackupPreferencesService {
         UserDefaultsKeys.attendanceScreenView,
         UserDefaultsKeys.todayDayPadExpanded,
         UserDefaultsKeys.todayDoneTodayExpanded,
-        UserDefaultsKeys.todayAnytimeRemindersExpanded,
         // Albums — the folder bookmarks only resolve on the device that made
         // them, but restoring them on the same Mac after a reinstall brings the
         // shelf straight back; the fingerprint map is what lets

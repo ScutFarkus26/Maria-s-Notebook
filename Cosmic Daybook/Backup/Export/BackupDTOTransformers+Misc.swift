@@ -54,21 +54,6 @@ extension BackupDTOTransformers {
         )
     }
 
-    // MARK: - CDReminder
-
-    static func toDTO(_ r: CDReminder) -> ReminderDTO {
-        ReminderDTO(
-            id: r.id ?? UUID(),
-            title: r.title,
-            notes: r.notes,
-            dueDate: r.dueDate,
-            isCompleted: r.isCompleted,
-            completedAt: r.completedAt,
-            createdAt: r.createdAt ?? Date(),
-            updatedAt: r.updatedAt ?? Date()
-        )
-    }
-
     // MARK: - CDCalendarEvent
 
     static func toDTO(_ e: CDCalendarEvent) -> CalendarEventDTO {
@@ -276,23 +261,6 @@ extension BackupDTOTransformers {
         )
     }
 
-    // MARK: - CDTodoTemplate
-
-    static func toDTO(_ t: CDTodoTemplate) -> TodoTemplateDTO {
-        TodoTemplateDTO(
-            id: t.id ?? UUID(),
-            name: t.name,
-            title: t.title,
-            notes: t.notes,
-            createdAt: t.createdAt ?? Date(),
-            priorityRaw: t.priority.rawValue,
-            defaultEstimatedMinutes: Int(t.defaultEstimatedMinutes),
-            defaultStudentIDs: (t.defaultStudentIDs as? [String]) ?? [],
-            useCount: Int(t.useCount),
-            tags: (t.tags as? [String])
-        )
-    }
-
     // MARK: - CDTodayAgendaOrder
 
     static func toDTO(_ a: CDTodayAgendaOrder) -> TodayAgendaOrderDTO {
@@ -313,10 +281,6 @@ extension BackupDTOTransformers {
 
     static func toDTOs(_ templates: [CDNoteTemplate]) -> [NoteTemplateDTO] {
         templates.map { toDTO($0) }
-    }
-
-    static func toDTOs(_ reminders: [CDReminder]) -> [ReminderDTO] {
-        reminders.map { toDTO($0) }
     }
 
     static func toDTOs(_ events: [CDCalendarEvent]) -> [CalendarEventDTO] {
@@ -357,10 +321,6 @@ extension BackupDTOTransformers {
 
     static func toDTOs(_ items: [CDTodoItem]) -> [TodoItemDTO] {
         items.map { toDTO($0) }
-    }
-
-    static func toDTOs(_ templates: [CDTodoTemplate]) -> [TodoTemplateDTO] {
-        templates.map { toDTO($0) }
     }
 
     static func toDTOs(_ orders: [CDTodayAgendaOrder]) -> [TodayAgendaOrderDTO] {

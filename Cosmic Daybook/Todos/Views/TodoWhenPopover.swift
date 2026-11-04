@@ -79,11 +79,6 @@ struct TodoWhenPopover: View {
                 isSomeday = false
                 onDismiss()
             }
-            quickPickButton("Someday", icon: "moon.zzz", tint: .secondary) {
-                scheduledDate = nil
-                isSomeday = true
-                onDismiss()
-            }
             quickPickButton("Clear", icon: "xmark.circle", tint: .secondary) {
                 scheduledDate = nil
                 dueDate = nil

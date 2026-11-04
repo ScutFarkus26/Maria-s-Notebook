@@ -71,10 +71,7 @@ extension TodoMainView {
         #endif
         .navigationTitle(
             selectedTideList.map(TideActionLink.listName(ofFile:))
-                ?? selectedFolder
-                ?? (selectedTag != nil
-                    ? TodoTagHelper.tagName(selectedTag!)
-                    : (selectedFilter ?? .inbox).title)
+                ?? (selectedFilter ?? .checkIns).title
         )
     }
 
@@ -84,12 +81,6 @@ extension TodoMainView {
         HStack(spacing: 0) {
             batchButton(title: "Complete", icon: "checkmark.circle", color: .green) {
                 batchComplete()
-            }
-
-            Divider().frame(height: 30)
-
-            batchButton(title: "Priority", icon: "flag", color: .orange) {
-                batchSetHighPriority()
             }
 
             Divider().frame(height: 30)
@@ -164,16 +155,14 @@ extension TodoMainView {
         let cal = AppCalendar.shared
         let today = AppCalendar.startOfDay(Date())
 
-        // For Upcoming filter, use day-by-day timeline
-        let useDayTimeline = selectedFilter == .upcoming
+        // Check-ins read day by day
+        let useDayTimeline = selectedTideList == nil && selectedFilter == .checkIns
 
         for todo in filteredTodos {
             let section: String
 
-            if selectedFilter == .completed {
+            if selectedTideList == nil && selectedFilter == .done {
                 section = "Completed"
-            } else if selectedFilter == .someday {
-                section = "Someday"
             } else if todo.isCompleted {
                 section = "Completed"
             } else if let effective = todo.effectiveDate {
@@ -333,21 +322,12 @@ extension TodoMainView {
 
     var emptyState: some View {
         VStack(spacing: 20) {
-            if selectedFolder != nil {
-                Image(systemName: "folder")
+            if selectedTideList != nil {
+                Image(systemName: "water.waves")
                     .font(.system(size: 64, weight: .ultraLight))
                     .foregroundStyle(.quaternary)
-            } else if let tag = selectedTag {
-                Circle()
-                    .fill(TodoTagHelper.tagColor(tag).color.opacity(UIConstants.OpacityConstants.medium))
-                    .frame(width: 64, height: 64)
-                    .overlay {
-                        Image(systemName: "tag")
-                            .font(.system(size: 28, weight: .ultraLight))
-                            .foregroundStyle(TodoTagHelper.tagColor(tag).color.opacity(0.6))
-                    }
             } else {
-                let filter = selectedFilter ?? .inbox
+                let filter = selectedFilter ?? .checkIns
                 Image(systemName: filter.icon)
                     .font(.system(size: 64, weight: .ultraLight))
                     .foregroundStyle(filter.color.opacity(UIConstants.OpacityConstants.quarter))
@@ -358,7 +338,7 @@ extension TodoMainView {
                     .font(AppTheme.ScaledFont.titleSmall)
                     .foregroundStyle(.secondary)
 
-                if selectedTag == nil && selectedFolder == nil && (selectedFilter == .inbox || selectedFilter == .all) {
+                if selectedTideList == nil && selectedFilter == .notInTide {
                     Self.newTaskHint
                         .font(.system(size: 14))
                         .foregroundStyle(.tertiary)
@@ -376,12 +356,6 @@ extension TodoMainView {
         if let list = selectedTideList {
             return "No todos from Tide's \(TideActionLink.listName(ofFile: list)) list"
         }
-        if let folder = selectedFolder {
-            return "No todos in \"\(folder)\""
-        }
-        if let tag = selectedTag {
-            return "No todos tagged \"\(TodoTagHelper.tagName(tag))\""
-        }
-        return (selectedFilter ?? .inbox).emptyMessage
+        return (selectedFilter ?? .checkIns).emptyMessage
     }
 }

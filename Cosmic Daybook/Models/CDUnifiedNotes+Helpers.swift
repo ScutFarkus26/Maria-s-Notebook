@@ -96,13 +96,6 @@ nonisolated extension CDProjectSession {
     }
 }
 
-nonisolated extension CDReminder {
-    var latestUnifiedNoteText: String {
-        let allNotes = (noteItems?.allObjects as? [CDNote]) ?? []
-        return CDNote.latestBody(in: allNotes)
-    }
-}
-
 nonisolated extension CDWorkModel {
     var latestUnifiedNoteText: String {
         let allNotes = (unifiedNotes?.allObjects as? [CDNote]) ?? []

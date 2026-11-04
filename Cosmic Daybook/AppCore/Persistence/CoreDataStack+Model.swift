@@ -222,6 +222,24 @@ extension CoreDataStack {
         "WorkCycleSession"
     ]
 
+    /// Entities whose features were removed but whose rows still exist: Apple
+    /// Reminders sync, to-do subtasks and to-do templates (2026-11, Simplify
+    /// round two).
+    ///
+    /// Unlike the tombstones above they STAY in `privateEntityNames`. Taking a
+    /// type with rows out of a store's configuration makes the next launch
+    /// migrate its table away, destroying every row. So they keep their
+    /// store and keep syncing, but have no Swift class (the model's class
+    /// name is blank), aren't backed up, and are skipped when an old backup
+    /// is restored (`BackupEntityTable.skippedOnImport`). No code fetches
+    /// them by name except the one launch step that cleared their Apple
+    /// Reminders links; `Phase8PreTests` checks that.
+    nonisolated static let retiredEntities: Set<String> = [
+        "Reminder",
+        "TodoSubtask",
+        "TodoTemplate"
+    ]
+
     // MARK: - Entity Routing
 
     /// Assigns entities to Private/Shared configurations in the managed object model.

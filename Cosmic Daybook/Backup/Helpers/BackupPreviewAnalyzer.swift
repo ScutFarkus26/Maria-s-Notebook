@@ -77,7 +77,7 @@ enum BackupPreviewAnalyzer {
 
         for entity in BackupEntityTable.entities {
             // Types the restore leaves as they are (this device's pin, the
-            // mirrored Apple reminders and events, any the backup is too old
+            // mirrored Apple Calendar events, any the backup is too old
             // to hold, and any whose entry didn't decode) are neither cleared
             // nor restored, so the consent numbers don't count them.
             guard let key = previewKey(for: entity), entity.isCarried(by: formatVersion),
@@ -199,9 +199,9 @@ enum BackupPreviewAnalyzer {
         "AttendanceRecord", "WorkModel", "WorkCompletionRecord", "WorkCheckIn", "WorkParticipant",
         "WorkStep", "SampleWork", "SampleWorkStep", "PracticeSession", "Project",
         "ProjectSession", "ProjectRole", "Issue", "IssueAction", "Track",
-        "TrackStep", "StudentTrackEnrollment", "SequenceTrack", "NoteTemplate", "Reminder",
+        "TrackStep", "StudentTrackEnrollment", "SequenceTrack", "NoteTemplate",
         "CalendarEvent", "Document", "Supply", "Procedure", "Schedule",
-        "ScheduleSlot", "DevelopmentSnapshot", "TodoItem", "TodoSubtask", "TodoTemplate",
+        "ScheduleSlot", "DevelopmentSnapshot", "TodoItem",
         "TodayAgendaOrder", "DayPad", "PlanningRecommendation", "Resource", "GoingOut",
         "GoingOutChecklistItem", "ClassroomJob", "JobAssignment", "CalendarNote", "ScheduledMeeting",
         "ClassroomMembership", "MeetingWorkReview", "StudentFocusItem", "YearPlanEntry", "LessonSequenceSettings",

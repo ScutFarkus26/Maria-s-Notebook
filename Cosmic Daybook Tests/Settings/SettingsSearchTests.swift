@@ -40,9 +40,9 @@ struct SettingsSearchTests {
 
     @Test("Several matches land on the first card the pane shows")
     func firstInPaneOrder() {
-        // "Templates" is a keyword of all three template cards.
+        // "Templates" is a keyword of both template cards.
         #expect(SettingsSearch.matchingGroups(in: .templates, query: "templates")
-            == [.noteTemplates, .meetingTemplates, .todoTemplates])
+            == [.noteTemplates, .meetingTemplates])
         #expect(SettingsSearch.firstMatchingGroup(in: .templates, query: "templates") == .noteTemplates)
         // "Sync" is on the iCloud card and the Sync history card, in different categories.
         #expect(SettingsSearch.firstMatchingGroup(in: .syncBackup, query: "sync") == .iCloud)

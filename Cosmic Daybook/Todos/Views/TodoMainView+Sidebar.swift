@@ -5,172 +5,24 @@ import SwiftUI
 import CoreData
 
 extension TodoMainView {
-    // MARK: - Tag Data
-
-    // PERF: Uses cachedAllUsedTags (computed in refreshTagCaches) instead of
-    // iterating all todos and sorting on every body evaluation.
-    var allUsedTags: [String] { cachedAllUsedTags }
-
-    /// All sidebar items (top-level tags + sequence names) in user-defined order.
-    /// Items not yet in tagOrder are appended alphabetically.
-    var orderedSidebarItems: [String] {
-        // Collect unique sidebar entries: top-level tag strings and sequence folder names (prefixed with "folder:")
-        var items: [String] = []
-        var seen = Set<String>()
-
-        for tag in allUsedTags {
-            let components = TodoTagHelper.tagPathComponents(tag)
-            if components.count <= 1 {
-                // top-level tag
-                if seen.insert(tag).inserted { items.append(tag) }
-            } else {
-                // nested -- represent folder by its root name
-                let folderKey = "folder:" + TodoTagHelper.rootTagName(tag)
-                if seen.insert(folderKey).inserted { items.append(folderKey) }
-            }
-        }
-
-        // Also include empty folders from tagOrder that don't match any current tags
-        for key in tagOrder where key.hasPrefix("folder:") && !seen.contains(key) {
-            seen.insert(key)
-            items.append(key)
-        }
-
-        // Sort by position in tagOrder; unknowns go to the end in their natural order
-        let orderMap: [String: Int] = Dictionary(
-            tagOrder.enumerated().map { ($1, $0) },
-            uniquingKeysWith: { first, _ in first }
-        )
-        return items.sorted { lhs, rhs in
-            let lhsIdx = orderMap[lhs] ?? Int.max
-            let rhsIdx = orderMap[rhs] ?? Int.max
-            if lhsIdx != rhsIdx { return lhsIdx < rhsIdx }
-            // Both unknown -- fall back to alphabetical
-            return displayName(for: lhs).localizedCaseInsensitiveCompare(displayName(for: rhs)) == .orderedAscending
-        }
-    }
-
-    func displayName(for sidebarItem: String) -> String {
-        if sidebarItem.hasPrefix("folder:") {
-            return String(sidebarItem.dropFirst("folder:".count))
-        }
-        return TodoTagHelper.tagName(sidebarItem)
-    }
-
-    func nestedTags(forSequence sequence: String) -> [String] {
-        let nested = allUsedTags.filter {
-            TodoTagHelper.tagPathComponents($0).count > 1 && TodoTagHelper.rootTagName($0) == sequence
-        }
-        // Sort children by position in tagOrder, then alphabetically
-        let orderMap: [String: Int] = Dictionary(
-            tagOrder.enumerated().map { ($1, $0) },
-            uniquingKeysWith: { first, _ in first }
-        )
-        return nested.sorted { lhs, rhs in
-            let lhsIdx = orderMap[lhs] ?? Int.max
-            let rhsIdx = orderMap[rhs] ?? Int.max
-            if lhsIdx != rhsIdx { return lhsIdx < rhsIdx }
-            return TodoTagHelper.leafTagName(lhs)
-                .localizedCaseInsensitiveCompare(TodoTagHelper.leafTagName(rhs)) == .orderedAscending
-        }
-    }
-
-    func persistTagOrder() {
-        UserDefaults.standard.set(tagOrder, forKey: UserDefaultsKeys.todoTagOrder)
-    }
-
-    func moveTag(from source: String, toAfter destination: String) {
-        // Build full ordered list if empty
-        if tagOrder.isEmpty {
-            tagOrder = orderedSidebarItems
-        }
-        // Ensure both are in the list
-        if !tagOrder.contains(source) { tagOrder.append(source) }
-        if !tagOrder.contains(destination) { tagOrder.append(destination) }
-        // Remove source
-        tagOrder.removeAll { $0 == source }
-        // Insert after destination
-        if let destIdx = tagOrder.firstIndex(of: destination) {
-            tagOrder.insert(source, at: destIdx + 1)
-        } else {
-            tagOrder.append(source)
-        }
-        persistTagOrder()
-    }
-
     // MARK: - Sidebar View
 
+    /// Check-ins, the Tide lists, "Not yet in Tide" while it holds anything,
+    /// and Done (simplify round two, 2026-11-03: tags, Someday and the date
+    /// lists went with the rest of the notebook's own to-do list).
     var sidebar: some View {
         List {
             Section {
-                ForEach(TodoListFilter.allCases) { filter in
-                    filterRow(filter: filter)
-                }
+                filterRow(filter: .checkIns)
             }
 
             tideListsSection
 
-            if !allUsedTags.isEmpty || tagOrder.contains(where: { $0.hasPrefix("folder:") }) {
-                Section {
-                    ForEach(orderedSidebarItems, id: \.self) { item in
-                        if item.hasPrefix("folder:") {
-                            let sequenceName = String(item.dropFirst("folder:".count))
-                            DisclosureGroup(
-                                isExpanded: Binding<Bool>(
-                                    get: { expandedTagGroups.contains(sequenceName) },
-                                    set: { isExpanded in
-                                        if isExpanded {
-                                            expandedTagGroups.insert(sequenceName)
-                                        } else {
-                                            expandedTagGroups.remove(sequenceName)
-                                        }
-                                    }
-                                )
-                            ) {
-                                ForEach(nestedTags(forSequence: sequenceName), id: \.self) { childTag in
-                                    tagRow(
-                                        tag: childTag,
-                                        displayName: TodoTagHelper.leafTagName(childTag),
-                                        dotSize: 8,
-                                        fontSize: 14,
-                                        dragKey: childTag
-                                    )
-                                }
-                            } label: {
-                                folderRowLabel(sequenceName: sequenceName, item: item)
-                            }
-                        } else {
-                            tagRow(
-                                tag: item,
-                                displayName: TodoTagHelper.tagName(item),
-                                dotSize: 10,
-                                fontSize: 15,
-                                dragKey: item
-                            )
-                        }
-                    }
-                } header: {
-                    HStack {
-                        Text("Tags")
-                        Spacer()
-                        if hasUnusedTags {
-                            Button("Remove Unused") {
-                                removeUnusedTags()
-                            }
-                            .font(.caption)
-                            .foregroundStyle(AppColors.destructive)
-                        }
-                        Button {
-                            newFolderName = ""
-                            isShowingNewFolder = true
-                        } label: {
-                            Image(systemName: "folder.badge.plus")
-                                .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                    }
+            Section {
+                if countForFilter(.notInTide) > 0 {
+                    filterRow(filter: .notInTide)
                 }
+                filterRow(filter: .done)
             }
         }
         .listStyle(.sidebar)
@@ -180,7 +32,7 @@ extension TodoMainView {
 
     @ViewBuilder
     private func filterRow(filter: TodoListFilter) -> some View {
-        let isActive = selectedTag == nil && selectedFolder == nil && selectedFilter == filter
+        let isActive = selectedTideList == nil && selectedFilter == filter
         Button {
             clearSidebarSelection()
             selectedFilter = filter
@@ -202,13 +54,11 @@ extension TodoMainView {
 
                 Spacer()
 
-                if filter != .all {
-                    let count = countForFilter(filter)
-                    if count > 0 {
-                        Text("\(count)")
-                            .font(AppTheme.ScaledFont.captionSemibold)
-                            .foregroundStyle(.tertiary)
-                    }
+                let count = countForFilter(filter)
+                if count > 0, filter != .done {
+                    Text("\(count)")
+                        .font(AppTheme.ScaledFont.captionSemibold)
+                        .foregroundStyle(.tertiary)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -221,182 +71,5 @@ extension TodoMainView {
                 ? Color.accentColor.opacity(UIConstants.OpacityConstants.light)
                 : Color.clear
         )
-    }
-
-    // MARK: - Folder Row Label
-
-    @ViewBuilder
-    private func folderRowLabel(sequenceName: String, item: String) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: selectedFolder == sequenceName ? "folder.fill" : "folder")
-                .foregroundStyle(
-                    selectedFolder == sequenceName ? Color.accentColor : .secondary
-                )
-                .font(.system(size: 12, weight: .semibold))
-                .frame(width: 10)
-
-            Text(sequenceName)
-                .font(AppTheme.ScaledFont.bodySemibold)
-                .foregroundStyle(selectedFolder == sequenceName ? Color.accentColor : .primary)
-
-            Spacer()
-
-            if selectedFolder == sequenceName {
-                Image(systemName: "line.3.horizontal.decrease.circle.fill")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Color.accentColor)
-            }
-        }
-        .padding(.vertical, 4)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            adaptiveWithAnimation(.snappy(duration: 0.2)) {
-                if selectedFolder == sequenceName {
-                    selectedFolder = nil
-                    selectedFilter = .inbox
-                } else {
-                    clearSidebarSelection()
-                    selectedFolder = sequenceName
-                    showSelectedListIfCompact()
-                }
-            }
-        }
-        .draggable(item) {
-            HStack(spacing: 6) {
-                Image(systemName: "folder")
-                    .foregroundStyle(.secondary)
-                    .font(.system(size: 12, weight: .semibold))
-                Text(sequenceName)
-                    .font(AppTheme.ScaledFont.captionSemibold)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(.regularMaterial)
-            .clipRounded(UIConstants.CornerRadius.small)
-        }
-        .dropDestination(for: String.self) { items, _ in
-            guard let dropped = items.first, dropped != item else { return false }
-            adaptiveWithAnimation(.snappy(duration: 0.2)) {
-                moveTag(from: dropped, toAfter: item)
-            }
-            return true
-        }
-    }
-
-    // MARK: - Tag Row Helper
-
-    func tagRow(tag: String, displayName: String, dotSize: CGFloat, fontSize: CGFloat, dragKey: String) -> some View {
-        Button {
-            clearSidebarSelection()
-            selectedTag = tag
-            showSelectedListIfCompact()
-        } label: {
-            HStack(spacing: 10) {
-                Circle()
-                    .fill(TodoTagHelper.tagColor(tag).color)
-                    .frame(width: dotSize, height: dotSize)
-                    .contentShape(.dragPreview, Circle())
-                    .draggable(dragKey) {
-                        Circle()
-                            .fill(TodoTagHelper.tagColor(tag).color)
-                            .frame(width: dotSize + 4, height: dotSize + 4)
-                    }
-
-                Text(displayName)
-                    .font(.system(size: fontSize))
-
-                Spacer()
-
-                Text("\(countForTag(tag))")
-                    .font(AppTheme.ScaledFont.captionSemibold)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
-            .padding(.vertical, 4)
-        }
-        .buttonStyle(.plain)
-        .listRowBackground(
-            selectedTag == tag
-                ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent)
-                : Color.clear
-        )
-        .dropDestination(for: String.self) { items, _ in
-            guard let dropped = items.first, dropped != dragKey else { return false }
-            adaptiveWithAnimation(.snappy(duration: 0.2)) {
-                moveTag(from: dropped, toAfter: dragKey)
-            }
-            return true
-        }
-    }
-
-    // MARK: - New Folder Sheet
-
-    var newFolderSheet: some View {
-        NavigationStack {
-            Form {
-                Section("Folder Name") {
-                    TextField("Enter folder name", text: $newFolderName)
-                }
-            }
-            .navigationTitle("New Tag Folder")
-            .inlineNavigationTitle()
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        isShowingNewFolder = false
-                    }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Create") {
-                        let trimmed = newFolderName.trimmed()
-                        guard !trimmed.isEmpty else { return }
-                        let folderKey = "folder:" + trimmed
-                        if !tagOrder.contains(folderKey) {
-                            if tagOrder.isEmpty {
-                                tagOrder = orderedSidebarItems
-                            }
-                            tagOrder.append(folderKey)
-                            persistTagOrder()
-                        }
-                        expandedTagGroups.insert(trimmed)
-                        isShowingNewFolder = false
-                    }
-                    .disabled(newFolderName.trimmed().isEmpty)
-                }
-            }
-        }
-    }
-
-    // MARK: - Sidebar Helper Functions
-
-    var hasUnusedTags: Bool {
-        let activeTags = Set(allTodos.filter { !$0.isCompleted }.flatMap { $0.tagsArray })
-        let allTags = Set(allTodos.flatMap { $0.tagsArray })
-        return !allTags.subtracting(activeTags).isEmpty
-    }
-
-    func removeUnusedTags() {
-        let activeTags = Set(allTodos.filter { !$0.isCompleted }.flatMap { $0.tagsArray })
-        let allTags = Set(allTodos.flatMap { $0.tagsArray })
-        let unusedTags = allTags.subtracting(activeTags)
-
-        guard !unusedTags.isEmpty else { return }
-
-        for todo in allTodos where todo.isCompleted {
-            let kept = todo.tagsArray.filter { !unusedTags.contains($0) }
-            if kept != todo.tagsArray {
-                todo.tagsArray = kept
-            }
-        }
-        // The tags came off in memory only, and were back after a relaunch.
-        dependencies.saveCoordinator.save(viewContext, reason: "Remove unused tags")
-        refreshTagCaches()
-
-        // Clear tag selection if the selected tag was removed
-        if let selected = selectedTag, unusedTags.contains(selected) {
-            selectedTag = nil
-            selectedFilter = .inbox
-        }
     }
 }

@@ -13,18 +13,6 @@ nonisolated public struct StudentMeetingDTO: Codable, Sendable {
     public var guideNotes: String
 }
 
-nonisolated public struct ReminderDTO: Codable, Sendable {
-    public var id: UUID
-    public var title: String
-    public var notes: String?
-    public var dueDate: Date?
-    public var isCompleted: Bool
-    public var completedAt: Date?
-    public var createdAt: Date
-    public var updatedAt: Date
-    // EventKit IDs excluded - device-specific
-}
-
 nonisolated public struct CalendarEventDTO: Codable, Sendable {
     public var id: UUID
     public var title: String

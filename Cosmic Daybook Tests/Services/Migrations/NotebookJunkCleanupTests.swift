@@ -154,34 +154,6 @@ struct NotebookJunkCleanupTests {
         #expect(context.registeredObject(for: blankID)?.isDeleted ?? true)
     }
 
-    @Test("Unlinked reminder copies go; a reminder that only exists unlinked keeps its oldest copy")
-    func duplicateReminders() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let due = try CoreDataTestHelpers.day("2026-09-11")
-        func reminder(_ title: String, linked: String?, created: String) throws {
-            let row = CDReminder(context: context)
-            row.title = title
-            row.dueDate = due
-            row.eventKitReminderID = linked
-            row.createdAt = try CoreDataTestHelpers.day(created)
-        }
-        try reminder("Order paper", linked: "EK-1", created: "2025-04-26")
-        try reminder("Order paper", linked: nil, created: "2025-04-26")
-        try reminder("order paper ", linked: nil, created: "2025-09-07")
-        try reminder("Call the office", linked: nil, created: "2025-05-01")
-        try reminder("Call the office", linked: nil, created: "2025-06-25")
-        try reminder("Field trip forms", linked: nil, created: "2025-06-25")
-        CoreDataTestHelpers.save(context)
-
-        let done = clean(context)
-        #expect(done.duplicateReminders == 3)
-        let left = context.safeFetch(CDFetchRequest(CDReminder.self))
-        #expect(left.count == 3)
-        #expect(left.contains { $0.eventKitReminderID == "EK-1" })
-        let office = left.filter { $0.title == "Call the office" }
-        #expect(office.map(\.createdAt) == [try CoreDataTestHelpers.day("2025-05-01")])
-    }
-
     @Test("Notes with nothing in them go; a flagged or tagged empty note stays")
     func emptyNotes() throws {
         let context = try CoreDataTestHelpers.makeContext()
@@ -364,37 +336,4 @@ extension NotebookJunkCleanupTests {
         #expect(left.contains(noted))
     }
 
-    @Test("An open reminder, or one with notes, is never removed as a copy")
-    func remindersWithNotesOrOpenStay() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let due = try CoreDataTestHelpers.day("2026-09-11")
-        @discardableResult
-        func reminder(_ title: String, completed: Bool, notes: String? = nil, created: String) throws -> CDReminder {
-            let row = CDReminder(context: context)
-            row.title = title
-            row.dueDate = due
-            row.isCompleted = completed
-            row.notes = notes
-            row.createdAt = try CoreDataTestHelpers.day(created)
-            return row
-        }
-        // A finished one and a newer, empty open one: different reminders.
-        try reminder("Order supplies", completed: true, created: "2025-04-26")
-        let open = try reminder("Order supplies", completed: false, created: "2025-09-07")
-        // An older empty copy and a newer one with notes: only the empty one goes.
-        try reminder("Call the office", completed: false, created: "2025-05-01")
-        let noted = try reminder("Call the office", completed: false, notes: "Ask about trip", created: "2025-06-25")
-        // Two copies with different notes: both stay.
-        try reminder("Field trip forms", completed: false, notes: "Lev", created: "2025-05-01")
-        try reminder("Field trip forms", completed: false, notes: "Ora", created: "2025-06-25")
-        CoreDataTestHelpers.save(context)
-
-        let done = clean(context)
-        #expect(done.duplicateReminders == 1)
-        let left = context.safeFetch(CDFetchRequest(CDReminder.self))
-        #expect(left.count == 5)
-        #expect(left.contains(open))
-        #expect(left.contains(noted))
-        #expect(left.filter { $0.title == "Order supplies" }.count == 2)
-    }
 }

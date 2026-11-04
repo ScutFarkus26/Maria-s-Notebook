@@ -22,11 +22,6 @@ enum TodoScheduling {
         schedule([todo], on: nextMonday(after: now))
     }
 
-    static func moveToSomeday(_ todo: CDTodoItem) {
-        todo.scheduledDate = nil
-        todo.isSomeday = true
-    }
-
     static func removeDates(_ todo: CDTodoItem) {
         todo.scheduledDate = nil
         todo.dueDate = nil

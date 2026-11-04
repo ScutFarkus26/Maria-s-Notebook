@@ -108,7 +108,6 @@ enum ObservationsDataLoader {
            let communityTopic = lookup.topics[uuid] {
             return "Topic: \(communityTopic.title)"
         }
-        if note.reminder != nil { return "Reminder" }
         if note.schoolDayOverride != nil { return "Override" }
         return nil
     }

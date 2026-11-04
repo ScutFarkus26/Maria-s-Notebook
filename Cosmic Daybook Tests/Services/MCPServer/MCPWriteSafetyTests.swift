@@ -87,7 +87,7 @@ struct MCPWriteSafetyTests {
         #expect(context.safeFetch(CDFetchRequest(CDAttendanceRecord.self)).isEmpty)
     }
 
-    @Test("update_todo: a refused priority leaves the new title unsaved and undone")
+    @Test("update_todo: a refused due date leaves the new title unsaved and undone")
     func updateTodoRollsBack() async throws {
         let (tools, context) = try makeTools()
         let todo = CDTodoItem(context: context)
@@ -99,7 +99,7 @@ struct MCPWriteSafetyTests {
             _ = try await tool(named: "update_todo", in: tools).handler([
                 "todo_id": .string(try #require(todo.id).uuidString),
                 "title": .string("Order golden beads"),
-                "priority": .string("whenever")
+                "due_date": .string("whenever")
             ])
         }
 

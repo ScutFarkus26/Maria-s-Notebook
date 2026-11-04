@@ -3,7 +3,7 @@ import EventKit
 
 /// One `.EKEventStoreChanged` subscription with trailing-edge coalescing.
 ///
-/// `CalendarSyncService` and `ReminderSyncService` each own one of these.
+/// `CalendarSyncService` owns one of these.
 /// `start` subscribes to the store's change notification. Every change
 /// restarts a quiet period, and `handler` runs on the main actor once the
 /// store has been quiet for that long. The calendar daemon posts the

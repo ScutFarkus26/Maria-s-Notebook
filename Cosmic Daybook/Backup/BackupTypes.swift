@@ -102,14 +102,14 @@ nonisolated public struct BackupPayload: Codable, Sendable {
         case lessonAttachments, lessonPresentations, recallChecks
         case sampleWorks, sampleWorkSteps
         case noteTemplates, meetingTemplates
-        case reminders, calendarEvents
+        case calendarEvents
         case tracks, trackSteps, studentTrackEnrollments, sequenceTracks
         case documents
         case supplies, procedures
         case schedules, scheduleSlots
         case issues, issueActions
         case developmentSnapshots
-        case todoItems, todoSubtasks, todoTemplates
+        case todoItems
         case todayAgendaOrders
         case planningRecommendations, resources, noteStudentLinks
         case goingOuts, goingOutChecklistItems
@@ -179,8 +179,7 @@ nonisolated public struct BackupPayload: Codable, Sendable {
     public var noteTemplates: [NoteTemplateDTO]?
     public var meetingTemplates: [MeetingTemplateDTO]?
 
-    // Reminders & Calendar (format v8+)
-    public var reminders: [ReminderDTO]?
+    // Calendar (format v8+)
     public var calendarEvents: [CalendarEventDTO]?
 
     // Tracks (format v8+)
@@ -209,8 +208,6 @@ nonisolated public struct BackupPayload: Codable, Sendable {
 
     // Todos (format v8+)
     public var todoItems: [TodoItemDTO]?
-    public var todoSubtasks: [TodoSubtaskDTO]?
-    public var todoTemplates: [TodoTemplateDTO]?
 
     // Agenda ordering (format v8+)
     public var todayAgendaOrders: [TodayAgendaOrderDTO]?

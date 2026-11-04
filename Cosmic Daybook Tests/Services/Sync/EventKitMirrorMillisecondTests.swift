@@ -27,42 +27,6 @@ struct EventKitMirrorMillisecondTests {
         #expect(!EventKitMirror.isSameInstant(base, base.addingTimeInterval(-0.002)))
     }
 
-    @Test("A reminder whose stored dates lost their sub-millisecond digits is not rewritten")
-    func truncatedReminderDatesWriteNothing() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let completedAt = Fixture.firstSync.addingTimeInterval(0.123_456_7)
-        let modified = Fixture.firstSync.addingTimeInterval(0.987_654_3)
-        let reminder = Fixture.reminder("r1", completed: true, completedAt: completedAt, modified: modified)
-        EventKitMirror.reconcileReminders([reminder], listID: "list", in: context, now: Fixture.firstSync)
-        #expect(context.safeSave())
-
-        // What the row holds after a CloudKit round trip: the same dates, cut to the millisecond.
-        let row = try #require(Fixture.reminderRows(in: context)["r1"])
-        row.completedAt = Self.millisecondTruncated(completedAt)
-        row.updatedAt = Self.millisecondTruncated(modified)
-        #expect(context.safeSave())
-
-        let outcome = EventKitMirror.reconcileReminders([reminder], listID: "list", in: context, now: Fixture.secondSync)
-        #expect(outcome == EventKitMirror.Outcome())
-        #expect(!context.hasChanges)
-        #expect(row.lastSyncedAt == Fixture.firstSync)
-    }
-
-    @Test("A reminder date that really moved, by a millisecond or more, is copied and stamped")
-    func movedReminderDateIsCopied() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let reminder = Fixture.reminder("r1", modified: Fixture.firstSync)
-        EventKitMirror.reconcileReminders([reminder], listID: "list", in: context, now: Fixture.firstSync)
-        #expect(context.safeSave())
-
-        let moved = Fixture.reminder("r1", modified: Fixture.firstSync.addingTimeInterval(0.002))
-        let outcome = EventKitMirror.reconcileReminders([moved], listID: "list", in: context, now: Fixture.secondSync)
-        #expect(outcome == EventKitMirror.Outcome(updated: 1))
-        let row = try #require(Fixture.reminderRows(in: context)["r1"])
-        #expect(row.updatedAt == Fixture.firstSync.addingTimeInterval(0.002))
-        #expect(row.lastSyncedAt == Fixture.secondSync)
-    }
-
     @Test("An event whose stored times lost their sub-millisecond digits is not rewritten")
     func truncatedEventTimesWriteNothing() throws {
         let context = try CoreDataTestHelpers.makeContext()

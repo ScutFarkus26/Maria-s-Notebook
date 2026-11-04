@@ -468,7 +468,6 @@ final class BackupRegistryCoverageTests {
             CDProject.self,
             CDProjectSession.self,
             CDTodoItem.self,
-            CDReminder.self,
             CDCalendarEvent.self,
             CDCalendarNote.self,
             CDClassroomMembership.self,

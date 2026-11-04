@@ -55,7 +55,6 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
     case practiceSessions
     // Planning
     case todos
-    case reminders
     case tracks
     case trackEnrollments
     case calendarEvents
@@ -78,7 +77,6 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
     case communityFiles
     case noteTemplates
     case meetingTemplates
-    case todoTemplates
 
     var id: String { rawValue }
 
@@ -87,13 +85,13 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
         case .students, .lessons, .presentationsPlanned, .presentationsGiven, .childPresentations,
              .work, .observations, .meetings, .practiceSessions:
             return .teaching
-        case .todos, .reminders, .tracks, .trackEnrollments, .calendarEvents, .projects, .goingOuts:
+        case .todos, .tracks, .trackEnrollments, .calendarEvents, .projects, .goingOuts:
             return .planning
         case .attendance, .daysOff, .supplies, .supplyHistory, .orders, .issues,
              .communityTopics, .procedures:
             return .classroom
         case .stories, .albumMarks, .documents, .lessonFiles, .communityFiles,
-             .noteTemplates, .meetingTemplates, .todoTemplates:
+             .noteTemplates, .meetingTemplates:
             return .library
         }
     }
@@ -110,7 +108,6 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
         case .meetings: return "Meetings"
         case .practiceSessions: return "Practice sessions"
         case .todos: return "To-dos"
-        case .reminders: return "Reminders"
         case .tracks: return "Tracks"
         case .trackEnrollments: return "Track enrollments"
         case .calendarEvents: return "Calendar events"
@@ -131,7 +128,6 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
         case .communityFiles: return "Community files"
         case .noteTemplates: return "Note templates"
         case .meetingTemplates: return "Meeting templates"
-        case .todoTemplates: return "To-do templates"
         }
     }
 
@@ -147,7 +143,6 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
         case .meetings: return "person.2.fill"
         case .practiceSessions: return "music.note.list"
         case .todos: return "checklist"
-        case .reminders: return "bell.fill"
         case .tracks: return "point.topleft.down.to.point.bottomright.curvepath.fill"
         case .trackEnrollments: return "person.line.dotted.person.fill"
         case .calendarEvents: return "calendar"
@@ -168,7 +163,6 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
         case .communityFiles: return "paperclip.badge.ellipsis"
         case .noteTemplates: return "note.text.badge.plus"
         case .meetingTemplates: return "person.2.wave.2.fill"
-        case .todoTemplates: return "checklist"
         }
     }
 
@@ -195,7 +189,6 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
         case .meetings: return [CDStudentMeeting.self]
         case .practiceSessions: return [CDPracticeSession.self]
         case .todos: return [CDTodoItemEntity.self]
-        case .reminders: return [CDReminder.self]
         case .tracks: return [CDTrackEntity.self]
         case .trackEnrollments: return [CDStudentTrackEnrollmentEntity.self]
         case .calendarEvents: return [CDCalendarEvent.self]
@@ -216,7 +209,6 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
         case .communityFiles: return [CDCommunityAttachmentEntity.self]
         case .noteTemplates: return [CDNoteTemplateEntity.self]
         case .meetingTemplates: return [CDMeetingTemplateEntity.self]
-        case .todoTemplates: return [CDTodoTemplateEntity.self]
         }
     }
 
@@ -247,7 +239,6 @@ final class SettingsStatsViewModel {
 
     var noteTemplatesCount: Int { count(of: .noteTemplates) }
     var meetingTemplatesCount: Int { count(of: .meetingTemplates) }
-    var todoTemplatesCount: Int { count(of: .todoTemplates) }
 
     func count(of kind: NotebookRecordKind) -> Int {
         counts[kind] ?? 0

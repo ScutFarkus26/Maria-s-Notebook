@@ -8,20 +8,16 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-@Suite("Sample Class clears copied reminders and events (Fix1017ReviewA1)", .serialized)
+@Suite("Sample Class clears copied calendar events (Fix1017ReviewA1)", .serialized)
 @MainActor
 struct SampleClassroomFix1017ReviewA1Tests {
 
-    @Test("Preparing the Sample Class deletes reminders and calendar events left in it")
+    @Test("Preparing the Sample Class deletes calendar events left in it")
     func clearsCopiedRows() throws {
         let primary = try CoreDataTestHelpers.makeInMemoryStack()
         let sample = try CoreDataTestHelpers.makeInMemoryStack()
         let context = sample.viewContext
 
-        let reminder = CDReminder(context: context)
-        reminder.id = UUID()
-        reminder.title = "Call the office"
-        reminder.eventKitCalendarID = "real-list"
         let event = CDCalendarEvent(context: context)
         event.id = UUID()
         event.title = "Staff meeting"
@@ -31,7 +27,6 @@ struct SampleClassroomFix1017ReviewA1Tests {
 
         try SampleClassroomSeeder.prepare(lessonsFrom: primary.viewContext, sampleContext: context)
 
-        #expect(try context.count(for: CDFetchRequest(CDReminder.self)) == 0)
         #expect(try context.count(for: CDFetchRequest(CDCalendarEvent.self)) == 0)
     }
 }

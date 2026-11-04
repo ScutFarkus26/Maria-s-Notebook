@@ -1,10 +1,10 @@
 // TodayView.swift
-// Today hub showing reminders, lessons, scheduled check-ins, follow-ups, and completions.
+// Today hub showing lessons, scheduled check-ins, follow-ups, and completions.
 // Integrated AttendanceView expansion logic with fixed roll-down animation.
 //
 // Split into multiple files for maintainability:
 // - TodayView.swift (this file) - Main view structure and body
-// - Sections/TodayView*Section.swift - The list sections (reminders, lessons, etc.)
+// - Sections/TodayView*Section.swift - The list sections (lessons, calendar, etc.)
 // - TodayViewHeader.swift - Header and attendance strip components
 // - TodayViewHelpers.swift - School day helpers and utility functions
 // - TodayViewListRows.swift - Individual row components
@@ -76,9 +76,6 @@ struct TodayView: View {
     // MARK: - Day Pad / Done Today / Day Cards State
     @AppStorage(UserDefaultsKeys.todayDayPadExpanded) var isDayPadExpanded: Bool = false
     @AppStorage(UserDefaultsKeys.todayDoneTodayExpanded) var isDoneTodayExpanded: Bool = false
-    /// The undated reminder pile starts closed and stays wherever she left it.
-    @AppStorage(UserDefaultsKeys.todayAnytimeRemindersExpanded)
-    var isAnytimeRemindersExpanded: Bool = false
     /// Bumped when a day card is dismissed to force the section to recompute.
     @State var dayCardsRefreshTrigger: Int = 0
 
@@ -295,14 +292,13 @@ struct TodayView: View {
 
     // MARK: - Event Handlers
 
-    // PERF: Structured concurrency — async let runs both syncs in parallel
-    // while inheriting .task cancellation (no more fire-and-forget Task blocks).
+    // PERF: Structured concurrency — the calendar sync inherits .task
+    // cancellation (no more fire-and-forget Task blocks).
     // The ready queue is not invalidated here: its change flag already covers
     // every input, so a return with nothing changed keeps the queue it has.
     private func handleViewAppear() async {
         viewModel.lessonCatalog = dependencies.lessonCatalog
         viewModel.setCalendar(calendar)
-        async let reminderSync: Void = syncReminders()
         async let calendarSync: Void = syncCalendarEvents()
         let coerced = nearestSchoolDaySync(to: viewModel.date)
         if coerced != viewModel.date {
@@ -313,8 +309,8 @@ struct TodayView: View {
         }
         handleDayChange()
         reloadDerivedCounts()
-        // Await both syncs — cancellation propagates automatically when view disappears
-        _ = await (reminderSync, calendarSync)
+        // Await the sync — cancellation propagates automatically when view disappears
+        await calendarSync
     }
 
     /// Recomputes counts that drive the day-aware cards (needs-lesson) when
@@ -329,9 +325,7 @@ struct TodayView: View {
         case .active:
             // Resume syncs when app becomes active
             Task {
-                async let reminderSync: Void = syncReminders()
-                async let calendarSync: Void = syncCalendarEvents()
-                _ = await (reminderSync, calendarSync)
+                await syncCalendarEvents()
             }
         case .inactive, .background:
             // App is inactive or in background - expensive syncs will be paused automatically
@@ -368,17 +362,11 @@ struct TodayView: View {
         reloadDerivedCounts()
     }
 
-    // PERF: Async functions instead of fire-and-forget Task blocks.
-    // Callers use structured concurrency (async let / .task) for automatic cancellation.
-    private func syncReminders() async {
-        await eventKitSync.syncReminders()
-    }
-
     private func syncCalendarEvents() async {
         await eventKitSync.syncCalendarEvents()
     }
 
-    /// Today's Reminders and Calendar work, through this classroom's services.
+    /// Today's Calendar work, through this classroom's service.
     var eventKitSync: TodayEventKitSync {
         TodayEventKitSync(dependencies: dependencies)
     }

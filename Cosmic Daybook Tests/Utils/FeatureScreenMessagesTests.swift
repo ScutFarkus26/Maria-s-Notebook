@@ -9,19 +9,6 @@ import Testing
 @MainActor
 struct FeatureScreenMessagesTests {
 
-    @Test("A todo export is named in words, not a timestamp")
-    func todoExportFileName() throws {
-        let timeZone = try #require(TimeZone(identifier: "America/New_York"))
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = timeZone
-        let date = try #require(calendar.date(from: DateComponents(year: 2026, month: 10, day: 3, hour: 23)))
-
-        let name = TodoExportService.exportFileName(
-            on: date, locale: Locale(identifier: "en_US"), timeZone: timeZone
-        )
-        #expect(name == "Todos \u{2013} Oct 3, 2026")
-    }
-
     @Test("A capture that can't be saved says nothing changed")
     func captureSaveErrors() {
         #expect(CaptureSaveError.saveFailed.errorDescription

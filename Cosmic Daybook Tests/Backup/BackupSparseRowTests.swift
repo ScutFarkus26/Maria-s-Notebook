@@ -24,7 +24,7 @@ struct BackupSparseRowTests {
         "CalendarNote", "ClassroomMembership", "StudentFocusItem", "DayPad", "YearPlanEntry",
         "LessonSequenceSettings", "BookClubSession", "Guardian", "ParentCommunication", "AlbumBookmark",
         "AlbumPageNote", "AlbumRecentVisit", "AlbumReadingPosition", "OrderItem", "ProposedSolution",
-        "WorkStep", "SampleWorkStep", "TrackStep", "TodoSubtask", "LessonAttachment", "NoteStudentLink",
+        "WorkStep", "SampleWorkStep", "TrackStep", "LessonAttachment", "NoteStudentLink",
         "JobAssignment", "BookClubMeeting", "StudentTrackEnrollment", "MeetingWorkReview", "AttendanceDayLock",
         "SupplyTransaction", "AttendanceEmailSend", "AttendanceEmailSettings", "ClassroomPerson",
         "TimetableLane", "TimetableBlock", "TimetableChange", "TimetableBooking"
@@ -51,7 +51,6 @@ struct BackupSparseRowTests {
         ParentCase("WorkStep", "workID", "work", "WorkModel", false),
         ParentCase("SampleWorkStep", "sampleWorkID", "sampleWork", "SampleWork", false),
         ParentCase("TrackStep", "trackID", "track", "Track", false),
-        ParentCase("TodoSubtask", "todoID", "todo", "TodoItem", false),
         ParentCase("LessonAttachment", "lessonID", "lesson", "Lesson", false),
         ParentCase("NoteStudentLink", "noteID", "note", "Note", true),
         ParentCase("JobAssignment", "jobID", "job", "ClassroomJob", true),

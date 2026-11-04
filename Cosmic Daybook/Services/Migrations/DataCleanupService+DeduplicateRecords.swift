@@ -208,7 +208,11 @@ nonisolated extension DataCleanupService {
         if canonical.studentMeeting == nil { canonical.studentMeeting = duplicate.studentMeeting }
         if canonical.projectSession == nil { canonical.projectSession = duplicate.projectSession }
         if canonical.communityTopic == nil { canonical.communityTopic = duplicate.communityTopic }
-        if canonical.reminder == nil { canonical.reminder = duplicate.reminder }
+        // Reminder is a retired type (2026-11-03): no class, but a note's
+        // link to one is kept rather than lost with the duplicate.
+        if canonical.value(forKey: "reminder") == nil {
+            canonical.setValue(duplicate.value(forKey: "reminder"), forKey: "reminder")
+        }
         if canonical.practiceSession == nil { canonical.practiceSession = duplicate.practiceSession }
         if canonical.issue == nil { canonical.issue = duplicate.issue }
         if canonical.goingOutID == nil { canonical.goingOutID = duplicate.goingOutID }
@@ -253,13 +257,16 @@ nonisolated extension DataCleanupService {
     /// Tide link survives too: a copy that lost it would be sent to Tide again.
     static func mergeTodoItem(canonical: CDTodoItem, duplicate: CDTodoItem) {
         if canonical.tideLink == nil { canonical.tideLink = duplicate.tideLink }
-        var existingSubtaskIDs = Set((canonical.subtasks as? Set<CDTodoSubtask>)?.compactMap(\.id) ?? [])
+        // TodoSubtask is a retired type (2026-11-03): no class, but the
+        // duplicate's rows move to the copy that stays rather than cascade
+        // away with it.
+        var existingSubtaskIDs = Set<UUID>()
         mergeNSSetRelationship(
-            from: duplicate.subtasks,
+            from: duplicate.value(forKey: "subtasks") as? NSSet,
             addTo: canonical,
             relationshipKey: "subtasks",
             existingIDs: &existingSubtaskIDs,
-            setter: { (subtask: CDTodoSubtask) in subtask.todo = canonical }
+            setter: { (subtask: NSManagedObject) in subtask.setValue(canonical, forKey: "todo") }
         )
     }
 
@@ -285,15 +292,5 @@ nonisolated extension DataCleanupService {
         )
     }
 
-    static func mergeReminder(canonical: CDReminder, duplicate: CDReminder) {
-        var existingNoteIDs = Set((canonical.noteItems as? Set<CDNote>)?.compactMap(\.id) ?? [])
-        mergeNSSetRelationship(
-            from: duplicate.noteItems,
-            addTo: canonical,
-            relationshipKey: "noteItems",
-            existingIDs: &existingNoteIDs,
-            setter: { (note: CDNote) in note.reminder = canonical }
-        )
-    }
 }
 // swiftlint:enable cyclomatic_complexity

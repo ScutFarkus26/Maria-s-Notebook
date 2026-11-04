@@ -77,13 +77,4 @@ struct BackupRestoreEndsTests {
         let message = BackupTransactionManager.TransactionError.importIncompleteAfterSaving(Boom()).errorDescription
         #expect(message?.contains("nothing was changed") == false)
     }
-
-    @Test("Notes linked to a reminder this device lacks are counted, in plain words")
-    func missingReminderWarning() {
-        let one = BackupWarningText.notesMissingTheirReminder(1)
-        let many = BackupWarningText.notesMissingTheirReminder(3)
-        #expect(BackupWarningText.plain(one) == one)
-        #expect(BackupWarningText.plain(many) == many)
-        #expect(many.hasPrefix("3 notes"))
-    }
 }

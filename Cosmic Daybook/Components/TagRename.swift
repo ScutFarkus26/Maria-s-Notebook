@@ -3,12 +3,11 @@
 
 import CoreData
 
-/// The tag picker (`TagPicker`) is shared by todos, todo templates and
-/// resources, so renaming a tag in it changes the tag on all three. Note tags
+/// The tag picker (`TagPicker`) is shared by todos and resources, so renaming
+/// a tag in it changes the tag on both. Note tags
 /// are a separate list with their own picker and aren't touched.
 enum TagRename {
-    /// Renames `original` to `renamed` on every todo, todo template and
-    /// resource that has it, without saving. Returns how many rows changed.
+    /// Renames `original` to `renamed` on every todo and resource that has it, without saving. Returns how many rows changed.
     @discardableResult
     static func rename(_ original: String, to renamed: String, in context: NSManagedObjectContext) -> Int {
         guard original != renamed else { return 0 }
@@ -22,9 +21,6 @@ enum TagRename {
 
         for todo in context.safeFetch(withTags(CDTodoItem.self)) {
             if let tags = update(todo.tagsArray) { todo.tagsArray = tags }
-        }
-        for template in context.safeFetch(withTags(CDTodoTemplate.self)) {
-            if let tags = update(template.tagsArray) { template.tagsArray = tags }
         }
         for resource in context.safeFetch(withTags(CDResource.self)) {
             if let tags = update(resource.tagsArray) { resource.tagsArray = tags }

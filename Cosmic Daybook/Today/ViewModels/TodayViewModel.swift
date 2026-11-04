@@ -84,11 +84,6 @@ final class TodayViewModel {
     // Completed work items
     var completedWork: [CDWorkModel] = []
 
-    // Reminders for today
-    var todaysReminders: [CDReminder] = []
-    var overdueReminders: [CDReminder] = []
-    var anytimeReminders: [CDReminder] = []  // Reminders with no due date
-
     // Calendar events for today
     var todaysCalendarEvents: [CDCalendarEvent] = []
 
@@ -292,11 +287,6 @@ final class TodayViewModel {
             completedResult.completedWork, studentsByID: studentsByID, levelFilter: levelFilter
         )
 
-        // 4. Fetch reminders
-        let remindersResult = TodayDataFetcher.fetchReminders(
-            day: day, nextDay: nextDay, context: context, errorCollector: errorCollector
-        )
-
         // 5. Fetch calendar events
         let calendarEvents = TodayDataFetcher.fetchCalendarEvents(
             day: day, nextDay: nextDay, context: context, errorCollector: errorCollector
@@ -349,9 +339,6 @@ final class TodayViewModel {
         goneQuietItems = TodayAgendaBuilder.groupFollowUpWork(workResult.staleFollowUps)
         linkedTodos = linked
         completedWork = filteredCompletedWork
-        overdueReminders = remindersResult.overdue
-        todaysReminders = remindersResult.today
-        anytimeReminders = remindersResult.anytime
         todaysCalendarEvents = calendarEvents
         scheduledMeetings = TodayAgendaBuilder.orderMeetings(
             TodayMeetingRows.filter(meetingsResult.meetings, studentsByID: studentsByID, levelFilter: levelFilter),
