@@ -1,6 +1,6 @@
 # Simplify the app, round two
 
-> **Not started.** Written 2026-11-03 from a whole-app analysis (branch `claude/app-simplification-analysis-31a526`): line and file counts per folder, live record counts read from the notebook over the Claude connection, the open rows in Tide, and what the first Simplify plan left alone on purpose. Danny approved the substance the same day ("go with your plan": Reminders sync off, practice folded into check-ins); this version is the plan-efficiently pass over it, with an SDK check and an Opus review (15 findings, all taken) folded in.
+> **Working on it.** Written 2026-11-03 from a whole-app analysis (branch `claude/app-simplification-analysis-31a526`): line and file counts per folder, live record counts read from the notebook over the Claude connection, the open rows in Tide, and what the first Simplify plan left alone on purpose. Danny approved the substance the same day ("go with your plan": Reminders sync off, practice folded into check-ins); this version is the plan-efficiently pass over it, with an SDK check and an Opus review (15 findings, all taken) folded in.
 > In short: one to-do list (Tide), the kept-but-empty features made cheap rather than deleted, about 60 Claude tools instead of 97, Settings as a list, the backup finished as one table, two template kinds instead of four, and the device-check backlog worked down and then capped, without touching the core loop (lesson, work, check-in, readiness, Class Grid).
 
 Build board: the project's board is https://claude.ai/artifact/WAKaFZGNPQsfKD4A5GbqsM; this plan's phases join it as milestones when Danny says so.
@@ -37,7 +37,14 @@ Live record counts, read 2026-11-03:
 - [ ] Phase 1: One to-do list (session: fresh, Opus xhigh) ‖ Phases 2, 3, 4 · est. 3–5%
 - [ ] Phase 2: Empty features made cheap (session: fresh, Opus high) ‖ Phases 1, 3, 4 · est. 2–3%
 - [ ] Phase 3: Settings is a list (session: fresh, Opus high) ‖ Phases 1, 2, 4 · est. 2–3%
-- [ ] Phase 4: Two template kinds (session: fresh, Opus high) ‖ Phases 1, 2, 3 · est. 1–2%
+- [x] Phase 4: Two template kinds (session: fresh, Opus high) ‖ Phases 1, 2, 3 · est. 1–2%
+  - Done 2026-11-04 on branch `claude/simplify-two-phase-4-118a55` (not merged). iOS app and tests and the Mac app built (the Assistant compiles only `CoreDataStack+Model.swift` of these files, where the change is a comment, so it wasn't rebuilt). 18 suites, 89 tests on the leased simulator: 87 passed first time; the golden's 2 failed only because the test bundle still held the old reference, and passed with the 2 other backup suites after a rebuild (6 of 6). Cost not measurable: usage read 45% at start and 58% at the end, shared with other sessions; the build queue (up to 19 ahead) took most of the wall clock.
+  - Differed from the plan:
+    - **No tombstone**, as in Phases 1 and 2: `NoteTemplate` stays in `privateEntityNames` with its class gone and class name blanked, so its rows stay; listed in `BackupCoverageTests.routedButIntentionallyNotBackedUp` and `BackupEntityTable.skippedOnImport` for Phase 5 to fold into `CoreDataStack.retiredEntities` (side-session note `Phase 4 - note templates, merge notes.md`).
+    - **No Sample work section** in the Templates pane: sample work belongs to each lesson and has no library screen, so the pane shows Meeting templates (and To-do templates until Phase 1 lands). `TemplateEditorSheet`/`TemplateManagementView` stay: the meeting editor uses them.
+    - `RetiredTypesRestoreTests` isn't on this branch (Phase 1's is uncommitted); Phase 5 adds `NoteTemplate` to it. The seeder had no suite, so `BuiltInTemplateSeederTests` is new (with a `defaults:` seam on `seedIfNeeded`); `MCPToolRegistryTests` gains a `list_templates` check (tool count stays 97).
+    - Golden diff: only `private/NoteTemplate` removed; 55 later sections shift their counter-made dates and numbers, no shape changes.
+  - In Tide: [the note editor on iPhone without the template row](<tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20round-two%20Simplify%20lands%2C%20open%20the%20note%20editor%20on%20the%20iPhone%20and%20check%20the%20Quick%20Insert%20templates%20row%20is%20gone%20and%20a%20note%20still%20saves>).
 - [ ] Phase 5: Combine wave one: one backup format bump, one golden, build, focused tests (session: fresh, Opus high) · est. 1–2%
 - [ ] Phase 6: About 60 Claude tools (session: fresh, Sonnet high; from the wave-one branch) ‖ Phase 7 · est. 1–2%
 - [ ] Phase 7: Backup finished as one table (session: fresh, Opus xhigh; from the wave-one branch) ‖ Phase 6 · est. 3–4%

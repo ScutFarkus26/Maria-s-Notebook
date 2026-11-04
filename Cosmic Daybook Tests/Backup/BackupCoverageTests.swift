@@ -31,7 +31,9 @@ final class BackupCoverageTests {
     private static let routedButIntentionallyNotBackedUp: Set<String> = [
         "ProjectAssignmentTemplate",
         "ProjectTemplateWeek",
-        "ProjectWeekRoleAssignment"
+        "ProjectWeekRoleAssignment",
+        // Retired 2026-11 (round-two Simplify, Phase 4): no class, rows kept.
+        "NoteTemplate"
     ]
 
     /// Model entities routed to NEITHER store. Every other coverage test here

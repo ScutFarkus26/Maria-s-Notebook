@@ -136,7 +136,7 @@ extension CoreDataStack {
         "CommunityAttachment",
         "ClassroomJob",
         "JobAssignment",
-        "NoteTemplate",
+        "NoteTemplate", // retired 2026-11 (round-two Simplify, Phase 4): no class, rows kept
         "MeetingTemplate",
         "TodoTemplate",
         "Resource",

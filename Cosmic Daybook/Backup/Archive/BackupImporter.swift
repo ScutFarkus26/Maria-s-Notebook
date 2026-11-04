@@ -223,7 +223,10 @@ enum BackupImporter {
         }
     }
 
-    private nonisolated static func unknownEntityWarning(_ entityName: String) -> String {
+    /// Nil for a type the app retired (`BackupEntityTable.skippedOnImport`):
+    /// known, and skipped quietly.
+    private nonisolated static func unknownEntityWarning(_ entityName: String) -> String? {
+        guard !BackupEntityTable.skippedOnImport.contains(entityName) else { return nil }
         let message = "Unknown entity '\(entityName)' in backup \u{2014} skipped " +
             "(likely created by a newer app version)."
         logger.warning("\(message, privacy: .public)")

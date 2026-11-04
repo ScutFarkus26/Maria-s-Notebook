@@ -92,4 +92,28 @@ struct MCPToolRegistryTests {
             #expect(!tool.annotations.destructiveHint, "\(tool.name) reads, so it destroys nothing")
         }
     }
+
+    /// Round-two Simplify, Phase 4: note templates were retired, so
+    /// `list_templates` no longer offers or lists them, even when a store
+    /// still holds the old rows.
+    @Test("list_templates has no note kind and lists no note templates")
+    func listTemplatesHasNoNoteKind() async throws {
+        let stack = try CoreDataTestHelpers.makeInMemoryStack()
+        let context = stack.viewContext
+        let entity = try #require(context.persistentStoreCoordinator?.managedObjectModel.entitiesByName["NoteTemplate"])
+        let old = NSManagedObject(entity: entity, insertInto: context)
+        old.setValue(UUID(), forKey: "id")
+        old.setValue("Observation", forKey: "title")
+        #expect(CoreDataTestHelpers.save(context))
+        let tools = MCPNotebookTools.makeTools(context: { context })
+        let tool = try #require(tools.first { $0.name == "list_templates" })
+
+        let schema = try #require(String(data: JSONEncoder().encode(tool.inputSchema), encoding: .utf8))
+        #expect(!schema.contains("\"note\""))
+        #expect(!tool.description.localizedCaseInsensitiveContains("note"))
+        let all = try await tool.handler([:])
+        #expect(!all.contains("Note templates") && !all.contains("noteTemplate"))
+        let noteKind = try await tool.handler(["kind": .string("note")])
+        #expect(noteKind == "No templates are set up.")
+    }
 }

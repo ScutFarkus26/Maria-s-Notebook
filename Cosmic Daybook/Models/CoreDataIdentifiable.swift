@@ -31,7 +31,6 @@ nonisolated extension CDScheduleSlot: Identifiable {}
 nonisolated extension CDScheduledMeeting: Identifiable {}
 nonisolated extension CDReminder: Identifiable {}
 nonisolated extension CDMeetingTemplate: Identifiable {}
-nonisolated extension CDNoteTemplate: Identifiable {}
 nonisolated extension CDSupply: Identifiable {}
 nonisolated extension CDDocument: Identifiable {}
 nonisolated extension CDProposedSolutionEntity: Identifiable {}
@@ -62,7 +61,6 @@ public typealias CDTodoItem = CDTodoItemEntity
 public typealias CDTodoSubtask = CDTodoSubtaskEntity
 public typealias CDTodoTemplate = CDTodoTemplateEntity
 public typealias CDMeetingTemplate = CDMeetingTemplateEntity
-public typealias CDNoteTemplate = CDNoteTemplateEntity
 public typealias CDSequenceTrack = CDSequenceTrackEntity
 public typealias CDSampleWork = CDSampleWorkEntity
 public typealias CDSampleWorkStep = CDSampleWorkStepEntity

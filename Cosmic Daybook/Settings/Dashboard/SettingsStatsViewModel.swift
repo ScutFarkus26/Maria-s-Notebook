@@ -74,7 +74,6 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
     case documents
     case lessonFiles
     case communityFiles
-    case noteTemplates
     case meetingTemplates
     case todoTemplates
 
@@ -91,7 +90,7 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
              .communityTopics, .procedures:
             return .classroom
         case .stories, .albumMarks, .documents, .lessonFiles, .communityFiles,
-             .noteTemplates, .meetingTemplates, .todoTemplates:
+             .meetingTemplates, .todoTemplates:
             return .library
         }
     }
@@ -125,7 +124,6 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
         case .documents: return "Documents"
         case .lessonFiles: return "Lesson files"
         case .communityFiles: return "Community files"
-        case .noteTemplates: return "Note templates"
         case .meetingTemplates: return "Meeting templates"
         case .todoTemplates: return "To-do templates"
         }
@@ -160,7 +158,6 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
         case .documents: return "doc.fill"
         case .lessonFiles: return "paperclip"
         case .communityFiles: return "paperclip.badge.ellipsis"
-        case .noteTemplates: return "note.text.badge.plus"
         case .meetingTemplates: return "person.2.wave.2.fill"
         case .todoTemplates: return "checklist"
         }
@@ -206,7 +203,6 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
         case .documents: return [CDDocument.self]
         case .lessonFiles: return [CDLessonAttachment.self]
         case .communityFiles: return [CDCommunityAttachmentEntity.self]
-        case .noteTemplates: return [CDNoteTemplateEntity.self]
         case .meetingTemplates: return [CDMeetingTemplateEntity.self]
         case .todoTemplates: return [CDTodoTemplateEntity.self]
         }
@@ -237,7 +233,6 @@ final class SettingsStatsViewModel {
     private(set) var todoCompletedCount: Int = 0
     private(set) var issuesResolvedCount: Int = 0
 
-    var noteTemplatesCount: Int { count(of: .noteTemplates) }
     var meetingTemplatesCount: Int { count(of: .meetingTemplates) }
     var todoTemplatesCount: Int { count(of: .todoTemplates) }
 

@@ -12,14 +12,6 @@ extension BackupRestoreRun {
         let viewContext = context
         let index = self.index
 
-        if let noteTemplates = try rows(\.noteTemplates) {
-            try BackupEntityImporter.importNoteTemplates(
-                noteTemplates,
-                into: viewContext,
-                existing: { try index.existing(CDNoteTemplate.self, id: $0) }
-            )
-        }
-
         if let meetingTemplates = try rows(\.meetingTemplates) {
             BackupEntityImporter.importRows(
                 meetingTemplates, as: CDMeetingTemplate.self, into: viewContext,

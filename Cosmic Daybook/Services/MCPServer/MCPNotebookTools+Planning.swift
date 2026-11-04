@@ -159,15 +159,15 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "list_templates",
             title: "List Templates",
-            description: "The reusable scaffolding the teacher has set up: meeting prompts, note "
-                + "templates, todo templates, and sample work with its steps. Naming a kind "
+            description: "The reusable scaffolding the teacher has set up: meeting prompts, "
+                + "todo templates, and sample work with its steps. Naming a kind "
                 + "returns just that kind.",
             inputSchema: [
                 "type": "object",
                 "properties": [
                     "kind": [
                         "type": "string",
-                        "enum": ["meeting", "note", "todo", "sample_work"],
+                        "enum": ["meeting", "todo", "sample_work"],
                         "description": "Which templates to list (default: all kinds)"
                     ]
                 ]
@@ -185,9 +185,6 @@ extension MCPNotebookTools {
         var sections: [String] = []
         if kind == nil || kind == "meeting" {
             sections.append(contentsOf: meetingTemplateSection(in: modelContext))
-        }
-        if kind == nil || kind == "note" {
-            sections.append(contentsOf: noteTemplateSection(in: modelContext))
         }
         if kind == nil || kind == "todo" {
             sections.append(contentsOf: todoTemplateSection(in: modelContext))
@@ -213,19 +210,6 @@ extension MCPNotebookTools {
             return "- [meetingTemplate id=\(id)] \(template.name)\(builtIn)"
         }
         return ["Meeting templates:\n" + lines.joined(separator: "\n")]
-    }
-
-    private static func noteTemplateSection(in modelContext: NSManagedObjectContext) -> [String] {
-        let templates: [CDNoteTemplate] = modelContext
-            .safeFetch(CDFetchRequest(CDNoteTemplate.self))
-            .sorted { $0.sortOrder < $1.sortOrder }
-        guard !templates.isEmpty else { return [] }
-        let lines = templates.map { template -> String in
-            let id: String = template.id?.uuidString ?? "unknown"
-            let body: String = nonEmpty(template.body).map { "\n    \($0)" } ?? ""
-            return "- [noteTemplate id=\(id)] \(template.title)\(body)"
-        }
-        return ["Note templates:\n" + lines.joined(separator: "\n")]
     }
 
     private static func todoTemplateSection(in modelContext: NSManagedObjectContext) -> [String] {

@@ -149,6 +149,15 @@ nonisolated struct BackupEntity: Sendable {
 }
 
 nonisolated enum BackupEntityTable {
+    /// Types the backup no longer writes that older backups still carry. The
+    /// importer knows their sections and skips them without a warning: the
+    /// app has nowhere to put their rows, and a backup made before they were
+    /// retired should restore as cleanly as one made after (plan "Simplify
+    /// the app, round two", Phase 4).
+    static let skippedOnImport: Set<String> = [
+        "NoteTemplate"
+    ]
+
     /// Every backed-up entity type, in archive order. Split into groups only to
     /// keep each array literal quick to type-check.
     static let entities: [BackupEntity] =
@@ -246,10 +255,9 @@ nonisolated enum BackupEntityTable {
 
     private static let templateAndTrackEntities: [BackupEntity] = [
         .optional(
-            "NoteTemplate", CDNoteTemplate.self, \.noteTemplates, BackupDTOTransformers.toDTOs,
+            "MeetingTemplate", CDMeetingTemplate.self, \.meetingTemplates, MeetingTemplateDTO.rows,
             announcing: .init(0.55, "Collecting templates & tracks\u{2026}")
         ),
-        .optional("MeetingTemplate", CDMeetingTemplate.self, \.meetingTemplates, MeetingTemplateDTO.rows),
         .optional("Reminder", CDReminder.self, \.reminders, BackupDTOTransformers.toDTOs),
         .optional("CalendarEvent", CDCalendarEvent.self, \.calendarEvents, BackupDTOTransformers.toDTOs),
         .optional("Track", CDTrackEntity.self, \.tracks, TrackDTO.rows),

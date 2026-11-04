@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 import OSLog
 
-/// Seeds default Note and Meeting templates on first launch or after restore.
+/// Seeds the built-in meeting templates on first launch or after restore.
 ///
 /// Waits while the store is still receiving its first download from iCloud:
 /// the notebook's own built-ins are on their way down, and seeding the empty
@@ -12,68 +12,12 @@ import OSLog
 enum BuiltInTemplateSeeder {
     private static let logger = Logger.templateSeeder
 
-    static func seedIfNeeded(context: NSManagedObjectContext) {
-        guard !FirstDownloadGate.isPending() else {
+    static func seedIfNeeded(context: NSManagedObjectContext, defaults: UserDefaults = .standard) {
+        guard !FirstDownloadGate.isPending(defaults: defaults) else {
             logger.info("Built-in templates wait for the first download from iCloud")
             return
         }
-        seedNoteTemplatesIfNeeded(context: context)
         seedMeetingTemplatesIfNeeded(context: context)
-    }
-
-    // MARK: - Note Templates
-
-    private struct NoteTemplateSeed {
-        let title: String
-        let body: String
-        let sortOrder: Int64
-    }
-
-    private static func seedNoteTemplatesIfNeeded(context: NSManagedObjectContext) {
-        let fetch = CDFetchRequest(CDNoteTemplate.self)
-        fetch.predicate = NSPredicate(format: "isBuiltIn == YES")
-        fetch.fetchLimit = 1
-        let existing = context.safeFetch(fetch)
-        guard existing.isEmpty else { return }
-
-        let templates: [NoteTemplateSeed] = [
-            NoteTemplateSeed(
-                title: "Observation",
-                body: "What was the student doing?\nWhat materials were used?\n"
-                    + "How long did they work?\nWhat did you notice?",
-                sortOrder: 0
-            ),
-            NoteTemplateSeed(
-                title: "Conference Note",
-                body: "Topic discussed:\nStudent's perspective:\nAgreed next steps:\nFollow-up needed:",
-                sortOrder: 1
-            ),
-            NoteTemplateSeed(
-                title: "Incident Report",
-                body: "What happened:\nWho was involved:\nHow was it resolved:\nParent communication needed:",
-                sortOrder: 2
-            ),
-            NoteTemplateSeed(
-                title: "Work Follow-Up",
-                body: "Work observed:\nProgress noted:\nAreas for growth:\nSuggested next lesson:",
-                sortOrder: 3
-            ),
-            NoteTemplateSeed(
-                title: "Parent Communication",
-                body: "Area:\nKey points shared:\nParent questions/concerns:\nAction items:",
-                sortOrder: 4
-            )
-        ]
-
-        for t in templates {
-            let template = CDNoteTemplate(context: context)
-            template.title = t.title
-            template.body = t.body
-            template.sortOrder = t.sortOrder
-            template.isBuiltIn = true
-        }
-
-        logger.info("Seeded \(templates.count) built-in note templates")
     }
 
     // MARK: - Meeting Templates

@@ -157,17 +157,17 @@ struct AppRouterFix1011R {
     func templateSortOrderAfterDeletion() throws {
         let context = try CoreDataTestHelpers.makeContext()
         for order in [Int64(0), 1] {
-            let builtIn = CDNoteTemplate(context: context)
+            let builtIn = CDMeetingTemplate(context: context)
             builtIn.isBuiltIn = true
             builtIn.sortOrder = order
         }
         // Custom templates 100, 101 and 102, then 101 deleted.
         for order in [Int64(100), 102] {
-            let custom = CDNoteTemplate(context: context)
+            let custom = CDMeetingTemplate(context: context)
             custom.isBuiltIn = false
             custom.sortOrder = order
         }
-        #expect(TemplateSortOrder.nextCustom(for: CDNoteTemplate.self, in: context) == 103)
+        #expect(TemplateSortOrder.nextCustom(for: CDMeetingTemplate.self, in: context) == 103)
     }
 
     @Test("The first custom template starts at 100")

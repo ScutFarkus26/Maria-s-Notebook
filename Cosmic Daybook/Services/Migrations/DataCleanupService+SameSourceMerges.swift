@@ -80,28 +80,6 @@ nonisolated extension DataCleanupService {
         }
     }
 
-    /// Folds note templates identical in title, text, category and tags.
-    static func mergeIdenticalNoteTemplates(
-        using context: NSManagedObjectContext,
-        container: NSPersistentCloudKitContainer?
-    ) -> Int {
-        // Tags are transformable, so the column pre-check leaves them out; the
-        // object pass puts them back in the key.
-        let prekey: ([String: Any]) -> String? = {
-            contentKey([$0["title"] as? String, $0["body"] as? String, $0["categoryRaw"] as? String])
-        }
-        let columns = ["title", "body", "categoryRaw"]
-        guard hasCollisions(CDNoteTemplate.self, columns: columns, key: prekey, in: context) else { return 0 }
-        let key: (CDNoteTemplate) -> String? = {
-            contentKey([$0.title, $0.body, $0.categoryRaw, $0.tagsArray.sorted().joined(separator: "\u{1E}")])
-        }
-        let rows = context.safeFetch(CDFetchRequest(CDNoteTemplate.self))
-        return fold(rows, by: key, container: container, in: context) { canonical, duplicate in
-            canonical.isBuiltIn = canonical.isBuiltIn || duplicate.isBuiltIn
-            canonical.sortOrder = min(canonical.sortOrder, duplicate.sortOrder)
-        }
-    }
-
     /// Folds meeting templates identical in name and every prompt. The
     /// survivor stays the active template if any copy was.
     static func mergeIdenticalMeetingTemplates(

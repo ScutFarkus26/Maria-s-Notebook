@@ -167,7 +167,6 @@ enum LegacyBackupPreviewAnalyzer {
             "TrackStep": payload.trackSteps?.count ?? 0,
             "StudentTrackEnrollment": payload.studentTrackEnrollments?.count ?? 0,
             "SequenceTrack": payload.sequenceTracks?.count ?? 0,
-            "NoteTemplate": payload.noteTemplates?.count ?? 0,
             "Reminder": payload.reminders?.count ?? 0,
             "CalendarEvent": payload.calendarEvents?.count ?? 0,
             "Document": payload.documents?.count ?? 0,

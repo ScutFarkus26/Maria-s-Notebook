@@ -282,9 +282,6 @@ nonisolated extension DataCleanupService {
         if s.includes(CDCalendarEvent.self) {
             results["CalendarEvent (same EventKit occurrence)"] = mergeSameEventKitEvents(using: context, container: c)
         }
-        if s.includes(CDNoteTemplate.self) {
-            results["NoteTemplate (identical)"] = mergeIdenticalNoteTemplates(using: context, container: c)
-        }
         if s.includes(CDMeetingTemplate.self) {
             results["MeetingTemplate (identical)"] = mergeIdenticalMeetingTemplates(using: context, container: c)
         }
@@ -362,7 +359,6 @@ nonisolated extension DataCleanupService {
 
         // Notes and documents
         results["Note"] = deduplicateNotesStrong(using: context, container: c, scope: s)
-        results["NoteTemplate"] = deduplicate(CDNoteTemplate.self, using: context, container: c, scope: s)
         results["NoteStudentLink"] = deduplicate(CDNoteStudentLink.self, using: context, container: c, scope: s)
         results["Document"] = deduplicate(CDDocument.self, using: context, container: c, scope: s)
 

@@ -199,7 +199,7 @@ enum BackupPreviewAnalyzer {
         "AttendanceRecord", "WorkModel", "WorkCompletionRecord", "WorkCheckIn", "WorkParticipant",
         "WorkStep", "SampleWork", "SampleWorkStep", "PracticeSession", "Project",
         "ProjectSession", "ProjectRole", "Issue", "IssueAction", "Track",
-        "TrackStep", "StudentTrackEnrollment", "SequenceTrack", "NoteTemplate", "Reminder",
+        "TrackStep", "StudentTrackEnrollment", "SequenceTrack", "Reminder",
         "CalendarEvent", "Document", "Supply", "Procedure", "Schedule",
         "ScheduleSlot", "DevelopmentSnapshot", "TodoItem", "TodoSubtask", "TodoTemplate",
         "TodayAgendaOrder", "DayPad", "PlanningRecommendation", "Resource", "GoingOut",

@@ -9,7 +9,6 @@
 // - NoteEditorHelpers.swift - Helper methods and computed properties
 // - NoteEditorSaveLogic.swift - Save functionality and relationship mapping
 // - NoteEditorAISuggestion.swift - AI suggestion functionality
-// - TemplatePickerView.swift - Template picker standalone view
 // - SmartTextEditor.swift - Smart text editor component
 
 import SwiftUI

@@ -38,22 +38,6 @@ extension BackupDTOTransformers {
         )
     }
 
-    // MARK: - CDNoteTemplate
-
-    static func toDTO(_ t: CDNoteTemplate) -> NoteTemplateDTO {
-        let tagsArray = (t.tags as? [String]) ?? []
-        return NoteTemplateDTO(
-            id: t.id ?? UUID(),
-            createdAt: t.createdAt ?? Date(),
-            title: t.title,
-            body: t.body,
-            categoryRaw: t.legacyCategoryRaw,
-            tags: tagsArray.isEmpty ? nil : tagsArray,
-            sortOrder: Int(t.sortOrder),
-            isBuiltIn: t.isBuiltIn
-        )
-    }
-
     // MARK: - CDReminder
 
     static func toDTO(_ r: CDReminder) -> ReminderDTO {
@@ -309,10 +293,6 @@ extension BackupDTOTransformers {
 
     static func toDTOs(_ assignments: [CDLessonAssignment]) -> [LessonAssignmentDTO] {
         assignments.map { toDTO($0) }
-    }
-
-    static func toDTOs(_ templates: [CDNoteTemplate]) -> [NoteTemplateDTO] {
-        templates.map { toDTO($0) }
     }
 
     static func toDTOs(_ reminders: [CDReminder]) -> [ReminderDTO] {

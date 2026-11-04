@@ -45,7 +45,6 @@ nonisolated enum BackupPlainNames {
         "LessonSequenceSettings": "Lesson sequence settings",
         "Note": "Notes",
         "NoteStudentLink": "Children named in notes",
-        "NoteTemplate": "Note templates",
         "DevelopmentSnapshot": "Saved insights",
         "StudentMeeting": "Student meetings",
         "MeetingTemplate": "Meeting templates",

@@ -100,50 +100,6 @@ struct SameSourceMergeTests {
 
     // MARK: - Templates
 
-    @Test("Identical note templates fold to one; an edited copy stays")
-    func noteTemplatesFoldWhenIdentical() throws {
-        let stack = try CoreDataTestHelpers.makeInMemoryStack()
-        let ctx = stack.viewContext
-
-        func template(_ body: String, builtIn: Bool, sortOrder: Int64, createdAt: Date) -> CDNoteTemplate {
-            let row = CDNoteTemplate(context: ctx)
-            row.title = "Observation"
-            row.body = body
-            row.isBuiltIn = builtIn
-            row.sortOrder = sortOrder
-            row.createdAt = createdAt
-            return row
-        }
-        let original = template("What did you notice?", builtIn: false, sortOrder: 4, createdAt: early)
-        _ = template("What did you notice?", builtIn: true, sortOrder: 0, createdAt: late)
-        _ = template("What did you notice?", builtIn: true, sortOrder: 2, createdAt: late.addingTimeInterval(1))
-        let edited = template("What did you notice? Materials?", builtIn: true, sortOrder: 1, createdAt: late)
-        #expect(CoreDataTestHelpers.save(ctx))
-
-        let removed = DataCleanupService.mergeIdenticalNoteTemplates(using: ctx, container: nil)
-
-        #expect(removed == 2)
-        let ids = Set(ctx.safeFetch(CDFetchRequest(CDNoteTemplate.self)).map(\.objectID))
-        #expect(ids == [original.objectID, edited.objectID])
-        #expect(original.isBuiltIn)
-        #expect(original.sortOrder == 0)
-    }
-
-    @Test("Note templates differing only in tags are kept apart")
-    func noteTemplatesKeepDifferentTags() throws {
-        let stack = try CoreDataTestHelpers.makeInMemoryStack()
-        let ctx = stack.viewContext
-        for tags in [["math"], ["language"]] {
-            let row = CDNoteTemplate(context: ctx)
-            row.title = "Follow up needed"
-            row.body = "Requires follow-up:"
-            row.tagsArray = tags
-        }
-        #expect(CoreDataTestHelpers.save(ctx))
-
-        #expect(DataCleanupService.mergeIdenticalNoteTemplates(using: ctx, container: nil) == 0)
-    }
-
     @Test("Identical meeting templates fold, and the survivor stays active if any copy was")
     func meetingTemplatesFoldKeepingActive() throws {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()

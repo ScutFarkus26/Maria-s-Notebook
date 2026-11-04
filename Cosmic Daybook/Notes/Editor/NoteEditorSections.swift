@@ -1,7 +1,6 @@
 // NoteEditorSections.swift
 // View sections for UnifiedNoteEditor - extracted for maintainability
 // CDStudent selection UI moved to NoteEditorStudentSelection.swift
-// TemplatePickerView moved to TemplatePickerView.swift
 
 import SwiftUI
 import CoreData
@@ -19,7 +18,6 @@ extension UnifiedNoteEditor {
                 surfacingBanner
                 studentSelectionSection
             }
-            templatePickerSection
             tagSelectionSection
             reportToggleSection
             noteBodySection
@@ -337,28 +335,6 @@ extension UnifiedNoteEditor {
             .keyboardShortcut(.defaultAction)
             .buttonStyle(.borderedProminent)
             .disabled(!canSave)
-        }
-    }
-
-    // MARK: - Template Picker Section
-
-    var templatePickerSection: some View {
-        TemplatePickerView { template in
-            insertTemplate(template)
-        }
-    }
-
-    private func insertTemplate(_ template: CDNoteTemplate) {
-        // If body is empty, replace entirely; otherwise append
-        if bodyText.trimmed().isEmpty {
-            bodyText = template.body
-            // Apply template tags, merging with any existing
-            for tag in template.tagsArray where !tags.contains(tag) {
-                tags.append(tag)
-            }
-        } else {
-            // Append template text with a space separator
-            bodyText = bodyText.trimmed() + " " + template.body
         }
     }
 }

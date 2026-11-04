@@ -261,13 +261,3 @@ nonisolated public struct CommunityAttachmentDTO: Codable, Sendable {
 
 // MARK: - Template DTOs
 
-nonisolated public struct NoteTemplateDTO: Codable, Sendable {
-    public var id: UUID
-    public var createdAt: Date
-    public var title: String
-    public var body: String
-    public var categoryRaw: String
-    public var tags: [String]?
-    public var sortOrder: Int
-    public var isBuiltIn: Bool
-}
