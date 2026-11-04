@@ -64,7 +64,7 @@ struct SyncConflictResolutionView: View {
                     title: "Still out of sync?",
                     systemImage: "wrench.fill",
                     footer: "If a device still looks out of date after a few minutes, open "
-                        + "Troubleshooting › If sync gets stuck."
+                        + "Sync and backup › If sync gets stuck."
                 ) {
                     VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
                         Text("Send this device's latest changes to iCloud right away.")

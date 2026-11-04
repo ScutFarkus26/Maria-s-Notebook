@@ -135,7 +135,7 @@ struct ParentLockerPrivacyTests {
         ]
         let guide = ParentLockerStatus.problems(for: skipped, names: { names[$0] ?? "" }, isGuide: true)
         #expect(guide == [
-            "Ada F isn't matched to a child in ParentLocker yet. Match them in Settings › Messages › Match Names.",
+            "Ada F isn't matched to a child in ParentLocker yet. Match them in Settings › Look and feel › Match Names.",
             "The office already marked Maya S Absent.",
             "Etty R is still Present in ParentLocker, which can't remove a mark. " +
                 "If that's wrong, give Etty R the right mark here."

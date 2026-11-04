@@ -145,10 +145,8 @@ nonisolated enum UserDefaultsKeys {
     /// Last-opened settings category (a `SettingsCategory` raw value).
     static let settingsSelectedCategory = "settings_selectedCategory"
     /// Version whose "What's New" banner the guide has already dismissed.
-    /// Id of the newest `SettingsWhatsNew` release the guide has dismissed.
+    /// Id of the newest What's New release (`WhatsNewBanner.releaseID`) the guide has hidden.
     static let whatsNewDismissedRelease = "WhatsNew.dismissedRelease"
-    /// The footer's easter egg: a starfield in the Settings footer and behind its header.
-    static let settingsCosmicAccent = "Settings.cosmicAccent"
 
     // MARK: - Planning Calendar
     static let planningCalendarShowTodos = "PlanningCalendar.showTodos"

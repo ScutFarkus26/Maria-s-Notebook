@@ -4,27 +4,19 @@ import SwiftUI
 
 /// Settings › Templates: the note, meeting and to-do template libraries.
 struct SettingsTemplatesPane: View {
-    var statsViewModel: SettingsStatsViewModel
-
     @State private var isShowingTodoTemplates = false
 
     var body: some View {
         VStack(spacing: SettingsStyle.groupSpacing) {
             SettingsGroup(.noteTemplates) {
-                templateLibraryRow(
-                    count: statsViewModel.noteTemplatesCount,
-                    title: "Manage note templates"
-                ) {
+                templateLibraryRow(title: "Manage note templates") {
                     NoteTemplateManagementView()
                         .settingsBreadcrumb("Settings › Templates")
                 }
             }
 
             SettingsGroup(.meetingTemplates) {
-                templateLibraryRow(
-                    count: statsViewModel.meetingTemplatesCount,
-                    title: "Manage meeting templates"
-                ) {
+                templateLibraryRow(title: "Manage meeting templates") {
                     MeetingTemplateManagementView()
                         .settingsBreadcrumb("Settings › Templates")
                 }
@@ -45,14 +37,11 @@ struct SettingsTemplatesPane: View {
 
     @ViewBuilder
     private func templateLibraryRow<Destination: View>(
-        count: Int,
         title: String,
         @ViewBuilder destination: @escaping () -> Destination
     ) -> some View {
         #if os(macOS)
         HStack {
-            Text(Self.countText(count))
-                .foregroundStyle(.secondary)
             Spacer()
             NavigationLink("\(title)…") {
                 destination()
@@ -63,7 +52,7 @@ struct SettingsTemplatesPane: View {
         NavigationLink {
             destination()
         } label: {
-            SettingsLinkRow(title: title, systemImage: "doc.on.doc", detail: Self.countText(count))
+            SettingsLinkRow(title: title, systemImage: "doc.on.doc")
         }
         .buttonStyle(.plain)
         #endif
@@ -71,11 +60,8 @@ struct SettingsTemplatesPane: View {
 
     @ViewBuilder
     private var todoTemplatesRow: some View {
-        let count = statsViewModel.todoTemplatesCount
         #if os(macOS)
         HStack {
-            Text(Self.countText(count))
-                .foregroundStyle(.secondary)
             Spacer()
             Button("Manage to-do templates…") {
                 isShowingTodoTemplates = true
@@ -86,13 +72,9 @@ struct SettingsTemplatesPane: View {
         Button {
             isShowingTodoTemplates = true
         } label: {
-            SettingsLinkRow(title: "Manage to-do templates", systemImage: "doc.on.doc", detail: Self.countText(count))
+            SettingsLinkRow(title: "Manage to-do templates", systemImage: "doc.on.doc")
         }
         .buttonStyle(.plain)
         #endif
-    }
-
-    private static func countText(_ count: Int) -> String {
-        count == 1 ? "1 template" : "\(count) templates"
     }
 }

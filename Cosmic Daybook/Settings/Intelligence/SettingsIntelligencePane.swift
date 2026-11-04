@@ -3,16 +3,23 @@ import SwiftUI
 
 // MARK: - Intelligence Pane
 
-/// Settings › Intelligence: Apple Intelligence (with the Private Cloud choice),
-/// lesson planning, Siri, and on the Mac Claude Desktop; debug builds add a Developer card.
+/// Settings › Intelligence: Apple Intelligence (with the Private Cloud choice
+/// when this build may use it), lesson planning, Siri, the connections to
+/// Calendar, Reminders and Tide, and on the Mac Claude Desktop; debug builds
+/// add a Developer card.
 struct SettingsIntelligencePane: View {
+    @AppStorage(UserDefaultsKeys.aiAllowAutomaticPrivateCloud)
+    private var allowAutomaticPrivateCloud = false
+
     var body: some View {
         VStack(spacing: SettingsStyle.groupSpacing) {
             SettingsGroup(.appleIntelligence) {
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
                     appleIntelligenceStatus
-                    Divider()
-                    PrivateCloudSettingsView()
+                    if showsPrivateCloud {
+                        Divider()
+                        privateCloudToggle
+                    }
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -24,6 +31,21 @@ struct SettingsIntelligencePane: View {
 
             SettingsGroup(.siri, footer: siriFooter) {
                 siriShortcutsTips
+            }
+
+            SettingsGroup(.appleCalendar, collapsible: true) {
+                CalendarSyncSettingsView()
+                    .frame(maxWidth: .infinity)
+            }
+
+            SettingsGroup(.reminders, collapsible: true) {
+                ReminderSyncSettingsView()
+                    .frame(maxWidth: .infinity)
+            }
+
+            SettingsGroup(.tide, collapsible: true) {
+                TideSyncSettingsView()
+                    .frame(maxWidth: .infinity)
             }
 
             #if os(macOS)
@@ -44,6 +66,35 @@ struct SettingsIntelligencePane: View {
                 .frame(maxWidth: .infinity)
             }
             #endif
+        }
+    }
+
+    // MARK: - Private Cloud Compute
+
+    /// Only a build with the Private Cloud entitlement can use it, so only
+    /// that build offers the choice (today's builds don't).
+    private var showsPrivateCloud: Bool {
+        #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+        FoundationModelClient.privateCloudEntitled
+        #else
+        false
+        #endif
+    }
+
+    /// The one AI choice in the app: whether a request the on-device model
+    /// can't finish may move to Apple's Private Cloud Compute.
+    private var privateCloudToggle: some View {
+        Toggle(isOn: $allowAutomaticPrivateCloud) {
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
+                Text("Allow Private Cloud Compute")
+                Text(
+                    "When on, a request too big for this device can finish on Apple's servers, "
+                        + "which don't keep your data. When off, student records never leave this "
+                        + "device, and anything Apple Intelligence on this device can't finish just stops."
+                )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -122,8 +173,8 @@ struct SettingsIntelligencePane: View {
 import FoundationModels
 
 struct AppleIntelligenceStatusRow: View {
-    private let onDevice = LocalModelClient()
-    private let privateCloud = PrivateCloudModelClient()
+    private let onDevice = FoundationModelClient(kind: .onDevice)
+    private let privateCloud = FoundationModelClient(kind: .privateCloud)
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
@@ -132,12 +183,14 @@ struct AppleIntelligenceStatusRow: View {
                 available: onDevice.isAvailable,
                 reason: onDevice.unavailabilityReason
             )
-            Divider()
-            statusLine(
-                label: "Private Cloud Compute",
-                available: privateCloud.isAvailable,
-                reason: privateCloud.unavailabilityReason
-            )
+            if FoundationModelClient.privateCloudEntitled {
+                Divider()
+                statusLine(
+                    label: "Private Cloud Compute",
+                    available: privateCloud.isAvailable,
+                    reason: privateCloud.unavailabilityReason
+                )
+            }
         }
     }
 

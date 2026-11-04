@@ -3,8 +3,8 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-/// Pins which "Needs your attention" rows the Overview shows, and where each
-/// row's fix button goes.
+/// Pins which "needs you" rows the top of Settings shows, and where each
+/// row's fix goes.
 @Suite("Settings attention")
 struct SettingsAttentionTests {
 
@@ -120,6 +120,18 @@ struct SettingsAttentionTests {
         )
         let items = SettingsAttention.items(for: inputs, now: now)
         #expect(items.map(\.id) == ["sync", "backup", "classroom", "carriedOver", "connections"])
-        #expect(items.map(\.destination) == [.syncBackup, nil, .classroom, .schoolYear, .connections])
+        #expect(items.map(\.destination) == [.syncBackup, nil, .classroom, .schoolYear, .intelligence])
+        #expect(items.map(\.focus) == [.iCloud, nil, .classroomSharing, .newYear, .appleCalendar])
+    }
+
+    @Test("The status row says all set, or how many rows follow")
+    @MainActor
+    func statusText() {
+        #expect(SettingsDashboardView.statusText(itemCount: 0, syncHealth: .healthy)
+            == "All set. Your notebook is backed up and in sync.")
+        #expect(SettingsDashboardView.statusText(itemCount: 0, syncHealth: .offline)
+            == "All set. Nothing needs you right now.")
+        #expect(SettingsDashboardView.statusText(itemCount: 1, syncHealth: .healthy) == "1 thing needs you")
+        #expect(SettingsDashboardView.statusText(itemCount: 3, syncHealth: .healthy) == "3 things need you")
     }
 }

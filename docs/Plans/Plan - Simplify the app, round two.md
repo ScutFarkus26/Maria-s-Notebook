@@ -36,7 +36,8 @@ Live record counts, read 2026-11-03:
 - [ ] Phase 0: Work the device-check backlog, then cap it (session: Danny, with one fresh helper session on Sonnet) · est. <1% weekly
 - [ ] Phase 1: One to-do list (session: fresh, Opus xhigh) ‖ Phases 2, 3, 4 · est. 3–5%
 - [ ] Phase 2: Empty features made cheap (session: fresh, Opus high) ‖ Phases 1, 3, 4 · est. 2–3%
-- [ ] Phase 3: Settings is a list (session: fresh, Opus high) ‖ Phases 1, 2, 4 · est. 2–3%
+- [ ] Phase 3: Settings is a list (session: fresh, Opus high) ‖ Phases 1, 2, 4 · est. 2–3% · started at 98%
+  - On branch `claude/simplify-two-phase-3-3a7e60`, not merged (Phase 5 combines). Differed from the plan: `Attendance/Delight/` stays, because the Daybook Assistant compiles all five files by path and the notebook's roster and attendance read the birthday and welcome-back rules; only the notebook's bells toggle, bell rings and Day 100 confetti went. `SettingsDashboardView.swift` is now the list's top section (What's New row, status row, a row per item) rather than a pane, and `SettingsDashboardViewModel` stays behind it. A retired Overview selection lands on School year. Private Cloud Compute is gated on a `PRIVATE_CLOUD_COMPUTE` compilation condition (no runtime entitlement check exists on iOS), so today's builds never ask it. The templates pane lost its counts with `SettingsStatsViewModel`. `LocalModelError` moved to its own file for the 400-line lint limit. Merge notes for Phase 5 are in the side-session notes folder ("Phase 3 - Settings list, merge notes").
 - [ ] Phase 4: Two template kinds (session: fresh, Opus high) ‖ Phases 1, 2, 3 · est. 1–2%
 - [ ] Phase 5: Combine wave one: one backup format bump, one golden, build, focused tests (session: fresh, Opus high) · est. 1–2%
 - [ ] Phase 6: About 60 Claude tools (session: fresh, Sonnet high; from the wave-one branch) ‖ Phase 7 · est. 1–2%

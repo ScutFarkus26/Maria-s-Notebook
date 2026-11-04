@@ -21,7 +21,7 @@ struct SettingsSearchTests {
     @Test("A control's label finds its card")
     func keywordFindsCard() {
         #expect(SettingsSearch.firstMatchingGroup(in: .syncBackup, query: "Include note photos") == .backups)
-        #expect(SettingsSearch.firstMatchingGroup(in: .troubleshooting, query: "reset local cache") == .maintenance)
+        #expect(SettingsSearch.firstMatchingGroup(in: .syncBackup, query: "reset local cache") == .maintenance)
         #expect(SettingsSearch.firstMatchingGroup(in: .lookAndFeel, query: "pie menu") == .quickCapture)
         // School year's cards are being split up; ask by words, not by card.
         for query in ["rollover", "days off"] {
@@ -33,8 +33,8 @@ struct SettingsSearchTests {
     @Test("Matching ignores case and accents")
     func caseAndDiacritics() {
         // "PARENT" alone now finds Attendance to the School first, by its "ParentLocker".
-        #expect(SettingsSearch.firstMatchingGroup(in: .messages, query: "PARENT REPORTS") == .parentReports)
-        #expect(SettingsSearch.firstMatchingGroup(in: .messages, query: "PARENTLOCKER") == .attendanceEmail)
+        #expect(SettingsSearch.firstMatchingGroup(in: .lookAndFeel, query: "PARENT REPORTS") == .parentReports)
+        #expect(SettingsSearch.firstMatchingGroup(in: .lookAndFeel, query: "PARENTLOCKER") == .attendanceEmail)
         #expect(SettingsSearch.firstMatchingGroup(in: .intelligence, query: "sirì") == .siri)
     }
 
@@ -44,15 +44,17 @@ struct SettingsSearchTests {
         #expect(SettingsSearch.matchingGroups(in: .templates, query: "templates")
             == [.noteTemplates, .meetingTemplates, .todoTemplates])
         #expect(SettingsSearch.firstMatchingGroup(in: .templates, query: "templates") == .noteTemplates)
-        // "Sync" is on the iCloud card and the Sync history card, in different categories.
+        // "Sync" is on the iCloud card and, below it in the same pane, the Sync history card.
         #expect(SettingsSearch.firstMatchingGroup(in: .syncBackup, query: "sync") == .iCloud)
-        #expect(SettingsSearch.firstMatchingGroup(in: .troubleshooting, query: "sync") == .syncHistory)
+        #expect(SettingsSearch.matchingGroups(in: .syncBackup, query: "sync").contains(.syncHistory))
+        // Intelligence's own cards come before the connections it took in.
+        #expect(SettingsSearch.firstMatchingGroup(in: .intelligence, query: "to-dos") == .tide)
     }
 
     @Test("A card in another category is never the jump target")
     func staysInCategory() {
-        #expect(SettingsSearch.firstMatchingGroup(in: .overview, query: "backup") == nil)
-        #expect(SettingsSearch.firstMatchingGroup(in: .messages, query: "Include note photos") == nil)
+        #expect(SettingsSearch.firstMatchingGroup(in: .schoolYear, query: "backup") == nil)
+        #expect(SettingsSearch.firstMatchingGroup(in: .lookAndFeel, query: "Include note photos") == nil)
         for category in SettingsCategory.allCases {
             for group in SettingsSearch.matchingGroups(in: category, query: "a") {
                 #expect(group.category == category)

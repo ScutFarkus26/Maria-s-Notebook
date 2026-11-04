@@ -1,10 +1,10 @@
-// Opening a pane from inside another (the Overview's fix buttons): beside the
+// Opening a pane from inside another (the status rows' fixes): beside the
 // sidebar, or pushed on iPhone, into whichever stack Settings sits in.
 
 import SwiftUI
 
 extension SettingsView {
-    /// Opens a category from inside a pane (the Overview's fix buttons): selects
+    /// Opens a category from inside a pane (the status rows' fixes): selects
     /// it beside the sidebar, or pushes its pane on iPhone.
     func openCategory(_ category: SettingsCategory) {
         if isCompact {

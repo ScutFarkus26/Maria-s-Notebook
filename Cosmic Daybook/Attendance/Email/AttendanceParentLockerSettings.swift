@@ -37,7 +37,7 @@ struct AttendanceParentLockerSettings: View {
                 signInRow(sync)
                 NavigationLink {
                     ParentLockerMatchView(sync: sync)
-                        .settingsBreadcrumb("Settings › Messages")
+                        .settingsBreadcrumb("Settings › Look and feel")
                 } label: {
                     SettingsLinkRow(title: "Match Names", systemImage: "person.2.badge.gearshape")
                 }

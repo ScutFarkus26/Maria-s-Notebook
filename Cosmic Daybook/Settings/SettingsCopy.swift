@@ -17,10 +17,9 @@ enum SettingsCopy {
         case newYear
         // Classroom
         case classroomSharing
-        // Look and feel
+        // Look and feel, then its messages
         case ageIndicators
         case quickCapture
-        // Messages
         case attendanceEmail
         case parentReports
         case orderRequests
@@ -28,24 +27,21 @@ enum SettingsCopy {
         case noteTemplates
         case meetingTemplates
         case todoTemplates
-        // Connections
-        case appleCalendar
-        case reminders
-        case tide
-        // Intelligence
+        // Intelligence, then its connections
         case appleIntelligence
         case lessonPlanning
         case siri
+        case appleCalendar
+        case reminders
+        case tide
         case claudeDesktop
-        // Sync and backup
+        // Sync and backup, then its repairs
         case iCloud
         case backups
         case settingsTransfer
-        // Troubleshooting
         case syncHistory
         case maintenance
         case cleanUp
-        case notebookStats
         case testStudents
 
         var id: String { rawValue }
@@ -57,13 +53,13 @@ enum SettingsCopy {
             switch self {
             case .schoolYearStart, .daysOff, .newYear: return .schoolYear
             case .classroomSharing: return .classroom
-            case .ageIndicators, .quickCapture: return .lookAndFeel
-            case .attendanceEmail, .parentReports, .orderRequests: return .messages
+            case .ageIndicators, .quickCapture, .attendanceEmail, .parentReports, .orderRequests:
+                return .lookAndFeel
             case .noteTemplates, .meetingTemplates, .todoTemplates: return .templates
-            case .appleCalendar, .reminders, .tide: return .connections
-            case .appleIntelligence, .lessonPlanning, .siri, .claudeDesktop: return .intelligence
-            case .iCloud, .backups, .settingsTransfer: return .syncBackup
-            case .syncHistory, .maintenance, .cleanUp, .notebookStats, .testStudents: return .troubleshooting
+            case .appleIntelligence, .lessonPlanning, .siri, .appleCalendar, .reminders, .tide, .claudeDesktop:
+                return .intelligence
+            case .iCloud, .backups, .settingsTransfer, .syncHistory, .maintenance, .cleanUp, .testStudents:
+                return .syncBackup
             }
         }
 
@@ -94,7 +90,6 @@ enum SettingsCopy {
             case .syncHistory: return "Sync history"
             case .maintenance: return "If sync gets stuck"
             case .cleanUp: return "Clean up leftovers"
-            case .notebookStats: return "Notebook at a glance"
             case .testStudents: return "Test students"
             }
         }
@@ -126,7 +121,6 @@ enum SettingsCopy {
             case .syncHistory: return "clock.arrow.circlepath"
             case .maintenance: return "wrench.and.screwdriver.fill"
             case .cleanUp: return "sparkles"
-            case .notebookStats: return "chart.bar.xaxis"
             case .testStudents: return "person.2.slash"
             }
         }
@@ -196,9 +190,6 @@ enum SettingsCopy {
             case .cleanUp:
                 return ["Junk", "Leftovers", "Old records", "Orphaned records", "Duplicates", "Wasted space",
                         "Clean up"]
-            case .notebookStats:
-                return ["Records", "Statistics", "Database", "Counts", "Students", "Lessons", "Presentations",
-                        "Restock", "Staples", "Album marks", "Stories", "Going-outs", "Staple history"]
             case .testStudents:
                 return ["Show test students", "Debug"]
             }

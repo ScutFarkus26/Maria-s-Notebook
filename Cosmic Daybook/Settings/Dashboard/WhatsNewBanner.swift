@@ -1,33 +1,28 @@
 import SwiftUI
 
-// MARK: - What's New Banner
+// MARK: - What's New Row
 
-/// A dismissible card with the newest release's notes (`SettingsWhatsNew`).
-/// Dismissed per release, not per app version, so it comes back only when there is something new to read.
+/// One row at the top of the Settings list with the newest release's notes,
+/// folded until opened. Hidden per release, not per app version, so it comes
+/// back only when there is something new to read: a new release changes `releaseID`.
 struct WhatsNewBanner: View {
+    /// What a dismissal remembers.
+    static let releaseID = "2026-09-settings"
+
+    /// The release's notes: a symbol and a short line in the classroom voice.
+    static let notes: [(symbol: String, text: String)] = [
+        ("waveform", "Siri can take attendance now. Try “Mark Maya late” or “Undo attendance.”"),
+        ("magnifyingglass", "Settings has a new home for everything, and search takes you straight to the setting."),
+        ("clock.arrow.circlepath", "Backups can now run every few hours while the app is open."),
+        ("checklist", "To-do templates live in Settings › Templates too.")
+    ]
+
     @AppStorage(UserDefaultsKeys.whatsNewDismissedRelease) private var dismissedReleaseID = ""
 
     var body: some View {
-        if let release = SettingsWhatsNew.releaseToShow(dismissedID: dismissedReleaseID) {
-            VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
-                HStack {
-                    Label("What’s new", systemImage: "sparkles")
-                        .font(AppTheme.ScaledFont.bodySemibold)
-                        .foregroundStyle(.tint)
-                    Spacer()
-                    Button {
-                        adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
-                            dismissedReleaseID = release.id
-                        }
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                            .font(.caption)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Dismiss What’s new")
-                }
-                ForEach(release.notes, id: \.self) { note in
+        if dismissedReleaseID != Self.releaseID {
+            DisclosureGroup {
+                ForEach(Self.notes, id: \.text) { note in
                     Label {
                         Text(note.text)
                             .fixedSize(horizontal: false, vertical: true)
@@ -35,32 +30,18 @@ struct WhatsNewBanner: View {
                         Image(systemName: note.symbol)
                             .foregroundStyle(.tint)
                     }
-                    .font(AppTheme.ScaledFont.body)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                 }
+                Button("Hide Until the Next Update") {
+                    dismissedReleaseID = Self.releaseID
+                }
+                .font(.subheadline)
+            } label: {
+                Label("What’s new", systemImage: "sparkles")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.tint)
             }
-            .padding(SettingsStyle.compactPadding)
-            .surface(
-                SettingsStyle.cornerRadius,
-                fill: Color.accentColor.opacity(UIConstants.OpacityConstants.veryFaint),
-                stroke: Color.accentColor.opacity(UIConstants.OpacityConstants.accent),
-                style: .continuous
-            )
-            .transition(.opacity.combined(with: .move(edge: .top)))
         }
     }
-}
-
-// The `#Preview` closure is expanded and type-checked in every compiler job
-// for the module; a private view is checked once, in this file's job.
-private struct WhatsNewBannerPreview: View {
-    var body: some View {
-        WhatsNewBanner()
-            .padding()
-            .frame(maxWidth: 520)
-    }
-}
-
-#Preview {
-    WhatsNewBannerPreview()
 }

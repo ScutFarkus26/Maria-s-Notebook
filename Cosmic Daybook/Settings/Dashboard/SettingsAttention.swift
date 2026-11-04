@@ -3,7 +3,7 @@ import Foundation
 
 // MARK: - Settings Attention
 
-/// One thing the Overview asks the guide to look at, with where its fix lives.
+/// One thing the Settings status rows ask the guide to look at, with where its fix lives.
 enum SettingsAttentionItem: Hashable, Identifiable {
     /// iCloud reports an error (`isError`) or is running behind.
     case syncProblem(isError: Bool)
@@ -30,14 +30,14 @@ enum SettingsAttentionItem: Hashable, Identifiable {
     }
 
     /// The category whose pane holds the fix. Nil for a backup, which the
-    /// Overview runs in place.
+    /// status row runs in place.
     var destination: SettingsCategory? {
         switch self {
         case .syncProblem: return .syncBackup
         case .backupDue: return nil
         case .unsharedClassroomRecords: return .classroom
         case .carriedOverPlans: return .schoolYear
-        case .connectionAccessLost: return .connections
+        case .connectionAccessLost: return .intelligence
         }
     }
 
@@ -47,7 +47,8 @@ enum SettingsAttentionItem: Hashable, Identifiable {
         case .syncProblem: return .iCloud
         case .unsharedClassroomRecords: return .classroomSharing
         case .carriedOverPlans: return .newYear
-        case .backupDue, .connectionAccessLost: return nil
+        case .connectionAccessLost(let calendar, _): return calendar ? .appleCalendar : .reminders
+        case .backupDue: return nil
         }
     }
 
@@ -120,7 +121,7 @@ enum SettingsAttentionItem: Hashable, Identifiable {
         case .backupDue: return "Back up now"
         case .unsharedClassroomRecords: return "Open Classroom"
         case .carriedOverPlans: return "Review"
-        case .connectionAccessLost: return "Open Connections"
+        case .connectionAccessLost: return "Open Intelligence"
         }
     }
 }
@@ -142,7 +143,7 @@ struct AutomaticBackupFailure: Hashable {
     }
 }
 
-/// What the Overview knows when it decides which rows to show. Nil counts
+/// What the status rows know when they decide which to show. Nil counts
 /// mean "doesn't apply here" (not the lead guide, sharing not set up, the
 /// sweep already run this year) or "not read yet".
 struct SettingsAttentionInputs {
@@ -162,7 +163,7 @@ struct SettingsAttentionInputs {
     var remindersAccessLost = false
 }
 
-/// Decides which "Needs your attention" rows the Overview shows. Pure, so the
+/// Decides which "needs you" rows Settings shows. Pure, so the
 /// rules are tested without a view.
 enum SettingsAttention {
     /// A backup this many days old, or older, asks for a fresh one.
