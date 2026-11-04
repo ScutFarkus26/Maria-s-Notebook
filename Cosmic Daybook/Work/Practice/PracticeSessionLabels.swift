@@ -1,7 +1,7 @@
 import Foundation
 
-/// Centralized label functions for practice session quality metrics and understanding levels
-/// Used across PracticeSessionSheet, QuickPracticeSessionSheet, and PracticeSessionComponents
+/// The words for a practice's quality and independence ratings, which a
+/// practice check-in's note carries (`PracticeCheckIns`).
 enum PracticeSessionLabels {
 
     // MARK: - Quality Labels

@@ -13,6 +13,9 @@ nonisolated public class CDWorkCheckIn: NSManagedObject {
     @NSManaged public var statusRaw: String
     @NSManaged public var purpose: String
     @NSManaged public var studentInitiated: Bool
+    /// How long the practice lasted, in minutes (schema 23); nil when nobody
+    /// said. Read and write it through `durationMinutesValue`.
+    @NSManaged public var durationMinutes: NSNumber?
 
     // MARK: - Relationships
     @NSManaged public var work: CDWorkModel?
@@ -105,6 +108,30 @@ nonisolated extension CDWorkCheckIn {
 
     // Convenience flags
     var isScheduled: Bool { status == .scheduled }
+
+    /// `durationMinutes` as an `Int`: nil when unset, never zero or less.
+    var durationMinutesValue: Int? {
+        get { durationMinutes.map(\.intValue).flatMap { $0 > 0 ? $0 : nil } }
+        set { durationMinutes = newValue.flatMap { $0 > 0 ? NSNumber(value: Int16(clamping: $0)) : nil } }
+    }
+
+    /// A practice logged as a check-in (`PracticeCheckIns`): it says how long
+    /// it lasted, or it was recorded as practice.
+    var isPractice: Bool {
+        durationMinutesValue != nil || purpose == PracticeCheckIns.purpose
+    }
+
+    /// The practice check-ins on any of `workIDs`, newest first.
+    static func practice(onWorkIDs workIDs: Set<String>, in context: NSManagedObjectContext) -> [CDWorkCheckIn] {
+        guard !workIDs.isEmpty else { return [] }
+        let request = CDFetchRequest(CDWorkCheckIn.self)
+        request.predicate = NSPredicate(
+            format: "workID IN %@ AND (durationMinutes != nil OR purpose == %@)",
+            Array(workIDs), PracticeCheckIns.purpose
+        )
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkCheckIn.date, ascending: false)]
+        return context.safeFetch(request).filter { !$0.isDeleted && $0.isPractice }
+    }
 }
 
 // MARK: - Generated Accessors for To-Many Relationships

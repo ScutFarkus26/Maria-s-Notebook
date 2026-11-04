@@ -14,7 +14,7 @@ struct MCPToolRegistryTests {
         let tools = MCPNotebookTools.makeTools(context: { context })
 
         let names: [String] = tools.map(\.name)
-        #expect(names.count == 96)
+        #expect(names.count == 93)
         #expect(Set(names).count == names.count)
         // Retired with Reminders sync (simplify round two, Phase 1).
         #expect(!names.contains("list_reminders"))
@@ -47,7 +47,7 @@ struct MCPToolRegistryTests {
         "record_parent_communication", "record_presentation", "schedule_meeting",
         "schedule_presentation",
         // edits in place
-        "assign_job", "day_pad", "mark_attendance", "mark_mastered", "reorder_lessons",
+        "day_pad", "mark_attendance", "mark_mastered", "reorder_lessons",
         "reschedule_presentation", "resolve_follow_up", "update_community_topic",
         "update_going_out", "update_guardian", "update_issue", "update_lesson",
         "update_observation", "update_presentation_roster", "update_project",

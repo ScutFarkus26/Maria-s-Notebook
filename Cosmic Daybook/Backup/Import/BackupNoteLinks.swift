@@ -16,7 +16,6 @@ nonisolated struct BackupNoteLinks: Sendable {
     let workCompletionRecordID: UUID?
     let studentMeetingID: UUID?
     let projectSessionID: UUID?
-    let practiceSessionID: UUID?
     let issueID: UUID?
 
     /// Nil for a note that points at nothing the relink sets; relinking it
@@ -25,7 +24,7 @@ nonisolated struct BackupNoteLinks: Sendable {
         let targets: [UUID?] = [
             note.workID, note.lessonAssignmentID, note.attendanceRecordID, note.workCheckInID,
             note.workCompletionRecordID, note.studentMeetingID, note.projectSessionID,
-            note.practiceSessionID, note.issueID
+            note.issueID
         ]
         guard targets.contains(where: { $0 != nil }) else { return nil }
         noteID = note.id
@@ -36,7 +35,6 @@ nonisolated struct BackupNoteLinks: Sendable {
         workCompletionRecordID = note.workCompletionRecordID
         studentMeetingID = note.studentMeetingID
         projectSessionID = note.projectSessionID
-        practiceSessionID = note.practiceSessionID
         issueID = note.issueID
     }
 }

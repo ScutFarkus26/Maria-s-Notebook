@@ -1,3 +1,4 @@
+import CoreData
 import Foundation
 import Testing
 @testable import CosmicDaybook
@@ -272,5 +273,53 @@ struct NavigationGroupTests {
         let router = AppRouter()
         router.navigateTo(.notes)
         #expect(router.selectedNavItem == .notes)
+    }
+}
+
+// MARK: - Empty rows hide (round-two Simplify, Phase 2)
+
+extension NavigationGroupTests {
+    @Test("Only Going Out and Clubs & Projects can hide, both in Classroom, never a tab in the bar")
+    func onlyTheEmptyClassroomRowsHide() {
+        let hideable = Set(NavigationRowVisibility.rowEntities.keys)
+        #expect(hideable == [.goingOut, .planningProjects])
+        for item in hideable {
+            #expect(NavigationGroup.containing(item)?.id == .classroom)
+            #expect(!NavigationGroup.primaryTabs.contains(item))
+        }
+        #expect(NavigationRowVisibility.watchedEntities == ["GoingOut", "Project", "BookClubSession", "Procedure"])
+    }
+
+    @Test("A hidden row leaves every list, but stays while it is selected")
+    func filterHidesUnlessKept() throws {
+        let classroom = try #require(NavigationGroup.all.first { $0.id == .classroom })
+        let filter = NavigationRowFilter(hidden: [.goingOut, .planningProjects])
+        #expect(classroom.items(shownBy: filter) == [.supplies, .community, .schedules])
+        #expect(classroom.items(shownBy: NavigationRowFilter()) == classroom.items)
+        let kept = NavigationRowFilter(hidden: [.goingOut, .planningProjects], kept: [.goingOut])
+        #expect(classroom.items(shownBy: kept) == [.supplies, .community, .goingOut, .schedules])
+        for group in NavigationGroup.secondaryGroups {
+            #expect(!group.secondaryItems(shownBy: filter).contains(.goingOut))
+            #expect(!group.secondaryItems(shownBy: filter).contains(.planningProjects))
+        }
+    }
+
+    @Test("Rows and the Procedures filter show from their first record")
+    func rowsShowFromTheirFirstRecord() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        #expect(NavigationRowVisibility.hiddenItems(in: context) == [.goingOut, .planningProjects])
+        #expect(NavigationRowVisibility.hiddenLibraryKinds(in: context) == [.procedures])
+
+        NSEntityDescription.insertNewObject(forEntityName: "BookClubSession", into: context)
+        #expect(NavigationRowVisibility.hiddenItems(in: context) == [.goingOut])
+        NSEntityDescription.insertNewObject(forEntityName: "GoingOut", into: context)
+        #expect(NavigationRowVisibility.hiddenItems(in: context).isEmpty)
+        NSEntityDescription.insertNewObject(forEntityName: "Procedure", into: context)
+        #expect(NavigationRowVisibility.hiddenLibraryKinds(in: context).isEmpty)
+
+        let filter = NavigationRowFilter(hiddenLibraryKinds: [.procedures])
+        #expect(!filter.shows(.procedures, selected: .stories))
+        #expect(filter.shows(.procedures, selected: .procedures))
+        #expect(filter.shows(.stories, selected: .stories))
     }
 }

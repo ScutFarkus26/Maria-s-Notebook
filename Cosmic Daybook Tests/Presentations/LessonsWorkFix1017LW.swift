@@ -204,7 +204,7 @@ struct LessonsWorkFix1017LW {
 
     // MARK: - #48 Practice lists
 
-    @Test("#48: the practice signal fires for practice sessions saved on another context, not other entities")
+    @Test("#48: the practice signal fires for practice check-ins saved on another context, not other entities")
     func practiceSignalSeesOtherContextsSaves() async throws {
         let context = try CoreDataTestHelpers.makeSplitStoreContext()
         context.automaticallyMergesChangesFromParent = true
@@ -212,7 +212,7 @@ struct LessonsWorkFix1017LW {
         background.persistentStoreCoordinator = context.persistentStoreCoordinator
 
         let received = Counter()
-        let subscription = CoordinatorChangeSignal.changes(of: ["PracticeSession"], in: context)
+        let subscription = CoordinatorChangeSignal.changes(of: ["WorkCheckIn"], in: context)
             .sink { _ in received.value += 1 }
         defer { subscription.cancel() }
 
@@ -225,11 +225,11 @@ struct LessonsWorkFix1017LW {
         await drainMainQueue()
         #expect(received.value == 0)
 
-        // A practice session saved on another context (an MCP write, a
+        // A practice check-in saved on another context (an MCP write, a
         // session logged in another window), which this context never had
         // registered: seen.
         await background.perform {
-            let session = CDPracticeSession(context: background)
+            let session = CDWorkCheckIn(context: background)
             session.date = Date()
             try? background.save()
         }
@@ -237,7 +237,7 @@ struct LessonsWorkFix1017LW {
 
         // An unsaved edit on this context: seen too.
         let baseline = received.value
-        let local = CDPracticeSession(context: context)
+        let local = CDWorkCheckIn(context: context)
         local.date = Date()
         context.processPendingChanges()
         await drainMainQueue()

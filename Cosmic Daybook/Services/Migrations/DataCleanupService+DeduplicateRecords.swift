@@ -213,7 +213,6 @@ nonisolated extension DataCleanupService {
         if canonical.value(forKey: "reminder") == nil {
             canonical.setValue(duplicate.value(forKey: "reminder"), forKey: "reminder")
         }
-        if canonical.practiceSession == nil { canonical.practiceSession = duplicate.practiceSession }
         if canonical.issue == nil { canonical.issue = duplicate.issue }
         if canonical.goingOutID == nil { canonical.goingOutID = duplicate.goingOutID }
         if canonical.schoolDayOverride == nil { canonical.schoolDayOverride = duplicate.schoolDayOverride }

@@ -45,7 +45,7 @@ nonisolated enum AttendanceNoteMove {
         if (note.studentLinks?.count ?? 0) > 0 { return false }
         let links: [NSManagedObject?] = [
             note.work, note.lessonAssignment, note.workCheckIn, note.workCompletionRecord,
-            note.studentMeeting, note.projectSession, note.practiceSession, note.issue,
+            note.studentMeeting, note.projectSession, note.issue,
             // Reminder is a retired type (2026-11-03); its link still counts.
             note.value(forKey: "reminder") as? NSManagedObject
         ]

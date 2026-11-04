@@ -71,7 +71,6 @@ nonisolated enum BackupPlainNames {
         "WorkStep": "Work steps",
         "WorkParticipant": "Children on work",
         "WorkCompletionRecord": "Completed work",
-        "PracticeSession": "Practice sessions",
         "SampleWork": "Sample work",
         "SampleWorkStep": "Sample work steps",
         // Tracks
@@ -103,8 +102,6 @@ nonisolated enum BackupPlainNames {
         "ScheduleSlot": "Schedule times",
         "Issue": "Issues",
         "IssueAction": "Issue follow-ups",
-        "ClassroomJob": "Classroom jobs",
-        "JobAssignment": "Job assignments",
         "GoingOut": "Going-outs",
         "GoingOutChecklistItem": "Going-out checklist items",
         "Resource": "Resources",

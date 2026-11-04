@@ -165,15 +165,18 @@ enum StudentDeletion {
     /// A practice session that stays (another child was in it) loses the ids
     /// of her work that went with her, which nothing could open any more
     /// (bug hunt 2026-10-17, #44). Not counted again: the session was
-    /// counted when it lost her.
+    /// counted when it lost her. The sessions are retired and read by entity
+    /// name (`PracticeCheckInCopy`), but they still name children and work.
     private static func dropDeletedWork(
         _ workIDs: Set<String>, fromPracticeSessionsIn context: NSManagedObjectContext
     ) {
         guard !workIDs.isEmpty else { return }
-        for session in context.safeFetch(CDFetchRequest(CDPracticeSession.self)) where !session.isDeleted {
-            let kept = session.workItemIDsArray.filter { !workIDs.contains($0.lowercased()) }
-            guard kept.count != session.workItemIDsArray.count else { continue }
-            session.workItemIDsArray = kept
+        let request = NSFetchRequest<NSManagedObject>(entityName: PracticeCheckInCopy.sessionEntityName)
+        for session in context.safeFetch(request) where !session.isDeleted {
+            let named = session.value(forKey: "workItemIDs") as? [String] ?? []
+            let kept = named.filter { !workIDs.contains($0.lowercased()) }
+            guard kept.count != named.count else { continue }
+            session.setValue(kept as NSArray, forKey: "workItemIDs")
         }
     }
 
@@ -241,8 +244,7 @@ enum StudentDeletion {
         detachFromIssueActions(idString, in: context, report: &report)
         detach(idString, from: \CDPlanningRecommendation.studentIDs,
                deleteWhenEmpty: true, in: context, report: &report)
-        detach(idString, from: \CDPracticeSession.studentIDsArray,
-               deleteWhenEmpty: true, in: context, report: &report)
+        detachFromPracticeSessions(idString, in: context, report: &report)
 
         // The rest stand without her: a todo, an outing or a project is still
         // the guide's with no child on it.
@@ -332,6 +334,24 @@ enum StudentDeletion {
             } else {
                 row[keyPath: list] = remaining
                 report.countDetached(entity)
+            }
+        }
+    }
+
+    /// `detach` for the retired practice sessions, whose class is gone.
+    private static func detachFromPracticeSessions(
+        _ idString: String, in context: NSManagedObjectContext, report: inout StudentDeletionReport
+    ) {
+        let request = NSFetchRequest<NSManagedObject>(entityName: PracticeCheckInCopy.sessionEntityName)
+        for session in context.safeFetch(request) where !session.isDeleted {
+            let named = session.value(forKey: "studentIDs") as? [String] ?? []
+            guard let remaining = removing(idString, from: named) else { continue }
+            if remaining.isEmpty {
+                context.delete(session)
+                report.countDeleted(PracticeCheckInCopy.sessionEntityName)
+            } else {
+                session.setValue(remaining as NSArray, forKey: "studentIDs")
+                report.countDetached(PracticeCheckInCopy.sessionEntityName)
             }
         }
     }

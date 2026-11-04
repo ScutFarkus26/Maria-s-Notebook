@@ -224,6 +224,8 @@ nonisolated public struct NoteDTO: Codable, Sendable {
     public var studentMeetingID: UUID?
     public var projectSessionID: UUID?
     public var reminderID: UUID?
+    /// Retired with practice sessions (plan "Simplify the app, round two",
+    /// Phase 2): read from older backups, never written, never relinked.
     public var practiceSessionID: UUID?
     public var issueID: UUID?
 }

@@ -651,6 +651,7 @@
         <attribute name="statusRaw" attributeType="String" defaultValueString="Scheduled"/>
         <attribute name="purpose" attributeType="String" defaultValueString=""/>
         <attribute name="studentInitiated" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="durationMinutes" optional="YES" attributeType="Integer 16" usesScalarValueType="NO"/>
         <relationship name="work" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="WorkModel" inverseName="checkIns" inverseEntity="WorkModel"/>
         <relationship name="notes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="workCheckIn" inverseEntity="Note"/>
         <fetchIndex name="byWorkID">
@@ -679,7 +680,7 @@
         <relationship name="notes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="workCompletionRecord" inverseEntity="Note"/>
     </entity>
     <!-- ==================== PracticeSession ==================== -->
-    <entity name="PracticeSession" representedClassName="CDPracticeSession" syncable="YES">
+    <entity name="PracticeSession" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -815,7 +816,7 @@
         <relationship name="goingOut" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="GoingOut" inverseName="checklistItems" inverseEntity="GoingOut"/>
     </entity>
     <!-- ==================== ClassroomJob ==================== -->
-    <entity name="ClassroomJob" representedClassName="CDClassroomJob" syncable="YES">
+    <entity name="ClassroomJob" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -829,7 +830,7 @@
         <relationship name="assignments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="JobAssignment" inverseName="job" inverseEntity="JobAssignment"/>
     </entity>
     <!-- ==================== JobAssignment ==================== -->
-    <entity name="JobAssignment" representedClassName="CDJobAssignment" syncable="YES">
+    <entity name="JobAssignment" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>

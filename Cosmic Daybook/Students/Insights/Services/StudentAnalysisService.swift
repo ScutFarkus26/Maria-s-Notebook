@@ -118,12 +118,20 @@ final class StudentAnalysisService {
             note.searchIndexStudentID == studentID || note.scope.applies(to: studentID)
         }
 
-        // Fetch practice sessions
-        let practiceRequest = CDFetchRequest(CDPracticeSession.self)
-        practiceRequest.predicate = NSPredicate(format: "date >= %@", since as NSDate)
+        // Practice is a check-in on her work (`CDWorkCheckIn.isPractice`). Her
+        // work ids are read as plain values, so no work row is materialized.
+        let workIDRequest = NSFetchRequest<NSDictionary>(entityName: "WorkModel")
+        workIDRequest.resultType = .dictionaryResultType
+        workIDRequest.propertiesToFetch = ["id"]
+        workIDRequest.predicate = NSPredicate(format: "studentID == %@", studentID.uuidString)
+        let workIDs = try modelContext.fetch(workIDRequest).compactMap { ($0["id"] as? UUID)?.uuidString }
+        let practiceRequest = CDFetchRequest(CDWorkCheckIn.self)
+        practiceRequest.predicate = NSPredicate(
+            format: "date >= %@ AND workID IN %@ AND (durationMinutes != nil OR purpose == %@)",
+            since as NSDate, workIDs, PracticeCheckIns.purpose
+        )
         practiceRequest.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
-        let allPracticeSessions = try modelContext.fetch(practiceRequest)
-        let practiceSessions = allPracticeSessions.filter { $0.includes(studentID: studentID) }
+        let practice = try modelContext.fetch(practiceRequest)
 
         // Fetch work completions -- filter by studentID in the predicate so SQLite
         // only returns records for this student instead of loading all completions.
@@ -136,22 +144,15 @@ final class StudentAnalysisService {
         completionRequest.sortDescriptors = [NSSortDescriptor(key: "completedAt", ascending: false)]
         let workCompletions = try modelContext.fetch(completionRequest)
 
-        // Calculate metrics
-        let practiceQualities = practiceSessions.compactMap(\.practiceQualityValue)
-        let avgQuality: Double? = practiceQualities.isEmpty ? nil :
-            Double(practiceQualities.reduce(0, +)) / Double(practiceQualities.count)
-
-        let independenceLevels = practiceSessions.compactMap(\.independenceLevelValue)
-        let avgIndependence: Double? = independenceLevels.isEmpty ? nil :
-            Double(independenceLevels.reduce(0, +)) / Double(independenceLevels.count)
-
+        // The ratings are words on a practice check-in's note now, not
+        // numbers, so there is no average to take.
         return StudentDataPackage(
             student: student,
             notes: notes,
-            practiceSessions: practiceSessions,
+            practiceSessions: practice,
             workCompletions: workCompletions,
-            averagePracticeQuality: avgQuality,
-            averageIndependenceLevel: avgIndependence,
+            averagePracticeQuality: nil,
+            averageIndependenceLevel: nil,
             dateRange: since...Date()
         )
     }
@@ -229,10 +230,10 @@ final class StudentAnalysisService {
         // Summarize practice patterns
         var practiceSummary = ""
         if !studentData.practiceSessions.isEmpty {
-            let sessionsWithBreakthrough = studentData.practiceSessions.filter(\.madeBreakthrough).count
-            let sessionsNeedingHelp = studentData.practiceSessions.filter(\.askedForHelp).count
-            let sessionsHelpingPeers = studentData.practiceSessions.filter(\.helpedPeer).count
-            let sessionsStruggling = studentData.practiceSessions.filter(\.struggledWithConcept).count
+            let sessionsWithBreakthrough = studentData.practiceCount(.madeBreakthrough)
+            let sessionsNeedingHelp = studentData.practiceCount(.askedForHelp)
+            let sessionsHelpingPeers = studentData.practiceCount(.helpedPeer)
+            let sessionsStruggling = studentData.practiceCount(.struggled)
 
             practiceSummary = """
             - Breakthrough moments: \(sessionsWithBreakthrough)
@@ -244,9 +245,9 @@ final class StudentAnalysisService {
 
         // Behavioral flags
         var behavioralFlags: [String] = []
-        let readyForCheckIn = studentData.practiceSessions.filter(\.readyForCheckIn).count
-        let readyForAssessment = studentData.practiceSessions.filter(\.readyForAssessment).count
-        let needsReteaching = studentData.practiceSessions.filter(\.needsReteaching).count
+        let readyForCheckIn = studentData.practiceCount(.readyForCheckIn)
+        let readyForAssessment = studentData.practiceCount(.readyForAssessment)
+        let needsReteaching = studentData.practiceCount(.needsReteaching)
 
         if readyForCheckIn > 0 {
             behavioralFlags.append("Ready for check-in: \(readyForCheckIn) times")
@@ -291,11 +292,17 @@ final class StudentAnalysisService {
 struct StudentDataPackage {
     let student: CDStudent
     let notes: [CDNote]
-    let practiceSessions: [CDPracticeSession]
+    /// Her practice check-ins in the window.
+    let practiceSessions: [CDWorkCheckIn]
     let workCompletions: [CDWorkCompletionRecord]
     let averagePracticeQuality: Double?
     let averageIndependenceLevel: Double?
     let dateRange: ClosedRange<Date>
+
+    /// How many of her practices carried `signal`.
+    func practiceCount(_ signal: PracticeSignal) -> Int {
+        practiceSessions.filter { $0.practiceSignals.contains(signal) }.count
+    }
 }
 
 struct AnalysisPayload {

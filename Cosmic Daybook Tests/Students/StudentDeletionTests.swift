@@ -190,15 +190,17 @@ struct StudentDeletionTests {
         todo.studentIDsArray = [pair.danny.uuidString]
         let project = CDProject(context: context)
         project.memberStudentIDsArray = [pair.danny.uuidString, pair.maya.uuidString]
-        let practice = CDPracticeSession(context: context)
-        practice.studentIDsArray = [pair.danny.uuidString]
+        let practice = NSEntityDescription.insertNewObject(
+            forEntityName: PracticeCheckInCopy.sessionEntityName, into: context
+        )
+        practice.setValue([pair.danny.uuidString] as NSArray, forKey: "studentIDs")
 
         _ = try delete(pair.danny, in: context)
 
         #expect(!todo.isDeleted && todo.managedObjectContext != nil)
         #expect(todo.studentIDsArray.isEmpty)
         #expect(project.memberStudentIDsArray == [pair.maya.uuidString])
-        #expect(context.safeFetch(CDFetchRequest(CDPracticeSession.self)).isEmpty)
+        #expect(practice.isDeleted || practice.managedObjectContext == nil)
     }
 
     @Test("deleting a student nobody has is a no-op")

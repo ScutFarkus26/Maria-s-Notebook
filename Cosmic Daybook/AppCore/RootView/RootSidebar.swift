@@ -14,6 +14,7 @@ struct RootSidebar: View {
     /// editor in every main window at once, or in the one behind the key one.
     @Environment(\.quickCaptureActions) private var quickCapture
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.navigationRowFilter) private var rowFilter
     /// Open needs, for the Restock row's badge.
     @State private var restockNeeds = 0
 
@@ -34,7 +35,7 @@ extension RootSidebar {
         List(selection: $selection) {
             ForEach(RootView.NavigationGroup.all) { group in
                 SidebarGroupSection(group: group) {
-                    ForEach(group.items) { item in
+                    ForEach(group.items(shownBy: rowFilter)) { item in
                         sidebarRow(item)
                     }
                 }
@@ -121,7 +122,7 @@ extension RootSidebar {
         List {
             ForEach(RootView.NavigationGroup.all) { group in
                 Section(group.title) {
-                    ForEach(group.items) { item in
+                    ForEach(group.items(shownBy: rowFilter)) { item in
                         Button { selection = item } label: {
                             Label(item.displayName, systemImage: item.icon)
                         }

@@ -18,9 +18,11 @@ final class Phase7PostTests {
         // (format v31); the 76th and 77th are the front-desk attendance
         // emails and their settings (format v34); the 78th is the names people
         // set for themselves (format v38); the 79th–82nd are Schedules' lanes,
-        // blocks, day changes and bookings (format v42). This count is a change
-        // detector for accidental registry edits.
-        #expect(BackupEntityRegistry.allTypes.count == 82)
+        // blocks, day changes and bookings (format v42). Classroom Jobs (two)
+        // and practice sessions left it in 2026-11 (round-two Simplify,
+        // Phase 2): 79. This count is a change detector for accidental
+        // registry edits.
+        #expect(BackupEntityRegistry.allTypes.count == 79)
     }
 
     @Test("ClassroomMembership IS now in BackupEntityRegistry")
@@ -80,7 +82,6 @@ final class Phase7PostTests {
         // v13 field should be nil (optional array) when not populated
         #expect(payload.classroomMemberships == nil)
         // v12 fields still nil too
-        #expect(payload.classroomJobs == nil)
         #expect(payload.calendarNotes == nil)
     }
 
@@ -185,7 +186,6 @@ final class Phase7PostTests {
         #expect(types.contains(where: { $0 == CDTrackEntity.self }))
         #expect(types.contains(where: { $0 == CDSchedule.self }))
         #expect(types.contains(where: { $0 == CDProcedure.self }))
-        #expect(types.contains(where: { $0 == CDClassroomJob.self }))
         #expect(types.contains(where: { $0 == CDGoingOut.self }))
     }
 

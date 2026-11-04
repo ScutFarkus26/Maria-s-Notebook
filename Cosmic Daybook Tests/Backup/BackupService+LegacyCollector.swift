@@ -124,8 +124,6 @@ extension BackupService {
             CDWorkStep.self, using: viewContext) { WorkStepDTO.rows($0) }
         payload.workParticipants = fetchAndTransformInBatches(
             CDWorkParticipantEntity.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
-        payload.practiceSessions = fetchAndTransformInBatches(
-            CDPracticeSession.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
 
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.50), "Collecting lesson extras\u{2026}")
         payload.lessonAttachments = fetchAndTransformInBatches(
@@ -214,10 +212,6 @@ extension BackupService {
             CDGoingOut.self, using: viewContext) { GoingOutDTO.rows($0) }
         payload.goingOutChecklistItems = fetchAndTransformInBatches(
             CDGoingOutChecklistItem.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
-        payload.classroomJobs = fetchAndTransformInBatches(
-            CDClassroomJob.self, using: viewContext) { ClassroomJobDTO.rows($0) }
-        payload.jobAssignments = fetchAndTransformInBatches(
-            CDJobAssignment.self, using: viewContext) { JobAssignmentDTO.rows($0) }
 
         progress(
             BackupProgress.progress(for: .collecting, subProgress: 0.90),

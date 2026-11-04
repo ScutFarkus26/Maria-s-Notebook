@@ -87,34 +87,12 @@ nonisolated extension CDLessonAssignment {
         }
     }
 
-    /// Fetches practice sessions related to work from this presentation
-    func fetchRelatedPracticeSessions(from context: NSManagedObjectContext) -> [CDPracticeSession] {
-        fetchRelatedPracticeSessions(from: context, relatedWork: fetchRelatedWork(from: context))
-    }
-
-    /// Same, for a caller that already holds `fetchRelatedWork(from:)`'s result.
-    func fetchRelatedPracticeSessions(
+    /// The practice check-ins on work from this presentation, newest first.
+    func fetchRelatedPracticeCheckIns(
         from context: NSManagedObjectContext,
         relatedWork workItems: [CDWorkModel]
-    ) -> [CDPracticeSession] {
-        let workIDs = Set(workItems.compactMap { $0.id?.uuidString })
-        guard !workIDs.isEmpty else { return [] }
-
-        // Fetch all practice sessions and filter in memory
-        // Core Data predicates don't support complex array operations on Transformable
-        let request = CDFetchRequest(CDPracticeSession.self)
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDPracticeSession.date, ascending: false)]
-
-        let allSessions: [CDPracticeSession]
-        do {
-            allSessions = try context.fetch(request)
-        } catch {
-            logger.warning("Failed to fetch practice sessions: \(error.localizedDescription)")
-            return []
-        }
-        return allSessions.filter { session in
-            session.workItemIDsArray.contains(where: { workIDs.contains($0) })
-        }
+    ) -> [CDWorkCheckIn] {
+        CDWorkCheckIn.practice(onWorkIDs: Set(workItems.compactMap { $0.id?.uuidString }), in: context)
     }
 
     /// Returns work completion statistics for this presentation
@@ -162,27 +140,10 @@ nonisolated extension CDLesson {
         }
     }
 
-    /// Fetches all practice sessions involving this lesson's work
-    func fetchAllPracticeSessions(from context: NSManagedObjectContext) -> [CDPracticeSession] {
-        let workItems = fetchAllWork(from: context)
-        let workIDs = Set(workItems.compactMap { $0.id?.uuidString })
-        guard !workIDs.isEmpty else { return [] }
-
-        // Fetch all practice sessions and filter in memory
-        // Core Data predicates don't support complex array operations on Transformable
-        let request = CDFetchRequest(CDPracticeSession.self)
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDPracticeSession.date, ascending: false)]
-
-        let allSessions: [CDPracticeSession]
-        do {
-            allSessions = try context.fetch(request)
-        } catch {
-            logger.warning("Failed to fetch practice sessions: \(error.localizedDescription)")
-            return []
-        }
-        return allSessions.filter { session in
-            session.workItemIDsArray.contains(where: { workIDs.contains($0) })
-        }
+    /// The practice check-ins on this lesson's work, newest first.
+    func fetchAllPracticeCheckIns(from context: NSManagedObjectContext) -> [CDWorkCheckIn] {
+        let workIDs = Set(fetchAllWork(from: context).compactMap { $0.id?.uuidString })
+        return CDWorkCheckIn.practice(onWorkIDs: workIDs, in: context)
     }
 
 }

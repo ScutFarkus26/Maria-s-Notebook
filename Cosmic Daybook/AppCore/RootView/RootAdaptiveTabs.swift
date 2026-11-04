@@ -17,6 +17,7 @@ struct RootAdaptiveTabs: View {
     @Binding var selectedNavItem: RootView.NavigationItem
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.navigationRowFilter) private var rowFilter
     /// Open needs, for the Restock row's badge in the iPad sidebar.
     @State private var restockNeeds = 0
     /// The More tab's stack, and the destination at its bottom.
@@ -125,7 +126,7 @@ struct RootAdaptiveTabs: View {
     private var secondaryTabs: some TabContent<RootView.NavigationItem> {
         ForEach(RootView.NavigationGroup.secondaryGroups) { group in
             TabSection(group.title) {
-                ForEach(group.secondaryItems) { item in
+                ForEach(group.secondaryItems(shownBy: rowFilter)) { item in
                     Tab(item.displayName, systemImage: item.icon, value: item) {
                         phonePage(item)
                     }

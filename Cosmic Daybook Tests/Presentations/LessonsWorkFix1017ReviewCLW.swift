@@ -274,16 +274,16 @@ struct LessonsWorkFix1017ReviewCLW {
     func practiceSignalCoalescesAForeignSave() async throws {
         let context = try CoreDataTestHelpers.makeSplitStoreContext()
         context.automaticallyMergesChangesFromParent = true
-        let session = CDPracticeSession(context: context)
+        let session = CDWorkCheckIn(context: context)
         session.date = Date()
         try context.save()
         let background = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
         background.persistentStoreCoordinator = context.persistentStoreCoordinator
 
         let raw = Counter(), coalesced = Counter()
-        let rawSubscription = CoordinatorChangeSignal.changes(of: ["PracticeSession"], in: context)
+        let rawSubscription = CoordinatorChangeSignal.changes(of: ["WorkCheckIn"], in: context)
             .sink { _ in raw.value += 1 }
-        let subscription = CoordinatorChangeSignal.coalescedChanges(of: ["PracticeSession"], in: context)
+        let subscription = CoordinatorChangeSignal.coalescedChanges(of: ["WorkCheckIn"], in: context)
             .sink { _ in coalesced.value += 1 }
         defer {
             rawSubscription.cancel()
@@ -294,7 +294,7 @@ struct LessonsWorkFix1017ReviewCLW {
         // and its merge into this context are two raw signals.
         let objectID = session.objectID
         await background.perform {
-            guard let elsewhere = try? background.existingObject(with: objectID) as? CDPracticeSession else { return }
+            guard let elsewhere = try? background.existingObject(with: objectID) as? CDWorkCheckIn else { return }
             elsewhere.date = Date().addingTimeInterval(60)
             try? background.save()
         }

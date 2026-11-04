@@ -29,21 +29,6 @@ extension BackupRestoreRun {
             )
         }
 
-        if let classroomJobs = try rows(\.classroomJobs) {
-            BackupEntityImporter.importRows(
-                classroomJobs, as: CDClassroomJob.self, into: viewContext,
-                existing: { try index.existing(CDClassroomJob.self, id: $0) }
-            )
-        }
-
-        if let jobAssignments = try rows(\.jobAssignments) {
-            BackupEntityImporter.importRows(
-                jobAssignments, as: CDJobAssignment.self, into: viewContext,
-                existing: { try index.existing(CDJobAssignment.self, id: $0) },
-                parents: ["job": { try index.related(CDClassroomJob.self, id: $0) }]
-            )
-        }
-
         if let calendarNotes = try rows(\.calendarNotes) {
             BackupEntityImporter.importRows(
                 calendarNotes, as: CDCalendarNote.self, into: viewContext,

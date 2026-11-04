@@ -175,11 +175,11 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         .onPresentationDataChange(of: ["WorkModel", "Student"], in: viewContext) { _ in
             reloadWorkSummary()
         }
-        // Another context's save too: a session logged elsewhere that newly
-        // names this presentation's work or children reaches this context only if it was registered here.
-        // Only while on screen, and once per burst; the `.task` above reloads on return.
+        // Another context's save too: practice logged elsewhere on this
+        // presentation's work. Only while on screen, and once per burst; the
+        // `.task` above reloads on return.
         .onReceiveWhenVisible(
-            CoordinatorChangeSignal.coalescedChanges(of: ["PracticeSession"], in: viewContext),
+            CoordinatorChangeSignal.coalescedChanges(of: ["WorkCheckIn"], in: viewContext),
             catchUpOnAppear: false
         ) {
             reloadWorkSummary()

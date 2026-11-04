@@ -29,6 +29,7 @@ nonisolated enum LibraryKind: String, CaseIterable, Identifiable, Sendable {
 /// rows open it on their own type (`NavigationItem.landing`).
 struct ResourcesView: View {
     @Environment(\.appRouter) private var appRouter
+    @Environment(\.navigationRowFilter) private var rowFilter
     @State private var kind: LibraryKind
 
     init(kind: LibraryKind = .files) {
@@ -70,7 +71,8 @@ struct ResourcesView: View {
 
     private var kindPicker: some View {
         Picker("Show", selection: $kind) {
-            ForEach(LibraryKind.allCases) { kind in
+            // Procedures shows once there is one (`NavigationRowVisibility`).
+            ForEach(LibraryKind.allCases.filter { rowFilter.shows($0, selected: kind) }) { kind in
                 Text(kind.title).tag(kind)
             }
         }

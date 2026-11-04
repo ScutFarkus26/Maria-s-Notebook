@@ -151,15 +151,19 @@ struct StudentDeletionFix1017StTests {
         let mayas = CoreDataTestHelpers.seedWorkModel(in: room.context, title: "Bead frame", studentID: room.maya)
         let herID = try #require(hers.id).uuidString
         let mayaID = try #require(mayas.id).uuidString
-        let session = CDPracticeSession(context: room.context)
-        session.studentIDsArray = [room.danny.uuidString, room.maya.uuidString]
-        session.workItemIDsArray = [herID, mayaID]
+        // The retired type has no class: a row made by entity name, as an
+        // older build's sync brings it.
+        let session = NSEntityDescription.insertNewObject(
+            forEntityName: PracticeCheckInCopy.sessionEntityName, into: room.context
+        )
+        session.setValue([room.danny.uuidString, room.maya.uuidString] as NSArray, forKey: "studentIDs")
+        session.setValue([herID, mayaID] as NSArray, forKey: "workItemIDs")
 
         _ = try delete(room.danny, in: room.context)
 
         #expect(isGone(hers))
         #expect(!isGone(session))
-        #expect(session.studentIDsArray == [room.maya.uuidString])
-        #expect(session.workItemIDsArray == [mayaID])
+        #expect(session.value(forKey: "studentIDs") as? [String] == [room.maya.uuidString])
+        #expect(session.value(forKey: "workItemIDs") as? [String] == [mayaID])
     }
 }

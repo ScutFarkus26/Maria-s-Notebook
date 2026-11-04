@@ -102,9 +102,6 @@ extension BackupEntityImporter {
             if let id = links.projectSessionID {
                 note.projectSession = try index.related(CDProjectSession.self, id: id)
             }
-            if let id = links.practiceSessionID {
-                note.practiceSession = try index.related(CDPracticeSession.self, id: id)
-            }
             if let id = links.issueID {
                 note.issue = try index.related(CDIssue.self, id: id)
             }

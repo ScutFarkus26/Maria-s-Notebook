@@ -221,15 +221,17 @@ struct MonthlyReportContextBuilder {
             ))
         }
 
-        let practiceRequest = CDFetchRequest(CDPracticeSession.self)
+        // Practice is a check-in on her work; a breakthrough is its note's tag.
+        let practiceRequest = CDFetchRequest(CDWorkCheckIn.self)
         practiceRequest.predicate = NSPredicate(
-            format: "date >= %@ AND date < %@ AND madeBreakthrough == YES",
-            interval.start as NSDate, interval.end as NSDate
+            format: "date >= %@ AND date < %@ AND (durationMinutes != nil OR purpose == %@)",
+            interval.start as NSDate, interval.end as NSDate, PracticeCheckIns.purpose
         )
-        for session in context.safeFetch(practiceRequest) {
-            guard let id = session.id?.uuidString,
-                  let date = session.date,
-                  session.studentIDsArray.contains(studentID) else { continue }
+        for checkIn in context.safeFetch(practiceRequest) {
+            guard let id = checkIn.id?.uuidString,
+                  let date = checkIn.date,
+                  checkIn.practiceSignals.contains(.madeBreakthrough),
+                  checkIn.resolvedWork(in: context)?.studentID == studentID else { continue }
             items.append(MonthlyReportEvidenceItem(
                 ref: "practice:\(id)",
                 date: date,
@@ -276,22 +278,6 @@ struct MonthlyReportContextBuilder {
                 ref: "goingOut:\(id)",
                 date: date,
                 phrase: "Went out to \(destination)"
-            ))
-        }
-
-        let jobRequest = CDFetchRequest(CDJobAssignment.self)
-        jobRequest.predicate = NSPredicate(
-            format: "studentID == %@ AND weekStartDate >= %@ AND weekStartDate < %@",
-            studentID, interval.start as NSDate, interval.end as NSDate
-        )
-        for assignment in context.safeFetch(jobRequest) {
-            guard let id = assignment.id?.uuidString,
-                  let weekStart = assignment.weekStartDate,
-                  let jobName = assignment.job?.name, !jobName.isEmpty else { continue }
-            items.append(MonthlyReportEvidenceItem(
-                ref: "jobAssignment:\(id)",
-                date: weekStart,
-                phrase: "Held the classroom responsibility “\(jobName)”"
             ))
         }
 

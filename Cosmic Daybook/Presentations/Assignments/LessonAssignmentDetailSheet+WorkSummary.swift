@@ -49,8 +49,8 @@ extension LessonAssignmentDetailSheet {
                     }
                 }
 
-                // Practice sessions for this presentation's work
-                let practiceSessions = summary.practiceSessions
+                // Practice logged on this presentation's work
+                let practiceSessions = summary.practiceCheckIns
                 if !practiceSessions.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 6) {
@@ -61,8 +61,8 @@ extension LessonAssignmentDetailSheet {
                         }
                         .foregroundStyle(.purple)
 
-                        ForEach(practiceSessions.prefix(3)) { session in
-                            PracticeSessionCompactRow(session: session)
+                        ForEach(practiceSessions.prefix(3), id: \.objectID) { checkIn in
+                            practiceRow(checkIn, student: summary.student(for: checkIn))
                         }
 
                         if practiceSessions.count > 3 {
@@ -81,21 +81,46 @@ extension LessonAssignmentDetailSheet {
             }
         }
     }
+
+    /// One practice: the child, the day and the minutes.
+    private func practiceRow(_ checkIn: CDWorkCheckIn, student: CDStudent?) -> some View {
+        HStack(spacing: 8) {
+            Text(student?.shortName ?? "A child")
+                .font(AppTheme.ScaledFont.caption)
+            Spacer()
+            if let minutes = checkIn.durationMinutesValue {
+                Text("\(minutes) min")
+                    .font(AppTheme.ScaledFont.captionSmall)
+                    .foregroundStyle(.secondary)
+            }
+            if let date = checkIn.date {
+                Text(DateFormatters.shortDate.string(from: date))
+                    .font(AppTheme.ScaledFont.captionSmall)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 8)
+    }
 }
 
 // MARK: - Loaded data
 
 /// Everything the "Related Work" section draws, read once. The section used to
 /// run the related-work fetch three times per body pass (list, stats, and
-/// again inside the practice-session lookup), read the whole practice-session
-/// table, and fetch each row's student separately.
+/// again inside the practice lookup), read the whole practice table, and
+/// fetched each row's student separately.
 struct PresentationWorkSummary {
     let workItems: [CDWorkModel]
     let stats: (completed: Int, total: Int)
-    let practiceSessions: [CDPracticeSession]
+    /// Practice logged on `workItems` (`CDWorkCheckIn.isPractice`), newest first.
+    let practiceCheckIns: [CDWorkCheckIn]
     /// Students named by `workItems`, by id — first row per id, as the
     /// per-row `fetchLimit = 1` lookup returned.
     let studentsByID: [UUID: CDStudent]
+
+    func student(for checkIn: CDWorkCheckIn) -> CDStudent? {
+        checkIn.resolvedWork().flatMap(student(for:))
+    }
 
     func student(for work: CDWorkModel) -> CDStudent? {
         guard !work.studentID.isEmpty, let uuid = UUID(uuidString: work.studentID) else { return nil }
@@ -105,7 +130,7 @@ struct PresentationWorkSummary {
     static func load(for presentation: CDLessonAssignment, context: NSManagedObjectContext) -> PresentationWorkSummary {
         let workItems = presentation.fetchRelatedWork(from: context)
         let completed = workItems.filter { $0.status.isClosed }.count
-        let practiceSessions = presentation.fetchRelatedPracticeSessions(from: context, relatedWork: workItems)
+        let practiceCheckIns = presentation.fetchRelatedPracticeCheckIns(from: context, relatedWork: workItems)
 
         let studentIDs = Set(workItems.compactMap { UUID(uuidString: $0.studentID) })
         var studentsByID: [UUID: CDStudent] = [:]
@@ -120,7 +145,7 @@ struct PresentationWorkSummary {
         return PresentationWorkSummary(
             workItems: workItems,
             stats: (completed, workItems.count),
-            practiceSessions: practiceSessions,
+            practiceCheckIns: practiceCheckIns,
             studentsByID: studentsByID
         )
     }

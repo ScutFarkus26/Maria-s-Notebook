@@ -91,6 +91,8 @@ extension BackupEntityImporter {
             checkIn.purpose = dto.purpose
             // A row from before the flag (v19) has none: a check-in already here keeps its own.
             if let initiated = dto.studentInitiated { checkIn.studentInitiated = initiated }
+            // Likewise the duration (schema 23): an older row says nothing about it.
+            if let minutes = dto.durationMinutes { checkIn.durationMinutesValue = minutes }
             // Link to work if exists
             do {
                 if let work = try workCheck(workUUID) {
@@ -130,43 +132,5 @@ extension BackupEntityImporter {
             }
             viewContext.insert(participant)
         }
-    }
-
-    // MARK: - Practice Sessions
-
-    static func importPracticeSessions(
-        _ dtos: [PracticeSessionDTO],
-        into viewContext: NSManagedObjectContext,
-        existing: ExistingLookup<CDPracticeSession>
-    ) rethrows {
-        try importSimpleEntities(
-            dtos, into: viewContext,
-            existing: existing,
-            idExtractor: { $0.id },
-            entityBuilder: { dto, current in
-            let session = current ?? CDPracticeSession(context: viewContext)
-            session.id = dto.id
-            session.createdAt = dto.createdAt
-            session.date = dto.date
-            session.duration = dto.duration ?? 0
-            session.studentIDs = dto.studentIDs as NSObject
-            session.workItemIDs = dto.workItemIDs as NSObject
-            session.sharedNotes = dto.sharedNotes
-            session.location = dto.location
-            session.practiceQuality = Int64(dto.practiceQuality ?? 0)
-            session.independenceLevel = Int64(dto.independenceLevel ?? 0)
-            session.askedForHelp = dto.askedForHelp
-            session.helpedPeer = dto.helpedPeer
-            session.struggledWithConcept = dto.struggledWithConcept
-            session.madeBreakthrough = dto.madeBreakthrough
-            session.needsReteaching = dto.needsReteaching
-            session.readyForCheckIn = dto.readyForCheckIn
-            session.readyForAssessment = dto.readyForAssessment
-            session.checkInScheduledFor = dto.checkInScheduledFor
-            session.followUpActions = dto.followUpActions
-            session.materialsUsed = dto.materialsUsed
-            session.workStepID = dto.workStepID
-            return session
-        })
     }
 }

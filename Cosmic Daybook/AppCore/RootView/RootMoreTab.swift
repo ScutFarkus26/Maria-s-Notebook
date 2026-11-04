@@ -18,6 +18,15 @@ struct RootMoreTab: View {
     /// The destination at the bottom of `path`; nil while the list shows.
     @Binding var openItem: RootView.NavigationItem?
     @Binding var path: NavigationPath
+    @Environment(\.navigationRowFilter) private var rowFilter
+
+    /// The window's filter, keeping the page open in this stack listed too.
+    private var shownRows: NavigationRowFilter {
+        var filter = rowFilter
+        if let openItem { filter.kept.insert(openItem) }
+        return filter
+    }
+
     /// The size class the tab view's bottom-bar override hid, handed back to
     /// the pages (the iPad mini's are regular).
     let pageSizeClass: UserInterfaceSizeClass?
@@ -27,7 +36,7 @@ struct RootMoreTab: View {
             List {
                 ForEach(RootView.NavigationGroup.secondaryGroups) { group in
                     Section(group.title) {
-                        ForEach(group.secondaryItems) { item in
+                        ForEach(group.secondaryItems(shownBy: shownRows)) { item in
                             NavigationLink(value: item) {
                                 Label(item.displayName, systemImage: item.icon)
                             }

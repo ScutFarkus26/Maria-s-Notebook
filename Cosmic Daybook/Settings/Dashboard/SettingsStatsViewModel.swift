@@ -52,7 +52,6 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
     case work
     case observations
     case meetings
-    case practiceSessions
     // Planning
     case todos
     case calendarEvents
@@ -81,7 +80,7 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
     var section: NotebookRecordSection {
         switch self {
         case .students, .lessons, .presentationsPlanned, .presentationsGiven, .childPresentations,
-             .work, .observations, .meetings, .practiceSessions:
+             .work, .observations, .meetings:
             return .teaching
         case .todos, .calendarEvents, .projects, .goingOuts:
             return .planning
@@ -104,7 +103,6 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
         case .work: return "Work"
         case .observations: return "Observations"
         case .meetings: return "Meetings"
-        case .practiceSessions: return "Practice sessions"
         case .todos: return "To-dos"
         case .calendarEvents: return "Calendar events"
         case .projects: return "Projects"
@@ -137,7 +135,6 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
         case .work: return "doc.text.fill"
         case .observations: return "note.text"
         case .meetings: return "person.2.fill"
-        case .practiceSessions: return "music.note.list"
         case .todos: return "checklist"
         case .calendarEvents: return "calendar"
         case .projects: return "folder.fill"
@@ -181,7 +178,6 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
         case .work: return [CDWorkModel.self]
         case .observations: return [CDNote.self]
         case .meetings: return [CDStudentMeeting.self]
-        case .practiceSessions: return [CDPracticeSession.self]
         case .todos: return [CDTodoItemEntity.self]
         case .calendarEvents: return [CDCalendarEvent.self]
         case .projects: return [CDProject.self]

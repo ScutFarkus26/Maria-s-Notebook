@@ -138,7 +138,11 @@ nonisolated extension CoreDataStack {
     ///   name or its note last changed, so a replaced file reads "Updated"
     ///   (plan "Lesson file attachments"; `LessonAttachmentService`). Additive
     ///   optional Date; older records read it as `attachedAt`.
-    nonisolated static let currentSchemaVersion = 22
+    /// - `23` — `WorkCheckIn.durationMinutes` (private): how long a practice
+    ///   lasted, now that practice sessions fold into check-ins (plan "Simplify
+    ///   the app, round two", Phase 2; `PracticeCheckInCopy`). Additive
+    ///   optional Integer 16; nil for every check-in made before it.
+    nonisolated static let currentSchemaVersion = 23
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"

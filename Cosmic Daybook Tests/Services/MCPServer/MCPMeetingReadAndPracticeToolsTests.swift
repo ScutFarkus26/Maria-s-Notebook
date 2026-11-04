@@ -50,61 +50,6 @@ struct MCPMeetingReadAndPracticeToolsTests {
         #expect(output.contains("No meetings are recorded"))
     }
 
-    // MARK: - practice_sessions
-
-    @Test("practice_sessions reports the behaviours the guide flagged")
-    func practiceSessionsReportsBehaviours() async throws {
-        let (tools, context) = try makeTools()
-        let student = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ana", lastName: "Perez")
-        CoreDataTestHelpers.save(context)
-        let studentID = try #require(student.id)
-
-        let session = CDPracticeSession(context: context)
-        session.id = UUID()
-        session.date = Date()
-        session.studentIDsArray = [studentID.uuidString]
-        session.madeBreakthrough = true
-        session.helpedPeer = true
-        session.sharedNotes = "Finally saw the pattern in the bead chain."
-        CoreDataTestHelpers.save(context)
-
-        let output = try await tool(named: "practice_sessions", in: tools).handler([
-            "student_name": .string("Ana")
-        ])
-        #expect(output.contains("Ana Perez"))
-        #expect(output.contains("Finally saw the pattern in the bead chain."))
-        #expect(output.contains("Noticed:"))
-    }
-
-    @Test("practice_sessions filters to one signal")
-    func practiceSessionsFiltersBySignal() async throws {
-        let (tools, context) = try makeTools()
-        let student = CoreDataTestHelpers.seedStudent(in: context, firstName: "Sam", lastName: "Lee")
-        CoreDataTestHelpers.save(context)
-        let key = try #require(student.id).uuidString
-
-        let breakthrough = CDPracticeSession(context: context)
-        breakthrough.id = UUID()
-        breakthrough.date = Date()
-        breakthrough.studentIDsArray = [key]
-        breakthrough.madeBreakthrough = true
-        breakthrough.sharedNotes = "Breakthrough session"
-
-        let ordinary = CDPracticeSession(context: context)
-        ordinary.id = UUID()
-        ordinary.date = Date()
-        ordinary.studentIDsArray = [key]
-        ordinary.sharedNotes = "Ordinary session"
-        CoreDataTestHelpers.save(context)
-
-        let output = try await tool(named: "practice_sessions", in: tools).handler([
-            "student_name": .string("Sam"),
-            "signal": .string("madeBreakthrough")
-        ])
-        #expect(output.contains("Breakthrough session"))
-        #expect(!output.contains("Ordinary session"))
-    }
-
     // MARK: - recall_checks
 
     @Test("recall_checks names the lesson and its outcome")

@@ -9,57 +9,14 @@ extension WorkDetailView {
     // MARK: - Practice Overview Helpers
 
     func calculatePracticeStats() -> PracticeStats {
-        PracticeStatsCalculator.calculate(from: practiceSessions)
+        let scheduled = viewModel.work.map { WorkLogService.scheduledCheckIns(of: $0, in: modelContext) } ?? []
+        return PracticeStatsCalculator.calculate(from: practiceCheckIns, scheduled: scheduled)
     }
 
-    /// Re-reads this work's practice sessions. `workItemIDs` is transformable,
-    /// so the match stays in memory, but it now runs once per practice-session
-    /// change instead of on every body pass. `objectsDidChange` on this context
-    /// is what the `@FetchRequest` it replaces listened to (edits, saves and
-    /// merged remote imports alike).
-    ///
-    /// The children and work items the cards name reload when the ids those
-    /// sessions name change. They reloaded only when the session table grew or
-    /// shrank, so a child added to an existing session never appeared on its
-    /// card (bug hunt 2026-10-12 #42).
-    func reloadPracticeSessions() {
-        let all = modelContext.safeFetch(CDFetchRequest(CDPracticeSession.self))
-        let mine = viewModel.practiceSessions(allSessions: all)
-        if mine != practiceSessions { practiceSessions = mine }
-        let named = PracticeParticipantIDs(sessions: mine)
-        if practiceParticipantIDs != named {
-            practiceParticipantIDs = named
-            loadPracticeParticipants(named)
-        }
-    }
-
-    /// One fetch of the children and one of the work items this work's practice
-    /// history names, for the whole section. Every card used to carry its own
-    /// unpredicated `@FetchRequest` of both whole tables — a live
-    /// fetched-results controller per card, per table — and then filter them
-    /// down to the two or three rows it actually draws.
-    func loadPracticeParticipants(_ named: PracticeParticipantIDs) {
-        let studentIDs = named.studentIDs
-        let workIDs = named.workIDs
-
-        if studentIDs.isEmpty {
-            practiceStudents = []
-        } else {
-            let request = CDFetchRequest(CDStudent.self)
-            request.predicate = NSPredicate(format: "id IN %@", Array(studentIDs))
-            request.sortDescriptors = [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]
-            // DEDUPLICATION: CloudKit sync can leave two rows carrying one id.
-            practiceStudents = modelContext.safeFetch(request).uniqueByID
-        }
-
-        if workIDs.isEmpty {
-            practiceWorkItems = []
-        } else {
-            let request = CDFetchRequest(CDWorkModel.self)
-            request.predicate = NSPredicate(format: "id IN %@", Array(workIDs))
-            request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)]
-            practiceWorkItems = modelContext.safeFetch(request).uniqueByID
-        }
+    /// Re-reads this work's practice check-ins.
+    func reloadPracticeCheckIns() {
+        let mine = viewModel.practiceCheckIns(in: modelContext)
+        if mine != practiceCheckIns { practiceCheckIns = mine }
     }
 
     @ViewBuilder
@@ -89,29 +46,6 @@ extension WorkDetailView {
                             icon: "clock",
                             color: .purple
                         )
-                    }
-                }
-
-                // Quality metrics row
-                if stats.avgQuality != nil || stats.avgIndependence != nil {
-                    HStack(spacing: 16) {
-                        if let avgQuality = stats.avgQuality {
-                            QualityMetricBox(
-                                level: avgQuality,
-                                label: "Avg Quality",
-                                icon: "star.fill",
-                                color: .blue
-                            )
-                        }
-
-                        if let avgIndependence = stats.avgIndependence {
-                            QualityMetricBox(
-                                level: avgIndependence,
-                                label: "Avg Independence",
-                                icon: "figure.walk",
-                                color: .green
-                            )
-                        }
                     }
                 }
 
@@ -164,63 +98,49 @@ extension WorkDetailView {
 
     @ViewBuilder
     func practiceHistorySection() -> some View {
-        if !practiceSessions.isEmpty {
+        if !practiceCheckIns.isEmpty {
             DetailSectionCard(
                 title: "Practice History",
                 icon: "person.2.fill",
                 accentColor: .blue
             ) {
-                VStack(spacing: 12) {
-                    ForEach(practiceSessions) { session in
-                        PracticeSessionCard(
-                            session: session,
-                            displayMode: .standard,
-                            allStudents: practiceStudents,
-                            allWork: practiceWorkItems
-                        ) {
-                            activeSheet = .practiceSession(session)
-                        }
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(practiceCheckIns, id: \.objectID) { checkIn in
+                        practiceRow(checkIn)
                     }
                 }
             }
         }
     }
 
-    @ViewBuilder
-    func practiceSessionDetailSheet(session: CDPracticeSession) -> some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: AppTheme.Spacing.large) {
-                    PracticeSessionCard(
-                        session: session,
-                        displayMode: .expanded,
-                        allStudents: practiceStudents,
-                        allWork: practiceWorkItems
-                    )
+    /// One practice: its day and minutes, then what its note says.
+    private func practiceRow(_ checkIn: CDWorkCheckIn) -> some View {
+        let notes = ((checkIn.notes as? Set<CDNote>) ?? [])
+            .filter { !$0.isDeleted }
+            .sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Text(checkIn.date.map { DateFormatters.mediumDate.string(from: $0) } ?? "No date")
+                    .font(AppTheme.ScaledFont.bodySemibold)
+                if let minutes = checkIn.durationMinutesValue {
+                    Text("\(minutes) min")
+                        .font(AppTheme.ScaledFont.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .padding(AppTheme.Spacing.large)
             }
-            .navigationTitle("Practice Session")
-            .inlineNavigationTitle()
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") {
-                        activeSheet = nil
+            ForEach(notes, id: \.objectID) { note in
+                if !note.body.isEmpty {
+                    Text(note.body)
+                        .font(AppTheme.ScaledFont.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if !note.tagsArray.isEmpty {
+                    FlowLayout(spacing: 6) {
+                        ForEach(note.tagsArray, id: \.self) { BehaviorPill(behavior: $0) }
                     }
                 }
             }
         }
-    }
-}
-
-/// The children and work items a work's practice sessions name: what the
-/// practice cards look up, so the lookup reloads when this changes.
-struct PracticeParticipantIDs: Equatable {
-    let studentIDs: Set<UUID>
-    let workIDs: Set<UUID>
-
-    init(sessions: [CDPracticeSession]) {
-        studentIDs = Set(sessions.flatMap(\.studentIDsArray).compactMap(UUID.init(uuidString:)))
-        workIDs = Set(sessions.flatMap(\.workItemIDsArray).compactMap(UUID.init(uuidString:)))
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

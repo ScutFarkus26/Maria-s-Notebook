@@ -80,63 +80,6 @@ struct MCPClassroomToolsTests {
         #expect(transaction.quantityChange == 4)
     }
 
-    // MARK: - Classroom Jobs
-
-    @Test("assign_job rosters a student on the week's Monday")
-    func assignJobKeysToMonday() async throws {
-        let (tools, context) = try makeTools()
-        let job = CDClassroomJob(context: context)
-        job.id = UUID()
-        job.name = "Plant Care"
-        job.isActive = true
-        job.maxStudents = 1
-        CoreDataTestHelpers.seedStudent(in: context, firstName: "Tess", lastName: "Oyelaran")
-        CoreDataTestHelpers.save(context)
-
-        // 2026-09-16 is a Wednesday; the roster week starts Monday the 14th.
-        _ = try await tool(named: "assign_job", in: tools).handler([
-            "job": .string("Plant Care"),
-            "student_name": .string("Tess"),
-            "week_of": .string("2026-09-16")
-        ])
-
-        let assignment = try #require(context.safeFetch(CDFetchRequest(CDJobAssignment.self)).first)
-        let expected = try #require(MCPNotebookTools.isoDay.date(from: "2026-09-14"))
-        #expect(assignment.weekStartDate == AppCalendar.startOfDay(expected))
-
-        let roster = try await tool(named: "classroom_jobs", in: tools).handler([
-            "week_of": .string("2026-09-14")
-        ])
-        #expect(roster.contains("Plant Care: Tess Oyelaran"))
-    }
-
-    @Test("assign_job honours a job's student limit")
-    func assignJobHonoursLimit() async throws {
-        let (tools, context) = try makeTools()
-        let job = CDClassroomJob(context: context)
-        job.id = UUID()
-        job.name = "Line Leader"
-        job.isActive = true
-        job.maxStudents = 1
-        CoreDataTestHelpers.seedStudent(in: context, firstName: "Ivy", lastName: "Chen")
-        CoreDataTestHelpers.seedStudent(in: context, firstName: "Jon", lastName: "Alvarez")
-        CoreDataTestHelpers.save(context)
-
-        let assignTool = try tool(named: "assign_job", in: tools)
-        _ = try await assignTool.handler([
-            "job": .string("Line Leader"),
-            "student_name": .string("Ivy"),
-            "week_of": .string("2026-09-14")
-        ])
-        await #expect(throws: MCPToolError.self) {
-            _ = try await assignTool.handler([
-                "job": .string("Line Leader"),
-                "student_name": .string("Jon"),
-                "week_of": .string("2026-09-14")
-            ])
-        }
-    }
-
     // MARK: - Issues
 
     @Test("update_issue stamps the resolution date when it is resolved")

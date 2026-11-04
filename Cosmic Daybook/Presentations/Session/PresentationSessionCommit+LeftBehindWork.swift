@@ -35,26 +35,16 @@ extension PresentationSessionCommit {
         }
         guard !candidates.isEmpty else { return [] }
 
-        let practiced = practicedWorkIDs(since: candidates.compactMap(\.createdAt).min(), in: context)
         let service = WorkDeletionService(context: context)
         return candidates.filter { work in
-            guard let workID = work.id?.uuidString, !practiced.contains(workID) else { return false }
+            // Practice logged on the work is a completed check-in, so it
+            // counts as used here.
             let used = WorkDeletionService.checkIns(of: work, in: context).contains { $0.status != .scheduled }
             let cascade = service.cascade(for: work)
             return !used && cascade.observations == 0 && cascade.steps == 0
                 && cascade.completionRecords == 0 && cascade.meetingReviews == 0
                 && cascade.scheduledMeetings == 0
         }
-    }
-
-    /// Work ids named by practice sessions logged since `day`. The ids are a
-    /// transformable list, so the match runs in memory on the recent rows.
-    private static func practicedWorkIDs(since day: Date?, in context: NSManagedObjectContext) -> Set<String> {
-        let request = CDFetchRequest(CDPracticeSession.self)
-        if let day {
-            request.predicate = NSPredicate(format: "createdAt >= %@", day as NSDate)
-        }
-        return Set(context.safeFetch(request).flatMap(\.workItemIDsArray))
     }
 }
 

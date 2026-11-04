@@ -29,7 +29,6 @@ extension StudentNotesViewModel {
             let title = (session.project?.title ?? "").trimmed()
             return title.isEmpty ? "Project Session" : title
         }
-        if note.practiceSession != nil { return "Practice" }
         return "General Note"
     }
 

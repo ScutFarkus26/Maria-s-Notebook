@@ -136,60 +136,7 @@ struct MCPTodoLibraryToolsFix1012MCTests {
         #expect(everything.contains("The Hobbit"))
     }
 
-    private func seedJob(_ name: String, active: Bool, in context: NSManagedObjectContext) -> CDClassroomJob {
-        let job = CDClassroomJob(context: context)
-        job.id = UUID()
-        job.name = name
-        job.isActive = active
-        job.maxStudents = 2
-        return job
-    }
-
-    @Test("assign_job refuses a retired job and a child who has left")
-    func assignJobRefusesRetiredAndDeparted() async throws {
-        let (tools, context) = try makeTools()
-        _ = seedJob("Chalkboards", active: false, in: context)
-        _ = seedJob("Plant Care", active: true, in: context)
-        CoreDataTestHelpers.seedStudent(in: context, firstName: "Tess", lastName: "Oyelaran")
-        CoreDataTestHelpers.seedStudent(
-            in: context, firstName: "Naomi", lastName: "Reyes", enrollmentStatus: .withdrawn
-        )
-        #expect(CoreDataTestHelpers.save(context))
-
-        let retired = await refusal("assign_job", [
-            "job": .string("Chalkboards"), "student_name": .string("Tess"), "week_of": .string("2026-10-14")
-        ], in: tools)
-        #expect(retired.contains("retired"))
-
-        let departed = await refusal("assign_job", [
-            "job": .string("Plant Care"), "student_name": .string("Naomi"), "week_of": .string("2026-10-14")
-        ], in: tools)
-        #expect(departed.contains("assign_job refused"))
-        #expect(context.safeFetch(CDFetchRequest(CDJobAssignment.self)).isEmpty)
-    }
-
     // MARK: - #20: replies that change nothing stay out of the write journal
-
-    @Test("assign_job's already-has and empty-clear replies are not journaled as writes")
-    func assignJobNoOpsWriteNothing() async throws {
-        let (tools, context) = try makeTools()
-        _ = seedJob("Plant Care", active: true, in: context)
-        CoreDataTestHelpers.seedStudent(in: context, firstName: "Tess", lastName: "Oyelaran")
-        #expect(CoreDataTestHelpers.save(context))
-        let assign: [String: JSONValue] = [
-            "job": .string("Plant Care"), "student_name": .string("Tess"), "week_of": .string("2026-10-14")
-        ]
-
-        let clearEmpty = try await outcome("assign_job", [
-            "job": .string("Plant Care"), "clear": .bool(true), "week_of": .string("2026-10-21")
-        ], in: tools)
-        #expect(clearEmpty.wroteNothing)
-
-        let first = try await outcome("assign_job", assign, in: tools)
-        #expect(!first.wroteNothing)
-        let again = try await outcome("assign_job", assign, in: tools)
-        #expect(again.wroteNothing)
-    }
 
     @Test("adjust_supply's already-at reply is not journaled as a write")
     func adjustSupplyNoOpWritesNothing() async throws {

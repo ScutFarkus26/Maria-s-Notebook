@@ -20,12 +20,12 @@ struct BackupSparseRowTests {
 
     /// The entity types written through `ModelRow`.
     static let entityNames = [
-        "LessonRecallCheck", "MeetingTemplate", "Track", "Schedule", "GoingOut", "ClassroomJob",
+        "LessonRecallCheck", "MeetingTemplate", "Track", "Schedule", "GoingOut",
         "CalendarNote", "ClassroomMembership", "StudentFocusItem", "DayPad", "YearPlanEntry",
         "LessonSequenceSettings", "BookClubSession", "Guardian", "ParentCommunication", "AlbumBookmark",
         "AlbumPageNote", "AlbumRecentVisit", "AlbumReadingPosition", "OrderItem", "ProposedSolution",
         "WorkStep", "SampleWorkStep", "TrackStep", "LessonAttachment", "NoteStudentLink",
-        "JobAssignment", "BookClubMeeting", "StudentTrackEnrollment", "MeetingWorkReview", "AttendanceDayLock",
+        "BookClubMeeting", "StudentTrackEnrollment", "MeetingWorkReview", "AttendanceDayLock",
         "SupplyTransaction", "AttendanceEmailSend", "AttendanceEmailSettings", "ClassroomPerson",
         "TimetableLane", "TimetableBlock", "TimetableChange", "TimetableBooking"
     ]
@@ -53,7 +53,6 @@ struct BackupSparseRowTests {
         ParentCase("TrackStep", "trackID", "track", "Track", false),
         ParentCase("LessonAttachment", "lessonID", "lesson", "Lesson", false),
         ParentCase("NoteStudentLink", "noteID", "note", "Note", true),
-        ParentCase("JobAssignment", "jobID", "job", "ClassroomJob", true),
         ParentCase("BookClubMeeting", "sessionID", "session", "BookClubSession", true),
         ParentCase("StudentTrackEnrollment", "trackID", "track", "Track", true),
         ParentCase("MeetingWorkReview", "meetingID", "meeting", "StudentMeeting", true),

@@ -282,6 +282,11 @@ enum MigrationRunner {
         // Uniform check-in work saved without its project type, every launch
         // outside the first download; it saves on its own (see +ProjectWorkContext).
         DataCleanupService.repairProjectWorkContextTypeIfDue(using: context, firstDownloadPending: firstDownloadPending)
+        // Retired practice sessions become practice check-ins, every launch
+        // outside the first download; it saves on its own (see PracticeCheckInCopy).
+        if !firstDownloadPending {
+            PracticeCheckInCopy.runAndSave(in: context)
+        }
         return results
     }
 

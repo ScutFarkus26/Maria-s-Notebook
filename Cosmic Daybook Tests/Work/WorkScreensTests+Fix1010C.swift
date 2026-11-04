@@ -99,63 +99,16 @@ struct WorkScreensFix1010CTests {
         let dates: [Date?] = [
             AppCalendar.addingDays(-7, to: today), today, AppCalendar.addingDays(3, to: today), nil
         ]
-        let sessions = dates.map { date -> CDPracticeSession in
-            let session = CDPracticeSession(context: context)
-            session.checkInScheduledFor = date
-            return session
+        let work = CoreDataTestHelpers.seedWorkModel(in: context, studentID: UUID(), lessonID: UUID())
+        let scheduled = dates.map { date -> CDWorkCheckIn in
+            let checkIn = CDWorkCheckIn.make(for: work, on: date ?? today, in: context)
+            checkIn.date = date
+            return checkIn
         }
-        let stats = PracticeStatsCalculator.calculate(from: sessions, today: today.addingTimeInterval(15 * 3600))
+        let stats = PracticeStatsCalculator.calculate(
+            from: [], scheduled: scheduled, today: today.addingTimeInterval(15 * 3600)
+        )
         #expect(stats.upcomingCheckIns == 2)
-    }
-
-    // MARK: - Practice partners (#58)
-
-    @Test("Learned Together is the presentation this work follows, not the first record of the lesson")
-    func coLearnersComeFromThisWorksPresentation() throws {
-        let context = try makeContext()
-        let lessonID = UUID()
-        let maya = UUID()
-        let ana = UUID()
-        let eli = UUID()
-        let old = PresentationFactory.makePresented(
-            lessonID: lessonID, studentIDs: [maya, ana],
-            presentedAt: try CoreDataTestHelpers.day("2025-02-03"), context: context
-        )
-        let recent = PresentationFactory.makePresented(
-            lessonID: lessonID, studentIDs: [maya, eli],
-            presentedAt: try CoreDataTestHelpers.day("2026-09-14"), context: context
-        )
-        let work = CoreDataTestHelpers.seedWorkModel(in: context, studentID: maya, lessonID: lessonID)
-
-        work.presentationID = recent.id?.uuidString
-        #expect(StudentCategorizer.getCoLearnerIDs(for: work, allLessonAssignments: [old, recent]) == [maya, eli])
-
-        // No presentation on the work: her latest given one.
-        work.presentationID = nil
-        #expect(StudentCategorizer.getCoLearnerIDs(for: work, allLessonAssignments: [old, recent]) == [maya, eli])
-    }
-
-    @Test("an Incomplete row isn't Recently Completed; a Mastered one is")
-    func incompleteIsNotRecentlyCompleted() throws {
-        let context = try makeContext()
-        let lessonID = UUID()
-        let maya = CoreDataTestHelpers.seedStudent(in: context, firstName: "Maya")
-        let eli = CoreDataTestHelpers.seedStudent(in: context, firstName: "Eli")
-        let mayaID = try #require(maya.id)
-        let eliID = try #require(eli.id)
-        let initial = CoreDataTestHelpers.seedWorkModel(in: context, studentID: mayaID, lessonID: lessonID)
-        let elis = CoreDataTestHelpers.seedWorkModel(in: context, studentID: eliID, lessonID: lessonID)
-        elis.status = .incomplete
-        elis.completedAt = AppCalendar.addingDays(-3, to: Date())
-
-        let categorizer = StudentCategorizer(
-            initialWorkItem: initial, allWork: [initial, elis],
-            allLessonAssignments: [], allPracticeSessions: [], coLearnerIDs: []
-        )
-        #expect(categorizer.categorize(eli).category != .recentlyPassed)
-
-        elis.status = .mastered
-        #expect(categorizer.categorize(eli).category == .recentlyPassed)
     }
 
     // MARK: - Lesson Cohort (#55)

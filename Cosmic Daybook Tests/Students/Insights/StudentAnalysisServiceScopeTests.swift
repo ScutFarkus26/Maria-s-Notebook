@@ -21,10 +21,8 @@ private struct CannedAnalysisClient: MCPClientProtocol {
 }
 
 /// Pins what one Insights analysis materialises for a student. Her notes
-/// and work completions are fetched by her id; practice sessions carry their
-/// roster as a Transformable blob, so the lookback window's sessions for the
-/// whole class are read and filtered in memory, as the progress tab's
-/// projects are. The snapshot's counts must not change.
+/// and work completions are fetched by her id, her practice check-ins by her
+/// work's ids (read as plain values). The snapshot's counts must not change.
 @Suite("Student Analysis Service scope")
 @MainActor
 struct StudentAnalysisServiceScopeTests {
@@ -34,7 +32,7 @@ struct StudentAnalysisServiceScopeTests {
         let student: CDStudent
     }
 
-    /// One student with two notes, one practice session and one completion
+    /// One student with two notes, one practice check-in and one completion
     /// inside the 30-day window plus a note outside it, next to `others`
     /// classmates carrying the same shape.
     private func seed(others: Int) throws -> Seeded {
@@ -59,9 +57,9 @@ struct StudentAnalysisServiceScopeTests {
         for body in ["Chose the bead frame", "Read aloud to a friend"] {
             CoreDataTestHelpers.seedNote(in: context, body: body).scope = .student(studentID)
         }
-        let session = CDPracticeSession(context: context)
-        session.studentIDsArray = [studentID.uuidString]
-        session.practiceQuality = 4
+        let work = CoreDataTestHelpers.seedWorkModel(in: context, title: "Bead frame", studentID: studentID)
+        // Minutes only, so no note: her two notes stay the only ones.
+        PracticeCheckIns.record(PracticeRecord(date: Date(), minutes: 15), on: work, in: context)
         let completion = CDWorkCompletionRecord(context: context)
         completion.studentID = studentID.uuidString
     }
@@ -76,11 +74,13 @@ struct StudentAnalysisServiceScopeTests {
         #expect(snapshot.totalNotesAnalyzed == 2)
         #expect(snapshot.practiceSessionsAnalyzed == 1)
         #expect(snapshot.workCompletionsAnalyzed == 1)
-        #expect(snapshot.averagePracticeQuality == 4)
+        // The rating is a word on the check-in's note now, not a number: 0 is
+        // the snapshot's "no average", which Insights doesn't show.
+        #expect(snapshot.averagePracticeQuality == 0)
         #expect(snapshot.keyStrengths == ["focus"])
     }
 
-    @Test("One analysis materialises her rows plus the window's practice sessions")
+    @Test("One analysis materialises her rows and nobody else's")
     func analysisMaterialisesOnlyTheStudentsRows() async throws {
         let seeded = try seed(others: 12)
         let context = seeded.stack.viewContext
@@ -88,10 +88,8 @@ struct StudentAnalysisServiceScopeTests {
         let service = StudentAnalysisService(modelContext: context, mcpClient: CannedAnalysisClient())
         _ = try await service.analyzeStudent(seeded.student, lookbackDays: 30)
         let registered = context.registeredObjects.count - before
-        // Her two notes, her completion, the new snapshot, and the window's 13
-        // practice sessions (hers and the 12 classmates'): 17. The roster on
-        // a practice session is a Transformable blob, so the store cannot
-        // narrow that read to her.
-        #expect(registered <= 17, "registered \(registered) objects for one student")
+        // Her two notes, her completion, her practice check-in and the new
+        // snapshot: 5. Her work ids are read as values, not rows.
+        #expect(registered <= 5, "registered \(registered) objects for one student")
     }
 }
