@@ -88,7 +88,7 @@ struct MCPNotebookToolsTests {
         CoreDataTestHelpers.save(context)
 
         do {
-            _ = try await tool(named: "student_observations", in: tools).handler([
+            _ = try await tool(named: "student_record", in: tools).presetting("sections", ["observations"]).handler([
                 "student_name": .string("Maria")
             ])
             Issue.record("Expected an ambiguity error")
@@ -207,7 +207,7 @@ struct MCPNotebookToolsTests {
         classroomWide.scope = .all
         CoreDataTestHelpers.save(context)
 
-        let output = try await tool(named: "student_observations", in: tools).handler([
+        let output = try await tool(named: "student_record", in: tools).presetting("sections", ["observations"]).handler([
             "student_name": .string("Ada")
         ])
         #expect(output.contains("stamp game"))

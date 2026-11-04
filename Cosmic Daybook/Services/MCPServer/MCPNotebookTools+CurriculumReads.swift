@@ -3,9 +3,9 @@
 //  Cosmic Daybook
 //
 //  Reading a whole area or sub-area of the curriculum in taught order, with
-//  no cap. `find_lessons` stops at 25 because it answers "which lesson does
-//  the guide mean"; this answers "what is in the notebook", which is what an
-//  album-versus-notebook comparison needs in one call.
+//  no cap (`find_lessons` with `area`). A name search stops at 25 because it
+//  answers "which lesson does the guide mean"; this answers "what is in the
+//  notebook", which is what an album-versus-notebook comparison needs in one call.
 //
 //  Within a sub-area the lessons sit under their section headings, in the
 //  same bands the scope map and the Checklist draw (`LessonSectionGrouping`),
@@ -20,42 +20,27 @@ import Foundation
 
 extension MCPNotebookTools {
 
-    static func listLessonsByAreaTool(context: @escaping MCPContextProvider) -> MCPToolDefinition {
-        MCPToolDefinition(
-            name: "list_lessons_by_area",
-            title: "List Lessons By Area",
-            description: "Every lesson in one area, or one sub-area, of the curriculum in sequence "
-                + "order with no result cap — use it to compare the notebook against an album "
-                + "before create_lesson or reorder_lessons. Lines are numbered by position within "
-                + "their sub-area (1-based) and cite each lesson as [lesson id=<uuid>], the same id "
-                + "find_lessons returns. An area listing groups by sub-area in the order the "
-                + "scope map shows them. Within a sub-area, lessons that carry a section sit "
-                + "under a \"Section: <name>\" heading in the map's band order, with the rest "
-                + "under \"No section\"; a sub-area with no sections is a plain numbered list. A lesson "
-                + "with files of its own ends with \" · files: <titles>\".",
-            inputSchema: [
-                "type": "object",
-                "properties": [
-                    "area": [
-                        "type": "string",
-                        "description": "The top-level area, e.g. \"Language\" or \"Math\""
-                    ],
-                    "sub_area": [
-                        "type": "string",
-                        "description": .string("One sub-area (sequence) within the area, e.g. "
-                            + "\"Logical Analysis\". Omit for the whole area.")
-                    ]
-                ],
-                "required": ["area"]
-            ],
-            annotations: .readOnly,
-            handler: { arguments in
-                try listLessonsByArea(arguments: arguments, in: context())
-            }
-        )
-    }
+    /// `find_lessons`' `area` and `sub_area` properties: a whole area (or one of its sub-areas) in
+    /// sequence order with no result cap, in place of a name search.
+    static let lessonsByAreaSchema: [String: JSONValue] = [
+        "area": [
+            "type": "string",
+            "description": .string("List every lesson in this top-level area (e.g. \"Language\", \"Math\") in "
+                + "sequence order with no result cap, instead of searching by query — to compare the notebook "
+                + "against an album before create_lesson or reorder_lessons. Lines are numbered by position "
+                + "within their sub-area (1-based). An area listing groups by sub-area in the order the scope "
+                + "map shows them. Within a sub-area, lessons that carry a section sit under a "
+                + "\"Section: <name>\" heading in the map's band order, with the rest under \"No section\"; "
+                + "a sub-area with no sections is a plain numbered list.")
+        ],
+        "sub_area": [
+            "type": "string",
+            "description": .string("With area: one sub-area (sequence) within it, e.g. \"Logical Analysis\". "
+                + "Omit for the whole area.")
+        ]
+    ]
 
-    private static func listLessonsByArea(
+    static func listLessonsByArea(
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
     ) throws -> String {
         let lessons = allCurriculumLessons(in: modelContext)

@@ -44,7 +44,7 @@ extension MCPNotebookTools {
                     ],
                     "work_id": [
                         "type": "string",
-                        "description": "A work item to review in the meeting, by id from student_work"
+                        "description": "A work item to review in the meeting, by id from student_record (work)"
                     ]
                 ],
                 "required": ["student", "date"]

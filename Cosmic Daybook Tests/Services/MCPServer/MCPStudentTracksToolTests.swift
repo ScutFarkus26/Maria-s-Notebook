@@ -68,7 +68,7 @@ struct MCPStudentTracksToolTests {
         try give(lines2[0], to: maya, in: context)
         #expect(CoreDataTestHelpers.save(context))
 
-        let output = try await tool(named: "student_tracks", in: tools).handler([
+        let output = try await tool(named: "student_record", in: tools).presetting("sections", ["tracks"]).handler([
             "student_name": .string("Maya")
         ])
 
@@ -87,7 +87,7 @@ struct MCPStudentTracksToolTests {
         _ = seedSequence(["Parts of a Line"], area: "Geometry", sequence: "Lines", in: context)
         #expect(CoreDataTestHelpers.save(context))
 
-        let output = try await tool(named: "student_tracks", in: tools).handler([
+        let output = try await tool(named: "student_record", in: tools).presetting("sections", ["tracks"]).handler([
             "student_name": .string("Etty")
         ])
 
@@ -106,12 +106,12 @@ struct MCPStudentTracksToolTests {
         try give(lines2[0], to: chaya, in: context)
         #expect(CoreDataTestHelpers.save(context))
 
-        let byDefault = try await tool(named: "student_tracks", in: tools).handler([
+        let byDefault = try await tool(named: "student_record", in: tools).presetting("sections", ["tracks"]).handler([
             "student_name": .string("Chaya")
         ])
         #expect(lines(in: byDefault) == ["- [sequence: Geometry — Lines] 0/1 lessons mastered"])
 
-        let withFinished = try await tool(named: "student_tracks", in: tools).handler([
+        let withFinished = try await tool(named: "student_record", in: tools).presetting("sections", ["tracks"]).handler([
             "student_name": .string("Chaya"),
             "include_inactive": .bool(true)
         ])
@@ -136,7 +136,7 @@ struct MCPStudentTracksToolTests {
         try give(lines2[1], to: other, marked: true, in: context)
         #expect(CoreDataTestHelpers.save(context))
 
-        let output = try await tool(named: "student_tracks", in: tools).handler([
+        let output = try await tool(named: "student_record", in: tools).presetting("sections", ["tracks"]).handler([
             "student_name": .string("Sarah")
         ])
 

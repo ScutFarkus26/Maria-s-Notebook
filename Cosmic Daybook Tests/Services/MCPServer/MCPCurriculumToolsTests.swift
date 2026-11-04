@@ -49,7 +49,7 @@ struct MCPCurriculumToolsTests {
         CoreDataTestHelpers.seedLesson(in: context, name: "Other", area: "Language", sequence: "Word Study")
         #expect(CoreDataTestHelpers.save(context))
 
-        let output = try await tool(named: "list_lessons_by_area", in: tools).handler([
+        let output = try await tool(named: "find_lessons", in: tools).handler([
             "area": .string("language"), "sub_area": .string("logical analysis")
         ])
         let lines = output.split(separator: "\n").map(String.init)
@@ -71,7 +71,7 @@ struct MCPCurriculumToolsTests {
         CoreDataTestHelpers.seedLesson(in: context, name: "Bead Frame", area: "Math", sequence: "Operations")
         #expect(CoreDataTestHelpers.save(context))
 
-        let output = try await tool(named: "list_lessons_by_area", in: tools).handler(["area": .string("Language")])
+        let output = try await tool(named: "find_lessons", in: tools).handler(["area": .string("Language")])
         #expect(output.hasPrefix("Language: 5 lesson(s) in 3 sub-area(s)"))
         #expect(output.contains("Language › Logical Analysis — 2 lesson(s)\n1. [lesson id="))
         #expect(output.contains("Language › Word Study — 2 lesson(s)"))
@@ -79,7 +79,7 @@ struct MCPCurriculumToolsTests {
         #expect(!output.contains("Bead Frame"))
 
         await #expect(throws: MCPToolError.self) {
-            try await tool(named: "list_lessons_by_area", in: tools).handler(["area": .string("Astronomy")])
+            try await tool(named: "find_lessons", in: tools).handler(["area": .string("Astronomy")])
         }
     }
 

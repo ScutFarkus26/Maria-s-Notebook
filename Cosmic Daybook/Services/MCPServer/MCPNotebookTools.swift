@@ -78,33 +78,26 @@ enum MCPNotebookTools {
         lessonFiles: MCPLessonFiles
     ) -> [MCPToolDefinition] {
         [
-            listStudentsTool(context: context),
+            rosterTool(context: context),
             updateStudentTool(context: context),
             searchNotebookTool(),
-            classroomSnapshotTool(context: context),
-            syncStatusTool(),
-            recentMCPWritesTool(journal: journal),
+            notebookStatusTool(journal: journal),
             dataChecksTool(context: context),
             findLessonsTool(context: context),
-            listLessonsByAreaTool(context: context),
             createLessonTool(context: context),
             updateLessonTool(context: context),
             reorderLessonsTool(context: context),
             attachFileToLessonTool(context: context, files: lessonFiles),
             listLessonAttachmentsTool(context: context),
             removeLessonAttachmentTool(context: context, files: lessonFiles),
-            searchAlbumsTool(),
-            albumPageTool(),
-            albumMarksTool(context: context),
-            studentTracksTool(context: context),
-            studentCurriculumMapTool(context: context),
+            albumsTool(context: context),
+            studentRecordTool(context: context),
             classCurriculumMapTool(context: context),
             weeklySchedulesTool(context: context),
             setTimetableTool(context: context),
             changeScheduleDayTool(context: context),
             yearPlanTool(context: context),
-            studentsPendingTool(context: context),
-            studentsReadyTool(context: context),
+            classProgressTool(context: context),
             updateYearPlanEntryTool(context: context),
             skipYearPlanEntriesTool(context: context),
             clearYearPlanTool(context: context),
@@ -116,19 +109,12 @@ enum MCPNotebookTools {
         context: @escaping MCPContextProvider
     ) -> [MCPToolDefinition] {
         [
-            studentObservationsTool(context: context),
             createObservationTool(context: context),
             updateObservationTool(context: context),
-            studentPresentationHistoryTool(context: context),
-            presentationsMissingObservationsTool(context: context),
             recordPresentationTool(context: context),
             markMasteredTool(context: context),
-            masteryCandidatesTool(context: context),
             createMeetingEntryTool(context: context),
-            studentMeetingsTool(context: context),
-            scheduledMeetingsTool(context: context),
-            scheduleMeetingTool(context: context),
-            recallChecksTool(context: context)
+            scheduleMeetingTool(context: context)
         ]
     }
 
@@ -136,12 +122,11 @@ enum MCPNotebookTools {
         context: @escaping MCPContextProvider
     ) -> [MCPToolDefinition] {
         [
-            scheduleForRangeTool(context: context),
+            scheduleTool(context: context),
             schedulePresentationTool(context: context),
             reschedulePresentationTool(context: context),
             discardPresentationTool(context: context),
             updatePresentationRosterTool(context: context),
-            studentWorkTool(context: context),
             workDetailTool(context: context),
             assignWorkTool(context: context),
             updateWorkTool(context: context),
@@ -154,11 +139,9 @@ enum MCPNotebookTools {
     ) -> [MCPToolDefinition] {
         [
             attendanceForDayTool(context: context),
-            studentAttendanceTool(context: context),
             markAttendanceTool(context: context),
             sendAttendanceToSchoolTool(),
-            listOpenFollowUpsTool(context: context),
-            listTodosTool(context: context),
+            todosTool(context: context),
             addFollowUpTool(context: context),
             updateTodoTool(context: context),
             resolveFollowUpTool(context: context)
@@ -169,30 +152,18 @@ enum MCPNotebookTools {
         context: @escaping MCPContextProvider
     ) -> [MCPToolDefinition] {
         [
-            listGuardiansTool(context: context),
+            familiesTool(context: context),
             updateGuardianTool(context: context),
-            parentCommunicationsTool(context: context),
             recordParentCommunicationTool(context: context),
-            listGoingOutsTool(context: context),
-            updateGoingOutTool(context: context),
             listSuppliesTool(context: context),
             adjustSupplyTool(context: context),
             markSuppliesTool(context: context),
-            listOrdersTool(context: context),
-            addOrderItemsTool(context: context),
-            updateOrderItemsTool(context: context),
             listProjectsTool(context: context),
-            projectDetailTool(context: context),
-            updateProjectTool(context: context),
-            addProjectSessionTool(context: context),
             listIssuesTool(context: context),
             updateIssueTool(context: context),
-            listProceduresTool(context: context),
-            listStoriesTool(context: context),
             communityTopicsTool(context: context),
             updateCommunityTopicTool(context: context),
             listResourcesTool(context: context),
-            bookClubTool(context: context),
             dayPadTool(context: context)
         ]
     }

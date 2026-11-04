@@ -164,7 +164,7 @@ struct MCPWriteSafetyTests {
         note.scope = .student(try #require(ora.id))
         CoreDataTestHelpers.save(context)
 
-        let output = try await tool(named: "student_observations", in: tools).handler([
+        let output = try await tool(named: "student_record", in: tools).presetting("sections", ["observations"]).handler([
             "student_name": .string("Ora"), "until": dayText(60)
         ])
 

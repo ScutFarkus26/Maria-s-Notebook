@@ -57,7 +57,7 @@ struct MCPPresentationHistoryToolsTests {
     func defaultLimitAndRaisedLimit() async throws {
         let (tools, context) = try makeTools()
         _ = try seedClassroom(in: context)
-        let history = try tool(named: "student_presentation_history", in: tools)
+        let history = try tool(named: "student_record", in: tools).presetting("sections", ["presentation_history"])
 
         let capped = try await history.handler(["student_name": .string("Ora")])
         #expect(capped.contains(
@@ -78,7 +78,7 @@ struct MCPPresentationHistoryToolsTests {
         let (tools, context) = try makeTools()
         _ = try seedClassroom(in: context)
 
-        let recent = try await tool(named: "student_presentation_history", in: tools).handler([
+        let recent = try await tool(named: "student_record", in: tools).presetting("sections", ["presentation_history"]).handler([
             "student_name": .string("Ora"), "since": .string("2026-10-10")
         ])
         #expect(recent.contains("Presentations since 2026-10-10 for Ora Pardo (3):"))
@@ -86,7 +86,7 @@ struct MCPPresentationHistoryToolsTests {
         #expect(!recent.contains("2026-09-10"))
 
         let refusal = await #expect(throws: MCPToolError.self) {
-            _ = try await tool(named: "student_presentation_history", in: tools).handler([
+            _ = try await tool(named: "student_record", in: tools).presetting("sections", ["presentation_history"]).handler([
                 "student_name": .string("Ora"), "since": .string("October")
             ])
         }
@@ -105,7 +105,7 @@ struct MCPPresentationHistoryToolsTests {
         try seedGiven(stampGame, to: ora, on: "2026-05-04", in: context)
         #expect(CoreDataTestHelpers.save(context))
 
-        let history = try await tool(named: "student_presentation_history", in: tools).handler([
+        let history = try await tool(named: "student_record", in: tools).presetting("sections", ["presentation_history"]).handler([
             "student_name": .string("Ora")
         ])
         #expect(history.contains("2026-09-16 — Checkerboard (2nd time; second pass) ("))
@@ -117,7 +117,7 @@ struct MCPPresentationHistoryToolsTests {
         // A revisit with no reason on the record still carries its ordinal.
         again.notes = ""
         #expect(CoreDataTestHelpers.save(context))
-        let plain = try await tool(named: "student_presentation_history", in: tools).handler([
+        let plain = try await tool(named: "student_record", in: tools).presetting("sections", ["presentation_history"]).handler([
             "student_name": .string("Ora"), "lesson": .string("Checkerboard")
         ])
         #expect(plain.contains("2026-09-16 — Checkerboard (2nd time) ("))
@@ -127,7 +127,7 @@ struct MCPPresentationHistoryToolsTests {
     func lessonFilterAnswersHasSheHadIt() async throws {
         let (tools, context) = try makeTools()
         let classroom = try seedClassroom(in: context)
-        let history = try tool(named: "student_presentation_history", in: tools)
+        let history = try tool(named: "student_record", in: tools).presetting("sections", ["presentation_history"])
 
         let stampGame = try await history.handler([
             "student_name": .string("Ora"), "lesson": .string("stamp game")

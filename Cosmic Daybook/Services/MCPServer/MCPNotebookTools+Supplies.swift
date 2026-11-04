@@ -29,11 +29,13 @@ extension MCPNotebookTools {
             description: "The Restock staples: each one's level (stocked, low, out), the place it "
                 + "lives, whether it comes from the office or is ordered, and who set the level and "
                 + "when. Low and out staples are what the office run and the to-order list are made "
-                + "of (see list_orders). Counts are kept only where someone recorded one; pass "
-                + "`below` to ask what has fallen under a number.",
+                + "of: pass `stage` to list those needs instead (open, to_request, asked_for, confirmed, "
+                + "received or all), each with the order id mark_supplies moves. Counts are kept only "
+                + "where someone recorded one; pass `below` to ask what has fallen under a number.",
             inputSchema: [
                 "type": "object",
                 "properties": [
+                    "stage": needsStageSchema,
                     "below": [
                         "type": "integer",
                         "description": "Only supplies with fewer than this many on hand"
@@ -64,7 +66,10 @@ extension MCPNotebookTools {
             ],
             annotations: .readOnly,
             handler: { arguments in
-                try describeSupplies(arguments: arguments, in: context())
+                if arguments["stage"]?.stringValue != nil {
+                    return try describeOrders(arguments: arguments, in: context())
+                }
+                return try describeSupplies(arguments: arguments, in: context())
             }
         )
     }
@@ -267,103 +272,6 @@ extension MCPNotebookTools {
         let (delta, overflow) = Int64(setTo).subtractingReportingOverflow(before)
         if overflow { throw tooLarge }
         return (delta, Int64(setTo))
-    }
-
-    // MARK: - Marking Levels
-
-    static func markSuppliesTool(context: @escaping MCPContextProvider) -> MCPToolDefinition {
-        MCPToolDefinition(
-            name: "mark_supplies",
-            title: "Mark Supply Levels",
-            description: "Set the level of one or more staples: stocked, low, or out. Low and out put "
-                + "the staple on the office run or the to-order list (one open need each); stocked "
-                + "takes it off again. Every name is checked before anything is saved, so one "
-                + "unknown name changes nothing. A level a staple already has is reported, not "
-                + "rewritten. Each change is logged in the staple's history.",
-            inputSchema: [
-                "type": "object",
-                "properties": [
-                    "supplies": [
-                        "type": "array",
-                        "description": "One entry per staple",
-                        "items": [
-                            "type": "object",
-                            "properties": [
-                                "supply": ["type": "string", "description": "The supply's id or its exact name"],
-                                "level": ["type": "string", "enum": ["stocked", "low", "out"]]
-                            ],
-                            "required": ["supply", "level"]
-                        ]
-                    ]
-                ],
-                "required": ["supplies"]
-            ],
-            annotations: .idempotentWrite,
-            handler: { arguments in
-                try undoingOnFailure(context()) { try markSupplies(arguments: arguments, in: $0) }
-            }
-        )
-    }
-
-    private static func markSupplies(
-        arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
-    ) throws -> String {
-        guard let entries = arguments["supplies"]?.arrayValue, !entries.isEmpty else {
-            throw MCPToolError("Pass supplies: at least one { supply, level }.")
-        }
-        // Every name and level is resolved before the first write.
-        let marks: [(supply: CDSupply, level: RestockLevel)] = try entries.enumerated().map { index, entry in
-            let fields = entry.objectValue ?? [:]
-            let reference = nonEmpty(fields["supply"]?.stringValue) ?? ""
-            let rawLevel = nonEmpty(fields["level"]?.stringValue)?.lowercased() ?? ""
-            guard let level = RestockLevel(rawValue: rawLevel) else {
-                throw MCPToolError(
-                    "Entry \(index + 1): \"\(rawLevel)\" is not a level. Use stocked, low, or out. "
-                        + "Nothing was changed."
-                )
-            }
-            do {
-                return (try resolveSupply(reference, in: modelContext), level)
-            } catch let error as MCPToolError {
-                throw MCPToolError("Entry \(index + 1): \(error.message) Nothing was changed.")
-            }
-        }
-
-        let author = RestockAuthor.current(in: modelContext)
-        var lines: [String] = []
-        var changed = false
-        for (supply, level) in marks {
-            let before = supply.level
-            if RestockService.setLevel(supply, to: level, by: author, in: modelContext) {
-                changed = true
-                lines.append(markLine(supply, from: before, in: modelContext))
-            } else {
-                lines.append("[supply id=\(supply.id?.uuidString ?? "unknown")] \(supply.name): "
-                    + "already \(level.displayName.lowercased()), nothing to record.")
-            }
-        }
-        guard changed else {
-            MCPCallOutcome.markNothingWritten()
-            return lines.joined(separator: "\n")
-        }
-        guard modelContext.safeSave() else {
-            throw MCPToolError("The levels could not be saved.")
-        }
-        return "Marked \(lines.count):\n" + lines.joined(separator: "\n")
-    }
-
-    private static func markLine(
-        _ supply: CDSupply, from before: RestockLevel, in modelContext: NSManagedObjectContext
-    ) -> String {
-        let id = supply.id?.uuidString ?? "unknown"
-        var line = "[supply id=\(id)] \(supply.name): \(before.displayName.lowercased()) to "
-            + "\(supply.level.displayName.lowercased())."
-        if supply.level.isNeeded {
-            line += supply.source == .office ? " On the office run." : " On the to-order list."
-        } else {
-            line += " Its need is closed."
-        }
-        return line
     }
 
     static func resolveSupply(

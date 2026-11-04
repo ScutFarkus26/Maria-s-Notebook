@@ -193,7 +193,7 @@ struct MCPRecentWritesToolTests {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
         let context = stack.viewContext
         let tools = MCPNotebookTools.makeTools(context: { context }, journal: journal)
-        return try #require(tools.first { $0.name == "recent_mcp_writes" })
+        return try #require(tools.first { $0.name == "notebook_status" }).presetting("view", "recent_writes")
     }
 
     @Test("An empty journal says so")

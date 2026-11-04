@@ -150,7 +150,7 @@ extension MCPNotebookTools {
 
     /// One numbered line per lesson, positions 1-based, in the same
     /// `[lesson id=<uuid>]` shape `find_lessons` prints.
-    /// `files` adds each lesson's own files (`list_lessons_by_area` only;
+    /// `files` adds each lesson's own files (`find_lessons` only;
     /// receipts list lessons without them).
     static func numberedLessonLines(_ lessons: [CDLesson], files: LessonFileTitles? = nil) -> String {
         lessons.enumerated()

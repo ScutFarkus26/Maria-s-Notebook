@@ -27,7 +27,7 @@ extension MCPNotebookTools {
             description: "The classroom's plan for a day or a span of days: lessons scheduled to "
                 + "be presented, work check-ins due, calendar events, the day's pad (the one day "
                 + "note, which the Calendar shows too), and whether school is in session. Use "
-                + "this for what is coming up; student_presentation_history covers what has "
+                + "this for what is coming up; student_record (presentation_history) covers what has "
                 + "already been given.",
             inputSchema: [
                 "type": "object",

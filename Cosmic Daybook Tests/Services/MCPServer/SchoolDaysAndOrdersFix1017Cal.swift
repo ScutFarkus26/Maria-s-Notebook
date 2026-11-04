@@ -161,21 +161,21 @@ struct SchoolDaysAndOrdersFix1017Cal {
         #expect(mixed.contains("2026-10-18"))
     }
 
-    // MARK: - #16 update_order_items with nothing to change
+    // MARK: - #16 mark_supplies needs with nothing to change
 
-    @Test("#16 update_order_items that changes nothing says so and isn't journaled")
+    @Test("#16 mark_supplies needs that change nothing says so and isn't journaled")
     func orderUpdateWithNothingToChange() async throws {
         let harness = try makeHarness()
-        _ = try await call("add_order_items", [
-            "items": .array([.object(["url": .string("example.com/glue"), "title": .string("Glue sticks")])])
+        _ = try await call("mark_supplies", [
+            "new_needs": .array([.object(["url": .string("example.com/glue"), "title": .string("Glue sticks")])])
         ], in: harness)
         let item = try #require(harness.context.safeFetch(CDFetchRequest(CDOrderItem.self)).first)
         let id = try #require(item.id?.uuidString)
         let modifiedBefore = item.modifiedAt
 
         let (sameStage, stageReply) = try await outcome {
-            try await call("update_order_items", [
-                "items": .array([.object(["id": .string(id), "stage": .string("to_request")])])
+            try await call("mark_supplies", [
+                "needs": .array([.object(["id": .string(id), "stage": .string("to_request")])])
             ], in: harness)
         }
         #expect(sameStage.wroteNothing)
@@ -183,8 +183,8 @@ struct SchoolDaysAndOrdersFix1017Cal {
         #expect(stageReply.contains("Nothing changed"))
 
         let (sameTitle, titleReply) = try await outcome {
-            try await call("update_order_items", [
-                "items": .array([.object([
+            try await call("mark_supplies", [
+                "needs": .array([.object([
                     "id": .string(id), "title": .string("Glue sticks"), "quantity": .int(Int(item.quantity))
                 ])])
             ], in: harness)
@@ -194,8 +194,8 @@ struct SchoolDaysAndOrdersFix1017Cal {
         #expect(item.modifiedAt == modifiedBefore)
 
         let (renamed, renameReply) = try await outcome {
-            try await call("update_order_items", [
-                "items": .array([.object(["id": .string(id), "title": .string("Glue sticks, large")])])
+            try await call("mark_supplies", [
+                "needs": .array([.object(["id": .string(id), "title": .string("Glue sticks, large")])])
             ], in: harness)
         }
         #expect(!renamed.wroteNothing)

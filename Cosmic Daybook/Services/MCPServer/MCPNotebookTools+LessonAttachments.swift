@@ -57,7 +57,7 @@ extension MCPNotebookTools {
                 "properties": [
                     "lesson": [
                         "type": "string",
-                        "description": "Lesson id (from find_lessons or list_lessons_by_area) or exact name"
+                        "description": "Lesson id (from find_lessons) or exact name"
                     ],
                     "path": [
                         "type": "string",

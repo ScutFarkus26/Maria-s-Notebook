@@ -62,7 +62,7 @@ struct MCPWatchingToolsTests {
     @Test("watching_only cites exactly the fetcher's rows and leaves the ordinary todo out")
     func watchingOnlyMatchesFetcher() async throws {
         let fixture: Fixture = try makeFixture()
-        let output: String = try await tool(named: "list_open_follow_ups", in: fixture.tools)
+        let output: String = try await tool(named: "list_todos", in: fixture.tools).presetting("view", "open_follow_ups")
             .handler(["watching_only": .bool(true)])
 
         let rows: [WatchItem] = WatchListFetcher.fetchAll(in: fixture.context)
@@ -84,7 +84,7 @@ struct MCPWatchingToolsTests {
     @Test("watching_only for one student omits whole-class notes")
     func watchingOnlyForStudent() async throws {
         let fixture = try makeFixture()
-        let output = try await tool(named: "list_open_follow_ups", in: fixture.tools)
+        let output = try await tool(named: "list_todos", in: fixture.tools).presetting("view", "open_follow_ups")
             .handler(["watching_only": .bool(true), "student_name": .string("Alice")])
 
         #expect(output.contains(fixture.flaggedNoteID.uuidString))
@@ -98,7 +98,7 @@ struct MCPWatchingToolsTests {
     @Test("The default form is unchanged: every open todo, goals, and flagged notes")
     func defaultFormStaysASuperset() async throws {
         let fixture = try makeFixture()
-        let output = try await tool(named: "list_open_follow_ups", in: fixture.tools).handler([:])
+        let output = try await tool(named: "list_todos", in: fixture.tools).presetting("view", "open_follow_ups").handler([:])
         #expect(output.contains(fixture.callTodoID.uuidString))
         #expect(output.contains(fixture.watchTodoID.uuidString))
         #expect(output.contains(fixture.goalID.uuidString))
@@ -123,7 +123,7 @@ struct MCPWatchingToolsTests {
         #expect(second.contains("already cleared"))
         #expect(note.needsFollowUp == false)
 
-        let watching: String = try await tool(named: "list_open_follow_ups", in: fixture.tools)
+        let watching: String = try await tool(named: "list_todos", in: fixture.tools).presetting("view", "open_follow_ups")
             .handler(["watching_only": .bool(true)])
         #expect(!watching.contains(idString))
     }

@@ -117,25 +117,6 @@ struct MCPTodoLibraryToolsFix1012MCTests {
 
     // MARK: - #29: archived book clubs, retired jobs, children who left
 
-    @Test("book_club leaves archived sessions out unless finished ones are asked for")
-    func bookClubHidesArchived() async throws {
-        let (tools, context) = try makeTools()
-        let active = CDBookClubSession(context: context)
-        active.displayName = "Charlotte's Web"
-        active.status = .active
-        let archived = CDBookClubSession(context: context)
-        archived.displayName = "The Hobbit"
-        archived.status = .archived
-        #expect(CoreDataTestHelpers.save(context))
-
-        let current = try await call("book_club", [:], in: tools)
-        #expect(current.contains("Charlotte's Web"))
-        #expect(!current.contains("The Hobbit"))
-
-        let everything = try await call("book_club", ["include_finished": .bool(true)], in: tools)
-        #expect(everything.contains("The Hobbit"))
-    }
-
     // MARK: - #20: replies that change nothing stay out of the write journal
 
     @Test("adjust_supply's already-at reply is not journaled as a write")

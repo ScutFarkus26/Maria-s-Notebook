@@ -68,7 +68,7 @@ struct MCPReadToolsFix1012MRTests {
         }
         #expect(CoreDataTestHelpers.save(context))
 
-        let output = try await call("mastery_candidates", [:], in: tools)
+        let output = try await call("class_progress", ["view": "mastery_candidates"], in: tools)
 
         #expect(!output.contains("Ora Test"), "Keep Practicing is not mastery")
         #expect(!output.contains("Etty Test"), "Incomplete is not mastery")
@@ -93,7 +93,7 @@ struct MCPReadToolsFix1012MRTests {
         )
         #expect(CoreDataTestHelpers.save(context))
 
-        let output = try await call("mastery_candidates", [:], in: tools)
+        let output = try await call("class_progress", ["view": "mastery_candidates"], in: tools)
 
         #expect(!output.contains("confirmed ready 2026-09-08"))
         #expect(output.contains("confirmed ready (last given 2026-09-08)"))
@@ -214,11 +214,11 @@ struct MCPReadToolsFix1012MRTests {
         }
         CoreDataTestHelpers.save(context)
 
-        let everyone = try await call("list_guardians", [:], in: tools)
+        let everyone = try await call("families", ["view": "guardians"], in: tools)
         #expect(everyone.contains("Rosa Soto"))
         #expect(!everyone.contains("Dina Gold"))
 
-        let hers = try await call("list_guardians", ["student_name": .string("Rivka Gold")], in: tools)
+        let hers = try await call("families", ["view": "guardians", "student_name": .string("Rivka Gold")], in: tools)
         #expect(hers.contains("Dina Gold"), "asking for her by name still finds her family")
     }
 
@@ -239,7 +239,7 @@ struct MCPReadToolsFix1012MRTests {
         )
         CoreDataTestHelpers.save(context)
 
-        let output = try await call("student_presentation_history", [
+        let output = try await call("student_record", ["sections": ["presentation_history"], 
             "student_name": .string("Ora"), "since": .string("2026-09-01")
         ], in: tools)
 
@@ -255,27 +255,9 @@ struct MCPReadToolsFix1012MRTests {
         CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Klein")
         CoreDataTestHelpers.save(context)
 
-        let output = try await call("student_observations", ["student_name": .string("Etty Klein")], in: tools)
+        let output = try await call("student_record", ["sections": ["observations"], "student_name": .string("Etty Klein")], in: tools)
 
         #expect(output.contains("No notes about Etty Klein"))
-    }
-
-    @Test("update_going_out to completed dates the outing, as the app's button does")
-    func completedGoingOutGetsADate() async throws {
-        let (tools, context) = try makeTools()
-        let receipt = try await call("update_going_out", ["title": .string("Museum")], in: tools)
-        let goingOut = try #require(context.safeFetch(CDFetchRequest(CDGoingOut.self)).first)
-        #expect(receipt.contains("Proposed"))
-        #expect(goingOut.actualDate == nil)
-
-        _ = try await call("update_going_out", [
-            "going_out_id": .string(try #require(goingOut.id).uuidString),
-            "status": .string("completed")
-        ], in: tools)
-
-        #expect(goingOut.status == .completed)
-        let actual = try #require(goingOut.actualDate)
-        #expect(AppCalendar.shared.isDateInToday(actual))
     }
 
     // MARK: - #20: draft_parent_report's no-op replies

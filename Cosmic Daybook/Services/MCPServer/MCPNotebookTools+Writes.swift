@@ -208,7 +208,7 @@ extension MCPNotebookTools {
             name: "update_observation",
             title: "Update Observation",
             description: "Edit an existing observation note by its id (as returned by "
-                + "student_observations or search_notebook): its text, tags, flags, or which "
+                + "student_record (observations) or search_notebook): its text, tags, flags, or which "
                 + "children it is about. Only the fields provided are changed.",
             inputSchema: updateObservationSchema,
             annotations: .idempotentWrite,

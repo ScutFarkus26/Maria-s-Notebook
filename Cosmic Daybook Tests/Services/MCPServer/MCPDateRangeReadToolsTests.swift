@@ -84,7 +84,7 @@ struct MCPDateRangeReadToolsTests {
         let (tools, context) = try DateRange.makeTools()
         _ = try seedObservedStudent(in: context)
 
-        let output = try await DateRange.tool(named: "student_observations", in: tools).handler([
+        let output = try await DateRange.tool(named: "student_record", in: tools).presetting("sections", ["observations"]).handler([
             "student_name": .string("Ora")
         ])
         #expect(output.contains("Notes about Ora Pardo (last 30 days):"))
@@ -97,7 +97,7 @@ struct MCPDateRangeReadToolsTests {
         let (tools, context) = try DateRange.makeTools()
         _ = try seedObservedStudent(in: context)
 
-        let output = try await DateRange.tool(named: "student_observations", in: tools).handler([
+        let output = try await DateRange.tool(named: "student_record", in: tools).presetting("sections", ["observations"]).handler([
             "student_name": .string("Ora"),
             "since": DateRange.dayText(365)
         ])
@@ -111,7 +111,7 @@ struct MCPDateRangeReadToolsTests {
         let (tools, context) = try DateRange.makeTools()
         _ = try seedObservedStudent(in: context)
 
-        let output = try await DateRange.tool(named: "student_observations", in: tools).handler([
+        let output = try await DateRange.tool(named: "student_record", in: tools).presetting("sections", ["observations"]).handler([
             "student_name": .string("Ora"),
             "since": DateRange.dayText(365),
             "until": DateRange.dayText(100)
@@ -126,7 +126,7 @@ struct MCPDateRangeReadToolsTests {
         _ = try seedObservedStudent(in: context)
 
         await #expect(throws: MCPToolError.self) {
-            _ = try await DateRange.tool(named: "student_observations", in: tools).handler([
+            _ = try await DateRange.tool(named: "student_record", in: tools).presetting("sections", ["observations"]).handler([
                 "student_name": .string("Ora"),
                 "since": DateRange.dayText(10),
                 "until": DateRange.dayText(200)
@@ -140,7 +140,7 @@ struct MCPDateRangeReadToolsTests {
         _ = try seedObservedStudent(in: context)
 
         do {
-            _ = try await DateRange.tool(named: "student_observations", in: tools).handler([
+            _ = try await DateRange.tool(named: "student_record", in: tools).presetting("sections", ["observations"]).handler([
                 "student_name": .string("Ora"),
                 "until": .string("last Tuesday")
             ])
@@ -161,7 +161,7 @@ struct MCPDateRangeReadToolsTests {
         }
         CoreDataTestHelpers.save(context)
 
-        let output = try await DateRange.tool(named: "student_observations", in: tools).handler([
+        let output = try await DateRange.tool(named: "student_record", in: tools).presetting("sections", ["observations"]).handler([
             "student_name": .string("Ora"),
             "limit": .int(2)
         ])
@@ -178,7 +178,7 @@ struct MCPDateRangeReadToolsTests {
         let given = PresentationFactory.makeDraft(lesson: bells, students: [ora], context: context)
         given.markPresented(at: DateRange.daysAgo(200))
         CoreDataTestHelpers.save(context)
-        let toolDefinition = try DateRange.tool(named: "presentations_missing_observations", in: tools)
+        let toolDefinition = try DateRange.tool(named: "class_progress", in: tools).presetting("view", "missing_observations")
 
         let defaultOutput = try await toolDefinition.handler([:])
         #expect(defaultOutput.contains("in the last 30 days has a linked observation"))
@@ -213,7 +213,7 @@ struct MCPDateRangeHistoryToolsTests {
         let (tools, context) = try DateRange.makeTools()
         _ = try seedMetStudent(in: context)
 
-        let output = try await DateRange.tool(named: "student_meetings", in: tools).handler([
+        let output = try await DateRange.tool(named: "student_record", in: tools).presetting("sections", ["meetings"]).handler([
             "student_name": .string("Maya")
         ])
         #expect(output.contains("Meetings with Maya Soto:"))
@@ -225,7 +225,7 @@ struct MCPDateRangeHistoryToolsTests {
     func meetingsWindowNarrows() async throws {
         let (tools, context) = try DateRange.makeTools()
         _ = try seedMetStudent(in: context)
-        let toolDefinition = try DateRange.tool(named: "student_meetings", in: tools)
+        let toolDefinition = try DateRange.tool(named: "student_record", in: tools).presetting("sections", ["meetings"])
 
         let recent = try await toolDefinition.handler([
             "student_name": .string("Maya"), "since": DateRange.dayText(30)
@@ -257,7 +257,7 @@ struct MCPDateRangeHistoryToolsTests {
         }
         CoreDataTestHelpers.save(context)
 
-        let output = try await DateRange.tool(named: "student_meetings", in: tools).handler([
+        let output = try await DateRange.tool(named: "student_record", in: tools).presetting("sections", ["meetings"]).handler([
             "student_name": .string("Maya"), "limit": .int(30)
         ])
         #expect(output.contains("Sitting 24."))
@@ -275,7 +275,7 @@ struct MCPDateRangeHistoryToolsTests {
         try DateRange.seedRecall(.retained, for: rae, of: lesson, daysOld: 2,
                                  note: "Still had it this week.")
         CoreDataTestHelpers.save(context)
-        let toolDefinition = try DateRange.tool(named: "recall_checks", in: tools)
+        let toolDefinition = try DateRange.tool(named: "class_progress", in: tools).presetting("view", "recall")
 
         let byDefault = try await toolDefinition.handler(["student_name": .string("Rae")])
         #expect(byDefault.contains("Still had it this week."))

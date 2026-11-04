@@ -19,6 +19,9 @@ struct MCPRequestHandler: Sendable {
 
     let serverVersion: String
     let tools: [MCPToolDefinition]
+    /// Tool names no longer listed, each with the sentence `tools/call` answers it with
+    /// (`MCPNotebookTools.retiredTools`), so an old skill or prompt hears where its tool went.
+    let retiredTools: [String: String]
     /// Called once for every successful call of a tool that changes the
     /// notebook, so provenance can be journalled without any entity field
     /// having to carry it. Never called for reads, for failures, or for a
@@ -28,10 +31,12 @@ struct MCPRequestHandler: Sendable {
     init(
         serverVersion: String,
         tools: [MCPToolDefinition],
+        retiredTools: [String: String] = MCPNotebookTools.retiredTools,
         onWrite: (@Sendable (MCPWriteRecord) async -> Void)? = nil
     ) {
         self.serverVersion = serverVersion
         self.tools = tools
+        self.retiredTools = retiredTools
         self.onWrite = onWrite
     }
 
@@ -133,6 +138,9 @@ struct MCPRequestHandler: Sendable {
             )
         }
         guard let tool = tools.first(where: { $0.name == name }) else {
+            if let moved = retiredTools[name] {
+                return .success(id: request.id, result: Self.toolResult(text: moved, isError: true))
+            }
             return .failure(
                 id: request.id, code: JSONRPCErrorCode.invalidParams,
                 message: "Unknown tool: \(name)"

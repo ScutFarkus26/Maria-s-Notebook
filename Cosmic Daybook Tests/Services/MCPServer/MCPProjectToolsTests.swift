@@ -183,27 +183,4 @@ struct MCPProjectToolsTests {
         #expect(listing.contains("Bird Study"))
         #expect(listing.contains("Maytal Meyer (former)"))
     }
-
-    // MARK: - One project
-
-    @Test("project_detail names every member, including the ones who left")
-    func detailNamesFormerMembers() async throws {
-        let (tools, context) = try makeTools()
-        let maya = CoreDataTestHelpers.seedStudent(in: context, firstName: "Maya", lastName: "Soto")
-        let gone = CoreDataTestHelpers.seedStudent(
-            in: context, firstName: "Brielle", lastName: "Frid", enrollmentStatus: .withdrawn
-        )
-        CoreDataTestHelpers.save(context)
-        let project = seedProject(
-            in: context, title: "Bird Study", members: [maya, gone], createdAt: lastYear
-        )
-        #expect(CoreDataTestHelpers.save(context))
-
-        let detail = try await tool(named: "project_detail", in: tools).handler([
-            "project_id": .string(try #require(project.id).uuidString)
-        ])
-        #expect(detail.contains("Maya Soto"))
-        #expect(detail.contains("Brielle Frid (former)"))
-        #expect(detail.contains("Dormant"))
-    }
 }

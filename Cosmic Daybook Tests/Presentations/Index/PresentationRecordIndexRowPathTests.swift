@@ -231,10 +231,10 @@ struct PresentationRecordIndexRowPathTests {
         #expect(recordRows(registeredIn: context) == 0)
 
         let tools = MCPNotebookTools.makeTools(context: { context })
-        let ready = try await #require(tools.first { $0.name == "students_ready" }).handler([:])
+        let ready = try await #require(tools.first { $0.name == "class_progress" }).handler(["view": "ready"])
         #expect(ready.contains("Avital Beyderman:"))
         #expect(!ready.contains("Noa Cohen:"))
-        let candidates = try await #require(tools.first { $0.name == "mastery_candidates" }).handler([:])
+        let candidates = try await #require(tools.first { $0.name == "class_progress" }).handler(["view": "mastery_candidates"])
         #expect(candidates.contains("Avital Beyderman"))
         #expect(recordRows(registeredIn: context) == 0)
     }

@@ -53,7 +53,7 @@ struct MCPWorkRemovalToolsTests {
         let (tools, context) = try makeTools()
         let poster = try seedPoster(in: context)
 
-        let output = try await tool(named: "student_work", in: tools).handler([
+        let output = try await tool(named: "student_record", in: tools).presetting("sections", ["work"]).handler([
             "student_name": .string("Avigail"), "include_completed": .bool(false)
         ])
         #expect(output.contains(try #require(poster.avigailsRow.id?.uuidString)))
@@ -61,7 +61,7 @@ struct MCPWorkRemovalToolsTests {
         #expect(output.contains("with Leshem Pardes, Sarah Zakon"))
 
         // A passenger with no copy of her own still sees the row she is on.
-        let sarahs = try await tool(named: "student_work", in: tools).handler([
+        let sarahs = try await tool(named: "student_record", in: tools).presetting("sections", ["work"]).handler([
             "student_name": .string("Sarah Zakon"), "include_completed": .bool(false)
         ])
         #expect(sarahs.contains(try #require(poster.avigailsRow.id?.uuidString)))

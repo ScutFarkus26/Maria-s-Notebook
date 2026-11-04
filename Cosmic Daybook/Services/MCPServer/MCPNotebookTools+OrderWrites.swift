@@ -18,46 +18,29 @@ extension MCPNotebookTools {
 
     // MARK: - Adding Items
 
-    static func addOrderItemsTool(context: @escaping MCPContextProvider) -> MCPToolDefinition {
-        MCPToolDefinition(
-            name: "add_order_items",
-            title: "Add Order Items",
-            description: "Add needs to Restock under to_request. An entry takes a product link, a "
-                + "title, or both; with only a title it is something to fetch from the school "
-                + "office, and `source` says office or order (a link means order unless told "
-                + "otherwise). A need already waiting (the same link, or the same title from the "
-                + "same source) is reported, not added twice. Every entry is checked before anything "
-                + "is saved.",
-            inputSchema: [
-                "type": "object",
-                "properties": [
-                    "items": [
-                        "type": "array",
-                        "description": "One entry per thing to order",
-                        "items": [
-                            "type": "object",
-                            "properties": [
-                                "url": ["type": "string", "description": "The product page link (optional with a title)"],
-                                "title": ["type": "string", "description": "What it is; required without a link"],
-                                "source": [
-                                    "type": "string",
-                                    "enum": ["office", "order"],
-                                    "description": "Fetch from the office, or order it"
-                                ],
-                                "quantity": ["type": "integer", "description": "How many (default 1)"],
-                                "notes": ["type": "string", "description": "A note for the office — size, color"]
-                            ],
-                        ]
-                    ]
+    /// `mark_supplies`' `new_needs` property: the entries `addOrderItems` reads.
+    static let newNeedsSchema: JSONValue = [
+        "type": "array",
+        "description": .string("Add needs to Restock under to_request, one entry per thing to order. An entry "
+            + "takes a product link, a title, or both; with only a title it is something to fetch from the "
+            + "school office, and source says office or order (a link means order unless told otherwise). A need "
+            + "already waiting (the same link, or the same title from the same source) is reported, not added "
+            + "twice. Every entry is checked before anything is saved."),
+        "items": [
+            "type": "object",
+            "properties": [
+                "url": ["type": "string", "description": "The product page link (optional with a title)"],
+                "title": ["type": "string", "description": "What it is; required without a link"],
+                "source": [
+                    "type": "string",
+                    "enum": ["office", "order"],
+                    "description": "Fetch from the office, or order it"
                 ],
-                "required": ["items"]
-            ],
-            annotations: .write,
-            handler: { arguments in
-                try undoingOnFailure(context()) { try addOrderItems(arguments: arguments, in: $0) }
-            }
-        )
-    }
+                "quantity": ["type": "integer", "description": "How many (default 1)"],
+                "notes": ["type": "string", "description": "A note for the office — size, color"]
+            ]
+        ]
+    ]
 
     private struct OrderItemRequest {
         let url: URL?
@@ -67,11 +50,11 @@ extension MCPNotebookTools {
         let notes: String
     }
 
-    private static func addOrderItems(
+    static func addOrderItems(
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
     ) throws -> String {
-        guard let entries = arguments["items"]?.arrayValue, !entries.isEmpty else {
-            throw MCPToolError("Pass items: at least one { url or title, source, quantity, notes }.")
+        guard let entries = arguments["new_needs"]?.arrayValue, !entries.isEmpty else {
+            throw MCPToolError("Pass new_needs: at least one { url or title, source, quantity, notes }.")
         }
         let requests: [OrderItemRequest] = try entries.enumerated().map { index, entry in
             try orderItemRequest(entry, number: index + 1)
@@ -149,52 +132,36 @@ extension MCPNotebookTools {
 
     // MARK: - Updating Items
 
-    static func updateOrderItemsTool(context: @escaping MCPContextProvider) -> MCPToolDefinition {
-        MCPToolDefinition(
-            name: "update_order_items",
-            title: "Update Order Items",
-            description: "Move Orders items between stages or edit them. stage asked_for records "
-                + "that the guide asked the office (it sends nothing) and groups the items as one "
-                + "request; confirmed means the office acknowledged; received checks an item off; "
-                + "not_received unchecks it; to_request forgets the request. Setting a stage an "
-                + "item is already at changes nothing. An item can't go back with asked_for or "
-                + "confirmed: a received one needs not_received first, a confirmed one to_request. "
-                + "Every id is checked before anything is saved.",
-            inputSchema: [
-                "type": "object",
-                "properties": [
-                    "items": [
-                        "type": "array",
-                        "items": [
-                            "type": "object",
-                            "properties": [
-                                "id": ["type": "string", "description": "The order id from list_orders"],
-                                "stage": [
-                                    "type": "string",
-                                    "enum": ["to_request", "asked_for", "confirmed", "received", "not_received"]
-                                ],
-                                "title": ["type": "string"],
-                                "quantity": ["type": "integer"],
-                                "notes": ["type": "string"]
-                            ],
-                            "required": ["id"]
-                        ]
-                    ]
+    /// `mark_supplies`' `needs` property: the entries `updateOrderItems` reads.
+    static let needsSchema: JSONValue = [
+        "type": "array",
+        "description": .string("Move needs between stages or edit them, by the order id list_supplies shows with "
+            + "stage. stage asked_for records that the guide asked the office (it sends nothing) and groups the "
+            + "items as one request; confirmed means the office acknowledged; received checks an item off; "
+            + "not_received unchecks it; to_request forgets the request. Setting a stage an item is already at "
+            + "changes nothing. An item can't go back with asked_for or confirmed: a received one needs "
+            + "not_received first, a confirmed one to_request. Every id is checked before anything is saved."),
+        "items": [
+            "type": "object",
+            "properties": [
+                "id": ["type": "string", "description": "The order id from list_supplies with stage"],
+                "stage": [
+                    "type": "string",
+                    "enum": ["to_request", "asked_for", "confirmed", "received", "not_received"]
                 ],
-                "required": ["items"]
+                "title": ["type": "string"],
+                "quantity": ["type": "integer"],
+                "notes": ["type": "string"]
             ],
-            annotations: .idempotentWrite,
-            handler: { arguments in
-                try undoingOnFailure(context()) { try updateOrderItems(arguments: arguments, in: $0) }
-            }
-        )
-    }
+            "required": ["id"]
+        ]
+    ]
 
-    private static func updateOrderItems(
+    static func updateOrderItems(
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
     ) throws -> String {
-        guard let entries = arguments["items"]?.arrayValue, !entries.isEmpty else {
-            throw MCPToolError("Pass items: at least one { id, stage, title, quantity, notes }.")
+        guard let entries = arguments["needs"]?.arrayValue, !entries.isEmpty else {
+            throw MCPToolError("Pass needs: at least one { id, stage, title, quantity, notes }.")
         }
         let resolved = try entries.map { try resolveOrderEdit($0, in: modelContext) }
         // Every real change stamps the item, so the stamps say which changed.
