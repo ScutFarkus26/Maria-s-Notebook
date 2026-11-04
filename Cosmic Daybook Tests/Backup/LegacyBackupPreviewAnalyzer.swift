@@ -7,6 +7,8 @@ import OSLog
 // of a whole decoded payload (2026-09-26), copied verbatim — only the type is
 // renamed. `BackupPreviewDigestTests` compares the new preview against it, so
 // do not "fix" or modernise this code: its only job is to be the old code.
+// Since "Simplify round two", Phase 7 the one row it reads field by field
+// (LessonAssignment) crosses to its frozen `Legacy` type through `LegacyRows`.
 
 // swiftlint:disable type_body_length
 /// Analyzes backup payloads to generate preview statistics for restore operations.
@@ -268,9 +270,9 @@ enum LegacyBackupPreviewAnalyzer {
         assign: (_ key: String, _ ins: Int, _ sk: Int, _ del: Int) -> Void,
         warnings: inout [String]
     ) {
-        let analysis = payload.lessonAssignments.reduce(
+        let analysis = LegacyRows.rows(payload.lessonAssignments, as: LegacyLessonAssignmentDTO.self).reduce(
             into: ImportAnalysis()
-        ) { (acc: inout ImportAnalysis, la: LessonAssignmentDTO) in
+        ) { (acc: inout ImportAnalysis, la: LegacyLessonAssignmentDTO) in
             guard let lessonUUID = UUID(uuidString: la.lessonID) else {
                 // The importer skips assignments whose lessonID isn't a valid UUID.
                 acc.sk += 1
