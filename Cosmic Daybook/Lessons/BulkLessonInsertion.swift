@@ -73,32 +73,12 @@ enum BulkLessonInsertion {
             transaction.commit()
             return outcome
         }
-        addTracks(for: outcome.inserted, in: context)
         guard saveCoordinator.save(context, reason: "Add lessons", alertOnFailure: false) else {
             transaction.rollback()
             return nil
         }
         transaction.commit()
         return outcome
-    }
-
-    /// Creates or updates the track for each new lesson's sub-area that is a
-    /// track (`SequenceTrackService`), once per sub-area.
-    private static func addTracks(for lessons: [CDLesson], in context: NSManagedObjectContext) {
-        var processedSequences: Set<String> = []
-        for lesson in lessons {
-            let area = lesson.area.trimmed()
-            let sequence = lesson.sequence.trimmed()
-            guard !area.isEmpty, !sequence.isEmpty,
-                  processedSequences.insert("\(area)|\(sequence)").inserted,
-                  SequenceTrackService.isTrack(area: area, sequence: sequence, context: context)
-            else { continue }
-            do {
-                _ = try SequenceTrackService.getOrCreateTrack(area: area, sequence: sequence, context: context)
-            } catch {
-                logger.warning("Failed to create/update CDTrackEntity for \(area)/\(sequence): \(error)")
-            }
-        }
     }
 
     /// Creates a lesson per draft through `repository`, numbering each after

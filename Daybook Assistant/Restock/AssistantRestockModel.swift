@@ -174,10 +174,10 @@ final class AssistantRestockModel {
         // Only when one went: `CheckOff` isn't Equatable, so any assignment redrew.
         if kept.count != checkOffs.count { checkOffs = kept }
         tickedRanks = tickedRanks.filter { checkOffs[$0.key] != nil }
-        officeRun = (run + checkOffs.values.map(\.need)).sorted { lhs, rhs in
-            let (left, right) = (runRank(lhs), runRank(rhs))
-            return left != right ? left < right : RestockService.isOlder(lhs, rhs)
-        }
+        // Ranked once each, then sorted: ranking looks up the need's staple.
+        officeRun = (run + checkOffs.values.map(\.need)).map { (need: $0, rank: runRank($0)) }
+            .sorted { $0.rank != $1.rank ? $0.rank < $1.rank : RestockService.isOlder($0.need, $1.need) }
+            .map(\.need)
         let shown = shownNow()
         if redraw || shown != lastShown { revision &+= 1 }
         lastShown = shown
@@ -331,7 +331,7 @@ final class AssistantRestockModel {
     /// count the need already has.
     private func setChosenQuantity(_ quantity: Int, for staple: CDSupply) {
         guard quantity != OrderService.quantityRange.lowerBound,
-              let need = RestockService.openNeeds(for: staple, in: context).first,
+              let need = RestockService.openNeeds(for: staple, in: context, store: store).first,
               need.requestedAt == nil,
               need.quantity != OrderService.clampedQuantity(quantity) else { return }
         RestockService.setQuantity(need, to: quantity, at: now())

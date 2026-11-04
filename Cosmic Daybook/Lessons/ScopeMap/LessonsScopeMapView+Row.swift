@@ -250,7 +250,7 @@ struct ThreadRow: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help("Configure track settings")
+                .help("Progression rules")
             }
             Image(systemName: "line.3.horizontal")
                 .font(.system(size: 13, weight: .medium))

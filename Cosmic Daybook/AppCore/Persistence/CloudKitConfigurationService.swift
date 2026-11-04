@@ -26,10 +26,10 @@ enum CloudKitConfigurationService {
 
     /// The container itself. Use this rather than `CKContainer.default()`,
     /// which resolves from the bundle identifier and so names a different,
-    /// empty container in the assistant app.
-    static var container: CKContainer {
-        CKContainer(identifier: containerID)
-    }
+    /// empty container in the assistant app. Made once: each read used to
+    /// build a new container, with its own connection to the CloudKit
+    /// daemon (bug hunt 2026-11-03 #11).
+    nonisolated static let container = CKContainer(identifier: containerID)
 
     // MARK: - Status
 

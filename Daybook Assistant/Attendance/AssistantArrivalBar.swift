@@ -56,7 +56,6 @@ struct AssistantArrivalBar: View {
     /// doesn't open by itself again for that send.
     @State var askedToSignIn = false
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @Environment(\.scenePhase) var scenePhase
     @Environment(AssistantBootstrapper.self) var bootstrapper
 
     /// Side by side normally; stacked at accessibility sizes, where the count
@@ -125,14 +124,18 @@ struct AssistantArrivalBar: View {
                 viewModel.rows, at: viewModel.isToday ? Date() : nil, milestone: viewModel.milestone
             )
         }
-        .task(id: finishedLine) {
+        // Keyed on the finish too, not only the words: the same line again
+        // within the 5 s ("Everyone's here · 8:14" after an Undo and a last
+        // mark) kept the first one's timer and went early (#24).
+        .task(id: "\(finishedLine ?? "")|\(viewModel.completions)") {
             guard finishedLine != nil, (try? await Task.sleep(for: .seconds(5))) != nil else { return }
             finishedLine = nil
         }
         .onChange(of: viewModel.welcome) { _, welcome in
             welcomeLine = welcome.map { "Welcome back, \($0.name)" }
         }
-        .task(id: welcomeLine) {
+        // The same for a welcome to the same child again within the 3 s.
+        .task(id: "\(welcomeLine ?? "")|\(viewModel.welcome?.id.uuidString ?? "")") {
             guard welcomeLine != nil, (try? await Task.sleep(for: .seconds(3))) != nil else { return }
             welcomeLine = nil
         }
@@ -140,7 +143,11 @@ struct AssistantArrivalBar: View {
             finishedLine = nil
             welcomeLine = nil
         }
-        .task(id: viewModel.date) {
+        // Keyed on the moments themselves, as the email row's is: keyed on
+        // the day, a due time that arrived or changed after the grid opened
+        // (a fresh join, the guide editing it) left the bar's Close Arrival
+        // out of step with the row's Close Arrival & Email (#4).
+        .task(id: viewModel.frontDesk.changeTimes(on: viewModel.date)) {
             // Redraws the bar as the email falls due and as it goes late.
             // A TimelineView around the row did this too, but the Close
             // Arrival question stopped appearing from a button inside one.
@@ -169,7 +176,7 @@ struct AssistantArrivalBar: View {
             if !showing { emailAfterClose = false }
         }
         .task(id: undoWatch) { await watchUndo() }
-        .task(id: signInWatch) { await watchSignIn() }
+        .modifier(AssistantTaskWhileActive(id: signInWatch) { await watchSignIn(isActive: $0) })
         .onChange(of: bootstrapper.parentLockerForScreens?.awaitsSignIn) {
             // Another send waiting, or none: it may ask again.
             askedToSignIn = false
@@ -196,11 +203,15 @@ struct AssistantArrivalBar: View {
                 HStack(spacing: 12) {
                     Text("Marked \(undo.count) absent")
                     Button("Undo") {
-                        if undo.stopsSend { bootstrapper.parentLockerForScreens?.cancelCloseArrivalSend() }
-                        withAnimation(.smooth(duration: 0.3)) {
-                            viewModel.returnToArrival(undo: true)
+                        let undone = withAnimation(.smooth(duration: 0.3)) {
+                            let undone = viewModel.returnToArrival(undo: true)
                             self.undo = nil
+                            return undone
                         }
+                        // Only an Undo that went through stops the send: on a
+                        // day the guide locked meanwhile the absences stand,
+                        // and the send was gone until his backstop (#24).
+                        if undone, undo.stopsSend { bootstrapper.parentLockerForScreens?.cancelCloseArrivalSend() }
                     }
                     .fontWeight(.semibold)
                     .foregroundStyle(.tint)

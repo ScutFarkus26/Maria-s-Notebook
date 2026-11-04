@@ -22,7 +22,24 @@ enum ClassroomPermissions {
     /// share say (`readPermission`), never guessed from a failed save. While
     /// set, an assistant writes nothing: her marks saved on the phone and
     /// never reached the guide (bug hunt 2026-11-02 #29).
-    static var shareIsViewOnly = false
+    ///
+    /// Kept on the device too, and read from there at launch: Siri can open
+    /// the Assistant cold and change Restock before `readPermission` has
+    /// run, and it used to find false and make a change that never reached
+    /// the guide (bug hunt 2026-11-03 #7). Leaving the class sets it false,
+    /// which forgets it.
+    static var shareIsViewOnly = UserDefaults.standard.bool(forKey: viewOnlyKey) {
+        didSet {
+            if shareIsViewOnly {
+                UserDefaults.standard.set(true, forKey: viewOnlyKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: viewOnlyKey)
+            }
+        }
+    }
+
+    /// Where the last View only answer is kept.
+    static let viewOnlyKey = "ClassroomPermissions.shareIsViewOnly"
 
     /// Whether the given role can write (create/update) the named entity.
     static func canWrite(

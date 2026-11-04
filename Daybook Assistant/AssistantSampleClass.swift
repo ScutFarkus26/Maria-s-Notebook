@@ -178,11 +178,17 @@ enum AssistantSampleClass {
         let dayNumber = given > 0 ? given : 37
         let students = context.safeFetch(CDFetchRequest(CDStudent.self))
         let today = Calendar.current.startOfDay(for: Date())
+        // The days off for the whole walk back in one read, with room for
+        // holidays: it was two reads a day, about 67 (hunt 2026-11-03 #35).
+        let earliest = Calendar.current.date(byAdding: .day, value: -(dayNumber * 2 + 60), to: today) ?? today
+        let daysOff = SchoolDayChecker.nonSchoolDaySet(in: earliest..<today, using: context)
+        func schoolDay(before day: Date) -> Date? {
+            Self.schoolDay(before: day, daysOff: daysOff, from: earliest, using: context)
+        }
 
         var firstDay = today
         for _ in 1..<dayNumber {
-            guard let earlier = SchoolDayChecker.schoolDay(from: firstDay, forward: false, using: context)
-            else { break }
+            guard let earlier = schoolDay(before: firstDay) else { break }
             firstDay = earlier
         }
         for student in students {
@@ -195,10 +201,32 @@ enum AssistantSampleClass {
         guard let noah = students.first(where: { $0.firstName == "Noah" }) else { return }
         var day = today
         for _ in 0..<4 {
-            guard let earlier = SchoolDayChecker.schoolDay(from: day, forward: false, using: context) else { break }
+            guard let earlier = schoolDay(before: day) else { break }
             day = earlier
             mark(noah, .absent, on: day, in: context)
         }
+    }
+
+    /// The school day before `day`, as `SchoolDayChecker.schoolDay(from:forward:using:)`
+    /// finds it going back: from `daysOff` (every day off from `earliest`
+    /// on, `SchoolDayChecker.nonSchoolDaySet`), and a day at a time before it.
+    static func schoolDay(
+        before day: Date,
+        daysOff: Set<Date>,
+        from earliest: Date,
+        using context: NSManagedObjectContext,
+        calendar: Calendar = .current
+    ) -> Date? {
+        var cursor = calendar.startOfDay(for: day)
+        for _ in 0..<366 {
+            guard let moved = calendar.date(byAdding: .day, value: -1, to: cursor) else { return nil }
+            cursor = moved
+            let isDayOff = moved >= earliest
+                ? daysOff.contains(AppCalendar.startOfDay(moved))
+                : SchoolDayChecker.isNonSchoolDay(moved, using: context)
+            if !isDayOff { return moved }
+        }
+        return nil
     }
 
     /// The sample guide's record name, on his Restock changes and his name.

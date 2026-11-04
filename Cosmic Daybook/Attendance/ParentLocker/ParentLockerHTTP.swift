@@ -17,7 +17,9 @@ nonisolated final class ParentLockerHTTP: ParentLockerTransport {
 
     /// The site's host, cleaned (`AttendanceEmailLog.parentLockerHost`).
     let host: String
-    private let session: URLSession
+    let session: URLSession
+    /// The session was made for this transport alone, and goes with it.
+    private let ownsSession: Bool
     private let calendar: Calendar
     private let now: @Sendable () -> Date
     private let jar: Mutex<[ParentLockerCookie]>
@@ -31,31 +33,46 @@ nonisolated final class ParentLockerHTTP: ParentLockerTransport {
     ///   - configuration: the session's starting point; tests pass one with
     ///     a stub protocol. Its cookie, cache and credential handling is
     ///     turned off here whatever it says.
+    ///   - session: a session made by `makeSession` to share, kept by the
+    ///     sync for the site's runs (`ParentLockerSessions`); nil makes one
+    ///     from `configuration` for this transport alone.
     ///   - cookiesChanged: told the whole jar whenever a reply changes it.
     init(
         site: String,
         cookies: [ParentLockerCookie],
         configuration: URLSessionConfiguration = .ephemeral,
+        session shared: URLSession? = nil,
         calendar: Calendar = AppCalendar.shared,
         now: @escaping @Sendable () -> Date = { Date() },
         cookiesChanged: (@Sendable ([ParentLockerCookie]) -> Void)? = nil
     ) {
         let host = AttendanceEmailLog.parentLockerHost(site)
         self.host = host
-        configuration.httpShouldSetCookies = false
-        configuration.httpCookieStorage = nil
-        configuration.httpCookieAcceptPolicy = .never
-        configuration.urlCache = nil
-        configuration.urlCredentialStorage = nil
-        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
-        session = URLSession(configuration: configuration)
+        session = shared ?? Self.makeSession(configuration)
+        ownsSession = shared == nil
         self.calendar = calendar
         self.now = now
         jar = Mutex(ParentLockerCookie.merge(cookies, into: [], host: host, now: now()))
         self.cookiesChanged = cookiesChanged
     }
 
-    deinit { session.invalidateAndCancel() }
+    deinit {
+        if ownsSession { session.invalidateAndCancel() }
+    }
+
+    /// A session as the transport needs it: `configuration` with its
+    /// cookie, cache and credential handling turned off. The cookies go on
+    /// each request by hand, from the transport's own jar, so one session
+    /// can serve every run.
+    static func makeSession(_ configuration: URLSessionConfiguration = .ephemeral) -> URLSession {
+        configuration.httpShouldSetCookies = false
+        configuration.httpCookieStorage = nil
+        configuration.httpCookieAcceptPolicy = .never
+        configuration.urlCache = nil
+        configuration.urlCredentialStorage = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        return URLSession(configuration: configuration)
+    }
 
     /// The cookies as they stand, for the Keychain.
     var cookies: [ParentLockerCookie] { jar.withLock { $0 } }
@@ -271,5 +288,40 @@ private nonisolated final class RedirectRefusal: NSObject, URLSessionTaskDelegat
         let refused = Refused(target: request.url, cookies: ParentLockerHTTP.cookies(in: response))
         state.withLock { $0 = refused }
         completionHandler(nil)
+    }
+}
+
+/// One `URLSession` per ParentLocker site for as long as a sync lives
+/// (`ParentLockerSync.siteTransports`): a new session for every run opened a
+/// fresh secure connection each time (bug hunt 2026-11-03 #21). Each run's
+/// transport still carries its own cookies; the session keeps none.
+nonisolated final class ParentLockerSessions: Sendable {
+    private let sessions = Mutex<[String: URLSession]>([:])
+
+    func session(for site: String) -> URLSession {
+        let host = AttendanceEmailLog.parentLockerHost(site)
+        return sessions.withLock { sessions in
+            if let made = sessions[host] { return made }
+            let made = ParentLockerHTTP.makeSession()
+            sessions[host] = made
+            return made
+        }
+    }
+
+    deinit {
+        for session in sessions.withLock({ Array($0.values) }) { session.invalidateAndCancel() }
+    }
+}
+
+extension ParentLockerSync {
+    /// The live transport, over one session per site for as long as the
+    /// dependencies holding it, and so the sync, live (`ParentLockerSessions`).
+    nonisolated static func siteTransports() -> MakeTransport {
+        let sessions = ParentLockerSessions()
+        return { site, cookies, changed in
+            ParentLockerHTTP(
+                site: site, cookies: cookies, session: sessions.session(for: site), cookiesChanged: changed
+            )
+        }
     }
 }

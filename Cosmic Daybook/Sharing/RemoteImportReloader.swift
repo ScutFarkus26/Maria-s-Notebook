@@ -37,6 +37,13 @@ final class RemoteImportReloader {
     private(set) var hasHeldReload = false
     /// Between `appLeft()` and `appReturned()`.
     private(set) var isAway = false
+    /// How many `observeImports` calls are running: above zero while the
+    /// screen is on show.
+    private var observers = 0
+
+    /// A reload held, or one still settling from an import that finished:
+    /// what the owner's load on the way back would show.
+    var hasReloadDue: Bool { hasHeldReload || pending != nil }
 
     /// While true, a due reload waits; setting it back to false runs it. Away,
     /// it waits on: the return's own load shows it.
@@ -71,8 +78,19 @@ final class RemoteImportReloader {
         pending = Task { [weak self] in
             try? await sleep(delay)
             guard !Task.isCancelled else { return }
+            self?.pending = nil
             self?.fire()
         }
+    }
+
+    /// A change that didn't come by import (a mark made with Siri) and
+    /// wants the same reload: now while the screen is on show, held while
+    /// the app is away or paused, and none at all while the screen is off
+    /// (another tab), whose return loads anyway. It used to reload with the
+    /// app in the background or on another tab.
+    func changeArrived() {
+        guard observers > 0 else { return }
+        fire()
     }
 
     /// The app left the screen: a reload that comes due is held, not run.
@@ -92,9 +110,20 @@ final class RemoteImportReloader {
         pending = nil
     }
 
+    /// The owner's screen has gone (another tab) and loads everything again
+    /// when it's back: a reload still settling would only run that load
+    /// early, with nobody looking, so it goes. Only for an owner that loads
+    /// on its return (the attendance screen's `.task`).
+    func dropSettlingReload() {
+        pending?.cancel()
+        pending = nil
+    }
+
     /// Feeds every finished import into the store with `storeIdentifier` to
     /// `importFinished` until the calling task is cancelled (a view's `.task`).
     func observeImports(into storeIdentifier: String) async {
+        observers += 1
+        defer { observers -= 1 }
         let imports = NotificationCenter.default
             .notifications(named: NSPersistentCloudKitContainer.eventChangedNotification)
             .compactMap { Self.isFinishedImport($0, storeIdentifier: storeIdentifier) ? true : nil }

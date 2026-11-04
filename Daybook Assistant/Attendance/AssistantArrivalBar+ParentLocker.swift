@@ -51,19 +51,21 @@ extension AssistantArrivalBar {
 extension AssistantArrivalBar {
 
     /// What `watchSignIn` follows: the sync's waiting send and sign-in, the
-    /// Undo's end, the sheet, and the app being in front.
+    /// Undo's end and the sheet; `AssistantTaskWhileActive` adds the app
+    /// being in front.
     var signInWatch: String {
         let sync = bootstrapper.parentLockerForScreens
         return "\(sync?.awaitsSignIn == true)|\(sync?.needsSignIn == true)"
             + "|\(sync?.undoEndsAt?.timeIntervalSinceReferenceDate ?? 0)"
-            + "|\(askedToSignIn)|\(showingSignIn)|\(scenePhase == .active)"
+            + "|\(askedToSignIn)|\(showingSignIn)"
     }
 
     /// Opens the sign-in for a whole-class send waiting on it, once the
     /// Undo's moment has passed (`signInPrompt`): a phone locked during the
     /// Undo asks when it's back in front (bug hunt 2026-10-13 afternoon, L2).
-    func watchSignIn() async {
-        guard scenePhase == .active, !showingSignIn, let sync = bootstrapper.parentLockerForScreens else { return }
+    /// `isActive`: the app is in front.
+    func watchSignIn(isActive: Bool) async {
+        guard isActive, !showingSignIn, let sync = bootstrapper.parentLockerForScreens else { return }
         func prompt(at now: Date) -> SignInPrompt {
             Self.signInPrompt(
                 awaitsSignIn: sync.awaitsSignIn, needsSignIn: sync.needsSignIn,
@@ -84,5 +86,22 @@ extension AssistantArrivalBar {
         guard let sync = bootstrapper.parentLockerForScreens, sync.needsSignIn else { return }
         askedToSignIn = sync.awaitsSignIn
         sync.signInDismissed()
+    }
+}
+
+/// Runs `action` again whenever `id` changes or the app comes to or leaves
+/// the front, telling it whether the app is in front. A modifier of its own,
+/// like `AssistantReloadOnReturn`, so the scene phase is read here: read in
+/// the arrival bar's body, every one of the four changes on a trip away and
+/// back drew the whole bar again (bug hunt 2026-11-03, #24).
+struct AssistantTaskWhileActive: ViewModifier {
+    let id: String
+    let action: (_ isActive: Bool) async -> Void
+
+    @Environment(\.scenePhase) private var scenePhase
+
+    func body(content: Content) -> some View {
+        let isActive = scenePhase == .active
+        content.task(id: "\(id)|\(isActive)") { await action(isActive) }
     }
 }

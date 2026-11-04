@@ -177,16 +177,9 @@ extension MCPNotebookTools {
     private static func apply(
         _ markings: [MasteryMarking], in modelContext: NSManagedObjectContext
     ) throws -> String {
-        var applied: [(MasteryMarking, MarkOutcome)] = []
-        // How many of the marks a finished track's own save has put on disk.
-        var savedCount = 0
-        for marking in markings {
-            let (outcome, saved) = noticingSaves(of: modelContext) { mark(marking, in: modelContext) }
-            applied.append((marking, outcome))
-            if saved { savedCount = applied.count }
-        }
+        let applied = markings.map { ($0, mark($0)) }
         guard modelContext.safeSave() else {
-            throw MCPToolError(failedSaveMessage(applied, savedCount: savedCount))
+            throw MCPToolError("The mastery marks could not be saved, so nothing was marked.")
         }
         return applied.map { marking, outcome in
             describeMarking(
@@ -196,27 +189,6 @@ extension MCPNotebookTools {
         }.joined(separator: "\n")
     }
 
-    /// The reply when the batch's save fails. Finishing a track saves at once
-    /// (`SequenceTrackService`), taking every mark before it to disk, so those
-    /// are named as kept rather than "nothing was marked".
-    private static func failedSaveMessage(
-        _ applied: [(MasteryMarking, MarkOutcome)], savedCount: Int
-    ) -> String {
-        func list(_ items: ArraySlice<(MasteryMarking, MarkOutcome)>) -> String {
-            items.filter { !$0.1.marked.isEmpty }
-                .map { "\"\($0.0.lesson.name)\" for \($0.1.marked.map(\.fullName).joined(separator: ", "))" }
-                .joined(separator: "; ")
-        }
-        let kept = list(applied.prefix(savedCount))
-        guard !kept.isEmpty else {
-            return "The mastery marks could not be saved, so nothing was marked."
-        }
-        let lost = list(applied.dropFirst(savedCount))
-        return "The mastery marks could not all be saved. These were saved before the failure, "
-            + "because finishing a track saves right away: \(kept)."
-            + (lost.isEmpty ? "" : " These were not marked: \(lost). Try them again.")
-    }
-
     /// Who one mark changed, and who was already mastered before it.
     private struct MarkOutcome {
         var marked: [CDStudent] = []
@@ -224,9 +196,7 @@ extension MCPNotebookTools {
     }
 
     /// Flips one lesson's rows in place without saving — the batch saves once.
-    private static func mark(
-        _ marking: MasteryMarking, in modelContext: NSManagedObjectContext
-    ) -> MarkOutcome {
+    private static func mark(_ marking: MasteryMarking) -> MarkOutcome {
         var outcome = MarkOutcome()
         for (student, row) in marking.rows {
             if row.state == .proficient {
@@ -240,16 +210,6 @@ extension MCPNotebookTools {
             }
             outcome.marked.append(student)
         }
-
-        let area = marking.lesson.area.trimmed()
-        let sequence = marking.lesson.sequence.trimmed()
-        guard !area.isEmpty, !sequence.isEmpty else { return outcome }
-        for student in outcome.marked {
-            guard let studentID = student.id?.uuidString else { continue }
-            SequenceTrackService.checkAndCompleteTrackIfNeeded(
-                lessonArea: area, lessonSequence: sequence, studentID: studentID, context: modelContext
-            )
-        }
         return outcome
     }
 
@@ -257,14 +217,11 @@ extension MCPNotebookTools {
         lesson: CDLesson, assessedAt: Date, marked: [CDStudent],
         alreadyMastered: [(CDStudent, Date?)], in modelContext: NSManagedObjectContext
     ) -> String {
-        let track = try? SequenceTrackService.cdGetTrack(
-            area: lesson.area, sequence: lesson.sequence, context: modelContext
-        )
         var lines: [String] = []
         if !marked.isEmpty {
             lines.append("Marked mastered on \(dayString(assessedAt)): \(describeLesson(lesson))")
             for student in marked {
-                lines.append("- \(student.fullName)\(trackProgressSuffix(track, for: student, in: modelContext))")
+                lines.append("- \(student.fullName)\(standingSuffix(on: lesson, for: student, in: modelContext))")
             }
         }
         if !alreadyMastered.isEmpty {
@@ -276,19 +233,18 @@ extension MCPNotebookTools {
         return lines.joined(separator: "\n")
     }
 
-    /// The child's standing on the lesson's track after the mark, so the
-    /// guide sees the step advance in the same reply.
-    private static func trackProgressSuffix(
-        _ track: CDTrackEntity?, for student: CDStudent, in modelContext: NSManagedObjectContext
+    /// The child's standing on the lesson's sequence after the mark, so the
+    /// guide sees her move along it in the same reply.
+    private static func standingSuffix(
+        on lesson: CDLesson, for student: CDStudent, in modelContext: NSManagedObjectContext
     ) -> String {
-        guard let track, let studentID = student.id?.uuidString else { return "" }
-        let total = TrackProgressResolver.totalSteps(track: track)
-        guard total > 0 else { return "" }
-        let presentations = modelContext.safeFetch(CDFetchRequest(CDLessonPresentation.self))
-            .filter { $0.studentID == studentID }
-        let done = TrackProgressResolver.proficientCount(
-            track: track, studentID: studentID, lessonPresentations: presentations
+        let area = lesson.area.trimmed()
+        let sequence = lesson.sequence.trimmed()
+        guard !area.isEmpty, !sequence.isEmpty, let studentID = student.id?.uuidString else { return "" }
+        let standing = SequenceStandingLoader.standing(
+            forStudentID: studentID, area: area, sequence: sequence, in: modelContext
         )
-        return " — \(track.title): \(done)/\(total) steps mastered"
+        guard standing.total > 0 else { return "" }
+        return " — \(standing.title): \(standing.masteredCount)/\(standing.total) lessons mastered"
     }
 }

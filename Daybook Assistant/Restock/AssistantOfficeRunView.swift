@@ -155,12 +155,14 @@ struct AssistantOfficeRunView: View {
     /// One of the guide's orders: what, how many, where it stands, and its link.
     private func orderRow(_ need: CDOrderItem) -> some View {
         _ = model.revision
+        // The link parsed once: the site and the Link both come from it.
+        let url = need.url
         let content = HStack(alignment: .firstTextBaseline, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title(need))
                     .font(.body)
                     .foregroundStyle(.primary)
-                if let host = need.host {
+                if let host = Self.site(of: url) {
                     Label(host, systemImage: "link")
                         .font(.caption)
                         .foregroundStyle(AssistantRestockStyle.accent)
@@ -173,13 +175,20 @@ struct AssistantOfficeRunView: View {
                 .multilineTextAlignment(.trailing)
         }
         return Group {
-            if let url = need.url {
+            if let url {
                 Link(destination: url) { content }
                     .accessibilityHint("Opens the product page")
             } else {
                 content
             }
         }
+    }
+
+    /// The site a need's link points at, without a leading "www.", as the
+    /// need's own `host` reads it.
+    private static func site(of url: URL?) -> String? {
+        guard let host = url?.host(), !host.isEmpty else { return nil }
+        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
     }
 
     /// "Glue sticks ×12": the quantity when it's more than one.

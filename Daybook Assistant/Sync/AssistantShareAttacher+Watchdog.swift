@@ -50,6 +50,7 @@ extension AssistantShareAttacher {
         Self.watchdogLogger.error("A share call has run \(limit, privacy: .public) s and may never return")
         sendingLooksStuck = true
         stuckContainer = container
+        wakeIdleWaiters()
         if letGoOfStuckPass() {
             guard let lastContainer, let lastContext else { return }
             flush(container: lastContainer, context: lastContext)

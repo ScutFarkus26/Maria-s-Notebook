@@ -80,9 +80,7 @@ final class ParentLockerSync {
     struct Dependencies {
         var store: any ParentLockerStore
         var secrets: any ParentLockerSecrets = ParentLockerKeychainSecrets()
-        var makeTransport: MakeTransport = { site, cookies, changed in
-            ParentLockerHTTP(site: site, cookies: cookies, cookiesChanged: changed)
-        }
+        var makeTransport: MakeTransport = ParentLockerSync.siteTransports()
         var signIn: SignIn = { credential, site in
             try await ParentLockerSignIn(site: site).run(credential, showsPagesWhenAsked: false)
         }
@@ -113,7 +111,9 @@ final class ParentLockerSync {
 
     var status = ParentLockerStatus()
     /// A ParentLocker password is saved for the site (on this device, or synced to it).
-    var isSignedIn = false
+    var isSignedIn = false {
+        didSet { if isSignedIn != oldValue { watcher?.followsSaves = isSignedIn } }
+    }
     /// The last whole-day plan or preview.
     var lastReport: ParentLockerReport?
     /// When Close Arrival's Undo ends for the Close Arrival & Send made here
@@ -235,6 +235,8 @@ final class ParentLockerSync {
     @ObservationIgnored var holdsBackground = false
     /// Stopped: nothing more is scheduled, and no background window is held.
     @ObservationIgnored var isStopped = false
+    /// Cookies with no password go at the first sign-in read after `start`, then at sign-outs (#21).
+    @ObservationIgnored var signInReadSinceStart = false
 
     static let logger = Logger.attendance
 
@@ -270,6 +272,7 @@ final class ParentLockerSync {
     func start(watching context: NSManagedObjectContext?) {
         isStopped = false
         Self.current = self
+        signInReadSinceStart = false
         refreshSignIn()
         loadOwed()
         // Today's marks as they stand, for the changes synced in from here on.
@@ -281,7 +284,8 @@ final class ParentLockerSync {
 
     /// Stops watching and drops anything scheduled (what's owed stays saved).
     /// A stopped sync schedules nothing more and lets the iPhone's background
-    /// window go, so the window can't outlive it.
+    /// window go, so the window can't outlive it. A run going when it stops
+    /// records nothing: its store may go with a rebuilt stack (bug hunt 2026-11-03 #1).
     func stop() {
         isStopped = true
         watcher = nil

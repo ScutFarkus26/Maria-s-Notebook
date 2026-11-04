@@ -56,8 +56,6 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
     // Planning
     case todos
     case reminders
-    case tracks
-    case trackEnrollments
     case calendarEvents
     case projects
     case goingOuts
@@ -87,7 +85,7 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
         case .students, .lessons, .presentationsPlanned, .presentationsGiven, .childPresentations,
              .work, .observations, .meetings, .practiceSessions:
             return .teaching
-        case .todos, .reminders, .tracks, .trackEnrollments, .calendarEvents, .projects, .goingOuts:
+        case .todos, .reminders, .calendarEvents, .projects, .goingOuts:
             return .planning
         case .attendance, .daysOff, .supplies, .supplyHistory, .orders, .issues,
              .communityTopics, .procedures:
@@ -111,8 +109,6 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
         case .practiceSessions: return "Practice sessions"
         case .todos: return "To-dos"
         case .reminders: return "Reminders"
-        case .tracks: return "Tracks"
-        case .trackEnrollments: return "Track enrollments"
         case .calendarEvents: return "Calendar events"
         case .projects: return "Projects"
         case .goingOuts: return "Going-outs"
@@ -148,8 +144,6 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
         case .practiceSessions: return "music.note.list"
         case .todos: return "checklist"
         case .reminders: return "bell.fill"
-        case .tracks: return "point.topleft.down.to.point.bottomright.curvepath.fill"
-        case .trackEnrollments: return "person.line.dotted.person.fill"
         case .calendarEvents: return "calendar"
         case .projects: return "folder.fill"
         case .goingOuts: return "figure.walk"
@@ -196,8 +190,6 @@ enum NotebookRecordKind: String, CaseIterable, Identifiable {
         case .practiceSessions: return [CDPracticeSession.self]
         case .todos: return [CDTodoItemEntity.self]
         case .reminders: return [CDReminder.self]
-        case .tracks: return [CDTrackEntity.self]
-        case .trackEnrollments: return [CDStudentTrackEnrollmentEntity.self]
         case .calendarEvents: return [CDCalendarEvent.self]
         case .projects: return [CDProject.self]
         case .goingOuts: return [CDGoingOut.self]

@@ -24,12 +24,8 @@ extension LifecycleService {
         let lessonIDStr = lessonAssignment.lessonID
         let studentIDStrs = try knownStudentIDs(namedBy: lessonAssignment, context: modelContext)
 
-        // A given presentation whose lesson was changed: its history rows move
-        // with it, and the track and step it carried named the old lesson.
-        if relinkHistoryRows(of: lessonAssignment, in: modelContext) > 0 {
-            lessonAssignment.trackID = nil
-            lessonAssignment.trackStepID = nil
-        }
+        // A given presentation whose lesson was changed: its history rows move with it.
+        relinkHistoryRows(of: lessonAssignment, in: modelContext)
         // Entries promoted into it for the lesson it used to be on go back to planned.
         PresentationRecordCleanup.returnEntriesForOtherLessons(promotedInto: lessonAssignment, in: modelContext)
 
@@ -37,37 +33,6 @@ extension LifecycleService {
         // previously stored as an undated or older presentation. The operation is
         // still idempotent because the per-student rows are upserted below.
         lessonAssignment.markPresented(at: presentedAt)
-
-        // Update track info if not already set
-        if lessonAssignment.trackID == nil, let lesson = lessonAssignment.lesson {
-            let area = lesson.area.trimmed()
-            let sequence = lesson.sequence.trimmed()
-            if !area.isEmpty && !sequence.isEmpty,
-               SequenceTrackService.isTrack(area: area, sequence: sequence, context: modelContext) {
-                do {
-                    let track = try SequenceTrackService.getOrCreateTrack(
-                        area: area,
-                        sequence: sequence,
-                        context: modelContext
-                    )
-                    lessonAssignment.trackID = track.id?.uuidString
-                    if let lessonUUID = UUID(uuidString: lessonIDStr) {
-                        // This lesson's steps only (UUID attribute, UUID argument);
-                        // the track match stays in memory as before.
-                        let stepRequest = CDFetchRequest(CDTrackStep.self)
-                        stepRequest.predicate = NSPredicate(format: "lessonTemplateID == %@", lessonUUID as CVarArg)
-                        let lessonSteps = modelContext.safeFetch(stepRequest)
-                        if let step = lessonSteps.first(where: {
-                            $0.track?.id == track.id && $0.lessonTemplateID == lessonUUID
-                        }) {
-                            lessonAssignment.trackStepID = step.id?.uuidString
-                        }
-                    }
-                } catch {
-                    logger.warning("Failed to get or create track: \(error.localizedDescription)")
-                }
-            }
-        }
 
         // Upsert CDLessonPresentation records per student (for individual progress tracking)
         let assignmentIDStr = lessonAssignment.id?.uuidString ?? ""
@@ -132,7 +97,6 @@ extension LifecycleService {
     // Idempotent by (presentationID, studentID) on CDWorkModel.
     //
     // Only use this when work items should be explicitly created (e.g., GiveLessonViewModel with needsPractice).
-    // swiftlint:disable:next function_body_length
     static func recordPresentationAndExplodeWork(
         from lessonAssignment: CDLessonAssignment,
         presentedAt: Date,
@@ -180,24 +144,6 @@ extension LifecycleService {
                         scheduledDate: nil as Date?,
                         saveImmediately: false
                     )
-
-                    // Link CDWorkModel to CDTrackEntity if lesson belongs to a track
-                    if let lesson = la.lesson {
-                        let area = lesson.area.trimmed()
-                        let sequence = lesson.sequence.trimmed()
-                        if !area.isEmpty && !sequence.isEmpty,
-                           SequenceTrackService.isTrack(area: area, sequence: sequence, context: modelContext) {
-                            do {
-                                _ = try SequenceTrackService.getOrCreateTrack(
-                                    area: area,
-                                    sequence: sequence,
-                                    context: modelContext
-                                )
-                            } catch {
-                                logger.warning("Failed to link work to track: \(error.localizedDescription)")
-                            }
-                        }
-                    }
 
                     createdCount += 1
                 } catch {

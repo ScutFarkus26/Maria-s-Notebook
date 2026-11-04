@@ -55,10 +55,11 @@ final class AssistantFrontDesk {
         let isAnotherDay = !Calendar.current.isDate(day, inSameDayAs: date)
         date = day
         settings = AttendanceEmailLog.settings(in: context)
-        latestSend = AttendanceEmailLog.latestSend(on: day, in: context)
-        daySends = AttendanceEmailLog.daySends(on: day, in: context)
-        isNotExpected = settings?.sendMethod == .parentLocker
-            && AttendanceEmailLog.isNotExpected(on: day, in: context)
+        // The day's sends and its "not expected" note, in one read (bug hunt 2026-11-03 #18).
+        let records = AttendanceEmailLog.dayRecords(on: day, in: context)
+        latestSend = records.latestSend
+        daySends = records.daySends
+        isNotExpected = settings?.sendMethod == .parentLocker && records.isNotExpected
         if isAnotherDay || (latestSend != nil && latestSend != sendAtError) { errorMessage = nil }
     }
 

@@ -231,15 +231,6 @@ enum ChecklistBatchActionExecutor {
             studentID: studentIDString, lessonID: lessonIDString,
             state: .proficient, from: prefetchedLPs, context: context
         )
-
-        SequenceTrackService.autoEnrollInTrackIfNeeded(
-            lessonArea: lesson.area, lessonSequence: lesson.sequence,
-            studentIDs: [studentIDString], context: context
-        )
-        SequenceTrackService.checkAndCompleteTrackIfNeeded(
-            lessonArea: lesson.area, lessonSequence: lesson.sequence,
-            studentID: studentIDString, context: context
-        )
     }
 
     /// Puts the child on the presented row `attachment` describes, creating it
@@ -256,18 +247,10 @@ enum ChecklistBatchActionExecutor {
         if let sequence = allLAs.first(where: { attachment.matches($0, today: today) }) {
             if !sequence.studentIDs.contains(studentIDString) {
                 sequence.studentIDs.append(studentIDString)
-                SequenceTrackService.autoEnrollInTrackIfNeeded(
-                    lessonArea: lesson.area, lessonSequence: lesson.sequence,
-                    studentIDs: [studentIDString], context: context
-                )
             }
         } else {
             guard let lessonID = lesson.id, let studentID = student.id else { return }
             _ = attachment.makeAssignment(lessonID: lessonID, studentID: studentID, context: context)
-            SequenceTrackService.autoEnrollInTrackIfNeeded(
-                lessonArea: lesson.area, lessonSequence: lesson.sequence,
-                studentIDs: [studentIDString], context: context
-            )
         }
     }
 

@@ -50,7 +50,12 @@ final class AssistantShareAttacher {
     /// call comes back, or when a rebuilt stack lets go of the pass.
     var sendingLooksStuck = false
 
-    @ObservationIgnored var pass: Task<Void, Never>?
+    @ObservationIgnored var pass: Task<Void, Never>? {
+        didSet { if pass == nil { wakeIdleWaiters() } }
+    }
+    /// `waitUntilIdle()`s waiting for the pass to end, be let go of, or
+    /// look stuck (`+Rest`).
+    @ObservationIgnored var idleWaiters: [CheckedContinuation<Void, Never>] = []
     /// Numbers each pass. One whose share call outlived the watchdog on a
     /// stack that has since been rebuilt is let go (`letGoOfStuckPass`): its
     /// number is passed, so when the call comes back, however late, it exits
@@ -440,10 +445,12 @@ extension AssistantShareAttacher {
 
     /// True once no pass runs, false if one still does after `limit`: a
     /// hung `share(_:to:)` mustn't hold up Leave or a rebuild for good.
+    /// A cancelled caller gets false at once: the sleep below throws at
+    /// once then, and the loop would spin until the limit.
     func waitUntilIdle(upTo limit: Duration) async -> Bool {
         let deadline = ContinuousClock.now + limit
         while pass != nil {
-            guard ContinuousClock.now < deadline else { return false }
+            guard ContinuousClock.now < deadline, !Task.isCancelled else { return false }
             try? await Task.sleep(for: .milliseconds(50))
         }
         return true

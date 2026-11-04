@@ -27,6 +27,8 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
     let store: CDAttendanceStore
     /// Siri marks today only.
     let today: Date
+    /// Saves the context; true when it worked. Tests pass one that fails.
+    var save: @MainActor (NSManagedObjectContext) -> Bool = { $0.safeSave() }
 
     var context: NSManagedObjectContext { stack.viewContext }
 
@@ -147,7 +149,11 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
     }
 
     /// How Siri names `student` in its answers: in full in the notebook, as
-    /// the grid does in the Assistant (`SiriHost.displayNames`).
+    /// the grid does in the Assistant (`SiriHost.displayNames`). Each call
+    /// reads the roster afresh, so an intent works it out once at the top of
+    /// its `perform` and hands it to the mark (`name:`), rather than the mark
+    /// fetching the roster again; nothing is kept between requests, where a
+    /// roster change would leave a stale name.
     func spokenName(for student: CDStudent) -> String {
         SiriHost.displayNames(for: SiriHost.roster(in: context))[student.objectID] ?? student.fullName
     }
@@ -169,11 +175,12 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
     @discardableResult
     /// `reason` applies to Absent only; nil leaves the reason as it is. A new
     /// reason on a child already absent is a change of its own.
+    /// `name` is `spokenName(for: student)` when the caller already has it.
     func mark(
-        _ student: CDStudent, as status: AttendanceStatus, reason: AbsenceReason? = nil
+        _ student: CDStudent, as status: AttendanceStatus, reason: AbsenceReason? = nil, name: String? = nil
     ) async throws -> AttendanceStatus {
         try await Self.plainly("marking attendance") {
-            try await markUnwrapped(student, as: status, reason: reason).previous
+            try await markUnwrapped(student, as: status, reason: reason, name: name).previous
         }
     }
 
@@ -181,15 +188,15 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
     /// whether anything changed (a reason a child already absent has
     /// changes nothing).
     func markAbsent(
-        _ student: CDStudent, reason: AbsenceReason?
+        _ student: CDStudent, reason: AbsenceReason?, name: String? = nil
     ) async throws -> (previous: AttendanceStatus, changed: Bool) {
         try await Self.plainly("marking attendance") {
-            try await markUnwrapped(student, as: .absent, reason: reason)
+            try await markUnwrapped(student, as: .absent, reason: reason, name: name)
         }
     }
 
     private func markUnwrapped(
-        _ student: CDStudent, as status: AttendanceStatus, reason: AbsenceReason?
+        _ student: CDStudent, as status: AttendanceStatus, reason: AbsenceReason?, name: String?
     ) async throws -> (previous: AttendanceStatus, changed: Bool) {
         guard !store.isLocked(today) else { throw SiriAttendanceError.dayLocked }
         guard let record = try store.ensureRecord(for: student, on: today) else {
@@ -210,7 +217,7 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
             pending.fromReasonRaw = previousReasonRaw
             pending.toReasonRaw = record.absenceReasonRaw
         }
-        let name = spokenName(for: student)
+        let name = name ?? spokenName(for: student)
         try await commit([pending], created: created, summary: "\(name) \(status.spokenWord)", name: name)
         return (previous, true)
     }
@@ -224,23 +231,25 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
     /// lost the trip out, and once arrival had closed made a child who came
     /// on time late, at the front desk and in ParentLocker too (bug hunt
     /// 2026-10-17, #1).
-    func markHere(_ student: CDStudent) async throws -> (previous: AttendanceStatus, now: AttendanceStatus) {
+    func markHere(
+        _ student: CDStudent, name: String? = nil
+    ) async throws -> (previous: AttendanceStatus, now: AttendanceStatus) {
         let current = try status(of: student)
         if current == .leftEarly {
-            return (.leftEarly, try await markBack(student))
+            return (.leftEarly, try await markBack(student, name: name))
         }
         var status = SiriHost.statusForHere(on: today, store: store)
         if status == .tardy, current == .present {
             status = .present
         }
-        return (try await mark(student, as: status), status)
+        return (try await mark(student, as: status, name: name), status)
     }
 
     /// Back in Class (`CDAttendanceStore.markBack`): present or late, as
     /// she was before she left, keeping her arrival and the trip out. The
     /// whole record is remembered, so Undo puts her back as Left Early with
     /// her times. Returns the mark she's back to.
-    private func markBack(_ student: CDStudent) async throws -> AttendanceStatus {
+    private func markBack(_ student: CDStudent, name: String?) async throws -> AttendanceStatus {
         try await Self.plainly("marking back in class") {
             guard !store.isLocked(today) else { throw SiriAttendanceError.dayLocked }
             guard let record = try store.ensureRecord(for: student, on: today) else {
@@ -248,7 +257,7 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
             }
             let before = AttendanceRecordSnapshot(record).values
             guard store.markBack(record) else { throw SiriAttendanceError.cannotMark }
-            let name = spokenName(for: student)
+            let name = name ?? spokenName(for: student)
             let pending = Pending(record: record, from: .leftEarly, to: record.status, before: before)
             try await commit([pending], created: [], summary: "\(name) back in class", name: name)
             return record.status
@@ -277,9 +286,12 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
         name: String? = nil,
         closedArrival: Bool = false
     ) async throws {
+        // Every classroom record this save inserts, read before the save
+        // empties the list (`SiriHost.recordsToFile`).
+        let toFile = SiriHost.recordsToFile(created: created, in: context)
         // Watch for the export before saving, so a quick one isn't missed.
         let exportWatch = SiriExportWatch()
-        guard context.safeSave() else {
+        guard save(context) else {
             exportWatch.stop()
             discard(marks, created: created)
             throw SiriAttendanceError.saveFailed
@@ -299,7 +311,7 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
             name: name
         ).remember()
 
-        let createdIDs = created.map(\.objectID)
+        let createdIDs = toFile.map(\.objectID)
         let stack = self.stack
         // The attach and the export share one 25 s, inside the 30 s iOS
         // allows: the export used to get its own 20 s after an attach wait
@@ -315,13 +327,32 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
 
     /// A failed save leaves the marks in the context, where the next save (a
     /// grid tap's) would send them on quietly: not remembered for Undo, and
-    /// never attached to the classroom share. Put them back instead.
+    /// never attached to the classroom share. Put them back instead, with
+    /// the day's other copies of each child's record that the mark changed
+    /// too: an Undo of Close Arrival clears the copies that are its
+    /// automatic absence (`CDAttendanceStore.undoAutomaticAbsence`), and they
+    /// stayed cleared in the context (bug hunt 2026-11-03 #29).
     private func discard(_ marks: [Pending], created: [CDAttendanceRecord]) {
         let createdIDs = Set(created.map(\.objectID))
         for record in created { context.delete(record) }
-        for mark in marks where !createdIDs.contains(mark.record.objectID) {
-            context.refresh(mark.record, mergeChanges: false)
+        let marked = marks.filter { !createdIDs.contains($0.record.objectID) }.map(\.record)
+        let calendar = store.calendar
+        func dayChild(_ record: CDAttendanceRecord) -> DayChild? {
+            record.date.map { DayChild(studentID: record.studentID, day: calendar.startOfDay(for: $0)) }
         }
+        let children = Set(marked.compactMap(dayChild))
+        let copies = context.updatedObjects.compactMap { $0 as? CDAttendanceRecord }.filter { copy in
+            dayChild(copy).map(children.contains) ?? false
+        }
+        for record in Set(marked + copies) {
+            context.refresh(record, mergeChanges: false)
+        }
+    }
+
+    /// One child's records on one day: a record and its copies.
+    private struct DayChild: Hashable {
+        let studentID: String
+        let day: Date
     }
 
     /// Puts back the last change Siri made today, where nothing has changed

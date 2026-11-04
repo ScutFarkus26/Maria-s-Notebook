@@ -17,7 +17,7 @@ nonisolated extension ClassroomShareAttach {
     /// `fetchShares(in:)`, which waits while an export holds the store.
     @concurrent
     static func current(_ share: CKShare, container: NSPersistentCloudKitContainer) async -> CKShare {
-        let cloud = await CloudKitConfigurationService.container
+        let cloud = CloudKitConfigurationService.container
         let database = share.recordID.zoneID.ownerName == CKCurrentUserDefaultName
             ? cloud.privateCloudDatabase
             : cloud.sharedCloudDatabase
@@ -42,7 +42,7 @@ nonisolated extension ClassroomShareAttach {
     /// risks saving a stale change tag.
     @concurrent
     static func latestForAttach(_ share: CKShare, container: NSPersistentCloudKitContainer) async throws -> CKShare {
-        let cloud = await CloudKitConfigurationService.container
+        let cloud = CloudKitConfigurationService.container
         let database = share.recordID.zoneID.ownerName == CKCurrentUserDefaultName
             ? cloud.privateCloudDatabase
             : cloud.sharedCloudDatabase

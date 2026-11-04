@@ -8,15 +8,11 @@ extension ImmediatePresentationRecordingService {
         let assignmentState: AssignmentStateSnapshot
         let existingHistoryIdentities: Set<ObjectIdentifier>
         let priorHistoryStates: [HistoryStateBeforeSave]
-        let existingEnrollmentIdentities: Set<ObjectIdentifier>
-        let priorEnrollmentStates: [EnrollmentStateBeforeSave]
         let releasePreimage: YearPlanReleasePreimage
     }
 
     struct RecordChanges {
         let createdHistoryRows: [CDLessonPresentation]
-        let createdEnrollmentRows: [CDStudentTrackEnrollmentEntity]
-        let existingEnrollmentStates: [EnrollmentStateSnapshot]
         let releasedPlans: YearPlanReleasePreimage
     }
 
@@ -29,8 +25,6 @@ extension ImmediatePresentationRecordingService {
         let modifiedAt: Date?
         let lessonTitleSnapshot: String?
         let lessonSectionSnapshot: String?
-        let trackID: String?
-        let trackStepID: String?
         let studentIDs: [String]
 
         init(assignment: CDLessonAssignment) {
@@ -42,8 +36,6 @@ extension ImmediatePresentationRecordingService {
             modifiedAt = assignment.modifiedAt
             lessonTitleSnapshot = assignment.lessonTitleSnapshot
             lessonSectionSnapshot = assignment.lessonSectionSnapshot
-            trackID = assignment.trackID
-            trackStepID = assignment.trackStepID
             studentIDs = assignment.studentIDs
         }
 
@@ -56,8 +48,6 @@ extension ImmediatePresentationRecordingService {
             assignment.modifiedAt = modifiedAt
             assignment.lessonTitleSnapshot = lessonTitleSnapshot
             assignment.lessonSectionSnapshot = lessonSectionSnapshot
-            assignment.trackID = trackID
-            assignment.trackStepID = trackStepID
             assignment.studentIDs = studentIDs
         }
     }
@@ -101,45 +91,6 @@ extension ImmediatePresentationRecordingService {
             followUpEvidenceRaw = row.followUpEvidenceRaw
             followUpNote = row.followUpNote
             followUpSupportRaw = row.followUpSupportRaw
-        }
-    }
-
-    struct EnrollmentStateBeforeSave {
-        let row: CDStudentTrackEnrollmentEntity
-        let trackID: String
-        let isActive: Bool
-        let startedAt: Date?
-        let trackObjectID: NSManagedObjectID?
-
-        init(_ row: CDStudentTrackEnrollmentEntity) {
-            self.row = row
-            trackID = row.trackID
-            isActive = row.isActive
-            startedAt = row.startedAt
-            trackObjectID = row.track?.objectID
-        }
-    }
-
-    struct EnrollmentStateSnapshot {
-        let objectID: NSManagedObjectID
-        let isActive: Bool
-        let startedAt: Date?
-        let trackObjectID: NSManagedObjectID?
-
-        init(_ state: EnrollmentStateBeforeSave) {
-            objectID = state.row.objectID
-            isActive = state.isActive
-            startedAt = state.startedAt
-            trackObjectID = state.trackObjectID
-        }
-
-        func restore(
-            _ enrollment: CDStudentTrackEnrollmentEntity,
-            in context: NSManagedObjectContext
-        ) {
-            enrollment.isActive = isActive
-            enrollment.startedAt = startedAt
-            enrollment.track = trackObjectID.flatMap { context.existing(CDTrackEntity.self, $0) }
         }
     }
 }

@@ -24,6 +24,25 @@ struct AssistantApp: App {
         // it (`EarlyPickupReminderUpkeep`). The window's call is then a no-op.
         if !AssistantBootstrapper.isRunningUnitTests {
             Task { await bootstrapper.start() }
+            Self.startAgainAfterFirstUnlock(bootstrapper)
+        }
+    }
+
+    /// iOS can relaunch the app in the background before the first unlock
+    /// after a restart (a sync push), when the class's files can't be read
+    /// yet, and that start fails. Once they can, a start that failed is
+    /// tried again (`AssistantBootstrapper.retryFailedStart`); "Can't start"
+    /// used to stay until the app was killed (hunt 2026-11-03 #35).
+    private static func startAgainAfterFirstUnlock(_ bootstrapper: AssistantBootstrapper) {
+        Task {
+            guard !UIApplication.shared.isProtectedDataAvailable else { return }
+            let unlocks = NotificationCenter.default
+                .notifications(named: UIApplication.protectedDataDidBecomeAvailableNotification)
+                .map { _ in () }
+            for await _ in unlocks {
+                await bootstrapper.retryFailedStart()
+                return
+            }
         }
     }
 

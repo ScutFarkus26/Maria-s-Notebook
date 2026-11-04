@@ -3,13 +3,13 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-/// Pins what opening one student's track detail materialises: the sheet's
-/// own load (`StudentTrackDetailLoader`) plus the timeline it hands to
-/// `StudentAreaProgressionViewModel`. Before 2026-09-21 the pair read every
-/// student, lesson, mark, assignment, work row and check-in; now each read is
-/// scoped to the track's area and sequence and to the child. The sheet's
-/// output, and the lesson it plans, must not change. (Since 2026-10-10 the
-/// timeline reads mastery from the mark and plans the lesson tapped.)
+/// Pins what opening one student's sequence detail materialises: the sheet's
+/// own load (`StudentTrackDetailLoader`, a fresh `SequenceStanding`) plus the
+/// timeline it hands to `StudentAreaProgressionViewModel`. Each read is scoped
+/// to the sequence's lessons and to the child. The sheet's output, and the
+/// lesson it plans, must not change. (Since 2026-10-10 the timeline reads
+/// mastery from the mark and plans the lesson tapped; since 2026-11-03 the
+/// sheet opens on a standing, not a track enrollment.)
 @Suite("Student Track Detail load scope")
 @MainActor
 struct StudentTrackDetailLoadScopeTests {
@@ -22,15 +22,14 @@ struct StudentTrackDetailLoadScopeTests {
         let context: NSManagedObjectContext
         let owner: AnyObject?
         let student: CDStudent
-        let track: CDTrackEntity
-        let enrollment: CDStudentTrackEnrollmentEntity
         let firstLesson: CDLesson
         let secondLesson: CDLesson
     }
 
     /// One student on "Math — Chains" (two lessons: the first mastered,
     /// presented and carrying open work with a completed check-in), next to
-    /// `others` classmates who each carry the same shape on their own track.
+    /// `others` classmates who each carry the same shape on a sequence of
+    /// their own.
     private func seed(others: Int, store: Store = .inMemory) throws -> Seeded {
         let context: NSManagedObjectContext
         let owner: AnyObject?
@@ -49,20 +48,16 @@ struct StudentTrackDetailLoadScopeTests {
         first.orderInSequence = 0
         let second = CoreDataTestHelpers.seedLesson(in: context, name: "Bead Squares", area: "Math", sequence: "Chains")
         second.orderInSequence = 1
-        let (track, enrollment) = seedTrack(
-            title: "Math — Chains", for: student, lessons: [first, second], in: context
-        )
+        seedStanding(for: student, lessons: [first, second], in: context)
         for index in 0..<others {
             let other = CoreDataTestHelpers.seedStudent(in: context, firstName: "Other", lastName: "\(index)")
             let lesson = CoreDataTestHelpers.seedLesson(
                 in: context, name: "Lesson \(index)", area: "Language", sequence: "Seq \(index)"
             )
-            _ = seedTrack(title: "Language — Seq \(index)", for: other, lessons: [lesson], in: context)
+            seedStanding(for: other, lessons: [lesson], in: context)
         }
 
         let studentUUID = try #require(student.id)
-        let trackUUID = try #require(track.id)
-        let enrollmentUUID = try #require(enrollment.id)
         let firstUUID = try #require(first.id)
         let secondUUID = try #require(second.id)
         try context.save()
@@ -71,34 +66,23 @@ struct StudentTrackDetailLoadScopeTests {
         return Seeded(
             context: context, owner: owner,
             student: try #require(context.object(CDStudent.self, id: studentUUID)),
-            track: try #require(context.object(CDTrackEntity.self, id: trackUUID)),
-            enrollment: try #require(context.object(CDStudentTrackEnrollmentEntity.self, id: enrollmentUUID)),
             firstLesson: try #require(context.object(CDLesson.self, id: firstUUID)),
             secondLesson: try #require(context.object(CDLesson.self, id: secondUUID))
         )
     }
 
-    /// A track for `lessons`, the student enrolled and active, the first
-    /// lesson mastered, presented, and carrying open work with one completed
-    /// check-in.
-    private func seedTrack(
-        title: String, for student: CDStudent, lessons: [CDLesson], in context: NSManagedObjectContext
-    ) -> (CDTrackEntity, CDStudentTrackEnrollmentEntity) {
+    /// The first lesson mastered, presented, and carrying open work with one
+    /// completed check-in.
+    private func seedStanding(for student: CDStudent, lessons: [CDLesson], in context: NSManagedObjectContext) {
         let studentID = student.id?.uuidString ?? ""
         let first = lessons[0]
         let firstID = first.id?.uuidString ?? ""
-        let track = CDTrackEntity(context: context)
-        track.title = title
-        let enrollment = CDStudentTrackEnrollmentEntity(context: context)
-        enrollment.studentID = studentID
-        enrollment.trackID = track.id?.uuidString ?? ""
-        enrollment.track = track
-        enrollment.isActive = true
 
         let mark = CDLessonPresentation(context: context)
         mark.studentID = studentID
         mark.lessonID = firstID
         mark.state = .proficient
+        mark.presentedAt = Date()
 
         let assignment = CDLessonAssignment(context: context)
         assignment.lessonID = firstID
@@ -110,11 +94,10 @@ struct StudentTrackDetailLoadScopeTests {
             in: context, title: "Chain work", studentID: student.id ?? UUID(), lessonID: first.id ?? UUID()
         )
         _ = CDWorkCheckIn.make(for: work, on: Date(), status: .completed, in: context)
-        return (track, enrollment)
     }
 
     @Test(
-        "The sheet finds the child, the track's lessons, her marks and her timeline among classmates",
+        "The sheet finds the sequence's lessons, her marks and her timeline among classmates",
         arguments: [Store.inMemory, .sqlite]
     )
     func outputsAreScopedToTheStudent(store: Store) throws {
@@ -123,17 +106,17 @@ struct StudentTrackDetailLoadScopeTests {
         let firstID = try #require(seeded.firstLesson.id).uuidString
 
         let load = StudentTrackDetailLoader.load(
-            enrollment: seeded.enrollment, track: seeded.track, context: seeded.context
+            student: seeded.student, area: "Math", sequence: "Chains", context: seeded.context
         )
-        #expect(load.area == "Math")
-        #expect(load.sequence == "Chains")
-        #expect(load.student?.objectID == seeded.student.objectID)
+        #expect(load.standing.title == "Math — Chains")
         #expect(load.trackLessons.map(\.objectID) == [seeded.firstLesson.objectID, seeded.secondLesson.objectID])
         #expect(load.presentedLessonIDs == [firstID])
         #expect(load.proficientLessonIDs == [firstID])
+        #expect(load.standing.isInProgress)
+        #expect(load.standing.nextLesson?.objectID == seeded.secondLesson.objectID)
 
         let timeline = StudentAreaProgressionViewModel()
-        timeline.configure(for: seeded.student, area: load.area, sequence: load.sequence, context: seeded.context)
+        timeline.configure(for: seeded.student, area: "Math", sequence: "Chains", context: seeded.context)
         #expect(timeline.totalCount == 2)
         // The first lesson's mastery mark makes it Mastered, open work or not (the Checklist's rule).
         #expect(timeline.completedCount == 1)
@@ -172,22 +155,24 @@ struct StudentTrackDetailLoadScopeTests {
         #expect(made.first?.resolvedStudentIDs == [studentID])
     }
 
-    @Test("Opening one student's track materialises her rows, not the classroom's")
+    @Test("Opening one student's sequence materialises her rows, not the classroom's")
     func loadMaterialisesOnlyTheStudentsRows() throws {
         let seeded = try seed(others: 12)
         defer { withExtendedLifetime(seeded.owner) {} }
         let before = seeded.context.registeredObjects.count
 
         let load = StudentTrackDetailLoader.load(
-            enrollment: seeded.enrollment, track: seeded.track, context: seeded.context
+            student: seeded.student, area: "Math", sequence: "Chains", context: seeded.context
         )
         let timeline = StudentAreaProgressionViewModel()
-        timeline.configure(for: seeded.student, area: load.area, sequence: load.sequence, context: seeded.context)
+        timeline.configure(
+            for: seeded.student, area: load.standing.area, sequence: load.standing.sequence, context: seeded.context
+        )
 
         let registered = seeded.context.registeredObjects.count - before
         // Her mark, her presented assignment, her work and its check-in: 4.
-        // The student, track, enrollment and both lessons were registered
-        // before the count. The whole-table load registered 76 (2026-09-21).
+        // The student and both lessons were registered before the count.
+        // The whole-table load registered 76 (2026-09-21).
         #expect(registered <= 6, "registered \(registered) objects for one student")
     }
 }

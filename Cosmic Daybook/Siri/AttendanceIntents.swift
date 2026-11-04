@@ -40,7 +40,7 @@ struct MarkHereIntent: AppIntent {
         let name = session.spokenName(for: child)
         try await SiriAttendance.confirmIfNoSchool(session, marking: name, for: self)
 
-        let (previous, status) = try await session.markHere(child)
+        let (previous, status) = try await session.markHere(child, name: name)
         let answer = Self.answer(name: name, previous: previous, now: status)
         return .result(dialog: IntentDialog(full: "\(answer.full)", supporting: "\(answer.supporting)"))
     }
@@ -88,7 +88,7 @@ struct MarkLateIntent: AppIntent {
         let name = session.spokenName(for: child)
         try await SiriAttendance.confirmIfNoSchool(session, marking: name, for: self)
 
-        let previous = try await session.mark(child, as: .tardy)
+        let previous = try await session.mark(child, as: .tardy, name: name)
         if previous == .tardy {
             return .result(dialog: IntentDialog(full: "\(name) was already marked late.", supporting: "Already late"))
         }
@@ -129,7 +129,7 @@ struct MarkAbsentIntent: AppIntent {
             try await SiriAttendance.confirmIfNoSchool(session, marking: name, for: self)
         }
 
-        let (previous, changed) = try await session.markAbsent(child, reason: reason?.reason)
+        let (previous, changed) = try await session.markAbsent(child, reason: reason?.reason, name: name)
         let answer = Self.answer(name: name, previous: previous, reason: reason?.reason, changed: changed)
         return .result(dialog: IntentDialog(full: "\(answer.full)", supporting: "\(answer.supporting)"))
     }

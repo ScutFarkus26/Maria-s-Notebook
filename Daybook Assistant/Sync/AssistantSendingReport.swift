@@ -134,20 +134,28 @@ nonisolated struct AssistantSendingReport: Transferable {
 
     /// The app's own entries since it was opened, and Core Data's about its
     /// uploads and errors, oldest first, as lines. Off the main actor: the
-    /// read walks the process's whole log.
+    /// read walks the process's whole log. Only the last `maxLogLines` are
+    /// kept as it goes, and only those are written out: the whole log of a
+    /// launch that ran for days was held and formatted, then cut (bug hunt
+    /// 2026-11-03 #15). The read still starts at the launch: a later start
+    /// would drop lines the report shows, and a reverse read isn't
+    /// dependable.
     @concurrent
     private static func logLines() async throws -> [String] {
         let store = try OSLogStore(scope: .currentProcessIdentifier)
         let own = Bundle.main.bundleIdentifier ?? ""
         let predicate = NSPredicate(format: "subsystem == %@ OR subsystem == %@", own, coreDataSubsystem)
         let clock = Date.FormatStyle(date: .omitted, time: .standard)
-        var lines: [String] = []
+        var kept: [(date: Date, category: String, level: OSLogEntryLog.Level, message: String)] = []
         for case let entry as OSLogEntryLog in try store.getEntries(matching: predicate) {
-            if entry.subsystem == coreDataSubsystem, !keepsCoreDataLine(entry.composedMessage) { continue }
-            let level = name(of: entry.level)
-            lines.append("\(entry.date.formatted(clock))  \(entry.category)  \(level): \(entry.composedMessage)")
+            let message = entry.composedMessage
+            if entry.subsystem == coreDataSubsystem, !keepsCoreDataLine(message) { continue }
+            kept.append((entry.date, entry.category, entry.level, message))
+            if kept.count >= 2 * maxLogLines { kept.removeFirst(kept.count - maxLogLines) }
         }
-        return Array(lines.suffix(maxLogLines))
+        return kept.suffix(maxLogLines).map { line in
+            "\(line.date.formatted(clock))  \(line.category)  \(name(of: line.level)): \(line.message)"
+        }
     }
 
     static let coreDataSubsystem = "com.apple.coredata"

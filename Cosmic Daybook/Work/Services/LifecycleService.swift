@@ -96,9 +96,9 @@ struct LifecycleService {
         return stale.count
     }
 
-    /// One history row onto another lesson. Its track and step named the old
-    /// lesson's place, so they are cleared; `TrackProgressResolver` then
-    /// places the row by its lesson, as it does every row recording makes.
+    /// One history row onto another lesson. The track and step columns named
+    /// the old lesson's place, so they are cleared; every reader places the
+    /// row by its lesson.
     private static func moveHistoryRow(_ row: CDLessonPresentation, toLesson lessonID: String) {
         row.lessonID = lessonID
         row.trackID = nil

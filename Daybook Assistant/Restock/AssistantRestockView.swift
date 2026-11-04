@@ -194,7 +194,7 @@ struct AssistantRestockView: View {
             level: staple.level,
             markedBy: model.markedBy(staple),
             hasNote: !staple.notes.isEmpty,
-            menuHeader: model.menuHeader(staple),
+            menuHeader: { model.menuHeader(staple) },
             onTap: {
                 if AssistantRestockModel.isGone(staple) { stapleRemoved() }
                 return model.tap(staple)

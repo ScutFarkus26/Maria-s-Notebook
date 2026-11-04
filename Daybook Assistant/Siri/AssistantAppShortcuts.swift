@@ -105,30 +105,40 @@ struct AssistantAppShortcuts: AppShortcutsProvider {
 /// Keeps Siri's list of names in step with the class. The names come from
 /// `StudentEntityQuery.suggestedEntities()`; this only tells the system to
 /// read them again, and only when the roster has changed since it last did.
+/// Not for the join screen's Sample Class: Siri reads the real class under
+/// it, and the made-up roster set it off for nothing, then again on leaving.
+/// Returns whether it told the system.
 @MainActor
 enum AssistantSiriVocabulary {
     private static var registered: [String]?
 
-    static func refresh(for students: [CDStudent]) {
+    @discardableResult
+    static func refresh(for students: [CDStudent], sampleChosen: Bool = AssistantSampleClass.isChosen) -> Bool {
+        guard !sampleChosen else { return false }
         let names = students.map { "\($0.id?.uuidString ?? "")|\($0.firstName)|\($0.lastName)|\($0.nickname ?? "")" }
-        guard names != registered else { return }
+        guard names != registered else { return false }
         registered = names
         AssistantAppShortcuts.updateAppShortcutParameters()
+        return true
     }
 }
 
 /// Keeps Siri's supply names in step with the shelf, as
 /// `AssistantSiriVocabulary` does with the class: the names come from
 /// `SupplyEntityQuery.suggestedEntities()`, and this tells the system to read
-/// them again only when the staples have changed since it last did.
+/// them again only when the staples have changed since it last did; never
+/// for the Sample Class's made-up shelf.
 @MainActor
 enum AssistantRestockVocabulary {
     private static var registered: [String]?
 
-    static func refresh(for staples: [CDSupply]) {
+    @discardableResult
+    static func refresh(for staples: [CDSupply], sampleChosen: Bool = AssistantSampleClass.isChosen) -> Bool {
+        guard !sampleChosen else { return false }
         let names = staples.map { "\($0.id?.uuidString ?? "")|\($0.name)" }
-        guard names != registered else { return }
+        guard names != registered else { return false }
         registered = names
         AssistantAppShortcuts.updateAppShortcutParameters()
+        return true
     }
 }

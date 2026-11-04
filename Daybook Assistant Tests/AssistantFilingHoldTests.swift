@@ -44,7 +44,7 @@ struct AssistantFilingHoldTests {
         #expect(lifts.count == 1, "what waits goes in at once")
     }
 
-    @Test("A sync that says its delegate died holds; one that failed for another reason doesn't")
+    @Test("A sync that says its delegate died holds for the stack's life; one that failed for another reason doesn't")
     func deadDelegateHolds() {
         let hold = AssistantFilingHold()
         let start = Date()
@@ -52,8 +52,10 @@ struct AssistantFilingHoldTests {
         #expect(hold.stopReason == nil, "an export that failed for the network retries by itself")
         hold.follow(event(.import, succeeded: false, killedDelegate: true, at: start))
         #expect(hold.stopReason != nil)
+        // 2026-11-03 #2: the delegate stays dead, so only a rebuilt stack's
+        // fresh hold lets marks go.
         hold.follow(event(.import, succeeded: true, at: start.addingTimeInterval(1)))
-        #expect(hold.stopReason == nil)
+        #expect(hold.stopReason != nil)
     }
 
     @Test("While the share's store is held no pass tries a mark; once it lifts, the waiting marks go in")

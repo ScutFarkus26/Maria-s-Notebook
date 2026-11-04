@@ -81,6 +81,8 @@ extension AssistantBootstrapper {
         sharingService?.noteViewOnly(false)
         ClassroomPermissions.shareIsViewOnly = false
         AssistantClassroomLocalState.forget()
+        // What ParentLocker owed for that class goes; the sign-in stays (bug hunt 2026-11-03 #21).
+        parentLocker?.classLeft()
         await ArrivalReminder.cancelAll()
         await FrontDeskEmailReminder.cancelAll()
         await EarlyPickupReminder.cancelAll()

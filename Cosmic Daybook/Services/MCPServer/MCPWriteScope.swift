@@ -16,7 +16,6 @@
 
 import CoreData
 import Foundation
-import Synchronization
 
 /// One MCP write's changes, undone alone if the write fails.
 ///
@@ -79,30 +78,4 @@ final class MCPWriteScope {
         }
         saveObserver = nil
     }
-}
-
-extension MCPNotebookTools {
-    /// Runs part of a write and says whether the context saved during it. A
-    /// service that saves on its own (the track check after a mastery mark)
-    /// puts everything before it on disk, where the scope can't take it back,
-    /// so the write's reply must not say "nothing was changed" if a later
-    /// save fails (bug hunt 2026-10-11 review).
-    static func noticingSaves<Result>(
-        of context: NSManagedObjectContext, _ body: () throws -> Result
-    ) rethrows -> (result: Result, saved: Bool) {
-        let flag = SaveFlag()
-        let observer = NotificationCenter.default.addObserver(
-            forName: NSManagedObjectContext.didSaveObjectsNotification, object: context, queue: nil
-        ) { _ in
-            flag.saved.withLock { $0 = true }
-        }
-        defer { NotificationCenter.default.removeObserver(observer) }
-        let result = try body()
-        return (result, flag.saved.withLock { $0 })
-    }
-}
-
-/// Set by the save observer in `noticingSaves`.
-private final class SaveFlag: Sendable {
-    let saved = Mutex(false)
 }

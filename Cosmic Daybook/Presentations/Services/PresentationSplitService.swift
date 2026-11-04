@@ -53,8 +53,6 @@ enum PresentationSplitService {
         // Copy relevant metadata
         newAssignment.lessonTitleSnapshot = assignment.lessonTitleSnapshot
         newAssignment.lessonSectionSnapshot = assignment.lessonSectionSnapshot
-        newAssignment.trackID = assignment.trackID
-        newAssignment.trackStepID = assignment.trackStepID
 
         // Update original assignment to only contain blocked students
         assignment.studentIDs = remainingIDs.map(\.uuidString)

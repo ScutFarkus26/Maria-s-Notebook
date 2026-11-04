@@ -26,6 +26,13 @@ struct AssistantRootView: View {
                 }
             }
             .animation(.smooth, value: ToastService.shared.current?.id)
+            // Her photo behind the grid is decoded off the main thread while
+            // the class opens, not on the grid's first draw (hunt 2026-11-03 #33).
+            .task {
+                await AssistantWallpaperPhoto.shared.preload(
+                    chosen: UserDefaults.standard.string(forKey: AssistantWallpaper.key)
+                )
+            }
     }
 
     @ViewBuilder

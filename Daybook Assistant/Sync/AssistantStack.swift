@@ -66,16 +66,23 @@ enum AssistantStack {
             // A mark tapped just before the phone locks still goes out, and so
             // do marks waiting with a chance of going (offline, or rested):
             // locking tries them. One at a time, as `install` keeps it: a
-            // rebuilt stack's replaces the old one's.
-            keepAlive = UnsentChangesKeepAlive(
+            // rebuilt stack's replaces the old one's, and takes over what the
+            // old one had still to upload (bug hunt 2026-11-03 #9).
+            let replaced = keepAlive
+            let fresh = UnsentChangesKeepAlive(
                 viewContext: made.viewContext,
-                isBusy: { attacher.isRunning },
+                isBusy: { attacher.isBusy },
                 hasWaitingWork: { attacher.waitingHaveAChance },
                 waitForWork: {
                     attacher.retryWaitingIfAChance()
                     await attacher.waitUntilIdle()
                 }
             )
+            if let replaced {
+                let stores = made.container.persistentStoreCoordinator.persistentStores.compactMap(\.identifier)
+                fresh.takeUnsent(from: replaced, stores: Set(stores))
+            }
+            keepAlive = fresh
             let record = AssistantSyncRecord(viewContext: made.viewContext)
             // A successful sync proves iCloud can be reached, and may have
             // brought the share marks saved before it waited for (#44).

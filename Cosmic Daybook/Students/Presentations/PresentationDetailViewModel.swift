@@ -308,30 +308,7 @@ final class PresentationDetailViewModel {
                 guideChangedState: proficiencyState != loadedProficiencyState
             )
             loadedProficiencyState = proficiencyState
-
-            if let lesson = lessonAssignment.lesson {
-                SequenceTrackService.autoEnrollInTrackIfNeeded(
-                    lessonArea: lesson.area,
-                    lessonSequence: lesson.sequence,
-                    studentIDs: lessonAssignment.studentIDs,
-                    context: viewContext,
-                    saveChanges: false
-                )
-            }
         }
-
-        if !nowGiven, lessonAssignment.scheduledFor != nil {
-            if let lesson = lessonAssignment.lesson {
-                SequenceTrackService.autoEnrollInTrackIfNeeded(
-                    lessonArea: lesson.area,
-                    lessonSequence: lesson.sequence,
-                    studentIDs: lessonAssignment.studentIDs,
-                    context: viewContext,
-                    saveChanges: false
-                )
-            }
-        }
-
     }
 
     /// Deletes the lesson assignment

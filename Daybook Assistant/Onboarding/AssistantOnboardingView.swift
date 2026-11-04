@@ -25,7 +25,13 @@ struct AssistantOnboardingView: View {
     }
 
     @SceneStorage("Assistant.onboarding.page")
-    private var page: Page = AssistantOnboarding.introSeen() ? .invitation : .welcome
+    private var page: Page = Self.firstPage
+
+    /// The page before scene storage has one, worked out once: the default
+    /// was read from defaults every time this view was made (hunt
+    /// 2026-11-03 #35). Once the screen has shown, scene storage holds a
+    /// page, and `startPage` decides on each launch's first showing.
+    private static let firstPage: Page = AssistantOnboarding.introSeen() ? .invitation : .welcome
 
     private var isJoining: Bool { bootstrapper.sharingService?.isJoining ?? false }
     private var joinError: String? { bootstrapper.sharingService?.shareError }

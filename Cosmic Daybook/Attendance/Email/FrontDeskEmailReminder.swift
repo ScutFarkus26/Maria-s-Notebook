@@ -38,7 +38,7 @@ enum FrontDeskEmailReminder {
     nonisolated private static let soonSuffix = "soon"
     nonisolated private static let dueSuffix = "due"
 
-    private static let logger = Logger(
+    static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "CosmicDaybook", category: "FrontDeskEmailReminder"
     )
 
@@ -119,8 +119,8 @@ enum FrontDeskEmailReminder {
         return status == .authorized || status == .provisional
     }
 
-    /// One rebuild at a time (`ReminderRuns`).
-    private static let runs = ReminderRuns()
+    /// One rebuild at a time (`ReminderRuns`); the Assistant's upkeep takes a turn too.
+    static let runs = ReminderRuns()
 
     /// Removes every pending front-desk reminder, after any rebuild already
     /// going.
@@ -147,12 +147,13 @@ enum FrontDeskEmailReminder {
     }
 
     /// The requests that should be pending now: none while there's no way to
-    /// send, the switch is off, or notifications aren't allowed.
-    private static func wantedRequests(
+    /// send, the switch is off, or notifications aren't allowed. `daysOff`: read once for several kinds.
+    static func wantedRequests(
         in context: NSManagedObjectContext,
         now: Date,
         center: any ReminderCenter,
-        defaults: UserDefaults
+        defaults: UserDefaults,
+        nonSchoolDays daysOff: ((Range<Date>) -> Set<Date>)? = nil
     ) async -> [UNNotificationRequest] {
         guard isEnabled(defaults), let settings = AttendanceEmailLog.settings(in: context),
               settings.canSendAttendance else { return [] }
@@ -162,7 +163,8 @@ enum FrontDeskEmailReminder {
         let calendar = AppCalendar.shared
         let start = calendar.startOfDay(for: now)
         guard let end = calendar.date(byAdding: .day, value: daysAhead * 3, to: start) else { return [] }
-        let nonSchoolDays = AttendanceEmailLog.nonSchoolDays(in: start..<end, using: context, calendar: calendar)
+        let nonSchoolDays = daysOff?(start..<end)
+            ?? AttendanceEmailLog.nonSchoolDays(in: start..<end, using: context, calendar: calendar)
         // Sent, or a day ParentLocker isn't expecting, as any device of the
         // class found (bug hunt 2026-10-13 afternoon, M8): nothing is due today.
         let todayIsDone = AttendanceEmailLog.latestSend(on: start, in: context) != nil
@@ -180,7 +182,8 @@ enum FrontDeskEmailReminder {
                 content.title = kind.title
                 content.body = kind.body
                 content.sound = .default
-                let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+                var components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+                components.calendar = calendar // The app's calendar, not the phone's (bug hunt 2026-11-03 #20).
                 let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
                 let id = idPrefix + AppCalendar.dayID(date) + "-" + kind.suffix
                 return UNNotificationRequest(identifier: id, content: content, trigger: trigger)

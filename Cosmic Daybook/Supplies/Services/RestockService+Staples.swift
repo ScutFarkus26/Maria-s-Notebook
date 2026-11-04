@@ -155,7 +155,7 @@ nonisolated extension RestockService {
         at now: Date = Date(),
         in context: NSManagedObjectContext
     ) -> Bool {
-        let open = openNeeds(for: supply, in: context)
+        let open = openNeeds(for: supply, in: context, store: lookupStore(for: author, in: context))
         let store = destinationStore(for: author.role, near: supply, in: context)
         guard supply.level != level else {
             if level.isNeeded, open.isEmpty {

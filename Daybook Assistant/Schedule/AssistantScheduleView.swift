@@ -33,15 +33,17 @@ struct AssistantScheduleTab: View {
     }
 
     private func makeModel() -> AssistantScheduleModel {
+        // Not loaded here: the view's `onAppear` loads it, before its first
+        // frame. Both used to, back to back (bug hunt 2026-11-03 #27).
         let model = AssistantScheduleModel(
             context: coreDataStack.viewContext,
             guideName: { [bootstrapper] in bootstrapper.guideNameToShow }
         )
-        model.load()
         #if DEBUG
         // For screenshots: `-AssistantScheduleLane "Morah Devora"` opens on
         // one lane, and `-AssistantScheduleStep 1` that many school days on.
         if let name = UserDefaults.standard.string(forKey: "AssistantScheduleLane") {
+            model.load()
             model.laneFilter = model.laneOptions.first { $0.name == name }?.id
         }
         for _ in 0..<max(0, UserDefaults.standard.integer(forKey: "AssistantScheduleStep")) {
@@ -71,9 +73,6 @@ struct AssistantScheduleView: View {
 
     @State private var showingDatePicker = false
     @State private var showingClassroom = false
-    /// The time the Now card reads, moved on each minute while the tab shows.
-    @State private var clock = Date()
-    @Environment(\.scenePhase) private var scenePhase
     @AppStorage(AssistantScheduleTab.chosenLaneKey) private var chosenLane = ""
 
     var body: some View {
@@ -81,7 +80,7 @@ struct AssistantScheduleView: View {
             List {
                 headerSection
                 if model.isToday {
-                    nowSection(model.nowCard(at: clock))
+                    AssistantScheduleNowSection(model: model)
                 }
                 daySection
             }
@@ -106,17 +105,17 @@ struct AssistantScheduleView: View {
         }
         .onAppear { model.load() }
         .task { await followClock() }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active { clock = Date() }
-        }
     }
 
-    /// Moves `clock` on at each minute's turn while the tab is on screen,
-    /// so the Now card follows the day. (A `TimelineView` in the list broke
-    /// its sections apart.)
+    /// Moves the model's `clock` on at each minute's turn while the tab is
+    /// on screen, so the Now card follows the day. (A `TimelineView` in the
+    /// list broke its sections apart.) Only the Now card reads it
+    /// (`AssistantScheduleNowSection`): it used to be this view's own state,
+    /// and each minute rebuilt every row of the day (bug hunt 2026-11-03 #26).
     private func followClock() async {
         while !Task.isCancelled {
-            clock = Date()
+            let clock = Date()
+            model.clock = clock
             let second = Calendar.current.component(.second, from: clock)
             guard (try? await Task.sleep(for: .seconds(60 - second))) != nil else { return }
         }
@@ -267,34 +266,6 @@ struct AssistantScheduleView: View {
     }
 
     @ViewBuilder
-    private func nowSection(_ card: AssistantScheduleRows.NowCard?) -> some View {
-        if let card {
-            Section("Now") {
-                switch card {
-                case .beforeSchool:
-                    Text("The day hasn't started yet.")
-                        .foregroundStyle(.secondary)
-                case .afterSchool:
-                    Text("The day's schedule is over.")
-                        .foregroundStyle(.secondary)
-                case .lines(let lines):
-                    ForEach(lines) { line in
-                        HStack(alignment: .firstTextBaseline, spacing: 10) {
-                            Circle()
-                                .fill(AssistantScheduleStyle.color(line.laneColorRaw, index: line.laneIndex))
-                                .frame(width: 9, height: 9)
-                                .accessibilityHidden(true)
-                            Text(line.text)
-                                .font(.subheadline)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
     private var daySection: some View {
         if model.resolved != nil, !model.hasLanes {
             Section {
@@ -344,10 +315,44 @@ struct AssistantScheduleView: View {
     }
 }
 
+/// The Now card's section: the one part of the tab that reads the time, so
+/// the minute's clock redraws it alone.
+private struct AssistantScheduleNowSection: View {
+    let model: AssistantScheduleModel
+
+    var body: some View {
+        if let card = model.nowCard(at: model.clock) {
+            Section("Now") {
+                switch card {
+                case .beforeSchool:
+                    Text("The day hasn't started yet.")
+                        .foregroundStyle(.secondary)
+                case .afterSchool:
+                    Text("The day's schedule is over.")
+                        .foregroundStyle(.secondary)
+                case .lines(let lines):
+                    ForEach(lines) { line in
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Circle()
+                                .fill(AssistantScheduleStyle.color(line.laneColorRaw, index: line.laneIndex))
+                                .frame(width: 9, height: 9)
+                                .accessibilityHidden(true)
+                            Text(line.text)
+                                .font(.subheadline)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// Coming back to the app reads what changed while it was away (imports
 /// don't reload the tab while it's off screen), and a tab left on today
-/// moves on to the new today. A modifier of its own, so the scene phase's
-/// changes redraw only this.
+/// moves on to the new today, and the Now card reads the time again. A
+/// modifier of its own, so the scene phase's changes redraw only this: the
+/// tab's view read the phase too until 2026-11-03 (#26).
 private struct ScheduleFollowsScene: ViewModifier {
     let model: AssistantScheduleModel
     @Environment(\.scenePhase) private var scenePhase
@@ -357,6 +362,8 @@ private struct ScheduleFollowsScene: ViewModifier {
     func body(content: Content) -> some View {
         content.onChange(of: scenePhase) { oldPhase, phase in
             if phase == .active, oldPhase != .active {
+                // The Now card reads the time now, not the minute it left.
+                model.clock = Date()
                 model.followScene(isActive: true)
                 if leftOnToday == true { model.showToday() } else { model.load() }
                 leftOnToday = nil

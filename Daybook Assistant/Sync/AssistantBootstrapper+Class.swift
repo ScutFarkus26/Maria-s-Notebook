@@ -335,7 +335,8 @@ extension AssistantBootstrapper {
               let stack = coreDataStack,
               let storeID = stack.sharedPersistentStore?.identifier,
               let zone = CDClassroomMembership.pinnedZoneName(in: stack.viewContext) else {
-            removedFromClass = false
+            // Set only when it changes: every set redraws its observers.
+            if removedFromClass { removedFromClass = false }
             return
         }
         let shares: [CKShare]
@@ -347,7 +348,8 @@ extension AssistantBootstrapper {
             return
         }
         guard stack === coreDataStack, let sharedStore = stack.sharedPersistentStore else { return }
-        let found = shares.contains { $0.recordID.zoneID.zoneName == zone }
+        let classShare = shares.first { $0.recordID.zoneID.zoneName == zone }
+        let found = classShare != nil
         if found {
             AssistantClassroomLocalState.noteShareSeen(inZone: zone)
             // Marks saved before the share was here wait for it: they go now,
@@ -362,7 +364,7 @@ extension AssistantBootstrapper {
         }
         // View only or not, read again with each share read: the guide can
         // change it (#29).
-        if found { await sharingService?.readPermission() }
+        if let classShare { await sharingService?.readPermission(share: classShare) }
         let removed = Self.removedFromClass(
             pinnedShareFound: found,
             sawPinnedShareBefore: AssistantClassroomLocalState.sawShare(inZone: zone),

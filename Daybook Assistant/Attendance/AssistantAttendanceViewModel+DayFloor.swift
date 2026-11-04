@@ -32,8 +32,26 @@ extension AssistantAttendanceViewModel {
     /// Never back past the share's first day with attendance (`canStepBack`).
     func step(forward: Bool) {
         guard forward || canStepBack,
-              let next = SchoolDayChecker.schoolDay(from: date, forward: forward, using: context),
+              let next = Self.schoolDay(from: date, forward: forward, in: context),
               forward || isOnOrAfterEarliestDay(next) else { return }
         load(next)
+    }
+
+    /// The next (`forward`) or previous school day by the guide's calendar
+    /// only (`AttendanceEmailLog.nonSchoolDays`), as `dayOff` and the day
+    /// number read it; nil if none within a year. With a notebook of her own
+    /// on the same Apple Account, the arrows skipped a class day that
+    /// notebook had off and stopped on its school Saturdays, which showed as
+    /// a weekend (bug hunt 2026-11-03, #5). One read of the year's days off,
+    /// not two fetches for each day stepped over.
+    static func schoolDay(from date: Date, forward: Bool, in context: NSManagedObjectContext) -> Date? {
+        let calendar = AppCalendar.shared
+        let day = calendar.startOfDay(for: date)
+        // The year the walk may cover, beside `day`.
+        guard let far = calendar.date(byAdding: .day, value: forward ? 367 : -366, to: day) else { return nil }
+        let daysOff = AttendanceEmailLog.nonSchoolDays(
+            in: forward ? day..<far : far..<day, using: context, calendar: calendar
+        )
+        return SchoolDayChecker.schoolDay(from: day, forward: forward, daysOff: daysOff, calendar: calendar)
     }
 }

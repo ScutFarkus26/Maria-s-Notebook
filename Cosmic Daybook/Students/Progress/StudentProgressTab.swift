@@ -1,6 +1,7 @@
 // swiftlint:disable file_length
 // StudentProgressTab.swift
-// Progress tab showing student's active projects and track enrollments with detailed cards
+// Progress tab showing student's active projects, reports and the lesson
+// sequences she is in the middle of, as detailed cards
 
 import SwiftUI
 import CoreData
@@ -21,7 +22,7 @@ struct StudentProgressTab: View {
     @State private var viewModel = StudentProgressTabViewModel()
 
     // MARK: - State
-    @State private var selectedEnrollment: CDStudentTrackEnrollmentEntity?
+    @State private var selectedStanding: SequenceStanding?
     @State private var selectedProject: CDProject?
     @State private var selectedReport: CDWorkModel?
     @State private var selectedFollowUpAssignment: CDLessonAssignment?
@@ -29,18 +30,18 @@ struct StudentProgressTab: View {
 
     // MARK: - Filter Sheet State
     enum FilterSheet: Identifiable {
-        case presentations(CDStudentTrackEnrollmentEntity, CDTrackEntity)
-        case work(CDStudentTrackEnrollmentEntity, CDTrackEntity)
-        case notes(CDStudentTrackEnrollmentEntity, CDTrackEntity)
+        case presentations(SequenceStanding)
+        case work(SequenceStanding)
+        case notes(SequenceStanding)
 
         var id: String {
             switch self {
-            case .presentations(let enrollment, _):
-                return "presentations_\(enrollment.id?.uuidString ?? "")"
-            case .work(let enrollment, _):
-                return "work_\(enrollment.id?.uuidString ?? "")"
-            case .notes(let enrollment, _):
-                return "notes_\(enrollment.id?.uuidString ?? "")"
+            case .presentations(let standing):
+                return "presentations_\(standing.id)"
+            case .work(let standing):
+                return "work_\(standing.id)"
+            case .notes(let standing):
+                return "notes_\(standing.id)"
             }
         }
     }
@@ -100,21 +101,19 @@ struct StudentProgressTab: View {
                     .padding(.horizontal, AppTheme.Spacing.xsmall)
                 }
 
-                // 3. Tracks Section with detailed cards
-                if viewModel.activeEnrollments.isEmpty {
+                // 3. Sequences in progress, as detailed cards
+                if viewModel.standings.isEmpty {
                     if viewModel.activeProjects.isEmpty && viewModel.activeReports.isEmpty {
                         emptyStateView
                             .padding(.top, 60)
                     }
                 } else {
-                    ForEach(viewModel.activeEnrollments) { enrollment in
-                        if let track = viewModel.tracksByID[enrollment.trackID] {
-                            enrollmentCard(enrollment: enrollment, track: track)
-                                .padding(.horizontal, AppTheme.Spacing.xsmall)
-                                .onTapGesture {
-                                    selectedEnrollment = enrollment
-                                }
-                        }
+                    ForEach(viewModel.standings) { standing in
+                        sequenceCard(standing)
+                            .padding(.horizontal, AppTheme.Spacing.xsmall)
+                            .onTapGesture {
+                                selectedStanding = standing
+                            }
                     }
                 }
             }
@@ -133,11 +132,9 @@ struct StudentProgressTab: View {
             viewModel.configure(for: student, context: viewContext)
         }
         // Sheets
-        .sheet(item: $selectedEnrollment) { enrollment in
-            if let track = viewModel.tracksByID[enrollment.trackID] {
-                StudentTrackDetailView(enrollment: enrollment, track: track)
-                    .studentDetailSheetSizing()
-            }
+        .sheet(item: $selectedStanding) { standing in
+            StudentTrackDetailView(student: student, standing: standing)
+                .studentDetailSheetSizing()
         }
         .sheet(item: $selectedProject) { project in
             ProjectDetailView(club: project)
@@ -181,7 +178,7 @@ struct StudentProgressTab: View {
             Label("No Active Work", systemImage: "list.clipboard")
                 .foregroundStyle(.secondary)
         } description: {
-            Text("No active projects or track enrollments.")
+            Text("No active projects or lessons in progress.")
                 .font(.subheadline)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
@@ -225,77 +222,54 @@ struct StudentProgressTab: View {
         )
     }
     
-    // MARK: - Enrollment Card
+    // MARK: - Sequence Card
     @ViewBuilder
-    private func enrollmentCard(enrollment: CDStudentTrackEnrollmentEntity, track: CDTrackEntity) -> some View {
-        // Read precomputed stats/progress; fall back to on-demand compute if the
-        // cache isn't populated yet (e.g. before loadData runs).
-        let cached = enrollment.id.flatMap { viewModel.statsByEnrollment[$0] }
-        let stats = cached?.stats ?? viewModel.trackStats(for: enrollment, track: track)
-        let progress = cached?.progress ?? viewModel.trackProgress(for: track)
-        let trackColor: Color = viewModel.trackColor(for: track.title)
+    private func sequenceCard(_ standing: SequenceStanding) -> some View {
+        let stats = viewModel.stats(for: standing)
+        let cardColor: Color = viewModel.trackColor(for: standing.title)
 
-        ProgressCardContainer(color: trackColor, isActive: enrollment.isActive) {
+        ProgressCardContainer(color: cardColor, isActive: true) {
             VStack(alignment: .leading, spacing: 16) {
-                enrollmentCardHeader(enrollment: enrollment, track: track, progress: progress, color: trackColor)
-                enrollmentCardProgress(progress: progress, color: trackColor)
-                enrollmentCardNextItem(progress: progress, color: trackColor)
-                enrollmentCardActivity(
-                    enrollment: enrollment,
-                    track: track,
-                    stats: stats,
-                    progress: progress,
-                    color: trackColor
-                )
-                enrollmentCardNotes(enrollment: enrollment, color: trackColor)
-                enrollmentCardClassLink(track: track, color: trackColor)
+                sequenceCardHeader(standing, color: cardColor)
+                sequenceCardProgress(standing, color: cardColor)
+                sequenceCardNextItem(standing, color: cardColor)
+                sequenceCardActivity(standing, stats: stats, color: cardColor)
+                sequenceCardNotes(stats, color: cardColor)
+                sequenceCardClassLink(standing, color: cardColor)
             }
-        }
-        .onAppear {
-            viewModel.autoCompleteTrackIfNeeded(
-                enrollment: enrollment, progress: progress, context: viewContext
-            )
         }
     }
 
     @ViewBuilder
-    private func enrollmentCardHeader(
-        enrollment: CDStudentTrackEnrollmentEntity,
-        track: CDTrackEntity,
-        progress: StudentProgressTabViewModel.TrackProgress,
-        color: Color
-    ) -> some View {
-        let subtitle: String = enrollment.startedAt.map {
+    private func sequenceCardHeader(_ standing: SequenceStanding, color: Color) -> some View {
+        let subtitle: String = standing.firstGivenAt.map {
             "Started \($0.formatted(.relative(presentation: .named)))"
-        } ?? "Enrolled \((enrollment.createdAt ?? Date()).formatted(.relative(presentation: .named)))"
+        } ?? "Not started yet"
 
         ProgressCardHeader(
             iconName: "list.bullet.rectangle",
             color: color,
-            title: track.title,
+            title: standing.title,
             subtitle: subtitle,
-            isComplete: progress.isComplete && progress.totalSteps > 0,
-            isActive: enrollment.isActive
+            isComplete: standing.isFinished,
+            isActive: !standing.isFinished
         )
 
         Divider().padding(.vertical, AppTheme.Spacing.xsmall)
     }
 
     @ViewBuilder
-    private func enrollmentCardProgress(
-        progress: StudentProgressTabViewModel.TrackProgress,
-        color: Color
-    ) -> some View {
-        if progress.totalSteps > 0 {
+    private func sequenceCardProgress(_ standing: SequenceStanding, color: Color) -> some View {
+        if standing.total > 0 {
             VStack(alignment: .leading, spacing: 12) {
                 ProgressStatsSection(
-                    completed: progress.proficientCount,
-                    total: progress.totalSteps,
+                    completed: standing.masteredCount,
+                    total: standing.total,
                     color: color, completionLabel: ""
                 )
                 StepDotsVisualization(
-                    steps: progress.trackSteps,
-                    completedStepIDs: progress.completedStepIDs,
+                    steps: standing.lessons,
+                    completedStepIDs: Set(standing.lessons.filter { standing.isMastered($0) }.map(\.stepID)),
                     color: color
                 )
             }
@@ -304,59 +278,44 @@ struct StudentProgressTab: View {
     }
 
     @ViewBuilder
-    private func enrollmentCardNextItem(
-        progress: StudentProgressTabViewModel.TrackProgress,
-        color: Color
-    ) -> some View {
-        if let lesson = progress.currentLesson, progress.totalSteps > 0 {
+    private func sequenceCardNextItem(_ standing: SequenceStanding, color: Color) -> some View {
+        if let lesson = standing.nextLesson {
             Divider().padding(.vertical, AppTheme.Spacing.xsmall)
             NextItemBanner(
                 iconName: "book.fill", label: "Next Lesson",
                 title: lesson.name.isEmpty ? "Untitled Lesson" : lesson.name,
                 subtitle: nil, color: color
             )
-        } else if progress.isComplete && progress.totalSteps > 0 {
+        } else if standing.isFinished {
             Divider().padding(.vertical, AppTheme.Spacing.xsmall)
             CompletionTrophyBanner(message: "All lessons mastered!")
         }
     }
 
     @ViewBuilder
-    private func enrollmentCardActivity(
-        enrollment: CDStudentTrackEnrollmentEntity,
-        track: CDTrackEntity,
-        stats: StudentProgressTabViewModel.TrackStats,
-        progress: StudentProgressTabViewModel.TrackProgress,
+    private func sequenceCardActivity(
+        _ standing: SequenceStanding,
+        stats: StudentProgressTabViewModel.SequenceStats,
         color: Color
     ) -> some View {
         if stats.totalActivity > 0 {
             Divider().padding(.vertical, AppTheme.Spacing.xsmall)
-            activityStatsContent(enrollment: enrollment, track: track, stats: stats, color: color)
-        } else if progress.totalSteps == 0 {
+            VStack(alignment: .leading, spacing: 12) {
+                ActivityStatsRow(totalActivity: stats.totalActivity, color: color)
+                activityFilterButtons(standing, stats: stats)
+                if let date = stats.lastActivityDate { LastActivityRow(lastActivityDate: date) }
+            }
+        } else if standing.total == 0 {
             EmptyStateBanner(iconName: "hourglass", message: "No activity recorded yet")
         }
     }
 
-    private func activityStatsContent(
-        enrollment: CDStudentTrackEnrollmentEntity,
-        track: CDTrackEntity,
-        stats: StudentProgressTabViewModel.TrackStats,
-        color: Color
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ActivityStatsRow(totalActivity: stats.totalActivity, color: color)
-            activityFilterButtons(enrollment: enrollment, track: track, stats: stats)
-            if let date = stats.lastActivityDate { LastActivityRow(lastActivityDate: date) }
-        }
-    }
-
     private func activityFilterButtons(
-        enrollment: CDStudentTrackEnrollmentEntity,
-        track: CDTrackEntity,
-        stats: StudentProgressTabViewModel.TrackStats
+        _ standing: SequenceStanding,
+        stats: StudentProgressTabViewModel.SequenceStats
     ) -> some View {
         HStack(spacing: 12) {
-            Button { filterSheet = .presentations(enrollment, track) } label: {
+            Button { filterSheet = .presentations(standing) } label: {
                 ProgressStatBadge(
                     count: stats.presentationCount,
                     label: "Presentations",
@@ -367,13 +326,13 @@ struct StudentProgressTab: View {
             .buttonStyle(.plain)
             .disabled(stats.presentationCount == 0)
 
-            Button { filterSheet = .work(enrollment, track) } label: {
+            Button { filterSheet = .work(standing) } label: {
                 ProgressStatBadge(count: stats.workCount, label: "Work", icon: "briefcase.fill", color: .blue)
             }
             .buttonStyle(.plain)
             .disabled(stats.workCount == 0)
 
-            Button { filterSheet = .notes(enrollment, track) } label: {
+            Button { filterSheet = .notes(standing) } label: {
                 ProgressStatBadge(count: stats.noteCount, label: "Notes", icon: "note.text", color: .yellow)
             }
             .buttonStyle(.plain)
@@ -382,8 +341,8 @@ struct StudentProgressTab: View {
     }
 
     @ViewBuilder
-    private func enrollmentCardNotes(enrollment: CDStudentTrackEnrollmentEntity, color: Color) -> some View {
-        let notesPreview: String = enrollment.latestUnifiedNoteText
+    private func sequenceCardNotes(_ stats: StudentProgressTabViewModel.SequenceStats, color: Color) -> some View {
+        let notesPreview: String = CDNote.latestBody(in: stats.notes)
         if !notesPreview.trimmed().isEmpty {
             Divider().padding(.vertical, AppTheme.Spacing.xsmall)
             NotesPreviewSection(notes: notesPreview, color: color)
@@ -391,21 +350,16 @@ struct StudentProgressTab: View {
     }
 
     @ViewBuilder
-    private func enrollmentCardClassLink(track: CDTrackEntity, color: Color) -> some View {
-        let trackParts: [String] = track.title.components(separatedBy: " — ")
-        if trackParts.count == 2 {
-            Divider().padding(.vertical, AppTheme.Spacing.xsmall)
-            Button {
-                let area: String = trackParts[0].trimmingCharacters(in: .whitespaces)
-                let sequence: String = trackParts[1].trimmingCharacters(in: .whitespaces)
-                AppRouter.shared.navigateToChecklist(area: area, sequence: sequence)
-            } label: {
-                Label("View Class Progress", systemImage: "checklist")
-                    .font(.caption)
-                    .foregroundStyle(color)
-            }
-            .buttonStyle(.plain)
+    private func sequenceCardClassLink(_ standing: SequenceStanding, color: Color) -> some View {
+        Divider().padding(.vertical, AppTheme.Spacing.xsmall)
+        Button {
+            AppRouter.shared.navigateToChecklist(area: standing.area, sequence: standing.sequence)
+        } label: {
+            Label("View Class Progress", systemImage: "checklist")
+                .font(.caption)
+                .foregroundStyle(color)
         }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Report Card
@@ -475,7 +429,7 @@ struct StudentProgressTab: View {
     }
 }
 
-// MARK: - CDTrackEntity Filtered List Sheet Wrapper
+// MARK: - Filtered List Sheet Wrapper
 /// Wrapper view that fetches its own data for TrackFilteredListView
 private struct TrackFilteredListSheet: View {
     let sheet: StudentProgressTab.FilterSheet
@@ -492,13 +446,9 @@ private struct TrackFilteredListSheet: View {
         Group {
             if let data {
                 TrackFilteredListView(
-                    enrollment: params.enrollment,
-                    track: params.track,
+                    standing: params.standing,
                     filterType: params.filterType,
-                    allLessonAssignments: data.lessonAssignments,
-                    allWorkModels: data.workModels,
-                    allNotes: data.notes,
-                    allLessons: data.lessons,
+                    data: data,
                     onDismiss: onDismiss
                 )
             } else {
@@ -506,11 +456,11 @@ private struct TrackFilteredListSheet: View {
             }
         }
         .task {
-            // Fetch once, scoped to this enrollment + track, instead of
-            // re-running four whole-table fetches on every body evaluation.
+            // Fetch once, scoped to the child and this sequence's lessons,
+            // instead of re-running whole-table fetches on every body evaluation.
             data = TrackFilteredListLoader.load(
-                enrollment: params.enrollment,
-                track: params.track,
+                studentID: student.id?.uuidString ?? "",
+                standing: params.standing,
                 filterType: params.filterType,
                 context: viewContext
             )
@@ -519,19 +469,18 @@ private struct TrackFilteredListSheet: View {
     }
 
     private struct SheetParams {
-        let enrollment: CDStudentTrackEnrollmentEntity
-        let track: CDTrackEntity
+        let standing: SequenceStanding
         let filterType: TrackFilterType
     }
 
     private func extractParams() -> SheetParams {
         switch sheet {
-        case .presentations(let enrollment, let track):
-            return SheetParams(enrollment: enrollment, track: track, filterType: .presentations)
-        case .work(let enrollment, let track):
-            return SheetParams(enrollment: enrollment, track: track, filterType: .work)
-        case .notes(let enrollment, let track):
-            return SheetParams(enrollment: enrollment, track: track, filterType: .notes)
+        case .presentations(let standing):
+            return SheetParams(standing: standing, filterType: .presentations)
+        case .work(let standing):
+            return SheetParams(standing: standing, filterType: .work)
+        case .notes(let standing):
+            return SheetParams(standing: standing, filterType: .notes)
         }
     }
 }

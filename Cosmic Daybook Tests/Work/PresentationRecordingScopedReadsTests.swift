@@ -46,33 +46,4 @@ struct PresentationRecordingScopedReadsTests {
         #expect(la.studentIDs == named)
         #expect(context.safeFetch(CDFetchRequest(CDLessonPresentation.self)).isEmpty)
     }
-
-    @Test func trackStepIsThisTracksStepForTheLesson() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let first = CoreDataTestHelpers.seedLesson(in: context, name: "Counting 1", area: "Math", sequence: "Counting")
-        first.orderInSequence = 0
-        let second = CoreDataTestHelpers.seedLesson(in: context, name: "Counting 2", area: "Math", sequence: "Counting")
-        second.orderInSequence = 1
-        // A decoy track that also has a step for the same lesson.
-        let decoy = CDTrackEntity(context: context)
-        decoy.title = "Elsewhere — Decoy"
-        let decoyStep = CDTrackStep(context: context)
-        decoyStep.lessonTemplateID = second.id
-        decoyStep.track = decoy
-        let student = CoreDataTestHelpers.seedStudent(in: context)
-        try context.save()
-
-        let la = CDLessonAssignment(context: context)
-        la.lessonID = try #require(second.id).uuidString
-        la.studentIDs = [try #require(student.id).uuidString]
-        _ = try LifecycleService.recordPresentation(from: la, presentedAt: Date(), modelContext: context)
-
-        let trackID = try #require(la.trackID)
-        let legacy = context.safeFetch(CDFetchRequest(CDTrackStep.self)).first {
-            $0.track?.id?.uuidString == trackID && $0.lessonTemplateID == second.id
-        }
-        let expectedStep = try #require(legacy)
-        #expect(la.trackStepID == expectedStep.id?.uuidString)
-        #expect(la.trackStepID != decoyStep.id?.uuidString)
-    }
 }

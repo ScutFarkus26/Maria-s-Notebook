@@ -21,8 +21,3 @@ nonisolated extension CDLesson: StepProtocol {
 nonisolated extension CDWorkStep: StepProtocol {
     var stepID: String { id?.uuidString ?? "" }
 }
-
-// Extend CDTrackStep to conform to StepProtocol
-nonisolated extension CDTrackStep: StepProtocol {
-    var stepID: String { id?.uuidString ?? "" }
-}

@@ -30,18 +30,27 @@ final class AssistantWallpaperPhoto {
     private static let logger = Logger.app(category: "wallpaper")
 
     let directory: URL
-    var fileURL: URL { directory.appending(path: "photo.jpg") }
+    var fileURL: URL { Self.fileURL(in: directory) }
 
-    /// The saved photo, read from disk once and kept.
+    /// The saved photo, read from disk once and kept while Photo is the
+    /// chosen background (`release(unlessChosen:)`).
     private(set) var image: UIImage?
     @ObservationIgnored private var didLoad = false
+    /// Whether a photo is saved: looked for on disk once, then kept by
+    /// `save` and `remove`, so the grid's redraws never ask the disk
+    /// (`AssistantWallpaper.resolved`; hunt 2026-11-03 #35).
+    private(set) var hasPhoto: Bool
+    /// Counts the changes to `image`, so a read that finishes after a save,
+    /// a remove or a let-go doesn't put an older photo back.
+    @ObservationIgnored private var generation = 0
 
     init(directory: URL) {
         self.directory = directory
+        hasPhoto = FileManager.default.fileExists(atPath: Self.fileURL(in: directory).path(percentEncoded: false))
     }
 
-    var hasPhoto: Bool {
-        FileManager.default.fileExists(atPath: fileURL.path(percentEncoded: false))
+    private nonisolated static func fileURL(in directory: URL) -> URL {
+        directory.appending(path: "photo.jpg")
     }
 
     /// Reads the saved photo the first time it's wanted. A read that finds
@@ -49,8 +58,32 @@ final class AssistantWallpaperPhoto {
     /// is tried again next time.
     func loadIfNeeded() {
         guard !didLoad else { return }
+        generation += 1
         image = UIImage(contentsOfFile: fileURL.path(percentEncoded: false))
         didLoad = image != nil
+        if didLoad { hasPhoto = true }
+    }
+
+    /// Reads and decodes the saved photo off the main thread, ahead of the
+    /// grid, when Photo is the chosen background (`raw`): its first draw
+    /// used to decode about 4 MB on the main thread (hunt 2026-11-03 #33).
+    /// If the grid comes first, `loadIfNeeded` reads it then, as before.
+    func preload(chosen raw: String?) async {
+        guard raw == AssistantWallpaper.photo.rawValue, hasPhoto, !didLoad else { return }
+        let started = generation
+        guard let prepared = await Self.decoded(fileURL), generation == started, !didLoad else { return }
+        image = prepared
+        didLoad = true
+    }
+
+    /// Lets go of the photo when Photo isn't the chosen background (`raw`),
+    /// so it isn't held for the rest of the session; the next look reads it
+    /// again (hunt 2026-11-03 #33). The picker calls it as it closes.
+    func release(unlessChosen raw: String?) {
+        guard raw != AssistantWallpaper.photo.rawValue, image != nil || didLoad else { return }
+        generation += 1
+        image = nil
+        didLoad = false
     }
 
     /// Shrinks and blurs the picked photo off the main thread, saves it, and
@@ -59,18 +92,36 @@ final class AssistantWallpaperPhoto {
         let jpeg = try await Self.prepare(data)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try jpeg.write(to: fileURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
-        image = UIImage(data: jpeg)
+        hasPhoto = true
+        generation += 1
+        let started = generation
+        // Decoded before it's shown, off the main thread, as `preload` does.
+        let saved = UIImage(data: jpeg)
+        let prepared = await saved?.byPreparingForDisplay()
+        guard generation == started else { return }
+        image = prepared ?? saved
         didLoad = true
     }
 
     func remove() {
         do {
-            if hasPhoto { try FileManager.default.removeItem(at: fileURL) }
+            if FileManager.default.fileExists(atPath: fileURL.path(percentEncoded: false)) {
+                try FileManager.default.removeItem(at: fileURL)
+            }
         } catch {
             Self.logger.error("Removing the photo failed: \(error.localizedDescription, privacy: .public)")
         }
+        hasPhoto = false
+        generation += 1
         image = nil
         didLoad = true
+    }
+
+    /// The photo at `url`, decoded ready to draw.
+    @concurrent
+    nonisolated static func decoded(_ url: URL) async -> UIImage? {
+        guard let image = UIImage(contentsOfFile: url.path(percentEncoded: false)) else { return nil }
+        return await image.byPreparingForDisplay() ?? image
     }
 
     /// The picked image, at most `longSide` pixels long, upright, blurred and

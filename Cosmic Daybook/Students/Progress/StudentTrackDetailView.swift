@@ -1,27 +1,27 @@
 import SwiftUI
 import CoreData
 
+/// One child on one lesson sequence: her progress ring and the timeline of
+/// its lessons. Opened from a Current Learning card or a finished sequence
+/// in Past Learning; the standing is re-read from the store on open.
 struct StudentTrackDetailView: View {
-    let enrollment: CDStudentTrackEnrollmentEntity
-    let track: CDTrackEntity
+    let student: CDStudent
+    /// The standing the card was built from; the sheet reloads it on open.
+    let standing: SequenceStanding
 
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
 
     // Pre-computed data loaded on appear for better performance
-    @State private var trackLessons: [CDLesson] = []
-    @State private var proficientLessonIDs: Set<String> = []
-    @State private var presentedLessonIDs: Set<String> = []
+    @State private var loaded: SequenceStanding?
     @State private var isLoaded = false
 
     // Timeline data from StudentAreaProgressionViewModel
     @State private var progressionVM = StudentAreaProgressionViewModel()
-    @State private var student: CDStudent?
-    @State private var parsedArea: String = ""
-    @State private var parsedSequence: String = ""
 
-    private var proficientCount: Int { proficientLessonIDs.count }
-    private var totalLessons: Int { trackLessons.count }
+    private var current: SequenceStanding { loaded ?? standing }
+    private var proficientCount: Int { current.masteredCount }
+    private var totalLessons: Int { current.total }
 
     private var progressPercent: Int {
         guard totalLessons > 0 else { return 0 }
@@ -29,7 +29,7 @@ struct StudentTrackDetailView: View {
     }
 
     private var areaColor: Color {
-        AppColors.color(forArea: parsedArea)
+        AppColors.color(forArea: standing.area)
     }
 
     var body: some View {
@@ -37,8 +37,8 @@ struct StudentTrackDetailView: View {
             ScrollView {
                 if isLoaded {
                     VStack(alignment: .leading, spacing: 24) {
-                        // Celebration header for completed tracks
-                        if !enrollment.isActive {
+                        // Celebration header for a finished sequence
+                        if current.isFinished {
                             completionCelebration
                         }
 
@@ -56,7 +56,7 @@ struct StudentTrackDetailView: View {
                         .padding(.top, 100)
                 }
             }
-            .navigationTitle(track.title)
+            .navigationTitle(standing.title)
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -72,18 +72,13 @@ struct StudentTrackDetailView: View {
     }
 
     private func loadData() {
-        let load = StudentTrackDetailLoader.load(enrollment: enrollment, track: track, context: viewContext)
-        parsedArea = load.area
-        parsedSequence = load.sequence
-        student = load.student
-        trackLessons = load.trackLessons
-        presentedLessonIDs = load.presentedLessonIDs
-        proficientLessonIDs = load.proficientLessonIDs
+        let load = StudentTrackDetailLoader.load(
+            student: student, area: standing.area, sequence: standing.sequence, context: viewContext
+        )
+        loaded = load.standing
 
         // Load timeline via progression VM
-        if let foundStudent = load.student {
-            progressionVM.configure(for: foundStudent, area: load.area, sequence: load.sequence, context: viewContext)
-        }
+        progressionVM.configure(for: student, area: standing.area, sequence: standing.sequence, context: viewContext)
 
         isLoaded = true
     }
@@ -122,12 +117,12 @@ struct StudentTrackDetailView: View {
             }
 
             VStack(spacing: 4) {
-                Text("Track Completed!")
+                Text("Every lesson mastered!")
                     .font(.title2)
                     .fontWeight(.bold)
                     .foregroundStyle(.primary)
 
-                if let startedAt = enrollment.startedAt {
+                if let startedAt = current.firstGivenAt {
                     Text("Started \(DateFormatters.mediumDate.string(from: startedAt))")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -295,11 +290,7 @@ struct StudentTrackDetailView: View {
     /// Plans the lesson on the row tapped (the next one for the child), not the one after it.
     private func planLesson(_ node: LessonProgressionNode) {
         progressionVM.planLesson(node.lesson, context: viewContext)
-        if let foundStudent = student {
-            progressionVM.configure(
-                for: foundStudent, area: parsedArea, sequence: parsedSequence, context: viewContext
-            )
-        }
+        progressionVM.configure(for: student, area: standing.area, sequence: standing.sequence, context: viewContext)
     }
 
 }
@@ -311,23 +302,23 @@ private struct StudentTrackDetailViewPreview: View {
         let stack = CoreDataStack.preview
         let ctx = stack.viewContext
 
-        let track = CDTrackEntity(context: ctx)
-        track.title = "Math — Fundamentals"
-
         let student = CDStudent(context: ctx)
         student.firstName = "Alan"
         student.lastName = "Turing"
         student.birthday = Date()
         student.level = .upper
 
-        let enrollment = CDStudentTrackEnrollmentEntity(context: ctx)
-        enrollment.studentID = student.id?.uuidString ?? ""
-        enrollment.trackID = track.id?.uuidString ?? ""
-        enrollment.track = track
-        enrollment.startedAt = Date()
-        enrollment.isActive = false
+        let lesson = CDLesson(context: ctx)
+        lesson.name = "Golden Beads"
+        lesson.area = "Math"
+        lesson.sequence = "Fundamentals"
+        let standing = SequenceStanding(
+            area: "Math", sequence: "Fundamentals", lessons: [lesson],
+            givenLessonIDs: [lesson.id?.uuidString ?? ""], masteredLessonIDs: [lesson.id?.uuidString ?? ""],
+            firstGivenAt: Date(), lastActivityAt: Date()
+        )
 
-        return StudentTrackDetailView(enrollment: enrollment, track: track)
+        return StudentTrackDetailView(student: student, standing: standing)
             .previewEnvironment(using: stack)
     }
 }

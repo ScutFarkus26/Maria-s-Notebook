@@ -190,51 +190,6 @@ extension ImmediatePresentationRecordingTests {
         #expect(!fixture.context.hasChanges)
     }
 
-    @Test("Track enrollment is recorded and exactly restored by Undo")
-    func trackEnrollmentFollowsImmediatePresentation() throws {
-        let fixture = try makeFixture()
-        fixture.lesson.area = "Mathematics"
-        fixture.lesson.sequence = "Decimal System"
-        let track = try SequenceTrackService.getOrCreateTrack(
-            area: fixture.lesson.area,
-            sequence: fixture.lesson.sequence,
-            context: fixture.context
-        )
-        let firstStudent = try #require(fixture.students.first)
-        let firstStudentID = try #require(firstStudent.id)
-        let existingEnrollment = CDStudentTrackEnrollmentEntity(context: fixture.context)
-        existingEnrollment.studentID = firstStudentID.uuidString
-        existingEnrollment.trackID = try #require(track.id).uuidString
-        existingEnrollment.isActive = false
-        existingEnrollment.startedAt = nil
-        existingEnrollment.track = track
-        try fixture.context.save()
-
-        let token = try ImmediatePresentationRecordingService.record(
-            assignment: fixture.assignment,
-            presentedOn: Date(timeIntervalSinceReferenceDate: 801_234_567),
-            context: fixture.context,
-            saveCoordinator: fixture.coordinator
-        )
-
-        let enrollmentRequest = CDFetchRequest(CDStudentTrackEnrollmentEntity.self)
-        let recordedEnrollments = try fixture.context.fetch(enrollmentRequest)
-        #expect(recordedEnrollments.count == 2)
-        #expect(recordedEnrollments.allSatisfy { $0.isActive })
-
-        try ImmediatePresentationRecordingService.undo(
-            token,
-            context: fixture.context,
-            saveCoordinator: fixture.coordinator
-        )
-
-        let restoredEnrollments = try fixture.context.fetch(enrollmentRequest)
-        #expect(restoredEnrollments.count == 1)
-        #expect(restoredEnrollments.first?.id == existingEnrollment.id)
-        #expect(restoredEnrollments.first?.isActive == false)
-        #expect(restoredEnrollments.first?.startedAt == nil)
-    }
-
     @Test("Undo preserves older and unrelated presentation history")
     func undoDeletesOnlyRowsCreatedByRecord() throws {
         let fixture = try makeFixture()

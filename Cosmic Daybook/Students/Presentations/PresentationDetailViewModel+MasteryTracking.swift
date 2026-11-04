@@ -98,19 +98,6 @@ extension PresentationDetailViewModel {
                 lp.masteredAt = state == .proficient ? Date() : nil
             }
         }
-
-        // If marking as mastered, check if track is now complete
-        if guideChangedState, state == .proficient, let lesson = lessonAssignment.lesson {
-            for studentID in studentIDs {
-                SequenceTrackService.checkAndCompleteTrackIfNeeded(
-                    lessonArea: lesson.area,
-                    lessonSequence: lesson.sequence,
-                    studentID: studentID,
-                    context: viewContext,
-                    saveCoordinator: saveCoordinator
-                )
-            }
-        }
     }
 
     // MARK: - Sibling-Lesson Mastery Updates
@@ -151,19 +138,6 @@ extension PresentationDetailViewModel {
             lp.presentedAt = Date()
             lp.lastObservedAt = Date()
             lp.masteredAt = state == .proficient ? Date() : nil
-        }
-
-        // Track-completion check uses the sibling lesson's own area/sequence,
-        // not the current lessonAssignment.lesson.
-        if state == .proficient,
-           let lesson = lessons.first(where: { $0.id?.uuidString == lessonID }) {
-            SequenceTrackService.checkAndCompleteTrackIfNeeded(
-                lessonArea: lesson.area,
-                lessonSequence: lesson.sequence,
-                studentID: studentID,
-                context: viewContext,
-                saveCoordinator: saveCoordinator
-            )
         }
 
         _ = saveCoordinator.save(viewContext, reason: "Updating sibling lesson proficiency state")

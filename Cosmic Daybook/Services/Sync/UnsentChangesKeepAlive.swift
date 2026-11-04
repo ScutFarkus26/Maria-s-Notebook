@@ -52,7 +52,8 @@ final class UnsentChangesKeepAlive {
     private let sleep: Sleep
     /// Written in `init` only; read again in `deinit`.
     private nonisolated(unsafe) var observers: [any NSObjectProtocol] = []
-    private var waiters: [CheckedContinuation<Void, Never>] = []
+    /// `waitUntilSent` callers, each with its own deadline.
+    private var waiters: [UUID: CheckedContinuation<Void, Never>] = [:]
 
     /// Watches `stack` from now on, replacing whatever was watched before.
     /// `isBusy` and `waitForWork` add the app's own sending (the Assistant's
@@ -152,6 +153,19 @@ final class UnsentChangesKeepAlive {
         settle()
     }
 
+    /// Takes over what `previous` still had to upload, for those of `stores`
+    /// (identifiers) still open: the Assistant's rebuilt stack exports the
+    /// old one's history, and the store identifiers survive a rebuild. A new
+    /// keep-alive started empty, so a mark changed just before a rebuild
+    /// didn't keep the phone awake when it locked (bug hunt 2026-11-03 #9).
+    /// A store that didn't come back (its files were deleted) has nothing
+    /// left to send.
+    func takeUnsent(from previous: UnsentChangesKeepAlive, stores: Set<String>) {
+        for (store, since) in previous.unsentSinceByStore where store == Self.anyStore || stores.contains(store) {
+            unsentSinceByStore[store] = max(unsentSinceByStore[store] ?? since, since)
+        }
+    }
+
     /// The changes waiting to go were taken off this device (the Assistant's
     /// Leave): there is nothing left to send.
     func forgetUnsent() {
@@ -215,21 +229,26 @@ final class UnsentChangesKeepAlive {
     }
 
     /// Returns once CloudKit has exported the saves made so far, or `limit`
-    /// has passed.
+    /// has passed. Each wait's limit ends only that wait, and a timer
+    /// cancelled because its wait already ended does nothing: one timer
+    /// used to end every wait, and also fired on its cancellation, so a
+    /// lock's keep-alive could cut Leave's wait short (bug hunt 2026-11-03 #13).
     func waitUntilSent(upTo limit: Duration) async {
         guard !unsentSinceByStore.isEmpty else { return }
         let sleep = sleep
+        let id = UUID()
         let timer = Task { [weak self] in
             try? await sleep(limit)
-            self?.settle()
+            guard !Task.isCancelled else { return }
+            self?.waiters.removeValue(forKey: id)?.resume()
         }
-        await withCheckedContinuation { waiters.append($0) }
+        await withCheckedContinuation { waiters[id] = $0 }
         timer.cancel()
     }
 
     private func settle() {
-        let resumed = waiters
-        waiters = []
+        let resumed = waiters.values
+        waiters = [:]
         resumed.forEach { $0.resume() }
     }
 

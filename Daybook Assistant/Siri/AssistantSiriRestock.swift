@@ -166,9 +166,9 @@ struct AssistantSiriRestock {
     /// waiting for their own save in the same context stay, and the tab
     /// reloads to show them without Siri's.
     private func commit(_ change: SiriChange) throws {
-        let created = context.insertedObjects.filter {
-            AssistantRestockModel.restockEntities.contains($0.entity.name ?? "")
-        }
+        // Every classroom record the save inserts, as the tab's and the
+        // grid's saves file them: not only Restock's (bug hunt 2026-11-03 #25).
+        let created = SiriHost.recordsToFile(created: [], in: context)
         guard save(context) else {
             change.takeBack()
             NotificationCenter.default.post(name: .restockChangedBySiri, object: nil)

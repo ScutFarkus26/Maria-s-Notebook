@@ -100,8 +100,6 @@ extension MCPNotebookTools {
         guard modelContext.safeSave() else {
             throw MCPToolError("The lesson could not be saved.")
         }
-        refreshSequenceTrack(area: area, sequence: sequence, in: modelContext)
-
         let newSubArea = existingSequence == nil && !sequence.isEmpty ? " (new sub-area)" : ""
         return "Added \(describeLesson(lesson)) at position \(insertAt + 1) of \(inSequence.count) "
             + "in \(filingLabel(area: area, sequence: sequence))\(newSubArea)."

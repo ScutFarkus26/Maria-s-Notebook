@@ -87,7 +87,7 @@ enum ArrivalReminder {
     /// One rebuild at a time, each to the end (`ReminderRuns`): a rebuild
     /// the attendance screen's task started used to stop at a tab switch
     /// after removing the old reminders, leaving none.
-    private static let runs = ReminderRuns()
+    static let runs = ReminderRuns()
 
     private static func isOurs(_ id: String) -> Bool { isReminder(id) }
 
@@ -99,9 +99,21 @@ enum ArrivalReminder {
         center: any ReminderCenter = SystemReminderCenter()
     ) async {
         await runs.run(for: context) {
-            let requests = await wantedRequests(in: context, now: now, center: center)
-            await ReminderRuns.replace(where: isOurs, with: requests, center: center, logger: logger)
+            await bringUpToDate(in: context, now: now, center: center)
         }
+    }
+
+    /// `reschedule`'s work, in a turn already taken: the upkeep takes all
+    /// three kinds' turns at once (`EarlyPickupReminderUpkeep.refresh`).
+    /// `daysOff`: the guide's days off in a range, read once for several kinds.
+    static func bringUpToDate(
+        in context: NSManagedObjectContext,
+        now: Date,
+        center: any ReminderCenter,
+        nonSchoolDays daysOff: ((Range<Date>) -> Set<Date>)? = nil
+    ) async {
+        let requests = await wantedRequests(in: context, now: now, center: center, nonSchoolDays: daysOff)
+        await ReminderRuns.replace(where: isOurs, with: requests, center: center, logger: logger)
     }
 
     /// The requests that should be pending now: none while the reminder is
@@ -109,7 +121,8 @@ enum ArrivalReminder {
     private static func wantedRequests(
         in context: NSManagedObjectContext,
         now: Date,
-        center: any ReminderCenter
+        center: any ReminderCenter,
+        nonSchoolDays daysOff: ((Range<Date>) -> Set<Date>)?
     ) async -> [UNNotificationRequest] {
         guard isEnabled() else { return [] }
         let status = await center.authorizationStatus()
@@ -120,7 +133,8 @@ enum ArrivalReminder {
         guard let end = calendar.date(byAdding: .day, value: daysAhead * 3, to: start) else { return [] }
         // The guide's days off, never a notebook of her own on the same
         // Apple Account (bug hunt 2026-10-20).
-        let nonSchoolDays = AttendanceEmailLog.nonSchoolDays(in: start..<end, using: context, calendar: calendar)
+        let nonSchoolDays = daysOff?(start..<end)
+            ?? AttendanceEmailLog.nonSchoolDays(in: start..<end, using: context, calendar: calendar)
         let dates = fireDates(
             from: now,
             minutes: minutes(),
@@ -133,7 +147,8 @@ enum ArrivalReminder {
             content.title = notificationTitle
             content.body = notificationBody
             content.sound = .default
-            let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+            var components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+            components.calendar = calendar // The app's calendar, not the phone's (bug hunt 2026-11-03 #20).
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
             return UNNotificationRequest(identifier: identifier(on: date), content: content, trigger: trigger)
         }

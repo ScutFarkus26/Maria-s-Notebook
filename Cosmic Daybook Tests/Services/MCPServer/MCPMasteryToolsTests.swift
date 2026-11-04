@@ -23,14 +23,13 @@ struct MCPProficiencyMarkToolTests {
         return formatter.date(from: iso)!
     }
 
-    /// Two girls, a two-step track, and one presented-but-unmastered row each
-    /// on its first lesson. Nobody has a row on the second lesson.
+    /// Two girls, a two-lesson sequence, and one presented-but-unmastered row
+    /// each on its first lesson. Nobody has a row on the second lesson.
     private struct Classroom {
         let avital: CDStudent
         let etty: CDStudent
         let commutative: CDLesson
         let distributive: CDLesson
-        let track: CDTrackEntity
     }
 
     private func seedClassroom(in context: NSManagedObjectContext) throws -> Classroom {
@@ -46,7 +45,6 @@ struct MCPProficiencyMarkToolTests {
             in: context, name: "The Distributive Law of Multiplication", area: "Math", sequence: "Laws"
         )
         distributive.orderInSequence = 1
-        let track = try SequenceTrackService.getOrCreateTrack(area: "Math", sequence: "Laws", context: context)
 
         for student in [avital, etty] {
             let row = CDLessonPresentation(context: context)
@@ -57,7 +55,7 @@ struct MCPProficiencyMarkToolTests {
             row.lastObservedAt = day("2026-03-11")
         }
         #expect(CoreDataTestHelpers.save(context))
-        return Classroom(avital: avital, etty: etty, commutative: commutative, distributive: distributive, track: track)
+        return Classroom(avital: avital, etty: etty, commutative: commutative, distributive: distributive)
     }
 
     private func rows(
@@ -68,15 +66,11 @@ struct MCPProficiencyMarkToolTests {
         }
     }
 
-    private func proficientSteps(
-        for student: CDStudent, on track: CDTrackEntity, in context: NSManagedObjectContext
-    ) -> Int {
-        let studentID = student.id?.uuidString ?? ""
-        let presentations = context.safeFetch(CDFetchRequest(CDLessonPresentation.self))
-            .filter { $0.studentID == studentID }
-        return TrackProgressResolver.proficientCount(
-            track: track, studentID: studentID, lessonPresentations: presentations
-        )
+    /// Lessons of Math — Laws the child has mastered, as the student page reads it.
+    private func masteredLaws(for student: CDStudent, in context: NSManagedObjectContext) -> Int {
+        SequenceStandingLoader.standing(
+            forStudentID: student.id?.uuidString ?? "", area: "Math", sequence: "Laws", in: context
+        ).masteredCount
     }
 
     // MARK: - Parity with the checklist
@@ -85,8 +79,7 @@ struct MCPProficiencyMarkToolTests {
     func markMatchesChecklistPath() async throws {
         let (tools, context) = try makeTools()
         let classroom = try seedClassroom(in: context)
-        #expect(TrackProgressResolver.totalSteps(track: classroom.track) == 2)
-        #expect(proficientSteps(for: classroom.avital, on: classroom.track, in: context) == 0)
+        #expect(masteredLaws(for: classroom.avital, in: context) == 0)
 
         let output = try await tool(named: "mark_mastered", in: tools).handler([
             "lesson": .string("The Commutative Law of Multiplication"),
@@ -111,14 +104,14 @@ struct MCPProficiencyMarkToolTests {
         #expect(avitalRows.first?.masteredAt == day("2026-09-09"))
         #expect(rows(for: classroom.etty, lesson: classroom.commutative, in: context).count == 1)
 
-        let avitalCount = proficientSteps(for: classroom.avital, on: classroom.track, in: context)
-        let ettyCount = proficientSteps(for: classroom.etty, on: classroom.track, in: context)
+        let avitalCount = masteredLaws(for: classroom.avital, in: context)
+        let ettyCount = masteredLaws(for: classroom.etty, in: context)
         #expect(avitalCount == 1)
         #expect(avitalCount == ettyCount, "an MCP mark and a checklist mark must read identically")
 
         #expect(output.contains("Marked mastered on 2026-09-09: [lesson id="))
         #expect(output.contains("The Commutative Law of Multiplication — Math › Laws"))
-        #expect(output.contains("- Avital Beyderman — Math — Laws: 1/2 steps mastered"))
+        #expect(output.contains("- Avital Beyderman — Math — Laws: 1/2 lessons mastered"))
     }
 
     // MARK: - Refusals

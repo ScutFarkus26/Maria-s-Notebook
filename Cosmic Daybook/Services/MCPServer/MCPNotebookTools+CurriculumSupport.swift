@@ -146,28 +146,6 @@ extension MCPNotebookTools {
         }
     }
 
-    /// The best-effort track refresh AddLessonView and the bulk sheet make
-    /// after adding a lesson: keeps the sub-area's `CDTrackEntity` steps in
-    /// step with its lessons. Failures are logged, never surfaced — the lesson
-    /// is already saved, and the service defers itself until a CKShare exists.
-    static func refreshSequenceTrack(area: String, sequence: String, in modelContext: NSManagedObjectContext) {
-        let trimmedArea = area.trimmed()
-        let trimmedSequence = sequence.trimmed()
-        guard !trimmedArea.isEmpty, !trimmedSequence.isEmpty,
-              SequenceTrackService.isTrack(area: trimmedArea, sequence: trimmedSequence, context: modelContext)
-        else { return }
-        do {
-            _ = try SequenceTrackService.getOrCreateTrack(
-                area: trimmedArea, sequence: trimmedSequence, context: modelContext
-            )
-            _ = modelContext.safeSave()
-        } catch {
-            Logger.lessons.warning(
-                "MCP could not refresh the track for \(trimmedArea)/\(trimmedSequence): \(error)"
-            )
-        }
-    }
-
     // MARK: - Output
 
     /// One numbered line per lesson, positions 1-based, in the same
