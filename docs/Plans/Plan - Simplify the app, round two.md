@@ -1,6 +1,6 @@
 # Simplify the app, round two
 
-> **Not started.** Written 2026-11-03 from a whole-app analysis (branch `claude/app-simplification-analysis-31a526`): line and file counts per folder, live record counts read from the notebook over the Claude connection, the open rows in Tide, and what the first Simplify plan left alone on purpose. Danny approved the substance the same day ("go with your plan": Reminders sync off, practice folded into check-ins); this version is the plan-efficiently pass over it, with an SDK check and an Opus review (15 findings, all taken) folded in.
+> **Working on it.** Written 2026-11-03 from a whole-app analysis (branch `claude/app-simplification-analysis-31a526`): line and file counts per folder, live record counts read from the notebook over the Claude connection, the open rows in Tide, and what the first Simplify plan left alone on purpose. Danny approved the substance the same day ("go with your plan": Reminders sync off, practice folded into check-ins); this version is the plan-efficiently pass over it, with an SDK check and an Opus review (15 findings, all taken) folded in.
 > In short: one to-do list (Tide), the kept-but-empty features made cheap rather than deleted, about 60 Claude tools instead of 97, Settings as a list, the backup finished as one table, two template kinds instead of four, and the device-check backlog worked down and then capped, without touching the core loop (lesson, work, check-in, readiness, Class Grid).
 
 Build board: the project's board is https://claude.ai/artifact/WAKaFZGNPQsfKD4A5GbqsM; this plan's phases join it as milestones when Danny says so.
@@ -35,7 +35,16 @@ Live record counts, read 2026-11-03:
 
 - [ ] Phase 0: Work the device-check backlog, then cap it (session: Danny, with one fresh helper session on Sonnet) · est. <1% weekly
 - [ ] Phase 1: One to-do list (session: fresh, Opus xhigh) ‖ Phases 2, 3, 4 · est. 3–5%
-- [ ] Phase 2: Empty features made cheap (session: fresh, Opus high) ‖ Phases 1, 3, 4 · est. 2–3%
+- [x] Phase 2: Empty features made cheap (session: fresh, Opus high) ‖ Phases 1, 3, 4 · est. 2–3%
+  - Done 2026-11-04 on branch `claude/simplify-two-phase-2-b57dcd` (not merged). iOS app and tests, Mac app built; 29 suites, 197 tests on the leased simulator: 191 passed first time, the 6 others (golden, sparse, model digest, registry count, one test's "no average") fixed and their 5 suites re-run, 24 of 24. Cost not measurable: usage read 98% at start and 28% at the end (the counter reset in between); the build queue (up to 29 ahead) took most of the wall clock.
+  - Differed from the plan:
+    - **No tombstones.** `ClassroomJob`, `JobAssignment` and `PracticeSession` stay in `privateEntityNames` with their classes gone and class names blanked: `dormantTombstoneEntities` routes to no store, so the next migration would drop their tables (Phase 1 found the same; side-session note `phase2-tombstones-drop-tables.md`). They are listed in `BackupCoverageTests.routedButIntentionallyNotBackedUp` and `BackupEntityTable.skippedOnImport`; Phase 5 moves them into Phase 1's `CoreDataStack.retiredEntities`.
+    - **The copy's key is a worked-out id**, not the session id in a note: each check-in's and note's id comes from the session and work ids, so a second run, a second device and a restore of a backup made after the copy all see the same records. A copied check-in Danny deletes comes back while its session exists.
+    - **Record Practice stays** (menus, the floating button and the command bar open it) and now writes check-ins; the rest of `Work/Practice/` went. Ratings are words on the note, so Insights has no practice average.
+    - `recall_checks` lived in the practice tools file; it moved to `MCPNotebookTools+RecallChecks.swift`. Tool count 97 → 94.
+    - Golden diff: only the three retired entries and `WorkCheckIn.durationMinutes` change shape; the fixture's counter-made dates and numbers in later rows shift because three types left the table.
+    - The `-InitializeCloudKitSchema` run wasn't done (the leased simulator has no iCloud account); it goes with the Production deploy below.
+  - For Tide (it wasn't reachable at the end of the phase; add these): Release: "Before rolling out round-two Simplify, run schema 23 once in Debug with -InitializeCloudKitSchema against Development, check WorkCheckIn.durationMinutes in the CloudKit Console, then deploy schema 23 to Production". Check on a device: the iPad's Classroom group hides Going Out with no outings and shows it after adding one; on the iPhone, More with a saved selection on Going Out lands on Today; on the Mac, each old practice session shows as check-ins on its work, with its notes.
 - [ ] Phase 3: Settings is a list (session: fresh, Opus high) ‖ Phases 1, 2, 4 · est. 2–3%
 - [ ] Phase 4: Two template kinds (session: fresh, Opus high) ‖ Phases 1, 2, 3 · est. 1–2%
 - [ ] Phase 5: Combine wave one: one backup format bump, one golden, build, focused tests (session: fresh, Opus high) · est. 1–2%
