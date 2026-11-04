@@ -8,6 +8,7 @@ run `docs-index`; edit only the Other documents section by hand.
 
 | Plan | What it is | Status | Date |
 |---|---|---|---|
+| [Plan - Bug hunt 2026-11-03 fixes](<Plans/Plan - Bug hunt 2026-11-03 fixes.md>) | fix every finding with nine fix agents in rolling slots of at most three, each owning its own files and writing a failing test first, then a cold review of the combined work, a fix round with fresh small agents, both whole suites, and land it on main without rolling out. | Not started | 2026-11-03 |
 | [Plan - Daybook Assistant bug fixes](<Plans/Plan - Daybook Assistant bug fixes.md>) | Fixes for the ~50 findings of the 2026-10-04 Daybook Assistant bug hunt, in six phases. | Working on it | 2026-10-05 |
 | [Plan - Debug builds open a fake notebook](<Plans/Plan - Debug builds open a fake notebook.md>) | Debug builds open a fake, local-only notebook; the real one only through the Real Notebook scheme. | Not started | 2026-10-04 |
 | [Plan - Lesson file attachments](<Plans/Plan - Lesson file attachments.md>) | Claude can attach a PDF to a lesson through the cosmic-daybook connector, and Danny opens it in Quick Look from the lesson on the Mac and, after sync, on the iPad. | Working on it | 2026-10-25 |
