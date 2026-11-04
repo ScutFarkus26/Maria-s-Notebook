@@ -16,6 +16,12 @@ extension ClassAreaChecklistViewModel {
             requestClear(cell, context: context)
             return
         }
+        // So do Unmark Presented and Remove Plan when they would delete a given
+        // presentation or a plan with notes on it (+Removing).
+        if let request = removalNeedingConfirmation(action, on: cell, context: context) {
+            pendingRemoval = request
+            return
+        }
         guard !performWithoutRecords(action, on: cell, context: context),
               let change = recordChange(for: action),
               let student = rosterStudents.first(where: { $0.id == cell.studentID }),
@@ -68,8 +74,9 @@ extension ClassAreaChecklistViewModel {
     }
 
     /// Runs one cell's change, saves, and refreshes only the rows it can reach, inside a
-    /// "Cell action" signpost interval (click → matrix updated).
-    private func commitCellAction(
+    /// "Cell action" signpost interval (click → matrix updated). A failed save takes the
+    /// change back and shows "Couldn't Save", so the cell redraws what is stored (+Saving).
+    func commitCellAction(
         _ action: ChecklistCellAction,
         lesson: CDLesson,
         context: NSManagedObjectContext,
@@ -77,8 +84,7 @@ extension ClassAreaChecklistViewModel {
     ) {
         let signpost = ChecklistSignposts.beginCellAction(action.rawValue)
         defer { ChecklistSignposts.endCellAction(signpost) }
-        change()
-        context.safeSave()
+        saveChange("Checklist: \(action.rawValue)", context: context, change)
         if let lessonID = lesson.id {
             refreshRows(touching: lessonID, context: context)
         } else {
@@ -175,24 +181,19 @@ extension ClassAreaChecklistViewModel {
         let request = CDFetchRequest(CDLessonAssignment.self)
         request.predicate = NSPredicate(format: "lessonID == %@", lessonIDString)
         let allLAs = context.safeFetch(request)
-        if findGivenLessonContaining(student: studentIDString, in: allLAs) == nil {
-            addStudentToGivenLesson(
+        // With no presentation on record, an undated one: the mark says she has the
+        // lesson, not that she was given it today (bug hunt 2026-11-03 #8).
+        let given = findGivenLessonContaining(student: studentIDString, in: allLAs)
+            ?? addStudentToUndatedLesson(
                 student: student, studentIDString: studentIDString,
                 lesson: lesson, in: allLAs, context: context
             )
-        }
 
         ChecklistCellRecords.closeWorkForMastery(studentID: studentUUID, lessonID: lessonUUID, in: context)
 
         upsertLessonPresentation(
             studentID: studentIDString, lessonID: lessonIDString,
-            state: .proficient, context: context
-        )
-        SequenceTrackService.autoEnrollInTrackIfNeeded(
-            lessonArea: lesson.area, lessonSequence: lesson.sequence, studentIDs: [studentIDString], context: context
-        )
-        SequenceTrackService.checkAndCompleteTrackIfNeeded(
-            lessonArea: lesson.area, lessonSequence: lesson.sequence, studentID: studentIDString, context: context
+            state: .proficient, givenOn: given?.presentedAt, context: context
         )
     }
 
@@ -217,13 +218,13 @@ extension ClassAreaChecklistViewModel {
                 from: existing, among: allLAs, context: context
             )
         } else {
-            addStudentToGivenLesson(
+            let given = addStudentToGivenLesson(
                 student: student, studentIDString: studentIDString,
                 lesson: lesson, in: allLAs, context: context
             )
             upsertLessonPresentation(
                 studentID: studentIDString, lessonID: lessonIDString,
-                state: .presented, context: context
+                state: .presented, givenOn: given?.presentedAt, context: context
             )
         }
     }
@@ -232,38 +233,16 @@ extension ClassAreaChecklistViewModel {
         lessons.first(where: { $0.isPresented && $0.studentIDs.contains(student) })
     }
 
+    /// Her on today's presentation of the lesson, or a new one, then off the other plans
+    /// her year plan put her on (`ChecklistBatchActionExecutor.addStudentToPresentedLesson`).
+    @discardableResult
     func addStudentToGivenLesson(
         student: CDStudent, studentIDString: String, lesson: CDLesson,
         in allLAs: [CDLessonAssignment], context: NSManagedObjectContext
-    ) {
-        let today = Date()
-        let isGivenToday = { (la: CDLessonAssignment) -> Bool in
-            la.isPresented && (la.presentedAt ?? Date.distantPast).isSameDay(as: today)
-        }
-        if let sequence = allLAs.first(where: isGivenToday) {
-            if !sequence.studentIDs.contains(studentIDString) {
-                sequence.studentIDs.append(studentIDString)
-                SequenceTrackService.autoEnrollInTrackIfNeeded(
-                    lessonArea: lesson.area,
-                    lessonSequence: lesson.sequence,
-                    studentIDs: [studentIDString],
-                    context: context
-                )
-            }
-        } else {
-            guard let lessonUUID = lesson.id, let studentUUID = student.id else { return }
-            _ = PresentationFactory.makePresented(
-                lessonID: lessonUUID,
-                studentIDs: [studentUUID],
-                context: context
-            )
-            SequenceTrackService.autoEnrollInTrackIfNeeded(
-                lessonArea: lesson.area,
-                lessonSequence: lesson.sequence,
-                studentIDs: [studentIDString],
-                context: context
-            )
-        }
+    ) -> CDLessonAssignment? {
+        ChecklistBatchActionExecutor.addStudentToPresentedLesson(
+            student: student, lesson: lesson, in: allLAs, attachment: .today, context: context
+        )
     }
 
     // MARK: - Previously Presented (Undated)
@@ -295,42 +274,21 @@ extension ClassAreaChecklistViewModel {
             )
             upsertLessonPresentation(
                 studentID: studentIDString, lessonID: lessonIDString,
-                state: .presented, context: context
+                state: .presented, givenOn: nil, context: context
             )
         }
     }
 
+    /// Her on the lesson's undated presentation, or a new one, then off the other plans
+    /// her year plan put her on, as `addStudentToGivenLesson` does.
+    @discardableResult
     func addStudentToUndatedLesson(
         student: CDStudent, studentIDString: String, lesson: CDLesson,
         in allLAs: [CDLessonAssignment], context: NSManagedObjectContext
-    ) {
-        let isUndatedPresented = { (la: CDLessonAssignment) -> Bool in
-            la.isPresented && la.presentedAt == nil
-        }
-        if let sequence = allLAs.first(where: isUndatedPresented) {
-            if !sequence.studentIDs.contains(studentIDString) {
-                sequence.studentIDs.append(studentIDString)
-                SequenceTrackService.autoEnrollInTrackIfNeeded(
-                    lessonArea: lesson.area,
-                    lessonSequence: lesson.sequence,
-                    studentIDs: [studentIDString],
-                    context: context
-                )
-            }
-        } else {
-            guard let lessonUUID = lesson.id, let studentUUID = student.id else { return }
-            _ = PresentationFactory.makePreviouslyPresented(
-                lessonID: lessonUUID,
-                studentIDs: [studentUUID],
-                context: context
-            )
-            SequenceTrackService.autoEnrollInTrackIfNeeded(
-                lessonArea: lesson.area,
-                lessonSequence: lesson.sequence,
-                studentIDs: [studentIDString],
-                context: context
-            )
-        }
+    ) -> CDLessonAssignment? {
+        ChecklistBatchActionExecutor.addStudentToPresentedLesson(
+            student: student, lesson: lesson, in: allLAs, attachment: .undated, context: context
+        )
     }
 
     func clearStatus(student: CDStudent, lesson: CDLesson, context: NSManagedObjectContext) {

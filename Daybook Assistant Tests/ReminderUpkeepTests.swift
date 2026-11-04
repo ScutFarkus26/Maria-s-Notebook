@@ -88,7 +88,7 @@ struct ReminderUpkeepTests {
         #expect(spy.rebuilt.isEmpty)
     }
 
-    @Test("Settled, a burst leaves the same reminders as one rebuild, reading each kind's pending requests once")
+    @Test("Settled, a burst leaves the same reminders as one rebuild, reading the pending requests once")
     func burstMatchesOneRebuild() async throws {
         let stack = try ReminderTestClass.withEmail()
         let context = stack.viewContext
@@ -105,8 +105,9 @@ struct ReminderUpkeepTests {
         #expect(await eventually { spy.rebuilt.count == 1 && !center.ids("frontdesk-").isEmpty })
         #expect(center.ids("arrival-") == reference.ids("arrival-"))
         #expect(center.ids("frontdesk-") == reference.ids("frontdesk-"))
-        // Pickups, arrival and front desk: one read each, for the one rebuild.
-        #expect(center.pendingReads == 3)
+        // Pickups, arrival and front desk share one read, for the one rebuild
+        // (bug hunt 2026-11-03 #16).
+        #expect(center.pendingReads == 1)
     }
 
     // MARK: - Which changes read the membership again

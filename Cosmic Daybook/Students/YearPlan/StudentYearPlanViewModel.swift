@@ -40,16 +40,14 @@ final class StudentYearPlanViewModel {
         entries = context.safeFetch(entryReq)
         satisfaction = YearPlanSatisfaction.index(forStudents: [studentIDString], in: context)
 
-        // 2. Fetch scheduled or presented assignments
-        let assignmentReq = CDFetchRequest(CDLessonAssignment.self)
-        assignmentReq.predicate = NSPredicate(
-            format: "scheduledFor != nil OR presentedAt != nil"
-        )
-        let allAssignments = context.safeFetch(assignmentReq)
+        // 2. Her scheduled or presented assignments
+        let studentAssignments = Self.assignments(for: studentIDString, in: context)
 
-        // Filter to this student's assignments
-        let studentAssignments = allAssignments.filter {
-            $0.studentIDs.contains(studentIDString)
+        // 3. Put the entries right against them and their lessons before
+        // drawing (`YearPlanEntryRepair`), then re-read them in date order.
+        lessonsByID = Self.lessons(withIDs: Set(entries.map(\.lessonID)), in: context)
+        if repairEntries(against: studentAssignments, in: context) {
+            entries = context.safeFetch(entryReq)
         }
 
         // Exclude assignments already represented by a promoted Year Plan entry
@@ -58,24 +56,72 @@ final class StudentYearPlanViewModel {
             guard let assignmentID = assignment.id?.uuidString else { return false }
             return !promotedIDs.contains(assignmentID)
         }
+        let assignmentLessonIDs = Set(unlinkedAssignments.map(\.lessonID)).subtracting(lessonsByID.keys)
+        lessonsByID.merge(Self.lessons(withIDs: assignmentLessonIDs, in: context)) { first, _ in first }
 
-        // 3. Build lessons lookup from both sources
-        let entryLessonIDs = Set(entries.map(\.lessonID))
-        let assignmentLessonIDs = Set(unlinkedAssignments.map(\.lessonID))
-        let allLessonIDs = entryLessonIDs.union(assignmentLessonIDs)
+        // 4. Build unified cell lookup
+        itemsByCell = buildCells(
+            assignments: unlinkedAssignments,
+            linkedDates: Self.presentationDays(of: studentAssignments, promotedIDs: promotedIDs)
+        )
+        closedDayCount = closedDayEntries(in: context).count
+    }
 
+    /// Her assignments that are on the calendar or given.
+    private static func assignments(
+        for studentID: String, in context: NSManagedObjectContext
+    ) -> [CDLessonAssignment] {
+        let assignmentReq = CDFetchRequest(CDLessonAssignment.self)
+        assignmentReq.predicate = NSPredicate(
+            format: "scheduledFor != nil OR presentedAt != nil"
+        )
+        return context.safeFetch(assignmentReq).filter {
+            $0.studentIDs.contains(studentID)
+        }
+    }
+
+    private static func lessons(
+        withIDs ids: Set<String>, in context: NSManagedObjectContext
+    ) -> [String: CDLesson] {
         var lookup: [String: CDLesson] = [:]
-        for idStr in allLessonIDs where !idStr.isEmpty {
+        for idStr in ids where !idStr.isEmpty {
             if let uuid = UUID(uuidString: idStr),
                let lesson = context.object(CDLesson.self, id: uuid) {
                 lookup[idStr] = lesson
             }
         }
-        lessonsByID = lookup
+        return lookup
+    }
 
-        // 4. Build unified cell lookup
-        itemsByCell = buildCells(assignments: unlinkedAssignments)
-        closedDayCount = closedDayEntries(in: context).count
+    /// The day each linked presentation is on or was given, by its id: a
+    /// promoted entry is drawn there, where the calendar shows it, rather
+    /// than on the day it was first promoted for (bug hunt 2026-11-03 #20).
+    private static func presentationDays(
+        of assignments: [CDLessonAssignment], promotedIDs: Set<String>
+    ) -> [String: Date] {
+        var days: [String: Date] = [:]
+        for assignment in assignments {
+            guard let id = assignment.id?.uuidString, promotedIDs.contains(id),
+                  let date = assignment.scheduledFor ?? assignment.presentedAt else { continue }
+            days[id] = date
+        }
+        return days
+    }
+
+    /// The load's repair, saved when it changed anything. When the context
+    /// already holds someone else's unsaved change, the repaired values wait
+    /// for that save rather than a load saving it for them. Returns whether
+    /// any entry changed.
+    private func repairEntries(
+        against assignments: [CDLessonAssignment], in context: NSManagedObjectContext
+    ) -> Bool {
+        let wasClean = !context.hasChanges
+        let repaired = YearPlanEntryRepair.repair(
+            entries, lessonsByID: lessonsByID, assignments: assignments
+        )
+        guard repaired > 0 else { return false }
+        if wasClean { context.safeSave() }
+        return true
     }
 
     /// Planned targets from today on that sit on days the school is closed:
@@ -94,10 +140,13 @@ final class StudentYearPlanViewModel {
     }
 
     /// Lays the entries and the assignments nothing links to onto calendar
-    /// days. Each item's display status is resolved here, once, because
+    /// days, a promoted entry on its presentation's day (`linkedDates`). Each
+    /// item's display status is resolved here, once, because
     /// `YearPlanSatisfaction` reads the store and the calendar asks for it per
     /// cell per render.
-    private func buildCells(assignments: [CDLessonAssignment]) -> [CellID: [YearPlanCalendarItem]] {
+    private func buildCells(
+        assignments: [CDLessonAssignment], linkedDates: [String: Date]
+    ) -> [CellID: [YearPlanCalendarItem]] {
         let cal = AppCalendar.shared
         var cellLookup: [CellID: [YearPlanCalendarItem]] = [:]
 
@@ -110,7 +159,8 @@ final class StudentYearPlanViewModel {
         }
 
         for entry in entries {
-            guard let date = entry.plannedDate, let entryID = entry.id else { continue }
+            let linked = entry.isPromoted ? entry.promotedAssignmentID.flatMap { linkedDates[$0] } : nil
+            guard let date = linked ?? entry.plannedDate, let entryID = entry.id else { continue }
             cellLookup[cellID(for: date), default: []].append(
                 YearPlanCalendarItem(
                     id: entryID,
@@ -156,19 +206,23 @@ final class StudentYearPlanViewModel {
         studentID: UUID,
         context: NSManagedObjectContext
     ) async {
+        // The planned entries after this one in its sequence, in the order it
+        // is given: the lessons' own order (the load renumbers entries from
+        // their lessons, bug hunt 2026-11-03 #24), the target date for a tie.
+        // Read before the move, so its new date doesn't change its place.
+        let sequence = YearPlanPacing.inSequenceOrder(entries.filter {
+            $0 === entry || (
+                $0.sequenceGroupKey == entry.sequenceGroupKey &&
+                $0.studentID == entry.studentID &&
+                $0.isPlanned && !$0.isSatisfied(by: satisfaction)
+            )
+        })
+        let position = sequence.firstIndex(where: { $0 === entry }) ?? sequence.endIndex
+        let subsequent = sequence.suffix(from: min(position + 1, sequence.endIndex))
+
         let landing = YearPlanPacing.schoolDay(onOrAfter: newDate, in: context)
         entry.plannedDate = landing
         entry.modifiedAt = Date()
-
-        // Find all planned entries in the same sequence after this one
-        let subsequent = entries
-            .filter {
-                $0.sequenceGroupKey == entry.sequenceGroupKey &&
-                $0.studentID == entry.studentID &&
-                $0.orderInSequence > entry.orderInSequence &&
-                $0.isPlanned && !$0.isSatisfied(by: satisfaction)
-            }
-            .sorted { $0.orderInSequence < $1.orderInSequence }
 
         var currentDate = landing
         for next in subsequent {
@@ -186,47 +240,6 @@ final class StudentYearPlanViewModel {
     /// Finds a CDYearPlanEntry by ID from the loaded entries.
     func entry(byID id: UUID) -> CDYearPlanEntry? {
         entries.first { $0.id == id }
-    }
-
-    /// Readjust the entries still ahead of this child, sequence by sequence.
-    ///
-    /// Two things send a sequence back to the drawing board, and they are
-    /// handled differently. A sequence whose first entry has fallen behind pace
-    /// is re-laid from the next school day — it has slipped as a whole. A
-    /// sequence that is on time but has targets sitting on days the school is
-    /// closed is only nudged: those entries move to the open days around them
-    /// (`YearPlanPacing.resettle`) and the ones already on good days keep the
-    /// dates the guide chose.
-    func readjust(studentID: UUID, context: NSManagedObjectContext) async {
-        let today = AppCalendar.startOfDay(Date())
-        let stillAhead = entries.filter { $0.isPlanned && !$0.isSatisfied(by: satisfaction) }
-        let grouped = Dictionary(grouping: stillAhead) { $0.sequenceGroupKey }
-
-        for (_, sequenceEntries) in grouped {
-            let sorted = YearPlanPacing.inSequenceOrder(sequenceEntries)
-            guard let first = sorted.first, let firstDate = first.plannedDate else { continue }
-
-            if firstDate < today {
-                var currentDate = YearPlanPacing.schoolDay(
-                    onOrAfter: AppCalendar.addingDays(1, to: today), in: context
-                )
-                first.plannedDate = currentDate
-                first.modifiedAt = Date()
-
-                for entry in sorted.dropFirst() {
-                    currentDate = YearPlanPacing.advance(
-                        from: currentDate, bySchoolDays: entry.spacingSchoolDays, in: context
-                    )
-                    entry.plannedDate = currentDate
-                    entry.modifiedAt = Date()
-                }
-            } else {
-                YearPlanPacing.resettle(sorted, in: context)
-            }
-        }
-
-        context.safeSave()
-        load(studentID: studentID, context: context)
     }
 
     var behindPaceCount: Int {

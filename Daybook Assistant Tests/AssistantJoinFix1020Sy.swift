@@ -37,13 +37,13 @@ struct AssistantJoinFix1020Sy {
         #expect(hold.setupFailedForAccount)
         #expect(told.count == 1)
 
-        // The account arrives and an import works: the hold lifts, but the
-        // container still can't share.
+        // The account arrives and an import works, but the container still
+        // can't share: filing waits for the rebuilt stack (2026-11-03 #2).
         hold.follow(.init(
             type: .import, succeeded: true, killedDelegate: false,
             start: failedAt.addingTimeInterval(2), storeIdentifier: "shared"
         ))
-        #expect(hold.stopReason == nil)
+        #expect(hold.stopReason != nil)
         #expect(hold.setupFailedForAccount)
     }
 

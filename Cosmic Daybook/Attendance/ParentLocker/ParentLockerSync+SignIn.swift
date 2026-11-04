@@ -111,7 +111,9 @@ extension ParentLockerSync {
     /// right now (the device locked since restart, say) leaves things as they are.
     /// A newer password, saved here or on another of the person's devices,
     /// clears a refusal, and a sign-in ParentLocker wanted a person for: that
-    /// person has signed in (review of the afternoon fixes, M9).
+    /// person has signed in (review of the afternoon fixes, M9). Cookies
+    /// left with no password go at the first read after `start` and when a
+    /// sign-in goes, not on every return to the app (bug hunt 2026-11-03 #21).
     func refreshSignIn() {
         let site = site
         let hasPassword: Bool
@@ -122,8 +124,13 @@ extension ParentLockerSync {
             return
         }
         if !hasPassword {
-            if isSignedIn { signedOutHere() } else { try? dependencies.secrets.deleteCookies(site: site) }
+            if isSignedIn {
+                signedOutHere()
+            } else if !signInReadSinceStart {
+                try? dependencies.secrets.deleteCookies(site: site)
+            }
         }
+        signInReadSinceStart = true
         isSignedIn = hasPassword
         savedPasswordRefused = hasPassword && refusalStands(site: site)
         if signInNeedsYou, hasPassword, let saved = try? dependencies.secrets.passwordModified(site: site),

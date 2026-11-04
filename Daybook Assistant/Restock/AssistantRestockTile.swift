@@ -11,7 +11,9 @@ struct AssistantRestockTile: View {
     /// "You · 8:12 AM", for a Low or Out staple.
     let markedBy: String?
     let hasNote: Bool
-    let menuHeader: String
+    /// The hold menu's header, worked out only when the menu opens (the
+    /// context menu's content closure) rather than on every redraw of every tile.
+    let menuHeader: () -> String
     let onTap: () -> Bool
     let onSetLevel: (RestockLevel) -> Void
     let onNote: () -> Void
@@ -115,7 +117,7 @@ struct AssistantRestockTile: View {
             Section {
                 Button("History", systemImage: "clock", action: onHistory)
             } header: {
-                Text(menuHeader)
+                Text(menuHeader())
             }
         }
     }
@@ -134,7 +136,7 @@ struct AssistantRestockTile: View {
                 }
             }
         } header: {
-            Text(menuHeader)
+            Text(menuHeader())
         }
         Section {
             Button(hasNote ? "Edit Note…" : "Add a Note…", systemImage: "square.and.pencil", action: onNote)

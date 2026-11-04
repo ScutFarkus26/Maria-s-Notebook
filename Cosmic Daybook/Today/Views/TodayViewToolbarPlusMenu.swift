@@ -26,7 +26,7 @@ extension TodayView {
                     }
                 case .newTodo:
                     Button {
-                        activeSheet = .newTodo
+                        activeSheet = .newTodo(defaultDate: todoDay.newTodoDate)
                     } label: {
                         Label(action.label, systemImage: action.icon)
                     }

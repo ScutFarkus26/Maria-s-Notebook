@@ -1,4 +1,5 @@
 import CoreData
+import UserNotifications
 
 /// Keeps the reminders up to date without the attendance screen. The
 /// screen's own follower (`ArrivalReminderFollower`) runs only while it is
@@ -87,25 +88,59 @@ final class EarlyPickupReminderUpkeep {
     /// marks from another device). None asks for permission: the alert
     /// belongs on screen.
     ///
-    /// A real class's only while she's in it, asked again before each kind
-    /// (bug hunt 2026-10-20, #20): each waits its turn behind the one before,
-    /// and a rebuild that had started, or an import settling just after,
-    /// put the reminders of a class she had left back after Leave took them
-    /// off. Leave deletes her membership row before it does.
+    /// A real class's only while she's in it (bug hunt 2026-10-20, #20): a
+    /// rebuild that had started, or an import settling just after, put the
+    /// reminders of a class she had left back after Leave took them off.
+    /// Leave deletes her membership row before it does. The real class's
+    /// three kinds run holding all three turns, so membership is asked once
+    /// and Leave's removals wait behind them; they share one read of the
+    /// pending requests and the permission (`ReminderLook`) and one of the
+    /// guide's days off (bug hunt 2026-11-03, #16). Only this takes more
+    /// than one turn, always in this order.
     static func refresh(
         in context: NSManagedObjectContext,
         isSample: Bool = AssistantSampleClass.isActive,
         center: any ReminderCenter = SystemReminderCenter()
     ) async {
-        guard isSample || isInClass(context) else { return }
-        await EarlyPickupReminder.reschedule(in: context, asksPermission: false, isSample: isSample, center: center)
+        guard !isSample else {
+            await EarlyPickupReminder.reschedule(in: context, asksPermission: false, isSample: true, center: center)
+            return
+        }
+        await EarlyPickupReminder.inTurn {
+            await ArrivalReminder.runs.run {
+                await FrontDeskEmailReminder.runs.run {
+                    await refreshInClass(context, center: center)
+                }
+            }
+        }
+    }
+
+    /// `refresh`'s work for the real class, its turns taken.
+    private static func refreshInClass(_ context: NSManagedObjectContext, center: any ReminderCenter) async {
+        guard isInClass(context) else { return }
+        let look = ReminderLook(center)
+        await EarlyPickupReminder.bringUpToDate(
+            in: context, now: Date(), asksPermission: false, isSample: false, center: look
+        )
         // As on screen: nothing for a class whose children haven't arrived
         // from iCloud yet.
         let children = AssistantDayRoll.classroomStudents(in: context)
-        guard !isSample, isInClass(context), ((try? context.count(for: children)) ?? 0) > 0 else { return }
-        await ArrivalReminder.reschedule(in: context, center: center)
-        guard isInClass(context) else { return }
-        await FrontDeskEmailReminder.reschedule(in: context, center: center)
+        guard ((try? context.count(for: children)) ?? 0) > 0 else { return }
+        var read: (range: Range<Date>, days: Set<Date>)?
+        let daysOff = { (range: Range<Date>) -> Set<Date> in
+            if let read, read.range == range { return read.days }
+            let days = AttendanceEmailLog.nonSchoolDays(in: range, using: context, calendar: AppCalendar.shared)
+            read = (range, days)
+            return days
+        }
+        await ArrivalReminder.bringUpToDate(in: context, now: Date(), center: look, nonSchoolDays: daysOff)
+        let requests = await FrontDeskEmailReminder.wantedRequests(
+            in: context, now: Date(), center: look, defaults: .standard, nonSchoolDays: daysOff
+        )
+        await ReminderRuns.replace(
+            where: FrontDeskEmailReminder.isReminder, with: requests, center: look,
+            logger: FrontDeskEmailReminder.logger
+        )
     }
 
     /// Whether this iPhone's membership row is in `context`: she's in the
@@ -127,5 +162,53 @@ extension AssistantBootstrapper {
             guard let self, case .ready = phase else { return nil }
             return coreDataStack?.viewContext
         }
+    }
+}
+
+/// One refresh's look at the notification center: the permission and the
+/// pending requests read once, the first time a kind asks, and handed to
+/// every kind after (bug hunt 2026-11-03, #16). Each kind only compares
+/// against its own requests, which no other kind adds or removes, so what
+/// the pickups changed doesn't matter to the arrival and front-desk
+/// reminders. Changes go straight to the center.
+@MainActor
+final class ReminderLook: ReminderCenter {
+    private let center: any ReminderCenter
+    private var status: UNAuthorizationStatus?
+    private var pending: [UNNotificationRequest]?
+
+    init(_ center: any ReminderCenter) {
+        self.center = center
+    }
+
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        if let status { return status }
+        let read = await center.authorizationStatus()
+        status = read
+        return read
+    }
+
+    func requestAuthorization() async -> Bool {
+        status = nil
+        return await center.requestAuthorization()
+    }
+
+    func pendingRequests() async -> [UNNotificationRequest] {
+        if let pending { return pending }
+        let read = await center.pendingRequests()
+        pending = read
+        return read
+    }
+
+    func removePendingRequests(withIdentifiers identifiers: [String]) {
+        center.removePendingRequests(withIdentifiers: identifiers)
+    }
+
+    func add(_ request: UNNotificationRequest) async throws {
+        try await center.add(request)
+    }
+
+    func removeDeliveredRequests(withIdentifiers identifiers: [String]) {
+        center.removeDeliveredRequests(withIdentifiers: identifiers)
     }
 }

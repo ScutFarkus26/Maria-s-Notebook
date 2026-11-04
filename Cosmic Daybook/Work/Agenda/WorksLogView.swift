@@ -79,6 +79,8 @@ struct WorksLogView: View {
         // table, so every row's group is already in hand; only built while a
         // child is picked.
         let visibility = WorkVisibility(rows: selectedStudentIDs.isEmpty ? [] : Array(allWorks))
+        let visibleIDs = Set(students.compactMap(\.id))
+        let hiddenIDs = Set(dependencies.roster.all.compactMap(\.id)).subtracting(visibleIDs)
         return allWorks.filter { work in
             if completedOnly && work.status.isOpen { return false }
 
@@ -86,6 +88,8 @@ struct WorksLogView: View {
             // stale local filters. Keep the requested item in the collection
             // long enough to reveal it, without weakening the History scope.
             if let focusedWorkID, work.id == focusedWorkID { return true }
+
+            if !WorksLogRows.isShown(work, hiddenStudentIDs: hiddenIDs) { return false }
 
             if !WorksLogRows.matches(work, kind: selectedKind) { return false }
 

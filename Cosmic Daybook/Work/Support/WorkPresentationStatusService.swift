@@ -70,11 +70,17 @@ struct WorkPresentationStatusService {
         )
         scheduledRequest.sortDescriptors = [NSSortDescriptor(key: "scheduledFor", ascending: true)]
 
+        // Ids compared trimmed and upper-cased, as recording compares them: a
+        // presentation naming her in lower case wasn't found.
+        let studentKey = OrphanStudentGrace.normalizedID(work.studentID)
+        let namesHer: (CDLessonAssignment) -> Bool = { assignment in
+            assignment.studentIDs.contains { OrphanStudentGrace.normalizedID($0) == studentKey }
+        }
+
         do {
             let scheduledAssignments = try context.fetch(scheduledRequest)
             let relevantScheduled = scheduledAssignments.filter { assignment in
-                assignment.presentedAt == nil &&
-                assignment.studentIDs.contains(work.studentID)
+                assignment.presentedAt == nil && namesHer(assignment)
             }
 
             if let nextScheduled = relevantScheduled.first,
@@ -97,12 +103,12 @@ struct WorkPresentationStatusService {
             let relevantDrafts = draftAssignments.filter { assignment in
                 assignment.scheduledFor == nil &&
                 assignment.presentedAt == nil &&
-                assignment.studentIDs.contains(work.studentID)
+                namesHer(assignment)
             }
 
             if let inboxAssignment = relevantDrafts.first {
                 let studentIDsArray = inboxAssignment.studentIDs
-                let otherStudents = studentIDsArray.filter { $0 != work.studentID }
+                let otherStudents = studentIDsArray.filter { OrphanStudentGrace.normalizedID($0) != studentKey }
 
                 if otherStudents.isEmpty {
                     return .inInbox(students: [work.studentID])

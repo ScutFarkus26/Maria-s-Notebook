@@ -251,8 +251,10 @@ struct WorksAgendaView: View {
         .onChange(of: workListRaw) { _, _ in
             rebuildBeforeLesson()
         }
+        // A new day moves the pill's window and every work's age (the Work
+        // column's quiet days and the printed sheet's "Nd").
         .onCalendarDayChange {
-            rebuildBeforeLesson()
+            rebuildPartition()
         }
         .onChange(of: searchText) { _, newValue in
             searchDebounceTask?.cancel()

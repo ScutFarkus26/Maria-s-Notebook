@@ -39,7 +39,7 @@ struct ThreadKey: Hashable, Identifiable {
     }
 }
 
-struct TrackSettingsItem: Identifiable {
+struct SequenceRulesItem: Identifiable {
     let id = UUID()
     let area: String
     let sequence: String
@@ -96,7 +96,7 @@ struct LessonsRootView: View {
 
     // MARK: - Sheet State
     @State var lessonToSchedule: CDLesson?
-    @State var trackSettingsItem: TrackSettingsItem?
+    @State var sequenceRulesItem: SequenceRulesItem?
     @State var reorderSectionsItem: SectionReorderItem?
     @State var selectedLessonDetail: CDLesson?
     @State var showingBulkEntry = false
@@ -221,8 +221,8 @@ struct LessonsRootView: View {
         let _ = dependencies.lessonCatalog.version
         lessonsLiveLayout
         .sheet(item: $lessonToSchedule) { lesson in lessonScheduleSheet(lesson) }
-        .sheet(item: $trackSettingsItem) { item in
-            SequenceTrackSettingsSheet(area: item.area, sequence: item.sequence)
+        .sheet(item: $sequenceRulesItem) { item in
+            SequenceRulesSheet(area: item.area, sequence: item.sequence)
         }
         .sheet(item: $reorderSectionsItem) { item in
             ReorderSectionsSheet(area: item.area, sequence: item.sequence, lessons: lessons)

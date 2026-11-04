@@ -127,6 +127,8 @@ struct TodayEngineTests {
         todo("Undated medium", priority: .medium)
         todo("Future high", due: 10, priority: .high)
         todo("Someday high", priority: .high, someday: true)
+        todo("Someday, due yesterday", due: -1, someday: true)
+        todo("Someday, due next week", due: 7, someday: true)
         todo("Done today", due: 0, done: true)
         todo("Undated")
     }
@@ -158,6 +160,23 @@ struct TodayEngineTests {
             #expect(after.highPriority.map(\.title) == before.highPriority.map(\.title))
             #expect(!narrowRows.contains { $0.title == "Undated" || $0.title == "Due next week" })
         }
+    }
+
+    @Test("A someday todo shows on Today once its deadline arrives, as on the Todos screen")
+    func somedayTodoJoinsWhenDue() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let day = try CoreDataTestHelpers.day("2026-09-16")
+        seedTodos(around: day, in: context)
+        #expect(CoreDataTestHelpers.save(context))
+
+        typealias Section = TodayTodosSectionView<EmptyView>
+        let request = CDFetchRequest(CDTodoItem.self)
+        request.predicate = Section.fetchPredicate(selectedDay: day)
+        let shown = Section.partition(context.safeFetch(request), date: day, calendar: AppCalendar.shared)
+            .all.map(\.title)
+        #expect(shown.contains("Someday, due yesterday"))
+        #expect(!shown.contains("Someday, due next week"))
+        #expect(!shown.contains("Someday high"))
     }
 
     // MARK: - Attendance and plans

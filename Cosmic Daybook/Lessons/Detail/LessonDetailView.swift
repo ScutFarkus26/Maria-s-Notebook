@@ -323,7 +323,7 @@ extension LessonDetailView {
             HStack {
                 Spacer()
                 if isEditing {
-                    Button("Cancel") { isEditing = false }
+                    Button("Cancel") { cancelEdits() }
                     Button("Save") { saveEdits() }
                         .keyboardShortcut(.defaultAction)
                         .buttonStyle(.borderedProminent)

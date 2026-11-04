@@ -4,10 +4,10 @@ import Testing
 @testable import CosmicDaybook
 
 /// Pins what `StudentProgressTabViewModel.loadData` materialises for one
-/// student. Before 2026-09-18 it fetched eight whole tables and filtered in
-/// memory; now each fetch is scoped to the student, so a classroom's worth
-/// of other students' rows never leaves the store. The output for the
-/// student must not change.
+/// student. Each fetch is scoped to the student or to one sequence's lessons,
+/// so a classroom's worth of other students' rows never leaves the store.
+/// Since 2026-11-03 the cards are the child's standings on the sequences she
+/// is in the middle of, read from her presentation rows; nothing is stored.
 @Suite("Student Progress Tab load scope")
 @MainActor
 struct StudentProgressTabLoadScopeTests {
@@ -20,16 +20,15 @@ struct StudentProgressTabLoadScopeTests {
         let context: NSManagedObjectContext
         let owner: AnyObject?
         let student: CDStudent
-        let track: CDTrackEntity
-        let enrollment: CDStudentTrackEnrollmentEntity
         let firstLesson: CDLesson
         let secondLesson: CDLesson
         let report: CDWorkModel
     }
 
-    /// One student with one active track (two steps, first mastered), one
-    /// track note, one open report and one project, next to `others`
-    /// classmates who each carry the same shape of data on other tracks.
+    /// One student in the middle of Math — Chains (two lessons, the first
+    /// mastered and presented), with one note on that lesson, one open report
+    /// and one project, next to `others` classmates who each carry the same
+    /// shape of data on sequences of their own.
     private func seed(others: Int, store: Store = .inMemory) throws -> Seeded {
         let context: NSManagedObjectContext
         let owner: AnyObject?
@@ -46,12 +45,16 @@ struct StudentProgressTabLoadScopeTests {
         let student = CoreDataTestHelpers.seedStudent(in: context, firstName: "Maya", lastName: "S")
         let studentID = try #require(student.id).uuidString
         let first = CoreDataTestHelpers.seedLesson(in: context, name: "Bead Chains", area: "Math", sequence: "Chains")
+        first.orderInSequence = 0
         let second = CoreDataTestHelpers.seedLesson(in: context, name: "Bead Squares", area: "Math", sequence: "Chains")
+        second.orderInSequence = 1
 
-        let (track, enrollment) = seedChainsTrack(for: student, lessons: [first, second], in: context)
+        seedChains(for: student, lessons: [first, second], in: context)
 
         let note = CoreDataTestHelpers.seedNote(in: context, body: "Working steadily on chains")
-        note.studentTrackEnrollment = enrollment
+        note.lesson = first
+        note.scope = .students([try #require(student.id)])
+        note.syncStudentLinks(in: context)
 
         let studentUUIDForWork = try #require(student.id)
         let secondUUIDForWork = try #require(second.id)
@@ -59,7 +62,6 @@ struct StudentProgressTabLoadScopeTests {
             in: context, title: "", studentID: studentUUIDForWork, lessonID: secondUUIDForWork
         )
         report.kind = .report
-        report.trackID = enrollment.trackID
 
         let project = CDProject(context: context)
         project.title = "Bridges"
@@ -68,8 +70,6 @@ struct StudentProgressTabLoadScopeTests {
         seedClassmates(others, in: context)
 
         let studentUUID = try #require(student.id)
-        let trackUUID = try #require(track.id)
-        let enrollmentUUID = try #require(enrollment.id)
         let firstUUID = try #require(first.id)
         let secondUUID = try #require(second.id)
         let reportUUID = try #require(report.id)
@@ -77,57 +77,36 @@ struct StudentProgressTabLoadScopeTests {
         context.reset()
 
         let reloadedStudent = try #require(context.object(CDStudent.self, id: studentUUID))
-        let reloadedTrack = try #require(context.object(CDTrackEntity.self, id: trackUUID))
-        let reloadedEnrollment = try #require(context.object(CDStudentTrackEnrollmentEntity.self, id: enrollmentUUID))
         let reloadedFirst = try #require(context.object(CDLesson.self, id: firstUUID))
         let reloadedSecond = try #require(context.object(CDLesson.self, id: secondUUID))
         let reloadedReport = try #require(context.object(CDWorkModel.self, id: reportUUID))
         return Seeded(
-            context: context, owner: owner, student: reloadedStudent, track: reloadedTrack,
-            enrollment: reloadedEnrollment, firstLesson: reloadedFirst, secondLesson: reloadedSecond,
-            report: reloadedReport
+            context: context, owner: owner, student: reloadedStudent,
+            firstLesson: reloadedFirst, secondLesson: reloadedSecond, report: reloadedReport
         )
     }
 
-    /// The student's active "Math — Chains" track: one step per lesson, the
-    /// first lesson mastered and presented.
-    private func seedChainsTrack(
-        for student: CDStudent, lessons: [CDLesson], in context: NSManagedObjectContext
-    ) -> (CDTrackEntity, CDStudentTrackEnrollmentEntity) {
+    /// The student's standing on "Math — Chains": the first lesson mastered
+    /// and presented.
+    private func seedChains(for student: CDStudent, lessons: [CDLesson], in context: NSManagedObjectContext) {
         let studentID = student.id?.uuidString ?? ""
         let first = lessons[0]
-        let track = CDTrackEntity(context: context)
-        track.title = "Math — Chains"
-        for (index, lesson) in lessons.enumerated() {
-            let step = CDTrackStep(context: context)
-            step.orderIndex = Int64(index)
-            step.lessonTemplateID = lesson.id
-            step.track = track
-        }
-        let enrollment = CDStudentTrackEnrollmentEntity(context: context)
-        enrollment.studentID = studentID
-        enrollment.trackID = track.id?.uuidString ?? ""
-        enrollment.track = track
-        enrollment.isActive = true
 
         let mark = CDLessonPresentation(context: context)
         mark.studentID = studentID
         mark.lessonID = first.id?.uuidString ?? ""
-        mark.trackID = enrollment.trackID
         mark.state = .proficient
+        mark.presentedAt = Date()
 
         let assignment = CDLessonAssignment(context: context)
         assignment.lessonID = first.id?.uuidString ?? ""
         assignment.studentIDs = [studentID]
-        assignment.trackID = enrollment.trackID
         assignment.state = .presented
         assignment.presentedAt = Date()
-
-        return (track, enrollment)
     }
 
-    /// `count` classmates, each on their own track with a mark, an
-    /// assignment, a track note, a report and a project.
+    /// `count` classmates, each in the middle of a sequence of their own with
+    /// a mark, an assignment, a lesson note, a report and a project.
     private func seedClassmates(_ count: Int, in context: NSManagedObjectContext) {
         for index in 0..<count {
             let other = CoreDataTestHelpers.seedStudent(in: context, firstName: "Other", lastName: "\(index)")
@@ -135,26 +114,19 @@ struct StudentProgressTabLoadScopeTests {
             let lesson = CoreDataTestHelpers.seedLesson(
                 in: context, name: "Lesson \(index)", area: "Language", sequence: "Seq \(index)"
             )
-            let otherTrack = CDTrackEntity(context: context)
-            otherTrack.title = "Language — Seq \(index)"
-            let step = CDTrackStep(context: context)
-            step.lessonTemplateID = lesson.id
-            step.track = otherTrack
-            let otherEnrollment = CDStudentTrackEnrollmentEntity(context: context)
-            otherEnrollment.studentID = otherID
-            otherEnrollment.trackID = otherTrack.id?.uuidString ?? ""
-            otherEnrollment.track = otherTrack
-            otherEnrollment.isActive = true
             let otherMark = CDLessonPresentation(context: context)
             otherMark.studentID = otherID
             otherMark.lessonID = lesson.id?.uuidString ?? ""
             let otherAssignment = CDLessonAssignment(context: context)
             otherAssignment.lessonID = lesson.id?.uuidString ?? ""
             otherAssignment.studentIDs = [otherID]
-            otherAssignment.trackID = otherEnrollment.trackID
             otherAssignment.state = .presented
             let otherNote = CoreDataTestHelpers.seedNote(in: context, body: "Other \(index)")
-            otherNote.studentTrackEnrollment = otherEnrollment
+            otherNote.lesson = lesson
+            if let id = other.id {
+                otherNote.scope = .students([id])
+                otherNote.syncStudentLinks(in: context)
+            }
             let otherWork = CoreDataTestHelpers.seedWorkModel(
                 in: context, title: "Work \(index)", studentID: other.id ?? UUID(), lessonID: lesson.id ?? UUID()
             )
@@ -166,7 +138,7 @@ struct StudentProgressTabLoadScopeTests {
     }
 
     @Test(
-        "The student's enrollments, stats, progress, report and project are found among classmates",
+        "The student's standings, stats, report and project are found among classmates",
         arguments: [Store.inMemory, .sqlite]
     )
     func outputsAreScopedToTheStudent(store: Store) throws {
@@ -175,21 +147,26 @@ struct StudentProgressTabLoadScopeTests {
         let viewModel = StudentProgressTabViewModel()
         viewModel.configure(for: seeded.student, context: seeded.context)
 
-        #expect(viewModel.activeEnrollments.map(\.objectID) == [seeded.enrollment.objectID])
-        #expect(viewModel.tracksByID[seeded.enrollment.trackID]?.objectID == seeded.track.objectID)
+        #expect(viewModel.standings.map(\.title) == ["Math — Chains"])
         #expect(viewModel.activeProjects.map(\.title) == ["Bridges"])
         #expect(viewModel.activeReports.map(\.objectID) == [seeded.report.objectID])
         #expect(viewModel.reportTitle(for: seeded.report) == "Bead Squares")
 
-        let entry = try #require(seeded.enrollment.id.flatMap { viewModel.statsByEnrollment[$0] })
-        #expect(entry.stats.presentationCount == 1)
-        #expect(entry.stats.workCount == 1)
-        #expect(entry.stats.noteCount == 1)
-        #expect(entry.stats.totalActivity == 3)
-        #expect(entry.progress.totalSteps == 2)
-        #expect(entry.progress.proficientCount == 1)
-        #expect(entry.progress.currentLesson?.objectID == seeded.secondLesson.objectID)
-        #expect(entry.progress.isComplete == false)
+        let standing = try #require(viewModel.standings.first)
+        #expect(standing.total == 2)
+        #expect(standing.masteredCount == 1)
+        #expect(standing.nextLesson?.objectID == seeded.secondLesson.objectID)
+        // Her open report on Bead Squares means she's working on it, so the card names
+        // no next lesson, as her timeline marks none (bug hunt 2026-11-03 #29).
+        #expect(viewModel.nextLessonByStanding[standing.id] == nil)
+        #expect(standing.isInProgress)
+        #expect(!standing.isFinished)
+
+        let stats = viewModel.stats(for: standing)
+        #expect(stats.presentationCount == 1)
+        #expect(stats.workCount == 1)
+        #expect(stats.noteCount == 1)
+        #expect(stats.totalActivity == 3)
     }
 
     @Test("Loading one student materialises that student's rows, not the classroom's")
@@ -199,10 +176,11 @@ struct StudentProgressTabLoadScopeTests {
         let viewModel = StudentProgressTabViewModel()
         viewModel.configure(for: seeded.student, context: seeded.context)
         let registered = seeded.context.registeredObjects.count - before
-        // Track, 2 steps, enrollment, mark, assignment, note, report, next
-        // lesson, plus every active project (the roster is a Transformable
-        // blob, so projects cannot be scoped in the store): 18 here.
-        // The whole-table load registered 114 (2026-09-18 baseline).
-        #expect(registered <= 20, "registered \(registered) objects for one student")
+        // Her mark, the two Chains lessons (first found by her mark, then
+        // both by the sequence), her presented assignment, her note and its
+        // student link, her report, plus every active project (the roster is
+        // a Transformable blob, so projects cannot be scoped in the store):
+        // about 20 here. The whole-table load registered 114 (2026-09-18).
+        #expect(registered <= 24, "registered \(registered) objects for one student")
     }
 }

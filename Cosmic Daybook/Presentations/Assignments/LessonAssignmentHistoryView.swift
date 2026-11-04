@@ -62,6 +62,8 @@ struct LessonAssignmentHistoryView: View {
     var recentNotes: [CDNote] { Self.assignmentNotes(in: viewContext) }
 
     @State var selectedAssignment: CDLessonAssignment?
+    /// A Delete waiting for the guide's yes (`requestDelete`).
+    @State var pendingDeletion: [PresentationDeletion.Request] = []
     @State var notesCountCache: [String: Int] = [:]
     @State var studentNameCache: [UUID: String] = [:]
     @State var lessonTitleCache: [UUID: String] = [:]
@@ -221,6 +223,14 @@ struct LessonAssignmentHistoryView: View {
                 }
             }
             #endif
+            .workspaceDeletionConfirmation(
+                pending: $pendingDeletion,
+                title: pendingDeletion.first?.title ?? "",
+                confirmTitle: pendingDeletion.first?.confirmTitle ?? "Delete",
+                message: pendingDeletion.first?.message ?? ""
+            ) { requests in
+                for request in requests { deleteAssignment(request.assignment) }
+            }
             .task {
                 loadAssignments(limit: focusedAssignmentID == nil ? Self.initialLoadCount : nil)
                 // The note handler below runs only on screen, so a note count

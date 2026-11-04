@@ -6,6 +6,7 @@ struct TodoTemplatesView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
+    @TestStudentVisibility private var testStudents
     @FetchRequest(sortDescriptors: [
         NSSortDescriptor(keyPath: \CDTodoTemplate.name, ascending: true)
     ]) private var templates: FetchedResults<CDTodoTemplate>
@@ -89,7 +90,11 @@ struct TodoTemplatesView: View {
     }
     
     private func createTodoFromTemplate(_ template: CDTodoTemplate) {
-        let todo = TodoTemplateUse.makeTodo(from: template, enrolled: dependencies.roster.enrolled, in: viewContext)
+        // Hidden test students stay off it, as they are off every picker
+        // (bug hunt 2026-11-03, #55).
+        let todo = TodoTemplateUse.makeTodo(
+            from: template, enrolled: testStudents.visible(dependencies.roster.enrolled), in: viewContext
+        )
         guard dependencies.saveCoordinator.save(viewContext, reason: "Create todo from template") else {
             // The coordinator's alert says it didn't save; take the todo back
             // so trying again doesn't make two.
@@ -228,17 +233,20 @@ private struct TodoTemplateEditSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
+    @TestStudentVisibility private var testStudents
 
-    /// The children in the class, then any chosen child who has left, so she
-    /// can still take them off the template.
+    /// The children in the class (hidden test students left out, bug hunt
+    /// 2026-11-03, #55), then any chosen child who has left or is hidden, so
+    /// she can still take them off the template.
     private var students: [CDStudent] {
-        let enrolledIDs = self.enrolledIDs
-        let departed = selectedStudentIDs
+        let visible = testStudents.visible(dependencies.roster.enrolled)
+        let visibleIDs = Set(visible.compactMap(\.id))
+        let others = selectedStudentIDs
             .compactMap(UUID.init(uuidString:))
-            .filter { !enrolledIDs.contains($0) }
+            .filter { !visibleIDs.contains($0) }
             .compactMap { dependencies.roster.student(id: $0) }
-            .sorted { $0.fullName.localizedStandardCompare($1.fullName) == .orderedAscending }
-        return dependencies.roster.enrolled + departed
+            .sorted { $0.shortName.localizedStandardCompare($1.shortName) == .orderedAscending }
+        return visible + others
     }
 
     private var enrolledIDs: Set<UUID> {
@@ -320,11 +328,34 @@ private struct TodoTemplateEditSheet: View {
                 }
             }
             .sheet(isPresented: $isShowingTagPicker) {
-                TagPicker(selectedTags: $selectedTags)
+                tagPickerSheet
             }
         }
     }
     
+    /// The tags sheet, with a Done button: a bare TagPicker had none, and on
+    /// the Mac a sheet can't be swiped away and the picker's Escape clears
+    /// its search, so the sheet couldn't be closed (bug hunt 2026-11-03, #52).
+    private var tagPickerSheet: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TagPicker(selectedTags: $selectedTags)
+                }
+            }
+            .navigationTitle("Tags")
+            .inlineNavigationTitle()
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { isShowingTagPicker = false }
+                }
+            }
+        }
+        #if os(macOS)
+        .frame(minWidth: 420, minHeight: 360)
+        #endif
+    }
+
     private var estimatedTimeSection: some View {
         Section("Estimated Time") {
             HStack {
@@ -355,7 +386,7 @@ private struct TodoTemplateEditSheet: View {
                     }
                 } label: {
                     HStack {
-                        Text(student.fullName)
+                        Text(student.shortName)
                             .foregroundStyle(.primary)
                         if let id = student.id, !enrolledIDs.contains(id) {
                             Text("Left the class")

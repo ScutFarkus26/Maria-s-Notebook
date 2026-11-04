@@ -12,9 +12,11 @@ extension ClassGridChecklistView {
     /// the history rows that carry mastery marks (a mark made on another device turns the
     /// cell green), the recall checks the readiness rule reads, and the year plan, which
     /// makes a cell Planned. The last three were missing until bug hunt 2026-10-29 #15.
+    /// A sequence's progression settings decide whether the next lesson waits for
+    /// confirmation (bug hunt 2026-11-03 #5).
     nonisolated static let remoteRefreshEntityNames: Set<String> = [
         "LessonAssignment", "Lesson", "Student", "WorkModel", "LessonPresentation",
-        "WorkParticipantEntity", "LessonRecallCheck", "YearPlanEntry"
+        "WorkParticipantEntity", "LessonRecallCheck", "YearPlanEntry", "LessonSequenceSettings"
     ]
 
     /// Imports from another device that touched the grid's records, settled for a second so a

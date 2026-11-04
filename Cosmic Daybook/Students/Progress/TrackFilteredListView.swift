@@ -7,52 +7,29 @@ enum TrackFilterType: String {
     case notes
 }
 
+/// One child's presentations, work or notes on one lesson sequence, as the
+/// card's badge counted them (`TrackFilteredListLoader` does the scoping).
 struct TrackFilteredListView: View, Identifiable {
-    let enrollment: CDStudentTrackEnrollmentEntity
-    let track: CDTrackEntity
+    let standing: SequenceStanding
     let filterType: TrackFilterType
-    let allLessonAssignments: [CDLessonAssignment]
-    let allWorkModels: [CDWorkModel]
-    let allNotes: [CDNote]
-    let allLessons: [CDLesson]
+    let data: TrackFilteredListData
     let onDismiss: () -> Void
 
     var id: String {
-        "\(filterType.rawValue)_\(enrollment.id?.uuidString ?? "")"
+        "\(filterType.rawValue)_\(standing.id)"
     }
 
     @Environment(\.dismiss) private var dismiss
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
     private var lessonsByID: [UUID: CDLesson] {
-        Dictionary(allLessons.compactMap { l in l.id.map { ($0, l) } }, uniquingKeysWith: { first, _ in first })
+        Dictionary(data.lessons.compactMap { l in l.id.map { ($0, l) } }, uniquingKeysWith: { first, _ in first })
     }
 
-    // Filter LessonAssignments (unified model) by track and student
-    private var filteredLessonAssignments: [CDLessonAssignment] {
-        let trackIDString = track.id?.uuidString ?? ""
-        let studentIDString = enrollment.studentID
-        return allLessonAssignments.filter { assignment in
-            assignment.trackID == trackIDString &&
-            assignment.studentIDs.contains(studentIDString) &&
-            assignment.state == .presented
-        }
-    }
-    
-    private var filteredWorkModels: [CDWorkModel] {
-        let trackIDString = track.id?.uuidString ?? ""
-        let studentIDString = enrollment.studentID
-        return allWorkModels.filter { work in
-            work.trackID == trackIDString && work.studentID == studentIDString
-        }
-    }
-    
-    private var filteredNotes: [CDNote] {
-        return allNotes.filter { note in
-            note.studentTrackEnrollment?.id == enrollment.id
-        }
-    }
-    
+    private var filteredLessonAssignments: [CDLessonAssignment] { data.lessonAssignments }
+    private var filteredWorkModels: [CDWorkModel] { data.workModels }
+    private var filteredNotes: [CDNote] { data.notes }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -85,11 +62,11 @@ struct TrackFilteredListView: View, Identifiable {
     private var title: String {
         switch filterType {
         case .presentations:
-            return "Presentations - \(track.title)"
+            return "Presentations - \(standing.title)"
         case .work:
-            return "Work - \(track.title)"
+            return "Work - \(standing.title)"
         case .notes:
-            return "Observations - \(track.title)"
+            return "Observations - \(standing.title)"
         }
     }
     
@@ -100,7 +77,7 @@ struct TrackFilteredListView: View, Identifiable {
                     Label("No Presentations", systemImage: "person.3")
                         .foregroundStyle(.secondary)
                 } description: {
-                    Text("No presentations found for this track.")
+                    Text("No presentations found for this sequence.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -123,7 +100,7 @@ struct TrackFilteredListView: View, Identifiable {
                     Label("No Work", systemImage: "briefcase")
                         .foregroundStyle(.secondary)
                 } description: {
-                    Text("No work found for this track.")
+                    Text("No work found for this sequence.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -145,7 +122,7 @@ struct TrackFilteredListView: View, Identifiable {
                     Label("No Observations", systemImage: "note.text")
                         .foregroundStyle(.secondary)
                 } description: {
-                    Text("No observations found for this track.")
+                    Text("No observations found for this sequence.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }

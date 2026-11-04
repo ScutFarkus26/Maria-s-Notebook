@@ -25,13 +25,16 @@ extension ClassAreaChecklistViewModel {
         guard let lesson = lessons.first(where: { $0.id == lessonID }) else { return nil }
         let chosen = studentIDs.compactMap { id in rosterStudents.first { $0.id == id } }
         guard !chosen.isEmpty else { return nil }
-        let draft = PresentationFactory.makeDraft(lesson: lesson, students: chosen, context: context)
-        draft.syncSnapshotsFromRelationships()
-        // The draft answers each child's year-plan entry for the lesson, so a draft the
-        // sheet saves isn't a second plan beside it; discarding it puts them back.
-        YearPlanPromotionService.promoteMatchingEntries(into: draft, context: context)
-        context.safeSave()
-        return draft
+        var draft: CDLessonAssignment?
+        let saved = saveChange("Checklist: make a draft to present", context: context) {
+            let made = PresentationFactory.makeDraft(lesson: lesson, students: chosen, context: context)
+            made.syncSnapshotsFromRelationships()
+            // The draft answers each child's year-plan entry for the lesson, so a draft the
+            // sheet saves isn't a second plan beside it; discarding it puts them back.
+            YearPlanPromotionService.promoteMatchingEntries(into: made, context: context)
+            draft = made
+        }
+        return saved ? draft : nil
     }
 
     /// After the sheet closes: a draft still exactly as the checklist made it (`asMade`)
@@ -42,8 +45,9 @@ extension ClassAreaChecklistViewModel {
         guard draft.managedObjectContext != nil, !draft.isDeleted,
               !draft.isPresented, !draft.isScheduled, asMade.matches(draft)
         else { return }
-        PresentationRecordCleanup.prepareToDelete(draft, in: context)
-        context.delete(draft)
-        context.safeSave()
+        saveChange("Checklist: discard an unused draft", context: context) {
+            PresentationRecordCleanup.prepareToDelete(draft, in: context)
+            context.delete(draft)
+        }
     }
 }

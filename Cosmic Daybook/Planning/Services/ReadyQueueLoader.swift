@@ -29,10 +29,11 @@ final class ReadyQueueLoader {
     /// Everything the ready queue reads: the roster, the lesson library, the
     /// three record shapes the index folds, the work on the previous lessons
     /// (and its participants, which say whose it is and whether it is open),
-    /// and the recall checks the readiness rule reads.
+    /// the recall checks the readiness rule reads, and the sequence settings
+    /// a lesson's confirmation and practice gates inherit.
     nonisolated static let inputEntities: Set<String> = [
         "Student", "Lesson", "LessonPresentation", "LessonAssignment", "YearPlanEntry",
-        "WorkModel", "WorkParticipantEntity", "LessonRecallCheck"
+        "WorkModel", "WorkParticipantEntity", "LessonRecallCheck", "LessonSequenceSettings"
     ]
 
     let context: NSManagedObjectContext
@@ -142,7 +143,10 @@ final class ReadyQueueLoader {
         let items = ReadyForNextEngine.items(studentIDs: studentIDs, lessons: lessons, index: index, in: context)
         publish(
             ReadyQueueSnapshot(
-                items: items, index: index, order: LessonSequenceOrder(lessons: lessons), roster: roster
+                items: items, index: index, order: LessonSequenceOrder(lessons: lessons), roster: roster,
+                confirmationNotRequired: ReadyQueueSnapshot.confirmationNotRequired(
+                    lessons: lessons, index: index, in: context
+                )
             ),
             generation: generation
         )

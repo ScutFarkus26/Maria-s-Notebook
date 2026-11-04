@@ -167,7 +167,7 @@ nonisolated extension ClassroomShareRelease.Environment {
                 }.value
             },
             serverRecords: { ids in
-                let database = await CloudKitConfigurationService.container.privateCloudDatabase
+                let database = CloudKitConfigurationService.container.privateCloudDatabase
                 return try await CloudKitServerCheck.existing(ids, in: database)
             },
             stopReason: {

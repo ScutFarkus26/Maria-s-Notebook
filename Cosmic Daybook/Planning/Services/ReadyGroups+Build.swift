@@ -92,12 +92,15 @@ nonisolated extension ReadyGroups {
     /// Children who had the previous lesson, are neither confirmed nor
     /// mastered on it, and have neither had this lesson nor been planned for
     /// it. Only a child with a presented assignment to confirm on is listed:
-    /// a bare presentation row has nowhere to hold the confirmation.
+    /// a bare presentation row has nowhere to hold the confirmation. None are
+    /// when the previous lesson doesn't require confirmation: they are in the
+    /// queue already.
     private static func unconfirmed(
         on position: LessonSequenceOrder.Position,
         in snapshot: ReadyQueueSnapshot
     ) -> [LessonGroup.Unconfirmed] {
-        guard let previous = position.previousLessonID else { return [] }
+        guard let previous = position.previousLessonID,
+              !snapshot.confirmationNotRequired.contains(previous) else { return [] }
         let index = snapshot.index
         let assignments = index.latestPresentedAssignmentByLesson[previous] ?? [:]
         var result: [LessonGroup.Unconfirmed] = []

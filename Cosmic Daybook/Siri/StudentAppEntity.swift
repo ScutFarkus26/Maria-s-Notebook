@@ -120,12 +120,25 @@ struct StudentEntityQuery: EntityStringQuery {
     /// this name when it confirms a child it resolved by id (a shortcut, a
     /// follow-up), on a locked phone too. The names are worked out against
     /// the whole class, which "Etty G" needs the other Etty for.
+    ///
+    /// One entity per id: a child with a row in both stores came back
+    /// twice, and Siri could ask "which one?" between two identical names
+    /// (bug hunt 2026-11-03 #30). The roster's row is kept, the copy it
+    /// chose (`SiriHost.roster`); else the first fetched.
     @MainActor
     static func entities(for identifiers: [UUID], in context: NSManagedObjectContext) -> [StudentEntity] {
         let request = CDFetchRequest(CDStudent.self)
         request.predicate = NSPredicate(format: "id IN %@", identifiers)
-        let students = context.safeFetch(request)
         let roster = SiriHost.roster(in: context)
+        let rosterByID = Dictionary(
+            roster.compactMap { student in student.id.map { ($0, student) } }, uniquingKeysWith: { first, _ in first }
+        )
+        var seen = Set<UUID>()
+        let students = context.safeFetch(request).compactMap { student -> CDStudent? in
+            guard let id = student.id else { return student }
+            guard seen.insert(id).inserted else { return nil }
+            return rosterByID[id] ?? student
+        }
         let names = SiriHost.displayNames(for: Array(Set(roster).union(students)))
         let alike = StudentEntity.soundAlikeNames(in: roster.compactMap { StudentEntity(student: $0) })
         return students.compactMap { student in

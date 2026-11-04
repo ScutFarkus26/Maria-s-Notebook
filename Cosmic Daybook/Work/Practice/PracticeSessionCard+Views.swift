@@ -264,7 +264,8 @@ extension PracticeSessionCard {
 
     @ViewBuilder
     private var expandedNextSteps: some View {
-        if session.hasActionFlags || session.hasNextSteps {
+        let checkInDate = Self.checkInDate(for: session, workItems: workItems)
+        if session.hasActionFlags || checkInDate != nil || !session.followUpActions.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Next Steps")
                     .font(AppTheme.ScaledFont.captionSemibold)
@@ -281,7 +282,7 @@ extension PracticeSessionCard {
                     if session.readyForAssessment {
                         actionRow(icon: "star.circle", text: "Ready for Assessment", color: .green)
                     }
-                    if let checkIn = session.checkInScheduledFor {
+                    if let checkIn = checkInDate {
                         actionRow(icon: "calendar", text: "Check-in: \(formatDate(checkIn))", color: .indigo)
                     }
                     if !session.followUpActions.isEmpty {

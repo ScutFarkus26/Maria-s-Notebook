@@ -101,6 +101,15 @@ enum SiriHost {
     /// iOS allows in the background.
     static let attachWaitLimit = UnsentChangesKeepAlive.limit
 
+    /// What a Siri save hands `didSave`, read before the save: `created`,
+    /// then every other classroom-share record the save inserts, as the
+    /// grid's saves file them (`AssistantSave.recordsToFile`). Siri's saves
+    /// used to file only Siri's own, so a record another screen left in the
+    /// context was saved into no share (bug hunt 2026-11-03 #25).
+    static func recordsToFile(created: [NSManagedObject], in context: NSManagedObjectContext) -> [NSManagedObject] {
+        AssistantSave.recordsToFile(created: created, in: context)
+    }
+
     /// New marks go into the classroom share explicitly, as the grid's do.
     /// Siri's keep-alive (`SiriSyncKeepAlive`) waits for the attach at most
     /// `limit`: `share(_:to:)` can block for good, and until 2026-10-10 the

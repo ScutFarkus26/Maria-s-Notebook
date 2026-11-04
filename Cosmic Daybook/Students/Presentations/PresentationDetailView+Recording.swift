@@ -213,6 +213,9 @@ extension PresentationDetailContentView {
             vm.isPresented = true
             vm.givenAt = day
             vm.needsAnotherPresentation = false
+            // A child marked on the recap's row for this lesson before
+            // recording keeps that mark on the row the recording made.
+            vm.applyRecapStateEditsAfterRecording()
             showHowItWent()
         } catch {
             transaction.rollback()

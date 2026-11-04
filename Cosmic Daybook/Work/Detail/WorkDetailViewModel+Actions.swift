@@ -15,25 +15,35 @@ extension WorkDetailViewModel {
     func save(modelContext: NSManagedObjectContext, saveCoordinator: SaveCoordinator) -> Bool {
         guard let work else { return true }
 
+        // Only the fields the guide changed in this sitting are written. The
+        // page read the row once, so writing every field put back whatever a
+        // status or title set elsewhere since (the grid, Claude, another
+        // device) had replaced: a Mastered set from the grid was reopened by
+        // a Save with a note (bug hunt 2026-11-03 #33).
+        let titleChanged = workTitle != storedTitle
+        let kindChanged = workKind != storedKind
+
         // A new title or kind is the guide renaming the assignment, so it goes
         // on every linked copy. Renaming one copy used to leave the others
         // behind, and the copies stopped reading as one group. The group is
         // resolved before the edit, while every copy still matches.
-        let rows = work.title != workTitle || work.kind != workKind
+        let rows = titleChanged || kindChanged
             ? WorkGrouping.group(containing: work, in: modelContext).members
             : [work]
         for row in rows {
-            row.kind = workKind
-            row.title = workTitle
+            if kindChanged { row.kind = workKind }
+            if titleChanged { row.title = workTitle }
         }
-        work.checkInStyle = checkInStyle
+        if checkInStyle != storedCheckInStyle {
+            work.checkInStyle = checkInStyle
+        }
 
         // A status change is a log entry — completion record, check-ins, note —
         // so it goes the same way the Scheduled strip's does. The note field
         // used to be bound here and never written anywhere.
         let note = completionNote.trimmed()
         do {
-            if status != work.status {
+            if status != storedStatus, status != work.status {
                 try WorkLogService.log(
                     [.init(work: work, status: status, note: note.isEmpty ? nil : note)],
                     context: modelContext, saveCoordinator: saveCoordinator
@@ -45,6 +55,7 @@ extension WorkDetailViewModel {
                 guard saveCoordinator.save(modelContext, reason: "Save work details") else { return false }
             }
             completionNote = ""
+            rememberStored(from: work)
             return true
         } catch {
             ToastService.shared.showError(PresentationFailureMessage.message(

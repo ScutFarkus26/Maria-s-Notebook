@@ -28,6 +28,10 @@ final class AssistantScheduleModel {
     /// shows one once there are lanes (`settleLane`); nil is the whole day
     /// as the resolver worked it out.
     var laneFilter: UUID?
+    /// The time the Now card reads: moved on each minute while the tab shows
+    /// (`AssistantScheduleView.followClock`) and on a return to the app
+    /// (`ScheduleFollowsScene`). Only the Now card's own view reads it.
+    var clock = Date()
     /// Children's short names ("Maya S") by upper-cased student ID.
     private(set) var childNames: [String: String] = [:]
     /// Reloads the tab when the guide's changes arrive from iCloud.
@@ -114,7 +118,9 @@ final class AssistantScheduleModel {
         let after = calendar.date(byAdding: .day, value: 1, to: start) ?? start.addingTimeInterval(86_400)
 
         let lanes = fetch(CDTimetableLane.self, store: store).compactMap(TimetableLaneSnapshot.init)
-        let blocks = fetch(CDTimetableBlock.self, store: store).compactMap(TimetableBlockSnapshot.init)
+        let onTheDay = Self.blocks(on: start, before: after, calendar: calendar)
+        let blocks = fetch(CDTimetableBlock.self, predicate: onTheDay, store: store)
+            .compactMap(TimetableBlockSnapshot.init)
         let dayRange = NSPredicate(format: "day >= %@ AND day < %@", start as NSDate, after as NSDate)
         let changes = fetch(CDTimetableChange.self, predicate: dayRange, store: store)
             .compactMap(TimetableChangeSnapshot.init)
@@ -190,6 +196,18 @@ final class AssistantScheduleModel {
         context.persistentStoreCoordinator?.persistentStores.first {
             $0.configurationName == CoreDataStack.sharedConfiguration
         }
+    }
+
+    /// The blocks that can be on the day starting `start`, as the resolver
+    /// keeps them (`ScheduleDayResolver.applies`): a one-off on that day, or
+    /// a weekly block on its weekday. Every block in the store used to be
+    /// fetched, its children's list decoded, and all but the day's dropped
+    /// (bug hunt 2026-11-03 #27). The resolver still checks each one.
+    static func blocks(on start: Date, before after: Date, calendar: Calendar) -> NSPredicate {
+        let oneOff = NSPredicate(format: "onDay >= %@ AND onDay < %@", start as NSDate, after as NSDate)
+        guard let weekday = TimetableDay.weekday(of: start, calendar: calendar) else { return oneOff }
+        let weekly = NSPredicate(format: "onDay == nil AND weekdayRaw == %@", weekday.rawValue)
+        return NSCompoundPredicate(orPredicateWithSubpredicates: [oneOff, weekly])
     }
 
     private func fetch<T: NSManagedObject>(

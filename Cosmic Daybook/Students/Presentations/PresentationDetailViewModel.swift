@@ -42,6 +42,10 @@ final class PresentationDetailViewModel {
     /// when the guide moved it away from this, so one child's mastery isn't
     /// copied onto classmates by an unrelated save.
     var loadedProficiencyState: LessonPresentationState = .presented
+    /// One child's state set from a row of the sequence recap, by lesson and
+    /// child (UUID spellings). Written to her rows at once; kept so the rows a
+    /// later Save or Record makes for her carry it too (bug hunt 2026-11-03 #18).
+    @ObservationIgnored var recapStateEdits: [SequenceRecapPairKey: LessonPresentationState] = [:]
 
     // MARK: - Group Recap
     /// Snapshot of every lesson, work item, and note in the same curriculum sequence as
@@ -54,6 +58,10 @@ final class PresentationDetailViewModel {
     /// recap is tapped, or when a new work is created from the recap. The host view
     /// presents `.sheet(item: $vm.recapWorkSheetID)`; clearing it dismisses the sheet.
     var recapWorkSheetID: UUID?
+
+    /// What went wrong with one of the recap's work buttons (Add work, a
+    /// status pill), in plain words, for the sheet's alert. nil when nothing did.
+    var recapActionMessage: String?
 
     // MARK: - UI State
     var showLessonPicker: Bool = false
@@ -138,7 +146,7 @@ final class PresentationDetailViewModel {
             currentLesson: currentLesson,
             students: students,
             context: viewContext
-        )
+        )?.showing(recapStateEdits)
     }
 
     // MARK: - Actions
@@ -254,6 +262,7 @@ final class PresentationDetailViewModel {
         transaction.commit()
         undatedKeptOnPlan = []
         beforeUndated = nil
+        recapStateEdits.removeAll()
 
         // Reset autosave state
         notesAutosaveTask?.cancel()
@@ -301,37 +310,17 @@ final class PresentationDetailViewModel {
                 YearPlanReleaseService.releaseRedundantPlans(after: lessonAssignment, in: viewContext)
             }
 
+            // One child's mastery is set from the recap's row for this
+            // lesson; a row this save made for her takes it too.
             updateProficiencyState(
                 lessonID: lessonAssignment.lessonID,
                 studentIDs: lessonAssignment.studentIDs,
                 state: proficiencyState,
-                guideChangedState: proficiencyState != loadedProficiencyState
+                guideChangedState: proficiencyState != loadedProficiencyState,
+                childStates: recapStateEdits(forLesson: lessonAssignment.lessonID)
             )
             loadedProficiencyState = proficiencyState
-
-            if let lesson = lessonAssignment.lesson {
-                SequenceTrackService.autoEnrollInTrackIfNeeded(
-                    lessonArea: lesson.area,
-                    lessonSequence: lesson.sequence,
-                    studentIDs: lessonAssignment.studentIDs,
-                    context: viewContext,
-                    saveChanges: false
-                )
-            }
         }
-
-        if !nowGiven, lessonAssignment.scheduledFor != nil {
-            if let lesson = lessonAssignment.lesson {
-                SequenceTrackService.autoEnrollInTrackIfNeeded(
-                    lessonArea: lesson.area,
-                    lessonSequence: lesson.sequence,
-                    studentIDs: lessonAssignment.studentIDs,
-                    context: viewContext,
-                    saveChanges: false
-                )
-            }
-        }
-
     }
 
     /// Deletes the lesson assignment

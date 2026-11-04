@@ -116,11 +116,11 @@ struct AssistantAttendanceView: View {
         return AssistantGridOrder.resolved(gridOrderRaw).arranged(rows, columns: gridColumnCount)
     }
 
+    typealias LevelGroup = AttendanceLevelGroups.Group<AssistantAttendanceViewModel.Row>
+
     /// The level blocks, when Group by Level is on and the class has more
     /// than one level; otherwise empty, and the grid is one block.
-    private func levelGroups(
-        _ viewModel: AssistantAttendanceViewModel
-    ) -> [AttendanceLevelGroups.Group<AssistantAttendanceViewModel.Row>] {
+    private func levelGroups(_ viewModel: AssistantAttendanceViewModel) -> [LevelGroup] {
         guard groupsByLevel else { return [] }
         let groups = AttendanceLevelGroups.grouped(viewModel.rows, level: \.level)
         return groups.count > 1 ? groups : []
@@ -132,14 +132,14 @@ struct AssistantAttendanceView: View {
 
     /// How many lines of tiles the grid takes: each level block starts its
     /// own line.
-    private func tileLines(_ viewModel: AssistantAttendanceViewModel, columns: Int) -> Int {
-        let groups = levelGroups(viewModel)
+    private func tileLines(_ viewModel: AssistantAttendanceViewModel, groups: [LevelGroup], columns: Int) -> Int {
         let counts = groups.isEmpty ? [viewModel.rows.count] : groups.map(\.items.count)
         return counts.reduce(0) { $0 + ($1 + columns - 1) / columns }
     }
 
     /// Phone tiles sized to the screen, below any notices and the count.
-    private func phoneTileHeight(_ viewModel: AssistantAttendanceViewModel) -> CGFloat {
+    /// `groups`: `levelGroups`, worked out once per redraw.
+    private func phoneTileHeight(_ viewModel: AssistantAttendanceViewModel, groups: [LevelGroup]) -> CGFloat {
         guard usesShortNames, !dynamicTypeSize.isAccessibilitySize else { return AttendanceTile.phoneHeight }
         let columns = gridColumnCount
         let notices = (AssistantDayNotices.shows(for: viewModel) ? noticesHeight + 12 : 0)
@@ -147,8 +147,8 @@ struct AssistantAttendanceView: View {
         return Self.phoneTileHeight(
             gridHeight: gridSpace.height - notices,
             columns: columns,
-            lines: tileLines(viewModel, columns: columns),
-            levelBlocks: levelGroups(viewModel).count,
+            lines: tileLines(viewModel, groups: groups, columns: columns),
+            levelBlocks: groups.count,
             isSE: hidesStatusBar
         )
     }
@@ -231,11 +231,12 @@ struct AssistantAttendanceView: View {
         .modifier(ArrivalReminderFollower(viewModel: viewModel, context: coreDataStack.viewContext))
         .modifier(AssistantFrontDeskMail(viewModel: viewModel, requests: frontDeskRequests))
         .onReceive(NotificationCenter.default.publisher(for: .attendanceChangedBySiri)) { _ in
-            // A mark made with Siri while the screen was open.
-            viewModel?.load()
+            // A mark made with Siri while the screen was open: shown now, or
+            // on the app's return when it's away (`siriChanged`).
+            viewModel?.siriChanged()
         }
         .onReceive(NotificationCenter.default.publisher(for: .assistantShowToday)) { _ in
-            viewModel?.load(Date())
+            viewModel?.showToday()
         }
         .onChange(of: viewModel?.date) {
             // Undo belongs to the day it was offered on.
@@ -283,7 +284,9 @@ struct AssistantAttendanceView: View {
                 Button("Check Again") { viewModel.load() }
             }
         } else {
-            let tileHeight = phoneTileHeight(viewModel)
+            // Once per redraw: the tile height and the grid both need them.
+            let groups = levelGroups(viewModel)
+            let tileHeight = phoneTileHeight(viewModel, groups: groups)
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     // Only while shown: an empty one still took the spacing.
@@ -293,7 +296,7 @@ struct AssistantAttendanceView: View {
                     }
                     VStack(alignment: .leading, spacing: Self.classTotalSpacing) {
                         classTotal(viewModel)
-                        grid(viewModel, tileHeight: tileHeight)
+                        grid(viewModel, groups: groups, tileHeight: tileHeight)
                     }
                 }
                 .padding(.horizontal, 16)
@@ -347,10 +350,12 @@ struct AssistantAttendanceView: View {
 
     /// One block of tiles, or one per level with its heading.
     @ViewBuilder
-    private func grid(_ viewModel: AssistantAttendanceViewModel, tileHeight: CGFloat) -> some View {
-        let groups = levelGroups(viewModel)
+    private func grid(
+        _ viewModel: AssistantAttendanceViewModel, groups: [LevelGroup], tileHeight: CGFloat
+    ) -> some View {
+        let day = AssistantTileDay(viewModel: viewModel, guideName: bootstrapper.guideName)
         if groups.isEmpty {
-            tileGrid(arranged(viewModel.rows), viewModel: viewModel, height: tileHeight, firstIndex: 0)
+            tileGrid(arranged(viewModel.rows), viewModel: viewModel, day: day, height: tileHeight, firstIndex: 0)
         } else {
             // Where each block's ripple starts: after the lines above it.
             let columns = gridColumnCount
@@ -365,7 +370,7 @@ struct AssistantAttendanceView: View {
                             height: levelHeaderHeight, isCompact: usesShortNames
                         )
                         tileGrid(
-                            arranged(group.items), viewModel: viewModel, height: tileHeight,
+                            arranged(group.items), viewModel: viewModel, day: day, height: tileHeight,
                             firstIndex: starts[position]
                         )
                     }
@@ -377,12 +382,17 @@ struct AssistantAttendanceView: View {
     private func tileGrid(
         _ rows: [AssistantAttendanceViewModel.Row],
         viewModel: AssistantAttendanceViewModel,
+        day: AssistantTileDay,
         height: CGFloat,
         firstIndex: Int
     ) -> some View {
         LazyVGrid(columns: gridColumns, spacing: gridSpacing) {
             ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
-                tile(row, viewModel: viewModel, height: height, index: firstIndex + index)
+                AssistantGridTile(
+                    tile: tile(row, viewModel: viewModel, day: day, height: height, index: firstIndex + index),
+                    model: ObjectIdentifier(viewModel)
+                )
+                .equatable()
             }
         }
     }
@@ -391,18 +401,19 @@ struct AssistantAttendanceView: View {
     private func tile(
         _ row: AssistantAttendanceViewModel.Row,
         viewModel: AssistantAttendanceViewModel,
+        day: AssistantTileDay,
         height: CGFloat,
         index: Int
-    ) -> some View {
+    ) -> AttendanceTile {
         AttendanceTile(
             row: row,
-            tapTarget: viewModel.statusAfterTap(for: row),
+            tapTarget: viewModel.statusAfterTap(for: row, isFuture: day.isFuture),
             // The tile's line fits an SE's one-line tile; VoiceOver reads the
             // whole sentence.
-            tapHint: viewModel.isFuture ? "Absences only" : "Hold to change",
-            spokenTapHint: viewModel.isFuture ? "You can only mark absences on a future day" : nil,
-            menuStatuses: viewModel.menuStatuses,
-            canMark: viewModel.canMark,
+            tapHint: day.isFuture ? "Absences only" : "Hold to change",
+            spokenTapHint: day.isFuture ? "You can only mark absences on a future day" : nil,
+            menuStatuses: day.menuStatuses,
+            canMark: day.canMark,
             usesShortName: usesShortNames,
             height: height,
             onTap: {
@@ -414,9 +425,9 @@ struct AssistantAttendanceView: View {
             },
             markedBy: AssistantAttendanceViewModel.markerName(
                 for: row,
-                myRecordName: ClassroomIdentity.currentUserRecordName,
-                myName: ClassroomIdentity.displayName,
-                guideName: bootstrapper.guideName,
+                myRecordName: day.myRecordName,
+                myName: day.myName,
+                guideName: day.guideName,
                 names: viewModel.names
             ),
             onSetStatus: {
@@ -433,7 +444,7 @@ struct AssistantAttendanceView: View {
             },
             onNote: { noteRow = row },
             onPickup: viewModel.allowsPickup(for: row) ? { pickupRow = row } : nil,
-            onBack: viewModel.canMark && AttendanceRules.allowsBack(for: row) ? {
+            onBack: day.canMark && AttendanceRules.allowsBack(for: row) ? {
                 lateUndo = nil
                 viewModel.markBack(row)
                 ring(for: row, in: viewModel)

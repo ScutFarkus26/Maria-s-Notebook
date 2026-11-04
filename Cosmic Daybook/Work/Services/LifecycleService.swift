@@ -5,27 +5,6 @@ import OSLog
 struct LifecycleService {
     static let logger = Logger.lifecycle
 
-    // MARK: - Fetch Helpers
-
-    static func fetchWorkModel(
-        presentationID: String,
-        studentID: String,
-        context: NSManagedObjectContext
-    ) throws -> CDWorkModel? {
-        // PERFORMANCE: Use predicate to filter at database level instead of loading all records
-        let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(format: "presentationID == %@ AND studentID == %@", presentationID, studentID)
-        request.fetchLimit = 1
-        return try context.fetch(request).first
-    }
-
-    static func fetchAllWorkModels(presentationID: String, context: NSManagedObjectContext) throws -> [CDWorkModel] {
-        // PERFORMANCE: Use predicate to filter at database level instead of loading all records
-        let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(format: "presentationID == %@", presentationID)
-        return try context.fetch(request)
-    }
-
     // MARK: - CDLessonPresentation Helpers
 
     /// Upsert CDLessonPresentation idempotently by (presentationID, studentID).
@@ -96,9 +75,9 @@ struct LifecycleService {
         return stale.count
     }
 
-    /// One history row onto another lesson. Its track and step named the old
-    /// lesson's place, so they are cleared; `TrackProgressResolver` then
-    /// places the row by its lesson, as it does every row recording makes.
+    /// One history row onto another lesson. The track and step columns named
+    /// the old lesson's place, so they are cleared; every reader places the
+    /// row by its lesson.
     private static func moveHistoryRow(_ row: CDLessonPresentation, toLesson lessonID: String) {
         row.lessonID = lessonID
         row.trackID = nil

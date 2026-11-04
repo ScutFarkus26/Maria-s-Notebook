@@ -40,7 +40,10 @@ struct CDAttendanceStore { // swiftlint:disable:this type_body_length
         #endif
     }
 
-    private var canWrite: Bool {
+    /// This role may write attendance, whatever the day: `canWrite(on:)`
+    /// without the lock, for a screen that has just read the lock itself
+    /// (`isLocked`) and needn't count it twice.
+    var roleMayWrite: Bool {
         ClassroomPermissions.canWrite(entityName: "AttendanceRecord", role: role)
     }
 
@@ -59,7 +62,7 @@ struct CDAttendanceStore { // swiftlint:disable:this type_body_length
     /// This role may write attendance and `date` isn't locked. Screens ask
     /// this rather than repeating the rule.
     func canWrite(on date: Date?) -> Bool {
-        canWrite && !isLocked(date ?? Date())
+        roleMayWrite && !isLocked(date ?? Date())
     }
 
     /// The store a newly created record belongs in.

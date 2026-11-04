@@ -38,8 +38,8 @@ enum AssistantWallpaper: String, CaseIterable, Identifiable {
     var isQuiet: Bool { self == .sky || self == .plain }
 
     /// The background a stored value names. Anything unknown, or Photo with
-    /// no photo saved, is Sky. Looks for the photo on disk only when the
-    /// value is Photo: the grid asks on every redraw.
+    /// no photo saved, is Sky. The grid asks on every redraw, so whether a
+    /// photo is saved is the photo's kept answer, not a look at the disk.
     static func resolved(_ raw: String?) -> AssistantWallpaper {
         resolved(raw, photoExists: raw == photo.rawValue && AssistantWallpaperPhoto.shared.hasPhoto)
     }
@@ -67,4 +67,3 @@ enum AssistantWallpaper: String, CaseIterable, Identifiable {
         }
     }
 }
-

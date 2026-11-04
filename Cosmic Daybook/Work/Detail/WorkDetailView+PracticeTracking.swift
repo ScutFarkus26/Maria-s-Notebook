@@ -9,7 +9,7 @@ extension WorkDetailView {
     // MARK: - Practice Overview Helpers
 
     func calculatePracticeStats() -> PracticeStats {
-        PracticeStatsCalculator.calculate(from: practiceSessions)
+        viewModel.practiceStats(sessions: practiceSessions)
     }
 
     /// Re-reads this work's practice sessions. `workItemIDs` is transformable,

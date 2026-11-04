@@ -94,7 +94,7 @@ nonisolated enum CurriculumMapLoader {
             guard let id = record.id,
                   let studentID = UUID(uuidString: record.studentID),
                   let lessonID = UUID(uuidString: record.lessonID) else { return nil }
-            // TrackProgressResolver's rule: a mastered date or the mastered state.
+            // The mastery rule `SequenceStanding` shares: a mastered date or the mastered state.
             let isMastered = record.masteredAt != nil || record.state == .proficient
             return CurriculumMasteryRef(
                 id: id,

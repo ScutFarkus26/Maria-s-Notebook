@@ -34,12 +34,14 @@ struct TodoListFix1010Tests {
             Self.todo("Due today, planned for tomorrow", due: 0, scheduled: 1, in: context),
             Self.todo("Planned yesterday, not done", scheduled: -1, in: context),
             Self.todo("Planned today", scheduled: 0, in: context),
-            Self.todo("Overdue, rescheduled later", due: -3, scheduled: 2, in: context)
+            Self.todo("Overdue, rescheduled later", due: -3, scheduled: 2, in: context),
+            // A passed deadline brings a Someday todo back (bug hunt 2026-11-03, #57).
+            Self.todo("Overdue but someday", due: -3, someday: true, in: context)
         ]
         let notInToday = [
             Self.todo("Planned tomorrow", scheduled: 1, in: context),
             Self.todo("Due next week", due: 7, in: context),
-            Self.todo("Overdue but someday", due: -3, someday: true, in: context),
+            Self.todo("Due next week but someday", due: 7, someday: true, in: context),
             Self.todo("Done yesterday", due: -1, done: true, in: context),
             Self.todo("No date", in: context)
         ]

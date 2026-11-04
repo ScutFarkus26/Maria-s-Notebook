@@ -95,7 +95,7 @@ nonisolated extension RestockService {
         var result = CheckOff(need: need, checkedAt: now)
         OrderService.setReceived([need], true, at: now)
         guard let supply = staple(for: need, in: context) else { return result }
-        close(openNeeds(for: supply, in: context), at: now, in: context)
+        close(openNeeds(for: supply, in: context, store: lookupStore(for: author, in: context)), at: now, in: context)
         guard supply.level != .stocked else { return result }
         result.staple = supply
         result.levelBefore = supply.level

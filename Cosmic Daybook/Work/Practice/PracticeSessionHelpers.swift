@@ -8,7 +8,8 @@ enum StudentCategory: Int, Comparable {
     case practicing = 2             // Students practicing same lesson (active work)
     case recentlyPassed = 3        // Students who recently completed (within 30 days)
     case pastPractice = 4          // Students who practiced in the past
-    case neverReceived = 5         // Students who never received the lesson
+    case receivedLesson = 5        // Students given the lesson who never practiced it
+    case neverReceived = 6         // Students who never received the lesson
 
     static func < (lhs: StudentCategory, rhs: StudentCategory) -> Bool {
         lhs.rawValue < rhs.rawValue
@@ -24,6 +25,8 @@ enum StudentCategory: Int, Comparable {
             return "Recently Completed"
         case .pastPractice:
             return "Practiced Before"
+        case .receivedLesson:
+            return "Had the Lesson"
         case .neverReceived:
             return "Never Received Lesson"
         }
@@ -136,10 +139,12 @@ struct StudentCategorizer {
                    lessonAssignment.isPresented
         }
 
+        // Given the lesson but never practiced it: filed under Practiced
+        // Before until bug hunt 2026-11-03.
         if hasReceivedLesson {
             return CategorizedStudent(
                 student: student,
-                category: .pastPractice,
+                category: .receivedLesson,
                 work: nil,
                 daysSinceCompletion: nil,
                 lastPracticeDate: nil
@@ -215,7 +220,7 @@ struct StudentCategorizer {
                 }
                 return false
 
-            case .neverReceived:
+            case .receivedLesson, .neverReceived:
                 // Alphabetical
                 return lhs.student.fullName < rhs.student.fullName
             }

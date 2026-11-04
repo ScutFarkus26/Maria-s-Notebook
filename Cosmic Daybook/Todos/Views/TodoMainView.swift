@@ -14,12 +14,12 @@ struct TodoMainView: View {
     @State var selectedFilter: TodoListFilter? = .inbox
     @State var searchText = ""
     @State var selectedTodo: CDTodoItem?
-    @State private var isShowingNewTodo = false
+    @State var isShowingNewTodo = false
     @State private var isShowingTemplates = false
     @State private var isShowingExport = false
     @State var sortBy: TodoSortOption = .dueDate
     @State var isSelectMode = false
-    @State var selectedTodoIDs: Set<UUID> = []
+    @State var batchSelection = TodoBatchSelection()
     @State var selectedTag: String?
     @State var expandedTagGroups: Set<String> = [TodoTagHelper.studentTagParent]
     @State var tagOrder: [String] = UserDefaults.standard.stringArray(forKey: UserDefaultsKeys.todoTagOrder) ?? []
@@ -30,6 +30,13 @@ struct TodoMainView: View {
     @State var isShowingNewFolder = false
     @State var newFolderName = ""
     @State private var isShowingCompactList = false
+    /// Clear Completed and batch Delete ask first, with the count they
+    /// delete (bug hunt 2026-11-03, #50, #51).
+    @State var pendingClearCount: Int?
+    @State var pendingBatchDeleteCount: Int?
+    /// The day the lists and headings are counted on, moved on at midnight
+    /// (bug hunt 2026-11-03, #56).
+    @State var calendarDay = AppCalendar.startOfDay(Date())
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
@@ -63,6 +70,29 @@ struct TodoMainView: View {
                 if Self.changesTodoCounts(note) { refreshTagCaches() }
             }
             .onChange(of: hideCompleted) { _, _ in refreshTagCaches() }
+            .onChange(of: listScope, initial: true) { _, scope in batchSelection.show(scope) }
+            .onCalendarDayChange {
+                calendarDay = AppCalendar.startOfDay(Date())
+                refreshTagCaches()
+            }
+            .confirmationDialog(
+                Self.deleteQuestion(count: pendingClearCount ?? 0, completed: true),
+                isPresented: isAsking($pendingClearCount),
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) { deleteCompletedTodos() }
+            } message: {
+                Text("This can't be undone.")
+            }
+            .confirmationDialog(
+                Self.deleteQuestion(count: pendingBatchDeleteCount ?? 0, completed: false),
+                isPresented: isAsking($pendingBatchDeleteCount),
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) { batchDelete() }
+            } message: {
+                Text("This can't be undone.")
+            }
     }
 
     // MARK: - Layout
@@ -211,12 +241,14 @@ struct TodoMainView: View {
                 )
             }
 
+            // Only the shown list's completed to-dos, after asking.
+            let completedCount = listScope.completedToClear(from: Array(allTodos), today: calendarDay).count
             Button(role: .destructive) {
-                deleteCompletedTodos()
+                pendingClearCount = completedCount
             } label: {
                 Label("Clear Completed", systemImage: "trash")
             }
-            .disabled(allTodos.filter(\.isCompleted).isEmpty)
+            .disabled(completedCount == 0)
         } label: {
             Label("More", systemImage: "ellipsis.circle")
         }
@@ -234,7 +266,7 @@ struct TodoMainView: View {
     // MARK: - Helper Functions
 
     private func deleteCompletedTodos() {
-        let completed = allTodos.filter(\.isCompleted)
+        let completed = listScope.completedToClear(from: Array(allTodos), today: calendarDay)
         for todo in completed {
             viewContext.delete(todo)
         }
@@ -254,23 +286,6 @@ struct TodoMainView: View {
             selectedTodoIDs.remove(id)
         } else {
             selectedTodoIDs.insert(id)
-        }
-    }
-
-    // MARK: - New Todo Sheet
-
-    private var newTodoSheet: some View {
-        NavigationStack {
-            NewTodoForm()
-                .navigationTitle("New Todo")
-                .inlineNavigationTitle()
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") {
-                            isShowingNewTodo = false
-                        }
-                    }
-                }
         }
     }
 }

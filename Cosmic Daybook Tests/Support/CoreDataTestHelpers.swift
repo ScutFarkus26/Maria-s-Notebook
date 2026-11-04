@@ -119,6 +119,27 @@ enum CoreDataTestHelpers {
         return lesson
     }
 
+    /// Inserts a track titled "Area — Sequence" with one step per lesson, in
+    /// the order given. The app no longer makes tracks (2026-11-03); tests of
+    /// the screens that still read them seed one this way.
+    @discardableResult
+    static func seedTrack(
+        in context: NSManagedObjectContext,
+        area: String,
+        sequence: String,
+        lessons: [CDLesson]
+    ) -> CDTrackEntity {
+        let track = CDTrackEntity(context: context)
+        track.title = "\(area) — \(sequence)"
+        for (index, lesson) in lessons.enumerated() {
+            let step = CDTrackStep(context: context)
+            step.track = track
+            step.orderIndex = Int64(index)
+            step.lessonTemplateID = lesson.id
+        }
+        return track
+    }
+
     /// Inserts a CDWorkModel with the given title and student/lesson links.
     @discardableResult
     static func seedWorkModel(

@@ -162,8 +162,6 @@ enum PresentationGroupMove {
     static func copyLessonFields(from source: CDLessonAssignment, to group: CDLessonAssignment) {
         group.lessonTitleSnapshot = source.lessonTitleSnapshot
         group.lessonSectionSnapshot = source.lessonSectionSnapshot
-        group.trackID = source.trackID
-        group.trackStepID = source.trackStepID
         // Unlock Lesson is the guide's word about the lesson; without it a
         // child moved out of an unlocked group would drop back to Brewing.
         group.manuallyUnblocked = source.manuallyUnblocked

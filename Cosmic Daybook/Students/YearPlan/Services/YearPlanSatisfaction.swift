@@ -96,6 +96,12 @@ nonisolated struct YearPlanSatisfaction: Sendable {
     // MARK: - Reading
 
     func isSatisfied(_ entry: CDYearPlanEntry) -> Bool {
-        given.contains(Pair(studentID: entry.studentID, lessonID: entry.lessonID))
+        isSatisfied(studentID: entry.studentID, lessonID: entry.lessonID)
+    }
+
+    /// Whether this child has the lesson on record, for a lesson that has no
+    /// entry yet (Add Sequence's starting lesson and preview).
+    func isSatisfied(studentID: String, lessonID: String) -> Bool {
+        given.contains(Pair(studentID: studentID, lessonID: lessonID))
     }
 }

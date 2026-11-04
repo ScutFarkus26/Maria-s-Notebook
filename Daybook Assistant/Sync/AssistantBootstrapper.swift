@@ -173,9 +173,12 @@ final class AssistantBootstrapper {
         }
 
         // The sample was open when the app closed: it opens again below, with
-        // its pickup reminders. Otherwise they outlive it, and come off.
+        // its pickup reminders. Otherwise they outlive it, and come off, not
+        // waited for, as `resumeSample` and `leaveSampleClass` do: the store
+        // used to open only after the notification center answered, and a
+        // background push gets only seconds (hunt 2026-11-03 #14).
         let reopenSample = AssistantSampleClass.wasOpen
-        if !reopenSample { await EarlyPickupReminder.cancelSample() }
+        if !reopenSample { Task { await EarlyPickupReminder.cancelSample() } }
 
         do {
             // Shared with Siri, which may have opened it already.
@@ -192,6 +195,17 @@ final class AssistantBootstrapper {
             Self.logger.error("Assistant bootstrap failed: \(error.localizedDescription, privacy: .public)")
             phase = .failed(AssistantStartupProblem(error, storesOpen: AssistantStack.isOpen))
         }
+    }
+
+    /// A start that failed with no store open, tried again: after the first
+    /// unlock following a restart (`AssistantApp`), when a background
+    /// relaunch before it couldn't read the class's files, and "Can't start"
+    /// used to stay until the app was killed (hunt 2026-11-03 #35).
+    func retryFailedStart() async {
+        guard case .failed = phase, coreDataStack == nil, !AssistantStack.isOpen, !isStarting, !isRebuilding
+        else { return }
+        phase = .starting
+        await start()
     }
 
     /// Takes a newly built stack: its sharing service, and the phase its
@@ -297,6 +311,7 @@ final class AssistantBootstrapper {
             }
             return false
         }
+        await finishParentLockerBeforeRebuild()
         let joined = if case .ready = phase { true } else { false }
         let inSample = AssistantSampleClass.isChosen
         if Self.rebuildShowsStarting(ready: joined, starting: isStartingPhase, inSample: inSample) {
@@ -365,7 +380,13 @@ final class AssistantBootstrapper {
         request.fetchLimit = 1
         let hasMembership = context.safeFetchFirst(request) != nil
         let wasReady = if case .ready = phase { true } else { false }
-        phase = hasMembership ? .ready : awaitsMembership ? .starting : .needsClassroom
+        let read: Phase = hasMembership ? .ready : awaitsMembership ? .starting : .needsClassroom
+        // Set only when it changes: every set redraws the screens that read it.
+        let unchanged = switch (phase, read) {
+        case (.ready, .ready), (.starting, .starting), (.needsClassroom, .needsClassroom): true
+        default: false
+        }
+        if !unchanged { phase = read }
         noteMembershipRead(hasMembership: hasMembership)
         // Marks an earlier Leave couldn't sort go before anything new is filed.
         Task { await deleteLeftBehindMarks() }

@@ -13,8 +13,15 @@ struct WorkStepEditorSheet: View {
     @State private var title: String = ""
     @State private var instructions: String = ""
     @State private var notes: String = ""
+    @State private var confirmingDelete = false
 
     private var isEditing: Bool { existingStep != nil }
+
+    private var deleteMessage: String {
+        let name = existingStep?.title.trimmed() ?? ""
+        let step = name.isEmpty ? "This step" : "\u{201C}\(name)\u{201D}"
+        return "\(step) comes off this work, with its notes. This can't be undone."
+    }
 
     var body: some View {
         NavigationStack {
@@ -32,11 +39,19 @@ struct WorkStepEditorSheet: View {
 
                 if isEditing {
                     Section {
+                        // Asks first, as the page's other trash buttons do
+                        // (bug hunt 2026-11-03 #35).
                         Button("Delete Step", role: .destructive) {
-                            deleteStep()
+                            confirmingDelete = true
                         }
                     }
                 }
+            }
+            .alert("Delete This Step?", isPresented: $confirmingDelete) {
+                Button("Delete", role: .destructive) { deleteStep() }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text(deleteMessage)
             }
             .navigationTitle(isEditing ? "Edit Step" : "Add Step")
             .inlineNavigationTitle()

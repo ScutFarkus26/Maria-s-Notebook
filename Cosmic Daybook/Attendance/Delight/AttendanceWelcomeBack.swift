@@ -39,7 +39,15 @@ enum AttendanceWelcomeBack {
     ) -> [String: Int] {
         let day = calendar.startOfDay(for: date)
         guard let windowStart = calendar.date(byAdding: .day, value: -window, to: day) else { return [:] }
+        #if ASSISTANT_APP
+        // The classroom share's calendar and marks only, as the day number
+        // reads them (`AttendanceSchoolDayCount.number`): with a notebook of
+        // her own on the same Apple Account, its days off and marks changed
+        // who was back (bug hunt 2026-11-03, #5).
+        let daysOff = AttendanceEmailLog.nonSchoolDays(in: windowStart..<day, using: context, calendar: calendar)
+        #else
         let daysOff = SchoolDayChecker.nonSchoolDaySet(in: windowStart..<day, using: context, calendar: calendar)
+        #endif
 
         // The school days before `date`, newest first.
         var schoolDays: [Date] = []
@@ -56,6 +64,7 @@ enum AttendanceWelcomeBack {
         guard let dayEnd = calendar.date(byAdding: .day, value: 1, to: day) else { return [:] }
         let request = CDFetchRequest(CDAttendanceRecord.self)
         request.predicate = NSPredicate(format: "date >= %@ AND date < %@", oldest as NSDate, dayEnd as NSDate)
+        AttendanceEmailLog.scopeToClassroom(request, in: context)
         var statuses: [String: [Date: AttendanceStatus]] = [:]
         for record in context.safeFetch(request).deduplicatedPerStudentDay() {
             guard let recordDate = record.date else { continue }

@@ -105,10 +105,13 @@ nonisolated enum RestockService {
     }
 
     /// The staple's needs not yet checked off, oldest first: one, once
-    /// `reconcile` has run.
-    static func openNeeds(for supply: CDSupply, in context: NSManagedObjectContext) -> [CDOrderItem] {
+    /// `reconcile` has run. `store` limits the search to one store (the
+    /// classroom share's, on an assistant's phone); nil searches every one.
+    static func openNeeds(
+        for supply: CDSupply, in context: NSManagedObjectContext, store: NSPersistentStore? = nil
+    ) -> [CDOrderItem] {
         guard let id = supply.id?.uuidString else { return [] }
-        return needs(forSupplyID: id, openOnly: true, in: context)
+        return needs(forSupplyID: id, openOnly: true, in: context, store: store)
     }
 
     /// The staple a need restocks, while it still exists.
@@ -223,12 +226,24 @@ nonisolated enum RestockService {
 
     // MARK: - Shared steps
 
-    static func needs(forSupplyID id: String, openOnly: Bool, in context: NSManagedObjectContext) -> [CDOrderItem] {
+    static func needs(
+        forSupplyID id: String, openOnly: Bool, in context: NSManagedObjectContext, store: NSPersistentStore? = nil
+    ) -> [CDOrderItem] {
         let request = CDFetchRequest(CDOrderItem.self)
         request.predicate = openOnly
             ? NSPredicate(format: "receivedAt == nil AND supplyID ==[c] %@", id)
             : NSPredicate(format: "supplyID ==[c] %@", id)
+        if let store { request.affectedStores = [store] }
         return context.safeFetch(request).sorted(by: isOlder)
+    }
+
+    /// The store an author's lookups of a staple's needs read: the classroom
+    /// share's for an assistant, who writes only there (her account's own
+    /// notebook, if it keeps one, is in the private store and isn't this
+    /// class); every store for the guide, whose needs can sit in either
+    /// until the orphan guard has shared them. Nil with one store.
+    static func lookupStore(for author: RestockAuthor, in context: NSManagedObjectContext) -> NSPersistentStore? {
+        author.role == .assistant ? destinationStore(for: .assistant, in: context) : nil
     }
 
     /// Oldest first by (`createdAt`, `id`): the same order on every device.

@@ -19,6 +19,9 @@
 //    came back shaky (or forgotten). Each comes with a plain reason.
 //  - Not ready yet: the previous lesson isn't confirmed or mastered. Such a
 //    child is never in the queue.
+//  The previous lesson's own confirmation setting counts, as Presentations
+//  reads it: one set not to require confirmation lets her in unconfirmed (her
+//  basis reads "confirmed") (bug hunt 2026-11-03 #5).
 //  Confirmation is not mastery, and nothing here infers or writes a mastery
 //  mark. Today, the Groups page, the sequence ladder and the Checklist's
 //  Ready to Present lens all read this rule, so they cannot disagree about
@@ -115,20 +118,22 @@ nonisolated enum ReadyForNextEngine {
             if let id = lesson.id { lessonsByID[id.uuidString] = lesson }
         }
 
+        let progression = ProgressionRulesLookup(context: context)
         var candidates: [Candidate] = []
         for studentID in Set(studentIDs) {
             for (lessonID, detail) in index.givenByStudent[studentID] ?? [:] {
-                guard detail.confirmed || detail.mastered else { continue }
                 guard let lesson = lessonsByID[lessonID],
                       let lessonUUID = lesson.id,
                       let next = nextCache[lessonUUID],
                       let nextID = next.id?.uuidString else { continue }
+                let rules = progression.rules(for: lesson)
+                guard detail.confirmed || detail.mastered || !rules.requiresTeacherConfirmation else { continue }
                 // The record wins over the queue: a successor she has already
                 // had, or one already on a plan for her, is not waiting.
                 guard index.given(student: studentID, lesson: nextID) == nil,
                       !index.hasOpenPlan(student: studentID, lesson: nextID) else { continue }
                 candidates.append(Candidate(
-                    studentID: studentID, lessonID: lessonID, nextLessonID: nextID, detail: detail
+                    studentID: studentID, lessonID: lessonID, nextLessonID: nextID, detail: detail, rules: rules
                 ))
             }
         }
@@ -142,7 +147,7 @@ nonisolated enum ReadyForNextEngine {
             let previous = record.status(
                 student: candidate.studentID, lesson: candidate.lessonID, given: candidate.detail
             )
-            let verdict = readiness(of: previous)
+            let verdict = readiness(of: previous, rules: candidate.rules)
             return ReadyForNextItem(
                 studentID: candidate.studentID,
                 lessonID: candidate.lessonID,
@@ -165,5 +170,7 @@ nonisolated enum ReadyForNextEngine {
         let lessonID: String
         let nextLessonID: String
         let detail: PresentationRecordIndex.Given
+        /// The evidence lesson's progression settings.
+        let rules: LessonProgressionRules.ResolvedRules
     }
 }

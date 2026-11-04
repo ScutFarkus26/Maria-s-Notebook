@@ -17,7 +17,8 @@ struct BacklogChip: Identifiable {
     let waitBadge: String?
     /// The wait said in full, for VoiceOver ("15 school days since a lesson").
     let spokenWait: String?
-    /// The child's own work is what keeps a brewing lesson waiting.
+    /// This child is one the readiness engine found not ready: she is what
+    /// keeps a brewing lesson waiting.
     let isBlocking: Bool
 
     var isLongWait: Bool { waitBadge != nil }

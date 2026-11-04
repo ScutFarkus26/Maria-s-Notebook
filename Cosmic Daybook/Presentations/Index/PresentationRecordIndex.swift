@@ -8,8 +8,8 @@
 //  lesson, has she mastered it, is it already on a plan for her — and until
 //  now each caller fetched and folded the rows its own way. `students_pending`
 //  read "given" from the presentation record plus presented assignments;
-//  `TrackProgressResolver` read "mastered" from `masteredAt` or the proficient
-//  state; the Three-Year View read "confirmed" off the assignment's confirmed
+//  the old track cards read "mastered" from `masteredAt` or the proficient
+//  state (`SequenceStanding` still does); the Three-Year View read "confirmed" off the assignment's confirmed
 //  list. This index folds all three, plus the open plans, into value types in
 //  one pass so the regive guard, the mastery sweep and the ready queue answer
 //  from one definition.

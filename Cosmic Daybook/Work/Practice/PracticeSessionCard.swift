@@ -32,6 +32,20 @@ struct PracticeSessionCard: View {
         }
     }
 
+    /// The check-in day the card shows under Next Steps: the earliest
+    /// check-in the session's work still has scheduled, overdue included,
+    /// which is what the work page's "Check-ins Scheduled" counts. The day
+    /// written on `session` isn't read: it stayed after the check-in Record
+    /// Practice made was done, moved or deleted (bug hunt 2026-11-03 #46).
+    static func checkInDate(for session: CDPracticeSession, workItems: [CDWorkModel]) -> Date? {
+        workItems
+            .flatMap { work in
+                work.managedObjectContext.map { WorkLogService.scheduledCheckIns(of: work, in: $0) } ?? []
+            }
+            .compactMap(\.date)
+            .min()
+    }
+
     var body: some View {
         switch displayMode {
         case .compact:

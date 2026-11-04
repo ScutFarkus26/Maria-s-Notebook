@@ -15,7 +15,15 @@ final class TodayCacheManager {
 
     // MARK: - Initialization
 
-    init() {}
+    /// The hidden test students' names, normalized (Settings' list, or none
+    /// while they're shown); tests pass their own.
+    private let hiddenNames: () -> Set<String>
+    /// The names the cached students were read under.
+    private var cachedHiddenNames: Set<String>?
+
+    init(hiddenNames: @escaping () -> Set<String> = { TestStudentsFilter.normalizedHiddenNames() }) {
+        self.hiddenNames = hiddenNames
+    }
 
     // MARK: - Update Methods
 
@@ -60,7 +68,14 @@ final class TodayCacheManager {
     /// and lessons when a student or lesson changed since they were read. The
     /// cached students go too: a child who left (or was hidden) stayed on Today
     /// until the screen was rebuilt, since a cached id was never looked up again.
+    /// A change to the hidden test students' list drops the students as well
+    /// (bug hunt 2026-11-03 #55).
     private func dropMissesIfInputsMoved(context: NSManagedObjectContext) {
+        let names = hiddenNames()
+        if names != cachedHiddenNames {
+            cachedHiddenNames = names
+            studentsByID.removeAll()
+        }
         let flag: ManagedObjectChangeFlag
         if let existing = missInputs, existing.watches(context) {
             flag = existing
@@ -90,16 +105,33 @@ final class TodayCacheManager {
         return rows
     }
 
-    /// Enrolled students among `ids`, hidden test students included (the
-    /// recent-notes rows name them).
+    /// Whether `student` is shown: not on the hidden test students' list.
+    private func isVisible(_ student: CDStudent, hidden: Set<String>) -> Bool {
+        hidden.isEmpty || !hidden.contains(student.fullName.normalizedForComparison())
+    }
+
+    /// Enrolled, visible students among `ids`, for the meetings' and recent
+    /// notes' names. Hidden test students used to be included, so their
+    /// meetings and notes showed on Today (bug hunt 2026-11-03 #55).
     func enrolledStudents(ids: Set<UUID>, context: NSManagedObjectContext) -> [UUID: CDStudent] {
         guard !ids.isEmpty else { return [:] }
+        let rows = rosterRows(context: context)
+        let hidden = hiddenNames()
         var byID: [UUID: CDStudent] = [:]
-        for student in rosterRows(context: context).filterEnrolled() {
+        for student in rows.filterEnrolled() where isVisible(student, hidden: hidden) {
             guard let id = student.id, ids.contains(id) else { continue }
             byID[id] = student
         }
         return byID
+    }
+
+    /// The hidden test students' ids, enrolled or not: their meetings and the
+    /// notes about only them stay off Today (`TodayHiddenStudents`).
+    func hiddenStudentIDs(context: NSManagedObjectContext) -> Set<UUID> {
+        let rows = rosterRows(context: context)
+        let hidden = hiddenNames()
+        guard !hidden.isEmpty else { return [] }
+        return Set(rows.filter { !isVisible($0, hidden: hidden) }.compactMap(\.id))
     }
 
     /// Every former student — withdrawn or transferred — keyed by id.
@@ -118,11 +150,11 @@ final class TodayCacheManager {
         let missingIDSet = ids.filter { studentsByID[$0] == nil }
         guard !missingIDSet.isEmpty else { return }
 
-        let filtered = rosterRows(context: context).filterEnrolled().filter { student in
+        let hidden = hiddenNames()
+        let visibleStudents = rosterRows(context: context).filterEnrolled().filter { student in
             guard let studentID = student.id else { return false }
-            return missingIDSet.contains(studentID)
+            return missingIDSet.contains(studentID) && isVisible(student, hidden: hidden)
         }
-        let visibleStudents = TestStudentsFilter.filterVisible(filtered)
 
         for student in visibleStudents {
             if let studentID = student.id {

@@ -1,107 +1,163 @@
 {
-  "fill-specializations" : [
+  "fill-specializations": [
     {
-      "value" : {
-        "linear-gradient" : [
+      "value": {
+        "linear-gradient": [
           "extended-srgb:1.00000,0.96863,0.89412,1.00000",
           "extended-srgb:0.93725,0.86275,0.71373,1.00000"
         ]
       }
     },
     {
-      "appearance" : "dark",
-      "value" : {
-        "linear-gradient" : [
+      "appearance": "dark",
+      "value": {
+        "linear-gradient": [
           "extended-srgb:0.17255,0.13725,0.27451,1.00000",
           "extended-srgb:0.08235,0.06275,0.12549,1.00000"
         ]
       }
     }
   ],
-  "groups" : [
+  "groups": [
     {
-      "name" : "Tabs",
-      "layers" : [
+      "name": "Tabs and Ribbon",
+      "layers": [
         {
-          "image-name" : "Tabs.svg",
-          "name" : "Tabs",
-          "glass" : true
+          "image-name": "Tabs.svg",
+          "name": "Tabs",
+          "glass": true
+        },
+        {
+          "image-name": "Ribbon.svg",
+          "name": "Ribbon",
+          "glass": true
         }
       ],
-      "shadow" : { "kind" : "neutral", "opacity" : 0.5 },
-      "translucency" : { "enabled" : true, "value" : 0.4 },
-      "specular" : true,
-      "lighting" : "individual",
-      "blur-material" : 0.5
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.4
+      },
+      "specular": true,
+      "lighting": "individual",
+      "blur-material": 0.5
     },
     {
-      "name" : "Sun",
-      "layers" : [
+      "name": "Clock of Eras",
+      "layers": [
         {
-          "image-name" : "Sun.svg",
-          "name" : "Sun",
-          "glass" : true
+          "image-name": "Clock.svg",
+          "name": "Clock",
+          "glass": true
         }
       ],
-      "shadow" : { "kind" : "layer-color", "opacity" : 0.5 },
-      "translucency" : { "enabled" : true, "value" : 0.3 },
-      "specular" : true,
-      "lighting" : "individual",
-      "blur-material" : 0.5
+      "shadow": {
+        "kind": "layer-color",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.3
+      },
+      "specular": true,
+      "lighting": "individual",
+      "blur-material": 0.5
     },
     {
-      "name" : "Pages",
-      "layers" : [
+      "name": "Pages",
+      "layers": [
         {
-          "image-name" : "Stars.svg",
-          "name" : "Stars",
-          "glass" : false
+          "image-name": "Grammar.svg",
+          "name": "Grammar Symbols",
+          "glass": true
         },
         {
-          "image-name" : "Rules.svg",
-          "name" : "Rules",
-          "glass" : false
+          "image-name": "Writing.svg",
+          "name": "Writing",
+          "glass": false
         },
         {
-          "image-name" : "RightPage.svg",
-          "name" : "Night Page",
-          "glass" : true
+          "image-name": "Stars.svg",
+          "name": "Stars",
+          "glass": false
         },
         {
-          "image-name" : "LeftPage.svg",
-          "name" : "Day Page",
-          "glass" : true
+          "image-name": "Constellation.svg",
+          "name": "Constellation",
+          "glass": false
+        },
+        {
+          "image-name": "Glow.svg",
+          "name": "Glow",
+          "glass": false
+        },
+        {
+          "image-name": "Rules.svg",
+          "name": "Rules",
+          "glass": false
+        },
+        {
+          "image-name": "Gutter.svg",
+          "name": "Gutter Shading",
+          "glass": false
+        },
+        {
+          "image-name": "RightPage.svg",
+          "name": "Night Page",
+          "glass": true
+        },
+        {
+          "image-name": "LeftPage.svg",
+          "name": "Day Page",
+          "glass": true
         }
       ],
-      "shadow" : { "kind" : "neutral", "opacity" : 0.5 },
-      "translucency" : { "enabled" : true, "value" : 0.5 },
-      "specular" : true,
-      "lighting" : "individual",
-      "blur-material" : 0.5
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.5
+      },
+      "specular": true,
+      "lighting": "individual",
+      "blur-material": 0.5
     },
     {
-      "name" : "Cover",
-      "layers" : [
+      "name": "Cover",
+      "layers": [
         {
-          "image-name" : "Spine.svg",
-          "name" : "Spine",
-          "glass" : true
+          "image-name": "Spine.svg",
+          "name": "Spine",
+          "glass": true
         },
         {
-          "image-name" : "Cover.svg",
-          "name" : "Cover",
-          "glass" : true
+          "image-name": "Cover.svg",
+          "name": "Cover",
+          "glass": true
         }
       ],
-      "shadow" : { "kind" : "neutral", "opacity" : 0.5 },
-      "translucency" : { "enabled" : true, "value" : 0.5 },
-      "specular" : true,
-      "lighting" : "individual",
-      "blur-material" : 0.5
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.5
+      },
+      "specular": true,
+      "lighting": "individual",
+      "blur-material": 0.5
     }
   ],
-  "supported-platforms" : {
-    "circles" : [ "watchOS" ],
-    "squares" : "shared"
+  "supported-platforms": {
+    "circles": [
+      "watchOS"
+    ],
+    "squares": "shared"
   }
 }

@@ -118,3 +118,50 @@ struct SequenceRecapNote: Sendable, Equatable, Identifiable {
     let category: String
     let isPinned: Bool
 }
+
+// MARK: - Choices Not Yet Saved
+
+extension SequenceRecap {
+    /// The recap with `states` (by lesson and child, as UUID strings) shown in
+    /// place of what the store holds: a choice on the current lesson's row of
+    /// a lesson not yet given waits for Record, so it has no row to show yet.
+    func showing(_ states: [SequenceRecapPairKey: LessonPresentationState]) -> SequenceRecap {
+        guard !states.isEmpty else { return self }
+        return SequenceRecap(
+            sequenceName: sequenceName,
+            area: area,
+            lessonsInSequence: lessonsInSequence,
+            studentEntries: studentEntries.map { student in
+                SequenceRecapStudentEntry(
+                    id: student.id,
+                    studentName: student.studentName,
+                    lessonEntries: student.lessonEntries.map { lesson in
+                        let key = SequenceRecapPairKey(lessonID: lesson.id.uuidString, studentID: student.id.uuidString)
+                        guard let state = states[key], state != lesson.outcomeState else { return lesson }
+                        return lesson.showing(state)
+                    },
+                    orphanNotes: student.orphanNotes
+                )
+            }
+        )
+    }
+}
+
+extension SequenceRecapLessonEntry {
+    /// The same row showing `state`.
+    func showing(_ state: LessonPresentationState) -> SequenceRecapLessonEntry {
+        SequenceRecapLessonEntry(
+            id: id,
+            lessonName: lessonName,
+            isCurrentLesson: isCurrentLesson,
+            outcomeState: state,
+            firstPresentedAt: firstPresentedAt,
+            lastObservedAt: lastObservedAt,
+            masteredAt: masteredAt,
+            perStudentLessonNotes: perStudentLessonNotes,
+            presentations: presentations,
+            unattachedWorkItems: unattachedWorkItems,
+            directNotes: directNotes
+        )
+    }
+}

@@ -17,6 +17,7 @@ import CoreData
 struct ClassGridChecklistView: View {
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.appRouter) private var appRouter
+    @Environment(SaveCoordinator.self) private var saveCoordinator
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
@@ -71,6 +72,8 @@ struct ClassGridChecklistView: View {
                 viewModel.studentFilterIDs = scope.childFilterIDs
                 // The lens it had before another view showed.
                 viewModel.lens = scope.checklistLens
+                // Its saves raise the app's "Couldn't Save" alert.
+                viewModel.saveCoordinator = saveCoordinator
                 // Single load: fetches students, lessons, and builds matrix once
                 viewModel.loadData(context: viewContext)
                 viewModel.applyVisibilityFilter(
@@ -100,6 +103,9 @@ struct ClassGridChecklistView: View {
                     .onDisappear { finishPresentation(target) }
             }
             .modifier(ChecklistClearConfirmation(
+                viewModel: viewModel, context: viewContext, afterClosingCard: afterClosingCard
+            ))
+            .modifier(ChecklistRemovalConfirmation(
                 viewModel: viewModel, context: viewContext, afterClosingCard: afterClosingCard
             ))
             // A request that arrives while the checklist is already on screen never

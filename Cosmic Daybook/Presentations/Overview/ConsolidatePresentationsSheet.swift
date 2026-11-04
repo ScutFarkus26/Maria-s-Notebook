@@ -34,6 +34,7 @@ struct ConsolidatePresentationsSheet: View {
     }
 
     @Environment(\.dependencies) private var dependencies
+    @TestStudentVisibility private var testStudents
 
     var body: some View {
         NavigationStack {
@@ -170,16 +171,27 @@ struct ConsolidatePresentationsSheet: View {
     }
 
     private func duplicateStudentIDs(in group: DuplicateGroup) -> Set<UUID> {
+        let visible = studentMap
         var counts: [UUID: Int] = [:]
         for presentation in group.presentations {
-            for id in presentation.resolvedStudentIDs {
+            for id in presentation.resolvedStudentIDs where visible[id] != nil {
                 counts[id, default: 0] += 1
             }
         }
         return Set(counts.compactMap { $0.value >= 2 ? $0.key : nil })
     }
 
-    private var studentMap: [UUID: CDStudent] { dependencies.roster.byID }
+    /// The children the chips may show: enrolled, and test students only when
+    /// they are shown, as the backlog's own chips (bug hunt 2026-11-03 #17).
+    private var studentMap: [UUID: CDStudent] {
+        let visible = TestStudentsFilter.filterVisible(
+            dependencies.roster.enrolled, show: testStudents.show, namesRaw: testStudents.namesRaw
+        )
+        return Dictionary(
+            visible.compactMap { student in student.id.map { ($0, student) } },
+            uniquingKeysWith: { first, _ in first }
+        )
+    }
 
     private func areaColor(for lesson: CDLesson?) -> Color {
         if let area = lesson?.area, !area.isEmpty {
@@ -204,8 +216,15 @@ private struct ConsolidateLessonCard: View {
     let duplicateStudentIDs: Set<UUID>
 
     @State private var isDropHighlighted = false
+    /// A Remove waiting for the guide's yes (`PresentationDeletion.removeRequest`).
+    @State private var pendingRemoval: [PresentationDeletion.Request] = []
 
     private var presentationID: UUID { presentation.id ?? UUID() }
+
+    /// The children on the card that the chips show.
+    private var shownStudentIDs: [UUID] {
+        presentation.resolvedStudentIDs.filter { students[$0] != nil }
+    }
 
     private var stateLabel: String {
         if presentation.state == .scheduled, let scheduled = presentation.scheduledFor {
@@ -228,7 +247,7 @@ private struct ConsolidateLessonCard: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text("\(presentation.resolvedStudentIDs.count)")
+                Text("\(shownStudentIDs.count)")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 6)
@@ -260,11 +279,21 @@ private struct ConsolidateLessonCard: View {
             onMergeReceived: {},
             onSourceEmptied: { dependencies.toastService.showSuccess("Presentation removed") }
         ))
+        .workspaceDeletionConfirmation(
+            pending: $pendingRemoval,
+            title: pendingRemoval.first?.title ?? "",
+            confirmTitle: pendingRemoval.first?.confirmTitle ?? "Remove",
+            message: pendingRemoval.first?.message ?? ""
+        ) { requests in
+            for request in requests {
+                if let studentID = request.studentID { performRemove(studentID) }
+            }
+        }
     }
 
     @ViewBuilder
     private var studentChips: some View {
-        let ids = presentation.resolvedStudentIDs
+        let ids = shownStudentIDs
         if ids.isEmpty {
             Text("No students")
                 .font(.caption)
@@ -288,24 +317,25 @@ private struct ConsolidateLessonCard: View {
         }
     }
 
+    /// The chip's Remove: asks first when she is the last child on a plan
+    /// with notes or marks, since the plan goes with her (bug hunt 2026-11-03 #3).
     private func remove(studentID: UUID) {
+        guard let ctx = presentation.managedObjectContext else { return }
         let idString = studentID.uuidString
-        var ids = presentation.studentIDs
-        ids.removeAll { $0 == idString }
-        presentation.studentIDs = ids
-        presentation.updateDenormalizedKeys()
-        presentation.modifiedAt = Date()
-        let didEmpty = ids.isEmpty
-        if let ctx = presentation.managedObjectContext {
-            // Her entry promoted into this plan goes back to planned rather
-            // than pointing at a plan that no longer holds her (or no longer
-            // exists).
-            PresentationRecordCleanup.removeStudents([idString], from: presentation, in: ctx)
-            if didEmpty {
-                PresentationRecordCleanup.prepareToDelete(presentation, in: ctx)
-                ctx.delete(presentation)
-            }
+        let name = students[studentID]?.shortName ?? ""
+        if let request = PresentationDeletion.removeRequest(idString, childName: name, from: presentation, in: ctx) {
+            pendingRemoval = [request]
+        } else {
+            performRemove(idString)
         }
+    }
+
+    /// Takes her off as the Checklist's Remove Plan does: her promoted entry
+    /// goes back to planned, her marks stay, and an emptied plan's notes stay
+    /// on her (`PresentationDeletion.remove`).
+    private func performRemove(_ idString: String) {
+        guard let ctx = presentation.managedObjectContext else { return }
+        let didEmpty = PresentationDeletion.remove(idString, from: presentation, in: ctx)
         saveCoordinator.save(viewContext, reason: "Remove student from presentation")
         if didEmpty {
             dependencies.toastService.showSuccess("Presentation removed")
@@ -315,71 +345,5 @@ private struct ConsolidateLessonCard: View {
 
     private func scheduledLabel(for date: Date) -> String {
         DateFormatters.mediumDate.string(from: date)
-    }
-}
-
-// MARK: - Chip
-
-private struct DraggableStudentChip: View {
-    let student: CDStudent?
-    let studentID: UUID
-    let sourcePresentationID: UUID
-    let lessonID: UUID
-    let areaColor: Color
-    let isDuplicate: Bool
-    let onRemove: () -> Void
-
-    private var label: String {
-        if let student { return student.shortName }
-        return "(Removed)"
-    }
-
-    private var fillColor: Color {
-        isDuplicate
-            ? AppColors.warning.opacity(UIConstants.OpacityConstants.accent)
-            : areaColor.opacity(UIConstants.OpacityConstants.accent)
-    }
-
-    private var strokeColor: Color {
-        isDuplicate
-            ? AppColors.warning
-            : areaColor.opacity(UIConstants.OpacityConstants.medium)
-    }
-
-    var body: some View {
-        HStack(spacing: 4) {
-            if isDuplicate {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.caption2)
-                    .foregroundStyle(AppColors.warning)
-            }
-            Text(label)
-                .font(.caption.weight(.medium))
-                .lineLimit(1)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .capsuleFill(fillColor)
-        .overlay(
-            Capsule().stroke(strokeColor, lineWidth: isDuplicate ? 1.5 : 1)
-        )
-        .foregroundStyle(.primary)
-        .contentShape(Capsule())
-        .onDrag {
-            let payload = DragPayload.encode(
-                sourceID: sourcePresentationID,
-                lessonID: lessonID,
-                studentID: studentID
-            )
-            let provider = NSItemProvider(object: NSString(string: payload))
-            provider.suggestedName = label
-            return provider
-        }
-        .contextMenu {
-            Button(role: .destructive, action: onRemove) {
-                Label("Remove from this presentation", systemImage: "person.fill.xmark")
-            }
-        }
-        .accessibilityLabel(isDuplicate ? "\(label), also in another presentation" : label)
     }
 }

@@ -61,7 +61,35 @@ extension WorksAgendaView {
         // A moved token already schedules the reload, which rebuilds the
         // partition; building it here too would triage everything twice.
         if refreshChangeTokens() { return }
+        // Change Lesson on a given presentation, or one sync batch that closes
+        // one work and opens another, moves no count, and a card's lesson or
+        // child went missing from the lookups: "Untitled work" for "Student"
+        // (bug hunt 2026-11-03 #39). Rebuilding them rebuilds the partition.
+        if lookupsMissOpenWork() {
+            loadLessonsAndStudentsIfNeeded()
+            return
+        }
         rebuildPartition()
+    }
+
+    /// True when an open row's lesson or (visible) child is in the catalog or
+    /// roster but not in the card lookups.
+    func lookupsMissOpenWork() -> Bool {
+        let catalog = dependencies.lessonCatalog.byID
+        let roster = dependencies.roster.byID
+        let hidden = testStudents.hiddenNames
+        return openWork.contains { work in
+            if let lessonID = UUID(uuidString: work.lessonID),
+               lessonsByIDCache[lessonID] == nil, catalog[lessonID] != nil {
+                return true
+            }
+            if let studentID = UUID(uuidString: work.studentID),
+               studentsByIDCache[studentID] == nil, let student = roster[studentID],
+               !hidden.contains(student.fullName.normalizedForComparison()) {
+                return true
+            }
+            return false
+        }
     }
 
     /// Re-triages everything on screen in one pass.
@@ -297,7 +325,8 @@ extension WorksAgendaView {
 
     #if os(macOS)
     func makePrintItems(from works: [CDWorkModel]) -> [WorkPDFRenderer.PrintItem] {
-        works.map { w in
+        let today = AppCalendar.startOfDay(Date())
+        return works.map { w in
             let title = lessonTitle(for: w)
             let student = (UUID(uuidString: w.studentID))
                 .flatMap { studentsByID[$0] }
@@ -310,6 +339,7 @@ extension WorksAgendaView {
                 // The card's own number: school days since last touched. The
                 // sheet used to count calendar days since the work was made.
                 ageDays: w.id.flatMap { workAgeByID[$0] } ?? 0,
+                createdDaysAgo: OpenWorkGrid.ageDays(for: w, today: today),
                 dueAt: w.dueAt,
                 needsAttention: needsAttention(for: w)
             )

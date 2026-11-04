@@ -7,7 +7,6 @@ import Foundation
 extension WorkDetailView {
 
     @ViewBuilder
-    // swiftlint:disable:next function_body_length
     func calendarSection() -> some View {
         DetailSectionCard(title: "Scheduled Check-Ins", icon: "calendar.badge.checkmark", accentColor: .blue) {
             VStack(alignment: .leading, spacing: 16) {
@@ -23,90 +22,117 @@ extension WorkDetailView {
 
                 Divider()
 
-                // Add new check-in section
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Schedule New Check-In")
-                        .font(AppTheme.ScaledFont.captionSemibold)
-                        .foregroundStyle(.secondary)
-
-                    HStack(spacing: 12) {
-                        DatePicker("", selection: $viewModel.newPlanDate, displayedComponents: .date)
-                            .labelsHidden()
-                            .datePickerStyle(.compact)
-
-                        Menu {
-                            // Phase 6: Simple string-based purposes
-                            Button {
-                                viewModel.newPlanPurpose = "progressCheck"
-                            } label: {
-                                HStack {
-                                    Image(systemName: "checkmark.circle")
-                                    Text("Progress Check")
-                                }
-                            }
-                            Button {
-                                viewModel.newPlanPurpose = "assessment"
-                            } label: {
-                                HStack {
-                                    Image(systemName: "chart.bar")
-                                    Text("Assessment")
-                                }
-                            }
-                            Button {
-                                viewModel.newPlanPurpose = "dueDate"
-                            } label: {
-                                HStack {
-                                    Image(systemName: "calendar.badge.exclamationmark")
-                                    Text("Due Date")
-                                }
-                            }
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "checkmark.circle")
-                                    .font(.system(size: 12, weight: .medium))
-                                Text(
-                                    viewModel.newPlanPurpose.isEmpty
-                                        ? "Progress Check"
-                                        : CheckInReason.displayName(forStoredPurpose: viewModel.newPlanPurpose)
-                                )
-                                    .font(AppTheme.ScaledFont.captionSemibold)
-                                Image(systemName: "chevron.down")
-                                    .font(.system(size: 10, weight: .semibold))
-                            }
-                            .foregroundStyle(.primary)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .surface(
-                                UIConstants.CornerRadius.control,
-                                fill: Color.primary.opacity(UIConstants.OpacityConstants.subtle)
-                            )
-                        }
-                        .buttonStyle(.plain)
-
-                        Button {
-                            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                addPlan()
-                            }
-                        } label: {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.system(size: 24))
-                                .foregroundStyle(.blue)
-                        }
-                        .accessibilityLabel("Add plan")
-                        .buttonStyle(.plain)
-                    }
-
-                    // Optional note field
-                    TextField("Add a note (optional)", text: $viewModel.newPlanNote)
+                // Closed work never comes due: the strip and Today show
+                // check-ins on open work only, so one added here sat on this
+                // page alone (bug hunt 2026-11-03 #37).
+                if viewModel.storedStatus.isClosed {
+                    Text(
+                        "This work is closed, so it doesn't get check-ins. "
+                            + "Set it back to Working and save to schedule one."
+                    )
                         .font(AppTheme.ScaledFont.caption)
-                        .padding(AppTheme.Spacing.small)
-                        .surface(
-                            UIConstants.CornerRadius.small,
-                            fill: Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
-                        )
+                        .foregroundStyle(.secondary)
+                } else {
+                    newCheckInForm()
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    // swiftlint:disable:next function_body_length
+    private func newCheckInForm() -> some View {
+        // Add new check-in section
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Schedule New Check-In")
+                .font(AppTheme.ScaledFont.captionSemibold)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 12) {
+                DatePicker("", selection: newPlanDay, displayedComponents: .date)
+                    .labelsHidden()
+                    .datePickerStyle(.compact)
+
+                Menu {
+                    // Phase 6: Simple string-based purposes
+                    Button {
+                        viewModel.newPlanPurpose = "progressCheck"
+                    } label: {
+                        HStack {
+                            Image(systemName: "checkmark.circle")
+                            Text("Progress Check")
+                        }
+                    }
+                    Button {
+                        viewModel.newPlanPurpose = "assessment"
+                    } label: {
+                        HStack {
+                            Image(systemName: "chart.bar")
+                            Text("Assessment")
+                        }
+                    }
+                    Button {
+                        viewModel.newPlanPurpose = "dueDate"
+                    } label: {
+                        HStack {
+                            Image(systemName: "calendar.badge.exclamationmark")
+                            Text("Due Date")
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle")
+                            .font(.system(size: 12, weight: .medium))
+                        Text(
+                            viewModel.newPlanPurpose.isEmpty
+                                ? "Progress Check"
+                                : CheckInReason.displayName(forStoredPurpose: viewModel.newPlanPurpose)
+                        )
+                            .font(AppTheme.ScaledFont.captionSemibold)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .surface(
+                        UIConstants.CornerRadius.control,
+                        fill: Color.primary.opacity(UIConstants.OpacityConstants.subtle)
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        viewModel.addCheckIn(modelContext: modelContext, saveCoordinator: saveCoordinator)
+                    }
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundStyle(.blue)
+                }
+                .accessibilityLabel("Add check-in")
+                .buttonStyle(.plain)
+            }
+
+            // Optional note field
+            TextField("Add a note (optional)", text: $viewModel.newPlanNote)
+                .font(AppTheme.ScaledFont.caption)
+                .padding(AppTheme.Spacing.small)
+                .surface(
+                    UIConstants.CornerRadius.small,
+                    fill: Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
+                )
+        }
+    }
+
+    /// The new check-in's day: today until she picks one, read each time,
+    /// so a page left open overnight doesn't offer yesterday.
+    private var newPlanDay: Binding<Date> {
+        Binding(
+            get: { viewModel.newPlanDate ?? Date() },
+            set: { viewModel.newPlanDate = $0 }
+        )
     }
 
     @ViewBuilder
@@ -124,7 +150,8 @@ extension WorkDetailView {
                     setStatus(status, of: checkIn)
                 }
             },
-            onDelete: { deleteCheckIn($0) }
+            // Asks first; a note on it stays (bug hunt 2026-11-03 #35).
+            onDelete: { viewModel.checkInPendingDelete = $0 }
         )
     }
 
@@ -146,43 +173,17 @@ extension WorkDetailView {
         saveCoordinator.save(modelContext, reason: "Update check-in status")
     }
 
-    func addPlan() {
-        guard let work = viewModel.work else { return }
-        let note = viewModel.newPlanNote.trimmed().isEmpty ? nil : viewModel.newPlanNote.trimmed()
-
-        let checkIn = CDWorkCheckIn.make(
-            for: work, on: viewModel.newPlanDate, purpose: viewModel.newPlanPurpose, in: modelContext
-        )
-        if let note {
-            checkIn.setLegacyNoteText(note, in: modelContext)
-        }
-
-        saveCoordinator.save(modelContext, reason: "Adding check-in")
-
-        // Reset form fields
-        viewModel.newPlanDate = Date()
-        viewModel.newPlanPurpose = "progressCheck"
-        viewModel.newPlanNote = ""
-    }
-
-    func deleteCheckIn(_ item: CDWorkCheckIn) {
-        modelContext.delete(item)
-        saveCoordinator.save(modelContext, reason: "Deleting check-in")
-    }
-
     // MARK: - Group Meeting
 
-    /// All participant UUIDs for this work (primary student + collaborators).
+    /// Everyone a Group Meeting books: this work's child and the classmates
+    /// it is with, on a shared row or on their own linked copies. Children
+    /// who have left and hidden test students aren't among them (#36).
     private var groupMeetingParticipantIDs: [UUID] {
         var ids: [UUID] = []
         if let primaryID = viewModel.resolvedStudentID {
             ids.append(primaryID)
         }
-        for entry in viewModel.workParticipants {
-            if let pid = entry.student.id {
-                ids.append(pid)
-            }
-        }
+        ids += viewModel.groupMeetingPeers.compactMap(\.id)
         return ids
     }
 
@@ -199,10 +200,10 @@ extension WorkDetailView {
                     // Participant chips
                     FlowLayout(spacing: 6) {
                         if let primary = viewModel.relatedStudent {
-                            participantChip(name: primary.fullName)
+                            participantChip(name: primary.shortName)
                         }
-                        ForEach(viewModel.workParticipants, id: \.student.id) { entry in
-                            participantChip(name: entry.student.fullName)
+                        ForEach(viewModel.groupMeetingPeers, id: \.objectID) { student in
+                            participantChip(name: student.shortName)
                         }
                     }
 
@@ -234,9 +235,9 @@ extension WorkDetailView {
     func groupMeetingDatePickerSheet(work: CDWorkModel) -> some View {
         let participantNames = groupMeetingParticipantIDs.compactMap { id in
             if let primary = viewModel.relatedStudent, primary.id == id {
-                return primary.fullName
+                return primary.shortName
             }
-            return viewModel.workParticipants.first { $0.student.id == id }?.student.fullName
+            return viewModel.groupMeetingPeers.first { $0.id == id }?.shortName
         }
         let title = participantNames.prefix(2).joined(separator: ", ")
             + (participantNames.count > 2 ? " + \(participantNames.count - 2)" : "")

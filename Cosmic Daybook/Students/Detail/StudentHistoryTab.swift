@@ -1,5 +1,7 @@
 // StudentHistoryTab.swift
-// History tab showing student's finished track enrollments
+// Past Learning: the sequences the child has mastered every lesson of, and
+// her finished projects. A completed sequence is read from her presentation
+// record (`SequenceStanding`), not stored (2026-11-03).
 
 import SwiftUI
 import CoreData
@@ -7,58 +9,21 @@ import CoreData
 struct StudentHistoryTab: View {
     let student: CDStudent
 
-    @FetchRequest(sortDescriptors: [
-        NSSortDescriptor(keyPath: \CDStudentTrackEnrollmentEntity.createdAt, ascending: false)
-    ])
-    private var allEnrollments: FetchedResults<CDStudentTrackEnrollmentEntity>
-
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTrackEntity.title, ascending: true)])
-    private var allTracks: FetchedResults<CDTrackEntity>
+    @Environment(\.managedObjectContext) private var viewContext
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDProject.createdAt, ascending: false)])
     private var allProjects: FetchedResults<CDProject>
 
-    @State private var selectedEnrollment: CDStudentTrackEnrollmentEntity?
+    @State private var finishedStandings: [SequenceStanding] = []
+    @State private var selectedStanding: SequenceStanding?
     @State private var selectedProject: CDProject?
-
-    // Use uniquingKeysWith to handle CloudKit sync duplicates
-    private var tracksByID: [String: CDTrackEntity] {
-        Dictionary(
-            allTracks.compactMap { t in t.id.map { ($0.uuidString, t) } },
-            uniquingKeysWith: { first, _ in first }
-        )
-    }
-
-    /// Deduplicated finished enrollments - keeps only one enrollment per track TITLE (not ID)
-    /// This handles the case where duplicate CDTrackEntity objects exist with the same title
-    private var finishedEnrollments: [CDStudentTrackEnrollmentEntity] {
-        let sid = student.id?.uuidString ?? ""
-        let finished = allEnrollments.filter { $0.studentID == sid && !$0.isActive }
-
-        // Deduplicate by track title, keeping the one with more activity
-        var bestByTitle: [String: CDStudentTrackEnrollmentEntity] = [:]
-        for enrollment in finished {
-            guard let track = tracksByID[enrollment.trackID] else { continue }
-            let title = track.title
-
-            if let existing = bestByTitle[title] {
-                // Keep the newer one (first in sorted array since sorted by createdAt desc)
-                if (enrollment.createdAt ?? .distantPast) > (existing.createdAt ?? .distantPast) {
-                    bestByTitle[title] = enrollment
-                }
-            } else {
-                bestByTitle[title] = enrollment
-            }
-        }
-        return Array(bestByTitle.values).sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
-    }
 
     private var finishedProjects: [CDProject] {
         let sid = student.id?.uuidString ?? ""
         return allProjects.filter { $0.memberStudentIDsArray.contains(sid) && !$0.isActive }
     }
 
-    // Celebration colors for completed tracks
+    // Celebration colors for completed sequences
     private let celebrationColors: [Color] = [.green, .blue, .purple, .orange, .pink, .teal]
 
     var body: some View {
@@ -82,8 +47,8 @@ struct StudentHistoryTab: View {
                     }
                 }
 
-                // Finished Tracks Section
-                if finishedEnrollments.isEmpty {
+                // Completed Sequences Section
+                if finishedStandings.isEmpty {
                     if finishedProjects.isEmpty {
                         emptyStateView
                     }
@@ -92,19 +57,17 @@ struct StudentHistoryTab: View {
                         HStack(spacing: 8) {
                             Image(systemName: "trophy.fill")
                                 .foregroundStyle(.yellow)
-                            Text("Completed Tracks")
+                            Text("Completed Sequences")
                                 .font(.headline)
                         }
                         .padding(.horizontal, 4)
 
-                        ForEach(Array(finishedEnrollments.enumerated()), id: \.element.objectID) { index, enrollment in
-                            if let track = tracksByID[enrollment.trackID] {
-                                finishedTrackCard(enrollment: enrollment, track: track, colorIndex: index)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        selectedEnrollment = enrollment
-                                    }
-                            }
+                        ForEach(Array(finishedStandings.enumerated()), id: \.element.id) { index, standing in
+                            finishedSequenceCard(standing: standing, colorIndex: index)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    selectedStanding = standing
+                                }
                         }
                     }
                 }
@@ -113,16 +76,34 @@ struct StudentHistoryTab: View {
             .padding(.vertical, 16)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .sheet(item: $selectedEnrollment) { enrollment in
-            if let track = tracksByID[enrollment.trackID] {
-                StudentTrackDetailView(enrollment: enrollment, track: track)
-                    .studentDetailSheetSizing()
-            }
+        // A mark made elsewhere finishes or reopens a sequence.
+        .onPresentationDataChangeWhenVisible(
+            of: ["LessonPresentation"],
+            in: viewContext,
+            catchUpOnAppear: false
+        ) {
+            loadStandings()
+        }
+        .onAppear {
+            loadStandings()
+        }
+        .sheet(item: $selectedStanding) { standing in
+            StudentTrackDetailView(student: student, standing: standing)
+                .studentDetailSheetSizing()
         }
         .sheet(item: $selectedProject) { project in
             ProjectDetailView(club: project)
                 .studentDetailSheetSizing()
         }
+    }
+
+    private func loadStandings() {
+        guard let studentID = student.id?.uuidString else {
+            finishedStandings = []
+            return
+        }
+        finishedStandings = SequenceStandingLoader.standings(forStudentID: studentID, in: viewContext)
+            .filter(\.isFinished)
     }
 
     private var emptyStateView: some View {
@@ -131,11 +112,11 @@ struct StudentHistoryTab: View {
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary.opacity(UIConstants.OpacityConstants.muted))
 
-            Text("No Completed Tracks Yet")
+            Text("No Completed Sequences Yet")
                 .font(.headline)
                 .foregroundStyle(.secondary)
 
-            Text("Completed tracks will appear here as achievements!")
+            Text("Sequences the child has mastered every lesson of will appear here.")
                 .font(.subheadline)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
@@ -186,11 +167,7 @@ struct StudentHistoryTab: View {
         )
     }
 
-    private func finishedTrackCard(
-        enrollment: CDStudentTrackEnrollmentEntity,
-        track: CDTrackEntity,
-        colorIndex: Int
-    ) -> some View {
+    private func finishedSequenceCard(standing: SequenceStanding, colorIndex: Int) -> some View {
         let accentColor = celebrationColors[colorIndex % celebrationColors.count]
 
         return HStack(alignment: .center, spacing: 14) {
@@ -206,26 +183,10 @@ struct StudentHistoryTab: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(track.title)
+                Text(standing.title)
                     .font(.headline)
                     .foregroundStyle(.primary)
-
-                HStack(spacing: 6) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.caption)
-                        .foregroundStyle(AppColors.success)
-                    Text("Completed")
-                        .font(.caption)
-                        .foregroundStyle(AppColors.success)
-
-                    if let startedAt = enrollment.startedAt {
-                        Text("•")
-                            .foregroundStyle(.tertiary)
-                        Text(DateFormatters.mediumDate.string(from: startedAt))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                completedBadge(startedAt: standing.firstGivenAt)
             }
 
             Spacer()
@@ -253,4 +214,23 @@ struct StudentHistoryTab: View {
         )
     }
 
+    /// "Completed • Started Mar 3, 2026": when the first lesson was given, if known.
+    private func completedBadge(startedAt: Date?) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.caption)
+                .foregroundStyle(AppColors.success)
+            Text("Completed")
+                .font(.caption)
+                .foregroundStyle(AppColors.success)
+
+            if let startedAt {
+                Text("•")
+                    .foregroundStyle(.tertiary)
+                Text("Started \(DateFormatters.mediumDate.string(from: startedAt))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
 }

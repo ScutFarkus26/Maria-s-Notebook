@@ -66,9 +66,10 @@ nonisolated struct ParentLockerDay: Sendable, Equatable {
             .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
     }
 
-    /// When `day`'s attendance is due.
+    /// When `day`'s attendance is due: the clock time, also on the days the
+    /// clocks change (bug hunt 2026-11-03 #17).
     func deadline(on day: Date, calendar: Calendar) -> Date? {
-        calendar.date(byAdding: .minute, value: deadlineMinutes, to: calendar.startOfDay(for: day))
+        FrontDeskEmailReminder.clockTime(deadlineMinutes, on: day, calendar: calendar)
     }
 
     /// "Maya S", for the status line's problems; "a child" for one not on the roll.
@@ -131,8 +132,19 @@ final class ParentLockerCoreDataStore: ParentLockerStore {
     /// The 9:00 reminder follows a send made with the attendance screen
     /// closed too (Close Arrival's, the backstop's, Siri's or Claude's): it's
     /// withdrawn once the day is sent, or ParentLocker says it expects none.
+    ///
+    /// In the Assistant only while she's in the class, as the reminders'
+    /// upkeep asks (`EarlyPickupReminderUpkeep.isInClass`): a send finishing
+    /// after Leave put back the reminders of a class she had left (bug hunt
+    /// 2026-11-03 #21). Asked as the rebuild is queued, so a Leave after it
+    /// takes them off again.
     static let rescheduleReminder: SendRecorded = { context in
-        Task { await FrontDeskEmailReminder.reschedule(in: context) }
+        Task {
+            #if ASSISTANT_APP
+            guard EarlyPickupReminderUpkeep.isInClass(context) else { return }
+            #endif
+            await FrontDeskEmailReminder.reschedule(in: context)
+        }
     }
 
     /// The Daybook Assistant is only ever an assistant here, whatever its
@@ -224,7 +236,13 @@ final class ParentLockerCoreDataStore: ParentLockerStore {
 
     func recordSend(on day: Date) -> Bool {
         let send = AttendanceEmailLog.recordSend(on: day, role: role, channel: .parentLocker, in: context)
-        guard save(context, [send]) else { return false }
+        guard save(context, [send]) else {
+            // Not left in memory: the context's reads include unsaved
+            // inserts, so this device read the day as sent while no other
+            // heard, as the email path knows (bug hunt 2026-11-03 #19).
+            context.delete(send)
+            return false
+        }
         sendRecorded(context)
         return true
     }
@@ -233,7 +251,10 @@ final class ParentLockerCoreDataStore: ParentLockerStore {
     func noteNotExpected(on day: Date) {
         guard !AttendanceEmailLog.isNotExpected(on: day, in: context) else { return }
         let note = AttendanceEmailLog.recordNotExpected(on: day, role: role, in: context)
-        guard save(context, [note]) else { return }
+        guard save(context, [note]) else {
+            context.delete(note)
+            return
+        }
         sendRecorded(context)
     }
 

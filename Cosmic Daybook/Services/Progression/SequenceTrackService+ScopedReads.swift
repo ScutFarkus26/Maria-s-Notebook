@@ -18,15 +18,6 @@ extension SequenceTrackService {
         return NSPredicate(format: "area CONTAINS[cd] %@ AND sequence CONTAINS[cd] %@", area, sequence)
     }
 
-    /// Sequence tracks that could be the one for `area` / `sequence`.
-    static func sequenceTrackCandidates(
-        area: String, sequence: String, context: NSManagedObjectContext
-    ) -> [CDSequenceTrack] {
-        let request = CDFetchRequest(CDSequenceTrack.self)
-        request.predicate = couldEqualPredicate(area: area, sequence: sequence)
-        return context.safeFetch(request)
-    }
-
     /// Lessons that could belong to `area` / `sequence` (see `couldEqualPredicate`).
     static func lessonCandidates(
         area: String, sequence: String, context: NSManagedObjectContext

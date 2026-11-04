@@ -42,8 +42,6 @@ struct ImmediatePresentationRecordingService {
         let assignmentState: AssignmentStateSnapshot
         let createdHistoryObjectIDs: [NSManagedObjectID]
         let existingHistoryStates: [HistoryStateSnapshot]
-        let createdEnrollmentObjectIDs: [NSManagedObjectID]
-        let existingEnrollmentStates: [EnrollmentStateSnapshot]
         /// Other plans the recording took these children off (or discarded),
         /// and the year-plan entries that pointed at them.
         let releasedPlans: YearPlanReleasePreimage
@@ -100,8 +98,6 @@ struct ImmediatePresentationRecordingService {
             token.assignmentState.restore(assignment)
             restoreExistingHistory(token, in: context)
             deleteHistoryCreatedByRecord(token, in: context)
-            restoreExistingEnrollments(token, in: context)
-            deleteEnrollmentsCreatedByRecord(token, in: context)
             token.releasedPlans.restore(in: context)
             token.absentSplit?.restore(onto: assignment, in: context)
         }
@@ -132,7 +128,6 @@ private extension ImmediatePresentationRecordingService {
             Logger.presentations.error("Reading the presentation's history failed: \(error, privacy: .public)")
             throw RecordingError.recordingFailed
         }
-        let enrollments = enrollmentRows(for: Set(assignment.studentIDs), in: context)
         return RecordPreparation(
             assignmentID: assignmentID,
             presentedDay: AppCalendar.startOfDay(day),
@@ -141,8 +136,6 @@ private extension ImmediatePresentationRecordingService {
             priorHistoryStates: existingRows.map {
                 HistoryStateBeforeSave(row: $0, lastObservedAt: $0.lastObservedAt)
             },
-            existingEnrollmentIdentities: Set(enrollments.map(ObjectIdentifier.init)),
-            priorEnrollmentStates: enrollments.map(EnrollmentStateBeforeSave.init),
             releasePreimage: YearPlanReleaseService.preimage(after: assignment, in: context)
         )
     }
@@ -159,13 +152,7 @@ private extension ImmediatePresentationRecordingService {
                 presentedDay: preparation.presentedDay,
                 context: context
             )
-            let trackID = enrollInSequenceTrack(assignment: assignment, context: context)
-            return try collectRecordChanges(
-                assignment: assignment,
-                preparation: preparation,
-                trackID: trackID,
-                context: context
-            )
+            return try collectRecordChanges(preparation: preparation, context: context)
         }
     }
 
@@ -183,45 +170,16 @@ private extension ImmediatePresentationRecordingService {
         assignment.needsAnotherPresentation = false
     }
 
-    static func enrollInSequenceTrack(
-        assignment: CDLessonAssignment,
-        context: NSManagedObjectContext
-    ) -> String? {
-        guard let lesson = assignment.lesson else { return nil }
-        let area = lesson.area.trimmed()
-        let sequence = lesson.sequence.trimmed()
-        guard !area.isEmpty, !sequence.isEmpty else { return nil }
-        return SequenceTrackService.autoEnrollInTrackIfNeeded(
-            lessonArea: area,
-            lessonSequence: sequence,
-            studentIDs: assignment.studentIDs,
-            context: context,
-            saveChanges: false
-        )
-    }
-
     static func collectRecordChanges(
-        assignment: CDLessonAssignment,
         preparation: RecordPreparation,
-        trackID: String?,
         context: NSManagedObjectContext
     ) throws -> RecordChanges {
         let history = try historyRows(for: preparation.assignmentID, in: context)
         let createdHistory = history.filter {
             !preparation.existingHistoryIdentities.contains(ObjectIdentifier($0))
         }
-        let enrollments = enrollmentRows(for: Set(assignment.studentIDs), in: context)
-        let createdEnrollments = enrollments.filter {
-            $0.trackID == trackID
-                && !preparation.existingEnrollmentIdentities.contains(ObjectIdentifier($0))
-        }
-        let existingEnrollmentStates = preparation.priorEnrollmentStates
-            .filter { $0.trackID == trackID }
-            .map(EnrollmentStateSnapshot.init)
         return RecordChanges(
             createdHistoryRows: createdHistory,
-            createdEnrollmentRows: createdEnrollments,
-            existingEnrollmentStates: existingEnrollmentStates,
             releasedPlans: preparation.releasePreimage.changed(in: context)
         )
     }
@@ -251,8 +209,6 @@ private extension ImmediatePresentationRecordingService {
                     followUpSupportRaw: $0.followUpSupportRaw
                 )
             },
-            createdEnrollmentObjectIDs: changes.createdEnrollmentRows.map(\.objectID),
-            existingEnrollmentStates: changes.existingEnrollmentStates,
             releasedPlans: changes.releasedPlans
         )
     }

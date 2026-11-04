@@ -4,19 +4,10 @@ import Testing
 @testable import CosmicDaybook
 
 // Bug hunt 2026-10-11, review (b) of the MCP write fixes: a huge count
-// still crashed adjust_supply, a failed mastery batch said "nothing was
-// marked" after a finished track had saved the first mark, and notes filed
-// by record_presentation or unflagged by resolve_follow_up went unannounced.
-
-/// A half-made row from some open screen that can't be saved yet, so the
-/// context's next save fails, as it does when the guide is mid-edit.
-@MainActor
-@discardableResult
-private func unsavableRow(in context: NSManagedObjectContext) -> CDLessonAssignment {
-    let broken = CDLessonAssignment(context: context)
-    broken.setValue(nil, forKey: "lessonID")
-    return broken
-}
+// still crashed adjust_supply, and notes filed by record_presentation or
+// unflagged by resolve_follow_up went unannounced. (The partial-save case,
+// where finishing a track saved the first mark on its own, went with track
+// enrollment on 2026-11-03: a mastery batch now saves once or not at all.)
 
 @MainActor
 private func call(
@@ -72,83 +63,6 @@ struct SupplyHugeNumberFix1011ReviewB1Tests {
 }
 
 // MARK: - mark_mastered says what a partial save kept
-
-@Suite("mark_mastered after a save part-way through (Fix1011ReviewB1)")
-@MainActor
-struct MasteryPartialSaveFix1011ReviewB1Tests {
-    /// Avital, presented two lessons: one that alone makes up a track she is
-    /// enrolled in, and one off any track.
-    private func seedLessons(in context: NSManagedObjectContext) throws -> (commutative: CDLesson, bells: CDLesson) {
-        let avital = CoreDataTestHelpers.seedStudent(in: context, firstName: "Avital", lastName: "Beyderman")
-        let avitalID = try #require(avital.id).uuidString
-        // A one-lesson track Avital is enrolled in: marking its lesson
-        // finishes the track, and the track check saves.
-        let commutative = CoreDataTestHelpers.seedLesson(
-            in: context, name: "The Commutative Law", area: "Math", sequence: "Laws"
-        )
-        let track = try SequenceTrackService.getOrCreateTrack(area: "Math", sequence: "Laws", context: context)
-        let enrollment = CDStudentTrackEnrollmentEntity(context: context)
-        enrollment.studentID = avitalID
-        enrollment.trackID = try #require(track.id).uuidString
-        enrollment.track = track
-        enrollment.isActive = true
-        let bells = CoreDataTestHelpers.seedLesson(in: context, name: "Bells", area: "Music", sequence: "Bells")
-        for lesson in [commutative, bells] {
-            let row = CDLessonPresentation(context: context)
-            row.studentID = avitalID
-            row.lessonID = try #require(lesson.id).uuidString
-            row.state = .presented
-            row.presentedAt = Date()
-        }
-        #expect(CoreDataTestHelpers.save(context))
-        return (commutative, bells)
-    }
-
-    @Test("When a finished track saves the first mark and the final save fails, the reply says what was kept")
-    func partialSaveIsReported() async throws {
-        let stack = try CoreDataTestHelpers.makeInMemoryStack()
-        let context = stack.viewContext
-        let tools = MCPNotebookTools.makeTools(context: { context })
-        let (commutative, bells) = try seedLessons(in: context)
-
-        // After that inner save, something leaves the context unsavable, so
-        // the batch's own save fails.
-        let saved = NotificationCenter.default.addObserver(
-            forName: NSManagedObjectContext.didSaveObjectsNotification, object: context, queue: nil
-        ) { _ in
-            MainActor.assumeIsolated { _ = unsavableRow(in: context) }
-        }
-        defer { NotificationCenter.default.removeObserver(saved) }
-
-        var message = ""
-        do {
-            _ = try await call("mark_mastered", [
-                "marks": .array([
-                    .object(["lesson": .string("The Commutative Law"), "student_names": .array([.string("Avital")])]),
-                    .object(["lesson": .string("Bells"), "student_names": .array([.string("Avital")])])
-                ])
-            ], in: tools)
-            Issue.record("Expected the batch's save to fail")
-        } catch let error as MCPToolError {
-            message = error.message
-        }
-
-        // What is on disk: the first mark and the finished track, not the second.
-        let disk = stack.container.newBackgroundContext()
-        let onDisk: [String: String] = disk.performAndWait {
-            Dictionary(uniqueKeysWithValues: disk.safeFetch(CDFetchRequest(CDLessonPresentation.self)).map {
-                ($0.lessonID, $0.state.rawValue)
-            })
-        }
-        #expect(onDisk[try #require(commutative.id).uuidString] == LessonPresentationState.proficient.rawValue)
-        #expect(onDisk[try #require(bells.id).uuidString] != LessonPresentationState.proficient.rawValue)
-
-        // The reply says so, rather than "nothing was marked".
-        #expect(!message.contains("nothing was marked"))
-        #expect(message.contains("The Commutative Law"))
-        #expect(message.contains("Bells"))
-    }
-}
 
 // MARK: - Notes filed or unflagged over MCP are announced
 

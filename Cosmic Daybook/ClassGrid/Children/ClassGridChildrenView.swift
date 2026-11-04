@@ -22,8 +22,11 @@ struct ClassGridChildrenView: View {
 
     /// What the view reloads on: presentations and work, the mastery marks
     /// "Mastered" is read from (`mark_mastered`, a checklist or synced mark),
-    /// and lessons (a rename, a lesson moved to another sequence).
-    static let reloadEntityNames: Set<String> = ["LessonAssignment", "WorkModel", "LessonPresentation", "Lesson"]
+    /// lessons (a rename, a lesson moved to another sequence), year-plan
+    /// entries (Planned) and work participants (shared project work).
+    static let reloadEntityNames: Set<String> = [
+        "LessonAssignment", "WorkModel", "LessonPresentation", "Lesson", "YearPlanEntry", "WorkParticipantEntity"
+    ]
 
     private var isRegular: Bool {
         #if os(macOS)

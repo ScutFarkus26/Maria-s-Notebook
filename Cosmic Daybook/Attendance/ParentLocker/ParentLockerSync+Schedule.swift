@@ -232,7 +232,10 @@ extension ParentLockerSync {
 
     // MARK: - Owed, kept across launches
 
+    /// Never from a stopped sync: the sync that took its place owns what's
+    /// owed (bug hunt 2026-11-03 #1).
     func saveOwed() {
+        guard !isStopped else { return }
         guard let owedDay else { return dependencies.unsent.save(nil) }
         dependencies.unsent.save(ParentLockerUnsent(
             day: AppCalendar.dayID(owedDay),
@@ -368,5 +371,18 @@ extension ParentLockerSync {
         return dependencies.makeTransport(site, cookies) { changed in
             try? secrets.saveCookies(changed, site: site)
         }
+    }
+
+    /// Waits up to `limit` for a run under way to end, so a stack rebuild
+    /// doesn't take the stores off under a send that has reached ParentLocker
+    /// but isn't recorded yet (bug hunt 2026-11-03 #1). Returns whether no
+    /// run is going. Bounded like the wait for the share attacher: a save
+    /// can hang on a poor network.
+    func waitForRun(upTo limit: Duration) async -> Bool {
+        let deadline = ContinuousClock.now + limit
+        while activeRun != nil, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        return activeRun == nil
     }
 }

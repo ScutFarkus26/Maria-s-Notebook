@@ -57,8 +57,16 @@ struct AddLessonView: View {
             addLessonHeader
             addLessonForm
         }
+        // A floor on the Mac, where the sheet sizes to fit; on iPhone and iPad
+        // an ordinary sheet whose form scrolls, so Add stays on screen. A
+        // fixed 520 x 720 left it off an iPhone's screen (bug hunt 2026-11-03, #17).
+        #if os(macOS)
         .padding(24)
-        .frame(width: 520, height: 720)
+        .frame(minWidth: 520, minHeight: 640)
+        #else
+        .padding(.horizontal)
+        .padding(.vertical, 20)
+        #endif
         .sheet(isPresented: $showingBulkEntry) {
             BulkLessonsEntryView(
                 defaultArea: area.trimmed().isEmpty ? defaultArea : area,
@@ -250,27 +258,6 @@ struct AddLessonView: View {
             lessonFormat: lessonFormat,
             parentStoryID: lessonFormat == .story ? parentStoryID?.uuidString : nil
         )
-
-        let areaTrimmed: String = newLesson.area.trimmed()
-        let groupTrimmed: String = newLesson.sequence.trimmed()
-        if !areaTrimmed.isEmpty && !groupTrimmed.isEmpty {
-            let isTrack: Bool = SequenceTrackService.isTrack(
-                area: areaTrimmed, sequence: groupTrimmed, context: viewContext
-            )
-            if isTrack {
-                do {
-                    _ = try SequenceTrackService.getOrCreateTrack(
-                        area: areaTrimmed,
-                        sequence: groupTrimmed,
-                        context: viewContext
-                    )
-                } catch {
-                    let trackMsg = "Failed to create/update CDTrackEntity " +
-                        "for \(areaTrimmed)/\(groupTrimmed): \(error)"
-                    Self.logger.warning("\(trackMsg, privacy: .public)")
-                }
-            }
-        }
         return newLesson
     }
 }

@@ -52,39 +52,4 @@ extension ImmediatePresentationRecordingService {
             context.delete(row)
         }
     }
-
-    static func enrollmentRows(
-        for studentIDs: Set<String>,
-        in context: NSManagedObjectContext
-    ) -> [CDStudentTrackEnrollmentEntity] {
-        guard !studentIDs.isEmpty else { return [] }
-        let request = CDFetchRequest(CDStudentTrackEnrollmentEntity.self)
-        return context.safeFetch(request).filter { studentIDs.contains($0.studentID) }
-    }
-
-    static func restoreExistingEnrollments(
-        _ token: UndoToken,
-        in context: NSManagedObjectContext
-    ) {
-        for state in token.existingEnrollmentStates {
-            guard let enrollment = context.existing(CDStudentTrackEnrollmentEntity.self, state.objectID),
-                  !enrollment.isDeleted else {
-                continue
-            }
-            state.restore(enrollment, in: context)
-        }
-    }
-
-    static func deleteEnrollmentsCreatedByRecord(
-        _ token: UndoToken,
-        in context: NSManagedObjectContext
-    ) {
-        for objectID in token.createdEnrollmentObjectIDs {
-            guard let enrollment = context.existing(CDStudentTrackEnrollmentEntity.self, objectID),
-                  !enrollment.isDeleted else {
-                continue
-            }
-            context.delete(enrollment)
-        }
-    }
 }

@@ -79,13 +79,21 @@ final class AssistantFilingHold {
     @ObservationIgnored private nonisolated(unsafe) var observer: (any NSObjectProtocol)?
 
     /// Why filing waits now, or nil.
-    var stopReason: String? { heldSince.isEmpty ? nil : Self.reason }
+    var stopReason: String? { isHeld ? Self.reason : nil }
 
     /// What filing waits for now, or nil.
     var wait: Wait? {
-        guard !heldSince.isEmpty else { return nil }
+        guard isHeld else { return nil }
         return mirroringDied ? .mirroringDied : .iCloudNotReady
     }
+
+    /// A store is held, or this stack's container can never share: its
+    /// setup failed for the account, or its delegate died. An import can
+    /// work on such a container while `share(_:to:)` never does, so filing
+    /// waits for the rebuilt stack, which brings a fresh hold. The first
+    /// import that worked used to lift it, and the waiting marks went into
+    /// that container (bug hunt 2026-11-03 #2).
+    private var isHeld: Bool { !heldSince.isEmpty || setupFailedForAccount || mirroringDied }
 
     deinit {
         if let observer { NotificationCenter.default.removeObserver(observer) }
@@ -111,7 +119,7 @@ final class AssistantFilingHold {
             guard event.type == .import || event.type == .export,
                   let since = heldSince[store], event.start > since else { return }
             heldSince[store] = nil
-            guard heldSince.isEmpty else { return }
+            guard !isHeld else { return }
             Self.logger.notice("The classroom share synced again: waiting marks go in")
             onLift?()
         } else if event.type == .setup || event.killedDelegate {

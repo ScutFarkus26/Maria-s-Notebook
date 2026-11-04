@@ -88,12 +88,13 @@ extension TodayView {
 
     // MARK: - CDReminder Actions
 
-    /// Toggles the completion status of a reminder
-    func toggleReminder(_ reminder: CDReminder) {
-        if reminder.isCompleted {
-            reminder.markIncomplete()
-        } else {
-            reminder.markCompleted()
+    /// Completes a reminder its row drew open, or reopens one drawn done
+    /// (`TodayReminderToggle`). When a sync had already made it so, nothing
+    /// changes and Today just redraws.
+    func toggleReminder(_ reminder: CDReminder, drawnCompleted: Bool) {
+        guard TodayReminderToggle.apply(to: reminder, drawnCompleted: drawnCompleted) else {
+            viewModel.reload()
+            return
         }
         // A failed save shows the "Couldn't Save" alert; EventKit isn't told
         // about a completion change that didn't persist.

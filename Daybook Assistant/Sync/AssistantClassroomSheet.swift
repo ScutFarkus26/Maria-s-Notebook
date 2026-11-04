@@ -17,7 +17,15 @@ struct AssistantClassroomSheet: View {
     @Environment(AssistantBootstrapper.self) private var bootstrapper
     @Environment(\.dismiss) private var dismiss
 
-    @State private var displayName = ClassroomIdentity.displayName
+    /// Where `ClassroomIdentity.displayName` is kept, watched so "Your name"
+    /// follows a name restored from iCloud, or cleared for another Apple
+    /// Account, while the sheet is up; it was copied once when the sheet was
+    /// made (hunt 2026-11-03 #34).
+    @AppStorage(UserDefaultsKeys.classroomIdentityDisplayName) var storedName: String?
+    /// The settings and membership the sheet shows, read when it opens and
+    /// after each change in the store (`followStore`). Nil until then, when
+    /// they're read as the sheet draws (`+Facts`).
+    @State var readFacts: AssistantClassroomFacts?
     @State private var showingNameSheet = false
     @State private var confirmingLeave = false
     /// Marks still on their way when she tapped Leave: asks Wait or Leave Anyway.
@@ -44,7 +52,7 @@ struct AssistantClassroomSheet: View {
                 keySection
                 orderSection
                 nameSection
-                if let sync = bootstrapper.parentLockerForScreens, sendsToParentLocker {
+                if let sync = bootstrapper.parentLockerForScreens, facts.sending.sendsToParentLocker {
                     AssistantParentLockerSection(sync: sync)
                 }
                 reminderSection
@@ -57,6 +65,9 @@ struct AssistantClassroomSheet: View {
                     leaveSection
                 }
             }
+            .task(id: bootstrapper.coreDataStack.map(ObjectIdentifier.init)) {
+                await followStore(in: bootstrapper.coreDataStack?.viewContext)
+            }
             .navigationTitle("Classroom")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -64,11 +75,9 @@ struct AssistantClassroomSheet: View {
                     Button("Done") { dismiss() }
                 }
             }
-            .sheet(
-                isPresented: $showingNameSheet,
-                onDismiss: { displayName = ClassroomIdentity.displayName },
-                content: { AssistantNameSheet() }
-            )
+            .sheet(isPresented: $showingNameSheet) {
+                AssistantNameSheet()
+            }
             .confirmationDialog(
                 "Leave this classroom?",
                 isPresented: $confirmingLeave,
@@ -100,6 +109,10 @@ struct AssistantClassroomSheet: View {
                 Text(unsent.message)
             }
         }
+        // The tabs hold their name sheet back meanwhile: it can't show over
+        // this one, and was never asked for again (hunt 2026-11-03 #34).
+        .onAppear { NotificationCenter.default.post(name: .assistantClassroomSheet, object: true) }
+        .onDisappear { NotificationCenter.default.post(name: .assistantClassroomSheet, object: false) }
     }
 
     // MARK: - Sections
@@ -108,10 +121,10 @@ struct AssistantClassroomSheet: View {
     private var classroomSection: some View {
         Section {
             LabeledContent("Guide", value: guideName)
-            if let joined {
+            if let joined = facts.joined {
                 LabeledContent("Joined", value: joined.formatted(date: .abbreviated, time: .omitted))
             }
-            if let classroomID {
+            if let classroomID = facts.classroomID {
                 // Folded away: only for telling the guide which class this is.
                 DisclosureGroup("Details") {
                     LabeledContent("Class code") {
@@ -122,7 +135,7 @@ struct AssistantClassroomSheet: View {
                 }
             }
         } footer: {
-            if classroomID != nil {
+            if facts.classroomID != nil {
                 Text("If something looks wrong, read the class code under Details to your guide. "
                     + "It tells them which class this iPhone is in.")
             }
@@ -191,8 +204,11 @@ struct AssistantClassroomSheet: View {
                     "Time", selection: ArrivalReminder.timeOfDay($reminderMinutes), displayedComponents: .hourAndMinute
                 )
             }
-            if let dueAt = frontDeskDueAt {
-                Toggle(sendsToParentLocker ? "ParentLocker reminder" : "Front desk email reminder", isOn: $frontDeskOn)
+            if let dueAt = facts.sending.dueAt {
+                Toggle(
+                    facts.sending.sendsToParentLocker ? "ParentLocker reminder" : "Front desk email reminder",
+                    isOn: $frontDeskOn
+                )
                 if frontDeskOn {
                     Picker("Remind me", selection: $frontDeskLead) {
                         ForEach(FrontDeskEmailReminder.leadChoices, id: \.self) { minutes in
@@ -231,9 +247,10 @@ struct AssistantClassroomSheet: View {
             let at = FrontDeskEmailReminder.timeString(reminderMinutes)
             lines.append("Arrival: a reminder at \(at) on school days, unless every child is marked.")
         }
-        if let dueAt = frontDeskDueAt {
+        let sending = facts.sending
+        if let dueAt = sending.dueAt {
             let nudge = " If no one has sent it, a reminder \(frontDeskLead) min before and at \(dueAt)."
-            let place = sendsToParentLocker ? "ParentLocker" : "Front desk"
+            let place = sending.sendsToParentLocker ? "ParentLocker" : "Front desk"
             lines.append("\(place): attendance is due by \(dueAt)." + (frontDeskOn ? nudge : ""))
         }
         if pickupOn {
@@ -243,21 +260,7 @@ struct AssistantClassroomSheet: View {
         return lines.isEmpty ? ["Turn on a reminder to get a nudge on school days."] : lines
     }
 
-    /// The guide's due time ("9:00 AM"), once the guide has set up the
-    /// front-desk email or picked ParentLocker in the notebook.
-    private var frontDeskDueAt: String? {
-        guard let context = bootstrapper.coreDataStack?.viewContext,
-              let settings = AttendanceEmailLog.settings(in: context), settings.canSendAttendance else { return nil }
-        return FrontDeskEmailReminder.timeString(settings.deadlineMinutes)
-    }
-
-    /// The guide picked ParentLocker as the way attendance goes.
-    private var sendsToParentLocker: Bool {
-        guard let context = bootstrapper.coreDataStack?.viewContext else { return false }
-        return AttendanceEmailLog.settings(in: context)?.sendMethod == .parentLocker
-    }
-
-    private var frontDeskIsSetUp: Bool { frontDeskDueAt != nil }
+    private var frontDeskIsSetUp: Bool { facts.sending.dueAt != nil }
 
     private func applyReminderSetting() async {
         // The sample class schedules nothing, so it doesn't ask either.
@@ -276,16 +279,8 @@ struct AssistantClassroomSheet: View {
 
     private var guideName: String { bootstrapper.guideNameToShow ?? "Your guide" }
 
-    private var joined: Date? {
-        guard let context = bootstrapper.coreDataStack?.viewContext else { return nil }
-        return CDClassroomMembership.current(in: context)?.joinedAt
-    }
-
-    /// The pinned share zone's short ID, e.g. "DB5879EF".
-    private var classroomID: String? {
-        guard let context = bootstrapper.coreDataStack?.viewContext,
-              let zone = CDClassroomMembership.pinnedZoneName(in: context) else { return nil }
-        return CDClassroomMembership.classroomID(forZone: zone)
+    private var facts: AssistantClassroomFacts {
+        readFacts ?? AssistantClassroomFacts(in: bootstrapper.coreDataStack?.viewContext)
     }
 }
 

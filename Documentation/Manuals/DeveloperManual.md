@@ -802,8 +802,6 @@ Manages work item state transitions and data integrity.
 | Method | Purpose |
 |--------|---------|
 | `safeFetch(_:using:)` | Returns empty array on error instead of throwing |
-| `fetchWorkModel(presentationID:)` | Single fetch with `fetchLimit = 1` |
-| `fetchAllWorkModels(presentationID:)` | Batch fetch by presentation |
 | `upsertLessonPresentation(...)` | Idempotent create-or-update |
 | `cleanOrphanedStudentIDs()` | Removes references to deleted students |
 

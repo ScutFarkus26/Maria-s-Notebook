@@ -90,19 +90,19 @@ extension ClassGridEngine {
         context: NSManagedObjectContext
     ) {
         let rowIDs = Set(rowLessons.compactMap { $0.id?.uuidString })
-        var precedingIDs = Set<String>()
+        var precedingLessons: [String: CDLesson] = [:]
         var rowPrecedingMap: [UUID: CDLesson] = [:]
         for lesson in rowLessons {
             guard let lessonID = lesson.id else { continue }
             if let preceding = precedingLessonMap[lessonID] {
                 rowPrecedingMap[lessonID] = preceding
-                if let precedingID = preceding.id { precedingIDs.insert(precedingID.uuidString) }
+                if let precedingID = preceding.id { precedingLessons[precedingID.uuidString] = preceding }
             }
         }
-        guard !rowIDs.isEmpty || !precedingIDs.isEmpty else { return }
+        guard !rowIDs.isEmpty || !precedingLessons.isEmpty else { return }
         let records = loadRecords(rowIDs: rowIDs, context: context)
         let readiness = PrecedingReadiness(
-            precedingIDs: precedingIDs, students: students, context: context
+            preceding: precedingLessons, students: students, context: context
         )
 
         // Pre-compute staleness threshold date once instead of per-cell
@@ -184,19 +184,27 @@ extension ClassGridEngine {
     /// (`BlockingAlgorithmEngine.readiness`), which the Inbox keeps for its drafts.
     ///
     /// Reads the predecessors' record for these children, and their work and recall
-    /// checks, once for the whole batch.
+    /// checks, once for the whole batch, and each predecessor's own progression
+    /// settings, so a lesson set not to require confirmation doesn't hold the next one
+    /// back, as in Presentations (bug hunt 2026-11-03 #5).
     @MainActor
     private struct PrecedingReadiness {
         let index: PresentationRecordIndex
         let record: PreviousLessonRecord
+        /// Each predecessor's rules, by lesson ID string.
+        let rules: [String: LessonProgressionRules.ResolvedRules]
 
-        init(precedingIDs: Set<String>, students: [CDStudent], context: NSManagedObjectContext) {
+        init(preceding: [String: CDLesson], students: [CDStudent], context: NSManagedObjectContext) {
+            let precedingIDs = Set(preceding.keys)
             let studentIDs = Set(students.compactMap { $0.id?.uuidString })
             guard !precedingIDs.isEmpty, !studentIDs.isEmpty else {
                 index = PresentationRecordIndex(rows: PresentationRecordIndex.RecordRows(), students: [])
                 record = PreviousLessonRecord(pairs: [], in: context)
+                rules = [:]
                 return
             }
+            let progression = ProgressionRulesLookup(context: context)
+            rules = preceding.mapValues { progression.rules(for: $0) }
             let index = PresentationRecordIndex(lessonIDs: precedingIDs, students: studentIDs, in: context)
             var pairs: [PreviousLessonRecord.Pair] = []
             for lessonID in precedingIDs {
@@ -217,7 +225,8 @@ extension ClassGridEngine {
                 return CellReadiness(blockingReason: .prerequisiteNotPresented, checkFirstReasons: [])
             }
             let verdict = ReadyForNextEngine.readiness(
-                of: record.status(student: student, lesson: precedingLessonID, given: given)
+                of: record.status(student: student, lesson: precedingLessonID, given: given),
+                rules: rules[precedingLessonID] ?? ReadyForNextEngine.bothGates
             )
             switch verdict.tier {
             case .notReady: return CellReadiness(blockingReason: .confirmationRequired, checkFirstReasons: [])

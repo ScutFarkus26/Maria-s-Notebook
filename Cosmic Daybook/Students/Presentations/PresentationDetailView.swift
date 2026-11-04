@@ -211,6 +211,12 @@ struct PresentationDetailContentView: View {
             }
             Button("Cancel", role: .cancel) {}
         }
+        // The sequence recap's Add work and status pills say when they fail.
+        .alert("Couldn't Update the Work", isPresented: recapActionAlertIsPresented) {
+            Button("OK") { vm.recapActionMessage = nil }
+        } message: {
+            Text(vm.recapActionMessage ?? PresentationDetailViewModel.recapWorkNotAddedMessage)
+        }
         .sheet(isPresented: $vm.showingAddStudentSheet) {
             AddStudentView()
         }
@@ -315,6 +321,13 @@ struct PresentationDetailContentView: View {
         Binding(
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
+        )
+    }
+
+    var recapActionAlertIsPresented: Binding<Bool> {
+        Binding(
+            get: { vm.recapActionMessage != nil },
+            set: { if !$0 { vm.recapActionMessage = nil } }
         )
     }
 

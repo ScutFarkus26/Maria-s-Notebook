@@ -99,8 +99,18 @@ extension ClassroomNames {
                       event.type == .import, event.succeeded, event.endDate != nil else { return }
                 let store = event.storeIdentifier
                 let started = event.startDate
+                #if ASSISTANT_APP
+                // Her class's name rows are all in the shared store: an import
+                // into her private store brings none to warm.
+                let container = note.object as? NSPersistentCloudKitContainer
+                let configuration = container?.persistentStoreCoordinator.persistentStores
+                    .first { $0.identifier == store }?.configurationName
+                let mayBringNames = configuration == CoreDataStack.sharedConfiguration
+                #else
+                let mayBringNames = true
+                #endif
                 MainActor.assumeIsolated {
-                    self?.noteImport(intoStoreWithIdentifier: store, startedAt: started)
+                    self?.noteImport(intoStoreWithIdentifier: store, startedAt: started, mayBringNames: mayBringNames)
                 }
             }
         }
@@ -117,12 +127,18 @@ extension ClassroomNames {
         /// hunt, #6). Now one is queued only for new name rows, and never a
         /// second while one waits to begin; it checks again when it begins,
         /// since a write's lookup may have placed them meanwhile.
-        func noteImport(intoStoreWithIdentifier storeIdentifier: String, startedAt start: Date) {
+        ///
+        /// `mayBringNames` false (an Assistant import into her private store)
+        /// skips the look at the name rows, a fetch on the main thread with
+        /// every import (bug hunt 2026-11-03 #15).
+        func noteImport(
+            intoStoreWithIdentifier storeIdentifier: String, startedAt start: Date, mayBringNames: Bool = true
+        ) {
             if importStarts[storeIdentifier].map({ start > $0 }) ?? true { importStarts[storeIdentifier] = start }
             let write = held.flatMap { ClassroomIdentity.currentUserRecordName == $0.recordName ? $0.write : nil }
             held = nil
             let context = zonesContext
-            let warms = !warmUpQueued && context.map(ClassroomNames.hasRowsWithoutZones(in:)) == true
+            let warms = mayBringNames && !warmUpQueued && context.map(ClassroomNames.hasRowsWithoutZones(in:)) == true
             guard write != nil || warms else { return }
             if warms { warmUpQueued = true }
             let earlier = importWork
