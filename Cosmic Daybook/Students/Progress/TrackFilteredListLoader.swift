@@ -1,13 +1,11 @@
 // TrackFilteredListLoader.swift
-// Scoped fetches for TrackFilteredListSheet. Replaces the former whole-table
-// fetches (every LessonAssignment, WorkModel, Note, and Lesson in the store)
-// that re-ran on each body evaluation of the sheet.
+// Scoped fetches for TrackFilteredListSheet: one child, one sequence's lessons.
 
 import Foundation
 import CoreData
 
-/// Payload for `TrackFilteredListView`, fetched scoped to one enrollment + track.
-/// Only the arrays the requested `TrackFilterType` reads are populated.
+/// Payload for `TrackFilteredListView`, fetched scoped to one child and one
+/// sequence. Only the arrays the requested `TrackFilterType` reads are populated.
 struct TrackFilteredListData {
     let lessonAssignments: [CDLessonAssignment]
     let workModels: [CDWorkModel]
@@ -17,25 +15,29 @@ struct TrackFilteredListData {
 
 enum TrackFilteredListLoader {
 
+    /// The same rules as the card's counts (`SequenceActivityFetches`), so
+    /// the sheet lists what the badge counted.
     static func load(
-        enrollment: CDStudentTrackEnrollmentEntity,
-        track: CDTrackEntity,
+        studentID: String,
+        standing: SequenceStanding,
         filterType: TrackFilterType,
         context: NSManagedObjectContext
     ) -> TrackFilteredListData {
+        let lessonIDs = standing.lessons.compactMap { $0.id?.uuidString }
         switch filterType {
         case .presentations:
-            let assignments = fetchAssignments(track: track, enrollment: enrollment, context: context)
             return TrackFilteredListData(
-                lessonAssignments: assignments,
+                lessonAssignments: SequenceActivityFetches.presentedAssignments(
+                    studentID: studentID, lessonIDs: lessonIDs, in: context
+                ),
                 workModels: [],
                 notes: [],
-                lessons: fetchLessons(for: assignments, context: context)
+                lessons: standing.lessons
             )
         case .work:
             return TrackFilteredListData(
                 lessonAssignments: [],
-                workModels: fetchWork(track: track, enrollment: enrollment, context: context),
+                workModels: SequenceActivityFetches.work(studentID: studentID, lessonIDs: lessonIDs, in: context),
                 notes: [],
                 lessons: []
             )
@@ -43,68 +45,9 @@ enum TrackFilteredListLoader {
             return TrackFilteredListData(
                 lessonAssignments: [],
                 workModels: [],
-                notes: fetchNotes(enrollment: enrollment, context: context),
+                notes: SequenceActivityFetches.notes(studentID: studentID, lessonIDs: lessonIDs, in: context),
                 lessons: []
             )
         }
-    }
-
-    // MARK: - Per-section fetches
-
-    private static func fetchAssignments(
-        track: CDTrackEntity,
-        enrollment: CDStudentTrackEnrollmentEntity,
-        context: NSManagedObjectContext
-    ) -> [CDLessonAssignment] {
-        let request = CDFetchRequest(CDLessonAssignment.self)
-        request.predicate = NSPredicate(
-            format: "trackID == %@ AND stateRaw == %@",
-            track.id?.uuidString ?? "",
-            LessonAssignmentState.presented.rawValue
-        )
-        request.sortDescriptors = [NSSortDescriptor(key: "presentedAt", ascending: false)]
-        // studentIDs is JSON-encoded Data, so membership is filtered in memory
-        // over the already track-scoped result set.
-        return context.safeFetch(request)
-            .filter { $0.studentIDs.contains(enrollment.studentID) }
-    }
-
-    private static func fetchLessons(
-        for assignments: [CDLessonAssignment],
-        context: NSManagedObjectContext
-    ) -> [CDLesson] {
-        let lessonIDs = assignments.compactMap { UUID(uuidString: $0.lessonID) }
-        guard !lessonIDs.isEmpty else { return [] }
-        let request = CDFetchRequest(CDLesson.self)
-        request.predicate = NSPredicate(format: "id IN %@", lessonIDs)
-        return context.safeFetch(request)
-    }
-
-    private static func fetchWork(
-        track: CDTrackEntity,
-        enrollment: CDStudentTrackEnrollmentEntity,
-        context: NSManagedObjectContext
-    ) -> [CDWorkModel] {
-        let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(
-            format: "trackID == %@ AND studentID == %@",
-            track.id?.uuidString ?? "",
-            enrollment.studentID
-        )
-        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
-        return context.safeFetch(request)
-    }
-
-    private static func fetchNotes(
-        enrollment: CDStudentTrackEnrollmentEntity,
-        context: NSManagedObjectContext
-    ) -> [CDNote] {
-        let request = CDFetchRequest(CDNote.self)
-        request.predicate = NSPredicate(
-            format: "studentTrackEnrollmentID == %@",
-            enrollment.id?.uuidString ?? ""
-        )
-        request.sortDescriptors = [NSSortDescriptor(key: "updatedAt", ascending: false)]
-        return context.safeFetch(request)
     }
 }

@@ -217,14 +217,11 @@ extension MCPNotebookTools {
         lesson: CDLesson, assessedAt: Date, marked: [CDStudent],
         alreadyMastered: [(CDStudent, Date?)], in modelContext: NSManagedObjectContext
     ) -> String {
-        let track = try? SequenceTrackService.cdGetTrack(
-            area: lesson.area, sequence: lesson.sequence, context: modelContext
-        )
         var lines: [String] = []
         if !marked.isEmpty {
             lines.append("Marked mastered on \(dayString(assessedAt)): \(describeLesson(lesson))")
             for student in marked {
-                lines.append("- \(student.fullName)\(trackProgressSuffix(track, for: student, in: modelContext))")
+                lines.append("- \(student.fullName)\(standingSuffix(on: lesson, for: student, in: modelContext))")
             }
         }
         if !alreadyMastered.isEmpty {
@@ -236,19 +233,18 @@ extension MCPNotebookTools {
         return lines.joined(separator: "\n")
     }
 
-    /// The child's standing on the lesson's track after the mark, so the
-    /// guide sees the step advance in the same reply.
-    private static func trackProgressSuffix(
-        _ track: CDTrackEntity?, for student: CDStudent, in modelContext: NSManagedObjectContext
+    /// The child's standing on the lesson's sequence after the mark, so the
+    /// guide sees her move along it in the same reply.
+    private static func standingSuffix(
+        on lesson: CDLesson, for student: CDStudent, in modelContext: NSManagedObjectContext
     ) -> String {
-        guard let track, let studentID = student.id?.uuidString else { return "" }
-        let total = TrackProgressResolver.totalSteps(track: track)
-        guard total > 0 else { return "" }
-        let presentations = modelContext.safeFetch(CDFetchRequest(CDLessonPresentation.self))
-            .filter { $0.studentID == studentID }
-        let done = TrackProgressResolver.proficientCount(
-            track: track, studentID: studentID, lessonPresentations: presentations
+        let area = lesson.area.trimmed()
+        let sequence = lesson.sequence.trimmed()
+        guard !area.isEmpty, !sequence.isEmpty, let studentID = student.id?.uuidString else { return "" }
+        let standing = SequenceStandingLoader.standing(
+            forStudentID: studentID, area: area, sequence: sequence, in: modelContext
         )
-        return " — \(track.title): \(done)/\(total) steps mastered"
+        guard standing.total > 0 else { return "" }
+        return " — \(standing.title): \(standing.masteredCount)/\(standing.total) lessons mastered"
     }
 }

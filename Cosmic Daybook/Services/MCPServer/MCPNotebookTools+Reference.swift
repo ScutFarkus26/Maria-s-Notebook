@@ -3,13 +3,12 @@
 //  Cosmic Daybook
 //
 //  The material a guide consults rather than edits day to day: written
-//  procedures, the story shelf, and where each child stands on their sequence
-//  tracks. Community topics moved to their own file when they gained a writer.
+//  procedures, the story shelf, and where each child stands on her lesson
+//  sequences. Community topics moved to their own file when they gained a writer.
 //
-//  Track progress goes through TrackProgressResolver, the same helper the
-//  progression screens use, so "mastered" means the same thing everywhere, and
-//  enrollments fold by track title the way StudentHistoryTab folds them — the
-//  store still holds twin track definitions from a migration that ran twice.
+//  A child's standing on a sequence comes from SequenceStandingLoader, the
+//  same reader the student page uses, so "mastered" and "next" mean the same
+//  thing everywhere (2026-11-03; it used to read track enrollments).
 //
 
 import CoreData
@@ -162,14 +161,14 @@ extension MCPNotebookTools {
         return false
     }
 
-    // MARK: - Track Progress
+    // MARK: - Sequence Standing
 
     static func studentTracksTool(context: @escaping MCPContextProvider) -> MCPToolDefinition {
         MCPToolDefinition(
             name: "student_tracks",
-            title: "Student Track Progress",
-            description: "Where a student stands on the sequence tracks they are enrolled in: "
-                + "how many steps they have mastered and which step is next.",
+            title: "Student Sequence Standing",
+            description: "Where a student stands on the lesson sequences she has started: "
+                + "how many lessons she has mastered and which lesson is next.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -179,7 +178,7 @@ extension MCPNotebookTools {
                     ],
                     "include_inactive": [
                         "type": "boolean",
-                        "description": "Also include tracks they have finished or left (default false)"
+                        "description": "Also include sequences she has finished (default false)"
                     ]
                 ],
                 "required": ["student_name"]
@@ -190,136 +189,39 @@ extension MCPNotebookTools {
                 let student = try resolveStudentReference(
                     requireString(arguments, "student_name"), in: modelContext
                 )
-                let includeInactive = arguments["include_inactive"]?.boolValue ?? false
-                return describeTracks(
-                    for: student, includeInactive: includeInactive, in: modelContext
+                let includeFinished = arguments["include_inactive"]?.boolValue ?? false
+                return describeStandings(
+                    for: student, includeFinished: includeFinished, in: modelContext
                 )
             }
         )
     }
 
-    private static func describeTracks(
-        for student: CDStudent, includeInactive: Bool, in modelContext: NSManagedObjectContext
+    /// One line per sequence the child has started, from her presentation
+    /// record (`SequenceStandingLoader`): the ones in progress, and with
+    /// `includeFinished` the ones she has mastered every lesson of.
+    private static func describeStandings(
+        for student: CDStudent, includeFinished: Bool, in modelContext: NSManagedObjectContext
     ) -> String {
         guard let studentID = student.id else {
             return "That student record has no identifier."
         }
-        let key: String = studentID.uuidString
-
-        let enrollments: [CDStudentTrackEnrollmentEntity] = modelContext
-            .safeFetch(CDFetchRequest(CDStudentTrackEnrollmentEntity.self))
-            .filter { $0.studentID == key }
-            .filter { includeInactive || $0.isActive }
-        guard !enrollments.isEmpty else {
-            return "\(student.fullName) is not enrolled in any tracks."
-        }
-
-        let presentations: [CDLessonPresentation] = modelContext
-            .safeFetch(CDFetchRequest(CDLessonPresentation.self))
-            .filter { $0.studentID == key }
-
-        let standings: [TrackStanding] = foldedStandings(
-            for: enrollments, studentKey: key, presentations: presentations, in: modelContext
-        )
+        let standings = SequenceStandingLoader.standings(forStudentID: studentID.uuidString, in: modelContext)
+            .filter { $0.isInProgress || (includeFinished && $0.isFinished) }
         guard !standings.isEmpty else {
-            return "\(student.fullName)'s track enrollments have no tracks attached."
+            return "\(student.fullName) has not started any lesson sequences."
         }
-        let lines: [String] = standings.map { trackLine($0, in: modelContext) }
-        return (["\(student.fullName)'s tracks:"] + lines).joined(separator: "\n")
+        let lines: [String] = standings.map(standingLine)
+        return (["\(student.fullName)'s sequences:"] + lines).joined(separator: "\n")
     }
 
-    /// Where one enrollment leaves a child on one track.
-    ///
-    /// The store holds duplicate track definitions — a migration that ran twice
-    /// left twin rows under the same title, and some twins kept none of the
-    /// steps. A child enrolled on both twins used to get two lines for one
-    /// track, so the standings are folded by title the way the history tab
-    /// folds its enrollments (`StudentHistoryTab.finishedEnrollments`).
-    private struct TrackStanding {
-        let track: CDTrackEntity
-        let total: Int
-        let done: Int
-        let next: CDTrackStep?
-        let isActive: Bool
-
-        /// The fuller record of a title wins: more steps mastered, then more
-        /// steps defined, then a live enrollment over a finished one.
-        func outranks(_ other: TrackStanding) -> Bool {
-            if done != other.done { return done > other.done }
-            if total != other.total { return total > other.total }
-            return isActive && !other.isActive
-        }
-    }
-
-    /// One standing per folded title, in the order the titles first appear.
-    /// Stepless shells are dropped outright: "0/0 steps mastered" is a duplicate
-    /// definition showing through, not a fact about the child.
-    private static func foldedStandings(
-        for enrollments: [CDStudentTrackEnrollmentEntity], studentKey: String,
-        presentations: [CDLessonPresentation], in modelContext: NSManagedObjectContext
-    ) -> [TrackStanding] {
-        var best: [String: TrackStanding] = [:]
-        var order: [String] = []
-        for enrollment in enrollments {
-            guard let track = resolveTrack(for: enrollment, in: modelContext) else { continue }
-            let total: Int = TrackProgressResolver.totalSteps(track: track)
-            guard total > 0 else { continue }
-            let standing = TrackStanding(
-                track: track,
-                total: total,
-                done: TrackProgressResolver.proficientCount(
-                    track: track, studentID: studentKey, lessonPresentations: presentations
-                ),
-                next: TrackProgressResolver.currentStep(
-                    track: track, studentID: studentKey, lessonPresentations: presentations
-                ),
-                isActive: enrollment.isActive
-            )
-            let folded: String = track.title.folded()
-            guard let existing = best[folded] else {
-                best[folded] = standing
-                order.append(folded)
-                continue
-            }
-            if standing.outranks(existing) { best[folded] = standing }
-        }
-        return order.compactMap { best[$0] }
-    }
-
-    /// An enrollment carries both a `track` relationship and a `trackID` string,
-    /// and the relationship can arrive empty while the id is sound. Fall back to
-    /// the id before dropping the row, or a real enrolment goes missing.
-    private static func resolveTrack(
-        for enrollment: CDStudentTrackEnrollmentEntity, in modelContext: NSManagedObjectContext
-    ) -> CDTrackEntity? {
-        if let track = enrollment.track { return track }
-        guard let trackID = UUID(uuidString: enrollment.trackID.trimmed()) else { return nil }
-        return modelContext.object(CDTrackEntity.self, id: trackID)
-    }
-
-    private static func trackLine(
-        _ standing: TrackStanding, in modelContext: NSManagedObjectContext
-    ) -> String {
-        let id: String = standing.track.id?.uuidString ?? "unknown"
-        var details: [String] = ["\(standing.done)/\(standing.total) steps mastered"]
-        if let next = standing.next,
-           let lessonName = lessonName(forTemplateID: next.lessonTemplateID, in: modelContext) {
-            details.append("next: \(lessonName)")
-        } else if standing.next == nil {
+    private static func standingLine(_ standing: SequenceStanding) -> String {
+        var details: [String] = ["\(standing.masteredCount)/\(standing.total) lessons mastered"]
+        if standing.isFinished {
             details.append("complete")
+        } else if let next = standing.nextLesson {
+            details.append("next: \(next.name)")
         }
-        if !standing.isActive {
-            details.append("no longer active")
-        }
-        return "- [track id=\(id)] \(standing.track.title) (\(details.joined(separator: "; ")))"
-    }
-
-    /// A track step points at a lesson template by id; naming it makes the
-    /// "next step" line readable instead of printing a bare uuid.
-    private static func lessonName(
-        forTemplateID templateID: UUID?, in modelContext: NSManagedObjectContext
-    ) -> String? {
-        guard let templateID else { return nil }
-        return modelContext.object(CDLesson.self, id: templateID)?.name
+        return "- [sequence: \(standing.title)] \(details.joined(separator: "; "))"
     }
 }

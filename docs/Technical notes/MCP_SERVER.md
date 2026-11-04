@@ -272,7 +272,7 @@ ambiguity errors:
 | **Reference & progression** | |
 | `list_procedures` | `CDProcedure`; a single match returns its full text |
 | `list_stories` | `CDStory` metadata (the PDFs themselves are not returned) |
-| `student_tracks` | `TrackProgressResolver` over the student's `CDStudentTrackEnrollmentEntity`s |
+| `student_tracks` | `SequenceStandingLoader` over the student's presentation rows: one line per lesson sequence she has started |
 | `student_curriculum_map` | `CurriculumMapLoader.snapshot` + `CurriculumMapEngine.cells(for:)` — the Three-Year View's cells for one child: Great Lessons, then every area with each key lesson's state (not presented / presented / chosen / repeated / mastered), dates, latest recall outcome, and the untouched-area list from `CurriculumMapSettings`. Sub-areas in the album's saved order; Year N counts school years from the configured start; a child's own copy of linked work counts, not a classmate's |
 | `class_curriculum_map` | the same engine over every enrolled child, for one lesson (or the best state across one area), grouped by state and ordered by enrollment year — the names to hand to `schedule_presentation`. An exact area name is tried before a lesson name; Year N and linked copies as in `student_curriculum_map` |
 
@@ -592,7 +592,7 @@ can be lost.
   same-day idempotency, observation linking and dating), and its refusals.
 - `Cosmic Daybook Tests/Services/MCPServer/MCPMasteryToolsTests.swift`
   — `mark_mastered`: an MCP mark and a checklist mark read identically to
-  `TrackProgressResolver`, the row is mutated rather than duplicated, the
+  `SequenceStandingLoader`, the row is mutated rather than duplicated, the
   refusal for a child with no presentation on record writes nothing, and
   today-default versus back-dated assessment.
 - `Cosmic Daybook Tests/Services/MCPServer/MCPMasteryBatchToolTests.swift`

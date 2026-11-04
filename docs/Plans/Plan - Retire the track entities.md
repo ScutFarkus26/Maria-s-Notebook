@@ -1,6 +1,6 @@
 # Retire the track entities
 
-> **Working on it.** Phase 1 begun 2026-11-03. Written 2026-11-03 after a look at the two generations, before any new schema work (session on branch `claude/track-schema-generations-b064c1`).
+> **Working on it.** Phases 1 and 2 done 2026-11-04; roll-out A, then Phase 3, remain. Written 2026-11-03 after a look at the two generations, before any new schema work (session on branch `claude/track-schema-generations-b064c1`).
 > In short: Track, TrackStep, SequenceTrack and StudentTrackEnrollment are an older, stored copy of what the lesson sequences, the Year Plan and LessonSequenceSettings now carry; stop writing them, show the same cards from the presentation record, then drop the four entities and the trackID columns.
 
 ## Why
@@ -88,12 +88,14 @@ Size: about 4,100 lines in the generation's own files, before the call sites.
 2. **Do you write notes on a track card?** If so, should the note keep the sequence's name (a `sequenceKey` on Note), or is a note on the child enough?
 3. **Should Current Learning keep one card per strand, or shrink to the next lessons only?** The plan keeps the cards, smaller.
 
+Answered 2026-11-04 by Danny approving the plan's defaults without changes: (1) the switch just goes, no hide flag; (2) a note stays on the child, no `sequenceKey`; (3) Current Learning keeps one card per sequence, built from the presentation record.
+
 Not checked from here: how many enrollments and enrollment-linked notes the live store holds (the container is TCC-blocked); the stats dashboard in Settings shows both counts.
 
 ## Progress
 
 - [x] Phase 1 — Stop writing (2026-11-03, on branch `claude/track-schema-generations-b064c1`; 4,618 tests pass)
-- [ ] Phase 2 — Derived cards
+- [x] Phase 2 — Derived cards (2026-11-04, same branch; 4,624 tests in 758 suites pass)
 - [ ] Roll-out A on every device
 - [ ] Phase 3 — Drop the schema
 - [ ] Roll-out B

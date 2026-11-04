@@ -19,14 +19,13 @@ struct MCPMasteryBatchToolTests {
         try #require(tools.first { $0.name == name })
     }
 
-    /// Two girls and a two-step track, each girl with a presented-but-unmarked
-    /// row on both steps, so one batch has two lessons to mark.
+    /// Two girls and a two-lesson sequence, each girl with a presented-but-unmarked
+    /// row on both lessons, so one batch has two lessons to mark.
     private struct Classroom {
         let avital: CDStudent
         let etty: CDStudent
         let commutative: CDLesson
         let distributive: CDLesson
-        let track: CDTrackEntity
     }
 
     private func seedClassroom(in context: NSManagedObjectContext) throws -> Classroom {
@@ -42,9 +41,6 @@ struct MCPMasteryBatchToolTests {
             in: context, name: "The Distributive Law of Multiplication", area: "Math", sequence: "Laws"
         )
         distributive.orderInSequence = 1
-        let track = CoreDataTestHelpers.seedTrack(
-            in: context, area: "Math", sequence: "Laws", lessons: [commutative, distributive]
-        )
 
         for student in [avital, etty] {
             for (lesson, presented) in [(commutative, "2026-03-11"), (distributive, "2026-04-02")] {
@@ -56,9 +52,7 @@ struct MCPMasteryBatchToolTests {
             }
         }
         #expect(CoreDataTestHelpers.save(context))
-        return Classroom(
-            avital: avital, etty: etty, commutative: commutative, distributive: distributive, track: track
-        )
+        return Classroom(avital: avital, etty: etty, commutative: commutative, distributive: distributive)
     }
 
     private func row(
@@ -106,7 +100,7 @@ struct MCPMasteryBatchToolTests {
         }
         #expect(output.contains("Marked mastered on 2026-09-09: [lesson id="))
         #expect(output.contains("Marked mastered on 2026-09-10: [lesson id="))
-        #expect(output.contains("- Etty Krinsky — Math — Laws: 2/2 steps mastered"))
+        #expect(output.contains("- Etty Krinsky — Math — Laws: 2/2 lessons mastered"))
     }
 
     // MARK: - Refusals

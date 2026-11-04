@@ -31,11 +31,10 @@ struct SettingsStatsViewModelTests {
         _ = CDLessonPresentation(context: context)
         _ = CDLessonPresentation(context: context)
 
-        // Planning: 2 to-dos (1 done), 1 track enrollment, 1 going-out.
+        // Planning: 2 to-dos (1 done), 1 going-out.
         _ = CDTodoItem(context: context)
         let done = CDTodoItem(context: context)
         done.isCompleted = true
-        _ = CDStudentTrackEnrollmentEntity(context: context)
         _ = CDGoingOut(context: context)
 
         // Classroom: 1 order, 2 supply history rows.
@@ -60,7 +59,7 @@ struct SettingsStatsViewModelTests {
         #expect(stats.count(of: .todos) == 2)
         #expect(stats.todoCompletedCount == 1)
         #expect(stats.detail(for: .todos) == "1 done")
-        #expect(stats.total(of: .planning) == 2 + 1 + 1)
+        #expect(stats.total(of: .planning) == 2 + 1)
 
         #expect(stats.count(of: .orders) == 1)
         #expect(stats.count(of: .supplyHistory) == 2)
@@ -71,7 +70,7 @@ struct SettingsStatsViewModelTests {
 
         let sectionSum = NotebookRecordSection.allCases.reduce(0) { $0 + stats.total(of: $1) }
         #expect(stats.totalRecordsCount == sectionSum)
-        #expect(stats.totalRecordsCount == 8 + 4 + 3 + 4)
+        #expect(stats.totalRecordsCount == 8 + 3 + 3 + 4)
     }
 
     @Test("Loading again counts again: there is no cache to go stale")
