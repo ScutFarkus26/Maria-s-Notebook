@@ -1,6 +1,6 @@
 # Daybook Assistant bugs and efficiency 2026-11-03 fixes
 
-> **Working on it.** Written 2026-11-03 from the read-only hunt in <../Reviews/Daybook Assistant bugs and efficiency 2026-11-03.md> (30 findings plus five groups of smaller ones, over main 19cfecc1). Danny approved fixing all of them ("Yes, fix them").
+> **Done 2026-11-04** (9038f7525). Written 2026-11-03 from the read-only hunt in <../Reviews/Daybook Assistant bugs and efficiency 2026-11-03.md> (30 findings plus five groups of smaller ones, over main 19cfecc1). Danny approved fixing all of them ("Yes, fix them").
 > In short: fix every finding without changing what the Assistant does or how it looks, with five fix agents in their own worktrees, each owning its files, then merge, build the Assistant and the notebook, run the whole Assistant suite once, and land it.
 
 Finding numbers (#n) are the report's.
@@ -12,7 +12,7 @@ Every finding in the report is fixed, the "Smaller" items included, except the o
 ## Progress
 - [x] Phase 1: Five fix agents in worktrees (Gr grid, Sy sync, FD front desk and ParentLocker, SR Siri/Restock/Schedule, Sh shell), each building the `Daybook Assistant` scheme (and `Cosmic Daybook` when it touched a shared file) and running its own `-only-testing:` suites. Each ran twice: the first run could only write a patch (see Decided during the run), the second applied, built, tested and committed it. Gr 170 tests / 21 suites; Sy 85 / 10; FD Assistant 101 / 14 and notebook 125 / 16; SR 110 / 13; Sh 51 / 8; all passing, every notebook iOS and Mac build clean. Every fix except #15's target-membership item and #31's `currentAuthor()` landed; #6's extra loads in `AssistantFrontDeskMail.reminderActionAfterCatchUp` and the store's second per-mutation lock check (#23) stayed as they were.
 - [x] Phase 2: Merge the five branches here, read the combined diff, build both apps, run the whole Assistant suite once. Merged with no conflicts (86 files); every agent's diff read; the Assistant builds clean and its whole suite passes, **585 tests in 84 suites**; the notebook builds clean for iOS and Mac and its whole iOS suite passes, **4,624 tests in 758 suites**. One cleanup of the main session's own: three `await`s on the now-plain container read dropped (047fd7604), compiled into the Mac build; the Assistant and notebook iOS test products were built just before it, a warning-only difference.
-- [ ] Phase 3: Mark the report fixed, land on main, memory
+- [x] Phase 3: Mark the report fixed, land on main, memory. Main had moved meanwhile (the track-entity retirement, notebook-only, no overlapping files); merged in, all three builds and both whole suites run again on the combined tree with the same results, then squashed to main as 9038f7525 (unsquashed history on `claude/daybook-bugs-efficiency-cc9513`) and pushed. The five agent worktrees were removed.
 
 ## File ownership
 
