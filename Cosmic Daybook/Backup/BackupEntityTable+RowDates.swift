@@ -55,10 +55,20 @@ nonisolated extension BookClubPacketDTO: BackupRowDTO { var rowModifiedAt: Date?
 nonisolated extension AlbumHighlightDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
 nonisolated extension AlbumPageInkDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
 
-/// A `ModelRow`'s `modifiedAt`, when its entity has one and the row holds it.
+/// A `ModelRow`'s change date (`modifiedAt`, or `updatedAt` for the types
+/// `BackupMergeRule.updatedAtEntityNames` names) and, for a type a Merge
+/// judges by when it was done, its done date while it is done.
 nonisolated extension ModelRow {
     var rowModifiedAt: Date? {
-        if case .date(let date)? = values["modifiedAt"] { date } else { nil }
+        let key = BackupMergeRule.updatedAtEntityNames.contains(Kind.spec.entityName) ? "updatedAt" : "modifiedAt"
+        return if case .date(let date)? = values[key] { date } else { nil }
+    }
+
+    var rowCompletedAt: Date? {
+        guard BackupMergeRule.completionEntityNames.contains(Kind.spec.entityName),
+              case .bool(true)? = values[BackupMergeRule.doneFlag],
+              case .date(let date)? = values["completedAt"] else { return nil }
+        return date
     }
 }
 
