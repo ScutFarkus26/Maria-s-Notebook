@@ -8,10 +8,9 @@ import OSLog
 /// testability and separation of concerns.
 ///
 /// Transformers are organized into domain-specific extensions:
-/// - `BackupDTOTransformers+V18Entities.swift` — CDDayPad, CDYearPlanEntry,
-///   CDLessonSequenceSettings, CDStory, Book Club entities
-/// - `BackupDTOTransformers+Misc.swift` — Todo, CDTrackEntity, CDSupply,
-///   CDSchedule, CDIssue, CDProcedure, CDDocument, and remaining types
+/// - `BackupDTOTransformers+Misc.swift` — Todo, CDScheduleSlot, CDIssue,
+///   development snapshots, and remaining types
+/// - `BackupDTOTransformers+Albums.swift` — album highlights and ink
 ///
 /// The types backed up through `ModelRow` (ModelRowKinds*.swift) are exported
 /// by their specs, not here. Duplicating them here caused silent field loss in

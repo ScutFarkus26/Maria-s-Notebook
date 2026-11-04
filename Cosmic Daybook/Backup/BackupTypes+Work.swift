@@ -22,22 +22,3 @@ nonisolated public struct PlanningRecommendationDTO: Codable, Sendable {
     public var outcomeRecordedAt: Date?
     public var presentationID: String?
 }
-
-// MARK: - CDResource DTO
-
-nonisolated public struct ResourceDTO: Codable, Sendable {
-    public var id: UUID
-    public var title: String
-    public var descriptionText: String
-    public var categoryRaw: String
-    public var fileRelativePath: String
-    public var fileSizeBytes: Int64
-    public var tags: [String]
-    public var isFavorite: Bool
-    public var lastViewedAt: Date?
-    public var linkedLessonIDs: String
-    public var linkedAreas: String
-    public var createdAt: Date
-    public var modifiedAt: Date
-    // CDNote: fileBookmark and thumbnailData are @externalStorage and excluded from backups by design
-}

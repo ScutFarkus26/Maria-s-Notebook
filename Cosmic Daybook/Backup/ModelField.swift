@@ -74,6 +74,9 @@ nonisolated public struct ModelField: Sendable {
     var dropsRecordWhenMissing = false
     /// What a row without it reads as (the old lenient decoders' "" and 0).
     var defaultWhenMissing: ModelValue?
+    /// A row without it reads as the moment it is read: the old lenient
+    /// decoders' `?? Date()`, which a fixed `defaultWhenMissing` can't say.
+    var nowWhenMissing = false
     /// The only strings a row may hold under it; any other fails the decode,
     /// as the old enum-typed field did.
     var allowedStrings: Set<String>?

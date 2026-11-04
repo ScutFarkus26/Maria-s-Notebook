@@ -100,17 +100,15 @@ extension BackupRestoreRun {
         }
 
         if let stories = try rows(\.stories) {
-            try BackupEntityImporter.importStories(
-                stories,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                stories, as: CDStory.self, into: viewContext,
                 existing: { try index.existing(CDStory.self, id: $0) }
             )
         }
 
         if let packets = try rows(\.bookClubPackets) {
-            try BackupEntityImporter.importBookClubPackets(
-                packets,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                packets, as: CDBookClubPacket.self, into: viewContext,
                 existing: { try index.existing(CDBookClubPacket.self, id: $0) }
             )
         }

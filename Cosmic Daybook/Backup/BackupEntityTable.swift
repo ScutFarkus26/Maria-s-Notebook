@@ -261,16 +261,16 @@ nonisolated enum BackupEntityTable {
             "StudentTrackEnrollment", CDStudentTrackEnrollmentEntity.self, \.studentTrackEnrollments,
             StudentTrackEnrollmentDTO.rows
         ),
-        .optional("SequenceTrack", CDSequenceTrack.self, \.sequenceTracks, BackupDTOTransformers.toDTOs)
+        .optional("SequenceTrack", CDSequenceTrack.self, \.sequenceTracks, SequenceTrackDTO.rows)
     ]
 
     private static let organizationEntities: [BackupEntity] = [
         .optional(
-            "Document", CDDocument.self, \.documents, BackupDTOTransformers.toDTOs,
+            "Document", CDDocument.self, \.documents, DocumentDTO.rows,
             announcing: .init(0.65, "Collecting supplies, schedules & issues\u{2026}")
         ),
-        .optional("Supply", CDSupply.self, \.supplies, BackupDTOTransformers.toDTOs),
-        .optional("Procedure", CDProcedure.self, \.procedures, BackupDTOTransformers.toDTOs),
+        .optional("Supply", CDSupply.self, \.supplies, SupplyDTO.rows),
+        .optional("Procedure", CDProcedure.self, \.procedures, ProcedureDTO.rows),
         .optional("Schedule", CDSchedule.self, \.schedules, ScheduleDTO.rows),
         .optional("ScheduleSlot", CDScheduleSlot.self, \.scheduleSlots, BackupDTOTransformers.toDTOs),
         .optional("Issue", CDIssue.self, \.issues, BackupDTOTransformers.toDTOs),
@@ -287,7 +287,7 @@ nonisolated enum BackupEntityTable {
             BackupDTOTransformers.toDTOs,
             announcing: .init(0.80, "Collecting recommendations & resources\u{2026}")
         ),
-        .optional("Resource", CDResource.self, \.resources, BackupDTOTransformers.toDTOs),
+        .optional("Resource", CDResource.self, \.resources, ResourceDTO.rows),
         .optional("NoteStudentLink", CDNoteStudentLink.self, \.noteStudentLinks, NoteStudentLinkDTO.rows),
         .optional(
             "GoingOut", CDGoingOut.self, \.goingOuts, GoingOutDTO.rows,
@@ -331,8 +331,8 @@ nonisolated enum BackupEntityTable {
             "LessonSequenceSettings", CDLessonSequenceSettings.self, \.lessonSequenceSettings,
             LessonSequenceSettingsDTO.rows, since: 18
         ),
-        .optional("Story", CDStory.self, \.stories, BackupDTOTransformers.toDTOs, since: 18),
-        .optional("BookClubPacket", CDBookClubPacket.self, \.bookClubPackets, BackupDTOTransformers.toDTOs, since: 18),
+        .optional("Story", CDStory.self, \.stories, StoryDTO.rows, since: 18),
+        .optional("BookClubPacket", CDBookClubPacket.self, \.bookClubPackets, BookClubPacketDTO.rows, since: 18),
         .optional("BookClubSession", CDBookClubSession.self, \.bookClubSessions, BookClubSessionDTO.rows, since: 18),
         .optional("BookClubMeeting", CDBookClubMeeting.self, \.bookClubMeetings, BookClubMeetingDTO.rows, since: 18),
         .optional(

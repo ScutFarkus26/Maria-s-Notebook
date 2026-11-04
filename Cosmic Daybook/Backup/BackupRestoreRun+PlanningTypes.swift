@@ -53,9 +53,8 @@ extension BackupRestoreRun {
         }
 
         if let sequenceTracks = try rows(\.sequenceTracks) {
-            try BackupEntityImporter.importSequenceTracks(
-                sequenceTracks,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                sequenceTracks, as: CDSequenceTrack.self, into: viewContext,
                 existing: { try index.existing(CDSequenceTrack.self, id: $0) }
             )
         }
@@ -66,25 +65,22 @@ extension BackupRestoreRun {
         let index = self.index
 
         if let documents = try rows(\.documents) {
-            try BackupEntityImporter.importDocuments(
-                documents,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                documents, as: CDDocument.self, into: viewContext,
                 existing: { try index.existing(CDDocument.self, id: $0) }
             )
         }
 
         if let supplies = try rows(\.supplies) {
-            try BackupEntityImporter.importSupplies(
-                supplies,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                supplies, as: CDSupply.self, into: viewContext,
                 existing: { try index.existing(CDSupply.self, id: $0) }
             )
         }
 
         if let procedures = try rows(\.procedures) {
-            try BackupEntityImporter.importProcedures(
-                procedures,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                procedures, as: CDProcedure.self, into: viewContext,
                 existing: { try index.existing(CDProcedure.self, id: $0) }
             )
         }
@@ -175,9 +171,8 @@ extension BackupRestoreRun {
         }
 
         if let resources = try rows(\.resources) {
-            try BackupEntityImporter.importResources(
-                resources,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                resources, as: CDResource.self, into: viewContext,
                 existing: { try index.existing(CDResource.self, id: $0) }
             )
         }

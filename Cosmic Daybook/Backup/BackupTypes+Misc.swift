@@ -38,17 +38,6 @@ nonisolated public struct TodoItemDTO: Codable, Sendable {
     public var tideLink: String?
 }
 
-// MARK: - CDTrackEntity DTOs
-
-nonisolated public struct SequenceTrackDTO: Codable, Sendable {
-    public var id: UUID
-    public var area: String
-    public var sequence: String
-    public var isSequential: Bool
-    public var isExplicitlyDisabled: Bool
-    public var createdAt: Date
-}
-
 // MARK: - Development Snapshot DTO
 
 nonisolated public struct DevelopmentSnapshotDTO: Codable, Sendable {
@@ -77,43 +66,6 @@ nonisolated public struct DevelopmentSnapshotDTO: Codable, Sendable {
     public var isReviewed: Bool
     public var sharedWithParents: Bool
     public var sharedAt: Date?
-}
-
-// MARK: - CDSupply DTOs
-
-nonisolated public struct SupplyDTO: Codable, Sendable {
-    public var id: UUID
-    public var name: String
-    public var categoryRaw: String
-    public var location: String
-    public var currentQuantity: Int
-    public var notes: String
-    public var createdAt: Date
-    public var modifiedAt: Date
-    // Restock (format v37+); absent in older backups, whose staples keep the
-    // model's defaults and get levels from their counts after the restore.
-    public var minimumThreshold: Int?
-    public var unit: String?
-    public var levelRaw: String?
-    public var sourceRaw: String?
-    public var urlString: String?
-    public var levelChangedAt: Date?
-    public var levelChangedByID: String?
-    public var levelChangedByName: String?
-}
-
-// MARK: - CDDocument DTO
-
-nonisolated public struct DocumentDTO: Codable, Sendable {
-    public var id: UUID
-    public var title: String
-    public var category: String
-    public var uploadDate: Date
-    public var studentID: UUID?
-    // PDF data excluded by design - too large for JSON backup
-    /// Managed relative path only (the PDF payload itself is excluded).
-    /// Optional for compatibility with older backups that predate this field.
-    public var pdfFileRelativePath: String?
 }
 
 // MARK: - Agenda Order DTO

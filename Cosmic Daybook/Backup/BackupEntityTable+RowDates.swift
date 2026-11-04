@@ -12,10 +12,6 @@ import Foundation
 // `updatedAt`. The rest have none, and a Merge takes the backup's row for
 // them (but a to-do done here stays done, `rowCompletedAt`).
 // `BackupMergeNewerWinsTests` checks every type against the model.
-nonisolated extension SequenceTrackDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension DocumentDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension SupplyDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension ProcedureDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
 nonisolated extension ScheduleSlotDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
 nonisolated extension IssueDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
 nonisolated extension IssueActionDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
@@ -27,10 +23,7 @@ nonisolated extension TodoItemDTO: BackupRowDTO {
 }
 nonisolated extension TodayAgendaOrderDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension PlanningRecommendationDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension ResourceDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
 nonisolated extension GoingOutChecklistItemDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension StoryDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension BookClubPacketDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
 nonisolated extension AlbumHighlightDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
 nonisolated extension AlbumPageInkDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
 

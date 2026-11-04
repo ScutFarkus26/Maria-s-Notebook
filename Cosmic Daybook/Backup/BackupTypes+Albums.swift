@@ -4,7 +4,7 @@ import Foundation
 //
 // Note on binary data: the rest of the backup excludes binary attributes by
 // design, because they are regenerable (thumbnails, covers, file bookmarks —
-// see BackupTypes+V18Entities). Highlights and Pencil ink are the exception:
+// see ModelRowKinds+Resources). Highlights and Pencil ink are the exception:
 // nothing can recreate them, so losing them on restore would be real data
 // loss. Highlight rectangles travel as plain numbers, and ink travels as its
 // PencilKit drawing data.

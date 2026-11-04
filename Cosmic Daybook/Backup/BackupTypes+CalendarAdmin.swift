@@ -45,15 +45,3 @@ nonisolated public struct IssueActionDTO: Codable, Sendable {
     public var followUpDate: Date?
     public var followUpCompleted: Bool
 }
-
-nonisolated public struct ProcedureDTO: Codable, Sendable {
-    public var id: UUID
-    public var title: String
-    public var summary: String
-    public var content: String
-    public var categoryRaw: String
-    public var icon: String
-    public var relatedProcedureIDs: [String]
-    public var createdAt: Date
-    public var modifiedAt: Date
-}

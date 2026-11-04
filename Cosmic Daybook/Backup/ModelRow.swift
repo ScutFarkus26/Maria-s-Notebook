@@ -48,6 +48,8 @@ nonisolated public struct ModelRowSpec: Sendable {
     ///   - requiring: attributes every row has; a record without one (or, for
     ///     a `uuidStrings` key, without a valid id) isn't backed up.
     ///   - defaults: what a row lacking the key reads as.
+    ///   - nowWhenMissing: date attributes a row lacking reads as the moment
+    ///     it is read.
     ///   - computed: fields read and written by code; one replaces an
     ///     attribute's field of the same key.
     ///   - parentIDs: key → to-one relationship whose parent's id is written under the key.
@@ -61,6 +63,7 @@ nonisolated public struct ModelRowSpec: Sendable {
         uuidStrings: Set<String> = [],
         requiring: Set<String> = [],
         defaults: [String: ModelValue] = [:],
+        nowWhenMissing: Set<String> = [],
         computed: [ModelField] = [],
         parentIDs: [String: String] = [:],
         parents: [ParentLink] = [],
@@ -99,7 +102,11 @@ nonisolated public struct ModelRowSpec: Sendable {
             field.storedAsString = carriesID
             field.dropsRecordWhenMissing = requiring.contains(key)
             field.defaultWhenMissing = defaults[key]
+            field.nowWhenMissing = nowWhenMissing.contains(key)
             return field
+        }
+        for key in nowWhenMissing where !fields.contains(where: { $0.key == key && $0.kind == .date }) {
+            preconditionFailure("Backup row spec for \(entityName) dates \(key) now, which is not a date attribute")
         }
         fields += computed
         for (key, relationship) in parentIDs.sorted(by: { $0.key < $1.key }) {
@@ -256,7 +263,7 @@ nonisolated public struct ModelRow<Kind: ModelRowKind>: Codable, Sendable {
         for field in Kind.spec.fields {
             let key = Key(field.key)
             let isPresent = try container.contains(key) && !container.decodeNil(forKey: key)
-            if !isPresent, let fallback = field.defaultWhenMissing {
+            if !isPresent, let fallback = field.nowWhenMissing ? .date(Date()) : field.defaultWhenMissing {
                 values[field.key] = fallback
                 continue
             }
