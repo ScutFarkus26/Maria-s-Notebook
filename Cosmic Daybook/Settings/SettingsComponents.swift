@@ -91,10 +91,6 @@ struct SettingsCategoryHeader: View {
             Spacer()
         }
         .padding(.top, AppTheme.Spacing.small)
-        .background {
-            CosmicHeaderAccent()
-                .padding(-AppTheme.Spacing.small)
-        }
     }
 }
 

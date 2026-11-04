@@ -22,6 +22,23 @@ struct AppleIntelligenceRoutingTests {
         UserDefaults.standard.set(true, forKey: key)
         #expect(AIClientRouter.automaticPrivateCloudAllowed)
     }
+
+    #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+    @Test("One client class remembers which model it built")
+    func clientKinds() {
+        #expect(FoundationModelClient(kind: .onDevice).kind == .onDevice)
+        #expect(FoundationModelClient(kind: .onDevice).quotaUsage == nil)
+        #expect(FoundationModelClient(kind: .privateCloud).kind == .privateCloud)
+    }
+
+    @Test("Without the entitlement, Private Cloud Compute is never offered or asked")
+    func privateCloudNeedsEntitlement() {
+        guard !FoundationModelClient.privateCloudEntitled else { return }
+        let cloud = FoundationModelClient(kind: .privateCloud)
+        #expect(!cloud.isAvailable)
+        #expect(cloud.unavailabilityReason == "Private Cloud Compute isn't part of this version of the app.")
+    }
+    #endif
 }
 
 @Suite("Capture What Happened Proposals")

@@ -2,62 +2,67 @@ import Foundation
 
 // MARK: - Settings Category
 
-/// The sidebar's categories, one job each (regrouped 2026-09-29). The cards
-/// inside each one, and what search finds them by, live in `SettingsCopy.Group`.
+/// The sidebar's six categories, one job each (regrouped 2026-09-29, ten
+/// became six 2026-11-03). The cards inside each one, and what search finds
+/// them by, live in `SettingsCopy.Group`. The open category is saved by raw
+/// value, so a retired one is read through `init(storedValue:)`, never renamed.
 enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
-    case overview
     case schoolYear
     case classroom
     case lookAndFeel
-    case messages
     case templates
-    case connections
-    case intelligence
     case syncBackup
-    case troubleshooting
+    case intelligence
 
     var id: String { rawValue }
+
+    /// Raw values a selection may still hold, and the category that took each
+    /// over: older builds' names, and the four retired 2026-11-03 (Overview
+    /// is now the status row at the top of the list).
+    static let aliases: [String: SettingsCategory] = [
+        "overview": .schoolYear,
+        "messages": .lookAndFeel,
+        "connections": .intelligence,
+        "troubleshooting": .syncBackup,
+        "general": .schoolYear,
+        "dataSync": .syncBackup,
+        "backup": .syncBackup,
+        "communication": .lookAndFeel,
+        "aiFeatures": .intelligence,
+        "database": .syncBackup,
+        "advanced": .syncBackup
+    ]
+
+    /// The category Settings opens on when nothing usable is saved.
+    static let landing: SettingsCategory = .schoolYear
 
     /// Reads a saved selection, including one an older build saved before the
     /// categories were regrouped.
     init?(storedValue: String) {
-        if let category = SettingsCategory(rawValue: storedValue) {
-            self = category
-            return
+        guard let category = SettingsCategory(rawValue: storedValue) ?? Self.aliases[storedValue] else {
+            return nil
         }
-        switch storedValue {
-        case "general": self = .schoolYear
-        case "dataSync", "backup": self = .syncBackup
-        case "communication": self = .messages
-        case "aiFeatures": self = .intelligence
-        case "database", "advanced": self = .troubleshooting
-        default: return nil
-        }
+        self = category
     }
 
     // MARK: - Sidebar Sections
 
     enum Section: CaseIterable, Hashable {
-        case top
         case yourClassroom
         case beyondTheNotebook
-        case bottom
 
-        var title: String? {
+        var title: String {
             switch self {
             case .yourClassroom: return "Your classroom"
             case .beyondTheNotebook: return "Beyond the notebook"
-            case .top, .bottom: return nil
             }
         }
     }
 
     var section: Section {
         switch self {
-        case .overview: return .top
-        case .schoolYear, .classroom, .lookAndFeel, .messages, .templates: return .yourClassroom
-        case .connections, .intelligence, .syncBackup: return .beyondTheNotebook
-        case .troubleshooting: return .bottom
+        case .schoolYear, .classroom, .lookAndFeel, .templates: return .yourClassroom
+        case .syncBackup, .intelligence: return .beyondTheNotebook
         }
     }
 
@@ -65,51 +70,34 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
 
     var displayName: String {
         switch self {
-        case .overview: return "Overview"
         case .schoolYear: return "School year"
         case .classroom: return "Classroom"
         case .lookAndFeel: return "Look and feel"
-        case .messages: return "Messages"
         case .templates: return "Templates"
-        case .connections: return "Connections"
-        case .intelligence: return "Intelligence"
         case .syncBackup: return "Sync and backup"
-        case .troubleshooting: return "Troubleshooting"
+        case .intelligence: return "Intelligence"
         }
     }
 
     var subtitle: String {
         switch self {
-        case .overview: return "What needs you, and what's new"
         case .schoolYear: return "Days off, year start, rollover"
         case .classroom: return "Sharing with your assistant"
-        case .lookAndFeel: return "Age colors, quick capture"
-        case .messages: return "Attendance, parent reports, orders"
+        case .lookAndFeel: return "Age colors, quick capture, messages"
         case .templates: return "Note, meeting and to-do templates"
-        case .connections: return "Calendar and Reminders"
-        case .intelligence:
-            #if os(macOS)
-            return "Apple Intelligence, Siri, Claude Desktop"
-            #else
-            return "Apple Intelligence and Siri"
-            #endif
-        case .syncBackup: return "iCloud, backups, moving settings"
-        case .troubleshooting: return "Sync history and repairs"
+        case .syncBackup: return "iCloud, backups, repairs"
+        case .intelligence: return "Apple Intelligence, Siri, Calendar"
         }
     }
 
     var icon: String {
         switch self {
-        case .overview: return "sparkles"
         case .schoolYear: return "calendar"
         case .classroom: return "person.2.fill"
         case .lookAndFeel: return "paintpalette.fill"
-        case .messages: return "envelope.fill"
         case .templates: return "doc.on.doc.fill"
-        case .connections: return "app.connected.to.app.below.fill"
-        case .intelligence: return "apple.intelligence"
         case .syncBackup: return "icloud.fill"
-        case .troubleshooting: return "lifepreserver.fill"
+        case .intelligence: return "apple.intelligence"
         }
     }
 

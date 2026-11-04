@@ -7,12 +7,11 @@ struct SettingsView: View {
     private let showsPageHeader: Bool
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
-    @State var statsViewModel = SettingsStatsViewModel()
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
-    /// A card the Overview opened (wide layout); cleared once another category is picked.
+    /// A card the status rows opened (wide layout); cleared once another category is picked.
     @State var requestedFocus: SettingsCopy.Group?
     @State private var searchText = ""
-    /// The iPhone's pushed panes, so the Overview can open another category.
+    /// The iPhone's pushed panes, so the status rows can open a category.
     /// Unused in the More tab, whose stack the panes push into instead.
     @State var compactPath: [SettingsPaneRoute] = []
     /// The More tab's stack on iPhone; nil where Settings roots its own (the
@@ -34,13 +33,13 @@ struct SettingsView: View {
 
     /// The open category; a selection saved by an older build maps onto the new categories.
     var selectedCategory: SettingsCategory {
-        SettingsCategory(storedValue: selectedCategoryRaw) ?? .overview
+        SettingsCategory(storedValue: selectedCategoryRaw) ?? .landing
     }
 
     var selectedCategoryBinding: Binding<SettingsCategory?> {
         Binding<SettingsCategory?>(
             get: { selectedCategory },
-            set: { selectedCategoryRaw = ($0 ?? .overview).rawValue }
+            set: { selectedCategoryRaw = ($0 ?? .landing).rawValue }
         )
     }
 
@@ -63,7 +62,7 @@ struct SettingsView: View {
         SettingsSearch.firstMatchingGroup(in: selectedCategory, query: searchText)
     }
 
-    /// The wide layout's card to show: a search match, else a card the Overview asked for.
+    /// The wide layout's card to show: a search match, else a card a status row asked for.
     private var paneFocus: SettingsCopy.Group? {
         searchFocus ?? requestedFocus.flatMap { $0.category == selectedCategory ? $0 : nil }
     }
@@ -94,17 +93,14 @@ struct SettingsView: View {
             }
         }
         .onChange(of: selectedCategoryRaw) { _, _ in
-            // A card the Overview asked for belongs to that one visit.
+            // A card a status row asked for belongs to that one visit.
             if requestedFocus?.category != selectedCategory { requestedFocus = nil }
         }
         .onChange(of: isCompact) { _, compact in
             // The pushed panes belong to the iPhone list; the wide layout has none.
             if !compact { compactPath.removeAll() }
         }
-        .onDisappear { statsViewModel.stopObserving() }
         .onAppear {
-            statsViewModel.loadCounts(context: viewContext)
-
             if !UserDefaults.standard.bool(forKey: UserDefaultsKeys.ephemeralSessionFlag) {
                 UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
             }
@@ -141,6 +137,10 @@ struct SettingsView: View {
             Divider()
             settingsDetailPane
         }
+        #if os(macOS)
+        // The window's title follows the open pane (HIG Settings).
+        .navigationTitle(selectedCategory.displayName)
+        #endif
     }
 
     private var settingsSidebar: some View {
@@ -151,17 +151,14 @@ struct SettingsView: View {
                 .padding(.bottom, AppTheme.Spacing.small)
 
             List(selection: selectedCategoryBinding) {
+                statusSection
                 ForEach(SettingsCategory.Section.allCases, id: \.self) { section in
                     let sectionCategories = categories(in: section)
                     if !sectionCategories.isEmpty {
-                        Section {
+                        Section(section.title) {
                             ForEach(sectionCategories) { category in
                                 categoryRow(category)
                                     .tag(category)
-                            }
-                        } header: {
-                            if let title = section.title {
-                                Text(title)
                             }
                         }
                     }
@@ -233,10 +230,11 @@ struct SettingsView: View {
 
     private var compactSettingsList: some View {
         List {
+            statusSection
             ForEach(SettingsCategory.Section.allCases, id: \.self) { section in
                 let sectionCategories = categories(in: section)
                 if !sectionCategories.isEmpty {
-                    Section {
+                    Section(section.title) {
                         ForEach(sectionCategories) { category in
                             NavigationLink(value: SettingsPaneRoute(category: category)) {
                                 categoryRow(category)
@@ -247,10 +245,6 @@ struct SettingsView: View {
                                     SettingsSearchResultRow(group: group)
                                 }
                             }
-                        }
-                    } header: {
-                        if let title = section.title {
-                            Text(title)
                         }
                     }
                 }
@@ -275,7 +269,16 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Category Row
+    // MARK: - Rows
+
+    /// What's New, the status row and what needs the guide, above the
+    /// categories; hidden while searching.
+    @ViewBuilder
+    private var statusSection: some View {
+        if !isSearching {
+            SettingsDashboardView(onOpen: openCategory, onOpenCard: openCard)
+        }
+    }
 
     private func categoryRow(_ category: SettingsCategory) -> some View {
         HStack(spacing: 10) {

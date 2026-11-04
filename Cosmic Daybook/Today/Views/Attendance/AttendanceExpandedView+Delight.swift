@@ -1,14 +1,14 @@
 // AttendanceExpandedView+Delight.swift
-// The Daybook Assistant's small pleasures on the notebook's roll: "Welcome
-// back, Maya", the school day's number, Day 100's confetti, and (on the
-// iPhone's tiles, if turned on) the Montessori bells.
+// The Daybook Assistant's small pleasures that the notebook's roll keeps:
+// "Welcome back, Maya" and the school day's number. Its bells and Day 100's
+// confetti stay in the Assistant (Simplify round two, 2026-11-03).
 
 import SwiftUI
 
 extension AttendanceExpandedView {
 
     /// A mark made here completed the roll: "Everyone's here · 8:14" (or "for
-    /// day 100"), the confetti on day 100, and the bells' run.
+    /// day 100").
     func rollCompleted() {
         let milestone = viewModel.isToday ? viewModel.milestone : nil
         finishedLine = AttendanceRules.completionText(
@@ -16,57 +16,30 @@ extension AttendanceExpandedView {
             at: viewModel.isToday ? Date() : nil,
             everyone: milestone?.everyoneHere ?? "Everyone's here"
         )
-        if milestone == .hundredthDay { confettiBursts += 1 }
-        #if os(iOS)
-        if isCompact { AttendanceBells.shared.play(milestone == .hundredthDay ? .hundredthDay : .everyoneMarked) }
-        #endif
     }
 
-    #if os(iOS)
-    /// Her mark's bell on the iPhone's tiles, if the bells are on: the next
-    /// one up the scale for a child here, the low C damped for an absence,
-    /// nothing for clearing or Left Early (`TileTapMotion.Kind`). `before`
-    /// is the row as it was before the mark.
-    func ring(after before: AttendanceRow) {
-        guard isCompact, AttendanceBells.isOn,
-              let marked = viewModel.rows.first(where: { $0.id == before.id }),
-              marked.status != before.status else { return }
-        switch TileTapMotion.Kind(marked.status) {
-        case .here:
-            AttendanceBells.shared.play(.here(count: viewModel.rows.count(where: \.isHere)))
-        case .away:
-            AttendanceBells.shared.play(.away)
-        case .cleared:
-            break
-        }
-    }
-    #endif
-
-    /// The welcome line's timing, the confetti, and "Day 37" in the title.
+    /// The welcome line's timing and "Day 37" in the title.
     var delightFollowUps: AttendanceDelightFollowUps {
         AttendanceDelightFollowUps(
             welcome: viewModel.welcome,
             welcomeLine: $welcomeLine,
-            confettiBursts: confettiBursts,
             dayLabel: showsDayInTitle ? viewModel.dayLabel : nil,
             showsDayInTitle: showsDayInTitle
         )
     }
 }
 
-/// The attendance screen's welcome line, confetti and title, as a modifier so
+/// The attendance screen's welcome line and title, as a modifier so
 /// its body stays one line there.
 struct AttendanceDelightFollowUps: ViewModifier {
     let welcome: AttendanceViewModel.Welcome?
     @Binding var welcomeLine: String?
-    let confettiBursts: Int
     let dayLabel: String?
     /// Only the Attendance screen's own title; Today keeps its own.
     let showsDayInTitle: Bool
 
     func body(content: Content) -> some View {
         titled(content)
-            .overlay { HundredthDayConfetti(trigger: confettiBursts) }
             .onChange(of: welcome) { _, welcome in
                 welcomeLine = welcome.map { "Welcome back, \($0.name)" }
             }

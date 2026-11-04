@@ -17,8 +17,8 @@ extension AppleIntelligenceSheet {
         isGenerating = true
         generationError = nil
 
-        let onDevice = LocalModelClient()
-        let privateCloud = PrivateCloudModelClient()
+        let onDevice = FoundationModelClient(kind: .onDevice)
+        let privateCloud = FoundationModelClient(kind: .privateCloud)
 
         guard onDevice.isAvailable || privateCloud.isAvailable else {
             generationError = unavailabilityMessage()
@@ -64,8 +64,8 @@ extension AppleIntelligenceSheet {
     /// other on failure (e.g. PCC daily quota reached, on-device context overflow).
     private func generateDraft(
         prompt: String,
-        onDevice: LocalModelClient,
-        privateCloud: PrivateCloudModelClient
+        onDevice: FoundationModelClient,
+        privateCloud: FoundationModelClient
     ) async throws -> String {
         var preferPrivateCloud = false
         if privateCloud.isAvailable {

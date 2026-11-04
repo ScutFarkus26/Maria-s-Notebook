@@ -1,17 +1,16 @@
 import SwiftUI
 
-// MARK: - Settings Dashboard View
+// MARK: - Settings Status Section
 
-/// Overview: what needs the guide right now, each with a one-tap fix, and a
-/// calm "All set" when nothing does. Below it, three small status tiles.
+/// The top of the Settings list (what the Overview pane became, 2026-11-03):
+/// What's New while there's something new, one status row, and a row for
+/// each thing that needs the guide, each opening its fix or, for a backup,
+/// running it in place.
 struct SettingsDashboardView: View {
     @Environment(\.dependencies) private var dependencies
     @Environment(\.managedObjectContext) private var viewContext
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.scenePhase) private var scenePhase
     @TestStudentVisibility private var testStudents
-    var statsViewModel: SettingsStatsViewModel
     /// Opens another category: selects it beside the sidebar, or pushes its pane on iPhone.
     var onOpen: (SettingsCategory) -> Void
     /// Opens the category that holds a card, scrolled to that card and outlined.
@@ -27,16 +26,25 @@ struct SettingsDashboardView: View {
     }
 
     var body: some View {
-        VStack(spacing: SettingsStyle.sectionSpacing) {
+        Section {
             WhatsNewBanner()
 
             if let model {
-                attentionSection(model)
+                let items = model.items(syncHealth: syncHealth)
+                statusRow(itemCount: items.count)
+                ForEach(items) { item in
+                    attentionRow(item, model: model)
+                }
+                if case .succeeded(let partial) = model.backupRun {
+                    Label(
+                        SettingsDashboardViewModel.succeededText(partial: partial),
+                        systemImage: partial ? "info.circle.fill" : "checkmark.circle.fill"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(partial ? AppColors.warning : AppColors.success)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
             }
-
-            statusTiles
-
-            SettingsFooterView()
         }
         .task { await load() }
         .onChange(of: scenePhase) { _, phase in
@@ -81,135 +89,84 @@ struct SettingsDashboardView: View {
         }
     }
 
-    // MARK: - Needs Your Attention
+    // MARK: - Rows
 
-    @ViewBuilder
-    private func attentionSection(_ model: SettingsDashboardViewModel) -> some View {
-        let items = model.items(syncHealth: syncHealth)
-        VStack(spacing: SettingsStyle.groupSpacing) {
-            if items.isEmpty {
-                allSetCard
-            } else {
-                SettingsGroup(title: "Needs your attention", systemImage: "exclamationmark.circle") {
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                            if index > 0 {
-                                Divider()
-                            }
-                            attentionRow(item, model: model)
-                                .padding(.vertical, AppTheme.Spacing.small)
-                        }
-                    }
-                }
-            }
-
-            if case .succeeded(let partial) = model.backupRun {
-                Label(
-                    SettingsDashboardViewModel.succeededText(partial: partial),
-                    systemImage: partial ? "info.circle.fill" : "checkmark.circle.fill"
-                )
-                    .font(.subheadline)
-                    .foregroundStyle(partial ? AppColors.warning : AppColors.success)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .transition(.opacity)
-            }
+    /// iCloud's sky and one line: all set, or how many rows follow.
+    private func statusRow(itemCount: Int) -> some View {
+        Label {
+            Text(Self.statusText(itemCount: itemCount, syncHealth: syncHealth))
+                .font(.subheadline.weight(.semibold))
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            SyncSkyIcon(health: syncHealth)
         }
-        .adaptiveAnimation(.easeInOut(duration: 0.25), value: items)
-        // A small cheer when the guide's own backup is the notebook's first, or
-        // clears the last item; never for a warning that clears by itself, nor
-        // for a backup that may be missing some of the notebook.
-        .settingsCelebration(
-            trigger: model.backupRun == .succeeded(partial: false) && (items.isEmpty || model.madeFirstBackup)
-        )
+        .accessibilityElement(children: .combine)
     }
 
-    private var allSetCard: some View {
-        HStack(spacing: AppTheme.Spacing.compact) {
-            Image(systemName: "checkmark.seal.fill")
-                .font(.title2)
-                .foregroundStyle(AppColors.success)
-                .accessibilityHidden(true)
-            Text(syncHealth == .healthy
-                 ? "All set. Your notebook is backed up and in sync."
-                 : "All set. Nothing needs you right now.")
-                .font(.subheadline)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
+    /// The status row's line.
+    static func statusText(itemCount: Int, syncHealth: CloudKitHealthCheck.SyncHealth) -> String {
+        switch itemCount {
+        case 0:
+            return syncHealth == .healthy
+                ? "All set. Your notebook is backed up and in sync."
+                : "All set. Nothing needs you right now."
+        case 1:
+            return "1 thing needs you"
+        default:
+            return "\(itemCount) things need you"
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardStyle()
-        .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder
     private func attentionRow(_ item: SettingsAttentionItem, model: SettingsDashboardViewModel) -> some View {
-        let text = HStack(alignment: .top, spacing: AppTheme.Spacing.compact) {
-            Image(systemName: item.systemImage)
-                .font(.title3)
-                .foregroundStyle(tint(for: item))
-                .frame(width: 28)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
-                Text(item.title)
-                    .font(.subheadline.weight(.semibold))
-                Text(item.detail)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if case .backupDue = item, case .failed(let message) = model.backupRun {
-                    Text(message)
-                        .font(.caption)
-                        .foregroundStyle(AppColors.destructive)
-                }
-            }
-            .fixedSize(horizontal: false, vertical: true)
-        }
-        .accessibilityElement(children: .combine)
-
-        if horizontalSizeClass == .compact || dynamicTypeSize.isAccessibilitySize {
-            VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
-                text
-                action(for: item, model: model)
-                    .padding(.leading, 28 + AppTheme.Spacing.compact)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        } else {
-            HStack(alignment: .center, spacing: AppTheme.Spacing.compact) {
-                text
-                Spacer(minLength: AppTheme.Spacing.small)
-                action(for: item, model: model)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func action(for item: SettingsAttentionItem, model: SettingsDashboardViewModel) -> some View {
-        if let destination = item.destination {
-            Button(item.actionTitle) {
-                if let focus = item.focus {
-                    onOpenCard(focus)
-                } else {
-                    onOpen(destination)
-                }
-            }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-        } else if model.backupRun == .running {
-            HStack(spacing: AppTheme.Spacing.small) {
-                ProgressView()
-                    .controlSize(.small)
-                Text("Backing up…")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .accessibilityElement(children: .combine)
-        } else {
-            Button(item.actionTitle) {
+        let running = item.destination == nil && model.backupRun == .running
+        Button {
+            if let focus = item.focus {
+                onOpenCard(focus)
+            } else if let destination = item.destination {
+                onOpen(destination)
+            } else {
                 Task { await model.backUpNow(viewContext: viewContext) }
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
+        } label: {
+            HStack(alignment: .top, spacing: AppTheme.Spacing.small) {
+                Image(systemName: item.systemImage)
+                    .foregroundStyle(tint(for: item))
+                    .frame(width: 22)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
+                    Text(item.title)
+                        .font(.subheadline)
+                    Text(item.detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if case .backupDue = item, case .failed(let message) = model.backupRun {
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(AppColors.destructive)
+                    }
+                    if running {
+                        HStack(spacing: AppTheme.Spacing.small) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Backing up…")
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    } else {
+                        Text(item.actionTitle)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tint)
+                    }
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .disabled(running)
+        .accessibilityElement(children: .combine)
     }
 
     private func tint(for item: SettingsAttentionItem) -> Color {
@@ -218,114 +175,5 @@ struct SettingsDashboardView: View {
         case .backupDue, .unsharedClassroomRecords, .connectionAccessLost: return AppColors.warning
         case .carriedOverPlans: return AppColors.info
         }
-    }
-
-    // MARK: - Status Tiles
-
-    private var statusTiles: some View {
-        let columnCount = dynamicTypeSize.isAccessibilitySize ? 1 : 3
-        let columns = Array(repeating: GridItem(.flexible(), spacing: AppTheme.Spacing.compact), count: columnCount)
-        let aiReady = AIClientRouter.isAvailable
-        let templates = statsViewModel.meetingTemplatesCount
-
-        return LazyVGrid(columns: columns, spacing: AppTheme.Spacing.compact) {
-            DashboardStatusTile(
-                title: "iCloud",
-                value: syncStatusText,
-                systemImage: syncHealth.icon,
-                tint: syncTint,
-                syncHealth: syncHealth,
-                category: .syncBackup,
-                onOpen: onOpen
-            )
-
-            DashboardStatusTile(
-                title: "Apple Intelligence",
-                value: aiReady ? "Ready" : "Not available",
-                systemImage: "apple.intelligence",
-                tint: aiReady ? Color.accentColor : AppColors.warning,
-                category: .intelligence,
-                onOpen: onOpen
-            )
-
-            DashboardStatusTile(
-                title: "Templates",
-                value: templates == 1 ? "1 template" : "\(templates) templates",
-                systemImage: "doc.on.doc.fill",
-                tint: Color.accentColor,
-                category: .templates,
-                onOpen: onOpen
-            )
-        }
-    }
-
-    private var syncStatusText: String {
-        switch syncHealth {
-        case .healthy: return "Up to date"
-        case .syncing: return "Syncing…"
-        case .warning: return "Running behind"
-        case .error: return "Needs a look"
-        case .offline: return "Offline"
-        case .unknown: return "Checking…"
-        }
-    }
-
-    private var syncTint: Color {
-        switch syncHealth {
-        case .healthy: return AppColors.success
-        case .syncing: return AppColors.info
-        case .warning: return AppColors.warning
-        case .error: return AppColors.destructive
-        case .offline, .unknown: return .secondary
-        }
-    }
-}
-
-// MARK: - Status Tile
-
-/// A small tappable tile: icon, name, one-line status. Opens its category.
-private struct DashboardStatusTile: View {
-    let title: String
-    let value: String
-    let systemImage: String
-    let tint: Color
-    /// Draws the sky icon for this sync state in place of `systemImage`.
-    var syncHealth: CloudKitHealthCheck.SyncHealth?
-    let category: SettingsCategory
-    let onOpen: (SettingsCategory) -> Void
-
-    var body: some View {
-        Button {
-            onOpen(category)
-        } label: {
-            VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
-                Group {
-                    if let syncHealth {
-                        SyncSkyIcon(health: syncHealth)
-                    } else {
-                        Image(systemName: systemImage)
-                            .foregroundStyle(tint)
-                    }
-                }
-                .font(.subheadline)
-                .accessibilityHidden(true)
-                Text(title)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                Text(value)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.8)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .cardStyle(padding: SettingsStyle.compactPadding)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
-        .accessibilityHint("Opens \(category.displayName)")
     }
 }

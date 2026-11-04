@@ -4,15 +4,10 @@ import SwiftUI
 
 /// Settings › Templates: the meeting template library.
 struct SettingsTemplatesPane: View {
-    var statsViewModel: SettingsStatsViewModel
-
     var body: some View {
         VStack(spacing: SettingsStyle.groupSpacing) {
             SettingsGroup(.meetingTemplates) {
-                templateLibraryRow(
-                    count: statsViewModel.meetingTemplatesCount,
-                    title: "Manage meeting templates"
-                ) {
+                templateLibraryRow(title: "Manage meeting templates") {
                     MeetingTemplateManagementView()
                         .settingsBreadcrumb("Settings › Templates")
                 }
@@ -24,14 +19,11 @@ struct SettingsTemplatesPane: View {
 
     @ViewBuilder
     private func templateLibraryRow<Destination: View>(
-        count: Int,
         title: String,
         @ViewBuilder destination: @escaping () -> Destination
     ) -> some View {
         #if os(macOS)
         HStack {
-            Text(Self.countText(count))
-                .foregroundStyle(.secondary)
             Spacer()
             NavigationLink("\(title)…") {
                 destination()
@@ -42,13 +34,9 @@ struct SettingsTemplatesPane: View {
         NavigationLink {
             destination()
         } label: {
-            SettingsLinkRow(title: title, systemImage: "doc.on.doc", detail: Self.countText(count))
+            SettingsLinkRow(title: title, systemImage: "doc.on.doc")
         }
         .buttonStyle(.plain)
         #endif
-    }
-
-    private static func countText(_ count: Int) -> String {
-        count == 1 ? "1 template" : "\(count) templates"
     }
 }

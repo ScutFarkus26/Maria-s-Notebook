@@ -82,10 +82,10 @@ struct CarriedOverPlanSweepView: View {
     @ViewBuilder
     private var choosePhase: some View {
         if viewModel.surveys.isEmpty {
-            SettingsEmptyState(
-                symbol: "leaf.fill",
-                title: "Nothing carried over",
-                message: "Every planned year-plan target on the roster falls in this school year."
+            ContentUnavailableView(
+                "Nothing carried over",
+                systemImage: "leaf.fill",
+                description: Text("Every planned year-plan target on the roster falls in this school year.")
             )
         } else {
             List {

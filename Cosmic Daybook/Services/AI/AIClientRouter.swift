@@ -19,22 +19,22 @@ final class AIClientRouter: MCPClientProtocol {
     // MARK: - Provider Clients
 
     #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-    private var _localClient: LocalModelClient?
+    private var _localClient: FoundationModelClient?
 
     /// Apple's on-device model (Apple Intelligence).
-    var localClient: LocalModelClient {
+    var localClient: FoundationModelClient {
         if let c = _localClient { return c }
-        let c = LocalModelClient()
+        let c = FoundationModelClient(kind: .onDevice)
         _localClient = c
         return c
     }
 
-    private var _privateCloudClient: PrivateCloudModelClient?
+    private var _privateCloudClient: FoundationModelClient?
 
     /// Apple's server-side model on Private Cloud Compute.
-    var privateCloudClient: PrivateCloudModelClient {
+    var privateCloudClient: FoundationModelClient {
         if let c = _privateCloudClient { return c }
-        let c = PrivateCloudModelClient()
+        let c = FoundationModelClient(kind: .privateCloud)
         _privateCloudClient = c
         return c
     }
@@ -44,8 +44,8 @@ final class AIClientRouter: MCPClientProtocol {
     /// ready, or Private Cloud Compute is allowed and ready.
     static var isAvailable: Bool {
         #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-        LocalModelClient().isAvailable
-            || (automaticPrivateCloudAllowed && PrivateCloudModelClient().isAvailable)
+        FoundationModelClient(kind: .onDevice).isAvailable
+            || (automaticPrivateCloudAllowed && FoundationModelClient(kind: .privateCloud).isAvailable)
         #else
         false
         #endif
@@ -57,7 +57,7 @@ final class AIClientRouter: MCPClientProtocol {
     /// available on this device" for all three (bug hunt 2026-10-17 #16).
     static var unavailabilityReason: String {
         #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-        let reason = LocalModelClient().unavailabilityReason
+        let reason = FoundationModelClient(kind: .onDevice).unavailabilityReason
         return reason.isEmpty ? AppleIntelligenceMessages.notAvailable : reason
         #else
         AppleIntelligenceMessages.notInThisVersion
@@ -236,7 +236,9 @@ final class AIClientRouter: MCPClientProtocol {
         return reasons.filter { !$0.isEmpty && seen.insert($0).inserted }.joined(separator: " ")
     }
 
-    /// Automatic cloud movement is an explicit school-level choice and defaults off.
+    /// Automatic cloud movement is an explicit school-level choice and defaults
+    /// off. A build without the Private Cloud entitlement never reaches it:
+    /// that client reports itself unavailable (`FoundationModelClient`).
     static var automaticPrivateCloudAllowed: Bool {
         UserDefaults.standard.bool(forKey: UserDefaultsKeys.aiAllowAutomaticPrivateCloud)
     }

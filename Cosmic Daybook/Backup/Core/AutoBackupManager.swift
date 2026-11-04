@@ -562,7 +562,7 @@ extension AutoBackupManager {
 
     /// When this device's automatic backups started failing: the first
     /// failure since the last backup it wrote. In this device's own defaults
-    /// only, like its folder's name. Settings › Overview shows it
+    /// only, like its folder's name. Settings' status rows show it
     /// (`SettingsAttention`): until 2026-11 nothing read a failed automatic
     /// backup, so a device whose every one failed only logged it, and
     /// another device's backups hid that it had none (#12).

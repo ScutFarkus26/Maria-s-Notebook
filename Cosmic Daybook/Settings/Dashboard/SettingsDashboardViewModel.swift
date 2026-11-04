@@ -2,8 +2,8 @@ import CoreData
 import EventKit
 import Foundation
 
-/// State behind the Overview's "Needs your attention" list. Each input is read
-/// once when the Overview appears (and the year-plan count again when the
+/// State behind the Settings status rows. Each input is read
+/// once when Settings appears (and the year-plan count again when the
 /// roster or presentations change), never in `body`: the sharing count asks
 /// iCloud about every classroom record, and the carried-over count is a fetch
 /// per enrolled child. `SettingsAttention` decides which rows show.
@@ -19,7 +19,7 @@ final class SettingsDashboardViewModel {
         case failed(String)
     }
 
-    /// What the Overview says once Back Up Now has written a backup: the
+    /// What the status rows say once Back Up Now has written a backup: the
     /// same first-download warning as Settings › Backups (`SettingsViewModel.savedText`,
     /// bug hunt 2026-11-02 #14), which the Overview left out until 2026-11-03.
     static func succeededText(partial: Bool) -> String {
@@ -34,10 +34,8 @@ final class SettingsDashboardViewModel {
     private(set) var carriedOverPlans: Int?
     private(set) var calendarAccessLost = false
     private(set) var backupRun: BackupRun = .idle
-    /// True once this notebook's very first backup succeeds here, for a small celebration.
-    private(set) var madeFirstBackup = false
 
-    /// When the Overview last asked about the share, and what it learned.
+    /// When Settings last asked about the share, and what it learned.
     private static var lastShareCheck: (at: Date, outside: Int?)?
     private static let shareCheckInterval: TimeInterval = 5 * 60
 
@@ -103,7 +101,7 @@ final class SettingsDashboardViewModel {
     /// guide owns the records, and only once sharing is set up.
     func refreshUnsharedClassroomRecords(now: Date = Date()) async {
         // The check asks iCloud about the share and walks every classroom record,
-        // so coming back to the Overview within a few minutes reuses the last answer.
+        // so coming back to Settings within a few minutes reuses the last answer.
         if let last = Self.lastShareCheck, now.timeIntervalSince(last.at) < Self.shareCheckInterval {
             unsharedClassroomRecords = last.outside
             return
@@ -134,7 +132,6 @@ final class SettingsDashboardViewModel {
         switch result {
         case .success(let date, let url):
             backupSettings.setLastBackupNow()
-            madeFirstBackup = lastBackup == nil
             lastBackup = date
             // The write worked, so the backups do (`AutoBackupManager`).
             automaticBackupFailingSince = nil

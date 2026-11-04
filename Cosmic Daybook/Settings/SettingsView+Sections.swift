@@ -8,8 +8,6 @@ extension SettingsView {
     @ViewBuilder
     func settingsPaneContent(for category: SettingsCategory) -> some View {
         switch category {
-        case .overview:
-            SettingsDashboardView(statsViewModel: statsViewModel, onOpen: openCategory, onOpenCard: openCard)
         case .schoolYear:
             schoolYearPane
         case .classroom:
@@ -17,18 +15,12 @@ extension SettingsView {
                 .settingsAnchor(.classroomSharing)
         case .lookAndFeel:
             lookAndFeelPane
-        case .messages:
-            messagesPane
         case .templates:
-            SettingsTemplatesPane(statsViewModel: statsViewModel)
-        case .connections:
-            connectionsPane
+            SettingsTemplatesPane()
         case .intelligence:
             SettingsIntelligencePane()
         case .syncBackup:
             syncBackupPane
-        case .troubleshooting:
-            troubleshootingPane
         }
     }
 
@@ -59,18 +51,13 @@ extension SettingsView {
 
     // MARK: - Look and Feel
 
+    /// How the notebook looks, then the messages it sends.
     private var lookAndFeelPane: some View {
         VStack(spacing: SettingsStyle.groupSpacing) {
             AgeIndicatorsSettingsGroup()
 
             QuickCaptureButtonSettingsView()
-        }
-    }
 
-    // MARK: - Messages
-
-    private var messagesPane: some View {
-        VStack(spacing: SettingsStyle.groupSpacing) {
             SettingsGroup(.attendanceEmail) {
                 AttendanceEmailSettingsView()
                     .frame(maxWidth: .infinity)
@@ -83,22 +70,6 @@ extension SettingsView {
 
             SettingsGroup(.orderRequests) {
                 OrderRequestSettingsView()
-                    .frame(maxWidth: .infinity)
-            }
-        }
-    }
-
-    // MARK: - Connections
-
-    private var connectionsPane: some View {
-        VStack(spacing: SettingsStyle.groupSpacing) {
-            SettingsGroup(.appleCalendar, collapsible: true) {
-                CalendarSyncSettingsView()
-                    .frame(maxWidth: .infinity)
-            }
-
-            SettingsGroup(.tide, collapsible: true) {
-                TideSyncSettingsView()
                     .frame(maxWidth: .infinity)
             }
         }
@@ -117,49 +88,47 @@ extension SettingsView {
                 .settingsAnchor(.backups)
 
             SettingsTransferView()
+
+            repairCards
         }
     }
 
-    // MARK: - Troubleshooting
-
-    private var troubleshootingPane: some View {
-        VStack(spacing: SettingsStyle.groupSpacing) {
-            SettingsGroup(.syncHistory) {
-                VStack(spacing: 0) {
-                    NavigationLink {
-                        SyncHistoryLogView(logger: SyncEventLogger.shared)
-                            .settingsBreadcrumb("Settings › Troubleshooting")
-                    } label: {
-                        SettingsLinkRow(title: "Sync history", systemImage: "clock.arrow.circlepath")
-                    }
-                    .buttonStyle(.plain)
-
-                    Divider()
-
-                    NavigationLink {
-                        SyncConflictResolutionView()
-                            .settingsBreadcrumb("Settings › Troubleshooting")
-                    } label: {
-                        SettingsLinkRow(title: "Sync problems", systemImage: "exclamationmark.triangle")
-                    }
-                    .buttonStyle(.plain)
+    /// Sync history and the repairs, below the everyday cards.
+    @ViewBuilder
+    private var repairCards: some View {
+        SettingsGroup(.syncHistory) {
+            VStack(spacing: 0) {
+                NavigationLink {
+                    SyncHistoryLogView(logger: SyncEventLogger.shared)
+                        .settingsBreadcrumb("Settings › Sync and backup")
+                } label: {
+                    SettingsLinkRow(title: "Sync history", systemImage: "clock.arrow.circlepath")
                 }
+                .buttonStyle(.plain)
+
+                Divider()
+
+                NavigationLink {
+                    SyncConflictResolutionView()
+                        .settingsBreadcrumb("Settings › Sync and backup")
+                } label: {
+                    SettingsLinkRow(title: "Sync problems", systemImage: "exclamationmark.triangle")
+                }
+                .buttonStyle(.plain)
             }
-
-            DatabaseMaintenanceCard()
-
-            #if os(macOS)
-            NotebookCleanupCard()
-            #endif
-
-            SettingsNotebookStatsView(statsViewModel: statsViewModel)
-
-            #if DEBUG
-            SettingsGroup(.testStudents) {
-                TestStudentsSettingsView()
-                    .frame(maxWidth: .infinity)
-            }
-            #endif
         }
+
+        DatabaseMaintenanceCard()
+
+        #if os(macOS)
+        NotebookCleanupCard()
+        #endif
+
+        #if DEBUG
+        SettingsGroup(.testStudents) {
+            TestStudentsSettingsView()
+                .frame(maxWidth: .infinity)
+        }
+        #endif
     }
 }

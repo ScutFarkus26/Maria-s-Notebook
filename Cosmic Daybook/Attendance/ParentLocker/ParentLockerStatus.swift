@@ -230,7 +230,7 @@ nonisolated extension ParentLockerStatus {
                 : "\(unmatched.count) children aren't matched in ParentLocker yet: "
                     + unmatched.joined(separator: ", ") + "."
             let fix = isGuide
-                ? " Match them in Settings › Messages › Match Names."
+                ? " Match them in Settings › Look and feel › Match Names."
                 : " Your guide can match them in Settings."
             lines.insert(who + fix, at: 0)
         }

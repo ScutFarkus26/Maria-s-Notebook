@@ -76,8 +76,10 @@
 	  (request at https://developer.apple.com/private-cloud-compute/ and add the
 	  capability in Signing & Capabilities), add:
 	      <key>com.apple.developer.private-cloud-compute</key><true/>
-	  Until then PrivateCloudModelClient reports unavailable and routing falls
-	  back to Claude — see Documentation/Architecture/PrivateCloudCompute.md.
+	  and add PRIVATE_CLOUD_COMPUTE to the active compilation conditions.
+	  Until then FoundationModelClient(kind: .privateCloud) reports itself
+	  unavailable (without the entitlement the model would say available and
+	  then stop the app on the first prompt), and Settings hides the choice.
 	-->
 </dict>
 </plist>

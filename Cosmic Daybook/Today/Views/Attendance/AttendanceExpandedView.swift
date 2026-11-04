@@ -65,12 +65,6 @@ struct AttendanceExpandedView: View {
     @State var finishedLine: String?
     /// "Welcome back, Maya", for a few seconds after a returning child is marked in.
     @State var welcomeLine: String?
-    /// Bumped to drop the Day 100 confetti.
-    @State var confettiBursts = 0
-    #if os(iOS)
-    /// The Montessori bells on the iPhone's tiles, off until turned on.
-    @AppStorage(AttendanceBells.enabledKey) var bellsOn = false
-    #endif
 
     // Locked days are `AttendanceDayLock` records in the classroom share, so
     // an assistant sees them too (they used to be an iCloud setting only the
@@ -112,17 +106,14 @@ struct AttendanceExpandedView: View {
             actions: AttendanceGridActions(
                 tap: { row in
                     undoably("Mark", row) { viewModel.tap($0, modelContext: viewContext) }
-                    rang(after: row)
                 },
                 setStatus: { status, row in
                     undoably("Mark", row) { viewModel.setStatus(status, for: $0, modelContext: viewContext) }
-                    rang(after: row)
                 },
                 markAbsent: { reason, row in
                     undoably("Mark Absent", row) {
                         viewModel.markAbsent(reason: reason, for: $0, modelContext: viewContext)
                     }
-                    rang(after: row)
                 },
                 saveNote: { row, note in
                     undoably("Note", row) { viewModel.updateNote(for: $0, note: note, modelContext: viewContext) }
@@ -134,20 +125,12 @@ struct AttendanceExpandedView: View {
                 },
                 markBack: { row in
                     undoably("Back in Class", row) { viewModel.markBack($0, modelContext: viewContext) }
-                    rang(after: row)
                 }
             ),
             onStepDay: onStepDay,
             names: classroomNames
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    /// A bell for the mark, on the iPhone's tiles (`ring(after:)`).
-    private func rang(after row: AttendanceRow) {
-        #if os(iOS)
-        ring(after: row)
-        #endif
     }
 
     /// Saves a change to the roll and tells the host screen.

@@ -2,12 +2,12 @@
 //  FoundationModelClient.swift
 //  Cosmic Daybook
 //
-//  Shared MCPClientProtocol plumbing for the two FoundationModels-backed
-//  clients: on-device (`LocalModelClient`) and Private Cloud Compute
-//  (`PrivateCloudModelClient`). Each client supplies only what differs — its
-//  availability check and how it configures a session and its generation
-//  options. The availability guard, instruction assembly, response handling,
-//  JSON validation and error mapping live here, once.
+//  The one FoundationModels-backed client, for either of Apple's models: on
+//  device (`SystemLanguageModel`) or Private Cloud Compute
+//  (`PrivateCloudComputeLanguageModel`). The SDK keeps them as two types and
+//  nothing reports where a session runs, so the client remembers which one it
+//  built (`kind`). The availability guard, instruction assembly, response
+//  handling, JSON validation and error mapping live here, once.
 //
 
 import Foundation
@@ -146,12 +146,125 @@ private nonisolated final class FirstToFinish<Answer: Sendable>: Sendable {
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
 import FoundationModels
 
-protocol FoundationModelClient: RoutableModelClient {
-    /// A session configured for this client's model.
-    func makeSession(instructions: String) -> LanguageModelSession
+/// Apple Intelligence through FoundationModels, on this device or on Private
+/// Cloud Compute. Falls back cleanly when its model is unavailable (wrong
+/// device, not turned on, no entitlement, offline, quota).
+final class FoundationModelClient: RoutableModelClient {
+    enum Kind: Sendable {
+        case onDevice
+        case privateCloud
+    }
 
-    /// The options this client sends with a single response request.
-    func generationOptions(temperature: Double, maxTokens: Int?) -> GenerationOptions
+    /// Whether this build carries the managed entitlement
+    /// `com.apple.developer.private-cloud-compute`. Without it Private Cloud
+    /// Compute reports available and then stops the app with a fatal error on
+    /// the first prompt (Apple, "Detecting available models"), so it is never
+    /// asked. Set `PRIVATE_CLOUD_COMPUTE` in the active compilation conditions
+    /// when the entitlement goes into `CosmicDaybook.entitlements`.
+    static var privateCloudEntitled: Bool {
+        #if PRIVATE_CLOUD_COMPUTE
+        true
+        #else
+        false
+        #endif
+    }
+
+    let kind: Kind
+    private let model: any LanguageModel
+    private let privateCloudModel: PrivateCloudComputeLanguageModel?
+
+    init(kind: Kind) {
+        self.kind = kind
+        switch kind {
+        case .onDevice:
+            model = SystemLanguageModel.default
+            privateCloudModel = nil
+        case .privateCloud:
+            let cloud = PrivateCloudComputeLanguageModel()
+            model = cloud
+            privateCloudModel = cloud
+        }
+    }
+
+    // MARK: - Availability
+
+    /// Returns true if this client's model is ready to accept requests.
+    var isAvailable: Bool {
+        switch kind {
+        case .onDevice: return SystemLanguageModel.default.isAvailable
+        case .privateCloud: return Self.privateCloudEntitled && (privateCloudModel?.isAvailable ?? false)
+        }
+    }
+
+    /// Why the model can't be used, in plain words; empty when it can.
+    var unavailabilityReason: String {
+        switch kind {
+        case .onDevice:
+            return AppleIntelligenceMessages.unavailableMessage(for: SystemLanguageModel.default.availability) ?? ""
+        case .privateCloud:
+            guard Self.privateCloudEntitled, let privateCloudModel else {
+                return "Private Cloud Compute isn't part of this version of the app."
+            }
+            switch privateCloudModel.availability {
+            case .available:
+                return ""
+            case .unavailable(.deviceNotEligible):
+                return "This device can't use Private Cloud Compute."
+            case .unavailable(.systemNotReady):
+                return "Private Cloud Compute isn't ready yet. It needs Apple Intelligence "
+                    + "turned on and an internet connection."
+            case .unavailable:
+                return "Private Cloud Compute is not available."
+            }
+        }
+    }
+
+    /// How much of today's Private Cloud Compute allowance is used; nil on device.
+    var quotaUsage: PrivateCloudComputeLanguageModel.QuotaUsage? {
+        privateCloudModel?.quotaUsage
+    }
+
+    // MARK: - Sessions
+
+    /// A session on this client's model, no tools attached.
+    func makeSession(instructions: String) -> LanguageModelSession {
+        LanguageModelSession(model: model, instructions: instructions)
+    }
+
+    /// The options sent with a single response request. Private Cloud
+    /// Compute sizes its own responses, so `maxTokens` is unused there.
+    func generationOptions(temperature: Double, maxTokens: Int?) -> GenerationOptions {
+        switch kind {
+        case .onDevice: return .init(temperature: temperature, maximumResponseTokens: maxTokens)
+        case .privateCloud: return .init(temperature: temperature)
+        }
+    }
+
+    // MARK: - Draft Generation
+
+    /// A long-form draft with an explicit reasoning level, for big jobs
+    /// (report cards, weekly summaries) where quality matters more than
+    /// latency. Reasoning applies on Private Cloud Compute.
+    func generateDraft(
+        prompt: String,
+        instructions: String,
+        temperature: Double = 0.7,
+        reasoning: ContextOptions.ReasoningLevel = .moderate
+    ) async throws -> String {
+        try requireAvailable()
+
+        let session = makeSession(instructions: instructions)
+        do {
+            let response = try await session.respond(
+                to: prompt,
+                options: generationOptions(temperature: temperature, maxTokens: nil),
+                contextOptions: ContextOptions(reasoningLevel: reasoning)
+            )
+            return response.content
+        } catch let error as LanguageModelError {
+            throw LocalModelError.fromLanguageModel(error)
+        }
+    }
 }
 
 // MARK: - Shared Request Handling
