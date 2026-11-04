@@ -8,7 +8,7 @@
 //  they name the argument and the noun and forward here.
 //
 //  Resolvers that match on more than an id (a student by name, a lesson by
-//  title, a track by area) are not this shape and live with their tools.
+//  title) are not this shape and live with their tools.
 //
 
 import CoreData

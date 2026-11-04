@@ -14,8 +14,8 @@ import OSLog
 ///   WorkParticipant, CDPracticeSession
 /// - `BackupDTOTransformers+V18Entities.swift` — CDDayPad, CDYearPlanEntry,
 ///   CDLessonSequenceSettings, CDStory, Book Club entities
-/// - `BackupDTOTransformers+Misc.swift` — Calendar, Todo, CDTrackEntity,
-///   CDSupply, CDSchedule, CDIssue, CDProcedure, CDDocument, and remaining types
+/// - `BackupDTOTransformers+Misc.swift` — Calendar, Todo, CDSupply,
+///   CDSchedule, CDIssue, CDProcedure, CDDocument, and remaining types
 ///
 /// Entities NOT handled here (CDStudent, CDLesson, CDNote, CDNonSchoolDay,
 /// CDSchoolDayOverride, CDStudentMeeting, CDAttendanceRecord,

@@ -9,8 +9,6 @@ nonisolated public class CDLessonPresentation: NSManagedObject {
     @NSManaged public var studentID: String
     @NSManaged public var lessonID: String
     @NSManaged public var presentationID: String?
-    @NSManaged public var trackID: String?
-    @NSManaged public var trackStepID: String?
     @NSManaged public var stateRaw: String
     @NSManaged public var presentedAt: Date?
     @NSManaged public var lastObservedAt: Date?
@@ -35,8 +33,6 @@ nonisolated public class CDLessonPresentation: NSManagedObject {
         self.studentID = ""
         self.lessonID = ""
         self.presentationID = nil
-        self.trackID = nil
-        self.trackStepID = nil
         self.stateRaw = LessonPresentationState.presented.rawValue
         self.presentedAt = Date()
         self.lastObservedAt = nil

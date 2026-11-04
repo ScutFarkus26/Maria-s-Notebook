@@ -9,8 +9,8 @@ final class Phase7PostTests {
 
     // MARK: - Entity Registry Updated
 
-    @Test("BackupEntityRegistry contains exactly 82 entity types")
-    func backupEntityRegistryCountIs82() {
+    @Test("BackupEntityRegistry contains exactly 78 entity types")
+    func backupEntityRegistryCountIs78() {
         // 67th–72nd types are the teaching-album annotations (bookmarks, page
         // notes, recent visits, reading positions, highlights, and Pencil ink;
         // format v21); the 73rd is Orders (format v27); the 74th is locked
@@ -18,9 +18,10 @@ final class Phase7PostTests {
         // (format v31); the 76th and 77th are the front-desk attendance
         // emails and their settings (format v34); the 78th is the names people
         // set for themselves (format v38); the 79th–82nd are Schedules' lanes,
-        // blocks, day changes and bookings (format v42). This count is a change
-        // detector for accidental registry edits.
-        #expect(BackupEntityRegistry.allTypes.count == 82)
+        // blocks, day changes and bookings (format v42). Format v45 took out
+        // the four track types, leaving 78. This count is a change detector
+        // for accidental registry edits.
+        #expect(BackupEntityRegistry.allTypes.count == 78)
     }
 
     @Test("ClassroomMembership IS now in BackupEntityRegistry")
@@ -182,7 +183,6 @@ final class Phase7PostTests {
         let types = BackupEntityRegistry.allTypes
         #expect(types.contains(where: { $0 == CDStudent.self }))
         #expect(types.contains(where: { $0 == CDLesson.self }))
-        #expect(types.contains(where: { $0 == CDTrackEntity.self }))
         #expect(types.contains(where: { $0 == CDSchedule.self }))
         #expect(types.contains(where: { $0 == CDProcedure.self }))
         #expect(types.contains(where: { $0 == CDClassroomJob.self }))

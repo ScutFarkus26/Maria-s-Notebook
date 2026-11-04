@@ -51,17 +51,6 @@ nonisolated public struct TodoTemplateDTO: Codable, Sendable {
     public var tags: [String]?
 }
 
-// MARK: - CDTrackEntity DTOs
-
-nonisolated public struct SequenceTrackDTO: Codable, Sendable {
-    public var id: UUID
-    public var area: String
-    public var sequence: String
-    public var isSequential: Bool
-    public var isExplicitlyDisabled: Bool
-    public var createdAt: Date
-}
-
 // MARK: - Development Snapshot DTO
 
 nonisolated public struct DevelopmentSnapshotDTO: Codable, Sendable {

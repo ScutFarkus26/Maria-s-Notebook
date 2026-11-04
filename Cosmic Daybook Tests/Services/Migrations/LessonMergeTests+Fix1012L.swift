@@ -5,18 +5,18 @@ import Testing
 
 // Bug hunt 2026-10-12, #1 and #3.
 //
-// #1: the same-name lesson merge and the same-title track merge run right
-// after the id pass, which leaves two copies of one id alone while a Replace
-// restore may still be arriving (`DedupSyncState.tieStillSettling`). The name
-// merges then folded those same copies anyway, keeping the outgoing record;
-// and with one id on both sides, `repointLessonReferences(from: id, to: id)`
-// deleted every track step of the lesson. A group holding two copies of one
-// id now belongs to the id pass, a group waits while the settling guard says
-// so, and repointing a lesson onto itself changes nothing.
+// #1: the same-name lesson merge runs right after the id pass, which leaves
+// two copies of one id alone while a Replace restore may still be arriving
+// (`DedupSyncState.tieStillSettling`). The name merge then folded those same
+// copies anyway, keeping the outgoing record; and with one id on both sides,
+// `repointLessonReferences(from: id, to: id)` deleted what pointed at the
+// lesson (its track steps, until schema 23 retired them). A group holding two
+// copies of one id now belongs to the id pass, a group waits while the
+// settling guard says so, and repointing a lesson onto itself changes nothing.
 //
 // #3: the merge also moves Going Out curriculum links and story match reasons.
 
-@Suite("Lesson and track name merges (bug hunt 10-12)")
+@Suite("Lesson name merges (bug hunt 10-12)")
 @MainActor
 struct LessonMergeFix1012LTests {
 
@@ -28,12 +28,8 @@ struct LessonMergeFix1012LTests {
         context.safeFetch(CDFetchRequest(CDLesson.self)).filter { !$0.isDeleted }
     }
 
-    private func tracks(in context: NSManagedObjectContext) -> [CDTrackEntity] {
-        context.safeFetch(CDFetchRequest(CDTrackEntity.self)).filter { !$0.isDeleted }
-    }
-
-    private func steps(in context: NSManagedObjectContext) -> [CDTrackStep] {
-        context.safeFetch(CDFetchRequest(CDTrackStep.self)).filter { !$0.isDeleted }
+    private func marks(in context: NSManagedObjectContext) -> [CDLessonPresentation] {
+        context.safeFetch(CDFetchRequest(CDLessonPresentation.self)).filter { !$0.isDeleted }
     }
 
     @discardableResult
@@ -46,15 +42,11 @@ struct LessonMergeFix1012LTests {
         return lesson
     }
 
-    @discardableResult
-    private func seedStep(
-        lesson lessonID: UUID, on track: CDTrackEntity, in context: NSManagedObjectContext
-    ) -> CDTrackStep {
-        let step = CDTrackStep(context: context)
-        step.lessonTemplateID = lessonID
-        step.orderIndex = 0
-        step.track = track
-        return step
+    /// A child's mark for the lesson, which a merge must keep pointing at it.
+    private func seedMark(lesson lessonID: UUID, in context: NSManagedObjectContext) {
+        let mark = CDLessonPresentation(context: context)
+        mark.lessonID = lessonID.uuidString
+        mark.studentID = UUID().uuidString
     }
 
     /// Runs `body` as a synced device sees its rows: every row has a record in
@@ -90,15 +82,13 @@ struct LessonMergeFix1012LTests {
 
     // MARK: - #1 Same-id copies belong to the id pass
 
-    @Test("A lesson restored on another device, its old copy not yet gone, keeps both copies and every track step")
+    @Test("A lesson restored on another device, its old copy not yet gone, keeps both copies and every mark")
     func sameIDLessonPairDuringRestoreKeepsSteps() throws {
         let context = try CoreDataTestHelpers.makeContext()
         let id = UUID()
         seedLesson("Rectangle", id: id, in: context)
         seedLesson("Rectangle", id: id, in: context)
-        let track = CDTrackEntity(context: context)
-        track.title = "Geometry — Area"
-        seedStep(lesson: id, on: track, in: context)
+        seedMark(lesson: id, in: context)
         #expect(CoreDataTestHelpers.save(context))
 
         let results = duringRestore { DataCleanupService.deduplicateAllModels(using: context) }
@@ -107,7 +97,7 @@ struct LessonMergeFix1012LTests {
         #expect(results["Lesson"] == nil)
         #expect(results["Lesson (same name)"] == nil)
         #expect(lessons(in: context).count == 2)
-        #expect(steps(in: context).map(\.lessonTemplateID) == [id])
+        #expect(marks(in: context).map(\.lessonID) == [id.uuidString])
     }
 
     @Test("The name merge leaves a group with two copies of one id to the id pass, even beside a third lesson")
@@ -117,15 +107,13 @@ struct LessonMergeFix1012LTests {
         seedLesson("Rectangle", order: 0, id: id, in: context)
         seedLesson("Rectangle", order: 0, id: id, in: context)
         seedLesson("Rectangle", order: 5, in: context)
-        let track = CDTrackEntity(context: context)
-        track.title = "Geometry — Area"
-        seedStep(lesson: id, on: track, in: context)
+        seedMark(lesson: id, in: context)
         #expect(CoreDataTestHelpers.save(context))
 
         #expect(DataCleanupService.mergeSameNameLessons(using: context) == 0)
         #expect(CoreDataTestHelpers.save(context))
         #expect(lessons(in: context).count == 3)
-        #expect(steps(in: context).count == 1)
+        #expect(marks(in: context).map(\.lessonID) == [id.uuidString])
     }
 
     @Test("Repointing a lesson onto its own id changes nothing")
@@ -133,9 +121,6 @@ struct LessonMergeFix1012LTests {
         let context = try CoreDataTestHelpers.makeContext()
         let id = UUID()
         seedLesson("Rectangle", id: id, in: context)
-        let track = CDTrackEntity(context: context)
-        track.title = "Geometry — Area"
-        seedStep(lesson: id, on: track, in: context)
         let studentID = UUID().uuidString
         for _ in 0..<2 {
             let entry = CDYearPlanEntry(context: context)
@@ -151,41 +136,8 @@ struct LessonMergeFix1012LTests {
         DataCleanupService.repointLessonReferences(from: id, to: id, in: context)
 
         #expect(!context.hasChanges)
-        #expect(steps(in: context).count == 1)
         #expect(context.safeFetch(CDFetchRequest(CDYearPlanEntry.self)).count == 2)
         #expect(context.safeFetch(CDFetchRequest(CDLessonPresentation.self)).count == 2)
-    }
-
-    @Test("A same-title track restored on another device keeps both copies and both copies' steps")
-    func sameIDTrackPairDuringRestoreKeepsSteps() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let trackID = UUID()
-        let stepID = UUID()
-        let lessonID = UUID()
-        let created = Date(timeIntervalSince1970: 1_790_000_000)
-        for _ in 0..<2 {
-            let track = CDTrackEntity(context: context)
-            track.id = trackID
-            track.title = "Math — Laws"
-            track.createdAt = created
-            // A restored step keeps its id and creation time, as its track does.
-            let step = seedStep(lesson: lessonID, on: track, in: context)
-            step.id = stepID
-            step.createdAt = created
-        }
-        #expect(CoreDataTestHelpers.save(context))
-
-        let results = duringRestore { DataCleanupService.deduplicateAllModels(using: context) }
-        #expect(CoreDataTestHelpers.save(context))
-
-        #expect(results["Track (same title)"] == nil)
-        #expect(tracks(in: context).count == 2)
-        #expect(steps(in: context).count == 2)
-        #expect(tracks(in: context).allSatisfy { ($0.steps?.count ?? 0) == 1 })
-
-        // And called on its own, the title merge leaves two copies of one id to the id pass.
-        #expect(DataCleanupService.mergeSameTitleTracks(using: context) == 0)
-        #expect(tracks(in: context).count == 2)
     }
 
     // MARK: - #1 The settling guard covers the whole group
@@ -226,33 +178,6 @@ struct LessonMergeFix1012LTests {
         }
         #expect(settledPass == 1)
         #expect(lessons(in: context).map(\.objectID) == [olderObject])
-    }
-
-    @Test("Two tracks by one title wait while one changed in iCloud lately")
-    func sameTitleTracksWaitForTheGroupToSettle() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let older = CDTrackEntity(context: context)
-        older.title = "Math — Laws"
-        older.createdAt = try CoreDataTestHelpers.day("2026-01-10")
-        let newer = CDTrackEntity(context: context)
-        newer.title = "Math — Laws"
-        newer.createdAt = try CoreDataTestHelpers.day("2026-01-11")
-        #expect(CoreDataTestHelpers.save(context))
-        let newerObject = newer.objectID
-        let longAgo = now.addingTimeInterval(-3600)
-        let lately = now.addingTimeInterval(-60)
-
-        let recentPass = synced(changed: longAgo, lately: [newerObject: lately], lastImport: now) {
-            DataCleanupService.mergeSameTitleTracks(using: context)
-        }
-        #expect(recentPass == 0)
-        #expect(tracks(in: context).count == 2)
-
-        let settledPass = synced(changed: longAgo, lastImport: now.addingTimeInterval(-1800)) {
-            DataCleanupService.mergeSameTitleTracks(using: context)
-        }
-        #expect(settledPass == 1)
-        #expect(tracks(in: context).map(\.objectID) == [older.objectID])
     }
 
     // MARK: - #3 Going Out links and story reasons

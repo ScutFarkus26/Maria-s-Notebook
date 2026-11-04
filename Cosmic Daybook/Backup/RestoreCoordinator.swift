@@ -16,7 +16,7 @@ final class RestoreCoordinator {
         Task { [weak self] in
             guard let self else { return }
             withObservationTracking {
-                // CDTrackEntity changes to appRouter properties
+                // Observe changes to appRouter properties
                 _ = self.appRouter.appDataWillBeReplaced
                 _ = self.appRouter.appDataDidRestore
             } onChange: { [weak self] in

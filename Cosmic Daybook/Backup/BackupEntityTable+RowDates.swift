@@ -35,7 +35,6 @@ nonisolated extension SampleWorkDTO: BackupRowDTO { var rowModifiedAt: Date? { n
 nonisolated extension NoteTemplateDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension ReminderDTO: BackupRowDTO { var rowModifiedAt: Date? { updatedAt } }
 nonisolated extension CalendarEventDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension SequenceTrackDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension DocumentDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension SupplyDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
 nonisolated extension ProcedureDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }

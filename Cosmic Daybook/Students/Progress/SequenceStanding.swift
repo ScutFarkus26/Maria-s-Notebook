@@ -102,11 +102,21 @@ enum SequenceStandingLoader {
         )
     }
 
+    /// A store-side superset of "trimmed value equals `value` ignoring
+    /// case": any stored string whose trimmed form matches contains `value`.
+    /// Callers keep applying the exact in-memory comparison, so the result
+    /// is unchanged; only the rows that could never match stay in the store.
+    /// An empty value reads everything, as `CONTAINS ""` does not.
+    static func couldEqualPredicate(area: String, sequence: String) -> NSPredicate? {
+        guard !area.isEmpty, !sequence.isEmpty else { return nil }
+        return NSPredicate(format: "area CONTAINS[cd] %@ AND sequence CONTAINS[cd] %@", area, sequence)
+    }
+
     /// The sequence's lessons in order: a store-side superset of the trimmed,
-    /// case-insensitive match applied here (`SequenceTrackService.couldEqualPredicate`).
+    /// case-insensitive match applied here (`couldEqualPredicate`).
     static func sequenceLessons(area: String, sequence: String, in context: NSManagedObjectContext) -> [CDLesson] {
         let request = CDFetchRequest(CDLesson.self)
-        request.predicate = SequenceTrackService.couldEqualPredicate(area: area, sequence: sequence)
+        request.predicate = couldEqualPredicate(area: area, sequence: sequence)
         request.sortDescriptors = CDLesson.sortByCurriculumOrder
         return context.safeFetch(request)
             .filter {

@@ -125,7 +125,12 @@ nonisolated public enum BackupWriter {
     ///   older backup's rows read it as their `attachedAt`
     ///   (`BackupFieldsAddedLater.standIns`). The files themselves are still
     ///   not in the backup.
-    public static let formatVersion: Int = 44
+    /// - v45: the track entities leave (schema 23): no `Track`, `TrackStep`,
+    ///   `SequenceTrack` or `StudentTrackEnrollment` entries, and no `trackID`
+    ///   or `trackStepID` on presentations, assignments and work, nor
+    ///   `studentTrackEnrollmentID` on notes. An older backup's track entries
+    ///   and fields are skipped quietly (`BackupEntityTable.retiredNames`).
+    public static let formatVersion: Int = 45
 
     public enum WriterError: LocalizedError {
         case entityEncodingFailed(entityName: String, underlying: Error)

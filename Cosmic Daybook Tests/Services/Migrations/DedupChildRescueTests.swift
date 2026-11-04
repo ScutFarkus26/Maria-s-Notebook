@@ -5,7 +5,7 @@ import Testing
 
 // Bug hunt 2026-10-05 (#8, #11, #12, #39, #54): deleting the copy of a record
 // the cleanup drops took whatever it owned with it. Its cascade children
-// (lesson attachments, track steps, a topic's solutions, a todo's subtasks)
+// (lesson attachments, a topic's solutions, a todo's subtasks)
 // went too, a project's sessions came loose, and a work item's check-ins
 // written by id alone were swept although the kept copy shares that id. The
 // merges now move every child to the kept copy first, and copy nothing that
@@ -94,38 +94,6 @@ struct DedupChildRescueTests {
         #expect(fetch(CDLessonAttachment.self, in: context).map(\.lesson) == [kept])
         #expect(fetch(CDSampleWork.self, in: context).count == 1)
         #expect(sampleWork.lesson === kept)
-    }
-
-    @Test("A track's steps and enrollments move to the kept copy")
-    func trackChildrenMove() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let id = UUID()
-        let kept = CDTrackEntity(context: context)
-        kept.id = id
-        kept.title = "Math — Laws"
-        kept.createdAt = early
-        let dropped = CDTrackEntity(context: context)
-        dropped.id = id
-        dropped.title = "Math — Laws"
-        dropped.createdAt = late
-        let step = CDTrackStep(context: context)
-        step.lessonTemplateID = UUID()
-        step.track = dropped
-        let enrollment = CDStudentTrackEnrollmentEntity(context: context)
-        enrollment.studentID = UUID().uuidString
-        enrollment.trackID = id.uuidString
-        enrollment.track = dropped
-        #expect(CoreDataTestHelpers.save(context))
-
-        let results = DataCleanupService.deduplicateAllModels(
-            using: context, scope: DeduplicationScope(insertedEntities: ["Track"])
-        )
-
-        #expect(results["Track"] == 1)
-        #expect(fetch(CDTrackStep.self, in: context).count == 1)
-        #expect(step.track === kept)
-        #expect(fetch(CDStudentTrackEnrollmentEntity.self, in: context).count == 1)
-        #expect(enrollment.track === kept)
     }
 
     @Test("A community topic's proposed solutions and attachments move to the kept copy")

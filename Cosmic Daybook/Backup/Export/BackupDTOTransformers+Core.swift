@@ -31,8 +31,6 @@ extension BackupDTOTransformers {
             studentID: lp.studentID,
             lessonID: lp.lessonID,
             presentationID: lp.presentationID,
-            trackID: lp.trackID,
-            trackStepID: lp.trackStepID,
             stateRaw: lp.stateRaw,
             presentedAt: lp.presentedAt ?? Date(),
             lastObservedAt: lp.lastObservedAt,

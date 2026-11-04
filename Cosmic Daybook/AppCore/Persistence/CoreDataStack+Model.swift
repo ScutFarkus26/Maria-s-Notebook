@@ -72,8 +72,8 @@ extension CoreDataStack {
     ///
     /// It used to hold 33 types, and the Student ↔ StudentTrackEnrollment
     /// relationship pulled tracks, steps, lessons and other students into any
-    /// share a student joined. Since schema 9 the relationship is gone
-    /// (enrollments name their student by `studentID`) and the list was five
+    /// share a student joined. Since schema 9 the relationship is gone (and
+    /// since schema 23 the track entities themselves) and the list was five
     /// (Supply and SupplyTransaction were among the 33, and left it then);
     /// schema 12 added the two front-desk email types, schema 15 brought the
     /// supplies back with the order list, as Restock, schema 16 added the
@@ -124,10 +124,6 @@ extension CoreDataStack {
         "Lesson",
         "LessonAttachment",
         "LessonPresentation",
-        "Track",
-        "TrackStep",
-        "SequenceTrack",
-        "StudentTrackEnrollment",
         "Procedure",
         "Schedule",
         "ScheduleSlot",

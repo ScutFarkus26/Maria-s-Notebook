@@ -186,14 +186,11 @@ private enum FieldCoverage {
         "issueID": "Issue",
         "scheduleID": "Schedule",
         "jobID": "ClassroomJob",
-        "trackID": "Track",
-        "trackStepID": "TrackStep",
         "meetingID": "StudentMeeting",
         "createdInMeetingID": "StudentMeeting",
         "resolvedInMeetingID": "StudentMeeting",
         "communityTopicID": "CommunityTopic",
         "schoolDayOverrideID": "SchoolDayOverride",
-        "studentTrackEnrollmentID": "StudentTrackEnrollment",
         "presentationID": "LessonPresentation",
         "parentStoryID": "Story",
         "promotedAssignmentID": "LessonAssignment",
@@ -504,10 +501,6 @@ final class BackupFieldCoverageTests {
                 "lastSyncedAt": eventKitReason
             ]
         ),
-        FieldSpec("Track"),
-        FieldSpec("TrackStep"),
-        FieldSpec("StudentTrackEnrollment"),
-        FieldSpec("SequenceTrack"),
         FieldSpec(
             "Document",
             skips: [

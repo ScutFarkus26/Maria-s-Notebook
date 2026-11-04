@@ -50,7 +50,6 @@ private enum RestoreProgress {
     static let workTracking: Double = 0.70
     static let lessonExtras: Double = 0.74
     static let templates: Double = 0.76
-    static let tracks: Double = 0.78
     static let documentsSupplies: Double = 0.80
     static let schedules: Double = 0.82
     static let issues: Double = 0.84
@@ -116,9 +115,6 @@ extension BackupService {
 
         progress(RestoreProgress.templates, "Importing templates\u{2026}")
         try importTemplateEntities(from: payload, into: viewContext, index: index)
-
-        progress(RestoreProgress.tracks, "Importing tracks\u{2026}")
-        try importTrackEntities(from: payload, into: viewContext, index: index)
 
         progress(RestoreProgress.documentsSupplies, "Importing documents & supplies\u{2026}")
         try importDocumentEntities(from: payload, into: viewContext, index: index)
@@ -518,46 +514,6 @@ extension BackupService {
                 calendarEvents,
                 into: viewContext,
                 existing: { try index.existing(CDCalendarEvent.self, id: $0) }
-            )
-        }
-    }
-
-    private func importTrackEntities(
-        from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext,
-        index: BackupEntityIndex
-    ) throws {
-        if let tracks = payload.tracks {
-            BackupEntityImporter.importRows(
-                tracks, as: CDTrackEntity.self, into: viewContext,
-                existing: { try index.existing(CDTrackEntity.self, id: $0) }
-            )
-        }
-
-        if let trackSteps = payload.trackSteps {
-            BackupEntityImporter.importRows(
-                trackSteps, as: CDTrackStep.self, into: viewContext,
-                existing: { try index.existing(CDTrackStep.self, id: $0) },
-                parents: ["track": { try index.related(CDTrackEntity.self, id: $0) }]
-            )
-        }
-
-        if let enrollments = payload.studentTrackEnrollments {
-            BackupEntityImporter.importRows(
-                enrollments, as: CDStudentTrackEnrollmentEntity.self, into: viewContext,
-                existing: { try index.existing(CDStudentTrackEnrollmentEntity.self, id: $0) },
-                parents: [
-                    "student": { try index.related(CDStudent.self, id: $0) },
-                    "track": { try index.related(CDTrackEntity.self, id: $0) }
-                ]
-            )
-        }
-
-        if let sequenceTracks = payload.sequenceTracks {
-            try BackupEntityImporter.importSequenceTracks(
-                sequenceTracks,
-                into: viewContext,
-                existing: { try index.existing(CDSequenceTrack.self, id: $0) }
             )
         }
     }

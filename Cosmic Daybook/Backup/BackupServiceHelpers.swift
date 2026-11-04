@@ -125,7 +125,6 @@ enum BackupServiceHelpers {
                 reporterName: n.reporterName,
                 communityTopicID: n.communityTopicID,
                 schoolDayOverrideID: n.schoolDayOverrideID,
-                studentTrackEnrollmentID: n.studentTrackEnrollmentID,
                 goingOutID: n.goingOutID,
                 lessonAssignmentID: n.lessonAssignment?.id,
                 attendanceRecordID: n.attendanceRecordID.flatMap { UUID(uuidString: $0) },

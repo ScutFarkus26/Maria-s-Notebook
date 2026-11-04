@@ -73,8 +73,9 @@ nonisolated public enum BackupReader {
     /// the school (email or ParentLocker) and each child's ParentLocker match;
     /// v41 the Tide action each to-do is shared with; v42 Schedules; v43
     /// whether each child was born after sunset; v44 when each lesson file
-    /// last changed.
-    public static let supportedFormatVersions: ClosedRange<Int> = 17...44
+    /// last changed; v45 the track entities gone (an older backup's track
+    /// entries are skipped).
+    public static let supportedFormatVersions: ClosedRange<Int> = 17...45
 
     // MARK: - Public API
 

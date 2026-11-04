@@ -35,8 +35,6 @@ nonisolated extension DataCleanupService {
         if canonical.studentID.isEmpty { canonical.studentID = duplicate.studentID }
         if canonical.lessonID.isEmpty { canonical.lessonID = duplicate.lessonID }
         if canonical.presentationID == nil { canonical.presentationID = duplicate.presentationID }
-        if canonical.trackID == nil { canonical.trackID = duplicate.trackID }
-        if canonical.trackStepID == nil { canonical.trackStepID = duplicate.trackStepID }
         if canonical.scheduledNote == nil { canonical.scheduledNote = duplicate.scheduledNote }
         if canonical.scheduledReasonRaw == nil { canonical.scheduledReasonRaw = duplicate.scheduledReasonRaw }
         if canonical.sourceContextTypeRaw == nil { canonical.sourceContextTypeRaw = duplicate.sourceContextTypeRaw }

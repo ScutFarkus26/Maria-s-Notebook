@@ -58,8 +58,8 @@ struct StudentDeletionTests {
     func ownedRecordsGo() throws {
         let pair = try makePair()
         let context = pair.context
-        let owned = ["AttendanceRecord", "LessonPresentation", "StudentTrackEnrollment",
-                     "YearPlanEntry", "Guardian", "StudentFocusItem", "ScheduledMeeting"]
+        let owned = ["AttendanceRecord", "LessonPresentation", "YearPlanEntry", "Guardian",
+                     "StudentFocusItem", "ScheduledMeeting"]
         for entity in owned {
             insert(entity, studentID: pair.danny, in: context)
             insert(entity, studentID: pair.maya, in: context)

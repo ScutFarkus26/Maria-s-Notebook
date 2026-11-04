@@ -22,7 +22,7 @@ final class AppBootstrapping {
 
     // MARK: - Shared Instance
 
-    /// CDTrackEntity initialization errors to show in the UI
+    /// The initialization error to show in the UI
     static var initError: Error?
 
     /// Core Data stack with NSPersistentCloudKitContainer: set once its

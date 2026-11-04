@@ -195,7 +195,6 @@ struct PresentationRecordsFix1010ITests {
         let room = try makeRoom()
         let assignment = try given([room.ada], lesson: room.lesson, in: room.context)
         let row = try #require(rows(room.context).first)
-        row.trackStepID = UUID().uuidString
 
         assignment.lessonID = try #require(room.other.id).uuidString
         _ = try LifecycleService.recordPresentation(
@@ -204,7 +203,6 @@ struct PresentationRecordsFix1010ITests {
 
         #expect(rows(room.context).count == 1)
         #expect(row.lessonID == room.other.id?.uuidString)
-        #expect(row.trackStepID == nil)
     }
 
     @Test("Change Lesson returns the old lesson's promoted entries to planned and keeps the new lesson's")

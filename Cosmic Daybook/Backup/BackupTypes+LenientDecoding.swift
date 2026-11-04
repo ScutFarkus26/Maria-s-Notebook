@@ -101,8 +101,6 @@ nonisolated extension LessonAssignmentDTO {
         ) ?? false
         self.followUpWork = try c.decodeIfPresent(String.self, forKey: FieldKey("followUpWork")) ?? ""
         self.notes = try c.decodeIfPresent(String.self, forKey: FieldKey("notes")) ?? ""
-        self.trackID = try c.decodeIfPresent(String.self, forKey: FieldKey("trackID"))
-        self.trackStepID = try c.decodeIfPresent(String.self, forKey: FieldKey("trackStepID"))
         self.migratedFromLegacyID = try c.decodeIfPresent(String.self, forKey: FieldKey("migratedFromLegacyID"))
         self.migratedFromPresentationID = try c.decodeIfPresent(
             String.self,
@@ -110,20 +108,6 @@ nonisolated extension LessonAssignmentDTO {
         )
         self.manuallyUnblocked = try c.decodeIfPresent(Bool.self, forKey: FieldKey("manuallyUnblocked"))
         self.confirmedStudentIDs = try c.decodeIfPresent([String].self, forKey: FieldKey("confirmedStudentIDs"))
-    }
-}
-
-// MARK: - SequenceTrackDTO
-
-nonisolated extension SequenceTrackDTO {
-    public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: FieldKey.self)
-        self.id = try c.decode(UUID.self, forKey: FieldKey("id"))
-        self.area = try c.decodeString("area")
-        self.sequence = try c.decodeString("sequence")
-        self.isSequential = try c.decodeIfPresent(Bool.self, forKey: FieldKey("isSequential")) ?? true
-        self.isExplicitlyDisabled = try c.decodeIfPresent(Bool.self, forKey: FieldKey("isExplicitlyDisabled")) ?? false
-        self.createdAt = try c.decodeIfPresent(Date.self, forKey: FieldKey("createdAt")) ?? Date()
     }
 }
 

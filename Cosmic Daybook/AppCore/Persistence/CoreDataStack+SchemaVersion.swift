@@ -138,7 +138,16 @@ nonisolated extension CoreDataStack {
     ///   name or its note last changed, so a replaced file reads "Updated"
     ///   (plan "Lesson file attachments"; `LessonAttachmentService`). Additive
     ///   optional Date; older records read it as `attachedAt`.
-    nonisolated static let currentSchemaVersion = 22
+    /// - `23` — the track entities leave the model (plan "Retire the track
+    ///   entities", Phase 3): `Track`, `TrackStep`, `SequenceTrack` and
+    ///   `StudentTrackEnrollment`, `trackID` and `trackStepID` on
+    ///   `LessonPresentation`, `LessonAssignment` and `WorkModel`, and
+    ///   `Note.studentTrackEnrollmentID`. Private store only; nothing has
+    ///   written them since the Phase 1 build, and a child's standing on a
+    ///   sequence is read from her presentations (`SequenceStanding`). A note
+    ///   that hung on an enrollment is read before the store migrates and
+    ///   moved onto the enrollment's child after (`EnrollmentNoteOwners`).
+    nonisolated static let currentSchemaVersion = 23
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"
@@ -228,6 +237,14 @@ nonisolated extension CoreDataStack {
                 schemaLogger.error("\(name, privacy: .public) needs migrating while another copy has it open")
                 throw CoreDataStackError.storeInUseByAnotherCopy
             }
+            #if !ASSISTANT_APP
+            // Schema 23 drops the track enrollments and the note column that
+            // named one. Read whose each such note is while the file still
+            // has them; the launch pass moves the notes onto those children.
+            if migrating && description.configuration != sharedConfiguration {
+                EnrollmentNoteOwners.stashOwners(readingStoreAt: url)
+            }
+            #endif
             let backup = migrating
                 ? backUpStoreBeforeMigration(storeURL: url, model: model, options: surgeryOptions(for: description))
                 : nil

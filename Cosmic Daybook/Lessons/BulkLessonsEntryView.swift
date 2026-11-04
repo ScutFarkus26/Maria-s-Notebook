@@ -349,7 +349,7 @@ public struct BulkLessonsEntryView: View {
                 name: row.name, area: row.area, sequence: row.sequence, section: row.section, writeUp: row.writeUp
             )
         }
-        // A failed save takes the grid's lessons (and their tracks) back out
+        // A failed save takes the grid's lessons back out
         // and keeps the sheet open with the rows as typed, so Save can simply
         // be tried again.
         guard let outcome = BulkLessonInsertion.insertAndSave(

@@ -51,7 +51,7 @@ nonisolated enum BackupFieldsAddedLater {
         ],
         "Note": [
             "reportedBy": 20, "reporterName": 20, "communityTopicID": 20, "schoolDayOverrideID": 20,
-            "studentTrackEnrollmentID": 20, "goingOutID": 20
+            "goingOutID": 20
         ],
         "LessonPresentation": [
             "followUpActionRaw": 20, "followUpEvidenceRaw": 20, "followUpNote": 20, "followUpResolutionRaw": 20,

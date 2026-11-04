@@ -201,8 +201,7 @@ struct AddLessonView: View {
         }
     }
 
-    /// Inserts the lesson, with its sub-area's track, and saves both in one
-    /// save. A name already filed in the sub-area, or a failed save, keeps
+    /// Inserts the lesson and saves it in one save. A name already filed in the sub-area, or a failed save, keeps
     /// nothing: left in the context, the unsaved lesson made the retry say
     /// it was already in the curriculum (bug hunt 2026-10-12, #4). The form
     /// stays as typed either way.
@@ -229,8 +228,7 @@ struct AddLessonView: View {
         dismiss()
     }
 
-    /// The new lesson after the sequence's last, and its track if the
-    /// sub-area is one. Throws `LessonRepository.CreationError` for a name
+    /// The new lesson after the sequence's last. Throws `LessonRepository.CreationError` for a name
     /// already in the sub-area, having inserted nothing.
     private func insertLessonAndTrack() throws -> CDLesson {
         let newLesson = try repository.createLesson(

@@ -128,8 +128,6 @@ extension BackupEntityImporter {
             assignment.needsAnotherPresentation = dto.needsAnotherPresentation
             assignment.followUpWork = dto.followUpWork
             assignment.notes = dto.notes
-            assignment.trackID = dto.trackID
-            assignment.trackStepID = dto.trackStepID
             // Rows from before these (v19) have neither: an assignment already
             // here keeps its own, a new one the defaults.
             if let unblocked = dto.manuallyUnblocked { assignment.manuallyUnblocked = unblocked }
@@ -178,8 +176,6 @@ extension BackupEntityImporter {
             lp.studentID = dto.studentID
             lp.lessonID = dto.lessonID
             lp.presentationID = dto.presentationID
-            lp.trackID = dto.trackID
-            lp.trackStepID = dto.trackStepID
             lp.stateRaw = (LessonPresentationState(rawValue: dto.stateRaw) ?? .presented).rawValue
             lp.presentedAt = dto.presentedAt
             lp.lastObservedAt = dto.lastObservedAt

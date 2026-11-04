@@ -3,17 +3,16 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-// Bug hunt 2026-11-02, #7, #57 and #59.
+// Bug hunt 2026-11-02, #7 and #57. (#59, the lesson name merge and track
+// steps, went with the track entities at schema 23.)
 //
 // #7: restore set a project session's `projectID` but never its project, so
 // restored sessions vanished from their book club or project; the launch now
 // links those an older restore left.
 // #57: a safe-mode launch (the stores didn't open; an empty store in memory)
 // ran the one-time launch steps and marked them done for good.
-// #59: the lesson name merge deleted a duplicate track step and left the
-// presentations, marks and work that named it pointing at nothing.
 
-@Suite("Launch repairs: sessions relinked, safe mode, track steps (hunt 11-02)")
+@Suite("Launch repairs: sessions relinked, safe mode (hunt 11-02)")
 @MainActor
 struct LaunchRepairsHunt1102Tests {
 
@@ -96,53 +95,5 @@ struct LaunchRepairsHunt1102Tests {
         })
         #expect(ran)
         #expect(defaults.bool(forKey: flag))
-    }
-
-    // MARK: - #59
-
-    @Test("A track that stepped through both copies keeps one step, and what named the dropped one names it")
-    func lessonMergeRepointsDroppedSteps() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let kept = CoreDataTestHelpers.seedLesson(in: context, name: "Rectangle", area: "Geometry", sequence: "Area")
-        let duplicate = CoreDataTestHelpers.seedLesson(
-            in: context, name: "Rectangle", area: "Geometry", sequence: "Area"
-        )
-        let keptID = try #require(kept.id)
-        let duplicateID = try #require(duplicate.id)
-        let track = CDTrackEntity(context: context)
-        let keptStep = CDTrackStep(context: context)
-        keptStep.lessonTemplateID = keptID
-        keptStep.track = track
-        let droppedStep = CDTrackStep(context: context)
-        droppedStep.lessonTemplateID = duplicateID
-        droppedStep.track = track
-        // Another track stepped only through the duplicate: its step moves over.
-        let otherTrack = CDTrackEntity(context: context)
-        let movedStep = CDTrackStep(context: context)
-        movedStep.lessonTemplateID = duplicateID
-        movedStep.track = otherTrack
-        let droppedID = try #require(droppedStep.id).uuidString
-        let keptStepID = try #require(keptStep.id).uuidString
-        let movedID = try #require(movedStep.id).uuidString
-
-        let assignment = CDLessonAssignment(context: context)
-        assignment.trackStepID = droppedID
-        let mark = CDLessonPresentation(context: context)
-        mark.trackStepID = droppedID
-        let work = CoreDataTestHelpers.seedWorkModel(in: context, lessonID: duplicateID)
-        work.trackStepID = droppedID
-        let onMoved = CoreDataTestHelpers.seedWorkModel(in: context, lessonID: duplicateID)
-        onMoved.trackStepID = movedID
-        #expect(CoreDataTestHelpers.save(context))
-
-        DataCleanupService.repointLessonReferences(from: duplicateID, to: keptID, in: context)
-
-        #expect(droppedStep.isDeleted)
-        #expect(!keptStep.isDeleted)
-        #expect(movedStep.lessonTemplateID == keptID)
-        #expect(assignment.trackStepID == keptStepID)
-        #expect(mark.trackStepID == keptStepID)
-        #expect(work.trackStepID == keptStepID)
-        #expect(onMoved.trackStepID == movedID, "a step that moved keeps its id")
     }
 }
