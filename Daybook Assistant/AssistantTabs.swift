@@ -25,6 +25,10 @@ struct AssistantTabs: View {
     /// Where `ClassroomIdentity.displayName` is kept, watched so the name
     /// sheet goes the moment she has a name, and comes when she has none.
     @AppStorage(UserDefaultsKeys.classroomIdentityDisplayName) private var storedName: String?
+    /// While the Classroom sheet is up the name sheet waits, as it does for
+    /// setup: it can't show over that sheet. It used to try, fail, and not
+    /// be asked for again once the sheet closed (hunt 2026-11-03 #34).
+    @State private var classroomSheetUp = false
 
     var body: some View {
         TabView(selection: $selection) {
@@ -81,6 +85,9 @@ struct AssistantTabs: View {
         .onChange(of: hasName) { _, has in
             if has, bootstrapper.askForNameAgain { bootstrapper.askForNameAgain = false }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .assistantClassroomSheet)) { note in
+            classroomSheetUp = note.object as? Bool ?? false
+        }
     }
 
     private var hasName: Bool { storedName?.trimmed().isEmpty == false }
@@ -91,7 +98,7 @@ struct AssistantTabs: View {
     private var askingForName: Binding<Bool> {
         Binding(
             get: {
-                AssistantFirstRun.asksForName(
+                !classroomSheetUp && AssistantFirstRun.asksForName(
                     setupShowing: showingSetup, setupDone: setupDone,
                     isSample: AssistantSampleClass.isActive, hasName: hasName
                 )

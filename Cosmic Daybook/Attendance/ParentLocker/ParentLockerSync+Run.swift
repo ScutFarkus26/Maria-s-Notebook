@@ -292,7 +292,9 @@ extension ParentLockerSync {
         }
         if result.notExpected { return (report, finishNotExpected(job, result: result, started: started)) }
         let matchedAny = result.matches.values.contains { if case .matched = $0 { true } else { false } }
-        if !result.wasPreview {
+        // A sync stopped meanwhile writes nothing: its context may be gone
+        // with a rebuilt stack (bug hunt 2026-11-03 #1).
+        if !result.wasPreview, !isStopped {
             if job.isWholeClass, matchedAny, recordsSend(job, day: day, result: result) {
                 _ = store.recordSend(on: job.day)
             }
@@ -323,7 +325,7 @@ extension ParentLockerSync {
     private func finishNotExpected(
         _ job: ParentLockerJob, result: ParentLockerRunResult, started: Date
     ) -> ParentLockerStatus {
-        if !result.wasPreview { store.noteNotExpected(on: job.day) }
+        if !result.wasPreview, !isStopped { store.noteNotExpected(on: job.day) }
         settleOwed(after: job, startedAt: started)
         let ended = ParentLockerStatus(state: .notExpected, lastSyncAt: clock.now)
         if isToday(job.day) { status = ended }

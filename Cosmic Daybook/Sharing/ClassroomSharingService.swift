@@ -219,7 +219,7 @@ final class ClassroomSharingService {
         let found = CDClassroomMembership.classroomShare(among: shares, in: context)
         publishShare(found)
         publishParticipants(of: found)
-        if found != nil { await readPermission() }
+        if let found { await readPermission(share: found) }
     }
 
     // MARK: - View only
@@ -227,10 +227,13 @@ final class ClassroomSharingService {
     /// Whether the guide added this account as View only, after joining and
     /// with each share read: from `canModifyManagedObjects(in:)` and this
     /// account's place in the share, never from a failed save. Assistants only.
-    func readPermission() async {
+    /// `share` is the one just read; without it, `currentShare`, which is
+    /// refreshed only on joining or while nil, so a change the guide made
+    /// went unread until a relaunch (bug hunt 2026-11-03 #12).
+    func readPermission(share: CKShare? = nil) async {
         guard currentRole == .assistant, let storeID = sharedStore?.identifier else { return }
         let canModify = await Self.canModifyObjects(inStoreWithIdentifier: storeID, container: container)
-        let permission = currentShare?.currentUserParticipant?.permission
+        let permission = (share ?? currentShare)?.currentUserParticipant?.permission
         noteViewOnly(Self.isViewOnly(canModifyStore: canModify, participantPermission: permission))
     }
 

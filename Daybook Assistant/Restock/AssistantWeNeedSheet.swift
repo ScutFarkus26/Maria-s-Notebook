@@ -22,6 +22,9 @@ struct AssistantWeNeedSheet: View {
     private var isLink: Bool { AssistantRestockModel.pastedLink(trimmed) != nil }
 
     var body: some View {
+        // Searched once per redraw: the hint, the source picker and the
+        // button all depend on it, and each read searched the whole shelf.
+        let staple = self.staple
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
@@ -35,7 +38,7 @@ struct AssistantWeNeedSheet: View {
                         .frame(minHeight: 50)
                         .background(Color(.secondarySystemGroupedBackground), in: fieldShape)
                         .overlay { fieldShape.strokeBorder(AssistantRestockStyle.accent, lineWidth: 2) }
-                    Text(hint)
+                    Text(hint(for: staple))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 4)
@@ -45,7 +48,7 @@ struct AssistantWeNeedSheet: View {
                     // A staple's count goes on its need, until the guide asks for it.
                     quantityRow
                     Button(action: add) {
-                        Text(goLabel)
+                        Text(goLabel(for: staple))
                             .font(.headline)
                             .foregroundStyle(AssistantRestockStyle.onAccent)
                             .frame(maxWidth: .infinity, minHeight: 54)
@@ -89,7 +92,7 @@ struct AssistantWeNeedSheet: View {
         RoundedRectangle(cornerRadius: 12, style: .continuous)
     }
 
-    private var hint: String {
+    private func hint(for staple: CDSupply?) -> String {
         if let staple {
             return "\(staple.name) is already one of the class's supplies. This marks it Out."
         }
@@ -97,7 +100,7 @@ struct AssistantWeNeedSheet: View {
             + "Paste a link to suggest a product."
     }
 
-    private var goLabel: String {
+    private func goLabel(for staple: CDSupply?) -> String {
         if staple != nil { return "Mark as Out" }
         return source == .office ? "Add to Office Run" : model.askToOrder
     }
@@ -196,7 +199,7 @@ struct AssistantWeNeedSheet: View {
         case .notSaved:
             // Kept open: tapping again saves what the sheet says then (a
             // changed name or count replaces the add that didn't save).
-            notice = "Couldn't save that. Tap “\(goLabel)” to try again."
+            notice = "Couldn't save that. Tap “\(goLabel(for: staple))” to try again."
         case .nothing:
             break
         }

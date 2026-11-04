@@ -9,9 +9,29 @@ extension AssistantShareAttacher {
     /// Whether a pass is running now.
     var isRunning: Bool { pass != nil }
 
-    /// Returns once no pass is running: Siri keeps its launch alive this long.
+    /// A pass is running whose share call hasn't outlived the watchdog:
+    /// what locking the phone keeps it awake for. A call past the watchdog
+    /// may never come back, and counting it kept the phone awake for the
+    /// full keep-alive on every lock (bug hunt 2026-11-03 #10).
+    var isBusy: Bool { pass != nil && !sendingLooksStuck }
+
+    /// Returns once no pass is running, or the running one's share call has
+    /// outlived the watchdog: Siri keeps its launch alive this long, and so
+    /// does locking the phone. A pass let go of for a rebuilt stack ends the
+    /// wait for it, and the new pass is waited for instead. Waiting on the
+    /// stuck pass's own end left a task suspended on it with every lock.
     func waitUntilIdle() async {
-        while let pass { await pass.value }
+        while pass != nil, !sendingLooksStuck {
+            await withCheckedContinuation { idleWaiters.append($0) }
+        }
+    }
+
+    /// Ends every `waitUntilIdle()` wait, which then looks again: the pass
+    /// ended or was let go of, or its call outlived the watchdog.
+    func wakeIdleWaiters() {
+        let waiting = idleWaiters
+        idleWaiters = []
+        waiting.forEach { $0.resume() }
     }
 
     /// Marks wait with a chance of going: offline (the network may be back),

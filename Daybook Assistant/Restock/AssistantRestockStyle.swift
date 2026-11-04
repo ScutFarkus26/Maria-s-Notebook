@@ -23,40 +23,47 @@ enum AssistantRestockStyle {
         let barsOutlined: Bool
     }
 
+    /// Each level's colors, made once: a staple tile reads them twice per
+    /// redraw and an office-run row twice more, and each read used to build
+    /// every dynamic color again, new instances SwiftUI couldn't tell were
+    /// unchanged (bug hunt 2026-11-03 #28).
     static func level(_ level: RestockLevel) -> Level {
         switch level {
-        case .stocked:
-            Level(
-                fill: Color(.secondarySystemGroupedBackground),
-                border: dynamic(light: 0xD6D1E2, dark: 0x3A3546),
-                text: .primary,
-                detail: .secondary,
-                barOn: dynamic(light: 0x48484D, dark: 0xD1D1D6),
-                barOff: dynamic(light: 0xE5E5EA, dark: 0x48484A),
-                barsOutlined: false
-            )
-        case .low:
-            Level(
-                fill: dynamic(light: 0xFFF3E0, dark: 0x3D2A10),
-                border: dynamic(light: 0xD98A1C, dark: 0xD98A1C),
-                text: dynamic(light: 0x5C2E00, dark: 0xFFDDB0),
-                detail: dynamic(light: 0x7A4A12, dark: 0xE8BF8A),
-                barOn: dynamic(light: 0xB45309, dark: 0xF0A040),
-                barOff: dynamic(light: 0xF1D6AD, dark: 0x5E4422),
-                barsOutlined: false
-            )
-        case .out:
-            Level(
-                fill: dynamic(light: 0xB4380B, dark: 0xC2410C),
-                border: dynamic(light: 0xB4380B, dark: 0xC2410C),
-                text: .white,
-                detail: Color(white: 1, opacity: 0.85),
-                barOn: .white,
-                barOff: .white,
-                barsOutlined: true
-            )
+        case .stocked: stocked
+        case .low: low
+        case .out: out
         }
     }
+
+    private static let stocked = Level(
+        fill: Color(.secondarySystemGroupedBackground),
+        border: dynamic(light: 0xD6D1E2, dark: 0x3A3546),
+        text: .primary,
+        detail: .secondary,
+        barOn: dynamic(light: 0x48484D, dark: 0xD1D1D6),
+        barOff: dynamic(light: 0xE5E5EA, dark: 0x48484A),
+        barsOutlined: false
+    )
+
+    private static let low = Level(
+        fill: dynamic(light: 0xFFF3E0, dark: 0x3D2A10),
+        border: dynamic(light: 0xD98A1C, dark: 0xD98A1C),
+        text: dynamic(light: 0x5C2E00, dark: 0xFFDDB0),
+        detail: dynamic(light: 0x7A4A12, dark: 0xE8BF8A),
+        barOn: dynamic(light: 0xB45309, dark: 0xF0A040),
+        barOff: dynamic(light: 0xF1D6AD, dark: 0x5E4422),
+        barsOutlined: false
+    )
+
+    private static let out = Level(
+        fill: dynamic(light: 0xB4380B, dark: 0xC2410C),
+        border: dynamic(light: 0xB4380B, dark: 0xC2410C),
+        text: .white,
+        detail: Color(white: 1, opacity: 0.85),
+        barOn: .white,
+        barOff: .white,
+        barsOutlined: true
+    )
 
     /// The small Out / Low tag on an office-run row.
     struct Tag {
@@ -71,11 +78,14 @@ enum AssistantRestockStyle {
     /// out of step from another device).
     static func tag(for staple: CDSupply?) -> Tag? {
         switch staple?.level {
-        case .out: Tag(text: "Out", fill: Self.level(.out).fill, foreground: .white)
-        case .low: Tag(text: "Low", fill: Self.level(.low).fill, foreground: Self.level(.low).text)
+        case .out: outTag
+        case .low: lowTag
         case .stocked, nil: nil
         }
     }
+
+    private static let outTag = Tag(text: "Out", fill: out.fill, foreground: .white)
+    private static let lowTag = Tag(text: "Low", fill: low.fill, foreground: low.text)
 
     /// Nonisolated, closure and all: SwiftUI resolves a color off the main
     /// thread when it renders asynchronously, and a provider that inherited

@@ -220,18 +220,28 @@ enum EarlyPickupReminder {
         center: any ReminderCenter = SystemReminderCenter()
     ) async {
         let isSample = isSample ?? AssistantSampleClass.isActive
-        let previous = lastRun
-        let run = Task {
-            await previous?.value
+        await inTurn {
             await bringUpToDate(
                 in: context, now: now, asksPermission: asksPermission, isSample: isSample, center: center
             )
+        }
+    }
+
+    /// Runs `work` after any run already going, and waits for it: the
+    /// upkeep takes this turn and the other kinds' at once
+    /// (`EarlyPickupReminderUpkeep.refresh`).
+    static func inTurn(_ work: @escaping @MainActor () async -> Void) async {
+        let previous = lastRun
+        let run = Task {
+            await previous?.value
+            await work()
         }
         lastRun = run
         await run.value
     }
 
-    private static func bringUpToDate(
+    /// `reschedule`'s work, in a turn already taken.
+    static func bringUpToDate(
         in context: NSManagedObjectContext,
         now: Date,
         asksPermission: Bool,
@@ -260,7 +270,8 @@ enum EarlyPickupReminder {
             content.title = reminder.title
             content.body = reminder.body
             content.sound = .default
-            let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: reminder.fireDate)
+            var components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: reminder.fireDate)
+            components.calendar = calendar // The app's calendar, not the phone's (bug hunt 2026-11-03 #20).
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
             do {
                 try await center.add(UNNotificationRequest(identifier: reminder.id, content: content, trigger: trigger))

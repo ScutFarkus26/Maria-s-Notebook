@@ -2,6 +2,32 @@ import Foundation
 import CoreData
 import OSLog
 
+/// Entity names by managed-object class name, for the model they were read
+/// from. Every request used to look through all the model's entities for its
+/// class (bug hunt 2026-11-03 #15); a different model starts the map afresh.
+/// Behind `entityNamesLock`, as `CoreDataStack.activeModel` is.
+nonisolated(unsafe) private var entityNamesModel: NSManagedObjectModel?
+nonisolated(unsafe) private var entityNamesByClass: [String: String] = [:]
+nonisolated private let entityNamesLock = NSLock()
+
+/// The entity `className` maps to in `model`, from the map once it's built:
+/// the first entity for that class, as the search it replaces found it, and
+/// nil when there's none or its name is empty.
+nonisolated private func entityName(forClassName className: String, in model: NSManagedObjectModel) -> String? {
+    entityNamesLock.lock()
+    defer { entityNamesLock.unlock() }
+    if entityNamesModel !== model {
+        var names: [String: String] = [:]
+        for entity in model.entities where names[entity.managedObjectClassName] == nil {
+            names[entity.managedObjectClassName] = entity.name ?? ""
+        }
+        entityNamesModel = model
+        entityNamesByClass = names
+    }
+    guard let name = entityNamesByClass[className], !name.isEmpty else { return nil }
+    return name
+}
+
 /// Creates a typed NSFetchRequest using the Core Data entity name resolved
 /// from the managed object model's representedClassName mapping.
 ///
@@ -11,9 +37,7 @@ nonisolated func CDFetchRequest<T: NSManagedObject>(_ type: T.Type = T.self) -> 
     // Prefer model-based lookup (safe with multi-store configurations where
     // NSManagedObject.entity() can return an ambiguous/nil-named description).
     if let model = CoreDataStack.activeModel {
-        let className = NSStringFromClass(type)
-        if let entity = model.entities.first(where: { $0.managedObjectClassName == className }),
-           let name = entity.name, !name.isEmpty {
+        if let name = entityName(forClassName: NSStringFromClass(type), in: model) {
             return NSFetchRequest<T>(entityName: name)
         }
     }

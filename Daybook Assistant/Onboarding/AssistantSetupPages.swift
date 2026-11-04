@@ -12,30 +12,13 @@ struct AssistantSetupSymbolsPage: View {
     @Environment(AssistantBootstrapper.self) private var bootstrapper
     let onContinue: () -> Void
 
-    /// The guide's due time ("9:00 AM"), once the email's settings (or
-    /// ParentLocker, picked) have arrived from the notebook.
-    private var dueAt: String? {
-        guard let context = bootstrapper.coreDataStack?.viewContext,
-              let settings = AttendanceEmailLog.settings(in: context), settings.canSendAttendance else { return nil }
-        return FrontDeskEmailReminder.timeString(settings.deadlineMinutes)
-    }
-
-    /// The guide picked ParentLocker: the card shows Close Arrival & Send.
-    private var sendsToParentLocker: Bool {
-        guard let context = bootstrapper.coreDataStack?.viewContext else { return false }
-        return AttendanceEmailLog.settings(in: context)?.sendMethod == .parentLocker
-    }
-
-    /// The guide's due time ("9:00 AM"), once the front-desk email or
-    /// ParentLocker is set up: Not Now turned that reminder off too, so the
-    /// summary says so (review (d), #6).
-    private var frontDeskDueAt: String? {
-        guard let context = bootstrapper.coreDataStack?.viewContext,
-              let settings = AttendanceEmailLog.settings(in: context), settings.canSendAttendance else { return nil }
-        return FrontDeskEmailReminder.timeString(settings.deadlineMinutes)
-    }
-
     var body: some View {
+        // The guide's due time ("9:00 AM"), once the email's settings (or
+        // ParentLocker, picked) have arrived from the notebook, and whether
+        // ParentLocker is picked (the card shows Close Arrival & Send): one
+        // read for the page, not one for each place they show (hunt
+        // 2026-11-03 #32).
+        let settings = AssistantAttendanceSending(in: bootstrapper.coreDataStack?.viewContext)
         AssistantOnboardingPage(title: "What the symbols mean") {
             VStack(alignment: .leading, spacing: 8) {
                 OnboardingCard {
@@ -71,7 +54,7 @@ struct AssistantSetupSymbolsPage: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            emailCard
+            emailCard(dueAt: settings.dueAt, sendsToParentLocker: settings.sendsToParentLocker)
         } actions: {
             OnboardingPrimaryButton("Continue", action: onContinue)
         }
@@ -100,7 +83,7 @@ struct AssistantSetupSymbolsPage: View {
         .accessibilityElement(children: .combine)
     }
 
-    private var emailCard: some View {
+    private func emailCard(dueAt: String?, sendsToParentLocker: Bool) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(sendsToParentLocker ? "Sending to ParentLocker" : "The front-desk email")
@@ -167,6 +150,10 @@ struct AssistantSetupDonePage: View {
     @AppStorage(AssistantWallpaper.key) private var wallpaperRaw = AssistantWallpaper.standard.rawValue
     @Environment(\.scenePhase) private var scenePhase
     @State private var childCount = 0
+    /// The guide's email or ParentLocker settings, read with the child count
+    /// when the page opens and after each import, not on every redraw (hunt
+    /// 2026-11-03 #32). Nil until then, when they're read as the page draws.
+    @State private var readSending: AssistantAttendanceSending?
     /// Refused in iOS: the reminder can't ring, so the summary says so
     /// (bug hunt 2026-10-20 #24). Read again on coming back from Settings.
     @State private var notificationsOff = false
@@ -176,21 +163,15 @@ struct AssistantSetupDonePage: View {
     /// With ParentLocker picked: she signs in once, in Classroom.
     static let parentLockerLine = "Sign in to ParentLocker once to send attendance."
 
-    private var sendsToParentLocker: Bool {
-        guard let context = bootstrapper.coreDataStack?.viewContext else { return false }
-        return AttendanceEmailLog.settings(in: context)?.sendMethod == .parentLocker
-    }
-
-    /// The guide's due time ("9:00 AM"), once the front-desk email or
-    /// ParentLocker is set up: Not Now turned that reminder off too, so the
-    /// summary says so (review (d), #6).
-    private var frontDeskDueAt: String? {
-        guard let context = bootstrapper.coreDataStack?.viewContext,
-              let settings = AttendanceEmailLog.settings(in: context), settings.canSendAttendance else { return nil }
-        return FrontDeskEmailReminder.timeString(settings.deadlineMinutes)
+    private var sending: AssistantAttendanceSending {
+        readSending ?? AssistantAttendanceSending(in: bootstrapper.coreDataStack?.viewContext)
     }
 
     var body: some View {
+        // `dueAt`: the guide's due time ("9:00 AM"), once the front-desk
+        // email or ParentLocker is set up: Not Now turned that reminder off
+        // too, so the summary says so (review (d), #6).
+        let settings = sending
         AssistantOnboardingPage(
             systemImage: "checkmark.seal.fill",
             tint: .green,
@@ -207,9 +188,9 @@ struct AssistantSetupDonePage: View {
                         reminderOn: reminderOn, minutes: reminderMinutes, notificationsOff: notificationsOff
                     )
                 )
-                if let dueAt = frontDeskDueAt {
+                if let dueAt = settings.dueAt {
                     summary(
-                        sendsToParentLocker ? "ParentLocker reminder" : "Front desk reminder",
+                        settings.sendsToParentLocker ? "ParentLocker reminder" : "Front desk reminder",
                         value: AssistantSetupReminder.frontDeskSummary(
                             on: frontDeskOn, leadMinutes: frontDeskLead, dueAt: dueAt,
                             notificationsOff: notificationsOff
@@ -218,7 +199,7 @@ struct AssistantSetupDonePage: View {
                 }
                 summary("Background", value: AssistantWallpaper.resolved(wallpaperRaw).title)
             }
-            if sendsToParentLocker {
+            if settings.sendsToParentLocker {
                 Text(Self.parentLockerLine)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -250,7 +231,8 @@ struct AssistantSetupDonePage: View {
             }
     }
 
-    /// Counts now and after every import, while the page is up.
+    /// Counts now and after every import, while the page is up, and reads
+    /// the guide's settings with it.
     private func followChildCount() async {
         countChildren()
         let changes = NotificationCenter.default.notifications(named: .NSPersistentStoreRemoteChange).map { _ in () }
@@ -260,7 +242,13 @@ struct AssistantSetupDonePage: View {
     }
 
     private func countChildren() {
-        guard let context = bootstrapper.coreDataStack?.viewContext else { return }
-        childCount = SiriHost.roster(in: context).count
+        let context = bootstrapper.coreDataStack?.viewContext
+        let read = AssistantAttendanceSending(in: context)
+        if read != readSending { readSending = read }
+        guard let context else { return }
+        // Counted as the roster counts, leaving out test children, copies
+        // and children who have left: a plain store count would show them.
+        let count = SiriHost.roster(in: context).count
+        if count != childCount { childCount = count }
     }
 }

@@ -74,11 +74,40 @@ extension AttendanceEmailLog {
     /// The day's sends for its summary line, or nil before any has gone:
     /// the first and the newest of the way the newest went.
     static func daySends(on day: Date, in context: NSManagedObjectContext) -> DaySends? {
-        let newestFirst = sends(on: day, in: context).map(Send.init)
+        daySends(newestFirst: sends(on: day, in: context).map(Send.init))
+    }
+
+    /// `daySends` from the day's sends, newest first.
+    static func daySends(newestFirst: [Send]) -> DaySends? {
         guard let latest = newestFirst.first else { return nil }
         let sameWay = newestFirst.filter { $0.channel == latest.channel }
         guard let first = sameWay.last else { return nil }
         return DaySends(first: first, again: sameWay.count > 1 ? latest : nil)
+    }
+
+    /// What a screen shows of a day, in one read of its records (bug hunt
+    /// 2026-11-03 #18): the newest send (`latestSend`'s), the summary line's
+    /// sends (`daySends`'s) and whether ParentLocker said it isn't expecting
+    /// the day (`isNotExpected`'s).
+    struct DayRecords: Equatable, Sendable {
+        /// The day's sends, newest first, the note left out.
+        let sends: [Send]
+        let isNotExpected: Bool
+
+        var latestSend: Send? { sends.first }
+        var daySends: DaySends? { AttendanceEmailLog.daySends(newestFirst: sends) }
+    }
+
+    static func dayRecords(on day: Date, in context: NSManagedObjectContext) -> DayRecords {
+        let request = recordsRequest(on: day, notes: true)
+        request.sortDescriptors = [NSSortDescriptor(key: "sentAt", ascending: false)]
+        scopeToClassroom(request, in: context)
+        let records = context.safeFetch(request)
+        let notes = records.filter { $0.channelRaw == notExpectedChannel }
+        return DayRecords(
+            sends: records.filter { $0.channelRaw != notExpectedChannel }.map(Send.init),
+            isNotExpected: !notes.isEmpty
+        )
     }
 
     /// The channels of the day's records, the "not expected" note's

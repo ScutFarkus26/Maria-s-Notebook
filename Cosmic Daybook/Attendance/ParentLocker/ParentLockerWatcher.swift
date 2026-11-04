@@ -1,5 +1,6 @@
 import Foundation
 import CoreData
+import Synchronization
 #if canImport(UIKit)
 import UIKit
 #elseif canImport(AppKit)
@@ -27,14 +28,27 @@ final class ParentLockerWatcher {
     /// Written once in `init`, read once in `deinit`.
     nonisolated(unsafe) private let tokens: [any NSObjectProtocol]
     private let center: NotificationCenter
+    /// Whether the sync is signed in, as the save observer reads it on the
+    /// posting thread: signed out, the sync notes no change, so a save
+    /// doesn't hop to the main actor for nothing (bug hunt 2026-11-03 #21).
+    private let signedIn: SignedIn
+
+    /// Whether saves are followed; the sync sets it as its sign-in changes.
+    var followsSaves: Bool {
+        get { signedIn.value }
+        set { signedIn.value = newValue }
+    }
 
     init(context: NSManagedObjectContext, sync: ParentLockerSync, center: NotificationCenter = .default) {
         self.center = center
+        let signedIn = SignedIn(sync.isSignedIn)
+        self.signedIn = signedIn
         let coordinatorID = context.persistentStoreCoordinator.map(ObjectIdentifier.init)
         let storeIDs = Set(context.persistentStoreCoordinator?.persistentStores.compactMap(\.identifier) ?? [])
         var tokens = [
             center.addObserver(forName: .NSManagedObjectContextDidSave, object: nil, queue: nil) { [weak sync] note in
-                guard let sync, let saved = Self.attendanceSave(note, coordinatorID: coordinatorID) else { return }
+                guard signedIn.value, let sync,
+                      let saved = Self.attendanceSave(note, coordinatorID: coordinatorID) else { return }
                 Task { @MainActor in sync.recordsSaved(saved.records, imported: saved.imported) }
             },
             center.addObserver(
@@ -62,6 +76,18 @@ final class ParentLockerWatcher {
 
     deinit {
         for token in tokens { center.removeObserver(token) }
+    }
+
+    /// A flag read on any thread.
+    nonisolated final class SignedIn: Sendable {
+        private let flag: Mutex<Bool>
+
+        init(_ value: Bool) { flag = Mutex(value) }
+
+        var value: Bool {
+            get { flag.withLock { $0 } }
+            set { flag.withLock { $0 = newValue } }
+        }
     }
 
     private static var becameActive: Notification.Name {

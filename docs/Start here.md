@@ -9,6 +9,7 @@ run `docs-index`; edit only the Other documents section by hand.
 | Plan | What it is | Status | Date |
 |---|---|---|---|
 | [Plan - Daybook Assistant bug fixes](<Plans/Plan - Daybook Assistant bug fixes.md>) | Fixes for the ~50 findings of the 2026-10-04 Daybook Assistant bug hunt, in six phases. | Working on it | 2026-10-05 |
+| [Plan - Daybook Assistant bugs and efficiency 2026-11-03 fixes](<Plans/Plan - Daybook Assistant bugs and efficiency 2026-11-03 fixes.md>) | fix every finding without changing what the Assistant does or how it looks, with five fix agents in their own worktrees, each owning its files, then merge, build the Assistant and the notebook, run the whole Assistant suite once, and land it. | Working on it | 2026-11-03 |
 | [Plan - Debug builds open a fake notebook](<Plans/Plan - Debug builds open a fake notebook.md>) | Debug builds open a fake, local-only notebook; the real one only through the Real Notebook scheme. | Not started | 2026-10-04 |
 | [Plan - Lesson file attachments](<Plans/Plan - Lesson file attachments.md>) | Claude can attach a PDF to a lesson through the cosmic-daybook connector, and Danny opens it in Quick Look from the lesson on the Mac and, after sync, on the iPad. | Working on it | 2026-10-25 |
 | [Plan - Names you set yourself](<Plans/Plan - Names you set yourself.md>) | A small shared list of each person's current name, set by that person, so the Assistant says "Danny" instead of "your guide" and a rename shows everywhere, old entries included. | Working on it | 2026-10-05 |

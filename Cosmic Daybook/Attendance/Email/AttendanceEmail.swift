@@ -161,8 +161,8 @@ public struct AttendanceEmailSettingsView: View {
         Binding(
             get: {
                 let minutes = drafts.paused.deadlineMinutes ?? shown.deadlineMinutes
-                let midnight = Calendar.current.startOfDay(for: Date())
-                return Calendar.current.date(byAdding: .minute, value: minutes, to: midnight) ?? Date()
+                // The clock time, also on the days the clocks change (bug hunt 2026-11-03 #17).
+                return FrontDeskEmailReminder.clockTime(minutes, on: Date(), calendar: .current) ?? Date()
             },
             set: { date in
                 let parts = Calendar.current.dateComponents([.hour, .minute], from: date)

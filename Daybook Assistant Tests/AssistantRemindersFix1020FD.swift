@@ -61,7 +61,10 @@ struct AssistantRemindersFix1020FD {
             await FrontDeskEmailReminder.cancelAll(center: center)
             await EarlyPickupReminder.cancelAll(center: center)
         }
-        #expect(await eventually { center.reads >= 3 })
+        // Leave's removals wait their turn behind the rebuild, which holds
+        // every kind's (bug hunt 2026-11-03 #16), so they're queued, not read.
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(center.reads == 1)
         center.open()
         await rebuild.value
         await leave.value

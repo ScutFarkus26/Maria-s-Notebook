@@ -3,6 +3,7 @@ import Foundation
 import CoreData
 import OSLog
 import Observation
+import UIKit
 
 /// One day's roster paired with whatever attendance record exists for each
 /// student, if any. The day starts as today and moves with the arrows or the
@@ -129,7 +130,7 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
     private var createdSinceSave: [CDAttendanceRecord] = []
     /// Reloads the day when the guide's changes (or the whole class, on the
     /// first download) arrive from iCloud.
-    @ObservationIgnored private var importReloader: RemoteImportReloader?
+    @ObservationIgnored private(set) var importReloader: RemoteImportReloader?
 
     /// Where the Late phase is remembered; tests pass their own suite.
     private let defaults: UserDefaults
@@ -165,9 +166,25 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
     /// right after loading the day, so the screen is showing whatever scene
     /// change it last heard (a tab out of sight may not hear the return):
     /// nothing held from a trip away outlasts that load.
-    func followRemoteImports(into storeIdentifier: String) async {
+    ///
+    /// A screen first shown with the app already in the background (the
+    /// launch finishing after she swiped away) hears no scene change until
+    /// she's back, so it starts away: imports wait for the return's load
+    /// rather than reload in the background (bug hunt 2026-11-03, #22). Only
+    /// the background: at launch the app is briefly inactive before it's
+    /// active, and a screen started away then could miss the change back.
+    /// `isInBackground`: tests say; nil asks the app.
+    ///
+    /// When the task ends (another tab), a reload still settling goes: the
+    /// tab's return loads the day anyway, and it ran about a second after she
+    /// left (#24).
+    func followRemoteImports(into storeIdentifier: String, isInBackground: Bool? = nil) async {
         importReloader?.appReturned()
+        if isInBackground ?? (UIApplication.shared.applicationState == .background) {
+            importReloader?.appLeft()
+        }
         await importReloader?.observeImports(into: storeIdentifier)
+        importReloader?.dropSettlingReload()
     }
 
     /// The app left the screen (`isActive` false) or came back to it. Away,
@@ -180,6 +197,39 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
         } else {
             importReloader?.appLeft()
         }
+    }
+
+    /// The app is in front again (`AssistantReloadOnReturn`). Back from the
+    /// background, the day loads again (`reloadAfterAway`). Back from a
+    /// moment that never reached the background (Control Center, a system
+    /// alert, Siri over the app), it loads only when there's something to
+    /// show: an import's reload held or still settling, a Siri mark held
+    /// (`siriChanged`), or the day having turned. Every such flip used to
+    /// load the whole day again (bug hunt 2026-11-03, #6).
+    func returnedToApp(fromBackground: Bool) {
+        let reloadDue = importReloader?.hasReloadDue ?? false
+        followScene(isActive: true)
+        let dayTurned = Calendar.current.startOfDay(for: now()) != shownOn
+        guard fromBackground || reloadDue || dayTurned else { return }
+        reloadAfterAway()
+    }
+
+    /// A mark made with Siri: the day reloads now while the screen is on
+    /// show, waits for the app's return while it's away (Siri over the app,
+    /// or in the background), and isn't loaded while another tab is showing,
+    /// whose return to this one loads it (bug hunt 2026-11-03, #6).
+    func siriChanged() {
+        importReloader?.changeArrived()
+    }
+
+    /// A tapped reminder: today on screen. Already on today with the app in
+    /// front, the day is as a load would make it (imports reload it as they
+    /// come), so it isn't loaded a second time beside the tap's own work
+    /// (the front desk's email reads the day itself). Otherwise, today
+    /// (bug hunt 2026-11-03, #6).
+    func showToday() {
+        guard !isToday || importReloader?.isAway != false else { return }
+        load(now())
     }
 
     /// Holds remote reloads while a sheet is editing one of the rows.
@@ -217,6 +267,12 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
     /// child during Late, and every tap on a day ahead. Right after her tap
     /// on the tile, the mark from before it (`tap`).
     func statusAfterTap(for row: Row) -> AttendanceStatus? {
+        statusAfterTap(for: row, isFuture: isFuture)
+    }
+
+    /// `statusAfterTap(for:)` with `isFuture` already worked out: the grid
+    /// reads it once per redraw, not once per tile.
+    func statusAfterTap(for row: Row, isFuture: Bool) -> AttendanceStatus? {
         guard !isFuture, let next = Self.statusAfterTap(from: row.status, in: phase) else { return nil }
         return restorable(for: row)?.before.values.status ?? next
     }
@@ -239,7 +295,8 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
         dayOff = Self.dayOff(on: date, in: context)
         loadGeneration &+= 1
         isLocked = store.isLocked(date)
-        canMark = store.canWrite(on: date)
+        // The lock just read, not read again by `canWrite(on:)` (#23).
+        canMark = store.roleMayWrite && !isLocked
         frontDesk.load(date)
         refreshNames()
 
@@ -471,13 +528,16 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
     /// still are) back to unmarked, and the day follows the records again:
     /// a Close Arrival made on another device since still counts. Undo used
     /// to reopen on purpose, and the guide's later close was ignored here.
-    func returnToArrival(undo: Bool = false) {
+    /// Returns whether it went back: false on a day locked meanwhile, whose
+    /// absences stand, so a ParentLocker send waiting on them goes ahead.
+    @discardableResult
+    func returnToArrival(undo: Bool = false) -> Bool {
         // A day locked since arrival closed stays as it was: its absences
         // can't be put back, so reopening arrival would only mislead.
-        guard canMark else { return }
+        guard canMark else { return false }
         guard store.canWrite(on: date) else {
             load()
-            return
+            return false
         }
         let before = phase
         let batch = lastLateBatch
@@ -487,7 +547,7 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
             phase = .arrival
             if before != phase { phaseSwitches += 1 }
             AttendanceLatePhase.reopen(on: date, defaults: defaults)
-            return
+            return true
         }
         AttendanceLatePhase.setLate(false, on: date, defaults: defaults)
         var reverted: [CDAttendanceRecord] = []
@@ -498,10 +558,13 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
                   store.undoAutomaticAbsence(record) else { continue }
             reverted.append(record)
         }
-        persist(updating: reverted)
+        // Saved only: the load below redraws every row and works out the
+        // phase, which `persist` would do first for the reverted rows (#24).
+        save()
         // The copies the Undo cleared too, and the phase the records now give.
         load()
         if before != phase { phaseSwitches += 1 }
+        return true
     }
 
     /// Absent with a reason (or none), in one save: the menu's Absent
@@ -573,16 +636,7 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
     /// changed, and a full `load()` (every student, every record, the
     /// calendar and the lock) after each tap was most of a tap's cost.
     private func persist(updating records: [CDAttendanceRecord]) {
-        // A failed save here is this phone's own store refusing the change,
-        // not the network: iCloud sending is the sync line's business, and it
-        // retries by itself. The change stays pending, so the next mark's
-        // save tries it again.
-        guard AssistantSave.save(context, container: container, created: createdSinceSave) else {
-            saveError = "Couldn't save that change. Try again."
-            return
-        }
-        saveError = nil
-        createdSinceSave = []
+        guard save() else { return }
         // A record made since the load joins the day's copies, so Close
         // Arrival's own absences count until the next load.
         for record in records where copiesByStudentID[record.studentID]?.contains(record) != true {
@@ -604,6 +658,23 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
            case .counted(let number) = dayCounter.count(date, isDayOff: false, current: nil, in: context) {
             dayNumber = number
         }
+    }
+
+    /// Saves and puts new records into the classroom share. Returns whether
+    /// the save went through.
+    @discardableResult
+    private func save() -> Bool {
+        // A failed save here is this phone's own store refusing the change,
+        // not the network: iCloud sending is the sync line's business, and it
+        // retries by itself. The change stays pending, so the next mark's
+        // save tries it again.
+        guard AssistantSave.save(context, container: container, created: createdSinceSave) else {
+            saveError = "Couldn't save that change. Try again."
+            return false
+        }
+        saveError = nil
+        createdSinceSave = []
+        return true
     }
 
     /// Rebuilds the rows whose student's record is among `records`.

@@ -90,4 +90,18 @@ enum SiriHost {
     static func didSave(created: [NSManagedObjectID], in stack: CoreDataStack) async {
         await SharedStoreOrphanGuard.shared.siriDidSave(created: created, in: stack)
     }
+
+    /// What a Siri save hands `didSave`, read before the save: `created`,
+    /// then every other classroom-share record the save inserts, each once.
+    /// One another screen left in the context (its own save failed) is saved
+    /// by Siri's save too, and in the background, with no window to start
+    /// the orphan guard's save observer, was never shared (bug hunt
+    /// 2026-11-03 #25). As the Assistant's `AssistantSave.recordsToFile`.
+    static func recordsToFile(created: [NSManagedObject], in context: NSManagedObjectContext) -> [NSManagedObject] {
+        let others = context.insertedObjects.filter {
+            CoreDataStack.sharedEntityNames.contains($0.entity.name ?? "")
+        }
+        var seen = Set<ObjectIdentifier>()
+        return (created + others).filter { seen.insert(ObjectIdentifier($0)).inserted }
+    }
 }

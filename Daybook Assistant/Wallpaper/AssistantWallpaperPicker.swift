@@ -40,6 +40,9 @@ struct AssistantWallpaperPicker: View {
         .navigationTitle("Background")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { photo.loadIfNeeded() }
+        // Not kept for the rest of the session once another background is
+        // chosen (hunt 2026-11-03 #33).
+        .onDisappear { photo.release(unlessChosen: wallpaperRaw) }
         .onChange(of: photoItem) { _, item in
             guard let item else { return }
             Task { await importPhoto(item) }

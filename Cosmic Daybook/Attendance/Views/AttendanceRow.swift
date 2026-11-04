@@ -1,5 +1,6 @@
-import Foundation
 import CoreData
+import CryptoKit
+import Foundation
 
 /// One child on a day's attendance, with whatever record that day holds for
 /// them. Shared by the notebook's roll and the Daybook Assistant's grid.
@@ -63,7 +64,7 @@ struct AttendanceRow: Identifiable, Equatable {
         self.shortName = shortName
         self.birthday = AttendanceBirthday.on(day, birthday: student.birthday)
         self.daysAway = daysAway
-        self.id = student.id ?? UUID()
+        self.id = student.id ?? Self.stableID(for: student)
         self.name = student.fullName
         self.level = student.level
         self.status = record?.status ?? .unmarked
@@ -77,6 +78,19 @@ struct AttendanceRow: Identifiable, Equatable {
         self.recordedBy = record?.recordedBy
         self.recordedByID = record?.recordedByID
         self.recordedByName = record?.recordedByName
+    }
+
+    /// An id for a student with none, the same on every load: from the
+    /// student row's own identity in the store. A new random one each time
+    /// meant the row never compared equal, so every import redrew the grid
+    /// and reset that child's tile (bug hunt 2026-11-03, #24).
+    private static func stableID(for student: CDStudent) -> UUID {
+        let digest = SHA256.hash(data: Data(student.objectID.uriRepresentation().absoluteString.utf8))
+        let bytes = Array(digest.prefix(16))
+        return UUID(uuid: (
+            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+            bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]
+        ))
     }
 
     /// The student row is gone from the store: deleted here, or by an import (a child the

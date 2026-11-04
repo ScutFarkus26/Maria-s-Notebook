@@ -46,11 +46,13 @@ enum AttendanceEmailLog {
     }
 
     /// Only today counts down: another day's email is either sent or not.
+    /// The deadline is the clock time, also on the days the clocks change,
+    /// as the reminders read it (bug hunt 2026-11-03 #17).
     static func urgency(
         for day: Date, deadlineMinutes: Int, now: Date = Date(), calendar: Calendar = .current
     ) -> Urgency {
         guard calendar.isDate(day, inSameDayAs: now),
-              let deadline = calendar.date(byAdding: .minute, value: deadlineMinutes, to: calendar.startOfDay(for: day))
+              let deadline = FrontDeskEmailReminder.clockTime(deadlineMinutes, on: day, calendar: calendar)
         else { return .none }
         if now >= deadline { return .overdue(deadline) }
         let dueFrom = deadline.addingTimeInterval(-Double(dueWindowMinutes) * 60)
@@ -61,9 +63,8 @@ enum AttendanceEmailLog {
     /// `urgency` turns due and then late: half an hour before the due time,
     /// and at it.
     static func changeTimes(on day: Date, deadlineMinutes: Int, calendar: Calendar = .current) -> [Date] {
-        guard let deadline = calendar.date(
-            byAdding: .minute, value: deadlineMinutes, to: calendar.startOfDay(for: day)
-        ) else { return [] }
+        guard let deadline = FrontDeskEmailReminder.clockTime(deadlineMinutes, on: day, calendar: calendar)
+        else { return [] }
         return [deadline.addingTimeInterval(-Double(dueWindowMinutes) * 60), deadline]
     }
 
@@ -209,7 +210,7 @@ enum AttendanceEmailLog {
             case (.parentLocker, true): "Marked as sent to ParentLocker"
             }
             let late = deadlineMinutes
-                .flatMap { calendar.date(byAdding: .minute, value: $0, to: calendar.startOfDay(for: day)) }
+                .flatMap { FrontDeskEmailReminder.clockTime($0, on: day, calendar: calendar) }
                 .map { sentAt > $0 } ?? false
             return "\(verb) \(when) by \(senderName)" + (late ? " (late)" : "")
         }

@@ -26,16 +26,19 @@ extension ParentLockerSync {
     /// device's own are kept with what's owed, across launches too.
     func noteChanges(_ children: Set<UUID>, imported: Bool, on day: Date) {
         guard !children.isEmpty, isSignedIn, isToday(day) else { return }
-        let state = store.day(day, withChildren: false)
+        // The day read once, with its marks, for everything below: a mark
+        // during arrival read it up to four times (bug hunt 2026-11-03 #21).
+        let state = store.day(day, withChildren: true)
         guard state.method == .parentLocker, state.isSchoolDay else { return }
+        let marks = state.marks.filter { children.contains($0.key) }
         // A new day's first change rolls first, so it never clears the
         // backstop it schedules (bug hunt 2026-10-13 afternoon, H3).
         rollOwedDay(to: day, changing: children)
-        rememberMarksBefore(children, on: day)
+        rememberMarksBefore(children, current: marks)
         considerBackstop(state, on: day)
         considerDeadline(state, on: day)
         guard isAfter(state, on: day) else {
-            noteEarly(children, imported: imported, on: day)
+            noteEarly(children, imported: imported, marks: marks)
             refreshStatus(state)
             return reschedule()
         }
@@ -68,11 +71,11 @@ extension ParentLockerSync {
     /// Changes made before "after", kept until it: this device's own (saved
     /// with what's owed) and those synced in, each the newer word on its
     /// child, as after "after".
-    private func noteEarly(_ children: Set<UUID>, imported: Bool, on day: Date) {
+    private func noteEarly(_ children: Set<UUID>, imported: Bool, marks: [UUID: ParentLockerPlanner.DayMark]) {
         if imported {
             earlyChanges.formUnion(children.subtracting(earlyLocal))
         } else {
-            keepEarlyLocal(children, marks: store.marks(of: children, on: day))
+            keepEarlyLocal(children, marks: marks)
             earlyChanges.subtract(children)
             saveOwed()
         }
@@ -148,11 +151,12 @@ extension ParentLockerSync {
 
     /// The catch-up waits for the first CloudKit import, but no longer than
     /// `importWaitLimit`: with nothing new in CloudKit, none may come. Signed
-    /// out, there's nothing to catch up (signing in releases it).
-    func waitForImport() {
+    /// out, there's nothing to catch up (signing in releases it). `state`:
+    /// today, when the caller has just read it.
+    func waitForImport(today state: ParentLockerDay? = nil) {
         awaitingImport = dependencies.importsExpected && isSignedIn
         importWaitEnds = awaitingImport ? clock.now.addingTimeInterval(Self.importWaitLimit) : nil
-        if awaitingImport { reschedule() } else { releaseCatchUp() }
+        if awaitingImport { reschedule() } else { releaseCatchUp(today: state) }
     }
 
     /// A CloudKit import finished, or the wait for one ran out: the catch-up
@@ -195,8 +199,11 @@ extension ParentLockerSync {
             catchUpChildren.formUnion(localChanges.keys)
             localChanges = [:]
         }
-        waitForImport()
-        refreshStatus()
+        // Today read once, the method first, for the catch-up and the line
+        // (bug hunt 2026-11-03 #21).
+        let state = store.day(today, withChildren: false)
+        waitForImport(today: state)
+        refreshStatus(state)
     }
 
     /// A retry held back on the way back: a whole class becomes a send owed,
@@ -232,12 +239,13 @@ extension ParentLockerSync {
     /// The owed changes go now (after the import, or a sign-in), and a
     /// guide's device that finds arrival closed with nothing sent backs up.
     /// Changes owed from before "after" that it hasn't reached yet wait for
-    /// it again (review of the afternoon fixes, H4).
-    func releaseCatchUp() {
+    /// it again (review of the afternoon fixes, H4). `state`: today, when
+    /// the caller has just read it.
+    func releaseCatchUp(today read: ParentLockerDay? = nil) {
         guard isSignedIn else { return }
         let now = clock.now
         rollOwedDay(to: now)
-        let state = store.day(now, withChildren: false)
+        let state = read ?? store.day(now, withChildren: false)
         let follows = state.method == .parentLocker && state.isSchoolDay
         if !catchUpChildren.isEmpty {
             if follows, !isAfter(state, on: now) {
@@ -294,16 +302,43 @@ extension ParentLockerSync {
     /// Keeps the mark each of `children` had here before its first change
     /// not yet sent, for a change synced in (or made before "after") that
     /// this device has no ParentLocker row to measure by (bug hunt 2026-10-13
-    /// afternoon, M5), then brings today's marks up to date. Nothing is kept
-    /// when this device hasn't read today's marks. This device's own changes
-    /// after "after" go without it (`forgetImported`).
-    private func rememberMarksBefore(_ children: Set<UUID>, on day: Date) {
+    /// afternoon, M5), then brings today's marks up to date (`current`, the
+    /// children's marks now). Nothing is kept when this device hasn't read
+    /// today's marks. This device's own changes after "after" go without it
+    /// (`forgetImported`).
+    private func rememberMarksBefore(_ children: Set<UUID>, current: [UUID: ParentLockerPlanner.DayMark]) {
         guard var known = knownMarks else { return }
-        let current = store.marks(of: children, on: day)
         for child in children {
             if importedBefore[child] == nil, lastSeen[child] == nil { importedBefore[child] = .some(known[child]) }
             known[child] = current[child]
         }
         knownMarks = known
+    }
+
+    /// Leave Classroom: the class she left owes nothing any more. Its
+    /// changes, a whole-class send or a retry, and "arrival closed here",
+    /// carried into a class joined the same day (bug hunt 2026-11-03 #21).
+    /// The sign-in stays: it's hers, for the school's site, not the class's.
+    func classLeft() {
+        localChanges = [:]
+        localDue = nil
+        catchUpChildren = []
+        forgetImported(importedChildren)
+        importedBefore = [:]
+        earlyChanges = []
+        forgetEarlyLocal(earlyLocal)
+        knownMarks = nil
+        knownMarksDay = nil
+        lastSeen = [:]
+        baselineRead = []
+        wholeClass = nil
+        retry = nil
+        otherDayRetry = nil
+        deadlineDue = nil
+        backstopDay = nil
+        awaitsSignIn = false
+        signInDeclined = false
+        arrivalReopenedHere()
+        reschedule()
     }
 }
