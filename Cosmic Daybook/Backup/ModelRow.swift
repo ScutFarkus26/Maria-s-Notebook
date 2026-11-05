@@ -32,7 +32,7 @@ nonisolated public struct ModelRowSpec: Sendable {
     let dropsRecordsWithoutID: Bool
     /// Whether the restore takes a row at all (the old importers' `guard`s);
     /// nil takes every row.
-    let restoresRow: (@Sendable ([String: ModelValue]) -> Bool)?
+    let restoresRow: (@MainActor @Sendable ([String: ModelValue]) -> Bool)?
 
     /// - Parameters:
     ///   - filling: optional attributes the export fills when nil.
@@ -68,7 +68,7 @@ nonisolated public struct ModelRowSpec: Sendable {
         parentIDs: [String: String] = [:],
         parents: [ParentLink] = [],
         dropsRecordsWithoutID: Bool = false,
-        restoresRow: (@Sendable ([String: ModelValue]) -> Bool)? = nil
+        restoresRow: (@MainActor @Sendable ([String: ModelValue]) -> Bool)? = nil
     ) {
         guard let attributes = BackupModelSchema.attributes[entityName] else {
             preconditionFailure("Backup row spec for \(entityName), which is not in the model")

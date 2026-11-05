@@ -21,11 +21,10 @@ extension BackupRestoreRun {
         }
 
         if let goingOutItems = try rows(\.goingOutChecklistItems) {
-            try BackupEntityImporter.importGoingOutChecklistItems(
-                goingOutItems,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                goingOutItems, as: CDGoingOutChecklistItem.self, into: viewContext,
                 existing: { try index.existing(CDGoingOutChecklistItem.self, id: $0) },
-                goingOutCheck: { try index.related(CDGoingOut.self, id: $0) }
+                parents: ["goingOut": { try index.related(CDGoingOut.self, id: $0) }]
             )
         }
 
@@ -187,19 +186,17 @@ extension BackupRestoreRun {
         }
 
         if let highlights = try rows(\.albumHighlights) {
-            albumIDs.formUnion(highlights.map(\.albumID))
-            BackupEntityImporter.importAlbumHighlights(
-                highlights,
-                into: viewContext,
+            albumIDs.formUnion(highlights.compactMap { $0.string("albumID") })
+            BackupEntityImporter.importRows(
+                highlights, as: CDAlbumHighlight.self, into: viewContext,
                 existing: { try index.existing(CDAlbumHighlight.self, id: $0) }
             )
         }
 
         if let ink = try rows(\.albumPageInk) {
-            albumIDs.formUnion(ink.map(\.albumID))
-            BackupEntityImporter.importAlbumPageInk(
-                ink,
-                into: viewContext,
+            albumIDs.formUnion(ink.compactMap { $0.string("albumID") })
+            BackupEntityImporter.importRows(
+                ink, as: CDAlbumPageInk.self, into: viewContext,
                 existing: { try index.existing(CDAlbumPageInk.self, id: $0) }
             )
         }

@@ -134,6 +134,27 @@ nonisolated public struct ModelField: Sendable {
             }
         )
     }
+
+    /// A string attribute holding an enum's raw value, written as stored (a
+    /// bad raw goes out as it is) and restored through `normalized`, the old
+    /// importers' `Enum(rawValue:) ?? fallback`. A `kept` one may be missing
+    /// from a row, which then leaves the record's own.
+    static func storedRaw<Object: NSManagedObject>(
+        _ key: String,
+        of type: Object.Type,
+        kept: Bool = false,
+        defaultWhenMissing: ModelValue? = nil,
+        restoring normalized: @escaping @MainActor @Sendable (String) -> String
+    ) -> ModelField {
+        computed(
+            key, .string, of: type, required: !kept, kept: kept, defaultWhenMissing: defaultWhenMissing,
+            read: { ($0.value(forKey: key) as? String).map(ModelValue.string) },
+            write: { object, value, _ in
+                guard case .string(let raw)? = value else { return }
+                object.setValue(normalized(raw), forKey: key)
+            }
+        )
+    }
 }
 
 /// The code behind a computed field.

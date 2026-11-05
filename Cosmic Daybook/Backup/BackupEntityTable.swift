@@ -272,19 +272,19 @@ nonisolated enum BackupEntityTable {
         .optional("Supply", CDSupply.self, \.supplies, SupplyDTO.rows),
         .optional("Procedure", CDProcedure.self, \.procedures, ProcedureDTO.rows),
         .optional("Schedule", CDSchedule.self, \.schedules, ScheduleDTO.rows),
-        .optional("ScheduleSlot", CDScheduleSlot.self, \.scheduleSlots, BackupDTOTransformers.toDTOs),
-        .optional("Issue", CDIssue.self, \.issues, BackupDTOTransformers.toDTOs),
-        .optional("IssueAction", CDIssueAction.self, \.issueActions, BackupDTOTransformers.toDTOs),
+        .optional("ScheduleSlot", CDScheduleSlot.self, \.scheduleSlots, ScheduleSlotDTO.rows),
+        .optional("Issue", CDIssue.self, \.issues, IssueDTO.rows),
+        .optional("IssueAction", CDIssueAction.self, \.issueActions, IssueActionDTO.rows),
         .optional(
             "DevelopmentSnapshot", CDDevelopmentSnapshotEntity.self, \.developmentSnapshots,
-            BackupDTOTransformers.toDTOs,
+            DevelopmentSnapshotDTO.rows,
             announcing: .init(0.75, "Collecting snapshots & todos\u{2026}")
         ),
-        .optional("TodoItem", CDTodoItem.self, \.todoItems, BackupDTOTransformers.toDTOs),
-        .optional("TodayAgendaOrder", CDTodayAgendaOrder.self, \.todayAgendaOrders, BackupDTOTransformers.toDTOs),
+        .optional("TodoItem", CDTodoItem.self, \.todoItems, TodoItemDTO.rows),
+        .optional("TodayAgendaOrder", CDTodayAgendaOrder.self, \.todayAgendaOrders, TodayAgendaOrderDTO.rows),
         .optional(
             "PlanningRecommendation", CDPlanningRecommendation.self, \.planningRecommendations,
-            BackupDTOTransformers.toDTOs,
+            PlanningRecommendationDTO.rows,
             announcing: .init(0.80, "Collecting recommendations & resources\u{2026}")
         ),
         .optional("Resource", CDResource.self, \.resources, ResourceDTO.rows),
@@ -295,7 +295,7 @@ nonisolated enum BackupEntityTable {
         ),
         .optional(
             "GoingOutChecklistItem", CDGoingOutChecklistItem.self, \.goingOutChecklistItems,
-            BackupDTOTransformers.toDTOs
+            GoingOutChecklistItemDTO.rows
         ),
         .optional(
             "CalendarNote", CDCalendarNote.self, \.calendarNotes, CalendarNoteDTO.rows,
@@ -355,8 +355,8 @@ nonisolated enum BackupEntityTable {
             "AlbumReadingPosition", CDAlbumReadingPosition.self, \.albumReadingPositions, AlbumReadingPositionDTO.rows,
             since: 21
         ),
-        .optional("AlbumHighlight", CDAlbumHighlight.self, \.albumHighlights, BackupDTOTransformers.toDTOs, since: 21),
-        .optional("AlbumPageInk", CDAlbumPageInk.self, \.albumPageInk, BackupDTOTransformers.toDTOs, since: 21),
+        .optional("AlbumHighlight", CDAlbumHighlight.self, \.albumHighlights, AlbumHighlightDTO.rows, since: 21),
+        .optional("AlbumPageInk", CDAlbumPageInk.self, \.albumPageInk, AlbumPageInkDTO.rows, since: 21),
         .optional("OrderItem", CDOrderItem.self, \.orderItems, OrderItemDTO.rows, since: 27),
         .optional(
             "AttendanceDayLock", CDAttendanceDayLock.self, \.attendanceDayLocks, AttendanceDayLockDTO.rows, since: 23

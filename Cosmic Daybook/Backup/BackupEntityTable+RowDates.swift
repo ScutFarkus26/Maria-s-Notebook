@@ -1,31 +1,12 @@
 // BackupEntityTable+RowDates.swift
-// Each backed-up row type's conformance to `BackupRowDTO`: its record's
-// `id`, and when the record last changed, for a Merge's newer-wins check
-// (`BackupMergeRule`, `BackupRestoreRun.keepingNewer`; bug hunt 2026-11-02, #1).
+// When a backup row's record last changed, and when it was done, for a
+// Merge's newer-wins check (`BackupMergeRule`, `BackupRestoreRun.keepingNewer`;
+// bug hunt 2026-11-02, #1). Every backed-up type is a `ModelRow`, so one
+// extension says it for all of them; `BackupMergeNewerWinsTests` checks every
+// type against the model.
 
 import CoreData
 import Foundation
-
-// Each DTO already has `id: UUID`; conforming here is what lets its table row
-// compile. `rowModifiedAt` is the date `BackupMergeRule.changeDateAttribute`
-// names for its entity: `modifiedAt`, or a note's and a reminder's
-// `updatedAt`. The rest have none, and a Merge takes the backup's row for
-// them (but a to-do done here stays done, `rowCompletedAt`).
-// `BackupMergeNewerWinsTests` checks every type against the model.
-nonisolated extension ScheduleSlotDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension IssueDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension IssueActionDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension DevelopmentSnapshotDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension TodoItemDTO: BackupRowDTO {
-    var rowModifiedAt: Date? { nil }
-    /// When the backup's to-do was done; nil when it wasn't.
-    var rowCompletedAt: Date? { isCompleted ? completedAt : nil }
-}
-nonisolated extension TodayAgendaOrderDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension PlanningRecommendationDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension GoingOutChecklistItemDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension AlbumHighlightDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension AlbumPageInkDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
 
 /// A `ModelRow`'s change date (`modifiedAt`, or `updatedAt` for the types
 /// `BackupMergeRule.updatedAtEntityNames` names) and, for a type a Merge

@@ -98,11 +98,10 @@ extension BackupRestoreRun {
         }
 
         if let scheduleSlots = try rows(\.scheduleSlots) {
-            try BackupEntityImporter.importScheduleSlots(
-                scheduleSlots,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                scheduleSlots, as: CDScheduleSlot.self, into: viewContext,
                 existing: { try index.existing(CDScheduleSlot.self, id: $0) },
-                scheduleCheck: { try index.related(CDSchedule.self, id: $0) }
+                parents: ["schedule": { try index.related(CDSchedule.self, id: $0) }]
             )
         }
     }
@@ -112,19 +111,17 @@ extension BackupRestoreRun {
         let index = self.index
 
         if let issues = try rows(\.issues) {
-            try BackupEntityImporter.importIssues(
-                issues,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                issues, as: CDIssue.self, into: viewContext,
                 existing: { try index.existing(CDIssue.self, id: $0) }
             )
         }
 
         if let issueActions = try rows(\.issueActions) {
-            try BackupEntityImporter.importIssueActions(
-                issueActions,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                issueActions, as: CDIssueAction.self, into: viewContext,
                 existing: { try index.existing(CDIssueAction.self, id: $0) },
-                issueCheck: { try index.related(CDIssue.self, id: $0) }
+                parents: ["issue": { try index.related(CDIssue.self, id: $0) }]
             )
         }
     }
@@ -134,25 +131,22 @@ extension BackupRestoreRun {
         let index = self.index
 
         if let snapshots = try rows(\.developmentSnapshots) {
-            try BackupEntityImporter.importDevelopmentSnapshots(
-                snapshots,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                snapshots, as: CDDevelopmentSnapshotEntity.self, into: viewContext,
                 existing: { try index.existing(CDDevelopmentSnapshotEntity.self, id: $0) }
             )
         }
 
         if let todoItems = try rows(\.todoItems) {
-            try BackupEntityImporter.importTodoItems(
-                todoItems,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                todoItems, as: CDTodoItem.self, into: viewContext,
                 existing: { try index.existing(CDTodoItem.self, id: $0) }
             )
         }
 
         if let agendaOrders = try rows(\.todayAgendaOrders) {
-            try BackupEntityImporter.importTodayAgendaOrders(
-                agendaOrders,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                agendaOrders, as: CDTodayAgendaOrder.self, into: viewContext,
                 existing: { try index.existing(CDTodayAgendaOrder.self, id: $0) }
             )
         }
@@ -163,9 +157,8 @@ extension BackupRestoreRun {
         let index = self.index
 
         if let recommendations = try rows(\.planningRecommendations) {
-            try BackupEntityImporter.importPlanningRecommendations(
-                recommendations,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                recommendations, as: CDPlanningRecommendation.self, into: viewContext,
                 existing: { try index.existing(CDPlanningRecommendation.self, id: $0) }
             )
         }
