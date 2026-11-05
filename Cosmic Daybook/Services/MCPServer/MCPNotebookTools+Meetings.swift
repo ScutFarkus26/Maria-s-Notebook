@@ -25,7 +25,7 @@ extension MCPNotebookTools {
                 + "going, lessons the student requested, private guide notes, and new goals that carry "
                 + "forward to the next meeting as open focus items. It completes the student's booking "
                 + "for that day (or an earlier one still pending), so the booking leaves "
-                + "scheduled_meetings.",
+                + "schedule_for_range's meetings view.",
             inputSchema: [
                 "type": "object",
                 "properties": [

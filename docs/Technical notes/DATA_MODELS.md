@@ -228,7 +228,7 @@ Universal note entity that can attach to multiple contexts.
 - `lesson`, `work`, `lessonAssignment`, `presentation`
 - `attendanceRecord`, `workCheckIn`, `workCompletionRecord`
 - `workPlanItem`, `studentMeeting`, `projectSession`
-- `communityTopic`, `reminder`, `schoolDayOverride`
+- `communityTopic`, `schoolDayOverride`; `reminder` stays in the model but nothing sets it since Reminders sync went (round-two Simplify)
 - `studentLinks: [NoteStudentLink]?` - Multi-student junction records
 
 ---
@@ -375,6 +375,7 @@ Check-in record for work items.
 | `createdAt` | Date | Check-in timestamp |
 | `statusRaw` | String | Status raw value |
 | `notes` | String? | Check-in notes |
+| `durationMinutes` | Int16? | Minutes practiced (schema 24; optional). Set on a practice check-in, which replaced practice sessions; read and write through `durationMinutesValue` |
 
 ---
 
@@ -540,7 +541,7 @@ Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-02 so that file keeps 
 
 Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-04 so that file keeps only a pointer and the few rules a session needs before touching this area. These are still rules: follow them.
 
-**93 entities** defined in `CosmicDaybook.xcdatamodeld` (schema 23; schema 19 added `TodoItem.tideLink`, the Tide action a to-do is shared with, `docs/Technical notes/TIDE_SHARING.md`; schema 20 added Schedules' four shared types; schema 21 added `Student.bornAfterSunset`, the switch that moves a child's Hebrew birthday one day on; schema 22 added `LessonAttachment.modifiedAt`, when a lesson file was last replaced, renamed or given a note, read as `attachedAt` on older rows, `docs/Plans/Plan - Lesson file attachments.md`; schema 23 took the four track entities out of the private store and removed the columns that named them, since a child's place in a sequence is read off the presentation record; the entities stay in the model as dormant tombstones, because deleting them would have truncated the store's persistent history, `docs/Plans/Plan - Retire the track entities.md`): 66 private-only, 15 in the classroom share (schema 16 added `ClassroomPerson`, the shared list of names people set for themselves; `Sharing/ClassroomNames.swift`; schema 17 added `SupplyTransaction.changedByID`, who changed a staple's level, so its history line shows that person's current name; schema 18 added how attendance goes to the school, `AttendanceEmailSettings.sendMethodRaw` and `parentLockerSite`, the channel of each send, `AttendanceEmailSend.channelRaw`, and the child's ParentLocker match, `Student.parentLockerID`), 12 dormant tombstones in no store (`CoreDataStack.dormantTombstoneEntities`: the features removed 2026-06-11 and, since schema 23, `Track`, `TrackStep`, `SequenceTrack` and `StudentTrackEnrollment`).
+**93 entities** defined in `CosmicDaybook.xcdatamodeld` (schema 24; schema 19 added `TodoItem.tideLink`, the Tide action a to-do is shared with, `docs/Technical notes/TIDE_SHARING.md`; schema 20 added Schedules' four shared types; schema 21 added `Student.bornAfterSunset`, the switch that moves a child's Hebrew birthday one day on; schema 22 added `LessonAttachment.modifiedAt`, when a lesson file was last replaced, renamed or given a note, read as `attachedAt` on older rows, `docs/Plans/Plan - Lesson file attachments.md`; schema 23 took the four track entities out of the private store and removed the columns that named them, since a child's place in a sequence is read off the presentation record; the entities stay in the model as dormant tombstones, because deleting them would have truncated the store's persistent history, `docs/Plans/Plan - Retire the track entities.md`; schema 24 added `WorkCheckIn.durationMinutes`, a practice check-in's minutes, when practice sessions folded into check-ins, `docs/Plans/Plan - Simplify the app, round two.md`): 66 private-only (7 of them retired in round-two Simplify, listed in `CoreDataStack.retiredEntities`: `ClassroomJob`, `JobAssignment`, `NoteTemplate`, `PracticeSession`, `Reminder`, `TodoSubtask` and `TodoTemplate` stay in the private store with their class names blanked, so their rows survive; nothing reads or writes them, backups leave them out and restores skip them), 15 in the classroom share (schema 16 added `ClassroomPerson`, the shared list of names people set for themselves; `Sharing/ClassroomNames.swift`; schema 17 added `SupplyTransaction.changedByID`, who changed a staple's level, so its history line shows that person's current name; schema 18 added how attendance goes to the school, `AttendanceEmailSettings.sendMethodRaw` and `parentLockerSite`, the channel of each send, `AttendanceEmailSend.channelRaw`, and the child's ParentLocker match, `Student.parentLockerID`), 12 dormant tombstones in no store (`CoreDataStack.dormantTombstoneEntities`: the features removed 2026-06-11 and, since schema 23, `Track`, `TrackStep`, `SequenceTrack` and `StudentTrackEnrollment`).
 
 **Core Models:**
 
@@ -573,4 +574,4 @@ Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-04 so that file keeps 
 - Check-ins are created only by `CDWorkCheckIn.make(for:on:purpose:in:)` and read with `resolvedWork(in:)`.
 - Work is only for enrolled children (`WorkRepository.createWork`).
 - An observation on a presentation is scoped to specific children (`NoteScope.forSelection`), never `.all`.
-- Old-record cleanup runs only through Settings › Troubleshooting › Clean Up Leftovers (`NotebookJunkCleanup`), which previews and backs up first.
+- Old-record cleanup runs only through Settings › Sync and backup › Clean Up Leftovers (`NotebookJunkCleanup`), which previews and backs up first.

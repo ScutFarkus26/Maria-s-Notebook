@@ -20,7 +20,7 @@ extension MCPNotebookTools {
             title: "Mark Lesson Mastered",
             description: "Record that the guide assessed a lesson as mastered for one or more children. Flips "
                 + "each child's existing presentation record for that lesson to mastered in place, "
-                + "which is what counts the lesson mastered in her sequence (student_tracks); "
+                + "which is what counts the lesson mastered in her sequence (student_record, tracks section); "
                 + "record_presentation alone never does. Refuses, and writes nothing, if any named "
                 + "child has no presentation of the lesson on record: file it with record_presentation "
                 + "first. Only use this when the guide says they assessed mastery; never infer it. "

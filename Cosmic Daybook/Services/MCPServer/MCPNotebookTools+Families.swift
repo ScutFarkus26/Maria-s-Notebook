@@ -113,7 +113,7 @@ extension MCPNotebookTools {
         "properties": [
             "guardian_id": [
                 "type": "string",
-                "description": "The guardian to edit, as returned by list_guardians. Omit to add a new one."
+                "description": "The guardian to edit, as returned by families with view: \"guardians\". Omit to add a new one."
             ],
             "student_name": [
                 "type": "string",

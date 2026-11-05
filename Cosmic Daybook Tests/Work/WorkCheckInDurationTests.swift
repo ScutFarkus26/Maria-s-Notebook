@@ -132,6 +132,18 @@ struct WorkCheckInDurationTests {
         #expect(room.session.value(forKey: "workItemIDs") is [String])
     }
 
+    @Test("A moved note leaves its session, so deleting the session keeps the note")
+    func movedNoteSurvivesTheSessionsDeletion() throws {
+        let room = try makeRoom()
+        _ = try #require(PracticeCheckInCopy.runAndSave(in: room.context))
+        #expect(room.note.value(forKey: "practiceSession") == nil)
+
+        room.context.delete(room.session)
+        #expect(CoreDataTestHelpers.save(room.context))
+        #expect(!room.note.isDeleted)
+        #expect(room.note.workCheckIn != nil)
+    }
+
     @Test("A second run adds nothing")
     func copyRunsOnce() throws {
         let room = try makeRoom()

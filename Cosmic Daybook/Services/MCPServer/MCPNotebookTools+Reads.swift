@@ -171,7 +171,7 @@ extension MCPNotebookTools {
             title: "Classroom Snapshot",
             description: "A short orientation: today's date, how many students are enrolled, and the "
                 + "curriculum's areas. It names no children and holds no activity; list_students gives "
-                + "the roster, list_open_follow_ups the open threads, and the other tools the details.",
+                + "the roster, list_todos (view: \"open_follow_ups\") the open threads, and the other tools the details.",
             inputSchema: ["type": "object", "properties": [:]],
             annotations: .readOnly,
             handler: { _ in
@@ -220,7 +220,7 @@ extension MCPNotebookTools {
             description: "Search the guide's Montessori teaching-album PDFs by meaning and "
                 + "keyword. Use for how a lesson is presented, what materials it needs, or what "
                 + "the albums say about a topic. Each result is cited as "
-                + "[albumPage album=\"<file>\" page=<n>]; pass those to get_album_page for the "
+                + "[albumPage album=\"<file>\" page=<n>]; pass those to albums (view: \"page\") for the "
                 + "full page.",
             inputSchema: [
                 "type": "object",

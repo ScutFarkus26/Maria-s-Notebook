@@ -22,8 +22,8 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "schedule_meeting",
             title: "Schedule Meeting",
-            description: "Book a student conference that has not happened yet. It shows in scheduled_meetings "
-                + "and on the Today agenda, and create_meeting_entry completes it rather than "
+            description: "Book a student conference that has not happened yet. It shows in schedule_for_range "
+                + "with view: \"meetings\" and on the Today agenda, and create_meeting_entry completes it rather than "
                 + "duplicating it. A student holds one booking at a time: booking another day moves the "
                 + "existing one. A day school is not in session is refused, and so is a child who has left.",
             inputSchema: [

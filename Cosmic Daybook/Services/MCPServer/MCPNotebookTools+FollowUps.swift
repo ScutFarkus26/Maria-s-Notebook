@@ -173,14 +173,14 @@ extension MCPNotebookTools {
             title: "Resolve Follow-Up",
             description: "Mark a follow-up done: completes a todo, resolves a student's "
                 + "open goal (focus item), or clears an observation's follow-up flag, by the "
-                + "id shown in list_open_follow_ups. A repeating todo is completed and its next "
+                + "id shown in list_todos with view: \"open_follow_ups\". A repeating todo is completed and its next "
                 + "occurrence scheduled, as the app does.",
             inputSchema: [
                 "type": "object",
                 "properties": [
                     "id": [
                         "type": "string",
-                        "description": "The todo, focus item or note UUID from list_open_follow_ups"
+                        "description": "The todo, focus item or note UUID from list_todos (view: \"open_follow_ups\")"
                     ]
                 ],
                 "required": ["id"]
@@ -197,7 +197,7 @@ extension MCPNotebookTools {
     ) throws -> String {
         let idString = try requireString(arguments, "id")
         guard let id = UUID(uuidString: idString) else {
-            throw MCPToolError("id must be a UUID from list_open_follow_ups.")
+            throw MCPToolError("id must be a UUID from list_todos with view: \"open_follow_ups\".")
         }
 
         if let todo = modelContext.object(CDTodoItem.self, id: id) {

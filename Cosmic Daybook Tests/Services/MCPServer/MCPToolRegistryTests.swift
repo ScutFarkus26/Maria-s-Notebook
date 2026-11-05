@@ -102,6 +102,30 @@ struct MCPToolRegistryTests {
         }
     }
 
+    @Test("No listed tool's text sends Claude to a retired name")
+    func listedToolsNameNoRetiredTool() throws {
+        let stack = try CoreDataTestHelpers.makeInMemoryStack()
+        let context = stack.viewContext
+        let tools = MCPNotebookTools.makeTools(context: { context })
+        // A retired name that is now a view or section of its new home (say
+        // "mastery_candidates") may still be named as that value.
+        let values = MCPNotebookTools.retiredTools.values.flatMap { sentence in
+            sentence.matches(of: /(?:view|sections): \[?"([a-z_]+)"/).map { String($0.output.1) }
+        }
+        // record_presentation's `student_observations` argument is not the old tool.
+        let retired = Set(MCPNotebookTools.retiredTools.keys).subtracting(values)
+            .subtracting(["student_observations"])
+        let encoder = JSONEncoder()
+        for tool in tools {
+            let schema = String(decoding: try encoder.encode(tool.inputSchema), as: UTF8.self)
+            let words = Set((tool.description + " " + schema)
+                .split(whereSeparator: { !($0.isLetter || $0.isNumber || $0 == "_") })
+                .map(String.init))
+            let named = words.intersection(retired)
+            #expect(named.isEmpty, "\(tool.name) still names \(named.sorted())")
+        }
+    }
+
     /// Every tool that changes the notebook. Pinned literally so a tool that
     /// quietly starts writing — or a write that is mislabelled read-only —
     /// is a red test rather than a silently softened permission prompt.

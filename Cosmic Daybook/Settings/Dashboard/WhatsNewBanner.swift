@@ -13,8 +13,7 @@ struct WhatsNewBanner: View {
     static let notes: [(symbol: String, text: String)] = [
         ("waveform", "Siri can take attendance now. Try “Mark Maya late” or “Undo attendance.”"),
         ("magnifyingglass", "Settings has a new home for everything, and search takes you straight to the setting."),
-        ("clock.arrow.circlepath", "Backups can now run every few hours while the app is open."),
-        ("checklist", "To-do templates live in Settings › Templates too.")
+        ("clock.arrow.circlepath", "Backups can now run every few hours while the app is open.")
     ]
 
     @AppStorage(UserDefaultsKeys.whatsNewDismissedRelease) private var dismissedReleaseID = ""

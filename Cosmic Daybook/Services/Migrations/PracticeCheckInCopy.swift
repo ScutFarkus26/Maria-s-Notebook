@@ -9,8 +9,10 @@ import OSLog
 /// Copies each retired practice session (`PracticeSession`, read by entity
 /// name: its class is gone) into a completed practice check-in on every work
 /// row it names (`PracticeCheckIns.record`), and moves the session's notes
-/// onto the first of them (`Note.workCheckIn`). Nothing here deletes or
-/// changes a session: the rows stay, for older builds.
+/// onto the first of them (`Note.workCheckIn`). A moved note leaves its
+/// session, whose `notes` cascade, so deleting the session (a child's
+/// deletion, or an older build) can't take a note that now belongs to a
+/// check-in. Nothing here deletes a session: the rows stay, for older builds.
 ///
 /// It runs on every launch (`MigrationRunner`'s launch sweep) and after every
 /// restore (`BackupService`), so a session that arrives later from a device
@@ -76,6 +78,7 @@ enum PracticeCheckInCopy {
             let notes = (session.value(forKey: "notes") as? Set<CDNote>) ?? []
             for note in notes where !note.isDeleted && note.workCheckIn == nil {
                 note.workCheckIn = first
+                note.setValue(nil, forKey: "practiceSession")
                 outcome.notesRelinked += 1
             }
         }

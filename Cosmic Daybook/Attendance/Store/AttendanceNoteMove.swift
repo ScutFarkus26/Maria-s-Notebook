@@ -46,8 +46,10 @@ nonisolated enum AttendanceNoteMove {
         let links: [NSManagedObject?] = [
             note.work, note.lessonAssignment, note.workCheckIn, note.workCompletionRecord,
             note.studentMeeting, note.projectSession, note.issue,
-            // Reminder is a retired type (2026-11-03); its link still counts.
-            note.value(forKey: "reminder") as? NSManagedObject
+            // Reminder and PracticeSession are retired types (2026-11-03);
+            // their links still count.
+            note.value(forKey: "reminder") as? NSManagedObject,
+            note.value(forKey: "practiceSession") as? NSManagedObject
         ]
         if links.contains(where: { $0 != nil }) { return false }
         let foreignKeys = [note.lessonID, note.communityTopicID, note.schoolDayOverrideID, note.goingOutID]

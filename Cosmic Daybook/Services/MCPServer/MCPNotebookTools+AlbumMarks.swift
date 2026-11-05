@@ -25,14 +25,14 @@ extension MCPNotebookTools {
             title: "Album Marks",
             description: "The guide's bookmarks, page notes and highlights across their teaching "
                 + "albums — what they flagged and what they wrote in the margin. Pass an album "
-                + "filename to narrow to one album. Follow any result with get_album_page.",
+                + "filename to narrow to one album. Follow any result with albums, view: \"page\".",
             inputSchema: [
                 "type": "object",
                 "properties": [
                     "album": [
                         "type": "string",
                         "description": .string("The album's PDF filename, as cited by "
-                            + "search_albums. Omit for marks across every album.")
+                            + "albums with view: \"search\". Omit for marks across every album.")
                     ],
                     "kind": [
                         "type": "string",

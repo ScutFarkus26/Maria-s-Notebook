@@ -57,6 +57,8 @@ Scripts/locked_xcodebuild.sh -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic
 # Trash as a zip (an app bundle there gets registered again), and drops dead LaunchServices registrations.
 # Run it after merging to main.
 # Schema 21 not rolled out yet (2026-10-25): don't run this until the Hebrew birthdays roll-out row in Tide is done.
+# Schema 24 not deployed yet (2026-11-04): don't run this until schema 24 is deployed to CloudKit Production (the
+# round-two Simplify Release row in Tide); a schema-24 copy would lock the installed one out of its store.
 Scripts/install_release.sh
 
 # Archive the Daybook Assistant (iPhone-only, portrait) for TestFlight: the checkout's last commit, with a
@@ -112,7 +114,7 @@ Cosmic Daybook/
 ├── Students/         # Student profiles, detail, meetings, progress, notes, import, reports
 ├── Lessons/          # Lesson library, detail, attachments, scope map, parsha lessons
 │   └── Checklist/    #   The Class Grid's Checklist view: Views/, Model/, ViewModels/
-├── Work/             # Work items, check-ins, practice sessions
+├── Work/             # Work items and check-ins (practice is a check-in with minutes)
 ├── Presentations/    # Presentation scheduling, queues, sessions, record index
 ├── Attendance/       # Attendance: Store/, Rules/, Views/, Tile/, Email/, Reports/, Insights/, Delight/
 ├── Planning/         # Planning tools and AI lesson planning
@@ -126,7 +128,6 @@ Cosmic Daybook/
 ├── Albums/           # Teaching-album PDFs: Library/, Search/, Detail/, LessonLinks/
 ├── BookClub/         # Book club sessions (shown in Clubs & Projects) and packets (shown in Resources)
 ├── ClassGrid/        # The Class Grid: Checklist, Three Years, Children and Recall views over one engine (Engine/)
-├── ClassroomJobs/    # Classroom jobs and job assignments
 ├── CurriculumMap/    # Per-child Three-Year View (on the student page) and the loader/store/types the Class Grid reads
 ├── GoingOut/         # Going Out planning
 ├── Logs/             # Attendance and meetings log views (Attendance's List, Meetings' History)
@@ -146,7 +147,7 @@ Cosmic Daybook/
 ├── Sharing/          # CloudKit sharing (classroom collaboration)
 ├── Siri/             # App Intents, Siri attendance, Spotlight indexing
 ├── Backup/           # Backup & restore
-├── Settings/         # App configuration: Classroom/, Sync/, Intelligence/, DataManagement/, Templates/, Preferences/, Dashboard/
+├── Settings/         # App configuration, six categories (`SettingsCategory`): Classroom/, Sync/, Intelligence/, DataManagement/, Templates/, Preferences/, Dashboard/
 ├── AppIcon.icon/     # App icon
 ├── Assets.xcassets/  # Asset catalog
 └── CosmicDaybook.xcdatamodeld/ # Core Data model
@@ -167,16 +168,16 @@ MVVM with services on `NSPersistentCloudKitContainer` (private and shared stores
 
 ## Data Model
 
-93 entities (schema 23): 66 private-only, 15 in the classroom share, 12 dormant tombstones (schema 23 turned the four track entities into tombstones so sync history survives the migration). Core Data rules: `CD` prefix, no unique constraints, enums as raw `String`, foreign keys as `String`, every property optional or defaulted, `modifiedAt` for conflicts. Integrity rules and the entity table: `docs/Technical notes/DATA_MODELS.md`.
+93 entities (schema 24): 66 private (59 in use and 7 retired: ClassroomJob, JobAssignment, NoteTemplate, PracticeSession, Reminder, TodoSubtask, TodoTemplate, listed in `CoreDataStack.retiredEntities`, class names blanked, rows kept, not backed up), 15 in the classroom share, 12 dormant tombstones (schema 23 turned the four track entities into tombstones so sync history survives the migration). Schema 24 adds `WorkCheckIn.durationMinutes` (practice minutes). Core Data rules: `CD` prefix, no unique constraints, enums as raw `String`, foreign keys as `String`, every property optional or defaulted, `modifiedAt` for conflicts. Integrity rules and the entity table: `docs/Technical notes/DATA_MODELS.md`.
 
 ## Sharing Model
 
 - **Lead Guide** — full read/write on everything; the only role that sets up sharing (on the Mac only) or locks a day
 - **Assistant** — the Daybook Assistant: reads the classroom share, writes attendance on any unlocked day, marks staples, checks off the office run and adds needs (Restock), and sets her own name (`ClassroomNames`). An assistant added as View only (the Add Member picker no longer offers it, but older members may hold it) changes nothing: attendance and Restock both refuse
 - These roles are app conventions, not access control: CloudKit enforces only the share participant's permission, over all 15 share types. "Attendance, Restock and your own name only", "only the guide locks" and "a locked day refuses edits" hold because the apps enforce them (`ClassroomPermissions`, `CDAttendanceStore`), and `recordedBy`/`recordedByName` are stamped by the writing device.
-- Classroom share (15 types, listed in `CoreDataStack.sharedEntityNames`; schema 23 is current): Student (schema 21 adds `bornAfterSunset`, which moves the Hebrew birthday a day), AttendanceRecord, NonSchoolDay, SchoolDayOverride, AttendanceDayLock, AttendanceEmailSend, AttendanceEmailSettings (schema 12), Supply, SupplyTransaction, OrderItem (schema 15), ClassroomPerson (schema 16: the name each person sets, looked up when a line is worded; `ClassroomNames` is the only reader and writer), and the four Schedules types TimetableLane, TimetableBlock, TimetableChange and TimetableBooking (schema 20: only the guide's devices write them, assistants read)
+- Classroom share (15 types, listed in `CoreDataStack.sharedEntityNames`; schema 24 is current): Student (schema 21 adds `bornAfterSunset`, which moves the Hebrew birthday a day), AttendanceRecord, NonSchoolDay, SchoolDayOverride, AttendanceDayLock, AttendanceEmailSend, AttendanceEmailSettings (schema 12), Supply, SupplyTransaction, OrderItem (schema 15), ClassroomPerson (schema 16: the name each person sets, looked up when a line is worded; `ClassroomNames` is the only reader and writer), and the four Schedules types TimetableLane, TimetableBlock, TimetableChange and TimetableBooking (schema 20: only the guide's devices write them, assistants read)
 - **This school year only (2026-09-30):** students who are enrolled or left during this school year, and attendance from its first day on (`ClassroomShareScope`); last year leaves the share only by the Mac's Settings › Classroom › Remove Last Year from the Share (`ClassroomShareRelease`). See CloudKit.
-- Everything else is the guide's own (66 types): lessons, notes, work, todos, projects, meetings, ClassroomMembership, …
+- Everything else is the guide's own (66 types, 7 of them retired): lessons, notes, work, todos, projects, meetings, ClassroomMembership, …
 
 ## Siri (App Intents)
 
@@ -229,7 +230,7 @@ Rules: `docs/Technical notes/ALBUMS.md`. The PDFs stay where they live; never co
 
 ## MCP Server (Claude Desktop)
 
-Rules: `docs/Technical notes/MCP_SERVER.md`. Every write goes through the service the in-app control uses, never straight to Core Data; every tool gets an `MCPToolAnnotations` and a line in `MCPToolRegistryTests`.
+Rules: `docs/Technical notes/MCP_SERVER.md`. Every write goes through the service the in-app control uses, never straight to Core Data; every tool gets an `MCPToolAnnotations` and a line in `MCPToolRegistryTests`. 64 tools (2026-11-04); a retired name answers with a sentence from `MCPNotebookTools.retiredTools`.
 
 ## Restock (Supplies + Orders)
 
@@ -241,7 +242,7 @@ Rules: `docs/Technical notes/PARENTLOCKER.md`. The password stays in the Keychai
 
 ## Backup System
 
-Format v45; rules: `docs/Technical notes/BACKUP_SYSTEM.md`. A new entity or attribute needs a line in `Backup/BackupEntityTable.swift` and a format-version bump; merge restore is an upsert, never delete and reinsert.
+Format v46; rules: `docs/Technical notes/BACKUP_SYSTEM.md`. A new entity or attribute needs a line in `Backup/BackupEntityTable.swift` and a format-version bump; merge restore is an upsert, never delete and reinsert.
 
 ## Todos for Danny
 

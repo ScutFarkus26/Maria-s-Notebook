@@ -24,7 +24,7 @@ extension MCPNotebookTools {
                 + "window, or concerning one student. A todo tied to a "
                 + "piece of work shows linked_work_id and the work's title. For the broader "
                 + "\"what is owed right now\" across goals and flagged notes, use "
-                + "list_open_follow_ups instead.",
+                + "list_todos with view: \"open_follow_ups\" instead.",
             inputSchema: listTodosSchema,
             annotations: .readOnly,
             handler: { arguments in
@@ -197,7 +197,7 @@ extension MCPNotebookTools {
         "properties": [
             "todo_id": [
                 "type": "string",
-                "description": "The todo's id, as returned by list_todos or list_open_follow_ups"
+                "description": "The todo's id, as returned by list_todos"
             ],
             "title": ["type": "string", "description": "New title"],
             "notes": ["type": "string", "description": "New notes (replaces what is there)"],
