@@ -37,8 +37,7 @@ extension AttendanceExpandedView {
                 // Lock/Unlock (the lead guide's alone)
                 if canLockDays {
                     Button {
-                        isEditing.toggle()
-                        setLocked(!isEditing, for: date)
+                        changeLock(to: isEditing)
                     } label: {
                         Label(isEditing ? "Lock Day" : "Unlock Day", systemImage: isEditing ? "lock.fill" : "lock.open")
                     }

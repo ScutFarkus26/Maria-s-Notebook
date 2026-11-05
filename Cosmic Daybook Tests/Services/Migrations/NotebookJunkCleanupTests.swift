@@ -50,34 +50,6 @@ struct NotebookJunkCleanupTests {
         #expect(count(CDNote.self, in: context) == 1)
     }
 
-    @Test("Track steps with no track and tracks nothing uses go; a used empty track stays")
-    func tracksAndSteps() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let lesson = CoreDataTestHelpers.seedLesson(in: context)
-        let kept = CDTrackEntity(context: context)
-        kept.title = "Math — Laws"
-        let keptStep = CDTrackStep(context: context)
-        keptStep.lessonTemplateID = lesson.id
-        keptStep.track = kept
-        let orphan = CDTrackStep(context: context)
-        orphan.lessonTemplateID = lesson.id
-        let unused = CDTrackEntity(context: context)
-        unused.title = "Biology — Zoology"
-        let namedByWork = CDTrackEntity(context: context)
-        namedByWork.title = "Book Clubs — Book Club"
-        CoreDataTestHelpers.save(context)
-        let work = CoreDataTestHelpers.seedWorkModel(in: context)
-        work.trackID = namedByWork.id?.uuidString
-        CoreDataTestHelpers.save(context)
-
-        let done = clean(context)
-        #expect(done.orphanTrackSteps == 1)
-        #expect(done.emptyTracks == 1)
-        #expect(Set(context.safeFetch(CDFetchRequest(CDTrackEntity.self)).map(\.title))
-            == ["Math — Laws", "Book Clubs — Book Club"])
-        #expect(count(CDTrackStep.self, in: context) == 1)
-    }
-
     @Test("Presentation records with no child and no lesson, or of a deleted lesson, go")
     func presentations() throws {
         let context = try CoreDataTestHelpers.makeContext()
@@ -187,44 +159,6 @@ struct NotebookJunkCleanupTests {
         #expect(context.safeFetch(CDFetchRequest(CDDocument.self)).map(\.title) == ["Report card"])
     }
 
-    @Test("Old enrollments take their track, or go when the child is already on it or nothing matches")
-    func oldEnrollments() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let avital = CoreDataTestHelpers.seedStudent(in: context, firstName: "Avital")
-        let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora")
-        let fractions = CDTrackEntity(context: context)
-        fractions.title = "Math — Fractions"
-        CoreDataTestHelpers.save(context)
-        func enroll(_ student: CDStudent, key: String, track: CDTrackEntity? = nil) {
-            let enrollment = CDStudentTrackEnrollmentEntity(context: context)
-            enrollment.studentID = student.id?.uuidString ?? ""
-            enrollment.trackID = key
-            enrollment.track = track
-            enrollment.isActive = true
-        }
-        let fractionsID = fractions.id?.uuidString ?? ""
-        enroll(avital, key: fractionsID, track: fractions)  // Avital is already on it
-        enroll(avital, key: "Math|Fractions")                // a duplicate of hers
-        enroll(ora, key: "Math|Fractions")                   // Ora's only link to it
-        enroll(ora, key: "New|")                             // matches no track
-        enroll(ora, key: UUID().uuidString)                  // a track that's gone
-        CoreDataTestHelpers.save(context)
-
-        let done = clean(context)
-        #expect(done.enrollmentsRelinked == 1)
-        #expect(done.enrollmentsRemoved == 3)
-        #expect(done.emptyTracks == 0)
-        let left = context.safeFetch(CDFetchRequest(CDStudentTrackEnrollmentEntity.self))
-        #expect(left.count == 2)
-        let tracks: Set<NSManagedObjectID?> = Set(left.map { $0.track?.objectID })
-        let trackIDs: Set<String> = Set(left.map(\.trackID))
-        let students: Set<String> = Set(left.map(\.studentID))
-        let expectedStudents: Set<String> = [try #require(avital.id).uuidString, try #require(ora.id).uuidString]
-        #expect(tracks == [fractions.objectID])
-        #expect(trackIDs == [fractionsID])
-        #expect(students == expectedStudents)
-    }
-
     @Test("Planned lessons of children who've left are skipped, never deleted")
     func departedPlans() throws {
         let context = try CoreDataTestHelpers.makeContext()
@@ -250,14 +184,14 @@ struct NotebookJunkCleanupTests {
     }
 }
 
-// MARK: - Reruns, reminder copies, the previewed set and enrollments
+// MARK: - Reruns, reminder copies and the previewed set
 
 extension NotebookJunkCleanupTests {
 
     @Test("A second run finds nothing")
     func idempotent() throws {
         let context = try CoreDataTestHelpers.makeContext()
-        CDTrackStep(context: context).lessonTemplateID = UUID()
+        CDWorkStep(context: context).title = "Step 1"
         CDWorkParticipantEntity(context: context).studentID = UUID().uuidString
         CoreDataTestHelpers.seedNote(in: context, body: "").includeInReport = false
         CoreDataTestHelpers.save(context)
@@ -278,15 +212,15 @@ extension NotebookJunkCleanupTests {
             entry.status = .planned
             return entry
         }
-        let seen = CDTrackStep(context: context)
-        seen.lessonTemplateID = UUID()
+        let seen = CDWorkParticipantEntity(context: context)
+        seen.studentID = UUID().uuidString
         let seenPlan = plan()
         CoreDataTestHelpers.save(context)
         let preview = NotebookJunkCleanup.run(in: context, today: today, apply: false)
 
         // Arrives from iCloud after the preview (and the backup).
-        let arrived = CDTrackStep(context: context)
-        arrived.lessonTemplateID = UUID()
+        let arrived = CDWorkParticipantEntity(context: context)
+        arrived.studentID = UUID().uuidString
         let arrivedPlan = plan()
         CoreDataTestHelpers.save(context)
 
@@ -297,43 +231,6 @@ extension NotebookJunkCleanupTests {
         #expect(!arrived.isDeleted && arrived.managedObjectContext != nil)
         #expect(seenPlan.status == .skipped)
         #expect(arrivedPlan.status == .planned)
-    }
-
-    @Test("An active enrollment is never removed for an inactive one, nor one a note names")
-    func enrollmentsKeptWhenActiveOrNoted() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let avital = CoreDataTestHelpers.seedStudent(in: context, firstName: "Avital")
-        let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora")
-        let fractions = CDTrackEntity(context: context)
-        fractions.title = "Math — Fractions"
-        CoreDataTestHelpers.save(context)
-        @discardableResult
-        func enroll(
-            _ student: CDStudent, key: String, track: CDTrackEntity? = nil, active: Bool
-        ) -> CDStudentTrackEnrollmentEntity {
-            let enrollment = CDStudentTrackEnrollmentEntity(context: context)
-            enrollment.studentID = student.id?.uuidString ?? ""
-            enrollment.trackID = key
-            enrollment.track = track
-            enrollment.isActive = active
-            return enrollment
-        }
-        let fractionsID = fractions.id?.uuidString ?? ""
-        enroll(avital, key: fractionsID, track: fractions, active: false)       // she stopped once
-        let current = enroll(avital, key: "Math|Fractions", active: true)       // and is on it now
-        enroll(ora, key: fractionsID, track: fractions, active: true)
-        enroll(ora, key: "Math|Fractions", active: false)                       // an old copy: goes
-        let noted = enroll(ora, key: UUID().uuidString, active: true)           // a gone track, but a note names it
-        CoreDataTestHelpers.seedNote(in: context, body: "Ready for the next step").studentTrackEnrollmentID =
-            noted.id?.uuidString
-        CoreDataTestHelpers.save(context)
-
-        let done = clean(context)
-        #expect(done.enrollmentsRemoved == 1)
-        let left = context.safeFetch(CDFetchRequest(CDStudentTrackEnrollmentEntity.self))
-        #expect(left.count == 4)
-        #expect(left.contains(current))
-        #expect(left.contains(noted))
     }
 
 }

@@ -185,12 +185,6 @@ nonisolated extension CDWorkCompletionRecord {
     }
 }
 
-nonisolated extension CDStudentTrackEnrollmentEntity {
-    var latestUnifiedNoteText: String {
-        CDNote.latestBody(in: richNotes)
-    }
-}
-
 // MARK: - Helper
 
 nonisolated extension CDNote {

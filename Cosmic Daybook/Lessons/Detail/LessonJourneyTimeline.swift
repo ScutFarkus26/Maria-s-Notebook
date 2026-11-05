@@ -1,7 +1,12 @@
 import SwiftUI
 import CoreData
 
-/// A visual timeline component showing the journey from lesson to presentations to work to practice
+/// A visual timeline component showing the journey from lesson to presentations to work to practice.
+///
+/// It reloads when a presentation, work or child changes, so a plan made from
+/// the card's Give Lesson shows at once, and it names and counts enrolled,
+/// visible children only (bug hunt 2026-11-03, #16: it loaded once per lesson
+/// and counted hidden test students and children who left).
 struct LessonJourneyTimeline: View {
     let lesson: CDLesson
     let viewContext: NSManagedObjectContext
@@ -10,6 +15,11 @@ struct LessonJourneyTimeline: View {
     @State private var allWork: [CDWorkModel] = []
     @State private var allSessions: [CDWorkCheckIn] = []
     @State private var isLoaded = false
+
+    /// What the timeline shows: a change to any of these reloads it.
+    private static let reloadEntityNames: Set<String> = [
+        "LessonAssignment", "LessonPresentation", "WorkModel", "WorkParticipantEntity", "Student"
+    ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -29,6 +39,9 @@ struct LessonJourneyTimeline: View {
         // the previous lesson's presentations.
         .task(id: lesson.objectID) {
             await loadData()
+        }
+        .onPresentationDataChangeWhenVisible(of: Self.reloadEntityNames, in: viewContext, catchUpOnAppear: false) {
+            Task { await loadData() }
         }
     }
     
@@ -87,7 +100,7 @@ struct LessonJourneyTimeline: View {
         let statusText: String = presentation.isPresented
             ? "Presented"
             : presentation.isScheduled ? "Scheduled" : "Draft"
-        let students: [CDStudent] = presentation.fetchStudents(from: viewContext)
+        let students: [CDStudent] = Self.shownStudents(presentation.fetchStudents(from: viewContext))
 
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
@@ -240,6 +253,16 @@ struct LessonJourneyTimeline: View {
         .surface(UIConstants.CornerRadius.small, fill: Color.purple.opacity(UIConstants.OpacityConstants.subtle))
     }
     
+    /// The children a presentation card names and counts: enrolled ones not
+    /// hidden as test students. The two settings default to the stored ones.
+    static func shownStudents(
+        _ students: [CDStudent], showTestStudents: Bool? = nil, testStudentNames: String? = nil
+    ) -> [CDStudent] {
+        TestStudentsFilter.filterVisible(
+            students.filter(\.isEnrolled), show: showTestStudents, namesRaw: testStudentNames
+        )
+    }
+
     private func loadData() async {
         presentations = lesson.fetchAllPresentations(from: viewContext)
             .sorted {

@@ -39,10 +39,7 @@ extension ClassAreaChecklistViewModel {
     func confirmClear(_ request: ChecklistClearRequest, context: NSManagedObjectContext) {
         pendingClear = nil
         if request.fromSelection {
-            ChecklistBatchActionExecutor.batchClearStatus(
-                selectedCells: request.cells, students: students, lessons: lessons, context: context
-            )
-            recomputeMatrix(context: context)
+            clearCells(request.cells, context: context)
             clearSelection()
         } else if let cell = request.cells.first {
             clear(cell, context: context)

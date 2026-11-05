@@ -79,17 +79,23 @@ nonisolated struct ReadyQueueSnapshot: Sendable {
     /// Who is considered. Items, plans and record rows for anyone else are
     /// ignored, which is how the level filter works.
     let roster: ReadyRoster
+    /// Lessons given to someone unconfirmed whose own settings don't require
+    /// confirmation (`LessonProgressionRules`): a child given one is already in
+    /// the queue, so no card offers to confirm her on it.
+    let confirmationNotRequired: Set<String>
 
     init(
         items: [ReadyForNextItem],
         index: PresentationRecordIndex,
         order: LessonSequenceOrder,
-        roster: ReadyRoster
+        roster: ReadyRoster,
+        confirmationNotRequired: Set<String> = []
     ) {
         self.items = items
         self.index = index
         self.order = order
         self.roster = roster
+        self.confirmationNotRequired = confirmationNotRequired
     }
 
     /// Builds the queue itself the way `students_ready` and Today do, over
@@ -109,14 +115,39 @@ nonisolated struct ReadyQueueSnapshot: Sendable {
             ),
             index: index,
             order: LessonSequenceOrder(lessons: lessons),
-            roster: roster
+            roster: roster,
+            confirmationNotRequired: Self.confirmationNotRequired(lessons: lessons, index: index, in: context)
         )
+    }
+
+    /// The lessons in `index` given to someone neither confirmed nor mastered
+    /// whose settings don't require confirmation. Only those lessons' rules
+    /// are resolved, so a library with every gate on reads nothing.
+    @MainActor
+    static func confirmationNotRequired(
+        lessons: [CDLesson],
+        index: PresentationRecordIndex,
+        in context: NSManagedObjectContext
+    ) -> Set<String> {
+        let pending = Set(index.givenByLesson.compactMap { lessonID, given in
+            given.values.contains { !$0.confirmed && !$0.mastered } ? lessonID : nil
+        })
+        guard !pending.isEmpty else { return [] }
+        let progression = ProgressionRulesLookup(context: context)
+        return Set(lessons.compactMap { lesson in
+            guard let id = lesson.id?.uuidString, pending.contains(id),
+                  !progression.rules(for: lesson).requiresTeacherConfirmation else { return nil }
+            return id
+        })
     }
 
     /// The same snapshot with the roster narrowed to `levels` (nil keeps
     /// everyone). Apply it before building: the 2+ threshold counts only the
     /// children left.
     func filtered(levels: Set<CDStudent.Level>?) -> ReadyQueueSnapshot {
-        ReadyQueueSnapshot(items: items, index: index, order: order, roster: roster.filtered(levels: levels))
+        ReadyQueueSnapshot(
+            items: items, index: index, order: order, roster: roster.filtered(levels: levels),
+            confirmationNotRequired: confirmationNotRequired
+        )
     }
 }

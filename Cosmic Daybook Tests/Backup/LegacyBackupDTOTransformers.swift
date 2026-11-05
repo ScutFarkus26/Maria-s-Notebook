@@ -141,7 +141,6 @@ enum LegacyBackupDTOTransformers { // swiftlint:disable:this type_body_length
                 reporterName: n.reporterName,
                 communityTopicID: n.communityTopicID,
                 schoolDayOverrideID: n.schoolDayOverrideID,
-                studentTrackEnrollmentID: n.studentTrackEnrollmentID,
                 goingOutID: n.goingOutID,
                 lessonAssignmentID: n.lessonAssignment?.id,
                 attendanceRecordID: n.attendanceRecordID.flatMap { UUID(uuidString: $0) },
@@ -332,7 +331,7 @@ enum LegacyBackupDTOTransformers { // swiftlint:disable:this type_body_length
 ///   WorkParticipant
 /// - `LegacyBackupDTOTransformers+V18Entities.swift` — CDDayPad, CDYearPlanEntry,
 ///   CDLessonSequenceSettings, CDStory, Book Club entities
-/// - `LegacyBackupDTOTransformers+Misc.swift` — Calendar, Todo, CDTrackEntity,
+/// - `LegacyBackupDTOTransformers+Misc.swift` — Calendar, Todo,
 ///   CDSupply, CDSchedule, CDIssue, CDProcedure, CDDocument, and remaining types
 ///
 /// Entities NOT handled here (CDStudent, CDLesson, CDNote, CDNonSchoolDay,
@@ -381,8 +380,6 @@ extension LegacyBackupDTOTransformers {
             studentID: lp.studentID,
             lessonID: lp.lessonID,
             presentationID: lp.presentationID,
-            trackID: lp.trackID,
-            trackStepID: lp.trackStepID,
             stateRaw: lp.stateRaw,
             presentedAt: lp.presentedAt ?? Date(),
             lastObservedAt: lp.lastObservedAt,
@@ -436,8 +433,6 @@ extension LegacyBackupDTOTransformers {
             studentID: work.studentID,
             lessonID: work.lessonID,
             presentationID: work.presentationID,
-            trackID: work.trackID,
-            trackStepID: work.trackStepID,
             scheduledNote: work.scheduledNote,
             scheduledReasonRaw: work.scheduledReasonRaw,
             sourceContextTypeRaw: work.sourceContextTypeRaw,

@@ -39,13 +39,13 @@ extension TodayView {
     /// this section instead of the whole Today screen.
     var todosListSection: some View {
         TodayTodosSectionView(
-            date: viewModel.date,
+            day: todoDay,
             followUps: followUpPartition,
             hiddenTodoIDs: viewModel.linkedTodos.hiddenTodoIDs,
             studentShortNames: dependencies.roster.shortNamesByFullName,
             onToggle: { toggleTodoItem($0) },
             onOpen: { selectedTodoItem = $0 },
-            onNewTodo: { activeSheet = .newTodo },
+            onNewTodo: { activeSheet = .newTodo(defaultDate: todoDay.newTodoDate) },
             followUpRow: { checkInFollowUpRow($0) }
         )
     }
@@ -62,7 +62,9 @@ struct TodayTodosSectionView<FollowUpRow: View>: View {
     typealias TodosPartition = TodayView.TodosPartition
     typealias FollowUpPartition = TodayView.FollowUpPartition
 
-    let date: Date
+    /// The days the to-dos read (`TodayTodoDay`): the shown day, or on a
+    /// weekend or day off the real day too.
+    let day: TodayTodoDay
     let followUps: FollowUpPartition
     /// Linked todos whose work row is on Today (`TodayLinkedTodos.hiddenTodoIDs`).
     let hiddenTodoIDs: Set<UUID>
@@ -80,7 +82,7 @@ struct TodayTodosSectionView<FollowUpRow: View>: View {
     @FetchRequest private var todoItems: FetchedResults<CDTodoItem>
 
     init(
-        date: Date,
+        day: TodayTodoDay,
         followUps: FollowUpPartition,
         hiddenTodoIDs: Set<UUID>,
         studentShortNames: [String: String],
@@ -89,7 +91,7 @@ struct TodayTodosSectionView<FollowUpRow: View>: View {
         onNewTodo: @escaping () -> Void,
         @ViewBuilder followUpRow: @escaping (WorkCheckInFollowUp) -> FollowUpRow
     ) {
-        self.date = date
+        self.day = day
         self.followUps = followUps
         self.hiddenTodoIDs = hiddenTodoIDs
         self.studentShortNames = studentShortNames
@@ -99,8 +101,13 @@ struct TodayTodosSectionView<FollowUpRow: View>: View {
         self.followUpRow = followUpRow
         _todoItems = FetchRequest(
             sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.createdAt, ascending: false)],
-            predicate: Self.fetchPredicate(selectedDay: AppCalendar.startOfDay(date))
+            predicate: Self.fetchPredicate(for: day)
         )
+    }
+
+    /// `fetchPredicate(selectedDay:)` for the last day the section lists.
+    static func fetchPredicate(for day: TodayTodoDay) -> NSPredicate {
+        fetchPredicate(selectedDay: day.lastDay)
     }
 
     /// The store's half of `isShown`, wide enough to never drop a todo it
@@ -119,7 +126,7 @@ struct TodayTodosSectionView<FollowUpRow: View>: View {
     }
 
     var body: some View {
-        let partition = Self.partition(Array(todoItems), date: date, calendar: calendar, hiding: hiddenTodoIDs)
+        let partition = Self.partition(Array(todoItems), day: day, calendar: calendar, hiding: hiddenTodoIDs)
         let count = partition.all.count + followUps.count
         if TodaySectionVisibility.showsTodos(count: count) {
             Section {
@@ -130,18 +137,20 @@ struct TodayTodosSectionView<FollowUpRow: View>: View {
         }
     }
 
-    /// Open, not someday, and planned or due by the day, or high priority.
+    /// Open, not someday, and planned or due by the last day, or high
+    /// priority. (Someday left the Todos screen with round-two Simplify, so
+    /// a someday todo stays off Today, as before bug hunt 2026-11-03 #57.)
     /// The Todos screen's Today list and this one read the same rule
     /// (`TodoListFilter.isDueOrPlanned`): Today used to drop a todo whose
     /// planned day had passed, and one overdue but planned later, which the
     /// Todos screen shows since 10-10 #25 (bug hunt 2026-10-11 #70).
-    private static func isShown(_ todo: CDTodoItem, selectedDay: Date) -> Bool {
+    private static func isShown(_ todo: CDTodoItem, lastDay: Date) -> Bool {
         guard !todo.isCompleted else { return false }
         guard !todo.isSomeday else { return false }
-        return TodoListFilter.isDueOrPlanned(todo, by: selectedDay) || todo.priority == .high
+        return TodoListFilter.isDueOrPlanned(todo, by: lastDay) || todo.priority == .high
     }
 
-    /// Past its deadline on the selected day.
+    /// Past its deadline: due before the day the section calls today.
     private static func isOverdue(_ todo: CDTodoItem, selectedDay: Date) -> Bool {
         todo.dueDate.map { $0 < selectedDay } ?? false
     }
@@ -165,18 +174,31 @@ struct TodayTodosSectionView<FollowUpRow: View>: View {
         return lhs.priority.sortOrder < rhs.priority.sortOrder
     }
 
+    /// The section for one day, as on a school day.
     static func partition(
         _ todoItems: [CDTodoItem], date: Date, calendar: Calendar, hiding hidden: Set<UUID> = []
     ) -> TodosPartition {
+        partition(
+            todoItems, day: TodayTodoDay(shownDay: date, realDay: date, schoolDayForRealDay: date),
+            calendar: calendar, hiding: hidden
+        )
+    }
+
+    /// Overdue before `day.overdueBefore`; "Today" for what is planned, or
+    /// due, from then through `day.lastDay`.
+    static func partition(
+        _ todoItems: [CDTodoItem], day: TodayTodoDay, calendar: Calendar, hiding hidden: Set<UUID> = []
+    ) -> TodosPartition {
         // Compute date boundaries once — todayTodos and the partition sub-filters all need them.
-        let selectedDay = AppCalendar.startOfDay(date)
-        let nextDay = calendar.date(byAdding: .day, value: 1, to: selectedDay) ?? selectedDay
+        let selectedDay = day.overdueBefore
+        let lastDay = day.lastDay
+        let nextDay = calendar.date(byAdding: .day, value: 1, to: lastDay) ?? lastDay
 
         // Filter and sort the raw fetch results in a single pass.
         let todos = todoItems
             .filter { todo in
                 !(todo.id.map(hidden.contains) ?? false)
-                    && isShown(todo, selectedDay: selectedDay)
+                    && isShown(todo, lastDay: lastDay)
             }
             .sorted { precedes($0, $1, selectedDay: selectedDay, nextDay: nextDay) }
 

@@ -4,16 +4,15 @@
 //
 //  Adding a lesson to the curriculum and editing one. Both write through
 //  `LessonRepository` and settle the ordering columns the way the Lessons
-//  screens do (see +CurriculumSupport), then make the same best-effort track
-//  refresh AddLessonView makes, so a lesson added from an album over MCP
-//  looks exactly like one typed into the bulk-entry sheet.
+//  screens do (see +CurriculumSupport), so a lesson added from an album over
+//  MCP looks exactly like one typed into the bulk-entry sheet.
 //
 //  create_lesson is idempotent on name within a sub-area and never deletes;
 //  a sub-area is created on demand but a top-level area never is.
 //  update_lesson changes only the fields passed, and refuses a rename or move
 //  that would put two lessons with one name in one sub-area. Renames are
-//  safe: every presentation, plan, work item, note and track step references
-//  the lesson by its id, never its name.
+//  safe: every presentation, plan, work item and note references the lesson
+//  by its id, never its name.
 //
 
 import CoreData
@@ -153,7 +152,7 @@ extension MCPNotebookTools {
             description: "Rename a lesson, move it to another sub-area (or area), or change its "
                 + "notes. Only the fields passed change. A move puts the lesson at the end of its "
                 + "new sub-area; use reorder_lessons to place it. A rename or move onto a name the "
-                + "sub-area already has is refused. Presentations, plans, work and tracks reference "
+                + "sub-area already has is refused. Presentations, plans and work reference "
                 + "the lesson by id, so a rename breaks nothing.",
             inputSchema: [
                 "type": "object",

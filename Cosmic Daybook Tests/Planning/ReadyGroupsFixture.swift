@@ -91,7 +91,7 @@ struct ReadyGroupsFixture {
         settings.area = area
         settings.sequence = sequence
         settings.requiresPractice = true
-        settings.requiresTeacherConfirmation = false
+        settings.requiresTeacherConfirmation = true
     }
 
     func work(_ student: CDStudent, on lesson: CDLesson, status: String) throws {

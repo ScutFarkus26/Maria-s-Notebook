@@ -7,8 +7,11 @@ import Testing
 /// it replaces, type by type, for the 38 types "Simplify round two", Phase 7
 /// moves onto it. The old code is frozen in this target as it stood at
 /// a906650c0 (`LegacyBackupDTOs.swift`, `LegacyBackupDTOTransformers.swift`,
-/// `LegacyBackupEntityImporter.swift`), and `oracleTypes` (`+Table`) says how
-/// it exported and restored each type. Three things are compared:
+/// `LegacyBackupEntityImporter.swift`), less the track parts main took out of
+/// that same code at schema 23 (94b12ace9: `SequenceTrack` and the `trackID`,
+/// `trackStepID` and `studentTrackEnrollmentID` fields; Phase 8 applied the
+/// same removal to the copy), and `oracleTypes` (`+Table`) says how it
+/// exported and restored each type, 37 since then. Three things are compared:
 ///
 /// - Export: each type's rows as the app writes them and as the old code wrote
 ///   them, as JSON objects, for the field-coverage fixture (every attribute
@@ -33,7 +36,7 @@ struct BackupSpecOracleTests {
     @Test("The table holds every hand-written type once, in archive order, under its archive name")
     func tableCoversTheTypes() {
         #expect(Self.oracleTypes.map(\.entityName) == Self.entityNames)
-        #expect(Self.entityNames.count == 38)
+        #expect(Self.entityNames.count == 37)
         #expect(BackupEntityTable.names.filter(Set(Self.entityNames).contains) == Self.entityNames)
         for oracle in Self.oracleTypes {
             let entity = BackupEntityTable.entities.first { $0.name == oracle.entityName }

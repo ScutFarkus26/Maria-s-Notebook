@@ -138,11 +138,23 @@ nonisolated extension CoreDataStack {
     ///   name or its note last changed, so a replaced file reads "Updated"
     ///   (plan "Lesson file attachments"; `LessonAttachmentService`). Additive
     ///   optional Date; older records read it as `attachedAt`.
-    /// - `23` — `WorkCheckIn.durationMinutes` (private): how long a practice
+    /// - `23` — the track entities leave the private store (plan "Retire the
+    ///   track entities", Phase 3): `Track`, `TrackStep`, `SequenceTrack` and
+    ///   `StudentTrackEnrollment` stay in the model as dormant tombstones in
+    ///   no store (`dormantTombstoneEntities`; deleting them would have
+    ///   truncated the store's persistent history), and `trackID` and
+    ///   `trackStepID` on `LessonPresentation`, `LessonAssignment` and
+    ///   `WorkModel`, and `Note.studentTrackEnrollmentID`, are dropped.
+    ///   Nothing has written them since the Phase 1 build, and a child's
+    ///   standing on a sequence is read from her presentations
+    ///   (`SequenceStanding`). A note that hung on an enrollment is read before
+    ///   the store migrates and moved onto the enrollment's child after
+    ///   (`EnrollmentNoteOwners`).
+    /// - `24` — `WorkCheckIn.durationMinutes` (private): how long a practice
     ///   lasted, now that practice sessions fold into check-ins (plan "Simplify
     ///   the app, round two", Phase 2; `PracticeCheckInCopy`). Additive
     ///   optional Integer 16; nil for every check-in made before it.
-    nonisolated static let currentSchemaVersion = 23
+    nonisolated static let currentSchemaVersion = 24
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"
@@ -232,6 +244,14 @@ nonisolated extension CoreDataStack {
                 schemaLogger.error("\(name, privacy: .public) needs migrating while another copy has it open")
                 throw CoreDataStackError.storeInUseByAnotherCopy
             }
+            #if !ASSISTANT_APP
+            // Schema 23 drops the track enrollments and the note column that
+            // named one. Read whose each such note is while the file still
+            // has them; the launch pass moves the notes onto those children.
+            if migrating && description.configuration != sharedConfiguration {
+                EnrollmentNoteOwners.stashOwners(readingStoreAt: url)
+            }
+            #endif
             let backup = migrating
                 ? backUpStoreBeforeMigration(storeURL: url, model: model, options: surgeryOptions(for: description))
                 : nil

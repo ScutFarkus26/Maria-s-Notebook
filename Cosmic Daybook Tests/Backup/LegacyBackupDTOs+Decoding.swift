@@ -3,7 +3,8 @@ import Foundation
 
 // The legacy row types' hand-written decoding and merge dates, copied verbatim
 // from a906650c0's `Backup/BackupTypes+LenientDecoding.swift` (the lenient
-// decoders of Lesson, LessonAssignment, SequenceTrack and Resource) and the 38
+// decoders of Lesson, LessonAssignment and Resource; SequenceTrack's left with
+// the track entities at schema 23, as on main) and the 37
 // types' lines of `Backup/BackupEntityTable+RowDates.swift` (each one's
 // `BackupRowDTO` conformance: the date a Merge's newer-wins check reads). Only
 // the type names are changed (`LessonDTO` → `LegacyLessonDTO`). Part of the old
@@ -113,8 +114,6 @@ nonisolated extension LegacyLessonAssignmentDTO {
         ) ?? false
         self.followUpWork = try c.decodeIfPresent(String.self, forKey: FieldKey("followUpWork")) ?? ""
         self.notes = try c.decodeIfPresent(String.self, forKey: FieldKey("notes")) ?? ""
-        self.trackID = try c.decodeIfPresent(String.self, forKey: FieldKey("trackID"))
-        self.trackStepID = try c.decodeIfPresent(String.self, forKey: FieldKey("trackStepID"))
         self.migratedFromLegacyID = try c.decodeIfPresent(String.self, forKey: FieldKey("migratedFromLegacyID"))
         self.migratedFromPresentationID = try c.decodeIfPresent(
             String.self,
@@ -122,20 +121,6 @@ nonisolated extension LegacyLessonAssignmentDTO {
         )
         self.manuallyUnblocked = try c.decodeIfPresent(Bool.self, forKey: FieldKey("manuallyUnblocked"))
         self.confirmedStudentIDs = try c.decodeIfPresent([String].self, forKey: FieldKey("confirmedStudentIDs"))
-    }
-}
-
-// MARK: - LegacySequenceTrackDTO
-
-nonisolated extension LegacySequenceTrackDTO {
-    public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: FieldKey.self)
-        self.id = try c.decode(UUID.self, forKey: FieldKey("id"))
-        self.area = try c.decodeString("area")
-        self.sequence = try c.decodeString("sequence")
-        self.isSequential = try c.decodeIfPresent(Bool.self, forKey: FieldKey("isSequential")) ?? true
-        self.isExplicitlyDisabled = try c.decodeIfPresent(Bool.self, forKey: FieldKey("isExplicitlyDisabled")) ?? false
-        self.createdAt = try c.decodeIfPresent(Date.self, forKey: FieldKey("createdAt")) ?? Date()
     }
 }
 
@@ -188,7 +173,6 @@ nonisolated extension LegacyWorkParticipantEntityDTO: BackupRowDTO { var rowModi
 nonisolated extension LegacyLessonPresentationDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension LegacySampleWorkDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension LegacyCalendarEventDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension LegacySequenceTrackDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension LegacyDocumentDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
 nonisolated extension LegacySupplyDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
 nonisolated extension LegacyProcedureDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }

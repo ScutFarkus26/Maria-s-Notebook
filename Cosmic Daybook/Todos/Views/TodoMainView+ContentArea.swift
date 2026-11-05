@@ -92,7 +92,9 @@ extension TodoMainView {
             Divider().frame(height: 30)
 
             batchButton(title: "Delete", icon: "trash", color: .red) {
-                batchDelete()
+                // Asks first, with the count (bug hunt 2026-11-03, #51).
+                let count = batchSelection.selected(in: filteredTodos).count
+                if count > 0 { pendingBatchDeleteCount = count }
             }
         }
         .padding(.vertical, 8)
@@ -152,52 +154,47 @@ extension TodoMainView {
 
     var groupedTodos: [String: [CDTodoItem]] {
         var groups: [String: [CDTodoItem]] = [:]
-        let cal = AppCalendar.shared
-        let today = AppCalendar.startOfDay(Date())
-
-        // Check-ins read day by day
-        let useDayTimeline = selectedTideList == nil && selectedFilter == .checkIns
-
+        let today = calendarDay
+        // A Tide list groups by date like any list; only the notebook's own
+        // filters change the headings.
+        let filter = selectedTideList == nil ? selectedFilter : nil
         for todo in filteredTodos {
-            let section: String
-
-            if selectedTideList == nil && selectedFilter == .done {
-                section = "Completed"
-            } else if todo.isCompleted {
-                section = "Completed"
-            } else if let effective = todo.effectiveDate {
-                if todo.isOverdue {
-                    section = "Overdue"
-                } else if cal.isDateInToday(effective) {
-                    section = "Today"
-                } else if cal.isDateInTomorrow(effective) {
-                    section = useDayTimeline ? dayTimelineKey(effective) : "Tomorrow"
-                } else if effective < today {
-                    section = "Overdue"
-                } else if useDayTimeline {
-                    // Day-by-day grouping for upcoming timeline
-                    let weeksAhead = cal.dateComponents([.day], from: today, to: effective).day ?? 0
-                    if weeksAhead <= 28 {
-                        section = dayTimelineKey(effective)
-                    } else {
-                        section = "Later"
-                    }
-                } else {
-                    section = "Upcoming"
-                }
-            } else if todo.isSomeday {
-                section = "Someday"
-            } else {
-                section = "Anytime"
-            }
-
-            if groups[section] == nil {
-                groups[section] = []
-            }
-            groups[section]?.append(todo)
+            let section = Self.sectionTitle(for: todo, filter: filter, today: today)
+            groups[section, default: []].append(todo)
         }
-
         return groups
+    }
+
+    /// The heading `todo` is listed under in `filter` on the day `today`
+    /// falls on: Overdue, Today, Tomorrow, an Upcoming day, Later, Upcoming,
+    /// Anytime, Someday or Completed.
+    static func sectionTitle(
+        for todo: CDTodoItem, filter: TodoListFilter?, today: Date, calendar: Calendar = AppCalendar.shared
+    ) -> String {
+        let startOfToday = calendar.startOfDay(for: today)
+        let tomorrow = AppCalendar.addingDays(1, to: startOfToday)
+        // Check-ins read day by day
+        let useDayTimeline = filter == .checkIns
+
+        if filter == .done { return "Completed" }
+        if todo.isCompleted { return "Completed" }
+        guard var effective = todo.effectiveDate else {
+            return todo.isSomeday ? "Someday" : "Anytime"
+        }
+        // A deadline that has come is what puts it in Today, so it decides
+        // the heading even when the todo is planned for a later day (bug hunt
+        // 2026-11-03, #58).
+        if let due = todo.dueDate, due < tomorrow { effective = min(effective, due) }
+        if let due = todo.dueDate, due < startOfToday { return "Overdue" }
+        if calendar.isDate(effective, inSameDayAs: startOfToday) { return "Today" }
+        if calendar.isDate(effective, inSameDayAs: tomorrow) {
+            return useDayTimeline ? upcomingDayKey(effective) : "Tomorrow"
+        }
+        if effective < startOfToday { return "Overdue" }
+        guard useDayTimeline else { return "Upcoming" }
+        // Day-by-day grouping for upcoming timeline
+        let daysAhead = calendar.dateComponents([.day], from: startOfToday, to: effective).day ?? 0
+        return daysAhead <= 28 ? upcomingDayKey(effective) : "Later"
     }
 
     /// Sorted section keys for display order in the grouped todos view.
@@ -211,7 +208,7 @@ extension TodoMainView {
             sorted.append(key)
         }
         // Add day-timeline keys sorted by date
-        let today = AppCalendar.startOfDay(Date())
+        let today = calendarDay
         let dayKeys = keys.filter { $0.contains(",") }.sorted { a, b in
             Self.upcomingDayDate(a, today: today) ?? .distantFuture
                 < Self.upcomingDayDate(b, today: today) ?? .distantFuture

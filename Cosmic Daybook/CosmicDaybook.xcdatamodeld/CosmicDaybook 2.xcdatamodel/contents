@@ -102,7 +102,6 @@
         <attribute name="lessonID" optional="YES" attributeType="String"/>
         <attribute name="communityTopicID" optional="YES" attributeType="String"/>
         <attribute name="schoolDayOverrideID" optional="YES" attributeType="String"/>
-        <attribute name="studentTrackEnrollmentID" optional="YES" attributeType="String"/>
         <attribute name="goingOutID" optional="YES" attributeType="String"/>
         <attribute name="transitionPlanID" optional="YES" attributeType="String"/>
         <attribute name="attendanceRecordID" optional="YES" attributeType="String"/>
@@ -167,8 +166,6 @@
         <attribute name="studentID" attributeType="String" defaultValueString=""/>
         <attribute name="lessonID" attributeType="String" defaultValueString=""/>
         <attribute name="presentationID" optional="YES" attributeType="String"/>
-        <attribute name="trackID" optional="YES" attributeType="String"/>
-        <attribute name="trackStepID" optional="YES" attributeType="String"/>
         <attribute name="stateRaw" attributeType="String" defaultValueString="presented"/>
         <attribute name="presentedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="lastObservedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -212,8 +209,6 @@
         <attribute name="lessonID" attributeType="String" defaultValueString=""/>
         <attribute name="_studentIDsData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
         <attribute name="studentGroupKeyPersisted" attributeType="String" defaultValueString=""/>
-        <attribute name="trackID" optional="YES" attributeType="String"/>
-        <attribute name="trackStepID" optional="YES" attributeType="String"/>
         <attribute name="migratedFromStudentLessonID" optional="YES" attributeType="String"/>
         <attribute name="migratedFromPresentationID" optional="YES" attributeType="String"/>
         <attribute name="_confirmedStudentIDsData" optional="YES" attributeType="Binary"/>
@@ -604,8 +599,6 @@
         <attribute name="studentID" attributeType="String" defaultValueString=""/>
         <attribute name="lessonID" attributeType="String" defaultValueString=""/>
         <attribute name="presentationID" optional="YES" attributeType="String"/>
-        <attribute name="trackID" optional="YES" attributeType="String"/>
-        <attribute name="trackStepID" optional="YES" attributeType="String"/>
         <attribute name="scheduledNote" optional="YES" attributeType="String"/>
         <attribute name="scheduledReasonRaw" optional="YES" attributeType="String"/>
         <attribute name="sourceContextTypeRaw" optional="YES" attributeType="String"/>

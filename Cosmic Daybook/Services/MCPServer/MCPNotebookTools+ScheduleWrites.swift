@@ -305,6 +305,11 @@ extension MCPNotebookTools {
         } else {
             throw MCPToolError("Pass a new date and/or time, or unschedule: true to take it off the calendar.")
         }
+        // The year-plan entries promoted into it go with it, as on a calendar
+        // drag (bug hunt 2026-11-03 #20).
+        if let moved = assignment.scheduledFor, let assignmentID = assignment.id?.uuidString {
+            YearPlanPromotionService.moveEntries(promotedInto: assignmentID, to: moved, context: modelContext)
+        }
 
         guard modelContext.safeSave() else {
             throw MCPToolError("The presentation could not be rescheduled.")

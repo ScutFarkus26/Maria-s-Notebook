@@ -6,25 +6,15 @@ import CoreData
 
 extension TodoMainView {
     var filteredTodos: [CDTodoItem] {
-        var todos: [CDTodoItem]
-        if let list = selectedTideList {
-            todos = allTodos.filter { $0.tideListFile == list }
-        } else {
-            let filter = selectedFilter ?? .checkIns
-            todos = allTodos.filter { filter.matches($0) }
-        }
+        let scope = listScope
+        var todos = allTodos.filter { scope.contains($0) }
 
         // Hide completed from all views (except the dedicated Completed filter)
         if hideCompleted && selectedFilter != .done {
             todos = todos.filter { !$0.isCompleted }
         }
 
-        let searchFiltered = searchText.isEmpty ? todos : todos.filter {
-            $0.title.localizedCaseInsensitiveContains(searchText) ||
-            $0.notes.localizedCaseInsensitiveContains(searchText)
-        }
-
-        return searchFiltered.sorted { lhs, rhs in
+        return todos.sorted { lhs, rhs in
             // Completed items always go to bottom
             if lhs.isCompleted != rhs.isCompleted {
                 return !lhs.isCompleted && rhs.isCompleted

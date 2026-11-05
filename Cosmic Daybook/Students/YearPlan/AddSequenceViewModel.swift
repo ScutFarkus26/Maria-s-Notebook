@@ -29,6 +29,11 @@ final class AddSequenceViewModel {
     private(set) var showsOverflowWarning = false
     private(set) var overflowCount = 0
 
+    /// Why Schedule All planned nothing, in plain words, for the sheet's
+    /// alert. Set only by a refusal (a child who has left the class); the
+    /// alert clears it.
+    var refusalMessage: String?
+
     struct PreviewItem: Identifiable {
         let id: UUID
         let lesson: CDLesson
@@ -54,91 +59,65 @@ final class AddSequenceViewModel {
     func selectSequence(area: String, sequence: String, student: CDStudent, context: NSManagedObjectContext) {
         guard let studentID = student.id else { return }
 
-        // Fetch all lessons in area+sequence sorted by order
-        let lessonReq = CDFetchRequest(CDLesson.self)
-        lessonReq.predicate = NSPredicate(
-            format: "area ==[c] %@ AND sequence ==[c] %@",
-            area, sequence
-        )
-        lessonReq.sortDescriptors = [NSSortDescriptor(key: "orderInSequence", ascending: true)]
-        let lessonsInSequence = context.safeFetch(lessonReq)
+        let lessonsInSequence = Self.lessons(area: area, sequence: sequence, in: context)
         guard !lessonsInSequence.isEmpty else {
             selectedLesson = nil
             allLessonsPresentedInSequence = false
             return
         }
 
-        // Fetch presented assignments
-        let assignmentReq = CDFetchRequest(CDLessonAssignment.self)
-        assignmentReq.predicate = NSPredicate(
-            format: "stateRaw == %@",
-            LessonAssignmentState.presented.rawValue
-        )
-        let presentedAssignments = context.safeFetch(assignmentReq)
-
-        // Build set of lesson IDs this student has been presented
-        let lessonIDsInSequence = Set(lessonsInSequence.compactMap { $0.id?.uuidString })
-        var presentedLessonIDs = Set<String>()
-        for assignment in presentedAssignments {
-            guard lessonIDsInSequence.contains(assignment.lessonID) else { continue }
-            if assignment.resolvedStudentIDs.contains(studentID) {
-                presentedLessonIDs.insert(assignment.lessonID)
-            }
-        }
-
-        // Find first unpresented lesson
+        // The first lesson she hasn't had, by the year plan's own rule: a
+        // presentation or a mastery mark (the Checklist's Mastered writes
+        // only a history row) both count. Reading presented assignments
+        // alone started her at lessons she had mastered (bug hunt 2026-11-03 #23).
+        let satisfaction = YearPlanSatisfaction.index(forStudents: [studentID.uuidString], in: context)
         if let firstUnpresented = lessonsInSequence.first(where: {
-            guard let id = $0.id?.uuidString else { return false }
-            return !presentedLessonIDs.contains(id)
+            !Self.isSatisfied($0, for: studentID, by: satisfaction)
         }) {
             allLessonsPresentedInSequence = false
             selectedLesson = firstUnpresented
         } else {
-            // All presented — default to first lesson for re-scheduling
+            // She has had every lesson: there is nothing to plan (an entry
+            // can't ask for a lesson again; scheduling it is how).
             allLessonsPresentedInSequence = true
-            selectedLesson = lessonsInSequence.first
+            selectedLesson = nil
         }
+    }
+
+    private static func isSatisfied(
+        _ lesson: CDLesson, for studentID: UUID, by satisfaction: YearPlanSatisfaction
+    ) -> Bool {
+        guard let lessonID = lesson.id?.uuidString else { return false }
+        return satisfaction.isSatisfied(studentID: studentID.uuidString, lessonID: lessonID)
     }
 
     func computePreview(student: CDStudent, context: NSManagedObjectContext) async {
         guard let lesson = selectedLesson,
               lesson.id != nil,
               let studentID = student.id else {
-            previewItems = []
-            showsOverflowWarning = false
-            overflowCount = 0
+            clearPreview()
             return
         }
         let studentIDStr = studentID.uuidString
 
-        // Fetch all lessons in the same area + sequence
-        let req = CDFetchRequest(CDLesson.self)
-        req.predicate = NSPredicate(
-            format: "area ==[c] %@ AND sequence ==[c] %@",
-            lesson.area, lesson.sequence
-        )
-        req.sortDescriptors = [NSSortDescriptor(key: "orderInSequence", ascending: true)]
-        let allInSequence = context.safeFetch(req)
+        let allInSequence = Self.lessons(area: lesson.area, sequence: lesson.sequence, in: context)
 
-        // Filter to lessons at or after the selected lesson's orderInSequence
-        let sequence = allInSequence.filter { $0.orderInSequence >= lesson.orderInSequence }
+        // Lessons at or after the selected lesson's orderInSequence that she
+        // hasn't had: one already given or mastered gets no entry and takes
+        // no day, so the lessons after it aren't pushed back (#23).
+        let satisfaction = YearPlanSatisfaction.index(forStudents: [studentIDStr], in: context)
+        let sequence = allInSequence.filter {
+            $0.orderInSequence >= lesson.orderInSequence
+                && !Self.isSatisfied($0, for: studentID, by: satisfaction)
+        }
         guard !sequence.isEmpty else {
-            previewItems = []
-            showsOverflowWarning = false
-            overflowCount = 0
+            clearPreview()
             return
         }
 
         // Determine school year end for overflow warning
         let cal = AppCalendar.shared
-        let year = cal.component(.year, from: startDate)
-        let month = cal.component(.month, from: startDate)
-        let endYear = month >= 8 ? year + 1 : year
-        var endComps = DateComponents()
-        endComps.year = endYear
-        endComps.month = 6
-        endComps.day = 30
-        let schoolYearEnd = cal.date(from: endComps) ?? Date.distantFuture
+        let schoolYearEnd = Self.schoolYearEnd(after: startDate)
 
         // Compute dates
         var items: [PreviewItem] = []
@@ -166,7 +145,10 @@ final class AddSequenceViewModel {
                 area: lessonInSequence.area,
                 date: currentDate,
                 alreadyExists: alreadyExists,
-                orderInSequence: index
+                // The lesson's own place in its sequence, not the preview's
+                // count from wherever this run started: two runs numbered
+                // from 0 made a drag move the wrong lessons (#24).
+                orderInSequence: Int(lessonInSequence.orderInSequence)
             ))
         }
 
@@ -176,9 +158,19 @@ final class AddSequenceViewModel {
         previewItems = items
     }
 
-    func scheduleAll(student: CDStudent, context: NSManagedObjectContext) {
+    /// Plans every lesson in the preview. Returns false, with
+    /// `refusalMessage` set, for a child who has left the class: she gets no
+    /// new plans, as she gets no new work (`WorkRepository.requireEnrolled`;
+    /// bug hunt 2026-11-03 #32).
+    @discardableResult
+    func scheduleAll(student: CDStudent, context: NSManagedObjectContext) -> Bool {
+        refusalMessage = nil
+        guard student.isEnrolled else {
+            refusalMessage = Self.notEnrolledMessage(for: student)
+            return false
+        }
         guard let studentID = student.id,
-              let lesson = selectedLesson else { return }
+              let lesson = selectedLesson else { return false }
 
         let sequenceKey = "\(lesson.area)::\(lesson.sequence)"
         let studentIDStr = studentID.uuidString
@@ -206,9 +198,43 @@ final class AddSequenceViewModel {
         }
 
         context.safeSave()
+        return true
+    }
+
+    /// The sentence a child who has left the class gets instead of new plans.
+    static func notEnrolledMessage(for student: CDStudent) -> String {
+        "\(student.shortName) has left the class, so they can't get new plans."
     }
 
     // MARK: - Helpers
+
+    /// Every lesson in one area and sequence, in their order.
+    private static func lessons(
+        area: String, sequence: String, in context: NSManagedObjectContext
+    ) -> [CDLesson] {
+        let req = CDFetchRequest(CDLesson.self)
+        req.predicate = NSPredicate(format: "area ==[c] %@ AND sequence ==[c] %@", area, sequence)
+        req.sortDescriptors = [NSSortDescriptor(key: "orderInSequence", ascending: true)]
+        return context.safeFetch(req)
+    }
+
+    private func clearPreview() {
+        previewItems = []
+        showsOverflowWarning = false
+        overflowCount = 0
+    }
+
+    /// June 30 of the school year `startDate` falls in, for the overflow warning.
+    private static func schoolYearEnd(after startDate: Date) -> Date {
+        let cal = AppCalendar.shared
+        let year = cal.component(.year, from: startDate)
+        let month = cal.component(.month, from: startDate)
+        var endComps = DateComponents()
+        endComps.year = month >= 8 ? year + 1 : year
+        endComps.month = 6
+        endComps.day = 30
+        return cal.date(from: endComps) ?? Date.distantFuture
+    }
 
     /// The Year Plan entry already planning this lesson for this student
     /// (planned or promoted), if any. Uses the same uniqueness key (lessonID +

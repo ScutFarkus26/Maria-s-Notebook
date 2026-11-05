@@ -123,7 +123,7 @@ AppBootstrapper.bootstrap(coreDataStack:)
     |   +-- Migrate lesson files to iCloud Drive (one-time)
     |
     +-- State: .migrating
-    |   +-- Run quick migrations (attendance types, GroupTrack defaults)
+    |   +-- Run quick migrations (attendance types)
     |   +-- Initialize ReminderSyncService (macOS only)
     |   +-- Register for CloudKit remote notifications
     |
@@ -376,8 +376,6 @@ dependencies.toastService          // Toast notifications
 dependencies.appRouter             // Navigation
 dependencies.reminderSync          // EventKit sync (macOS)
 dependencies.calendarSync          // Calendar display
-dependencies.groupTrackService     // Track management
-dependencies.trackProgressResolver // Progress calculation
 dependencies.memoryPressureMonitor // Cache management
 dependencies.commandBarService     // Command bar
 dependencies.dataQueryService      // Complex queries
@@ -529,7 +527,6 @@ This is the central scheduling and recording model. It represents the act of pre
 | `followUpWork` | `String` | Follow-up work description |
 | `notes` | `String` | Presentation notes |
 | `manuallyUnblocked` | `Bool` | Override prerequisite checking |
-| `trackID`, `trackStepID` | `String?` | Curriculum track context |
 
 **State Machine:**
 
@@ -559,7 +556,6 @@ Once a presentation reaches `presented`, the `lessonTitleSnapshot` and `lessonSu
 | `studentID` | `String` | Primary student UUID (indexed) |
 | `lessonID` | `String` | Related lesson UUID |
 | `presentationID` | `String?` | Originating presentation |
-| `trackID`, `trackStepID` | `String?` | Track context |
 | `dueAt` | `Date?` | Due date (indexed) |
 | `assignedAt` | `Date` | When assigned |
 | `completedAt` | `Date?` | When completed |
@@ -584,7 +580,7 @@ active ──> review ──> complete
   |                     |
   |  (teacher reviews)  +-- completionOutcome recorded
   |                     +-- completedAt set
-  +──> complete         +-- track progress updated
+  +──> complete
        (skip review)
 ```
 
@@ -646,10 +642,6 @@ CDStudent ←── studentID ──── CDLessonAssignment ───── le
    +←── studentID ──── CDAttendanceRecord
    |
    +←── studentID ──── CDStudentMeeting
-   |
-   +←── enrollment ─── CDStudentTrackEnrollment ── trackID ──→ CDTrack
-                                                                  |
-                                                             steps → CDTrackStep
 ```
 
 ### Other Entities (Quick Reference)
@@ -667,9 +659,7 @@ CDStudent ←── studentID ──── CDLessonAssignment ───── le
 | `CDStudentMeeting` | One-on-one meetings with outcomes |
 | `CDMeetingTemplate` | Reusable meeting structures |
 | `CDProject` / `CDProjectSession` | Project-based learning |
-| `CDTrack` / `CDTrackStep` | Curriculum progression paths |
-| `CDGroupTrack` | Group variations of tracks |
-| `CDStudentTrackEnrollment` | Student enrollment in tracks |
+| `CDLessonSequenceSettings` | A sequence's progression rules |
 | `CDSupply` / `CDSupplyTransaction` | Classroom inventory |
 | `CDCommunityTopic` / `CDProposedSolution` | Community discussions |
 | `CDDocument` | Learning resources |
@@ -801,8 +791,6 @@ Manages work item state transitions and data integrity.
 | Method | Purpose |
 |--------|---------|
 | `safeFetch(_:using:)` | Returns empty array on error instead of throwing |
-| `fetchWorkModel(presentationID:)` | Single fetch with `fetchLimit = 1` |
-| `fetchAllWorkModels(presentationID:)` | Batch fetch by presentation |
 | `upsertLessonPresentation(...)` | Idempotent create-or-update |
 | `cleanOrphanedStudentIDs()` | Removes references to deleted students |
 
@@ -965,7 +953,7 @@ Tabbed interface:
 | Files | Attached documents |
 | History | Complete record across all models |
 | Meetings | One-on-one meeting records |
-| Tracks | Curriculum progression progress |
+| Current Learning | Where the child stands in each sequence she is in the middle of, read from her presentations |
 
 ### AI Analysis
 
@@ -1016,7 +1004,6 @@ The feature is organized into `Agenda/`, `CheckIns/`, `Completion/`, `Detail/`, 
 | Manual | Teacher creates directly |
 | Inbox | From follow-up recommendations |
 | Project | From project session assignments |
-| Track | From track step completion |
 
 ### Work Check-Ins
 
@@ -1537,7 +1524,7 @@ Cosmic Daybook/
 |   +-- Import/                           CSV import workflow
 |   +-- Notes/                            Student observation timeline
 |   +-- Presentations/                    Student presentation workflow
-|   +-- Progress/                         Curriculum progress and tracks
+|   +-- Progress/                         Curriculum progress and sequence standings
 |   +-- Selection/                        Student picker UI
 |   +-- Meetings/                        One-on-one meetings
 |   |   +-- Services/                     Meeting insight generation
@@ -1634,7 +1621,7 @@ Cosmic Daybook/
 | **Presentation** | The act of presenting a Montessori lesson to a student. Represented by `CDLessonAssignment`. |
 | **Follow-up** | Work or re-presentation needed after an initial presentation. |
 | **Check-in** | A progress note on an active work item (`CDWorkCheckIn`). |
-| **Track** | A curriculum progression path — a sequence of steps a student moves through. |
+| **Sequence standing** | Where a child is in one sequence of lessons: which she has had, which she has mastered and which she is up to, worked out from her presentations (`SequenceStanding`). |
 | **Great Lesson** | One of the five Montessori "cosmic education" stories that frame the curriculum. |
 | **Album** | A Montessori teacher's collection of lesson plans, organized by subject. |
 | **Three-period lesson** | A Montessori teaching technique: introduction, recognition, recall. |

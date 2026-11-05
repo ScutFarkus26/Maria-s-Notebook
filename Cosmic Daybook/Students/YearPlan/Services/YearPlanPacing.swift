@@ -47,6 +47,13 @@ enum YearPlanPacing {
         return cursor
     }
 
+    /// One target moving to a new day: what Readjust works out before it
+    /// asks, and writes once the guide agrees.
+    struct Move {
+        let entry: CDYearPlanEntry
+        let date: Date
+    }
+
     /// Lays a sequence's targets back onto open days, in order.
     ///
     /// Each entry keeps its own date if that date is an open day and still
@@ -62,8 +69,17 @@ enum YearPlanPacing {
     static func resettle(
         _ entries: [CDYearPlanEntry], in context: NSManagedObjectContext
     ) -> Int {
+        let moves = resettleMoves(entries, in: context)
+        apply(moves)
+        return moves.count
+    }
+
+    /// The moves `resettle` would make, without making them.
+    static func resettleMoves(
+        _ entries: [CDYearPlanEntry], in context: NSManagedObjectContext
+    ) -> [Move] {
         var previous: Date?
-        var moved = 0
+        var moves: [Move] = []
 
         for entry in entries {
             guard let current = entry.plannedDate else { continue }
@@ -72,13 +88,19 @@ enum YearPlanPacing {
                 target = advance(from: previous, bySchoolDays: entry.spacingSchoolDays, in: context)
             }
             if target != AppCalendar.startOfDay(current) {
-                entry.plannedDate = target
-                entry.modifiedAt = Date()
-                moved += 1
+                moves.append(Move(entry: entry, date: target))
             }
             previous = target
         }
-        return moved
+        return moves
+    }
+
+    /// Writes `moves`. An entry deleted since they were worked out is left out.
+    static func apply(_ moves: [Move]) {
+        for move in moves where !move.entry.isDeleted && move.entry.managedObjectContext != nil {
+            move.entry.plannedDate = move.date
+            move.entry.modifiedAt = Date()
+        }
     }
 
     /// The order a sequence is given in: its own numbering first, and the

@@ -74,15 +74,11 @@ struct DeduplicationScopeTests {
         #expect(context.safeFetch(CDFetchRequest(CDLesson.self)).count == 1)
     }
 
-    @Test("The same-name lesson and same-title track merges belong to their entity's scope")
+    @Test("The same-name lesson merge belongs to its entity's scope")
     func nameMergesFollowTheirEntity() throws {
         let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
         CoreDataTestHelpers.seedLesson(in: context, name: "Rectangle", area: "Geometry", sequence: "Area")
         CoreDataTestHelpers.seedLesson(in: context, name: "rectangle ", area: "Geometry", sequence: "Area")
-        for _ in 0..<2 {
-            let track = CDTrackEntity(context: context)
-            track.title = "Fractions"
-        }
         CoreDataTestHelpers.save(context)
 
         let noteOnly = DataCleanupService.deduplicateAllModels(
@@ -90,10 +86,10 @@ struct DeduplicationScopeTests {
         )
         #expect(noteOnly.isEmpty)
 
-        let lessonsAndTracks = DataCleanupService.deduplicateAllModels(
-            using: context, scope: DeduplicationScope(insertedEntities: ["Lesson", "Track"])
+        let lessons = DataCleanupService.deduplicateAllModels(
+            using: context, scope: DeduplicationScope(insertedEntities: ["Lesson"])
         )
-        #expect(lessonsAndTracks == ["Lesson (same name)": 1, "Track (same title)": 1])
+        #expect(lessons == ["Lesson (same name)": 1])
     }
 
     @Test("Same-name lesson groups match between the narrow pre-check and the full-table pass")
@@ -123,25 +119,6 @@ struct DeduplicationScopeTests {
         #expect(narrow.count == 2)
         #expect(narrow == full)
         #expect(narrow.map(\.count) == [2, 3])
-    }
-
-    @Test("Same-title track groups match between the narrow pre-check and the full-table pass")
-    func sameTitleGroupsAreEquivalent() throws {
-        let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
-        for title in ["Fractions", " fractions", "Decimals", "Decimals", "Squaring"] {
-            let track = CDTrackEntity(context: context)
-            track.title = title
-        }
-        CoreDataTestHelpers.save(context)
-
-        let narrow = DataCleanupService.sameTitleTrackGroups(using: context).map { Set($0.compactMap(\.id)) }
-        let marker = CDTrackEntity(context: context)
-        marker.title = "Unsaved"
-        let full = DataCleanupService.sameTitleTrackGroups(using: context).map { Set($0.compactMap(\.id)) }
-        context.delete(marker)
-
-        #expect(narrow.count == 2)
-        #expect(narrow == full)
     }
 
     // MARK: - The coordinator resolves the scope

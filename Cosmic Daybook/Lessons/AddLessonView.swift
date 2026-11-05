@@ -57,8 +57,16 @@ struct AddLessonView: View {
             addLessonHeader
             addLessonForm
         }
+        // A floor on the Mac, where the sheet sizes to fit; on iPhone and iPad
+        // an ordinary sheet whose form scrolls, so Add stays on screen. A
+        // fixed 520 x 720 left it off an iPhone's screen (bug hunt 2026-11-03, #17).
+        #if os(macOS)
         .padding(24)
-        .frame(width: 520, height: 720)
+        .frame(minWidth: 520, minHeight: 640)
+        #else
+        .padding(.horizontal)
+        .padding(.vertical, 20)
+        #endif
         .sheet(isPresented: $showingBulkEntry) {
             BulkLessonsEntryView(
                 defaultArea: area.trimmed().isEmpty ? defaultArea : area,
@@ -201,8 +209,7 @@ struct AddLessonView: View {
         }
     }
 
-    /// Inserts the lesson, with its sub-area's track, and saves both in one
-    /// save. A name already filed in the sub-area, or a failed save, keeps
+    /// Inserts the lesson and saves it in one save. A name already filed in the sub-area, or a failed save, keeps
     /// nothing: left in the context, the unsaved lesson made the retry say
     /// it was already in the curriculum (bug hunt 2026-10-12, #4). The form
     /// stays as typed either way.
@@ -229,8 +236,7 @@ struct AddLessonView: View {
         dismiss()
     }
 
-    /// The new lesson after the sequence's last, and its track if the
-    /// sub-area is one. Throws `LessonRepository.CreationError` for a name
+    /// The new lesson after the sequence's last. Throws `LessonRepository.CreationError` for a name
     /// already in the sub-area, having inserted nothing.
     private func insertLessonAndTrack() throws -> CDLesson {
         let newLesson = try repository.createLesson(

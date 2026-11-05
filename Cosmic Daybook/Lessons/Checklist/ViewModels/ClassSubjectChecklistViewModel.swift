@@ -11,6 +11,10 @@
 // - ClassAreaChecklistViewModel+LadderSteps.swift         (the card's steps: presented, practicing, reviewing)
 // - ClassAreaChecklistViewModel+Presenting.swift          (drafts for the present-a-lesson sheet)
 // - ClassAreaChecklistViewModel+ReadyLens.swift           (Ready to Present: counts and the row's Plan)
+// - ClassAreaChecklistViewModel+Batch.swift               (the selection bar's marks)
+// - ClassAreaChecklistViewModel+Clearing.swift            (Clear, asking first when it takes history)
+// - ClassAreaChecklistViewModel+Removing.swift            (Unmark Presented and Remove Plan, asking first)
+// - ClassAreaChecklistViewModel+Saving.swift              (saves through SaveCoordinator; a failure is taken back)
 
 import SwiftUI
 import CoreData
@@ -96,6 +100,11 @@ class ClassAreaChecklistViewModel {
     var selectedCells: Set<CellIdentifier> = []
     /// A Clear waiting for the guide's yes (+Clearing).
     var pendingClear: ChecklistClearRequest?
+    /// An Unmark Presented or Remove Plan waiting for the guide's yes (+Removing).
+    var pendingRemoval: ChecklistRemovalRequest?
+    /// Where the Checklist's saves go, for the "Couldn't Save" alert (+Saving). The view
+    /// hands in the app's; tests read their own.
+    @ObservationIgnored var saveCoordinator = SaveCoordinator()
     /// The iPhone's Select mode (long-press → Select). The Mac and iPad have no mode:
     /// ⌘-click, Shift-click and a drag select there (+Selection).
     var isEditModeActive: Bool = false
@@ -115,6 +124,10 @@ class ClassAreaChecklistViewModel {
     /// one; nil when the lesson starts its sequence or she hasn't had the one before.
     var cardPrevious: ChecklistCardPrevious?
     private let lessonsLogic = LessonsViewModel()
+    /// The test-student setting last applied, so a refresh can apply it to the roster
+    /// it fetches again.
+    @ObservationIgnored private var showsTestStudents = true
+    @ObservationIgnored private var testStudentNames = ""
 
     // OPTIMIZATION: Cache lessons-per-sequence to avoid filtering + sorting on every body evaluation.
     // Internal (not private) so the +Filtering extension can invalidate it when a filter changes.
@@ -135,9 +148,7 @@ class ClassAreaChecklistViewModel {
     }
 
     func loadData(context: NSManagedObjectContext) {
-        let studentFetch = CDFetchRequest(CDStudent.self)
-        studentFetch.predicate = CDStudent.enrolledPredicate
-        let fetched = context.safeFetch(studentFetch).sorted(by: Self.rosterOrder)
+        let fetched = enrolledStudents(context: context)
         self.allStudents = fetched
         self.rosterStudents = fetched
         self.students = fetched
@@ -158,9 +169,28 @@ class ClassAreaChecklistViewModel {
     }
 
     func applyVisibilityFilter(context: NSManagedObjectContext, show: Bool, namesRaw: String) {
+        showsTestStudents = show
+        testStudentNames = namesRaw
         self.rosterStudents = TestStudentsFilter.filterVisible(allStudents, show: show, namesRaw: namesRaw)
         applyFilters()
         recomputeMatrix(context: context)
+    }
+
+    private func enrolledStudents(context: NSManagedObjectContext) -> [CDStudent] {
+        let studentFetch = CDFetchRequest(CDStudent.self)
+        studentFetch.predicate = CDStudent.enrolledPredicate
+        return context.safeFetch(studentFetch).sorted(by: Self.rosterOrder)
+    }
+
+    /// The roster fetched again, with the test-student setting last applied: a child who
+    /// joined gets a column and one who left loses hers. It used to be fetched only on
+    /// first appearance, though a synced roster change refreshes the grid (bug hunt
+    /// 2026-11-03 #14). The filters that follow (`applyFilters`) narrow the columns.
+    private func refreshRoster(context: NSManagedObjectContext) {
+        let fetched = enrolledStudents(context: context)
+        allStudents = fetched
+        let visible = TestStudentsFilter.filterVisible(fetched, show: showsTestStudents, namesRaw: testStudentNames)
+        if visible.map(\.objectID) != rosterStudents.map(\.objectID) { rosterStudents = visible }
     }
 
     /// Refresh lesson list and sequence ordering without recomputing the matrix.
@@ -195,6 +225,7 @@ class ClassAreaChecklistViewModel {
     }
 
     func refreshMatrix(context: NSManagedObjectContext) {
+        refreshRoster(context: context)
         refreshLessonsAndSequences(context: context)
         refreshOtherAreaMatches(context: context)
         recomputeMatrix(context: context)
@@ -278,67 +309,6 @@ class ClassAreaChecklistViewModel {
     func isSelected(student: CDStudent, lesson: CDLesson) -> Bool {
         guard let sid = student.id, let lid = lesson.id else { return false }
         return selectedCells.contains(CellIdentifier(studentID: sid, lessonID: lid))
-    }
-
-    // MARK: - Batch Actions (delegated to ChecklistBatchActionExecutor)
-
-    func batchAddToInbox(context: NSManagedObjectContext) {
-        ChecklistBatchActionExecutor.batchAddToInbox(
-            selectedCells: selectedCells,
-            students: students,
-            lessons: lessons,
-            matrixStates: matrixStates,
-            context: context
-        )
-        recomputeMatrix(context: context)
-        clearSelection()
-    }
-
-    func batchMarkPresented(context: NSManagedObjectContext) {
-        ChecklistBatchActionExecutor.batchMarkPresented(
-            selectedCells: selectedCells,
-            students: students,
-            lessons: lessons,
-            matrixStates: matrixStates,
-            context: context
-        )
-        recomputeMatrix(context: context)
-        clearSelection()
-    }
-
-    func batchMarkPreviouslyPresented(context: NSManagedObjectContext) {
-        ChecklistBatchActionExecutor.batchMarkPreviouslyPresented(
-            selectedCells: selectedCells,
-            students: students,
-            lessons: lessons,
-            matrixStates: matrixStates,
-            context: context
-        )
-        recomputeMatrix(context: context)
-        clearSelection()
-    }
-
-    func batchMarkProficient(context: NSManagedObjectContext) {
-        ChecklistBatchActionExecutor.batchMarkProficient(
-            selectedCells: selectedCells,
-            students: students,
-            lessons: lessons,
-            matrixStates: matrixStates,
-            context: context
-        )
-        recomputeMatrix(context: context)
-        clearSelection()
-    }
-
-    func batchClearStatus(context: NSManagedObjectContext) {
-        ChecklistBatchActionExecutor.batchClearStatus(
-            selectedCells: selectedCells,
-            students: students,
-            lessons: lessons,
-            context: context
-        )
-        recomputeMatrix(context: context)
-        clearSelection()
     }
 
     // MARK: - Matrix Computation (delegated to ClassGridEngine)

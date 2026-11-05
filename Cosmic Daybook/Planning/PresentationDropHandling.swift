@@ -128,18 +128,28 @@ enum PresentationDropHandling {
     }
 
     /// A presentation that landed on a day: each child's planned year-plan entry for
-    /// the lesson follows it there (`YearPlanPromotionService`), and nothing is laid on
-    /// the lessons after. One that is not scheduled implies nothing, so nothing runs.
+    /// the lesson follows it there (`YearPlanPromotionService`), entries already
+    /// promoted into it move with it, and nothing is laid on the lessons after. A
+    /// given one keeps its entries on the day it was given, when that was changed
+    /// (bug hunt 2026-11-03 #20). A draft implies nothing, so nothing runs.
     static func promoteYearPlanEntries(
         for assignment: CDLessonAssignment,
         fallbackDate: () -> Date,
         context: NSManagedObjectContext
     ) {
-        guard assignment.state == .scheduled else { return }
-        let day = assignment.scheduledFor ?? fallbackDate()
-        let promoted = YearPlanPromotionService.promoteMatchingEntries(
+        let day: Date
+        switch assignment.state {
+        case .scheduled:
+            day = assignment.scheduledFor ?? fallbackDate()
+        case .presented:
+            guard let given = assignment.presentedAt else { return }
+            day = given
+        case .draft:
+            return
+        }
+        let changed = YearPlanPromotionService.promoteMatchingEntries(
             into: assignment, scheduledFor: day, context: context
         )
-        if promoted > 0 { _ = context.safeSave() }
+        if changed > 0 { _ = context.safeSave() }
     }
 }

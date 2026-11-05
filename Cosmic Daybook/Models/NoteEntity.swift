@@ -29,7 +29,6 @@ nonisolated public class CDNote: NSManagedObject {
     @NSManaged public var lessonID: String?
     @NSManaged public var communityTopicID: String?
     @NSManaged public var schoolDayOverrideID: String?
-    @NSManaged public var studentTrackEnrollmentID: String?
     @NSManaged public var goingOutID: String?
     /// Link to the attendance record this note belongs to. A string FK rather
     /// than a relationship because attendance lives in the shared store and
@@ -128,7 +127,6 @@ nonisolated extension CDNote {
         if projectSession != nil { return "projectSession" }
         if communityTopicID != nil { return "communityTopic" }
         if schoolDayOverrideID != nil { return "schoolDayOverride" }
-        if studentTrackEnrollmentID != nil { return "studentTrackEnrollment" }
         if issue != nil { return "issue" }
         if goingOutID != nil { return "goingOut" }
         return "general"
@@ -192,15 +190,6 @@ nonisolated extension CDNote {
             return ctx.object(CDSchoolDayOverride.self, id: uuid)
         }
         set { schoolDayOverrideID = newValue?.id?.uuidString }
-    }
-
-    var studentTrackEnrollment: CDStudentTrackEnrollmentEntity? {
-        get {
-            guard let studentTrackEnrollmentID, let ctx = managedObjectContext else { return nil }
-            guard let uuid = UUID(uuidString: studentTrackEnrollmentID) else { return nil }
-            return ctx.object(CDStudentTrackEnrollmentEntity.self, id: uuid)
-        }
-        set { studentTrackEnrollmentID = newValue?.id?.uuidString }
     }
 
     var goingOut: CDGoingOut? {

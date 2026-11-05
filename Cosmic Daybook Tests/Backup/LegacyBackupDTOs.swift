@@ -180,8 +180,6 @@ nonisolated struct LegacyLessonPresentationDTO: Codable, Sendable {
     public var studentID: String
     public var lessonID: String
     public var presentationID: String?
-    public var trackID: String?
-    public var trackStepID: String?
     public var stateRaw: String
     public var presentedAt: Date
     public var lastObservedAt: Date?
@@ -216,8 +214,6 @@ nonisolated struct LegacyLessonAssignmentDTO: Codable, Sendable {
     public var needsAnotherPresentation: Bool
     public var followUpWork: String
     public var notes: String
-    public var trackID: String?
-    public var trackStepID: String?
     public var migratedFromLegacyID: String?
     public var migratedFromPresentationID: String?
     /// User flag: a presentation manually unblocked despite the blocking rules. Restored so
@@ -244,8 +240,6 @@ nonisolated struct LegacyLessonAssignmentDTO: Codable, Sendable {
         needsAnotherPresentation: Bool,
         followUpWork: String,
         notes: String,
-        trackID: String?,
-        trackStepID: String?,
         migratedFromLegacyID: String?,
         migratedFromPresentationID: String?,
         manuallyUnblocked: Bool? = nil,
@@ -265,8 +259,6 @@ nonisolated struct LegacyLessonAssignmentDTO: Codable, Sendable {
         self.needsAnotherPresentation = needsAnotherPresentation
         self.followUpWork = followUpWork
         self.notes = notes
-        self.trackID = trackID
-        self.trackStepID = trackStepID
         self.migratedFromLegacyID = migratedFromLegacyID
         self.migratedFromPresentationID = migratedFromPresentationID
         self.manuallyUnblocked = manuallyUnblocked
@@ -292,7 +284,6 @@ nonisolated struct LegacyNoteDTO: Codable, Sendable {
     public var reporterName: String?
     public var communityTopicID: String?
     public var schoolDayOverrideID: String?
-    public var studentTrackEnrollmentID: String?
     // FK to a Going Out (optional for compatibility with older backups that predate this field).
     public var goingOutID: String?
     // Relationship targets, relinked in a post-import pass (their entities are
@@ -498,17 +489,6 @@ nonisolated struct LegacyTodoItemDTO: Codable, Sendable {
     public var moodRaw: String?
     /// The Tide action it is shared with (v41, schema 19); absent before.
     public var tideLink: String?
-}
-
-// MARK: - CDTrackEntity DTOs
-
-nonisolated struct LegacySequenceTrackDTO: Codable, Sendable {
-    public var id: UUID
-    public var area: String
-    public var sequence: String
-    public var isSequential: Bool
-    public var isExplicitlyDisabled: Bool
-    public var createdAt: Date
 }
 
 // MARK: - Development Snapshot DTO
@@ -738,8 +718,6 @@ nonisolated struct LegacyWorkModelDTO: Codable, Sendable {
     public var studentID: String
     public var lessonID: String
     public var presentationID: String?
-    public var trackID: String?
-    public var trackStepID: String?
     public var scheduledNote: String?
     public var scheduledReasonRaw: String?
     public var sourceContextTypeRaw: String?

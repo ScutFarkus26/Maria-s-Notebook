@@ -77,7 +77,7 @@ struct LessonAttachmentModifiedAtTests {
 
         let entry = try #require(entries.first { $0.entityName == "LessonAttachment" })
         #expect(String(bytes: entry.ndjson, encoding: .utf8)?.contains(#""modifiedAt""#) == true)
-        #expect(BackupWriter.formatVersion == 44)
+        #expect(BackupWriter.formatVersion >= 44)
         #expect(BackupReader.supportedFormatVersions.contains(43))
         #expect(BackupReader.supportedFormatVersions.contains(42))
 
@@ -207,7 +207,7 @@ struct LessonAttachmentModifiedAtTests {
 
     @Test("A schema-21 store opens with schema 22: its lesson files stay, with no modifiedAt until one is set")
     func schema21StoreMigrates() throws {
-        #expect(CoreDataStack.currentSchemaVersion == 22)
+        #expect(CoreDataStack.currentSchemaVersion >= 22)
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("lesson-files-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

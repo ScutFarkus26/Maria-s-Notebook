@@ -63,8 +63,6 @@ class QuickNoteViewModel {
     var isShowingStudentPicker: Bool = false
     var isShowingCamera: Bool = false
 
-    // CDTrackEntity Context
-
     // CDLesson Context
     var selectedLessonID: UUID?
     var isShowingLessonPicker: Bool = false

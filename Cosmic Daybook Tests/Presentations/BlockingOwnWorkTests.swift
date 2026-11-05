@@ -45,8 +45,8 @@ struct BlockingOwnWorkTests {
         #expect(BlockingAlgorithmEngine.gatingWork(for: ada, among: [benCopy]) == [benCopy])
     }
 
-    @Test("The planning cache blocks only the child whose own copy is open")
-    func cacheBlocksOnlyTheOpenCopysOwner() throws {
+    @Test("The readiness check holds up only the child whose own copy is open")
+    func readinessHoldsUpOnlyTheOpenCopysOwner() throws {
         let context = try CoreDataTestHelpers.makeContext()
         let first = CoreDataTestHelpers.seedLesson(in: context, name: "First", area: "Math", sequence: "Counting")
         first.id = UUID()
@@ -62,6 +62,8 @@ struct BlockingOwnWorkTests {
             lessonID: try #require(first.id), studentIDs: [ada, ben], scheduledFor: Date(), context: context
         )
         _ = try LifecycleService.recordPresentation(from: given, presentedAt: Date(), modelContext: context)
+        given.confirmStudent(ada)
+        given.confirmStudent(ben)
         let next = PresentationFactory.makeScheduled(
             lessonID: try #require(second.id), studentIDs: [ada, ben], scheduledFor: Date(), context: context
         )
@@ -72,16 +74,16 @@ struct BlockingOwnWorkTests {
             copy(owner: ben, presentationID: presentationID, done: [], in: context)
         ]
 
-        let cache = BlockingCacheBuilder.buildCache(
-            lessonAssignments: [given, next],
-            lessons: [first, second],
-            workModels: works,
-            openWorkByPresentationID: [:]
+        // The holding-up marker reads the engine's per-child verdict (bug hunt
+        // 2026-11-03 #9); the separate work cache it used is gone.
+        let results = BlockingAlgorithmEngine.checkBlocking(
+            forBatch: [next], lessons: [first, second], allLessonAssignments: [given, next], workModels: works
         )
 
         let nextID = try #require(next.id)
-        let blocking = try #require(cache[nextID])
-        #expect(blocking[ben] === works[1])
-        #expect(blocking[ada] == nil)
+        let readiness = try #require(results[nextID]?.perStudentReadiness)
+        #expect(readiness[ada]?.isReady == true)
+        #expect(readiness[ben]?.isReady == false)
+        #expect(readiness[ben]?.workComplete == false)
     }
 }

@@ -178,9 +178,9 @@ extension LessonAssignmentHistoryView {
             Divider()
 
             Button(role: .destructive) {
-                deleteAssignment(la)
+                requestDelete(la)
             } label: {
-                Label("Delete", systemImage: SFSymbol.Action.trash)
+                Label("Delete…", systemImage: SFSymbol.Action.trash)
             }
         }
     }

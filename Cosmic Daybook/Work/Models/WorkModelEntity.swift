@@ -19,8 +19,6 @@ nonisolated public class CDWorkModel: NSManagedObject {
     @NSManaged public var studentID: String
     @NSManaged public var lessonID: String
     @NSManaged public var presentationID: String?
-    @NSManaged public var trackID: String?
-    @NSManaged public var trackStepID: String?
     @NSManaged public var scheduledNote: String?
     @NSManaged public var scheduledReasonRaw: String?
     @NSManaged public var sourceContextTypeRaw: String?
@@ -83,8 +81,6 @@ nonisolated public class CDWorkModel: NSManagedObject {
         self.studentID = ""
         self.lessonID = ""
         self.presentationID = nil
-        self.trackID = nil
-        self.trackStepID = nil
         self.scheduledNote = nil
         self.scheduledReasonRaw = nil
         self.sourceContextTypeRaw = nil

@@ -89,6 +89,22 @@ struct AttendanceExpandedView: View {
         saveCoordinator.save(viewContext, reason: locked ? "Lock attendance day" : "Unlock attendance day")
     }
 
+    /// Locks or unlocks the day, then takes the editing mode from the lock as
+    /// stored. It used to flip the mode first, so a lock that was refused
+    /// left the screen saying the opposite of the day (bug hunt 2026-11-03
+    /// #60). A day another device locked first is simply locked.
+    func changeLock(to locked: Bool) {
+        setLocked(locked, for: date)
+        let lockedNow = isLocked(for: date)
+        isEditing = !lockedNow
+        guard lockedNow != locked else { return }
+        dependencies.toastService.showError(
+            locked
+                ? "Couldn't lock this day. Only the lead guide can lock days."
+                : "Couldn't unlock this day. Only the lead guide can unlock days."
+        )
+    }
+
     private var nonSchoolDayWarning: some View {
         HStack(spacing: AppTheme.Spacing.sm) {
             Image(systemName: SFSymbol.Status.exclamationmarkTriangleFill).foregroundStyle(.yellow)

@@ -59,4 +59,15 @@ enum WorksLogRows {
         guard !students.isEmpty else { return true }
         return students.contains { visibility.isVisible(work, to: $0) }
     }
+
+    /// Whether the log shows the row at all.
+    ///
+    /// - Parameter hiddenStudentIDs: the children the test-student setting
+    ///   hides.
+    /// The log filtered only its child picker, so a hidden test student's
+    /// rows still showed (bug hunt 2026-11-03 #38).
+    static func isShown(_ work: CDWorkModel, hiddenStudentIDs: Set<UUID>) -> Bool {
+        guard !hiddenStudentIDs.isEmpty, let owner = UUID(uuidString: work.studentID.trimmed()) else { return true }
+        return !hiddenStudentIDs.contains(owner)
+    }
 }

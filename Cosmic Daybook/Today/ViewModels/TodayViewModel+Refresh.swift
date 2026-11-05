@@ -29,11 +29,16 @@ extension TodayViewModel {
     /// opens a need, and the guide learns of it here (there are no
     /// notifications). The three timetable types for the Schedule section:
     /// a block changed, cancelled or added on the Schedules page (or over
-    /// MCP, or on another device) shows at once.
+    /// MCP, or on another device) shows at once. "CalendarEvent" for the
+    /// Calendar sync Today runs on appear and activation: an event changed in
+    /// Apple Calendar stayed stale on Today until something else reloaded it
+    /// (bug hunt 2026-11-03 #48; the Reminders half went with the Reminders
+    /// sync).
     nonisolated static let reloadInputEntities: Set<String> = [
         "WorkModel", "LessonAssignment", "WorkCheckIn", "TodoItem",
         "AttendanceRecord", "ScheduledMeeting", "StudentMeeting", "OrderItem",
-        "TimetableLane", "TimetableBlock", "TimetableChange"
+        "TimetableLane", "TimetableBlock", "TimetableChange",
+        "CalendarEvent"
     ]
 
     /// `reload()` as an Instruments interval ("Today" category).

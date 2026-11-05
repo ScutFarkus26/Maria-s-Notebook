@@ -6,7 +6,9 @@ import Foundation
 // backup wrote and restored by hand until "Simplify round two", Phase 7, how
 // the frozen copy of that code (as it stood at a906650c0) exported it and how a
 // Merge restored it. Each restore is called as `BackupRestoreRun` called it at
-// a906650c0 (`+CoreTypes`, `+PlanningTypes`, `+LaterTypes`).
+// a906650c0 (`+CoreTypes`, `+PlanningTypes`, `+LaterTypes`). `SequenceTrack`
+// left with the track entities at schema 23, as main removed it from the code
+// this copies.
 
 /// The frozen code, by shorter names.
 private typealias OldExport = LegacyBackupDTOTransformers
@@ -38,7 +40,7 @@ extension BackupSpecOracleTests {
         "Student", "Lesson", "LessonAssignment", "Note", "NonSchoolDay", "SchoolDayOverride",
         "StudentMeeting", "CommunityTopic", "CommunityAttachment", "AttendanceRecord", "WorkCompletionRecord",
         "Project", "ProjectSession", "ProjectRole", "WorkModel", "WorkCheckIn", "WorkParticipantEntity",
-        "LessonPresentation", "SampleWork", "CalendarEvent", "SequenceTrack", "Document", "Supply", "Procedure",
+        "LessonPresentation", "SampleWork", "CalendarEvent", "Document", "Supply", "Procedure",
         "ScheduleSlot", "Issue", "IssueAction", "DevelopmentSnapshot", "TodoItem", "TodayAgendaOrder",
         "PlanningRecommendation", "Resource", "GoingOutChecklistItem", "ScheduledMeeting", "Story",
         "BookClubPacket", "AlbumHighlight", "AlbumPageInk"
@@ -225,10 +227,6 @@ extension BackupSpecOracleTests {
         oracle(
             "CalendarEvent", CDCalendarEvent.self, LegacyCalendarEventDTO.self, export: OldExport.toDTOs
         ) { _, _, _ in },
-        oracle(
-            "SequenceTrack", CDSequenceTrack.self, LegacySequenceTrackDTO.self, OldExport.toDTOs,
-            OldImport.importSequenceTracks
-        ),
         oracle("Document", CDDocument.self, LegacyDocumentDTO.self, OldExport.toDTOs, OldImport.importDocuments),
         oracle("Supply", CDSupply.self, LegacySupplyDTO.self, OldExport.toDTOs, OldImport.importSupplies),
         oracle("Procedure", CDProcedure.self, LegacyProcedureDTO.self, OldExport.toDTOs, OldImport.importProcedures),

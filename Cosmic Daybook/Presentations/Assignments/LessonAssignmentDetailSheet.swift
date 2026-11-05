@@ -155,7 +155,10 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                 )
             }
         }
-        .sheet(isPresented: $showingEditSheet) {
+        // However the presentation sheet closes, what it may have changed is
+        // read again: notes, work, and each child's Re-present (bug hunt
+        // 2026-11-03 #17; the names stayed as they were before the edit).
+        .sheet(isPresented: $showingEditSheet, onDismiss: reloadAfterEdit) {
             editPresentationSheet
         }
         .task { @MainActor in
@@ -166,8 +169,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
             } else {
                 self.assignment = nil
             }
-            representedStudentIDs = ChildRepresentations(presentationIDs: [targetID.uuidString], in: viewContext)
-                .students(on: targetID.uuidString)
+            reloadRepresented()
             reloadNotes()
             reloadWorkSummary()
             isLoading = false
@@ -400,10 +402,20 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         if let la = assignment {
             PresentationDetailView(lessonAssignment: la) {
                 showingEditSheet = false
-                reloadNotes()
-                reloadWorkSummary()
             }
         }
+    }
+
+    private func reloadAfterEdit() {
+        reloadRepresented()
+        reloadNotes()
+        reloadWorkSummary()
+    }
+
+    /// The children on it whose own follow-up says re-present.
+    private func reloadRepresented() {
+        let key = assignmentID.uuidString
+        representedStudentIDs = ChildRepresentations(presentationIDs: [key], in: viewContext).students(on: key)
     }
 
     private func close() {

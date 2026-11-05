@@ -154,6 +154,11 @@ struct QuickNewWorkItemSheet: View {
         .frame(minWidth: UIConstants.SheetSize.medium.width, minHeight: UIConstants.SheetSize.medium.height)
         #endif
         .onAppear {
+            // A child the Checklist or command bar named who isn't on the
+            // chips' roster (a hidden test student, or one who has left)
+            // can't be seen or taken off, so she isn't kept (bug hunt
+            // 2026-11-03 #41).
+            selectedStudentIDs = WorkSheetRoster.keptPrefill(selectedStudentIDs, roster: allStudents)
             // Auto-fill lesson name when pre-populated from checklist
             if let lessonID = preSelectedLessonID,
                let lesson = dependencies.lessonCatalog.lesson(id: lessonID) {

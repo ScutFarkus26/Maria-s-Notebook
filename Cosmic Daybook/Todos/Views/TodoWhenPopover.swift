@@ -11,6 +11,8 @@ struct TodoWhenPopover: View {
 
     @State private var displayedMonth: Date = Date()
     @State private var showDeadlinePicker = false
+    /// The day Add Deadline's picker shows before one is chosen.
+    @State private var draftDeadline = Date()
 
     @Environment(\.calendar) private var calendar
 
@@ -274,9 +276,15 @@ struct TodoWhenPopover: View {
                 }
                 .buttonStyle(.plain)
             } else {
+                // Add Deadline only opens the picker: it used to save a
+                // deadline of the When date (or today) the moment it was
+                // tapped, kept even when none was chosen (bug hunt 2026-11-03,
+                // #57). Picking a day, or Set for the one shown, writes it.
                 Button {
-                    dueDate = scheduledDate ?? AppCalendar.startOfDay(Date())
-                    showDeadlinePicker = true
+                    draftDeadline = scheduledDate ?? AppCalendar.startOfDay(Date())
+                    adaptiveWithAnimation(UIConstants.SpringAnimation.standard) {
+                        showDeadlinePicker.toggle()
+                    }
                 } label: {
                     HStack(spacing: AppTheme.Spacing.verySmall) {
                         Image(systemName: "flag")
@@ -289,12 +297,21 @@ struct TodoWhenPopover: View {
                 .buttonStyle(.plain)
 
                 if showDeadlinePicker {
-                    DatePicker("Deadline", selection: Binding(
-                        get: { dueDate ?? Date() },
-                        set: { dueDate = AppCalendar.startOfDay($0) }
-                    ), displayedComponents: .date)
-                    .datePickerStyle(.compact)
-                    .labelsHidden()
+                    HStack(spacing: AppTheme.Spacing.small) {
+                        DatePicker("Deadline", selection: Binding(
+                            get: { draftDeadline },
+                            set: { dueDate = AppCalendar.startOfDay($0) }
+                        ), displayedComponents: .date)
+                        .datePickerStyle(.compact)
+                        .labelsHidden()
+
+                        Button("Set") {
+                            dueDate = AppCalendar.startOfDay(draftDeadline)
+                        }
+                        .font(AppTheme.ScaledFont.captionSemibold)
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.blue)
+                    }
                 }
             }
         }

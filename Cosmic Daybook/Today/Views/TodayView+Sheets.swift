@@ -11,7 +11,9 @@ extension TodayView {
     /// for a todo, the inspector).
     enum ActiveSheet: Identifiable {
         case quickNote(studentIDs: Set<UUID>?)
-        case newTodo
+        /// A new to-do, starting on the day Today lists (`TodayTodoDay.newTodoDate`,
+        /// bug hunt 2026-11-03 #54).
+        case newTodo(defaultDate: Date)
 
         var id: String {
             switch self {
@@ -76,8 +78,8 @@ struct TodayViewSheets: ViewModifier {
         switch sheet {
         case .quickNote(let studentIDs):
             quickNoteSheetContent(studentIDs: studentIDs)
-        case .newTodo:
-            newTodoSheet
+        case .newTodo(let defaultDate):
+            newTodoSheet(defaultDate: defaultDate)
         }
     }
 
@@ -122,9 +124,11 @@ struct TodayViewSheets: ViewModifier {
     }
 #endif
 
-    private var newTodoSheet: some View {
+    /// `defaultDate` is the When date the new to-do starts with, so it shows
+    /// on Today.
+    private func newTodoSheet(defaultDate: Date) -> some View {
         NavigationStack {
-            NewTodoForm()
+            NewTodoForm(initialScheduledDate: defaultDate)
                 .navigationTitle("New Todo")
                 .inlineNavigationTitle()
                 .toolbar {

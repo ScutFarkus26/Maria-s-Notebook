@@ -65,10 +65,20 @@ extension LessonDetailView {
         }
     }
 
-    /// Copies the picked Pages file in and points the lesson at it. The file
-    /// it replaces goes to the Trash only once the save has succeeded and no
-    /// other lesson uses it; a failed save puts the old file back on the lesson
-    /// and removes the copy just made.
+    /// The Pages file the edit form shows: the one Import… copied in or
+    /// none after Remove, until Save writes it to the lesson or Cancel drops it.
+    var editFormPagesURL: URL? {
+        switch draft.pagesFileChange {
+        case .unchanged: resolvedPagesURL
+        case .imported(let copy): copy.url
+        case .removed: nil
+        }
+    }
+
+    /// Copies the picked Pages file in and holds it in the draft; Save points
+    /// the lesson at it and sends the file it replaces to the Trash, Cancel
+    /// deletes the copy (bug hunt 2026-11-03, #17: this saved at once, so
+    /// Cancel didn't undo it). A second Import… deletes the first copy.
     func importPagesFile(from pickedURL: URL) {
         guard !isSampleClassroom else {
             showingSampleClassFileNotice = true
@@ -81,50 +91,39 @@ extension LessonDetailView {
             let destURL = try LessonFileStorage.importFile(
                 from: pickedURL,
                 forLessonWithID: lessonID,
-                lessonName: lesson.name
+                lessonName: draft.name.trimmed().isEmpty ? lesson.name : draft.name.trimmed()
             )
-            let bookmark = try LessonFileStorage.makeBookmark(for: destURL)
-            let rel = try LessonFileStorage.relativePath(forManagedURL: destURL)
-            let replacedPath = LessonFileStorage.managedPagesPath(of: lesson)
-            let oldBookmark = lesson.pagesFileBookmark
-            let oldRelativePath = lesson.pagesFileRelativePath
-            lesson.pagesFileBookmark = bookmark
-            lesson.pagesFileRelativePath = rel
-            guard saveCoordinator.save(viewContext, reason: "Import lesson Pages file") else {
-                lesson.pagesFileBookmark = oldBookmark
-                lesson.pagesFileRelativePath = oldRelativePath
+            let copy: LessonEditDraft.PagesFileCopy
+            do {
+                copy = LessonEditDraft.PagesFileCopy(
+                    url: destURL,
+                    bookmark: try LessonFileStorage.makeBookmark(for: destURL),
+                    relativePath: try LessonFileStorage.relativePath(forManagedURL: destURL)
+                )
+            } catch {
                 try? LessonFileStorage.deleteIfManaged(destURL)
-                return
+                throw error
             }
-            resolvedPagesURL = destURL
-            if let replacedPath {
-                LessonFileStorage.trashUnreferencedFiles([replacedPath], in: viewContext, isSampleClassroom: false)
-            }
+            discardPendingPagesCopy()
+            draft.pagesFileChange = .imported(copy)
         } catch {
             Self.logger.warning("Pages file import failed: \(error)")
             importError = AppErrorMessages.importMessage(for: error, fileType: "Pages file")
         }
     }
 
-    /// Remove in the edit form: the lesson lets go of its Pages file, and the
-    /// file goes to the Trash after the save when nothing else uses it. In the
-    /// Sample Class only the record changes.
+    /// Remove in the edit form: the form lets go of the Pages file, and Save
+    /// takes it off the lesson and sends it to the Trash when nothing else
+    /// uses it. Removing a copy Import… just made deletes that copy and goes
+    /// back to the lesson's own file. In the Sample Class only the record changes.
     func removePagesFile() {
-        let removedPath = LessonFileStorage.managedPagesPath(of: lesson)
-        let oldBookmark = lesson.pagesFileBookmark
-        let oldRelativePath = lesson.pagesFileRelativePath
-        lesson.pagesFileBookmark = nil
-        lesson.pagesFileRelativePath = nil
-        guard saveCoordinator.save(viewContext, reason: "Remove lesson Pages file") else {
-            lesson.pagesFileBookmark = oldBookmark
-            lesson.pagesFileRelativePath = oldRelativePath
-            return
-        }
-        resolvedPagesURL = nil
-        if let removedPath {
-            LessonFileStorage.trashUnreferencedFiles(
-                [removedPath], in: viewContext, isSampleClassroom: isSampleClassroom
-            )
+        if draft.pendingPagesCopyURL != nil {
+            discardPendingPagesCopy()
+            if resolvedPagesURL != nil || lesson.pagesFileRelativePath != nil || lesson.pagesFileBookmark != nil {
+                draft.pagesFileChange = .removed
+            }
+        } else {
+            draft.pagesFileChange = .removed
         }
     }
 

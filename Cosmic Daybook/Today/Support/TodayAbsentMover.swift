@@ -6,7 +6,10 @@
 // .keepOnPlan`, onto a plan of her own for the same lesson with her year-plan
 // entry following her — and that plan is then scheduled for the day given.
 // A lesson whose children are all absent simply moves whole. The present
-// children stay on today's lesson.
+// children stay on today's lesson. Either way the year-plan entries promoted
+// into the moved lesson go to its new day with it
+// (`YearPlanPromotionService.moveEntries`); they used to stay on today, drawn
+// there on the year plan though nothing was given.
 //
 // The guide asks for it (a row's menu or link, or once for the whole day in
 // the Lessons header); nothing calls it on its own. Every lesson moves in one
@@ -66,11 +69,13 @@ enum TodayAbsentMover {
         let objectID: NSManagedObjectID
         let statusRaw: String
         let promotedAssignmentID: String?
+        let plannedDate: Date?
 
         init(_ entry: CDYearPlanEntry) {
             objectID = entry.objectID
             statusRaw = entry.statusRaw
             promotedAssignmentID = entry.promotedAssignmentID
+            plannedDate = entry.plannedDate
         }
     }
 
@@ -108,7 +113,7 @@ enum TodayAbsentMover {
             guard let lesson = assignment.lesson, !present.isEmpty else {
                 // Nobody is here for it: the lesson itself moves.
                 schedules.append(ScheduleSnapshot(assignment))
-                assignment.schedule(onDay: day)
+                reschedule(assignment, onDay: day, context: context)
                 continue
             }
             rosters.append((assignment.objectID, assignment.studentIDs))
@@ -122,7 +127,7 @@ enum TodayAbsentMover {
             } else {
                 schedules.append(ScheduleSnapshot(plan))
             }
-            plan.schedule(onDay: day)
+            reschedule(plan, onDay: day, context: context)
         }
         guard !moved.isEmpty else { return nil }
 
@@ -162,6 +167,18 @@ enum TodayAbsentMover {
     }
 
     // MARK: - Private
+
+    /// Schedules `assignment` on `day`; the year-plan entries promoted into
+    /// it follow it there.
+    private static func reschedule(
+        _ assignment: CDLessonAssignment, onDay day: Date, context: NSManagedObjectContext
+    ) {
+        assignment.schedule(onDay: day)
+        guard let assignmentID = assignment.id?.uuidString else { return }
+        YearPlanPromotionService.moveEntries(
+            promotedInto: assignmentID, to: AppCalendar.startOfDay(day), context: context
+        )
+    }
 
     private static func yearPlanEntries(
         lessonID: String,
@@ -203,6 +220,8 @@ enum TodayAbsentMover {
             guard let entry = object(snapshot.objectID, CDYearPlanEntry.self, in: context) else { continue }
             entry.statusRaw = snapshot.statusRaw
             entry.promotedAssignmentID = snapshot.promotedAssignmentID
+            entry.plannedDate = snapshot.plannedDate
+            entry.modifiedAt = Date()
         }
     }
 

@@ -84,6 +84,18 @@ struct TodayView: View {
     /// When the calendar day changes we only auto-advance `viewModel.date`
     /// if it still equals this anchor — a deliberately chosen date is kept.
     @State private var todayAnchor: Date?
+    /// The calendar day (`handleDayChange`), for the to-dos (`todoDay`).
+    @State private var realDay = AppCalendar.startOfDay(Date())
+
+    /// The days the to-do section reads: on a weekend or a day off, the real
+    /// day as well as the shown one (`TodayTodoDay`, bug hunt 2026-11-03 #53).
+    var todoDay: TodayTodoDay {
+        TodayTodoDay(
+            shownDay: viewModel.date,
+            realDay: realDay,
+            schoolDayForRealDay: todayAnchor ?? nearestSchoolDaySync(to: realDay)
+        )
+    }
 
     // MARK: - Computed Properties
 
@@ -341,6 +353,7 @@ struct TodayView: View {
     /// "today" after an overnight suspension. Idempotent — called at midnight,
     /// on scene activation, and on appear.
     private func handleDayChange() {
+        realDay = AppCalendar.startOfDay(Date())
         let newAnchor = AppCalendar.startOfDay(nearestSchoolDaySync(to: Date()))
         guard newAnchor != todayAnchor else { return }
         if todayAnchor == nil || viewModel.date == todayAnchor {

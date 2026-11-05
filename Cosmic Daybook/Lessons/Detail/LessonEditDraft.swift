@@ -10,9 +10,16 @@
 //  notes over lesson B (bug hunt 2026-10-10, #39). The pane now resets per
 //  lesson; this is the second lock on the same door.
 //
+//  A move to another area or sub-area lands the lesson last there, as Add
+//  Lesson and a drag do; it kept its old number and tied with or jumped
+//  ahead of the lessons already there (bug hunt 2026-11-03, #7). The Pages
+//  file's Import… and Remove wait here for Save too, so Cancel undoes them
+//  (#17); they used to save at once.
+//
 
 import CoreData
 import Foundation
+import OSLog
 
 struct LessonEditDraft: Equatable {
     /// The lesson these values came from; `apply(to:)` refuses any other.
@@ -20,6 +27,11 @@ struct LessonEditDraft: Equatable {
     /// The lesson's stored personal kind, which may be unset; `personalKind`
     /// below is what the picker shows.
     private var storedPersonalKindRaw: String?
+    /// What `restore` puts back: the draft has no field for these, but Save
+    /// changes them (a move renumbers, the Pages file follows the form).
+    private var storedOrderInSequence: Int64 = 0
+    private var storedPagesBookmark: Data?
+    private var storedPagesRelativePath: String?
 
     var name = ""
     var area = ""
@@ -38,6 +50,28 @@ struct LessonEditDraft: Equatable {
     var practiceOverride: ProgressionOverride = .inherit
     var confirmationOverride: ProgressionOverride = .inherit
     var isKeyLesson = false
+    /// Import… and Remove for the Pages file, written to the lesson on Save.
+    var pagesFileChange: PagesFileChange = .unchanged
+
+    /// A Pages file copied in by Import… while the form is open.
+    struct PagesFileCopy: Equatable {
+        var url: URL
+        var bookmark: Data
+        var relativePath: String
+    }
+
+    /// What the form did to the lesson's Pages file.
+    enum PagesFileChange: Equatable {
+        case unchanged
+        case imported(PagesFileCopy)
+        case removed
+    }
+
+    /// The copy Import… made and Save hasn't used yet: Cancel deletes it.
+    var pendingPagesCopyURL: URL? {
+        if case .imported(let copy) = pagesFileChange { return copy.url }
+        return nil
+    }
 
     init() {}
 
@@ -62,6 +96,9 @@ struct LessonEditDraft: Equatable {
         practiceOverride = lesson.practiceOverride
         confirmationOverride = lesson.confirmationOverride
         isKeyLesson = lesson.isKeyLesson
+        storedOrderInSequence = lesson.orderInSequence
+        storedPagesBookmark = lesson.pagesFileBookmark
+        storedPagesRelativePath = lesson.pagesFileRelativePath
     }
 
     /// Whether this draft was filled from `lesson`.
@@ -77,9 +114,15 @@ struct LessonEditDraft: Equatable {
     func apply(to lesson: CDLesson) throws(LessonRepository.CreationError) -> Bool {
         guard belongs(to: lesson) else { return false }
         if let context = lesson.managedObjectContext {
-            try LessonRepository(context: context).refuseDuplicateName(
+            let repository = LessonRepository(context: context)
+            try repository.refuseDuplicateName(
                 filing: lesson, as: name.trimmed(), area: area.trimmed(), sequence: sequence.trimmed()
             )
+            // Counted before the lesson takes its new filing, so it isn't
+            // counted among the lessons it lands after.
+            if movesFiling(of: lesson) {
+                lesson.orderInSequence = Int64(repository.nextOrderInSequence(area: area, sequence: sequence))
+            }
         }
         lesson.name = name.trimmed()
         lesson.area = area.trimmed()
@@ -98,7 +141,24 @@ struct LessonEditDraft: Equatable {
         lesson.practiceOverride = practiceOverride
         lesson.confirmationOverride = confirmationOverride
         lesson.isKeyLesson = isKeyLesson
+        switch pagesFileChange {
+        case .unchanged:
+            break
+        case .imported(let copy):
+            lesson.pagesFileBookmark = copy.bookmark
+            lesson.pagesFileRelativePath = copy.relativePath
+        case .removed:
+            lesson.pagesFileBookmark = nil
+            lesson.pagesFileRelativePath = nil
+        }
         return true
+    }
+
+    /// Whether Save files the lesson in another area or sub-area, matched
+    /// trimmed and in any case as the Lessons screen groups them.
+    func movesFiling(of lesson: CDLesson) -> Bool {
+        BulkLessonInsertion.orderKey(area: area, sequence: sequence)
+            != BulkLessonInsertion.orderKey(area: lesson.area, sequence: lesson.sequence)
     }
 
     /// Puts back exactly what `init(lesson:)` read, so a failed save leaves
@@ -123,5 +183,8 @@ struct LessonEditDraft: Equatable {
         lesson.practiceOverride = practiceOverride
         lesson.confirmationOverride = confirmationOverride
         lesson.isKeyLesson = isKeyLesson
+        lesson.orderInSequence = storedOrderInSequence
+        lesson.pagesFileBookmark = storedPagesBookmark
+        lesson.pagesFileRelativePath = storedPagesRelativePath
     }
 }

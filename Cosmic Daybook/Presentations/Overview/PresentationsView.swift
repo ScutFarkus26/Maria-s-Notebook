@@ -82,11 +82,6 @@ struct PresentationsView: View {
         dependencies.presentationsViewModel
     }
 
-    // Computed properties that use ViewModel (preserves exact same functionality)
-    func getBlockingWork(_ la: CDLessonAssignment) -> [UUID: CDWorkModel] {
-        viewModel.getBlockingWork(la)
-    }
-
     // MARK: - body is defined in PresentationsView+Body.swift
 
     /// True when the Ready list is capable of revealing this presentation.

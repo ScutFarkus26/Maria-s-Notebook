@@ -14,7 +14,6 @@ nonisolated extension NotebookJunkCleanup.Counts {
     /// nothing are left out.
     var lines: [String] {
         [
-            Self.line(orphanTrackSteps, "track step with no track", "track steps with no track"),
             Self.line(
                 blankPresentations,
                 "lesson given with no child or lesson", "lessons given with no child or lesson"
@@ -33,14 +32,8 @@ nonisolated extension NotebookJunkCleanup.Counts {
                 "planned lesson for a child who's left, marked skipped",
                 "planned lessons for children who've left, marked skipped"
             ),
-            Self.line(
-                enrollmentsRelinked,
-                "old track enrollment linked to its track", "old track enrollments linked to their tracks"
-            ),
-            Self.line(enrollmentsRemoved, "old track enrollment removed", "old track enrollments removed"),
             Self.line(emptyNotes, "empty note", "empty notes"),
             Self.line(documentsWithoutFile, "document with no file", "documents with no file"),
-            Self.line(emptyTracks, "empty track", "empty tracks"),
             Self.line(orphanWorkSteps + orphanSampleWorkSteps, "work step with no work", "work steps with no work"),
             Self.line(
                 completionRecordsOfDeletedWork,

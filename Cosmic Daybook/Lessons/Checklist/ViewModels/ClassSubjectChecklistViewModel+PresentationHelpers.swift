@@ -10,31 +10,18 @@ extension ClassAreaChecklistViewModel {
 
     // MARK: - CDLessonPresentation Helpers
 
+    /// Files the mark on her latest history row for the lesson, or makes one dated
+    /// `givenOn` (the presentation's date; nil for an undated one), by the selection's
+    /// own rule (`ChecklistBatchActionExecutor.upsertLessonPresentation`).
     func upsertLessonPresentation(
         studentID: String, lessonID: String,
-        state: LessonPresentationState, context: NSManagedObjectContext
+        state: LessonPresentationState, givenOn: Date?, context: NSManagedObjectContext
     ) {
-        // OPTIMIZATION: Use predicate to fetch only the specific presentation instead of all
         let request = CDFetchRequest(CDLessonPresentation.self)
         request.predicate = NSPredicate(format: "studentID == %@ AND lessonID == %@", studentID, lessonID)
-        request.fetchLimit = 1
-        let existing = context.safeFetchFirst(request)
-
-        if let existing {
-            if state == .proficient && existing.state != .proficient {
-                existing.state = .proficient
-                existing.masteredAt = Date()
-            }
-            existing.lastObservedAt = Date()
-        } else {
-            let lp = CDLessonPresentation(context: context)
-            lp.id = UUID()
-            lp.studentID = studentID
-            lp.lessonID = lessonID
-            lp.state = state
-            lp.presentedAt = Date()
-            lp.lastObservedAt = Date()
-            lp.masteredAt = state == .proficient ? Date() : nil
-        }
+        ChecklistBatchActionExecutor.upsertLessonPresentation(
+            studentID: studentID, lessonID: lessonID, state: state,
+            from: context.safeFetch(request), givenOn: givenOn, context: context
+        )
     }
 }

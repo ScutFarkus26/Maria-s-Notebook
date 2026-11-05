@@ -69,8 +69,10 @@ struct WorkRepository: Repository {
         let lessonIDString = lessonID.uuidString
         let request = CDFetchRequest(CDLessonAssignment.self)
         request.predicate = NSPredicate(format: "lessonID == %@", lessonIDString)
+        // Ids compared trimmed and upper-cased, as recording compares them: a
+        // presentation naming her in lower case wasn't found.
         let candidates = context.safeFetch(request)
-            .filter { $0.studentIDs.contains(studentID.uuidString) }
+            .filter { $0.studentIDs.contains { OrphanStudentGrace.normalizedID($0) == studentID.uuidString } }
         return Self.preferredAssignment(among: candidates)?.id
     }
 
@@ -166,19 +168,22 @@ struct WorkRepository: Repository {
     /// Closes a work row with a verdict (`.done` when the guide gave none).
     /// Goes through `WorkLogService`, so the completion record, the row's
     /// check-ins and the note land exactly as they do from the Scheduled strip.
-    func markWorkCompleted(id: UUID, status: WorkStatus = .done, note: String? = nil) {
-        updateWorkStatus(id: id, status: status.isClosed ? status : .done, note: note)
+    /// Throws when it couldn't be logged or saved.
+    func markWorkCompleted(id: UUID, status: WorkStatus = .done, note: String? = nil) throws {
+        try updateWorkStatus(id: id, status: status.isClosed ? status : .done, note: note)
     }
 
     /// Logs a status on a work row and saves. The success haptic fires only
     /// when the save actually persisted — one on a failed save would mislead.
-    func updateWorkStatus(id: UUID, status: WorkStatus, note: String? = nil) {
+    /// Throws when it couldn't, so the caller can say so; it used to only log
+    /// the failure.
+    func updateWorkStatus(id: UUID, status: WorkStatus, note: String? = nil) throws {
         guard let work = fetchWorkModel(id: id) else { return }
         do {
             try WorkLogService.log([.init(work: work, status: status, note: note)], context: context)
         } catch {
             Self.logger.error("Failed to log work status \(id): \(error)")
-            return
+            throw error
         }
         if status.isClosed { HapticService.shared.notification(.success) }
     }

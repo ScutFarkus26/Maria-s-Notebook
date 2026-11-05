@@ -46,8 +46,20 @@ enum BlockingAlgorithmEngine {
         let presentedAssignmentsByLessonID: [String: [CDLessonAssignment]]
         let workByPresentationID: [String: [CDWorkModel]]
         let managedObjectContext: NSManagedObjectContext?
+        /// lessonID → the children with a mastery mark on it
+        /// (`PresentationRecordIndex.masteryMarks`).
+        let masteryMarks: [String: Set<String>]
+        /// The children judged: enrolled and shown. Nil judges everyone on a plan.
+        let judgedStudentIDs: Set<UUID>?
 
-        init(lessons: [CDLesson], lessonAssignments: [CDLessonAssignment], workModels: [CDWorkModel]) {
+        init(
+            lessons: [CDLesson],
+            lessonAssignments: [CDLessonAssignment],
+            workModels: [CDWorkModel],
+            batch: [CDLessonAssignment],
+            masteryMarks: [String: Set<String>]?,
+            judgedStudentIDs: Set<UUID>?
+        ) {
             // Build lesson lookup. Sync can hand back two rows with one id;
             // the first is kept rather than trapping.
             self.lessonsByID = Dictionary(
@@ -74,7 +86,23 @@ enum BlockingAlgorithmEngine {
             self.workByPresentationID = Dictionary(grouping: workModels, by: { $0.presentationID ?? "" })
 
             // Capture a context for progression rule lookups
-            self.managedObjectContext = lessons.first?.managedObjectContext
+            let context = lessons.first?.managedObjectContext
+            self.managedObjectContext = context
+
+            // A caller that read the marks already (to know when they change)
+            // passes them; otherwise they are read here, for the batch's
+            // preceding lessons only.
+            if let masteryMarks {
+                self.masteryMarks = masteryMarks
+            } else if let context {
+                let preceding = BlockingAlgorithmEngine.precedingLessonIDs(
+                    for: batch, precedingLessons: precedingLessonCache
+                )
+                self.masteryMarks = PresentationRecordIndex.masteryMarks(lessonIDs: preceding, in: context)
+            } else {
+                self.masteryMarks = [:]
+            }
+            self.judgedStudentIDs = judgedStudentIDs
         }
     }
 
@@ -91,12 +119,20 @@ enum BlockingAlgorithmEngine {
     ///     presentations (`precedingPresentationIDs`): a child whose only
     ///     practice is closed is ready, and without it she reads as having
     ///     none and, when the lesson needs practice, as not ready.
+    ///   - masteryMarks: lessonID → children with a mastery mark on it, for
+    ///     the preceding lessons (`PresentationRecordIndex.masteryMarks`); nil
+    ///     reads them through the lessons' context.
+    ///   - judgedStudentIDs: the children whose readiness counts (enrolled and
+    ///     shown); a departed or hidden child on a plan neither holds it in
+    ///     Brewing nor counts in "N of M ready". Nil judges everyone.
     /// - Returns: Dictionary mapping CDLessonAssignment ID to BlockingCheckResult
     static func checkBlocking(
         forBatch lessonAssignments: [CDLessonAssignment],
         lessons: [CDLesson],
         allLessonAssignments: [CDLessonAssignment] = [],
-        workModels: [CDWorkModel]
+        workModels: [CDWorkModel],
+        masteryMarks: [String: Set<String>]? = nil,
+        judgedStudentIDs: Set<UUID>? = nil
     ) -> [UUID: BlockingCheckResult] {
         guard !lessonAssignments.isEmpty else { return [:] }
 
@@ -104,7 +140,10 @@ enum BlockingAlgorithmEngine {
         let context = BlockingContext(
             lessons: lessons,
             lessonAssignments: allLessonAssignments.isEmpty ? lessonAssignments : allLessonAssignments,
-            workModels: workModels
+            workModels: workModels,
+            batch: lessonAssignments,
+            masteryMarks: masteryMarks,
+            judgedStudentIDs: judgedStudentIDs
         )
 
         // Check each lesson assignment using pre-computed lookups
@@ -152,16 +191,19 @@ enum BlockingAlgorithmEngine {
         // Find presented assignments for the preceding lesson
         let precedingLessonIDStr = precedingLesson.id?.uuidString ?? ""
         let precedingAssignments = context.presentedAssignmentsByLessonID[precedingLessonIDStr] ?? []
+        let marked = context.masteryMarks[precedingLessonIDStr] ?? []
 
         // Build per-student readiness. With neither gate required, every
-        // child reads ready and nothing is open.
+        // child reads ready and nothing is open. Only the children shown are
+        // judged (bug hunt 2026-11-03 #12).
         var perStudentReadiness: [UUID: StudentReadiness] = [:]
         var totalPrereqOpen = 0
 
-        for studentID in la.resolvedStudentIDs {
+        for studentID in la.resolvedStudentIDs where context.judgedStudentIDs?.contains(studentID) ?? true {
             let verdict = readiness(
                 of: studentID,
                 givings: givings(for: studentID, among: precedingAssignments),
+                mastered: marked.contains(studentID.uuidString),
                 rules: rules,
                 workByPresentationID: context.workByPresentationID
             )
@@ -200,6 +242,11 @@ enum BlockingAlgorithmEngine {
     /// - Parameters:
     ///   - givings: her givings of the preceding lesson, from
     ///     `givings(for:among:)`. Empty means it wasn't given to her.
+    ///   - mastered: she has a mastery mark on the preceding lesson (any
+    ///     marked history row, the Checklist's Mastered included). It counts
+    ///     as the teacher's confirmation, as it does for the Checklist and
+    ///     Today (`ReadyForNextEngine.readiness`), and with no giving on record
+    ///     it stands in for the practice too (bug hunt 2026-11-03 #5).
     ///   - rules: the preceding lesson's progression rules.
     ///   - workByPresentationID: the work on those givings, open **and**
     ///     closed: with open work alone, a child whose practice is done reads
@@ -208,6 +255,7 @@ enum BlockingAlgorithmEngine {
     static func readiness(
         of studentID: UUID,
         givings: [CDLessonAssignment],
+        mastered: Bool,
         rules: LessonProgressionRules.ResolvedRules,
         workByPresentationID: [String: [CDWorkModel]]
     ) -> (readiness: StudentReadiness, openWorkCount: Int) {
@@ -234,14 +282,16 @@ enum BlockingAlgorithmEngine {
                 }
             }
         } else if rules.requiresPractice && latest == nil {
-            // Preceding lesson hasn't been presented to this student
-            workComplete = false
+            // Preceding lesson hasn't been presented to this student; a
+            // mastery mark says she has it all the same.
+            workComplete = mastered
         }
 
-        // Gate 2: Teacher confirmation. Not given to her means not confirmed.
+        // Gate 2: Teacher confirmation, or a mastery mark. Not given to her
+        // and not marked means not confirmed.
         var teacherConfirmed = true
         if rules.requiresTeacherConfirmation {
-            teacherConfirmed = givings.contains { $0.isStudentConfirmed(studentID) }
+            teacherConfirmed = mastered || givings.contains { $0.isStudentConfirmed(studentID) }
         }
 
         let readiness = StudentReadiness(
@@ -293,6 +343,17 @@ enum BlockingAlgorithmEngine {
         })
     }
 
+    /// The preceding lesson of each of `assignments`' lessons, as UUID
+    /// strings: where a mastery mark readies a child for them.
+    nonisolated static func precedingLessonIDs(
+        for assignments: [CDLessonAssignment], precedingLessons: [UUID: CDLesson]
+    ) -> Set<String> {
+        Set(assignments.compactMap { la -> String? in
+            guard let lessonID = UUID(uuidString: la.lessonID) else { return nil }
+            return precedingLessons[lessonID]?.id?.uuidString
+        })
+    }
+
     // MARK: - Find Preceding CDLesson
 
     /// Find the preceding lesson in the sequence (same area/sequence, previous orderInSequence).
@@ -330,70 +391,5 @@ enum BlockingAlgorithmEngine {
         }
 
         return candidates[currentIndex - 1]
-    }
-
-    // MARK: - Work Completion Checks
-
-    /// Check if work is complete (either its status is closed OR all relevant participants have completedAt).
-    ///
-    /// - Parameters:
-    ///   - work: The CDWorkModel to check
-    ///   - requiredStudentIDs: The student IDs that need to have completed the work
-    /// - Returns: True if work is complete for all required students
-    nonisolated static func isWorkComplete(work: CDWorkModel, requiredStudentIDs: [UUID]) -> Bool {
-        if work.status.isClosed {
-            return true
-        }
-
-        let participantsArray = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
-        guard !participantsArray.isEmpty else {
-            return false
-        }
-
-        let requiredStudentIDStrings = Set(requiredStudentIDs.map(\.uuidString))
-        let relevantParticipants = participantsArray.filter { requiredStudentIDStrings.contains($0.studentID) }
-
-        return !relevantParticipants.isEmpty && relevantParticipants.allSatisfy { $0.completedAt != nil }
-    }
-
-    /// Whether a work item applies to the given student: they are a participant, or —
-    /// for legacy rows with no participants — the work's single-student field names them.
-    static func workInvolvesStudent(work: CDWorkModel, studentID: UUID) -> Bool {
-        let studentIDStr = studentID.uuidString
-        let participantsArray = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
-        guard !participantsArray.isEmpty else {
-            return work.studentID == studentIDStr
-        }
-        return participantsArray.contains { $0.studentID == studentIDStr }
-    }
-
-    /// The rows among one presentation's work that gate this child: the ones
-    /// they own when they own any. Group work is usually one linked copy per
-    /// child, each listing every classmate as a participant (see
-    /// `WorkGrouping`), so a classmate's unfinished copy names this child
-    /// too without being theirs. A child who owns none is gated by the rows
-    /// that name them: a shared row, or a legacy row with no participants.
-    static func gatingWork(for studentID: UUID, among works: [CDWorkModel]) -> [CDWorkModel] {
-        let owned = works.filter { WorkGrouping.owner(of: $0) == studentID }
-        return owned.isEmpty ? works.filter { workInvolvesStudent(work: $0, studentID: studentID) } : owned
-    }
-
-    /// Check if work is complete for a single student.
-    private static func isWorkCompleteForStudent(work: CDWorkModel, studentID: UUID) -> Bool {
-        if work.status.isClosed {
-            return true
-        }
-
-        let participantsArray = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
-        guard !participantsArray.isEmpty else {
-            return false
-        }
-
-        let studentIDStr = studentID.uuidString
-        guard let participant = participantsArray.first(where: { $0.studentID == studentIDStr }) else {
-            return false
-        }
-
-        return participant.completedAt != nil
     }
 }

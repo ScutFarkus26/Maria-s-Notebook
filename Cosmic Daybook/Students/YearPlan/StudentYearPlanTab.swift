@@ -9,6 +9,8 @@ struct StudentYearPlanTab: View {
     @State private var nonSchoolCells: Set<CellID> = []
     @State private var showAddSequenceSheet = false
     @State private var popoverCellID: CellID?
+    /// Readjust's moves, waiting for the guide to agree to them (#31).
+    @State private var pendingReadjust: YearPlanReadjustPlan?
 
     private var schoolYearRange: ClosedRange<Int> {
         let cal = AppCalendar.shared
@@ -36,10 +38,16 @@ struct StudentYearPlanTab: View {
                     // and targets are sitting on days school is closed.
                     if viewModel.behindPaceCount > 0 || viewModel.closedDayCount > 0
                         || viewModel.carriedOverCount > 0 {
+                        // Asks first, with a count: it rewrites dates across
+                        // every sequence at once (bug hunt 2026-11-03 #31).
                         Button {
-                            Task {
-                                guard let id = student.id else { return }
-                                await viewModel.readjust(studentID: id, context: viewContext)
+                            let plan = viewModel.readjustPlan(context: viewContext)
+                            if plan.isEmpty {
+                                ToastService.shared.showInfo(
+                                    "Nothing to move: every lesson is already on a school day ahead."
+                                )
+                            } else {
+                                pendingReadjust = plan
                             }
                         } label: {
                             Label("Readjust", systemImage: "arrow.right.to.line")
@@ -49,16 +57,20 @@ struct StudentYearPlanTab: View {
                         .foregroundStyle(.orange)
                     }
 
-                    Button {
-                        showAddSequenceSheet = true
-                    } label: {
-                        Label("Add Sequence", systemImage: "plus.circle")
-                            .font(.subheadline.weight(.medium))
+                    // A child who has left the class gets no new plans, as
+                    // she gets no new work (bug hunt 2026-11-03 #32).
+                    if student.isEnrolled {
+                        Button {
+                            showAddSequenceSheet = true
+                        } label: {
+                            Label("Add Sequence", systemImage: "plus.circle")
+                                .font(.subheadline.weight(.medium))
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Color.accentColor)
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(Color.accentColor)
-                    .padding(.trailing, 8)
                 }
+                .padding(.trailing, 8)
             },
             dayContent: { cellID, isToday, isNonSchool in
                 YearPlanDayCell(
@@ -111,6 +123,26 @@ struct StudentYearPlanTab: View {
                 viewModel.load(studentID: student.id, context: viewContext)
             }
         }
+        .confirmationDialog(
+            pendingReadjust?.question ?? "",
+            isPresented: readjustIsPending,
+            titleVisibility: .visible,
+            presenting: pendingReadjust
+        ) { plan in
+            Button(plan.actionTitle) {
+                pendingReadjust = nil
+                guard let id = student.id else { return }
+                Task { await viewModel.readjust(plan, studentID: id, context: viewContext) }
+            }
+            Button("Cancel", role: .cancel) { pendingReadjust = nil }
+        }
+    }
+
+    private var readjustIsPending: Binding<Bool> {
+        Binding(
+            get: { pendingReadjust != nil },
+            set: { if !$0 { pendingReadjust = nil } }
+        )
     }
 
     private func popoverBinding(for cellID: CellID) -> Binding<Bool> {

@@ -18,17 +18,24 @@ struct BackupSparseRowTests {
     private final class BundleToken {}
     private static let referenceName = "BackupSparseRows-v27"
 
-    /// The entity types written through `ModelRow`.
-    static let entityNames = [
-        "LessonRecallCheck", "MeetingTemplate", "Track", "Schedule", "GoingOut",
+    /// The entity types written through `ModelRow`, in the order the
+    /// reference was recorded in: a type's fixed id comes from its place
+    /// here. `nil` holds the place of a type no longer backed up (the three
+    /// track types, schema 23), so every other type keeps the id it was
+    /// recorded with.
+    private static let recordedOrder: [String?] = [
+        "LessonRecallCheck", "MeetingTemplate", nil, "Schedule", "GoingOut",
         "CalendarNote", "ClassroomMembership", "StudentFocusItem", "DayPad", "YearPlanEntry",
         "LessonSequenceSettings", "BookClubSession", "Guardian", "ParentCommunication", "AlbumBookmark",
         "AlbumPageNote", "AlbumRecentVisit", "AlbumReadingPosition", "OrderItem", "ProposedSolution",
-        "WorkStep", "SampleWorkStep", "TrackStep", "LessonAttachment", "NoteStudentLink",
-        "BookClubMeeting", "StudentTrackEnrollment", "MeetingWorkReview", "AttendanceDayLock",
+        "WorkStep", "SampleWorkStep", nil, "LessonAttachment", "NoteStudentLink",
+        "BookClubMeeting", nil, "MeetingWorkReview", "AttendanceDayLock",
         "SupplyTransaction", "AttendanceEmailSend", "AttendanceEmailSettings", "ClassroomPerson",
         "TimetableLane", "TimetableBlock", "TimetableChange", "TimetableBooking"
     ]
+
+    /// The entity types written through `ModelRow`.
+    static let entityNames = recordedOrder.compactMap { $0 }
 
     /// A child's link to its parent: the row key, the relationship, the parent
     /// entity, and whether the key is an attribute (a UUID string) rather than
@@ -50,11 +57,9 @@ struct BackupSparseRowTests {
         ParentCase("ProposedSolution", "topicID", "topic", "CommunityTopic", false),
         ParentCase("WorkStep", "workID", "work", "WorkModel", false),
         ParentCase("SampleWorkStep", "sampleWorkID", "sampleWork", "SampleWork", false),
-        ParentCase("TrackStep", "trackID", "track", "Track", false),
         ParentCase("LessonAttachment", "lessonID", "lesson", "Lesson", false),
         ParentCase("NoteStudentLink", "noteID", "note", "Note", true),
         ParentCase("BookClubMeeting", "sessionID", "session", "BookClubSession", true),
-        ParentCase("StudentTrackEnrollment", "trackID", "track", "Track", true),
         ParentCase("MeetingWorkReview", "meetingID", "meeting", "StudentMeeting", true),
         ParentCase("SupplyTransaction", "supplyID", "supply", "Supply", true)
     ]
@@ -98,7 +103,8 @@ struct BackupSparseRowTests {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
         let context = stack.viewContext
         var known: Set<String> = []
-        for (index, name) in entityNames.enumerated() {
+        for (index, name) in recordedOrder.enumerated() {
+            guard let name else { continue }
             let withID = NSEntityDescription.insertNewObject(forEntityName: name, into: context)
             let id = fixedUUID(index)
             withID.setValue(id, forKey: "id")
@@ -141,7 +147,8 @@ struct BackupSparseRowTests {
     /// is rejected with the rest of its entry ("rejected").
     private static func idOnlyRows() throws -> [String: [String]] {
         var result: [String: [String]] = [:]
-        for (index, name) in entityNames.enumerated() {
+        for (index, name) in recordedOrder.enumerated() {
+            guard let name else { continue }
             let row = Data(#"{"id":"\#(fixedUUID(900 + index).uuidString)"}"#.utf8)
             let store = CoreDataStack.sharedEntityNames.contains(name) ? "shared" : "private"
             let entry = BackupEntityEntry(entityName: name, storeName: store, count: 1, ndjson: row + Data([0x0A]))

@@ -5,7 +5,13 @@
 //  The previous lesson, as the guide wants to see it before giving the next
 //  one (Danny, 2026-10-18): when it was given, how much work from it is still
 //  open, what its last check-in said, how the last recall check went, and
-//  whether it is mastered. And the one readiness rule that reads it.
+//  whether it is mastered. And the one readiness rule that reads it, with the
+//  previous lesson's own progression settings (`LessonProgressionRules`): a
+//  lesson or sequence set not to require confirmation doesn't hold an
+//  unconfirmed child back, as Presentations reads it (bug hunt 2026-11-03 #5).
+//  Open work and a check-in asking for more practice stay worth a look
+//  whatever the practice setting: in this rule they never hold a child back,
+//  only ask for a look first (Simplify the app, Phase 3).
 //
 //  "Her work" is the Work column's rule, the one "work to show first" uses
 //  (`WorkToShowFirst`): her own copy of linked work, or a shared row she is on
@@ -101,7 +107,12 @@ nonisolated struct ReadinessVerdict: Sendable, Hashable {
 
 nonisolated extension ReadyForNextEngine {
 
-    /// The one readiness rule.
+    /// Both gates on: the built-in rule, for a lesson with no settings of its own.
+    static let bothGates = LessonProgressionRules.ResolvedRules(
+        requiresPractice: true, requiresTeacherConfirmation: true, source: .builtInDefault
+    )
+
+    /// The one readiness rule, under the previous lesson's `rules`.
     ///
     /// - Ready: the previous lesson is confirmed or mastered, no work from it
     ///   is open, and its last check-in didn't ask for more practice.
@@ -109,8 +120,15 @@ nonisolated extension ReadyForNextEngine {
     ///   is open, the last check-in asked for more practice, or the last
     ///   recall check was shaky or forgotten; one reason each.
     /// - Not ready yet: not confirmed or mastered.
-    static func readiness(of previous: PreviousLessonStatus) -> ReadinessVerdict {
-        guard previous.confirmed || previous.mastered else {
+    ///
+    /// A lesson that doesn't require confirmation needs neither. The practice
+    /// setting changes nothing here: open work and a check-in asking for more
+    /// are reasons to look first, never a hold.
+    static func readiness(
+        of previous: PreviousLessonStatus,
+        rules: LessonProgressionRules.ResolvedRules = ReadyForNextEngine.bothGates
+    ) -> ReadinessVerdict {
+        guard previous.confirmed || previous.mastered || !rules.requiresTeacherConfirmation else {
             return ReadinessVerdict(tier: .notReady, reasons: ["Not confirmed yet"])
         }
         var reasons: [String] = []
@@ -136,6 +154,41 @@ nonisolated extension ReadyForNextEngine {
     static let practiceAskedReason = "Last check-in: needs more practice"
     static let shakyRecallReason = "Recall check was shaky"
     static let forgottenRecallReason = "Recall check: needs the lesson again"
+}
+
+// MARK: - The Lesson's Own Settings
+
+/// Each previous lesson's progression rules, resolved as Presentations resolves
+/// them (`LessonProgressionRules`: the lesson's override, then its sequence's
+/// settings, then both gates on), with one settings fetch per sequence for a
+/// whole grid or queue.
+@MainActor
+final class ProgressionRulesLookup {
+    private let context: NSManagedObjectContext
+    private var settings: [String: CDLessonSequenceSettings?] = [:]
+    private var resolved: [NSManagedObjectID: LessonProgressionRules.ResolvedRules] = [:]
+
+    init(context: NSManagedObjectContext) {
+        self.context = context
+    }
+
+    func rules(for lesson: CDLesson) -> LessonProgressionRules.ResolvedRules {
+        if let known = resolved[lesson.objectID] { return known }
+        // The sequence's settings matter only when a gate inherits them.
+        let inherits = lesson.practiceOverride == .inherit || lesson.confirmationOverride == .inherit
+        let found = inherits ? sequenceSettings(area: lesson.area, sequence: lesson.sequence) : nil
+        let rules = LessonProgressionRules.resolve(for: lesson) { found }
+        resolved[lesson.objectID] = rules
+        return rules
+    }
+
+    private func sequenceSettings(area: String, sequence: String) -> CDLessonSequenceSettings? {
+        let key = "\(area.lowercased())|\(sequence.lowercased())"
+        if let cached = settings[key] { return cached }
+        let found = CDLessonSequenceSettings.find(area: area, sequence: sequence, context: context)
+        settings[key] = .some(found)
+        return found
+    }
 }
 
 // MARK: - Reading It

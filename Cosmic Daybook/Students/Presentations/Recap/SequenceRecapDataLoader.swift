@@ -130,21 +130,18 @@ enum SequenceRecapDataLoader {
 
     // MARK: - Indexing
 
+    /// Every history row a child has for a lesson, read as one. Each giving
+    /// makes its own row, so keeping only the newest read a lesson she
+    /// mastered and was then given again as only Presented (bug hunt
+    /// 2026-11-03 #22); everywhere else any marked row counts
+    /// (`PresentationRecordIndex.masteryMarks`).
     private static func indexPresentations(
         _ presentations: [CDLessonPresentation]
-    ) -> [SequenceRecapPairKey: CDLessonPresentation] {
-        var byPair: [SequenceRecapPairKey: CDLessonPresentation] = [:]
-        for p in presentations {
-            let key = SequenceRecapPairKey(lessonID: p.lessonID, studentID: p.studentID)
-            if let existing = byPair[key] {
-                let new = (p.lastObservedAt ?? p.presentedAt ?? .distantPast)
-                let old = (existing.lastObservedAt ?? existing.presentedAt ?? .distantPast)
-                if new > old { byPair[key] = p }
-            } else {
-                byPair[key] = p
-            }
+    ) -> [SequenceRecapPairKey: SequenceRecapHistory] {
+        let grouped = Dictionary(grouping: presentations.filter { !$0.isDeleted }) {
+            SequenceRecapPairKey(lessonID: $0.lessonID, studentID: $0.studentID)
         }
-        return byPair
+        return grouped.mapValues(SequenceRecapHistory.init(rows:))
     }
 
     private static func indexWork(
@@ -260,7 +257,7 @@ enum SequenceRecapNoteBucketer {
 /// Result of bulk Core Data fetches, with everything pre-indexed for O(1) per-pair lookup.
 struct SequenceRecapCollectedData {
     let assignmentsByLesson: [String: [CDLessonAssignment]]
-    let presentationByPair: [SequenceRecapPairKey: CDLessonPresentation]
+    let presentationByPair: [SequenceRecapPairKey: SequenceRecapHistory]
     /// Children whose own follow-up row says re-present, by presentation.
     let representations: ChildRepresentations
     let workByPair: [SequenceRecapPairKey: [CDWorkModel]]
@@ -286,6 +283,45 @@ struct SequenceRecapNoteBuckets {
 struct SequenceRecapPairKey: Hashable {
     let lessonID: String
     let studentID: String
+}
+
+/// One child's history rows for one lesson, read together: the highest state
+/// any row holds, mastered on the earliest mark, first given on the earliest
+/// giving, last seen on the latest. The notes are the newest row's that has
+/// any.
+struct SequenceRecapHistory {
+    let state: LessonPresentationState?
+    let firstPresentedAt: Date?
+    let lastObservedAt: Date?
+    let masteredAt: Date?
+    let notes: String?
+
+    init(rows: [CDLessonPresentation]) {
+        let highest = rows.map(\.state).max { Self.rank($0) < Self.rank($1) }
+        state = highest
+        firstPresentedAt = rows.compactMap(\.presentedAt).min()
+        lastObservedAt = rows.compactMap { $0.lastObservedAt ?? $0.presentedAt }.max()
+        masteredAt = highest == .proficient
+            ? rows.filter { $0.state == .proficient }.compactMap(\.masteredAt).min()
+            : nil
+        notes = rows
+            .sorted { Self.seen($0) > Self.seen($1) }
+            .lazy.compactMap(\.notes).first { !$0.isEmpty }
+    }
+
+    private static func seen(_ row: CDLessonPresentation) -> Date {
+        row.lastObservedAt ?? row.presentedAt ?? .distantPast
+    }
+
+    /// Presented, then practicing, then ready for assessment, then mastered.
+    private static func rank(_ state: LessonPresentationState) -> Int {
+        switch state {
+        case .presented: return 0
+        case .practicing: return 1
+        case .readyForAssessment: return 2
+        case .proficient: return 3
+        }
+    }
 }
 
 // MARK: - Note Snapshot Bridge

@@ -54,8 +54,17 @@ enum PresentationSplitService {
         newAssignment.lessonTitleSnapshot = assignment.lessonTitleSnapshot
         newAssignment.lessonSectionSnapshot = assignment.lessonSectionSnapshot
 
+        // The ready children take with them what is theirs on the original,
+        // as a child dragged to another group does (`PresentationGroupMove`):
+        // their year-plan entries promoted into it, and notes about only them
+        // (bug hunt 2026-11-03 #11). A note for the whole group stays.
+        PresentationRecordCleanup.moveStudents(
+            Set(readyStudentIDs.map(\.uuidString)), from: assignment, to: newAssignment, in: context
+        )
+
         // Update original assignment to only contain blocked students
         assignment.studentIDs = remainingIDs.map(\.uuidString)
+        assignment.updateDenormalizedKeys()
         assignment.modifiedAt = Date()
 
         return newAssignment

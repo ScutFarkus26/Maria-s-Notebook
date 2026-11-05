@@ -36,7 +36,7 @@ final class Phase5PostTests {
 
     @Test("Assistant cannot write shared classroom entities")
     func assistantCannotWriteShared() {
-        let denied = ["Student", "Lesson", "Track", "TrackStep", "Schedule", "Procedure"]
+        let denied = ["Student", "Lesson", "Schedule", "Procedure"]
         for entity in denied {
             #expect(
                 !ClassroomPermissions.canWrite(entityName: entity, role: .assistant),

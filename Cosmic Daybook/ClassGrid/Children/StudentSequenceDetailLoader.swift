@@ -49,7 +49,7 @@ enum StudentSequenceDetailLoader {
 
         let lessonMap = fetchLessonMap(lessonIDs: target.lessonIDs, context: context)
         let work = fetchWork(
-            studentIDStr: studentIDStr,
+            studentID: target.studentID,
             lessonIDStrs: lessonIDStrs,
             lessonMap: lessonMap,
             context: context
@@ -88,21 +88,26 @@ enum StudentSequenceDetailLoader {
         )
     }
 
+    /// The work that counts as hers, by the rule her Children card files it by
+    /// (`WorkVisibility`): the rows she owns, and a shared row she is on (project
+    /// work) though another child owns it; never a classmate's linked copy naming
+    /// her. Reading only the rows she owned, the card said Practicing while this
+    /// sheet said "No work items" (bug hunt 2026-11-03 #26, finishing 10-29 #16).
+    /// Every row of the lessons is read, open and closed: her closed copy is what
+    /// tells a classmate's open copy apart from a row she shares.
     private static func fetchWork(
-        studentIDStr: String,
+        studentID: UUID,
         lessonIDStrs: [String],
         lessonMap: [UUID: CDLesson],
         context: NSManagedObjectContext
     ) -> [WorkDetailItem] {
         let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(
-            format: "studentID == %@ AND lessonID IN %@",
-            studentIDStr,
-            lessonIDStrs
-        )
+        request.predicate = NSPredicate(format: "lessonID IN %@", lessonIDStrs)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.assignedAt, ascending: false)]
-        let fetched = context.safeFetch(request)
-        return fetched.map { work in
+        request.relationshipKeyPathsForPrefetching = ["participants"]
+        let rows = context.safeFetch(request).filter { !$0.isDeleted }
+        let visibility = WorkVisibility(rows: rows)
+        return rows.filter { visibility.isVisible($0, to: studentID) }.map { work in
             let lessonUUID = UUID(uuidString: work.lessonID)
             let lessonName = lessonUUID.flatMap { lessonMap[$0]?.name } ?? "Lesson"
             return WorkDetailItem(
@@ -146,6 +151,11 @@ enum StudentSequenceDetailLoader {
         }
     }
 
+    /// The lessons' notes about her. Notes made from the presentation and work
+    /// editors hang on the record they were written on (the presentation, the work
+    /// or a check-in) and carry no `lessonID`, so every route back to the lesson is
+    /// read, as the sequence recap reads them (`SequenceRecapDataLoader`); reading
+    /// `lessonID` alone missed most of them (bug hunt 2026-11-03 #27).
     private static func fetchNotes(
         studentID: UUID,
         lessonIDStrs: [String],
@@ -153,22 +163,29 @@ enum StudentSequenceDetailLoader {
         context: NSManagedObjectContext
     ) -> [NoteDetailItem] {
         let request = CDFetchRequest(CDNote.self)
-        request.predicate = NSPredicate(format: "lessonID IN %@", lessonIDStrs)
+        request.predicate = NSCompoundPredicate(orPredicateWithSubpredicates: [
+            NSPredicate(format: "lessonID IN %@", lessonIDStrs),
+            NSPredicate(format: "lessonAssignment.lessonID IN %@", lessonIDStrs),
+            NSPredicate(format: "work.lessonID IN %@", lessonIDStrs),
+            NSPredicate(format: "workCheckIn.work.lessonID IN %@", lessonIDStrs)
+        ])
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: false)]
+        request.relationshipKeyPathsForPrefetching = ["lessonAssignment", "work", "workCheckIn.work"]
         let scoped = context.safeFetch(request).filter { note in
             switch note.scope {
-            case .all:                  return true
+            case .all:                  return isOnRecord(of: note, studentID)
             case .student(let id):      return id == studentID
             case .students(let ids):    return ids.contains(studentID)
             }
         }
         return scoped.map { note in
-            let lessonName: String
-            if let lessonIDStr = note.lessonID, let lessonUUID = UUID(uuidString: lessonIDStr) {
-                lessonName = lessonMap[lessonUUID]?.name ?? "Lesson"
-            } else {
-                lessonName = "Lesson"
-            }
+            // The lesson the note reaches the sequence through: its own, or its record's.
+            let lessonIDs = [
+                note.lessonID, note.lessonAssignment?.lessonID, note.work?.lessonID, note.workCheckIn?.work?.lessonID
+            ]
+            let lessonName = lessonIDs.lazy
+                .compactMap { $0.flatMap(UUID.init(uuidString:)).flatMap { lessonMap[$0]?.name } }
+                .first ?? "Lesson"
             return NoteDetailItem(
                 id: note.id ?? UUID(),
                 lessonName: lessonName,
@@ -176,5 +193,18 @@ enum StudentSequenceDetailLoader {
                 createdAt: note.createdAt
             )
         }
+    }
+
+    /// A note for everyone is everyone's on a lesson, but on a presentation or a
+    /// work it is about the children on that record: a classmate's presentation of
+    /// the same lesson isn't hers.
+    private static func isOnRecord(of note: CDNote, _ studentID: UUID) -> Bool {
+        if let assignment = note.lessonAssignment {
+            return assignment.studentIDs.contains(studentID.uuidString)
+        }
+        if let work = note.workCheckIn?.work ?? note.work {
+            return WorkGrouping.involves(studentID, in: work)
+        }
+        return true
     }
 }

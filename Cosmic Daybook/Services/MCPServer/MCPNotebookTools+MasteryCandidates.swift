@@ -4,7 +4,7 @@
 //
 //  Who looks ready to be marked mastered, and on what evidence.
 //
-//  Sequence tracks read "0 mastered" for nearly every child, because
+//  A sequence reads "0 mastered" for nearly every child, because
 //  recording a presentation never marks mastery and going back to assess is
 //  a separate trip the guide rarely makes. Nothing here closes that gap by
 //  writing: a mastery mark means the guide assessed the child, and no

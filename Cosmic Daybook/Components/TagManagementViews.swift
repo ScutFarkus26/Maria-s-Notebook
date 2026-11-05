@@ -36,7 +36,9 @@ struct TagPicker: View {
     @Binding var selectedTags: [String]
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
-    private var students: [CDStudent] { dependencies.roster.enrolled }
+    @TestStudentVisibility private var testStudents
+    /// The class, without hidden test students (bug hunt 2026-11-03, #55).
+    private var students: [CDStudent] { testStudents.visible(dependencies.roster.enrolled) }
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.createdAt, ascending: false)])
     private var allTodos: FetchedResults<CDTodoItem>
     @State private var isShowingCustomTagSheet = false

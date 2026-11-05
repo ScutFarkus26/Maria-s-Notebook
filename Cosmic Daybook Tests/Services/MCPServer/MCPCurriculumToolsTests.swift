@@ -85,7 +85,7 @@ struct MCPCurriculumToolsTests {
 
     // MARK: - create_lesson
 
-    @Test("create_lesson appends to the sub-area, numbers it like the app, and refreshes the track")
+    @Test("create_lesson appends to the sub-area and numbers it like the app")
     func createAppendsAndNumbers() async throws {
         let (tools, context) = try makeTools()
         seedSequence(["Subject", "Predicate"], area: "Language", sequence: "Logical Analysis", in: context)

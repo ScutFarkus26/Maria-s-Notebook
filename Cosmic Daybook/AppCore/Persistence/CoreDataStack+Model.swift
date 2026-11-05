@@ -72,8 +72,8 @@ extension CoreDataStack {
     ///
     /// It used to hold 33 types, and the Student ↔ StudentTrackEnrollment
     /// relationship pulled tracks, steps, lessons and other students into any
-    /// share a student joined. Since schema 9 the relationship is gone
-    /// (enrollments name their student by `studentID`) and the list was five
+    /// share a student joined. Since schema 9 the relationship is gone (and
+    /// since schema 23 the track entities themselves) and the list was five
     /// (Supply and SupplyTransaction were among the 33, and left it then);
     /// schema 12 added the two front-desk email types, schema 15 brought the
     /// supplies back with the order list, as Restock, schema 16 added the
@@ -124,10 +124,6 @@ extension CoreDataStack {
         "Lesson",
         "LessonAttachment",
         "LessonPresentation",
-        "Track",
-        "TrackStep",
-        "SequenceTrack",
-        "StudentTrackEnrollment",
         "Procedure",
         "Schedule",
         "ScheduleSlot",
@@ -207,8 +203,10 @@ extension CoreDataStack {
     /// Entities left in the model on purpose, belonging to no store.
     ///
     /// These are the Transition Planner, Work Cycle, Prep Checklist and
-    /// Initiative features, removed end to end on 2026-06-11. No Swift code
-    /// references their `CD*` classes, so nothing reads or writes them.
+    /// Initiative features, removed end to end on 2026-06-11, and the four
+    /// track entities, retired at schema 23 (`docs/Plans/Plan - Retire the
+    /// track entities.md`). None of them has a Swift class, so nothing reads
+    /// or writes them.
     ///
     /// Leaving both stores drops the entity's table on the next migration,
     /// so only an empty type with no relationship from a live one belongs here.
@@ -216,7 +214,10 @@ extension CoreDataStack {
     /// They stay in the model deliberately. The CloudKit schema is
     /// additive-only, and dropping entities from a mirrored model forces
     /// re-mirroring — the route to the "empty database on launch" failure.
-    /// Dormant schema is the cheaper of the two.
+    /// Dormant schema is the cheaper of the two. Deleting an entity from the
+    /// model also makes its store's migration truncate persistent history
+    /// (every token older than the last save expires), which taking it out of
+    /// the store's configuration does not (`TrackEntitiesDropMigrationTests`).
     ///
     /// Reviving one of these features means deleting its name from here and
     /// routing it properly; `Phase8PreTests` fails if a name is in both this
@@ -229,7 +230,12 @@ extension CoreDataStack {
         "TransitionChecklistItem",
         "TransitionPlan",
         "WorkCycleEntry",
-        "WorkCycleSession"
+        "WorkCycleSession",
+        // Schema 23.
+        "SequenceTrack",
+        "StudentTrackEnrollment",
+        "Track",
+        "TrackStep"
     ]
 
     /// Entities whose features were removed but whose rows still exist: Apple

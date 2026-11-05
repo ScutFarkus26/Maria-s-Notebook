@@ -7,10 +7,10 @@
 //  into the two ordering columns the Lessons screens read.
 //
 //  `orderInSequence` is the truth within a sub-area (the `sequence` column):
-//  every sequence-level view, the recall engine, the year plan and the track
-//  steps sort on it. `sortIndex` is derived — an area-wide index the area
-//  view sorts on, rebuilt by walking the area's sub-areas in the map's saved
-//  order and numbering every lesson. LessonsRootViewReordering renumbers the
+//  every sequence-level view, the recall engine and the year plan sort on
+//  it. `sortIndex` is derived — an area-wide index the area view sorts on,
+//  rebuilt by walking the area's sub-areas in the map's saved order and
+//  numbering every lesson. LessonsRootViewReordering renumbers the
 //  first and rebuilds the second after every in-app move, and these helpers
 //  do exactly that so a tool edit is indistinguishable from a drag.
 //

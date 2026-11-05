@@ -139,6 +139,10 @@ single table: `complete` + `mastered` → `mastered`, + `needsMorePractice` →
 (not flag-gated — CloudKit can deliver an old-shape row late) and
 `BackupEntityImporter.importWorkModels` runs it on restore.
 
+### Save on the work page (bug hunt 2026-11-03)
+
+Save writes only the header fields she changed in this sitting. The page remembers whether she touched the status pill or the title (`WorkDetailViewModel`); Save logs a status through `WorkLogService`, or writes a title to every copy, only for a touched field. An untouched field is reloaded when the stored row changes underneath (`refreshHeaderFromStore`), so a Mastered set from the Checklist while the page was open survives a Save that only adds a note. The note, check-in and step trash buttons ask first; a check-in Delete goes through `WorkCheckInService.unschedule`, which skips the check-in and keeps its note. Unlock Next Lesson saves at once (it is an action, not an edit of the page).
+
 ### WorkLogService
 Logging a work check is the only way a row's status changes.
 

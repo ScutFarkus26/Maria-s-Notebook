@@ -66,8 +66,10 @@ struct LessonsWorkFix1017LW {
     @Test("#46: the Progress dashboard reloads on mastery marks and lesson edits too")
     func progressDashboardWatchesMasteryAndLessons() throws {
         let watched = ProgressDashboardView.reloadEntityNames
-        #expect(watched == ["LessonAssignment", "WorkModel", "LessonPresentation", "Lesson"])
-        // The remote-import signal reports only these, so all four must be among them.
+        #expect(watched == [
+            "LessonAssignment", "WorkModel", "LessonPresentation", "Lesson", "YearPlanEntry", "WorkParticipantEntity"
+        ])
+        // The remote-import signal reports only these, so all of them must be among them.
         #expect(watched.isSubset(of: PersistentHistoryProcessor.presentationEntityNames))
 
         // A mastery mark saved alone (what mark_mastered and a synced mark

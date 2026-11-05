@@ -63,7 +63,6 @@ enum StudentDeletion {
     static let ownedEntities = [
         "AttendanceRecord",
         "LessonPresentation",
-        "StudentTrackEnrollment",
         "DevelopmentSnapshot",
         "ScheduleSlot",
         "WorkCompletionRecord",

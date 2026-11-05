@@ -152,7 +152,7 @@ nonisolated enum BackupEntityTable {
     /// Every backed-up entity type, in archive order. Split into groups only to
     /// keep each array literal quick to type-check.
     static let entities: [BackupEntity] =
-        coreEntities + workAndLessonEntities + templateAndTrackEntities
+        coreEntities + workAndLessonEntities + templateEntities
             + organizationEntities + laterFormatEntities
 
     /// Every entity name, in archive order.
@@ -163,6 +163,14 @@ nonisolated enum BackupEntityTable {
     /// A restore passes over their entries without a warning; the records
     /// already here stay.
     static var skippedOnImport: Set<String> { CoreDataStack.retiredEntities }
+
+    /// Types an older backup carries that no store holds any more: their
+    /// entries are skipped without a warning, since nothing here could hold
+    /// them and the backup isn't from a newer version. The four came out at
+    /// format 45 (schema 23, `docs/Plans/Plan - Retire the track entities.md`;
+    /// they stay in the model only as dormant tombstones); what they held is
+    /// read off the lessons and the presentation record now.
+    static let retiredNames: Set<String> = ["Track", "TrackStep", "SequenceTrack", "StudentTrackEnrollment"]
 
     /// The type whose rows `field` holds, or nil for a payload array no
     /// backed-up type fills (the retired project types).
@@ -249,19 +257,12 @@ nonisolated enum BackupEntityTable {
         .optional("SampleWorkStep", CDSampleWorkStep.self, \.sampleWorkSteps, SampleWorkStepDTO.rows)
     ]
 
-    private static let templateAndTrackEntities: [BackupEntity] = [
+    private static let templateEntities: [BackupEntity] = [
         .optional(
             "MeetingTemplate", CDMeetingTemplate.self, \.meetingTemplates, MeetingTemplateDTO.rows,
-            announcing: .init(0.55, "Collecting templates & tracks\u{2026}")
+            announcing: .init(0.55, "Collecting templates\u{2026}")
         ),
-        .optional("CalendarEvent", CDCalendarEvent.self, \.calendarEvents, CalendarEventDTO.rows),
-        .optional("Track", CDTrackEntity.self, \.tracks, TrackDTO.rows),
-        .optional("TrackStep", CDTrackStep.self, \.trackSteps, TrackStepDTO.rows),
-        .optional(
-            "StudentTrackEnrollment", CDStudentTrackEnrollmentEntity.self, \.studentTrackEnrollments,
-            StudentTrackEnrollmentDTO.rows
-        ),
-        .optional("SequenceTrack", CDSequenceTrack.self, \.sequenceTracks, SequenceTrackDTO.rows)
+        .optional("CalendarEvent", CDCalendarEvent.self, \.calendarEvents, CalendarEventDTO.rows)
     ]
 
     private static let organizationEntities: [BackupEntity] = [

@@ -13,7 +13,6 @@ final class PresentationsViewModel {
     var blockedLessons: [CDLessonAssignment] = []
     /// Per-assignment blocking results with per-student readiness.
     var blockingResults: [UUID: BlockingAlgorithmEngine.BlockingCheckResult] = [:]
-    var blockingWorkCache: [UUID: [UUID: CDWorkModel]] = [:]
     var daysSinceLastLessonByStudent: [UUID: Int] = [:]
     var lastAreaByStudent: [UUID: String] = [:]
     var openWorkCountByStudent: [UUID: Int] = [:]
@@ -47,7 +46,7 @@ final class PresentationsViewModel {
     var cachedLessonAssignments: [CDLessonAssignment] = []
     private var cachedStudentsStorage: [CDStudent] = []
 
-    // PERFORMANCE: CDTrackEntity pending update for cancellation
+    // PERFORMANCE: the pending update, kept so a newer one can cancel it
     private(set) var pendingUpdateTask: Task<Void, Never>?
     /// How many times `update` refetched the assignment table (tests pin the gate).
     @ObservationIgnored private(set) var assignmentFetchCount = 0
@@ -59,6 +58,9 @@ final class PresentationsViewModel {
     private var lastStudentsHash: Int?
     /// Order and test students (`settingsHash`).
     private var lastSettingsHash: Int?
+    /// Sub-area default rules and the preceding lessons' mastery marks
+    /// (`readinessInputsHash`).
+    private var lastReadinessInputsHash: Int?
 
     /// Bumped on every `LessonAssignment` change the view context could see;
     /// the cached table and its hash stand in for a refetch only while stored
@@ -93,7 +95,6 @@ final class PresentationsViewModel {
         lessonsByIDCache = [:]
         studentsByIDCache = [:]
         blockingResults = [:]
-        blockingWorkCache = [:]
         daysSinceLastLessonByStudent = [:]
         lastAreaByStudent = [:]
         openWorkCountByStudent = [:]
@@ -107,51 +108,7 @@ final class PresentationsViewModel {
         lastWorkModelHash = nil
         lastStudentsHash = nil
         lastSettingsHash = nil
-    }
-
-    // MARK: - Change Detection Helpers
-
-    /// Computes a hash for CDLessonAssignment change detection
-    private func computeLessonAssignmentHash(_ assignments: [CDLessonAssignment]) -> Int {
-        var hasher = Hasher()
-        for la in assignments {
-            hasher.combine(la.id)
-            hasher.combine(la.scheduledFor?.timeIntervalSinceReferenceDate ?? -1)
-            hasher.combine(la.presentedAt?.timeIntervalSinceReferenceDate ?? -1)
-            hasher.combine(la.stateRaw)
-            hasher.combine(la.notes)
-            hasher.combine(la.followUpWork)
-            // The stored bytes, not the decoded array: the same bytes always
-            // decode to the same ids, and hashing them skips a JSON decode per row.
-            hasher.combine(la._studentIDsData)
-            hasher.combine(la.needsPractice)
-            hasher.combine(la.needsAnotherPresentation)
-            hasher.combine(la.lessonID)
-            hasher.combine(la.manuallyUnblocked)
-            // A confirmation readies a child for the next lesson.
-            hasher.combine(la._confirmedStudentIDsData)
-        }
-        return hasher.finalize()
-    }
-
-    /// Computes a hash for array of Identifiable items
-    private func computeIDHash<T: Identifiable>(_ items: [T]) -> Int where T.ID == UUID? {
-        var hasher = Hasher()
-        for item in items {
-            hasher.combine(item.id)
-        }
-        return hasher.finalize()
-    }
-
-    /// Computes a hash for CDWorkModel change detection (includes status and presentation link)
-    private func computeWorkModelHash(_ workModels: [CDWorkModel]) -> Int {
-        var hasher = Hasher()
-        for w in workModels {
-            hasher.combine(w.id)
-            hasher.combine(w.statusRaw)
-            hasher.combine(w.presentationID)
-        }
-        return hasher.finalize()
+        lastReadinessInputsHash = nil
     }
 
     // MARK: - Public API
@@ -216,20 +173,27 @@ final class PresentationsViewModel {
 
         let workRequest = CDFetchRequest(CDWorkModel.self)
         workRequest.predicate = WorkStatus.openPredicate
+        workRequest.relationshipKeyPathsForPrefetching = ["participants"]
         let workModels = viewContext.safeFetch(workRequest)
         let closedPrecedingWork = fetchClosedPrecedingWork(lessonAssignments, lessons, in: viewContext)
+        let masteryMarks = fetchPrecedingMasteryMarks(lessonAssignments, lessons, in: viewContext)
         await Task.yield()
         if Task.isCancelled { return }
 
-        let lHash = computeIDHash(lessons)
+        let lHash = Self.lessonsHash(lessons)
         let sHash = computeStudentsHash(students)
         let wHash = computeWorkModelHash(workModels + closedPrecedingWork)
         let settingsHash = Self.settingsHash(inboxOrderRaw, showTestStudents, testStudentNamesRaw)
+        let readinessHash = Self.readinessInputsHash(
+            sequenceSettings: viewContext.safeFetch(CDFetchRequest(CDLessonSequenceSettings.self)),
+            masteryMarks: masteryMarks
+        )
         let coreChanged = laHash != lastLessonAssignmentChangeHash
             || lHash != lastLessonsHash
             || sHash != lastStudentsHash
             || wHash != lastWorkModelHash
             || settingsHash != lastSettingsHash
+            || readinessHash != lastReadinessInputsHash
         if !coreChanged && lastUpdateDate != nil {
             // Same hash as the cached array: it still stands for the store.
             cachedAssignmentsGeneration = generation
@@ -241,6 +205,7 @@ final class PresentationsViewModel {
         lastWorkModelHash = wHash
         lastStudentsHash = sHash
         lastSettingsHash = settingsHash
+        lastReadinessInputsHash = readinessHash
 
         #if DEBUG
         PerformanceLogger.logScreenLoad(
@@ -283,17 +248,6 @@ final class PresentationsViewModel {
         }
         self.openWorkCountByStudent = workCounts
 
-        let openWorkByPresentationID: [String: [CDWorkModel]] = workModels
-            .filter { $0.presentationID != nil }
-            .grouped { $0.presentationID ?? "" }
-        rebuildBlockingCache(
-            lessonAssignments: lessonAssignments,
-            workModels: workModels,
-            openWorkByPresentationID: openWorkByPresentationID
-        )
-        await Task.yield()
-        if Task.isCancelled { return }
-
         calculateDaysSinceLastLesson(
             lessonAssignments: lessonAssignments, lessons: lessons, students: visibleStudents
         )
@@ -304,6 +258,8 @@ final class PresentationsViewModel {
             lessonAssignments: lessonAssignments,
             lessons: lessons,
             workModels: workModels + closedPrecedingWork,
+            masteryMarks: masteryMarks,
+            judgedStudentIDs: Set(visibleStudents.compactMap(\.id)),
             inboxOrderRaw: inboxOrderRaw
         )
         self.readyLessons = partition.ready
@@ -322,10 +278,13 @@ final class PresentationsViewModel {
         #endif
     }
 
+    // swiftlint:disable:next function_parameter_count
     private func partitionIntoReadyAndBlocked(
         lessonAssignments: [CDLessonAssignment],
         lessons: [CDLesson],
         workModels: [CDWorkModel],
+        masteryMarks: [String: Set<String>],
+        judgedStudentIDs: Set<UUID>,
         inboxOrderRaw: String
     ) -> PresentationPartition {
         let allUnscheduled = lessonAssignments.filter { $0.scheduledFor == nil && !$0.isGiven }
@@ -333,7 +292,9 @@ final class PresentationsViewModel {
             forBatch: allUnscheduled,
             lessons: lessons,
             allLessonAssignments: lessonAssignments,
-            workModels: workModels
+            workModels: workModels,
+            masteryMarks: masteryMarks,
+            judgedStudentIDs: judgedStudentIDs
         )
         var ready: [CDLessonAssignment] = []
         var blocked: [CDLessonAssignment] = []
@@ -349,22 +310,6 @@ final class PresentationsViewModel {
         return PresentationPartition(ready: ordered, blocked: blocked,
                                      blockingResultsMap: blockingResults)
     }
-
-    // MARK: - Private Helpers — Blocking Cache
-
-    private func rebuildBlockingCache(
-        lessonAssignments: [CDLessonAssignment],
-        workModels: [CDWorkModel],
-        openWorkByPresentationID: [String: [CDWorkModel]]
-    ) {
-        blockingWorkCache = BlockingCacheBuilder.buildCache(
-            lessonAssignments: lessonAssignments,
-            lessons: cachedLessons,
-            workModels: workModels,
-            openWorkByPresentationID: openWorkByPresentationID
-        )
-    }
-
 }
 
 // MARK: - Cache Query Helpers
@@ -378,10 +323,14 @@ extension PresentationsViewModel {
         let blockingResultsMap: [UUID: BlockingAlgorithmEngine.BlockingCheckResult]
     }
 
-    /// Get blocking work for a specific CDLessonAssignment (from cache)
-    func getBlockingWork(_ la: CDLessonAssignment) -> [UUID: CDWorkModel] {
-        guard let laID = la.id else { return [:] }
-        return blockingWorkCache[laID] ?? [:]
+    /// The children holding up a brewing lesson, for the marker on their
+    /// chips: the ones the readiness engine found not ready. A separate lookup
+    /// used to find the earlier lesson's presentation only when it had exactly
+    /// the same children, so a group drawn from two earlier groups showed no
+    /// marker (bug hunt 2026-11-03 #9).
+    func blockingStudentIDs(of la: CDLessonAssignment) -> Set<UUID> {
+        guard let id = la.id, let result = blockingResults[id] else { return [] }
+        return Set(result.perStudentReadiness.values.filter { !$0.isReady }.map(\.studentID))
     }
 
 }

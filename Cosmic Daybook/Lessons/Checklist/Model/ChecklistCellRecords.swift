@@ -89,10 +89,7 @@ enum ChecklistCellRecords {
             var remaining = assignment.studentIDs
             remaining.removeAll { $0 == studentKey }
             if remaining.isEmpty {
-                for note in (assignment.unifiedNotes as? Set<CDNote>) ?? [] where !note.isDeleted {
-                    note.lessonAssignment = nil
-                    keep(note, for: studentID, lessonKey: lessonKey, in: context)
-                }
+                keepNotes(onPresentationLeaving: assignment, for: studentID, lessonKey: lessonKey, in: context)
                 PresentationRecordCleanup.prepareToDelete(assignment, in: context)
                 context.delete(assignment)
             } else {
@@ -133,6 +130,43 @@ enum ChecklistCellRecords {
         return summary
     }
 
+    // MARK: - Keeping what she wrote
+
+    /// Notes on a presentation that goes come off it first (they cascade with it)
+    /// and stay in the child's notes (`keep`). Also used by Unmark Presented and
+    /// Remove Plan when she was the only child on the record
+    /// (`ChecklistRosterRemoval.remove`, bug hunt 2026-11-03 #2).
+    static func keepNotes(
+        onPresentationLeaving assignment: CDLessonAssignment, for studentID: UUID?, lessonKey: String,
+        in context: NSManagedObjectContext
+    ) {
+        for note in (assignment.unifiedNotes as? Set<CDNote>) ?? [] where !note.isDeleted {
+            note.lessonAssignment = nil
+            keep(note, for: studentID, lessonKey: lessonKey, in: context)
+        }
+    }
+
+    /// The text of history rows about to go (their notes and follow-up note), kept as a
+    /// note on each row's child, filed under the lesson and dated when the row was.
+    static func keepText(of rows: [CDLessonPresentation], in context: NSManagedObjectContext) {
+        for row in rows where !row.isDeleted {
+            guard let studentID = UUID(uuidString: row.studentID) else { continue }
+            keepText(of: row, for: studentID, lessonKey: row.lessonID, in: context)
+        }
+    }
+
+    /// How many notes `keepNotes` and `keepText` would keep: the record's notes and its
+    /// history rows (`rows`) that carry text.
+    static func noteCount(on assignment: CDLessonAssignment, rows: [CDLessonPresentation]) -> Int {
+        let notes = ((assignment.unifiedNotes as? Set<CDNote>) ?? []).filter { !$0.isDeleted }.count
+        let texts = rows.filter { row in
+            !row.isDeleted && [row.notes, row.followUpNote].contains {
+                !($0?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "").isEmpty
+            }
+        }.count
+        return notes + texts
+    }
+
     // MARK: - Pieces
 
     /// Every row of the lesson's work that names the child, as owner or participant.
@@ -168,13 +202,15 @@ enum ChecklistCellRecords {
     /// show as a general note on every child's page. It is filed under the
     /// lesson when it named none, so it still says what it was about.
     private static func keep(
-        _ note: CDNote, for studentID: UUID, lessonKey: String, in context: NSManagedObjectContext
+        _ note: CDNote, for studentID: UUID?, lessonKey: String, in context: NSManagedObjectContext
     ) {
-        if case .all = note.scope {
+        if case .all = note.scope, let studentID {
             note.scope = .student(studentID)
             note.syncStudentLinks(in: context)
         }
-        if (note.lessonID ?? "").isEmpty { note.lessonID = lessonKey }
+        if (note.lessonID ?? "").isEmpty { note.lessonID = UUID(uuidString: lessonKey)?.uuidString ?? lessonKey }
+        // As the history's Delete keeps a note (`PresentationDeletion`), so it syncs as changed.
+        note.updatedAt = Date()
     }
 
     /// A history row's own text (its notes and follow-up note) kept as a note
@@ -192,7 +228,7 @@ enum ChecklistCellRecords {
         note.createdAt = row.presentedAt ?? row.createdAt ?? Date()
         note.updatedAt = note.createdAt
         note.scope = .student(studentID)
-        note.lessonID = lessonKey
+        note.lessonID = UUID(uuidString: lessonKey)?.uuidString ?? lessonKey
     }
 
     /// Notes on the rows taking her off will delete (rows she is alone on, or

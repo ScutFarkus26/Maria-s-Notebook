@@ -72,11 +72,6 @@ nonisolated enum BackupPlainNames {
         "WorkCompletionRecord": "Completed work",
         "SampleWork": "Sample work",
         "SampleWorkStep": "Sample work steps",
-        // Tracks
-        "Track": "Tracks",
-        "TrackStep": "Track steps",
-        "StudentTrackEnrollment": "Children on tracks",
-        "SequenceTrack": "Lesson sequences",
         // Community, projects and book club
         "CommunityTopic": "Community meeting topics",
         "ProposedSolution": "Proposed solutions",

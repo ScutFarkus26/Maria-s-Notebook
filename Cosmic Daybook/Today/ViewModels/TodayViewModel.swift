@@ -135,24 +135,16 @@ final class TodayViewModel {
     // MARK: - Cache Accessors (delegate to cacheManager)
 
     /// Students lookup dictionary (read-only access to cache)
-    var studentsByID: [UUID: CDStudent] {
-        cacheManager.studentsByID
-    }
+    var studentsByID: [UUID: CDStudent] { cacheManager.studentsByID }
 
     /// Lessons lookup dictionary (read-only access to cache)
-    var lessonsByID: [UUID: CDLesson] {
-        cacheManager.lessonsByID
-    }
+    var lessonsByID: [UUID: CDLesson] { cacheManager.lessonsByID }
 
     /// Returns the display name for a student ID
-    func displayName(for studentID: UUID) -> String {
-        cacheManager.displayName(for: studentID)
-    }
+    func displayName(for studentID: UUID) -> String { cacheManager.displayName(for: studentID) }
 
     /// Returns the lesson name for a lesson ID
-    func lessonName(for lessonID: UUID) -> String {
-        cacheManager.lessonName(for: lessonID)
-    }
+    func lessonName(for lessonID: UUID) -> String { cacheManager.lessonName(for: lessonID) }
 
     // MARK: - Error Reporting
 
@@ -303,8 +295,11 @@ final class TodayViewModel {
         )
         cacheManager.loadStudentsIfNeeded(ids: completedMeetingsResult.neededStudentIDs, context: context)
         let meetingStudentIDs = meetingsResult.neededStudentIDs.union(completedMeetingsResult.neededStudentIDs)
+        // Hidden test students' meetings and notes stay off Today (#55).
+        let hiddenIDs = cacheManager.hiddenStudentIDs(context: context)
+        let meetingDeparted = departed.filter { meetingStudentIDs.contains($0.key) && !hiddenIDs.contains($0.key) }
         let meetingStudents = cacheManager.enrolledStudents(ids: meetingStudentIDs, context: context)
-            .merging(departed.filter { meetingStudentIDs.contains($0.key) }) { enrolled, _ in enrolled }
+            .merging(meetingDeparted) { enrolled, _ in enrolled }
 
         // 7. Fetch attendance
         let attendanceResult = TodayDataFetcher.fetchAttendance(
@@ -318,7 +313,7 @@ final class TodayViewModel {
         // 7. Fetch recent notes; their children resolve against the roster snapshot
         let notesResult = TodayDataFetcher.fetchRecentNotes(context: context, errorCollector: errorCollector)
         let missingStudentIDs = notesResult.neededStudentIDs.subtracting(recentNoteStudentsByID.keys)
-        let updatedRecentNoteStudents = recentNoteStudentsByID.merging(
+        let updatedRecentNoteStudents = recentNoteStudentsByID.filter { !hiddenIDs.contains($0.key) }.merging(
             cacheManager.enrolledStudents(ids: missingStudentIDs, context: context)
         ) { _, new in new }
 
@@ -341,11 +336,15 @@ final class TodayViewModel {
         completedWork = filteredCompletedWork
         todaysCalendarEvents = calendarEvents
         scheduledMeetings = TodayAgendaBuilder.orderMeetings(
-            TodayMeetingRows.filter(meetingsResult.meetings, studentsByID: studentsByID, levelFilter: levelFilter),
+            TodayMeetingRows.filter(
+                TodayHiddenStudents.meetings(meetingsResult.meetings, hiding: hiddenIDs),
+                studentsByID: studentsByID, levelFilter: levelFilter
+            ),
             day: day, context: context
         )
         completedMeetings = TodayMeetingRows.filterCompleted(
-            completedMeetingsResult.meetings, studentsByID: studentsByID, levelFilter: levelFilter
+            TodayHiddenStudents.completedMeetings(completedMeetingsResult.meetings, hiding: hiddenIDs),
+            studentsByID: studentsByID, levelFilter: levelFilter
         )
         meetingStudentsByID = meetingStudents
         scheduleRows = TodayScheduleRows.rows(scheduleDay, students: studentsByID)
@@ -356,7 +355,7 @@ final class TodayViewModel {
         hereStudentIDs = TodayAttendanceLoader.hereStudentIDs(in: attendanceResult.records)
         attendanceTaken = TodayAttendanceLoader.isTaken(in: attendanceResult.records)
         lessonIDsWithPlan = TodayLessonsLoader.lessonIDsWithPlan(for: filteredLessons, lessonsByID: lessonsByID)
-        recentNotes = notesResult.notes
+        recentNotes = TodayHiddenStudents.notes(notesResult.notes, hiding: hiddenIDs)
         recentNoteStudentsByID = updatedRecentNoteStudents
         followUpCheckIns = followUps
         departedStudentsByID = departed

@@ -36,8 +36,6 @@ final class StudentAreaProgressionViewModel {
         allPresentations = fetchedPresentations
         self.student = student
 
-        let studentIDStr = student.id?.uuidString ?? ""
-
         // Lessons in this sequence sorted by orderInSequence
         let groupLessons = fetchedLessons
             .filter { $0.area.trimmed() == area && $0.sequence.trimmed() == sequence }
@@ -45,47 +43,25 @@ final class StudentAreaProgressionViewModel {
 
         totalCount = groupLessons.count
 
-        // CDStudent's presentations and work in this sequence
-        let studentPresentations = fetchedPresentations.filter { $0.studentIDs.contains(studentIDStr) }
-        let studentWork = fetchWork(
-            studentID: studentIDStr, lessonIDs: groupLessons.map { $0.id?.uuidString ?? "" }, context: context
-        )
+        // Her presentations, the work that counts as hers (shared project work
+        // included), her mastery marks and her year plan in this sequence, each
+        // lesson's rung by the Checklist's rule (`StudentLessonRecords`).
+        let lessonIDs = groupLessons.map { $0.id?.uuidString ?? "" }
+        let states = StudentLessonRecords(
+            studentID: student.id ?? UUID(), lessonIDs: lessonIDs, presentations: fetchedPresentations,
+            context: context
+        ).states(lessonIDs: lessonIDs)
+        let studentWork = states.flatMap(\.work)
         let studentCheckIns = fetchCheckIns(workIDs: studentWork.compactMap { $0.id?.uuidString }, context: context)
-        // Mastery is the mark on the lesson, as on the class checklist — not closed work.
-        let masteredLessonIDs = Set(
-            PresentationRecordIndex.masteryMarks(
-                lessonIDs: Set(groupLessons.compactMap { $0.id?.uuidString }), in: context
-            )
-            .filter { $0.value.contains(studentIDStr) }
-            .keys
-        )
 
         let today = AppCalendar.startOfDay(Date())
 
         var completed = 0
-        var foundNext = false
         var result: [LessonProgressionNode] = []
 
-        for lesson in groupLessons {
-            let lessonIDStr = lesson.id?.uuidString ?? ""
-
-            // Find matching presentation. "Previously Presented" records are undated
-            // (state == .presented, presentedAt == nil), so match on state as well —
-            // otherwise historical lessons show Not Started and get re-suggested as next.
-            let presentation = studentPresentations.first {
-                $0.lessonID == lessonIDStr && ($0.isPresented || $0.presentedAt != nil)
-            }
-            // Planned and not yet given: on a day, or a draft waiting in the inbox.
-            let plannedPresentations = studentPresentations.filter {
-                $0.lessonID == lessonIDStr && !$0.isPresented && $0.presentedAt == nil
-            }
-            let isMastered = masteredLessonIDs.contains(lessonIDStr)
-
-            // Find work items for this lesson
-            let lessonWork = studentWork.filter { $0.lessonID == lessonIDStr }
-
+        for (lesson, state) in zip(groupLessons, states) {
             // Build work progress items
-            let workItems: [WorkProgressItem] = lessonWork.map { work in
+            let workItems: [WorkProgressItem] = state.work.map { work in
                 let workCheckIns = studentCheckIns.filter { $0.workIDUUID != nil && $0.workIDUUID == work.id }
                 let lastCheckIn = workCheckIns
                     .filter { $0.status == .completed }
@@ -105,33 +81,18 @@ final class StudentAreaProgressionViewModel {
                 )
             }
 
-            let status = LessonNodeStatus.resolve(
-                isPresented: presentation != nil,
-                scheduledFor: plannedPresentations.compactMap(\.scheduledFor).min(),
-                isPlanned: !plannedPresentations.isEmpty,
-                isMastered: isMastered,
-                workStatuses: lessonWork.map(\.status)
-            )
-            if status == .mastered { completed += 1 }
-
-            // The "next" lesson: the first not given, not planned and not mastered.
-            let isNext: Bool
-            if !foundNext && status == .notStarted && plannedPresentations.isEmpty {
-                isNext = true
-                foundNext = true
-            } else {
-                isNext = false
-            }
+            if state.status == .mastered { completed += 1 }
 
             result.append(LessonProgressionNode(
                 id: lesson.id ?? UUID(),
                 lesson: lesson,
                 orderInSequence: Int(lesson.orderInSequence),
-                status: status,
-                presentedAt: presentation?.presentedAt,
-                presentationID: presentation?.id,
+                status: state.status,
+                presentedAt: state.given?.presentedAt,
+                presentationID: state.given?.id,
                 activeWork: workItems,
-                isNext: isNext
+                // The "next" lesson: the first not given, planned, practiced or mastered.
+                isNext: state.isNext
             ))
         }
 
@@ -141,11 +102,27 @@ final class StudentAreaProgressionViewModel {
 
     // MARK: - Actions
 
+    /// Whether the timeline offers Plan Lesson: only for a child in the class.
+    var canPlanLessons: Bool {
+        student?.isEnrolled ?? false
+    }
+
     /// Plans `lesson` itself for the child, as an inbox draft. It used to plan the
     /// lesson *after* the one tapped, and nothing on the last lesson (bug hunt
     /// 2026-10-10, P2 #35). The draft then shows the row as Planned.
-    func planLesson(_ lesson: CDLesson, context: NSManagedObjectContext) {
-        guard let student, let studentID = student.id else { return }
+    ///
+    /// A child who has left the class gets no new plan (bug hunt 2026-11-03 #32):
+    /// the timeline doesn't offer Plan Lesson for her (`canPlanLessons`), and if it
+    /// is reached anyway this returns what to tell the guide, the message new work
+    /// gets (`WorkRepository.requireEnrolled`). Nil when the lesson was planned.
+    @discardableResult
+    func planLesson(_ lesson: CDLesson, context: NSManagedObjectContext) -> String? {
+        guard let student, let studentID = student.id else { return nil }
+        do {
+            try WorkRepository(context: context).requireEnrolled(studentID)
+        } catch {
+            return AppErrorMessages.userMessage(for: error)
+        }
         PlanNextLessonService.planLesson(
             lesson,
             forStudents: [studentID],
@@ -155,6 +132,7 @@ final class StudentAreaProgressionViewModel {
             context: context
         )
         context.safeSave()
+        return nil
     }
 
     // MARK: - Helpers
@@ -171,10 +149,10 @@ final class StudentAreaProgressionViewModel {
     // MARK: - Fetching
 
     /// Lessons that could belong to `area` / `sequence` (see
-    /// `SequenceTrackService.couldEqualPredicate`), in curriculum order.
+    /// `SequenceStandingLoader.couldEqualPredicate`), in curriculum order.
     private func fetchLessons(area: String, sequence: String, context: NSManagedObjectContext) -> [CDLesson] {
         let descriptor = CDFetchRequest(CDLesson.self)
-        descriptor.predicate = SequenceTrackService.couldEqualPredicate(area: area, sequence: sequence)
+        descriptor.predicate = SequenceStandingLoader.couldEqualPredicate(area: area, sequence: sequence)
         descriptor.sortDescriptors = CDLesson.sortByCurriculumOrder
         return context.safeFetch(descriptor)
     }
@@ -184,13 +162,6 @@ final class StudentAreaProgressionViewModel {
     private func fetchPresentations(lessonIDs: [String], context: NSManagedObjectContext) -> [CDLessonAssignment] {
         let descriptor = CDFetchRequest(CDLessonAssignment.self)
         descriptor.predicate = NSPredicate(format: "lessonID IN[c] %@", lessonIDs)
-        return context.safeFetch(descriptor)
-    }
-
-    /// The student's work on any of `lessonIDs` (exact string matches).
-    private func fetchWork(studentID: String, lessonIDs: [String], context: NSManagedObjectContext) -> [CDWorkModel] {
-        let descriptor = CDFetchRequest(CDWorkModel.self)
-        descriptor.predicate = NSPredicate(format: "studentID == %@ AND lessonID IN %@", studentID, lessonIDs)
         return context.safeFetch(descriptor)
     }
 

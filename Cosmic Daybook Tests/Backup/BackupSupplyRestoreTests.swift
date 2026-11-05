@@ -120,18 +120,13 @@ struct BackupSupplyRestoreTests {
         #expect(back.sourceRaw == RestockSource.office.rawValue)
     }
 
-    @Test("A sequence's or a resource's row without its dates reads them as the moment it is read")
+    @Test("A resource's row without its dates reads them as the moment it is read")
     func missingDatesReadAsNow() async throws {
         // A date fixed once would be made here, before `start`.
-        _ = (SequenceTrackBackupRow.spec, ResourceBackupRow.spec)
+        _ = ResourceBackupRow.spec
         try await Task.sleep(for: .milliseconds(20))
         let start = Date()
         let line = Data(#"{"id":"\#(UUID().uuidString)"}"#.utf8)
-
-        let track = try JSONDecoder().decode(SequenceTrackDTO.self, from: line)
-        #expect(Self.date(track.values["createdAt"]).map { $0 >= start } == true, "created as it is read")
-        #expect(track.values["isSequential"] == .bool(true), "taken in order")
-        #expect(track.values["area"] == .string(""))
 
         let resource = try JSONDecoder().decode(ResourceDTO.self, from: line)
         #expect(Self.date(resource.values["createdAt"]).map { $0 >= start } == true, "created as it is read")

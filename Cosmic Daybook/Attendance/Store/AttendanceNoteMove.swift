@@ -50,10 +50,7 @@ nonisolated enum AttendanceNoteMove {
             note.value(forKey: "reminder") as? NSManagedObject
         ]
         if links.contains(where: { $0 != nil }) { return false }
-        let foreignKeys = [
-            note.lessonID, note.communityTopicID, note.schoolDayOverrideID,
-            note.studentTrackEnrollmentID, note.goingOutID
-        ]
+        let foreignKeys = [note.lessonID, note.communityTopicID, note.schoolDayOverrideID, note.goingOutID]
         return foreignKeys.allSatisfy { ($0 ?? "").isEmpty }
     }
 

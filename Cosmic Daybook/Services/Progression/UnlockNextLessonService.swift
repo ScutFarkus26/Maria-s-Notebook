@@ -2,15 +2,14 @@
 //  UnlockNextLessonService.swift
 //  Cosmic Daybook
 //
-//  Service for unlocking the next lesson in a sequence for specific students.
-//  Handles finding the next lesson and marking it as manually unblocked.
+//  Service for unlocking the next lesson in a sequence for one child.
+//  Handles finding the next lesson and marking her plan of it as manually unblocked.
 //
 
 import Foundation
 import CoreData
-import OSLog
 
-/// Service for manually unlocking next lessons when students are ready to progress
+/// Service for manually unlocking next lessons when a child is ready to progress
 struct UnlockNextLessonService {
     // MARK: - Result Type
 
@@ -23,55 +22,50 @@ struct UnlockNextLessonService {
 
     // MARK: - Core Data Unlock Logic
 
-    /// Unlocks the next lesson for specific students by finding the next lesson in sequence
-    /// and marking it as manually unblocked if it exists in the inbox
+    /// Unlocks the lesson after `currentLessonID` for one child.
+    ///
+    /// Only a plan that is hers alone is unlocked. `manuallyUnblocked` belongs
+    /// to the plan, shared by everyone on it, so flagging a group plan that
+    /// merely included her unlocked the whole group: Presentations stopped
+    /// holding it back, and a classmate who hadn't finished practice on the
+    /// lesson before read Ready on the Checklist (bug hunt 2026-11-03 #19).
+    /// When the only plans naming her are group plans, she gets an unlocked
+    /// draft of her own and the group's plan is left as it was.
+    ///
+    /// The plans are fetched here rather than taken from the caller: the work
+    /// page handed in the list it read when it opened, so a second unlock
+    /// didn't see the draft the first had made and made another (#34).
     /// - Parameters:
-    ///   - currentLessonID: The lesson ID the students just completed
-    ///   - studentIDs: The students ready to progress
+    ///   - currentLessonID: The lesson she just finished
+    ///   - studentID: The child ready to go on
     ///   - context: Core Data managed object context
-    ///   - lessons: All available lessons
-    ///   - lessonAssignments: All LessonAssignments
+    ///   - lessons: The lessons of her sequence (the next one is found among them)
     /// - Returns: UnlockResult indicating success or reason for failure
     static func unlockNextLesson(
         after currentLessonID: UUID,
-        for studentIDs: Set<UUID>,
+        for studentID: UUID,
         context: NSManagedObjectContext,
         lessons: [CDLesson],
-        cdAssignments: [CDLessonAssignment],
         saveImmediately: Bool = true
     ) -> UnlockResult {
-        // Find the current lesson
         guard let currentLesson = lessons.first(where: { $0.id == currentLessonID }) else {
             return .noCurrentLesson
         }
-
-        // Find the next lesson in sequence
-        guard let nextLesson = PlanNextLessonService.findNextLesson(after: currentLesson, in: lessons) else {
+        guard let nextLesson = PlanNextLessonService.findNextLesson(after: currentLesson, in: lessons),
+              let nextLessonID = nextLesson.id else {
             return .noNextLesson
         }
 
-        guard let nextLessonID = nextLesson.id else { return .noNextLesson }
-        let nextLessonIDString = nextLessonID.uuidString
-
-        // Reuse any assignment for this lesson that already covers all of these
-        // students and hasn't been presented — an exact inbox draft, a group draft,
-        // or a scheduled presentation. Creating a fresh draft alongside any of those
-        // would duplicate the presentation. Prefer the exact unscheduled match so a
-        // solo unlock keeps its own inbox draft when both exist.
-        let coveringAssignments = cdAssignments.filter { la in
-            la.lessonID == nextLessonIDString &&
-            la.presentedAt == nil &&
-            studentIDs.isSubset(of: Set(la.resolvedStudentIDs))
+        // Her own plan of the next lesson, if she has one; her unscheduled
+        // draft first, so a solo unlock keeps its inbox draft when she also
+        // has a dated plan.
+        let herOwn = plansNotYetGiven(of: nextLessonID, in: context).filter {
+            Set($0.resolvedStudentIDs) == [studentID]
         }
-        let existingAssignment = coveringAssignments.first { la in
-            Set(la.resolvedStudentIDs) == studentIDs && la.scheduledFor == nil
-        } ?? coveringAssignments.first
-
-        if let existing = existingAssignment {
+        if let existing = herOwn.first(where: { $0.scheduledFor == nil }) ?? herOwn.first {
             if existing.manuallyUnblocked {
                 return .alreadyUnlocked
             }
-
             existing.manuallyUnblocked = true
             if saveImmediately {
                 context.safeSave()
@@ -79,36 +73,27 @@ struct UnlockNextLessonService {
             return .success(existing)
         }
 
-        // Doesn't exist yet - create it
-        let newAssignment = PresentationFactory.makeDraft(
+        let draft = PresentationFactory.makeDraft(
             lessonID: nextLessonID,
-            studentIDs: Array(studentIDs),
+            studentIDs: [studentID],
             context: context
         )
-        newAssignment.manuallyUnblocked = true
+        draft.manuallyUnblocked = true
         if saveImmediately {
             context.safeSave()
         }
-        return .success(newAssignment)
+        return .success(draft)
     }
 
-    /// Convenience method to unlock for a single student
-    static func unlockNextLesson(
-        after currentLessonID: UUID,
-        for studentID: UUID,
-        context: NSManagedObjectContext,
-        lessons: [CDLesson],
-        cdAssignments: [CDLessonAssignment],
-        saveImmediately: Bool = true
-    ) -> UnlockResult {
-        unlockNextLesson(
-            after: currentLessonID,
-            for: [studentID],
-            context: context,
-            lessons: lessons,
-            cdAssignments: cdAssignments,
-            saveImmediately: saveImmediately
-        )
+    /// Every plan of the lesson not given yet, read from the context now,
+    /// unsaved ones included.
+    private static func plansNotYetGiven(
+        of lessonID: UUID, in context: NSManagedObjectContext
+    ) -> [CDLessonAssignment] {
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "lessonID ==[c] %@", lessonID.uuidString)
+        return context.safeFetch(request).filter { plan in
+            !plan.isDeleted && !plan.isPresented && plan.presentedAt == nil
+        }
     }
-
 }

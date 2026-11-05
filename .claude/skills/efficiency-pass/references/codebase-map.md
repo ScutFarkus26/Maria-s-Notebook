@@ -36,7 +36,6 @@ hot paths are, and what has been checked and should not be re-litigated.
 | Post-import dedup, scoped to what an import inserted | `DeduplicationCoordinator.requestDeduplication(insertedEntities:)` from the history processor; an import event alone (`requestDeduplicationAfterImport()`) runs nothing; a failed history read asks for the full sweep | `Services/Sync/DeduplicationCoordinator.swift` |
 | Debounced remote-change handling | `CloudKitSyncStatusService.scheduleRemoteChangeHandling` (500 ms) | `Services/Sync/CloudKitSyncStatusService.swift` |
 | Sync event log | `SyncEventLogger` (coalesces repeats, 1 s debounced write) | `Services/` |
-| Scoped reads for a sequence / track / student | `SequenceTrackService+ScopedReads` (`sequenceLessons`, `trackCandidates`, …) | Services |
 | Preceding-lesson lookups in a loop | `BlockingAlgorithmEngine.buildPrecedingLessonCache(lessons)` | Services |
 | Entity-scoped reaction to remote changes | `PersistentHistoryProcessor.readHistory(after:author:in:)`, one position per store (the actor posts `.schoolDayDataDidChange` etc.) | `Services/Sync/PersistentHistoryProcessor+StoreHistory.swift` |
 | Classroom-share attach | `SharedStoreOrphanGuard` attaches only what a view-context save inserted (no table scans; zone repair and its history gate were removed 2026-09-28); `ClassroomShareAttach` does the chunked, off-main `share(_:to:)` | `AppCore/`, `Sharing/` |
@@ -102,11 +101,10 @@ should join that list; user-initiated work (Sync Now, a manual backup, a search)
    `PracticeSessionCard` (and the since-deleted `PresentationPill`) were removed in the 2026-09-10 audit (cards now take
    non-optional arrays from the parent); do not go looking for them.
 3. **Per-student loaders**: fixed 2026-09-18 (`perf-baselines/2026-09-18-per-student-loaders.md`).
-   `StudentProgressTabViewModel.loadData` fetches by student / active track and looks
-   lessons up one at a time; `SequenceTrackService` reads through
-   `SequenceTrackService+ScopedReads` (a `CONTAINS[cd]` superset of the trimmed,
-   case-insensitive match it still applies in memory). Both keep managed-object
-   fetches so unsaved rows in the caller's context are still seen. Remaining
+   `StudentProgressTabViewModel.loadData` fetches by student and looks lessons up
+   one at a time, keeping managed-object fetches so unsaved rows in the caller's
+   context are still seen (`SequenceTrackService`, which read the same way, went
+   with the track entities in schema 23). Remaining
    per-student whole-table reads: `StudentAnalysisService` (Insights) and
    `StudentTrackDetailView` (all lessons + all marks).
 4. **Memory residents**: `AlbumLibrary` (page text of every album PDF, covers, embeddings;
@@ -220,8 +218,8 @@ image caches are bounded; `NWPathMonitor` is a single shared instance with a can
 - Two `xcodebuild`s at once lock the build DB. Serial only. Never pipe xcodebuild through
   `tail`: the exit code becomes tail's.
 - `makeSplitStoreContext()` (the SQLite test store) has a shared configuration and no
-  CKShare, so `SequenceTrackService.getOrCreateTrack` throws there by design; seed
-  tracks directly when a SQLite read test needs one.
+  CKShare, so a service that needs the share throws there by design; seed rows
+  directly when a SQLite read test needs them.
 - A predicate on a `UUID` attribute needs a `UUID` argument; a `uuidString` matches on
   SQLite and silently finds nothing on the in-memory store (`UUIDPredicateArgumentTests`).
 - Two Core Data models in one process (migration-style tests) crash the `CD…(context:)`

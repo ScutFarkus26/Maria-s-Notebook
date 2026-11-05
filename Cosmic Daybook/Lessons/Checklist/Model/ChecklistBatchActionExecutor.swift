@@ -6,12 +6,16 @@ import CoreData
 
 /// Executes batch operations on checklist cells.
 /// Handles adding to inbox, marking presented/mastered, and clearing status.
+/// None of these saves: the view model saves once for the whole selection and takes
+/// the change back if the save fails (`saveChange`, bug hunt 2026-11-03 #13).
 enum ChecklistBatchActionExecutor {
     private static let logger = Logger.lessons
 
     // MARK: - Batch Add to Inbox
 
-    /// Adds selected cells to inbox (creates draft LessonAssignments).
+    /// Adds selected cells to inbox (creates draft LessonAssignments). Only ever adds: a
+    /// child the grid drew as unplanned may have been planned on another device since,
+    /// and the selection must not take her off that plan (bug hunt 2026-11-03 #10).
     static func batchAddToInbox(
         selectedCells: Set<CellIdentifier>,
         students: [CDStudent],
@@ -25,10 +29,9 @@ enum ChecklistBatchActionExecutor {
             let state = matrixStates[cell.studentID]?[cell.lessonID]
             // Only add if not already scheduled
             if state?.isScheduled != true {
-                toggleScheduledNoRecompute(student: student, lesson: lesson, context: context)
+                addToInbox(student: student, lesson: lesson, context: context)
             }
         }
-        context.safeSave()
     }
 
     // MARK: - Batch Mark Presented
@@ -57,7 +60,6 @@ enum ChecklistBatchActionExecutor {
                 )
             }
         }
-        context.safeSave()
     }
 
     // MARK: - Batch Mark Previously Presented
@@ -84,7 +86,6 @@ enum ChecklistBatchActionExecutor {
                 )
             }
         }
-        context.safeSave()
     }
 
     // MARK: - Batch Mark Mastered
@@ -113,7 +114,6 @@ enum ChecklistBatchActionExecutor {
                 )
             }
         }
-        context.safeSave()
     }
 
     // MARK: - Batch Clear Status
@@ -131,46 +131,36 @@ enum ChecklistBatchActionExecutor {
                   lessons.contains(where: { $0.id == cell.lessonID }) else { continue }
             ChecklistCellRecords.clear(studentID: cell.studentID, lessonID: cell.lessonID, in: context)
         }
-        context.safeSave()
     }
 
     // MARK: - Private Helpers
 
-    private static func toggleScheduledNoRecompute(
-        student: CDStudent,
-        lesson: CDLesson,
-        context: NSManagedObjectContext
-    ) {
+    /// Puts the child on the lesson's Inbox draft, or a new one, unless a plan already
+    /// names her. Never takes her off one: the cell's own toggle does that.
+    private static func addToInbox(student: CDStudent, lesson: CDLesson, context: NSManagedObjectContext) {
         let lessonIDString = lesson.id?.uuidString ?? ""
         let studentIDString = student.cloudKitKey
 
         let laRequest = CDFetchRequest(CDLessonAssignment.self)
         laRequest.predicate = NSPredicate(format: "lessonID == %@", lessonIDString as CVarArg)
-        let allLAs = context.safeFetch(laRequest)
+        let allLAs = context.safeFetch(laRequest).filter { !$0.isDeleted }
 
-        if let existing = allLAs.first(where: {
-            !$0.isPresented && $0.studentIDs.contains(studentIDString)
-        }) {
-            ChecklistRosterRemoval.remove(studentIDString, from: existing, in: context)
+        guard !allLAs.contains(where: { !$0.isPresented && $0.studentIDs.contains(studentIDString) }),
+              let studentID = student.id else { return }
+        let plan: CDLessonAssignment
+        if let sequence = allLAs.first(where: { !$0.isPresented && $0.scheduledFor == nil }) {
+            sequence.studentIDs.append(studentIDString)
+            plan = sequence
         } else {
-            guard let studentID = student.id else { return }
-            let plan: CDLessonAssignment
-            if let sequence = allLAs.first(where: { !$0.isPresented && $0.scheduledFor == nil }) {
-                if !sequence.studentIDs.contains(studentIDString) {
-                    sequence.studentIDs.append(studentIDString)
-                }
-                plan = sequence
-            } else {
-                guard let lessonID = lesson.id else { return }
-                plan = PresentationFactory.makeDraft(
-                    lessonID: lessonID,
-                    studentIDs: [studentID],
-                    context: context
-                )
-            }
-            // The plan answers her year-plan entry, as the cell's own toggle does.
-            YearPlanPromotionService.promoteMatchingEntry(for: studentID, into: plan, context: context)
+            guard let lessonID = lesson.id else { return }
+            plan = PresentationFactory.makeDraft(
+                lessonID: lessonID,
+                studentIDs: [studentID],
+                context: context
+            )
         }
+        // The plan answers her year-plan entry, as the cell's own toggle does.
+        YearPlanPromotionService.promoteMatchingEntry(for: studentID, into: plan, context: context)
     }
 
     /// Puts one child on a presentation of one lesson, unless one already
@@ -195,13 +185,13 @@ enum ChecklistBatchActionExecutor {
         guard !allLAs.contains(where: { $0.isPresented && $0.studentIDs.contains(studentIDString) }) else {
             return
         }
-        addStudentToPresentedLesson(
+        let given = addStudentToPresentedLesson(
             student: student, lesson: lesson,
             in: allLAs, attachment: attachment, context: context
         )
         upsertLessonPresentation(
             studentID: studentIDString, lessonID: lessonIDString,
-            state: .presented, from: prefetchedLPs, context: context
+            state: .presented, from: prefetchedLPs, givenOn: given?.presentedAt, context: context
         )
     }
 
@@ -216,12 +206,13 @@ enum ChecklistBatchActionExecutor {
         let laRequest = CDFetchRequest(CDLessonAssignment.self)
         laRequest.predicate = NSPredicate(format: "lessonID == %@", lessonIDString as CVarArg)
         let allLAs = context.safeFetch(laRequest)
-        if allLAs.first(where: { $0.isPresented && $0.studentIDs.contains(studentIDString) }) == nil {
-            addStudentToPresentedLesson(
+        // With no presentation on record, an undated one, as the cell's Mastered attaches:
+        // the mark says she has it, not that she was given it today (bug hunt 2026-11-03 #8).
+        let given = allLAs.first { !$0.isDeleted && $0.isPresented && $0.studentIDs.contains(studentIDString) }
+            ?? addStudentToPresentedLesson(
                 student: student, lesson: lesson,
-                in: allLAs, attachment: .today, context: context
+                in: allLAs, attachment: .undated, context: context
             )
-        }
 
         if let studentID = student.id, let lessonID = lesson.id {
             ChecklistCellRecords.closeWorkForMastery(studentID: studentID, lessonID: lessonID, in: context)
@@ -229,58 +220,7 @@ enum ChecklistBatchActionExecutor {
 
         upsertLessonPresentation(
             studentID: studentIDString, lessonID: lessonIDString,
-            state: .proficient, from: prefetchedLPs, context: context
+            state: .proficient, from: prefetchedLPs, givenOn: given?.presentedAt, context: context
         )
     }
-
-    /// Puts the child on the presented row `attachment` describes, creating it
-    /// when the context has none.
-    private static func addStudentToPresentedLesson(
-        student: CDStudent,
-        lesson: CDLesson,
-        in allLAs: [CDLessonAssignment],
-        attachment: PresentedAttachment,
-        context: NSManagedObjectContext
-    ) {
-        let studentIDString = student.cloudKitKey
-        let today = Date()
-        if let sequence = allLAs.first(where: { attachment.matches($0, today: today) }) {
-            if !sequence.studentIDs.contains(studentIDString) {
-                sequence.studentIDs.append(studentIDString)
-            }
-        } else {
-            guard let lessonID = lesson.id, let studentID = student.id else { return }
-            _ = attachment.makeAssignment(lessonID: lessonID, studentID: studentID, context: context)
-        }
-    }
-
-    static func upsertLessonPresentation(
-        studentID: String,
-        lessonID: String,
-        state: LessonPresentationState,
-        from prefetchedLPs: [CDLessonPresentation],
-        context: NSManagedObjectContext
-    ) {
-        // Filter from pre-fetched data instead of re-fetching all LessonPresentations
-        let existing = prefetchedLPs.first { lp in
-            lp.studentID == studentID && lp.lessonID == lessonID
-        }
-
-        if let existing {
-            if state == .proficient && existing.state != .proficient {
-                existing.state = .proficient
-                existing.masteredAt = Date()
-            }
-            existing.lastObservedAt = Date()
-        } else {
-            let lp = CDLessonPresentation(context: context)
-            lp.studentID = studentID
-            lp.lessonID = lessonID
-            lp.state = state
-            lp.presentedAt = Date()
-            lp.lastObservedAt = Date()
-            lp.masteredAt = state == .proficient ? Date() : nil
-        }
-    }
-
 }

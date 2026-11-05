@@ -216,9 +216,6 @@ nonisolated extension DataCleanupService {
         if canonical.issue == nil { canonical.issue = duplicate.issue }
         if canonical.goingOutID == nil { canonical.goingOutID = duplicate.goingOutID }
         if canonical.schoolDayOverride == nil { canonical.schoolDayOverride = duplicate.schoolDayOverride }
-        if canonical.studentTrackEnrollment == nil {
-            canonical.studentTrackEnrollment = duplicate.studentTrackEnrollment
-        }
 
         var existingLinkIDs = Set((canonical.studentLinks as? Set<CDNoteStudentLink>)?.compactMap(\.id) ?? [])
         mergeNSSetRelationship(

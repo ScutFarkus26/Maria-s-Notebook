@@ -54,7 +54,6 @@ extension LegacyBackupEntityImporter {
             note.reporterName = dto.reporterName
             note.communityTopicID = dto.communityTopicID
             note.schoolDayOverrideID = dto.schoolDayOverrideID
-            note.studentTrackEnrollmentID = dto.studentTrackEnrollmentID
             note.goingOutID = dto.goingOutID
 
             if let data = dto.scope.data(using: .utf8) {
@@ -451,36 +450,6 @@ extension LegacyBackupEntityImporter {
             a.itemID = dto.itemID
             a.position = Int64(dto.position)
             return a
-        })
-    }
-}
-
-// MARK: - Backup/Import/BackupEntityImporter+Tracks.swift
-
-// MARK: - CDTrackEntity/Group Imports
-
-extension LegacyBackupEntityImporter {
-
-    // MARK: - Group Tracks
-
-    static func importSequenceTracks(
-        _ dtos: [LegacySequenceTrackDTO],
-        into viewContext: NSManagedObjectContext,
-        existing: ExistingLookup<CDSequenceTrack>
-    ) rethrows {
-        try importSimpleEntities(
-            dtos, into: viewContext,
-            existing: existing,
-            idExtractor: { $0.id },
-            entityBuilder: { dto, current in
-            let g = current ?? CDSequenceTrack(context: viewContext)
-            g.id = dto.id
-            g.area = dto.area
-            g.sequence = dto.sequence
-            g.isSequential = dto.isSequential
-            g.isExplicitlyDisabled = dto.isExplicitlyDisabled
-            g.createdAt = dto.createdAt
-            return g
         })
     }
 }

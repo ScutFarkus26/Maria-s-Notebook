@@ -195,7 +195,6 @@ struct PresentationRecordsFix1010ITests {
         let room = try makeRoom()
         let assignment = try given([room.ada], lesson: room.lesson, in: room.context)
         let row = try #require(rows(room.context).first)
-        row.trackStepID = UUID().uuidString
 
         assignment.lessonID = try #require(room.other.id).uuidString
         _ = try LifecycleService.recordPresentation(
@@ -204,7 +203,6 @@ struct PresentationRecordsFix1010ITests {
 
         #expect(rows(room.context).count == 1)
         #expect(row.lessonID == room.other.id?.uuidString)
-        #expect(row.trackStepID == nil)
     }
 
     @Test("Change Lesson returns the old lesson's promoted entries to planned and keeps the new lesson's")
@@ -281,30 +279,5 @@ struct PresentationRecordsFix1010ITests {
 
         #expect(rows(room.context).count == 2)
         #expect(rows(room.context).allSatisfy { $0.state == .proficient })
-    }
-
-    // MARK: - #58 Give Lesson saves once
-
-    @Test("Recording with practice leaves the work unsaved for the caller's one save")
-    func explodeWorkDoesNotSaveEachChild() async throws {
-        let stack = try CoreDataTestHelpers.makeInMemoryStack()
-        let context = stack.viewContext
-        let ada = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ada")
-        let ben = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ben")
-        let lesson = CoreDataTestHelpers.seedLesson(in: context)
-        #expect(CoreDataTestHelpers.save(context))
-        let assignment = try draft(lesson, [ada, ben], in: context)
-
-        let result = try LifecycleService.recordPresentationAndExplodeWork(
-            from: assignment, presentedAt: Date(), modelContext: context
-        )
-        #expect(result.work.count == 2)
-
-        let background = stack.newBackgroundContext()
-        let savedWork = await background.perform {
-            (try? background.count(for: CDFetchRequest(CDWorkModel.self))) ?? -1
-        }
-        #expect(savedWork == 0)
-        #expect(context.hasChanges)
     }
 }

@@ -1,3 +1,4 @@
+import CoreData
 import OSLog
 import SwiftUI
 
@@ -11,9 +12,13 @@ extension LessonDetailView {
     /// Writes the draft to this lesson and saves. A draft filled from another
     /// lesson is never written here. On a failed save the lesson goes back to
     /// what was on disk and the form stays open with her text, so she can try
-    /// again (the save alert says what happened).
+    /// again (the save alert says what happened). After the save a moved
+    /// lesson's tracks follow it, and a Pages file the form replaced or
+    /// removed goes to the Trash when nothing else uses it.
     func saveEdits() {
         let onDisk = LessonEditDraft(lesson: lesson)
+        let replacedPagesPath = draft.pagesFileChange == .unchanged
+            ? nil : LessonFileStorage.managedPagesPath(of: lesson)
         let applied: Bool
         do {
             applied = try draft.apply(to: lesson)
@@ -25,6 +30,7 @@ extension LessonDetailView {
         }
         guard applied else {
             Self.logger.warning("Edit draft belonged to another lesson; nothing saved")
+            discardPendingPagesCopy()
             isEditing = false
             return
         }
@@ -32,8 +38,35 @@ extension LessonDetailView {
             onDisk.restore(lesson)
             return
         }
+        if draft.pagesFileChange != .unchanged {
+            resolvedPagesURL = resolveLessonFileURL()
+            if let replacedPagesPath, replacedPagesPath != lesson.pagesFileRelativePath {
+                LessonFileStorage.trashUnreferencedFiles(
+                    [replacedPagesPath], in: viewContext, isSampleClassroom: isSampleClassroom
+                )
+            }
+            draft.pagesFileChange = .unchanged
+        }
         isEditing = false
         onSave?(lesson)
+    }
+
+    /// Cancel in the form: nothing the form changed reaches the lesson, and
+    /// a Pages file copied in by Import… is deleted again.
+    func cancelEdits() {
+        discardPendingPagesCopy()
+        isEditing = false
+    }
+
+    /// Deletes the copy Import… made that Save never used.
+    func discardPendingPagesCopy() {
+        guard let url = draft.pendingPagesCopyURL else { return }
+        draft.pagesFileChange = .unchanged
+        do {
+            try LessonFileStorage.deleteIfManaged(url)
+        } catch {
+            Self.logger.warning("Couldn't delete an unused Pages file copy: \(error)")
+        }
     }
 
     /// Asks first, naming what goes with the lesson (`LessonDeletion`).

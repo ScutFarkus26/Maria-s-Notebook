@@ -92,7 +92,9 @@ struct WorkScreensFix1010CTests {
         #expect(WorkLogService.checkIns(of: closed, in: context).isEmpty)
     }
 
-    @Test("Practice Overview counts only check-ins from today on")
+    /// Bug hunt 2026-11-03 #46 replaced the session dates with the work's own
+    /// check-ins: a finished or skipped one is history, as last month's date was.
+    @Test("Practice Overview counts the work's check-ins still scheduled, not finished ones")
     func upcomingCheckInsAreUpcoming() throws {
         let context = try makeContext()
         let today = try CoreDataTestHelpers.day("2026-10-08")
