@@ -1,16 +1,16 @@
 // ModelRow.swift
-// Backup rows for the entity types whose backup is a straight copy of their
-// Core Data attributes, read from the model instead of hand-written per type.
+// Backup rows for every backed-up entity type, read from the model instead of
+// hand-written per type ("Simplify round two", Phase 7).
 //
-// Each such type is a `ModelRowKind` with a short spec (Backup/ModelRowKinds.swift),
-// and its old DTO name is an alias of `ModelRow<Kind>`, so the payload, the
-// entity table and the preview still name it the same way. A row carries every
-// attribute of its entity under the attribute's own name, plus at most a
-// parent's id; which keys are required, which the export fills when the
-// attribute is nil, and how a parent is re-linked on restore are the only
-// per-type facts, and they are exactly what the hand-written DTOs, transformers
-// and importers encoded. `BackupGoldenOutputTests` pins the bytes: a backup
-// written through these rows is identical to one written through the DTOs.
+// Each type is a `ModelRowKind` with a short spec (Backup/ModelRowKinds.swift and
+// its family files), and its old DTO name is an alias of `ModelRow<Kind>`, so the
+// payload, the entity table and the preview still name it the same way. A row
+// carries every attribute of its entity under the attribute's own name, plus at
+// most a parent's id; the spec says only where the old hand-written DTOs,
+// transformers and importers did something else (a filled nil, a renamed key, an
+// enum fallback, a list kept in a blob, a parent link, a row passed over), and
+// `BackupSpecOracleTests` checks each spec against that frozen code.
+// `BackupGoldenOutputTests` pins the bytes.
 
 import CoreData
 import Foundation

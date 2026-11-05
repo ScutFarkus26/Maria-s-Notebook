@@ -70,7 +70,7 @@ nonisolated extension ClassroomShareRelease {
                 studentKey = ClassroomShareScope.normalizedID(studentID)
                 belongs = scope.attendanceBelongs(date: date, studentID: studentID, belongingStudentIDs: belonging)
                 datedThisYear = scope.isThisYear(date)
-                // The same tests as the backup's own (`BackupServiceHelpers.toDTOs`).
+                // The same tests as the backup's own (`AttendanceRecordBackupRow`).
                 if recordID == nil {
                     backupGap = .noID
                 } else if date == nil {

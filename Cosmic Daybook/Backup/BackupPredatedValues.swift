@@ -13,8 +13,8 @@ import Foundation
 /// updated (a v28 backup wiped every attendance note, a v36 one every need's
 /// staple). A restore from a format below the version here leaves the
 /// record's own value instead. Non-optional attributes added later need no
-/// line: their importers set them only when the row has them
-/// (`ModelRowSpec.addedLater`, `if let` in the hand-written importers).
+/// line: the restore sets them only when the row has them
+/// (`ModelRowSpec.addedLater`).
 ///
 /// When a format bump adds an optional attribute to a type that older backups
 /// already carry, add it here with the new format's number. An attribute that
