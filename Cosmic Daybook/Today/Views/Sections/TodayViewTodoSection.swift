@@ -111,17 +111,19 @@ struct TodayTodosSectionView<FollowUpRow: View>: View {
     }
 
     /// The store's half of `isShown`, wide enough to never drop a todo it
-    /// shows: open, not someday, and high priority or due or scheduled
-    /// before a horizon two days past the selected day. Every shown todo
-    /// passes — one planned or due by the day is dated before the next day,
-    /// which the calendar puts at most 25 hours on — while undated and
-    /// future todos below high priority stay in the store.
+    /// shows: open, and either not someday and high priority or due or
+    /// scheduled before a horizon two days past the selected day, or someday
+    /// and due before it. Every shown todo passes — one planned or due by the
+    /// day is dated before the next day, which the calendar puts at most 25
+    /// hours on — while undated and future todos below high priority stay in
+    /// the store.
     static func fetchPredicate(selectedDay: Date) -> NSPredicate {
         let horizon = selectedDay.addingTimeInterval(2 * 24 * 3600) as NSDate
         return NSPredicate(
-            format: "isCompleted == NO AND isSomeday == NO "
-                + "AND (priorityRaw == %@ OR dueDate < %@ OR scheduledDate < %@)",
-            TodoPriority.high.rawValue, horizon, horizon
+            format: "isCompleted == NO AND ("
+                + "(isSomeday == NO AND (priorityRaw == %@ OR dueDate < %@ OR scheduledDate < %@)) "
+                + "OR (isSomeday == YES AND dueDate < %@))",
+            TodoPriority.high.rawValue, horizon, horizon, horizon
         )
     }
 
@@ -138,15 +140,15 @@ struct TodayTodosSectionView<FollowUpRow: View>: View {
     }
 
     /// Open, not someday, and planned or due by the last day, or high
-    /// priority. (Someday left the Todos screen with round-two Simplify, so
-    /// a someday todo stays off Today, as before bug hunt 2026-11-03 #57.)
-    /// The Todos screen's Today list and this one read the same rule
+    /// priority; a someday todo once it is due by the last day (bug hunt
+    /// 2026-11-03 #57). The Todos screen's Today list and this one read the same rule
     /// (`TodoListFilter.isDueOrPlanned`): Today used to drop a todo whose
     /// planned day had passed, and one overdue but planned later, which the
     /// Todos screen shows since 10-10 #25 (bug hunt 2026-10-11 #70).
     private static func isShown(_ todo: CDTodoItem, lastDay: Date) -> Bool {
         guard !todo.isCompleted else { return false }
-        guard !todo.isSomeday else { return false }
+        // A someday todo joins once its deadline arrives.
+        guard !todo.isSomeday else { return TodoListFilter.isDue(todo, by: lastDay) }
         return TodoListFilter.isDueOrPlanned(todo, by: lastDay) || todo.priority == .high
     }
 

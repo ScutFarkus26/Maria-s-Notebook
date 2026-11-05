@@ -57,13 +57,16 @@ struct BackupRetiredTrackEntriesTests {
 
         let stack = try await Self.restore(payload)
 
-        // Backed up again: every entry but the track ones, every field but
-        // the ones that named a track. Types a restore leaves alone (this
-        // device's classroom pin) come back out only if the store had them.
+        // Backed up again: every entry but the track ones and the seven types
+        // round-two Simplify retired (skipped on import, never backed up),
+        // every field but the ones that named a track. Types a restore leaves
+        // alone (this device's classroom pin) come back out only if the store
+        // had them.
         let reexported = try BackupGoldenOutputTests.export(stack.viewContext)
         let expected = v44.filter { key, _ in
             let name = String(key.split(separator: "/").last ?? "")
             return !BackupEntityTable.retiredNames.contains(name)
+                && !BackupEntityTable.skippedOnImport.contains(name)
                 && !BackupEntityRegistry.keptOnRestoreEntityNames.contains(name)
         }
         #expect(Set(reexported.keys) == Set(expected.keys))

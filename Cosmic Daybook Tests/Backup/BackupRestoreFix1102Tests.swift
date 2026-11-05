@@ -204,7 +204,9 @@ struct BackupMergeNewerWinsTests {
             #expect(same.inserts[key] == 0, "\(key): nothing new to the notebook that made the backup")
             #expect((same.skips[key] ?? 0) + (same.kept[key] ?? 0) == rows, "\(key): every row already here")
         }
-        #expect(counted >= 70, "\(counted) types counted")
+        // All but a few: written as 70 of 78 before round-two Simplify retired
+        // seven types (their entries left the table), so the same slack of 8.
+        #expect(counted >= BackupEntityTable.entities.count - 8, "\(counted) types counted")
     }
 }
 
