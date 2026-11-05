@@ -1,6 +1,6 @@
 # Retire the track entities
 
-> **Working on it.** Phases 1–3 on main (2026-11-04); roll-out B remains. Written 2026-11-03 after a look at the two generations, before any new schema work (session on branch `claude/track-schema-generations-b064c1`).
+> **Done 2026-11-04** (afcf5daa). Phases 1–3 on main; roll-out B is TestFlight build 300000000038 (iOS and Mac) from main afcf5daa. Written 2026-11-03 after a look at the two generations, before any new schema work (session on branch `claude/track-schema-generations-b064c1`).
 > In short: Track, TrackStep, SequenceTrack and StudentTrackEnrollment are an older, stored copy of what the lesson sequences, the Year Plan and LessonSequenceSettings now carry; stop writing them, show the same cards from the presentation record, then drop the four entities and the trackID columns.
 
 ## Why
@@ -101,4 +101,4 @@ Not checked from here: how many enrollments and enrollment-linked notes the live
 - [x] Phase 2 — Derived cards (2026-11-04, same branch; 4,624 tests in 758 suites pass)
 - [x] Roll-out A on every device — build 300000000034 sent to TestFlight 2026-11-04 from main f32e0a66; Danny confirmed every device runs it (2026-11-04)
 - [x] Phase 3 — Drop the schema (built 2026-11-04 on branch `claude/track-phase3-drop-schema`, merged to main 2026-11-04; the four entities kept as dormant tombstones so sync history survives; schema 23, backup format 45. Round-two Simplify, which also claimed schema 23 and format 45, moves to 24 and 46. The CloudKit record types were reasoned about, not checked on a device)
-- [ ] Roll-out B
+- [x] Roll-out B — build 300000000038 sent to TestFlight 2026-11-04 (iOS and Mac) from main afcf5daa, after 4,738 tests in 775 suites passed and both app targets built. (300000000036 and 037 went up for iOS only from the older main 0825e244d, before Phase 3, because the roll-out read a stale local `main`; they carry no Phase 3.) Not checked on a device: the old CloudKit record types (reasoned harmless), a format-44 backup turning an enrollment-only note into a whole-class note, and the manuals' PDFs, which were not regenerated
