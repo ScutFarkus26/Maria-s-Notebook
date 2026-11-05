@@ -3,15 +3,15 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-/// `classroom_snapshot` hands Claude Desktop its first orientation, so its text
+/// `list_students` with view snapshot (once `classroom_snapshot`) hands Claude Desktop its first orientation, so its text
 /// is pinned line for line over a fixture classroom: it was moved out of the
 /// retired Ask AI code and must read exactly as it did.
-@Suite("MCP classroom_snapshot")
+@Suite("MCP classroom snapshot")
 @MainActor
 struct MCPClassroomSnapshotTests {
     private func snapshot(in context: NSManagedObjectContext) async throws -> String {
         let tools = MCPNotebookTools.makeTools(context: { context })
-        let tool = try #require(tools.first { $0.name == "classroom_snapshot" })
+        let tool = try #require(tools.first { $0.name == "list_students" }).presetting("view", "snapshot")
         return try await tool.handler([:])
     }
 

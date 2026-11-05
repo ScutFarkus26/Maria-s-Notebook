@@ -188,7 +188,7 @@ struct MCPMeetingToolsTests {
             "needs_follow_up": .bool(true)
         ])
 
-        let output = try await tool(named: "list_open_follow_ups", in: tools).handler([:])
+        let output = try await tool(named: "list_todos", in: tools).presetting("view", "open_follow_ups").handler([:])
         #expect(output.contains("Follow-up todos:"))
         #expect(output.contains("Order Morse code books"))
         #expect(output.contains("Open student goals:"))
@@ -196,14 +196,14 @@ struct MCPMeetingToolsTests {
         #expect(output.contains("Notes flagged for follow-up:"))
         #expect(output.contains("Opened five threads"))
 
-        let filtered = try await tool(named: "list_open_follow_ups", in: tools).handler([
+        let filtered = try await tool(named: "list_todos", in: tools).presetting("view", "open_follow_ups").handler([
             "student_name": .string("Etty")
         ])
         #expect(filtered.contains("Order Morse code books"))
 
         CoreDataTestHelpers.seedStudent(in: context, firstName: "Sarah", lastName: "Zell")
         CoreDataTestHelpers.save(context)
-        let unrelated = try await tool(named: "list_open_follow_ups", in: tools).handler([
+        let unrelated = try await tool(named: "list_todos", in: tools).presetting("view", "open_follow_ups").handler([
             "student_name": .string("Sarah")
         ])
         #expect(unrelated.contains("Nothing is open for Sarah Zell."))

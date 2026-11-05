@@ -29,7 +29,7 @@ extension MCPNotebookTools {
                 "properties": [
                     "work_id": [
                         "type": "string",
-                        "description": "The work item's id, as returned by student_work or work_detail"
+                        "description": "The work item's id, as returned by student_record (work) or work_detail"
                     ],
                     "student_name": [
                         "type": "string",

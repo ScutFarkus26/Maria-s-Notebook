@@ -50,7 +50,7 @@ extension MCPNotebookTools {
                     "presentation_id": [
                         "type": "string",
                         "description": .string("The presentation's id, as returned by schedule_for_range "
-                            + "or student_presentation_history")
+                            + "or student_record (presentation_history)")
                     ],
                     "confirm": [
                         "type": "boolean",
@@ -124,7 +124,7 @@ extension MCPNotebookTools {
                     "presentation_id": [
                         "type": "string",
                         "description": .string("The presentation's id, as returned by schedule_for_range "
-                            + "or student_presentation_history")
+                            + "or student_record (presentation_history)")
                     ],
                     "add_students": [
                         "type": "array",

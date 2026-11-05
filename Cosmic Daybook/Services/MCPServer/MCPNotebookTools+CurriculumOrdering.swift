@@ -31,7 +31,7 @@ extension MCPNotebookTools {
                     "lesson_ids": [
                         "type": "array",
                         "items": ["type": "string"],
-                        "description": .string("Lesson ids (from find_lessons or list_lessons_by_area) in "
+                        "description": .string("Lesson ids (from find_lessons) in "
                             + "the order they should run. May be a subset of the sub-area.")
                     ]
                 ],

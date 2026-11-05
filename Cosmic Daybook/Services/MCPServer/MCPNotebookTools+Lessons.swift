@@ -23,25 +23,32 @@ extension MCPNotebookTools {
                 + "Call this before record_presentation to get the exact lesson, and to check "
                 + "which of several similar lessons the guide means. Each result is "
                 + "[lesson id=<uuid>] — pass the id or the exact name to record_presentation. A lesson "
-                + "with files of its own ends with \" · files: <titles>\".",
+                + "with files of its own ends with \" · files: <titles>\". Pass query to search "
+                + "(at most 25 results), or area (and optionally sub_area) to list a whole area in taught order "
+                + "with no cap.",
             inputSchema: [
                 "type": "object",
-                "properties": [
+                "properties": .object([
                     "query": [
                         "type": "string",
                         "description": .string("Part of a lesson name, area, or sequence — "
-                            + "e.g. \"racks and tubes\", \"golden beads\", \"geometry\"")
+                            + "e.g. \"racks and tubes\", \"golden beads\", \"geometry\". "
+                            + "Required unless area is given.")
                     ],
                     "limit": [
                         "type": "integer",
-                        "description": "Maximum lessons to return, 1-25 (default 10)"
+                        "description": "With query: maximum lessons to return, 1-25 (default 10)"
                     ]
-                ],
-                "required": ["query"]
+                ].merging(lessonsByAreaSchema) { current, _ in current })
             ],
             annotations: .readOnly,
             handler: { arguments in
-                let query = try requireString(arguments, "query")
+                if nonEmpty(arguments["area"]?.stringValue) != nil {
+                    return try listLessonsByArea(arguments: arguments, in: context())
+                }
+                guard let query = arguments["query"]?.stringValue?.trimmed(), !query.isEmpty else {
+                    throw MCPToolError("Pass query to search for lessons, or area to list an area.")
+                }
                 let limit = intArgument(arguments, "limit", default: 10, range: 1...25)
                 return findLessons(matching: query, limit: limit, in: context())
             }

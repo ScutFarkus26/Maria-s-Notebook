@@ -136,7 +136,7 @@ struct MCPReadyForNextToolTests {
         let distributiveID = try #require(classroom.distributive.id).uuidString
         let associativeID = try #require(classroom.associative.id).uuidString
 
-        let output = try await tool(named: "students_ready", in: tools).handler([:])
+        let output = try await tool(named: "class_progress", in: tools).presetting("view", "ready").handler([:])
 
         #expect(output.contains("Avital Beyderman:"))
         #expect(output.contains(
@@ -161,7 +161,7 @@ struct MCPReadyForNextToolTests {
         let classroom = try seedClassroom(in: context)
         let distributiveID = try #require(classroom.distributive.id).uuidString
 
-        let output = try await tool(named: "students_ready", in: tools).handler([
+        let output = try await tool(named: "class_progress", in: tools).presetting("view", "ready").handler([
             "group_by": .string("lesson")
         ])
         let lines = output.split(separator: "\n").map(String.init)
@@ -196,7 +196,7 @@ struct MCPReadyForNextToolTests {
     func narrowingArguments() async throws {
         let (tools, context) = try makeTools()
         try seedClassroom(in: context)
-        let ready = try tool(named: "students_ready", in: tools)
+        let ready = try tool(named: "class_progress", in: tools).presetting("view", "ready")
 
         // Only mastery marks: Malka's Associative Law, and nobody else's.
         let byProficiencyMark = try await ready.handler(["basis": .string("mastered")])
@@ -227,7 +227,7 @@ struct MCPReadyForNextToolTests {
     @Test("An empty queue says so, and a withdrawn child never fills it")
     func emptyQueueAndWithdrawnChild() async throws {
         let (tools, context) = try makeTools()
-        let ready = try tool(named: "students_ready", in: tools)
+        let ready = try tool(named: "class_progress", in: tools).presetting("view", "ready")
 
         let lesson = CoreDataTestHelpers.seedLesson(
             in: context, name: "Commutative Law", area: "Math", sequence: "Laws"
@@ -253,7 +253,7 @@ struct MCPReadyForNextToolTests {
     @Test("students_ready is registered read-only")
     func toolIsReadOnly() throws {
         let (tools, _) = try makeTools()
-        let ready = try tool(named: "students_ready", in: tools)
+        let ready = try tool(named: "class_progress", in: tools).presetting("view", "ready")
         #expect(ready.annotations.readOnlyHint)
         #expect(!ready.annotations.destructiveHint)
     }

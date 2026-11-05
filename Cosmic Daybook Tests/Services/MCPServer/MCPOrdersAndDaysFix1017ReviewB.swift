@@ -3,7 +3,7 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-/// Bug hunt 2026-10-17, review (b): `update_order_items` stages it can't
+/// Bug hunt 2026-10-17, review (b): `mark_supplies` needs stages it can't
 /// move to (#9) and the MCP day formatter's zone (#35).
 @Suite("MCP orders and days (Fix1017 review b)")
 @MainActor
@@ -31,16 +31,16 @@ struct MCPOrdersAndDaysFix1017ReviewB {
 
     /// Adds one item to order and returns it with its id.
     private func addItem(in harness: Harness) async throws -> (CDOrderItem, String) {
-        _ = try await call("add_order_items", [
-            "items": .array([.object(["url": .string("example.com/glue"), "title": .string("Glue sticks")])])
+        _ = try await call("mark_supplies", [
+            "new_needs": .array([.object(["url": .string("example.com/glue"), "title": .string("Glue sticks")])])
         ], in: harness)
         let item = try #require(harness.context.safeFetch(CDFetchRequest(CDOrderItem.self)).first)
         return (item, try #require(item.id?.uuidString))
     }
 
     private func setStage(_ stage: String, of id: String, in harness: Harness) async throws -> String {
-        try await call("update_order_items", [
-            "items": .array([.object(["id": .string(id), "stage": .string(stage)])])
+        try await call("mark_supplies", [
+            "needs": .array([.object(["id": .string(id), "stage": .string(stage)])])
         ], in: harness)
     }
 

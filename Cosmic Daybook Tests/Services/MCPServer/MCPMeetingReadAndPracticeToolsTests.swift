@@ -30,7 +30,7 @@ struct MCPMeetingReadAndPracticeToolsTests {
             "guide_notes": .string("Wants a partner for research.")
         ])
 
-        let output = try await tool(named: "student_meetings", in: tools).handler([
+        let output = try await tool(named: "student_record", in: tools).presetting("sections", ["meetings"]).handler([
             "student_name": .string("Maya")
         ])
         #expect(output.contains("Meetings with Maya Soto"))
@@ -44,7 +44,7 @@ struct MCPMeetingReadAndPracticeToolsTests {
         CoreDataTestHelpers.seedStudent(in: context, firstName: "Eli", lastName: "Ross")
         CoreDataTestHelpers.save(context)
 
-        let output = try await tool(named: "student_meetings", in: tools).handler([
+        let output = try await tool(named: "student_record", in: tools).presetting("sections", ["meetings"]).handler([
             "student_name": .string("Eli")
         ])
         #expect(output.contains("No meetings are recorded"))
@@ -70,7 +70,7 @@ struct MCPMeetingReadAndPracticeToolsTests {
         check.note = "Needed a reminder of the pattern."
         CoreDataTestHelpers.save(context)
 
-        let output = try await tool(named: "recall_checks", in: tools).handler([
+        let output = try await tool(named: "class_progress", in: tools).presetting("view", "recall").handler([
             "student_name": .string("Rae")
         ])
         #expect(output.contains("Bead Chains"))
@@ -97,7 +97,7 @@ struct MCPMeetingReadAndPracticeToolsTests {
         }
         CoreDataTestHelpers.save(context)
 
-        let output = try await tool(named: "recall_checks", in: tools).handler([
+        let output = try await tool(named: "class_progress", in: tools).presetting("view", "recall").handler([
             "student_name": .string("Ivy"),
             "outcome": .string("forgotten")
         ])

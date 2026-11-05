@@ -35,7 +35,7 @@ struct MCPMasteryCandidatesToolTests {
     private func candidates(
         _ tools: [MCPToolDefinition], _ arguments: [String: JSONValue] = [:]
     ) async throws -> String {
-        try await tool(named: "mastery_candidates", in: tools).handler(arguments)
+        try await tool(named: "class_progress", in: tools).presetting("view", "mastery_candidates").handler(arguments)
     }
 
     /// Four girls and three lessons:

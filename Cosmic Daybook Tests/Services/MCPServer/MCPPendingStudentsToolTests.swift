@@ -115,7 +115,7 @@ struct MCPPendingStudentsToolTests {
         let classroom = try seedClassroom(in: context)
         let scheduledID = try #require(classroom.scheduled.id).uuidString
 
-        let output = try await tool(named: "students_pending", in: tools).handler([
+        let output = try await tool(named: "class_progress", in: tools).presetting("view", "pending").handler([
             "lesson": .string("distributive law")
         ])
         let lines = output.split(separator: "\n").map(String.init)
@@ -155,7 +155,7 @@ struct MCPPendingStudentsToolTests {
     func pendingByIDEmptyAndRefusal() async throws {
         let (tools, context) = try makeTools()
         let classroom = try seedClassroom(in: context)
-        let pending = try tool(named: "students_pending", in: tools)
+        let pending = try tool(named: "class_progress", in: tools).presetting("view", "pending")
 
         let byID = try await pending.handler(["lesson": .string(try #require(classroom.distributive.id).uuidString)])
         #expect(byID.contains("pending for 4 of 7"))

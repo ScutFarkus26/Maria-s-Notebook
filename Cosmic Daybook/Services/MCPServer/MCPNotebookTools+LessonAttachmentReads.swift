@@ -4,7 +4,7 @@
 //
 //  A lesson's files over MCP: listing them, removing one (two-step, as the
 //  destructive tools are), and the " · files: …" suffix `find_lessons` and
-//  `list_lessons_by_area` put on a lesson that holds files of its own (plan
+//  `find_lessons` put on a lesson that holds files of its own (plan
 //  "Lesson file attachments", Decision 7). `describeLesson` itself is
 //  unchanged, so other tools' receipts read as they did.
 //
@@ -163,7 +163,7 @@ extension MCPNotebookTools {
 // MARK: - Files suffix for lesson lists
 
 /// The titles of each lesson's own files, read with one fetch for a whole
-/// list (`list_lessons_by_area` has no cap). Only lesson-scope files count: a
+/// list (`find_lessons` has no cap). Only lesson-scope files count: a
 /// sequence-wide file would otherwise mark every lesson in the sequence.
 struct LessonFileTitles {
     /// Titles shown before "+N more".

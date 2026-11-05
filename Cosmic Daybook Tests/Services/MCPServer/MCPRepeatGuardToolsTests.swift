@@ -79,7 +79,7 @@ struct MCPRepeatGuardToolsTests {
     private func names(_ message: String) -> Bool {
         message.contains("purpose: \"second_pass\"")
             && message.contains("purpose: \"review\"")
-            && message.contains("student_presentation_history")
+            && message.contains("presentation_history")
     }
 
     @Test("purpose second_pass schedules it, flags the earlier record, and says so on the draft")

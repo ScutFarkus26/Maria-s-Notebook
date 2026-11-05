@@ -150,7 +150,7 @@ struct MCPTodoWorkLinkToolsTests {
         let listed = try await call("list_todos", [:], in: tools)
         #expect(listed.contains("linked_work_id=\(workID) \"Timeline of life\""))
 
-        let followUps = try await call("list_open_follow_ups", [:], in: tools)
+        let followUps = try await call("list_todos", ["view": "open_follow_ups"], in: tools)
         #expect(followUps.contains("linked_work_id=\(workID)"))
     }
 

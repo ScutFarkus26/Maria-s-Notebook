@@ -14,10 +14,12 @@ struct MCPToolRegistryTests {
         let tools = MCPNotebookTools.makeTools(context: { context })
 
         let names: [String] = tools.map(\.name)
-        #expect(names.count == 93)
+        #expect(names.count == Self.expectedTools.count)
         #expect(Set(names).count == names.count)
-        // Retired with Reminders sync (simplify round two, Phase 1).
-        #expect(!names.contains("list_reminders"))
+        #expect((58...64).contains(names.count), "round-two Simplify, Phase 6: about 60 tools, not 97")
+        #expect(Set(names) == Set(Self.expectedTools))
+        // A retired name is answered, never listed.
+        #expect(Set(names).isDisjoint(with: MCPNotebookTools.retiredTools.keys))
 
         let encoder = JSONEncoder()
         for tool in tools {
@@ -26,15 +28,78 @@ struct MCPToolRegistryTests {
                 _ = try encoder.encode(tool.inputSchema)
             }
         }
+    }
 
-        let added: Set<String> = [
-            "list_lessons_by_area", "create_lesson", "update_lesson", "reorder_lessons",
-            "discard_presentation", "update_presentation_roster", "clear_year_plan",
-            "student_curriculum_map", "class_curriculum_map", "students_pending",
-            "students_ready", "mastery_candidates", "data_checks", "send_attendance_to_school",
-            "attach_file_to_lesson", "list_lesson_attachments", "remove_lesson_attachment"
-        ]
-        #expect(added.isSubset(of: Set(names)))
+    /// One line per tool the server lists. A tool added, removed or renamed is a red test
+    /// here, and the same edit to docs/Technical notes/MCP_SERVER.md.
+    private static let expectedTools: [String] = [
+        // roster, notebook, lessons, albums
+        "list_students", "update_student", "search_notebook", "notebook_status", "data_checks",
+        "find_lessons", "create_lesson", "update_lesson", "reorder_lessons",
+        "attach_file_to_lesson", "list_lesson_attachments", "remove_lesson_attachment",
+        "albums", "list_templates",
+        // a child, the class, the plan
+        "student_record", "class_curriculum_map", "class_progress",
+        "year_plan", "update_year_plan_entry", "skip_year_plan_entries", "clear_year_plan",
+        // schedules and presentations
+        "weekly_schedules", "set_timetable", "change_schedule_day", "schedule_for_range",
+        "schedule_presentation", "reschedule_presentation", "discard_presentation",
+        "update_presentation_roster", "record_presentation", "mark_mastered",
+        // observations and meetings
+        "create_observation", "update_observation", "create_meeting_entry", "schedule_meeting",
+        // work
+        "work_detail", "assign_work", "update_work", "remove_student_from_work",
+        // attendance, to-dos, follow-ups
+        "attendance_for_day", "mark_attendance", "send_attendance_to_school",
+        "list_todos", "add_follow_up", "update_todo", "resolve_follow_up",
+        // families
+        "families", "update_guardian", "record_parent_communication",
+        // classroom
+        "list_supplies", "adjust_supply", "mark_supplies", "list_projects",
+        "list_issues", "update_issue", "community_topics", "update_community_topic",
+        "list_resources", "day_pad",
+        // school calendar and the app
+        "school_calendar", "set_school_days", "update_school_calendar",
+        "create_backup", "draft_parent_report"
+    ]
+
+    @Test("Every retired tool name answers with one plain sentence saying where it went")
+    func retiredNamesAnswer() async throws {
+        let stack = try CoreDataTestHelpers.makeInMemoryStack()
+        let context = stack.viewContext
+        let handler = MCPRequestHandler(
+            serverVersion: "1.0-test", tools: MCPNotebookTools.makeTools(context: { context })
+        )
+        let table = MCPNotebookTools.retiredTools
+        #expect(table.count == 38)
+        for (name, sentence) in table.sorted(by: { $0.key < $1.key }) {
+            let request = #"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"\#(name)","arguments":{}}}"#
+            let reply = try #require(await handler.handle(line: Data(request.utf8)))
+            let object = try #require(try JSONDecoder().decode(JSONValue.self, from: reply).objectValue)
+            let result = try #require(object["result"]?.objectValue, "\(name) answers as a tool result")
+            #expect(result["isError"]?.boolValue == true)
+            let text = try #require(result["content"]?.arrayValue?.first?.objectValue?["text"]?.stringValue)
+            #expect(text == sentence)
+            #expect(text.hasPrefix(name), "\(name)'s answer starts with its own name")
+            #expect(!text.contains("\n"), "\(name)'s answer is one sentence")
+        }
+        // A name that never existed is still an unknown tool.
+        let unknown = #"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"no_such_tool","arguments":{}}}"#
+        let reply = try #require(await handler.handle(line: Data(unknown.utf8)))
+        let object = try #require(try JSONDecoder().decode(JSONValue.self, from: reply).objectValue)
+        #expect(object["error"] != nil)
+    }
+
+    @Test("A retired name that says it moved names a tool the server lists")
+    func retiredNamesPointAtRealHomes() throws {
+        let stack = try CoreDataTestHelpers.makeInMemoryStack()
+        let context = stack.viewContext
+        let homes = Set(MCPNotebookTools.makeTools(context: { context }).map(\.name))
+        for (name, sentence) in MCPNotebookTools.retiredTools where sentence.contains(" moved into ") {
+            let afterMoved = try #require(sentence.components(separatedBy: " moved into ").last, "\(name)")
+            let home = try #require(afterMoved.components(separatedBy: ";").first, "\(name)")
+            #expect(homes.contains(home), "\(name) says it moved into \(home), which isn't listed")
+        }
     }
 
     /// Every tool that changes the notebook. Pinned literally so a tool that
@@ -42,17 +107,17 @@ struct MCPToolRegistryTests {
     /// is a red test rather than a silently softened permission prompt.
     private static let writingTools: Set<String> = [
         // creates
-        "add_follow_up", "add_order_items", "add_project_session", "adjust_supply", "assign_work",
+        "add_follow_up", "adjust_supply", "assign_work",
         "create_lesson", "create_meeting_entry", "create_observation",
         "record_parent_communication", "record_presentation", "schedule_meeting",
         "schedule_presentation",
         // edits in place
         "day_pad", "mark_attendance", "mark_mastered", "reorder_lessons",
         "reschedule_presentation", "resolve_follow_up", "update_community_topic",
-        "update_going_out", "update_guardian", "update_issue", "update_lesson",
-        "update_observation", "update_presentation_roster", "update_project",
+        "update_guardian", "update_issue", "update_lesson",
+        "update_observation", "update_presentation_roster",
         "update_student", "update_todo", "update_work", "update_year_plan_entry",
-        "set_school_days", "update_school_calendar", "change_schedule_day", "update_order_items",
+        "set_school_days", "update_school_calendar", "change_schedule_day",
         "mark_supplies", "attach_file_to_lesson",
         // deletes and retirements
         "clear_year_plan", "discard_presentation", "remove_student_from_work",

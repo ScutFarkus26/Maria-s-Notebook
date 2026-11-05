@@ -72,7 +72,7 @@ struct MCPMeetingSchedulingTests {
         #expect(booking.workIDUUID == workID)
         #expect(!booking.isGroupMeeting)
 
-        let listed = try await tool(named: "scheduled_meetings", in: tools).handler([
+        let listed = try await tool(named: "schedule_for_range", in: tools).presetting("view", "meetings").handler([
             "start_date": .string("2026-09-01")
         ])
         #expect(listed.contains("[scheduledMeeting id=\(id)] \(Self.thursday)"))
@@ -190,7 +190,7 @@ struct MCPMeetingSchedulingTests {
         let (tools, context) = try makeTools()
         CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Levi")
         CoreDataTestHelpers.save(context)
-        let scheduled = try tool(named: "scheduled_meetings", in: tools)
+        let scheduled = try tool(named: "schedule_for_range", in: tools).presetting("view", "meetings")
         let window: [String: JSONValue] = ["start_date": .string("2026-09-01")]
 
         _ = try await tool(named: "schedule_meeting", in: tools).handler([
@@ -214,7 +214,7 @@ struct MCPMeetingSchedulingTests {
         let held = context.safeFetch(CDFetchRequest(CDStudentMeeting.self))
         #expect(held.count == 1)
         #expect(held.first?.completed == true)
-        let history = try await tool(named: "student_meetings", in: tools).handler([
+        let history = try await tool(named: "student_record", in: tools).presetting("sections", ["meetings"]).handler([
             "student_name": .string("Ora")
         ])
         #expect(history.contains("] \(Self.thursday)\n"))

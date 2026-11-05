@@ -295,8 +295,8 @@ struct MCPPresentationToolsTests {
         // Ora — the child who received the lesson — has no observation and the
         // presentation is listed for her.
         let missing = try await tool(
-            named: "presentations_missing_observations", in: tools
-        ).handler([:])
+            named: "class_progress", in: tools
+        ).handler(["view": "missing_observations"])
         #expect(missing.contains("no observation yet for Ora Levi"))
     }
 }

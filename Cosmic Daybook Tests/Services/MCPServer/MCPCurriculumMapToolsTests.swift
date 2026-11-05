@@ -89,7 +89,7 @@ struct MCPCurriculumMapToolsTests {
         let (tools, context) = try makeTools()
         _ = try seedClassroom(in: context)
 
-        let output = try await tool(named: "student_curriculum_map", in: tools).handler([
+        let output = try await tool(named: "student_record", in: tools).presetting("sections", ["curriculum_map"]).handler([
             "student_name": .string("Ora")
         ])
         #expect(output.contains("Ora Pardo — \(oraYear) (started 2025-11-29)"))
@@ -108,7 +108,7 @@ struct MCPCurriculumMapToolsTests {
     func granularityChangesTheRows() async throws {
         let (tools, context) = try makeTools()
         _ = try seedClassroom(in: context)
-        let map = try tool(named: "student_curriculum_map", in: tools)
+        let map = try tool(named: "student_record", in: tools).presetting("sections", ["curriculum_map"])
 
         let areas = try await map.handler(["student_name": .string("Ora"), "granularity": .string("area")])
         #expect(areas.contains("Math: 1 of 3 presented"))
@@ -122,7 +122,7 @@ struct MCPCurriculumMapToolsTests {
     func sinceFiltersLessons() async throws {
         let (tools, context) = try makeTools()
         _ = try seedClassroom(in: context)
-        let map = try tool(named: "student_curriculum_map", in: tools)
+        let map = try tool(named: "student_record", in: tools).presetting("sections", ["curriculum_map"])
 
         let recent = try await map.handler(["student_name": .string("Ora"), "since": .string("2026-03-01")])
         #expect(!recent.contains("The Commutative Law of Multiplication (Laws)"))
@@ -186,7 +186,7 @@ struct MCPCurriculumMapToolsTests {
         presentation.confirmStudent(try #require(classroom.student.id))
         #expect(CoreDataTestHelpers.save(context))
 
-        let student = try await tool(named: "student_curriculum_map", in: tools).handler([
+        let student = try await tool(named: "student_record", in: tools).presetting("sections", ["curriculum_map"]).handler([
             "student_name": .string("Ora")
         ])
         #expect(student.contains(

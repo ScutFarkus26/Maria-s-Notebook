@@ -111,7 +111,7 @@ struct MCPCurriculumToolsFix1012MCTests {
         #expect(reply.contains("Language › Ungrouped"))
         #expect(!reply.contains("new sub-area"))
 
-        let listing = try await call("list_lessons_by_area", ["area": .string("Language")], in: tools)
+        let listing = try await call("find_lessons", ["area": .string("Language")], in: tools)
         #expect(listing.components(separatedBy: "Language › Ungrouped").count == 2)
         #expect(listing.contains("Language › Ungrouped — 2 lesson(s)"))
     }
@@ -195,7 +195,7 @@ struct MCPCurriculumToolsFix1012MCTests {
         CoreDataTestHelpers.seedLesson(in: context, name: "Climate Zones", area: area, sequence: "Zones")
         #expect(CoreDataTestHelpers.save(context))
 
-        let output = try await call("student_curriculum_map", [
+        let output = try await call("student_record", ["sections": ["curriculum_map"], 
             "student_name": .string("Ora"), "granularity": .string("allLessons")
         ], in: tools)
 

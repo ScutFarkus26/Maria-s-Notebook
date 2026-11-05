@@ -259,13 +259,13 @@ struct MCPToolsFix1011MTests {
         }
         CoreDataTestHelpers.save(context)
 
-        let everyone = try await call("list_open_follow_ups", [:], in: tools)
+        let everyone = try await call("list_todos", ["view": "open_follow_ups"], in: tools)
         #expect(everyone.contains("Ada's goal: long division"))
         #expect(everyone.contains("Flagged about Ada"))
         #expect(!everyone.contains("Bea's goal: cursive"))
         #expect(!everyone.contains("Flagged about Bea"))
 
-        let hers = try await call("list_open_follow_ups", ["student_name": .string("Bea")], in: tools)
+        let hers = try await call("list_todos", ["view": "open_follow_ups", "student_name": .string("Bea")], in: tools)
         #expect(hers.contains("Bea's goal: cursive"))
         #expect(hers.contains("Flagged about Bea"))
     }

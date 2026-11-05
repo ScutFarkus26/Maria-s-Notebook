@@ -111,8 +111,8 @@ struct PresentationObservationScopeTests {
         seedNote("Named every polygon unprompted.", scope: .student(ettyID), on: presentation, in: context)
         CoreDataTestHelpers.save(context)
         let tools = MCPNotebookTools.makeTools(context: { context })
-        let history = try #require(tools.first { $0.name == "student_presentation_history" })
-        let missing = try #require(tools.first { $0.name == "presentations_missing_observations" })
+        let history = try #require(tools.first { $0.name == "student_record" }).presetting("sections", ["presentation_history"])
+        let missing = try #require(tools.first { $0.name == "class_progress" }).presetting("view", "missing_observations")
 
         let ettys = try await history.handler(["student_name": .string("Etty Dechter")])
         #expect(ettys.contains("1 linked observation(s))"))

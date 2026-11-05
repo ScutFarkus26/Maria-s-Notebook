@@ -3,7 +3,7 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-/// `list_orders`, `add_order_items` and `update_order_items` drive the same
+/// `list_supplies` with a stage, and `mark_supplies` with new_needs or needs, drive the same
 /// `OrderService` calls as the Orders screen, so an item added over MCP moves
 /// through the stages exactly as one dropped into the app.
 @Suite("MCP Order Tools")
@@ -26,10 +26,10 @@ struct MCPOrderToolsTests {
     @Test("Adding reports a link already on the list instead of filing it twice")
     func addDeduplicates() async throws {
         let (tools, context) = try makeTools()
-        let add = try tool(named: "add_order_items", in: tools)
+        let add = try tool(named: "mark_supplies", in: tools)
 
         let receipt = try await add.handler([
-            "items": .array([
+            "new_needs": .array([
                 .object(["url": .string("example.com/pencils"), "title": .string("Pencils"), "quantity": .int(3)]),
                 .object(["url": .string("https://example.com/pencils")])
             ])
@@ -47,8 +47,8 @@ struct MCPOrderToolsTests {
     func addIsAllOrNothing() async throws {
         let (tools, context) = try makeTools()
         await #expect(throws: MCPToolError.self) {
-            _ = try await tool(named: "add_order_items", in: tools).handler([
-                "items": .array([
+            _ = try await tool(named: "mark_supplies", in: tools).handler([
+                "new_needs": .array([
                     .object(["url": .string("example.com/ok")]),
                     .object(["url": .string("not a link")])
                 ])
@@ -57,11 +57,11 @@ struct MCPOrderToolsTests {
         #expect(items(in: context).isEmpty)
     }
 
-    @Test("Stages move through update_order_items and read back through list_orders")
+    @Test("Stages move through mark_supplies needs and read back through list_supplies with a stage")
     func stagesRoundTrip() async throws {
         let (tools, context) = try makeTools()
-        _ = try await tool(named: "add_order_items", in: tools).handler([
-            "items": .array([
+        _ = try await tool(named: "mark_supplies", in: tools).handler([
+            "new_needs": .array([
                 .object(["url": .string("example.com/a"), "title": .string("Alpha")]),
                 .object(["url": .string("example.com/b"), "title": .string("Beta")])
             ])
@@ -69,40 +69,40 @@ struct MCPOrderToolsTests {
         let ids = items(in: context).compactMap { $0.id?.uuidString }
         // A fetch has no inherent order, so find Alpha by name rather than position.
         let alphaID = try #require(items(in: context).first { $0.title == "Alpha" }?.id?.uuidString)
-        let update = try tool(named: "update_order_items", in: tools)
+        let update = try tool(named: "mark_supplies", in: tools)
 
         _ = try await update.handler([
-            "items": .array(ids.map { .object(["id": .string($0), "stage": .string("asked_for")]) })
+            "needs": .array(ids.map { .object(["id": .string($0), "stage": .string("asked_for")]) })
         ])
         let asked = items(in: context)
         #expect(asked.allSatisfy { $0.stage == .requested })
         #expect(Set(asked.compactMap(\.requestID)).count == 1, "one call is one request")
 
         _ = try await update.handler([
-            "items": .array([.object(["id": .string(alphaID), "stage": .string("received"), "quantity": .int(2)])])
+            "needs": .array([.object(["id": .string(alphaID), "stage": .string("received"), "quantity": .int(2)])])
         ])
         let alpha = try #require(items(in: context).first { $0.id?.uuidString == alphaID })
         #expect(alpha.stage == .received)
         #expect(alpha.quantity == 2)
 
-        let open = try await tool(named: "list_orders", in: tools).handler([:])
+        let open = try await tool(named: "list_supplies", in: tools).handler(["stage": "open"])
         #expect(open.contains("asked_for (1)"))
         #expect(!open.contains("Alpha"), "open leaves out what has arrived")
 
-        let received = try await tool(named: "list_orders", in: tools).handler(["stage": .string("received")])
+        let received = try await tool(named: "list_supplies", in: tools).handler(["stage": .string("received")])
         #expect(received.contains("[order id=\(alphaID)] Alpha"))
     }
 
     @Test("An unknown id changes nothing")
     func updateRefusesUnknownIDs() async throws {
         let (tools, context) = try makeTools()
-        _ = try await tool(named: "add_order_items", in: tools).handler([
-            "items": .array([.object(["url": .string("example.com/a")])])
+        _ = try await tool(named: "mark_supplies", in: tools).handler([
+            "new_needs": .array([.object(["url": .string("example.com/a")])])
         ])
         let id = try #require(items(in: context).first?.id?.uuidString)
         await #expect(throws: MCPToolError.self) {
-            _ = try await tool(named: "update_order_items", in: tools).handler([
-                "items": .array([
+            _ = try await tool(named: "mark_supplies", in: tools).handler([
+                "needs": .array([
                     .object(["id": .string(id), "stage": .string("received")]),
                     .object(["id": .string(UUID().uuidString), "stage": .string("received")])
                 ])
@@ -114,13 +114,13 @@ struct MCPOrderToolsTests {
     @Test("Confirming an item never asked for is refused, and nothing in the batch changes")
     func confirmNeedsARequest() async throws {
         let (tools, context) = try makeTools()
-        _ = try await tool(named: "add_order_items", in: tools).handler([
-            "items": .array([.object(["url": .string("example.com/a"), "title": .string("Alpha")])])
+        _ = try await tool(named: "mark_supplies", in: tools).handler([
+            "new_needs": .array([.object(["url": .string("example.com/a"), "title": .string("Alpha")])])
         ])
         let id = try #require(items(in: context).first?.id?.uuidString)
         await #expect(throws: MCPToolError.self) {
-            _ = try await tool(named: "update_order_items", in: tools).handler([
-                "items": .array([.object(["id": .string(id), "stage": .string("confirmed")])])
+            _ = try await tool(named: "mark_supplies", in: tools).handler([
+                "needs": .array([.object(["id": .string(id), "stage": .string("confirmed")])])
             ])
         }
         #expect(items(in: context).first?.stage == .toRequest)
@@ -129,20 +129,20 @@ struct MCPOrderToolsTests {
     @Test("A title with no link is added as an office need, and a repeat is not added twice")
     func addTitleOnlyFromTheOffice() async throws {
         let (tools, context) = try makeTools()
-        let add = try tool(named: "add_order_items", in: tools)
+        let add = try tool(named: "mark_supplies", in: tools)
 
-        let receipt = try await add.handler(["items": .array([.object(["title": .string("Tape")])])])
+        let receipt = try await add.handler(["new_needs": .array([.object(["title": .string("Tape")])])])
         #expect(receipt.contains("Added 1 to_request"))
         let saved = try #require(items(in: context).first)
         #expect(saved.source == .office)
         #expect(saved.urlString.isEmpty)
 
-        let repeated = try await add.handler(["items": .array([.object(["title": .string("tape")])])])
+        let repeated = try await add.handler(["new_needs": .array([.object(["title": .string("tape")])])])
         #expect(repeated.contains("Already on the list"))
         #expect(items(in: context).count == 1)
 
         let ordered = try await add.handler([
-            "items": .array([.object(["title": .string("Easel"), "source": .string("order")])])
+            "new_needs": .array([.object(["title": .string("Easel"), "source": .string("order")])])
         ])
         #expect(ordered.contains("Added 1"))
         #expect(items(in: context).first { $0.title == "Easel" }?.source == .order)
@@ -152,8 +152,8 @@ struct MCPOrderToolsTests {
     func addNeedsLinkOrTitle() async throws {
         let (tools, context) = try makeTools()
         await #expect(throws: MCPToolError.self) {
-            _ = try await tool(named: "add_order_items", in: tools).handler([
-                "items": .array([
+            _ = try await tool(named: "mark_supplies", in: tools).handler([
+                "new_needs": .array([
                     .object(["title": .string("Tape")]),
                     .object(["quantity": .int(2)])
                 ])
@@ -162,7 +162,7 @@ struct MCPOrderToolsTests {
         #expect(items(in: context).isEmpty)
     }
 
-    @Test("list_orders shows the office run and to-order apart, labeling a staple's need")
+    @Test("list_supplies with a stage shows the office run and to-order apart, labeling a staple's need")
     func listSplitsOfficeRunFromToOrder() async throws {
         let (tools, context) = try makeTools()
         let author = RestockAuthor(role: .leadGuide)
@@ -170,7 +170,7 @@ struct MCPOrderToolsTests {
         _ = RestockService.addOneOff(title: "Easel", link: URL(string: "https://example.com/easel"), by: author, in: context)
         #expect(CoreDataTestHelpers.save(context))
 
-        let listing = try await tool(named: "list_orders", in: tools).handler([:])
+        let listing = try await tool(named: "list_supplies", in: tools).handler(["stage": "open"])
         let office = try #require(listing.range(of: "office run (1)"))
         let order = try #require(listing.range(of: "to order, to_request (1)"))
         #expect(office.lowerBound < order.lowerBound)
@@ -191,17 +191,17 @@ struct MCPOrderToolsTests {
         #expect(CoreDataTestHelpers.save(context))
         let need = try #require(RestockService.openNeeds(for: towels, in: context).first)
         let id = try #require(need.id?.uuidString)
-        let update = try tool(named: "update_order_items", in: tools)
+        let update = try tool(named: "mark_supplies", in: tools)
 
         await #expect(throws: MCPToolError.self) {
             _ = try await update.handler([
-                "items": .array([.object(["id": .string(id), "stage": .string("asked_for")])])
+                "needs": .array([.object(["id": .string(id), "stage": .string("asked_for")])])
             ])
         }
         #expect(need.stage == .toRequest)
 
         _ = try await update.handler([
-            "items": .array([.object(["id": .string(id), "stage": .string("received")])])
+            "needs": .array([.object(["id": .string(id), "stage": .string("received")])])
         ])
         #expect(need.stage == .received)
         #expect(towels.level == .stocked)

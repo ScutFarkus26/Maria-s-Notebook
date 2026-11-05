@@ -30,36 +30,18 @@ extension MCPNotebookTools {
 
     // MARK: - Reading the List
 
-    static func listOrdersTool(context: @escaping MCPContextProvider) -> MCPToolDefinition {
-        MCPToolDefinition(
-            name: "list_orders",
-            title: "List Orders",
-            description: "Restock's needs, in two lists. The office run is what to fetch from the school "
-                + "office (it only ever sits at to_request until it is received). To order is "
-                + "what the office is asked to order, grouped by stage — to_request (not asked for "
-                + "yet), asked_for (in a request the office hasn't confirmed), confirmed, received. "
-                + "A need that comes from a low or out staple is labeled with it. Also says who "
-                + "requests go to.",
-            inputSchema: [
-                "type": "object",
-                "properties": [
-                    "stage": [
-                        "type": "string",
-                        "enum": ["open", "to_request", "asked_for", "confirmed", "received", "all"],
-                        "description": .string("Which items: open (default — everything not yet "
-                            + "received), one stage, or all. The office run only has "
-                            + "to_request and received")
-                    ]
-                ]
-            ],
-            annotations: .readOnly,
-            handler: { arguments in
-                try describeOrders(arguments: arguments, in: context())
-            }
-        )
-    }
+    /// `list_supplies`' `stage` property: asking for a stage lists Restock's needs instead of its staples.
+    static let needsStageSchema: JSONValue = [
+        "type": "string",
+        "enum": ["open", "to_request", "asked_for", "confirmed", "received", "all"],
+        "description": .string("List Restock's needs instead of its staples. The office run is what to fetch "
+            + "from the school office (it only ever sits at to_request until it is received). To order is what "
+            + "the office is asked to order, grouped by stage — to_request (not asked for yet), asked_for (in a "
+            + "request the office hasn't confirmed), confirmed, received. A need that comes from a low or out "
+            + "staple is labeled with it. Also says who requests go to. open is everything not yet received.")
+    ]
 
-    private static func describeOrders(
+    static func describeOrders(
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
     ) throws -> String {
         let filter = nonEmpty(arguments["stage"]?.stringValue)?.lowercased() ?? "open"

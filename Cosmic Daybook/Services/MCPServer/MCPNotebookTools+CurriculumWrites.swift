@@ -45,7 +45,7 @@ extension MCPNotebookTools {
                     ],
                     "after_lesson": [
                         "type": "string",
-                        "description": .string("Id (from find_lessons or list_lessons_by_area) or exact "
+                        "description": .string("Id (from find_lessons) or exact "
                             + "name of the lesson this one follows. It must be in the same sub-area. "
                             + "Omit to append at the end.")
                     ],

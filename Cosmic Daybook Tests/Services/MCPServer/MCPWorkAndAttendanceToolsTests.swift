@@ -61,7 +61,7 @@ struct MCPWorkAndAttendanceToolsTests {
             "title": .string("Continent map")
         ])
 
-        let output = try await tool(named: "student_work", in: tools).handler([
+        let output = try await tool(named: "student_record", in: tools).presetting("sections", ["work"]).handler([
             "student_name": .string("Ana")
         ])
         #expect(output.contains("Open work for Ana Perez"))
@@ -207,7 +207,7 @@ struct MCPWorkAndAttendanceToolsTests {
             "date": .string(today)
         ])
 
-        let output = try await tool(named: "student_attendance", in: tools).handler([
+        let output = try await tool(named: "student_record", in: tools).presetting("sections", ["attendance"]).handler([
             "student_name": .string("Lila")
         ])
         #expect(output.contains("1 late"))

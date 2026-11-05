@@ -17,7 +17,7 @@ extension MCPNotebookTools {
     /// The `work_id` field as both todo writers declare it.
     static let todoWorkIDSchema: JSONValue = [
         "type": "string",
-        "description": .string("The work item this todo is about, as a work id from student_work "
+        "description": .string("The work item this todo is about, as a work id from student_record (work) "
             + "or work_detail. Pass it whenever the todo concerns one specific piece of work, so "
             + "Today shows it on that work's row instead of as a separate todo")
     ]

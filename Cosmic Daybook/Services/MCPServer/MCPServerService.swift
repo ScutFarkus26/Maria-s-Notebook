@@ -91,6 +91,7 @@ final class MCPServerService {
             let handler = MCPRequestHandler(
                 serverVersion: version,
                 tools: MCPNotebookTools.makeTools(journal: journal),
+                retiredTools: MCPNotebookTools.retiredTools,
                 onWrite: { record in await journal.record(record) }
             )
             let serverID = UUID()

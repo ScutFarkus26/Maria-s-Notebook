@@ -18,7 +18,7 @@
 //  capture review's "re-present" decision do (`needsAnotherPresentation` when
 //  she had it alone, her own follow-up row in a group), so the planning reads
 //  that already look for it see the re-teach. Both purposes write a note
-//  line on the new record, which `student_presentation_history` reads back as
+//  line on the new record, which `student_record (presentation_history)` reads back as
 //  "(2nd time; second pass)".
 //
 //  The record itself is read through PresentationRecordIndex, so "already has
@@ -143,7 +143,7 @@ extension MCPNotebookTools {
         return MCPToolError(
             "\(tool) refused — nothing has been changed. \(found) "
                 + "Re-call with purpose: \"second_pass\" (she needs it again) or purpose: \"review\" "
-                + "(a deliberate revisit). student_presentation_history with lesson has the detail."
+                + "(a deliberate revisit). student_record's presentation_history section, with lesson, has the detail."
         )
     }
 

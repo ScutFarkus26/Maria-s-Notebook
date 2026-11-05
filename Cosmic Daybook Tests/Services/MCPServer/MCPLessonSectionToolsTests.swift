@@ -49,7 +49,7 @@ struct MCPLessonSectionToolsTests {
         seedSequence(["Bead Frame"], area: "Math", sequence: "Operations", in: context)
         #expect(CoreDataTestHelpers.save(context))
 
-        let output = try await tool(named: "list_lessons_by_area", in: tools).handler([
+        let output = try await tool(named: "find_lessons", in: tools).handler([
             "area": .string("Math"), "sub_area": .string("Divisibility Drills")
         ])
         let lines = output.split(separator: "\n").map(String.init)
@@ -64,7 +64,7 @@ struct MCPLessonSectionToolsTests {
         #expect(lines[7].hasPrefix("4. ") && lines[7].contains("Prime Factors —"))
 
         // A sub-area with no sections keeps the plain list, and the area listing bands too.
-        let area = try await tool(named: "list_lessons_by_area", in: tools).handler(["area": .string("Math")])
+        let area = try await tool(named: "find_lessons", in: tools).handler(["area": .string("Math")])
         #expect(area.contains("Math › Operations — 1 lesson(s)\n1. [lesson id="))
         #expect(area.contains("Math › Divisibility Drills — 4 lesson(s)\nSection: Group 1\n1. "))
         #expect(!area.contains("Operations — 1 lesson(s)\nNo section"))
@@ -86,7 +86,7 @@ struct MCPLessonSectionToolsTests {
         #expect(created.section == "First Presentations")
         #expect(!created.hasChanges)
 
-        let output = try await tool(named: "list_lessons_by_area", in: tools).handler([
+        let output = try await tool(named: "find_lessons", in: tools).handler([
             "area": .string("Language"), "sub_area": .string("Logical Analysis")
         ])
         #expect(output.contains("Section: First Presentations\n2. [lesson id=\(created.id?.uuidString ?? "")]"))
@@ -103,7 +103,7 @@ struct MCPLessonSectionToolsTests {
         #expect(CoreDataTestHelpers.save(context))
         let lessonID = try #require(seeded[0].id).uuidString
         let update = try tool(named: "update_lesson", in: tools)
-        let listing = try tool(named: "list_lessons_by_area", in: tools)
+        let listing = try tool(named: "find_lessons", in: tools)
         let subArea: [String: JSONValue] = ["area": .string("Math"), "sub_area": .string("Divisibility")]
 
         let set = try await update.handler(["lesson": .string(lessonID), "section": .string("Group 1")])

@@ -33,7 +33,7 @@ struct MCPFamilyToolsTests {
         ])
         #expect(receipt.contains("Added"))
 
-        let listed = try await tool(named: "list_guardians", in: tools).handler([
+        let listed = try await tool(named: "families", in: tools).presetting("view", "guardians").handler([
             "student_name": .string("Maya")
         ])
         #expect(listed.contains("Rosa Soto"))
@@ -69,7 +69,7 @@ struct MCPFamilyToolsTests {
             "receives_reports": .bool(false)
         ])
 
-        let filtered = try await tool(named: "list_guardians", in: tools).handler([
+        let filtered = try await tool(named: "families", in: tools).presetting("view", "guardians").handler([
             "receives_reports_only": .bool(true)
         ])
         #expect(filtered.contains("Dana Ross"))

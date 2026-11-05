@@ -105,7 +105,7 @@ struct MCPYearPlanCarryOverToolTests {
         )
         CoreDataTestHelpers.save(context)
 
-        let output = try await tool(named: "students_pending", in: tools).handler([
+        let output = try await tool(named: "class_progress", in: tools).presetting("view", "pending").handler([
             "lesson": .string("The Checkerboard")
         ])
 

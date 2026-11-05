@@ -141,7 +141,7 @@ struct MCPLessonAttachmentJournalTests {
             fileAt: shared, to: sibling, scope: .sequence, allowedTypes: LessonAttachmentService.pdfOrImage
         )
 
-        let listing = try await fixture.call("list_lessons_by_area", ["area": "Geometry", "sub_area": "Circle"])
+        let listing = try await fixture.call("find_lessons", ["area": "Geometry", "sub_area": "Circle"])
         let lines = listing.split(separator: "\n").map(String.init)
 
         #expect(lines.count == 3)
