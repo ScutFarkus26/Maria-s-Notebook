@@ -40,7 +40,7 @@ struct LifecycleService {
                 }
             }
             if !lessonID.isEmpty, existing.lessonID != lessonID {
-                moveHistoryRow(existing, toLesson: lessonID)
+                existing.lessonID = lessonID
             }
             return existing
         } else {
@@ -70,17 +70,8 @@ struct LifecycleService {
         )
         let stale = context.safeFetch(request).filter { !$0.isDeleted }
         for row in stale {
-            moveHistoryRow(row, toLesson: assignment.lessonID)
+            row.lessonID = assignment.lessonID
         }
         return stale.count
-    }
-
-    /// One history row onto another lesson. The track and step columns named
-    /// the old lesson's place, so they are cleared; every reader places the
-    /// row by its lesson.
-    private static func moveHistoryRow(_ row: CDLessonPresentation, toLesson lessonID: String) {
-        row.lessonID = lessonID
-        row.trackID = nil
-        row.trackStepID = nil
     }
 }

@@ -15,8 +15,6 @@ nonisolated extension CDProcedure: Identifiable {}
 nonisolated extension CDPracticeSession: Identifiable {}
 nonisolated extension CDStudentMeeting: Identifiable {}
 nonisolated extension CDCommunityTopicEntity: Identifiable {}
-nonisolated extension CDTrackEntity: Identifiable {}
-nonisolated extension CDTrackStep: Identifiable {}
 nonisolated extension CDSampleWork: Identifiable {}
 nonisolated extension CDTodoItem: Identifiable {}
 nonisolated extension CDTodoSubtask: Identifiable {}
@@ -24,7 +22,6 @@ nonisolated extension CDTodoTemplate: Identifiable {}
 nonisolated extension CDProject: Identifiable {}
 nonisolated extension CDProjectSession: Identifiable {}
 nonisolated extension CDProjectRole: Identifiable {}
-nonisolated extension CDStudentTrackEnrollmentEntity: Identifiable {}
 nonisolated extension CDWorkCheckIn: Identifiable {}
 nonisolated extension CDSchedule: Identifiable {}
 nonisolated extension CDScheduleSlot: Identifiable {}
@@ -63,8 +60,6 @@ public typealias CDTodoSubtask = CDTodoSubtaskEntity
 public typealias CDTodoTemplate = CDTodoTemplateEntity
 public typealias CDMeetingTemplate = CDMeetingTemplateEntity
 public typealias CDNoteTemplate = CDNoteTemplateEntity
-public typealias CDSequenceTrack = CDSequenceTrackEntity
 public typealias CDSampleWork = CDSampleWorkEntity
 public typealias CDSampleWorkStep = CDSampleWorkStepEntity
 public typealias CDCommunityAttachment = CDCommunityAttachmentEntity
-public typealias CDTrackStep = CDTrackStepEntity

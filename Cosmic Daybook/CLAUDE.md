@@ -167,16 +167,16 @@ MVVM with services on `NSPersistentCloudKitContainer` (private and shared stores
 
 ## Data Model
 
-93 entities (schema 22): 70 private-only, 15 in the classroom share, 8 dormant tombstones. Core Data rules: `CD` prefix, no unique constraints, enums as raw `String`, foreign keys as `String`, every property optional or defaulted, `modifiedAt` for conflicts. Integrity rules and the entity table: `docs/Technical notes/DATA_MODELS.md`.
+93 entities (schema 23): 66 private-only, 15 in the classroom share, 12 dormant tombstones (schema 23 turned the four track entities into tombstones so sync history survives the migration). Core Data rules: `CD` prefix, no unique constraints, enums as raw `String`, foreign keys as `String`, every property optional or defaulted, `modifiedAt` for conflicts. Integrity rules and the entity table: `docs/Technical notes/DATA_MODELS.md`.
 
 ## Sharing Model
 
 - **Lead Guide** — full read/write on everything; the only role that sets up sharing (on the Mac only) or locks a day
 - **Assistant** — the Daybook Assistant: reads the classroom share, writes attendance on any unlocked day, marks staples, checks off the office run and adds needs (Restock), and sets her own name (`ClassroomNames`). An assistant added as View only (the Add Member picker no longer offers it, but older members may hold it) changes nothing: attendance and Restock both refuse
 - These roles are app conventions, not access control: CloudKit enforces only the share participant's permission, over all 15 share types. "Attendance, Restock and your own name only", "only the guide locks" and "a locked day refuses edits" hold because the apps enforce them (`ClassroomPermissions`, `CDAttendanceStore`), and `recordedBy`/`recordedByName` are stamped by the writing device.
-- Classroom share (15 types, listed in `CoreDataStack.sharedEntityNames`; schema 22 is current): Student (schema 21 adds `bornAfterSunset`, which moves the Hebrew birthday a day), AttendanceRecord, NonSchoolDay, SchoolDayOverride, AttendanceDayLock, AttendanceEmailSend, AttendanceEmailSettings (schema 12), Supply, SupplyTransaction, OrderItem (schema 15), ClassroomPerson (schema 16: the name each person sets, looked up when a line is worded; `ClassroomNames` is the only reader and writer), and the four Schedules types TimetableLane, TimetableBlock, TimetableChange and TimetableBooking (schema 20: only the guide's devices write them, assistants read)
+- Classroom share (15 types, listed in `CoreDataStack.sharedEntityNames`; schema 23 is current): Student (schema 21 adds `bornAfterSunset`, which moves the Hebrew birthday a day), AttendanceRecord, NonSchoolDay, SchoolDayOverride, AttendanceDayLock, AttendanceEmailSend, AttendanceEmailSettings (schema 12), Supply, SupplyTransaction, OrderItem (schema 15), ClassroomPerson (schema 16: the name each person sets, looked up when a line is worded; `ClassroomNames` is the only reader and writer), and the four Schedules types TimetableLane, TimetableBlock, TimetableChange and TimetableBooking (schema 20: only the guide's devices write them, assistants read)
 - **This school year only (2026-09-30):** students who are enrolled or left during this school year, and attendance from its first day on (`ClassroomShareScope`); last year leaves the share only by the Mac's Settings › Classroom › Remove Last Year from the Share (`ClassroomShareRelease`). See CloudKit.
-- Everything else is the guide's own (70 types): lessons, tracks, notes, work, todos, projects, meetings, ClassroomMembership, …
+- Everything else is the guide's own (66 types): lessons, notes, work, todos, projects, meetings, ClassroomMembership, …
 
 ## Siri (App Intents)
 
@@ -241,7 +241,7 @@ Rules: `docs/Technical notes/PARENTLOCKER.md`. The password stays in the Keychai
 
 ## Backup System
 
-Format v44; rules: `docs/Technical notes/BACKUP_SYSTEM.md`. A new entity or attribute needs a line in `Backup/BackupEntityTable.swift` and a format-version bump; merge restore is an upsert, never delete and reinsert.
+Format v45; rules: `docs/Technical notes/BACKUP_SYSTEM.md`. A new entity or attribute needs a line in `Backup/BackupEntityTable.swift` and a format-version bump; merge restore is an upsert, never delete and reinsert.
 
 ## Todos for Danny
 

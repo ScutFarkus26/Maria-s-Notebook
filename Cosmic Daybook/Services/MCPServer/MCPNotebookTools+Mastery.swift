@@ -1,7 +1,7 @@
 // MCPNotebookTools+Mastery.swift
 // The mastery write: `mark_mastered` flips a child's existing presentation
-// record for a lesson to mastered, which is the only thing that advances a
-// sequence-track step. Recording a presentation never does.
+// record for a lesson to mastered, which is the only thing that counts the
+// lesson mastered in her sequence standing. Recording a presentation never does.
 //
 // One lesson or a `marks` array of them: either way every child is resolved
 // and her row found before anything is written, so one unrecorded name
@@ -20,13 +20,13 @@ extension MCPNotebookTools {
             title: "Mark Lesson Mastered",
             description: "Record that the guide assessed a lesson as mastered for one or more children. Flips "
                 + "each child's existing presentation record for that lesson to mastered in place, "
-                + "which is what advances her sequence-track step; record_presentation alone never "
-                + "does. Refuses, and writes nothing, if any named child has no presentation of the "
-                + "lesson on record: file it with record_presentation first. Only use this when the "
-                + "guide says they assessed mastery; never infer it. To confirm a whole list at once "
-                + "pass marks, an array of these same fields: every child is checked before anything "
-                + "is written and one save covers them all. mastery_candidates proposes that list, "
-                + "with its evidence, and hands back the call to make.",
+                + "which is what counts the lesson mastered in her sequence (student_tracks); "
+                + "record_presentation alone never does. Refuses, and writes nothing, if any named "
+                + "child has no presentation of the lesson on record: file it with record_presentation "
+                + "first. Only use this when the guide says they assessed mastery; never infer it. "
+                + "To confirm a whole list at once pass marks, an array of these same fields: every "
+                + "child is checked before anything is written and one save covers them all. "
+                + "mastery_candidates proposes that list, with its evidence, and hands back the call to make.",
             inputSchema: markMasteredSchema,
             annotations: .idempotentWrite,
             handler: { arguments in

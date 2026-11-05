@@ -32,7 +32,7 @@ extension BackupService {
         collectCoreEntityDTOs(into: &payload, using: viewContext, progress: progress)
         collectRelationAndProjectDTOs(into: &payload, using: viewContext, progress: progress)
         collectWorkTrackingDTOs(into: &payload, using: viewContext, progress: progress)
-        collectTemplateAndTrackDTOs(into: &payload, using: viewContext, progress: progress)
+        collectTemplateDTOs(into: &payload, using: viewContext, progress: progress)
         collectOrganizationDTOs(into: &payload, using: viewContext, progress: progress)
         collectV18DTOs(into: &payload, using: viewContext, progress: progress)
         collectV20DTOs(into: &payload, using: viewContext, progress: progress)
@@ -140,12 +140,12 @@ extension BackupService {
             CDSampleWorkStep.self, using: viewContext) { SampleWorkStepDTO.rows($0) }
     }
 
-    private func collectTemplateAndTrackDTOs(
+    private func collectTemplateDTOs(
         into payload: inout BackupPayload,
         using viewContext: NSManagedObjectContext,
         progress: @escaping ProgressCallback
     ) {
-        progress(BackupProgress.progress(for: .collecting, subProgress: 0.55), "Collecting templates & tracks\u{2026}")
+        progress(BackupProgress.progress(for: .collecting, subProgress: 0.55), "Collecting templates\u{2026}")
         payload.noteTemplates = fetchAndTransformInBatches(
             CDNoteTemplate.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.meetingTemplates = fetchAndTransformInBatches(
@@ -154,14 +154,6 @@ extension BackupService {
             CDReminder.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.calendarEvents = fetchAndTransformInBatches(
             CDCalendarEvent.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
-        payload.tracks = fetchAndTransformInBatches(
-            CDTrackEntity.self, using: viewContext) { TrackDTO.rows($0) }
-        payload.trackSteps = fetchAndTransformInBatches(
-            CDTrackStep.self, using: viewContext) { TrackStepDTO.rows($0) }
-        payload.studentTrackEnrollments = fetchAndTransformInBatches(
-            CDStudentTrackEnrollmentEntity.self, using: viewContext) { StudentTrackEnrollmentDTO.rows($0) }
-        payload.sequenceTracks = fetchAndTransformInBatches(
-            CDSequenceTrack.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
     }
 
     // swiftlint:disable:next function_body_length

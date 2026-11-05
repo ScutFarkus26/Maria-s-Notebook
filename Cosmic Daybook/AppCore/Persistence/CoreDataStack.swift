@@ -6,8 +6,8 @@ import OSLog
 /// Manages the Core Data stack with NSPersistentCloudKitContainer.
 ///
 /// Two stores route entities to separate CloudKit databases:
-/// - **Private store** (`private.sqlite`) — teacher-level data (notes, work, attendance, todos, etc.)
-/// - **Shared store** (`shared.sqlite`) — classroom-level data (students, lessons, tracks, procedures, etc.)
+/// - **Private store** (`private.sqlite`) — teacher-level data (lessons, notes, work, todos, etc.)
+/// - **Shared store** (`shared.sqlite`) — the classroom share (students, attendance, Restock, Schedules)
 ///
 /// NSPersistentCloudKitContainer handles sync, offline queuing, and conflict resolution automatically.
 final class CoreDataStack {

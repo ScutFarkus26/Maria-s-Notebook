@@ -11,9 +11,9 @@ extension ChecklistBatchActionExecutor {
     /// Previously Presented*: the first means "today", and attaches to today's
     /// presentation; the second means "before this notebook existed", and
     /// attaches to the undated row that deliberately carries no date at all.
-    /// Everything either mark does afterwards — the roster edit, the track
-    /// enrolment, the `CDLessonPresentation` upsert — is identical, so they run
-    /// the same code with this passed in.
+    /// Everything either mark does afterwards — the roster edit, the
+    /// `CDLessonPresentation` upsert — is identical, so they run the same code
+    /// with this passed in.
     enum PresentedAttachment {
         case today
         case undated

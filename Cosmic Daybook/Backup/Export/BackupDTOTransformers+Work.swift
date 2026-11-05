@@ -24,8 +24,6 @@ extension BackupDTOTransformers {
             studentID: work.studentID,
             lessonID: work.lessonID,
             presentationID: work.presentationID,
-            trackID: work.trackID,
-            trackStepID: work.trackStepID,
             scheduledNote: work.scheduledNote,
             scheduledReasonRaw: work.scheduledReasonRaw,
             sourceContextTypeRaw: work.sourceContextTypeRaw,

@@ -46,7 +46,7 @@ final class PresentationsViewModel {
     var cachedLessonAssignments: [CDLessonAssignment] = []
     private var cachedStudentsStorage: [CDStudent] = []
 
-    // PERFORMANCE: CDTrackEntity pending update for cancellation
+    // PERFORMANCE: the pending update, kept so a newer one can cancel it
     private(set) var pendingUpdateTask: Task<Void, Never>?
     /// How many times `update` refetched the assignment table (tests pin the gate).
     @ObservationIgnored private(set) var assignmentFetchCount = 0

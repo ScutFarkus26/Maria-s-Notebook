@@ -38,8 +38,6 @@ extension BackupEntityImporter {
                 work.studentID = dto.studentID
                 work.lessonID = dto.lessonID
                 work.presentationID = dto.presentationID
-                work.trackID = dto.trackID
-                work.trackStepID = dto.trackStepID
                 work.scheduledNote = dto.scheduledNote
                 work.scheduledReasonRaw = dto.scheduledReasonRaw
                 work.sourceContextTypeRaw = dto.sourceContextTypeRaw

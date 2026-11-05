@@ -133,8 +133,6 @@ nonisolated extension DataCleanupService {
         if canonical.studentID.isEmpty { canonical.studentID = duplicate.studentID }
         if canonical.lessonID.isEmpty { canonical.lessonID = duplicate.lessonID }
         if canonical.presentationID == nil { canonical.presentationID = duplicate.presentationID }
-        if canonical.trackID == nil { canonical.trackID = duplicate.trackID }
-        if canonical.trackStepID == nil { canonical.trackStepID = duplicate.trackStepID }
         if canonical.lastObservedAt == nil { canonical.lastObservedAt = duplicate.lastObservedAt }
         if canonical.masteredAt == nil { canonical.masteredAt = duplicate.masteredAt }
         if (canonical.notes ?? "").isEmpty { canonical.notes = duplicate.notes }

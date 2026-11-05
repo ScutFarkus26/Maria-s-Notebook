@@ -87,9 +87,6 @@
     "StudentFocusItem" : [
       "rejected"
     ],
-    "StudentTrackEnrollment" : [
-      "rejected"
-    ],
     "SupplyTransaction" : [
       "rejected"
     ],
@@ -106,12 +103,6 @@
       "rejected"
     ],
     "TodoSubtask" : [
-      "rejected"
-    ],
-    "Track" : [
-      "rejected"
-    ],
-    "TrackStep" : [
       "rejected"
     ],
     "WorkStep" : [
@@ -150,19 +141,11 @@
       "not found: kept",
       "left out: kept"
     ],
-    "StudentTrackEnrollment.track" : [
-      "not found: cleared",
-      "not an id: kept"
-    ],
     "SupplyTransaction.supply" : [
       "not found: kept",
       "not an id: kept"
     ],
     "TodoSubtask.todo" : [
-      "not found: kept",
-      "left out: kept"
-    ],
-    "TrackStep.track" : [
       "not found: kept",
       "left out: kept"
     ],
@@ -287,10 +270,6 @@
       "{\"createdAt\":\"<now>\",\"createdInMeetingID\":\"\",\"id\":\"00000000-0000-4000-8000-000000000008\",\"sortOrder\":0,\"statusRaw\":\"active\",\"studentID\":\"\",\"text\":\"\"}",
       "{\"createdAt\":\"<now>\",\"createdInMeetingID\":\"\",\"id\":\"<new id>\",\"sortOrder\":0,\"statusRaw\":\"active\",\"studentID\":\"\",\"text\":\"\"}"
     ],
-    "StudentTrackEnrollment" : [
-      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000001D\",\"isActive\":true,\"studentID\":\"\",\"trackID\":\"\"}",
-      "{\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"isActive\":true,\"studentID\":\"\",\"trackID\":\"\"}"
-    ],
     "SupplyTransaction" : [
       "{\"changedByID\":\"\",\"id\":\"00000000-0000-4000-8000-000000000020\",\"quantityChange\":0,\"reason\":\"\",\"supplyID\":\"\"}",
       "{\"changedByID\":\"\",\"id\":\"<new id>\",\"quantityChange\":0,\"reason\":\"\",\"supplyID\":\"\"}"
@@ -314,14 +293,6 @@
     "TodoSubtask" : [
       "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000018\",\"isCompleted\":false,\"orderIndex\":0,\"title\":\"\"}",
       "{\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"isCompleted\":false,\"orderIndex\":0,\"title\":\"\"}"
-    ],
-    "Track" : [
-      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000002\",\"title\":\"\"}",
-      "{\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"title\":\"\"}"
-    ],
-    "TrackStep" : [
-      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000017\",\"orderIndex\":0}",
-      "{\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"orderIndex\":0}"
     ],
     "WorkStep" : [
       "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000015\",\"instructions\":\"\",\"notes\":\"\",\"orderIndex\":0,\"title\":\"\"}",

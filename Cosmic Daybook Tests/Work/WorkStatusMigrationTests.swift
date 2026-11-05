@@ -115,7 +115,7 @@ struct WorkStatusMigrationTests {
             createdAt: Date(), completedAt: Date(), kindRaw: "practiceLesson", statusRaw: "complete",
             assignedAt: Date(), lastTouchedAt: nil, dueAt: nil, completionOutcomeRaw: "mastered",
             studentID: UUID().uuidString, lessonID: UUID().uuidString, presentationID: nil,
-            trackID: nil, trackStepID: nil, scheduledNote: nil, scheduledReasonRaw: nil,
+            scheduledNote: nil, scheduledReasonRaw: nil,
             sourceContextTypeRaw: nil, sourceContextID: nil, sampleWorkID: nil,
             checkInStyleRaw: nil, restingUntil: nil
         )

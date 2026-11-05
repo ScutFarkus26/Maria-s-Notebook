@@ -149,10 +149,10 @@ final class StudentAreaProgressionViewModel {
     // MARK: - Fetching
 
     /// Lessons that could belong to `area` / `sequence` (see
-    /// `SequenceTrackService.couldEqualPredicate`), in curriculum order.
+    /// `SequenceStandingLoader.couldEqualPredicate`), in curriculum order.
     private func fetchLessons(area: String, sequence: String, context: NSManagedObjectContext) -> [CDLesson] {
         let descriptor = CDFetchRequest(CDLesson.self)
-        descriptor.predicate = SequenceTrackService.couldEqualPredicate(area: area, sequence: sequence)
+        descriptor.predicate = SequenceStandingLoader.couldEqualPredicate(area: area, sequence: sequence)
         descriptor.sortDescriptors = CDLesson.sortByCurriculumOrder
         return context.safeFetch(descriptor)
     }

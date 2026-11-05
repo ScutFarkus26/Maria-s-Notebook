@@ -1,6 +1,6 @@
 // BackupRestoreRun+PlanningTypes.swift
 // The restore order, second part: templates, reminders and calendar events,
-// tracks, documents and supplies, schedules, issues, snapshots and todos,
+// documents and supplies, schedules, issues, snapshots and todos,
 // recommendations, resources and note-student links.
 
 import CoreData
@@ -33,42 +33,6 @@ extension BackupRestoreRun {
         // rebuilds them. Taking them still frees them in type order.
         _ = try rows(\.reminders)
         _ = try rows(\.calendarEvents)
-    }
-
-    func importTrackEntities() throws {
-        let viewContext = context
-        let index = self.index
-
-        if let tracks = try rows(\.tracks) {
-            BackupEntityImporter.importRows(
-                tracks, as: CDTrackEntity.self, into: viewContext,
-                existing: { try index.existing(CDTrackEntity.self, id: $0) }
-            )
-        }
-
-        if let trackSteps = try rows(\.trackSteps) {
-            BackupEntityImporter.importRows(
-                trackSteps, as: CDTrackStep.self, into: viewContext,
-                existing: { try index.existing(CDTrackStep.self, id: $0) },
-                parents: ["track": { try index.related(CDTrackEntity.self, id: $0) }]
-            )
-        }
-
-        if let enrollments = try rows(\.studentTrackEnrollments) {
-            BackupEntityImporter.importRows(
-                enrollments, as: CDStudentTrackEnrollmentEntity.self, into: viewContext,
-                existing: { try index.existing(CDStudentTrackEnrollmentEntity.self, id: $0) },
-                parents: ["track": { try index.related(CDTrackEntity.self, id: $0) }]
-            )
-        }
-
-        if let sequenceTracks = try rows(\.sequenceTracks) {
-            try BackupEntityImporter.importSequenceTracks(
-                sequenceTracks,
-                into: viewContext,
-                existing: { try index.existing(CDSequenceTrack.self, id: $0) }
-            )
-        }
     }
 
     func importDocumentEntities() throws {

@@ -3,7 +3,7 @@ import Foundation
 import CoreData
 
 // MARK: - Misc Transformers
-// (Calendar, Todo, CDTrackEntity, CDSupply, CDSchedule, CDIssue, CDProcedure, CDDocument, etc.)
+// (Calendar, Todo, CDSupply, CDSchedule, CDIssue, CDProcedure, CDDocument, etc.)
 
 // CDNonSchoolDay, CDSchoolDayOverride, CDStudentMeeting, CDAttendanceRecord, and
 // CDWorkCompletionRecord exports go through BackupServiceHelpers.toDTOs — do not
@@ -29,8 +29,6 @@ extension BackupDTOTransformers {
             needsAnotherPresentation: assignment.needsAnotherPresentation,
             followUpWork: assignment.followUpWork,
             notes: assignment.notes,
-            trackID: assignment.trackID,
-            trackStepID: assignment.trackStepID,
             migratedFromLegacyID: assignment.migratedFromStudentLessonID,
             migratedFromPresentationID: assignment.migratedFromPresentationID,
             manuallyUnblocked: assignment.manuallyUnblocked,
@@ -80,19 +78,6 @@ extension BackupDTOTransformers {
             location: e.location,
             notes: e.notes,
             isAllDay: e.isAllDay
-        )
-    }
-
-    // MARK: - CDSequenceTrack
-
-    static func toDTO(_ g: CDSequenceTrack) -> SequenceTrackDTO {
-        SequenceTrackDTO(
-            id: g.id ?? UUID(),
-            area: g.area,
-            sequence: g.sequence,
-            isSequential: g.isSequential,
-            isExplicitlyDisabled: g.isExplicitlyDisabled,
-            createdAt: g.createdAt ?? Date()
         )
     }
 
@@ -321,10 +306,6 @@ extension BackupDTOTransformers {
 
     static func toDTOs(_ events: [CDCalendarEvent]) -> [CalendarEventDTO] {
         events.map { toDTO($0) }
-    }
-
-    static func toDTOs(_ sequenceTracks: [CDSequenceTrack]) -> [SequenceTrackDTO] {
-        sequenceTracks.map { toDTO($0) }
     }
 
     static func toDTOs(_ documents: [CDDocument]) -> [DocumentDTO] {

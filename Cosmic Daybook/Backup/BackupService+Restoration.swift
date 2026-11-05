@@ -57,7 +57,6 @@ private enum RestoreProgress {
     static let workTracking: Double = 0.70
     static let lessonExtras: Double = 0.74
     static let templates: Double = 0.76
-    static let tracks: Double = 0.78
     static let documentsSupplies: Double = 0.80
     static let schedules: Double = 0.82
     static let issues: Double = 0.84
@@ -330,9 +329,6 @@ extension BackupService {
 
         progress(RestoreProgress.templates, "Importing templates\u{2026}")
         try run.importTemplateEntities()
-
-        progress(RestoreProgress.tracks, "Importing tracks\u{2026}")
-        try run.importTrackEntities()
 
         progress(RestoreProgress.documentsSupplies, "Importing documents & supplies\u{2026}")
         try run.importDocumentEntities()

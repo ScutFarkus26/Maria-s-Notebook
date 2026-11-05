@@ -27,12 +27,6 @@ final class PresentationDetailActions {
         let lessonChanged = lessonAssignment.lessonID != editingLessonID.uuidString
 
         lessonAssignment.lessonID = editingLessonID.uuidString
-        if lessonChanged {
-            // The track and step named the old lesson; recording works them
-            // out again for the new one.
-            lessonAssignment.trackID = nil
-            lessonAssignment.trackStepID = nil
-        }
         lessonAssignment.notes = notes
         lessonAssignment.needsAnotherPresentation = needsAnotherPresentation
         lessonAssignment.studentIDs = selectedStudentIDs.map(\.uuidString)

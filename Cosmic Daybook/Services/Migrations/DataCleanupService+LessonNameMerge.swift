@@ -23,8 +23,8 @@
 //  Everything that points at the duplicate by id string is repointed at the
 //  survivor — presentations, mastery marks, year-plan entries, work,
 //  notes, recall checks, planning recommendations, resources, stories and
-//  their match reasons, Going Out curriculum links, track steps, and the
-//  lesson-to-lesson links (+LessonLinks) — and the year-plan entries
+//  their match reasons, Going Out curriculum links, and the lesson-to-lesson
+//  links (+LessonLinks) — and the year-plan entries
 //  and marks a child now holds twice for one lesson are folded to one.
 //  `LessonRepository` refuses the same name in the same sub-area on create,
 //  rename and move (2026-10-12), so this should find nothing to do after that.
@@ -193,7 +193,7 @@ nonisolated extension DataCleanupService {
     }
 
     /// Every record that keys a lesson by its id string, moved from `old` to `new`. One id on
-    /// both sides moves nothing: it read each track step as its own double (2026-10-12 hunt).
+    /// both sides moves nothing: it read each record as its own double (2026-10-12 hunt).
     static func repointLessonReferences(
         from old: UUID,
         to new: UUID,
@@ -220,7 +220,6 @@ nonisolated extension DataCleanupService {
             recommendation.lessonID = newID
         }
         repointLessonLinks(from: oldID, to: newID, in: context)
-        repointTrackSteps(from: old, to: new, in: context)
         repointMarks(from: oldID, to: newID, container: container, in: context)
         repointYearPlanEntries(from: oldID, to: newID, container: container, in: context)
     }
@@ -329,36 +328,6 @@ nonisolated extension DataCleanupService {
         case .planned: return 1
         case .skipped: return 2
         }
-    }
-
-    /// A track that stepped through both copies keeps one step for the lesson.
-    /// The records that named the dropped step name the kept one instead, as
-    /// the track title merge does: they kept the dropped step's id until
-    /// 2026-11-02 (bug hunt 2026-11-02, #59), harmless only while every
-    /// reader also matched by lesson.
-    private static func repointTrackSteps(from old: UUID, to new: UUID, in context: NSManagedObjectContext) {
-        let request = CDFetchRequest(CDTrackStep.self)
-        request.predicate = NSPredicate(format: "lessonTemplateID == %@", old as CVarArg)
-        let moved = context.safeFetch(request).filter { !$0.isDeleted }
-        guard !moved.isEmpty else { return }
-
-        let existing = CDFetchRequest(CDTrackStep.self)
-        existing.predicate = NSPredicate(format: "lessonTemplateID == %@", new as CVarArg)
-        var keptByTrack: [NSManagedObjectID: CDTrackStep] = [:]
-        for step in context.safeFetch(existing) where !step.isDeleted {
-            if let trackID = step.track?.objectID, keptByTrack[trackID] == nil { keptByTrack[trackID] = step }
-        }
-
-        var remap: [String: String] = [:]
-        for step in moved {
-            if let trackID = step.track?.objectID, let kept = keptByTrack[trackID] {
-                if let oldID = step.id?.uuidString, let newID = kept.id?.uuidString { remap[oldID] = newID }
-                context.delete(step)
-            } else {
-                step.lessonTemplateID = new
-            }
-        }
-        repointTrackStepIDs(remap, in: context)
     }
 
     // MARK: - Helpers

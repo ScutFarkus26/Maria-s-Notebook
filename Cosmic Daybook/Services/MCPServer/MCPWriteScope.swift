@@ -19,10 +19,9 @@ import Foundation
 
 /// One MCP write's changes, undone alone if the write fails.
 ///
-/// A save inside the write (a service that saves on its own, like the track
-/// check after a mastery mark) is kept: the scope starts again after it, so a
-/// later failure undoes only what is still unsaved, which is what
-/// `rollback()` used to discard, less the guide's edits.
+/// A save inside the write (a service that saves on its own) is kept: the
+/// scope starts again after it, so a later failure undoes only what is still
+/// unsaved, which is what `rollback()` used to discard, less the guide's edits.
 ///
 /// Scopes don't nest, and neither do they nest with a service's own
 /// `ContextMutationTransaction` (`WorkDeletionService`): a tool built on such

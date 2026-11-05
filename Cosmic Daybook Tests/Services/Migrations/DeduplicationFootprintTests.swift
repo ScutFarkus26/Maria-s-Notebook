@@ -13,7 +13,7 @@ import Testing
 @MainActor
 struct DeduplicationFootprintTests {
 
-    private func seedCleanStore(lessons: Int, tracks: Int) throws -> CoreDataStack {
+    private func seedCleanStore(lessons: Int, students: Int) throws -> CoreDataStack {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
         let context = stack.viewContext
         for index in 0..<lessons {
@@ -21,9 +21,8 @@ struct DeduplicationFootprintTests {
                 in: context, name: "Lesson \(index)", area: "Area \(index % 7)", sequence: "Seq \(index % 3)"
             )
         }
-        for index in 0..<tracks {
-            let track = CDTrackEntity(context: context)
-            track.title = "Track \(index)"
+        for index in 0..<students {
+            CoreDataTestHelpers.seedStudent(in: context, firstName: "Child \(index)")
         }
         CoreDataTestHelpers.save(context)
         return stack
@@ -31,7 +30,7 @@ struct DeduplicationFootprintTests {
 
     @Test("A full pass over a clean store registers no objects in the working context")
     func cleanPassLeavesNoRegisteredObjects() async throws {
-        let stack = try seedCleanStore(lessons: 300, tracks: 30)
+        let stack = try seedCleanStore(lessons: 300, students: 30)
         let bgContext = stack.newBackgroundContext()
 
         let (results, registered) = await bgContext.perform {

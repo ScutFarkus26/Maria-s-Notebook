@@ -28,15 +28,6 @@ public enum MeetingTemplateBackupRow: ModelRowKind {
     )
 }
 
-public typealias TrackDTO = ModelRow<TrackBackupRow>
-
-public enum TrackBackupRow: ModelRowKind {
-    public static let spec = ModelRowSpec(
-        "Track",
-        filling: ["createdAt"]
-    )
-}
-
 public typealias ScheduleDTO = ModelRow<ScheduleBackupRow>
 
 public enum ScheduleBackupRow: ModelRowKind {
@@ -309,17 +300,6 @@ public enum SampleWorkStepBackupRow: ModelRowKind {
     )
 }
 
-public typealias TrackStepDTO = ModelRow<TrackStepBackupRow>
-
-public enum TrackStepBackupRow: ModelRowKind {
-    public static let spec = ModelRowSpec(
-        "TrackStep",
-        filling: ["createdAt"],
-        parentIDs: ["trackID": "track"],
-        parents: [ParentLink(key: "trackID", relationship: "track")]
-    )
-}
-
 public typealias TodoSubtaskDTO = ModelRow<TodoSubtaskBackupRow>
 
 public enum TodoSubtaskBackupRow: ModelRowKind {
@@ -370,20 +350,6 @@ public enum BookClubMeetingBackupRow: ModelRowKind {
         "BookClubMeeting",
         filling: ["createdAt", "modifiedAt"],
         parents: [ParentLink(key: "sessionID", relationship: "session")]
-    )
-}
-
-public typealias StudentTrackEnrollmentDTO = ModelRow<StudentTrackEnrollmentBackupRow>
-
-public enum StudentTrackEnrollmentBackupRow: ModelRowKind {
-    public static let spec = ModelRowSpec(
-        "StudentTrackEnrollment",
-        filling: ["createdAt"],
-        // A missing track clears it. The student is `studentID` alone since
-        // schema 9 (no relationship to set).
-        parents: [
-            ParentLink(key: "trackID", relationship: "track", missing: .clearWhenNotFound)
-        ]
     )
 }
 

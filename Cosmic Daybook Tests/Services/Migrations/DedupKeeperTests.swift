@@ -5,11 +5,10 @@ import Testing
 
 // Bug hunt 2026-10-05 (#1, #40, #41, #42): every device runs the duplicate
 // cleanup on its own, and the copy it kept was chosen by content: the latest
-// mark, the active enrollment, the promoted plan. Two devices that had seen
-// different edits could each keep a different copy and delete the other, and
-// both deletes synced. The copy kept is now chosen by identity (the id string
-// first), the same on every device at every sync state, and the winning
-// content is copied onto it.
+// mark, the promoted plan. Two devices that had seen different edits could
+// each keep a different copy and delete the other, and both deletes synced.
+// The copy kept is now chosen by identity (the id string first), the same on
+// every device at every sync state, and the winning content is copied onto it.
 
 @Suite("Dedup keepers by identity")
 @MainActor
@@ -249,47 +248,5 @@ struct DedupKeeperTests {
         #expect(kept.id == low)
         #expect(kept.status == .promoted)
         #expect(kept.promotedAssignmentID == "5A1B0000-0000-0000-0000-000000000007")
-    }
-
-    @Test("A child enrolled on both twin tracks keeps the lower-id enrollment, made active")
-    func trackMergeKeepsEnrollmentByIdentity() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let olderTrack = CDTrackEntity(context: context)
-        olderTrack.title = "Math — Laws"
-        olderTrack.createdAt = try CoreDataTestHelpers.day("2026-01-10")
-        let newerTrack = CDTrackEntity(context: context)
-        newerTrack.title = "Math — Laws"
-        newerTrack.createdAt = try CoreDataTestHelpers.day("2026-01-11")
-        #expect(CoreDataTestHelpers.save(context))
-
-        let retired = CDStudentTrackEnrollmentEntity(context: context)
-        retired.id = low
-        retired.studentID = studentID
-        retired.trackID = try #require(olderTrack.id).uuidString
-        retired.track = olderTrack
-        retired.isActive = false
-        retired.startedAt = try CoreDataTestHelpers.day("2026-01-11")
-        let live = CDStudentTrackEnrollmentEntity(context: context)
-        live.id = high
-        live.studentID = studentID
-        live.trackID = try #require(newerTrack.id).uuidString
-        live.track = newerTrack
-        live.isActive = true
-        live.startedAt = try CoreDataTestHelpers.day("2026-02-01")
-        let note = CoreDataTestHelpers.seedNote(in: context, body: "Working steadily through the laws.")
-        note.studentTrackEnrollmentID = high.uuidString
-        #expect(CoreDataTestHelpers.save(context))
-
-        #expect(DataCleanupService.mergeSameTitleTracks(using: context) == 1)
-        #expect(CoreDataTestHelpers.save(context))
-
-        let enrollments = context.safeFetch(CDFetchRequest(CDStudentTrackEnrollmentEntity.self))
-        let kept = try #require(enrollments.first)
-        #expect(enrollments.count == 1)
-        #expect(kept.id == low)
-        #expect(kept.isActive)
-        #expect(kept.startedAt == (try CoreDataTestHelpers.day("2026-02-01")))
-        #expect(kept.track === olderTrack)
-        #expect(note.studentTrackEnrollmentID == low.uuidString)
     }
 }

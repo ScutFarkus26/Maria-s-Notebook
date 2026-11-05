@@ -18,6 +18,12 @@ import Testing
 // Objects are made with `insertNewObject(forEntityName:)` and read through KVC:
 // the schema-8 stand-in and the bundle's model are both loaded here, so the
 // class-to-entity lookup behind the `CD…(context:)` initializers is ambiguous.
+// Schema 23 took the track entities out of the private store (they stay in
+// the model as dormant tombstones) and dropped the columns that named them, so
+// this schema-8 model routes the four to Private and the stand-in adds the
+// columns back (`TrackEntitiesStandIn`). The migration here goes past both
+// changes at once: the enrollment leaves with its store's configuration, the
+// child stays.
 
 @Suite("Classroom share shrink migration", .serialized)
 @MainActor
@@ -44,8 +50,8 @@ struct ClassroomShareShrinkMigrationTests {
 
     /// The model as schema 8 had it: no AttendanceDayLock (nor schema 12's
     /// front-desk email types, nor schema 16's ClassroomPerson, nor schema
-    /// 20's Schedules types), the enrollment relationship in place, and the
-    /// old 33-type Shared configuration.
+    /// 20's Schedules types), the track entities and the enrollment
+    /// relationship in place, and the old 33-type Shared configuration.
     private func schema8Model() throws -> NSManagedObjectModel {
         let model = try bundleModel()
         let later: Set<String> = [
@@ -53,6 +59,7 @@ struct ClassroomShareShrinkMigrationTests {
             "TimetableLane", "TimetableBlock", "TimetableChange", "TimetableBooking"
         ]
         model.entities = model.entities.filter { !later.contains($0.name ?? "") }
+        TrackEntitiesStandIn.add(to: model)
         let byName = model.entitiesByName
         let student = try #require(byName["Student"])
         let enrollment = try #require(byName["StudentTrackEnrollment"])
@@ -77,6 +84,7 @@ struct ClassroomShareShrinkMigrationTests {
         enrollment.properties += [toOne]
 
         let routed = CoreDataStack.privateEntityNames.union(CoreDataStack.sharedEntityNames)
+            .union(TrackEntitiesStandIn.names)
         let shared = model.entities.filter { Self.schema8SharedNames.contains($0.name ?? "") }
         let privateSet = model.entities.filter { routed.contains($0.name ?? "") }
         model.setEntities(shared, forConfigurationName: CoreDataStack.sharedConfiguration)
@@ -192,10 +200,12 @@ struct ClassroomShareShrinkMigrationTests {
         try load(new)
         let context = new.viewContext
 
-        // 3. The guide's enrollment survives the relationship's removal.
-        let enrollment = try #require(try fetch("StudentTrackEnrollment", id: enrollmentID, in: context))
-        #expect(enrollment.value(forKey: "studentID") as? String == guideStudent.uuidString)
+        // 3. The guide's child survives the relationship's removal (her
+        //    enrollment left the private store at schema 23).
         #expect(try fetch("Student", id: guideStudent, in: context) != nil)
+        let privateNames = model.entities(forConfigurationName: CoreDataStack.privateConfiguration)?
+            .compactMap(\.name) ?? []
+        #expect(!privateNames.isEmpty && !privateNames.contains("StudentTrackEnrollment"))
 
         // 4. The shared store keeps its five types; the lesson it can no
         //    longer hold is gone from it (an assistant never needed it).

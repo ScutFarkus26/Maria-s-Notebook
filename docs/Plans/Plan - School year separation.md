@@ -124,7 +124,7 @@ report uses the child-anchored cycle.
 
 | Class | Entities | Year filter |
 |---|---|---|
-| **Evergreen** | `CDStudent`, `CDLesson` (+attachments, sampleWorks), `CDTrack` / `CDSequenceTrack`, `CDProcedure`, `CDSupply`, `NoteTemplate` / `MeetingTemplate` / `TodoTemplate`, `CDResource`, schedules | **Never** |
+| **Evergreen** | `CDStudent`, `CDLesson` (+attachments, sampleWorks), `CDProcedure`, `CDSupply`, `NoteTemplate` / `MeetingTemplate` / `TodoTemplate`, `CDResource`, schedules | **Never** |
 | **Year-scoped activity** | `CDNote`, `CDWorkModel`, `CDLessonAssignment`, `CDAttendanceRecord`, `CDPracticeSession`, `CDProject` / `CDProjectSession`, `CDTodoItemEntity`, `CDStudentMeeting` / `CDScheduledMeeting`, `CDWorkCheckIn`, `CDIssue`, calendar entries, Going Out | **Yes** |
 
 ## Filtering semantics
@@ -192,7 +192,7 @@ enum SchoolYearFilter {
 - `@FetchRequest` views — rebuild the predicate when the selection changes (construct
   from the store in `init`, or key the container with `.id(selection)`; small lists may
   post-filter in memory).
-- **Untouched:** Lessons, Procedures, Supplies, Tracks, Templates.
+- **Untouched:** Lessons, Procedures, Supplies, Templates.
 
 ## Phasing
 

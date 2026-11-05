@@ -14,7 +14,6 @@ final class Phase7PreTests {
         let types = BackupEntityRegistry.allTypes
         #expect(types.contains(where: { $0 == CDStudent.self }))
         #expect(types.contains(where: { $0 == CDLesson.self }))
-        #expect(types.contains(where: { $0 == CDTrackEntity.self }))
         #expect(types.contains(where: { $0 == CDSchedule.self }))
         #expect(types.contains(where: { $0 == CDProcedure.self }))
         #expect(types.contains(where: { $0 == CDClassroomJob.self }))

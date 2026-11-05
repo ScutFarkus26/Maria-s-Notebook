@@ -21,8 +21,6 @@ nonisolated public class CDLessonAssignment: NSManagedObject {
     @NSManaged public var lessonID: String
     @NSManaged public var _studentIDsData: Data?
     @NSManaged public var studentGroupKeyPersisted: String
-    @NSManaged public var trackID: String?
-    @NSManaged public var trackStepID: String?
     @NSManaged public var migratedFromStudentLessonID: String?
     @NSManaged public var migratedFromPresentationID: String?
     @NSManaged public var _confirmedStudentIDsData: Data?
@@ -70,8 +68,6 @@ nonisolated public class CDLessonAssignment: NSManagedObject {
         self.lessonID = ""
         self._studentIDsData = nil
         self.studentGroupKeyPersisted = ""
-        self.trackID = nil
-        self.trackStepID = nil
         self.migratedFromStudentLessonID = nil
         self.migratedFromPresentationID = nil
         self._confirmedStudentIDsData = nil

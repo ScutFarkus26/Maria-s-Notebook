@@ -100,8 +100,6 @@ nonisolated public struct LessonPresentationDTO: Codable, Sendable {
     public var studentID: String
     public var lessonID: String
     public var presentationID: String?
-    public var trackID: String?
-    public var trackStepID: String?
     public var stateRaw: String
     public var presentedAt: Date
     public var lastObservedAt: Date?
@@ -136,8 +134,6 @@ nonisolated public struct LessonAssignmentDTO: Codable, Sendable {
     public var needsAnotherPresentation: Bool
     public var followUpWork: String
     public var notes: String
-    public var trackID: String?
-    public var trackStepID: String?
     public var migratedFromLegacyID: String?
     public var migratedFromPresentationID: String?
     /// User flag: a presentation manually unblocked despite the blocking rules. Restored so
@@ -164,8 +160,6 @@ nonisolated public struct LessonAssignmentDTO: Codable, Sendable {
         needsAnotherPresentation: Bool,
         followUpWork: String,
         notes: String,
-        trackID: String?,
-        trackStepID: String?,
         migratedFromLegacyID: String?,
         migratedFromPresentationID: String?,
         manuallyUnblocked: Bool? = nil,
@@ -185,8 +179,6 @@ nonisolated public struct LessonAssignmentDTO: Codable, Sendable {
         self.needsAnotherPresentation = needsAnotherPresentation
         self.followUpWork = followUpWork
         self.notes = notes
-        self.trackID = trackID
-        self.trackStepID = trackStepID
         self.migratedFromLegacyID = migratedFromLegacyID
         self.migratedFromPresentationID = migratedFromPresentationID
         self.manuallyUnblocked = manuallyUnblocked
@@ -212,7 +204,6 @@ nonisolated public struct NoteDTO: Codable, Sendable {
     public var reporterName: String?
     public var communityTopicID: String?
     public var schoolDayOverrideID: String?
-    public var studentTrackEnrollmentID: String?
     // FK to a Going Out (optional for compatibility with older backups that predate this field).
     public var goingOutID: String?
     // Relationship targets, relinked in a post-import pass (their entities are

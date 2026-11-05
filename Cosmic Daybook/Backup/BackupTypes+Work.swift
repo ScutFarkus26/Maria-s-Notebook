@@ -21,8 +21,6 @@ nonisolated public struct WorkModelDTO: Codable, Sendable {
     public var studentID: String
     public var lessonID: String
     public var presentationID: String?
-    public var trackID: String?
-    public var trackStepID: String?
     public var scheduledNote: String?
     public var scheduledReasonRaw: String?
     public var sourceContextTypeRaw: String?

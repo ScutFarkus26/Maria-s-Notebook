@@ -113,7 +113,6 @@ enum BackupRestoreFixtures {
         "WorkModel", "WorkCheckIn", "WorkStep", "WorkParticipantEntity", "PracticeSession",
         "LessonAttachment", "LessonPresentation", "LessonRecallCheck", "SampleWork", "SampleWorkStep",
         "NoteTemplate", "MeetingTemplate", "Reminder", "CalendarEvent",
-        "Track", "TrackStep", "StudentTrackEnrollment", "SequenceTrack",
         "Document", "Supply", "Procedure", "Schedule", "ScheduleSlot", "Issue", "IssueAction",
         "DevelopmentSnapshot", "TodoItem", "TodoSubtask", "TodoTemplate", "TodayAgendaOrder",
         "PlanningRecommendation", "Resource", "NoteStudentLink",
@@ -160,8 +159,7 @@ enum BackupRestoreFixtures {
             ("Note", Array(payload.notes.map(\.id).prefix(400))),
             ("AttendanceRecord", Array(payload.attendance.map(\.id).suffix(250))),
             ("LessonAssignment", Array(payload.lessonAssignments.map(\.id).prefix(1))),
-            ("WorkModel", payload.workModels?.map(\.id) ?? []),
-            ("Track", payload.tracks?.map(\.id) ?? [])
+            ("WorkModel", payload.workModels?.map(\.id) ?? [])
         ]
         for (entity, ids) in present {
             for id in ids {

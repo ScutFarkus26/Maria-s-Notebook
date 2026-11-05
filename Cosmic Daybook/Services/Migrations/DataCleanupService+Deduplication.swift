@@ -206,10 +206,10 @@ nonisolated extension DataCleanupService {
     ///
     /// Every child moves, including one whose id the survivor already has: left
     /// on the dropped parent, it was deleted with it by the cascade, taking a
-    /// subtask ticked on that copy, a check-in's notes or a track's steps
-    /// (2026-10-05 review). Two children with one id are then both on the
-    /// survivor, and the child type's own id pass folds them, merging what each
-    /// carries. `existingIDs` still collects the ids seen, for callers that read it.
+    /// subtask ticked on that copy or a check-in's notes (2026-10-05 review).
+    /// Two children with one id are then both on the survivor, and the child
+    /// type's own id pass folds them, merging what each carries. `existingIDs`
+    /// still collects the ids seen, for callers that read it.
     static func mergeNSSetRelationship<T: NSManagedObject>(
         from source: NSSet?,
         addTo canonical: NSManagedObject,
@@ -291,7 +291,7 @@ nonisolated extension DataCleanupService {
         return results
     }
 
-    /// Students, lessons, presentations, work, projects and tracks.
+    /// Students, lessons, presentations, work and projects.
     private static func curriculumDuplicates(
         in context: NSManagedObjectContext,
         container c: NSPersistentCloudKitContainer?,
@@ -337,18 +337,6 @@ nonisolated extension DataCleanupService {
         )
         // ProjectAssignmentTemplate, ProjectTemplateWeek, and ProjectWeekRoleAssignment
         // deduplication removed — these entities are deprecated
-
-        // CDTrackEntity models
-        results["Track"] = deduplicate(CDTrackEntity.self, using: context, container: c, scope: s, merge: mergeTrack)
-        // One title defined twice under two ids — see +TrackTitleMerge.
-        if s.includes(CDTrackEntity.self) {
-            results["Track (same title)"] = mergeSameTitleTracks(using: context, container: c)
-        }
-        results["TrackStep"] = deduplicate(CDTrackStep.self, using: context, container: c, scope: s)
-        results["SequenceTrack"] = deduplicate(CDSequenceTrack.self, using: context, container: c, scope: s)
-        results["StudentTrackEnrollment"] = deduplicate(
-            CDStudentTrackEnrollmentEntity.self, using: context, container: c, scope: s
-        )
         return results
     }
 

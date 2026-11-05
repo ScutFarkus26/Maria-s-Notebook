@@ -48,10 +48,7 @@ nonisolated enum AttendanceNoteMove {
             note.studentMeeting, note.projectSession, note.reminder, note.practiceSession, note.issue
         ]
         if links.contains(where: { $0 != nil }) { return false }
-        let foreignKeys = [
-            note.lessonID, note.communityTopicID, note.schoolDayOverrideID,
-            note.studentTrackEnrollmentID, note.goingOutID
-        ]
+        let foreignKeys = [note.lessonID, note.communityTopicID, note.schoolDayOverrideID, note.goingOutID]
         return foreignKeys.allSatisfy { ($0 ?? "").isEmpty }
     }
 

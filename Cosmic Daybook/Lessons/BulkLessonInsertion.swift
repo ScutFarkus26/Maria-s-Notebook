@@ -50,12 +50,11 @@ enum BulkLessonInsertion {
     }
 
     /// The Bulk Entry sheet's Save: inserts the drafts after the lessons on
-    /// file in each sub-area, with the tracks their sub-areas take, and saves
-    /// them in one save. Nil when the save failed, and then nothing from the
-    /// grid stays in the context: left there, the retry found each lesson's
-    /// own unsaved copy and called every row already filed (bug hunt
-    /// 2026-10-12, #4). Other screens' unsaved edits are left alone, and the
-    /// caller shows its own message.
+    /// file in each sub-area and saves them in one save. Nil when the save
+    /// failed, and then nothing from the grid stays in the context: left
+    /// there, the retry found each lesson's own unsaved copy and called every
+    /// row already filed (bug hunt 2026-10-12, #4). Other screens' unsaved
+    /// edits are left alone, and the caller shows its own message.
     static func insertAndSave(
         _ drafts: [BulkLessonDraft],
         using repository: LessonRepository,

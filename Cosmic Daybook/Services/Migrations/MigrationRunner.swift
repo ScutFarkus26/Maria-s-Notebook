@@ -264,10 +264,15 @@ enum MigrationRunner {
         AttendanceNoteMove.run(using: context)
         // Rows still carrying the retired completion outcome (see +WorkStatusMerge).
         DataMigrations.mergeWorkCompletionOutcomes(using: context)
+        // Notes that hung on a track enrollment join its child (schema 23);
+        // the list was read before the store migrated (`EnrollmentNoteOwners`).
+        let enrollmentNotesDue = EnrollmentNoteOwners.isPending()
+        if enrollmentNotesDue { EnrollmentNoteOwners.apply(using: context) }
         // The check-in repair's first run counts only once what it did is saved.
         if !context.hasChanges || context.safeSave() {
             DataMigrations.markCheckInLinkRepairRun(firstDownloadPending: firstDownloadArmed)
             if noteScopeRepairDue { DataMigrations.markNoteScopeIndexRepairDone() }
+            if enrollmentNotesDue { EnrollmentNoteOwners.forget() }
         }
         // Multi-child notes get the student links their scope names, once per
         // device after the first download; it saves on its own (see +NoteScopeIndex).
