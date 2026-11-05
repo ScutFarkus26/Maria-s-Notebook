@@ -1,6 +1,6 @@
 # Backup & Restore System
 
-**Last Updated:** 2026-09-28
+**Last Updated:** 2026-11-04
 
 > Authoritative summary lives in `Cosmic Daybook/CLAUDE.md` ("Backup System").
 > This file is the longer-form companion. If they disagree, CLAUDE.md wins.
@@ -41,7 +41,7 @@ now come from the AppleArchive/AEA layer plus a post-write structural check.
 
 | File | Purpose |
 |------|---------|
-| `Backup/BackupService+DataCollection.swift` | `collectPayload` — the one-pass collect: every entity type in one main-actor turn, through the collector table in `+EntityCollectors` (fetched in batches, run through the DTO transformers). The streamed export walks the same table one type at a time. `fetchAndTransformInBatches` reads each type from the store 1,000 rows a page (`includesPendingChanges = false`), leaves out rows the context has deleted, adds its unsaved inserts once at the end, and ends a type on a short page of *rows*, never of DTOs, since the transformers skip malformed rows (2026-09-26; before that, unsaved edits in a type past one page duplicated or dropped rows, and one malformed row on a full page cut the rest of its type). An in-memory store is read in one fetch (2026-09-27): it gets an unsorted fetch's offset and limit wrong, and a type of 1,205 notes was backed up as 1,001. |
+| `Backup/BackupService+DataCollection.swift` | `collectPayload` — the one-pass collect: every entity type in one main-actor turn, through the collector table in `+EntityCollectors` (fetched in batches, each record written as its type's `ModelRow`). The streamed export walks the same table one type at a time. `fetchAndTransformInBatches` reads each type from the store 1,000 rows a page (`includesPendingChanges = false`), leaves out rows the context has deleted, adds its unsaved inserts once at the end, and ends a type on a short page of *rows*, never of DTOs, since the transformers skip malformed rows (2026-09-26; before that, unsaved edits in a type past one page duplicated or dropped rows, and one malformed row on a full page cut the rest of its type). An in-memory store is read in one fetch (2026-09-27): it gets an unsorted fetch's offset and limit wrong, and a type of 1,205 notes was backed up as 1,001. |
 | `Backup/BackupService+Restoration.swift` | `importRows` — saves edits made before the restore, then the replace-mode clear, the ordered import (`BackupRestoreRun`), note relink, save and denormalized-field repair (anything left unsaved discarded if one fails), preferences, CloudKit export wait. `importPayload` restores a whole payload through it (tests that build payloads by hand). |
 | `Backup/BackupFetchHelper.swift` | `BackupEntityIndex` (restore: one lazy fetch per type) and `EntityIDIndexCache` (preview: one id-set fetch per type). Replaced the old per-record fetch. |
 | `Backup/Core/BackupEntityRegistry.swift` | Single source of truth for which entity types are backed up. |
@@ -191,11 +191,41 @@ entity without backup coverage turns a test red.
 
 ### Adding a new entity type
 
-1. Add the `CDType` to `BackupEntityRegistry.allTypes`.
-2. Add a DTO + transformer (`Backup/Export/BackupDTOTransformers*.swift`) and a field on `BackupPayload`.
-3. Add a row to `BackupWriter.entitySerializations`.
-4. Add a decoder to `BackupImporter.entityDecoders` and an importer call in the restore order (`BackupRestoreRun+CoreTypes` / `+PlanningTypes` / `+LaterTypes`, after the types it links to), reading its rows with `rows(\.field)`.
-5. Bump `BackupWriter.formatVersion` and extend `BackupReader.supportedFormatVersions` if the addition is structural.
+Since "Simplify round two", Phase 7 (2026-11-04), a new entity is **one spec line and one golden re-record**.
+Every backed-up type is a `ModelRow` read from the model: no hand-written DTOs, transformers or importers are
+left (`ItemDTO` and the three retired project DTOs stay only as payload fields no type fills).
+
+1. **The spec.** Add a `ModelRowKind` with its `ModelRowSpec` to the family's `Backup/ModelRowKinds+<Family>.swift`
+   and alias the row name: `public typealias FooDTO = ModelRow<FooBackupRow>`. Most types need only the entity
+   name; anything else is said the spec's way (each parameter is documented on `ModelRowSpec.init`): `filling`
+   (an optional attribute written as now, a new id or `[]` when nil), `omitting` (device-local blobs),
+   `addedLater` (a key an older backup lacks, which the restore then leaves as it is), `parentIDs` and `parents`
+   (a parent's id, and how the restore re-links it), `computed` (an enum through its typed accessor, a list kept
+   in a blob, a rule between two keys), `restoresRow` (a row the restore passes over). A new attribute on a type
+   already backed up needs no code: the spec reads it from the model. Give it `addedLater` so an older backup's
+   rows still decode.
+2. **The table line.** Add a field on `BackupPayload` (`Backup/BackupTypes.swift`) and a line in
+   `Backup/BackupEntityTable.swift` (`.optional("Foo", CDFoo.self, \.foos, FooDTO.rows, since: <format>)`). The
+   collector, the writer's serializer, the importer's decoder, the registry, the dedup and the Replace clear all
+   come from that line.
+3. **The restore call.** Add `BackupEntityImporter.importRows(rows, as: CDFoo.self, into:, existing:, parents:)`
+   to the restore order (`BackupRestoreRun+CoreTypes` / `+PlanningTypes` / `+LaterTypes`, after the types it
+   links to), reading its rows with `rows(\.foos)`.
+4. **The format.** Bump `BackupWriter.formatVersion`, extend `BackupReader.supportedFormatVersions`, and note the
+   version under "Working notes" below.
+5. **The golden.** Add the type to the field-coverage fixture, re-record the golden and the sparse reference once
+   (`TEST_RUNNER_RECORD_BACKUP_GOLDEN=1`, `TEST_RUNNER_RECORD_BACKUP_SPARSE=1`; the files land in the simulator
+   app's tmp) and read the diff: only the new entry may appear. `BackupCoverageTests` and
+   `BackupFieldCoverageTests` fail until the type is covered.
+
+A retired type (its feature gone, its rows kept on the device) leaves the table and goes in
+`CoreDataStack.retiredEntities`; a restore passes over an older backup's entries for it without a warning
+(`BackupEntityTable.skippedOnImport` reads that list, which the Daybook Assistant also compiles).
+
+The hand-written code the specs replaced is frozen in the test target (`Cosmic Daybook Tests/Backup/Legacy*.swift`)
+as an oracle: `BackupSpecOracleTests` compares, for each of the 38 types converted in Phase 7, the old export with
+the table's (on a full and a sparse fixture) and, for every key taken out of a golden row, both decoders and both
+restores. Don't edit those files. A new type has no old code and needs no oracle line.
 
 ---
 
@@ -249,10 +279,10 @@ Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-02 so that file keeps 
 - The post-restore CloudKit export wait subscribes to `NSPersistentCloudKitContainer.eventChangedNotification` **before** `viewContext.save()` so a fast export isn't missed (`BackupService+Restoration.swift`).
 - `replace` mode uses context-level deletes (NOT `NSBatchDeleteRequest`) so CloudKit mirroring sees proper delete tombstones.
 - **`ClassroomMembership` is carried but never restored** (`BackupEntityRegistry.keptOnRestoreEntityNames`): its rows pin a share zone that exists only in the environment that wrote them, so restore neither clears nor writes them — a Replace restore keeps this device's pin, and the Development backup restored into Production pins nothing.
-- **Collection pages by stored rows (2026-09-26):** `fetchAndTransformInBatches` fetches 1,000 rows a page with `includesPendingChanges = false`, drops rows deleted in the context, appends the context's unsaved inserts once, and stops on a short page of rows — never of DTOs, because the transformers `compactMap` away malformed rows. `BackupCollectionPagingTests` pins it: an unsaved insert, delete and edit past one page, and a skipped row on a full page. An in-memory store is read in one fetch per type: it gets `fetchOffset` + `fetchLimit` wrong on an unsorted fetch (the second page of 1,205 notes held one row).
+- **Collection pages by stored rows (2026-09-26):** `fetchAndTransformInBatches` fetches 1,000 rows a page with `includesPendingChanges = false`, drops rows deleted in the context, appends the context's unsaved inserts once, and stops on a short page of rows — never of rows written, because a spec drops some records (no `id`, or a required value missing). `BackupCollectionPagingTests` pins it: an unsaved insert, delete and edit past one page, and a skipped row on a full page. An in-memory store is read in one fetch per type: it gets `fetchOffset` + `fetchLimit` wrong on an unsorted fetch (the second page of 1,205 notes held one row).
 - **Entity coverage is test-enforced:** `BackupCoverageTests` asserts `BackupEntityRegistry.allTypes` ≡ `BackupWriter.serializedEntityNames` ≡ `BackupImporter.handledEntityNames`, and that every model entity is either backed up or in an explicit, documented exclusion list (the 8 removed-feature tombstones). Adding an entity without backup coverage is a red test, not a future format version.
 - **One entity table (2026-09-26):** `Backup/BackupEntityTable.swift` has one line per backed-up type (name, class, payload field, export transform, progress message). Collection, `BackupWriter.entitySerializations`, `BackupImporter.entityDecoders`, `BackupEntityRegistry.allTypes` and the per-type restore dedup all derive from it; DTOs conform to `BackupRowDTO`. Only the restore order (`BackupRestoreRun+CoreTypes` / `+PlanningTypes` / `+LaterTypes`) stays hand-written.
-- **Model-driven rows for 31 types:** where a backup is a straight copy of the attributes, the DTO name is an alias of `ModelRow<Kind>` (`Backup/ModelRow.swift`) and the type has a short `ModelRowSpec` in `Backup/ModelRowKinds.swift`: `filling` (optional attributes the export writes "now"/a new id/`[]` for when nil — older builds need them to decode), `omitting` (device-local blobs), `parentIDs` (a parent's id written from a relationship) and `parents` (how restore re-links: keep, clear when not found, or always set). Everything else — keys, types, which keys are required — comes from the model, read once off the main actor (`BackupModelSchema`). Restore goes through `BackupEntityImporter.importRows`. The other 42 types keep hand-written DTOs (`Backup/BackupTypes*.swift`), transformers (`Backup/Export/`) and importers (`Backup/Import/`) because they reshape, validate or drop data. A new plain type is one table line plus one spec.
+- **Model-driven rows for every type (2026-11-04, Simplify round two Phase 7):** every backed-up type's DTO name is an alias of `ModelRow<Kind>` (`Backup/ModelRow.swift`, `ModelField.swift`) with a short `ModelRowSpec` in `Backup/ModelRowKinds.swift` or its family file `ModelRowKinds+<Family>.swift`. Keys, types and which keys are required come from the model, read once off the main actor (`BackupModelSchema`); the spec says only what the old hand-written code did differently (filled nils, omitted blobs, renamed keys, ids kept as strings, lenient defaults, enum fallbacks, lists kept in blobs, cross-field rules, parent links, rows passed over). Restore goes through `BackupEntityImporter.importRows`; a note's links are re-linked once every type is in (`ParentLink.deferred`). The 38 types converted in Phase 7 were checked against the frozen old code (`BackupSpecOracleTests`). A new type is one spec plus one table line ("Adding a new entity type" above).
 - **Output is pinned:** `BackupGoldenOutputTests` (+ `BackupGolden-v27.json`) compares a backup of the fully populated field-coverage fixture byte for byte and checks restore-then-export; `BackupSparseRowTests` (+ `BackupSparseRows-v27.json`, recorded from the hand-written code) pins nil fields, id-less records, id-only rows and missing parents for the 31 model-row types. Re-record only for an intended format change (`TEST_RUNNER_RECORD_BACKUP_GOLDEN=1` / `TEST_RUNNER_RECORD_BACKUP_SPARSE=1`; the file lands in the simulator app's tmp).
 - Binary attributes are excluded from backups by design because they're regenerable (thumbnails, covers, file bookmarks). The **one exception is the album annotations** (format v21): highlight rectangles travel as plain numbers and Pencil ink travels as its PencilKit data, because neither can be recreated after a restore.
 
@@ -262,7 +292,7 @@ Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-04 so that file keeps 
 
 Format v45 (encrypted Apple Archive); reads v17–v45; entry point `Backup/Archive/BackupCoordinator.swift`. The design and the detailed working notes (format history, threading, streaming, restore) are in `docs/Technical notes/BACKUP_SYSTEM.md`. Rules:
 
-- **A new entity or attribute:** add a line to `Backup/BackupEntityTable.swift` (and a `ModelRowSpec` in `ModelRowKinds.swift` when the row is a straight copy). `BackupCoverageTests` fails until every model entity is backed up or explicitly excluded. Bump the format version and record it in BACKUP_SYSTEM.md.
+- **A new entity or attribute:** add a line to `Backup/BackupEntityTable.swift` and a `ModelRowSpec` in `ModelRowKinds+<Family>.swift` ("Adding a new entity type" above). `BackupCoverageTests` fails until every model entity is backed up or explicitly excluded. Bump the format version and record it in BACKUP_SYSTEM.md.
 - Output is pinned by `BackupGoldenOutputTests` and `BackupSparseRowTests`; re-record only for an intended format change.
 - Encode, encryption, write, verification and decode run off the main actor through `@concurrent` (plain `nonisolated async` runs on the caller's actor in this project).
 - **Merge restore is an upsert:** never delete and reinsert a row. Replace mode uses context-level deletes, not `NSBatchDeleteRequest`. Restore runs through `BackupTransactionManager.executeWithRollback`.

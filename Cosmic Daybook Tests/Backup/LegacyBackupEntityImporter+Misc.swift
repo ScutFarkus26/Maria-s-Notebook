@@ -1,10 +1,20 @@
-import Foundation
+// swiftlint:disable file_length
 import CoreData
+import Foundation
 import OSLog
+@testable import CosmicDaybook
+
+// More of the old restores (`LegacyBackupEntityImporter.swift`): a906650c0's
+// `Backup/Import/BackupEntityImporter+Misc.swift` (with the end-of-restore note
+// relink), `Backup/Import/BackupNoteLinks.swift` (as `LegacyBackupNoteLinks`),
+// `+Todo` and `+Tracks`, copied verbatim; only the names are changed. Do not
+// "fix" or modernise this code: its only job is to be the old code.
+
+// MARK: - Backup/Import/BackupEntityImporter+Misc.swift
 
 // MARK: - Miscellaneous Entities
 
-extension BackupEntityImporter {
+extension LegacyBackupEntityImporter {
 
     // MARK: - Notes
 
@@ -16,7 +26,7 @@ extension BackupEntityImporter {
     ///   - existing: Looks up an already-stored a note by ID so it is updated in place
     ///   - lessonCheck: Function to look up a lesson by ID for linking
     static func importNotes(
-        _ dtos: [NoteDTO],
+        _ dtos: [LegacyNoteDTO],
         into viewContext: NSManagedObjectContext,
         existing: ExistingLookup<CDNote>
     ) rethrows {
@@ -73,10 +83,10 @@ extension BackupEntityImporter {
     /// check-ins, meetings, issues, etc.) import in later phases — so they can't
     /// be resolved at note-import time. This runs as a final pass, once every
     /// target type is in the store, and wires them up by id. It gets only the
-    /// notes that point at something (`BackupNoteLinks`), so the notes' rows
+    /// notes that point at something (`LegacyBackupNoteLinks`), so the notes' rows
     /// need not be kept until the end of the restore. A note's link to an
     /// Apple Reminders copy (retired) is left as it is on this device.
-    static func relinkNoteRelationships(_ notes: [BackupNoteLinks], index: BackupEntityIndex) throws {
+    static func relinkNoteRelationships(_ notes: [LegacyBackupNoteLinks], index: BackupEntityIndex) throws {
         for links in notes {
             guard let note = try index.related(CDNote.self, id: links.noteID) else { continue }
             if let id = links.workID {
@@ -112,7 +122,7 @@ extension BackupEntityImporter {
 
     /// Imports community topics from DTOs.
     static func importCommunityTopics(
-        _ dtos: [CommunityTopicDTO],
+        _ dtos: [LegacyCommunityTopicDTO],
         into viewContext: NSManagedObjectContext,
         existing: ExistingLookup<CDCommunityTopicEntity>
     ) rethrows {
@@ -144,7 +154,7 @@ extension BackupEntityImporter {
     ///   - existing: Looks up an already-stored an attachment by ID so it is updated in place
     ///   - topicCheck: Function to look up a community topic by ID
     static func importCommunityAttachments(
-        _ dtos: [CommunityAttachmentDTO],
+        _ dtos: [LegacyCommunityAttachmentDTO],
         into viewContext: NSManagedObjectContext,
         existing: ExistingLookup<CDCommunityAttachment>,
         topicCheck: EntityLookup<CDCommunityTopicEntity>
@@ -178,7 +188,7 @@ extension BackupEntityImporter {
     // MARK: - Issues
 
     static func importIssues(
-        _ dtos: [IssueDTO],
+        _ dtos: [LegacyIssueDTO],
         into viewContext: NSManagedObjectContext,
         existing: ExistingLookup<CDIssue>
     ) rethrows {
@@ -208,7 +218,7 @@ extension BackupEntityImporter {
     // MARK: - CDIssue Actions
 
     static func importIssueActions(
-        _ dtos: [IssueActionDTO],
+        _ dtos: [LegacyIssueActionDTO],
         into viewContext: NSManagedObjectContext,
         existing: ExistingLookup<CDIssueAction>,
         issueCheck: EntityLookup<CDIssue>
@@ -245,7 +255,7 @@ extension BackupEntityImporter {
     // MARK: - Development Snapshots
 
     static func importDevelopmentSnapshots(
-        _ dtos: [DevelopmentSnapshotDTO],
+        _ dtos: [LegacyDevelopmentSnapshotDTO],
         into viewContext: NSManagedObjectContext,
         existing: ExistingLookup<CDDevelopmentSnapshotEntity>
     ) rethrows {
@@ -287,7 +297,7 @@ extension BackupEntityImporter {
     // MARK: - CDPlanningRecommendation
 
     static func importPlanningRecommendations(
-        _ dtos: [PlanningRecommendationDTO],
+        _ dtos: [LegacyPlanningRecommendationDTO],
         into viewContext: NSManagedObjectContext,
         existing: ExistingLookup<CDPlanningRecommendation>
     ) rethrows {
@@ -321,4 +331,156 @@ extension BackupEntityImporter {
         }
     }
 
+}
+
+// MARK: - Backup/Import/BackupNoteLinks.swift
+
+// What the end-of-restore note relink needs from a restored note.
+
+/// A restored note's id and the ids of the records it points at. Notes import
+/// early and most of their targets later, so the restore keeps these — not the
+/// notes' rows — until every target type is in, then relinks
+/// (`LegacyBackupEntityImporter.relinkNoteRelationships`).
+nonisolated struct LegacyBackupNoteLinks: Sendable {
+    let noteID: UUID
+    let workID: UUID?
+    let lessonAssignmentID: UUID?
+    let attendanceRecordID: UUID?
+    let workCheckInID: UUID?
+    let workCompletionRecordID: UUID?
+    let studentMeetingID: UUID?
+    let projectSessionID: UUID?
+    let issueID: UUID?
+
+    /// Nil for a note that points at nothing the relink sets; relinking it
+    /// would only look the note up.
+    init?(_ note: LegacyNoteDTO) {
+        let targets: [UUID?] = [
+            note.workID, note.lessonAssignmentID, note.attendanceRecordID, note.workCheckInID,
+            note.workCompletionRecordID, note.studentMeetingID, note.projectSessionID,
+            note.issueID
+        ]
+        guard targets.contains(where: { $0 != nil }) else { return nil }
+        noteID = note.id
+        workID = note.workID
+        lessonAssignmentID = note.lessonAssignmentID
+        attendanceRecordID = note.attendanceRecordID
+        workCheckInID = note.workCheckInID
+        workCompletionRecordID = note.workCompletionRecordID
+        studentMeetingID = note.studentMeetingID
+        projectSessionID = note.projectSessionID
+        issueID = note.issueID
+    }
+}
+
+// MARK: - Backup/Import/BackupEntityImporter+Todo.swift
+
+// MARK: - Todo
+
+extension LegacyBackupEntityImporter {
+
+    // MARK: - Todo Items
+
+    static func importTodoItems(
+        _ dtos: [LegacyTodoItemDTO],
+        into viewContext: NSManagedObjectContext,
+        existing: ExistingLookup<CDTodoItem>
+    ) rethrows {
+        try importSimpleEntities(
+            dtos, into: viewContext,
+            existing: existing,
+            idExtractor: { $0.id },
+            entityBuilder: { dto, current in
+            let t = current ?? CDTodoItem(context: viewContext)
+            t.id = dto.id
+            t.title = dto.title
+            t.notes = dto.notes
+            t.createdAt = dto.createdAt
+            t.orderIndex = Int64(dto.orderIndex)
+            t.isCompleted = dto.isCompleted
+            t.completedAt = dto.completedAt
+            t.dueDate = dto.dueDate
+            t.priority = TodoPriority(rawValue: dto.priorityRaw) ?? .none
+            t.recurrence = RecurrencePattern(rawValue: dto.recurrenceRaw) ?? .none
+            t.studentIDs = dto.studentIDs as NSObject
+            t.linkedWorkItemID = dto.linkedWorkItemID
+            t.attachmentPaths = dto.attachmentPaths as NSObject
+            t.estimatedMinutes = Int64(dto.estimatedMinutes ?? 0)
+            t.actualMinutes = Int64(dto.actualMinutes ?? 0)
+            t.reminderDate = dto.reminderDate
+            t.reflectionNotes = dto.reflectionNotes
+            t.tags = dto.tags as NSObject
+            t.scheduledDate = dto.scheduledDate
+            t.isSomeday = dto.isSomeday ?? false
+            t.repeatAfterCompletion = dto.repeatAfterCompletion ?? false
+            t.customIntervalDays = Int64(dto.customIntervalDays ?? 0)
+            t.locationName = dto.locationName
+            t.locationLatitude = dto.locationLatitude ?? 0
+            t.locationLongitude = dto.locationLongitude ?? 0
+            t.locationRadius = dto.locationRadius
+            t.notifyOnEntry = dto.notifyOnEntry
+            t.notifyOnExit = dto.notifyOnExit
+            t.moodRaw = dto.moodRaw
+            // Kept as the backup has it, so a restored to-do isn't sent to
+            // Tide a second time (a v40 or older backup keeps the record's
+            // own: `BackupFieldsAddedLater`). A merge never blanks a link the
+            // record has since gained: a backup taken before the to-do was
+            // shared has none, and the sync would send it again as new. A
+            // Replace restore starts from an empty store, so it is exact.
+            if let link = dto.tideLink { t.tideLink = link }
+            return t
+        })
+    }
+
+    // MARK: - Today Agenda Orders
+
+    static func importTodayAgendaOrders(
+        _ dtos: [LegacyTodayAgendaOrderDTO],
+        into viewContext: NSManagedObjectContext,
+        existing: ExistingLookup<CDTodayAgendaOrder>
+    ) rethrows {
+        try importSimpleEntities(
+            dtos, into: viewContext,
+            existing: existing,
+            idExtractor: { $0.id },
+            entityBuilder: { dto, current in
+            let a = current ?? CDTodayAgendaOrder(context: viewContext)
+            a.id = dto.id
+            a.day = dto.day
+            a.itemTypeRaw = (AgendaItemType(rawValue: dto.itemTypeRaw) ?? .lesson).rawValue
+            a.itemID = dto.itemID
+            a.position = Int64(dto.position)
+            return a
+        })
+    }
+}
+
+// MARK: - Backup/Import/BackupEntityImporter+Tracks.swift
+
+// MARK: - CDTrackEntity/Group Imports
+
+extension LegacyBackupEntityImporter {
+
+    // MARK: - Group Tracks
+
+    static func importSequenceTracks(
+        _ dtos: [LegacySequenceTrackDTO],
+        into viewContext: NSManagedObjectContext,
+        existing: ExistingLookup<CDSequenceTrack>
+    ) rethrows {
+        try importSimpleEntities(
+            dtos, into: viewContext,
+            existing: existing,
+            idExtractor: { $0.id },
+            entityBuilder: { dto, current in
+            let g = current ?? CDSequenceTrack(context: viewContext)
+            g.id = dto.id
+            g.area = dto.area
+            g.sequence = dto.sequence
+            g.isSequential = dto.isSequential
+            g.isExplicitlyDisabled = dto.isExplicitlyDisabled
+            g.createdAt = dto.createdAt
+            return g
+        })
+    }
 }

@@ -1,19 +1,8 @@
 import Foundation
 
-// MARK: - CDProject DTOs
-
-nonisolated public struct ProjectDTO: Codable, Sendable {
-    public var id: UUID
-    public var createdAt: Date
-    public var title: String
-    public var bookTitle: String?
-    public var memberStudentIDs: [String]
-    public var isActive: Bool?
-    /// Conflict-resolution timestamp, preserved so post-restore deduplication
-    /// doesn't treat every restored project as "just modified". Optional for
-    /// compatibility with older backups that predate this field.
-    public var modifiedAt: Date?
-}
+// MARK: - Retired project plans
+// Payload fields no backed-up type fills; projects, their sessions and roles
+// are table rows (ModelRowKinds+Projects.swift).
 
 nonisolated public struct ProjectAssignmentTemplateDTO: Codable, Sendable {
     public var id: UUID
@@ -23,28 +12,6 @@ nonisolated public struct ProjectAssignmentTemplateDTO: Codable, Sendable {
     public var instructions: String
     public var isShared: Bool
     public var defaultLinkedLessonID: String?
-}
-
-nonisolated public struct ProjectSessionDTO: Codable, Sendable {
-    public var id: UUID
-    public var createdAt: Date
-    public var projectID: UUID
-    public var meetingDate: Date
-    public var chapterOrPages: String?
-    public var agendaItemsJSON: String
-    public var templateWeekID: UUID?
-    public var assignmentModeRaw: String?
-    public var minSelections: Int?
-    public var maxSelections: Int?
-}
-
-nonisolated public struct ProjectRoleDTO: Codable, Sendable {
-    public var id: UUID
-    public var createdAt: Date
-    public var projectID: UUID
-    public var title: String
-    public var summary: String
-    public var instructions: String
 }
 
 nonisolated public struct ProjectTemplateWeekDTO: Codable, Sendable {

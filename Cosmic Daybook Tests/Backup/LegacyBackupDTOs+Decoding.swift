@@ -1,4 +1,16 @@
 import Foundation
+@testable import CosmicDaybook
+
+// The legacy row types' hand-written decoding and merge dates, copied verbatim
+// from a906650c0's `Backup/BackupTypes+LenientDecoding.swift` (the lenient
+// decoders of Lesson, LessonAssignment, SequenceTrack and Resource) and the 38
+// types' lines of `Backup/BackupEntityTable+RowDates.swift` (each one's
+// `BackupRowDTO` conformance: the date a Merge's newer-wins check reads). Only
+// the type names are changed (`LessonDTO` → `LegacyLessonDTO`). Part of the old
+// backup that `BackupSpecOracleTests` holds the table-driven code to, so do not
+// "fix" or modernise this code: its only job is to be the old code.
+
+// MARK: - Backup/BackupTypes+LenientDecoding.swift
 
 // MARK: - Lenient Decoding
 //
@@ -29,9 +41,9 @@ nonisolated private extension KeyedDecodingContainer where Key == FieldKey {
     }
 }
 
-// MARK: - LessonDTO
+// MARK: - LegacyLessonDTO
 
-nonisolated extension LessonDTO {
+nonisolated extension LegacyLessonDTO {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: FieldKey.self)
         self.id = try c.decode(UUID.self, forKey: FieldKey("id"))
@@ -79,9 +91,9 @@ nonisolated extension LessonDTO {
     }
 }
 
-// MARK: - LessonAssignmentDTO
+// MARK: - LegacyLessonAssignmentDTO
 
-nonisolated extension LessonAssignmentDTO {
+nonisolated extension LegacyLessonAssignmentDTO {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: FieldKey.self)
         self.id = try c.decode(UUID.self, forKey: FieldKey("id"))
@@ -113,9 +125,9 @@ nonisolated extension LessonAssignmentDTO {
     }
 }
 
-// MARK: - SequenceTrackDTO
+// MARK: - LegacySequenceTrackDTO
 
-nonisolated extension SequenceTrackDTO {
+nonisolated extension LegacySequenceTrackDTO {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: FieldKey.self)
         self.id = try c.decode(UUID.self, forKey: FieldKey("id"))
@@ -127,9 +139,9 @@ nonisolated extension SequenceTrackDTO {
     }
 }
 
-// MARK: - ResourceDTO
+// MARK: - LegacyResourceDTO
 
-nonisolated extension ResourceDTO {
+nonisolated extension LegacyResourceDTO {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: FieldKey.self)
         self.id = try c.decode(UUID.self, forKey: FieldKey("id"))
@@ -147,3 +159,54 @@ nonisolated extension ResourceDTO {
         self.modifiedAt = try c.decodeIfPresent(Date.self, forKey: FieldKey("modifiedAt")) ?? Date()
     }
 }
+
+// MARK: - Backup/BackupEntityTable+RowDates.swift
+
+// Each DTO already has `id: UUID`; conforming here is what lets its table row
+// compile. `rowModifiedAt` is the date `BackupMergeRule.changeDateAttribute`
+// names for its entity: `modifiedAt`, or a note's and a reminder's
+// `updatedAt`. The rest have none, and a Merge takes the backup's row for
+// them (but a to-do done here stays done, `rowCompletedAt`).
+// `BackupMergeNewerWinsTests` checks every type against the model.
+nonisolated extension LegacyStudentDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
+nonisolated extension LegacyLessonDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
+nonisolated extension LegacyLessonAssignmentDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
+nonisolated extension LegacyNoteDTO: BackupRowDTO { var rowModifiedAt: Date? { updatedAt } }
+nonisolated extension LegacyNonSchoolDayDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
+nonisolated extension LegacySchoolDayOverrideDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
+nonisolated extension LegacyStudentMeetingDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
+nonisolated extension LegacyCommunityTopicDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
+nonisolated extension LegacyCommunityAttachmentDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
+nonisolated extension LegacyAttendanceRecordDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
+nonisolated extension LegacyWorkCompletionRecordDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
+nonisolated extension LegacyProjectDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
+nonisolated extension LegacyProjectSessionDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
+nonisolated extension LegacyProjectRoleDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
+nonisolated extension LegacyWorkModelDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
+nonisolated extension LegacyWorkCheckInDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
+nonisolated extension LegacyWorkParticipantEntityDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
+nonisolated extension LegacyLessonPresentationDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
+nonisolated extension LegacySampleWorkDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
+nonisolated extension LegacyCalendarEventDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
+nonisolated extension LegacySequenceTrackDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
+nonisolated extension LegacyDocumentDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
+nonisolated extension LegacySupplyDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
+nonisolated extension LegacyProcedureDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
+nonisolated extension LegacyScheduleSlotDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
+nonisolated extension LegacyIssueDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
+nonisolated extension LegacyIssueActionDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
+nonisolated extension LegacyDevelopmentSnapshotDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
+nonisolated extension LegacyTodoItemDTO: BackupRowDTO {
+    var rowModifiedAt: Date? { nil }
+    /// When the backup's to-do was done; nil when it wasn't.
+    var rowCompletedAt: Date? { isCompleted ? completedAt : nil }
+}
+nonisolated extension LegacyTodayAgendaOrderDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
+nonisolated extension LegacyPlanningRecommendationDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
+nonisolated extension LegacyResourceDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
+nonisolated extension LegacyGoingOutChecklistItemDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
+nonisolated extension LegacyScheduledMeetingDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
+nonisolated extension LegacyStoryDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
+nonisolated extension LegacyBookClubPacketDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
+nonisolated extension LegacyAlbumHighlightDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
+nonisolated extension LegacyAlbumPageInkDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }

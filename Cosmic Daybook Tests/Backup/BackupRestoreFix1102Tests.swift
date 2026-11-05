@@ -94,17 +94,20 @@ struct BackupMergeNewerWinsTests {
             let index = try #require(backup.students.firstIndex { $0.id == ids[name] })
             change(&backup.students[index])
         }
-        try edit("Ada") { $0.firstName = "Ada (backup)" }
-        try edit("Bea") { $0.firstName = "Bea (backup)"; $0.modifiedAt = Fix1102.at(50) }
-        try edit("Cy") { $0.firstName = "Cy (backup)" }
-        try edit("Dee") { $0.firstName = "Dee (backup)" }
+        try edit("Ada") { $0.values["firstName"] = .string("Ada (backup)") }
+        try edit("Bea") {
+            $0.values["firstName"] = .string("Bea (backup)")
+            $0.values["modifiedAt"] = .date(Fix1102.at(50))
+        }
+        try edit("Cy") { $0.values["firstName"] = .string("Cy (backup)") }
+        try edit("Dee") { $0.values["firstName"] = .string("Dee (backup)") }
         var eve = backup.students[0]
         eve.id = UUID()
-        eve.firstName = "Eve"
+        eve.values["firstName"] = .string("Eve")
         backup.students.append(eve)
         ids["Eve"] = eve.id
-        backup.projects[0].title = "Backup title"
-        backup.projects[0].modifiedAt = nil
+        backup.projects[0].values["title"] = .string("Backup title")
+        backup.projects[0].values["modifiedAt"] = nil
 
         // Since the backup, on this device.
         let stored = context.safeFetch(CDFetchRequest(CDStudent.self))

@@ -22,6 +22,15 @@ struct BackupMergeReviewFixTests {
         return todo
     }
 
+    /// A to-do's backup row given `title`, and done at `doneAt` when there is one.
+    private static func retitle(_ row: inout TodoItemDTO, _ title: String, doneAt: Date? = nil) {
+        row.values["title"] = .string(title)
+        if let doneAt {
+            row.values["isCompleted"] = .bool(true)
+            row.values["completedAt"] = .date(doneAt)
+        }
+    }
+
     private static func todos(in context: NSManagedObjectContext) -> [UUID: CDTodoItem] {
         Dictionary(uniqueKeysWithValues: context.safeFetch(CDFetchRequest(CDTodoItem.self)).compactMap { todo in
             todo.id.map { ($0, todo) }
@@ -48,8 +57,8 @@ struct BackupMergeReviewFixTests {
         // The backup's copy of the second note is newer than this device's
         // (this device is behind).
         let behindRow = try #require(backup.notes.firstIndex { $0.id == behindID })
-        backup.notes[behindRow].body = "Cy read aloud to the class"
-        backup.notes[behindRow].updatedAt = Fix1102.at(50)
+        backup.notes[behindRow].values["body"] = .string("Cy read aloud to the class")
+        backup.notes[behindRow].values["updatedAt"] = .date(Fix1102.at(50))
 
         // Since the backup, here: the note now names Ada and Cy, not Bea.
         edited.body = "Ada and Cy built the tower"
@@ -93,11 +102,11 @@ struct BackupMergeReviewFixTests {
             change(&items[index])
             backup.todoItems = items
         }
-        try edit(ids[1]) { $0.title = "Done again (backup)" }
-        try edit(ids[2]) { $0.title = "Done later there (backup)"; $0.completedAt = Fix1102.at(50) }
-        try edit(ids[3]) { $0.title = "Ticked there (backup)"; $0.isCompleted = true; $0.completedAt = Fix1102.at(30) }
-        try edit(ids[4]) { $0.title = "Open (backup)" }
-        try edit(ids[5]) { $0.title = "Unticked (backup)" }
+        try edit(ids[1]) { Self.retitle(&$0, "Done again (backup)") }
+        try edit(ids[2]) { Self.retitle(&$0, "Done later there (backup)", doneAt: Fix1102.at(50)) }
+        try edit(ids[3]) { Self.retitle(&$0, "Ticked there (backup)", doneAt: Fix1102.at(30)) }
+        try edit(ids[4]) { Self.retitle(&$0, "Open (backup)") }
+        try edit(ids[5]) { Self.retitle(&$0, "Unticked (backup)") }
 
         // Since the backup, here.
         tickedSince.isCompleted = true

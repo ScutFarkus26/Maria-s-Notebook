@@ -1,64 +1,27 @@
 // BackupEntityTable+RowDates.swift
-// Each backed-up row type's conformance to `BackupRowDTO`: its record's
-// `id`, and when the record last changed, for a Merge's newer-wins check
-// (`BackupMergeRule`, `BackupRestoreRun.keepingNewer`; bug hunt 2026-11-02, #1).
+// When a backup row's record last changed, and when it was done, for a
+// Merge's newer-wins check (`BackupMergeRule`, `BackupRestoreRun.keepingNewer`;
+// bug hunt 2026-11-02, #1). Every backed-up type is a `ModelRow`, so one
+// extension says it for all of them; `BackupMergeNewerWinsTests` checks every
+// type against the model.
 
 import CoreData
 import Foundation
 
-// Each DTO already has `id: UUID`; conforming here is what lets its table row
-// compile. `rowModifiedAt` is the date `BackupMergeRule.changeDateAttribute`
-// names for its entity: `modifiedAt`, or a note's and a reminder's
-// `updatedAt`. The rest have none, and a Merge takes the backup's row for
-// them (but a to-do done here stays done, `rowCompletedAt`).
-// `BackupMergeNewerWinsTests` checks every type against the model.
-nonisolated extension StudentDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension LessonDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension LessonAssignmentDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension NoteDTO: BackupRowDTO { var rowModifiedAt: Date? { updatedAt } }
-nonisolated extension NonSchoolDayDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension SchoolDayOverrideDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension StudentMeetingDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension CommunityTopicDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension CommunityAttachmentDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension AttendanceRecordDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension WorkCompletionRecordDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension ProjectDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension ProjectSessionDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension ProjectRoleDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension WorkModelDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension WorkCheckInDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension WorkParticipantEntityDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension LessonPresentationDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension SampleWorkDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension CalendarEventDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension SequenceTrackDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension DocumentDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension SupplyDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension ProcedureDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension ScheduleSlotDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension IssueDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension IssueActionDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension DevelopmentSnapshotDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension TodoItemDTO: BackupRowDTO {
-    var rowModifiedAt: Date? { nil }
-    /// When the backup's to-do was done; nil when it wasn't.
-    var rowCompletedAt: Date? { isCompleted ? completedAt : nil }
-}
-nonisolated extension TodayAgendaOrderDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension PlanningRecommendationDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension ResourceDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension GoingOutChecklistItemDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension ScheduledMeetingDTO: BackupRowDTO { var rowModifiedAt: Date? { nil } }
-nonisolated extension StoryDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension BookClubPacketDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension AlbumHighlightDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-nonisolated extension AlbumPageInkDTO: BackupRowDTO { var rowModifiedAt: Date? { modifiedAt } }
-
-/// A `ModelRow`'s `modifiedAt`, when its entity has one and the row holds it.
+/// A `ModelRow`'s change date (`modifiedAt`, or `updatedAt` for the types
+/// `BackupMergeRule.updatedAtEntityNames` names) and, for a type a Merge
+/// judges by when it was done, its done date while it is done.
 nonisolated extension ModelRow {
     var rowModifiedAt: Date? {
-        if case .date(let date)? = values["modifiedAt"] { date } else { nil }
+        let key = BackupMergeRule.updatedAtEntityNames.contains(Kind.spec.entityName) ? "updatedAt" : "modifiedAt"
+        return if case .date(let date)? = values[key] { date } else { nil }
+    }
+
+    var rowCompletedAt: Date? {
+        guard BackupMergeRule.completionEntityNames.contains(Kind.spec.entityName),
+              case .bool(true)? = values[BackupMergeRule.doneFlag],
+              case .date(let date)? = values["completedAt"] else { return nil }
+        return date
     }
 }
 

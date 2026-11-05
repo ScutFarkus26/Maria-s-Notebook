@@ -174,78 +174,78 @@ nonisolated enum BackupEntityTable {
 
     private static let coreEntities: [BackupEntity] = [
         .required(
-            "Student", CDStudent.self, \.students, BackupServiceHelpers.toDTOs,
+            "Student", CDStudent.self, \.students, StudentDTO.rows,
             announcing: .init(0.0, "Collecting students\u{2026}")
         ),
         .required(
-            "Lesson", CDLesson.self, \.lessons, BackupServiceHelpers.toDTOs,
+            "Lesson", CDLesson.self, \.lessons, LessonDTO.rows,
             announcing: .init(0.06, "Collecting lessons\u{2026}")
         ),
         .required(
-            "LessonAssignment", CDLessonAssignment.self, \.lessonAssignments, BackupDTOTransformers.toDTOs,
+            "LessonAssignment", CDLessonAssignment.self, \.lessonAssignments, LessonAssignmentDTO.rows,
             announcing: .init(0.15, "Collecting lesson assignments\u{2026}")
         ),
         .required(
-            "Note", CDNote.self, \.notes, BackupServiceHelpers.toDTOs,
+            "Note", CDNote.self, \.notes, NoteDTO.rows,
             announcing: .init(0.24, "Collecting notes\u{2026}")
         ),
         .required(
-            "NonSchoolDay", CDNonSchoolDay.self, \.nonSchoolDays, BackupServiceHelpers.toDTOs,
+            "NonSchoolDay", CDNonSchoolDay.self, \.nonSchoolDays, NonSchoolDayDTO.rows,
             announcing: .init(0.27, "Collecting calendar data\u{2026}")
         ),
-        .required("SchoolDayOverride", CDSchoolDayOverride.self, \.schoolDayOverrides, BackupServiceHelpers.toDTOs),
+        .required("SchoolDayOverride", CDSchoolDayOverride.self, \.schoolDayOverrides, SchoolDayOverrideDTO.rows),
         .required(
-            "StudentMeeting", CDStudentMeeting.self, \.studentMeetings, BackupServiceHelpers.toDTOs,
+            "StudentMeeting", CDStudentMeeting.self, \.studentMeetings, StudentMeetingDTO.rows,
             announcing: .init(0.30, "Collecting meetings\u{2026}")
         ),
         .required(
-            "CommunityTopic", CDCommunityTopicEntity.self, \.communityTopics, BackupServiceHelpers.toDTOs,
+            "CommunityTopic", CDCommunityTopicEntity.self, \.communityTopics, CommunityTopicDTO.rows,
             announcing: .init(0.33, "Collecting community data\u{2026}")
         ),
         .required(
             "ProposedSolution", CDProposedSolutionEntity.self, \.proposedSolutions, ProposedSolutionDTO.rows
         ),
         .required(
-            "CommunityAttachment", CDCommunityAttachment.self, \.communityAttachments, BackupServiceHelpers.toDTOs
+            "CommunityAttachment", CDCommunityAttachment.self, \.communityAttachments, CommunityAttachmentDTO.rows
         ),
         .required(
-            "AttendanceRecord", CDAttendanceRecord.self, \.attendance, BackupServiceHelpers.toDTOs,
+            "AttendanceRecord", CDAttendanceRecord.self, \.attendance, AttendanceRecordDTO.rows,
             announcing: .init(0.36, "Collecting attendance and work completions\u{2026}")
         ),
         .required(
-            "WorkCompletionRecord", CDWorkCompletionRecord.self, \.workCompletions, BackupServiceHelpers.toDTOs
+            "WorkCompletionRecord", CDWorkCompletionRecord.self, \.workCompletions, WorkCompletionRecordDTO.rows
         ),
         .required(
-            "Project", CDProject.self, \.projects, BackupServiceHelpers.toDTOs,
+            "Project", CDProject.self, \.projects, ProjectDTO.rows,
             announcing: .init(0.39, "Collecting projects\u{2026}")
         ),
-        .required("ProjectSession", CDProjectSession.self, \.projectSessions, BackupServiceHelpers.toDTOs),
-        .required("ProjectRole", CDProjectRole.self, \.projectRoles, BackupServiceHelpers.toDTOs)
+        .required("ProjectSession", CDProjectSession.self, \.projectSessions, ProjectSessionDTO.rows),
+        .required("ProjectRole", CDProjectRole.self, \.projectRoles, ProjectRoleDTO.rows)
     ]
 
     private static let workAndLessonEntities: [BackupEntity] = [
         .optional(
-            "WorkModel", CDWorkModel.self, \.workModels, BackupDTOTransformers.toDTOs,
+            "WorkModel", CDWorkModel.self, \.workModels, WorkModelDTO.rows,
             announcing: .init(0.42, "Collecting work tracking\u{2026}")
         ),
-        .optional("WorkCheckIn", CDWorkCheckIn.self, \.workCheckIns, BackupDTOTransformers.toDTOs),
+        .optional("WorkCheckIn", CDWorkCheckIn.self, \.workCheckIns, WorkCheckInDTO.rows),
         .optional("WorkStep", CDWorkStep.self, \.workSteps, WorkStepDTO.rows),
         .optional(
-            "WorkParticipantEntity", CDWorkParticipantEntity.self, \.workParticipants, BackupDTOTransformers.toDTOs
+            "WorkParticipantEntity", CDWorkParticipantEntity.self, \.workParticipants, WorkParticipantEntityDTO.rows
         ),
         .optional(
             "LessonAttachment", CDLessonAttachment.self, \.lessonAttachments, LessonAttachmentDTO.rows,
             announcing: .init(0.50, "Collecting lesson extras\u{2026}")
         ),
         .optional(
-            "LessonPresentation", CDLessonPresentation.self, \.lessonPresentations, BackupDTOTransformers.toDTOs
+            "LessonPresentation", CDLessonPresentation.self, \.lessonPresentations, LessonPresentationDTO.rows
         ),
         // Joined during v19 (2026-06-25) without a bump, so v20 is the first
         // format whose every backup carries recall checks (bug hunt 2026-11-02, #10).
         .optional(
             "LessonRecallCheck", CDLessonRecallCheck.self, \.recallChecks, LessonRecallCheckDTO.rows, since: 20
         ),
-        .optional("SampleWork", CDSampleWork.self, \.sampleWorks, BackupDTOTransformers.toDTOs),
+        .optional("SampleWork", CDSampleWork.self, \.sampleWorks, SampleWorkDTO.rows),
         .optional("SampleWorkStep", CDSampleWorkStep.self, \.sampleWorkSteps, SampleWorkStepDTO.rows)
     ]
 
@@ -254,40 +254,40 @@ nonisolated enum BackupEntityTable {
             "MeetingTemplate", CDMeetingTemplate.self, \.meetingTemplates, MeetingTemplateDTO.rows,
             announcing: .init(0.55, "Collecting templates & tracks\u{2026}")
         ),
-        .optional("CalendarEvent", CDCalendarEvent.self, \.calendarEvents, BackupDTOTransformers.toDTOs),
+        .optional("CalendarEvent", CDCalendarEvent.self, \.calendarEvents, CalendarEventDTO.rows),
         .optional("Track", CDTrackEntity.self, \.tracks, TrackDTO.rows),
         .optional("TrackStep", CDTrackStep.self, \.trackSteps, TrackStepDTO.rows),
         .optional(
             "StudentTrackEnrollment", CDStudentTrackEnrollmentEntity.self, \.studentTrackEnrollments,
             StudentTrackEnrollmentDTO.rows
         ),
-        .optional("SequenceTrack", CDSequenceTrack.self, \.sequenceTracks, BackupDTOTransformers.toDTOs)
+        .optional("SequenceTrack", CDSequenceTrack.self, \.sequenceTracks, SequenceTrackDTO.rows)
     ]
 
     private static let organizationEntities: [BackupEntity] = [
         .optional(
-            "Document", CDDocument.self, \.documents, BackupDTOTransformers.toDTOs,
+            "Document", CDDocument.self, \.documents, DocumentDTO.rows,
             announcing: .init(0.65, "Collecting supplies, schedules & issues\u{2026}")
         ),
-        .optional("Supply", CDSupply.self, \.supplies, BackupDTOTransformers.toDTOs),
-        .optional("Procedure", CDProcedure.self, \.procedures, BackupDTOTransformers.toDTOs),
+        .optional("Supply", CDSupply.self, \.supplies, SupplyDTO.rows),
+        .optional("Procedure", CDProcedure.self, \.procedures, ProcedureDTO.rows),
         .optional("Schedule", CDSchedule.self, \.schedules, ScheduleDTO.rows),
-        .optional("ScheduleSlot", CDScheduleSlot.self, \.scheduleSlots, BackupDTOTransformers.toDTOs),
-        .optional("Issue", CDIssue.self, \.issues, BackupDTOTransformers.toDTOs),
-        .optional("IssueAction", CDIssueAction.self, \.issueActions, BackupDTOTransformers.toDTOs),
+        .optional("ScheduleSlot", CDScheduleSlot.self, \.scheduleSlots, ScheduleSlotDTO.rows),
+        .optional("Issue", CDIssue.self, \.issues, IssueDTO.rows),
+        .optional("IssueAction", CDIssueAction.self, \.issueActions, IssueActionDTO.rows),
         .optional(
             "DevelopmentSnapshot", CDDevelopmentSnapshotEntity.self, \.developmentSnapshots,
-            BackupDTOTransformers.toDTOs,
+            DevelopmentSnapshotDTO.rows,
             announcing: .init(0.75, "Collecting snapshots & todos\u{2026}")
         ),
-        .optional("TodoItem", CDTodoItem.self, \.todoItems, BackupDTOTransformers.toDTOs),
-        .optional("TodayAgendaOrder", CDTodayAgendaOrder.self, \.todayAgendaOrders, BackupDTOTransformers.toDTOs),
+        .optional("TodoItem", CDTodoItem.self, \.todoItems, TodoItemDTO.rows),
+        .optional("TodayAgendaOrder", CDTodayAgendaOrder.self, \.todayAgendaOrders, TodayAgendaOrderDTO.rows),
         .optional(
             "PlanningRecommendation", CDPlanningRecommendation.self, \.planningRecommendations,
-            BackupDTOTransformers.toDTOs,
+            PlanningRecommendationDTO.rows,
             announcing: .init(0.80, "Collecting recommendations & resources\u{2026}")
         ),
-        .optional("Resource", CDResource.self, \.resources, BackupDTOTransformers.toDTOs),
+        .optional("Resource", CDResource.self, \.resources, ResourceDTO.rows),
         .optional("NoteStudentLink", CDNoteStudentLink.self, \.noteStudentLinks, NoteStudentLinkDTO.rows),
         .optional(
             "GoingOut", CDGoingOut.self, \.goingOuts, GoingOutDTO.rows,
@@ -295,13 +295,13 @@ nonisolated enum BackupEntityTable {
         ),
         .optional(
             "GoingOutChecklistItem", CDGoingOutChecklistItem.self, \.goingOutChecklistItems,
-            BackupDTOTransformers.toDTOs
+            GoingOutChecklistItemDTO.rows
         ),
         .optional(
             "CalendarNote", CDCalendarNote.self, \.calendarNotes, CalendarNoteDTO.rows,
             announcing: .init(0.90, "Collecting calendar notes & meetings\u{2026}")
         ),
-        .optional("ScheduledMeeting", CDScheduledMeeting.self, \.scheduledMeetings, BackupDTOTransformers.toDTOs),
+        .optional("ScheduledMeeting", CDScheduledMeeting.self, \.scheduledMeetings, ScheduledMeetingDTO.rows),
         .optional(
             "ClassroomMembership", CDClassroomMembership.self, \.classroomMemberships, ClassroomMembershipDTO.rows,
             announcing: .init(0.93, "Collecting classroom memberships\u{2026}")
@@ -331,8 +331,8 @@ nonisolated enum BackupEntityTable {
             "LessonSequenceSettings", CDLessonSequenceSettings.self, \.lessonSequenceSettings,
             LessonSequenceSettingsDTO.rows, since: 18
         ),
-        .optional("Story", CDStory.self, \.stories, BackupDTOTransformers.toDTOs, since: 18),
-        .optional("BookClubPacket", CDBookClubPacket.self, \.bookClubPackets, BackupDTOTransformers.toDTOs, since: 18),
+        .optional("Story", CDStory.self, \.stories, StoryDTO.rows, since: 18),
+        .optional("BookClubPacket", CDBookClubPacket.self, \.bookClubPackets, BookClubPacketDTO.rows, since: 18),
         .optional("BookClubSession", CDBookClubSession.self, \.bookClubSessions, BookClubSessionDTO.rows, since: 18),
         .optional("BookClubMeeting", CDBookClubMeeting.self, \.bookClubMeetings, BookClubMeetingDTO.rows, since: 18),
         .optional(
@@ -355,8 +355,8 @@ nonisolated enum BackupEntityTable {
             "AlbumReadingPosition", CDAlbumReadingPosition.self, \.albumReadingPositions, AlbumReadingPositionDTO.rows,
             since: 21
         ),
-        .optional("AlbumHighlight", CDAlbumHighlight.self, \.albumHighlights, BackupDTOTransformers.toDTOs, since: 21),
-        .optional("AlbumPageInk", CDAlbumPageInk.self, \.albumPageInk, BackupDTOTransformers.toDTOs, since: 21),
+        .optional("AlbumHighlight", CDAlbumHighlight.self, \.albumHighlights, AlbumHighlightDTO.rows, since: 21),
+        .optional("AlbumPageInk", CDAlbumPageInk.self, \.albumPageInk, AlbumPageInkDTO.rows, since: 21),
         .optional("OrderItem", CDOrderItem.self, \.orderItems, OrderItemDTO.rows, since: 27),
         .optional(
             "AttendanceDayLock", CDAttendanceDayLock.self, \.attendanceDayLocks, AttendanceDayLockDTO.rows, since: 23

@@ -50,7 +50,7 @@ nonisolated enum ClassroomShareRelease {
         var datedThisYear = false
     }
 
-    /// What keeps a record out of a backup: `BackupServiceHelpers.toDTOs` leaves out a
+    /// What keeps a record out of a backup: `AttendanceRecordBackupRow` leaves out a
     /// record with no `id`, and a mark with no date or a `studentID` that isn't an id.
     enum BackupGap: Sendable, Equatable {
         case noID, noDate, noChild

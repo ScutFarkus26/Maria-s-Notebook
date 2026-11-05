@@ -13,60 +13,75 @@ extension BackupRestoreRun {
         let viewContext = context
         let index = self.index
 
-        _ = try BackupEntityImporter.importStudents(
-            rows(\.students),
-            into: viewContext,
+        try BackupEntityImporter.importRows(
+            rows(\.students), as: CDStudent.self, into: viewContext,
             existing: { try index.existing(CDStudent.self, id: $0) }
         )
 
-        try BackupEntityImporter.importLessons(
-            rows(\.lessons),
-            into: viewContext,
+        try BackupEntityImporter.importRows(
+            rows(\.lessons), as: CDLesson.self, into: viewContext,
             existing: { try index.existing(CDLesson.self, id: $0) }
         )
 
-        try BackupEntityImporter.importCommunityTopics(
-            rows(\.communityTopics),
-            into: viewContext,
+        try BackupEntityImporter.importRows(
+            rows(\.communityTopics), as: CDCommunityTopicEntity.self, into: viewContext,
             existing: { try index.existing(CDCommunityTopicEntity.self, id: $0) }
         )
 
-        try BackupEntityImporter.importLessonAssignments(
-            rows(\.lessonAssignments),
-            into: viewContext,
-            existing: { try index.existing(CDLessonAssignment.self, id: $0) },
-            lessonCheck: { try index.related(CDLesson.self, id: $0) }
+        try BackupEntityImporter.importRows(
+            rows(\.lessonAssignments), as: CDLessonAssignment.self, into: viewContext,
+            existing: { try index.existing(CDLessonAssignment.self, id: $0) }
         )
 
         let notes = try rows(\.notes)
-        try BackupEntityImporter.importNotes(
-            notes,
-            into: viewContext,
+        noteLinks = BackupEntityImporter.importRows(
+            notes, as: CDNote.self, into: viewContext,
             existing: { try index.existing(CDNote.self, id: $0) }
         )
-        noteLinks = notes.compactMap(BackupNoteLinks.init)
         restoredNoteIDs = notes.map(\.id)
+    }
+
+    /// Re-links every restored note to the records it points at
+    /// (`noteLinks`), once every type they can be is in: the restore calls it
+    /// after the last type. Each link is set to the record found by its id,
+    /// or to nothing; a failed lookup stops the restore.
+    func relinkNotes() throws {
+        let index = self.index
+        try BackupEntityImporter.relinkDeferred(
+            noteLinks,
+            owner: { try index.related(CDNote.self, id: $0) },
+            parents: [
+                "work": { try index.related(CDWorkModel.self, id: $0) },
+                "lessonAssignment": { try index.related(CDLessonAssignment.self, id: $0) },
+                "workCheckIn": { try index.related(CDWorkCheckIn.self, id: $0) },
+                "workCompletionRecord": { try index.related(CDWorkCompletionRecord.self, id: $0) },
+                "studentMeeting": { try index.related(CDStudentMeeting.self, id: $0) },
+                "projectSession": { try index.related(CDProjectSession.self, id: $0) },
+                "issue": { try index.related(CDIssue.self, id: $0) }
+            ]
+        )
     }
 
     func importCalendarAndRecordEntities() throws {
         let viewContext = context
         let index = self.index
 
-        try BackupEntityImporter.importNonSchoolDays(
-            rows(\.nonSchoolDays),
-            into: viewContext,
+        let nonSchoolDays = try rows(\.nonSchoolDays)
+        BackupEntityImporter.importRows(
+            nonSchoolDays, as: CDNonSchoolDay.self, into: viewContext,
             existing: { try index.existing(CDNonSchoolDay.self, id: $0) }
         )
+        notifySchoolDayDataChanged(ifRestored: nonSchoolDays)
 
-        try BackupEntityImporter.importSchoolDayOverrides(
-            rows(\.schoolDayOverrides),
-            into: viewContext,
+        let schoolDayOverrides = try rows(\.schoolDayOverrides)
+        BackupEntityImporter.importRows(
+            schoolDayOverrides, as: CDSchoolDayOverride.self, into: viewContext,
             existing: { try index.existing(CDSchoolDayOverride.self, id: $0) }
         )
+        notifySchoolDayDataChanged(ifRestored: schoolDayOverrides)
 
-        try BackupEntityImporter.importStudentMeetings(
-            rows(\.studentMeetings),
-            into: viewContext,
+        try BackupEntityImporter.importRows(
+            rows(\.studentMeetings), as: CDStudentMeeting.self, into: viewContext,
             existing: { try index.existing(CDStudentMeeting.self, id: $0) }
         )
 
@@ -76,50 +91,56 @@ extension BackupRestoreRun {
             parents: ["topic": { try index.related(CDCommunityTopicEntity.self, id: $0) }]
         )
 
-        try BackupEntityImporter.importCommunityAttachments(
-            rows(\.communityAttachments),
-            into: viewContext,
+        try BackupEntityImporter.importRows(
+            rows(\.communityAttachments), as: CDCommunityAttachment.self, into: viewContext,
             existing: { try index.existing(CDCommunityAttachment.self, id: $0) },
-            topicCheck: { try index.related(CDCommunityTopicEntity.self, id: $0) }
+            parents: ["topic": { try index.related(CDCommunityTopicEntity.self, id: $0) }]
         )
 
-        try BackupEntityImporter.importAttendanceRecords(
-            rows(\.attendance),
-            into: viewContext,
+        try BackupEntityImporter.importRows(
+            rows(\.attendance), as: CDAttendanceRecord.self, into: viewContext,
             existing: { try index.existing(CDAttendanceRecord.self, id: $0) }
         )
 
-        try BackupEntityImporter.importWorkCompletionRecords(
-            rows(\.workCompletions),
-            into: viewContext,
+        try BackupEntityImporter.importRows(
+            rows(\.workCompletions), as: CDWorkCompletionRecord.self, into: viewContext,
             existing: { try index.existing(CDWorkCompletionRecord.self, id: $0) }
         )
+    }
+
+    /// A restore writes calendar rows through the view context, whose saves are
+    /// the app's own and so never reach the history-driven invalidation in
+    /// `PersistentHistoryProcessor`. Announce the change here instead, after
+    /// each school-day type that restored any rows.
+    private func notifySchoolDayDataChanged<Row>(ifRestored rows: [Row]) {
+        guard !rows.isEmpty else { return }
+        NotificationCenter.default.post(name: .schoolDayDataDidChange, object: nil)
     }
 
     func importProjectEntities() throws {
         let viewContext = context
         let index = self.index
 
-        try BackupEntityImporter.importProjects(
-            rows(\.projects),
-            into: viewContext,
+        try BackupEntityImporter.importRows(
+            rows(\.projects), as: CDProject.self, into: viewContext,
             existing: { try index.existing(CDProject.self, id: $0) }
         )
 
-        try BackupEntityImporter.importProjectRoles(
-            rows(\.projectRoles),
-            into: viewContext,
+        try BackupEntityImporter.importRows(
+            rows(\.projectRoles), as: CDProjectRole.self, into: viewContext,
             existing: { try index.existing(CDProjectRole.self, id: $0) }
         )
 
         // Import of CDProjectTemplateWeek, CDProjectAssignmentTemplate, and
         // CDProjectWeekRoleAssignment skipped — entities deprecated.
 
-        try BackupEntityImporter.importProjectSessions(
-            rows(\.projectSessions),
-            into: viewContext,
+        // Each session is filed under its project: the app reaches a project's
+        // sessions through the link, not the `projectID` string (bug hunt
+        // 2026-11-02, #7).
+        try BackupEntityImporter.importRows(
+            rows(\.projectSessions), as: CDProjectSession.self, into: viewContext,
             existing: { try index.existing(CDProjectSession.self, id: $0) },
-            projectCheck: { try index.related(CDProject.self, id: $0) }
+            parents: ["project": { try index.related(CDProject.self, id: $0) }]
         )
     }
 
@@ -129,19 +150,17 @@ extension BackupRestoreRun {
 
         // CDWorkModel must be imported first — child entities reference it
         if let workModels = try rows(\.workModels) {
-            try BackupEntityImporter.importWorkModels(
-                workModels,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                workModels, as: CDWorkModel.self, into: viewContext,
                 existing: { try index.existing(CDWorkModel.self, id: $0) }
             )
         }
 
         if let workCheckIns = try rows(\.workCheckIns) {
-            try BackupEntityImporter.importWorkCheckIns(
-                workCheckIns,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                workCheckIns, as: CDWorkCheckIn.self, into: viewContext,
                 existing: { try index.existing(CDWorkCheckIn.self, id: $0) },
-                workCheck: { try index.related(CDWorkModel.self, id: $0) }
+                parents: ["work": { try index.related(CDWorkModel.self, id: $0) }]
             )
         }
 
@@ -154,11 +173,10 @@ extension BackupRestoreRun {
         }
 
         if let workParticipants = try rows(\.workParticipants) {
-            try BackupEntityImporter.importWorkParticipants(
-                workParticipants,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                workParticipants, as: CDWorkParticipantEntity.self, into: viewContext,
                 existing: { try index.existing(CDWorkParticipantEntity.self, id: $0) },
-                workCheck: { try index.related(CDWorkModel.self, id: $0) }
+                parents: ["work": { try index.related(CDWorkModel.self, id: $0) }]
             )
         }
     }
@@ -188,9 +206,8 @@ extension BackupRestoreRun {
         }
 
         if let lessonPresentations = try rows(\.lessonPresentations) {
-            try BackupEntityImporter.importLessonPresentations(
-                lessonPresentations,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                lessonPresentations, as: CDLessonPresentation.self, into: viewContext,
                 existing: { try index.existing(CDLessonPresentation.self, id: $0) }
             )
         }
@@ -203,11 +220,10 @@ extension BackupRestoreRun {
         }
 
         if let sampleWorks = try rows(\.sampleWorks) {
-            try BackupEntityImporter.importSampleWorks(
-                sampleWorks,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                sampleWorks, as: CDSampleWork.self, into: viewContext,
                 existing: { try index.existing(CDSampleWork.self, id: $0) },
-                lessonCheck: { try index.related(CDLesson.self, id: $0) }
+                parents: ["lesson": { try index.related(CDLesson.self, id: $0) }]
             )
         }
 

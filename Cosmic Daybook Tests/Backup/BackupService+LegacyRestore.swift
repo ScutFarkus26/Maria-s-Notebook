@@ -17,7 +17,11 @@ import OSLog
 // code carried are silenced where they fall. It shares the app's importers and
 // `deleteAll`, so it carries the 2026-11-02 hunt's fixes to them: sessions
 // linked to their project (#7), and a Replace that leaves the classroom-share
-// types to be updated in place (#2). The restore equivalence and
+// types to be updated in place (#2). Since "Simplify round two", Phase 7 the
+// 38 types the app moved to `ModelRow` restore through the frozen copy of those
+// importers (`LegacyBackupEntityImporter`, as they stood at a906650c0), each
+// payload field crossing to its `Legacy` row type through `LegacyRows`, as an
+// archive line would; `importRows` stays the app's. The restore equivalence and
 // peak-memory tests compare the new restore against it, so do not "fix" or
 // modernise this code: its only job is to be the old code.
 
@@ -144,7 +148,9 @@ extension BackupService {
         // Notes import early, but many of their relationship targets (work,
         // check-ins, meetings, etc.) import in later phases — relink them now
         // that every target type is in the store.
-        try BackupEntityImporter.legacyRelinkNoteRelationships(payload.notes, index: index)
+        try LegacyBackupEntityImporter.legacyRelinkNoteRelationships(
+            LegacyRows.rows(payload.notes, as: LegacyNoteDTO.self), index: index
+        )
 
         // Subscribe to CloudKit export events BEFORE saving — a fast export
         // could otherwise complete between save() and subscription, leaving
@@ -213,8 +219,10 @@ extension BackupService {
         var albumIDs = Set<String>()
         albumIDs.formUnion(payload.albumBookmarks?.compactMap { $0.string("albumID") } ?? [])
         albumIDs.formUnion(payload.albumPageNotes?.compactMap { $0.string("albumID") } ?? [])
-        payload.albumHighlights?.forEach { albumIDs.insert($0.albumID) }
-        payload.albumPageInk?.forEach { albumIDs.insert($0.albumID) }
+        LegacyRows.rows(payload.albumHighlights ?? [], as: LegacyAlbumHighlightDTO.self)
+            .forEach { albumIDs.insert($0.albumID) }
+        LegacyRows.rows(payload.albumPageInk ?? [], as: LegacyAlbumPageInkDTO.self)
+            .forEach { albumIDs.insert($0.albumID) }
         albumIDs.formUnion(payload.albumReadingPositions?.compactMap { $0.string("albumID") } ?? [])
         guard !albumIDs.isEmpty, !AlbumLibrary.hasResolvableFolderBookmark() else { return nil }
         let noun = albumIDs.count == 1 ? "album" : "albums"
@@ -281,33 +289,33 @@ extension BackupService {
         into viewContext: NSManagedObjectContext,
         index: BackupEntityIndex
     ) throws {
-        _ = try BackupEntityImporter.importStudents(
-            payload.students,
+        _ = try LegacyBackupEntityImporter.importStudents(
+            LegacyRows.rows(payload.students, as: LegacyStudentDTO.self),
             into: viewContext,
             existing: { try index.existing(CDStudent.self, id: $0) }
         )
 
-        try BackupEntityImporter.importLessons(
-            payload.lessons,
+        try LegacyBackupEntityImporter.importLessons(
+            LegacyRows.rows(payload.lessons, as: LegacyLessonDTO.self),
             into: viewContext,
             existing: { try index.existing(CDLesson.self, id: $0) }
         )
 
-        try BackupEntityImporter.importCommunityTopics(
-            payload.communityTopics,
+        try LegacyBackupEntityImporter.importCommunityTopics(
+            LegacyRows.rows(payload.communityTopics, as: LegacyCommunityTopicDTO.self),
             into: viewContext,
             existing: { try index.existing(CDCommunityTopicEntity.self, id: $0) }
         )
 
-        try BackupEntityImporter.importLessonAssignments(
-            payload.lessonAssignments,
+        try LegacyBackupEntityImporter.importLessonAssignments(
+            LegacyRows.rows(payload.lessonAssignments, as: LegacyLessonAssignmentDTO.self),
             into: viewContext,
             existing: { try index.existing(CDLessonAssignment.self, id: $0) },
             lessonCheck: { try index.related(CDLesson.self, id: $0) }
         )
 
-        try BackupEntityImporter.importNotes(
-            payload.notes,
+        try LegacyBackupEntityImporter.importNotes(
+            LegacyRows.rows(payload.notes, as: LegacyNoteDTO.self),
             into: viewContext,
             existing: { try index.existing(CDNote.self, id: $0) }
         )
@@ -318,20 +326,20 @@ extension BackupService {
         into viewContext: NSManagedObjectContext,
         index: BackupEntityIndex
     ) throws {
-        try BackupEntityImporter.importNonSchoolDays(
-            payload.nonSchoolDays,
+        try LegacyBackupEntityImporter.importNonSchoolDays(
+            LegacyRows.rows(payload.nonSchoolDays, as: LegacyNonSchoolDayDTO.self),
             into: viewContext,
             existing: { try index.existing(CDNonSchoolDay.self, id: $0) }
         )
 
-        try BackupEntityImporter.importSchoolDayOverrides(
-            payload.schoolDayOverrides,
+        try LegacyBackupEntityImporter.importSchoolDayOverrides(
+            LegacyRows.rows(payload.schoolDayOverrides, as: LegacySchoolDayOverrideDTO.self),
             into: viewContext,
             existing: { try index.existing(CDSchoolDayOverride.self, id: $0) }
         )
 
-        try BackupEntityImporter.importStudentMeetings(
-            payload.studentMeetings,
+        try LegacyBackupEntityImporter.importStudentMeetings(
+            LegacyRows.rows(payload.studentMeetings, as: LegacyStudentMeetingDTO.self),
             into: viewContext,
             existing: { try index.existing(CDStudentMeeting.self, id: $0) }
         )
@@ -342,21 +350,21 @@ extension BackupService {
             parents: ["topic": { try index.related(CDCommunityTopicEntity.self, id: $0) }]
         )
 
-        try BackupEntityImporter.importCommunityAttachments(
-            payload.communityAttachments,
+        try LegacyBackupEntityImporter.importCommunityAttachments(
+            LegacyRows.rows(payload.communityAttachments, as: LegacyCommunityAttachmentDTO.self),
             into: viewContext,
             existing: { try index.existing(CDCommunityAttachment.self, id: $0) },
             topicCheck: { try index.related(CDCommunityTopicEntity.self, id: $0) }
         )
 
-        try BackupEntityImporter.importAttendanceRecords(
-            payload.attendance,
+        try LegacyBackupEntityImporter.importAttendanceRecords(
+            LegacyRows.rows(payload.attendance, as: LegacyAttendanceRecordDTO.self),
             into: viewContext,
             existing: { try index.existing(CDAttendanceRecord.self, id: $0) }
         )
 
-        try BackupEntityImporter.importWorkCompletionRecords(
-            payload.workCompletions,
+        try LegacyBackupEntityImporter.importWorkCompletionRecords(
+            LegacyRows.rows(payload.workCompletions, as: LegacyWorkCompletionRecordDTO.self),
             into: viewContext,
             existing: { try index.existing(CDWorkCompletionRecord.self, id: $0) }
         )
@@ -367,14 +375,14 @@ extension BackupService {
         into viewContext: NSManagedObjectContext,
         index: BackupEntityIndex
     ) throws {
-        try BackupEntityImporter.importProjects(
-            payload.projects,
+        try LegacyBackupEntityImporter.importProjects(
+            LegacyRows.rows(payload.projects, as: LegacyProjectDTO.self),
             into: viewContext,
             existing: { try index.existing(CDProject.self, id: $0) }
         )
 
-        try BackupEntityImporter.importProjectRoles(
-            payload.projectRoles,
+        try LegacyBackupEntityImporter.importProjectRoles(
+            LegacyRows.rows(payload.projectRoles, as: LegacyProjectRoleDTO.self),
             into: viewContext,
             existing: { try index.existing(CDProjectRole.self, id: $0) }
         )
@@ -382,8 +390,8 @@ extension BackupService {
         // Import of CDProjectTemplateWeek, CDProjectAssignmentTemplate, and
         // CDProjectWeekRoleAssignment skipped — entities deprecated.
 
-        try BackupEntityImporter.importProjectSessions(
-            payload.projectSessions,
+        try LegacyBackupEntityImporter.importProjectSessions(
+            LegacyRows.rows(payload.projectSessions, as: LegacyProjectSessionDTO.self),
             into: viewContext,
             existing: { try index.existing(CDProjectSession.self, id: $0) },
             projectCheck: { try index.related(CDProject.self, id: $0) }
@@ -397,16 +405,16 @@ extension BackupService {
     ) throws {
         // CDWorkModel must be imported first — child entities reference it
         if let workModels = payload.workModels {
-            try BackupEntityImporter.importWorkModels(
-                workModels,
+            try LegacyBackupEntityImporter.importWorkModels(
+                LegacyRows.rows(workModels, as: LegacyWorkModelDTO.self),
                 into: viewContext,
                 existing: { try index.existing(CDWorkModel.self, id: $0) }
             )
         }
 
         if let workCheckIns = payload.workCheckIns {
-            try BackupEntityImporter.importWorkCheckIns(
-                workCheckIns,
+            try LegacyBackupEntityImporter.importWorkCheckIns(
+                LegacyRows.rows(workCheckIns, as: LegacyWorkCheckInDTO.self),
                 into: viewContext,
                 existing: { try index.existing(CDWorkCheckIn.self, id: $0) },
                 workCheck: { try index.related(CDWorkModel.self, id: $0) }
@@ -422,8 +430,8 @@ extension BackupService {
         }
 
         if let workParticipants = payload.workParticipants {
-            try BackupEntityImporter.importWorkParticipants(
-                workParticipants,
+            try LegacyBackupEntityImporter.importWorkParticipants(
+                LegacyRows.rows(workParticipants, as: LegacyWorkParticipantEntityDTO.self),
                 into: viewContext,
                 existing: { try index.existing(CDWorkParticipantEntity.self, id: $0) },
                 workCheck: { try index.related(CDWorkModel.self, id: $0) }
@@ -445,8 +453,8 @@ extension BackupService {
         }
 
         if let lessonPresentations = payload.lessonPresentations {
-            try BackupEntityImporter.importLessonPresentations(
-                lessonPresentations,
+            try LegacyBackupEntityImporter.importLessonPresentations(
+                LegacyRows.rows(lessonPresentations, as: LegacyLessonPresentationDTO.self),
                 into: viewContext,
                 existing: { try index.existing(CDLessonPresentation.self, id: $0) }
             )
@@ -460,8 +468,8 @@ extension BackupService {
         }
 
         if let sampleWorks = payload.sampleWorks {
-            try BackupEntityImporter.importSampleWorks(
-                sampleWorks,
+            try LegacyBackupEntityImporter.importSampleWorks(
+                LegacyRows.rows(sampleWorks, as: LegacySampleWorkDTO.self),
                 into: viewContext,
                 existing: { try index.existing(CDSampleWork.self, id: $0) },
                 lessonCheck: { try index.related(CDLesson.self, id: $0) }
@@ -490,8 +498,8 @@ extension BackupService {
         }
 
         if let calendarEvents = payload.calendarEvents {
-            try BackupEntityImporter.importCalendarEvents(
-                calendarEvents,
+            try LegacyBackupEntityImporter.importCalendarEvents(
+                LegacyRows.rows(calendarEvents, as: LegacyCalendarEventDTO.self),
                 into: viewContext,
                 existing: { try index.existing(CDCalendarEvent.self, id: $0) }
             )
@@ -530,8 +538,8 @@ extension BackupService {
         }
 
         if let sequenceTracks = payload.sequenceTracks {
-            try BackupEntityImporter.importSequenceTracks(
-                sequenceTracks,
+            try LegacyBackupEntityImporter.importSequenceTracks(
+                LegacyRows.rows(sequenceTracks, as: LegacySequenceTrackDTO.self),
                 into: viewContext,
                 existing: { try index.existing(CDSequenceTrack.self, id: $0) }
             )
@@ -544,24 +552,24 @@ extension BackupService {
         index: BackupEntityIndex
     ) throws {
         if let documents = payload.documents {
-            try BackupEntityImporter.importDocuments(
-                documents,
+            try LegacyBackupEntityImporter.importDocuments(
+                LegacyRows.rows(documents, as: LegacyDocumentDTO.self),
                 into: viewContext,
                 existing: { try index.existing(CDDocument.self, id: $0) }
             )
         }
 
         if let supplies = payload.supplies {
-            try BackupEntityImporter.importSupplies(
-                supplies,
+            try LegacyBackupEntityImporter.importSupplies(
+                LegacyRows.rows(supplies, as: LegacySupplyDTO.self),
                 into: viewContext,
                 existing: { try index.existing(CDSupply.self, id: $0) }
             )
         }
 
         if let procedures = payload.procedures {
-            try BackupEntityImporter.importProcedures(
-                procedures,
+            try LegacyBackupEntityImporter.importProcedures(
+                LegacyRows.rows(procedures, as: LegacyProcedureDTO.self),
                 into: viewContext,
                 existing: { try index.existing(CDProcedure.self, id: $0) }
             )
@@ -581,8 +589,8 @@ extension BackupService {
         }
 
         if let scheduleSlots = payload.scheduleSlots {
-            try BackupEntityImporter.importScheduleSlots(
-                scheduleSlots,
+            try LegacyBackupEntityImporter.importScheduleSlots(
+                LegacyRows.rows(scheduleSlots, as: LegacyScheduleSlotDTO.self),
                 into: viewContext,
                 existing: { try index.existing(CDScheduleSlot.self, id: $0) },
                 scheduleCheck: { try index.related(CDSchedule.self, id: $0) }
@@ -596,16 +604,16 @@ extension BackupService {
         index: BackupEntityIndex
     ) throws {
         if let issues = payload.issues {
-            try BackupEntityImporter.importIssues(
-                issues,
+            try LegacyBackupEntityImporter.importIssues(
+                LegacyRows.rows(issues, as: LegacyIssueDTO.self),
                 into: viewContext,
                 existing: { try index.existing(CDIssue.self, id: $0) }
             )
         }
 
         if let issueActions = payload.issueActions {
-            try BackupEntityImporter.importIssueActions(
-                issueActions,
+            try LegacyBackupEntityImporter.importIssueActions(
+                LegacyRows.rows(issueActions, as: LegacyIssueActionDTO.self),
                 into: viewContext,
                 existing: { try index.existing(CDIssueAction.self, id: $0) },
                 issueCheck: { try index.related(CDIssue.self, id: $0) }
@@ -619,24 +627,24 @@ extension BackupService {
         index: BackupEntityIndex
     ) throws {
         if let snapshots = payload.developmentSnapshots {
-            try BackupEntityImporter.importDevelopmentSnapshots(
-                snapshots,
+            try LegacyBackupEntityImporter.importDevelopmentSnapshots(
+                LegacyRows.rows(snapshots, as: LegacyDevelopmentSnapshotDTO.self),
                 into: viewContext,
                 existing: { try index.existing(CDDevelopmentSnapshotEntity.self, id: $0) }
             )
         }
 
         if let todoItems = payload.todoItems {
-            try BackupEntityImporter.importTodoItems(
-                todoItems,
+            try LegacyBackupEntityImporter.importTodoItems(
+                LegacyRows.rows(todoItems, as: LegacyTodoItemDTO.self),
                 into: viewContext,
                 existing: { try index.existing(CDTodoItem.self, id: $0) }
             )
         }
 
         if let agendaOrders = payload.todayAgendaOrders {
-            try BackupEntityImporter.importTodayAgendaOrders(
-                agendaOrders,
+            try LegacyBackupEntityImporter.importTodayAgendaOrders(
+                LegacyRows.rows(agendaOrders, as: LegacyTodayAgendaOrderDTO.self),
                 into: viewContext,
                 existing: { try index.existing(CDTodayAgendaOrder.self, id: $0) }
             )
@@ -649,16 +657,16 @@ extension BackupService {
         index: BackupEntityIndex
     ) throws {
         if let recommendations = payload.planningRecommendations {
-            try BackupEntityImporter.importPlanningRecommendations(
-                recommendations,
+            try LegacyBackupEntityImporter.importPlanningRecommendations(
+                LegacyRows.rows(recommendations, as: LegacyPlanningRecommendationDTO.self),
                 into: viewContext,
                 existing: { try index.existing(CDPlanningRecommendation.self, id: $0) }
             )
         }
 
         if let resources = payload.resources {
-            try BackupEntityImporter.importResources(
-                resources,
+            try LegacyBackupEntityImporter.importResources(
+                LegacyRows.rows(resources, as: LegacyResourceDTO.self),
                 into: viewContext,
                 existing: { try index.existing(CDResource.self, id: $0) }
             )
@@ -686,8 +694,8 @@ extension BackupService {
         }
 
         if let goingOutItems = payload.goingOutChecklistItems {
-            try BackupEntityImporter.importGoingOutChecklistItems(
-                goingOutItems,
+            try LegacyBackupEntityImporter.importGoingOutChecklistItems(
+                LegacyRows.rows(goingOutItems, as: LegacyGoingOutChecklistItemDTO.self),
                 into: viewContext,
                 existing: { try index.existing(CDGoingOutChecklistItem.self, id: $0) },
                 goingOutCheck: { try index.related(CDGoingOut.self, id: $0) }
@@ -702,8 +710,8 @@ extension BackupService {
         }
 
         if let scheduledMeetings = payload.scheduledMeetings {
-            try BackupEntityImporter.importScheduledMeetings(
-                scheduledMeetings,
+            try LegacyBackupEntityImporter.importScheduledMeetings(
+                LegacyRows.rows(scheduledMeetings, as: LegacyScheduledMeetingDTO.self),
                 into: viewContext,
                 existing: { try index.existing(CDScheduledMeeting.self, id: $0) }
             )
@@ -759,16 +767,16 @@ extension BackupService {
         }
 
         if let stories = payload.stories {
-            try BackupEntityImporter.importStories(
-                stories,
+            try LegacyBackupEntityImporter.importStories(
+                LegacyRows.rows(stories, as: LegacyStoryDTO.self),
                 into: viewContext,
                 existing: { try index.existing(CDStory.self, id: $0) }
             )
         }
 
         if let packets = payload.bookClubPackets {
-            try BackupEntityImporter.importBookClubPackets(
-                packets,
+            try LegacyBackupEntityImporter.importBookClubPackets(
+                LegacyRows.rows(packets, as: LegacyBookClubPacketDTO.self),
                 into: viewContext,
                 existing: { try index.existing(CDBookClubPacket.self, id: $0) }
             )
@@ -846,16 +854,16 @@ extension BackupService {
         }
 
         if let highlights = payload.albumHighlights {
-            BackupEntityImporter.importAlbumHighlights(
-                highlights,
+            LegacyBackupEntityImporter.importAlbumHighlights(
+                LegacyRows.rows(highlights, as: LegacyAlbumHighlightDTO.self),
                 into: viewContext,
                 existing: { try index.existing(CDAlbumHighlight.self, id: $0) }
             )
         }
 
         if let ink = payload.albumPageInk {
-            BackupEntityImporter.importAlbumPageInk(
-                ink,
+            LegacyBackupEntityImporter.importAlbumPageInk(
+                LegacyRows.rows(ink, as: LegacyAlbumPageInkDTO.self),
                 into: viewContext,
                 existing: { try index.existing(CDAlbumPageInk.self, id: $0) }
             )
@@ -1009,14 +1017,14 @@ enum LegacyBackupPayloadDeduplicator {
     }
 }
 
-extension BackupEntityImporter {
+extension LegacyBackupEntityImporter {
     /// Relinks a note's context relationships after all entities are imported.
     ///
     /// Notes import early, but most of their relationship targets (work,
     /// check-ins, meetings, issues, etc.) import in later phases — so they can't
     /// be resolved at note-import time. This runs as a final pass, once every
     /// target type is in the store, and wires them up by id.
-    static func legacyRelinkNoteRelationships(_ dtos: [NoteDTO], index: BackupEntityIndex) throws { // swiftlint:disable:this cyclomatic_complexity line_length
+    static func legacyRelinkNoteRelationships(_ dtos: [LegacyNoteDTO], index: BackupEntityIndex) throws { // swiftlint:disable:this cyclomatic_complexity line_length
         for dto in dtos {
             guard let note = try index.related(CDNote.self, id: dto.id) else { continue }
             if let id = dto.workID {

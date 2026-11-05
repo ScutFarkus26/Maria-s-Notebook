@@ -21,11 +21,10 @@ extension BackupRestoreRun {
         }
 
         if let goingOutItems = try rows(\.goingOutChecklistItems) {
-            try BackupEntityImporter.importGoingOutChecklistItems(
-                goingOutItems,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                goingOutItems, as: CDGoingOutChecklistItem.self, into: viewContext,
                 existing: { try index.existing(CDGoingOutChecklistItem.self, id: $0) },
-                goingOutCheck: { try index.related(CDGoingOut.self, id: $0) }
+                parents: ["goingOut": { try index.related(CDGoingOut.self, id: $0) }]
             )
         }
 
@@ -37,9 +36,8 @@ extension BackupRestoreRun {
         }
 
         if let scheduledMeetings = try rows(\.scheduledMeetings) {
-            try BackupEntityImporter.importScheduledMeetings(
-                scheduledMeetings,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                scheduledMeetings, as: CDScheduledMeeting.self, into: viewContext,
                 existing: { try index.existing(CDScheduledMeeting.self, id: $0) }
             )
         }
@@ -101,17 +99,15 @@ extension BackupRestoreRun {
         }
 
         if let stories = try rows(\.stories) {
-            try BackupEntityImporter.importStories(
-                stories,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                stories, as: CDStory.self, into: viewContext,
                 existing: { try index.existing(CDStory.self, id: $0) }
             )
         }
 
         if let packets = try rows(\.bookClubPackets) {
-            try BackupEntityImporter.importBookClubPackets(
-                packets,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                packets, as: CDBookClubPacket.self, into: viewContext,
                 existing: { try index.existing(CDBookClubPacket.self, id: $0) }
             )
         }
@@ -190,19 +186,17 @@ extension BackupRestoreRun {
         }
 
         if let highlights = try rows(\.albumHighlights) {
-            albumIDs.formUnion(highlights.map(\.albumID))
-            BackupEntityImporter.importAlbumHighlights(
-                highlights,
-                into: viewContext,
+            albumIDs.formUnion(highlights.compactMap { $0.string("albumID") })
+            BackupEntityImporter.importRows(
+                highlights, as: CDAlbumHighlight.self, into: viewContext,
                 existing: { try index.existing(CDAlbumHighlight.self, id: $0) }
             )
         }
 
         if let ink = try rows(\.albumPageInk) {
-            albumIDs.formUnion(ink.map(\.albumID))
-            BackupEntityImporter.importAlbumPageInk(
-                ink,
-                into: viewContext,
+            albumIDs.formUnion(ink.compactMap { $0.string("albumID") })
+            BackupEntityImporter.importRows(
+                ink, as: CDAlbumPageInk.self, into: viewContext,
                 existing: { try index.existing(CDAlbumPageInk.self, id: $0) }
             )
         }

@@ -8,6 +8,11 @@ import Foundation
 // is carried along. The streaming tests compare the new collector table and the
 // streamed archive against it, so do not "fix" or modernise this code: its only
 // job is to be the old code.
+//
+// "Simplify round two", Phase 7: the 38 types whose hand-written export the app
+// gave up for `ModelRow` export through the frozen copy
+// (`LegacyBackupDTOTransformers`, `Legacy` DTOs) and cross to the payload's row
+// types through `LegacyRows`, as an archive line would.
 
 extension BackupService {
 
@@ -51,25 +56,31 @@ extension BackupService {
     ) {
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.0), "Collecting students\u{2026}")
         payload.students = fetchAndTransformInBatches(
-            CDStudent.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
+            CDStudent.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: StudentDTO.self) }
 
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.06), "Collecting lessons\u{2026}")
         payload.lessons = fetchAndTransformInBatches(
-            CDLesson.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
+            CDLesson.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: LessonDTO.self) }
 
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.15), "Collecting lesson assignments\u{2026}")
         payload.lessonAssignments = fetchAndTransformInBatches(
-            CDLessonAssignment.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDLessonAssignment.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: LessonAssignmentDTO.self) }
 
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.24), "Collecting notes\u{2026}")
         payload.notes = fetchAndTransformInBatches(
-            CDNote.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
+            CDNote.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: NoteDTO.self) }
 
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.27), "Collecting calendar data\u{2026}")
         payload.nonSchoolDays = fetchAndTransformInBatches(
-            CDNonSchoolDay.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
+            CDNonSchoolDay.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: NonSchoolDayDTO.self) }
         payload.schoolDayOverrides = fetchAndTransformInBatches(
-            CDSchoolDayOverride.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
+            CDSchoolDayOverride.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: SchoolDayOverrideDTO.self) }
     }
 
     private func collectRelationAndProjectDTOs(
@@ -79,33 +90,41 @@ extension BackupService {
     ) {
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.30), "Collecting meetings\u{2026}")
         payload.studentMeetings = fetchAndTransformInBatches(
-            CDStudentMeeting.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
+            CDStudentMeeting.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: StudentMeetingDTO.self) }
 
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.33), "Collecting community data\u{2026}")
         payload.communityTopics = fetchAndTransformInBatches(
-            CDCommunityTopicEntity.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
+            CDCommunityTopicEntity.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: CommunityTopicDTO.self) }
         payload.proposedSolutions = fetchAndTransformInBatches(
             CDProposedSolutionEntity.self, using: viewContext) { ProposedSolutionDTO.rows($0) }
         payload.communityAttachments = fetchAndTransformInBatches(
-            CDCommunityAttachment.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
+            CDCommunityAttachment.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: CommunityAttachmentDTO.self) }
 
         progress(
             BackupProgress.progress(for: .collecting, subProgress: 0.36),
             "Collecting attendance and work completions\u{2026}"
         )
         payload.attendance = fetchAndTransformInBatches(
-            CDAttendanceRecord.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
+            CDAttendanceRecord.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: AttendanceRecordDTO.self) }
         payload.workCompletions = fetchAndTransformInBatches(
-            CDWorkCompletionRecord.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
+            CDWorkCompletionRecord.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: WorkCompletionRecordDTO.self) }
 
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.39), "Collecting projects\u{2026}")
         payload.projects = fetchAndTransformInBatches(
-            CDProject.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
+            CDProject.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: ProjectDTO.self) }
         payload.projectAssignmentTemplates = [] // Deprecated
         payload.projectSessions = fetchAndTransformInBatches(
-            CDProjectSession.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
+            CDProjectSession.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: ProjectSessionDTO.self) }
         payload.projectRoles = fetchAndTransformInBatches(
-            CDProjectRole.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
+            CDProjectRole.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: ProjectRoleDTO.self) }
         payload.projectTemplateWeeks = [] // Deprecated
         payload.projectWeekRoleAssignments = [] // Deprecated
     }
@@ -117,23 +136,28 @@ extension BackupService {
     ) {
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.42), "Collecting work tracking\u{2026}")
         payload.workModels = fetchAndTransformInBatches(
-            CDWorkModel.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDWorkModel.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: WorkModelDTO.self) }
         payload.workCheckIns = fetchAndTransformInBatches(
-            CDWorkCheckIn.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDWorkCheckIn.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: WorkCheckInDTO.self) }
         payload.workSteps = fetchAndTransformInBatches(
             CDWorkStep.self, using: viewContext) { WorkStepDTO.rows($0) }
         payload.workParticipants = fetchAndTransformInBatches(
-            CDWorkParticipantEntity.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDWorkParticipantEntity.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: WorkParticipantEntityDTO.self) }
 
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.50), "Collecting lesson extras\u{2026}")
         payload.lessonAttachments = fetchAndTransformInBatches(
             CDLessonAttachment.self, using: viewContext) { LessonAttachmentDTO.rows($0) }
         payload.lessonPresentations = fetchAndTransformInBatches(
-            CDLessonPresentation.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDLessonPresentation.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: LessonPresentationDTO.self) }
         payload.recallChecks = fetchAndTransformInBatches(
             CDLessonRecallCheck.self, using: viewContext) { LessonRecallCheckDTO.rows($0) }
         payload.sampleWorks = fetchAndTransformInBatches(
-            CDSampleWork.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDSampleWork.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: SampleWorkDTO.self) }
         payload.sampleWorkSteps = fetchAndTransformInBatches(
             CDSampleWorkStep.self, using: viewContext) { SampleWorkStepDTO.rows($0) }
     }
@@ -147,7 +171,8 @@ extension BackupService {
         payload.meetingTemplates = fetchAndTransformInBatches(
             CDMeetingTemplate.self, using: viewContext) { MeetingTemplateDTO.rows($0) }
         payload.calendarEvents = fetchAndTransformInBatches(
-            CDCalendarEvent.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDCalendarEvent.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: CalendarEventDTO.self) }
         payload.tracks = fetchAndTransformInBatches(
             CDTrackEntity.self, using: viewContext) { TrackDTO.rows($0) }
         payload.trackSteps = fetchAndTransformInBatches(
@@ -155,7 +180,8 @@ extension BackupService {
         payload.studentTrackEnrollments = fetchAndTransformInBatches(
             CDStudentTrackEnrollmentEntity.self, using: viewContext) { StudentTrackEnrollmentDTO.rows($0) }
         payload.sequenceTracks = fetchAndTransformInBatches(
-            CDSequenceTrack.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDSequenceTrack.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: SequenceTrackDTO.self) }
     }
 
     // swiftlint:disable:next function_body_length
@@ -169,36 +195,47 @@ extension BackupService {
             "Collecting supplies, schedules & issues\u{2026}"
         )
         payload.documents = fetchAndTransformInBatches(
-            CDDocument.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDDocument.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: DocumentDTO.self) }
         payload.supplies = fetchAndTransformInBatches(
-            CDSupply.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDSupply.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: SupplyDTO.self) }
         payload.procedures = fetchAndTransformInBatches(
-            CDProcedure.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDProcedure.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: ProcedureDTO.self) }
         payload.schedules = fetchAndTransformInBatches(
             CDSchedule.self, using: viewContext) { ScheduleDTO.rows($0) }
         payload.scheduleSlots = fetchAndTransformInBatches(
-            CDScheduleSlot.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDScheduleSlot.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: ScheduleSlotDTO.self) }
         payload.issues = fetchAndTransformInBatches(
-            CDIssue.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDIssue.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: IssueDTO.self) }
         payload.issueActions = fetchAndTransformInBatches(
-            CDIssueAction.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDIssueAction.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: IssueActionDTO.self) }
 
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.75), "Collecting snapshots & todos\u{2026}")
         payload.developmentSnapshots = fetchAndTransformInBatches(
-            CDDevelopmentSnapshotEntity.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDDevelopmentSnapshotEntity.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: DevelopmentSnapshotDTO.self) }
         payload.todoItems = fetchAndTransformInBatches(
-            CDTodoItem.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDTodoItem.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: TodoItemDTO.self) }
         payload.todayAgendaOrders = fetchAndTransformInBatches(
-            CDTodayAgendaOrder.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDTodayAgendaOrder.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: TodayAgendaOrderDTO.self) }
 
         progress(
             BackupProgress.progress(for: .collecting, subProgress: 0.80),
             "Collecting recommendations & resources\u{2026}"
         )
         payload.planningRecommendations = fetchAndTransformInBatches(
-            CDPlanningRecommendation.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDPlanningRecommendation.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: PlanningRecommendationDTO.self) }
         payload.resources = fetchAndTransformInBatches(
-            CDResource.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDResource.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: ResourceDTO.self) }
         payload.noteStudentLinks = fetchAndTransformInBatches(
             CDNoteStudentLink.self, using: viewContext) { NoteStudentLinkDTO.rows($0) }
 
@@ -209,7 +246,8 @@ extension BackupService {
         payload.goingOuts = fetchAndTransformInBatches(
             CDGoingOut.self, using: viewContext) { GoingOutDTO.rows($0) }
         payload.goingOutChecklistItems = fetchAndTransformInBatches(
-            CDGoingOutChecklistItem.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDGoingOutChecklistItem.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: GoingOutChecklistItemDTO.self) }
 
         progress(
             BackupProgress.progress(for: .collecting, subProgress: 0.90),
@@ -218,7 +256,8 @@ extension BackupService {
         payload.calendarNotes = fetchAndTransformInBatches(
             CDCalendarNote.self, using: viewContext) { CalendarNoteDTO.rows($0) }
         payload.scheduledMeetings = fetchAndTransformInBatches(
-            CDScheduledMeeting.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDScheduledMeeting.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: ScheduledMeetingDTO.self) }
 
         progress(
             BackupProgress.progress(for: .collecting, subProgress: 0.93),
@@ -255,9 +294,11 @@ extension BackupService {
         payload.lessonSequenceSettings = fetchAndTransformInBatches(
             CDLessonSequenceSettings.self, using: viewContext) { LessonSequenceSettingsDTO.rows($0) }
         payload.stories = fetchAndTransformInBatches(
-            CDStory.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDStory.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: StoryDTO.self) }
         payload.bookClubPackets = fetchAndTransformInBatches(
-            CDBookClubPacket.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDBookClubPacket.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: BookClubPacketDTO.self) }
         payload.bookClubSessions = fetchAndTransformInBatches(
             CDBookClubSession.self, using: viewContext) { BookClubSessionDTO.rows($0) }
         payload.bookClubMeetings = fetchAndTransformInBatches(
@@ -299,9 +340,11 @@ extension BackupService {
         payload.albumReadingPositions = fetchAndTransformInBatches(
             CDAlbumReadingPosition.self, using: viewContext) { AlbumReadingPositionDTO.rows($0) }
         payload.albumHighlights = fetchAndTransformInBatches(
-            CDAlbumHighlight.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDAlbumHighlight.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: AlbumHighlightDTO.self) }
         payload.albumPageInk = fetchAndTransformInBatches(
-            CDAlbumPageInk.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDAlbumPageInk.self, using: viewContext
+        ) { LegacyRows.rows(LegacyBackupDTOTransformers.toDTOs($0), as: AlbumPageInkDTO.self) }
     }
 
     /// Collects the format v27 entity type: Orders. Lives here rather than in

@@ -1,20 +1,28 @@
 // swiftlint:disable file_length
-import Foundation
 import CoreData
+import Foundation
+@testable import CosmicDaybook
+
+// The rest of the old exports (`LegacyBackupDTOTransformers.swift`): a906650c0's
+// `Backup/Export/BackupDTOTransformers+Misc.swift`, copied verbatim; only the
+// names are changed (`LegacyBackupDTOTransformers`, `Legacy` DTOs). Do not "fix"
+// or modernise this code: its only job is to be the old code.
+
+// MARK: - Backup/Export/BackupDTOTransformers+Misc.swift
 
 // MARK: - Misc Transformers
 // (Calendar, Todo, CDTrackEntity, CDSupply, CDSchedule, CDIssue, CDProcedure, CDDocument, etc.)
 
 // CDNonSchoolDay, CDSchoolDayOverride, CDStudentMeeting, CDAttendanceRecord, and
-// CDWorkCompletionRecord exports go through BackupServiceHelpers.toDTOs — do not
+// CDWorkCompletionRecord exports go through LegacyBackupDTOTransformers.toDTOs — do not
 // re-add transformers for them here.
 
-extension BackupDTOTransformers {
+extension LegacyBackupDTOTransformers {
 
     // MARK: - CDLessonAssignment
 
-    static func toDTO(_ assignment: CDLessonAssignment) -> LessonAssignmentDTO {
-        LessonAssignmentDTO(
+    static func toDTO(_ assignment: CDLessonAssignment) -> LegacyLessonAssignmentDTO {
+        LegacyLessonAssignmentDTO(
             id: assignment.id ?? UUID(),
             createdAt: assignment.createdAt ?? Date(),
             modifiedAt: assignment.modifiedAt ?? Date(),
@@ -40,8 +48,8 @@ extension BackupDTOTransformers {
 
     // MARK: - CDCalendarEvent
 
-    static func toDTO(_ e: CDCalendarEvent) -> CalendarEventDTO {
-        CalendarEventDTO(
+    static func toDTO(_ e: CDCalendarEvent) -> LegacyCalendarEventDTO {
+        LegacyCalendarEventDTO(
             id: e.id ?? UUID(),
             title: e.title,
             startDate: e.startDate ?? Date(),
@@ -54,8 +62,8 @@ extension BackupDTOTransformers {
 
     // MARK: - CDSequenceTrack
 
-    static func toDTO(_ g: CDSequenceTrack) -> SequenceTrackDTO {
-        SequenceTrackDTO(
+    static func toDTO(_ g: CDSequenceTrack) -> LegacySequenceTrackDTO {
+        LegacySequenceTrackDTO(
             id: g.id ?? UUID(),
             area: g.area,
             sequence: g.sequence,
@@ -67,8 +75,8 @@ extension BackupDTOTransformers {
 
     // MARK: - CDDocument
 
-    static func toDTO(_ d: CDDocument) -> DocumentDTO {
-        DocumentDTO(
+    static func toDTO(_ d: CDDocument) -> LegacyDocumentDTO {
+        LegacyDocumentDTO(
             id: d.id ?? UUID(),
             title: d.title,
             category: d.category,
@@ -83,8 +91,8 @@ extension BackupDTOTransformers {
 
     // MARK: - CDSupply
 
-    static func toDTO(_ s: CDSupply) -> SupplyDTO {
-        SupplyDTO(
+    static func toDTO(_ s: CDSupply) -> LegacySupplyDTO {
+        LegacySupplyDTO(
             id: s.id ?? UUID(),
             name: s.name,
             categoryRaw: s.category.rawValue,
@@ -106,8 +114,8 @@ extension BackupDTOTransformers {
 
     // MARK: - CDProcedure
 
-    static func toDTO(_ p: CDProcedure) -> ProcedureDTO {
-        ProcedureDTO(
+    static func toDTO(_ p: CDProcedure) -> LegacyProcedureDTO {
+        LegacyProcedureDTO(
             id: p.id ?? UUID(),
             title: p.title,
             summary: p.summary,
@@ -122,8 +130,8 @@ extension BackupDTOTransformers {
 
     // MARK: - CDScheduleSlot
 
-    static func toDTO(_ s: CDScheduleSlot) -> ScheduleSlotDTO {
-        ScheduleSlotDTO(
+    static func toDTO(_ s: CDScheduleSlot) -> LegacyScheduleSlotDTO {
+        LegacyScheduleSlotDTO(
             id: s.id ?? UUID(),
             scheduleID: s.scheduleID,
             studentID: s.studentID,
@@ -138,8 +146,8 @@ extension BackupDTOTransformers {
 
     // MARK: - CDIssue
 
-    static func toDTO(_ i: CDIssue) -> IssueDTO {
-        IssueDTO(
+    static func toDTO(_ i: CDIssue) -> LegacyIssueDTO {
+        LegacyIssueDTO(
             id: i.id ?? UUID(),
             createdAt: i.createdAt ?? Date(),
             updatedAt: i.updatedAt ?? Date(),
@@ -158,8 +166,8 @@ extension BackupDTOTransformers {
 
     // MARK: - CDIssueAction
 
-    static func toDTO(_ a: CDIssueAction) -> IssueActionDTO {
-        IssueActionDTO(
+    static func toDTO(_ a: CDIssueAction) -> LegacyIssueActionDTO {
+        LegacyIssueActionDTO(
             id: a.id ?? UUID(),
             createdAt: a.createdAt ?? Date(),
             updatedAt: a.updatedAt ?? Date(),
@@ -178,8 +186,8 @@ extension BackupDTOTransformers {
 
     // MARK: - CDDevelopmentSnapshotEntity
 
-    static func toDTO(_ s: CDDevelopmentSnapshotEntity) -> DevelopmentSnapshotDTO {
-        DevelopmentSnapshotDTO(
+    static func toDTO(_ s: CDDevelopmentSnapshotEntity) -> LegacyDevelopmentSnapshotDTO {
+        LegacyDevelopmentSnapshotDTO(
             id: s.id ?? UUID(),
             studentID: s.studentID,
             generatedAt: s.generatedAt ?? Date(),
@@ -210,8 +218,8 @@ extension BackupDTOTransformers {
 
     // MARK: - CDTodoItem
 
-    static func toDTO(_ t: CDTodoItem) -> TodoItemDTO {
-        TodoItemDTO(
+    static func toDTO(_ t: CDTodoItem) -> LegacyTodoItemDTO {
+        LegacyTodoItemDTO(
             id: t.id ?? UUID(),
             title: t.title,
             notes: t.notes,
@@ -247,8 +255,8 @@ extension BackupDTOTransformers {
 
     // MARK: - CDTodayAgendaOrder
 
-    static func toDTO(_ a: CDTodayAgendaOrder) -> TodayAgendaOrderDTO {
-        TodayAgendaOrderDTO(
+    static func toDTO(_ a: CDTodayAgendaOrder) -> LegacyTodayAgendaOrderDTO {
+        LegacyTodayAgendaOrderDTO(
             id: a.id ?? UUID(),
             day: a.day ?? Date(),
             itemTypeRaw: a.itemTypeRaw,
@@ -259,58 +267,58 @@ extension BackupDTOTransformers {
 
     // MARK: - Batch Transformations (Misc)
 
-    static func toDTOs(_ assignments: [CDLessonAssignment]) -> [LessonAssignmentDTO] {
+    static func toDTOs(_ assignments: [CDLessonAssignment]) -> [LegacyLessonAssignmentDTO] {
         assignments.map { toDTO($0) }
     }
 
-    static func toDTOs(_ events: [CDCalendarEvent]) -> [CalendarEventDTO] {
+    static func toDTOs(_ events: [CDCalendarEvent]) -> [LegacyCalendarEventDTO] {
         events.map { toDTO($0) }
     }
 
-    static func toDTOs(_ sequenceTracks: [CDSequenceTrack]) -> [SequenceTrackDTO] {
+    static func toDTOs(_ sequenceTracks: [CDSequenceTrack]) -> [LegacySequenceTrackDTO] {
         sequenceTracks.map { toDTO($0) }
     }
 
-    static func toDTOs(_ documents: [CDDocument]) -> [DocumentDTO] {
+    static func toDTOs(_ documents: [CDDocument]) -> [LegacyDocumentDTO] {
         documents.map { toDTO($0) }
     }
 
-    static func toDTOs(_ supplies: [CDSupply]) -> [SupplyDTO] {
+    static func toDTOs(_ supplies: [CDSupply]) -> [LegacySupplyDTO] {
         supplies.map { toDTO($0) }
     }
 
-    static func toDTOs(_ procedures: [CDProcedure]) -> [ProcedureDTO] {
+    static func toDTOs(_ procedures: [CDProcedure]) -> [LegacyProcedureDTO] {
         procedures.map { toDTO($0) }
     }
 
-    static func toDTOs(_ slots: [CDScheduleSlot]) -> [ScheduleSlotDTO] {
+    static func toDTOs(_ slots: [CDScheduleSlot]) -> [LegacyScheduleSlotDTO] {
         slots.map { toDTO($0) }
     }
 
-    static func toDTOs(_ issues: [CDIssue]) -> [IssueDTO] {
+    static func toDTOs(_ issues: [CDIssue]) -> [LegacyIssueDTO] {
         issues.map { toDTO($0) }
     }
 
-    static func toDTOs(_ actions: [CDIssueAction]) -> [IssueActionDTO] {
+    static func toDTOs(_ actions: [CDIssueAction]) -> [LegacyIssueActionDTO] {
         actions.map { toDTO($0) }
     }
 
-    static func toDTOs(_ snapshots: [CDDevelopmentSnapshotEntity]) -> [DevelopmentSnapshotDTO] {
+    static func toDTOs(_ snapshots: [CDDevelopmentSnapshotEntity]) -> [LegacyDevelopmentSnapshotDTO] {
         snapshots.map { toDTO($0) }
     }
 
-    static func toDTOs(_ items: [CDTodoItem]) -> [TodoItemDTO] {
+    static func toDTOs(_ items: [CDTodoItem]) -> [LegacyTodoItemDTO] {
         items.map { toDTO($0) }
     }
 
-    static func toDTOs(_ orders: [CDTodayAgendaOrder]) -> [TodayAgendaOrderDTO] {
+    static func toDTOs(_ orders: [CDTodayAgendaOrder]) -> [LegacyTodayAgendaOrderDTO] {
         orders.map { toDTO($0) }
     }
 
     // MARK: - CDPlanningRecommendation
 
-    static func toDTO(_ r: CDPlanningRecommendation) -> PlanningRecommendationDTO {
-        PlanningRecommendationDTO(
+    static func toDTO(_ r: CDPlanningRecommendation) -> LegacyPlanningRecommendationDTO {
+        LegacyPlanningRecommendationDTO(
             id: r.id ?? UUID(),
             createdAt: r.createdAt ?? Date(),
             modifiedAt: r.modifiedAt ?? Date(),
@@ -332,14 +340,14 @@ extension BackupDTOTransformers {
         )
     }
 
-    static func toDTOs(_ recommendations: [CDPlanningRecommendation]) -> [PlanningRecommendationDTO] {
+    static func toDTOs(_ recommendations: [CDPlanningRecommendation]) -> [LegacyPlanningRecommendationDTO] {
         recommendations.map { toDTO($0) }
     }
 
     // MARK: - CDResource
 
-    static func toDTO(_ r: CDResource) -> ResourceDTO {
-        ResourceDTO(
+    static func toDTO(_ r: CDResource) -> LegacyResourceDTO {
+        LegacyResourceDTO(
             id: r.id ?? UUID(),
             title: r.title,
             descriptionText: r.descriptionText,
@@ -356,14 +364,14 @@ extension BackupDTOTransformers {
         )
     }
 
-    static func toDTOs(_ resources: [CDResource]) -> [ResourceDTO] {
+    static func toDTOs(_ resources: [CDResource]) -> [LegacyResourceDTO] {
         resources.map { toDTO($0) }
     }
 
     // MARK: - CDGoingOutChecklistItem
 
-    static func toDTO(_ item: CDGoingOutChecklistItem) -> GoingOutChecklistItemDTO {
-        GoingOutChecklistItemDTO(
+    static func toDTO(_ item: CDGoingOutChecklistItem) -> LegacyGoingOutChecklistItemDTO {
+        LegacyGoingOutChecklistItemDTO(
             id: item.id ?? UUID(),
             createdAt: item.createdAt ?? Date(),
             goingOutID: item.goingOutID,
@@ -374,14 +382,14 @@ extension BackupDTOTransformers {
         )
     }
 
-    static func toDTOs(_ items: [CDGoingOutChecklistItem]) -> [GoingOutChecklistItemDTO] {
+    static func toDTOs(_ items: [CDGoingOutChecklistItem]) -> [LegacyGoingOutChecklistItemDTO] {
         items.map { toDTO($0) }
     }
 
     // MARK: - CDScheduledMeeting
 
-    static func toDTO(_ meeting: CDScheduledMeeting) -> ScheduledMeetingDTO {
-        ScheduledMeetingDTO(
+    static func toDTO(_ meeting: CDScheduledMeeting) -> LegacyScheduledMeetingDTO {
+        LegacyScheduledMeetingDTO(
             id: meeting.id ?? UUID(),
             studentID: meeting.studentID,
             date: meeting.date ?? Date(),
@@ -393,7 +401,7 @@ extension BackupDTOTransformers {
         )
     }
 
-    static func toDTOs(_ meetings: [CDScheduledMeeting]) -> [ScheduledMeetingDTO] {
+    static func toDTOs(_ meetings: [CDScheduledMeeting]) -> [LegacyScheduledMeetingDTO] {
         meetings.map { toDTO($0) }
     }
 
