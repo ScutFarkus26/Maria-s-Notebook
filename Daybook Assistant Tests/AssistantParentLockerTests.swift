@@ -16,6 +16,8 @@ final class FakeParentLockerSender: AssistantParentLockerSending {
     var awaitsSignIn = false
     var endsOn: ParentLockerStatus.State
     var unmarked: [String]
+    /// Nothing of Close Arrival's send has gone: a send that fails here failed whole.
+    var closeArrivalSendUnsent = true
     private(set) var sentDays: [Date] = []
     private(set) var closedDays: [Date] = []
     private(set) var undoWindows: [TimeInterval] = []
@@ -305,13 +307,19 @@ extension AssistantSiriTests {
         #expect(sync.sentDays == [siri.today])
     }
 
-    @Test("Siri's Close Arrival says it couldn't send yet when ParentLocker can't be reached or the sync isn't running")
+    // Since the 2026-11-05 bug hunt (#17) a retry, a refused password and a
+    // changed page each say what they need instead (`AssistantFix1105`).
+    @Test("Siri's Close Arrival says it couldn't send yet when it gave up, or the sync isn't running")
     func siriCloseArrivalNotSentYet() async throws {
         let (siri, day) = try await Self.closedClass(.parentLocker)
         defer { Self.forgetClose(on: day) }
-        for state in [ParentLockerStatus.State.retrying, .notSentYet, .passwordRefused, .pageChanged] {
+        let ends: [(ParentLockerStatus.State, AssistantParentLockerAfterClose)] = [
+            (.notSentYet, .notSentYet), (.gaveUp, .notSentYet), (.retrying, .retrying),
+            (.passwordRefused, .notSignedIn), (.pageChanged, .pageChanged)
+        ]
+        for (state, expected) in ends {
             let outcome = await AssistantSiriCommands.sendAfterClose(siri, sync: FakeParentLockerSender(endsOn: state))
-            #expect(outcome == .notSentYet, "after \(state)")
+            #expect(outcome == expected, "after \(state)")
         }
         #expect(await AssistantSiriCommands.sendAfterClose(siri, sync: nil) == .notSentYet)
         #expect(await AssistantSiriCommands.sendAfterClose(siri, sync: FakeParentLockerSender(endsOn: .previewed))
@@ -338,7 +346,8 @@ extension AssistantSiriTests {
     @Test("Nothing Siri says about ParentLocker carries a web address or technical words")
     func siriParentLockerWordsArePlain() {
         let outcomes: [AssistantParentLockerAfterClose] = [
-            .notPicked, .sent, .previewed, .notSignedIn, .notSentYet, .notExpected
+            .notPicked, .sent, .sentWithProblems, .previewed, .notSignedIn, .onItsWay, .retrying, .pageChanged,
+            .notSentYet, .notExpected
         ]
         for outcome in outcomes {
             let text = AssistantSiriCommands.closedDialog(marked: 3, parentLocker: outcome).lowercased()

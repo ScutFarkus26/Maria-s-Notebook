@@ -119,7 +119,7 @@ struct ParentLockerReviewFixesTests {
         // Reset Day (on another device, synced in): no marks, no automatic absence.
         device.store.state.marks = Device.children.reduce(into: [:]) { $0[$1.id] = Device.mark(.unmarked) }
         device.store.state.arrivalClosed = false
-        clock.advance(by: 6)
+        clock.advance(by: 7) // a second after its Undo (#13)
         await device.sync.runDue()
         #expect(saves.isEmpty)
         #expect(device.store.recordedSends.isEmpty)

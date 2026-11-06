@@ -17,9 +17,13 @@ extension ParentLockerSync {
         refreshStatus(store.day(today, withChildren: false))
     }
 
-    /// `refreshStatus` with today as `state` holds it.
+    /// `refreshStatus` with today as `state` holds it. Attendance going by
+    /// email asks for no ParentLocker sign-in (bug hunt 2026-11-05 #15).
     func refreshStatus(_ state: ParentLockerDay) {
-        guard state.method == .parentLocker else { return status = ParentLockerStatus(state: .off) }
+        guard state.method == .parentLocker else {
+            awaitsSignIn = false
+            return status = ParentLockerStatus(state: .off)
+        }
         guard isSignedIn else { return status = ParentLockerStatus(state: .signedOut) }
         if let stop = signInStop {
             if status.state != stop { status = ParentLockerStatus(state: stop) }
@@ -29,8 +33,14 @@ extension ParentLockerSync {
         if keepsProblems {
             status.state = quietState(state)
         } else {
-            status = ParentLockerStatus(state: quietState(state))
+            status = ParentLockerStatus(state: quietState(state), problems: todaysStanding)
         }
+    }
+
+    /// Today's lines that stand until a run shows them fixed (review of the
+    /// 2026-11-05 fixes, E7, W2); none once the day has moved on.
+    var todaysStanding: [String] {
+        owedDay.map(isToday) == true ? standing.lines : []
     }
 
     /// How the line as it stands meets the day now: nil keeps it; true moves
@@ -61,6 +71,91 @@ extension ParentLockerSync {
             || !importedChildren.isEmpty || earlyLocalDue != nil
     }
 
+    /// Today's whole-class send still owed, as what's owed keeps it: waiting,
+    /// waiting to retry, or under way, so a mark made during a run or a
+    /// retry's wait doesn't write it off (bug hunt 2026-11-05 #2). Today's
+    /// Close Arrival & Send still to go is kept as that, whatever else is
+    /// owed with it, so its Undo still stops it after a relaunch; then a
+    /// Send Now's (or MCP's), so its rule stays (review of the fixes, E4,
+    /// E8). A backstop's is kept as a send owed, as before.
+    var owedWholeClass: ParentLockerWholeClass.Reason? {
+        if closeArrivalPending { return .closeArrival }
+        let pending = [retry?.job, runningJob].compactMap(\.self).filter {
+            $0.isWholeClass && !$0.preview && isToday($0.day)
+        }
+        let asked = pending.contains { $0.reason == .sendNow || $0.reason == .request }
+        if wholeClass?.reason == .sendNow || asked { return .sendNow }
+        return wholeClass != nil || !pending.isEmpty ? .owed : nil
+    }
+
+    /// Whether `job` is today's Close Arrival & Send: its own run, or a
+    /// whole-class send that goes while it's still to go (E1, W6).
+    func coversCloseArrival(_ job: ParentLockerJob) -> Bool {
+        guard job.isWholeClass, !job.preview, isToday(job.day) else { return false }
+        return job.reason == .closeArrival || closeArrivalPending
+    }
+
+    /// Brings `closeArrivalSendUnderWay` up to date, only when it changes.
+    func refreshUnderWay() {
+        let underWay = closeArrivalRuns.underWay
+        if closeArrivalSendUnderWay != underWay { closeArrivalSendUnderWay = underWay }
+    }
+
+    /// Today's Close Arrival & Send is still to go: waiting (out its Undo,
+    /// or for a sign-in), waiting to retry, under way, or owed.
+    var closeArrivalPending: Bool {
+        wholeClass?.reason == .closeArrival
+            || retry.map { $0.job.reason == .closeArrival && isToday($0.job.day) } ?? false
+            || runningJob.map { $0.reason == .closeArrival && !$0.preview && isToday($0.day) } ?? false
+    }
+
+    /// Brings `closeArrivalSendUnsent` (and `closeArrivalSendUnderWay`) up
+    /// to date, only when it changes.
+    func refreshCloseArrivalUnsent() {
+        let unsent = closeArrivalPending && !closeArrivalBatchSent
+        if closeArrivalSendUnsent != unsent { closeArrivalSendUnsent = unsent }
+        refreshUnderWay()
+    }
+
+    /// The state a run that reached ParentLocker ends on: a whole-class
+    /// send's, up to date once it found the class; a live update's, up to
+    /// date only while no whole-class send of today's is owed, so a class
+    /// owed once its retries ran out still says so (review of the 2026-11-05
+    /// fixes, E3).
+    func endState(_ job: ParentLockerJob, matchedAny: Bool) -> ParentLockerStatus.State {
+        if job.isWholeClass { return matchedAny ? .upToDate : .idle }
+        guard isToday(job.day), let wholeClass, wholeClass.reason != .backstop else { return .upToDate }
+        return wholeClass.due == nil ? .gaveUp : .idle
+    }
+
+    /// Today's lines after `job`'s run (E7, W2): each child it compared has
+    /// their line replaced by what it found, and the others' stand. A child
+    /// not found while a class wouldn't open wasn't compared. A class
+    /// ParentLocker refused twice stands until a whole-class send reads it
+    /// again.
+    func updateStanding(_ job: ParentLockerJob, day: ParentLockerDay, result: ParentLockerRunResult) -> [String] {
+        let onRoll = Set(day.children.map(\.id))
+        let notFound = result.refusedClasses.isEmpty
+            ? [] : Set(result.plan.skipped.filter { $0.reason == .unmatched }.map(\.childID))
+        let compared = (job.children ?? onRoll).subtracting(result.leftToOthers).subtracting(notFound)
+        let fresh = result.plan.skipped.filter {
+            compared.contains($0.childID) && $0.reason != .unmarked && $0.reason != .leftOut
+        }
+        standing.skips = standing.skips.filter { onRoll.contains($0.childID) && !compared.contains($0.childID) }
+            + fresh
+        for roster in result.rosters {
+            standing.refusedOnce.remove(roster.course.courseID)
+            if job.isWholeClass { standing.refused[roster.course.courseID] = nil }
+        }
+        for course in result.refusedClasses { standing.refused[course.courseID] = course.name }
+        let refusedLines = standing.refused.sorted { $0.key < $1.key }
+            .map { ParentLockerStatus.refusedClassLine($0.value) }
+        standing.lines = ParentLockerStatus.problems(
+            for: standing.skips, names: day.name(of:), isGuide: day.role == .leadGuide
+        ) + refusedLines
+        return standing.lines
+    }
+
     /// The line while nothing is under way: on a day ParentLocker isn't
     /// expecting, that, as any device of the class found it; quiet once the
     /// day is "after" (or not a school day); before, waiting for arrival,
@@ -71,6 +166,15 @@ extension ParentLockerSync {
         guard state.isSchoolDay, !isAfter(state, on: today) else { return .idle }
         let marked = state.children.isEmpty ? store.day(today, withChildren: true) : state
         return marked.everyoneMarked ? .readyToSend : .waitingForArrival
+    }
+
+    /// The children on `day`'s roll with no mark yet, as the class reads them
+    /// ("Maya S"), for a screen or the Shortcut to ask about before a send:
+    /// a send goes without them and doesn't count as the day's (bug hunt
+    /// 2026-10-13 afternoon, M4). The guide's "Not matched" children never
+    /// go to ParentLocker, so they aren't asked about.
+    func unmarkedNames(on day: Date) -> [String] {
+        store.day(day, withChildren: true).unmarkedNames
     }
 
     // MARK: - The classes a run reads
@@ -127,9 +231,12 @@ extension ParentLockerSync {
             let alreadyIn = ours.filter { result.plan.upToDate.contains($0) }.map(day.name(of:))
             return ParentLockerReport.ClassReport(name: roster.course.name, changes: changes, alreadyIn: alreadyIn)
         }
+        // A class ParentLocker wouldn't open is named, not its children as unmatched (E7).
+        let shut = result.refusedClasses
+        let skipped = shut.isEmpty ? result.plan.skipped : result.plan.skipped.filter { $0.reason != .unmatched }
         let problems = result.notExpected ? [] : ParentLockerStatus.problems(
-            for: result.plan.skipped, names: day.name(of:), isGuide: day.role == .leadGuide
-        ) + result.conflicts
+            for: skipped, names: day.name(of:), isGuide: day.role == .leadGuide
+        ) + shut.map { ParentLockerStatus.refusedClassLine($0.name) } + result.conflicts
         let unmarked = job.isWholeClass && !result.notExpected ? day.unmarkedNames : []
         let asked = job.reason == .sendNow || job.reason == .request
         return ParentLockerReport(
@@ -165,6 +272,9 @@ struct ParentLockerRunResult {
     let leftToOthers: Set<UUID>
     /// Today, every class said ParentLocker isn't expecting attendance.
     var notExpected = false
+    /// Classes ParentLocker refused to open again today: passed over, named
+    /// on the line (review of the 2026-11-05 fixes, E7).
+    var refusedClasses: [ParentLockerCourse] = []
 }
 
 /// How one run went: what it sent (or why not), and the status it ends on.

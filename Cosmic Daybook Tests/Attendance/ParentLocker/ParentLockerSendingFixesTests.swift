@@ -52,7 +52,7 @@ struct ParentLockerSendingFixesTests {
         clock.advance(by: 3)
         device.store.state.arrivalClosed = false
         device.marks([Device.bea: Device.mark(.tardy)])
-        clock.advance(by: 3)
+        clock.advance(by: 4) // a second after its Undo (#13)
         await device.sync.runDue()
         #expect(saves == ["save 5101", "save 5102"])
         #expect(site.mark(41004) == "702")
@@ -69,7 +69,7 @@ struct ParentLockerSendingFixesTests {
         let device = Device(site: site, clock: clock, marks: Self.closed)
         site.failuresLeft = 1
         device.sync.closeArrivalSend(on: Device.morning, after: 6)
-        clock.advance(by: 6)
+        clock.advance(by: 7) // a second after its Undo (#13)
         await device.sync.runDue()
         #expect(device.sync.status.state == .retrying)
 
@@ -199,9 +199,9 @@ struct ParentLockerSendingFixesTests {
         try await phone.sync.signIn(email: "aide@school.test", password: site.password)
         await phone.sync.runDue()
         #expect(saves.isEmpty, "Undo can still stop it")
-        #expect(phone.sync.nextWake == Device.morning.addingTimeInterval(6))
+        #expect(phone.sync.nextWake == Device.morning.addingTimeInterval(7), "a second after it (#13)")
 
-        clock.advance(by: 4)
+        clock.advance(by: 5)
         await phone.sync.runDue()
         #expect(saves == ["save 5101", "save 5102"])
         #expect(phone.store.recordedSends.count == 1)
@@ -227,7 +227,7 @@ struct ParentLockerSendingFixesTests {
         phone.sync.closeArrivalSend(on: Device.morning, after: 6)
         mac.imports([Device.bea: Self.automatic])
         await mac.sync.baselineTask?.value
-        clock.advance(by: 6)
+        clock.advance(by: 7) // a second after its Undo (#13)
         await phone.sync.runDue()
         #expect(phone.store.recordedSends.count == 1)
 

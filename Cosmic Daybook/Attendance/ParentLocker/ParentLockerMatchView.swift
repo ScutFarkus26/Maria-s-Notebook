@@ -19,6 +19,8 @@ struct ParentLockerMatchView: View {
     @State private var rosters: [ParentLockerRoster] = []
     @State private var isLoading = true
     @State private var errorText: String?
+    /// The classes ParentLocker wouldn't list just now, in words (`unreadLine`).
+    @State private var unreadText: String?
     /// Why the last pick wasn't saved.
     @State private var pickText: String?
 
@@ -49,6 +51,12 @@ struct ParentLockerMatchView: View {
                 Text(errorText)
                     .foregroundStyle(.secondary)
             } else {
+                if let unreadText {
+                    Section {
+                        Text(unreadText)
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 let unsure = rows.filter(\.needsYou)
                 if !unsure.isEmpty {
                     Section {
@@ -126,6 +134,17 @@ struct ParentLockerMatchView: View {
 
     nonisolated static let saveFailed = "Couldn't save the match. Try again."
 
+    /// What Match Names says of the classes it couldn't read (bug hunt
+    /// 2026-11-05 #5): their children may show as not matched until it's
+    /// opened again. Nil when every class read.
+    nonisolated static func unreadLine(_ courses: [ParentLockerCourse]) -> String? {
+        let names = courses.map(\.name)
+        guard let last = names.last else { return nil }
+        let list = names.count == 1 ? last : names.dropLast().joined(separator: ", ") + " and " + last
+        return "Couldn't read \(list) from ParentLocker, so \(names.count == 1 ? "its" : "their") children "
+            + "may show as not matched. Close Match Names and open it again to try again."
+    }
+
     /// The child who held `studentID` before `picked` took it, if anyone.
     static func displaced(by studentID: String, picking picked: UUID, in rows: [Row]) -> UUID? {
         guard !ParentLockerPlanner.isNotMatched(studentID) else { return nil }
@@ -163,7 +182,9 @@ struct ParentLockerMatchView: View {
         let today = sync.today
         let rosters: [ParentLockerRoster]
         do {
-            rosters = try await sync.loadRosters(day: today)
+            let read = try await sync.loadRosters(day: today)
+            rosters = read.rosters
+            unreadText = Self.unreadLine(read.unread)
         } catch let stop as ParentLockerSyncStop {
             errorText = stop.message
             return

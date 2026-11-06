@@ -79,7 +79,8 @@ extension AssistantSiriTests {
         let site = FixRoundSite()
         site.failuresLeft = 1
         let (sync, clock) = site.sync(on: siri.context, at: siri.today)
-        #expect(await AssistantSiriCommands.sendAfterClose(siri, sync: sync) == .notSentYet)
+        // Siri says it tries again by itself (2026-11-05 bug hunt, #17).
+        #expect(await AssistantSiriCommands.sendAfterClose(siri, sync: sync) == .retrying)
         #expect(site.saves.isEmpty)
 
         // "Undo that", as `SiriHost.closeArrivalUndone` does it with the class's sync.

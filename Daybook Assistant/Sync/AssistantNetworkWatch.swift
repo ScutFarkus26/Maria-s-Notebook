@@ -19,12 +19,14 @@ import OSLog
 /// path says, since a path can claim to be online when it isn't, and the
 /// other way round. A wrong answer here costs at most one extra try.
 ///
-/// The network coming back (from none, not a move between Wi-Fi and
-/// cellular) also runs the ParentLocker sync's return path, as coming back
-/// to the app does (bug hunt 2026-10-20, #16): a send that gave up while the
-/// phone was offline waited for the next trip away and back. Only a return,
-/// so a link flapping between kinds doesn't keep restarting the sync's wait
-/// for the first import; and not while that wait runs, or just after the app
+/// The network coming back, or moving to another usable one (Wi-Fi to
+/// cellular, or onto a phone's hotspot), also runs the ParentLocker sync's
+/// return path, as coming back to the app does (bug hunt 2026-10-20, #16): a
+/// send that gave up while the phone was offline waited for the next trip
+/// away and back. A dead school Wi-Fi straight to cellular never went
+/// through no network at all, so it never retried (bug hunt 2026-11-05,
+/// #18). Not while the sync's wait for the first import runs, so a link
+/// flapping between kinds doesn't keep restarting it, or just after the app
 /// came back, whose own return has run it (`runsParentLockerReturn`).
 ///
 /// Two settings on the phone hold iCloud's work back, and the watch follows
@@ -55,16 +57,22 @@ final class AssistantNetworkWatch {
         /// that holds back iCloud's updates along with other background
         /// traffic (`Hold.lowDataMode`).
         var lowDataMode: Bool
+        /// A network the phone counts as costly (`NWPath.isExpensive`):
+        /// cellular, or Wi-Fi from a phone's hotspot. Its change on the same
+        /// kind of link is a move to another network.
+        var expensive: Bool
 
-        init(usable: Bool, interface: Interface, lowDataMode: Bool = false) {
+        init(usable: Bool, interface: Interface, lowDataMode: Bool = false, expensive: Bool = false) {
             self.usable = usable
             self.interface = interface
             self.lowDataMode = lowDataMode
+            self.expensive = expensive
         }
 
         init(_ path: NWPath) {
             usable = path.status == .satisfied
             lowDataMode = path.isConstrained
+            expensive = path.isExpensive
             interface = if path.usesInterfaceType(.wifi) {
                 .wifi
             } else if path.usesInterfaceType(.cellular) {
@@ -101,20 +109,22 @@ final class AssistantNetworkWatch {
     static let settle: Duration = .seconds(3)
 
     /// Whether moving from `old` to `new` should try the waiting marks: the
-    /// network came back, moved to another kind of link, or left Low Data
+    /// network came back, moved to another network, or left Low Data
     /// Mode (she turned it off for this network, or moved to one without
     /// it). The first path (`old` nil) only sets the scene: the launch
     /// already tries them.
     nonisolated static func shouldRetry(from old: PathState?, to new: PathState) -> Bool {
         guard let old, new.usable else { return false }
-        return !old.usable || old.interface != new.interface || (old.lowDataMode && !new.lowDataMode)
+        return cameBack(from: old, to: new) || (old.lowDataMode && !new.lowDataMode)
     }
 
-    /// Whether moving from `old` to `new` is the network coming back: from
-    /// no usable path to one. The first path only sets the scene.
+    /// Whether moving from `old` to `new` gives ParentLocker a network to try
+    /// again on: from no usable path to one, or from one usable network to
+    /// another (Apple's sign of a move between two satisfied paths: the kind
+    /// of link, or `isExpensive`, changes). The first path only sets the scene.
     nonisolated static func cameBack(from old: PathState?, to new: PathState) -> Bool {
-        guard let old else { return false }
-        return !old.usable && new.usable
+        guard let old, new.usable else { return false }
+        return !old.usable || old.interface != new.interface || old.expensive != new.expensive
     }
 
     /// The hold that's on for a phone on `path` with Low Power Mode
@@ -169,15 +179,20 @@ final class AssistantNetworkWatch {
     @ObservationIgnored private var reader: Task<Void, Never>?
     @ObservationIgnored private var powerReader: Task<Void, Never>?
     @ObservationIgnored private var pendingRetry: Task<Void, Never>?
-    /// A change waiting to settle came back from no network.
+    /// A change waiting to settle came back from no network, or moved to
+    /// another kind of link.
     @ObservationIgnored private var pendingCameBack = false
+    /// The path as it stood when the last change settled (the first path
+    /// before any): an `isExpensive` flip on the same kind of link is a move
+    /// only if it's still flipped from this once the link settles.
+    @ObservationIgnored private var settled: PathState?
     @ObservationIgnored private let settle: Duration
     @ObservationIgnored private let retry: @MainActor () -> Void
     @ObservationIgnored private let cameBack: @MainActor () -> Void
 
     /// Follows `paths`, calling `retry` once a change has settled for
-    /// `settle`, and `cameBack` too when the change was the network coming
-    /// back; and `powerModes` (Low Power Mode as it stands, then each
+    /// `settle`, and `cameBack` too when the network came back or moved to
+    /// another; and `powerModes` (Low Power Mode as it stands, then each
     /// change), calling `retry` at once when it goes off. Tests pass their
     /// own paths, power modes and settle; the default `powerModes` never
     /// says anything.
@@ -238,6 +253,7 @@ final class AssistantNetworkWatch {
 
     private func follow(_ path: PathState, after last: PathState?) {
         current = path
+        if last == nil { settled = path }
         if !path.usable {
             // Gone again before the link settled: nothing to try on. The
             // next usable path is a return of its own.
@@ -249,18 +265,38 @@ final class AssistantNetworkWatch {
         guard Self.shouldRetry(from: last, to: path) else { return }
         // Changes within the settle time make one retry, after the last;
         // a return among them reaches ParentLocker once too.
-        if Self.cameBack(from: last, to: path) { pendingCameBack = true }
+        if Self.changedLink(from: last, to: path) { pendingCameBack = true }
         pendingRetry?.cancel()
         pendingRetry = Task { [weak self, settle] in
             do { try await Task.sleep(for: settle) } catch { return }
             guard let self, !Task.isCancelled else { return }
             Self.logger.notice("The network came back or changed: waiting marks are tried")
             pendingRetry = nil
-            let returned = pendingCameBack
+            let returned = Self.returns(changedLink: pendingCameBack, from: settled, to: current)
             pendingCameBack = false
+            settled = current
             retry()
             if returned { cameBack() }
         }
+    }
+
+    /// From no usable path to one, or onto another kind of link: a return
+    /// at once, however the link goes on (`cameBack` without `isExpensive`).
+    nonisolated static func changedLink(from old: PathState?, to new: PathState) -> Bool {
+        guard let old, new.usable else { return false }
+        return !old.usable || old.interface != new.interface
+    }
+
+    /// Whether a change that has settled reaches ParentLocker: the link came
+    /// back or changed kind meanwhile, or the path now is another network
+    /// than the one that last settled (`cameBack`, `isExpensive` included). An
+    /// `isExpensive` flip back and forth on the same Wi-Fi that ends where it
+    /// was is no move: on weak school Wi-Fi each flap ran the sync's return
+    /// and restarted its 20-s wait for the import (review of the 2026-11-05
+    /// fixes, W10). One that holds for `settle` is: a phone's hotspot.
+    nonisolated static func returns(changedLink: Bool, from settled: PathState?, to now: PathState?) -> Bool {
+        guard let now else { return false }
+        return changedLink || cameBack(from: settled, to: now)
     }
 
     /// Low Power Mode going off tries the waiting marks at once: Core Data's

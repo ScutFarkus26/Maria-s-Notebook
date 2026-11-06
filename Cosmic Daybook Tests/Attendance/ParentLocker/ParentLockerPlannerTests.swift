@@ -273,7 +273,9 @@ extension ParentLockerPlannerTests {
         let theirWords = Self.row(50003, mark: "703", comment: "Grandma is visiting")
         let reasonDropped = Self.row(50004, mark: "703", comment: "Appointment")
         let stillSick = Self.row(50005, mark: "703", comment: "Sick")
-        let rows = [sickThenLate, backInClass, theirWords, reasonDropped, stillSick]
+        // A parent's one word, which this device never wrote (review of the 2026-11-05 fixes, W3).
+        let parentsSick = Self.row(50006, mark: "703", comment: "Sick")
+        let rows = [sickThenLate, backInClass, theirWords, reasonDropped, stillSick, parentsSick]
         let course = ParentLockerCourse(courseID: 5101, name: "Girls Middle School", period: 1, attendanceReportID: "1")
         let roster = ParentLockerRoster(
             course: course, students: rows.compactMap(\.student),
@@ -288,35 +290,51 @@ extension ParentLockerPlannerTests {
             backInClass.child.id: Self.mark(.present),
             theirWords.child.id: Self.mark(.tardy),
             reasonDropped.child.id: Self.mark(.absent),
-            stillSick.child.id: Self.mark(.absent, reason: "sick")
+            stillSick.child.id: Self.mark(.absent, reason: "sick"),
+            parentsSick.child.id: Self.mark(.tardy)
         ]
-        let plan = Planner.plan(children: rows.map(\.child), marks: marks, rosters: [roster], day: day)
+        // What this device wrote in each box earlier today.
+        let ownNotes: [UUID: [Int: Set<String>]] = [
+            sickThenLate.child.id: [5101: ["Sick"]], reasonDropped.child.id: [5101: ["Appointment"]],
+            stillSick.child.id: [5101: ["Sick"]]
+        ]
+        let plan = Planner.plan(
+            children: rows.map(\.child), marks: marks, rosters: [roster], day: day, ownNotes: ownNotes
+        )
         let entries = try #require(plan.batches.first?.entries)
         let sent = Dictionary(uniqueKeysWithValues: entries.map { ($0.childID, $0) })
 
         #expect(sent[sickThenLate.child.id]?.comment == "")
         #expect(sent[sickThenLate.child.id]?.attendance["comment"] == .string(""))
-        // Back in Class: the same Present, so only the box changes.
+        // Back in Class: the same Present, so only the box changes; its left-early line needs no record.
         #expect(sent[backInClass.child.id]?.type == .present)
         #expect(sent[backInClass.child.id]?.comment == "")
         #expect(sent[reasonDropped.child.id]?.comment == "")
-        // Someone else's words stay.
+        // Someone else's words stay, one word too.
         #expect(sent[theirWords.child.id]?.comment == nil)
         #expect(sent[theirWords.child.id]?.attendance["comment"] == .string("Grandma is visiting"))
+        #expect(sent[parentsSick.child.id]?.type == .late)
+        #expect(sent[parentsSick.child.id]?.comment == nil)
+        #expect(sent[parentsSick.child.id]?.attendance["comment"] == .string("Sick"))
         #expect(sent[stillSick.child.id] == nil)
         #expect(plan.upToDate == [stillSick.child.id])
-        #expect(entries.count == 4)
+        #expect(entries.count == 5)
     }
 
-    @Test("Only the app's own words count as its notes: every reason, and a left-early line")
+    @Test("Only the app's own words count as its notes: what this device wrote, and its left-early line")
     func appNotes() {
         for reason in AbsenceReason.given {
-            #expect(Planner.isAppNote(Planner.reasonText(reason) ?? "-"))
+            let word = Planner.reasonText(reason) ?? "-"
+            #expect(Planner.isAppNote(word, wrote: [word]))
+            // With no record of writing it, a reason's word is someone else's (W3).
+            #expect(!Planner.isAppNote(word))
         }
         #expect(Planner.isAppNote("Left early at 1:30 PM"))
-        #expect(Planner.isAppNote("Left early"))
+        #expect(!Planner.isAppNote("Left early"))
+        #expect(Planner.isAppNote("Left early", wrote: ["Left early"]))
         for theirs in ["", "sick", "Sick with a cold", "Other plans", "Picked up by Grandma"] {
             #expect(!Planner.isAppNote(theirs))
+            #expect(!Planner.isAppNote(theirs, wrote: ["Sick"]))
         }
     }
 }

@@ -68,6 +68,28 @@ nonisolated enum ParentLockerJSON: Sendable, Equatable, Codable {
         return nil
     }
 
+    /// The value as a list: a list as is, or an object as PHP sends a keyed
+    /// array (`{"0": …, "1": …}`), its values in key order by number. Only an
+    /// object whose keys are all whole numbers is one (an empty one too): any
+    /// other, a single child's fields say, is no list, so where one is
+    /// expected the page changed (review of the 2026-11-05 fixes, W12). Nil
+    /// for anything else.
+    var listValue: [ParentLockerJSON]? {
+        switch self {
+        case .array(let items):
+            return items
+        case .object(let fields):
+            var keyed: [(index: Int, value: ParentLockerJSON)] = []
+            for (key, value) in fields {
+                guard let index = Int(key) else { return nil }
+                keyed.append((index, value))
+            }
+            return keyed.sorted { $0.index < $1.index }.map(\.value)
+        default:
+            return nil
+        }
+    }
+
     /// The value as text: a string as is, a whole number without a decimal
     /// point. Nil for null, objects and arrays.
     var stringValue: String? {
@@ -126,7 +148,9 @@ nonisolated enum ParentLockerError: Error, Equatable, Sendable, LocalizedError {
     /// The site tried to send the request to another host; it was refused,
     /// so nothing (cookies included) went there.
     case redirectedOffSite(host: String)
-    /// No answer, or one that wasn't the site's (offline, timed out, a 5xx).
+    /// No answer, or one that wasn't the site's (offline, timed out, a 408,
+    /// 429 or 5xx, a maintenance page): "try again later". The sync retries it,
+    /// and skips one class on it (bug hunt 2026-11-05, #5 and #22).
     case unreachable
     /// The site answered the request with an error of its own.
     case refused(message: String)
@@ -163,7 +187,11 @@ nonisolated enum ParentLockerError: Error, Equatable, Sendable, LocalizedError {
 nonisolated struct ParentLockerCourse: Sendable, Hashable, Decodable {
     let courseID: Int
     let name: String
+    /// The period as a number; 0 when the page gave none, or text.
     let period: Int
+    /// The period exactly as the page gave it, so a roster request sends a
+    /// text period back as it came; a number otherwise.
+    let periodValue: ParentLockerJSON
     /// What a save names the class's day by, as text.
     let attendanceReportID: String
     /// The same, exactly as the page gave it (`.null` when it gave none), so
@@ -182,6 +210,7 @@ nonisolated struct ParentLockerCourse: Sendable, Hashable, Decodable {
         self.courseID = courseID
         self.name = name
         self.period = period
+        periodValue = .int(period)
         self.attendanceReportID = attendanceReportID
         attendanceReport = .string(attendanceReportID)
         self.reportStatus = reportStatus
@@ -194,6 +223,9 @@ nonisolated struct ParentLockerCourse: Sendable, Hashable, Decodable {
         self.courseID = courseID
         name = json["course_name"]?.stringValue ?? ""
         period = json["period"]?.intValue ?? 0
+        let given = json["period"]
+        periodValue = given.flatMap { $0.intValue == nil && !($0.stringValue ?? "").isEmpty ? $0 : nil }
+            ?? .int(period)
         attendanceReport = json["attendance_report_id"] ?? .null
         attendanceReportID = attendanceReport.stringValue ?? ""
         reportStatus = json["attendance_report_status"]?.stringValue ?? ""
@@ -217,7 +249,8 @@ nonisolated struct ParentLockerCourse: Sendable, Hashable, Decodable {
 
     /// The courses in the page's HTML: `var courses = [...];` and `var
     /// additional_courses = [...];`, each on one line, without repeats (by
-    /// course and period). Nil when the page has no course list at all.
+    /// course and period, as the page gave it). Nil when the page has no
+    /// course list at all.
     static func courses(inPage html: String) -> [ParentLockerCourse]? {
         var found: [ParentLockerCourse] = []
         var sawList = false
@@ -225,7 +258,7 @@ nonisolated struct ParentLockerCourse: Sendable, Hashable, Decodable {
             guard let list = scriptArray(named: name, in: html) else { continue }
             sawList = true
             for course in list
-            where !found.contains(where: { $0.courseID == course.courseID && $0.period == course.period }) {
+            where !found.contains(where: { $0.courseID == course.courseID && $0.periodValue == course.periodValue }) {
                 found.append(course)
             }
         }

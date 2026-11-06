@@ -125,7 +125,10 @@ struct ParentLockerSyncProblemsTests {
         await device.sync.runDue()
         #expect(site.signIns == 1)
         #expect(saves == ["save 5101"])
-        #expect(device.unsent.load() == nil)
+        // Nothing owed; what the save sent is kept until it's read back (review of the fixes, E5).
+        #expect(device.unsent.load()?.children.isEmpty ?? true)
+        #expect(device.unsent.load()?.wholeClass != true)
+        #expect(device.unsent.load()?.sent[Device.wren]?.isEmpty == false)
     }
 
     @Test("A password changed on the site asks the person to sign in again")
@@ -183,10 +186,10 @@ struct ParentLockerSyncProblemsTests {
         #expect(try secrets.credential(site: FakeParentLocker.host)?.email == "guide@school.test")
         #expect(secrets.savedCookies.map(\.value) == ["good"])
         #expect(device.sync.isSignedIn)
-        // It goes once Close Arrival's Undo has passed, never sooner.
+        // It goes a second after Close Arrival's Undo has passed, never sooner (#13).
         await device.sync.runDue()
         #expect(saves.isEmpty)
-        clock.advance(by: ParentLockerSync.closeArrivalUndoWindow)
+        clock.advance(by: ParentLockerSync.closeArrivalUndoWindow + 1)
         await device.sync.runDue()
         #expect(saves == ["save 5101", "save 5102"])
         #expect(device.store.recordedSends.count == 1)
@@ -208,7 +211,7 @@ struct ParentLockerSyncProblemsTests {
         let preview = FakeParentLocker()
         let debugBuild = Device(site: preview, clock: clock, policy: .previewOnly, marks: Self.fullMarks)
         debugBuild.sync.closeArrivalSend(on: Device.morning, after: 6)
-        clock.advance(by: 6)
+        clock.advance(by: 7) // a second after its Undo (#13)
         await debugBuild.sync.runDue()
         #expect(preview.requests.contains("roster 5101"), "it reads")
         #expect(preview.saves.isEmpty)

@@ -13,9 +13,9 @@ import OSLog
 ///   isn't dropped: this device's own goes as its own once the day is (a
 ///   minute after another device closed arrival, so that device's send has
 ///   gone first), and is kept across launches; one synced in goes as such.
-/// - **Close Arrival & Send** (`closeArrivalSend`) sends the whole class once
-///   Close Arrival's Undo has gone (`undoEndsAt`), never earlier, a sign-in
-///   meanwhile included; Undo (`cancelCloseArrivalSend`) stops it. **Send
+/// - **Close Arrival & Send** (`closeArrivalSend`) sends the whole class a
+///   second after Close Arrival's Undo has gone (`undoEndsAt`), never earlier,
+///   a sign-in meanwhile included; Undo (`cancelCloseArrivalSend`) stops it. **Send
 ///   Now** and MCP (`sendNow`, `send(day:preview:)`) send a whole day at
 ///   once, never one that hasn't come yet; another day's leaves today's line
 ///   alone. A whole-class send records the day's send if none is yet.
@@ -67,45 +67,9 @@ final class ParentLockerSync {
     nonisolated static let returnAbsence: TimeInterval = 60
     /// How long Close Arrival's Undo stays offered when the screen doesn't say.
     nonisolated static let closeArrivalUndoWindow: TimeInterval = 6
-
-    /// Signs in through the site's own form and returns the cookies it set.
-    typealias SignIn = @MainActor (ParentLockerKeychain.Credential, _ site: String) async throws -> [ParentLockerCookie]
-    /// Makes the transport for `site` with `cookies`; `cookiesChanged` hears each change.
-    typealias MakeTransport = @MainActor (
-        _ site: String, _ cookies: [ParentLockerCookie],
-        _ cookiesChanged: @escaping @Sendable ([ParentLockerCookie]) -> Void
-    ) -> any ParentLockerTransport
-
-    /// Everything the sync is handed rather than reaching for.
-    struct Dependencies {
-        var store: any ParentLockerStore
-        var secrets: any ParentLockerSecrets = ParentLockerKeychainSecrets()
-        var makeTransport: MakeTransport = ParentLockerSync.siteTransports()
-        var signIn: SignIn = { credential, site in
-            try await ParentLockerSignIn(site: site).run(credential, showsPagesWhenAsked: false)
-        }
-        var clock: any ParentLockerClock = ParentLockerSystemClock()
-        var policy: ParentLockerSavePolicy = .current
-        var unsent: any ParentLockerUnsentStore = ParentLockerSync.defaultUnsentStore()
-        /// The saved password ParentLocker refused, remembered across launches
-        /// in a build that saves.
-        var refusals: any ParentLockerRefusalStore = ParentLockerSavePolicy.current.allowsSaving
-            ? ParentLockerDefaultsRefusalStore() : ParentLockerMemoryRefusalStore()
-        var background: any ParentLockerBackgroundWork = ParentLockerSystemBackgroundWork()
-        var isInForeground: @MainActor () -> Bool = { ParentLockerAppState.isInForeground() }
-        /// Whether CloudKit imports will come: false for a stack without
-        /// CloudKit, where the catch-up needn't wait for one.
-        var importsExpected = true
-        /// Whether becoming active counts as a return only after
-        /// `returnAbsence` away: on the Mac, which becomes active at every
-        /// switch between apps.
-        #if os(macOS)
-        var returnNeedsAbsence = true
-        #else
-        var returnNeedsAbsence = false
-        #endif
-        var calendar: Calendar = AppCalendar.shared
-    }
+    /// How long after its Undo ends Close Arrival & Send goes, so an Undo in
+    /// that last moment still stops it (bug hunt 2026-11-05 #13).
+    nonisolated static let sendAfterUndo: TimeInterval = 1
 
     // MARK: - What the screens read (only the sync sets them)
 
@@ -140,6 +104,17 @@ final class ParentLockerSync {
     /// for want of a sign-in. A sign-in, the sheet closing
     /// (`signInDismissed`), Undo and a new day clear it.
     var awaitsSignIn = false
+    /// Today's Close Arrival & Send is still to go (waiting, waiting to retry,
+    /// under way, or waiting for a sign-in) and no class of it has gone to
+    /// ParentLocker, so its Undo can still stop all of it (bug hunt 2026-11-05 #14).
+    var closeArrivalSendUnsent = false
+    /// Today's Close Arrival & Send has been taken to run and hasn't ended:
+    /// waiting for a class list to be read, or sending (a whole-class send
+    /// that goes while one is still to go counts). A class may reach
+    /// ParentLocker whatever Undo does now, so the screens offer no Undo
+    /// until it ends; one made anyway stops it before its next class and
+    /// leaves no retry (review of the 2026-11-05 fixes, E1, W6).
+    var closeArrivalSendUnderWay = false
 
     /// The sync the app started, for the screens, intents and MCP that
     /// aren't handed one.
@@ -160,7 +135,8 @@ final class ParentLockerSync {
     /// What this device had seen of each imported child in ParentLocker when
     /// the change was noted (none: never seen).
     @ObservationIgnored var importedBaseline: [UUID: ParentLockerSeen] = [:]
-    @ObservationIgnored var importedDue: Date?
+    /// When each change synced in goes: its own 60 s (bug hunt 2026-11-05 #19).
+    @ObservationIgnored var importedDues: [UUID: Date] = [:]
     /// What ParentLocker held for each child when this device last looked:
     /// today's rosters and saves.
     @ObservationIgnored var lastSeen: [UUID: ParentLockerSeen] = [:]
@@ -187,10 +163,28 @@ final class ParentLockerSync {
     /// after, once the day's send is recorded.
     @ObservationIgnored var earlyLocalDue: Date?
     @ObservationIgnored var wholeClass: ParentLockerWholeClass?
-    /// Today's retry. Another day's (Send Now, MCP) has its own slot, so it
-    /// never takes today's place.
+    /// Today's retry. Another day's (Send Now, MCP) has a slot of its own per
+    /// day, so it never takes today's place, nor another day's.
     @ObservationIgnored var retry: (job: ParentLockerJob, due: Date)?
-    @ObservationIgnored var otherDayRetry: (job: ParentLockerJob, due: Date)?
+    @ObservationIgnored var otherDayRetries: [Date: (job: ParentLockerJob, due: Date)] = [:]
+    /// The run under way: a whole-class one is still owed until it ends.
+    @ObservationIgnored var runningJob: ParentLockerJob?
+    /// What today's saves sent, by child and class, until the class is read again and shows
+    /// whether each landed (`ParentLockerSentRow`). Kept with what's owed (E5).
+    @ObservationIgnored var sending: [UUID: [Int: ParentLockerSentRow]] = [:]
+    /// The notes this device wrote in each child's Notes box today, by class:
+    /// only they, and its left-early line, are replaced or cleared (W3). Kept with what's owed.
+    @ObservationIgnored var ownNotes: [UUID: [Int: Set<String>]] = [:]
+    /// Today's lines that stand until a run shows them fixed (E7, W2).
+    @ObservationIgnored var standing = ParentLockerStanding()
+    @ObservationIgnored var closeArrivalRuns = ParentLockerCloseArrivalRuns()
+    /// When today's Close Arrival & Send goes at the earliest: a second after its Undo.
+    @ObservationIgnored var closeArrivalNotBefore: Date?
+    /// A class of today's whole-class send has gone to ParentLocker since
+    /// the last Close Arrival & Send (`closeArrivalSendUnsent`).
+    @ObservationIgnored var closeArrivalBatchSent = false
+    /// Sign-outs, for the cookies a reply brings after one (`ParentLockerSignOuts`).
+    let signOuts = ParentLockerSignOuts()
     @ObservationIgnored var awaitingImport = false
     /// When the catch-up stops waiting for the import.
     @ObservationIgnored var importWaitEnds: Date?
@@ -310,9 +304,14 @@ final class ParentLockerSync {
         rollOwedDay(to: day)
         let undoEnds = clock.now.addingTimeInterval(undoWindow)
         undoEndsAt = undoEnds
+        // A second after the Undo, so one tapped as it goes still stops it;
+        // Siri's has none to wait out (bug hunt 2026-11-05 #13).
+        let sendsAt = undoWindow > 0 ? undoEnds.addingTimeInterval(Self.sendAfterUndo) : undoEnds
+        closeArrivalNotBefore = sendsAt
+        closeArrivalBatchSent = false
         // A backstop this takes the place of didn't go: the day stays open to the next.
         if wholeClass?.reason == .backstop { backstopDay = nil }
-        wholeClass = ParentLockerWholeClass(reason: .closeArrival, due: needsSignIn ? nil : undoEnds)
+        wholeClass = ParentLockerWholeClass(reason: .closeArrival, due: needsSignIn ? nil : sendsAt)
         awaitsSignIn = needsSignIn
         signInDeclined = false
         arrivalClosedHere = true
@@ -343,13 +342,21 @@ final class ParentLockerSync {
     /// moment it can be stopped. That covers a send that failed and waits to
     /// try again (its retry, or the send owed once the retries ran out),
     /// which would otherwise send the reopened class (bug hunt 2026-10-13
-    /// afternoon, H2).
+    /// afternoon, H2), and a run under way (Siri's Undo, which no screen
+    /// holds back): it sends no further class, records nothing and leaves
+    /// no retry (review of the 2026-11-05 fixes, E1).
     func cancelCloseArrivalSend() {
         let waiting = wholeClass?.reason == .closeArrival
         let retrying = retry.map { $0.job.reason == .closeArrival && isToday($0.job.day) } ?? false
-        guard waiting || retrying else { return }
+        let underWay = closeArrivalRuns.underWay
+        guard waiting || retrying || underWay else { return }
         if waiting { wholeClass = nil }
         if retrying { retry = nil }
+        if underWay {
+            closeArrivalRuns.undoAll()
+            // The run sending now is owed no longer.
+            if closeArrivalRuns.performing != nil { runningJob = nil }
+        }
         awaitsSignIn = false
         signInDeclined = false
         arrivalReopenedHere()
@@ -362,6 +369,7 @@ final class ParentLockerSync {
     func arrivalReopenedHere() {
         arrivalClosedHere = false
         undoEndsAt = nil
+        closeArrivalNotBefore = nil
         // Its own changes from before wait for "after" again.
         earlyLocalDue = nil
         saveOwed()
@@ -388,13 +396,5 @@ final class ParentLockerSync {
     /// in plain words.
     func send(day: Date, preview: Bool) async -> Result<ParentLockerReport, ParentLockerSendFailure> {
         await run(askedJob(day, reason: .request, preview: preview)).result
-    }
-
-    /// A whole day someone asked for. Today's covers the changes noted
-    /// before it, which it settles once it reaches ParentLocker.
-    private func askedJob(_ day: Date, reason: ParentLockerJob.Reason, preview: Bool = false) -> ParentLockerJob {
-        var job = ParentLockerJob(day: day, children: nil, reason: reason, preview: preview)
-        if isToday(day) { job.settles = importedChildren.union(earlyChanges).union(earlyLocal) }
-        return job
     }
 }

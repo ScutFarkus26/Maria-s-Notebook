@@ -16,6 +16,10 @@ import OSLog
 @Observable
 final class DeduplicationCoordinator {
     static let shared = DeduplicationCoordinator()
+    /// The name of the context a pass merges on, so the ParentLocker
+    /// watcher can pass over its saves (`ParentLockerWatcher`, bug hunt
+    /// 2026-11-05 #20): it keeps the app's author, below.
+    nonisolated static let contextName = "Duplicate cleanup"
     nonisolated private static let logger = Logger.deduplicationCoordinator
 
     var persistentContainer: NSPersistentContainer?
@@ -208,6 +212,7 @@ final class DeduplicationCoordinator {
         }
 
         let bgContext = container.newBackgroundContext()
+        bgContext.name = Self.contextName
         bgContext.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
         // Tagged like every other context the app writes through, so the
         // history processor recognises the pass's deletes as local. Untagged,

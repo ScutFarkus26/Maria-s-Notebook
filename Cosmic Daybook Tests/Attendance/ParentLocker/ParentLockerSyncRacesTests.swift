@@ -186,7 +186,9 @@ struct ParentLockerSyncRacesTests {
         await device.sync.runDue()
         #expect(saves == ["save 5101"])
         #expect(site.mark(40001) == "702")
-        #expect(unsent.load() == nil)
+        // Nothing owed; what the save sent is kept until it's read back (review of the fixes, E5).
+        #expect(unsent.load()?.children.isEmpty ?? true)
+        #expect(unsent.load()?.wholeClass != true)
     }
 
     @Test("On the Mac a switch between apps isn't a return; a minute away is")

@@ -85,7 +85,9 @@ nonisolated struct ParentLockerStatus: Sendable, Equatable {
         case .notExpected: Self.notExpectedLine
         case .waitingForSignIn: ParentLockerSyncStop.signInToSend
         case .sending: "Sending to ParentLocker…"
-        case .upToDate: "Up to date in ParentLocker."
+        // Never "up to date" while children are out of step (bug hunt 2026-11-05, #8).
+        case .upToDate:
+            problems.isEmpty ? "Up to date in ParentLocker." : "Sent to ParentLocker. Some children need a look."
         case .retrying: ParentLockerError.unreachable.errorDescription
         case .gaveUp: "Couldn't reach ParentLocker. It'll try again after the next change, or use Send Now."
         case .notSentYet: ParentLockerSyncStop.notSentYet.message
@@ -105,7 +107,9 @@ nonisolated struct ParentLockerStatus: Sendable, Equatable {
         guard let sentSummary, !sentSummary.isEmpty else { return message }
         switch state {
         case .off, .idle, .waitingForArrival: return sentSummary
-        case .upToDate: return sentSummary + " · up to date"
+        // Never "up to date" while children are out of step (#8).
+        case .upToDate:
+            return sentSummary + (problems.isEmpty ? " · up to date" : " · some children need a look")
         case .sending: return sentSummary + " · sending…"
         default: return message.map { sentSummary + ". " + $0 } ?? sentSummary
         }
@@ -203,7 +207,8 @@ nonisolated extension ParentLockerStatus {
     ) -> [String] {
         var lines: [String] = []
         var unmatched: [String] = []
-        var pageChanged = false
+        var noSuchMark: [ParentLockerMarkType: [String]] = [:]
+        var noRow: [String] = []
         for skip in skipped {
             let name = names(skip.childID)
             switch skip.reason {
@@ -220,8 +225,10 @@ nonisolated extension ParentLockerStatus {
                 )
             case .locked(let current):
                 lines.append("The office already marked \(name)" + (current.map { " \($0)." } ?? "."))
-            case .noSuchMark:
-                pageChanged = true
+            case .noSuchMark(let type):
+                noSuchMark[type, default: []].append(name)
+            case .noAttendanceRow:
+                noRow.append(name)
             }
         }
         if !unmatched.isEmpty {
@@ -234,8 +241,40 @@ nonisolated extension ParentLockerStatus {
                 : " Your guide can match them in Settings."
             lines.insert(who + fix, at: 0)
         }
-        if pageChanged, let text = ParentLockerError.pageChanged.errorDescription { lines.append(text) }
+        // A mark the school's page doesn't have: the day still counts as
+        // sent, so this line stands until it's fixed (bug hunt 2026-11-05, #4).
+        for type in ParentLockerMarkType.allCases {
+            guard let who = noSuchMark[type], !who.isEmpty else { continue }
+            let word = markWord(type)
+            lines.append(
+                "\(word) marks couldn't go for \(who.formatted(.list(type: .and))): " +
+                    "ParentLocker has no \(word) mark right now. " +
+                    "Mark \(who.count == 1 ? who[0] : "them") on the ParentLocker site."
+            )
+        }
+        if !noRow.isEmpty {
+            let who = noRow.formatted(.list(type: .and))
+            lines.append(
+                "ParentLocker had nowhere to put the mark for \(who) today, so it didn't go. " +
+                    "Mark \(noRow.count == 1 ? noRow[0] : "them") on the ParentLocker site."
+            )
+        }
         return lines
+    }
+
+    /// A mark type as the school's page names it.
+    static func markWord(_ type: ParentLockerMarkType) -> String {
+        switch type {
+        case .present: "Present"
+        case .late: "Late"
+        case .absent: "Absent"
+        }
+    }
+
+    /// The line for a class ParentLocker refused to open twice today.
+    static func refusedClassLine(_ name: String) -> String {
+        "ParentLocker wouldn't open \(name) for the app, so its marks didn't go. " +
+            "Mark that class on the ParentLocker site."
     }
 
     /// The line for a save someone else beat: ParentLocker already held

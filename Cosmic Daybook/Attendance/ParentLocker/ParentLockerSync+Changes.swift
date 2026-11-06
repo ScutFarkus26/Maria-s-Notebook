@@ -55,7 +55,10 @@ extension ParentLockerSync {
             for child in arrived { importedBaseline[child] = lastSeen[child] }
             importedChildren.formUnion(fresh)
             loadBaseline(for: arrived.filter { lastSeen[$0] == nil && !baselineRead.contains($0) }, on: day)
-            if importedDue == nil, !importedChildren.isEmpty { importedDue = now.addingTimeInterval(Self.importedWait) }
+            startImportedWaits(fresh)
+            // A whole-class send owed goes with it, as with a change of this
+            // device's own (review of the 2026-11-05 fixes, E3).
+            if !fresh.isEmpty { releaseWholeClass(at: now.addingTimeInterval(Self.importedWait)) }
         } else {
             for child in children { localChanges[child] = now }
             forgetImported(children)
@@ -112,7 +115,7 @@ extension ParentLockerSync {
         for child in early { importedBaseline[child] = lastSeen[child] }
         importedChildren.formUnion(early)
         loadBaseline(for: early.filter { lastSeen[$0] == nil && !baselineRead.contains($0) }, on: day)
-        if importedDue == nil { importedDue = clock.now.addingTimeInterval(Self.importedWait) }
+        startImportedWaits(early)
     }
 
     /// This device's own early changes `children`, now covered: by a newer
@@ -138,10 +141,12 @@ extension ParentLockerSync {
     /// without being signed in leaves nothing that says arrival closed. A
     /// minute after the due time (or after now, when that's later) one of the
     /// guide's signed-in devices checks, and sends the whole class if
-    /// everyone is marked and still nothing is recorded (`.deadline`).
+    /// everyone is marked and still nothing is recorded (`.deadline`). A
+    /// whole-class send owed with nothing due to send it goes then, as
+    /// itself (review of the 2026-11-05 fixes, E3).
     func considerDeadline(_ state: ParentLockerDay, on day: Date) {
         guard deadlineDue == nil, state.role == .leadGuide, state.method == .parentLocker, state.isSchoolDay,
-              !state.sentToParentLocker, isSignedIn, isToday(day), wholeClass == nil,
+              !state.sentToParentLocker, isSignedIn, isToday(day), wholeClass?.due == nil,
               backstopDay.map({ !isSameDay($0, day) }) ?? true,
               let deadline = state.deadline(on: day, calendar: dependencies.calendar) else { return }
         deadlineDue = max(deadline, clock.now).addingTimeInterval(Self.backstopWait)
@@ -219,9 +224,22 @@ extension ParentLockerSync {
             importedBaseline[child] = job.importedBaseline[child]
             importedBefore[child] = job.importedBefore[child]
         }
-        if !importedChildren.isEmpty, importedDue == nil {
-            importedDue = clock.now.addingTimeInterval(Self.importedWait)
+        startImportedWaits(job.imported)
+    }
+
+    /// The day's send record, synced in from another device, or the guide's
+    /// settings changed (`ParentLockerWatcher`): a day sent elsewhere is
+    /// "after", so this device's own changes from before it go (bug hunt
+    /// 2026-11-05 #11), and the line follows the day: a switch to email ends
+    /// the sign-in prompt (#15).
+    func dayRecordsChanged() {
+        if isSignedIn { rollOwedDay(to: clock.now) }
+        let state = store.day(today, withChildren: false)
+        if isSignedIn, state.method == .parentLocker, state.isSchoolDay, isAfter(state, on: today) {
+            releaseEarlyChanges(on: today, sent: state.sentToParentLocker)
         }
+        refreshStatus(state)
+        reschedule()
     }
 
     /// Midnight (`.NSCalendarDayChanged`): yesterday's work goes, and the line
@@ -285,10 +303,11 @@ extension ParentLockerSync {
     }
 
     /// A whole-class send waiting (for a sign-in, or owed) goes at `moment`,
-    /// but never before Close Arrival's Undo has passed: it could still be undone.
+    /// but never before a second after Close Arrival's Undo has passed: it
+    /// could still be undone (bug hunt 2026-11-05 #13).
     func releaseWholeClass(at moment: Date) {
         guard wholeClass != nil, wholeClass?.due == nil else { return }
-        wholeClass?.due = max(moment, undoEndsAt ?? moment)
+        wholeClass?.due = max(moment, closeArrivalNotBefore ?? moment)
     }
 
     // MARK: - The marks before a change
@@ -330,10 +349,13 @@ extension ParentLockerSync {
         knownMarks = nil
         knownMarksDay = nil
         lastSeen = [:]
+        sending = [:]
+        ownNotes = [:]
+        standing = ParentLockerStanding()
         baselineRead = []
         wholeClass = nil
         retry = nil
-        otherDayRetry = nil
+        otherDayRetries = [:]
         deadlineDue = nil
         backstopDay = nil
         awaitsSignIn = false

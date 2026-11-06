@@ -15,6 +15,11 @@ nonisolated struct ParentLockerRosterStudent: Sendable, Equatable {
     /// The roster's attendance object, exactly as sent.
     let attendance: ParentLockerJSON
 
+    /// Whether the roster carries an attendance row for the child: a
+    /// non-empty object. Null, a list (PHP's empty `[]`) or nothing at all
+    /// would make a save with no ids (bug hunt 2026-11-05, #12).
+    var hasAttendanceRow: Bool { !(attendance.objectValue?.isEmpty ?? true) }
+
     init?(json: ParentLockerJSON) {
         guard let id = json["student_id"]?.nonEmptyID else { return nil }
         studentID = id
@@ -105,15 +110,19 @@ nonisolated struct ParentLockerRoster: Sendable, Equatable {
     }
 
     /// Reads a roster reply. Throws `.refused` when the reply carries an
-    /// error, and `.pageChanged` when it has no students list.
+    /// error, and `.pageChanged` when it has no students list, or a marks
+    /// list in a shape it can't read: read as no marks, the class would seem
+    /// to have gone with nothing sent (review of the 2026-11-05 fixes, W12).
     init(reply json: ParentLockerJSON, course: ParentLockerCourse) throws {
         if let message = ParentLockerRoster.errorText(json["error"]) {
             throw ParentLockerError.refused(message: message)
         }
-        guard let students = json["students"]?.arrayValue else { throw ParentLockerError.pageChanged }
+        guard let students = json["students"]?.listValue else { throw ParentLockerError.pageChanged }
+        let settings = json["attendance_settings"] ?? .null
+        guard settings == .null || settings.listValue != nil else { throw ParentLockerError.pageChanged }
         self.course = course
         self.students = students.compactMap(ParentLockerRosterStudent.init(json:))
-        marks = (json["attendance_settings"]?.arrayValue ?? []).compactMap(ParentLockerMark.init(json:))
+        marks = (settings.listValue ?? []).compactMap(ParentLockerMark.init(json:))
         isToday = json["is_today"]?.isTruthy ?? false
         isDailyAttendance = json["isDailyAttendance"]?.isTruthy ?? course.isDailyAttendance
         attendanceReportID = json["attendance_report_id"]?.nonEmptyID
@@ -161,13 +170,25 @@ nonisolated struct ParentLockerSaveReply: Sendable, Equatable {
             currentMarkID = json["current"]?["attendance_code_id"]?.nonEmptyID
         }
 
-        /// ParentLocker already holds what we wanted, so there is nothing to tell.
-        var alreadyEqual: Bool { desiredMarkID == currentMarkID }
+        /// ParentLocker already holds what we wanted, so there is nothing to
+        /// tell. A conflict whose ids can't be read is a real one (bug hunt
+        /// 2026-11-05, #23).
+        var alreadyEqual: Bool { desiredMarkID != nil && desiredMarkID == currentMarkID }
     }
 
-    /// The site's `updated`, kept as sent.
+    /// The site's `updated`, kept as sent. What it counts isn't known, so
+    /// it's only logged (`updatedCount`), never acted on.
     let updated: ParentLockerJSON?
     let conflicts: [Conflict]
+
+    /// `updated` as a number for the log: a number, or the size of a list.
+    var updatedCount: Int? {
+        switch updated {
+        case .array(let items): items.count
+        case .object(let fields): fields.count
+        default: updated?.intValue
+        }
+    }
 
     init(updated: ParentLockerJSON? = nil, conflicts: [Conflict] = []) {
         self.updated = updated
@@ -180,6 +201,6 @@ nonisolated struct ParentLockerSaveReply: Sendable, Equatable {
             throw ParentLockerError.refused(message: message)
         }
         updated = json["updated"]
-        conflicts = (json["conflicts"]?.arrayValue ?? []).compactMap(Conflict.init(json:))
+        conflicts = (json["conflicts"]?.listValue ?? []).compactMap(Conflict.init(json:))
     }
 }

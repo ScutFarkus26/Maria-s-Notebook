@@ -29,6 +29,11 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
     let today: Date
     /// Saves the context; true when it worked. Tests pass one that fails.
     var save: @MainActor (NSManagedObjectContext) -> Bool = { $0.safeSave() }
+    /// The class's ParentLocker sync, whose Close Arrival & Send an Undo of
+    /// Close Arrival waits out (`undoLast`). Tests pass their own.
+    var parentLocker: @MainActor () -> ParentLockerSync? = { ParentLockerSync.current }
+    /// The longest that Undo waits (`parentLockerWait`). Tests pass less.
+    var parentLockerWait: Duration = SiriAttendance.parentLockerWait
 
     var context: NSManagedObjectContext { stack.viewContext }
 
@@ -373,6 +378,7 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
             throw SiriAttendanceError.nothingToUndo
         }
         guard !store.isLocked(today) else { throw SiriAttendanceError.dayLocked }
+        let partlySent = try await waitOutCloseArrivalSend(of: change)
         guard let coordinator = context.persistentStoreCoordinator else { throw SiriAttendanceError.saveFailed }
 
         var reverted: [Pending] = []
@@ -394,7 +400,72 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
         // An undo is not itself undoable: "Undo that" twice shouldn't flip back.
         SiriAttendanceChange.forget()
         let sent = AttendanceEmailLog.latestSend(on: today, in: context)?.channel == .parentLocker
-        return change.undoneDialog(sentToParentLocker: sent)
+        guard !sent, partlySent else { return change.undoneDialog(sentToParentLocker: sent) }
+        return change.undoneDialog + " " + Self.parentLockerMayKeepAbsences
+    }
+
+    // MARK: - Close Arrival's ParentLocker send
+
+    /// The longest an Undo of Close Arrival waits for the ParentLocker send
+    /// it started, and Siri's Close Arrival for its send (review of the
+    /// 2026-11-05 fixes, W1; bug hunt #7), inside the 30 s an intent gets.
+    static let parentLockerWait: Duration = .seconds(8)
+
+    /// What Siri adds to an Undo of Close Arrival when some of the class may
+    /// have reached ParentLocker before its send stopped.
+    static let parentLockerMayKeepAbsences = "Some of today's attendance may already be in ParentLocker, "
+        + "which keeps those absences. Check them in ParentLocker, or mark the children here."
+
+    /// An Undo of Close Arrival while its ParentLocker send is under way:
+    /// a class may land whatever the Undo does, and the absences would go
+    /// back here while ParentLocker kept them, with nothing said (review of
+    /// the 2026-11-05 fixes, W1). It waits for the send to end, at most
+    /// `parentLockerWait`, then undoes as usual; still under way, it undoes
+    /// nothing and keeps the change for another try. The wait only looks:
+    /// the send is never cancelled. Returns whether some of the class may
+    /// have gone though the send hasn't finished (`closeArrivalPartlySent`),
+    /// read before the Undo stops what's left.
+    private func waitOutCloseArrivalSend(of change: SiriAttendanceChange) async throws -> Bool {
+        guard change.closedArrival, let sync = parentLocker() else { return false }
+        if sync.closeArrivalSendUnderWay {
+            guard await Self.waitWhileCloseArrivalSendUnderWay(sync, atMost: parentLockerWait) else {
+                throw SiriAttendanceError.sendUnderWay
+            }
+            // The guide may have locked the day meanwhile.
+            guard !store.isLocked(today) else { throw SiriAttendanceError.dayLocked }
+        }
+        return Self.closeArrivalPartlySent(state: sync.status.state, unsent: sync.closeArrivalSendUnsent)
+    }
+
+    /// Waits while `sync`'s Close Arrival & Send is under way, at most
+    /// `limit`, looking again every `every`: true once it isn't. A cancelled
+    /// wait stops looking and says how it stands.
+    static func waitWhileCloseArrivalSendUnderWay(
+        _ sync: ParentLockerSync, atMost limit: Duration, every: Duration = .milliseconds(100)
+    ) async -> Bool {
+        let deadline = ContinuousClock.now + limit
+        while sync.closeArrivalSendUnderWay {
+            let left = deadline - ContinuousClock.now
+            guard left > .zero, (try? await Task.sleep(for: min(every, left))) != nil else {
+                return !sync.closeArrivalSendUnderWay
+            }
+        }
+        return true
+    }
+
+    /// Whether some of today's Close Arrival & Send may be in ParentLocker
+    /// though it hasn't all gone: the send ended on a failure, so it's still
+    /// owed, and a class of it was sent (`closeArrivalSendUnsent` false).
+    /// After a run that got through, or one with nothing to send, no.
+    nonisolated static func closeArrivalPartlySent(state: ParentLockerStatus.State, unsent: Bool) -> Bool {
+        guard !unsent else { return false }
+        return switch state {
+        case .retrying, .gaveUp, .notSentYet, .signedOut, .waitingForSignIn, .passwordRefused, .needsYou,
+             .pageChanged, .refused, .keychainTrouble:
+            true
+        default:
+            false
+        }
     }
 
     /// Puts one remembered mark back, if nothing has changed it since: the
@@ -457,6 +528,9 @@ enum SiriAttendanceError: Error, CustomLocalizedStringResourceConvertible {
     case changedSince(String)
     /// Arrival closed (on the grid, say) while Siri waited for her yes.
     case arrivalAlreadyClosed
+    /// Close Arrival's ParentLocker send was still going after the Undo's
+    /// wait (`SiriAttendance.parentLockerWait`): nothing was undone.
+    case sendUnderWay
 
     var localizedStringResource: LocalizedStringResource {
         switch self {
@@ -482,6 +556,8 @@ enum SiriAttendanceError: Error, CustomLocalizedStringResourceConvertible {
             return "\(dialog)"
         case .arrivalAlreadyClosed:
             return "Arrival is already closed."
+        case .sendUnderWay:
+            return "Attendance is going to ParentLocker right now, so it can't be undone yet. Try again in a moment."
         }
     }
 }

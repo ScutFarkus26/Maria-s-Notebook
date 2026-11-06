@@ -18,9 +18,11 @@ extension AssistantArrivalBar {
     }
 
     /// How long a phone not signed in keeps Close Arrival & Send's Undo:
-    /// past the guide's 60-s backstop, which sends the day from his device,
-    /// after which her Undo would only clear the absences here.
-    static let unsentUndoLimit: TimeInterval = 120
+    /// less than the guide's 60-s backstop (`ParentLockerSync.backstopWait`),
+    /// which sends the day from his device. Kept past it, an Undo before his
+    /// send record synced here cleared the absences on her phone only, while
+    /// ParentLocker kept them (bug hunt 2026-11-05, #9).
+    static let unsentUndoLimit: TimeInterval = 50
 
     /// What happens once Close Arrival & Send's Undo moment has passed.
     enum AfterUndoWindow: Equatable {
@@ -30,13 +32,33 @@ extension AssistantArrivalBar {
         case keepUndo
     }
 
-    /// Signed in, the day read as sent to ParentLocker (by anyone), or the
-    /// Undo kept `unsentUndoLimit` since arrival closed: it goes. Otherwise
-    /// it stays, and the sign-in opens by itself (`signInPrompt`).
+    /// Signed in with some of the class gone to ParentLocker, the day read
+    /// as sent (by anyone), or the Undo kept `unsentUndoLimit` since arrival
+    /// closed: it goes. Otherwise it stays: not signed in, the sign-in opens
+    /// by itself (`signInPrompt`); signed in, the send is still to go
+    /// (`sendUnsent`, the sync's `closeArrivalSendUnsent`), waiting to retry
+    /// say, and Undo still stops all of it (bug hunt 2026-11-05, #14). The
+    /// limit holds either way, since the guide's backstop sends at 60 s.
     static func afterUndoWindow(
-        signedIn: Bool, daySent: Bool = false, closedAt: Date = Date(), now: Date = Date()
+        signedIn: Bool, sendUnsent: Bool = false, daySent: Bool = false,
+        closedAt: Date = Date(), now: Date = Date()
     ) -> AfterUndoWindow {
-        signedIn || daySent || now.timeIntervalSince(closedAt) >= unsentUndoLimit ? .hideUndo : .keepUndo
+        if daySent || now.timeIntervalSince(closedAt) >= unsentUndoLimit { return .hideUndo }
+        return signedIn && !sendUnsent ? .hideUndo : .keepUndo
+    }
+
+    /// Whether the Undo on offer can be tapped: not while a send is under
+    /// way, when a class may reach ParentLocker whatever Undo does; it comes
+    /// back if the send fails and waits to retry (bug hunt 2026-11-05, #14).
+    /// `underWay`: Close Arrival & Send has been taken to run (the sync's
+    /// `closeArrivalSendUnderWay`), which starts before the line says
+    /// Sending, while the class lists are read; an Undo then did nothing to
+    /// the send (review of the 2026-11-05 fixes, W6).
+    static func undoEnabled(sending: Bool, underWay: Bool = false) -> Bool { !sending && !underWay }
+
+    /// `undoEnabled` for the class's sync, if one is running.
+    static func undoEnabled(for sync: ParentLockerSync?) -> Bool {
+        undoEnabled(sending: sync?.status.state == .sending, underWay: sync?.closeArrivalSendUnderWay == true)
     }
 
     /// When the sign-in opens by itself.

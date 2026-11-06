@@ -10,7 +10,10 @@ import CoreData
 /// The Close Arrival button by voice: everyone still unmarked is marked absent, and
 /// from then on "Mark Maya here" marks late. With ParentLocker picked and this
 /// iPhone signed in, the class goes to ParentLocker too (Close Arrival &
-/// Send); otherwise Siri says it closed arrival but the send hasn't gone yet.
+/// Send); otherwise Siri says it closed arrival but the send hasn't gone yet,
+/// and what it needs. Siri waits at most `AssistantSiriCommands.siriSendWait`
+/// for the send, then says it's on its way while it carries on (bug hunt
+/// 2026-11-05, #7).
 struct CloseArrivalIntent: AppIntent {
     static let title: LocalizedStringResource = "Close Arrival"
     static let description = IntentDescription(

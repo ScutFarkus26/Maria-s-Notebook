@@ -25,8 +25,9 @@ import SwiftUI
 /// the Undo, so a phone locked during the Undo still asks on its return
 /// (bug hunt 2026-10-13 afternoon, L2). Signing in sends the class and
 /// takes the Undo away; so does the day reading as sent (the guide's
-/// backstop), and two minutes. The bar holds the one ParentLocker sign-in
-/// sheet, which the line's Sign In and Send open too.
+/// backstop), and 50 seconds, before that backstop sends. The bar holds the
+/// one ParentLocker sign-in sheet, which the line's Sign In and Send open
+/// too; it opens by itself only once no other sheet is up.
 ///
 /// Its top edge fills green as children come in (gray for the absent), so
 /// how close the class is shows without reading. A child back after days
@@ -203,6 +204,9 @@ struct AssistantArrivalBar: View {
                 HStack(spacing: 12) {
                     Text("Marked \(undo.count) absent")
                     Button("Undo") {
+                        // A send taken to run since the bar last drew: it's
+                        // no Undo's to stop now (review of the 2026-11-05 fixes, W6).
+                        guard undoTappable else { return }
                         let undone = withAnimation(.smooth(duration: 0.3)) {
                             let undone = viewModel.returnToArrival(undo: true)
                             self.undo = nil
@@ -215,6 +219,7 @@ struct AssistantArrivalBar: View {
                     }
                     .fontWeight(.semibold)
                     .foregroundStyle(.tint)
+                    .disabled(!undoTappable)
                 }
                 .minimumScaleFactor(0.8)
                 .transition(.opacity)
@@ -352,8 +357,7 @@ struct AssistantArrivalBar: View {
         }
         // A locked day, say, stays open: nothing to send.
         guard let sync, viewModel.phase == .late else { return }
-        // A second after the Undo goes, so a last-instant Undo still stops it.
-        sync.closeArrivalSend(on: viewModel.date, after: ParentLockerSync.closeArrivalUndoWindow + 1)
+        sync.closeArrivalSend(on: viewModel.date, after: Self.closeArrivalSendWindow)
         // Not signed in: the sheet waits for the Undo's moment (`watchSignIn`),
         // unless there's no Undo to keep in reach.
         if sync.needsSignIn, undo == nil { showingSignIn = true }
@@ -371,6 +375,12 @@ extension AssistantArrivalBar {
     static func sendsOnClose(unmarked: Int, closesWithSend: Bool) -> Bool {
         unmarked > 0 && closesWithSend
     }
+
+    /// The Undo window Close Arrival & Send passes the sync: the plain one.
+    /// The sync makes the send due a second after the Undo ends, so a
+    /// last-instant Undo still stops it; the bar's own extra second made the
+    /// two fall due together (bug hunt 2026-11-05, #13).
+    static let closeArrivalSendWindow = ParentLockerSync.closeArrivalUndoWindow
 
     static func closeButtonTitle(unmarked: Int, sends: Bool) -> String {
         "Mark \(unmarked) Absent" + (sends ? " & Send" : "")

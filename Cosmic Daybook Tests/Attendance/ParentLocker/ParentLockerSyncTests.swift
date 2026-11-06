@@ -114,7 +114,7 @@ struct ParentLockerSyncTests {
         device.sync.closeArrivalSend(on: Device.morning, after: 6)
         device.marks([Device.marisol: Device.mark(.absent, reason: AttendanceDeduplication.automaticAbsenceRaw)])
         #expect(device.background.isHeld, "a phone locked now still sends")
-        clock.advance(by: 6)
+        clock.advance(by: 7) // a second after its Undo (#13)
         await device.sync.runDue()
         #expect(saves == ["save 5101", "save 5102"])
         #expect(site.saves.map(\.entries.count) == [3, 2])
@@ -147,7 +147,10 @@ struct ParentLockerSyncTests {
         #expect(Set(site.saves[0].entries.map(\.studentID)) == ["40001", "40003"])
         #expect(site.kids[2].comment == "Appointment")
         #expect(device.store.recordedSends.isEmpty, "a live update isn't the day's send")
-        #expect(device.unsent.load() == nil)
+        // Nothing owed; what the save sent, and the note it wrote, are kept (review of the fixes, E5, W3).
+        #expect(device.unsent.load()?.children.isEmpty ?? true)
+        #expect(device.unsent.load()?.wholeClass != true)
+        #expect(device.unsent.load()?.notes[Device.marisol]?[5101] == ["Appointment"])
     }
 
     @Test("A change synced in waits 60 s and isn't sent when ParentLocker already has it")
@@ -217,7 +220,9 @@ struct ParentLockerSyncTests {
         await device.sync.runDue()
         #expect(saves == ["save 5101"])
         #expect(site.mark(40001) == "702")
-        #expect(unsent.load() == nil)
+        // Nothing owed; what the save sent is kept until it's read back (review of the fixes, E5).
+        #expect(unsent.load()?.children.isEmpty ?? true)
+        #expect(unsent.load()?.wholeClass != true)
     }
 
     @Test("Another day's owed changes are dropped at launch")

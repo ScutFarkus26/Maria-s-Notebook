@@ -95,7 +95,9 @@ struct AssistantParentLockerRow: View {
         Menu {
             if !status.problems.isEmpty {
                 Section {
-                    ForEach(status.problems, id: \.self) { Text($0) }
+                    // By place, not by words: two children can have the
+                    // same line (bug hunt 2026-11-05, #25).
+                    ForEach(Array(status.problems.enumerated()), id: \.offset) { Text($0.element) }
                 }
             }
             if isSignedIn {

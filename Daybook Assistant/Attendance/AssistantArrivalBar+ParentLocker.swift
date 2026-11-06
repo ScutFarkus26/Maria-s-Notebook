@@ -10,11 +10,16 @@ extension AssistantArrivalBar {
         viewModel.isToday && viewModel.frontDesk.latestSend?.channel == .parentLocker
     }
 
-    /// What `watchUndo` follows: the Undo on offer, the sign-in, and the day's send.
+    /// What `watchUndo` follows: the Undo on offer, the sign-in, whether the
+    /// send is still to go, and the day's send.
     var undoWatch: String {
-        "\(undo?.id.uuidString ?? "")|\(bootstrapper.parentLockerForScreens?.needsSignIn == false)"
-            + "|\(daySentToParentLocker)"
+        let sync = bootstrapper.parentLockerForScreens
+        return "\(undo?.id.uuidString ?? "")|\(sync?.needsSignIn == false)"
+            + "|\(sync?.closeArrivalSendUnsent == true)|\(daySentToParentLocker)"
     }
+
+    /// The Undo can be tapped: no send under way (`undoEnabled`).
+    var undoTappable: Bool { Self.undoEnabled(for: bootstrapper.parentLockerForScreens) }
 
     /// When this Undo stops being safe (bug check 2026-10-13, D2): the
     /// sync's "Undo ends at", when the send goes; without one, Close
@@ -25,8 +30,9 @@ extension AssistantArrivalBar {
     }
 
     /// Waits out Close Arrival & Send's Undo, then hides it (signed in: the
-    /// class has gone). Not signed in, the Undo stays until she signs in or
-    /// the day reads as sent, each of which runs this again, or until
+    /// class has gone). Not signed in, or signed in with the send still to
+    /// go, the Undo stays until she signs in, some of the class goes or the
+    /// day reads as sent, each of which runs this again, or until
     /// `unsentUndoLimit`; the sign-in opens by itself meanwhile (`watchSignIn`).
     func watchUndo() async {
         guard let undo, undo.stopsSend else { return }
@@ -34,8 +40,9 @@ extension AssistantArrivalBar {
         if wait > 0 { guard (try? await Task.sleep(for: .seconds(wait))) != nil else { return } }
         guard self.undo?.id == undo.id else { return }
         let after = Self.afterUndoWindow(
-            signedIn: bootstrapper.parentLockerForScreens?.needsSignIn == false, daySent: daySentToParentLocker,
-            closedAt: undo.closedAt, now: Date()
+            signedIn: bootstrapper.parentLockerForScreens?.needsSignIn == false,
+            sendUnsent: bootstrapper.parentLockerForScreens?.closeArrivalSendUnsent == true,
+            daySent: daySentToParentLocker, closedAt: undo.closedAt, now: Date()
         )
         if after == .keepUndo {
             let left = undo.closedAt.addingTimeInterval(Self.unsentUndoLimit).timeIntervalSinceNow
@@ -77,7 +84,53 @@ extension AssistantArrivalBar {
             guard (try? await Task.sleep(for: .seconds(time.timeIntervalSinceNow))) != nil else { return }
             next = prompt(at: max(Date(), time))
         }
-        if next == .now { showingSignIn = true }
+        guard next == .now else { return }
+        // Not over another sheet (the email, a note, the classroom): SwiftUI
+        // shows one at a time, and the sign-in asked for under one never
+        // opened and stayed asked for, so it never asked again (bug hunt
+        // 2026-11-05, #25). It opens once that one has closed.
+        guard await Self.waitWhileAnotherSheetIsUp(isUp: { Self.anotherSheetIsUp() }),
+              !showingSignIn, prompt(at: Date()) == .now else { return }
+        showingSignIn = true
+    }
+
+    /// Waits while `isUp` says another sheet is up, looking again `every`;
+    /// true once none is, false if the wait was cancelled.
+    static func waitWhileAnotherSheetIsUp(
+        every: Duration = .seconds(1), isUp: () -> Bool
+    ) async -> Bool {
+        while isUp() {
+            guard (try? await Task.sleep(for: every)) != nil else { return false }
+        }
+        return !Task.isCancelled
+    }
+
+    /// What `anotherSheetIsUp` reads of one scene: how it stands, and for
+    /// each of its windows whether it shows something over its screens.
+    struct SceneLook: Equatable {
+        let state: UIScene.ActivationState
+        let presenting: [Bool]
+    }
+
+    /// Whether the app's windows show something over its screens: a sheet,
+    /// a full-screen cover, or a question.
+    static func anotherSheetIsUp() -> Bool {
+        anotherSheetIsUp(in: UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.map { scene in
+            SceneLook(
+                state: scene.activationState,
+                presenting: scene.windows.map { $0.rootViewController?.presentedViewController != nil }
+            )
+        })
+    }
+
+    /// Any window of a scene in the foreground, active or becoming so,
+    /// counts, the key window or not: as the app becomes active there may be
+    /// no key window yet, and a sheet up then read as none (review of the
+    /// 2026-11-05 fixes, W11). A scene in the background shows nothing.
+    static func anotherSheetIsUp(in scenes: [SceneLook]) -> Bool {
+        scenes.contains { scene in
+            (scene.state == .foregroundActive || scene.state == .foregroundInactive) && scene.presenting.contains(true)
+        }
     }
 
     /// The sign-in closed. Without a sign-in, it doesn't open by itself again

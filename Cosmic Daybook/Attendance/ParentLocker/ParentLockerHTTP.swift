@@ -60,11 +60,20 @@ nonisolated final class ParentLockerHTTP: ParentLockerTransport {
         if ownsSession { session.invalidateAndCancel() }
     }
 
+    /// How long a request may sit with nothing arriving, and how long any
+    /// one request may take in all (bug hunt 2026-11-05, #7): the defaults
+    /// (60 s and 7 days) outlast Siri. The engine's own retries cover a
+    /// request these end; a timed-out save may still have reached the site.
+    static let requestTimeout: TimeInterval = 20
+    static let resourceTimeout: TimeInterval = 45
+
     /// A session as the transport needs it: `configuration` with its
-    /// cookie, cache and credential handling turned off. The cookies go on
-    /// each request by hand, from the transport's own jar, so one session
-    /// can serve every run.
+    /// cookie, cache and credential handling turned off and the timeouts
+    /// set. The cookies go on each request by hand, from the transport's own
+    /// jar, so one session can serve every run.
     static func makeSession(_ configuration: URLSessionConfiguration = .ephemeral) -> URLSession {
+        configuration.timeoutIntervalForRequest = requestTimeout
+        configuration.timeoutIntervalForResource = resourceTimeout
         configuration.httpShouldSetCookies = false
         configuration.httpCookieStorage = nil
         configuration.httpCookieAcceptPolicy = .never
@@ -103,17 +112,33 @@ nonisolated final class ParentLockerHTTP: ParentLockerTransport {
         let data = try await send(request, label: "page")
         let html = Self.text(of: data)
         guard let courses = ParentLockerCourse.courses(inPage: html) else {
-            throw Self.looksLikeSignIn(html) ? ParentLockerError.signedOut : ParentLockerError.pageChanged
+            throw Self.pageError(html)
         }
         Self.logger.info("ParentLocker: the page lists \(courses.count, privacy: .public) classes")
         return courses
+    }
+
+    /// What a page with no class list means: the sign-in page, signed out;
+    /// a page with no script at all, something in front of the site (a
+    /// maintenance page, an empty reply), to try again later, since the
+    /// attendance page takes attendance in script, however it changes
+    /// (review of the 2026-11-05 fixes, W5); any other, the page changed.
+    /// A maintenance page with script still reads as changed: telling it
+    /// from a rewritten attendance page would mean guessing at its words.
+    static func pageError(_ html: String) -> ParentLockerError {
+        if looksLikeSignIn(html) { return .signedOut }
+        guard html.range(of: "<script", options: .caseInsensitive) != nil else {
+            logger.error("ParentLocker page: the reply wasn't the attendance page")
+            return .unreachable
+        }
+        return .pageChanged
     }
 
     func roster(course: ParentLockerCourse, date: Date) async throws -> ParentLockerRoster {
         let body: [String: ParentLockerJSON] = [
             "action": .string("course_roster"),
             "course_id": .int(course.courseID),
-            "period": .int(course.period),
+            "period": course.periodValue,
             "date": .string(ParentLockerPlanner.dateText(date, calendar: calendar))
         ]
         let reply = try await post(body, label: "roster")
@@ -135,9 +160,11 @@ nonisolated final class ParentLockerHTTP: ParentLockerTransport {
             "date": .string(batch.date)
         ]
         let reply = try ParentLockerSaveReply(reply: try await post(body, label: "save"))
+        // `updated` is only logged: what it counts isn't known (#23).
+        let updated = reply.updatedCount.map(String.init) ?? "unreadable"
         Self.logger.info("""
             ParentLocker: saved \(batch.entries.count, privacy: .public) children, \
-            \(reply.conflicts.count, privacy: .public) conflicts
+            \(reply.conflicts.count, privacy: .public) conflicts, updated \(updated, privacy: .public)
             """)
         return reply
     }
@@ -164,10 +191,15 @@ nonisolated final class ParentLockerHTTP: ParentLockerTransport {
         encoder.outputFormatting = [.sortedKeys]
         request.httpBody = try encoder.encode(body)
         let data = try await send(request, label: label)
-        guard let reply = try? JSONDecoder().decode(ParentLockerJSON.self, from: data), reply.objectValue != nil else {
-            let text = Self.text(of: data)
-            throw Self.looksLikeSignIn(text) ? ParentLockerError.signedOut : ParentLockerError.pageChanged
+        guard let reply = try? JSONDecoder().decode(ParentLockerJSON.self, from: data) else {
+            // Not JSON: the sign-in page, or something in front of the site
+            // (a maintenance page, a proxy's error) to try again later (#22).
+            if Self.looksLikeSignIn(Self.text(of: data)) { throw ParentLockerError.signedOut }
+            Self.logger.error("ParentLocker \(label, privacy: .public): the reply wasn't the site's")
+            throw ParentLockerError.unreachable
         }
+        // JSON of another shape: the page really changed.
+        guard reply.objectValue != nil else { throw ParentLockerError.pageChanged }
         return reply
     }
 
@@ -206,11 +238,13 @@ nonisolated final class ParentLockerHTTP: ParentLockerTransport {
         throw Self.error(forStatus: http.statusCode)
     }
 
-    /// What a reply that isn't a success or a redirect means.
+    /// What a reply that isn't a success or a redirect means: a timeout, too
+    /// many requests or server trouble is "try again later" (bug hunt
+    /// 2026-11-05, #22); anything else, a 404 among them, the page changed.
     static func error(forStatus status: Int) -> ParentLockerError {
         switch status {
         case 401, 403: .signedOut
-        case 500...: .unreachable
+        case 408, 429, 500...: .unreachable
         default: .pageChanged
         }
     }

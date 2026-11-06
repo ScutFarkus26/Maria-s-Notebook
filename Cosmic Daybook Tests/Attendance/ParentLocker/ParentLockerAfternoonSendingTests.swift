@@ -115,17 +115,24 @@ struct ParentLockerAfternoonSendingTests {
 
     @Test("Close Arrival's absence keeps the office's note, and still clears the app's own")
     func automaticAbsenceKeepsOfficeNote() async {
-        var marks = Self.everyonePresent
-        marks[Device.bea] = Self.automatic
-        marks[Device.odile] = Self.automatic
-        let device = Device(site: site, clock: clock, marks: marks)
+        let device = Device(site: site, clock: clock, marks: Self.everyonePresent)
         site.kids[4].comment = "Mom called: dentist at 10"
-        site.kids[3].comment = "Sick"
-        device.sync.closeArrivalSend(on: Device.morning, after: 6)
-        clock.advance(by: 6)
+        // One word the office typed, not the app (review of the 2026-11-05 fixes, W3).
+        site.kids[2].comment = "Sick"
+        // This device sent Odile's reason itself earlier; then her mark was taken back.
+        device.marks([Device.odile: Device.mark(.absent, reason: AbsenceReason.sick.rawValue)])
+        clock.advance(by: ParentLockerSync.localQuiet)
+        await device.sync.runDue()
+        #expect(site.kids[3].comment == "Sick")
+
+        // Close Arrival marks the three of them absent, with no reason.
+        for child in [Device.odile, Device.bea, Device.marisol] { device.store.state.marks[child] = Self.automatic }
+        device.sync.closeArrivalSend(on: clock.now, after: 6)
+        clock.advance(by: 7) // a second after its Undo (#13)
         await device.sync.runDue()
         #expect(site.mark(41004) == "703")
         #expect(site.kids[4].comment == "Mom called: dentist at 10")
+        #expect(site.kids[2].comment == "Sick", "the office's word stays")
         #expect(site.kids[3].comment.isEmpty, "the app's own word from an earlier mark goes")
     }
 

@@ -9,6 +9,49 @@ import UIKit
 // or the app's preferences: the clock, where the sign-in is kept, the list of
 // changes not sent yet, and the iPhone's background-task window.
 
+// MARK: - Everything handed
+
+extension ParentLockerSync {
+    /// Signs in through the site's own form and returns the cookies it set.
+    typealias SignIn = @MainActor (ParentLockerKeychain.Credential, _ site: String) async throws -> [ParentLockerCookie]
+    /// Makes the transport for `site` with `cookies`; `cookiesChanged` hears each change.
+    typealias MakeTransport = @MainActor (
+        _ site: String, _ cookies: [ParentLockerCookie],
+        _ cookiesChanged: @escaping @Sendable ([ParentLockerCookie]) -> Void
+    ) -> any ParentLockerTransport
+
+    /// Everything the sync is handed rather than reaching for.
+    struct Dependencies {
+        var store: any ParentLockerStore
+        var secrets: any ParentLockerSecrets = ParentLockerKeychainSecrets()
+        var makeTransport: MakeTransport = ParentLockerSync.siteTransports()
+        var signIn: SignIn = { credential, site in
+            try await ParentLockerSignIn(site: site).run(credential, showsPagesWhenAsked: false)
+        }
+        var clock: any ParentLockerClock = ParentLockerSystemClock()
+        var policy: ParentLockerSavePolicy = .current
+        var unsent: any ParentLockerUnsentStore = ParentLockerSync.defaultUnsentStore()
+        /// The saved password ParentLocker refused, remembered across launches
+        /// in a build that saves.
+        var refusals: any ParentLockerRefusalStore = ParentLockerSavePolicy.current.allowsSaving
+            ? ParentLockerDefaultsRefusalStore() : ParentLockerMemoryRefusalStore()
+        var background: any ParentLockerBackgroundWork = ParentLockerSystemBackgroundWork()
+        var isInForeground: @MainActor () -> Bool = { ParentLockerAppState.isInForeground() }
+        /// Whether CloudKit imports will come: false for a stack without
+        /// CloudKit, where the catch-up needn't wait for one.
+        var importsExpected = true
+        /// Whether becoming active counts as a return only after
+        /// `returnAbsence` away: on the Mac, which becomes active at every
+        /// switch between apps.
+        #if os(macOS)
+        var returnNeedsAbsence = true
+        #else
+        var returnNeedsAbsence = false
+        #endif
+        var calendar: Calendar = AppCalendar.shared
+    }
+}
+
 // MARK: - Clock
 
 /// What time it is, and a way to wait until a moment. Every wait the sync
@@ -70,7 +113,8 @@ nonisolated struct ParentLockerKeychainSecrets: ParentLockerSecrets {
 /// The children whose marks this device changed and ParentLocker hasn't got
 /// yet, whether the day's whole-class send is still owed, and whether arrival
 /// closed here. Kept across launches so the catch-up on the way back can
-/// send them; only child ids, never names, marks or anything of the sign-in.
+/// send them. Only child ids, ParentLocker's mark ids and the app's own
+/// notes: never names, anyone else's words or anything of the sign-in.
 nonisolated struct ParentLockerUnsent: Codable, Equatable, Sendable {
     /// The day it's for (`AppCalendar.dayID`); another day's is dropped.
     var day: String
@@ -82,12 +126,31 @@ nonisolated struct ParentLockerUnsent: Codable, Equatable, Sendable {
     /// Only that Close Arrival's Undo clears it. Builds before the 2026-10-13
     /// fixes saved no such field, which reads as false.
     var arrivalClosed: Bool
+    /// The whole-class send's kind (`ParentLockerWholeClass.Reason`'s raw
+    /// value: "closeArrival", "sendNow" or "owed"), so it comes back as
+    /// itself (bug hunt 2026-11-05 #2, #16). Builds before then saved none:
+    /// arrival closed here reads as a Close Arrival & Send, as it did.
+    var reason: String?
+    /// What today's saves sent, by child and `course_id`, not yet read back
+    /// (`ParentLockerSync.sending`): a relaunch knows a save whose reply was
+    /// lost for its own (review of the 2026-11-05 fixes, E5).
+    var sent: [UUID: [Int: ParentLockerSentRow]] = [:]
+    /// The notes this device wrote in each child's Notes box today, by
+    /// `course_id` (`ParentLockerSync.ownNotes`, W3). Builds before then
+    /// saved neither: both read as empty.
+    var notes: [UUID: [Int: Set<String>]] = [:]
 
-    init(day: String, children: Set<UUID>, wholeClass: Bool, arrivalClosed: Bool = false) {
+    init(
+        day: String, children: Set<UUID>, wholeClass: Bool, arrivalClosed: Bool = false, reason: String? = nil,
+        sent: [UUID: [Int: ParentLockerSentRow]] = [:], notes: [UUID: [Int: Set<String>]] = [:]
+    ) {
         self.day = day
         self.children = children
         self.wholeClass = wholeClass
         self.arrivalClosed = arrivalClosed
+        self.reason = reason
+        self.sent = sent
+        self.notes = notes
     }
 
     init(from decoder: Decoder) throws {
@@ -96,9 +159,12 @@ nonisolated struct ParentLockerUnsent: Codable, Equatable, Sendable {
         children = try container.decode(Set<UUID>.self, forKey: .children)
         wholeClass = try container.decode(Bool.self, forKey: .wholeClass)
         arrivalClosed = try container.decodeIfPresent(Bool.self, forKey: .arrivalClosed) ?? false
+        reason = try container.decodeIfPresent(String.self, forKey: .reason)
+        sent = try container.decodeIfPresent([UUID: [Int: ParentLockerSentRow]].self, forKey: .sent) ?? [:]
+        notes = try container.decodeIfPresent([UUID: [Int: Set<String>]].self, forKey: .notes) ?? [:]
     }
 
-    var isEmpty: Bool { children.isEmpty && !wholeClass && !arrivalClosed }
+    var isEmpty: Bool { children.isEmpty && !wholeClass && !arrivalClosed && sent.isEmpty && notes.isEmpty }
 }
 
 /// Where `ParentLockerUnsent` is kept.
@@ -138,6 +204,68 @@ nonisolated final class ParentLockerMemoryUnsentStore: ParentLockerUnsentStore {
 
     func save(_ unsent: ParentLockerUnsent?) {
         stored.withLock { $0 = unsent?.isEmpty == false ? unsent : nil }
+    }
+}
+
+/// What's owed, where it's kept, and Siri's Close Arrival with the sync not running.
+extension ParentLockerSync {
+    /// Where what's owed is kept: the app's preferences in a build that
+    /// saves, memory otherwise (`ParentLockerDefaultsUnsentStore`).
+    nonisolated static func defaultUnsentStore() -> any ParentLockerUnsentStore {
+        ParentLockerSavePolicy.current.allowsSaving
+            ? ParentLockerDefaultsUnsentStore() : ParentLockerMemoryUnsentStore()
+    }
+
+    /// Close Arrival & Send made while the class's sync isn't running (Siri,
+    /// with the app launched for the intent alone): the whole-class send is
+    /// kept owed for `day`, with arrival closed, and the sync sends it when
+    /// it starts and is signed in.
+    nonisolated static func oweCloseArrivalSend(on day: Date, in unsent: any ParentLockerUnsentStore) {
+        let id = AppCalendar.dayID(day)
+        var owed = unsent.load().flatMap { $0.day == id ? $0 : nil }
+            ?? ParentLockerUnsent(day: id, children: [], wholeClass: false)
+        owed.wholeClass = true
+        owed.arrivalClosed = true
+        owed.reason = ParentLockerWholeClass.Reason.closeArrival.rawValue
+        unsent.save(owed)
+    }
+
+    /// Siri's undo of a Close Arrival made while the class's sync isn't
+    /// running: the whole-class send kept owed for `day`, and its "arrival
+    /// closed", are taken back, so a later sign-in never sends a reopened
+    /// class (bug hunt 2026-10-13 afternoon, H2).
+    nonisolated static func cancelOwedCloseArrivalSend(on day: Date, in unsent: any ParentLockerUnsentStore) {
+        guard var owed = unsent.load(), owed.day == AppCalendar.dayID(day) else { return }
+        owed.wholeClass = false
+        owed.arrivalClosed = false
+        owed.reason = nil
+        unsent.save(owed.isEmpty ? nil : owed)
+    }
+}
+
+// MARK: - Sign-outs
+
+/// Counts sign-outs, from any thread: a reply that lands after one keeps
+/// none of the cookies it brings, so a session ParentLocker set before the
+/// sign-out doesn't come back (bug hunt 2026-11-05 #25).
+nonisolated final class ParentLockerSignOuts: Sendable {
+    private let count = Mutex(0)
+
+    var current: Int { count.withLock { $0 } }
+
+    /// Runs `body` (a save of cookies) only while no sign-out has come since
+    /// `generation`, under the same lock as `signOut`.
+    func ifNoneSince(_ generation: Int, _ body: () -> Void) {
+        count.withLock { if $0 == generation { body() } }
+    }
+
+    /// A sign-out: `body` (the cookies' delete) runs under the lock, so no
+    /// save slips in between.
+    func signOut(_ body: () -> Void) {
+        count.withLock {
+            $0 += 1
+            body()
+        }
     }
 }
 
@@ -191,6 +319,9 @@ nonisolated final class ParentLockerMemoryRefusalStore: ParentLockerRefusalStore
 /// item 5). On the Mac, and in tests, it does nothing.
 @MainActor
 protocol ParentLockerBackgroundWork: AnyObject {
+    /// A window is held: begun, and neither ended nor ended by iOS (time's
+    /// up), and not refused when asked for.
+    var isHeld: Bool { get }
     func begin()
     func end()
 }
@@ -202,6 +333,11 @@ final class ParentLockerSystemBackgroundWork: ParentLockerBackgroundWork {
     /// The window's identifier, shared with its expiration handler, which
     /// ends it even when this object (and its sync) has gone.
     private let window = Window()
+
+    /// iOS refuses a window (`.invalid`) when the app can't run in the
+    /// background, and ends one whose time is up: neither holds one, so the
+    /// next send asks again (bug hunt 2026-11-05 #21).
+    var isHeld: Bool { window.id != .invalid }
 
     func begin() {
         guard window.id == .invalid else { return }
@@ -232,8 +368,9 @@ final class ParentLockerSystemBackgroundWork: ParentLockerBackgroundWork {
         }
     }
     #else
-    func begin() {}
-    func end() {}
+    private(set) var isHeld = false
+    func begin() { isHeld = true }
+    func end() { isHeld = false }
     #endif
 }
 

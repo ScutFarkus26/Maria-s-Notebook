@@ -20,11 +20,12 @@ struct ParentLockerStatusLine: View {
                     Label {
                         Text(line)
                     } icon: {
-                        Image(systemName: symbol)
+                        Image(systemName: Self.symbol(for: status))
                     }
                     .foregroundStyle(status.isTrouble ? Color.orange : Color.secondary)
                 }
-                ForEach(content.problems, id: \.self) { problem in
+                // By place: two children's lines can read the same (#25).
+                ForEach(Array(content.problems.enumerated()), id: \.offset) { _, problem in
                     Text(problem)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -53,10 +54,11 @@ struct ParentLockerStatusLine: View {
         return Content(line: line, problems: problems)
     }
 
-    private var symbol: String {
+    /// The line's symbol.
+    static func symbol(for status: ParentLockerStatus) -> String {
         switch status.state {
         case .sending: "arrow.up.circle"
-        case .upToDate: "checkmark.circle"
+        case .upToDate: status.problems.isEmpty ? "checkmark.circle" : "exclamationmark.triangle"
         case .signedOut: "person.crop.circle.badge.questionmark"
         case .previewed: "eye"
         default: status.isTrouble ? "exclamationmark.triangle" : "paperplane"

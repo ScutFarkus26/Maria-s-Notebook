@@ -59,7 +59,7 @@ struct ParentLockerFixRoundTests {
         await mac.sync.baselineTask?.value
         #expect(mac.sync.lastSeen[Device.wren] != nil, "the Mac read the class lists before the phone's send")
 
-        clock.advance(by: 4)
+        clock.advance(by: 5) // a second after its Undo (#13)
         await phone.sync.runDue()
         #expect(site.mark(40001) == "703", "the phone's send marks Wren absent")
 
@@ -104,7 +104,7 @@ struct ParentLockerFixRoundTests {
             site: site, clock: clock, secrets: FakeParentLockerSecrets(password: "wrong", cookie: nil), marks: marks
         )
         device.sync.closeArrivalSend(on: Device.morning, after: 6)
-        clock.advance(by: 6)
+        clock.advance(by: 7) // a second after its Undo (#13)
         await device.sync.runDue()
         #expect(device.sync.savedPasswordRefused)
         #expect(device.sync.awaitsSignIn, "the send she just asked for waits for her sign-in")

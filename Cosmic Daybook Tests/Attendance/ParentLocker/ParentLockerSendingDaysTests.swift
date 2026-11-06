@@ -36,7 +36,7 @@ struct ParentLockerSendingDaysTests {
         await device.sync.sendNow(day: Device.morning)
         _ = await device.sync.send(day: Device.morning, preview: false)
         device.sync.closeArrivalSend(on: Device.morning, after: 6)
-        clock.advance(by: 6)
+        clock.advance(by: 7) // a second after its Undo (#13)
         await device.sync.runDue()
         #expect(site.mark(41002) == "702")
         #expect(device.store.recordedSends.count == 1)

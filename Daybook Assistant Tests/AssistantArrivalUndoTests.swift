@@ -34,8 +34,9 @@ struct AssistantArrivalUndoTests {
     }
 
     // Review of the bug-check fixes, D2: on a phone not signed in the Undo
-    // never went.
-    @Test("Not signed in: the Undo goes once the day is sent or after two minutes")
+    // never went. Since the 2026-11-05 bug hunt (#9) it goes before the
+    // guide's backstop sends, not after.
+    @Test("Not signed in: the Undo goes once the day is sent or after 50 seconds")
     func notSignedInUndoEnds() throws {
         typealias Bar = AssistantArrivalBar
         let closedAt = Date(timeIntervalSinceReferenceDate: 800_000_000)
@@ -45,7 +46,7 @@ struct AssistantArrivalUndoTests {
                 == .hideUndo, "the guide's backstop sent the day")
         let limit = closedAt.addingTimeInterval(Bar.unsentUndoLimit)
         #expect(Bar.afterUndoWindow(signedIn: false, closedAt: closedAt, now: limit) == .hideUndo)
-        #expect(Bar.unsentUndoLimit > ParentLockerSync.backstopWait)
+        #expect(Bar.unsentUndoLimit < ParentLockerSync.backstopWait)
         #expect(Bar.afterUndoWindow(signedIn: true, closedAt: closedAt, now: later) == .hideUndo)
     }
 

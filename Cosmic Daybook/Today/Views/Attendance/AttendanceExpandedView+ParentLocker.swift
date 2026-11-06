@@ -90,11 +90,12 @@ extension AttendanceExpandedView {
     }
 
     /// How long until the Undo toast just shown has gone: its own time, after
-    /// any toasts ahead of it, with a second to spare.
+    /// any toasts ahead of it. The sync adds its own second before the send
+    /// (bug hunt 2026-11-05, #13).
     private var undoWindow: TimeInterval {
         let toasts = dependencies.toastService
         let showing = (toasts.currentToast.map { [$0] } ?? []) + toasts.queuedToasts
-        let wait = showing.reduce(0) { $0 + $1.duration + 0.5 } + 1
+        let wait = showing.reduce(0) { $0 + $1.duration + 0.5 }
         return max(ParentLockerSync.closeArrivalUndoWindow, wait)
     }
 

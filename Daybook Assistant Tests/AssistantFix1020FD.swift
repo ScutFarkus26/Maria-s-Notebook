@@ -172,7 +172,9 @@ struct AssistantFix1020FD {
 
     // MARK: - #16: ParentLocker tries again when the network comes back
 
-    @Test("The network coming back runs ParentLocker's return; a move between Wi-Fi and cellular doesn't (#16)",
+    // Since the 2026-11-05 bug hunt (#18) a move between Wi-Fi and cellular
+    // runs it too: a dead Wi-Fi straight to cellular never retried.
+    @Test("The network coming back, or moving between Wi-Fi and cellular, runs ParentLocker's return (#16)",
           .timeLimit(.minutes(1)))
     func networkReturnReachesParentLocker() async throws {
         typealias Path = AssistantNetworkWatch.PathState
@@ -191,23 +193,22 @@ struct AssistantFix1020FD {
         feed.yield(wifi) // the first path only sets the scene
         feed.yield(cellular)
         #expect(await eventually { counts.retries == 1 })
-        try await Task.sleep(for: .milliseconds(300))
-        #expect(counts.returns == 0, "a move between links isn't the network coming back")
+        #expect(await eventually { counts.returns == 1 }, "a move to another usable network reaches ParentLocker")
 
         feed.yield(offline)
         feed.yield(wifi)
         #expect(await eventually { counts.retries == 2 })
-        #expect(await eventually { counts.returns == 1 })
+        #expect(await eventually { counts.returns == 2 })
 
         // Back, then onto cellular within the settle time: one of each.
         feed.yield(offline)
         feed.yield(wifi)
         feed.yield(cellular)
         #expect(await eventually { counts.retries == 3 })
-        #expect(await eventually { counts.returns == 2 })
+        #expect(await eventually { counts.returns == 3 })
         try await Task.sleep(for: .milliseconds(300))
         #expect(counts.retries == 3)
-        #expect(counts.returns == 2)
+        #expect(counts.returns == 3)
     }
 
     // MARK: - #17, #19: Send to ParentLocker

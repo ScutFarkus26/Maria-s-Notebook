@@ -9,9 +9,12 @@ import Foundation
 /// - Here goes as Present, Late as Late, Absent as Absent with only the reason
 ///   picked in the Notes box (Close Arrival's automatic absence with none, so
 ///   the office's note stays), and Left Early as Present (Late when the child
-///   arrived late) with "Left early at 1:30 PM". Unmarked sends nothing, and the Notes box is
-///   written only when there is something to say, or to clear what the app
-///   wrote there for an earlier mark (never anyone else's words).
+///   arrived late) with "Left early at 1:30 PM". Unmarked sends nothing. The
+///   app writes its note only into an empty box or over its own earlier note,
+///   and clears only its own: a parent's or the office's words always stay
+///   (bug hunt 2026-11-05, #10). Its own is what this device wrote for the
+///   child, or its "Left early at 1:30 PM" line, never words that only look
+///   like its own (review of the fixes, W3).
 /// - A child is matched by the stored `parentLockerID`, else by name, and a
 ///   name match counts only when exactly one child fits on both sides. A
 ///   stored "Not matched" (`notMatchedID`) is never matched or sent, and a
@@ -89,7 +92,7 @@ nonisolated enum ParentLockerPlanner {
             return .send(.absent, comment: reasonText(AbsenceReason(rawValue: mark.absenceReasonRaw) ?? .none))
         case .leftEarly:
             let arrivedLate = mark.statusBeforeLeavingRaw == AttendanceStatus.tardy.rawValue
-            let note = mark.leftAt.map { "Left early at \(timeText($0))" } ?? "Left early"
+            let note = mark.leftAt.map { leftEarlyAt + timeText($0) } ?? leftEarly
             return .send(arrivedLate ? .late : .present, comment: note)
         case .unmarked:
             return .nothing
@@ -111,23 +114,56 @@ nonisolated enum ParentLockerPlanner {
         }
     }
 
-    /// Whether a Notes box holds exactly what the app writes there: a
-    /// reason's word ("Sick") or a left-early line ("Left early at 1:30 PM").
-    /// Only such text is cleared when the mark changes to one with nothing to
-    /// say; anyone else's words in the box are left as they are.
-    static func isAppNote(_ comment: String) -> Bool {
+    /// Whether a Notes box holds the app's own note: what this device wrote
+    /// there for the child today (`wrote`), or, with no record, the one form
+    /// nobody else writes, "Left early at " and a time. Words alone don't
+    /// say whose they are: a "Sick" a parent or the office typed is theirs
+    /// (review of the 2026-11-05 fixes, W3). Only the app's own note is
+    /// replaced or cleared; anyone else's words in the box ("Left early for
+    /// the dentist") are left as they are (bug hunt 2026-11-05, #10).
+    static func isAppNote(_ comment: String, wrote: Set<String> = []) -> Bool {
         let text = comment.trimmingCharacters(in: .whitespacesAndNewlines)
-        return text.hasPrefix("Left early") || reasonWords.contains(text)
+        guard !text.isEmpty else { return false }
+        if wrote.contains(text) { return true }
+        guard text.hasPrefix(leftEarlyAt) else { return false }
+        let time = text.dropFirst(leftEarlyAt.count)
+        return time.range(of: appTimePattern, options: .regularExpression) != nil
     }
 
-    /// Every reason's word (a test keeps it in step with `AbsenceReason.given`).
-    private static let reasonWords = Set(
-        [AbsenceReason.sick, .vacation, .appointment, .family, .other].compactMap(reasonText)
-    )
+    /// The times the app has written (W4): "1:30 PM" with AM or PM in any
+    /// case, "a.m." or "p.m.", after a plain space or the system's narrow
+    /// one, or a two-digit 24-hour "13:30" or "09:15". A bare "2:15" is
+    /// someone else's.
+    private static let appTimePattern =
+        #"^(?:(?:0?[1-9]|1[0-2]):[0-5][0-9][ \x{202F}](?i:am|pm|a\.m\.|p\.m\.)|(?:[01][0-9]|2[0-3]):[0-5][0-9])$"#
 
-    /// "1:30 PM", in this device's time zone and locale.
+    /// What goes in the Notes box: `wanted` (the app's note, nil for nothing
+    /// to say) over `current` (the box as ParentLocker holds it), `wrote`
+    /// being what this device wrote there for the child today. The app's
+    /// note goes only into an empty box or over the app's own earlier note;
+    /// with nothing to say, only the app's own note is cleared. Nil leaves the
+    /// box as it is.
+    static func noteToWrite(_ wanted: String?, over current: String, wrote: Set<String> = []) -> String? {
+        let ours = isAppNote(current, wrote: wrote)
+        if let wanted {
+            let empty = current.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            return empty || ours ? wanted : nil
+        }
+        return ours ? "" : nil
+    }
+
+    private static let leftEarly = "Left early"
+    private static let leftEarlyAt = "Left early at "
+
+    /// "1:30 PM", in this device's time zone, always in this form with a
+    /// plain space whatever the device's language or clock, so the app can
+    /// tell its own note later (bug hunt 2026-11-05, #25).
     static func defaultTimeText(_ date: Date) -> String {
-        date.formatted(date: .omitted, time: .shortened)
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "h:mm a"
+        return formatter.string(from: date)
     }
 
     /// The day as ParentLocker writes it: `YYYY-M-D`, no leading zeros.
@@ -179,6 +215,9 @@ nonisolated enum ParentLockerPlanner {
         case locked(currentMark: String?)
         /// The school has no mark of this type: its page changed.
         case noSuchMark(ParentLockerMarkType)
+        /// The roster has no attendance row for the child (null or empty):
+        /// a save would carry no ids (bug hunt 2026-11-05, #12).
+        case noAttendanceRow
     }
 
     /// A child the plan leaves alone, and why.
@@ -204,7 +243,9 @@ nonisolated enum ParentLockerPlanner {
 
     /// Compares `children`'s marks with the rosters and plans the saves.
     /// Matching always looks at every child given; only the children in
-    /// `only` (nil: all of them) are compared and sent.
+    /// `only` (nil: all of them) are compared and sent. `ownNotes`: the notes
+    /// this device wrote in each child's Notes box today, by `course_id`,
+    /// which alone it may replace or clear (`noteToWrite`).
     static func plan(
         children: [Child],
         marks: [UUID: DayMark],
@@ -212,9 +253,10 @@ nonisolated enum ParentLockerPlanner {
         only: Set<UUID>? = nil,
         day: Date,
         calendar: Calendar = AppCalendar.shared,
+        ownNotes: [UUID: [Int: Set<String>]] = [:],
         timeText: (Date) -> String = defaultTimeText
     ) -> Plan {
-        var builder = PlanBuilder()
+        var builder = PlanBuilder(ownNotes: ownNotes)
         let matches = match(children: children, rosters: rosters)
         // Matching gives a ParentLocker child to one notebook child at most;
         // should two ever claim one, neither is sent.
@@ -241,7 +283,7 @@ nonisolated enum ParentLockerPlanner {
             let entries = roster.students.compactMap { student -> Entry? in
                 guard let childID = childByStudentID[student.studentID] else { return nil }
                 let wanted = wanted(for: marks[childID], timeText: timeText)
-                return compare(student, childID: childID, wanted: wanted, marks: roster.marks, into: &builder)
+                return compare(student, childID: childID, wanted: wanted, in: roster, into: &builder)
             }
             guard !entries.isEmpty else { continue }
             builder.batches.append(Batch(
@@ -263,7 +305,7 @@ nonisolated enum ParentLockerPlanner {
         _ student: ParentLockerRosterStudent,
         childID: UUID,
         wanted: Wanted,
-        marks: [ParentLockerMark],
+        in roster: ParentLockerRoster,
         into builder: inout PlanBuilder
     ) -> Entry? {
         switch wanted {
@@ -273,14 +315,19 @@ nonisolated enum ParentLockerPlanner {
             let holdsMark = student.isConfirmed && student.currentMarkID != nil
             builder.skip(childID, holdsMark ? .cantClear(currentMark: student.currentMarkName) : .unmarked)
         case .send(let type, let wantedComment):
-            guard let mark = ParentLockerMark.find(type, in: marks) else {
+            guard student.hasAttendanceRow else {
+                builder.skip(childID, .noAttendanceRow)
+                return nil
+            }
+            guard let mark = ParentLockerMark.find(type, in: roster.marks) else {
                 builder.skip(childID, .noSuchMark(type))
                 return nil
             }
-            // Nothing to say, but the box still holds what the app wrote for
-            // an earlier mark ("Sick" before Late, "Left early at…" before
-            // Back in Class): it's cleared, so the office doesn't read it.
-            let comment = wantedComment ?? (isAppNote(student.comment) ? "" : nil)
+            // The app's note goes into an empty box or over its own earlier
+            // one; with nothing to say, its own earlier note ("Sick" before
+            // Late) is cleared. Anyone else's words stay (`noteToWrite`).
+            let wrote = builder.ownNotes[childID]?[roster.course.courseID] ?? []
+            let comment = noteToWrite(wantedComment, over: student.comment, wrote: wrote)
             let sameMark = student.isConfirmed && student.currentMarkID == mark.id
             if student.isLocked {
                 if sameMark {
@@ -300,8 +347,9 @@ nonisolated enum ParentLockerPlanner {
         return nil
     }
 
-    /// What `plan` gathers as it goes.
+    /// What `plan` gathers as it goes, and the notes it may replace (`plan`'s `ownNotes`).
     private struct PlanBuilder {
+        let ownNotes: [UUID: [Int: Set<String>]]
         var batches: [Batch] = []
         var skipped: [Skip] = []
         var upToDate: Set<UUID> = []

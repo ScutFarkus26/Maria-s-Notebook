@@ -39,7 +39,7 @@ struct ParentLockerAfternoonRetryTests {
         let device = Device(site: site, clock: clock, marks: marks)
         site.failuresLeft = 1
         device.sync.closeArrivalSend(on: Device.morning, after: 6)
-        clock.advance(by: 6)
+        clock.advance(by: 7) // a second after its Undo (#13)
         await device.sync.runDue()
         #expect(device.sync.status.state == .retrying)
 
@@ -61,7 +61,7 @@ struct ParentLockerAfternoonRetryTests {
         let device = Device(site: site, clock: clock, marks: marks)
         site.failuresLeft = 4
         device.sync.closeArrivalSend(on: Device.morning, after: 6)
-        clock.advance(by: 6)
+        clock.advance(by: 7) // a second after its Undo (#13)
         await device.sync.runDue()
         for wait in ParentLockerSync.retryWaits {
             clock.advance(by: wait)

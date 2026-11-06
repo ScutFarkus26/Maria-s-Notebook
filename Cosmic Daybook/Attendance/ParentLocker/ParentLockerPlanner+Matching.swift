@@ -129,12 +129,24 @@ nonisolated extension ParentLockerPlanner {
         return Set(([name, outside] + pieces).map(normalizedName)).subtracting([""])
     }
 
-    /// A name as matching reads it: lowercased, without accents, single-spaced.
+    /// A name as matching reads it: lowercased, without accents,
+    /// single-spaced, a hyphen read as a space ("Ben-David" is "Ben David")
+    /// and a curly apostrophe as a straight one (bug hunt 2026-11-05, #25).
     static func normalizedName(_ name: String) -> String {
-        name.folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: nil)
+        let plain = String(name.map { character -> Character in
+            if hyphens.contains(character) { return " " }
+            if apostrophes.contains(character) { return "'" }
+            return character
+        })
+        return plain.folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: nil)
             .split(whereSeparator: \.isWhitespace)
             .joined(separator: " ")
     }
+
+    /// The hyphen and dash characters a name may carry.
+    private static let hyphens: Set<Character> = ["-", "\u{2010}", "\u{2011}", "\u{2012}", "\u{2013}", "\u{2014}"]
+    /// The apostrophes a name may carry, curly or straight.
+    private static let apostrophes: Set<Character> = ["\u{2018}", "\u{2019}", "\u{02BC}"]
 
     // MARK: - What ParentLocker held
 

@@ -88,7 +88,7 @@ struct ParentLockerAfternoonTimingTests {
         phone.store.state.arrivalClosed = true
         phone.marks([Device.wren: Self.automatic])
         phone.sync.closeArrivalSend(on: clock.now, after: 6)
-        clock.advance(by: 6)
+        clock.advance(by: 7) // a second after its Undo (#13)
         await phone.sync.runDue()
         #expect(site.mark(40001) == "703")
         #expect(site.mark(41002) == "701")
@@ -126,7 +126,7 @@ struct ParentLockerAfternoonTimingTests {
         let mac = Device(site: site, clock: clock, arrivalClosed: false, marks: Self.everyonePresent)
         site.failuresLeft = 1
         phone.sync.closeArrivalSend(on: clock.now, after: 6)
-        clock.advance(by: 6)
+        clock.advance(by: 7) // a second after its Undo (#13)
         await phone.sync.runDue()
         #expect(phone.sync.status.state == .retrying)
 
