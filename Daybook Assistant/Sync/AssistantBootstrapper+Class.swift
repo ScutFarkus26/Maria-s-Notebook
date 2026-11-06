@@ -364,7 +364,7 @@ extension AssistantBootstrapper {
         }
         // View only or not, read again with each share read: the guide can
         // change it (#29).
-        if let classShare { await sharingService?.readPermission(share: classShare) }
+        if let classShare { sharingService?.readPermission(share: classShare) }
         let removed = Self.removedFromClass(
             pinnedShareFound: found,
             sawPinnedShareBefore: AssistantClassroomLocalState.sawShare(inZone: zone),

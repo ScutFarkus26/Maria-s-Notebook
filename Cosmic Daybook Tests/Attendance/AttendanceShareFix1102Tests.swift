@@ -15,14 +15,19 @@ struct AttendanceShareFix1102Tests {
 
     // MARK: - #29 View only
 
-    @Test("View only comes from the store's permission or this participant's, never a failed save")
+    // The store-wide `canModifyManagedObjects(in:)` used to count as View
+    // only too, but a zone a stopped share release left behind flipped it
+    // while the class zone was writable, and an assistant the share let make
+    // changes was told her guide had set View only (2026-11-06). Only the
+    // share's word counts now; no word leaves the last answer standing.
+    @Test("View only is the share's word on this participant, never the store's or a failed save")
     func viewOnlyRule() {
-        let viewOnly = ClassroomSharingService.isViewOnly
-        #expect(viewOnly(false, .readWrite), "Core Data says the store can't be changed")
-        #expect(viewOnly(true, .readOnly), "the guide added her as View only")
-        #expect(!viewOnly(true, .readWrite))
-        #expect(!viewOnly(true, nil), "a share that doesn't say isn't view only")
-        #expect(!viewOnly(true, .unknown))
+        let answer = ClassroomSharingService.viewOnlyAnswer
+        #expect(answer(.readOnly) == true, "the guide added her as View only")
+        #expect(answer(.readWrite) == false, "even while the store-wide answer says no")
+        #expect(answer(nil) == nil, "a share that doesn't say leaves the last answer")
+        #expect(answer(.unknown) == nil)
+        #expect(answer(CKShare.ParticipantPermission.none) == nil)
     }
 
     @Test("A View only assistant can't mark; the guide still can")

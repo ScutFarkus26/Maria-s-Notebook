@@ -219,40 +219,35 @@ final class ClassroomSharingService {
         let found = CDClassroomMembership.classroomShare(among: shares, in: context)
         publishShare(found)
         publishParticipants(of: found)
-        if let found { await readPermission(share: found) }
+        if let found { readPermission(share: found) }
     }
 
     // MARK: - View only
 
-    /// Whether the guide added this account as View only, after joining and
-    /// with each share read: from `canModifyManagedObjects(in:)` and this
-    /// account's place in the share, never from a failed save. Assistants only.
-    /// `share` is the one just read; without it, `currentShare`, which is
-    /// refreshed only on joining or while nil, so a change the guide made
-    /// went unread until a relaunch (bug hunt 2026-11-03 #12).
-    func readPermission(share: CKShare? = nil) async {
-        guard currentRole == .assistant, let storeID = sharedStore?.identifier else { return }
-        let canModify = await Self.canModifyObjects(inStoreWithIdentifier: storeID, container: container)
+    /// Whether the guide added this account as View only, read after joining
+    /// and with each share read, never from a failed save. Assistants only.
+    /// `share` is the one just read; without it, `currentShare`, refreshed
+    /// only on joining or while nil (a guide's change went unread until a
+    /// relaunch, bug hunt 2026-11-03 #12). No word: the last answer stands.
+    func readPermission(share: CKShare? = nil) {
+        guard currentRole == .assistant else { return }
         let permission = (share ?? currentShare)?.currentUserParticipant?.permission
-        noteViewOnly(Self.isViewOnly(canModifyStore: canModify, participantPermission: permission))
+        guard let viewOnly = Self.viewOnlyAnswer(participantPermission: permission) else { return }
+        noteViewOnly(viewOnly)
     }
 
-    /// Core Data's answer, off the main actor; true for a store that's gone.
-    @concurrent
-    nonisolated static func canModifyObjects(
-        inStoreWithIdentifier storeID: String,
-        container: NSPersistentCloudKitContainer
-    ) async -> Bool {
-        let stores = container.persistentStoreCoordinator.persistentStores
-        guard let store = stores.first(where: { $0.identifier == storeID }) else { return true }
-        return container.canModifyManagedObjects(in: store)
-    }
-
-    /// View only: the store can't be changed, or the share says read-only.
-    nonisolated static func isViewOnly(
-        canModifyStore: Bool, participantPermission: CKShare.ParticipantPermission?
-    ) -> Bool {
-        !canModifyStore || participantPermission == .readOnly
+    /// The share's word on this participant: true for View only, false for
+    /// "can make changes", nil when it doesn't say (`.none`, `.unknown`).
+    /// `canModifyManagedObjects(in:)` used to count too, but it speaks for
+    /// every zone in the shared store: a zone a stopped share release left
+    /// behind said no while the class zone was writable, and an assistant
+    /// the share let make changes was told "View only" (2026-11-06).
+    nonisolated static func viewOnlyAnswer(participantPermission: CKShare.ParticipantPermission?) -> Bool? {
+        switch participantPermission {
+        case .some(.readOnly): true
+        case .some(.readWrite): false
+        default: nil
+        }
     }
 
     /// What `readPermission` found; false when she leaves (here or elsewhere).
