@@ -57,8 +57,6 @@ Scripts/locked_xcodebuild.sh -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic
 # Trash as a zip (an app bundle there gets registered again), and drops dead LaunchServices registrations.
 # Run it after merging to main.
 # Schema 21 not rolled out yet (2026-10-25): don't run this until the Hebrew birthdays roll-out row in Tide is done.
-# Schema 24 not deployed yet (2026-11-04): don't run this until schema 24 is deployed to CloudKit Production (the
-# round-two Simplify Release row in Tide); a schema-24 copy would lock the installed one out of its store.
 Scripts/install_release.sh
 
 # Archive the Daybook Assistant (iPhone-only, portrait) for TestFlight: the checkout's last commit, with a

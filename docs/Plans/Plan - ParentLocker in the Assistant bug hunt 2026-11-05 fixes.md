@@ -1,6 +1,6 @@
 # ParentLocker in the Assistant: fixes from the 2026-11-05 bug hunt
 
-> **Working on it.** Written 2026-11-05 from <../Reviews/ParentLocker in the Assistant bug hunt 2026-11-05.md>, with Danny's answers to four questions and an Opus plan review (13 points, all taken).
+> **Done 2026-11-06** (183ce64d9). Written 2026-11-05 from <../Reviews/ParentLocker in the Assistant bug hunt 2026-11-05.md>, with Danny's answers to four questions and an Opus plan review (13 points, all taken).
 > In short: fix all 25 findings in how the Assistant (and the notebook, through the shared engine) updates ParentLocker attendance, so a class on bad Wi-Fi always goes and is recorded, then land on main and, once schema 24 is in CloudKit Production, send both apps to TestFlight.
 
 ## Goal
@@ -19,7 +19,10 @@ On weak school Wi-Fi, Close Arrival & Send always reaches ParentLocker in the en
   - **Landed:** squashed to main as 183ce64d9 (pushed); the history is on `claude/daybook-parentlocker-attendance-880b8b-unsquashed`.
   - **Checked:** four builds clean (notebook iOS and macOS, Assistant Debug and Release; the only warnings are older type-check timings and one 11-03 Release warning in `AssistantSampleClass.swift`). Whole suites: notebook **4,798 tests in 787 suites**, Assistant **614 tests in 86 suites**, all passing. Nothing checked on a device yet (Phase 3's Tide rows).
   - **Board:** not updated; the board is in Danny's other claude.ai organization and this session can't reach it. The plan's `/close-out` step isn't available here, so its parts were done by hand.
-- [ ] Phase 3: Roll out both apps, the Assistant into the Assistants group, once schema 24 is in CloudKit Production (session: same as Phase 2, or fresh later) · est. ~1–2% weekly
+- [x] Phase 3: Roll out both apps, the Assistant into the Assistants group, once schema 24 is in CloudKit Production (session: same as Phase 2) · est. ~1–2% weekly · started at 51% · cost ~1% (51→52)
+  - **Schema 24:** the signed-in simulator used for earlier `-InitializeCloudKitSchema` runs is gone, and a Mac Debug run is ruled out, so with Danny's OK the field was added by hand in the CloudKit Console's Development schema (`CD_WorkCheckIn.CD_durationMinutes`, Int(64), as Core Data maps an Integer 16) and deployed to Production. The deploy's diff against Production was that one line. Its Queryable/Sortable indexes were left off (sync never queries on it; they can be added later). Tide's Release row is ticked.
+  - **Uploads from origin/main 8a28e082e:** Cosmic Daybook 1.1 (300000000039) for iPhone/iPad and Mac, processed, internal group only; Daybook Assistant 1.1 (032) in the **Assistants** group with the approved What to Test note, status Testing (3 invites).
+  - The roll-out page and the build board are in Danny's other claude.ai organization and weren't updated from here. Device checks: the five Tide rows above.
 
 ## Device checks (in Tide)
 - [A late arrival after Close Arrival & Send on school Wi-Fi still lands and reads as sent](<tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=On%20my%20assistant%27s%20phone%20on%20school%20Wi-Fi%2C%20do%20Close%20Arrival%20%26%20Send%2C%20then%20mark%20a%20late%20arrival%2C%20and%20check%20the%20class%20lands%20in%20ParentLocker%20and%20reads%20as%20sent%20on%20every%20device>)
