@@ -23,6 +23,19 @@ nonisolated enum AttendanceDeduplication {
         !record.statusRaw.isEmpty && record.statusRaw != AttendanceStatus.unmarked.rawValue
     }
 
+    /// Whether Close Arrival marks the child whose day `record` is (nil: no
+    /// record yet) absent: nothing marked, read from the raw value, so a
+    /// status a newer build added isn't taken for unmarked and overwritten.
+    /// Close Arrival, its counts on the Assistant's grid and Siri's "Mark the
+    /// 3 unmarked children absent?" all go by this one rule, with the child's
+    /// id (`AttendanceRow.closeArrivalMarks`): Siri and the grid counted such
+    /// a child as unmarked while Close Arrival left her, so Siri said "3" and
+    /// marked 2, and Mark N Absent & Email never opened the email (bug hunt
+    /// 2026-11-06, #11).
+    static func closeArrivalMarks(_ record: CDAttendanceRecord?) -> Bool {
+        record.map { !isMarked($0) } ?? true
+    }
+
     /// Whether `candidate` beats `incumbent` for the same (student, day):
     /// a marked record beats an unmarked one, then a real mark beats Close
     /// Arrival's automatic absence (the device that closed arrival hadn't

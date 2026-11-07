@@ -262,7 +262,8 @@ struct AssistantAttendanceView: View {
         let model = AssistantAttendanceViewModel(
             context: coreDataStack.viewContext,
             container: isSample ? nil : coreDataStack.container,
-            defaults: isSample ? AssistantSampleClass.defaults : .standard
+            defaults: isSample ? AssistantSampleClass.defaults : .standard,
+            isSampleClass: isSample
         )
         model.load()
         viewModel = model

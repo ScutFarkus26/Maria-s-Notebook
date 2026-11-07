@@ -60,8 +60,7 @@ enum AttendanceLatePhase {
     ) -> Bool {
         let anywhere = closedAnywhere()
         if isLate(on: day, defaults: defaults) { return true }
-        let reopened = days(reopenedKey, defaults).contains { Calendar.current.isDate($0, inSameDayAs: day) }
-        return !reopened && anywhere
+        return !isReopened(on: day, defaults: defaults) && anywhere
     }
 
     /// Whether arrival reads as closed on `day` from that day's `records`
@@ -160,6 +159,12 @@ enum AttendanceLatePhase {
         save(lateDays(defaults), with: day, included: false, key: key, defaults: defaults)
         defaults.removeObject(forKey: singleDayKey)
         save(days(reopenedKey, defaults), with: day, included: true, key: reopenedKey, defaults: defaults)
+    }
+
+    /// Whether arrival was reopened on `day` here (`reopen`) and not
+    /// closed again since.
+    static func isReopened(on day: Date, defaults: UserDefaults = .standard) -> Bool {
+        days(reopenedKey, defaults).contains { Calendar.current.isDate($0, inSameDayAs: day) }
     }
 
     /// Forgets every day: leaving the class, or the Sample Class.

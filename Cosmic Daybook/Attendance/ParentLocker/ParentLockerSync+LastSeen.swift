@@ -99,9 +99,11 @@ extension ParentLockerSync {
                 ownNotes[entry.childID, default: [:]][courseID, default: []].insert(note)
             }
         }
+        // Noted before it's saved with what's owed, so a relaunch knows it (#4).
+        let firstClass = wholeClass && !closeArrivalBatchSent
+        if firstClass { closeArrivalBatchSent = true }
         saveOwed()
-        guard wholeClass, !closeArrivalBatchSent else { return }
-        closeArrivalBatchSent = true
+        guard firstClass else { return }
         refreshCloseArrivalUnsent()
     }
 
@@ -192,7 +194,8 @@ extension ParentLockerSync {
             arrivalClosed: arrivalClosedHere,
             reason: wholeClass?.rawValue,
             sent: sending,
-            notes: ownNotes
+            notes: ownNotes,
+            batchSent: closeArrivalBatchSent
         ))
     }
 
@@ -213,6 +216,11 @@ extension ParentLockerSync {
         arrivalClosedHere = saved.arrivalClosed
         sending = saved.sent
         ownNotes = saved.notes
+        // Kept with what's owed: in memory alone it was false after every
+        // relaunch, and Siri's Undo of a half-sent Close Arrival said only
+        // "Arrival is open again" (bug hunt 2026-11-06, #4).
+        closeArrivalBatchSent = saved.batchSent
+        defer { refreshCloseArrivalUnsent() }
         guard saved.wholeClass, wholeClass == nil else { return }
         let reason = saved.reason.flatMap(ParentLockerWholeClass.Reason.init(rawValue:))
             ?? (saved.arrivalClosed ? .closeArrival : .owed)

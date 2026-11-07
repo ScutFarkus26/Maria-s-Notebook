@@ -43,7 +43,9 @@ struct CloseArrivalIntent: AppIntent {
         let count = try await SiriAttendance.plainly("closing arrival") {
             try await AssistantSiriCommands.closeArrival(session)
         }
-        let parentLocker = await AssistantSiriCommands.sendAfterClose(session, sync: ParentLockerSync.current)
+        let parentLocker = await AssistantSiriCommands.sendAfterClose(
+            session, marked: count, sync: ParentLockerSync.current
+        )
         let full = AssistantSiriCommands.closedDialog(marked: count, parentLocker: parentLocker)
         if count == 0 {
             return .result(dialog: "\(full)")

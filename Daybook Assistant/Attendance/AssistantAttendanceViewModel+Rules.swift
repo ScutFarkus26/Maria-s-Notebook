@@ -13,9 +13,9 @@ extension AssistantAttendanceViewModel {
     }
 
     /// The children still unmarked, by the names on their tiles: Close
-    /// Arrival's list.
+    /// Arrival's list, by its own rule (`AttendanceRow.closeArrivalMarks`).
     var unmarkedNames: [String] {
-        rows.filter { $0.status == .unmarked }.map(\.shortName)
+        rows.filter(\.closeArrivalMarks).map(\.shortName)
     }
 
     /// Whether the bar offers Close Arrival (someone still unmarked) or shows

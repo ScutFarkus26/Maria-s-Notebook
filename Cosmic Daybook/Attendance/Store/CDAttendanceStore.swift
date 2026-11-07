@@ -376,8 +376,7 @@ struct CDAttendanceStore { // swiftlint:disable:this type_body_length
         let now = Date()
         var changed: [CDAttendanceRecord] = []
         // As in `markUnmarkedAbsent`: a status this build doesn't know isn't unmarked.
-        for rec in try ensureRecords(for: students, on: date)
-        where rec.status == .unmarked && (rec.statusRaw.isEmpty || AttendanceStatus(rawValue: rec.statusRaw) != nil) {
+        for rec in try ensureRecords(for: students, on: date) where AttendanceDeduplication.closeArrivalMarks(rec) {
             mark(rec, as: .present, at: now)
             changed.append(rec)
         }
@@ -394,9 +393,9 @@ struct CDAttendanceStore { // swiftlint:disable:this type_body_length
         let now = Date()
         var changed: [CDAttendanceRecord] = []
         // A status this build doesn't know (a newer build's) reads as
-        // unmarked but isn't: leave it rather than overwrite it with absent.
-        for rec in try ensureRecords(for: students, on: date)
-        where rec.status == .unmarked && (rec.statusRaw.isEmpty || AttendanceStatus(rawValue: rec.statusRaw) != nil) {
+        // unmarked but isn't: leave it rather than overwrite it with absent
+        // (`AttendanceDeduplication.closeArrivalMarks`, the grid's and Siri's rule too).
+        for rec in try ensureRecords(for: students, on: date) where AttendanceDeduplication.closeArrivalMarks(rec) {
             mark(rec, as: .absent, at: now)
             // Loses a duplicate to any real mark (`AttendanceDeduplication.wins`).
             rec.absenceReasonRaw = AttendanceDeduplication.automaticAbsenceRaw

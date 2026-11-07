@@ -45,7 +45,11 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
     /// import, which reloads.
     var pickupEdits = 0
 
-    var unmarkedCount: Int { rows.count { $0.status == .unmarked } }
+    /// The children still to mark: those Close Arrival would mark absent
+    /// (`AttendanceRow.closeArrivalMarks`). A child with no id, or a status
+    /// a newer build added, shows unmarked but isn't counted, as Siri
+    /// doesn't count her (bug hunt 2026-11-06, #11).
+    var unmarkedCount: Int { rows.count(where: \.closeArrivalMarks) }
     /// How much of the class is in the room (late counts, left early
     /// doesn't), 0 to 1: the Cosmic background's stars.
     var hereFraction: Double {
@@ -139,15 +143,20 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
     /// The calendar day the screen was last shown on, by `now`: a return
     /// after the day has turned goes to today (`reloadAfterAway`).
     @ObservationIgnored private var shownOn: Date
+    /// The Sample Class is open: its one in-memory store has no imports to
+    /// follow, so a Siri mark loads the day itself (`siriChanged`).
+    private let isSampleClass: Bool
 
     init(
         context: NSManagedObjectContext,
         container: NSPersistentCloudKitContainer?,
         date: Date = Date(),
         defaults: UserDefaults = .standard,
+        isSampleClass: Bool = false,
         now: @escaping () -> Date = Date.init
     ) {
         self.context = context
+        self.isSampleClass = isSampleClass
         self.container = container
         self.defaults = defaults
         self.now = now
@@ -218,7 +227,12 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
     /// show, waits for the app's return while it's away (Siri over the app,
     /// or in the background), and isn't loaded while another tab is showing,
     /// whose return to this one loads it (bug hunt 2026-11-03, #6).
+    ///
+    /// In the Sample Class it loads now: the import listener that tells the
+    /// screen on show from one away never starts there, so Siri's marks
+    /// never showed on an open grid (bug hunt 2026-11-06, #12).
     func siriChanged() {
+        if isSampleClass { return load() }
         importReloader?.changeArrived()
     }
 
@@ -241,6 +255,12 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
     /// attendance, and the guide hasn't locked the day. Worked out once per
     /// load; every tile reads it on every redraw.
     private(set) var canMark = false
+
+    /// Whether this phone may write attendance at all: false while the guide
+    /// has her as View only, whatever the day. Its saves would stay on the
+    /// phone, so the front desk's email and ParentLocker's sends aren't
+    /// offered either (bug hunt 2026-11-06, #6). Worked out once per load.
+    private(set) var roleMayWrite = false
 
     /// Everyone's names as the classroom's list has them, read once per load
     /// (an import reloads, so a rename on another device shows), for who
@@ -296,7 +316,8 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
         loadGeneration &+= 1
         isLocked = store.isLocked(date)
         // The lock just read, not read again by `canWrite(on:)` (#23).
-        canMark = store.roleMayWrite && !isLocked
+        roleMayWrite = store.roleMayWrite
+        canMark = roleMayWrite && !isLocked
         frontDesk.load(date)
         refreshNames()
 
@@ -468,19 +489,39 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
     }
 
     /// Whether Mark N Absent & Email may open the email after its close:
-    /// only once arrival has closed with nobody on the grid left unmarked. A
+    /// only once arrival has closed with nobody on the roll left unmarked. A
     /// close that failed (a save refused, the day locked meanwhile) opened it
     /// anyway, and the email left out the children still unmarked (bug hunt
     /// 2026-10-20, #4). When it may not, the line above the grid says why:
     /// the lock, the failed save, or that the email didn't open.
+    ///
+    /// Judged by what the store holds, by Close Arrival's own rule: the
+    /// grid's rows said "unmarked" for a child Close Arrival can't mark (no
+    /// id, a newer build's status), and for one another device marked in the
+    /// second before her yes, so the email never opened and the error said
+    /// the close had failed (bug hunt 2026-11-06, #11). Such a child's tile,
+    /// still showing her as unmarked, is brought up to date.
     func emailCanFollowClose() -> Bool {
-        guard phase == .late, !rows.contains(where: { !$0.studentIsGone && $0.status == .unmarked }) else {
+        guard phase == .late, !storeHasChildToClose() else {
             if saveError == nil, !isLocked {
                 saveError = "Couldn't mark everyone absent, so the email didn't open. Try again."
             }
             return false
         }
+        if rows.contains(where: { !$0.studentIsGone && $0.closeArrivalMarks }) { load() }
         return true
+    }
+
+    /// Whether a child on the grid is still one Close Arrival would mark, by
+    /// the day's records as the store holds them now (an unreadable day
+    /// counts as yes).
+    private func storeHasChildToClose() -> Bool {
+        guard let records = try? store.loadRecords(for: date).deduplicatedPerStudentDay() else { return true }
+        let byStudent = Dictionary(records.map { ($0.studentID, $0) }, uniquingKeysWith: { first, _ in first })
+        return rows.contains { row in
+            guard !row.studentIsGone, let id = row.student.id?.uuidString else { return false }
+            return AttendanceDeduplication.closeArrivalMarks(byStudent[id])
+        }
     }
 
     /// Closes arrival: every child still unmarked is marked absent. Returns

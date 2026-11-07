@@ -74,7 +74,7 @@ struct AssistantParentLockerAfternoonTests {
         ParentLockerTestSettings.pick(.parentLocker, in: context)
         let siri = SiriAttendance(stack: stack, role: .assistant, today: today)
         let sync = FakeParentLockerSender(isSignedIn: true, passwordRefused: true)
-        #expect(await AssistantSiriCommands.sendAfterClose(siri, sync: sync) == .notSignedIn)
+        #expect(await AssistantSiriCommands.sendAfterClose(siri, marked: 1, sync: sync) == .notSignedIn)
         #expect(sync.sentDays.isEmpty, "a refused password is never tried again by itself")
         #expect(sync.closedDays == [siri.today])
     }

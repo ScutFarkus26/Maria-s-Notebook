@@ -12,10 +12,14 @@ extension AssistantFrontDesk {
     /// The guide picked ParentLocker as the way attendance goes.
     var sendsToParentLocker: Bool { settings?.sendMethod == .parentLocker }
 
-    /// Whether the bar shows the ParentLocker line: ParentLocker picked, and
-    /// the day has a class that has arrived (not a day off or a day ahead).
+    /// Whether the bar shows the ParentLocker line: ParentLocker picked, the
+    /// day has a class that has arrived (not a day off or a day ahead), and
+    /// this phone isn't View only. A View-only phone's Send to ParentLocker
+    /// and Send Now went, but the send record it saved never left the phone
+    /// (bug hunt 2026-11-06, #6). So `offersParentLockerSend` is off too.
     func offersParentLocker(by viewModel: AssistantAttendanceViewModel) -> Bool {
-        sendsToParentLocker && viewModel.dayOff == nil && !viewModel.rows.isEmpty && !viewModel.isFuture
+        sendsToParentLocker && viewModel.roleMayWrite && viewModel.dayOff == nil && !viewModel.rows.isEmpty
+            && !viewModel.isFuture
     }
 
     /// Whether the line offers Send to ParentLocker: today, everyone's
@@ -121,11 +125,18 @@ extension AssistantSiriCommands {
     /// Siri waits for the send `waitsAtMost` (`siriSendWait`), then answers
     /// that it's on its way (#7). The send runs in a task of its own that
     /// the wait never cancels, and the sync records the day when it lands.
+    ///
+    /// `marked`: how many children the close marked absent. A close that
+    /// marked no one (everyone was marked, after a Reopen Arrival) sends
+    /// nothing, as the bar's doesn't (`AssistantArrivalBar.sendsOnClose`):
+    /// it sent the whole class again as a first Close Arrival & Send, over
+    /// what the office had changed since (bug hunt 2026-11-06, #2).
     static func sendAfterClose(
-        _ session: SiriAttendance, sync: (any AssistantParentLockerSending)?,
+        _ session: SiriAttendance, marked: Int, sync: (any AssistantParentLockerSending)?,
         unsent: any ParentLockerUnsentStore = ParentLockerSync.defaultUnsentStore(),
         waitsAtMost wait: Duration = siriSendWait
     ) async -> AssistantParentLockerAfterClose {
+        guard marked > 0 else { return .notPicked }
         // Siri marks the real class unless the app was launched into the
         // sample (`AssistantStack`), whatever the join screen has open.
         guard !AssistantSampleClass.isRequested,

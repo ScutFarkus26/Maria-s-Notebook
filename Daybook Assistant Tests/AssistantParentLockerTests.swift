@@ -247,7 +247,7 @@ extension AssistantSiriTests {
         let (siri, day) = try await Self.closedClass(.parentLocker)
         defer { Self.forgetClose(on: day) }
         let sync = FakeParentLockerSender()
-        let outcome = await AssistantSiriCommands.sendAfterClose(siri, sync: sync)
+        let outcome = await AssistantSiriCommands.sendAfterClose(siri, marked: 1, sync: sync)
         #expect(outcome == .sent)
         #expect(sync.sentDays == [siri.today])
         #expect(AssistantSiriCommands.closedDialog(marked: 2, parentLocker: outcome)
@@ -259,7 +259,7 @@ extension AssistantSiriTests {
         let (siri, day) = try await Self.closedClass(.parentLocker)
         defer { Self.forgetClose(on: day) }
         let sync = FakeParentLockerSender(isSignedIn: false)
-        let outcome = await AssistantSiriCommands.sendAfterClose(siri, sync: sync)
+        let outcome = await AssistantSiriCommands.sendAfterClose(siri, marked: 1, sync: sync)
         #expect(outcome == .notSignedIn)
         #expect(sync.sentDays.isEmpty)
         #expect(AssistantSiriCommands.closedDialog(marked: 2, parentLocker: outcome)
@@ -272,7 +272,7 @@ extension AssistantSiriTests {
         let (siri, day) = try await Self.closedClass(.parentLocker)
         defer { Self.forgetClose(on: day) }
         let sync = FakeParentLockerSender(isSignedIn: false)
-        #expect(await AssistantSiriCommands.sendAfterClose(siri, sync: sync) == .notSignedIn)
+        #expect(await AssistantSiriCommands.sendAfterClose(siri, marked: 1, sync: sync) == .notSignedIn)
         #expect(sync.closedDays == [siri.today])
         #expect(sync.undoWindows == [0], "Siri offers no Undo")
         #expect(sync.sentDays.isEmpty)
@@ -285,7 +285,7 @@ extension AssistantSiriTests {
         let unsent = ParentLockerMemoryUnsentStore(ParentLockerUnsent(
             day: AppCalendar.dayID(siri.today), children: [UUID()], wholeClass: false
         ))
-        #expect(await AssistantSiriCommands.sendAfterClose(siri, sync: nil, unsent: unsent) == .notSentYet)
+        #expect(await AssistantSiriCommands.sendAfterClose(siri, marked: 1, sync: nil, unsent: unsent) == .notSentYet)
         let owed = try #require(unsent.load())
         #expect(owed.day == AppCalendar.dayID(siri.today))
         #expect(owed.wholeClass)
@@ -303,7 +303,7 @@ extension AssistantSiriTests {
             Self.forgetClose(on: day)
         }
         let sync = FakeParentLockerSender()
-        #expect(await AssistantSiriCommands.sendAfterClose(siri, sync: sync) == .sent)
+        #expect(await AssistantSiriCommands.sendAfterClose(siri, marked: 1, sync: sync) == .sent)
         #expect(sync.sentDays == [siri.today])
     }
 
@@ -318,11 +318,11 @@ extension AssistantSiriTests {
             (.passwordRefused, .notSignedIn), (.pageChanged, .pageChanged)
         ]
         for (state, expected) in ends {
-            let outcome = await AssistantSiriCommands.sendAfterClose(siri, sync: FakeParentLockerSender(endsOn: state))
+            let outcome = await AssistantSiriCommands.sendAfterClose(siri, marked: 1, sync: FakeParentLockerSender(endsOn: state))
             #expect(outcome == expected, "after \(state)")
         }
-        #expect(await AssistantSiriCommands.sendAfterClose(siri, sync: nil) == .notSentYet)
-        #expect(await AssistantSiriCommands.sendAfterClose(siri, sync: FakeParentLockerSender(endsOn: .previewed))
+        #expect(await AssistantSiriCommands.sendAfterClose(siri, marked: 1, sync: nil) == .notSentYet)
+        #expect(await AssistantSiriCommands.sendAfterClose(siri, marked: 1, sync: FakeParentLockerSender(endsOn: .previewed))
             == .previewed)
         #expect(AssistantSiriCommands.closedDialog(marked: 1, parentLocker: .notSentYet)
             == "Arrival is closed. 1 child is marked absent. Attendance hasn't gone to ParentLocker yet. "
@@ -334,7 +334,7 @@ extension AssistantSiriTests {
         let (siri, day) = try await Self.closedClass(.email)
         defer { Self.forgetClose(on: day) }
         let sync = FakeParentLockerSender()
-        let outcome = await AssistantSiriCommands.sendAfterClose(siri, sync: sync)
+        let outcome = await AssistantSiriCommands.sendAfterClose(siri, marked: 1, sync: sync)
         #expect(outcome == .notPicked)
         #expect(sync.sentDays.isEmpty)
         #expect(AssistantSiriCommands.closedDialog(marked: 2, parentLocker: outcome)

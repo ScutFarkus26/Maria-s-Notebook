@@ -99,7 +99,7 @@ extension AssistantSiriTests {
         let sync = closed.sync(
             over: Fix1105SlowTransport(inner: FixRoundTransport(site: site), gate: gate), recorded: recorded
         )
-        #expect(await AssistantSiriCommands.sendAfterClose(closed.siri, sync: sync, waitsAtMost: .milliseconds(100))
+        #expect(await AssistantSiriCommands.sendAfterClose(closed.siri, marked: 1, sync: sync, waitsAtMost: .milliseconds(100))
             == .onItsWay)
         #expect(await Self.fix1105DEventually { gate.waiting })
         // As the engine says it from the moment the send was taken to run.
@@ -186,7 +186,7 @@ extension AssistantSiriTests {
         let site = Fix1105DTwoClassSite()
         let sync = closed.sync(over: Fix1105DTwoClassTransport(site: site))
 
-        let outcome = await AssistantSiriCommands.sendAfterClose(closed.siri, sync: sync)
+        let outcome = await AssistantSiriCommands.sendAfterClose(closed.siri, marked: 1, sync: sync)
         #expect(site.saves.map(\.course.courseID) == [Fix1105DTwoClassSite.ariClass.courseID])
         #expect(outcome == .partlySent(.retrying))
         #expect(!AssistantSiriCommands.closedDialog(marked: 1, parentLocker: outcome)

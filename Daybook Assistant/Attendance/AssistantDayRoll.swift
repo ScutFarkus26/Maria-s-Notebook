@@ -72,6 +72,12 @@ enum AssistantDayRoll {
 
     /// Siri's day: today's roll, the children on it with no mark yet, and
     /// those marked absent.
+    ///
+    /// "No mark yet" is Close Arrival's rule, as on the grid
+    /// (`AttendanceRow.closeArrivalMarks`): a child with no id, or with a
+    /// status a newer build added, isn't one Close Arrival marks, so she
+    /// isn't counted. Siri used to ask "Mark the 3 unmarked children
+    /// absent?" and mark 2 (bug hunt 2026-11-06, #11).
     static func today(
         in session: SiriAttendance
     ) throws -> (roll: [CDStudent], unmarked: [CDStudent], absent: [CDStudent]) {
@@ -81,11 +87,14 @@ enum AssistantDayRoll {
             recordStudentIDs: Set(records.map(\.studentID)),
             in: session.context
         )
-        let marked = Set(records.filter { $0.status != .unmarked }.map(\.studentID))
+        let byStudent = Dictionary(records.map { ($0.studentID, $0) }, uniquingKeysWith: { first, _ in first })
         let absent = Set(records.filter { $0.status == .absent }.map(\.studentID))
         return (
             roll,
-            roll.filter { !marked.contains($0.id?.uuidString ?? "") },
+            roll.filter { student in
+                guard let id = student.id?.uuidString else { return false }
+                return AttendanceDeduplication.closeArrivalMarks(byStudent[id])
+            },
             roll.filter { absent.contains($0.id?.uuidString ?? "") }
         )
     }

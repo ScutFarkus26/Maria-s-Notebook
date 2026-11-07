@@ -232,7 +232,7 @@ extension AssistantSiriTests {
         sync.refreshSignIn()
 
         // ParentLocker holds the save; Siri answers once its wait is up.
-        let outcome = await AssistantSiriCommands.sendAfterClose(siri, sync: sync, waitsAtMost: .milliseconds(200))
+        let outcome = await AssistantSiriCommands.sendAfterClose(siri, marked: 1, sync: sync, waitsAtMost: .milliseconds(200))
         #expect(outcome == .onItsWay)
         #expect(AssistantSiriCommands.closedDialog(marked: 1, parentLocker: outcome)
             == "Arrival is closed. 1 child is marked absent. Attendance is on its way to ParentLocker.")
@@ -263,7 +263,7 @@ extension AssistantSiriTests {
         let siri = SiriAttendance(stack: stack, role: .assistant, today: day.addingTimeInterval(9 * 3_600))
         #expect(try await AssistantSiriCommands.closeArrival(siri) == 1)
         let sync = FakeParentLockerSender(endsOn: .pageChanged)
-        #expect(await AssistantSiriCommands.sendAfterClose(siri, sync: sync) == .pageChanged)
+        #expect(await AssistantSiriCommands.sendAfterClose(siri, marked: 1, sync: sync) == .pageChanged)
         #expect(sync.sentDays == [siri.today])
     }
 

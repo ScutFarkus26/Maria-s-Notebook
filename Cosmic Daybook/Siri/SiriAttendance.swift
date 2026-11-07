@@ -105,8 +105,12 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
     /// former children (`SiriHost.refusesFormerByName`, the Assistant), one
     /// who has left is "not found", rather than "isn't in the class anymore",
     /// which would tell anyone nearby that she has left (bug hunt 2026-10-20, #29).
+    ///
+    /// The child is looked up as each app keeps its class (`SiriHost.student`):
+    /// the Assistant in the classroom share only, the notebook in either
+    /// store (bug hunt 2026-11-06, #13).
     func student(for entity: StudentEntity) throws -> CDStudent {
-        guard let student = context.object(CDStudent.self, id: entity.id) else {
+        guard let student = SiriHost.student(id: entity.id, in: context) else {
             throw SiriAttendanceError.studentNotFound(entity.displayName ?? entity.fullName)
         }
         let records = AttendanceRoster.recordStudentIDs(on: today, in: context)
@@ -203,6 +207,7 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
     private func markUnwrapped(
         _ student: CDStudent, as status: AttendanceStatus, reason: AbsenceReason?, name: String?
     ) async throws -> (previous: AttendanceStatus, changed: Bool) {
+        try refuseIfViewOnly()
         guard !store.isLocked(today) else { throw SiriAttendanceError.dayLocked }
         guard let record = try store.ensureRecord(for: student, on: today) else {
             throw SiriAttendanceError.cannotMark
@@ -256,6 +261,7 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
     /// her times. Returns the mark she's back to.
     private func markBack(_ student: CDStudent, name: String?) async throws -> AttendanceStatus {
         try await Self.plainly("marking back in class") {
+            try refuseIfViewOnly()
             guard !store.isLocked(today) else { throw SiriAttendanceError.dayLocked }
             guard let record = try store.ensureRecord(for: student, on: today) else {
                 throw SiriAttendanceError.cannotMark
@@ -267,6 +273,14 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
             try await commit([pending], created: [], summary: "\(name) back in class", name: name)
             return record.status
         }
+    }
+
+    /// Added to the class as View only: nothing Siri changes would leave
+    /// this device, so it says so (`SiriHost.viewOnlyMessage`) rather than
+    /// "Open the app to mark it", where she can't mark either (bug hunt
+    /// 2026-11-06, #6).
+    func refuseIfViewOnly() throws {
+        guard store.roleMayWrite else { throw SiriAttendanceError.viewOnly }
     }
 
     /// A mark made in the context and not yet saved.
@@ -289,7 +303,8 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
         created: [CDAttendanceRecord],
         summary: String,
         name: String? = nil,
-        closedArrival: Bool = false
+        closedArrival: Bool = false,
+        reopenedBefore: Bool = false
     ) async throws {
         // Every classroom record this save inserts, read before the save
         // empties the list (`SiriHost.recordsToFile`).
@@ -313,7 +328,8 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
             },
             summary: summary,
             closedArrival: closedArrival,
-            name: name
+            name: name,
+            reopenedBefore: reopenedBefore
         ).remember()
 
         let createdIDs = toFile.map(\.objectID)
@@ -377,6 +393,8 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
         guard let change = SiriAttendanceChange.last(), Calendar.current.isDate(change.day, inSameDayAs: today) else {
             throw SiriAttendanceError.nothingToUndo
         }
+        // Kept, as on a locked day, for once she can make changes again.
+        try refuseIfViewOnly()
         guard !store.isLocked(today) else { throw SiriAttendanceError.dayLocked }
         let partlySent = try await waitOutCloseArrivalSend(of: change)
         guard let coordinator = context.persistentStoreCoordinator else { throw SiriAttendanceError.saveFailed }
@@ -390,13 +408,13 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
         }
         if reverted.isEmpty, !change.marks.isEmpty {
             SiriAttendanceChange.forget()
-            if change.closedArrival { undoCloseArrival() }
+            if change.closedArrival { undoCloseArrival(change) }
             throw SiriAttendanceError.changedSince(change.changedSinceDialog)
         }
         if !reverted.isEmpty {
             try await commit(reverted, created: [], summary: "undo of \(change.summary)")
         }
-        if change.closedArrival { undoCloseArrival() }
+        if change.closedArrival { undoCloseArrival(change) }
         // An undo is not itself undoable: "Undo that" twice shouldn't flip back.
         SiriAttendanceChange.forget()
         let sent = AttendanceEmailLog.latestSend(on: today, in: context)?.channel == .parentLocker
@@ -504,10 +522,13 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
         return changed
     }
 
-    /// Close Arrival undone: back to following the records, and an open
-    /// grid shows it (`SiriHost.closeArrivalUndone`).
-    private func undoCloseArrival() {
-        SiriHost.closeArrivalUndone(on: today)
+    /// Close Arrival undone: back to following the records, or, on a day
+    /// arrival was reopened on before Siri closed it, open again as it was
+    /// (`SiriHost.closeArrivalUndone`), and an open grid shows it. Going by
+    /// the records then found the first close's absences and stayed in
+    /// Late, while Siri said "Arrival is open again" (bug hunt 2026-11-06, #3).
+    private func undoCloseArrival(_ change: SiriAttendanceChange) {
+        SiriHost.closeArrivalUndone(on: today, reopen: change.reopenedBefore == true)
         NotificationCenter.default.post(name: .attendanceChangedBySiri, object: nil)
     }
 }
@@ -531,6 +552,8 @@ enum SiriAttendanceError: Error, CustomLocalizedStringResourceConvertible {
     /// Close Arrival's ParentLocker send was still going after the Undo's
     /// wait (`SiriAttendance.parentLockerWait`): nothing was undone.
     case sendUnderWay
+    /// Added to the class as View only (`SiriHost.viewOnlyMessage`).
+    case viewOnly
 
     var localizedStringResource: LocalizedStringResource {
         switch self {
@@ -558,6 +581,8 @@ enum SiriAttendanceError: Error, CustomLocalizedStringResourceConvertible {
             return "Arrival is already closed."
         case .sendUnderWay:
             return "Attendance is going to ParentLocker right now, so it can't be undone yet. Try again in a moment."
+        case .viewOnly:
+            return "\(SiriHost.viewOnlyMessage)"
         }
     }
 }

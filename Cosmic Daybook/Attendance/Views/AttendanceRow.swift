@@ -49,6 +49,12 @@ struct AttendanceRow: Identifiable, Equatable {
     /// School days away in a row before the row's day, when it's enough for
     /// a welcome back (the Daybook Assistant's `AttendanceWelcomeBack`).
     let daysAway: Int?
+    /// Close Arrival would mark the child absent: she has an id, and the day
+    /// holds no mark for her (`AttendanceDeduplication.closeArrivalMarks`).
+    /// False for a status a newer build added, which `status` shows as
+    /// unmarked. The Assistant counts only these as unmarked (bug hunt
+    /// 2026-11-06, #11).
+    let closeArrivalMarks: Bool
 
     /// `copies` are every record the day holds for the child, CloudKit
     /// duplicates included, for the pickup time; empty reads `record` alone.
@@ -78,6 +84,7 @@ struct AttendanceRow: Identifiable, Equatable {
         self.recordedBy = record?.recordedBy
         self.recordedByID = record?.recordedByID
         self.recordedByName = record?.recordedByName
+        self.closeArrivalMarks = student.id != nil && AttendanceDeduplication.closeArrivalMarks(record)
     }
 
     /// An id for a student with none, the same on every load: from the

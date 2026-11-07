@@ -40,6 +40,11 @@ nonisolated struct SiriAttendanceChange: Codable, Sendable {
     /// change. Nil for Close Arrival and on changes remembered before
     /// 2026-10-03.
     var name: String?
+    /// For a Close Arrival: arrival had been reopened on this device that
+    /// day (`AttendanceLatePhase.reopen`) before Siri closed it, so its Undo
+    /// reopens it again (bug hunt 2026-11-06, #3). Nil on changes remembered
+    /// before then, and on every other change.
+    var reopenedBefore: Bool?
 
     /// What Siri says once this change is undone: "Done. Maya Stone isn't
     /// marked present anymore."

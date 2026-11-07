@@ -14,6 +14,10 @@ enum SiriHost {
     /// "Assistant" is the app's name on the Home Screen.
     nonisolated static let cannotOpenMessage = "I couldn't open your class. Open the Assistant app to fix it."
 
+    /// What Siri says while the guide has her as View only: the same words
+    /// as the grid's notice.
+    nonisolated static let viewOnlyMessage = AssistantSyncStatusView.viewOnlyMessage
+
     /// Until an invitation is accepted there is no class to mark.
     static func checkReady(in context: NSManagedObjectContext) throws {
         if AssistantSampleClass.isRequested { return }
@@ -22,6 +26,20 @@ enum SiriHost {
         guard context.safeFetchFirst(request) != nil else {
             throw SiriAttendanceError.notReady("Open the Assistant app and join your class first.")
         }
+    }
+
+    /// The child Siri marks for a spoken name's `id`: the class's own row,
+    /// from the classroom share, as the grid reads (`AssistantDayRoll`). On
+    /// an Apple Account that also keeps a notebook of its own, the private
+    /// store can hold a row with the same id, and Siri could pick it: a
+    /// full name said aloud on a locked phone, or a current child refused
+    /// because that copy's dates didn't fit (bug hunt 2026-11-06, #13). A
+    /// child who synced in twice is the grid's copy, the first by name.
+    static func student(id: UUID, in context: NSManagedObjectContext) -> CDStudent? {
+        let request = AssistantDayRoll.classroomStudents(in: context)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        request.sortDescriptors = CDStudent.sortByName
+        return context.safeFetchFirst(request)
     }
 
     /// Every enrolled child, and one leaving who is still on today's roll,
@@ -67,8 +85,17 @@ enum SiriHost {
     /// afterwards was ignored here. The ParentLocker send Siri's Close
     /// Arrival left waiting doesn't go either (bug hunt 2026-10-13
     /// afternoon, H2; `AssistantSiriCommands.undoCloseSend`).
-    static func closeArrivalUndone(on day: Date) {
-        AttendanceLatePhase.setLate(false, on: day)
+    ///
+    /// `reopen`: arrival had been reopened here before Siri closed it, so
+    /// it's reopened again, as the bar's Reopen left it. Going by the records
+    /// found the first close's absences and stayed in Late, while Siri said
+    /// "Arrival is open again" (bug hunt 2026-11-06, #3).
+    static func closeArrivalUndone(on day: Date, reopen: Bool) {
+        if reopen {
+            AttendanceLatePhase.reopen(on: day)
+        } else {
+            AttendanceLatePhase.setLate(false, on: day)
+        }
         AssistantSiriCommands.undoCloseSend(on: day, sync: ParentLockerSync.current)
     }
 

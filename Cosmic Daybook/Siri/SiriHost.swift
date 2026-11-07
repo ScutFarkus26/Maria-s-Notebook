@@ -25,8 +25,22 @@ enum SiriHost {
     /// What Siri says when the notebook can't be opened (the raw error is logged).
     nonisolated static let cannotOpenMessage = "I couldn't open your class right now. Open the app and try again."
 
+    /// What Siri says when this device was added to the class as View only
+    /// (a notebook joined as an assistant): its changes would never leave it.
+    nonisolated static let viewOnlyMessage =
+        "You were added to this class as view only, so I can't change attendance. "
+        + "Ask the lead guide to let you make changes."
+
     /// The notebook is always ready: it owns its data.
     static func checkReady(in context: NSManagedObjectContext) throws {}
+
+    /// The child Siri marks for a spoken name's `id`: the first row with
+    /// it, in either store. The guide's children live in the private store,
+    /// so the lookup is never narrowed to the share here; the Assistant's is
+    /// (bug hunt 2026-11-06, #13).
+    static func student(id: UUID, in context: NSManagedObjectContext) -> CDStudent? {
+        context.object(CDStudent.self, id: id)
+    }
 
     /// The children Siri can name: enrolled, or leaving but still on today's
     /// roll (`SiriAttendance.nameable`), with test students hidden.
@@ -72,9 +86,14 @@ enum SiriHost {
     /// Siri's Undo of a Close Arrival: this device no longer counts the day
     /// as closed here, and goes by the records again, so a Close Arrival
     /// made on another device still counts (unlike Reopen Arrival on the
-    /// roll, which is on purpose).
-    static func closeArrivalUndone(on day: Date) {
-        AttendanceLatePhase.setLate(false, on: day)
+    /// roll, which is on purpose). `reopen`: arrival had been reopened here
+    /// before Siri closed it, and is reopened again (bug hunt 2026-11-06, #3).
+    static func closeArrivalUndone(on day: Date, reopen: Bool) {
+        if reopen {
+            AttendanceLatePhase.reopen(on: day)
+        } else {
+            AttendanceLatePhase.setLate(false, on: day)
+        }
     }
 
     /// Whether `day` is a school day by the guide's calendar, read from both

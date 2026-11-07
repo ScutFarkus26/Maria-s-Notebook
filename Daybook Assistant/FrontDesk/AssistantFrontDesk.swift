@@ -90,10 +90,16 @@ final class AssistantFrontDesk {
         sendAtError = latestSend
     }
 
-    /// Whether the bar offers the email: the guide has set it up, and the day
-    /// has a class that has arrived (not a day off or a day ahead).
+    /// Whether the bar offers the email: the guide has set it up, the day
+    /// has a class that has arrived (not a day off or a day ahead), and this
+    /// phone isn't View only. A View-only phone's "Emailed 8:42 by you" was
+    /// saved on the phone alone: it stopped her reminders while the guide's
+    /// devices still rang, and the front desk could get a second email (bug
+    /// hunt 2026-11-06, #6). The grid's View-only notice says why it's gone.
+    /// A locked day still offers it, as before.
     func isOffered(by viewModel: AssistantAttendanceViewModel) -> Bool {
-        settings?.canSend == true && viewModel.dayOff == nil && !viewModel.rows.isEmpty && !viewModel.isFuture
+        settings?.canSend == true && viewModel.roleMayWrite && viewModel.dayOff == nil && !viewModel.rows.isEmpty
+            && !viewModel.isFuture
     }
 
     /// The guide's due time, in minutes after midnight.

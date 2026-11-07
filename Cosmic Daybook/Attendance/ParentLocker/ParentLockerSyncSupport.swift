@@ -139,10 +139,17 @@ nonisolated struct ParentLockerUnsent: Codable, Equatable, Sendable {
     /// `course_id` (`ParentLockerSync.ownNotes`, W3). Builds before then
     /// saved neither: both read as empty.
     var notes: [UUID: [Int: Set<String>]] = [:]
+    /// A class of the whole-class send owed has already gone
+    /// (`ParentLockerSync.closeArrivalBatchSent`), so after a relaunch Siri's
+    /// Undo of a half-sent Close Arrival still says some absences may be in
+    /// ParentLocker (bug hunt 2026-11-06, #4). Builds before then saved
+    /// none: it reads as false, as it did.
+    var batchSent = false
 
     init(
         day: String, children: Set<UUID>, wholeClass: Bool, arrivalClosed: Bool = false, reason: String? = nil,
-        sent: [UUID: [Int: ParentLockerSentRow]] = [:], notes: [UUID: [Int: Set<String>]] = [:]
+        sent: [UUID: [Int: ParentLockerSentRow]] = [:], notes: [UUID: [Int: Set<String>]] = [:],
+        batchSent: Bool = false
     ) {
         self.day = day
         self.children = children
@@ -151,6 +158,7 @@ nonisolated struct ParentLockerUnsent: Codable, Equatable, Sendable {
         self.reason = reason
         self.sent = sent
         self.notes = notes
+        self.batchSent = batchSent
     }
 
     init(from decoder: Decoder) throws {
@@ -162,6 +170,7 @@ nonisolated struct ParentLockerUnsent: Codable, Equatable, Sendable {
         reason = try container.decodeIfPresent(String.self, forKey: .reason)
         sent = try container.decodeIfPresent([UUID: [Int: ParentLockerSentRow]].self, forKey: .sent) ?? [:]
         notes = try container.decodeIfPresent([UUID: [Int: Set<String>]].self, forKey: .notes) ?? [:]
+        batchSent = try container.decodeIfPresent(Bool.self, forKey: .batchSent) ?? false
     }
 
     var isEmpty: Bool { children.isEmpty && !wholeClass && !arrivalClosed && sent.isEmpty && notes.isEmpty }
