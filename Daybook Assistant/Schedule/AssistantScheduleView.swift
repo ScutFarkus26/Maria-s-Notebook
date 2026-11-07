@@ -72,6 +72,7 @@ struct AssistantScheduleView: View {
     let model: AssistantScheduleModel
 
     @State private var showingDatePicker = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var showingClassroom = false
     @AppStorage(AssistantScheduleTab.chosenLaneKey) private var chosenLane = ""
 
@@ -103,7 +104,7 @@ struct AssistantScheduleView: View {
         .sheet(isPresented: $showingClassroom) {
             AssistantClassroomSheet()
         }
-        .onAppear { model.load() }
+        .onAppear { model.reloadAfterAway() }
         .task { await followClock() }
     }
 
@@ -112,11 +113,12 @@ struct AssistantScheduleView: View {
     /// list broke its sections apart.) Only the Now card reads it
     /// (`AssistantScheduleNowSection`): it used to be this view's own state,
     /// and each minute rebuilt every row of the day (bug hunt 2026-11-03 #26).
+    /// Past midnight, a tab on today moves to the new today
+    /// (`AssistantScheduleModel.minuteTurned`).
     private func followClock() async {
         while !Task.isCancelled {
-            let clock = Date()
-            model.clock = clock
-            let second = Calendar.current.component(.second, from: clock)
+            model.minuteTurned()
+            let second = Calendar.current.component(.second, from: model.clock)
             guard (try? await Task.sleep(for: .seconds(60 - second))) != nil else { return }
         }
     }
@@ -156,13 +158,17 @@ struct AssistantScheduleView: View {
             Button {
                 showingDatePicker = true
             } label: {
+                // At accessibility text sizes only the date: "Today" beside
+                // it pushed the arrows off (bug hunt 2026-11-06 #17), as on
+                // Attendance's header. The Today button shows it's not today.
+                let showsToday = model.isToday && !dynamicTypeSize.isAccessibilitySize
                 HStack(spacing: 5) {
-                    if model.isToday {
+                    if showsToday {
                         Text("Today").font(.headline)
                     }
                     Text(model.day.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
-                        .font(model.isToday ? .subheadline : .headline)
-                        .foregroundStyle(model.isToday ? .secondary : .primary)
+                        .font(showsToday ? .subheadline : .headline)
+                        .foregroundStyle(showsToday ? .secondary : .primary)
                 }
                 .lineLimit(1)
                 .fixedSize()
@@ -349,27 +355,23 @@ private struct AssistantScheduleNowSection: View {
 }
 
 /// Coming back to the app reads what changed while it was away (imports
-/// don't reload the tab while it's off screen), and a tab left on today
-/// moves on to the new today, and the Now card reads the time again. A
-/// modifier of its own, so the scene phase's changes redraw only this: the
-/// tab's view read the phase too until 2026-11-03 (#26).
+/// don't reload the tab while it's off screen), after a night away goes to
+/// today (`AssistantScheduleModel.reloadAfterAway`), and the Now card reads
+/// the time again. A modifier of its own, so the scene phase's changes
+/// redraw only this: the tab's view read the phase too until 2026-11-03 (#26).
 private struct ScheduleFollowsScene: ViewModifier {
     let model: AssistantScheduleModel
     @Environment(\.scenePhase) private var scenePhase
-    /// Whether the tab showed today when the app left; nil until it has left.
-    @State private var leftOnToday: Bool?
 
     func body(content: Content) -> some View {
         content.onChange(of: scenePhase) { oldPhase, phase in
             if phase == .active, oldPhase != .active {
                 // The Now card reads the time now, not the minute it left.
-                model.clock = Date()
+                model.clock = model.now()
                 model.followScene(isActive: true)
-                if leftOnToday == true { model.showToday() } else { model.load() }
-                leftOnToday = nil
+                model.reloadAfterAway()
             } else if phase != .active, oldPhase == .active {
                 model.followScene(isActive: false)
-                leftOnToday = model.isToday
             }
         }
     }

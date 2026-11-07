@@ -176,6 +176,11 @@ extension TimetableService {
     ///   after `day` is deleted outright, with its changes).
     /// - Every week ends it from today, so the weeks already past still show it.
     ///
+    /// This Day and After and Every week end the whole weekly block: every
+    /// piece a This Day and After edit split it into (`splitFamily`), not
+    /// just the piece seen. Only the piece was ended, so a block split from a
+    /// later day came back from that day on (bug hunt 2026-11-06 #16).
+    ///
     /// A one-off is deleted, with its changes, whatever the scope.
     static func delete(
         _ block: CDTimetableBlock,
@@ -193,9 +198,15 @@ extension TimetableService {
         case .onlyThisDay:
             cancel(block, on: day, in: context, now: now, calendar: calendar)
         case .thisDayAndAfter:
-            end(block, before: calendar.startOfDay(for: day), in: context, now: now, calendar: calendar)
+            let cutoff = calendar.startOfDay(for: day)
+            for piece in splitFamily(of: block, in: context) {
+                end(piece, before: cutoff, in: context, now: now, calendar: calendar)
+            }
         case .everyWeek:
-            end(block, before: calendar.startOfDay(for: now), in: context, now: now, calendar: calendar)
+            let cutoff = calendar.startOfDay(for: now)
+            for piece in splitFamily(of: block, in: context) {
+                end(piece, before: cutoff, in: context, now: now, calendar: calendar)
+            }
         }
     }
 
@@ -315,6 +326,9 @@ extension TimetableService {
             values, laneID: block.laneID, weekday: block.weekday, validFrom: day, validUntil: block.validUntil,
             in: context, now: now
         )
+        // An id that says it is this block's copy, so a delete ends it too
+        // (`splitFamily`, bug hunt 2026-11-06 #16).
+        if let blockID = block.id { copy.id = splitCopyID(of: blockID, from: day) }
         block.validUntil = dayBefore(day, calendar: calendar)
         block.modifiedAt = now
         let copyID = copy.id?.uuidString

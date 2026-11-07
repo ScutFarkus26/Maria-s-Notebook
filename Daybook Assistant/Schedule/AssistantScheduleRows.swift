@@ -155,12 +155,16 @@ enum AssistantScheduleRows {
                 children: names.children(block.studentIDs), marker: marker(block)
             )]
         case .lesson(let lesson):
+            // The guide is out: his booked lessons don't happen, so they're
+            // left out (bug hunt 2026-11-06 #15; Danny chose hiding them).
+            guard !lane.isOut else { return [] }
             let minute = lesson.snapshot.minute ?? lesson.snapshot.half.listMinute
             return [row(
                 id: item.id, kind: .withGuide, time: TimetableDay.clockText(minute),
                 title: "With \(names.guideName)", children: names.children(lesson.snapshot.studentIDs)
             )]
         case .halfList(let half, let lessons):
+            guard !lane.isOut else { return [] }
             return lessons.map { lesson in
                 row(
                     id: "lesson-\(lesson.id.uuidString)", kind: .withGuide, time: halfText(half),

@@ -172,6 +172,36 @@ final class AssistantScheduleModel {
     /// Back to today.
     func showToday() { show(now()) }
 
+    /// The calendar day (its start) the tab was last on screen; nil before
+    /// it first shows.
+    @ObservationIgnored private(set) var seenOn: Date?
+
+    /// The tab shows again (on appear, or the app's return while it's on
+    /// screen): after a night away, today, whatever day was left on screen,
+    /// as Attendance does; within the day, the day she left, loaded again.
+    /// Only the tab's own scene-phase handler used to move it to today, and
+    /// that doesn't hear a return while another tab shows (bug hunt
+    /// 2026-11-06 #14).
+    func reloadAfterAway() {
+        let today = calendar.startOfDay(for: now())
+        defer { seenOn = today }
+        if let seenOn, seenOn != today { day = today }
+        load()
+    }
+
+    /// The minute's turn while the tab shows: the Now card's clock moves on,
+    /// and past midnight a tab left on today moves to the new today. A day
+    /// she stepped to stays. Before, the stepper went on saying "Today" with
+    /// yesterday's date and the Now card went blank (bug hunt 2026-11-06 #18).
+    func minuteTurned() {
+        let date = now()
+        clock = date
+        let today = calendar.startOfDay(for: date)
+        guard let seenOn, seenOn != today else { return }
+        self.seenOn = today
+        if day == seenOn { show(today) }
+    }
+
     /// The school day before or after the one shown: a weekend or a day off
     /// is skipped, up to two weeks of them.
     func step(forward: Bool) {

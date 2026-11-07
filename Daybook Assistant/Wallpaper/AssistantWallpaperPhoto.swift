@@ -43,6 +43,11 @@ final class AssistantWallpaperPhoto {
     /// Counts the changes to `image`, so a read that finishes after a save,
     /// a remove or a let-go doesn't put an older photo back.
     @ObservationIgnored private var generation = 0
+    /// A `preload` is reading the photo off the main thread.
+    @ObservationIgnored private(set) var isPreloading = false
+    /// The grid wanted the photo while a preload was reading it: if the
+    /// preload ends without one, `loadIfNeeded` reads it then.
+    @ObservationIgnored private var wantedWhilePreloading = false
 
     init(directory: URL) {
         self.directory = directory
@@ -55,9 +60,15 @@ final class AssistantWallpaperPhoto {
 
     /// Reads the saved photo the first time it's wanted. A read that finds
     /// nothing (no photo yet, or the file still locked just after a restart)
-    /// is tried again next time.
+    /// is tried again next time. While a preload is reading it, this waits
+    /// for that read rather than decoding it again on the main thread and
+    /// throwing the preload's away (bug hunt 2026-11-06 #20).
     func loadIfNeeded() {
         guard !didLoad else { return }
+        guard !isPreloading else {
+            wantedWhilePreloading = true
+            return
+        }
         generation += 1
         image = UIImage(contentsOfFile: fileURL.path(percentEncoded: false))
         didLoad = image != nil
@@ -67,13 +78,24 @@ final class AssistantWallpaperPhoto {
     /// Reads and decodes the saved photo off the main thread, ahead of the
     /// grid, when Photo is the chosen background (`raw`): its first draw
     /// used to decode about 4 MB on the main thread (hunt 2026-11-03 #33).
-    /// If the grid comes first, `loadIfNeeded` reads it then, as before.
+    /// If the grid comes first, `loadIfNeeded` reads it then, as before; if
+    /// it comes while this reads, it waits for this.
     func preload(chosen raw: String?) async {
-        guard raw == AssistantWallpaper.photo.rawValue, hasPhoto, !didLoad else { return }
+        guard raw == AssistantWallpaper.photo.rawValue, hasPhoto, !didLoad, !isPreloading else { return }
+        isPreloading = true
+        wantedWhilePreloading = false
         let started = generation
-        guard let prepared = await Self.decoded(fileURL), generation == started, !didLoad else { return }
-        image = prepared
-        didLoad = true
+        let prepared = await Self.decoded(fileURL)
+        isPreloading = false
+        if let prepared, generation == started, !didLoad {
+            image = prepared
+            didLoad = true
+        } else if wantedWhilePreloading {
+            // The read found nothing, or a save or let-go came meanwhile:
+            // the grid that asked still gets what's there now.
+            loadIfNeeded()
+        }
+        wantedWhilePreloading = false
     }
 
     /// Lets go of the photo when Photo isn't the chosen background (`raw`),

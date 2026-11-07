@@ -11,8 +11,10 @@ struct AssistantRestockTile: View {
     /// "You · 8:12 AM", for a Low or Out staple.
     let markedBy: String?
     let hasNote: Bool
-    /// The hold menu's header, worked out only when the menu opens (the
-    /// context menu's content closure) rather than on every redraw of every tile.
+    /// The hold menu's header, worked out only when the menu is built to
+    /// show (`AssistantRestockMenuHeader`'s body) rather than on every redraw
+    /// of every tile. `.contextMenu`'s content closure itself runs on every
+    /// redraw, so calling this there saved nothing (bug hunt 2026-11-06 #19).
     let menuHeader: () -> String
     let onTap: () -> Bool
     let onSetLevel: (RestockLevel) -> Void
@@ -117,7 +119,7 @@ struct AssistantRestockTile: View {
             Section {
                 Button("History", systemImage: "clock", action: onHistory)
             } header: {
-                Text(menuHeader())
+                AssistantRestockMenuHeader(text: menuHeader)
             }
         }
     }
@@ -136,7 +138,7 @@ struct AssistantRestockTile: View {
                 }
             }
         } header: {
-            Text(menuHeader())
+            AssistantRestockMenuHeader(text: menuHeader)
         }
         Section {
             Button(hasNote ? "Edit Note…" : "Add a Note…", systemImage: "square.and.pencil", action: onNote)
@@ -158,6 +160,17 @@ struct AssistantRestockTile: View {
         case .low: "battery.25"
         case .out: "battery.0"
         }
+    }
+}
+
+/// The hold menu's header line. A view of its own so that the words are
+/// worked out in its body, which SwiftUI runs only when it builds the menu,
+/// not in the tile's `.contextMenu` closure, which runs on every redraw.
+struct AssistantRestockMenuHeader: View {
+    let text: () -> String
+
+    var body: some View {
+        Text(text())
     }
 }
 
