@@ -11,7 +11,7 @@ Danny gets all 20 findings fixed on main and pushed. Each bug has a test that pi
 Marks: `plan/assistant-fixes-1106`. Each phase tags the primary checkout `plan/assistant-fixes-1106/phase-<N>` when it merges; see `~/.claude/bin/plan-wait`.
 - [ ] Phase 1: Close Arrival, Siri and the front desk (#1, #2, #3, #4, #6, #11, #12, #13) · runs as: session · needs: — · est. $25–45 (1–2%)
 - [ ] Phase 2: Sync, joining and view only (#5, #7, #8, #9, #10) · runs as: session · needs: — · est. $15–30 (~1%)
-- [ ] Phase 3: Schedule tab and waste (#14–#20) · runs as: session · needs: — · est. $15–30 (~1%) ← 1, 2 and 3 run at the same time
+- [x] Phase 3: Schedule tab and waste (#14–#20) · done 2026-11-07 (fc13c413f) · session 7bc259ee-81d2-4164-9ae4-da7d711cc6bb · actual $11.52 (~0.4%)
 - [ ] Phase 4: Final check, review, push and upload · runs as: session · needs: 1, 2, 3 · est. $25–50 (1–2%)
 
 Build board: https://claude.ai/artifact/1xdTk2e14yP7gDuX9sqTus (milestones m1–m4 are Phases 1–4; tasks `p<N>-*`).
@@ -56,6 +56,11 @@ About $120–200 at list prices, **5–8% of the weekly limit** (1% ≈ $26 this
 - **#16:** only a block the split itself made counts as the split's copy. `replaceWeek` (MCP `set_timetable`) and `copyDay(from:)` also make same-lane, same-weekday blocks that start where old ones end, and a delete must never end those.
 - **No new files under `Cosmic Daybook/` that the Assistant compiles**, and no edits to `Cosmic Daybook.xcodeproj/project.pbxproj`. The Assistant lists its shared files there by hand. New test files go in `Daybook Assistant Tests/` or `Cosmic Daybook Tests/`, which are synchronized folders and need no project edit. Each phase puts its tests in **new files of its own** (`AssistantFix1106<Phase>.swift`, `Fix1106<Phase>Tests.swift`), so parallel phases don't conflict in shared test files.
 - **Tide rows:** Assistant-only items go in `Areas/App Development/Daybook Assistant/To do.md`; notebook items (#16) in `Areas/App Development/Cosmic Daybook/To do.md`. Device checks go under "Check on a device" and an upload row under "Release".
+- **Decided in Phase 3 (2026-11-07):**
+  - #16: a "This Day and After" split gives its copy an ID worked out from the original block and its first day, so a delete can tell the split's own copy from blocks made by `set_timetable` or Copy Day. No schema change is needed. Splits made before this fix keep random IDs, and a delete won't find them.
+  - #16: deleting "Every week" from a later piece also ends the pieces before it, so the whole weekly block goes.
+  - #16 needed one new file, `Cosmic Daybook/Schedules/Services/TimetableService+Splits.swift`. Only the notebook compiles it, so `project.pbxproj` is unchanged.
+  - Both choices are in Tide under Cosmic Daybook › Review choices.
 - **Ruled out:**
   - A simulator walk of the Sample Class. The screen locks, and headless screenshots cover the one visual fix, #17.
   - A notebook roll-out.
