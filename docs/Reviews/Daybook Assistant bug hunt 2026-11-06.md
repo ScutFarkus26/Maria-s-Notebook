@@ -1,6 +1,6 @@
 # Daybook Assistant bug hunt 2026-11-06
 
-> **Not fixed yet.** Found at main 616884850 (2026-11-06).
+> **Fixed on main 2026-11-07** (e17df4546). All 20 findings: Phase 3 fc13c413f (#14-#20), Phase 1 8b8075a9c (#1-#4, #6, #11-#13), Phase 2 4e7feabc8 (#5, #7-#10), and the final review's fixes e17df4546. Nothing is left. Found at main 616884850 (2026-11-06).
 > In short: 20 findings, none a crash or lost data. The worst is Siri's Close Arrival, which on a View-only phone or an empty roll marks no one, says "Everyone was already marked" and puts the whole day into Late. After a Reopen Arrival, it also sends the whole class to ParentLocker again. Three Schedule bugs from the 10-28 hunt are still live.
 
 "Confirmed" means the path was traced end to end in the code. "Plausible" means the path is real, but the trigger depends on timing or data.
