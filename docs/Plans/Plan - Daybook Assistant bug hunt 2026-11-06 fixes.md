@@ -9,7 +9,7 @@ Danny gets all 20 findings fixed on main and pushed. Each bug has a test that pi
 
 ## Progress
 Marks: `plan/assistant-fixes-1106`. Each phase tags the primary checkout `plan/assistant-fixes-1106/phase-<N>` when it merges; see `~/.claude/bin/plan-wait`.
-- [ ] Phase 1: Close Arrival, Siri and the front desk (#1, #2, #3, #4, #6, #11, #12, #13) · runs as: session · needs: — · est. $25–45 (1–2%)
+- [x] Phase 1: Close Arrival, Siri and the front desk (#1, #2, #3, #4, #6, #11, #12, #13) · done 2026-11-07 (8b8075a9c) · session d0ef0a0f-bdbb-475b-a6a1-453a4750931b · actual $15.93 (~0.6%)
 - [ ] Phase 2: Sync, joining and view only (#5, #7, #8, #9, #10) · runs as: session · needs: — · est. $15–30 (~1%)
 - [x] Phase 3: Schedule tab and waste (#14–#20) · done 2026-11-07 (fc13c413f) · session 7bc259ee-81d2-4164-9ae4-da7d711cc6bb · actual $11.52 (~0.4%)
 - [ ] Phase 4: Final check, review, push and upload · runs as: session · needs: 1, 2, 3 · est. $25–50 (1–2%)
@@ -56,6 +56,12 @@ About $120–200 at list prices, **5–8% of the weekly limit** (1% ≈ $26 this
 - **#16:** only a block the split itself made counts as the split's copy. `replaceWeek` (MCP `set_timetable`) and `copyDay(from:)` also make same-lane, same-weekday blocks that start where old ones end, and a delete must never end those.
 - **No new files under `Cosmic Daybook/` that the Assistant compiles**, and no edits to `Cosmic Daybook.xcodeproj/project.pbxproj`. The Assistant lists its shared files there by hand. New test files go in `Daybook Assistant Tests/` or `Cosmic Daybook Tests/`, which are synchronized folders and need no project edit. Each phase puts its tests in **new files of its own** (`AssistantFix1106<Phase>.swift`, `Fix1106<Phase>Tests.swift`), so parallel phases don't conflict in shared test files.
 - **Tide rows:** Assistant-only items go in `Areas/App Development/Daybook Assistant/To do.md`; notebook items (#16) in `Areas/App Development/Cosmic Daybook/To do.md`. Device checks go under "Check on a device" and an upload row under "Release".
+- **Decided in Phase 1 (2026-11-07):**
+  - The View-only check behind the email and ParentLocker rows asks "may this phone write", not "can mark right now". So on a day the guide has locked, the email is still offered, as before. This is in Tide under Daybook Assistant › Review choices.
+  - Siri's Undo on a View-only phone is refused with the View-only message.
+  - The #3 Undo fix applies to every Siri close on a reopened day, not only one that marked no one.
+  - A close that marks no one while children are still unmarked fails with "couldn't save" instead of closing.
+  - Not fixed: the grid's own Undo after a Reopen probably leaves the day Late, as #3 did. Phase 4's review checks it.
 - **Decided in Phase 3 (2026-11-07):**
   - #16: a "This Day and After" split gives its copy an ID worked out from the original block and its first day, so a delete can tell the split's own copy from blocks made by `set_timetable` or Copy Day. No schema change is needed. Splits made before this fix keep random IDs, and a delete won't find them.
   - #16: deleting "Every week" from a later piece also ends the pieces before it, so the whole weekly block goes.
