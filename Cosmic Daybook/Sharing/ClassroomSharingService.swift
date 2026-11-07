@@ -228,11 +228,23 @@ final class ClassroomSharingService {
     /// and with each share read, never from a failed save. Assistants only.
     /// `share` is the one just read; without it, `currentShare`, refreshed
     /// only on joining or while nil (a guide's change went unread until a
-    /// relaunch, bug hunt 2026-11-03 #12). No word: the last answer stands.
+    /// relaunch, bug hunt 2026-11-03 #12). No word: the last answer stands,
+    /// unless it was kept only under the old rule, which any read of the
+    /// share drops (`ClassroomPermissions.viewOnlyIsUnconfirmed`, bug hunt
+    /// 2026-11-06 #7).
     func readPermission(share: CKShare? = nil) {
+        guard let read = share ?? currentShare else { return }
+        notePermission(read.currentUserParticipant?.permission)
+    }
+
+    /// What a read of the share said about this participant's permission
+    /// (`readPermission`); nil when the share has no entry for her.
+    func notePermission(_ permission: CKShare.ParticipantPermission?) {
         guard currentRole == .assistant else { return }
-        let permission = (share ?? currentShare)?.currentUserParticipant?.permission
-        guard let viewOnly = Self.viewOnlyAnswer(participantPermission: permission) else { return }
+        guard let viewOnly = Self.viewOnlyAnswer(participantPermission: permission) else {
+            if ClassroomPermissions.dropUnconfirmedViewOnly() { noteViewOnly(false) }
+            return
+        }
         noteViewOnly(viewOnly)
     }
 

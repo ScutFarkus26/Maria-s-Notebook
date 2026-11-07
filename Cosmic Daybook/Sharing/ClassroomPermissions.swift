@@ -18,8 +18,8 @@ import Foundation
 enum ClassroomPermissions {
 
     /// The guide added this device's account to the classroom share as View
-    /// only. Set by `ClassroomSharingService` from what Core Data and the
-    /// share say (`readPermission`), never guessed from a failed save. While
+    /// only. Set by `ClassroomSharingService` from what the share says
+    /// (`readPermission`), never guessed from a failed save. While
     /// set, an assistant writes nothing: her marks saved on the phone and
     /// never reached the guide (bug hunt 2026-11-02 #29).
     ///
@@ -28,8 +28,12 @@ enum ClassroomPermissions {
     /// run, and it used to find false and make a change that never reached
     /// the guide (bug hunt 2026-11-03 #7). Leaving the class sets it false,
     /// which forgets it.
-    static var shareIsViewOnly = UserDefaults.standard.bool(forKey: viewOnlyKey) {
+    ///
+    /// Every set is an answer, so it also ends `viewOnlyIsUnconfirmed`.
+    static var shareIsViewOnly = savedViewOnly(in: .standard).viewOnly {
         didSet {
+            viewOnlyIsUnconfirmed = false
+            UserDefaults.standard.removeObject(forKey: oldViewOnlyKey)
             if shareIsViewOnly {
                 UserDefaults.standard.set(true, forKey: viewOnlyKey)
             } else {
@@ -38,8 +42,39 @@ enum ClassroomPermissions {
         }
     }
 
-    /// Where the last View only answer is kept.
-    static let viewOnlyKey = "ClassroomPermissions.shareIsViewOnly"
+    /// Where the last View only answer is kept, since the rule of
+    /// 2026-11-06 that only the share's own word decides it.
+    nonisolated static let viewOnlyKey = "ClassroomPermissions.shareIsViewOnly.v2"
+    /// Where the old rule kept it. That rule also counted the store-wide
+    /// `canModifyManagedObjects`, which said View only for assistants the
+    /// share let make changes, and a wrong answer saved under it cleared
+    /// only when the share said read-write (bug hunt 2026-11-06 #7).
+    nonisolated static let oldViewOnlyKey = "ClassroomPermissions.shareIsViewOnly"
+
+    /// A View only kept under the old rule and not yet read again from the
+    /// share. It still holds writes back: a View-only phone's write saves
+    /// on the phone and never reaches the guide, since the store doesn't
+    /// refuse it. The first read of the share drops it, even one that says
+    /// nothing (`dropUnconfirmedViewOnly`); an answer replaces it. Read
+    /// once at launch; tests set it.
+    static var viewOnlyIsUnconfirmed = savedViewOnly(in: .standard).unconfirmed
+
+    /// What `defaults` kept: View only under the new key, or under the old
+    /// one only (unconfirmed, and still View only until the share is read).
+    nonisolated static func savedViewOnly(in defaults: UserDefaults) -> (viewOnly: Bool, unconfirmed: Bool) {
+        if defaults.bool(forKey: viewOnlyKey) { return (true, false) }
+        let old = defaults.bool(forKey: oldViewOnlyKey)
+        return (old, old)
+    }
+
+    /// The share was read: a View only kept only under the old rule goes.
+    /// True if it did.
+    @discardableResult
+    static func dropUnconfirmedViewOnly() -> Bool {
+        guard viewOnlyIsUnconfirmed else { return false }
+        shareIsViewOnly = false
+        return true
+    }
 
     /// Whether the given role can write (create/update) the named entity.
     static func canWrite(

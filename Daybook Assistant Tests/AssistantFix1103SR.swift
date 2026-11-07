@@ -12,7 +12,7 @@ import Testing
 @MainActor
 struct AssistantFix1103SR {
 
-    private static let viewOnlyKey = "ClassroomPermissions.shareIsViewOnly"
+    private static let viewOnlyKey = ClassroomPermissions.viewOnlyKey
 
     /// A stack with the classroom share's store beside the first one, as
     /// on a phone that has joined.

@@ -20,20 +20,38 @@ extension AssistantBootstrapper {
     /// so "Try Leave again in a minute" refused for good: only quitting and
     /// reopening the app ends it, and Leave says so (2026-10-20 review b,
     /// item 3).
+    ///
+    /// A stack rebuild and Leave never overlap: Leave waits for a rebuild
+    /// under way, and no rebuild starts while it runs; one called for
+    /// meanwhile is asked for again when it ends (`accountCheckAfterLeave`,
+    /// and a mirroring stop's `deferredStop`). A rebuild under it took the
+    /// stack and its sharing service away partway, and left a half-purged
+    /// class she had to leave again (bug hunt 2026-11-06 #8).
     func leaveClassroom() async throws {
         let attacher = AssistantShareAttacher.shared
         guard !attacher.sendingLooksStuck else { throw AssistantLeaveError.sendingStuck }
+        let stackBefore = coreDataStack
+        isLeavingHere = true
+        defer {
+            isLeavingHere = false
+            settleDeferredStop()
+            if accountCheckAfterLeave {
+                accountCheckAfterLeave = false
+                Task { await refreshAccountStatus() }
+            }
+        }
+        guard await waitForRebuildBeforeLeave(upTo: Self.leaveWaitLimit) else {
+            throw AssistantLeaveError.reconnecting
+        }
+        // A rebuilt stack starts as "in the class": whether she was taken out
+        // is read again on it before Leave goes by it.
+        if coreDataStack !== stackBefore { await readClassShare() }
         // Taken out of the class, there's no share of hers to purge: the pin
         // may name a class she has joined since, which Leave purged (bug
         // hunt 2026-11-02 #6). Read before the wait.
         let classIsGone = removedFromClass
-        isLeavingHere = true
         attacher.hold()
-        defer {
-            attacher.release()
-            isLeavingHere = false
-            settleDeferredStop()
-        }
+        defer { attacher.release() }
         guard await attacher.waitUntilIdle(upTo: Self.leaveWaitLimit) else {
             throw attacher.sendingLooksStuck ? AssistantLeaveError.sendingStuck : AssistantLeaveError.stillSending
         }
@@ -50,6 +68,17 @@ extension AssistantBootstrapper {
         guard !hasOwnMembership() else { return }
         await giveUpWaitingMarks(attacher.pending)
         await backToJoining()
+    }
+
+    /// Waits while a stack rebuild runs, up to `limit`: true once none does.
+    func waitForRebuildBeforeLeave(upTo limit: Duration) async -> Bool {
+        guard isRebuilding else { return true }
+        Self.leaveLogger.notice("A rebuild is running; Leave waits for it")
+        let deadline = ContinuousClock.now + limit
+        while isRebuilding, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        return !isRebuilding
     }
 
     /// Leave on another of her iPhones deletes the membership rows, and the
@@ -243,6 +272,9 @@ enum AssistantLeaveError: LocalizedError {
     /// A share call is stuck past the watchdog (`sendingLooksStuck`): it
     /// never ends while the app runs.
     case sendingStuck
+    /// This iPhone was still reconnecting to iCloud (a stack rebuild) after
+    /// `leaveWaitLimit`: nothing was touched.
+    case reconnecting
 
     var errorDescription: String? {
         switch self {
@@ -250,6 +282,8 @@ enum AssistantLeaveError: LocalizedError {
             "Your marks are still on their way to your guide, so nothing was removed. Try Leave again in a minute."
         case .sendingStuck:
             "Your marks aren't sending, so nothing was removed. Quit the app and open it again, then leave."
+        case .reconnecting:
+            "This iPhone is still reconnecting to iCloud, so nothing was removed. Try Leave again in a minute."
         }
     }
 }

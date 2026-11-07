@@ -182,9 +182,19 @@ extension AssistantBootstrapper {
         case .later:
             deferredStop = container
         case .rebuild:
+            let before = rebuiltForMirroringStopAt
             rebuiltForMirroringStopAt = now()
             stopRebuiltContainer = container
-            Task { await rebuildStack(because: "CloudKit mirroring stopped") }
+            Task { [weak container] in
+                guard !(await rebuildStack(because: "CloudKit mirroring stopped")) else { return }
+                // Refused because her Leave began first: the stop waits for
+                // Leave to end (`settleDeferredStop`), not dropped for good
+                // as one already rebuilt for (bug hunt 2026-11-06 #8).
+                guard stopRebuiltContainer === container else { return }
+                rebuiltForMirroringStopAt = before
+                stopRebuiltContainer = nil
+                deferredStop = container
+            }
         case .giveUp:
             Self.classLogger.error("CloudKit mirroring stopped again on the rebuilt stack")
             sendingStopped = true
@@ -330,7 +340,8 @@ extension AssistantBootstrapper {
         }
     }
 
-    private func readClassShare() async {
+    /// One read of the class's share: whether she's still in the class.
+    func readClassShare() async {
         guard case .ready = phase, !AssistantSampleClass.isChosen,
               let stack = coreDataStack,
               let storeID = stack.sharedPersistentStore?.identifier,

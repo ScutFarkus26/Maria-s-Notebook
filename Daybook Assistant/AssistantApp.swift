@@ -32,7 +32,9 @@ struct AssistantApp: App {
     /// after a restart (a sync push), when the class's files can't be read
     /// yet, and that start fails. Once they can, a start that failed is
     /// tried again (`AssistantBootstrapper.retryFailedStart`); "Can't start"
-    /// used to stay until the app was killed (hunt 2026-11-03 #35).
+    /// used to stay until the app was killed (hunt 2026-11-03 #35). An
+    /// unlock that comes while that start still runs, or before it, isn't
+    /// lost: the retry waits for the start to end (hunt 2026-11-06 #10).
     private static func startAgainAfterFirstUnlock(_ bootstrapper: AssistantBootstrapper) {
         Task {
             guard !UIApplication.shared.isProtectedDataAvailable else { return }

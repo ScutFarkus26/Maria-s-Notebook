@@ -140,7 +140,7 @@ struct AssistantJoinFix1020Sy {
 
     @Test("The account is asked again only while it's unknown and the join screen may show")
     func accountRetryRule() {
-        let retries = AssistantBootstrapper.retriesAccountCheck
+        let retries = { AssistantBootstrapper.retriesAccountCheck(status: $0, joinScreenMayShow: $1) }
         #expect(retries(nil, true))
         #expect(retries(.couldNotDetermine, true))
         #expect(!retries(.available, true))

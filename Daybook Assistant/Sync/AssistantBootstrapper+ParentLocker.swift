@@ -38,11 +38,26 @@ extension AssistantBootstrapper {
     /// once the rebuild is sure to happen: the stopped sync is replaced only
     /// by the rebuilt stack's (`startParentLocker`).
     func finishParentLockerBeforeRebuild(upTo limit: Duration = parentLockerRebuildWait) async {
+        await waitForParentLockerBeforeRebuild(upTo: limit)
+        stopParentLockerBeforeRebuild()
+    }
+
+    /// The first half of `finishParentLockerBeforeRebuild`: the wait, which
+    /// comes before the rebuild asks whether it's still wanted. A sheet she
+    /// opened during this wait of up to ten seconds was taken down by a
+    /// rebuild for a stall that had already asked (bug hunt 2026-11-06 #9).
+    func waitForParentLockerBeforeRebuild(upTo limit: Duration = parentLockerRebuildWait) async {
         guard let parentLocker else { return }
         if !(await parentLocker.waitForRun(upTo: limit)) {
             Self.parentLockerLogger.notice("A ParentLocker send is still going; rebuilding anyway, it records nothing")
         }
-        parentLocker.stop()
+    }
+
+    /// The second half: the sync stops, only once the rebuild is sure to
+    /// happen. Stopped before a rebuild that was then dropped, it stayed
+    /// stopped until a relaunch, since only a rebuilt stack starts another.
+    func stopParentLockerBeforeRebuild() {
+        parentLocker?.stop()
     }
 
     /// The sync for the screens: none while the Sample Class is open, which

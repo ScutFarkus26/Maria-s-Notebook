@@ -20,6 +20,10 @@ extension AssistantBootstrapper {
         var current: @MainActor () -> CoreDataStack?
         var filingHold: @MainActor () -> AssistantFilingHold?
         var sample: @MainActor () throws -> CoreDataStack
+        /// The stack a start opens (`AssistantStack.shared()`), and whether
+        /// one is open, which a failed start's retry asks.
+        var open: @MainActor () throws -> CoreDataStack = { try AssistantStack.shared() }
+        var isOpen: @MainActor () -> Bool = { AssistantStack.isOpen }
         /// The app's own: a rebuilt stack starts its ParentLocker sync and
         /// asks iCloud who she is (`install`). A test's doesn't.
         var isLive = false
@@ -146,15 +150,22 @@ extension AssistantBootstrapper {
     /// a rebuild runs is looked at when it ends (`rebuildStack`). A second
     /// rebuild for a failed setup within `failedSetupRebuildWindow` gives up,
     /// as a mirroring stop does: the sync line says to quit and reopen.
+    /// While she leaves, it waits for Leave to end (`accountCheckAfterLeave`).
     func rebuildIfSetupFailed() async {
         guard coreDataStack != nil, !isRebuilding else { return }
+        // Not under her Leave: looked at again when it ends (2026-11-06 #8).
+        guard !isLeavingHere else {
+            accountCheckAfterLeave = true
+            return
+        }
         switch Self.failedSetupResponse(
             setupFailed: stacks.filingHold()?.setupFailedForAccount ?? false,
             status: accountStatus,
             rebuiltRecently: rebuiltForFailedSetupRecently
         ) {
         case .ignore:
-            break
+            // The account can't be told yet: asked again until it can (#5).
+            retryUnknownAccount()
         case .rebuild:
             rebuiltForFailedSetupAt = now()
             await rebuildStack(because: "The class's iCloud setup failed without an account; the account is here")

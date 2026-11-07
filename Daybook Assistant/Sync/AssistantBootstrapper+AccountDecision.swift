@@ -24,6 +24,12 @@ extension AssistantBootstrapper {
         accountStatus = status
         retryUnknownAccount()
         guard coreDataStack != nil else { return }
+        // Her Leave is running: nothing is decided or rebuilt under it. This
+        // check runs again when it ends (bug hunt 2026-11-06 #8).
+        guard !isLeavingHere else {
+            accountCheckAfterLeave = true
+            return
+        }
         let decision = Self.accountDecision(
             checkedSinceBuild: accountCheckedSinceBuild,
             needsAccount: stackNeedsAccount,
@@ -73,16 +79,29 @@ extension AssistantBootstrapper {
     /// `accountRetryDelay`. The iCloud page spun on "Checking iCloud…" until
     /// she left the app and came back (bug hunt 2026-10-20 #25). Stops once
     /// an answer comes, or she's in a class.
+    ///
+    /// In the class too while the filing hold waits for a setup that failed
+    /// for the account: only an account check that says `.available`
+    /// rebuilds the stack and lifts it, so a "couldn't tell" there left her
+    /// marks waiting all session under "Trying again" with nothing trying
+    /// (bug hunt 2026-11-06 #5). `CKAccountChanged` still asks at once.
     func retryUnknownAccount() {
-        guard accountRetry == nil,
-              Self.retriesAccountCheck(status: accountStatus, joinScreenMayShow: joinScreenMayShow) else { return }
+        guard accountRetry == nil, retriesAccountCheckNow else { return }
         accountRetry = Task { [weak self, accountRetryDelay] in
             try? await Task.sleep(for: accountRetryDelay)
             guard let self, !Task.isCancelled else { return }
             accountRetry = nil
-            guard Self.retriesAccountCheck(status: accountStatus, joinScreenMayShow: joinScreenMayShow) else { return }
+            guard retriesAccountCheckNow else { return }
             await refreshAccountStatus()
         }
+    }
+
+    private var retriesAccountCheckNow: Bool {
+        Self.retriesAccountCheck(
+            status: accountStatus,
+            joinScreenMayShow: joinScreenMayShow,
+            setupFailedForAccount: coreDataStack != nil && (stacks.filingHold()?.setupFailedForAccount ?? false)
+        )
     }
 
     /// Before the class (or the sample) is open: starting, or joining.
@@ -94,9 +113,12 @@ extension AssistantBootstrapper {
     }
 
     /// Whether to ask about the account again: it isn't known yet, or
-    /// CloudKit couldn't tell, while the join screen may show.
-    nonisolated static func retriesAccountCheck(status: CKAccountStatus?, joinScreenMayShow: Bool) -> Bool {
-        joinScreenMayShow && (status == nil || status == .couldNotDetermine)
+    /// CloudKit couldn't tell, while the join screen may show or the open
+    /// stack's setup failed for the account.
+    nonisolated static func retriesAccountCheck(
+        status: CKAccountStatus?, joinScreenMayShow: Bool, setupFailedForAccount: Bool = false
+    ) -> Bool {
+        (joinScreenMayShow || setupFailedForAccount) && (status == nil || status == .couldNotDetermine)
     }
 
     nonisolated struct AccountDecision: Equatable {

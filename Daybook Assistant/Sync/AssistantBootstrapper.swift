@@ -50,8 +50,17 @@ final class AssistantBootstrapper {
     /// delete comes back as a remote change, which `followLeaveElsewhere`
     /// read as a Leave on another device.
     var isLeavingHere = false
+    /// A rebuild was called for while her Leave ran (the account arrived,
+    /// the class store's setup failed for it): none runs under a Leave, so
+    /// the account is checked again when it ends (bug hunt 2026-11-06 #8).
+    @ObservationIgnored var accountCheckAfterLeave = false
     /// Set while `start()` runs: launch and the window both start it.
     private var isStarting = false
+    /// A start has run to its end at least once.
+    @ObservationIgnored private var startedOnce = false
+    /// The first unlock came while a start ran or was still to come
+    /// (`retryFailedStart`): tried when that start ends, if it failed.
+    @ObservationIgnored private var retriesWhenStartEnds = false
     /// Set while `rebuildStack` runs: one rebuild at a time, and a mirroring
     /// stop meanwhile waits (`mirroringStopped(in:)`), as it did while every
     /// rebuild showed "Starting…".
@@ -157,7 +166,18 @@ final class AssistantBootstrapper {
         // membership after a download) or being rebuilt.
         guard case .starting = phase, !isStarting, coreDataStack == nil, !isRebuilding else { return }
         isStarting = true
-        defer { isStarting = false }
+        startOnce()
+        isStarting = false
+        startedOnce = true
+        // The first unlock came while this start ran, or before it: its
+        // retry was waiting for this one to end (bug hunt 2026-11-06 #10).
+        if retriesWhenStartEnds {
+            retriesWhenStartEnds = false
+            await retryFailedStart()
+        }
+    }
+
+    private func startOnce() {
         // A "Download from iCloud again" still waiting for its membership:
         // after a relaunch too, "Starting…" waits for it, not the join screen.
         if AssistantClassroomLocalState.awaitsMembership() { awaitsMembership = true }
@@ -182,7 +202,7 @@ final class AssistantBootstrapper {
 
         do {
             // Shared with Siri, which may have opened it already.
-            install(try AssistantStack.shared())
+            install(try stacks.open())
             restoreName()
             observeAcceptance()
             observeRemoteChanges()
@@ -193,7 +213,7 @@ final class AssistantBootstrapper {
             if reopenSample { resumeSample() }
         } catch {
             Self.logger.error("Assistant bootstrap failed: \(error.localizedDescription, privacy: .public)")
-            phase = .failed(AssistantStartupProblem(error, storesOpen: AssistantStack.isOpen))
+            phase = .failed(AssistantStartupProblem(error, storesOpen: stacks.isOpen()))
         }
     }
 
@@ -201,11 +221,25 @@ final class AssistantBootstrapper {
     /// unlock following a restart (`AssistantApp`), when a background
     /// relaunch before it couldn't read the class's files, and "Can't start"
     /// used to stay until the app was killed (hunt 2026-11-03 #35).
+    ///
+    /// An unlock that came while a start ran, or before the first one did,
+    /// used to find nothing failed yet and end the listener: "Can't start"
+    /// then stayed until the app was killed (bug hunt 2026-11-06 #10). Now
+    /// that retry waits for the start, and runs if it fails.
     func retryFailedStart() async {
-        guard case .failed = phase, coreDataStack == nil, !AssistantStack.isOpen, !isStarting, !isRebuilding
-        else { return }
+        guard coreDataStack == nil, !stacks.isOpen(), !isRebuilding else { return }
+        if isStarting || startIsDue {
+            retriesWhenStartEnds = true
+            return
+        }
+        guard case .failed = phase else { return }
         phase = .starting
         await start()
+    }
+
+    /// No start has ended yet: launch's and the window's are still to come.
+    private var startIsDue: Bool {
+        if case .starting = phase, !startedOnce { true } else { false }
     }
 
     /// Takes a newly built stack: its sharing service, and the phase its
@@ -278,6 +312,15 @@ final class AssistantBootstrapper {
             Self.logger.info("\(reason, privacy: .public); a rebuild is already running")
             return true
         }
+        // Never under her Leave, which reads the stack and its sharing
+        // service throughout: Leave failed partway and left a half-purged
+        // class (bug hunt 2026-11-06 #8). Each caller holds back while she
+        // leaves; this is the backstop, and asks again once she has.
+        guard !isLeavingHere else {
+            Self.logger.notice("\(reason, privacy: .public); waits for Leave to end")
+            accountCheckAfterLeave = true
+            return false
+        }
         let rebuilt = await rebuildOnce(because: reason, unless: abandon)
         // A stop heard while this ran waited for it to end.
         settleDeferredStop()
@@ -300,6 +343,11 @@ final class AssistantBootstrapper {
         // The join screen stayed up through that wait: a join started on it
         // meanwhile finishes too.
         if failedJoin == nil { failedJoin = await waitForJoinBeforeRebuild(on: sharingService) }
+        // A ParentLocker send under way finishes first, before the rebuild
+        // asks whether it's still wanted: a sheet she opened during that
+        // wait counts (bug hunt 2026-11-06 #9). Nothing awaits between the
+        // question and the stop below, so no new send starts in between.
+        await waitForParentLockerBeforeRebuild()
         if failedJoin == nil, abandon?() == true {
             Self.logger.notice("The rebuild isn't needed now; the stack stays as it is")
             // Left the Sample Class meanwhile, expecting the new stack
@@ -311,7 +359,7 @@ final class AssistantBootstrapper {
             }
             return false
         }
-        await finishParentLockerBeforeRebuild()
+        stopParentLockerBeforeRebuild()
         let joined = if case .ready = phase { true } else { false }
         let inSample = AssistantSampleClass.isChosen
         if Self.rebuildShowsStarting(ready: joined, starting: isStartingPhase, inSample: inSample) {
