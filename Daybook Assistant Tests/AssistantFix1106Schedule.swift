@@ -160,7 +160,7 @@ struct AssistantFix1106Schedule: AssistantScheduleFixture {
         #expect(!photo.isPreloading)
     }
 
-    @Test("A let-go while the photo is read ahead still gives the grid that asked the photo")
+    @Test("A let-go while the photo is read ahead leaves no photo held, as when the grid read it first")
     func letGoDuringPreloadStillLoads() async throws {
         let directory = FileManager.default.temporaryDirectory.appending(path: "WallpaperFix1106-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -171,9 +171,14 @@ struct AssistantFix1106Schedule: AssistantScheduleFixture {
         let preload = Task { await photo.preload(chosen: AssistantWallpaper.photo.rawValue) }
         for _ in 0..<1_000 where !photo.isPreloading { await Task.yield() }
         photo.loadIfNeeded()
+        #expect(photo.isPreloading)
         photo.release(unlessChosen: AssistantWallpaper.sky.rawValue)
         await preload.value
-        #expect(photo.image != nil, "the grid asked, so the photo is read after all")
+        #expect(photo.image == nil, "Sky is chosen: the preload's photo isn't kept")
+        #expect(!photo.isPreloading)
+        // The next look reads it again.
+        photo.loadIfNeeded()
+        #expect(photo.image != nil)
     }
 
     private static func smallJPEG() throws -> Data {

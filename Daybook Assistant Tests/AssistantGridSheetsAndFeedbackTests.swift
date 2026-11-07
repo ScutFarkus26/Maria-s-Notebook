@@ -89,11 +89,16 @@ struct AssistantGridSheetsAndFeedbackTests {
         #expect(model.phaseSwitches == 1)
         #expect(model.beginLate() == 1)
         #expect(model.phaseSwitches == 2)
-        // Her Undo puts Maya back, but the guide's Close Arrival stands, so
-        // the day stays Late and nothing buzzes.
+        // Her Undo puts Maya back and the day back as her Reopen left it,
+        // open though the guide's Close Arrival stands, as Siri's Undo does
+        // (bug hunt 2026-11-06 #3, Phase 4 review); her own Undo buzzes.
         model.returnToArrival(undo: true)
-        #expect(model.phase == .late)
+        #expect(model.phase == .arrival)
         #expect(model.rows.first { $0.student.firstName == "Maya" }?.status == .unmarked)
-        #expect(model.phaseSwitches == 2)
+        #expect(model.phaseSwitches == 3)
+
+        // The guide's device writing again doesn't buzz hers.
+        model.load()
+        #expect(model.phaseSwitches == 3)
     }
 }

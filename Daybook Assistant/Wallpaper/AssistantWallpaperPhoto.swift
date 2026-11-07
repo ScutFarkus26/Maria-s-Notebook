@@ -91,8 +91,8 @@ final class AssistantWallpaperPhoto {
             image = prepared
             didLoad = true
         } else if wantedWhilePreloading {
-            // The read found nothing, or a save or let-go came meanwhile:
-            // the grid that asked still gets what's there now.
+            // The read found nothing: the grid that asked still gets what's
+            // there now. (A let-go meanwhile drops the ask; a save loads.)
             loadIfNeeded()
         }
         wantedWhilePreloading = false
@@ -101,8 +101,14 @@ final class AssistantWallpaperPhoto {
     /// Lets go of the photo when Photo isn't the chosen background (`raw`),
     /// so it isn't held for the rest of the session; the next look reads it
     /// again (hunt 2026-11-03 #33). The picker calls it as it closes.
+    ///
+    /// A let-go while a preload reads counts too: the preload's photo is
+    /// thrown away and an ask that came before it is dropped, as when the
+    /// grid's own read came first (review of the 2026-11-06 fixes; before,
+    /// the preload's photo was kept with another background chosen).
     func release(unlessChosen raw: String?) {
-        guard raw != AssistantWallpaper.photo.rawValue, image != nil || didLoad else { return }
+        guard raw != AssistantWallpaper.photo.rawValue, image != nil || didLoad || isPreloading else { return }
+        wantedWhilePreloading = false
         generation += 1
         image = nil
         didLoad = false

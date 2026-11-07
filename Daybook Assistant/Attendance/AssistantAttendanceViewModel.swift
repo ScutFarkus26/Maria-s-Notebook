@@ -119,6 +119,11 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
     let frontDesk: AssistantFrontDesk
     /// The records the last Close Arrival marked absent, for its Undo.
     @ObservationIgnored private var lastLateBatch: [NSManagedObjectID] = []
+    /// The last Close Arrival came after a Reopen Arrival on this phone, so
+    /// its Undo reopens the day again rather than going by the records,
+    /// where the first close's absences still stand (as Siri's Undo does,
+    /// bug hunt 2026-11-06, #3; found in its Phase 4 review).
+    @ObservationIgnored private var lastLateReopened = false
 
     /// The day on screen (start of day).
     private(set) var date: Date
@@ -307,6 +312,7 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
             let day = Calendar.current.startOfDay(for: newDate)
             if day != date {
                 lastLateBatch = []
+                lastLateReopened = false
                 forgetLastTap()
             }
             date = day
@@ -550,6 +556,7 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
         phase = .late
         phaseSwitches += 1
         forgetLastTap()
+        lastLateReopened = AttendanceLatePhase.isReopened(on: date, defaults: defaults)
         AttendanceLatePhase.setLate(true, on: date, defaults: defaults)
         // Siri's last change is from before arrival closed: "Undo that" now
         // would put back an older voice mark, not this.
@@ -569,6 +576,8 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
     /// still are) back to unmarked, and the day follows the records again:
     /// a Close Arrival made on another device since still counts. Undo used
     /// to reopen on purpose, and the guide's later close was ignored here.
+    /// A close made after a Reopen Arrival here is the exception: its Undo
+    /// reopens the day again, as it was (bug hunt 2026-11-06, #3).
     /// Returns whether it went back: false on a day locked meanwhile, whose
     /// absences stand, so a ParentLocker send waiting on them goes ahead.
     @discardableResult
@@ -582,7 +591,9 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
         }
         let before = phase
         let batch = lastLateBatch
+        let reopenedBefore = lastLateReopened
         lastLateBatch = []
+        lastLateReopened = false
         forgetLastTap()
         guard undo else {
             phase = .arrival
@@ -590,7 +601,11 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
             AttendanceLatePhase.reopen(on: date, defaults: defaults)
             return true
         }
-        AttendanceLatePhase.setLate(false, on: date, defaults: defaults)
+        if reopenedBefore {
+            AttendanceLatePhase.reopen(on: date, defaults: defaults)
+        } else {
+            AttendanceLatePhase.setLate(false, on: date, defaults: defaults)
+        }
         var reverted: [CDAttendanceRecord] = []
         for id in batch {
             // Still Close Arrival's own absence: a child marked "Absent,

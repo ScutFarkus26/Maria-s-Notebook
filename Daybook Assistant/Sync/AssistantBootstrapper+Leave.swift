@@ -112,9 +112,9 @@ extension AssistantBootstrapper {
         AssistantClassroomLocalState.forget()
         // What ParentLocker owed for that class goes; the sign-in stays (bug hunt 2026-11-03 #21).
         parentLocker?.classLeft()
-        await ArrivalReminder.cancelAll()
-        await FrontDeskEmailReminder.cancelAll()
-        await EarlyPickupReminder.cancelAll()
+        await ArrivalReminder.cancelAll(center: reminderCenter)
+        await FrontDeskEmailReminder.cancelAll(center: reminderCenter)
+        await EarlyPickupReminder.cancelAll(center: reminderCenter)
         refreshMembership()
     }
 

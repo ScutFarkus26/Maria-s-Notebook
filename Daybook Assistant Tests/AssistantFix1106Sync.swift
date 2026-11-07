@@ -160,6 +160,8 @@ struct AssistantFix1106Sync {
         let fake = try Sync1106Stacks(), account = Sync1106Account()
         fake.nextHasMembership = true
         let bootstrapper = makeBootstrapper(fake, account: account)
+        // The simulator's own notification center took up to a minute.
+        bootstrapper.reminderCenter = FakeReminderCenter()
         await bootstrapper.rebuildStack(because: "test: the first stack")
         try #require(Self.isReady(bootstrapper))
 

@@ -73,6 +73,10 @@ final class AssistantBootstrapper {
     /// than the join screen (`refreshMembership`), for at most
     /// `membershipWaitLimit`.
     @ObservationIgnored var awaitsMembership = false
+    /// Where Leave takes this class's reminders off (`backToJoining`): the
+    /// system's, or a stand-in in the tests, where the simulator's own
+    /// center took up to a minute to answer.
+    @ObservationIgnored var reminderCenter: any ReminderCenter = SystemReminderCenter()
     @ObservationIgnored var membershipWait: Task<Void, Never>?
     /// When the stack was last rebuilt because the class store's iCloud
     /// setup failed for want of an account, with the account there now

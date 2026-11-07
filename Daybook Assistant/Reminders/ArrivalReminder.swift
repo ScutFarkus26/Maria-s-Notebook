@@ -154,7 +154,7 @@ enum ArrivalReminder {
         }
     }
 
-    /// Whether everyone on `day`'s roll has a mark.
+    /// Whether everyone on `day`'s roll has a mark Close Arrival would leave alone.
     static func isRollComplete(on day: Date, in context: NSManagedObjectContext) -> Bool {
         let records = (try? CDAttendanceStore(context: context, role: .assistant).loadRecords(for: day)) ?? []
         let winners = records.deduplicatedPerStudentDay()
@@ -162,8 +162,10 @@ enum ArrivalReminder {
             on: day, recordStudentIDs: Set(winners.map(\.studentID)), in: context
         ).compactMap { $0.id?.uuidString }
         guard !roll.isEmpty else { return false }
-        let marked = Set(winners.filter { $0.status != .unmarked }.map(\.studentID))
-        return roll.allSatisfy(marked.contains)
+        // The one rule for "unmarked" (bug hunt 2026-11-06, #11): a status
+        // a newer build added counts as marked here too, as on the grid.
+        let byStudent = Dictionary(winners.map { ($0.studentID, $0) }, uniquingKeysWith: { first, _ in first })
+        return roll.allSatisfy { !AttendanceDeduplication.closeArrivalMarks(byStudent[$0]) }
     }
 }
 
