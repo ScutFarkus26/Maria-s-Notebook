@@ -8,7 +8,8 @@
 //  notebook", which is what an album-versus-notebook comparison needs in one call.
 //
 //  Within a sub-area the lessons sit under their section headings, in the
-//  same bands the scope map and the Checklist draw (`LessonSectionGrouping`),
+//  same bands the scope map and the Checklist draw (`LessonSectionGrouping`:
+//  each section where its earliest lesson falls, unsectioned runs in place),
 //  because this is the only read that shows a lesson's `section` — without
 //  it a section set over MCP could never be checked from outside the app.
 //  Positions stay 1-based across the whole sub-area, so a number here is the
@@ -29,9 +30,11 @@ extension MCPNotebookTools {
                 + "sequence order with no result cap, instead of searching by query — to compare the notebook "
                 + "against an album before create_lesson or reorder_lessons. Lines are numbered by position "
                 + "within their sub-area (1-based). An area listing groups by sub-area in the order the scope "
-                + "map shows them. Within a sub-area, lessons that carry a section sit under a "
-                + "\"Section: <name>\" heading in the map's band order, with the rest under \"No section\"; "
-                + "a sub-area with no sections is a plain numbered list.")
+                + "map shows them (set that order with reorder_lessons' sub_areas). Within a sub-area, lessons "
+                + "that carry a section sit under a \"Section: <name>\" heading; each section sits where its "
+                + "earliest lesson falls, and lessons with no section sit under \"No section\" wherever their "
+                + "own order puts them (there can be several such runs). A sub-area with no sections is a "
+                + "plain numbered list.")
         ],
         "sub_area": [
             "type": "string",
@@ -72,7 +75,7 @@ extension MCPNotebookTools {
     ) -> String {
         let storedSequence: String = sequence == ungroupedSequenceLabel ? "" : sequence
         let header = "\(filingLabel(area: area, sequence: storedSequence)) — \(lessons.count) lesson(s)"
-        let bands = LessonSectionGrouping.bands(for: lessons, area: area, sequence: storedSequence)
+        let bands = LessonSectionGrouping.bands(for: lessons)
         guard bands.contains(where: { !$0.name.isEmpty }) else {
             return header + "\n" + numberedLessonLines(lessons, files: files)
         }

@@ -14,7 +14,6 @@ struct ThreadRow: View {
     let lessons: [CDLesson]
     let color: Color
     var isEditing: Bool = false
-    var hasSections: Bool = false
     /// Lifted by a completed hold and following the pointer.
     var isPickedUpForMove: Bool = false
     /// The lifted row would land here if released now.
@@ -25,7 +24,6 @@ struct ThreadRow: View {
     var canHoldToMove: Bool = false
     let onTap: () -> Void
     var onConfigureTrack: (() -> Void)?
-    var onReorderSections: (() -> Void)?
 
     @State private var isPinned: Bool = false
     /// Which lessons hold a file of their own (the pills' paperclip).
@@ -173,7 +171,7 @@ struct ThreadRow: View {
 
     private var sectionedGroups: [(String, [CDLesson])] {
         LessonSectionGrouping
-            .bands(for: lessons, area: threadKey.area, sequence: threadKey.sequence)
+            .bands(for: lessons)
             .map { ($0.name, $0.lessons) }
     }
 
@@ -234,15 +232,6 @@ struct ThreadRow: View {
     @ViewBuilder
     private var editControls: some View {
         HStack(spacing: 6) {
-            if hasSections, let onReorderSections {
-                Button(action: onReorderSections) {
-                    Image(systemName: "arrow.up.arrow.down")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .help("Reorder sections")
-            }
             if let onConfigureTrack {
                 Button(action: onConfigureTrack) {
                     Image(systemName: "gearshape")

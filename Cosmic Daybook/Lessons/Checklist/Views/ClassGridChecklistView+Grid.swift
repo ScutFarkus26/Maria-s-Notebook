@@ -108,15 +108,17 @@ extension ClassGridChecklistView {
         .id(Self.bandAnchor(for: sequence))
 
         if !isCollapsed {
-            ForEach(grouped.order, id: \.self) { section in
-                if let shLessons = grouped.bySection[section], !shLessons.isEmpty {
+            // By position: a sequence can hold several unnamed runs ("Other").
+            ForEach(Array(grouped.bands.enumerated()), id: \.offset) { entry in
+                let band = entry.element
+                if !band.lessons.isEmpty {
                     if grouped.hasSections {
-                        sectionRow(name: section, studentCount: students.count, metrics: metrics)
+                        sectionRow(name: band.name, studentCount: students.count, metrics: metrics)
                     }
                     // A caption already names the section, so its lessons drop it
                     // from the front of their names.
-                    let caption = grouped.hasSections ? section : ""
-                    ForEach(shLessons) { lesson in
+                    let caption = grouped.hasSections ? band.name : ""
+                    ForEach(band.lessons) { lesson in
                         lessonRow(lesson: lesson, sectionCaption: caption, students: students, metrics: metrics)
                             .id(Self.rowAnchor(for: lesson))
                     }

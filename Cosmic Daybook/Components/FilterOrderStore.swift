@@ -1,20 +1,26 @@
 // Cosmic Daybook/Components/FilterOrderStore.swift
 
+import Combine
 import Foundation
 
-/// Helper responsible for persisting and retrieving the order of areas, per-area groups,
-/// and per-area+sequence sections using UserDefaults.
-struct FilterOrderStore {
-    private let defaults: UserDefaults
-    init(defaults: UserDefaults = .standard) { self.defaults = defaults }
+/// Helper responsible for persisting and retrieving the order of areas and of each area's
+/// sequences (sub-areas). Sections have no stored order: they follow their lessons
+/// (`LessonSectionGrouping`). The keys an older build wrote for them
+/// ("Lessons.SectionOrder.…") are left unread.
+///
+/// A sub-area order syncs between the guide's devices through `SyncedPreferencesStore`
+/// (iCloud key-value storage) since 2026-11-09; before that it lived in each device's
+/// UserDefaults, which the store still reads when iCloud holds nothing for an area, so
+/// an order saved earlier is kept and goes up to iCloud the next time it's changed.
+/// Another device's change resets the cache here (`noteExternalChange`) and is
+/// announced by `remoteSequenceOrderChanges()` for the screens to reload.
+enum FilterOrderStore {
 
-    private static var shared = FilterOrderStore()
-
-    private static let groupOrderPrefix = "Lessons.SequenceOrder."
-    private static let sectionOrderPrefix = "Lessons.SectionOrder." // area+sequence
+    /// Every area's sub-area order is stored under this prefix plus the area's name.
+    nonisolated static let sequenceOrderKeyPrefix = "Lessons.SequenceOrder."
+    private static let groupOrderPrefix = sequenceOrderKeyPrefix
 
     private static var cachedSequenceOrders: [String: [String]] = [:]
-    private static var cachedSectionOrders: [String: [String]] = [:]
 
     /// Moves on whenever a saved order may have changed, so a result built from
     /// the saved orders (the Lessons map's layout) knows to build again.
@@ -31,7 +37,7 @@ struct FilterOrderStore {
     // narrowed call — the Checklist while its filter field is in use, the map under a
     // chip filter — throw away the saved position of everything absent at that moment.
     // Both screens then read that shortened list back and re-appended the missing
-    // sections alphabetically, and the order stayed wrong for the rest of the launch.
+    // names alphabetically, and the order stayed wrong for the rest of the launch.
 
     /// The areas in the caller's order, each spelling once. Nothing ever
     /// saved an area order, so there is no saved one to read; the merge still
@@ -47,7 +53,7 @@ struct FilterOrderStore {
         if let cached = cachedSequenceOrders[key] {
             return mergeOrder(saved: cached, existing: existing)
         }
-        let saved = shared.defaults.array(forKey: key) as? [String] ?? []
+        let saved = SyncedPreferencesStore.shared.get(key: key) as? [String] ?? []
         cachedSequenceOrders[key] = saved
         return mergeOrder(saved: saved, existing: existing)
     }
@@ -55,34 +61,40 @@ struct FilterOrderStore {
     static func saveSequenceOrder(_ order: [String], for area: String) {
         let key = groupOrderPrefix + normalized(area)
         cachedSequenceOrders[key] = order
-        shared.defaults.set(order, forKey: key)
-        revision += 1
-    }
-
-    // MARK: Sections
-
-    static func loadSectionOrder(for area: String, sequence: String, existing: [String]) -> [String] {
-        let key = sectionOrderPrefix + normalized(area) + "." + normalized(sequence)
-        if let cached = cachedSectionOrders[key] {
-            return mergeOrder(saved: cached, existing: existing)
-        }
-        let saved = shared.defaults.array(forKey: key) as? [String] ?? []
-        cachedSectionOrders[key] = saved
-        return mergeOrder(saved: saved, existing: existing)
-    }
-
-    static func saveSectionOrder(_ order: [String], for area: String, sequence: String) {
-        let key = sectionOrderPrefix + normalized(area) + "." + normalized(sequence)
-        cachedSectionOrders[key] = order
-        shared.defaults.set(order, forKey: key)
+        SyncedPreferencesStore.shared.set(order as Any?, forKey: key)
         revision += 1
     }
 
     // MARK: Cache control
 
+    /// Whether `key` holds an area's sub-area order.
+    nonisolated static func isSequenceOrderKey(_ key: String) -> Bool {
+        key.hasPrefix(sequenceOrderKeyPrefix)
+    }
+
+    /// Another device changed an area's sub-area order, settled for a moment so a burst
+    /// of moves reloads once. The cache is already reset when this fires.
+    static func remoteSequenceOrderChanges() -> some Publisher<Void, Never> {
+        NotificationCenter.default.publisher(for: .syncedPreferencesDidChange)
+            // @Sendable: filter closures run on the posting thread.
+            .filter { @Sendable note in
+                let changed = note.userInfo?["changedKeys"] as? [String] ?? []
+                return changed.contains(where: isSequenceOrderKey)
+            }
+            .map { @Sendable _ in () }
+            .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
+    }
+
+    /// Called by `SyncedPreferencesStore` when iCloud brings in another device's
+    /// preferences: drops the cached orders those keys may have changed. Nil keys
+    /// (a first download or an account change) mean any of them may have.
+    static func noteExternalChange(changedKeys: [String]?) {
+        guard changedKeys?.contains(where: isSequenceOrderKey) ?? true else { return }
+        resetCache()
+    }
+
     static func resetCache() {
         cachedSequenceOrders.removeAll()
-        cachedSectionOrders.removeAll()
         revision += 1
     }
 
@@ -117,8 +129,8 @@ struct FilterOrderStore {
     /// The saved order, narrowed to what the caller actually has, with anything the
     /// saved order doesn't mention appended in the caller's own order.
     ///
-    /// Names are matched normalized rather than by exact string. A section saved as
-    /// "Equivalence" and shown as "equivalence" is one section, and matching it
+    /// Names are matched normalized rather than by exact string. A sub-area saved as
+    /// "Equivalence" and shown as "equivalence" is one sub-area, and matching it
     /// literally read the second spelling as new and sent that whole band to the
     /// bottom of the grid — while the screen that happened to spell it the saved way
     /// still looked right. Two spellings of one name collapse to the first the caller

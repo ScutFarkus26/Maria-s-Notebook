@@ -133,18 +133,19 @@ class ClassAreaChecklistViewModel {
     // Internal (not private) so the +Filtering extension can invalidate it when a filter changes.
     var cachedLessonsBySequence: [String: LessonsBySection] = [:]
 
-    /// Lessons inside a single sequence, bucketed by section and ordered for display.
-    /// `order` lists section names in render order ("" appended last when present).
-    /// Each `bySection` array is pre-sorted into curriculum order.
-    /// `hasSections` is `false` when only the empty bucket exists — callers can skip rendering sub-header rows.
-    /// See `LessonSectionGrouping`, which decides all three.
+    /// Lessons inside a single sequence, in their section bands, top to bottom.
+    /// Each band's lessons are in curriculum order, and a band with an empty name is a
+    /// run of lessons with no section (there can be several). `hasSections` is `false`
+    /// when no band has a name — callers can skip rendering sub-header rows.
+    /// See `LessonSectionGrouping`, which decides the bands.
     struct LessonsBySection {
-        let order: [String]
-        let bySection: [String: [CDLesson]]
+        let bands: [LessonSectionGrouping.Band]
         let hasSections: Bool
 
         /// Lessons across every section.
-        var lessonCount: Int { bySection.values.reduce(0) { $0 + $1.count } }
+        var lessonCount: Int { bands.reduce(0) { $0 + $1.lessons.count } }
+        /// Every lesson, top to bottom.
+        var lessons: [CDLesson] { bands.flatMap(\.lessons) }
     }
 
     func loadData(context: NSManagedObjectContext) {
@@ -209,18 +210,35 @@ class ClassAreaChecklistViewModel {
         self.lessons = fetchedLessons.filter {
             $0.area.trimmed().caseInsensitiveCompare(sub) == .orderedSame
         }
-        self.orderedSequences = lessonsLogic.groups(for: sub, lessons: self.lessons)
         // `groups(for:)` only names the sequences a lesson was actually filed under, so
-        // without this the lessons still waiting for one had no band to render in and
-        // dropped out of the grid entirely. The map gives them a trailing "Other"
-        // thread; the Checklist now shows the same band in the same place.
-        if self.lessons.contains(where: { $0.sequence.trimmed().isEmpty }) {
-            self.orderedSequences.append("")
-        }
+        // without the "" band the lessons still waiting for one had no band to render
+        // in and dropped out of the grid entirely. It sits where the guide put it
+        // (the map's "Ungrouped"), last until she moves it.
+        self.orderedSequences = sequenceOrder(area: sub)
         let preceding = BlockingAlgorithmEngine.buildPrecedingLessonCache(self.lessons)
         self.precedingLessonNames = preceding.mapValues(\.name)
         self.precedingLessonIDs = preceding.compactMapValues(\.id)
         self.collapsedSequences = ChecklistCollapsedSequences.load(area: sub, defaults: collapsedSequencesDefaults)
+        applyFilters()
+    }
+
+    /// The area's sub-areas in the guide's order, "" for the unfiled lessons' band.
+    private func sequenceOrder(area: String) -> [String] {
+        SubAreaOrder.withUngrouped(
+            lessonsLogic.groups(for: area, lessons: lessons),
+            hasUngrouped: lessons.contains { $0.sequence.trimmed().isEmpty },
+            area: area
+        )
+    }
+
+    /// Reads the sub-area order again after another device changed it. The lessons and
+    /// cells are unchanged, so nothing is fetched.
+    func reloadSequenceOrder() {
+        let area = selectedArea.trimmed()
+        guard !area.isEmpty else { return }
+        let order = sequenceOrder(area: area)
+        guard order != orderedSequences else { return }
+        orderedSequences = order
         applyFilters()
     }
 
@@ -241,15 +259,8 @@ class ClassAreaChecklistViewModel {
         }
         // Shared with the scope-and-sequence map so a guide reading one against the
         // other sees the same bands in the same order.
-        let bands = LessonSectionGrouping.bands(
-            for: groupLessons, area: selectedArea, sequence: groupTrimmed
-        )
-
-        let result = LessonsBySection(
-            order: bands.map(\.name),
-            bySection: Dictionary(bands.map { ($0.name, $0.lessons) }, uniquingKeysWith: { first, _ in first }),
-            hasSections: bands.contains { !$0.name.isEmpty }
-        )
+        let bands = LessonSectionGrouping.bands(for: groupLessons)
+        let result = LessonsBySection(bands: bands, hasSections: bands.contains { !$0.name.isEmpty })
         cachedLessonsBySequence[sequence] = result
         return result
     }

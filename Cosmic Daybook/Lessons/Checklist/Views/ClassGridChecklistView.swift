@@ -171,6 +171,11 @@ struct ClassGridChecklistView: View {
                 guard didFinishInitialLoad else { return }
                 viewModel.refreshMatrix(context: viewContext)
             }
+            // A sub-area moved on another device; onAppear already reloads on return.
+            .onReceiveWhenVisible(FilterOrderStore.remoteSequenceOrderChanges(), catchUpOnAppear: false) {
+                guard didFinishInitialLoad else { return }
+                viewModel.reloadSequenceOrder()
+            }
     }
 
     /// The search the Class Grid carries in, applied once the area has loaded; a deep

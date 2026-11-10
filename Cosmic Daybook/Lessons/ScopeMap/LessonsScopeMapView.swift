@@ -26,7 +26,6 @@ struct LessonsScopeMapView: View {
     /// their saved positions.
     var onMoveSequences: ((String, [String]) -> Void)?
     var onConfigureTrack: ((ThreadKey) -> Void)?
-    var onReorderSections: ((ThreadKey) -> Void)?
     var onFocusArea: ((String) -> Void)?
     var onClearAreaFocus: (() -> Void)?
 
@@ -113,7 +112,6 @@ struct LessonsScopeMapView: View {
             lessons: row.data.lessons,
             color: row.color,
             isEditing: isEditing,
-            hasSections: row.hasSections,
             isPickedUpForMove: isPickedUp,
             isMoveTarget: hoverRowID == rowID && !isPickedUp,
             isHoldingToMove: holdingRowID == rowID,
@@ -124,8 +122,7 @@ struct LessonsScopeMapView: View {
                 guard !moveGestureDidEngage else { return }
                 onSelectThread(row.data.key)
             },
-            onConfigureTrack: { onConfigureTrack?(row.data.key) },
-            onReorderSections: { onReorderSections?(row.data.key) }
+            onConfigureTrack: { onConfigureTrack?(row.data.key) }
         )
         .modifier(MapRowFrameReporter(rowID: rowID, space: Self.mapSpace))
         .when(movable) { view in

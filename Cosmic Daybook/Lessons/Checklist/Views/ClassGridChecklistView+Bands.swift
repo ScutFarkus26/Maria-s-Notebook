@@ -1,6 +1,7 @@
 // ClassGridChecklistView+Bands.swift
 // The grid's two grouping rows: the sequence band ("Preliminary · 10 lessons"), which
-// folds its lessons away, and the light section caption ("Stamp Game") inside it.
+// folds its lessons away and moves up or down from its menu, and the light section
+// caption ("Stamp Game") inside it.
 // Neutral greys, never the accent: blue is the ladder's "started".
 
 import SwiftUI
@@ -47,11 +48,14 @@ extension ClassGridChecklistView {
                     )
                 }
                 .buttonStyle(.plain)
+                .contextMenu { sequenceMoveButtons(name) }
                 .allowsHitTesting(canFold)
                 .help(canFold ? (isCollapsed ? "Show \(title)'s lessons" : "Hide \(title)'s lessons") : title)
                 .accessibilityLabel("\(title), \(count)")
                 .accessibilityValue(canFold ? (isCollapsed ? "Collapsed" : "Expanded") : "")
                 .accessibilityAddTraits(.isHeader)
+                .accessibilityAction(named: "Move Up") { moveSequence(name, by: -1) }
+                .accessibilityAction(named: "Move Down") { moveSequence(name, by: 1) }
             }
 
             bandFill
@@ -66,6 +70,23 @@ extension ClassGridChecklistView {
             ChecklistGridMetrics.hairline
                 .frame(height: 0.5)
                 .allowsHitTesting(false)
+        }
+    }
+
+    /// The band's right-click (long-press on iPad and iPhone) menu: move this sub-area
+    /// up or down past its neighbor. Saved as the area's sub-area order, which the
+    /// Lessons map and the MCP tools follow too.
+    @ViewBuilder
+    private func sequenceMoveButtons(_ name: String) -> some View {
+        Button("Move Up", systemImage: "arrow.up") { moveSequence(name, by: -1) }
+            .disabled(!viewModel.canMoveSequence(name, by: -1))
+        Button("Move Down", systemImage: "arrow.down") { moveSequence(name, by: 1) }
+            .disabled(!viewModel.canMoveSequence(name, by: 1))
+    }
+
+    private func moveSequence(_ name: String, by step: Int) {
+        withAnimation(.snappy(duration: 0.2)) {
+            viewModel.moveSequence(name, by: step)
         }
     }
 

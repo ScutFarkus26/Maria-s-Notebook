@@ -8,9 +8,8 @@ import SwiftUI
 import CoreData
 
 /// The builder's sections with what the map reads for each row worked out once:
-/// the key its frame and hover go by, whether it can be dragged, whether its
-/// lessons carry more than one named section, and its colour. The map used to
-/// derive all four for every row on every body pass.
+/// the key its frame and hover go by, whether it can be dragged, and its colour.
+/// The map used to derive these for every row on every body pass.
 struct MapLayout {
     struct Row: Identifiable {
         let data: ThreadRowData
@@ -18,8 +17,6 @@ struct MapLayout {
         let rowID: String
         /// `MapSection.canMove(_:)`.
         let isMovable: Bool
-        /// More than one named section among the row's lessons.
-        let hasSections: Bool
         let color: Color
 
         /// The thread's key, the identity the map's rows have always had.
@@ -72,25 +69,11 @@ struct MapLayout {
                     isMovable: !row.key.area.trimmed().isEmpty
                         && !row.key.sequence.trimmed().isEmpty
                         && namedRowsPerArea[row.key.area, default: 0] > 1,
-                    hasSections: Self.hasMultipleSections(row.lessons),
                     color: AppColors.color(forArea: row.key.area)
                 )
             }
             return Section(section: section, rows: rows)
         }
-    }
-
-    /// Whether two of `lessons` carry different named sections: the map's old
-    /// `Set(sections).count > 1`, stopping at the second name.
-    private static func hasMultipleSections(_ lessons: [CDLesson]) -> Bool {
-        var firstName: String?
-        for lesson in lessons {
-            let name = lesson.section.trimmed()
-            if name.isEmpty { continue }
-            if let firstName, firstName != name { return true }
-            if firstName == nil { firstName = name }
-        }
-        return false
     }
 }
 

@@ -7,13 +7,11 @@ import Testing
 ///
 /// The two screens used to spell this out separately, and a guide reading one
 /// against the other found lessons in different places. These tests hold the
-/// three promises that made them disagree: sections fold case-insensitively,
-/// unsectioned lessons trail the named bands, and each band runs in curriculum
-/// order rather than the order the lessons happened to be fetched in.
-///
-/// Every case here uses an area and sequence no stored order exists for, so the
-/// bands fall back to alphabetical and nothing depends on the guide's own
-/// arrangement.
+/// promises that made them disagree: sections fold case-insensitively, each band
+/// runs in curriculum order rather than the order the lessons happened to be
+/// fetched in — and (2026-11-09) the bands themselves sit where their earliest
+/// lesson falls, with lessons that have no section placed by their own order
+/// rather than trailing the rest.
 @Suite("Lesson Section Grouping")
 @MainActor
 struct LessonSectionGroupingTests {
@@ -43,7 +41,7 @@ struct LessonSectionGroupingTests {
     }
 
     private func bands(_ lessons: [CDLesson]) -> [LessonSectionGrouping.Band] {
-        LessonSectionGrouping.bands(for: lessons, area: Self.area, sequence: Self.sequence)
+        LessonSectionGrouping.bands(for: lessons)
     }
 
     // MARK: - Folding
@@ -74,27 +72,49 @@ struct LessonSectionGroupingTests {
 
     // MARK: - Band order
 
-    @Test("Unsectioned lessons trail the named bands")
-    func unsectionedComesLast() throws {
-        let context = try makeContext()
-        let lessons = [
-            lesson(context, "Unfiled", section: "", order: 0),
-            lesson(context, "Bead Bars", section: "Beads", order: 1),
-            lesson(context, "Stamps", section: "Stamp Game", order: 2)
-        ]
-
-        #expect(bands(lessons).map(\.name) == ["Beads", "Stamp Game", ""])
-    }
-
-    @Test("With no stored order the named bands are alphabetical")
-    func namedBandsAreAlphabeticalByDefault() throws {
+    @Test("Sections run in the order of their earliest lesson, not alphabetically")
+    func sectionsFollowTheirEarliestLesson() throws {
         let context = try makeContext()
         let lessons = [
             lesson(context, "Stamps", section: "Stamp Game", order: 0),
-            lesson(context, "Bead Bars", section: "Beads", order: 1)
+            lesson(context, "Bead Bars", section: "Beads", order: 1),
+            lesson(context, "Abacus", section: "Abacus", order: 2)
         ]
 
-        #expect(bands(lessons).map(\.name) == ["Beads", "Stamp Game"])
+        #expect(bands(lessons).map(\.name) == ["Stamp Game", "Beads", "Abacus"])
+    }
+
+    @Test("A section split by another is drawn whole where its first lesson falls")
+    func splitSectionStaysWhole() throws {
+        let context = try makeContext()
+        let lessons = [
+            lesson(context, "Bead Bars", section: "Beads", order: 0),
+            lesson(context, "Stamps", section: "Stamp Game", order: 1),
+            lesson(context, "Bead Squares", section: "Beads", order: 2)
+        ]
+
+        let result = bands(lessons)
+        #expect(result.map(\.name) == ["Beads", "Stamp Game"])
+        #expect(result.first?.lessons.map(\.name) == ["Bead Bars", "Bead Squares"])
+    }
+
+    @Test("Lessons with no section sit where their order puts them, not at the bottom")
+    func unsectionedSitsInPlace() throws {
+        let context = try makeContext()
+        let lessons = [
+            lesson(context, "Introduction", section: "", order: 0),
+            lesson(context, "Bead Bars", section: "Beads", order: 1),
+            lesson(context, "Story", section: "", order: 2),
+            lesson(context, "Song", section: "", order: 3),
+            lesson(context, "Stamps", section: "Stamp Game", order: 4),
+            lesson(context, "Review", section: "", order: 5)
+        ]
+
+        let result = bands(lessons)
+        #expect(result.map(\.name) == ["", "Beads", "", "Stamp Game", ""])
+        #expect(result.map { $0.lessons.map(\.name) } == [
+            ["Introduction"], ["Bead Bars"], ["Story", "Song"], ["Stamps"], ["Review"]
+        ])
     }
 
     @Test("A sequence with no sections at all is one unnamed band")
@@ -151,93 +171,50 @@ struct LessonSectionGroupingTests {
         #expect(placed.count == lessons.count, "a lesson was dropped or drawn twice")
         #expect(Set(placed.map(\.name)) == Set(lessons.map(\.name)))
     }
-
-    // MARK: - Names offered to the reorder sheet
-
-    @Test("The reorder sheet is offered one row per folded section")
-    func sectionNamesMatchTheBands() throws {
-        let context = try makeContext()
-        let lessons = [
-            lesson(context, "Short Chain", section: "Chains", order: 0),
-            lesson(context, "Long Chain", section: "chains", order: 1),
-            lesson(context, "Unfiled", section: "", order: 2),
-            lesson(context, "Bead Bars", section: "Beads", order: 3)
-        ]
-
-        #expect(LessonSectionGrouping.sectionNames(in: lessons) == ["Beads", "Chains"])
-    }
 }
 
-/// The order stores back both grids. It caches to keep UserDefaults off the
-/// render path, and the cache used to hold the *merged* result — so one call
-/// made while a filter was narrowing the lesson set threw away the saved
-/// position of every section absent at that moment, for both screens, for the
-/// rest of the launch.
+/// The order store backs both grids' sub-area order. It caches to keep
+/// UserDefaults off the render path, and the cache used to hold the *merged*
+/// result — so one call made while a filter was narrowing the lesson set threw
+/// away the saved position of everything absent at that moment, for both
+/// screens, for the rest of the launch.
 @Suite("Filter Order Store Caching")
 @MainActor
 struct FilterOrderStoreCachingTests {
 
     private static let area = "TestArea-\(UUID().uuidString)"
-    private static let sequence = "TestSequence"
-
-    /// Removes what these tests wrote. The store lives in the real defaults, and
-    /// the suite's area name is unique per run, so matching on it clears the
-    /// entries without this test having to know the key format.
+    /// Removes what these tests wrote. The order lives in the real synced
+    /// preferences, and the suite's area name is unique per run, so matching on
+    /// it clears the entries.
     private static func clearStoredOrders() {
-        let needle = area.lowercased()
-        for key in UserDefaults.standard.dictionaryRepresentation().keys where key.contains(needle) {
-            UserDefaults.standard.removeObject(forKey: key)
+        let store = SyncedPreferencesStore.shared
+        for key in store.storedKeys(withPrefix: FilterOrderStore.sequenceOrderKeyPrefix)
+        where key.contains(area.lowercased()) {
+            store.remove(key: key)
         }
         FilterOrderStore.resetCache()
     }
 
-    @Test("A narrowed read doesn't strip the saved order for the next reader")
-    func narrowedReadLeavesTheSavedOrderIntact() {
+    @Test("A sub-area with no saved place is appended, not inserted")
+    func unknownSequencesFollowTheSavedOnes() {
         defer { Self.clearStoredOrders() }
         FilterOrderStore.resetCache()
-        let saved = ["Chains", "Beads", "Stamp Game"]
-        FilterOrderStore.saveSectionOrder(saved, for: Self.area, sequence: Self.sequence)
+        FilterOrderStore.saveSequenceOrder(["Chains", "Beads"], for: Self.area)
         FilterOrderStore.resetCache()
 
-        // The Checklist, mid-filter, asks about the one section still on screen.
-        let narrowed = FilterOrderStore.loadSectionOrder(
-            for: Self.area, sequence: Self.sequence, existing: ["Beads"]
-        )
-        #expect(narrowed == ["Beads"])
-
-        // The map then asks about the whole sequence and must still get the saved order.
-        let full = FilterOrderStore.loadSectionOrder(
-            for: Self.area, sequence: Self.sequence, existing: ["Beads", "Chains", "Stamp Game"]
-        )
-        #expect(full == saved)
-    }
-
-    @Test("A section with no saved place is appended, not inserted")
-    func unknownSectionsFollowTheSavedOnes() {
-        defer { Self.clearStoredOrders() }
-        FilterOrderStore.resetCache()
-        FilterOrderStore.saveSectionOrder(["Chains", "Beads"], for: Self.area, sequence: Self.sequence)
-        FilterOrderStore.resetCache()
-
-        let order = FilterOrderStore.loadSectionOrder(
-            for: Self.area, sequence: Self.sequence, existing: ["Beads", "Chains", "Fractions"]
-        )
+        let order = FilterOrderStore.loadSequenceOrder(for: Self.area, existing: ["Beads", "Chains", "Fractions"])
         #expect(order == ["Chains", "Beads", "Fractions"])
     }
 
-    @Test("A section keeps its saved place when the grid spells it differently")
+    @Test("A sub-area keeps its saved place when the grid spells it differently")
     func savedPlaceSurvivesADifferentSpelling() {
         defer { Self.clearStoredOrders() }
         FilterOrderStore.resetCache()
-        FilterOrderStore.saveSectionOrder(
-            ["Introduction", "Equivalence", "Addition"], for: Self.area, sequence: Self.sequence
-        )
+        FilterOrderStore.saveSequenceOrder(["Introduction", "Equivalence", "Addition"], for: Self.area)
         FilterOrderStore.resetCache()
 
-        // The grid folds its bands from the lessons themselves, so it can hand back a
-        // spelling the saved order doesn't use. That must not read as a new section.
-        let order = FilterOrderStore.loadSectionOrder(
-            for: Self.area, sequence: Self.sequence, existing: ["Addition", "equivalence", "Introduction"]
+        let order = FilterOrderStore.loadSequenceOrder(
+            for: Self.area, existing: ["Addition", "equivalence", "Introduction"]
         )
         #expect(order == ["Introduction", "equivalence", "Addition"])
     }
@@ -246,12 +223,10 @@ struct FilterOrderStoreCachingTests {
     func spellingsCollapseToOneEntry() {
         defer { Self.clearStoredOrders() }
         FilterOrderStore.resetCache()
-        FilterOrderStore.saveSectionOrder(["Equivalence"], for: Self.area, sequence: Self.sequence)
+        FilterOrderStore.saveSequenceOrder(["Equivalence"], for: Self.area)
         FilterOrderStore.resetCache()
 
-        let order = FilterOrderStore.loadSectionOrder(
-            for: Self.area, sequence: Self.sequence, existing: ["Equivalence", "equivalence"]
-        )
+        let order = FilterOrderStore.loadSequenceOrder(for: Self.area, existing: ["Equivalence", "equivalence"])
         #expect(order == ["Equivalence"], "a band would have been drawn twice")
     }
 

@@ -2,19 +2,24 @@
 
 import Foundation
 
-/// Splits one sequence's lessons into the section bands that both the
-/// scope-and-sequence map and the Checklist grid draw.
+/// Splits one sequence's lessons into the section bands that the scope-and-sequence
+/// map, the Checklist grid and `find_lessons` all draw.
 ///
-/// A guide reads one of those screens against the other, so the rule lives here
-/// rather than being spelled out at each call site — three copies of it had already
-/// drifted apart. Sections match case-insensitively, so "Chains" and "chains" are
-/// one band rather than two (labelled with whichever spelling comes first in
-/// curriculum order); the named bands follow the order stored for the
-/// (area, sequence) pair; and the lessons with no section of their own trail them.
+/// A guide reads one of those against another, so the rule lives here rather than
+/// being spelled out at each call site — three copies of it had already drifted apart.
+///
+/// The lessons' own order decides everything (2026-11-09). Sections match
+/// case-insensitively, so "Chains" and "chains" are one band (labelled with whichever
+/// spelling comes first in curriculum order), and each band sits where its earliest
+/// lesson falls. Lessons with no section sit where their order puts them too: each run
+/// of them between two sections is a band of its own, rather than one bucket trailing
+/// the rest. There is no stored section order any more; to move a section, move its
+/// lessons. (Before, the named bands were alphabetical unless a guide had dragged them
+/// into an order, and the unsectioned lessons always came last.)
 enum LessonSectionGrouping {
 
-    /// One band of lessons. An empty `name` is the unsectioned bucket, which callers
-    /// label "Other".
+    /// One band of lessons. An empty `name` is a run of lessons with no section,
+    /// which callers label "Other"; a sequence can have several such runs.
     struct Band {
         let name: String
         let lessons: [CDLesson]
@@ -23,63 +28,43 @@ enum LessonSectionGrouping {
     /// The bands for `lessons`, each already in curriculum order. `lessons` may arrive
     /// in any order — it is sorted here — but has to be narrowed to the one
     /// (area, sequence) thread being drawn.
-    static func bands(for lessons: [CDLesson], area: String, sequence: String) -> [Band] {
-        let folded = fold(lessons)
-        let existing = alphabetized(folded.labels)
+    static func bands(for lessons: [CDLesson]) -> [Band] {
+        let sorted = lessons.sorted(by: ThreadRowData.lessonSortOrder)
 
-        let trimmedArea = area.trimmed()
-        // With no area there is nothing to key a stored order on, so alphabetical stands.
-        let order: [String] = trimmedArea.isEmpty || existing.isEmpty
-            ? existing
-            : FilterOrderStore.loadSectionOrder(
-                for: trimmedArea, sequence: sequence.trimmed(), existing: existing
-            )
-
-        var bands: [Band] = order.compactMap { name in
-            guard let inBand = folded.bucketed[name.normalizedForComparison()], !inBand.isEmpty else {
-                return nil
-            }
-            return Band(name: name, lessons: inBand)
-        }
-        if !folded.unsectioned.isEmpty {
-            bands.append(Band(name: "", lessons: folded.unsectioned))
-        }
-        return bands
-    }
-
-    /// The distinct section names in `lessons`, alphabetised — the list a stored
-    /// order is merged against. Used by the reorder sheet so it offers exactly the
-    /// bands the map and the Checklist draw.
-    static func sectionNames(in lessons: [CDLesson]) -> [String] {
-        alphabetized(fold(lessons).labels)
-    }
-
-    // MARK: - Private
-
-    private struct Folded {
+        // A named band's lessons, by case-folded name, and the spelling seen first.
         var labels: [String: String] = [:]
         var bucketed: [String: [CDLesson]] = [:]
-        var unsectioned: [CDLesson] = []
-    }
+        for lesson in sorted {
+            let name = lesson.section.trimmed()
+            guard !name.isEmpty else { continue }
+            let key = name.normalizedForComparison()
+            if labels[key] == nil { labels[key] = name }
+            bucketed[key, default: []].append(lesson)
+        }
 
-    /// Buckets by case-folded section name, keeping the spelling seen first in
-    /// curriculum order as the band's label.
-    private static func fold(_ lessons: [CDLesson]) -> Folded {
-        var folded = Folded()
-        for lesson in lessons.sorted(by: ThreadRowData.lessonSortOrder) {
+        // Walk the lessons in order. A named band is drawn whole at its first lesson;
+        // an unsectioned lesson joins the run of them in progress, and a named band
+        // starting ends that run.
+        var bands: [Band] = []
+        var placed = Set<String>()
+        var run: [CDLesson] = []
+        for lesson in sorted {
             let name = lesson.section.trimmed()
             guard !name.isEmpty else {
-                folded.unsectioned.append(lesson)
+                run.append(lesson)
                 continue
             }
             let key = name.normalizedForComparison()
-            if folded.labels[key] == nil { folded.labels[key] = name }
-            folded.bucketed[key, default: []].append(lesson)
+            guard placed.insert(key).inserted else { continue }
+            if !run.isEmpty {
+                bands.append(Band(name: "", lessons: run))
+                run = []
+            }
+            bands.append(Band(name: labels[key] ?? name, lessons: bucketed[key] ?? []))
         }
-        return folded
-    }
-
-    private static func alphabetized(_ labels: [String: String]) -> [String] {
-        labels.values.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        if !run.isEmpty {
+            bands.append(Band(name: "", lessons: run))
+        }
+        return bands
     }
 }

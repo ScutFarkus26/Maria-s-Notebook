@@ -242,9 +242,12 @@ final class ClassGridYearsModel {
     static func orderedSequences(in area: String, lessons: [CurriculumLessonRef]) -> [String] {
         let unique = Set(lessons.map(\.sequence).filter { !$0.isEmpty })
         let existing = Array(unique).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-        var ordered = FilterOrderStore.loadSequenceOrder(for: area, existing: existing)
-        if lessons.contains(where: { $0.sequence.isEmpty }) { ordered.append("") }
-        return ordered
+        // The unfiled lessons' band sits where the guide put it, as on the Checklist.
+        return SubAreaOrder.withUngrouped(
+            FilterOrderStore.loadSequenceOrder(for: area, existing: existing),
+            hasUngrouped: lessons.contains { $0.sequence.isEmpty },
+            area: area
+        )
     }
 }
 

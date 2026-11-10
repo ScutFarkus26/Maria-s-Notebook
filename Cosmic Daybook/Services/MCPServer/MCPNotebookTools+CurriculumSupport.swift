@@ -71,7 +71,7 @@ extension MCPNotebookTools {
         .map { isUngroupedLabel($0) ? ungroupedSequenceLabel : $0 }
     }
 
-    static let ungroupedSequenceLabel = "Ungrouped"
+    static let ungroupedSequenceLabel = SubAreaOrder.ungroupedName
 
     static func isUngroupedLabel(_ name: String) -> Bool {
         sameFiling(name, ungroupedSequenceLabel)

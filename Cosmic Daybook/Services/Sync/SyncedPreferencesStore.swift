@@ -85,7 +85,10 @@ public final class SyncedPreferencesStore {
     
     /// Key prefixes that should sync across devices (for dynamic keys like per-date locks)
     static let syncedKeyPrefixes: [String] = [
-        "Attendance.locked."
+        "Attendance.locked.",
+        // Each area's sub-area order (Class Grid Move Up / Move Down, the map's drag,
+        // reorder_lessons' sub_areas), since 2026-11-09.
+        FilterOrderStore.sequenceOrderKeyPrefix
     ]
     
     @ObservationIgnored nonisolated(unsafe) private var changeTask: Task<Void, Never>?
@@ -171,11 +174,14 @@ public final class SyncedPreferencesStore {
             // half-downloaded set of preferences with a write. A later server
             // change carries the rest.
             logger.info("iCloud's preferences arrived on this device for the first time")
+            FilterOrderStore.noteExternalChange(changedKeys: nil)
             noteChange()
             updateQuotaUsage()
         } else if reason == 0 { // serverChange - changes came from another device
             if let changedKeys {
                 logger.info("Received \(changedKeys.count) preference changes from iCloud")
+                // Before the post, so a screen reloading on it reads the new order.
+                FilterOrderStore.noteExternalChange(changedKeys: changedKeys)
                 // Post notification so views can update
                 NotificationCenter.default.post(
                     name: .syncedPreferencesDidChange,
@@ -201,6 +207,7 @@ public final class SyncedPreferencesStore {
             }
         } else if reason == 3 { // accountChange - user changed iCloud account
             logger.info("iCloud account changed, reloading preferences")
+            FilterOrderStore.noteExternalChange(changedKeys: nil)
             Task {
                 self.noteChange()
                 self.updateQuotaUsage()

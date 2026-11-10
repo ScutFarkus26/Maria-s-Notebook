@@ -135,7 +135,7 @@ struct ChecklistViewModelFilteringTests {
         #expect(viewModel.visibleLessons.map(\.name) == ["Golden Beads"])
         #expect(viewModel.lessons.count == 5)
         #expect(viewModel.orderedSequences.sorted() == ["Algebra", "Decimal System"])
-        #expect(viewModel.lessonsSequenced(sequence: "Decimal System").bySection[""]?.count == 1)
+        #expect(viewModel.lessonsSequenced(sequence: "Decimal System").bands.map(\.lessons.count) == [1])
     }
 
     @Test("Picking students hides the other columns and keeps the roster intact")

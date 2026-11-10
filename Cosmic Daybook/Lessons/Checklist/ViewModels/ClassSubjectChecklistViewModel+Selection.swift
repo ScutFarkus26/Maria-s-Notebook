@@ -25,8 +25,7 @@ extension ClassAreaChecklistViewModel {
     var displayedLessonIDs: [UUID] {
         visibleSequences.flatMap { sequence -> [UUID] in
             guard !isCollapsed(sequence) else { return [] }
-            let grouped = lessonsSequenced(sequence: sequence)
-            return grouped.order.flatMap { grouped.bySection[$0] ?? [] }.compactMap(\.id)
+            return lessonsSequenced(sequence: sequence).lessons.compactMap(\.id)
         }
     }
 
@@ -37,8 +36,9 @@ extension ClassAreaChecklistViewModel {
             slots.append(.init(lessonID: nil, height: metrics.sequenceBandHeight))
             guard !isCollapsed(sequence) else { continue }
             let grouped = lessonsSequenced(sequence: sequence)
-            for section in grouped.order {
-                guard let lessons = grouped.bySection[section], !lessons.isEmpty else { continue }
+            for band in grouped.bands {
+                let lessons = band.lessons
+                guard !lessons.isEmpty else { continue }
                 if grouped.hasSections {
                     slots.append(.init(lessonID: nil, height: metrics.sectionCaptionHeight))
                 }

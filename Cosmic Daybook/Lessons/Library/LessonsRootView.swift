@@ -45,12 +45,6 @@ struct SequenceRulesItem: Identifiable {
     let sequence: String
 }
 
-struct SectionReorderItem: Identifiable {
-    let id = UUID()
-    let area: String
-    let sequence: String
-}
-
 /// Drives the Add Lesson sheet. `source` carries the "insert after" lesson when entry
 /// came from a pill's context menu (otherwise nil for a plain "Add Lesson" action).
 struct AddLessonContext: Identifiable {
@@ -97,7 +91,6 @@ struct LessonsRootView: View {
     // MARK: - Sheet State
     @State var lessonToSchedule: CDLesson?
     @State var sequenceRulesItem: SequenceRulesItem?
-    @State var reorderSectionsItem: SectionReorderItem?
     @State var selectedLessonDetail: CDLesson?
     @State var showingBulkEntry = false
     /// Non-nil ⇒ the Add Lesson sheet is presented. Using `.sheet(item:)` guarantees the
@@ -224,9 +217,6 @@ struct LessonsRootView: View {
         .sheet(item: $sequenceRulesItem) { item in
             SequenceRulesSheet(area: item.area, sequence: item.sequence)
         }
-        .sheet(item: $reorderSectionsItem) { item in
-            ReorderSectionsSheet(area: item.area, sequence: item.sequence, lessons: lessons)
-        }
         .sheet(item: $addLessonContext) { context in
             AddLessonView(
                 defaultArea: context.startingArea(orElse: selectedArea),
@@ -270,6 +260,11 @@ struct LessonsRootView: View {
         // Only while on screen: a TabView keeps this tab alive behind the
         // others, and `.onAppear` above re-derives the list when it is back.
         .onPresentationDataChangeWhenVisible(of: ["Lesson"], in: viewContext, catchUpOnAppear: false) {
+            refreshLessonsForArea()
+        }
+        // A sub-area moved on another device: the map and its lists read the new order.
+        .onReceiveWhenVisible(FilterOrderStore.remoteSequenceOrderChanges(), catchUpOnAppear: false) {
+            syncReorderableSequences()
             refreshLessonsForArea()
         }
         .task(id: lessonsForArea.compactMap(\.id)) { await fetchPresentationHistory() }

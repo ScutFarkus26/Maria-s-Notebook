@@ -79,11 +79,6 @@ struct MapLayoutMemoTests {
 
     // MARK: - Equivalence
 
-    /// The map's pre-memo test for "more than one named section on this row".
-    private func legacyHasMultipleSections(_ row: ThreadRowData) -> Bool {
-        Set(row.lessons.map { $0.section.trimmed() }.filter { !$0.isEmpty }).count > 1
-    }
-
     /// `layout` is exactly what a fresh builder run gives for the same inputs,
     /// and each row's derived facts are what the map used to compute per pass.
     private func expectMatchesFreshBuild(
@@ -118,8 +113,6 @@ struct MapLayoutMemoTests {
         #expect(row.rowID == expectedRowID)
         let expectedMovable: Bool = section.canMove(expected)
         #expect(row.isMovable == expectedMovable)
-        let expectedSections: Bool = legacyHasMultipleSections(expected)
-        #expect(row.hasSections == expectedSections)
         let expectedColor: Color = AppColors.color(forArea: expected.key.area)
         #expect(row.color == expectedColor)
     }
@@ -130,7 +123,7 @@ struct MapLayoutMemoTests {
         let lessons = try seed(context)
         let memo = MapLayoutMemo()
 
-        var sawMovable = false, sawFixed = false, sawSections = false, sawSingle = false
+        var sawMovable = false, sawFixed = false
         for spine in MapSpine.allCases {
             for area: String? in [nil, math, " \(math.lowercased()) ", geometry, ""] {
                 let layout = memo.layout(for: lessons, selectedArea: area, spine: spine, in: context)
@@ -138,12 +131,10 @@ struct MapLayoutMemoTests {
                 let rows = layout.sections.flatMap(\.rows)
                 sawMovable = sawMovable || rows.contains { $0.isMovable }
                 sawFixed = sawFixed || rows.contains { !$0.isMovable }
-                sawSections = sawSections || rows.contains { $0.hasSections }
-                sawSingle = sawSingle || rows.contains { !$0.hasSections }
             }
         }
         // The seed exercises both answers of each derived fact.
-        #expect(sawMovable && sawFixed && sawSections && sawSingle)
+        #expect(sawMovable && sawFixed)
     }
 
     // MARK: - When it builds

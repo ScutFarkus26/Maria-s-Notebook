@@ -99,9 +99,6 @@ extension LessonsRootView {
                 onConfigureTrack: { key in
                     handleConfigureTrack(key.sequence, area: key.area)
                 },
-                onReorderSections: { key in
-                    handleReorderSections(key.sequence, area: key.area)
-                },
                 onFocusArea: { area in
                     filterState.selectedArea = area
                     syncReorderableSequences()
@@ -176,11 +173,7 @@ extension LessonsRootView {
         }
     }
 
-    // MARK: - Rules / Section sheet helpers
-
-    private func handleReorderSections(_ sequence: String, area: String) {
-        reorderSectionsItem = SectionReorderItem(area: area, sequence: sequence)
-    }
+    // MARK: - Rules sheet helper
 
     private func handleConfigureTrack(_ sequence: String, area: String) {
         sequenceRulesItem = SequenceRulesItem(area: area, sequence: sequence)

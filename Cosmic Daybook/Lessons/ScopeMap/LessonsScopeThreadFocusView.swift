@@ -19,18 +19,6 @@ struct LessonTransfer: Codable, Transferable {
     }
 }
 
-// MARK: - Section drag-drop payload
-
-struct ThreadSectionTransfer: Codable, Transferable {
-    let area: String
-    let sequence: String
-    let section: String
-
-    static var transferRepresentation: some TransferRepresentation {
-        CodableRepresentation(contentType: .data)
-    }
-}
-
 // MARK: - LessonsScopeThreadFocusView
 
 struct LessonsScopeThreadFocusView: View {
@@ -53,8 +41,6 @@ struct LessonsScopeThreadFocusView: View {
     var onReorderLessons: ((UUID, UUID) -> Void)?
 
     @State private var dropTargetLessonID: UUID?
-    @State private var dropTargetSection: String?
-    @State private var sectionOrderVersion: Int = 0
     /// Which lessons hold a file of their own (the pills' paperclip).
     @Environment(\.lessonAttachmentIndex) private var attachmentIndex
 
@@ -67,8 +53,6 @@ struct LessonsScopeThreadFocusView: View {
     }
 
     var body: some View {
-        // swiftlint:disable:next redundant_discardable_let
-        let _ = sectionOrderVersion
         VStack(alignment: .leading, spacing: 0) {
             header
             Divider()
@@ -78,7 +62,7 @@ struct LessonsScopeThreadFocusView: View {
 
     private var sectionedGroups: [(String, [CDLesson])] {
         LessonSectionGrouping
-            .bands(for: lessons, area: threadKey.area, sequence: threadKey.sequence)
+            .bands(for: lessons)
             .map { ($0.name, $0.lessons) }
     }
 
@@ -114,25 +98,18 @@ struct LessonsScopeThreadFocusView: View {
         }
     }
 
+    /// One band: its heading (none for a run of lessons with no section), then its
+    /// pills. Bands sit where their lessons fall, so there is no heading to drag;
+    /// moving a section means moving its lessons.
     @ViewBuilder
     private func sectionGroupView(name sectionName: String, lessons sectionLessons: [CDLesson]) -> some View {
-        let isNamed = !sectionName.isEmpty
-        let isDropTarget = isNamed && (dropTargetSection?.caseInsensitiveCompare(sectionName) == .orderedSame)
-
         VStack(alignment: .leading, spacing: 6) {
-            if isNamed {
+            if !sectionName.isEmpty {
                 Text(sectionName.uppercased())
                     .font(.system(size: 11, weight: .semibold, design: .rounded))
                     .tracking(0.5)
                     .foregroundStyle(color.opacity(0.7))
                     .padding(.vertical, 2)
-                    .contentShape(Rectangle())
-                    .draggable(ThreadSectionTransfer(
-                        area: threadKey.area,
-                        sequence: threadKey.sequence,
-                        section: sectionName
-                    ))
-                    .help("Drag to reorder section")
             }
             FlowLayout(spacing: 8) {
                 ForEach(sectionLessons, id: \.objectID) { lesson in
@@ -140,58 +117,6 @@ struct LessonsScopeThreadFocusView: View {
                 }
             }
         }
-        .overlay(
-            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                .stroke(Color.accentColor.opacity(isDropTarget ? 0.6 : 0), lineWidth: 1.5)
-                .padding(-6)
-        )
-        .when(isNamed) { view in
-            view.dropDestination(for: ThreadSectionTransfer.self) { items, _ in
-                handleSectionDrop(items: items, onto: sectionName)
-            } isTargeted: { isTargeted in
-                if isTargeted {
-                    dropTargetSection = sectionName
-                } else if dropTargetSection?.caseInsensitiveCompare(sectionName) == .orderedSame {
-                    dropTargetSection = nil
-                }
-            }
-        }
-    }
-
-    private func handleSectionDrop(items: [ThreadSectionTransfer], onto targetSection: String) -> Bool {
-        defer { dropTargetSection = nil }
-        guard let item = items.first,
-              item.area.caseInsensitiveCompare(threadKey.area) == .orderedSame,
-              item.sequence.caseInsensitiveCompare(threadKey.sequence) == .orderedSame,
-              item.section.caseInsensitiveCompare(targetSection) != .orderedSame
-        else { return false }
-
-        let names = sectionedGroups.map { $0.0 }.filter { !$0.isEmpty }
-        guard let newOrder = Self.sectionOrder(names, moving: item.section, onto: targetSection) else {
-            return false
-        }
-
-        FilterOrderStore.saveSectionOrder(newOrder, for: threadKey.area, sequence: threadKey.sequence)
-        FilterOrderStore.resetCache()
-        sectionOrderVersion &+= 1
-        return true
-    }
-
-    /// The section names after the section `moving` is dropped on `target`, or
-    /// nil when either isn't one of `names`. The dropped section takes the
-    /// target's place: dragged down it lands below the target (so the next
-    /// section and last place are reachable), dragged up it lands above.
-    nonisolated static func sectionOrder(_ names: [String], moving: String, onto target: String) -> [String]? {
-        guard let srcIdx = names.firstIndex(where: {
-            $0.caseInsensitiveCompare(moving) == .orderedSame
-        }), let dstIdx = names.firstIndex(where: {
-            $0.caseInsensitiveCompare(target) == .orderedSame
-        }) else { return nil }
-
-        var newOrder = names
-        let moved = newOrder.remove(at: srcIdx)
-        newOrder.insert(moved, at: dstIdx)
-        return newOrder
     }
 
     @ViewBuilder
