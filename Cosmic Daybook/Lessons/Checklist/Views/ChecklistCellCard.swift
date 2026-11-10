@@ -3,7 +3,8 @@
 //  Cosmic Daybook
 //
 //  What a click on a checklist cell opens: the lesson, the child, where she stands
-//  and why (amber for "Ready, check first", with the reason), the lesson before it
+//  and why (amber for "Ready, check first", with the reason; "Brewing" with what
+//  her Inbox lesson is waiting on), the lesson before it
 //  as the guide wants to see it first (when given, open work, last check-in,
 //  mastered or not), the ladder's five steps to move her up, Present (with the other children
 //  ready for it), the Inbox, Assign work, Clear, and links to the lesson and the
@@ -77,13 +78,15 @@ struct ChecklistCellCard: View {
             state: state,
             // The record is read for the open card; a card on its way out shows no dates.
             record: viewModel.cardCell == cell ? viewModel.cardRecord : ChecklistCardRecord(),
-            precedingLessonName: viewModel.precedingLessonNames[cell.lessonID]
+            precedingLessonName: viewModel.precedingLessonNames[cell.lessonID],
+            brewingHeldByOthers: brewingHeldByOthers
         )
         // Amber always means look before you act.
         let checkFirst = ChecklistCellDescription.checkFirstText(state) != nil
         return HStack(alignment: .firstTextBaseline, spacing: 8) {
             ChecklistMark(
-                status: status, needsCheckIn: state?.needsCheckIn ?? false, checkFirst: checkFirst, size: 16
+                status: status, needsCheckIn: state?.needsCheckIn ?? false, checkFirst: checkFirst,
+                brewing: state?.showsBrewing ?? false, size: 16
             )
             .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
             Text("\(Text(text.title).bold()) \(text.detail)")
@@ -100,6 +103,13 @@ struct ChecklistCellCard: View {
             in: RoundedRectangle(cornerRadius: 8)
         )
         .accessibilityElement(children: .combine)
+    }
+
+    /// The children her brewing Inbox lesson is waiting on, as the columns name them, when
+    /// she is ready for it herself; empty when she is one of them.
+    private var brewingHeldByOthers: [String] {
+        guard let heldBy = state?.brewingHeldBy, !heldBy.contains(cell.studentID) else { return [] }
+        return heldBy.compactMap { id in viewModel.rosterStudents.first { $0.id == id }?.shortName }
     }
 
     /// PREVIOUS LESSON: its mark, its name and when she was given it, then open work,

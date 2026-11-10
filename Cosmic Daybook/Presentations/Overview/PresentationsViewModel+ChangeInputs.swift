@@ -1,7 +1,8 @@
 // PresentationsViewModel+ChangeInputs.swift
-// What `update` reads besides the open work and the assignment table, and the
-// hashes it compares to decide whether anything moved: everything the
+// The hashes `update` compares to decide whether anything moved: everything the
 // readiness engine reads, so a change to any of it redraws Ready and Brewing.
+// What it reads off the lessons before the Inbox's rows is gathered by
+// `InboxPlacement`, which the Class Grid's Brewing mark asks too.
 
 import CoreData
 import Foundation
@@ -110,41 +111,5 @@ extension PresentationsViewModel {
             hasher.combine(masteryMarks[lessonID]?.sorted() ?? [])
         }
         return hasher.finalize()
-    }
-
-    /// The mastery marks on each unscheduled plan's preceding lesson: a mark
-    /// counts as confirmation (bug hunt 2026-11-03 #5).
-    func fetchPrecedingMasteryMarks(
-        _ lessonAssignments: [CDLessonAssignment],
-        _ lessons: [CDLesson],
-        in viewContext: NSManagedObjectContext
-    ) -> [String: Set<String>] {
-        let unscheduled = lessonAssignments.filter { $0.scheduledFor == nil && !$0.isGiven }
-        let lessonIDs = BlockingAlgorithmEngine.precedingLessonIDs(
-            for: unscheduled, precedingLessons: BlockingAlgorithmEngine.buildPrecedingLessonCache(lessons)
-        )
-        return PresentationRecordIndex.masteryMarks(lessonIDs: lessonIDs, in: viewContext)
-    }
-
-    /// Closed work on the given presentations that gate the backlog (each
-    /// unscheduled plan's preceding lesson). The blocking check needs it: a
-    /// child who finished her practice has only closed work there, and with
-    /// open work alone she read as having none, so "Waiting for work".
-    func fetchClosedPrecedingWork(
-        _ lessonAssignments: [CDLessonAssignment],
-        _ lessons: [CDLesson],
-        in viewContext: NSManagedObjectContext
-    ) -> [CDWorkModel] {
-        let unscheduled = lessonAssignments.filter { $0.scheduledFor == nil && !$0.isGiven }
-        let presentationIDs = BlockingAlgorithmEngine.precedingPresentationIDs(
-            for: unscheduled, lessons: lessons, allLessonAssignments: lessonAssignments
-        )
-        guard !presentationIDs.isEmpty else { return [] }
-        let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
-            NSPredicate(format: "presentationID IN %@", Array(presentationIDs)),
-            NSCompoundPredicate(notPredicateWithSubpredicate: WorkStatus.openPredicate)
-        ])
-        return viewContext.safeFetch(request)
     }
 }

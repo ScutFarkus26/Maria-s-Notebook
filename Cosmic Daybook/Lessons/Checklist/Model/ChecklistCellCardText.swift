@@ -3,7 +3,8 @@
 //  Cosmic Daybook
 //
 //  What the cell card says and offers, kept apart from the view so it is tested:
-//  the status line ("Ready." / "Not yet." / "Presented." with its date), the five
+//  the status line ("Ready." / "Not yet." / "Presented." with its date, "Brewing."
+//  with what the Inbox lesson is waiting on), the five
 //  ladder steps a click can move the child up to, and the Present button's label
 //  ("Present with 4 others ready…").
 //
@@ -93,10 +94,14 @@ enum ChecklistCellCardText {
         let detail: String
     }
 
+    /// - Parameter brewingHeldByOthers: for a brewing cell whose child is ready herself,
+    ///   the children her Inbox lesson is waiting on, as the columns name them, in roster
+    ///   order. Empty when she is one of them.
     static func status(
         state: StudentChecklistRowState?,
         record: ChecklistCardRecord,
         precedingLessonName: String?,
+        brewingHeldByOthers: [String] = [],
         dateText: @MainActor (Date) -> String = Self.shortDate
     ) -> Status {
         let status = state?.displayStatus ?? .ready
@@ -114,12 +119,14 @@ enum ChecklistCellCardText {
                 .map { $0.prefix(1).uppercased() + $0.dropFirst() + "." }
                 ?? "Nothing holds it back; not presented or planned yet."
         case .planned:
-            if let plannedFor = record.plannedFor {
+            if let state, state.showsBrewing {
+                detail = brewingDetail(heldByOthers: brewingHeldByOthers, precedingLessonName: precedingLessonName)
+            } else if let plannedFor = record.plannedFor {
                 detail = "Planned for \(dateText(plannedFor))."
             } else {
                 // Planned by her year plan alone: no presentation holds her yet.
                 detail = state?.isScheduled == false && state?.isOnYearPlan == true
-                    ? "On the year plan." : "In the Inbox."
+                    ? "On the year plan." : "In the Inbox, under Ready."
             }
         case .presented:
             // The title already says "Presented.", so the line only adds the date.
@@ -135,9 +142,25 @@ enum ChecklistCellCardText {
         return Status(title: title(status, state: state), detail: detail)
     }
 
-    /// "Not yet.", "Ready, check first.", or the status itself: "Presented.".
+    /// Where a brewing cell's lesson is and what it waits on: the lesson before, and the
+    /// children holding the group when she isn't one of them ("Avital B and 2 others").
+    private static func brewingDetail(heldByOthers: [String], precedingLessonName: String?) -> String {
+        let place = "In the Inbox under Brewing"
+        guard let lesson = precedingLessonName?.trimmed(), !lesson.isEmpty else { return "\(place)." }
+        guard let first = heldByOthers.first else { return "\(place), waiting on \(lesson)." }
+        let others = heldByOthers.count - 1
+        let who = switch others {
+        case ...0: first
+        case 1: "\(first) and 1 other"
+        default: "\(first) and \(others) others"
+        }
+        return "\(place), waiting on \(who) for \(lesson)."
+    }
+
+    /// "Not yet.", "Brewing.", "Ready, check first.", or the status itself: "Presented.".
     private static func title(_ status: ChecklistDisplayStatus, state: StudentChecklistRowState?) -> String {
         if status == .notReady { return "Not yet." }
+        if state?.showsBrewing == true { return "Brewing." }
         if ChecklistCellDescription.checkFirstText(state) != nil { return "\(ReadinessTier.almostReady.title)." }
         return "\(status.label)."
     }

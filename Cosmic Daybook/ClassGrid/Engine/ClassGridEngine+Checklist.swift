@@ -2,7 +2,8 @@
 // The Class Grid engine's Checklist half (once ChecklistMatrixBuilder): every
 // cell of an area, read from the records on the view context, with what the
 // Checklist's tools need beside the mark (the plan to act on, the work to
-// close, staleness, readiness). The rung itself is the one rule every view
+// close, staleness, readiness, and whether its Inbox lesson is brewing, asked
+// of the Inbox's own rule: `InboxPlacement`). The rung itself is the one rule every view
 // climbs (`ChecklistDisplayStatus.resolve`); the Three Years half
 // (ClassGridEngine.swift) reads the same rule off a background snapshot, so a
 // cell can't read one rung on the Checklist and another on Three Years.
@@ -24,8 +25,8 @@ extension ClassGridEngine {
     /// Builds the matrix of states for all students and lessons.
     ///
     /// - Parameters:
-    ///   - students: Students to include in the matrix
-    ///   - lessons: Lessons to include in the matrix
+    ///   - students: Students to include in the matrix: the enrolled, shown roster
+    ///   - lessons: Lessons to include in the matrix: a whole area
     ///   - context: Model context for fetching data
     /// - Returns: Dictionary mapping student ID -> lesson ID -> state
     static func buildMatrix(
@@ -41,7 +42,7 @@ extension ClassGridEngine {
             matrix[studentID] = [:]
         }
         fillRows(
-            &matrix, rowLessons: lessons, students: students,
+            &matrix, rowLessons: lessons, lessons: lessons, students: students,
             precedingLessonMap: precedingLessonMap, context: context
         )
         return matrix
@@ -73,7 +74,7 @@ extension ClassGridEngine {
         }
         guard !rowLessons.isEmpty else { return }
         fillRows(
-            &matrix, rowLessons: rowLessons, students: students,
+            &matrix, rowLessons: rowLessons, lessons: lessons, students: students,
             precedingLessonMap: precedingLessonMap, context: context
         )
     }
@@ -81,10 +82,13 @@ extension ClassGridEngine {
     /// Writes one state per (student, row lesson) into `matrix`, fetching the row lessons'
     /// records once, indexed by student, plus the row lessons' mastery marks in one more
     /// fetch, and the predecessors' record, work and recall checks for the readiness rule
-    /// (`ReadyForNextEngine.readiness(of:)`) in a few more.
-    private static func fillRows(
+    /// (`ReadyForNextEngine.readiness(of:)`) in a few more. When a row lesson has an
+    /// undated plan in the Inbox, one batch call to the Inbox's rule says which of them
+    /// are brewing (`BrewingPlans`).
+    private static func fillRows( // swiftlint:disable:this function_parameter_count
         _ matrix: inout Matrix,
         rowLessons: [CDLesson],
+        lessons: [CDLesson],
         students: [CDStudent],
         precedingLessonMap: [UUID: CDLesson],
         context: NSManagedObjectContext
@@ -103,6 +107,9 @@ extension ClassGridEngine {
         let records = loadRecords(rowIDs: rowIDs, context: context)
         let readiness = PrecedingReadiness(
             preceding: precedingLessons, students: students, context: context
+        )
+        let brewing = brewingPlans(
+            inboxRows: records.inboxRows, lessons: lessons, students: students, context: context
         )
 
         // Pre-compute staleness threshold date once instead of per-cell
@@ -136,7 +143,8 @@ extension ClassGridEngine {
                     blockingReason: verdict.blockingReason,
                     isMastered: records.masteryMarks[lessonIDString]?.contains(studentKey) ?? false,
                     isOnYearPlan: records.yearPlanned[lessonIDString]?.contains(studentKey) ?? false,
-                    checkFirstReasons: verdict.checkFirstReasons
+                    checkFirstReasons: verdict.checkFirstReasons,
+                    brewingPlans: brewing
                 )
             }
             matrix[studentID] = studentRow
@@ -150,6 +158,8 @@ extension ClassGridEngine {
     /// (lesson ID string → student keys).
     private struct LessonRecordIndex {
         let assignments: [String: [String: [CDLessonAssignment]]]
+        /// The row lessons' undated, not-given plans: their rows in the Inbox.
+        let inboxRows: [CDLessonAssignment]
         let works: [String: [String: [CDWorkModel]]]
         let masteryMarks: [String: Set<String>]
         let yearPlanned: [String: Set<String>]
@@ -162,6 +172,7 @@ extension ClassGridEngine {
         let works = fetchWorks(lessonIDs: fetchIDs, context: context)
         return LessonRecordIndex(
             assignments: assignmentsByLesson(assignments),
+            inboxRows: InboxPlacement.inboxRows(among: assignments),
             works: worksByLesson(works, visibility: WorkVisibility(rows: works)),
             masteryMarks: PresentationRecordIndex.masteryMarks(lessonIDs: rowIDs, in: context),
             yearPlanned: yearPlannedByLesson(lessonIDs: fetchIDs, context: context)
@@ -248,13 +259,18 @@ extension ClassGridEngine {
         blockingReason: BlockingReason = .none,
         isMastered: Bool = false,
         isOnYearPlan: Bool = false,
-        checkFirstReasons: [String] = []
+        checkFirstReasons: [String] = [],
+        brewingPlans: [UUID: [UUID]] = [:]
     ) -> StudentChecklistRowState {
         let nonPresented = studentLAs.filter { !$0.isPresented }
         let plannedCandidate = nonPresented.first
         let isScheduled = !nonPresented.isEmpty
         let isInboxPlan = isScheduled && (plannedCandidate?.scheduledFor == nil)
         let isPresented = studentLAs.contains { $0.isPresented }
+        // Brewing follows her Inbox row. A dated plan wins: with one, the lesson is on a
+        // day whatever the Inbox holds, and the cell is plain Planned.
+        let hasDatedPlan = nonPresented.contains { $0.scheduledFor != nil }
+        let brewingHeldBy: [UUID]? = hasDatedPlan ? nil : plannedCandidate?.id.flatMap { brewingPlans[$0] }
 
         let workModelForLesson = cellWork(studentWorkModels)
         let isActive = workModelForLesson?.isOpen ?? false
@@ -283,7 +299,9 @@ extension ClassGridEngine {
             isOnYearPlan: isOnYearPlan,
             blockingReason: blockingReason,
             isMastered: isMastered,
-            checkFirstReasons: checkFirstReasons
+            checkFirstReasons: checkFirstReasons,
+            isBrewing: brewingHeldBy != nil,
+            brewingHeldBy: brewingHeldBy ?? []
         )
     }
 

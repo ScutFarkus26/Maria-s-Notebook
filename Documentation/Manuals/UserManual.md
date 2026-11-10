@@ -641,7 +641,10 @@ The same marks are used everywhere in the grid:
 - grey — no lesson given yet
 - blue, filled a quarter, a half, or three-quarters — **Presented**, **Practicing**, **Reviewing**
 - green with a check — **Mastered** (only when you have marked mastery)
-- dashed orange — planned
+- dashed orange — **Planned**: in the Inbox, on a dated plan, or next on the child's year plan
+- dashed orange with a grey dot inside — **Brewing** (Checklist view only)
+
+**Brewing** is a planned lesson that is waiting. When you add a child to the Inbox from the Checklist, the lesson goes to the Inbox in **Lessons & Work**. The Inbox keeps two lists: **Ready**, and **Brewing** for a lesson where a child on it hasn't finished the lesson before. The Inbox opens on Ready, so a brewing lesson is easy to miss there; the mark tells you which list to look under. Every child on a brewing lesson shows the mark, because the Inbox holds the whole group while any one of them isn't ready. Tap the cell and its card says what the lesson is waiting on, for example "In the Inbox under Brewing, waiting on Avital B and 2 others for Division with Decimals". The key under the grid counts Brewing apart from Planned. A lesson on a dated plan, or one that is only on the year plan, is never Brewing.
 
 Recall checks show as a ring around the mark: **solid green** still has it, **dashed orange** shaky, **dotted red** forgotten.
 

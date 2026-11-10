@@ -206,7 +206,7 @@ struct ChecklistSelectionRulesTests {
         #expect(text(state(0, blocking: .prerequisiteNotPresented), .init()) == .init(
             title: "Not yet.", detail: "Subtraction: Dynamic not presented."
         ))
-        #expect(text(state(0, scheduled: true), .init()).detail == "In the Inbox.")
+        #expect(text(state(0, scheduled: true), .init()).detail == "In the Inbox, under Ready.")
         #expect(text(state(0, scheduled: true), .init(plannedFor: day)).detail == "Planned for Feb 12.")
         #expect(text(state(0, presented: true), .init(presentedOn: day)) == .init(
             title: "Presented.", detail: "On Feb 12."

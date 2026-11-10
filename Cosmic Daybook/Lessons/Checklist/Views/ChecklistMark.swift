@@ -6,7 +6,9 @@
 //  glyph): a grey dot (not yet), a grey ring (ready), a dashed orange ring
 //  (planned), a blue ring filling a quarter, half and three quarters (presented,
 //  practicing, reviewing), then solid green with a check (mastered, only for a
-//  mastery mark). A small amber dot on top means look before you act: a check-in
+//  mastery mark). On the Checklist a planned ring with the grey Not yet dot inside
+//  is Brewing: the lesson is in the Inbox, under Brewing, because a child on it
+//  hasn't finished the lesson before. A small amber dot on top means look before you act: a check-in
 //  is due, or a Ready cell is "Ready, check first". Three Years and Recall draw
 //  the latest recall check as an outline outside the mark: solid green (still has
 //  it), dashed orange (shaky), dotted red (forgotten). Plain shapes in system
@@ -20,6 +22,9 @@ struct ChecklistMark: View, Equatable {
     var needsCheckIn: Bool = false
     /// A Ready cell that is "Ready, check first": the amber dot on its grey ring.
     var checkFirst: Bool = false
+    /// A Planned cell whose Inbox lesson sits under Brewing: the Not yet dot inside its
+    /// orange ring. Only Planned draws it.
+    var brewing: Bool = false
     /// The latest recall check, drawn as an outline outside the mark.
     var recall: RecallOutcome?
     var size: CGFloat = 15
@@ -51,9 +56,7 @@ struct ChecklistMark: View, Equatable {
     private var mark: some View {
         switch status {
         case .notReady:
-            Circle()
-                .fill(.tertiary)
-                .frame(width: size * 0.32, height: size * 0.32)
+            notYetDot
         case .ready where emphasizesReady:
             // Under the Ready lens: blue for Ready, amber for Ready, check first.
             Circle()
@@ -70,6 +73,9 @@ struct ChecklistMark: View, Equatable {
                     Color.orange,
                     style: StrokeStyle(lineWidth: lineWidth, dash: [size * 0.17, size * 0.12])
                 )
+                .overlay {
+                    if brewing { notYetDot }
+                }
         case .presented, .practicing, .reviewing:
             // One branch for the three blue rungs, so a step up animates the fill.
             ZStack {
@@ -90,6 +96,13 @@ struct ChecklistMark: View, Equatable {
                     )
             }
         }
+    }
+
+    /// Not yet's grey dot, which Brewing wears inside the Planned ring.
+    private var notYetDot: some View {
+        Circle()
+            .fill(.tertiary)
+            .frame(width: size * 0.32, height: size * 0.32)
     }
 
     /// The latest recall check, an outline a little outside the mark. Mastery itself
@@ -115,9 +128,14 @@ struct ChecklistMark: View, Equatable {
         }
     }
 
-    /// What the mark says, for VoiceOver and hover text: "Mastered, recall shaky".
-    static func label(status: ChecklistDisplayStatus, recall: RecallOutcome?) -> String {
-        let base = status == .notReady ? "Not yet" : status.label
+    /// What the mark says, for VoiceOver and hover text: "Mastered, recall shaky". A
+    /// Planned mark that is brewing says "Brewing".
+    static func label(status: ChecklistDisplayStatus, recall: RecallOutcome?, brewing: Bool = false) -> String {
+        let base = switch status {
+        case .notReady: "Not yet"
+        case .planned where brewing: "Brewing"
+        default: status.label
+        }
         guard let recall else { return base }
         switch recall {
         case .retained: return "\(base), still has it"
@@ -211,6 +229,7 @@ private struct ChecklistMarkPreview: View {
             ForEach(ChecklistDisplayStatus.allCases, id: \.self) { status in
                 ChecklistMark(status: status)
             }
+            ChecklistMark(status: .planned, brewing: true)
             ChecklistMark(status: .practicing, needsCheckIn: true)
             ChecklistMark(status: .ready, emphasizesReady: true)
             ChecklistMark(status: .ready, checkFirst: true)

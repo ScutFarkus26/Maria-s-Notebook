@@ -160,6 +160,15 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
     /// (`ReadyForNextEngine.readiness(of:)`), e.g. "2 pieces of work still open". Empty
     /// otherwise.
     public let checkFirstReasons: [String]
+    /// Her plan is an undated Inbox lesson that sits under Brewing in Lessons & Work: a
+    /// child on it hasn't finished the lesson before (`InboxPlacement`, the Inbox's own
+    /// rule). A flag beside Planned, not a rung: the cell is still Planned on the ladder,
+    /// and only the Checklist draws it (`showsBrewing`).
+    public let isBrewing: Bool
+    /// The children on that Inbox lesson who aren't ready for it, in roster order: who it
+    /// is waiting on. The Inbox holds the whole group while any one of them isn't, so this
+    /// may not include her. Empty unless `isBrewing`.
+    public let brewingHeldBy: [UUID]
 
     /// The highest rung reached: mastered > reviewing > practicing > presented > planned,
     /// then ready or not yet ready by the blocking reason. Closed work counts as Reviewing
@@ -189,6 +198,12 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
         isOnYearPlan && blockingReason != .prerequisiteNotPresented
     }
 
+    /// The cell draws the Brewing mark: brewing, and Planned is the rung it shows (a child
+    /// already given the lesson, on a plan to give it again, shows where she got to).
+    public var showsBrewing: Bool {
+        isBrewing && displayStatus == .planned
+    }
+
     /// Open work that hasn't been touched in a while, on a lesson not yet mastered.
     public var needsCheckIn: Bool {
         isStale && !isMastered
@@ -211,7 +226,9 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
         isOnYearPlan: Bool = false,
         blockingReason: BlockingReason = .none,
         isMastered: Bool = false,
-        checkFirstReasons: [String] = []
+        checkFirstReasons: [String] = [],
+        isBrewing: Bool = false,
+        brewingHeldBy: [UUID] = []
     ) {
         self.lessonID = lessonID
         self.plannedItemID = plannedItemID
@@ -230,5 +247,7 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
         self.blockingReason = blockingReason
         self.isMastered = isMastered
         self.checkFirstReasons = checkFirstReasons
+        self.isBrewing = isBrewing
+        self.brewingHeldBy = brewingHeldBy
     }
 }

@@ -122,6 +122,8 @@ struct ChecklistMatrixBuilderEquivalenceTests {
         #expect(cells.contains { $0.blockingReason == .prerequisiteNotPresented })
         #expect(cells.contains { $0.blockingReason != .none && $0.blockingReason != .prerequisiteNotPresented })
         #expect(cells.contains { !$0.checkFirstReasons.isEmpty })
+        #expect(cells.contains { $0.isBrewing })
+        #expect(cells.contains { $0.isInboxPlan && !$0.isBrewing })
     }
 
     @Test func emptyLessonsGiveEmptyMatrix() throws {
@@ -137,7 +139,9 @@ struct ChecklistMatrixBuilderEquivalenceTests {
 /// work that counts as the child's (`WorkGrouping.visibleWork`, row by row,
 /// against the builder's batched `WorkVisibility`). Since 2026-10-18 "Not yet" and
 /// "Ready, check first" are the one readiness rule (`ReadyForNextEngine.readiness(of:)`),
-/// read here one cell at a time.
+/// read here one cell at a time. Brewing (2026-11-10) is the Inbox's rule asked the way
+/// the Inbox asks it, over the whole assignment and work tables, against the builder's
+/// scoped reads.
 @MainActor
 private enum LegacyMatrixBuilder {
     static func buildMatrix(
@@ -163,6 +167,7 @@ private enum LegacyMatrixBuilder {
         let calendar = AppCalendar.shared
         let today = calendar.startOfDay(for: Date())
         let precedingLessonMap = BlockingAlgorithmEngine.buildPrecedingLessonCache(lessons)
+        let brewing = brewingPlans(students: students, lessons: lessons, context: context)
         for student in students {
             var studentRow: [UUID: StudentChecklistRowState] = [:]
             let studentKey = student.cloudKitKey
@@ -181,13 +186,39 @@ private enum LegacyMatrixBuilder {
                 studentRow[lessonID] = ClassGridEngine.buildCellState(
                     lesson: lesson, studentLAs: studentLAs, studentWorkModels: studentWorks,
                     calendar: calendar, today: today, blockingReason: readiness.blocking,
-                    checkFirstReasons: readiness.checkFirst
+                    checkFirstReasons: readiness.checkFirst, brewingPlans: brewing
                 )
             }
             guard let studentID = student.id else { continue }
             newMatrix[studentID] = studentRow
         }
         return newMatrix
+    }
+
+    /// The Inbox lessons under Brewing with who holds each, from every assignment and
+    /// every work row in the store, as Lessons & Work's Inbox reads them.
+    private static func brewingPlans(
+        students: [CDStudent], lessons: [CDLesson], context: NSManagedObjectContext
+    ) -> [UUID: [UUID]] {
+        let allAssignments = context.safeFetch(CDFetchRequest(CDLessonAssignment.self))
+        let lessonIDs = Set(lessons.compactMap { $0.id?.uuidString })
+        let inboxRows = allAssignments.filter {
+            $0.scheduledFor == nil && !$0.isGiven && lessonIDs.contains($0.lessonID)
+        }
+        let roster = students.compactMap(\.id)
+        let results = BlockingAlgorithmEngine.checkBlocking(
+            forBatch: inboxRows,
+            lessons: lessons,
+            allLessonAssignments: allAssignments,
+            workModels: context.safeFetch(CDFetchRequest(CDWorkModel.self)),
+            judgedStudentIDs: Set(roster)
+        )
+        var held: [UUID: [UUID]] = [:]
+        for (assignmentID, result) in results where result.isBlocked {
+            let waitingOn = Set(result.perStudentReadiness.values.filter { !$0.isReady }.map(\.studentID))
+            held[assignmentID] = roster.filter(waitingOn.contains)
+        }
+        return held
     }
 
     /// One cell's readiness, read on its own: the record, work and recall checks of the

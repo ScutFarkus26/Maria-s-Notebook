@@ -85,7 +85,7 @@ struct ClassChecklistSmartCell: View, Equatable {
 
     /// One mark, centered. The blocking reason is in the hover text and VoiceOver value,
     /// not a badge; a stale cell, and a Ready, check first one, get the mark's amber dot,
-    /// not a tint.
+    /// not a tint; a Planned cell whose Inbox lesson is brewing gets the dot in its ring.
     private var cellContent: some View {
         let status = state?.displayStatus ?? .ready
         let checkFirst = ChecklistCellDescription.checkFirstText(state) != nil
@@ -108,6 +108,7 @@ struct ClassChecklistSmartCell: View, Equatable {
                 status: status,
                 needsCheckIn: state?.needsCheckIn ?? false,
                 checkFirst: checkFirst,
+                brewing: state?.showsBrewing ?? false,
                 emphasizesReady: isLifted
             )
             .opacity(lens == .ready && !isLifted ? ChecklistLens.fadedOpacity : 1)

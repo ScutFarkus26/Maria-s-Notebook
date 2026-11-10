@@ -15,6 +15,8 @@ struct ChecklistStatusCounts: Equatable {
     private(set) var needsCheckIn: Int = 0
     /// Ready cells that are Ready, check first (they count as Ready too).
     private(set) var checkFirst: Int = 0
+    /// Planned cells whose Inbox lesson is brewing (they count as Planned too).
+    private(set) var brewing: Int = 0
     /// Cells counted: visible students × visible lessons that have a state.
     private(set) var total: Int = 0
 
@@ -29,6 +31,7 @@ struct ChecklistStatusCounts: Equatable {
                 byStatus[state.displayStatus, default: 0] += 1
                 if state.needsCheckIn { needsCheckIn += 1 }
                 if ChecklistCellDescription.checkFirstText(state) != nil { checkFirst += 1 }
+                if state.showsBrewing { brewing += 1 }
                 total += 1
             }
         }

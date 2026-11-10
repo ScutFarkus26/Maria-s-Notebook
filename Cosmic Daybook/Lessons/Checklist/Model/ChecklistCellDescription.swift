@@ -5,7 +5,8 @@
 //  The words for a checklist cell: its hover text, its VoiceOver value and hint.
 //  The blocking reason left the cell as a badge and lives here now, naming the
 //  lesson before ("Not yet: Subtraction: Dynamic not presented"), and so does what to
-//  check first on a Ready cell ("Ready, check first: 2 pieces of work still open").
+//  check first on a Ready cell ("Ready, check first: 2 pieces of work still open") and
+//  what a brewing Inbox lesson is waiting on ("Brewing: waiting on Subtraction: Dynamic").
 //
 
 import Foundation
@@ -29,6 +30,7 @@ enum ChecklistCellDescription {
         let reason = state.flatMap { reasonText($0.blockingReason, precedingLessonName: precedingLessonName) }
         var text: String
         switch (status, reason) {
+        case _ where state?.showsBrewing == true: text = brewingText(precedingLessonName: precedingLessonName)
         case (.notReady, let reason?): text = "Not yet: \(reason)"
         case (_, let reason?): text = "\(status.label): \(reason)"
         case (.ready, nil) where checkFirstText(state) != nil:
@@ -44,7 +46,12 @@ enum ChecklistCellDescription {
         let status = state?.displayStatus ?? .ready
         let checkFirst = status == .ready ? checkFirstText(state) : nil
         var parts = [checkFirst == nil ? status.label : ReadinessTier.almostReady.title]
-        if let state, let reason = reasonText(state.blockingReason, precedingLessonName: precedingLessonName) {
+        if state?.showsBrewing == true {
+            // Brewing says what it waits on itself; the grid's own reason would say it twice.
+            parts = [brewingText(precedingLessonName: precedingLessonName)]
+        } else if let state, let reason = reasonText(
+            state.blockingReason, precedingLessonName: precedingLessonName
+        ) {
             parts.append(reason)
         }
         if let checkFirst { parts.append(checkFirst) }
@@ -65,6 +72,14 @@ enum ChecklistCellDescription {
     static func checkFirstText(_ state: StudentChecklistRowState?) -> String? {
         guard let state, state.displayStatus == .ready, !state.checkFirstReasons.isEmpty else { return nil }
         return state.checkFirstReasons.joined(separator: "; ")
+    }
+
+    /// "Brewing: waiting on Decimal 0": a Planned cell whose Inbox lesson sits under
+    /// Brewing, naming the lesson before it when known.
+    static func brewingText(precedingLessonName: String?) -> String {
+        let brewing = ChecklistMark.label(status: .planned, recall: nil, brewing: true)
+        guard let name = precedingLessonName?.trimmed(), !name.isEmpty else { return brewing }
+        return "\(brewing): waiting on \(name)"
     }
 
     /// Why the lesson is blocked, naming the lesson before it when known. Nil when nothing blocks it.

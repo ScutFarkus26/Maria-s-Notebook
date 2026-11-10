@@ -175,18 +175,22 @@ final class PresentationsViewModel {
         workRequest.predicate = WorkStatus.openPredicate
         workRequest.relationshipKeyPathsForPrefetching = ["participants"]
         let workModels = viewContext.safeFetch(workRequest)
-        let closedPrecedingWork = fetchClosedPrecedingWork(lessonAssignments, lessons, in: viewContext)
-        let masteryMarks = fetchPrecedingMasteryMarks(lessonAssignments, lessons, in: viewContext)
+        // What the blocking check reads off the lesson before each Inbox row; gathered
+        // by the place the Class Grid's Brewing mark asks too (`InboxPlacement`).
+        let inboxRows = InboxPlacement.inboxRows(among: lessonAssignments)
+        let preceding = InboxPlacement.PrecedingRecord(
+            inboxRows: inboxRows, lessons: lessons, allLessonAssignments: lessonAssignments, in: viewContext
+        )
         await Task.yield()
         if Task.isCancelled { return }
 
         let lHash = Self.lessonsHash(lessons)
         let sHash = computeStudentsHash(students)
-        let wHash = computeWorkModelHash(workModels + closedPrecedingWork)
+        let wHash = computeWorkModelHash(workModels + preceding.closedWork)
         let settingsHash = Self.settingsHash(inboxOrderRaw, showTestStudents, testStudentNamesRaw)
         let readinessHash = Self.readinessInputsHash(
             sequenceSettings: viewContext.safeFetch(CDFetchRequest(CDLessonSequenceSettings.self)),
-            masteryMarks: masteryMarks
+            masteryMarks: preceding.masteryMarks
         )
         let coreChanged = laHash != lastLessonAssignmentChangeHash
             || lHash != lastLessonsHash
@@ -255,11 +259,15 @@ final class PresentationsViewModel {
         if Task.isCancelled { return }
 
         let partition = partitionIntoReadyAndBlocked(
-            lessonAssignments: lessonAssignments,
-            lessons: lessons,
-            workModels: workModels + closedPrecedingWork,
-            masteryMarks: masteryMarks,
-            judgedStudentIDs: Set(visibleStudents.compactMap(\.id)),
+            inboxRows: inboxRows,
+            blockingResults: InboxPlacement.results(
+                inboxRows: inboxRows,
+                lessons: lessons,
+                allLessonAssignments: lessonAssignments,
+                openWork: workModels,
+                preceding: preceding,
+                judgedStudentIDs: Set(visibleStudents.compactMap(\.id))
+            ),
             inboxOrderRaw: inboxOrderRaw
         )
         self.readyLessons = partition.ready
@@ -278,24 +286,11 @@ final class PresentationsViewModel {
         #endif
     }
 
-    // swiftlint:disable:next function_parameter_count
     private func partitionIntoReadyAndBlocked(
-        lessonAssignments: [CDLessonAssignment],
-        lessons: [CDLesson],
-        workModels: [CDWorkModel],
-        masteryMarks: [String: Set<String>],
-        judgedStudentIDs: Set<UUID>,
+        inboxRows allUnscheduled: [CDLessonAssignment],
+        blockingResults: InboxPlacement.Results,
         inboxOrderRaw: String
     ) -> PresentationPartition {
-        let allUnscheduled = lessonAssignments.filter { $0.scheduledFor == nil && !$0.isGiven }
-        let blockingResults = BlockingAlgorithmEngine.checkBlocking(
-            forBatch: allUnscheduled,
-            lessons: lessons,
-            allLessonAssignments: lessonAssignments,
-            workModels: workModels,
-            masteryMarks: masteryMarks,
-            judgedStudentIDs: judgedStudentIDs
-        )
         var ready: [CDLessonAssignment] = []
         var blocked: [CDLessonAssignment] = []
         for la in allUnscheduled {

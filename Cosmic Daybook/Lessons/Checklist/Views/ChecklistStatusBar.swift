@@ -3,7 +3,8 @@
 //  Cosmic Daybook
 //
 //  The strip under the checklist grid: the ladder's key with live counts over the
-//  rows and students on screen, on one short line. While the Ready lens is on, the
+//  rows and students on screen, on one short line. Check first sits after Ready and
+//  Brewing after Planned, each counted apart from its rung. While the Ready lens is on, the
 //  rule a ringed cell meets sits on its own line above the key and wraps where the
 //  window is narrow, so the key keeps its full width. Its items sit at the leading
 //  end; the trailing end lies under the app's floating + button, which the grid
@@ -57,7 +58,7 @@ struct ChecklistStatusBar: View {
                 ForEach(ChecklistDisplayStatus.allCases, id: \.self) { status in
                     legendItem(
                         label: status == .notReady ? "Not yet" : status.label,
-                        count: status == .ready ? counts[.ready] - counts.checkFirst : counts[status],
+                        count: Self.count(of: status, in: counts),
                         help: Self.meaning(of: status)
                     ) {
                         ChecklistMark(
@@ -75,6 +76,16 @@ struct ChecklistStatusBar: View {
                                 status: .ready, checkFirst: true, size: Self.markSize,
                                 emphasizesReady: lens == .ready
                             )
+                        }
+                    }
+                    if status == .planned {
+                        legendItem(
+                            label: ChecklistMark.label(status: .planned, recall: nil, brewing: true),
+                            count: counts.brewing,
+                            help: "In the Inbox under Brewing: the children haven't finished the lesson before"
+                        ) {
+                            ChecklistMark(status: .planned, brewing: true, size: Self.markSize)
+                                .opacity(lens == .ready ? ChecklistLens.fadedOpacity : 1)
                         }
                     }
                 }
@@ -128,6 +139,16 @@ struct ChecklistStatusBar: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
         .accessibilityValue("\(count)")
+    }
+
+    /// A rung's count, less the cells its own flagged item counts beside it: Ready
+    /// without Check first, Planned without Brewing.
+    static func count(of status: ChecklistDisplayStatus, in counts: ChecklistStatusCounts) -> Int {
+        switch status {
+        case .ready: counts[.ready] - counts.checkFirst
+        case .planned: counts[.planned] - counts.brewing
+        default: counts[status]
+        }
     }
 
     private static func counted(_ count: Int, _ noun: String) -> String {
