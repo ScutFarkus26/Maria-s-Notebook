@@ -37,10 +37,12 @@ extension LessonsRootView {
         let trimmedArea = area.trimmed()
         guard !trimmedArea.isEmpty else { return }
 
-        let saved = helper.groups(for: trimmedArea, lessons: lessons)
-        guard let full = FilterOrderStore.applyingVisibleOrder(visibleOrder, to: saved) else { return }
+        // Through SubAreaOrder so the unfiled band keeps the place it was given.
+        let named = helper.groups(for: trimmedArea, lessons: lessons)
+        guard let full = SubAreaOrder.applying(visibleOrder: visibleOrder, toNamed: named, area: trimmedArea)
+        else { return }
 
-        FilterOrderStore.saveSequenceOrder(full, for: trimmedArea)
+        SubAreaOrder.save(full, area: trimmedArea)
         FilterOrderStore.resetCache()
         syncReorderableSequences()
         // The saved sequence order feeds the map's sort.

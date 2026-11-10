@@ -42,6 +42,17 @@ enum SubAreaOrder {
         )?.map { isUngrouped($0) ? "" : $0 }
     }
 
+    /// The area's full order after a drag in the Lessons map put the rows on screen
+    /// into `visibleOrder`; `named` is the area's sub-areas in their current order.
+    /// The map drags only named sub-areas, so the unfiled band's stored place is
+    /// carried through here: saving the named ones alone sent it back to the bottom.
+    /// Nil when `visibleOrder` doesn't line up with the area (see
+    /// `FilterOrderStore.applyingVisibleOrder`).
+    static func applying(visibleOrder: [String], toNamed named: [String], area: String) -> [String]? {
+        let full = withUngrouped(named, hasUngrouped: true, area: area)
+        return FilterOrderStore.applyingVisibleOrder(visibleOrder.map(stored), to: full.map(stored))
+    }
+
     /// Saves `order` (sub-area names, "" or "Ungrouped" for the unfiled band) as the area's order.
     static func save(_ order: [String], area: String) {
         let trimmedArea = area.trimmed()

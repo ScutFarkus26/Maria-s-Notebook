@@ -103,6 +103,31 @@ struct SubAreaOrderTests {
         #expect(FilterOrderStore.loadSequenceOrder(for: area, existing: ["A", "B"]) == ["B", "A"])
     }
 
+    @Test("A drag in the Lessons map leaves the unfiled band where it was put")
+    func mapDragKeepsUngroupedPlace() throws {
+        defer { clearStoredOrders() }
+        clearStoredOrders()
+        SubAreaOrder.save(["A", "", "B", "C"], area: area)
+        FilterOrderStore.resetCache()
+
+        // The map drags only the named rows: C is dropped above A.
+        let named = FilterOrderStore.loadSequenceOrder(for: area, existing: ["A", "B", "C"])
+        let full = try #require(
+            SubAreaOrder.applying(visibleOrder: ["C", "A", "B"], toNamed: named, area: area)
+        )
+        SubAreaOrder.save(full, area: area)
+        FilterOrderStore.resetCache()
+
+        #expect(
+            SubAreaOrder.withUngrouped(["A", "B", "C"], hasUngrouped: true, area: area) == ["C", "", "A", "B"]
+        )
+        // With a filter hiding B, the two rows on screen swap and B keeps its slot.
+        #expect(
+            SubAreaOrder.applying(visibleOrder: ["A", "C"], toNamed: ["C", "A", "B"], area: area)
+                == ["A", SubAreaOrder.ungroupedName, "C", "B"]
+        )
+    }
+
     // MARK: - The Class Grid
 
     private func makeViewModel() throws -> (ClassAreaChecklistViewModel, NSManagedObjectContext) {
