@@ -33,7 +33,7 @@ extension ChecklistBrewingTests {
         }
     }
 
-    private func png(_ view: some View) -> Data? {
+    func png(_ view: some View) -> Data? {
         let renderer = ImageRenderer(content: view)
         renderer.scale = 3
         #if os(macOS)

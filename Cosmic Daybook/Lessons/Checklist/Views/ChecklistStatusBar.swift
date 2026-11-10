@@ -54,59 +54,65 @@ struct ChecklistStatusBar: View {
     /// The ladder's marks with their counts, one line that scrolls sideways if it must.
     private var key: some View {
         ScrollView(.horizontal) {
-            HStack(spacing: 16) {
-                ForEach(ChecklistDisplayStatus.allCases, id: \.self) { status in
-                    legendItem(
-                        label: status == .notReady ? "Not yet" : status.label,
-                        count: Self.count(of: status, in: counts),
-                        help: Self.meaning(of: status)
-                    ) {
-                        ChecklistMark(
-                            status: status, size: Self.markSize,
-                            emphasizesReady: lens == .ready && status == .ready
-                        )
-                        .opacity(lens == .ready && status != .ready ? ChecklistLens.fadedOpacity : 1)
-                    }
-                    if status == .ready {
-                        legendItem(
-                            label: "Check first", count: counts.checkFirst,
-                            help: "Ready, but look first: work still open, practice asked for, or a shaky recall"
-                        ) {
-                            ChecklistMark(
-                                status: .ready, checkFirst: true, size: Self.markSize,
-                                emphasizesReady: lens == .ready
-                            )
-                        }
-                    }
-                    if status == .planned {
-                        legendItem(
-                            label: ChecklistMark.label(status: .planned, recall: nil, brewing: true),
-                            count: counts.brewing,
-                            help: "In the Inbox under Brewing: the children haven't finished the lesson before"
-                        ) {
-                            ChecklistMark(status: .planned, brewing: true, size: Self.markSize)
-                                .opacity(lens == .ready ? ChecklistLens.fadedOpacity : 1)
-                        }
-                    }
-                }
-                legendItem(
-                    label: "Needs a check-in", count: counts.needsCheckIn,
-                    help: "Open work nobody has touched in about three weeks"
-                ) {
-                    ChecklistCheckInDot(size: Self.markSize)
-                        .opacity(lens == .ready ? ChecklistLens.fadedOpacity : 1)
-                }
-                Text("over \(Self.counted(lessonCount, "lesson")) × \(Self.counted(studentCount, "student"))")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .fixedSize()
-            }
-            .padding(.leading, 12)
-            .padding(.trailing, Self.floatingButtonClearance)
-            .frame(height: Self.height)
+            keyItems
         }
         .scrollIndicators(.hidden)
         .frame(maxWidth: .infinity, minHeight: Self.height, maxHeight: Self.height, alignment: .leading)
+    }
+
+    /// The key's line itself. Apart from its scroll view so a test can draw it
+    /// (ImageRenderer leaves a scroll view blank).
+    var keyItems: some View {
+        HStack(spacing: 16) {
+            ForEach(ChecklistDisplayStatus.allCases, id: \.self) { status in
+                legendItem(
+                    label: status == .notReady ? "Not yet" : status.label,
+                    count: Self.count(of: status, in: counts),
+                    help: Self.meaning(of: status)
+                ) {
+                    ChecklistMark(
+                        status: status, size: Self.markSize,
+                        emphasizesReady: lens == .ready && status == .ready
+                    )
+                    .opacity(lens == .ready && status != .ready ? ChecklistLens.fadedOpacity : 1)
+                }
+                if status == .ready {
+                    legendItem(
+                        label: "Check first", count: counts.checkFirst,
+                        help: "Ready, but look first: work still open, practice asked for, or a shaky recall"
+                    ) {
+                        ChecklistMark(
+                            status: .ready, checkFirst: true, size: Self.markSize,
+                            emphasizesReady: lens == .ready
+                        )
+                    }
+                }
+                if status == .planned {
+                    legendItem(
+                        label: ChecklistMark.label(status: .planned, recall: nil, brewing: true),
+                        count: counts.brewing,
+                        help: "In the Inbox under Brewing: the children haven't finished the lesson before"
+                    ) {
+                        ChecklistMark(status: .planned, brewing: true, size: Self.markSize)
+                            .opacity(lens == .ready ? ChecklistLens.fadedOpacity : 1)
+                    }
+                }
+            }
+            legendItem(
+                label: "Needs a check-in", count: counts.needsCheckIn,
+                help: "Open work nobody has touched in about three weeks"
+            ) {
+                ChecklistCheckInDot(size: Self.markSize)
+                    .opacity(lens == .ready ? ChecklistLens.fadedOpacity : 1)
+            }
+            Text("over \(Self.counted(lessonCount, "lesson")) × \(Self.counted(studentCount, "student"))")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize()
+        }
+        .padding(.leading, 12)
+        .padding(.trailing, Self.floatingButtonClearance)
+        .frame(height: Self.height)
     }
 
     /// The Ready lens's rule on its own line, wrapping rather than pushing the key off

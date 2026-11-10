@@ -1,6 +1,6 @@
 # Brewing mark in the Class Grid: a planned cell says when its lesson is waiting
 
-> **Working on it.** Building on `claude/class-grid-brewing-mark-6e0d2d` since 2026-11-10; not on main. Written 2026-11-10 from Danny's report that the grid "doesn't line up with the lesson inbox", in a session that was open in Tide's folder; Danny picked "Grid shows Brewing" and mark A (the dot in the ring) the same day.
+> **Working on it.** Built 2026-11-10 on `claude/class-grid-brewing-mark-6e0d2d` and tested (the whole suite, and iOS, Mac and Daybook Assistant builds); not on main, waiting for Danny's word to merge. Written 2026-11-10 from Danny's report that the grid "doesn't line up with the lesson inbox", in a session that was open in Tide's folder; Danny picked "Grid shows Brewing" and mark A (the dot in the ring) the same day.
 > In short: a cell Danny planned from the Class Grid shows a Brewing mark (the orange Planned ring with the grey Not yet dot inside) when its Inbox lesson sits under Brewing, and its card says what it is waiting on, so the grid and the Inbox agree.
 
 ## Goal
@@ -45,11 +45,13 @@ New suite `Cosmic Daybook Tests/Lessons/Checklist/ChecklistBrewingTests.swift`, 
 9. Counts: Planned and Brewing add up to the old Planned.
 10. Card, hover and VoiceOver wording, both "held by her" and "held by others".
 
+Built as written, plus two more in the same suite: the mark draws differently from plain Planned in light and dark, and the report replayed in the Sample Class (Add to Inbox from the grid on a lesson the children aren't ready for turns their cells Brewing, and the Inbox files the lesson under Brewing).
+
 Run with `-only-testing:` for this suite, `ChecklistDisplayStatusTests`, `ChecklistIncrementalUpdateTests`, `ChecklistMatrixBuilderEquivalenceTests`, `ClassGridEngineTests`, `ReadinessAgreementTestsFix1103`, `PresentationsReadinessFix1103P` and `PresentationsBacklogTests`; then the whole suite once, and iOS, Mac and Daybook Assistant builds with no warnings.
 
 ## Checks by hand
-- A screenshot of the mark's preview and of a Checklist row in the Sample Class, on a simulator, in light and dark.
-- Danny's, on the Mac after a roll-out (a row in Tide when the build lands): Math › Decimal Fractions shows the three lessons above as Brewing, and each is under Brewing in Lessons & Work.
+- Pictures, light and dark, drawn on a simulator by `ChecklistBrewingTests` (run with `TEST_RUNNER_BREWING_SHOT_DIR` set to a folder): the key's marks with Brewing beside Planned, and from the Sample Class two Checklist rows after Add to Inbox, the key with its counts, and the card both ways (held by her, held by others). They are the grid's own cell, key and card views over the Sample Class's records, not a capture of the running screen: tapping through the app on the simulator needed Danny's go-ahead in the Simulator panel, and he was away. The running app is the check below.
+- Danny's, on the Mac after a roll-out: the three Decimal Fractions lessons above show Brewing in the grid and sit under Brewing in Lessons & Work. [The row in Tide](<tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20open%20the%20Class%20Grid's%20Checklist%20on%20the%20Mac%20at%20Math%20%E2%80%BA%20Decimal%20Fractions%20and%20check%20three%20planned%20lessons%20show%20the%20Brewing%20mark%20and%20sit%20under%20Brewing%20in%20Lessons%20%26%20Work>).
 
 ## Not in this plan
 - A dated lesson whose day passed without being given (Multiplication of a Decimal Fraction by a Decimal Fraction, Sarah M and Tiferet P, 2026-11-05) shows Planned in the grid and only under Earlier days in the Scheduled strip. Left alone: `CalendarForwardShiftService` says such a lesson is the guide's to place.
