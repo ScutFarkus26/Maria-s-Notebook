@@ -143,7 +143,7 @@ struct PresentationNextLessonContext {
 
 All of it stays inside the existing `ContextMutationTransaction` and its single save. `Receipt` gains `nextLessonScheduledFor: Date?` for the tests. `commitDone` already calls `PresentationDetailUtilities.notifyInboxRefresh()`.
 
-The sheet always sends a concrete choice when the row is showing (the starting place if untouched), so what the row says is what the commit does. The nil case is kept for callers and tests that do not use the row.
+As built: an untouched row sends nil, and nil does what the row's starting place says (the year plan's day if it has one, otherwise the Inbox), through the same `autoPromoteIfPlanExists` as before. So what the row says is what the commit does, and callers and tests that do not use the row behave as they always have. The session keeps only the guide's own choice (`nextLessonPlace`, nil until a chip is tapped).
 
 ### 5. The summary: `Presentations/Session/PresentationSessionSummary.swift` and `PresentationHowItWentView+Summary.swift`
 
@@ -153,7 +153,7 @@ The sheet always sends a concrete choice when the row is showing (the starting p
 
 A small view of its own (its own state for the calendar popover and the time picker), built from the pieces the check-in row uses: `PresentationDecisionChip` (`.chosen`, `.plain`, and the dashed `.inherited` look for "Set time"), the 130-point label column, and the graphical `DatePicker` popover. The time chip uses `.lessonTimePicker(item:)` with `LessonTimePicker(lessonTitle:current:takenMinutes:startingHalf:set:remove:)`; `takenMinutes` comes from `ScheduledDateEdits.takenMinutes(on:excluding:in:)` so times already used that day are dimmed. The picker needs no saved plan, so it works before Done.
 
-`PresentationHowItWentView` loads the context in its existing `.task`, and shows the row in `everyoneRow` and `onlyChildRow` after the check-in and follow-up rows when `recipients` is not empty. `PresentationDetailView+Recording.swift` passes `lessons` in place of the `nextLessonName` it computes on every redraw.
+The row's code is in `PresentationHowItWentView+NextLesson.swift` (the plan first named `PresentationNextLessonRow.swift`). `PresentationHowItWentView` loads the context in `.onAppear` (before the first frame, so the summary names the next lesson from the start), and shows the row in `everyoneRow` and `onlyChildRow` after the check-in and follow-up rows when `recipients` is not empty. `PresentationDetailView+Recording.swift` passes `lessons` in place of the `nextLessonName` it computes on every redraw.
 
 Accessibility: each chip carries its meaning in its label ("Schedule for Thursday", "Start time, 10:00"); the caption is read with the row. Same view on iPhone, iPad and Mac; on the iPhone the time picker is the half-height sheet the presenter already provides.
 
@@ -169,7 +169,7 @@ Accessibility: each chip carries its meaning in its label ("Schedule for Thursda
   - A child already on an ungiven plan is not planned twice; with every child already planned nothing is made.
   - No year-plan entries appear on later lessons of the sequence.
 - `PresentationNextLessonContext`: recipients and starting place (year-plan day wins; a past day does not).
-- A render test (`ImageRenderer`, as in earlier work when the simulator can't be tapped) draws the row in its three states for Danny to look at.
+- A render test (`ImageRenderer`, as in earlier work when the simulator can't be tapped) draws the row in four states, light and dark. The pictures are in `docs/Pictures/Next lesson row/`. They are drawn from the row's own view, not captured from the running sheet.
 
 ## Checks before calling it done
 
@@ -181,7 +181,9 @@ Scripts/locked_xcodebuild.sh build-for-testing -project "Cosmic Daybook.xcodepro
 
 then `test-without-building` through `~/.claude/bin/build-turn` with `-parallel-testing-enabled NO` (one simulator) and `-only-testing:` for `PresentationSessionTests`, `PresentationSessionCommitTests`, the new suites, and the lesson-time suites (`LessonTimePickerTests`, `DayHalfTests`); confirm each ran a non-zero number of tests. Then the Mac build (build only; Mac tests open the live notebook), the whole iOS suite once, zero warnings, SwiftLint clean, and `sim-lease --done`.
 
-Not checked by this plan, and to be added to the Cosmic Daybook list in Tide under "Check on a device" when the work lands: the row on the Mac sheet, the iPad sheet and the iPhone (time picker as a sheet), with VoiceOver on one of them.
+Not checked on a device: the row on the Mac sheet, the iPad sheet and the iPhone (time picker as a sheet), with VoiceOver on one of them. [Tide row](<tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Present%20a%20lesson%2C%20mark%20a%20child%20Ready%20for%20next%2C%20and%20try%20the%20new%20Next%20lesson%20row%20on%20the%20Mac%2C%20iPad%20and%20iPhone>).
+
+Results, 2026-11-11, branch commit `dab4cfbf5`: the five presentation suites (42 tests) pass; the whole iPhone suite passes (4,917 tests in 798 suites, one simulator); the Mac app builds. SwiftLint is clean on the changed files. The builds showed no new warnings; the only ones were slow-type-check notes in files this work did not touch.
 
 ## Open questions
 
@@ -192,9 +194,11 @@ None that block the build. Two things Danny may want different, both small to ch
 
 ## Progress
 
-- [ ] The choice, the context, the session and draft
-- [ ] The commit and its tests
-- [ ] The summary wording and the five "On Deck" strings
-- [ ] The row in the sheet, with the time picker
-- [ ] Pictures of the row
-- [ ] Full checks; Tide rows; build board
+- [x] The choice, the context, the session and draft
+- [x] The commit and its tests
+- [x] The summary wording and the five "On Deck" strings
+- [x] The row in the sheet, with the time picker
+- [x] Pictures of the row (`docs/Pictures/Next lesson row/`)
+- [x] Full checks; Tide row
+- [ ] Build board (it is in Danny's other claude.ai sign-in; not reachable from this session)
+- [ ] On main
