@@ -13,7 +13,7 @@ Marks: `plan/lesson-times` (each phase tags the primary checkout `plan/lesson-ti
 Primary checkout: `/Users/dannydeberry/Developer/Maria's Notebook`
 Build board: https://claude.ai/artifact/WAKaFZGNPQsfKD4A5GbqsM
 
-- [ ] Phase 1: The rules for a set time · runs as: session · needs: — · est. $18–32 (~1%)
+- [x] Phase 1: The rules for a set time · done 2026-11-11 (7b7a3a708) · session 251de5a3-7643-4b27-a729-77f30e738147 · actual $13.00 (~0.6%)
 - [x] Phase 2: The picker itself · done 2026-11-10 (a2bd990a2) · session fef7bc3d-f754-4546-a1d6-38cb8db711b2 · actual $4.59 (~0.2%)
 - [ ] Phase 3: The chip on Scheduled cards · runs as: session · needs: 1, 2 · est. $12–25 (~1%)
 - [ ] Phase 4: The lesson's sheet and Today · runs as: session · needs: 1, 2 · est. $10–20 (~1%) ← 3 and 4 run at the same time
@@ -56,6 +56,7 @@ About $75–145 at list prices, which is 3–6% of the weekly limit at this week
 10. **Words.** Chip with no time: "Set time". Menu items on a card: "Set Time…" or "Change Time…", and "Remove Time". Divider: "Any time". Legend: "Two lessons at the same time". VoiceOver: the card is one combined element, so its spoken label gains the time ("at 10:00 AM") and it gets a custom action "Set Time" or "Change Time", the way "work to show first" already does; the chip itself is not a separate stop.
 11. **Against Apple's guidance, on purpose:** none. Where the Human Interface Guidelines advise against a popover on the iPhone, we use a sheet there.
 12. **Decided in Phase 2** (one Review choices row in Tide covers them): the sheet's line reads "Planned for Wednesday morning, Nov 11, at 10:00" ("this morning…", "tomorrow afternoon…" for today and tomorrow), keeping the wording the sheet has now; with no time yet, "Another time" starts at 9:00 in the morning or 1:00 in the afternoon; taken times get a small amber dot, with the line "A dot marks a time that already has a lesson." only when a dot shows; on the iPhone the sheet is titled "Start Time", opens at half height and can be pulled to full height so nothing is cut off on a small phone, and a phone-width iPad window gets the sheet too.
+13. **Decided in Phase 1** (one Review choices row in Tide covers them): when only some children are absent and move to tomorrow, their new plan starts the morning and doesn't take the lesson's time, while a lesson that moves whole keeps it; MCP's `schedule_presentation` with no time, on a plan that already has one, keeps that time on the new day; `time: "none"` with a new date keeps the lesson in the same half, as Remove Time does. Also different from the plan: midnight set as a time gets the second-59 marker too; `DayHalfPlanner`, `ScheduledMoment` and `DayPeriod` are nonisolated; Ready to Present's "schedule today" writes capped slots; the strip, Balance, Before You Start and Schedules all sort with `LessonAssignmentOrdering.sorted`. Left for Phase 4, as planned: Today's saved hand order can still put an untimed row above a timed one.
 
 ## Apple guidance
 
