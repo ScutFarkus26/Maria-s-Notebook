@@ -165,3 +165,168 @@ struct LessonTimePickerTests {
         #expect(!set.isEmpty && !none.isEmpty)
     }
 }
+
+// MARK: - Away with a co-teacher
+
+/// The picker's away parts (docs/Plans/Plan - Co-teacher times when
+/// scheduling.md, Phase 2): which quick times are marked, what VoiceOver says,
+/// what the free chips set, that nothing changes without away times, and
+/// pictures. The values are hand-made here; Phase 3 builds them from the day.
+extension LessonTimePickerTests {
+
+    /// A Monday shaped like the real one, with made-up children: groups at
+    /// 9:15–9:45, 9:50–10:20 and 10:40–11:10; 8:45 is the only free morning
+    /// start and the afternoon has no group.
+    private static let monday = LessonTimeAway(
+        rows: [
+            "9:15–9:45 · Mira K, Tova B · Miss Nicole",
+            "9:50–10:20 · Shira L · Morah Devora",
+            "10:40–11:10 · Mira K · Morah Devora"
+        ],
+        sentences: [
+            9 * 60: "Mira K and Tova B leave at 9:15 for Miss Nicole",
+            9 * 60 + 15: "Mira K and Tova B are with Miss Nicole until 9:45",
+            9 * 60 + 30: "3 children are away during this lesson",
+            9 * 60 + 45: "Shira L leaves at 9:50 for Morah Devora",
+            10 * 60: "Shira L is with Morah Devora until 10:20",
+            10 * 60 + 15: "Shira L is with Morah Devora until 10:20",
+            10 * 60 + 20: "Shira L is with Morah Devora until 10:20",
+            10 * 60 + 30: "Mira K leaves at 10:40 for Morah Devora",
+            10 * 60 + 45: "Mira K is with Morah Devora until 11:10",
+            11 * 60: "Mira K is with Morah Devora until 11:10"
+        ],
+        suggestions: [8 * 60 + 45],
+        freeWords: "Free all afternoon"
+    )
+
+    private static func awayPicker(
+        current: LessonClockTime? = LessonClockTime(hour: 10, minute: 0),
+        taken: [(Int, Int)] = [(9, 15), (13, 30)],
+        away: LessonTimeAway?,
+        set: @escaping (Int, Int) -> Void = { _, _ in }
+    ) -> LessonTimePicker {
+        LessonTimePicker(
+            lessonTitle: "Balancing an Equation with Addition",
+            current: current,
+            takenMinutes: Set(minutes(taken)),
+            away: away,
+            set: set,
+            remove: {}
+        )
+    }
+
+    @Test("Each quick time with a sentence is marked, and only those")
+    func markedQuickTimes() {
+        let picker = Self.awayPicker(away: Self.monday)
+        // 10:20 has a sentence but isn't a quick time, so no button carries it.
+        #expect(picker.markedQuickMinutes == Self.minutes([
+            (9, 0), (9, 15), (9, 30), (9, 45), (10, 0), (10, 15), (10, 30), (10, 45), (11, 0)
+        ]))
+        #expect(picker.awaySentence(for: LessonClockTime(hour: 8, minute: 45)) == nil)
+        #expect(picker.awaySentence(for: LessonClockTime(hour: 13, minute: 0)) == nil)
+        #expect(picker.awaySentence(for: LessonClockTime(hour: 9, minute: 45))
+                == "Shira L leaves at 9:50 for Morah Devora")
+        #expect(picker.showsAwayNote)
+        #expect(picker.showsFreeRow)
+    }
+
+    @Test("A marked time's spoken value is its sentence; taken and marked joins the two")
+    func spokenValues() {
+        let picker = Self.awayPicker(away: Self.monday)
+        // 9:15 is taken and marked.
+        #expect(picker.spokenValue(for: LessonClockTime(hour: 9, minute: 15))
+                == "Already has a lesson. Mira K and Tova B are with Miss Nicole until 9:45")
+        // 9:00 is only marked.
+        #expect(picker.spokenValue(for: LessonClockTime(hour: 9, minute: 0))
+                == "Mira K and Tova B leave at 9:15 for Miss Nicole")
+        // 1:30 is only taken; 8:45 is neither.
+        #expect(picker.spokenValue(for: LessonClockTime(hour: 13, minute: 30)) == "Already has a lesson")
+        #expect(picker.spokenValue(for: LessonClockTime(hour: 8, minute: 45)).isEmpty)
+        // The lesson's own time still says who is away during it.
+        #expect(picker.spokenValue(for: LessonClockTime(hour: 10, minute: 0))
+                == "Shira L is with Morah Devora until 10:20")
+    }
+
+    @Test("A free chip sets its own hour and minute, quarter hour or not")
+    func chipsSetTheirTime() {
+        var picked: [LessonClockTime] = []
+        let away = LessonTimeAway(suggestions: Self.minutes([(8, 45), (10, 20), (13, 5), (14, 0)]))
+        let picker = Self.awayPicker(away: away) { hour, minute in
+            picked.append(LessonClockTime(hour: hour, minute: minute))
+        }
+        #expect(picker.suggestedTimes.map(\.minutesAfterMidnight) == Self.minutes([(8, 45), (10, 20), (13, 5), (14, 0)]))
+        for time in picker.suggestedTimes { picker.choose(time) }
+        #expect(picked == [
+            LessonClockTime(hour: 8, minute: 45), LessonClockTime(hour: 10, minute: 20),
+            LessonClockTime(hour: 13, minute: 5), LessonClockTime(hour: 14, minute: 0)
+        ])
+    }
+
+    @Test("The free row keeps to four chips, and shows the words alone when there are no chips")
+    func freeRowLimits() {
+        let many = Self.awayPicker(away: LessonTimeAway(suggestions: Self.minutes([
+            (8, 45), (9, 0), (10, 20), (13, 0), (14, 0), (15, 0)
+        ])))
+        #expect(many.suggestedTimes.count == LessonTimePicker.maxSuggestions)
+        #expect(many.suggestedTimes.last == LessonClockTime(hour: 13, minute: 0))
+
+        let wordsOnly = Self.awayPicker(away: LessonTimeAway(freeWords: "Free all morning"))
+        #expect(wordsOnly.showsFreeRow)
+        #expect(wordsOnly.suggestedTimes.isEmpty)
+        #expect(!wordsOnly.showsAwayNote)
+    }
+
+    @Test("With no away times, or empty ones, nothing new shows",
+          arguments: [nil, LessonTimeAway(), LessonTimeAway(rows: [], sentences: [:], suggestions: [], freeWords: "")])
+    func nothingNewWithoutAway(away: LessonTimeAway?) {
+        let picker = Self.awayPicker(away: away)
+        #expect(picker.away == nil)
+        #expect(picker.markedQuickMinutes.isEmpty)
+        #expect(!picker.showsAwayNote)
+        #expect(!picker.showsFreeRow)
+        #expect(picker.suggestedTimes.isEmpty)
+        #expect(picker.spokenValue(for: LessonClockTime(hour: 9, minute: 15)) == "Already has a lesson")
+    }
+
+    @Test("The away mark is a real symbol, and not the cards' Absent one")
+    func awaySymbolExists() {
+        #expect(LessonTimePicker.awaySymbol != "person.slash")
+        #if os(macOS)
+        #expect(NSImage(systemSymbolName: LessonTimePicker.awaySymbol, accessibilityDescription: nil) != nil)
+        #else
+        #expect(UIImage(systemName: LessonTimePicker.awaySymbol) != nil)
+        #endif
+    }
+
+    @Test("With no away times the picker draws the same as it did before",
+          arguments: [ColorScheme.light, .dark])
+    func noAwayDrawsAsBefore(scheme: ColorScheme) throws {
+        let width = LessonTimePicker.popoverWidth
+        let before = try #require(LessonTimePictures.png(
+            Self.picker(current: LessonClockTime(hour: 10, minute: 0)), scheme: scheme, width: width
+        ))
+        let withNil = try #require(LessonTimePictures.png(
+            Self.awayPicker(taken: [(9, 0), (9, 15), (13, 30)], away: nil), scheme: scheme, width: width
+        ))
+        let withEmpty = try #require(LessonTimePictures.png(
+            Self.awayPicker(taken: [(9, 0), (9, 15), (13, 30)], away: LessonTimeAway()), scheme: scheme, width: width
+        ))
+        #expect(withNil == before)
+        #expect(withEmpty == before)
+    }
+
+    @Test("The picker draws with away times, in light and dark",
+          arguments: [ColorScheme.light, .dark])
+    func awayPictures(scheme: ColorScheme) throws {
+        let width = LessonTimePicker.popoverWidth
+        let away = try #require(try LessonTimePictures.save(
+            Self.awayPicker(away: Self.monday), named: "picker-away", scheme: scheme, width: width
+        ))
+        let plain = try #require(try LessonTimePictures.save(
+            Self.awayPicker(taken: [(9, 0), (9, 15), (13, 30)], away: nil),
+            named: "picker-no-away", scheme: scheme, width: width
+        ))
+        #expect(away != plain)
+        #expect(!away.isEmpty)
+    }
+}
