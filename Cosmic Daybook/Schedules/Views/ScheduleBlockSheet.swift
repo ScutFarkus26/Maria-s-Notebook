@@ -1,8 +1,9 @@
 // ScheduleBlockSheet.swift
 // Adding or editing one block: its lane, its days (several for a new
-// block), start, length in 5-minute steps, title and note. A room's block
-// can name who teaches it (a person's lane, or anyone else by name); a
-// person's block can list the children she takes. Saving or deleting a block
+// block), start, length in 5-minute steps (with when it ends), title and
+// note. A room's block can name who teaches it (a person's lane, or anyone
+// else by name); a person's block can list the children she takes, chosen
+// from the roster or typed by name (`ScheduleNameEntry`). Saving or deleting a block
 // that repeats asks Only This Day or This Day and After, the way Calendar
 // asks about a repeating event. Save writes only the fields that were
 // changed, so what the sheet doesn't show, and a change made for one day,
@@ -43,6 +44,7 @@ struct ScheduleBlockSheet: View {
     @State private var teacher: Teacher = .none
     @State private var teacherName = ""
     @State private var childIDs: Set<UUID> = []
+    @State private var names = ScheduleNameEntry()
     @State private var showingChildren = false
     @State private var question: ScheduleScopeQuestion?
     @State private var loaded = false
@@ -153,13 +155,7 @@ struct ScheduleBlockSheet: View {
     private var timeSection: some View {
         Section("Time") {
             DatePicker("Starts", selection: $start, displayedComponents: .hourAndMinute)
-            Stepper {
-                LabeledContent("Length", value: Self.lengthText(length))
-            } onIncrement: {
-                length = Self.stepped(length, by: 1)
-            } onDecrement: {
-                length = Self.stepped(length, by: -1)
-            }
+            ScheduleLengthRow(length: $length, startMinute: TimetableDay.minute(of: start, calendar: model.calendar))
         }
     }
 
@@ -195,6 +191,7 @@ struct ScheduleBlockSheet: View {
             } else {
                 Text(chosen.map(\.shortName).joined(separator: ", "))
             }
+            ScheduleNameField(entry: $names, childIDs: $childIDs, students: ScheduleNameEntry.candidates(students))
             Button("Choose Children…") { showingChildren = true }
                 .popover(isPresented: $showingChildren) {
                     StudentPickerPopover(
@@ -272,6 +269,11 @@ extension ScheduleBlockSheet {
     // MARK: - Saving
 
     private func askOrSave() {
+        // A name still in the field joins first; one that can't be placed
+        // keeps the sheet open with its line showing.
+        guard Self.sortNamesBeforeSave(
+            &names, into: &childIDs, laneKind: lane?.kind, students: ScheduleNameEntry.candidates(students)
+        ) else { return }
         if case .edit(let block, let day, let repeats) = mode {
             // Nothing changed: nothing to write, and nothing to ask.
             guard !changes.isEmpty else {
