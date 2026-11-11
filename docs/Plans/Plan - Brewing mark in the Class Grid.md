@@ -1,6 +1,6 @@
 # Brewing mark in the Class Grid: a planned cell says when its lesson is waiting
 
-> **Working on it.** Built 2026-11-10 on `claude/class-grid-brewing-mark-6e0d2d` and tested (the whole suite, and iOS, Mac and Daybook Assistant builds); not on main, waiting for Danny's word to merge. Written 2026-11-10 from Danny's report that the grid "doesn't line up with the lesson inbox", in a session that was open in Tide's folder; Danny picked "Grid shows Brewing" and mark A (the dot in the ring) the same day.
+> **Done 2026-11-10** (13e1477eb). On main, not pushed and not in a build yet; Danny's check on the Mac after the next roll-out is a row in Tide (Checks by hand). Written 2026-11-10 from Danny's report that the grid "doesn't line up with the lesson inbox", in a session that was open in Tide's folder; Danny picked "Grid shows Brewing" and mark A (the dot in the ring) the same day.
 > In short: a cell Danny planned from the Class Grid shows a Brewing mark (the orange Planned ring with the grey Not yet dot inside) when its Inbox lesson sits under Brewing, and its card says what it is waiting on, so the grid and the Inbox agree.
 
 ## Goal
