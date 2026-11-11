@@ -1,6 +1,6 @@
 # Lesson times on cards
 
-> **Not started.** Written 2026-11-10. Came from four mockups of the Scheduled pane (canvas: https://claude.ai/artifact/4VuGazqBbJWkXGuGxuqom8); Danny picked idea A, "a time on the card".
+> **Done 2026-11-11** (879808eb0). Written 2026-11-10. Came from four mockups of the Scheduled pane (canvas: https://claude.ai/artifact/4VuGazqBbJWkXGuGxuqom8); Danny picked idea A, "a time on the card".
 > In short: a scheduled lesson can be given a start time from a chip on its card, and the time stays with it, shows on its sheet and on Today, and survives moves.
 
 ## Goal
@@ -15,13 +15,25 @@ Build board: https://claude.ai/artifact/WAKaFZGNPQsfKD4A5GbqsM
 
 - [x] Phase 1: The rules for a set time · done 2026-11-11 (7b7a3a708) · session 251de5a3-7643-4b27-a729-77f30e738147 · actual $13.00 (~0.6%)
 - [x] Phase 2: The picker itself · done 2026-11-10 (a2bd990a2) · session fef7bc3d-f754-4546-a1d6-38cb8db711b2 · actual $4.59 (~0.2%)
-- [ ] Phase 3: The chip on Scheduled cards · runs as: session · needs: 1, 2 · est. $12–25 (~1%)
-- [ ] Phase 4: The lesson's sheet and Today · runs as: session · needs: 1, 2 · est. $10–20 (~1%) ← 3 and 4 run at the same time
-- [ ] Phase 5: Final check · runs as: session · needs: 3, 4 · est. $10–22 (~1%)
+- [x] Phase 3: The chip on Scheduled cards · done 2026-11-11 (cd4fb9b82) · session 80d7e698-6e6f-48a4-94e6-e387132fd4bb · actual $6.92 (~0.3%)
+- [x] Phase 4: The lesson's sheet and Today · done 2026-11-11 (e10ab507d) · session 5b2776a0-8674-4f82-8206-401be95529ba · actual $5.02 (~0.2%)
+- [x] Phase 5: Final check · done 2026-11-11 (879808eb0) · session 376d6623-5577-406a-9f6d-2e922f2d2184 · actual $8.78 (~0.4%)
+
+All five phases are on local main (not pushed, not rolled out). The last check on main: the notebook built for the iPhone simulator and the Mac, the Daybook Assistant built, and the whole suite passed at 4,901 tests.
+
+### Waiting on Danny (rows in Tide)
+
+Nobody has used the feature by hand yet: the run drew pictures in tests (`docs/Pictures/Lesson times/`) and left every tap and click as a row.
+
+- Roll it out to every device together: [the Release row](<tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Roll%20out%20lesson%20times%20to%20every%20device%20together%20%28Mac%2C%20iPhone%2C%20iPad%20and%20the%20Assistant%29>).
+- Decide how Today orders timed lessons: [the Review choices row](<tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Lesson%20times%3A%20decide%20whether%20Today%20should%20lead%20with%20timed%20lessons%20inside%20each%20half%20instead%20of%20across%20the%20whole%20day>).
+- Three more Review choices rows (the picker, the rules, the chip) and seven Check on a device rows, all starting "Lesson times:" in Cosmic Daybook's list in Tide.
 
 ## Cost
 
 About $75–145 at list prices, which is 3–6% of the weekly limit at this week's rate ($22.58 for 1%, measured 2026-11-10): five phase sessions on Opus 5.5 ($58–115) plus the conductor on Fable 5.2 with planning and the review ($17–30, about 2–4% of Fable's own window). On 2026-11-10 the week stood at 66% used with 34% left until Fri Nov 13, 11:59 AM EST, and Fable's window at 29%. Fits. The phase sizes come from the four Cosmic Daybook phase sessions in the cost log ($11–16 each); Phase 1 is sized above them because it touches about fourteen files.
+
+**What it cost:** about $64 (2.9% of the weekly limit), under the low end of the estimate. The five phase sessions came to $38.31 against $58–115, and the conductor with planning, the mockups and the review to about $26 against $17–30. No phase needed the brake.
 
 ## Before you go
 
@@ -57,6 +69,9 @@ About $75–145 at list prices, which is 3–6% of the weekly limit at this week
 11. **Against Apple's guidance, on purpose:** none. Where the Human Interface Guidelines advise against a popover on the iPhone, we use a sheet there.
 12. **Decided in Phase 2** (one Review choices row in Tide covers them): the sheet's line reads "Planned for Wednesday morning, Nov 11, at 10:00" ("this morning…", "tomorrow afternoon…" for today and tomorrow), keeping the wording the sheet has now; with no time yet, "Another time" starts at 9:00 in the morning or 1:00 in the afternoon; taken times get a small amber dot, with the line "A dot marks a time that already has a lesson." only when a dot shows; on the iPhone the sheet is titled "Start Time", opens at half height and can be pulled to full height so nothing is cut off on a small phone, and a phone-width iPad window gets the sheet too.
 13. **Decided in Phase 1** (one Review choices row in Tide covers them): when only some children are absent and move to tomorrow, their new plan starts the morning and doesn't take the lesson's time, while a lesson that moves whole keeps it; MCP's `schedule_presentation` with no time, on a plan that already has one, keeps that time on the new day; `time: "none"` with a new date keeps the lesson in the same half, as Remove Time does. Also different from the plan: midnight set as a time gets the second-59 marker too; `DayHalfPlanner`, `ScheduledMoment` and `DayPeriod` are nonisolated; Ready to Present's "schedule today" writes capped slots; the strip, Balance, Before You Start and Schedules all sort with `LessonAssignmentOrdering.sorted`. Left for Phase 4, as planned: Today's saved hand order can still put an untimed row above a timed one.
+14. **Decided in Phase 3** (one Review choices row in Tide covers them): the chip sits first on the line of children's names, not at the end of the title row, because a day column is about 168 points wide and the chip squeezed titles down to a letter or two; a day whose only clash is two lessons at the same time shows a plain clash badge, not the Rearrange button, since rearranging never moves a timed lesson; each start time shared by two or more lessons adds one to the badge, on top of each child booked twice in a half. Also different from the plan: the insertion bar skips past timed cards but the drop itself was left alone (either side of a timed card saves the same result); new files `PresentationPlannerCard+TimeChip.swift` and `WeekDayColumn+Time.swift`.
+15. **Decided in Phase 4:** times on Today read "9:15 AM", not "9:15", because Today's list isn't split into morning and afternoon; changing the day on the lesson's sheet keeps the time by wrapping the sheet's date (`ScheduledDateEdits.swift`, `InboxStatusSection.swift`), since the date picker only knows days. The sheet's picture leaves out the date and Morning/Afternoon controls, which a test picture can't draw.
+16. **Found and fixed in Phase 5's review:** merging a timed card into one with no time now keeps the time on the merged card's day; MCP's `time: "none"` with a new day keeps an untimed lesson in its half; year-plan entries store a day only, so a promoted entry can't bring a time nobody set; VoiceOver says how many lessons share a time. **Left for Danny** (a Review choices row): decision 9 puts every timed lesson at the top of Today, so a 1:00 lesson lists above an untimed morning one. **Known and left:** a lesson an older build moved from 10:30 to the afternoon was stored as 2:30 and now reads as set for 2:30; getting there took a time set over MCP and then a change of half, so it should be rare.
 
 ## Apple guidance
 
