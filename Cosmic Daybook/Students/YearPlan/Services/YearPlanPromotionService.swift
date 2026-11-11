@@ -36,7 +36,10 @@ enum YearPlanPromotionService {
             }
             return
         }
-        assignment.schedule(for: day)
+        // A planned date is a day, not a time: the draft takes its place in the
+        // morning rather than reading whatever clock time the entry carries as
+        // a set time (plan "Lesson times on cards", decision 4).
+        assignment.schedule(onDay: day)
         let promoted = promoteMatchingEntries(into: assignment, scheduledFor: day, context: context)
         logger.info("Auto-promoted \(promoted) entries for lesson \(assignment.lessonID) on \(day)")
     }

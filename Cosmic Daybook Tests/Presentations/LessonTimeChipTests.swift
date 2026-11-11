@@ -189,23 +189,28 @@ struct LessonTimeChipTests {
         #expect(column.plainTimeChip(for: one, sameTimeClashes: clashes).isPickerShown == nil)
     }
 
-    @Test("The badge counts children twice in a half and start times with two lessons")
+    @Test("The badge counts children twice in a half and start times with two lessons; it says how many lessons")
     func badgeCount() {
         let maya = UUID(), noa = UUID()
         let both = WeekDayColumn.dayClashes(
             childClashes: [.morning: [maya], .afternoon: [maya, noa]],
             setMinutes: [570, 570, 600, 780, 780, 780]
         )
-        #expect(both == WeekDayColumn.DayClashes(children: 2, sameTimes: 2))
+        #expect(both == WeekDayColumn.DayClashes(children: 2, sameTimes: 2, sameTimeLessons: 5))
         #expect(both.badgeText == "4 clashes")
         #expect(both.spokenLabel == "2 children booked twice in the same half, "
-            + "more than one lesson at 2 start times. Rearrange this day.")
+            + "5 lessons sharing 2 start times. Rearrange this day.")
 
         let timesOnly = WeekDayColumn.dayClashes(childClashes: [:], setMinutes: [570, 570, 600])
-        #expect(timesOnly == WeekDayColumn.DayClashes(children: 0, sameTimes: 1))
+        #expect(timesOnly == WeekDayColumn.DayClashes(children: 0, sameTimes: 1, sameTimeLessons: 2))
         #expect(timesOnly.badgeText == "1 clash")
         // Rearranging never moves a timed lesson, so no "Rearrange" here.
-        #expect(timesOnly.spokenLabel == "Two lessons at the same time.")
+        #expect(timesOnly.spokenLabel == "2 lessons at the same time.")
+
+        // Three at one start time are one clash, and VoiceOver says three.
+        let three = WeekDayColumn.dayClashes(childClashes: [:], setMinutes: [600, 600, 600])
+        #expect(three.badgeText == "1 clash")
+        #expect(three.spokenLabel == "3 lessons at the same time.")
 
         let childOnly = WeekDayColumn.dayClashes(childClashes: [.morning: [maya]], setMinutes: [570, 600])
         #expect(childOnly.spokenLabel == "1 child booked twice in the same half. Rearrange this day.")

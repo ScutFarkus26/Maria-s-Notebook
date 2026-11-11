@@ -166,7 +166,8 @@ extension MCPNotebookTools {
     /// Puts the plan on a day. With a time, at that start time, written the
     /// way the card's time picker writes one (`DayHalfPlanner.settingTime`), so
     /// 09:00 and 14:00 stick. With `remove` ("none"), on that day with no time,
-    /// in the half the set time was in (the morning, for a plan without one),
+    /// in the half the set time was in (or the half an untimed plan already
+    /// had; the morning for a plan not yet on any day),
     /// as the card's Remove Time leaves it. With no `time` at all, a time already set on the plan goes with
     /// it to the new day, and a plan without one takes its place in the
     /// morning half, which is what the in-app planner does (plan "Lesson
@@ -181,6 +182,12 @@ extension MCPNotebookTools {
             if let kept = DayHalfPlanner.keptTime(of: assignment.scheduledFor, using: calendar) {
                 let untimed = DayHalfPlanner.removingTime(from: kept, using: calendar)
                 assignment.schedule(for: DayHalfPlanner.rebasing(untimed, onto: day, using: calendar), using: calendar)
+            } else if let current = assignment.scheduledFor {
+                // No time to take off: the plan keeps its half on the new day,
+                // at the end of that half's hand order.
+                let half = DayPeriod(scheduledFor: current, using: calendar)
+                let slot = DayHalfPlanner.slot(DayHalfPlanner.lastSlotRank, in: half, on: day, using: calendar)
+                assignment.schedule(for: slot, using: calendar)
             } else {
                 assignment.schedule(onDay: day, using: calendar)
             }
@@ -338,7 +345,11 @@ extension MCPNotebookTools {
         // The year-plan entries promoted into it go with it, as on a calendar
         // drag (bug hunt 2026-11-03 #20).
         if let moved = assignment.scheduledFor, let assignmentID = assignment.id?.uuidString {
-            YearPlanPromotionService.moveEntries(promotedInto: assignmentID, to: moved, context: modelContext)
+            // The day only: a year-plan entry has no time, and a clock time
+            // stored there would come back as a set time if it is promoted again.
+            YearPlanPromotionService.moveEntries(
+                promotedInto: assignmentID, to: AppCalendar.startOfDay(moved), context: modelContext
+            )
         }
 
         guard modelContext.safeSave() else {

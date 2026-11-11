@@ -349,6 +349,15 @@ Fixed in the 2026-11-03 bug hunt (`../Reviews/Bug hunt 2026-11-03.md`). These ar
 - `YearPlanEntryRepair` runs whenever a child's year plan loads. It fixes numbering, the day of a promoted entry, and unpromoted entries, writing only values that differ (a second pass changes nothing), and it never saves over another screen's unsaved edit.
 - Add Sequence skips lessons a presentation or a mastery mark already satisfies (`YearPlanSatisfaction`). Readjust asks first ("Move 14 lessons in 3 sequences?"), says so when there is nothing to move, and has no Undo.
 
+## Scheduled lessons: halves, order and set times (2026-11-11)
+
+A scheduled lesson (`CDLessonAssignment.scheduledFor`) sits in a half of a day and either takes an ordering slot in that half or has a start time Danny set (the time chip on a Scheduled card, the Time row on the lesson's sheet, or MCP's `time:`). Both are written into the one date; the table that tells them apart is in `DATA_MODELS.md` › LessonAssignment, and the code is `Presentations/Planning/DayHalfPlanner.swift`. These are rules: follow them.
+
+- A set time stays with the lesson until Danny changes or removes it: a drag to another day, Move All Forward, Today's Tomorrow, the absent-children move, Balance AM/PM and MCP `reschedule_presentation` without `time:` all keep it.
+- Inside each half, timed lessons come first in clock order and can't be reordered by hand; the rest follow in the order Danny dragged them, under an "Any time" divider on the Scheduled cards. Today's Lessons list leads with timed lessons the same way, whatever hand order was saved.
+- Set and remove through `CDLessonAssignment.setTime/removeTime` (or the pure `DayHalfPlanner` functions for an unsaved `Date`, as the lesson's sheet does in `ScheduledDateEdits`). The picker hands back an hour and a minute, never a date.
+- Every device must run a build with these rules: an older build reads a lesson set for exactly 9:00 or 2:00 as an ordinary slot, and a drag or balance there erases that time.
+
 ## Version History
 
 - **2026-02-04**: Initial implementation

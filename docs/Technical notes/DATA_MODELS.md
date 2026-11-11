@@ -126,7 +126,7 @@ Links students to lessons with scheduling and presentation tracking.
 | `lessonID` | String | Foreign key to Lesson (UUID string) |
 | `_studentIDsData` | Data? | JSON-encoded student IDs |
 | `createdAt` | Date | Creation timestamp |
-| `scheduledFor` | Date? | Scheduled presentation date/time |
+| `scheduledFor` | Date? | Scheduled day, half of day, and either an ordering slot or a set start time (see below) |
 | `scheduledForDay` | Date | Denormalized start-of-day for queries |
 | `givenAt` | Date? | When lesson was presented |
 | `isPresented` | Bool | Whether lesson has been presented |
@@ -135,6 +135,22 @@ Links students to lessons with scheduling and presentation tracking.
 | `needsAnotherPresentation` | Bool | Needs re-presentation |
 | `followUpWork` | String | Follow-up work description |
 | `studentGroupKeyPersisted` | String | Denormalized student group key |
+
+**How `scheduledFor` is read** (plan "Lesson times on cards", decision 4; `Presentations/Planning/DayHalfPlanner.swift`, `moment(of:)`). Most lessons have no clock time, only a half of the day and an order inside it; some have a start time Danny set. Both live in this one date, told apart by how it is written, so there is no extra field and no schema change:
+
+| Stored time | Reads as |
+|-------------|----------|
+| midnight (0:00:00) | a morning slot (rows written before the halves existed) |
+| 9:00 or 14:00, second 0–58 | a slot in that half; the second is its rank |
+| 9:00:59 or 14:00:59 (also 0:00:59) | a set time of exactly 9:00, 2:00 (or midnight): the marker |
+| any other time, second 0 | a set time |
+| any other time, second ≠ 0 | a slot in that half (an old value stored one second below a timed lesson) |
+
+Rules that keep it true:
+- Every write of a set time goes through `DayHalfPlanner.settingTime(hour:minute:on:)` (or `CDLessonAssignment.setTime`), which writes second 0, or 59 for the marker hours. Removing one (`removingTime(from:)`, `removeTime`) puts the lesson in the last slot of its half (rank 58). Slot ranks never pass 58.
+- Moving a lesson to another day keeps a set time (`rebasing(_:onto:)`, `schedule(onDay:keepingTimeUsing:)`, set on the clock so daylight-saving days are right); a slot stays a slot. Only Remove Time, Clear Schedule, choosing the other half (`DayPeriod.applied(to:)`) and MCP `time: "none"` remove a time.
+- A day's lessons are listed in one order everywhere (`LessonAssignmentOrdering`): morning then afternoon; inside a half, set times first by clock time, then slots by rank. Balance AM/PM never moves a timed lesson. Two lessons on one day at the same start time are a clash (`DayHalfPlanner.sameTimeClashes(in:)`).
+- Code that shows or compares a lesson's clock time reads it through `moment(of:)` / `setMinute(of:)`, never `Calendar.component(.hour…)` on the raw date: a slot's 9:00:03 is not a time.
 
 **Computed Properties:**
 - `studentIDs: [String]` - Student ID array accessor

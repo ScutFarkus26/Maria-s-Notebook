@@ -29,7 +29,10 @@ extension WeekDayColumn {
     /// decision 7).
     struct DayClashes: Equatable {
         var children = 0
+        /// Start times that two or more lessons share: one clash each.
         var sameTimes = 0
+        /// The lessons at those start times, for the spoken line.
+        var sameTimeLessons = 0
 
         var total: Int { children + sameTimes }
 
@@ -47,8 +50,8 @@ extension WeekDayColumn {
             }
             if sameTimes > 0 {
                 parts.append(sameTimes == 1
-                    ? "two lessons at the same time"
-                    : "more than one lesson at \(sameTimes) start times")
+                    ? "\(sameTimeLessons) lessons at the same time"
+                    : "\(sameTimeLessons) lessons sharing \(sameTimes) start times")
             }
             let line = parts.joined(separator: ", ")
             let sentence = line.prefix(1).uppercased() + line.dropFirst() + "."
@@ -65,7 +68,8 @@ extension WeekDayColumn {
         let perMinute = setMinutes.reduce(into: [Int: Int]()) { $0[$1, default: 0] += 1 }
         return DayClashes(
             children: childClashes.values.reduce(into: Set<UUID>()) { $0.formUnion($1) }.count,
-            sameTimes: perMinute.values.filter { $0 > 1 }.count
+            sameTimes: perMinute.values.filter { $0 > 1 }.count,
+            sameTimeLessons: perMinute.values.filter { $0 > 1 }.reduce(0, +)
         )
     }
 

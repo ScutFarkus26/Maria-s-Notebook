@@ -37,6 +37,7 @@ enum PresentationMergeService {
         target.needsAnotherPresentation = target.needsAnotherPresentation || source.needsAnotherPresentation
         target.notes = mergeText(target.notes, source.notes)
         target.followUpWork = mergeText(target.followUpWork, source.followUpWork)
+        carrySetTime(from: source, to: target)
         target.modifiedAt = Date()
 
         // The source's observation notes cascade with it, and year-plan
@@ -48,6 +49,21 @@ enum PresentationMergeService {
         PresentationDetailUtilities.notifyInboxRefresh()
         toastService.showSuccess("Presentations merged")
         return true
+    }
+
+    /// A set time stays with the lesson (plan "Lesson times on cards",
+    /// decision 5): merging a timed card into one without a time gives the
+    /// merged card that time, on the merged card's own day. A target that
+    /// already has a time keeps its own.
+    static func carrySetTime(
+        from source: CDLessonAssignment,
+        to target: CDLessonAssignment,
+        using calendar: Calendar = AppCalendar.shared
+    ) {
+        guard let targetDate = target.scheduledFor,
+              !DayHalfPlanner.isSetTime(targetDate, using: calendar),
+              let kept = DayHalfPlanner.keptTime(of: source.scheduledFor, using: calendar) else { return }
+        target.schedule(for: DayHalfPlanner.rebasing(kept, onto: targetDate, using: calendar), using: calendar)
     }
 
     private static func fetchLessonAssignment(id: UUID, context: NSManagedObjectContext) -> CDLessonAssignment? {
