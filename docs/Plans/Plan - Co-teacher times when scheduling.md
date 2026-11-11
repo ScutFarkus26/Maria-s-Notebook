@@ -1,6 +1,6 @@
 # Co-teacher times when scheduling
 
-> **Not started.** Written 2026-11-11 from Danny's two co-teacher schedules (Morah Devora's kodesh groups and Miss Nicole's Book Club) and two mockups he approved in the planning session.
+> **Working on it.** Written 2026-11-11 from Danny's two co-teacher schedules (Morah Devora's kodesh groups and Miss Nicole's Book Club) and two mockups he approved in the planning session.
 > In short: when Danny gives a lesson a time, the app shows which of its children are away with a co-teacher then, suggests times when everyone is free, and marks a clashing card; the Schedules sheet gets an end time and a field for typing names.
 
 ## Goal
@@ -13,7 +13,7 @@ Marks: `plan/coteacher-times` (each phase tags the primary checkout `plan/coteac
 Primary checkout: `/Users/dannydeberry/Developer/Maria's Notebook`
 Build board: https://claude.ai/artifact/WAKaFZGNPQsfKD4A5GbqsM
 
-- [ ] Phase 1: The rules for who is away · runs as: session · needs: — · est. $8–16 (~1%)
+- [ ] Phase 1: The rules for who is away · started 2026-11-11 · runs as: session · needs: — · est. $8–16 (~1%)
 - [ ] Phase 2: The picker shows it · runs as: session · needs: — · est. $5–10 (~0.5%) ← 1, 2 and 4 run at the same time
 - [ ] Phase 3: Cards, the day badge and the lesson's sheet · runs as: session · needs: 1, 2 · est. $10–20 (~1%)
 - [ ] Phase 4: The Schedules group sheet · runs as: session · needs: — · est. $6–12 (~0.5%)
