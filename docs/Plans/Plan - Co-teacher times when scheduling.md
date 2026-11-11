@@ -21,7 +21,7 @@ Build board: https://claude.ai/artifact/WAKaFZGNPQsfKD4A5GbqsM
 
 ## Cost
 
-About $57–108 at list prices, which is 3–5% of the weekly limit at this week's rate ($22.00 for 1%, measured 2026-11-11): five phase sessions on Opus 5.5 ($37–76) plus the conductor on Fable 5.2 with the mockups, planning and review ($20–32, about 3–4% of Fable's own window). On 2026-11-11 the week stood at 72% used with 28% left until Fri Nov 13, 12:00 PM EST, and Fable's window at 35%. Fits. The phase sizes come from the five Cosmic Daybook lesson-times phases in the cost log ($5–13 each, all on the same files), with their top ends kept because Phase 3 touches both the planner and the sheet.
+About $65–114 at list prices, which is 3–5% of the weekly limit at this week's rate ($22.00 for 1%, measured 2026-11-11): five phase sessions on Opus 5.5 ($37–76) plus the conductor on Fable 5.2 ($28–38: the mockups, planning and review had cost $22.94 when the plan was presented, and the wakes and close-out are still to come; about 4–5% of Fable's own window). On 2026-11-11 the week stood at 72% used with 28% left until Fri Nov 13, 12:00 PM EST, and Fable's window at 35%. Fits. The phase sizes come from the five Cosmic Daybook lesson-times phases in the cost log ($5–13 each, all on the same files), with their top ends kept because Phase 3 touches both the planner and the sheet.
 
 ## Before you go
 
