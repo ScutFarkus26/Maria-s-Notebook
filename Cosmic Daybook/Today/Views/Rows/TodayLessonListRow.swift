@@ -64,6 +64,9 @@ struct TodayStudentChip: View {
 
 struct LessonListRow: View {
     let lessonName: String
+    /// The start time the guide set, shown before the title ("10:00 AM");
+    /// nil for a lesson with no time.
+    var startTime: LessonClockTime?
     let children: [TodayStudentChips.Chip]
     /// "6 of 7 here" (`TodayLessonAttendance.hereText`); ignored once given.
     var hereText: String?
@@ -81,6 +84,9 @@ struct LessonListRow: View {
 
     private var accessibilityLabelText: String {
         var label = "Lesson: \(lessonName)"
+        if let startTime {
+            label += ", " + LessonTimeText.spokenPhrase(startTime)
+        }
         let here = children.filter { !$0.isAbsent }.map(\.name)
         let absent = children.filter(\.isAbsent).map(\.name)
         if !here.isEmpty {
@@ -101,9 +107,18 @@ struct LessonListRow: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(lessonName)
-                        .font(AppTheme.ScaledFont.calloutSemibold)
-                        .foregroundStyle(isPresented ? .tertiary : .primary)
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        if let startTime {
+                            Text(LessonTimeText.spoken(startTime))
+                                .font(AppTheme.ScaledFont.calloutSemibold)
+                                .monospacedDigit()
+                                .foregroundStyle(isPresented ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.tint))
+                                .fixedSize()
+                        }
+                        Text(lessonName)
+                            .font(AppTheme.ScaledFont.calloutSemibold)
+                            .foregroundStyle(isPresented ? .tertiary : .primary)
+                    }
                     if !children.isEmpty {
                         TodayStudentChips(chips: children)
                     }

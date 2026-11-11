@@ -6,9 +6,10 @@ import SwiftUI
 
 extension TodayViewModel {
 
-    /// Moves agenda items and persists the new order.
+    /// Moves agenda items and persists the new order. Lessons with a set time
+    /// stay first, in clock order (`TodayAgendaBuilder.moving`).
     func moveAgendaItem(from source: IndexSet, to destination: Int) {
-        agendaItems.move(fromOffsets: source, toOffset: destination)
+        agendaItems = TodayAgendaBuilder.moving(agendaItems, fromOffsets: source, toOffset: destination)
         TodayAgendaBuilder.saveOrder(items: agendaItems, day: date, context: context)
     }
 

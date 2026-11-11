@@ -30,6 +30,9 @@ extension PresentationDetailContentView {
         guard let scheduled = vm.scheduledFor else {
             return "On Deck, not yet scheduled"
         }
+        if let time = ScheduledDateEdits.clockTime(of: scheduled, using: calendar) {
+            return LessonTimeText.statusLine(plannedOn: scheduled, at: time, calendar: calendar)
+        }
         let half = calendar.component(.hour, from: scheduled) < 12 ? "morning" : "afternoon"
         if calendar.isDateInToday(scheduled) { return "Planned for today, \(half)" }
         if calendar.isDateInTomorrow(scheduled) { return "Planned for tomorrow, \(half)" }
@@ -364,7 +367,11 @@ extension PresentationDetailContentView {
     var rescheduleSheet: some View {
         NavigationStack {
             Form {
-                InboxStatusSection(scheduledFor: $vm.scheduledFor)
+                InboxStatusSection(
+                    scheduledFor: $vm.scheduledFor,
+                    lessonTitle: currentLesson?.name ?? "",
+                    presentationID: vm.lessonAssignment.id
+                )
             }
             .formStyle(.grouped)
             .navigationTitle("Reschedule")

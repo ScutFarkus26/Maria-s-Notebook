@@ -1,11 +1,13 @@
 // DayHalfPicker.swift
-// AM or PM for a scheduled moment that carries no time.
+// AM or PM for a scheduled lesson.
 //
-// A scheduled presentation is planned as an order, not a timetable, so the hour
-// and minute in its date are bookkeeping — the ordering offset within its half.
-// Showing them in a date picker invited the guide to set a time the calendar
-// then quietly overwrote on the next drag. This picker shows the one part of
-// that date the guide actually chose.
+// Most scheduled presentations carry no time: they are planned as an order,
+// and the hour and second in their date are bookkeeping, the ordering slot in
+// their half (`DayHalfPlanner`). So this picker shows the half, and a start
+// time the guide sets has its own control beside it (the sheet's Time row,
+// `InboxStatusSection`), which stores it through the planner's rules. Choosing
+// the other half here takes a set time off (`DayPeriod.applied`): 10:30 can't
+// be an afternoon time.
 
 import SwiftUI
 

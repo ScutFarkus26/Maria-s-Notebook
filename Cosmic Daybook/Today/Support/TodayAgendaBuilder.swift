@@ -7,12 +7,14 @@
 
 import Foundation
 import CoreData
+import SwiftUI
 
 enum TodayAgendaBuilder {
 
     // Builds the unified agenda by merging items with persisted order.
-    // Items with a saved position appear first (in position order).
-    // New items (not in saved order) are appended at the end in default order.
+    // Lessons with a set start time lead, in clock order (they can't be
+    // dragged: their time decides). The rest follow: items with a saved
+    // position first (in position order), then new items in default order.
     static func buildAgenda(
         lessons: [CDLessonAssignment],
         day: Date,
@@ -25,7 +27,7 @@ enum TodayAgendaBuilder {
         let savedOrder = fetchSavedOrder(for: day, context: context)
 
         if savedOrder.isEmpty {
-            return allItems
+            return leadingWithSetTimes(allItems)
         }
 
         // 3. Build ordered result
@@ -46,7 +48,56 @@ enum TodayAgendaBuilder {
             ordered.append(item)
         }
 
-        return ordered
+        return leadingWithSetTimes(ordered)
+    }
+
+    // MARK: - Set times (plan "Lesson times on cards", decision 9)
+
+    /// The start time a lesson row carries, or nil: a work row, or a lesson
+    /// with only a place in its half.
+    static func setTime(of item: AgendaItem, using calendar: Calendar = AppCalendar.shared) -> LessonClockTime? {
+        guard case .lesson(let assignment) = item, !assignment.isPresented,
+              let minute = assignment.setTimeMinute(using: calendar) else { return nil }
+        return LessonClockTime(minutesAfterMidnight: minute)
+    }
+
+    /// `items` with the lessons that have a set time first, in clock order,
+    /// and everything else after them in the order given. A saved hand order
+    /// can rank an untimed row above a timed one (it was saved before the
+    /// time was set, or on a device without times); this puts it back below.
+    static func leadingWithSetTimes(
+        _ items: [AgendaItem],
+        using calendar: Calendar = AppCalendar.shared
+    ) -> [AgendaItem] {
+        struct Timed { let offset: Int; let time: LessonClockTime; let item: AgendaItem }
+        var timed: [Timed] = []
+        var rest: [AgendaItem] = []
+        for (offset, item) in items.enumerated() {
+            if let time = setTime(of: item, using: calendar) {
+                timed.append(Timed(offset: offset, time: time, item: item))
+            } else {
+                rest.append(item)
+            }
+        }
+        guard !timed.isEmpty else { return items }
+        let sortedTimed = timed.sorted { lhs, rhs in
+            lhs.time == rhs.time ? lhs.offset < rhs.offset : lhs.time < rhs.time
+        }
+        return sortedTimed.map(\.item) + rest
+    }
+
+    /// The agenda after a drag. Timed rows can't be picked up, but a row can
+    /// still be dropped above them; the timed rows stay on top and the moved
+    /// row takes its place among the others.
+    static func moving(
+        _ items: [AgendaItem],
+        fromOffsets source: IndexSet,
+        toOffset destination: Int,
+        using calendar: Calendar = AppCalendar.shared
+    ) -> [AgendaItem] {
+        var moved = items
+        moved.move(fromOffsets: source, toOffset: destination)
+        return leadingWithSetTimes(moved, using: calendar)
     }
 
     /// Groups quiet work by check-in style and lessonID, for Gone quiet: a

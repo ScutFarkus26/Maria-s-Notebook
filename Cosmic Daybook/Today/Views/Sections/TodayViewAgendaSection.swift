@@ -35,6 +35,8 @@ extension TodayView {
                     agendaRow(for: item, isNext: item.id == nextLessonID)
                         .id(item.id)
                         .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
+                        // A lesson with a set time is placed by its time, not by hand.
+                        .moveDisabled(TodayAgendaBuilder.setTime(of: item) != nil)
                 }
                 .onMove { source, destination in
                     viewModel.moveAgendaItem(from: source, to: destination)
@@ -128,6 +130,7 @@ extension TodayView {
         let movesAbsent = attendance.hasAbsent && !sl.isPresented
         LessonListRow(
             lessonName: nameForLesson(sl.resolvedLessonID),
+            startTime: TodayAgendaBuilder.setTime(of: .lesson(sl)),
             children: lessonChips(for: sl, absent: viewModel.absentStudentIDs),
             hereText: attendance.hereText(attendanceTaken: viewModel.attendanceTaken),
             isPresented: sl.isPresented,
