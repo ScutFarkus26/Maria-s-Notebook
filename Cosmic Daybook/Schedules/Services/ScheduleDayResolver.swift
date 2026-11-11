@@ -25,8 +25,9 @@ import Foundation
 ///    levels stays in the list. Only the adolescent room's blocks are those
 ///    turns (`isAdolescentRoom`), not a block he teaches in our class; when no
 ///    room's name says which it is, any room's are.
-/// 6. **Warnings**, gentle: a child with another person in the same half as
-///    one of the guide's lessons; an adolescents-only lesson with no turn that
+/// 6. **Warnings**, gentle: a child with another person during one of the
+///    guide's timed lessons (taken as `LessonLength.assumedMinutes` long), or
+///    in the same half as an untimed one; an adolescents-only lesson with no turn that
 ///    half; a set-time lesson, not adolescents-only, during a guide's turn.
 nonisolated enum ScheduleDayResolver {
 
@@ -260,31 +261,37 @@ nonisolated enum ScheduleDayResolver {
     // MARK: - Warnings (rule 6)
 
     /// A child in a block of a person lane other than the guide's who is also
-    /// in one of the guide's lessons that half: one warning per child and block.
+    /// in one of the guide's lessons: one warning per child and block, about
+    /// the first such lesson in the guide's order. A lesson with a set time
+    /// clashes when its assumed length overlaps the block
+    /// (`TimetableBlockValues.overlaps`); one without, when the block starts
+    /// in its half. Every lesson is checked, so a clear timed lesson can't
+    /// hide a later one that clashes.
     private static func childWarnings(
         blocks: [ScheduleDay.Block], context: DayContext, guideLaneID: UUID?, lessons: [ScheduleDay.Lesson]
     ) -> [ScheduleDay.Warning] {
         guard guideLaneID != nil, !lessons.isEmpty else { return [] }
-        var lessonChildren: [ScheduleDayHalf: [String: UUID]] = [:]
-        for lesson in lessons {
-            let half = lesson.snapshot.half
-            for id in lesson.snapshot.studentIDs where lessonChildren[half]?[id.uppercased()] == nil {
-                lessonChildren[half, default: [:]][id.uppercased()] = lesson.id
-            }
+        let lessonChildren = lessons.map { lesson in
+            (lesson: lesson, children: Set(lesson.snapshot.studentIDs.map { $0.uppercased() }))
         }
         var warnings: [ScheduleDay.Warning] = []
         for block in blocks {
-            guard let lane = context.lanesByID[block.laneID], lane.kind == .person, lane.id != guideLaneID else {
-                continue
-            }
+            guard let lane = context.lanesByID[block.laneID], lane.kind == .person, lane.id != guideLaneID,
+                  block.values.lengthMinutes > 0 else { continue }
             let half = ScheduleDayHalf(minute: block.values.startMinute)
             var seen = Set<String>()
             for child in block.values.studentIDs {
                 let key = child.uppercased()
-                guard seen.insert(key).inserted, let lessonID = lessonChildren[half]?[key] else { continue }
+                guard seen.insert(key).inserted else { continue }
+                let clashing = lessonChildren.first { entry in
+                    guard entry.children.contains(key) else { return false }
+                    if let minute = entry.lesson.snapshot.minute { return block.values.overlaps(lessonStart: minute) }
+                    return entry.lesson.snapshot.half == half
+                }
+                guard let lesson = clashing?.lesson else { continue }
                 warnings.append(.childWithPerson(
                     studentID: child, personLaneID: lane.id, personName: lane.name, blockID: block.id,
-                    blockValues: block.values, lessonID: lessonID, half: half
+                    blockValues: block.values, lessonID: lesson.id, half: half, lessonMinute: lesson.snapshot.minute
                 ))
             }
         }

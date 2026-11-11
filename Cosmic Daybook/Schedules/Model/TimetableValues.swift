@@ -97,6 +97,28 @@ nonisolated struct TimetableBlockValues: Sendable, Equatable {
     func contains(minute: Int) -> Bool {
         minute >= startMinute && minute < endMinute
     }
+
+    /// Whether a lesson starting at `lessonStart` (minutes after midnight)
+    /// and lasting `LessonLength.assumedMinutes` overlaps the block: it starts
+    /// before the block ends and ends after the block starts. A block that
+    /// ends just as the lesson starts, or starts just as it ends, doesn't
+    /// overlap; neither does a block with no length.
+    func overlaps(lessonStart: Int) -> Bool {
+        Self.overlaps(lessonStart: lessonStart, block: self)
+    }
+
+    /// `block.overlaps(lessonStart:)`, as a plain rule.
+    static func overlaps(lessonStart: Int, block: TimetableBlockValues) -> Bool {
+        guard block.lengthMinutes > 0 else { return false }
+        return lessonStart < block.endMinute && lessonStart + LessonLength.assumedMinutes > block.startMinute
+    }
+}
+
+/// How long a lesson is taken to be when it is checked against a co-teacher's
+/// group. Lessons have a start time and no length, so every check reads this
+/// one number (plan "Co-teacher times when scheduling", decision 1).
+nonisolated enum LessonLength {
+    static let assumedMinutes = 30
 }
 
 // MARK: - Snapshots
