@@ -46,6 +46,10 @@ struct PresentationPlannerCard: View {
     /// each run of cards, and a badge repeating that on every card was noise.
     /// The half is still spoken in the accessibility label either way.
     var showsPeriodBadge = true
+    /// The start-time chip, first on the line of children's names
+    /// (PresentationPlannerCard+TimeChip.swift). Nil draws none: the inbox,
+    /// where a lesson has no day to have a time on.
+    var timeChip: TimeChip?
 
     @State private var attendanceCache: [UUID: AttendanceStatus] = [:]
     /// The child whose earlier work is listed in the chip's popover.
@@ -145,7 +149,10 @@ struct PresentationPlannerCard: View {
         .onChange(of: day) { _, _ in loadAttendanceIfNeeded(force: true) }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
-        .accessibilityActions { showFirstAccessibilityAction }
+        .accessibilityActions {
+            showFirstAccessibilityAction
+            timeAccessibilityAction
+        }
     }
 
     private var titleRow: some View {
@@ -164,26 +171,13 @@ struct PresentationPlannerCard: View {
         }
     }
 
-    /// A scheduled presentation has no time, so AM/PM is the whole of what the
-    /// card can say about when — kept monochrome deliberately: the card already
-    /// spends color on the subject area, the age strip and the two warnings,
-    /// and a fourth color language would make none of them read.
-    @ViewBuilder
-    private var periodBadge: some View {
-        if let period, showsPeriodBadge {
-            Text(period.abbreviation)
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, UIConstants.CardSize.statusPillHorizontal)
-                .padding(.vertical, 2)
-                .capsuleFill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
-                .accessibilityLabel(period.label)
-        }
-    }
-
-    /// Wraps rather than scrolls: no scroll view per card.
+    /// Wraps rather than scrolls: no scroll view per card. The time chip
+    /// leads it, so the title keeps the card's full width in a narrow column.
     private var studentChipsRow: some View {
         FlowLayout(spacing: AppTheme.Spacing.xxsmall) {
+            if let timeChip {
+                timeChipView(timeChip)
+            }
             ForEach(snapshot.studentIDs, id: \.self) { sid in
                 if let student = students.first(where: { $0.id == sid }) {
                     studentChip(for: student, sid: sid)
@@ -315,14 +309,18 @@ struct PresentationPlannerCard: View {
         let names = snapshot.studentIDs.compactMap { sid -> String? in
             guard let student = students.first(where: { $0.id == sid }) else { return nil }
             return student.shortName
-        }.joined(separator: ", ")
-        // The card combines its children, so the badge's own label is replaced
-        // by this one — the half has to be spoken here or not at all.
+        }
+        // The card combines its children, so the badge's and the chip's own
+        // labels are replaced by this one: the half and the time have to be
+        // spoken here or not at all.
         let showFirst = showFirstCount > 0 ? WorkToShowFirst.countLine(showFirstCount) : nil
-        return [lessonName, names, period?.label, showFirst]
-            .compactMap { $0 }
-            .filter { !$0.isEmpty }
-            .joined(separator: ", ")
+        return Self.spokenLabel(
+            lessonName: lessonName,
+            studentNames: names,
+            period: period,
+            timeChip: timeChip,
+            showFirstLine: showFirst
+        )
     }
 
     // MARK: - Attendance fetch

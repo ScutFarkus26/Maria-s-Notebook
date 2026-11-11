@@ -22,41 +22,101 @@ extension WeekDayColumn {
         DayBalanceService.clashes(for: scheduledLessonsForDay, using: calendar)
     }
 
-    /// How many children are doubled up today. A child clashing in both halves
-    /// counts once: she is one child either way, and one line in the warning.
-    var clashCount: Int {
-        clashingStudentIDs.values.reduce(into: Set<UUID>()) { $0.formUnion($1) }.count
+    /// What the day's badge counts: children booked twice in one half (a
+    /// child clashing in both halves counts once: she is one child either way,
+    /// and one line in the warning), and start times given to more than one
+    /// lesson, which the guide can't both give (plan "Lesson times on cards",
+    /// decision 7).
+    struct DayClashes: Equatable {
+        var children = 0
+        var sameTimes = 0
+
+        var total: Int { children + sameTimes }
+
+        /// "1 clash", "3 clashes".
+        var badgeText: String { total == 1 ? "1 clash" : "\(total) clashes" }
+
+        /// What VoiceOver says for the badge, and, when it is the Rearrange
+        /// button, what pressing it does.
+        var spokenLabel: String {
+            var parts: [String] = []
+            if children > 0 {
+                parts.append(children == 1
+                    ? "1 child booked twice in the same half"
+                    : "\(children) children booked twice in the same half")
+            }
+            if sameTimes > 0 {
+                parts.append(sameTimes == 1
+                    ? "two lessons at the same time"
+                    : "more than one lesson at \(sameTimes) start times")
+            }
+            let line = parts.joined(separator: ", ")
+            let sentence = line.prefix(1).uppercased() + line.dropFirst() + "."
+            return children > 0 ? sentence + " Rearrange this day." : sentence
+        }
     }
 
+    /// The day's clashes, from the children doubled up in each half and each
+    /// lesson's set start time (minutes after midnight; untimed lessons absent).
+    static func dayClashes(
+        childClashes: [DayPeriod: Set<UUID>],
+        setMinutes: [Int]
+    ) -> DayClashes {
+        let perMinute = setMinutes.reduce(into: [Int: Int]()) { $0[$1, default: 0] += 1 }
+        return DayClashes(
+            children: childClashes.values.reduce(into: Set<UUID>()) { $0.formUnion($1) }.count,
+            sameTimes: perMinute.values.filter { $0 > 1 }.count
+        )
+    }
+
+    var dayClashes: DayClashes {
+        Self.dayClashes(
+            childClashes: clashingStudentIDs,
+            setMinutes: scheduledLessonsForDay.compactMap { $0.setTimeMinute(using: calendar) }
+        )
+    }
+
+    /// Only on a day with a clash. With a child doubled up it is the
+    /// Rearrange button; with only lessons at the same time it is a plain
+    /// badge, because rearranging never moves a lesson with a set time, so
+    /// only changing one of the times can clear it.
     @ViewBuilder
     var balanceButton: some View {
-        let count = clashCount
-        if count > 0 {
+        let clashes = dayClashes
+        if clashes.children > 0 {
             Button(action: balanceDay) {
-                HStack(spacing: 3) {
-                    Image(systemName: "wand.and.sparkles")
-                    Text(count == 1 ? "1 clash" : "\(count) clashes")
-                }
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(AppColors.attention)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .capsuleFill(AppColors.attention.opacity(UIConstants.OpacityConstants.light))
-                .overlay(
-                    Capsule().stroke(
-                        AppColors.attention.opacity(UIConstants.OpacityConstants.moderate),
-                        lineWidth: 1
-                    )
-                )
+                clashBadge(clashes, systemImage: "wand.and.sparkles")
             }
             .buttonStyle(.plain)
-            .help("Rearrange this day so no child has two lessons in the same half")
-            .accessibilityLabel(
-                count == 1
-                    ? "1 child booked twice in the same half. Rearrange this day."
-                    : "\(count) children booked twice in the same half. Rearrange this day."
-            )
+            .help(clashes.sameTimes > 0
+                ? "Rearrange this day so no child has two lessons in the same half. "
+                    + "Lessons with a start time stay where they are."
+                : "Rearrange this day so no child has two lessons in the same half")
+            .accessibilityLabel(clashes.spokenLabel)
+        } else if clashes.sameTimes > 0 {
+            clashBadge(clashes, systemImage: "exclamationmark.triangle.fill")
+                .help("Two lessons start at the same time. Change one of the times.")
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(clashes.spokenLabel)
         }
+    }
+
+    private func clashBadge(_ clashes: DayClashes, systemImage: String) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: systemImage)
+            Text(clashes.badgeText)
+        }
+        .font(.caption2.weight(.semibold))
+        .foregroundStyle(AppColors.attention)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .capsuleFill(AppColors.attention.opacity(UIConstants.OpacityConstants.light))
+        .overlay(
+            Capsule().stroke(
+                AppColors.attention.opacity(UIConstants.OpacityConstants.moderate),
+                lineWidth: 1
+            )
+        )
     }
 
     /// Rearranges the day, then says what it managed — including what it did

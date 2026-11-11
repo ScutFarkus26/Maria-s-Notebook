@@ -77,6 +77,8 @@ struct WeekDayColumn: View {
     @State var zoneSpaceID = UUID()
     @State var isTargeted: Bool = false
     @State var insertionIndex: Int?
+    /// The card whose time picker is up (WeekDayColumn+Time.swift).
+    @State var timePickerID: UUID?
 
     private struct FocusScrollTrigger: Equatable {
         let focusedID: UUID?
@@ -186,6 +188,12 @@ struct WeekDayColumn: View {
             day: day,
             orderedPresentationIDs: { scheduledLessonsForDay.compactMap(\.id) },
             itemFramesProvider: { itemFrames },
+            cardPlaces: {
+                Dictionary(
+                    scheduledLessonsForDay.compactMap { item in item.id.map { ($0, place(of: item)) } },
+                    uniquingKeysWith: { first, _ in first }
+                )
+            },
             onDropWorkCheckIns: onDropWorkCheckIns,
             onDropWork: onDropWork,
             onTargetChange: { targeted in

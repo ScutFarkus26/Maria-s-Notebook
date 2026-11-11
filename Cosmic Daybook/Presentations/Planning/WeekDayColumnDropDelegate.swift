@@ -24,6 +24,9 @@ struct WeekDayColumnDropDelegate: PresentationDropTarget {
     /// feed the insertion index.
     let orderedPresentationIDs: () -> [UUID]
     let itemFramesProvider: () -> [UUID: CGRect]
+    /// Each presentation's half and whether it has a set time, so a drop lands
+    /// only among the untimed cards (`WeekDayColumn.untimedInsertionIndex`).
+    var cardPlaces: () -> [UUID: WeekDayColumn.CardPlace] = { [:] }
     /// Every check-in in one drop, together: a grouped pill hands over all of
     /// its children at once, and they are one move rather than one each.
     let onDropWorkCheckIns: ([UUID], Date) -> Void
@@ -33,8 +36,19 @@ struct WeekDayColumnDropDelegate: PresentationDropTarget {
 
     // MARK: - PresentationDropTarget
 
+    /// Where the drop would land among the cards on screen, top to bottom,
+    /// moved past any timed cards in front of it in the same half: a timed
+    /// card's time decides its place, so the bar never draws between two of
+    /// them (plan "Lesson times on cards", decision 6). The drop itself needs
+    /// no such step: a timed card takes no slot when the day is renumbered,
+    /// so landing in front of one or behind it stores the same thing.
     func insertionIndex(at location: CGPoint) -> Int? {
-        PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: presentationFrames())
+        let frames = presentationFrames()
+        let raw = PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: frames)
+        let places = cardPlaces()
+        let drawn = frames.sorted { $0.value.minY < $1.value.minY }
+            .map { places[$0.key] ?? WeekDayColumn.CardPlace(half: .morning) }
+        return WeekDayColumn.untimedInsertionIndex(raw, among: drawn)
     }
 
     func handleDroppedText(_ text: String, location: CGPoint) {

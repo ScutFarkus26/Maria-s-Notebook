@@ -38,21 +38,29 @@ extension WeekDayColumn {
     /// though the "Afternoon" label is right beneath it — and the insertion bar
     /// is drawn above that label to say so (`insertionBarY`). A label appears
     /// only where the half changes, so only halves with cards get one.
+    ///
+    /// Inside a half the lessons with a set time come first, in clock order,
+    /// and a thin "Any time" line separates them from the rest when the half
+    /// has both (WeekDayColumn+Time.swift).
     var presentationList: some View {
         // One walk over the day for the whole list. It used to be recomputed
         // inside every card, which meant walking the day once per card on it.
         let clashes = clashingStudentIDs
+        let sameTime = sameTimeClashIDs
         let rows = Array(scheduledLessonsForDay.enumerated())
-        let halves = scheduledLessonsForDay.map { half(of: $0) ?? .morning }
+        let marks = Self.listMarks(for: scheduledLessonsForDay.map(place(of:)))
         // Lazy because a day can carry a classroom's worth of presentations
         // and every visible day builds its list.
         return LazyVStack(alignment: .leading, spacing: 6) {
             ForEach(rows, id: \.element.objectID) { index, la in
-                if index == 0 || halves[index] != halves[index - 1] {
-                    sectionLabel(halves[index].label)
+                if let halfLabel = marks[index].halfLabel {
+                    sectionLabel(halfLabel.label)
                         .padding(.top, index == 0 ? 0 : 4)
                 }
-                presentationCard(la, clashing: clashes)
+                if marks[index].anyTimeDivider {
+                    anyTimeDivider
+                }
+                presentationCard(la, clashing: clashes, sameTime: sameTime)
             }
         }
     }
@@ -105,7 +113,8 @@ extension WeekDayColumn {
 
     func presentationCard(
         _ la: CDLessonAssignment,
-        clashing: [DayPeriod: Set<UUID>]
+        clashing: [DayPeriod: Set<UUID>],
+        sameTime: Set<UUID> = []
     ) -> some View {
         let laID = la.id ?? UUID()
         let period = half(of: la)
@@ -122,7 +131,8 @@ extension WeekDayColumn {
             doubleBookedStudentIDs: dayDoubleBooked,
             period: period,
             // The Morning / Afternoon labels above the cards say it already.
-            showsPeriodBadge: false
+            showsPeriodBadge: false,
+            timeChip: timeChip(for: la, sameTimeClashes: sameTime)
         )
         .id(laID)
         .overlay {
@@ -134,9 +144,13 @@ extension WeekDayColumn {
         }
         .onTapGesture { onSelect(la) }
         .draggable(UnifiedCalendarDragPayload.presentation(laID).stringRepresentation) {
-            dragPreview(la, doubleBooked: dayDoubleBooked, period: period)
+            dragPreview(
+                la, doubleBooked: dayDoubleBooked, period: period,
+                timeChip: plainTimeChip(for: la, sameTimeClashes: sameTime)
+            )
         }
         .contextMenu {
+            timeMenu(for: la)
             halfPicker(for: la)
             Divider()
             ShowInChecklistButton(lessonID: la.resolvedLessonID, context: viewContext)
@@ -159,7 +173,8 @@ extension WeekDayColumn {
     func dragPreview(
         _ la: CDLessonAssignment,
         doubleBooked: Set<UUID>,
-        period: DayPeriod?
+        period: DayPeriod?,
+        timeChip: PresentationPlannerCard.TimeChip? = nil
     ) -> some View {
         PresentationPlannerCard(
             snapshot: la.snapshot(),
@@ -168,7 +183,8 @@ extension WeekDayColumn {
             cachedStudents: [],
             doubleBookedStudentIDs: doubleBooked,
             period: period,
-            showsPeriodBadge: false
+            showsPeriodBadge: false,
+            timeChip: timeChip
         )
         .frame(width: contentWidth)
         .opacity(UIConstants.OpacityConstants.nearSolid)
@@ -281,7 +297,8 @@ extension WeekDayColumn {
                 let placed = scheduledLessonsForDay
                     .compactMap { la -> PlacedCard? in
                         guard let id = la.id, let frame = itemFrames[id] else { return nil }
-                        return PlacedCard(frame: frame, half: half(of: la) ?? .morning)
+                        let place = place(of: la)
+                        return PlacedCard(frame: frame, half: place.half, isTimed: place.isTimed)
                     }
                     .sorted { $0.frame.minY < $1.frame.minY }
 

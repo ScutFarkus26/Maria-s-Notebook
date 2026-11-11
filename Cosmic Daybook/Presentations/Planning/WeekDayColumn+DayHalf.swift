@@ -80,6 +80,11 @@ extension WeekDayColumn {
     struct PlacedCard: Equatable {
         let frame: CGRect
         let half: DayPeriod
+        /// It has a set time, so a drop never lands in front of it in its
+        /// half (`untimedInsertionIndex`).
+        var isTimed = false
+
+        var place: CardPlace { CardPlace(half: half, isTimed: isTimed) }
     }
 
     /// Where the insertion bar is drawn for a drop at `index`, given the day's

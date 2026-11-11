@@ -103,6 +103,14 @@ struct WeekPlanHeader<Actions: View>: View {
                         .foregroundStyle(PresentationPlannerCard.clashRing)
                 }
             }
+            legendItem(label: "Two lessons at the same time") {
+                // The card's clash chip in small: amber, with the triangle.
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .imageScale(.small)
+                    .foregroundStyle(PresentationPlannerCard.clashRing)
+                    .frame(width: 24, height: 14)
+                    .capsuleFill(PresentationPlannerCard.clashRing.opacity(UIConstants.OpacityConstants.light))
+            }
             legendItem(label: "Absent") {
                 ringSwatch(PresentationPlannerCard.absentRing) { EmptyView() }
             }
