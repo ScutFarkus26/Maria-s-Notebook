@@ -14,7 +14,7 @@ extension PresentationDetailContentView {
             sequence: currentLesson?.sequence ?? "",
             areaColor: AppColors.color(forArea: currentLesson?.area ?? ""),
             statusLine: statusLine,
-            onTapTitle: lessonHasFile ? ({ openLessonFile() }) : nil
+            onOpenLessonPlan: lessonHasFile ? ({ openLessonFile() }) : nil
         ) {
             headerMenuItems
         }
