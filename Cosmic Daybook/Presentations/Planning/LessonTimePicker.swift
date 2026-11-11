@@ -13,12 +13,55 @@
 // time" sets on each change. No Done button here: on the Mac and iPad a popover
 // saves its work when it closes; the iPhone's sheet adds Done around it
 // (`LessonTimePickerPresenter`). Present it with `lessonTimePicker(item:…)`.
+//
+// When some of the lesson's children are away with a co-teacher that day it
+// is handed `LessonTimeAway`, ready-made words and minutes, and shows them up
+// front (docs/Plans/Plan - Co-teacher times when scheduling.md, decision 4):
+// an Everyone's free row above the grid, a mark on each quick time that
+// overlaps a group, and the Away list under the grid. Marked times stay
+// enabled. With nothing away it draws exactly as it did before.
 
 import SwiftUI
+
+/// Who is away that day, as the picker shows it: plain words and minutes,
+/// made by the caller from the day's co-teacher groups, so the picker never
+/// sees a `Date` or Core Data (decision 4).
+nonisolated struct LessonTimeAway: Equatable, Sendable {
+    /// The Away list, one ready-made row per group in time order:
+    /// "9:15–9:45 · Lucy T, Ora P · Miss Nicole".
+    var rows: [String]
+    /// Minute after midnight → the sentence for a lesson starting then, for
+    /// each start whose 30 minutes overlap a group:
+    /// "Lucy T is with Morah Devora until 10:20".
+    var sentences: [Int: String]
+    /// Starts (minutes after midnight) when everyone is free, at most four, in order.
+    var suggestions: [Int]
+    /// "Free all morning" or "Free all afternoon", when a half has no group.
+    var freeWords: String?
+
+    init(rows: [String] = [], sentences: [Int: String] = [:], suggestions: [Int] = [], freeWords: String? = nil) {
+        self.rows = rows
+        self.sentences = sentences
+        self.suggestions = suggestions
+        self.freeWords = freeWords
+    }
+
+    /// Nothing to show: the picker draws as it does with no away times at all.
+    var isEmpty: Bool {
+        rows.isEmpty && sentences.isEmpty && suggestions.isEmpty && (freeWords ?? "").isEmpty
+    }
+}
 
 struct LessonTimePicker: View {
     /// The popover's fixed width (Apple: give popover content a fixed size).
     static let popoverWidth: CGFloat = 300
+
+    /// The mark on a quick time when a child is away during it. Not
+    /// `person.slash`, which means Absent on the cards.
+    static let awaySymbol = "figure.walk.departure"
+
+    /// The most chips the Everyone's free row shows (decision 5).
+    static let maxSuggestions = 4
 
     let lessonTitle: String
     let current: LessonClockTime?
@@ -26,6 +69,8 @@ struct LessonTimePicker: View {
     let takenMinutes: Set<Int>
     /// The half the lesson is in now: where "Another time" starts when no time is set.
     let startingHalf: DayPeriod
+    /// Who is away that day; nil (or empty) when nobody in the lesson is.
+    let away: LessonTimeAway?
     private let setTime: (_ hour: Int, _ minute: Int) -> Void
     private let removeTime: () -> Void
 
@@ -41,6 +86,7 @@ struct LessonTimePicker: View {
         takenMinutes: Set<Int> = [],
         startingHalf: DayPeriod = .morning,
         showsOtherTime: Bool = false,
+        away: LessonTimeAway? = nil,
         set: @escaping (_ hour: Int, _ minute: Int) -> Void,
         remove: @escaping () -> Void
     ) {
@@ -48,6 +94,7 @@ struct LessonTimePicker: View {
         self.current = current
         self.takenMinutes = takenMinutes
         self.startingHalf = startingHalf
+        self.away = away?.isEmpty == false ? away : nil
         self.setTime = set
         self.removeTime = remove
         _fieldTime = State(initialValue: LessonTimeText.fieldDate(
@@ -64,10 +111,22 @@ struct LessonTimePicker: View {
                 .font(.headline)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
+            if let away, showsFreeRow {
+                everyonesFree(away)
+            }
             quickTimes("Morning", LessonTimeChoices.morning)
             quickTimes("Afternoon", LessonTimeChoices.afternoon)
+            if let away, !away.rows.isEmpty {
+                awayList(away.rows)
+            }
             if showsTakenNote {
                 Text("A dot marks a time that already has a lesson.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if showsAwayNote {
+                Text("\(Image(systemName: Self.awaySymbol)) marks a time when a child is with another teacher.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -105,11 +164,7 @@ struct LessonTimePicker: View {
 
     private func quickTimes(_ title: String, _ minutes: [Int]) -> some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-                .accessibilityAddTraits(.isHeader)
+            sectionHeader(title)
             Grid(horizontalSpacing: AppTheme.Spacing.verySmall, verticalSpacing: AppTheme.Spacing.verySmall) {
                 ForEach(Array(stride(from: 0, to: minutes.count, by: Self.columns)), id: \.self) { start in
                     GridRow {
@@ -124,20 +179,133 @@ struct LessonTimePicker: View {
 
     private static let columns = 5
 
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .textCase(.uppercase)
+            .accessibilityAddTraits(.isHeader)
+    }
+
     private func quickTime(_ time: LessonClockTime) -> some View {
         let isCurrent = time == current
-        let isTaken = !isCurrent && takenMinutes.contains(time.minutesAfterMidnight)
+        let taken = isTaken(time)
+        let sentence = awaySentence(for: time)
         return Button {
-            setTime(time.hour, time.minute)
+            choose(time)
             dismiss()
         } label: {
             Text(LessonTimeText.chip(time))
         }
-        .buttonStyle(QuickTimeButtonStyle(isCurrent: isCurrent, isTaken: isTaken))
+        .buttonStyle(QuickTimeButtonStyle(isCurrent: isCurrent, isTaken: taken, isAway: sentence != nil))
         .accessibilityLabel(LessonTimeText.spoken(time))
-        .accessibilityValue(isTaken ? "Already has a lesson" : "")
+        .accessibilityValue(spokenValue(for: time))
         .accessibilityHint("Sets the start time.")
         .accessibilityAddTraits(isCurrent ? .isSelected : [])
+        .awayHelp(sentence)
+    }
+
+    /// Hands a time back to the caller: the quick times and the free chips both
+    /// come through here.
+    func choose(_ time: LessonClockTime) {
+        setTime(time.hour, time.minute)
+    }
+
+    /// Another lesson that day already starts then (the lesson's own time aside).
+    func isTaken(_ time: LessonClockTime) -> Bool {
+        time != current && takenMinutes.contains(time.minutesAfterMidnight)
+    }
+
+    /// Why a start is marked: the sentence for a lesson starting then, or nil
+    /// when nobody is away during it.
+    func awaySentence(for time: LessonClockTime) -> String? {
+        guard let sentence = away?.sentences[time.minutesAfterMidnight], !sentence.isEmpty else { return nil }
+        return sentence
+    }
+
+    /// VoiceOver's value for a quick time: the state, with both joined when a
+    /// time is taken and marked (Apple: the state goes in the value).
+    func spokenValue(for time: LessonClockTime) -> String {
+        let parts = [isTaken(time) ? "Already has a lesson" : nil, awaySentence(for: time)].compactMap { $0 }
+        return parts.joined(separator: ". ")
+    }
+
+    /// The quick times that carry the away mark.
+    var markedQuickMinutes: [Int] {
+        (LessonTimeChoices.morning + LessonTimeChoices.afternoon).filter {
+            awaySentence(for: LessonClockTime(minutesAfterMidnight: $0)) != nil
+        }
+    }
+
+    // MARK: - Away
+
+    /// The Everyone's free row shows when there is a chip or a "Free all…" line.
+    var showsFreeRow: Bool {
+        guard let away else { return false }
+        return !suggestedTimes.isEmpty || !(away.freeWords ?? "").isEmpty
+    }
+
+    /// The free chips, in order, four at most.
+    var suggestedTimes: [LessonClockTime] {
+        (away?.suggestions ?? []).prefix(Self.maxSuggestions).map(LessonClockTime.init(minutesAfterMidnight:))
+    }
+
+    /// The legend for the away mark shows only when a quick time carries one.
+    var showsAwayNote: Bool { !markedQuickMinutes.isEmpty }
+
+    /// "Everyone's free": up to four chips the width of a quick time, then the
+    /// "Free all…" words. A chip sets its time, quarter hour or not, and closes.
+    private func everyonesFree(_ away: LessonTimeAway) -> some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
+            sectionHeader("Everyone's free")
+            let chips = suggestedTimes
+            if !chips.isEmpty {
+                Grid(horizontalSpacing: AppTheme.Spacing.verySmall, verticalSpacing: AppTheme.Spacing.verySmall) {
+                    GridRow {
+                        ForEach(chips, id: \.self) { time in
+                            freeChip(time)
+                        }
+                        // Empty cells keep each chip as wide as a quick time below.
+                        ForEach(chips.count..<Self.columns, id: \.self) { _ in
+                            Color.clear.frame(height: 1).accessibilityHidden(true)
+                        }
+                    }
+                }
+            }
+            if let words = away.freeWords, !words.isEmpty {
+                Text(words)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func freeChip(_ time: LessonClockTime) -> some View {
+        Button {
+            choose(time)
+            dismiss()
+        } label: {
+            Text(LessonTimeText.chip(time))
+        }
+        .buttonStyle(QuickTimeButtonStyle(isCurrent: time == current, isTaken: false, isAway: false))
+        .accessibilityLabel(LessonTimeText.spoken(time))
+        .accessibilityValue("Everyone's free")
+        .accessibilityHint("Sets the start time.")
+        .accessibilityAddTraits(time == current ? .isSelected : [])
+    }
+
+    /// The Away list: one row per group, in time order.
+    private func awayList(_ rows: [String]) -> some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
+            sectionHeader("Away")
+            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                Text(row)
+                    .font(.caption)
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     /// The note explains the dots only when one is showing.
@@ -202,10 +370,13 @@ struct LessonTimePicker: View {
 
 /// One quick time: filled with the accent color when it is the lesson's time,
 /// dimmed with an amber dot when another lesson that day already has it (it can
-/// still be picked: a deliberate double-booking is rare but real, decision 7).
+/// still be picked: a deliberate double-booking is rare but real, decision 7),
+/// and dimmed with a small leaving figure in the top leading corner when a
+/// child is away during it (co-teacher times, decision 4: never drawn disabled).
 private struct QuickTimeButtonStyle: ButtonStyle {
     let isCurrent: Bool
     let isTaken: Bool
+    let isAway: Bool
 
     #if os(macOS)
     private let height: CGFloat = 26
@@ -222,6 +393,16 @@ private struct QuickTimeButtonStyle: ButtonStyle {
             .foregroundStyle(foreground)
             .frame(maxWidth: .infinity, minHeight: height)
             .background(background, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .overlay(alignment: .topLeading) {
+                if isAway {
+                    Image(systemName: LessonTimePicker.awaySymbol)
+                        .font(.system(size: 6, weight: .bold))
+                        .foregroundStyle(foreground)
+                        .padding(.top, 2)
+                        .padding(.leading, 3)
+                        .accessibilityHidden(true)
+                }
+            }
             .overlay(alignment: .topTrailing) {
                 if isTaken {
                     Circle()
@@ -236,12 +417,27 @@ private struct QuickTimeButtonStyle: ButtonStyle {
 
     private var foreground: AnyShapeStyle {
         if isCurrent { return AnyShapeStyle(Color.white) }
-        if isTaken { return AnyShapeStyle(.secondary) }
+        if isTaken || isAway { return AnyShapeStyle(.secondary) }
         return AnyShapeStyle(.primary)
     }
 
     private var background: AnyShapeStyle {
         if isCurrent { return AnyShapeStyle(Color.accentColor) }
         return AnyShapeStyle(.quaternary)
+    }
+}
+
+// MARK: - Help
+
+private extension View {
+    /// The away sentence as the pointer's help text (the Mac and iPad); nothing
+    /// when the time isn't marked.
+    @ViewBuilder
+    func awayHelp(_ sentence: String?) -> some View {
+        if let sentence {
+            help(sentence)
+        } else {
+            self
+        }
     }
 }
