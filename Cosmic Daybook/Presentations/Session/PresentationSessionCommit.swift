@@ -35,6 +35,9 @@ enum PresentationSessionCommit {
         var alsoReady: Set<UUID> = []
         /// Children confirmed ready on the record whom the guide no longer marks ready.
         var noLongerReady: Set<UUID> = []
+        /// Where the next lesson goes for the newly ready children. Nil leaves
+        /// it to the year plan: its day if it has one, otherwise the Inbox.
+        var nextLessonPlace: PresentationNextLessonPlace?
     }
 
     struct Receipt: Equatable {
@@ -42,6 +45,9 @@ enum PresentationSessionCommit {
         var workCount = 0
         var checkInCount = 0
         var nextLessonPlanned = false
+        /// The moment the new plan for the next lesson was put on; nil when it
+        /// went to the Inbox or no plan was made.
+        var nextLessonScheduledFor: Date?
         /// Work this commit created, for an Undo that has to take it away.
         var createdWorkIDs: [NSManagedObjectID] = []
     }
@@ -176,7 +182,9 @@ enum PresentationSessionCommit {
         receipt.checkInCount = try scheduleCheckIns(
             input, presentationID: presentationID, skipping: leftBehind, context: context
         )
-        receipt.nextLessonPlanned = planNextLesson(input, context: context)
+        let nextPlan = planNextLesson(input, context: context)
+        receipt.nextLessonPlanned = nextPlan != nil
+        receipt.nextLessonScheduledFor = nextPlan?.scheduledFor
         return receipt
     }
 
@@ -267,32 +275,40 @@ enum PresentationSessionCommit {
     }
 
     /// Children newly ready for the next lesson, on its own or alongside work,
-    /// get it On Deck, as one plan, unless they are already on a plan for it.
-    private static func planNextLesson(_ input: Input, context: NSManagedObjectContext) -> Bool {
+    /// get it as one plan, unless they are already on a plan for it. The plan
+    /// goes where the guide chose on the sheet: the Inbox, or a day with or
+    /// without a start time. With no choice the year plan decides, as it
+    /// always has: its day if it has one, otherwise the Inbox.
+    private static func planNextLesson(_ input: Input, context: NSManagedObjectContext) -> CDLessonAssignment? {
         let ready = Set(input.decisions.filter { $0.value == .readyForNextLesson }.map(\.key))
             .union(input.alsoReady)
         guard !ready.isEmpty,
               let next = PlanNextLessonService.findNextLesson(after: input.lesson, in: input.lessons),
-              let nextID = next.id else { return false }
+              let nextID = next.id else { return nil }
 
-        let request = CDFetchRequest(CDLessonAssignment.self)
-        request.predicate = NSPredicate(format: "lessonID == %@", nextID.uuidString)
-        let existing = context.safeFetch(request).filter { !$0.isPresented && !$0.isDeleted }
+        let existing = PresentationNextLessonContext.unpresentedPlans(for: nextID, in: context)
         let alreadyPlanned = Set(existing.flatMap(\.resolvedStudentIDs))
         let toPlan = ready.subtracting(alreadyPlanned)
-        guard !toPlan.isEmpty else { return false }
+        guard !toPlan.isEmpty else { return nil }
 
-        if case .success = PlanNextLessonService.planLesson(
+        guard case .success(let plan) = PlanNextLessonService.planLesson(
             next,
             forStudents: toPlan,
             allStudents: [],
             allLessons: input.lessons,
             existingLessonAssignments: existing,
-            context: context
-        ) {
-            return true
+            context: context,
+            autoPromoteFromYearPlan: input.nextLessonPlace == nil
+        ) else { return nil }
+
+        // A day the guide chose: the plan goes on it, and each child's
+        // year-plan entry for the lesson follows it there. Nothing is laid on
+        // the lessons after. The Inbox leaves the entries Planned where they are.
+        if let moment = input.nextLessonPlace?.scheduledMoment() {
+            plan.schedule(for: moment)
+            YearPlanPromotionService.promoteMatchingEntries(into: plan, scheduledFor: moment, context: context)
         }
-        return false
+        return plan
     }
 }
 

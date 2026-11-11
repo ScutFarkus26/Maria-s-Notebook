@@ -108,7 +108,7 @@ struct PresentationSessionTests {
             nextLessonName: nil
         ))
         #expect(lines.contains("Practice work for Ada L and Ben K in Children Working — “Practice: Golden Beads”"))
-        #expect(lines.contains("Cy M will see it again: a re-presentation goes On Deck"))
+        #expect(lines.contains("Cy M will see it again: a re-presentation goes in the Inbox"))
         #expect(lines.contains("2 notes, filed on this presentation"))
         #expect(PresentationSessionSummary.list(["A", "B", "C"]) == "A, B and C")
     }
@@ -197,7 +197,7 @@ struct PresentationSessionTests {
             alsoReady: [ada],
             noLongerReady: [ben]
         ))
-        #expect(lines.contains("Ada L is ready for the next lesson: Stamp Game goes On Deck"))
+        #expect(lines.contains("Ada L is ready for the next lesson: Stamp Game goes in the Inbox"))
         #expect(lines.contains("Ben K isn't marked ready for the next lesson any more"))
     }
 }

@@ -25,6 +25,11 @@ nonisolated enum PresentationSessionSummary {
         var alsoReady: Set<UUID> = []
         /// Children ready on the record and no longer marked ready.
         var noLongerReady: Set<UUID> = []
+        /// Where the next lesson goes for the newly ready children.
+        var nextLessonPlace: PresentationNextLessonPlace = .inbox
+        /// The newly ready children a new plan is made for: those not already
+        /// on a plan for the next lesson. Nil means all of them.
+        var nextLessonRecipients: Set<UUID>?
     }
 
     static func lines(_ input: Input) -> [String] {
@@ -57,7 +62,7 @@ nonisolated enum PresentationSessionSummary {
 
         let represent = names(.represent)
         if !represent.isEmpty {
-            lines.append("\(list(represent)) will see it again: a re-presentation goes On Deck")
+            lines.append("\(list(represent)) will see it again: a re-presentation goes in the Inbox")
         }
         lines += readinessLines(input)
         let watching = names(.continueObserving)
@@ -77,11 +82,10 @@ nonisolated enum PresentationSessionSummary {
         var lines: [String] = []
         let ready = input.children
             .filter { input.pending[$0.id] == .readyForNextLesson || input.alsoReady.contains($0.id) }
-            .map(\.name)
         if !ready.isEmpty {
-            let subject = "\(list(ready)) \(ready.count == 1 ? "is" : "are")"
+            let subject = "\(list(ready.map(\.name))) \(ready.count == 1 ? "is" : "are")"
             if let next = input.nextLessonName {
-                lines.append("\(subject) ready for the next lesson: \(next) goes On Deck")
+                lines.append("\(subject) ready for the next lesson: \(next) \(nextLessonOutcome(input, ready: ready))")
             } else {
                 lines.append("\(subject) confirmed ready for the next lesson")
             }
@@ -92,6 +96,16 @@ nonisolated enum PresentationSessionSummary {
             lines.append("\(list(unready)) \(verb) marked ready for the next lesson any more")
         }
         return lines
+    }
+
+    /// What becomes of the next lesson: where the new plan goes, for whom when
+    /// that is not every ready child, or that nothing new is needed.
+    private static func nextLessonOutcome(_ input: Input, ready: [Child]) -> String {
+        guard let recipients = input.nextLessonRecipients else { return input.nextLessonPlace.phrase() }
+        let planned = ready.filter { recipients.contains($0.id) }
+        if planned.isEmpty { return "is already planned" }
+        if planned.count == ready.count { return input.nextLessonPlace.phrase() }
+        return "\(input.nextLessonPlace.phrase()) for \(list(planned.map(\.name)))"
     }
 
     /// "Maya", "Leo and Maya", "Ava, Leo and Maya".

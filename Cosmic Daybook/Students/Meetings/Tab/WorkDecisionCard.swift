@@ -167,10 +167,10 @@ struct WorkDecisionCard: View {
             .help(
                 isRepresenting
                     ? "Re-present plans this lesson again, so there's no next lesson yet"
-                    : "Puts the next lesson On Deck when you complete the meeting"
+                    : "Puts the next lesson in the Inbox when you complete the meeting"
             )
             if isReady {
-                Text("Goes On Deck when you complete the meeting")
+                Text("Goes in the Inbox when you complete the meeting")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

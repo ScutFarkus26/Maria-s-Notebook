@@ -1,6 +1,6 @@
 # Plan - Next lesson row when presenting
 
-> **Not started.**
+> **Working on it.**
 > In short: when a child is marked Ready for next in the present-a-lesson sheet, a "Next lesson" row shows where the next lesson will go (the Inbox by default) and lets you put it on a day, with an optional start time, before you press Done.
 
 Written 2026-11-11. Branch `claude/lesson-auto-inbox-scheduling-286848`, starting from main `e3549bb6f`.

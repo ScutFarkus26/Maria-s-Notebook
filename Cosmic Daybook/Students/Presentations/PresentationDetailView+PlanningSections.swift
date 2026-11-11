@@ -28,7 +28,7 @@ extension PresentationDetailContentView {
             return "Given " + givenAt.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
         }
         guard let scheduled = vm.scheduledFor else {
-            return "On Deck, not yet scheduled"
+            return "In the Inbox, not yet scheduled"
         }
         if let time = ScheduledDateEdits.clockTime(of: scheduled, using: calendar) {
             return LessonTimeText.statusLine(plannedOn: scheduled, at: time, calendar: calendar)

@@ -13,6 +13,9 @@ nonisolated enum PresentationSessionDraftStore {
         var checkInDay: Date?
         /// Optional so a draft saved before it existed still reads.
         var followUpDetail: String?
+        /// Where the next lesson goes, if the guide chose. Optional for the
+        /// same reason.
+        var nextLessonPlace: PresentationNextLessonPlace?
         var savedAt: Date
     }
 

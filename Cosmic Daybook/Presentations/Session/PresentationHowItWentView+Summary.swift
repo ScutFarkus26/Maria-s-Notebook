@@ -17,10 +17,12 @@ extension PresentationHowItWentView {
             checkInChanged: session.checkInChanged,
             noteCount: noteCount,
             lessonName: lesson.name,
-            nextLessonName: nextLessonName,
+            nextLessonName: nextLesson?.lessonName,
             followUpDetail: session.followUpDetail,
             alsoReady: session.newlyAlsoReady(for: studentIDs),
-            noLongerReady: session.noLongerReady(for: studentIDs)
+            noLongerReady: session.noLongerReady(for: studentIDs),
+            nextLessonPlace: nextLessonPlace,
+            nextLessonRecipients: nextLesson == nil ? nil : nextLessonRecipients
         ))
     }
 

@@ -47,6 +47,10 @@ final class PresentationSession {
     var checkIn: PresentationCheckIn = .nextWorkCycle
     /// What the follow-up work is, as its title; blank gives "Follow up: <lesson>".
     var followUpDetail = ""
+    /// Where the next lesson goes for the newly ready children. Nil until the
+    /// guide chooses: the sheet then shows, and Done does, what would happen
+    /// anyway (the year plan's day if it has one, otherwise the Inbox).
+    var nextLessonPlace: PresentationNextLessonPlace?
     /// What each child already has on record, read when the beat opens.
     private(set) var applied: [UUID: PresentationChoice] = [:]
     private(set) var loadedCheckIn: PresentationCheckIn = .nextWorkCycle
@@ -98,6 +102,7 @@ final class PresentationSession {
         everyone = PresentationChoice(.continueObserving)
         overrides = [:]
         followUpDetail = ""
+        nextLessonPlace = nil
     }
 
     func showWho() {
@@ -173,6 +178,13 @@ final class PresentationSession {
         Set(studentIDs.filter { choice(for: $0).alsoReady && applied[$0]?.isReady != true })
     }
 
+    /// Children Done would newly mark ready for the next lesson, on its own
+    /// or alongside work: the ones the next lesson is planned for.
+    func newlyReady(for studentIDs: [UUID]) -> Set<UUID> {
+        Set(pendingDecisions(for: studentIDs).filter { $0.value == .readyForNextLesson }.map(\.key))
+            .union(newlyAlsoReady(for: studentIDs))
+    }
+
     /// Children ready on the record whom the guide no longer marks ready.
     func noLongerReady(for studentIDs: [UUID]) -> Set<UUID> {
         Set(studentIDs.filter { applied[$0]?.isReady == true && !choice(for: $0).isReady })
@@ -216,7 +228,8 @@ final class PresentationSession {
             lessons: lessons,
             followUpDetail: followUpDetail,
             alsoReady: newlyAlsoReady(for: studentIDs),
-            noLongerReady: noLongerReady(for: studentIDs)
+            noLongerReady: noLongerReady(for: studentIDs),
+            nextLessonPlace: nextLessonPlace
         )
     }
 
@@ -247,6 +260,12 @@ final class PresentationSession {
             }, uniquingKeysWith: { first, _ in first })
             checkIn = PresentationCheckIn(day: draft.checkInDay)
             followUpDetail = draft.followUpDetail ?? ""
+            // A day that has passed since Later is no longer a choice.
+            if let day = draft.nextLessonPlace?.day, day < AppCalendar.startOfDay(Date()) {
+                nextLessonPlace = nil
+            } else {
+                nextLessonPlace = draft.nextLessonPlace
+            }
             return
         }
 
@@ -274,6 +293,7 @@ final class PresentationSession {
             overrides: Dictionary(uniqueKeysWithValues: overrides.map { ($0.key.uuidString, $0.value.rawValue) }),
             checkInDay: checkIn.day,
             followUpDetail: followUpDetail.trimmed().isEmpty ? nil : followUpDetail,
+            nextLessonPlace: nextLessonPlace,
             savedAt: Date()
         )
     }

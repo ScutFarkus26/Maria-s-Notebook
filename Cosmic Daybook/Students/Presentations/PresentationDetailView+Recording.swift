@@ -308,7 +308,7 @@ extension PresentationDetailContentView {
             lesson: lesson,
             students: selectedStudentsList,
             presentedAt: vm.givenAt,
-            nextLessonName: PlanNextLessonService.findNextLesson(after: lesson, in: lessons)?.name,
+            lessons: lessons,
             canUndo: session.undoToken != nil,
             isSaving: isSavingSession,
             onUndo: undoRecording,

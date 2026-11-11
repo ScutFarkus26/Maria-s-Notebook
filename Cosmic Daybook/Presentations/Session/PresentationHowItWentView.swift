@@ -15,7 +15,8 @@ struct PresentationHowItWentView: View {
     /// The children the presentation was recorded for, in display order.
     let students: [CDStudent]
     let presentedAt: Date?
-    let nextLessonName: String?
+    /// The catalog, for the lesson after this one.
+    let lessons: [CDLesson]
     let canUndo: Bool
     let isSaving: Bool
     let onUndo: () -> Void
@@ -27,8 +28,13 @@ struct PresentationHowItWentView: View {
     @State private var nextSchoolDay: Date?
     @State private var showDatePicker = false
     @State private var pickedDay = AppCalendar.startOfDay(Date())
+    /// The lesson after this one and who already has it planned; nil at the
+    /// end of a sequence.
+    @State private var nextLessonContext: PresentationNextLessonContext?
 
     var studentIDs: [UUID] { students.compactMap(\.id) }
+    var nextLesson: PresentationNextLessonContext? { nextLessonContext }
+    var quickDay: Date? { nextSchoolDay }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -47,6 +53,13 @@ struct PresentationHowItWentView: View {
             .dismissKeyboardOnScroll()
             Divider()
             footer
+        }
+        // Read before the first frame, so the summary names the next lesson
+        // from the start.
+        .onAppear {
+            nextLessonContext = PresentationNextLessonContext.load(
+                after: lesson, lessons: lessons, studentIDs: studentIDs, context: viewContext
+            )
         }
         .task {
             nextSchoolDay = await SchoolCalendarService.shared.nextSchoolDay(after: Date(), using: viewContext)
@@ -182,6 +195,7 @@ private extension PresentationHowItWentView {
             }
             checkInRow
             followUpDetailRow
+            nextLessonRow
         }
         .padding(14)
         .background(Color.accentColor.opacity(UIConstants.OpacityConstants.subtle))
@@ -227,6 +241,7 @@ private extension PresentationHowItWentView {
             }
             checkInRow
             followUpDetailRow
+            nextLessonRow
             noteField(student)
         }
         .padding(14)
@@ -337,7 +352,11 @@ private extension PresentationHowItWentView {
         guard current.shows(choice) else { return .plain }
         return overridden ? .differs : .inherited
     }
+}
 
+// MARK: - Layout
+
+extension PresentationHowItWentView {
     /// A label column beside the chips where there is room, above them where
     /// there is not.
     func rowLayout<Label: View, Content: View>(
