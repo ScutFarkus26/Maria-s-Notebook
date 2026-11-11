@@ -14,7 +14,7 @@ Primary checkout: `/Users/dannydeberry/Developer/Maria's Notebook`
 Build board: https://claude.ai/artifact/WAKaFZGNPQsfKD4A5GbqsM
 
 - [ ] Phase 1: The rules for who is away · started 2026-11-11 · runs as: session · needs: — · est. $8–16 (~1%)
-- [ ] Phase 2: The picker shows it · runs as: session · needs: — · est. $5–10 (~0.5%) ← 1, 2 and 4 run at the same time
+- [x] Phase 2: The picker shows it · done 2026-11-11 (47b7d27eb) · session 6659992a-fc72-4fff-9fbd-2b39bf631a98 · actual $2.83 (~0.1%)
 - [ ] Phase 3: Cards, the day badge and the lesson's sheet · runs as: session · needs: 1, 2 · est. $10–20 (~1%)
 - [ ] Phase 4: The Schedules group sheet · runs as: session · needs: — · est. $6–12 (~0.5%)
 - [ ] Phase 5: Final check · runs as: session · needs: 3, 4 · est. $8–18 (~1%)
@@ -53,6 +53,7 @@ About $65–114 at list prices, which is 3–5% of the weekly limit at this week
 9. **The group sheet (Schedules).** The Length row reads "30 min · ends 10:20", so an entry can be checked against a paper sheet that gives ranges. The Children section gains a field for typing or pasting names ("Lucy, Leora, Naomi"): on a comma or Return each name is matched to an enrolled child and joins the list; a name that matches nobody, or more than one child, stays in the field under a plain line ("Two children are called Sarah. Add a last initial."). Save sorts whatever is still in the field first, and the sheet stays open if a name is left unmatched, so a last name typed without a comma is never dropped. Apple has no token field on iPhone or iPad and none in SwiftUI outside search, so this is a plain text field over the existing list of chosen children, with Choose Children… kept. (The Week view already lists a block's children; nothing changes there.)
 10. **Left for later** (not in this plan): "Not this time" on a warning (Only This Day already cancels a group for a day); day columns tinting during a drag; "who's leaving next" on Today; the Settings row for the length; the free-times MCP tool.
 11. **Against Apple's guidance, on purpose:** none. Where Apple is silent (discouraged-but-allowed choices, suggestions in a popover, names into chips) the choices above are ours and are marked as such under Apple guidance.
+12. **Decided in Phase 2:** the Away list sits under the grid and the Everyone's free row above it; a chip sets its time and closes the picker, as a quick time does; the lesson's own current time carries the mark too when it clashes; a time that is both taken and marked is spoken as "Already has a lesson." followed by the sentence. The symbol is `figure.walk.departure`. The no-away picture matched the lesson-times picture byte for byte.
 
 ## Apple guidance
 
