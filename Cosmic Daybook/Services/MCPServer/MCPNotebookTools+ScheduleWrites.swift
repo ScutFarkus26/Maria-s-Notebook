@@ -28,7 +28,9 @@ extension MCPNotebookTools {
                 + "in the morning half of that day, and a moved plan keeps any time already set on it; "
                 + "pass time to set a start time, or time \"none\" to take one off. Refuses a day school is "
                 + "out, and refuses when any named child already has the lesson on record unless "
-                + "purpose says why she is having it again.",
+                + "purpose says why she is having it again. The reply names any of the children who are "
+                + "with another teacher during the lesson (a set time is taken as 30 minutes long) or, "
+                + "for a lesson with no time, in that half of the day; it never refuses for that.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -123,6 +125,7 @@ extension MCPNotebookTools {
         return "\(verb) [presentation id=\(id)] \(lesson.name) — \(who) on \(dayString(day))"
             + "\(timeSuffix(assignment))\(repeatReceipt(purpose, conflicts: conflicts.count, of: students.count))"
             + "\(promotionReceipt(promoted))."
+            + awaySuffix(for: assignment, in: modelContext)
     }
 
     /// " (1 year-plan entry promoted into it)", or nothing.
@@ -257,7 +260,8 @@ extension MCPNotebookTools {
                 + "Pass date alone to move it to that day (a start time already set on it goes with it; "
                 + "without one it takes its place in the morning half), date and time to place it at a "
                 + "time, or time alone to set a time on the day it already has; time \"none\" takes a set "
-                + "time off, leaving the lesson in the same half of its day. Presentations "
+                + "time off, leaving the lesson in the same half of its day. Like schedule_presentation, "
+                + "the reply names any children who are with another teacher then. Presentations "
                 + "already given cannot be rescheduled — correct those with record_presentation.",
             inputSchema: [
                 "type": "object",
@@ -342,19 +346,25 @@ extension MCPNotebookTools {
         } else {
             throw MCPToolError("Pass a new date and/or time, or unschedule: true to take it off the calendar.")
         }
-        // The year-plan entries promoted into it go with it, as on a calendar
-        // drag (bug hunt 2026-11-03 #20).
-        if let moved = assignment.scheduledFor, let assignmentID = assignment.id?.uuidString {
-            // The day only: a year-plan entry has no time, and a clock time
-            // stored there would come back as a set time if it is promoted again.
-            YearPlanPromotionService.moveEntries(
-                promotedInto: assignmentID, to: AppCalendar.startOfDay(moved), context: modelContext
-            )
-        }
+        moveYearPlanEntries(with: assignment, in: modelContext)
 
         guard modelContext.safeSave() else {
             throw MCPToolError("The presentation could not be rescheduled.")
         }
         return "[presentation id=\(id.uuidString)] \(outcome)"
+            + (unschedule ? "" : awaySuffix(for: assignment, in: modelContext))
+    }
+
+    /// The year-plan entries promoted into a moved plan go with it, as on a
+    /// calendar drag (bug hunt 2026-11-03 #20).
+    private static func moveYearPlanEntries(
+        with assignment: CDLessonAssignment, in modelContext: NSManagedObjectContext
+    ) {
+        guard let moved = assignment.scheduledFor, let assignmentID = assignment.id?.uuidString else { return }
+        // The day only: a year-plan entry has no time, and a clock time
+        // stored there would come back as a set time if it is promoted again.
+        YearPlanPromotionService.moveEntries(
+            promotedInto: assignmentID, to: AppCalendar.startOfDay(moved), context: modelContext
+        )
     }
 }

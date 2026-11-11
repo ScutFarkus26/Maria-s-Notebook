@@ -135,10 +135,12 @@ nonisolated struct ScheduleDay: Sendable, Equatable {
     /// A gentle warning; it never blocks anything.
     enum Warning: Sendable, Equatable {
         /// A child in a block of another person's lane is also in one of the
-        /// guide's lessons that half.
+        /// guide's lessons: during it, for a lesson with a set time
+        /// (`lessonMinute`, checked with `TimetableBlockValues.overlaps`), or
+        /// that half, for one without.
         case childWithPerson(
             studentID: String, personLaneID: UUID, personName: String, blockID: UUID,
-            blockValues: TimetableBlockValues, lessonID: UUID, half: ScheduleDayHalf
+            blockValues: TimetableBlockValues, lessonID: UUID, half: ScheduleDayHalf, lessonMinute: Int?
         )
         /// An adolescents-only lesson with no turn in the adolescent room that half.
         case adolescentLessonWithoutTurn(lessonID: UUID, lessonTitle: String?, half: ScheduleDayHalf)
@@ -150,7 +152,7 @@ nonisolated struct ScheduleDay: Sendable, Equatable {
         /// The lesson it's about, for a tap that scrolls to it.
         var lessonID: UUID {
             switch self {
-            case .childWithPerson(_, _, _, _, _, let id, _): id
+            case .childWithPerson(_, _, _, _, _, let id, _, _): id
             case .adolescentLessonWithoutTurn(let id, _, _): id
             case .lessonDuringTurn(let id, _, _, _, _): id
             }
@@ -160,9 +162,12 @@ nonisolated struct ScheduleDay: Sendable, Equatable {
         /// ("Lucy T"); a child it doesn't know reads "A child".
         func text(name: (String) -> String?) -> String {
             switch self {
-            case let .childWithPerson(studentID, _, personName, _, values, _, half):
+            case let .childWithPerson(studentID, _, personName, _, values, _, half, lessonMinute):
                 let child = name(studentID) ?? "A child"
-                return "\(child) is with \(personName) \(TimetableDay.rangeText(values)) \(half.thisHalf)."
+                let range = TimetableDay.rangeText(values)
+                guard let lessonMinute else { return "\(child) is with \(personName) \(range) \(half.thisHalf)." }
+                return "\(child) is with \(personName) \(range), during your "
+                    + "\(TimetableDay.clockText(lessonMinute)) lesson."
             case let .adolescentLessonWithoutTurn(_, title, half):
                 let lesson = title.map { "\($0) is" } ?? "A lesson planned"
                 return "\(lesson) for adolescents only, but you have no turn in the adolescent room \(half.thisHalf)."
@@ -175,7 +180,7 @@ nonisolated struct ScheduleDay: Sendable, Equatable {
 
         var sortMinute: Int {
             switch self {
-            case let .childWithPerson(_, _, _, _, values, _, _): values.startMinute
+            case let .childWithPerson(_, _, _, _, values, _, _, _): values.startMinute
             case let .adolescentLessonWithoutTurn(_, _, half): half.listMinute
             case let .lessonDuringTurn(_, _, minute, _, _): minute
             }
@@ -183,7 +188,7 @@ nonisolated struct ScheduleDay: Sendable, Equatable {
 
         var sortKey: String {
             switch self {
-            case let .childWithPerson(studentID, _, _, blockID, _, _, _): "0\(blockID.uuidString)\(studentID)"
+            case let .childWithPerson(studentID, _, _, blockID, _, _, _, _): "0\(blockID.uuidString)\(studentID)"
             case let .adolescentLessonWithoutTurn(id, _, _): "1\(id.uuidString)"
             case let .lessonDuringTurn(id, _, _, _, _): "2\(id.uuidString)"
             }
