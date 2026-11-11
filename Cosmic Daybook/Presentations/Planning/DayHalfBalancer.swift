@@ -20,6 +20,10 @@
 // go to the evener day, then to moving the later lessons, so a morning that was
 // built on purpose stays put and the afternoon absorbs the change.
 //
+// A lesson the guide set a time for is never moved: 10:00 can't be an
+// afternoon lesson. It still counts where it is, so the lessons that share its
+// children move around it instead (plan "Lesson times on cards", decision 5).
+//
 // Nothing here touches Core Data, so the whole gesture is testable without a
 // store — see DayBalanceTests.
 
@@ -27,11 +31,13 @@ import Foundation
 
 enum DayHalfBalancer {
     /// One presentation as the balancer sees it: which record, the half it is
-    /// in now, and the children called to it.
+    /// in now, the children called to it, and whether a set time holds it in
+    /// that half.
     struct Booking: Equatable, Sendable {
         let id: UUID
         var period: DayPeriod
         var studentIDs: Set<UUID>
+        var isTimed: Bool = false
     }
 
     /// A rearranged day, and an honest account of what is left over.
@@ -71,12 +77,14 @@ enum DayHalfBalancer {
     static func balanced(_ bookings: [Booking]) -> Outcome {
         let neighbours = adjacency(bookings)
         var periods = bookings.map(\.period)
+        let fixed = Set(bookings.indices.filter { bookings[$0].isTimed })
         for run in runs(sharing: neighbours) {
-            if let sides = run.sides {
-                periods = bestMirror(of: run.members, sides: sides, current: periods)
+            if let sides = run.sides,
+               let mirror = bestMirror(of: run.members, sides: sides, current: periods, fixed: fixed) {
+                periods = mirror
             } else {
                 periods = locallyImproved(
-                    run.members,
+                    run.members.filter { !fixed.contains($0) },
                     neighbours: neighbours,
                     bookings: bookings,
                     periods: periods
@@ -155,12 +163,16 @@ enum DayHalfBalancer {
     // MARK: - Choosing between the two arrangements
 
     /// A splittable run has exactly two arrangements — the colouring and its
-    /// mirror. This picks whichever disturbs the guide's day least.
+    /// mirror. This picks whichever disturbs the guide's day least, among the
+    /// ones that leave every timed lesson (`fixed`) in its half. Nil when
+    /// neither does: timed lessons on both sides of the run's split, which the
+    /// best-effort fallback works around instead.
     private static func bestMirror(
         of members: [Int],
         sides: [Int: Bool],
-        current: [DayPeriod]
-    ) -> [DayPeriod] {
+        current: [DayPeriod],
+        fixed: Set<Int>
+    ) -> [DayPeriod]? {
         let mirrors = [false, true].map { flipped -> [DayPeriod] in
             var periods = current
             for member in members {
@@ -168,10 +180,11 @@ enum DayHalfBalancer {
             }
             return periods
         }
+        .filter { candidate in fixed.allSatisfy { candidate[$0] == current[$0] } }
         return mirrors.min {
             churn(of: $0, members: members, from: current)
                 < churn(of: $1, members: members, from: current)
-        } ?? current
+        }
     }
 
     /// How much an arrangement disturbs the day the guide already built.

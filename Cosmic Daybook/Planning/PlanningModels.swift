@@ -2,7 +2,7 @@ import SwiftUI
 import CoreData
 import Foundation
 
-enum DayPeriod: CaseIterable, Hashable, Sendable {
+nonisolated enum DayPeriod: CaseIterable, Hashable, Sendable {
     case morning, afternoon
 
     public var label: String {

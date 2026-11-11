@@ -101,13 +101,16 @@ struct ScheduleBookingPublisherTests {
         #expect(firstBooking.half == .morning)
         #expect(firstBooking.setMinute == nil)
         #expect(firstBooking.minute == -1)
-        #expect(firstBooking.order == 0)
+        // The shared day order (plan "Lesson times on cards", decision 6): a
+        // set time leads its half, then the hand order. The 10:30 lesson used
+        // to come third, after the two 9:00 slots.
+        #expect(firstBooking.order == 1)
         #expect(firstBooking.studentIDs == [Support.ari, Support.bea])
         #expect(firstBooking.sourceModifiedAt == first.modifiedAt)
-        #expect(try #require(booking(of: second, in: context)).order == 1)
+        #expect(try #require(booking(of: second, in: context)).order == 2)
         let timed = try #require(booking(of: setTime, in: context))
         #expect(timed.setMinute == Support.minutes(10, 30))
-        #expect(timed.order == 2, "a half's order counts its timed lessons too")
+        #expect(timed.order == 0, "a half's order counts its timed lessons too, first")
         let afternoonBooking = try #require(booking(of: afternoon, in: context))
         #expect(afternoonBooking.half == .afternoon)
         #expect(afternoonBooking.order == 0)

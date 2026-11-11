@@ -168,12 +168,12 @@ enum TodayAbsentMover {
 
     // MARK: - Private
 
-    /// Schedules `assignment` on `day`; the year-plan entries promoted into
-    /// it follow it there.
+    /// Schedules `assignment` on `day`, keeping a time set on it; the
+    /// year-plan entries promoted into it follow it there.
     private static func reschedule(
         _ assignment: CDLessonAssignment, onDay day: Date, context: NSManagedObjectContext
     ) {
-        assignment.schedule(onDay: day)
+        assignment.schedule(onDay: day, keepingTimeUsing: AppCalendar.shared)
         guard let assignmentID = assignment.id?.uuidString else { return }
         YearPlanPromotionService.moveEntries(
             promotedInto: assignmentID, to: AppCalendar.startOfDay(day), context: context

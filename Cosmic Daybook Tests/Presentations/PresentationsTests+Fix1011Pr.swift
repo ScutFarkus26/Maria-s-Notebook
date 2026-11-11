@@ -78,9 +78,11 @@ struct PresentationsFix1011PrTests {
         let nine = try at(9, 0, 0, on: day)
         #expect(times[timed] == tenThirty)
         #expect(times[first] == nine)
-        // A slot after the kept time counts on from it, so it still draws
-        // below the 10:30 card (review 2026-10-11 (c) #5).
-        #expect(times[second] == tenThirty.addingTimeInterval(1))
+        // Slots count from the base hour, never on from a kept time: a set
+        // time sorts first in its half on its own (plan "Lesson times on
+        // cards", decision 6), so the slot needn't sit past 10:30 to draw
+        // below it. It used to be 10:30:01 (review 2026-10-11 (c) #5).
+        #expect(times[second] == nine.addingTimeInterval(1))
     }
 
     // MARK: - #11 Follow-ups for children who left

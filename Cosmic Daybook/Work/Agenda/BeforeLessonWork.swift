@@ -57,9 +57,9 @@ struct BeforeLessonWork {
         in context: NSManagedObjectContext,
         now: Date = Date()
     ) -> BeforeLessonWork {
-        let upcoming = presentations
-            .filter { LessonsAndWorkTriage.isBeforeLesson(triageInput(for: $0), days: days) }
-            .sorted(by: LessonAssignmentOrdering.isOrderedBefore)
+        let upcoming = LessonAssignmentOrdering.sorted(
+            presentations.filter { LessonsAndWorkTriage.isBeforeLesson(triageInput(for: $0), days: days) }
+        )
         guard !upcoming.isEmpty else { return BeforeLessonWork() }
 
         var requests: [NSManagedObjectID: WorkToShowFirst.Request] = [:]

@@ -225,6 +225,40 @@ nonisolated extension CDLessonAssignment {
         }
     }
 
+    // MARK: Set times (plan "Lesson times on cards", decisions 4 and 5)
+
+    /// Gives this presentation a start time on the day it already has. Does
+    /// nothing while it isn't scheduled: a time needs a day to go with.
+    func setTime(hour: Int, minute: Int, using calendar: Calendar = AppCalendar.shared) {
+        guard let current = scheduledFor else { return }
+        let moment = DayHalfPlanner.settingTime(hour: hour, minute: minute, on: current, using: calendar)
+        schedule(for: moment, using: calendar)
+    }
+
+    /// Takes the start time off, keeping the day and the half: the lesson goes
+    /// to the end of its half's hand order. Does nothing without a set time.
+    func removeTime(using calendar: Calendar = AppCalendar.shared) {
+        guard let current = scheduledFor, DayHalfPlanner.isSetTime(current, using: calendar) else { return }
+        schedule(for: DayHalfPlanner.removingTime(from: current, using: calendar), using: calendar)
+    }
+
+    /// Moves this presentation to another day. A set time goes with it, at
+    /// the same clock time; a lesson without one lands at the start of the
+    /// teaching morning, as `schedule(onDay:using:)` puts it.
+    func schedule(onDay day: Date, keepingTimeUsing calendar: Calendar) {
+        if let kept = DayHalfPlanner.keptTime(of: scheduledFor, using: calendar) {
+            schedule(for: DayHalfPlanner.rebasing(kept, onto: day, using: calendar), using: calendar)
+        } else {
+            schedule(onDay: day, using: calendar)
+        }
+    }
+
+    /// The start time the guide set, as minutes after midnight; nil when the
+    /// lesson has only a place in its half.
+    func setTimeMinute(using calendar: Calendar = AppCalendar.shared) -> Int? {
+        DayHalfPlanner.setMinute(of: scheduledFor, using: calendar)
+    }
+
     /// Marks this presentation as given.
     func markPresented(at date: Date = Date(), snapshotLesson: Bool = true) {
         // A completed presentation is no longer scheduled. Keeping the old date

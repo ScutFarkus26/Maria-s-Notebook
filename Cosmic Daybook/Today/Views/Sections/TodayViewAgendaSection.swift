@@ -194,9 +194,9 @@ extension TodayView {
         // the item's own date — adding a day to an overdue item's old date
         // would leave it overdue.
         guard let tomorrow = bumpTargetDay() else { return }
-        // A bump expresses a day, so it lands at the start of the morning
-        // rather than ahead of everything already planned.
-        sl.schedule(onDay: tomorrow)
+        // A bump expresses a day: a lesson with a set time keeps it there, and
+        // one without lands at the start of the morning.
+        sl.schedule(onDay: tomorrow, keepingTimeUsing: AppCalendar.shared)
         let name = bumpTargetName
         if saveCoordinator.save(viewContext, reason: "Bump lesson to tomorrow") {
             viewModel.reload()

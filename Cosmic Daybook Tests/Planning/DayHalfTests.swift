@@ -5,8 +5,9 @@ import Testing
 
 /// Covers the AM/PM half a scheduled presentation carries.
 ///
-/// A scheduled presentation has no time, so the half is the only thing its
+/// Most scheduled presentations have no time, so the half is all their
 /// `scheduledFor` says about *when* — everything else in that date is ordering.
+/// (Set times have their own suite, `LessonTimeTests`.)
 /// These are the rules that keep the two from being confused for each other:
 /// which half a stored moment means, which half a drop inherits, and how a day
 /// is numbered so a reorder can never walk one half into the other.
@@ -61,12 +62,17 @@ struct DayHalfTests {
                 == time(9, 0, 5, on: monday)
         )
 
-        // The hour is not carried across: a lesson set by hand for 10:30 in the
-        // morning becomes an afternoon lesson, not a 10:30pm one.
+        // A lesson set for 10:30 can't be an afternoon lesson at 10:30, and
+        // carrying its minutes across used to make it 2:30, a time nobody
+        // set. Its time comes off and it takes the afternoon's last slot.
         #expect(
             DayPeriod.afternoon.applied(to: time(10, 30, on: monday))
-                == time(14, 30, on: monday)
+                == time(14, 0, DayHalfPlanner.lastSlotRank, on: monday)
         )
+        #expect(DayHalfPlanner.moment(of: DayPeriod.afternoon.applied(to: time(10, 30, on: monday)))
+            == .half(.afternoon))
+        // The same half leaves a set time alone.
+        #expect(DayPeriod.morning.applied(to: time(10, 30, on: monday)) == time(10, 30, on: monday))
 
         // A legacy midnight row lands on the base hour of the half it is sent to.
         #expect(DayPeriod.afternoon.applied(to: monday) == time(14, 0, on: monday))
@@ -163,7 +169,7 @@ struct DayHalfTests {
 
     // MARK: - Ordering slot or a time somebody set
 
-    @Test("A base hour on the minute is an ordering slot, whatever its seconds")
+    @Test("A base hour on the minute is an ordering slot, seconds 0 to 58")
     func baseHoursReadAsHalves() {
         // Rank 0 of the morning: the encoding's own starting point.
         #expect(DayHalfPlanner.moment(of: time(9, 0, 0, on: monday)) == .half(.morning))

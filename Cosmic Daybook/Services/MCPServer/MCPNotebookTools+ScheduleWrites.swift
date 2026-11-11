@@ -24,8 +24,9 @@ extension MCPNotebookTools {
             description: "Plan a lesson to be given to one or more students on a day; it appears on the "
                 + "calendar and record_presentation completes it later rather than duplicating it. If "
                 + "the same lesson is already planned for exactly these students, that plan is moved to "
-                + "the new day instead of a second being created. Without a time it lands at 9:00, the "
-                + "start of the teaching morning; pass time to place it later. Refuses a day school is "
+                + "the new day instead of a second being created. Without a time a new plan takes its place "
+                + "in the morning half of that day, and a moved plan keeps any time already set on it; "
+                + "pass time to set a start time, or time \"none\" to take one off. Refuses a day school is "
                 + "out, and refuses when any named child already has the lesson on record unless "
                 + "purpose says why she is having it again.",
             inputSchema: [
@@ -47,10 +48,12 @@ extension MCPNotebookTools {
                     ],
                     "time": [
                         "type": "string",
-                        "description": .string("Optional time of day, HH:MM (24-hour, in the school's local "
-                            + "time zone), e.g. \"10:30\". Omit and the lesson takes its place in the "
-                            + "morning half of that day, which is how presentations are normally planned "
-                            + "— an order within a half, not a timetable.")
+                        "description": .string("Optional start time, HH:MM (24-hour, in the school's local "
+                            + "time zone), e.g. \"10:30\" or \"09:00\"; a set time stays with the lesson "
+                            + "until it is changed or removed. \"none\" takes a set time off. Omit and the "
+                            + "lesson takes its place in the morning half of that day (a moved plan keeps "
+                            + "its set time), which is how presentations are normally planned — an order "
+                            + "within a half, not a timetable.")
                     ],
                     "purpose": repeatPurposeProperty
                 ],
@@ -160,20 +163,30 @@ extension MCPNotebookTools {
 
     // MARK: - Time of Day
 
-    /// Puts the plan on a day, at the given time or — with none — into that
-    /// day's morning half, which is what the in-app planner does.
-    /// `schedule(for:)` is the same write the calendar's drag makes, so a time
-    /// given here orders the day exactly as a drag would.
-    private static func schedule(_ assignment: CDLessonAssignment, onDay day: Date, at time: TimeOfDay?) {
-        guard let time else {
-            assignment.schedule(onDay: day)
-            return
-        }
+    /// Puts the plan on a day. With a time, at that start time, written the
+    /// way the card's time picker writes one (`DayHalfPlanner.settingTime`), so
+    /// 09:00 and 14:00 stick. With `remove` ("none"), on that day with no time,
+    /// in the half the set time was in (the morning, for a plan without one),
+    /// as the card's Remove Time leaves it. With no `time` at all, a time already set on the plan goes with
+    /// it to the new day, and a plan without one takes its place in the
+    /// morning half, which is what the in-app planner does (plan "Lesson
+    /// times on cards", decision 5).
+    private static func schedule(_ assignment: CDLessonAssignment, onDay day: Date, at time: TimeArgument?) {
         let calendar = AppCalendar.shared
-        let moment = calendar.date(
-            bySettingHour: time.hour, minute: time.minute, second: 0, of: calendar.startOfDay(for: day)
-        ) ?? calendar.startOfDay(for: day)
-        assignment.schedule(for: moment, using: calendar)
+        switch time {
+        case .at(let clock):
+            let moment = DayHalfPlanner.settingTime(hour: clock.hour, minute: clock.minute, on: day, using: calendar)
+            assignment.schedule(for: moment, using: calendar)
+        case .remove?:
+            if let kept = DayHalfPlanner.keptTime(of: assignment.scheduledFor, using: calendar) {
+                let untimed = DayHalfPlanner.removingTime(from: kept, using: calendar)
+                assignment.schedule(for: DayHalfPlanner.rebasing(untimed, onto: day, using: calendar), using: calendar)
+            } else {
+                assignment.schedule(onDay: day, using: calendar)
+            }
+        case nil:
+            assignment.schedule(onDay: day, keepingTimeUsing: calendar)
+        }
     }
 
     /// " at 10:30", or " in the morning" — the receipt names when the plan
@@ -188,20 +201,28 @@ extension MCPNotebookTools {
         let minute: Int
     }
 
+    /// A `time:` argument: a start time to set, or `none` to take one off.
+    enum TimeArgument: Equatable {
+        case at(TimeOfDay)
+        case remove
+    }
+
     /// Parses an optional HH:MM (24-hour) argument in the device's time zone —
-    /// the school's, on the guide's Mac. Throws on anything else, since a
-    /// silently ignored time would put a lesson in the wrong slot.
-    static func timeArgument(_ arguments: [String: JSONValue], _ key: String) throws -> TimeOfDay? {
+    /// the school's, on the guide's Mac — or the word "none". Throws on
+    /// anything else, since a silently ignored time would put a lesson in the
+    /// wrong slot.
+    static func timeArgument(_ arguments: [String: JSONValue], _ key: String) throws -> TimeArgument? {
         guard let text = arguments[key]?.stringValue?.trimmed(), !text.isEmpty else { return nil }
+        if text.lowercased() == "none" { return .remove }
         let parts = text.split(separator: ":", omittingEmptySubsequences: false)
         guard parts.count == 2,
               parts[0].count <= 2, parts[1].count == 2,
               let hour = Int(parts[0]), let minute = Int(parts[1]),
               (0...23).contains(hour), (0...59).contains(minute)
         else {
-            throw MCPToolError("\(key) must be formatted HH:MM (24-hour), got \"\(text)\".")
+            throw MCPToolError("\(key) must be formatted HH:MM (24-hour) or \"none\", got \"\(text)\".")
         }
-        return TimeOfDay(hour: hour, minute: minute)
+        return .at(TimeOfDay(hour: hour, minute: minute))
     }
 
     /// A plan for this lesson and exactly these students that has not been given
@@ -226,8 +247,10 @@ extension MCPNotebookTools {
             title: "Reschedule Presentation",
             description: "Move a planned presentation to another day or time, or take it off the "
                 + "calendar entirely (it returns to the planning list rather than being deleted). "
-                + "Pass date alone to move it into that day's morning half, date and time to "
-                + "place it at a time, or time alone to set a time on the day it already has. Presentations "
+                + "Pass date alone to move it to that day (a start time already set on it goes with it; "
+                + "without one it takes its place in the morning half), date and time to place it at a "
+                + "time, or time alone to set a time on the day it already has; time \"none\" takes a set "
+                + "time off, leaving the lesson in the same half of its day. Presentations "
                 + "already given cannot be rescheduled — correct those with record_presentation.",
             inputSchema: [
                 "type": "object",
@@ -243,9 +266,10 @@ extension MCPNotebookTools {
                     ],
                     "time": [
                         "type": "string",
-                        "description": .string("Optional time of day, HH:MM (24-hour, in the school's local "
-                            + "time zone). Without it a moved presentation lands in the morning half of "
-                            + "its new day rather than at any particular time.")
+                        "description": .string("Optional start time, HH:MM (24-hour, in the school's local "
+                            + "time zone), or \"none\" to take a set time off. Without it a moved "
+                            + "presentation keeps any start time already set on it, and one without a time "
+                            + "lands in the morning half of its new day.")
                     ],
                     "unschedule": [
                         "type": "boolean",
@@ -300,7 +324,13 @@ extension MCPNotebookTools {
                         + "Pass a date as well."
                 )
             }
-            schedule(assignment, onDay: current, at: time)
+            if time == .remove {
+                // Taking the time off keeps the lesson in its half, at the end
+                // of the hand order there, as the card's Remove Time does.
+                assignment.removeTime(using: AppCalendar.shared)
+            } else {
+                schedule(assignment, onDay: current, at: time)
+            }
             outcome = "\(title) stays on \(dayString(current)), now\(timeSuffix(assignment))."
         } else {
             throw MCPToolError("Pass a new date and/or time, or unschedule: true to take it off the calendar.")

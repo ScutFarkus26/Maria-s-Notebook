@@ -96,8 +96,19 @@ struct WeekDayColumnDropDelegate: PresentationDropTarget {
             },
             uniquingKeysWith: { first, _ in first }
         )
+        // Each card's half and any time set on it, by the rules in
+        // `DayHalfPlanner.placementsAfterDrop`: a set time survives the drop.
+        let placements = DayHalfPlanner.placementsAfterDrop(
+            ordering: ids,
+            dropped: Set(placed),
+            scheduledFor: Dictionary(
+                ids.compactMap { id in assignmentsByID[id]?.scheduledFor.map { (id, $0) } },
+                uniquingKeysWith: { first, _ in first }
+            ),
+            using: calendar
+        )
         let timeMap = DayHalfPlanner.times(
-            for: placements(ordering: ids, dropped: Set(placed), lookup: assignmentsByID),
+            for: placements,
             on: day,
             using: calendar,
             spacingSeconds: UIConstants.scheduleSpacingSeconds
@@ -184,42 +195,5 @@ struct WeekDayColumnDropDelegate: PresentationDropTarget {
         let index = (ids.firstIndex(of: first) ?? ids.count - 1) + 1
         ids.insert(contentsOf: dropped.dropFirst(), at: index)
         return ids
-    }
-
-    /// The day in its new order, each card carrying the half it belongs to.
-    ///
-    /// Every card already on the day keeps its own half; only the dropped ones
-    /// take a new one, inherited from the card they landed under. That is the
-    /// whole AM/PM gesture — and it is also what keeps a reorder honest, since
-    /// dragging a morning lesson below the afternoon run makes it an afternoon
-    /// lesson rather than leaving it stranded in the wrong half.
-    private func placements(
-        ordering ids: [UUID],
-        dropped: Set<UUID>,
-        lookup: [UUID: CDLessonAssignment]
-    ) -> [DayHalfPlanner.Placement] {
-        func half(_ itemID: UUID) -> DayPeriod {
-            guard let scheduled = lookup[itemID]?.scheduledFor else { return .morning }
-            return DayPeriod(scheduledFor: scheduled, using: calendar)
-        }
-
-        // The dropped cards sit together, so the first of them is where the
-        // drop landed among the others, and they all take that half.
-        let insertionIndex = ids.firstIndex { dropped.contains($0) } ?? ids.count
-        let inherited = DayHalfPlanner.inheritedPeriod(
-            insertingAt: insertionIndex,
-            into: ids.filter { !dropped.contains($0) }.map(half)
-        )
-        // A time the guide set (10:30 through Claude) stays put; only the
-        // dropped cards and the ordering slots around them are renumbered.
-        return ids.map { itemID in
-            dropped.contains(itemID)
-                ? DayHalfPlanner.Placement(id: itemID, period: inherited)
-                : DayHalfPlanner.Placement(
-                    id: itemID,
-                    period: half(itemID),
-                    keptTime: DayHalfPlanner.keptTime(of: lookup[itemID]?.scheduledFor, using: calendar)
-                )
-        }
     }
 }

@@ -52,7 +52,6 @@ final class FetchErrorCollector {
 
 // Service for fetching data needed by TodayViewModel.
 // Encapsulates all database fetch operations.
-// swiftlint:disable:next type_body_length
 enum TodayDataFetcher {
 
     private static let logger = Logger.app_
@@ -98,22 +97,10 @@ enum TodayDataFetcher {
             }
             dayLessons.append(contentsOf: additionalPresented)
 
-            // Stable sort
-            dayLessons.sort { lhs, rhs in
-                let lhsDay = lhs.scheduledFor ?? .distantPast
-                let rhsDay = rhs.scheduledFor ?? .distantPast
-                if lhsDay != rhsDay {
-                    return lhsDay < rhsDay
-                }
-                switch (lhs.scheduledFor, rhs.scheduledFor) {
-                case let (l?, r?): return l < r
-                case (_?, nil): return true
-                case (nil, _?): return false
-                default: return (lhs.createdAt ?? .distantPast) < (rhs.createdAt ?? .distantPast)
-                }
-            }
-
-            return dayLessons
+            // The shared order for a day's lessons: morning then afternoon,
+            // set times first in each half, then the hand order. A given lesson
+            // with no schedule sorts first, as before.
+            return LessonAssignmentOrdering.sorted(dayLessons)
         } catch {
             errorCollector?.record(.lessons, error)
             logger.error("Failed to fetch lessons: \(error)")

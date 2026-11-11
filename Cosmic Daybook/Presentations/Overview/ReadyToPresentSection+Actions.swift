@@ -9,18 +9,18 @@ import SwiftUI
 extension ReadyToPresentSection {
 
     /// Puts every selected presentation on today, spaced the way a drop onto
-    /// today's column would space them.
+    /// today's column would space them: morning slots from 9:00, which stop at
+    /// the last slot rank so a long selection never reads as a set time.
     func scheduleSelectionToday() {
         let selected = currentlyVisibleAssignments.filter { selection.contains($0.id) }
         guard !selected.isEmpty else { return }
 
-        let startOfDay = AppCalendar.startOfDay(Date())
-        let base = AppCalendar.shared.date(
-            bySettingHour: UIConstants.morningHour, minute: 0, second: 0, of: startOfDay
-        ) ?? startOfDay
+        let today = AppCalendar.startOfDay(Date())
         for (index, assignment) in selected.enumerated() {
-            let offset = Double(index * UIConstants.scheduleSpacingSeconds)
-            assignment.setScheduledFor(base.addingTimeInterval(offset), using: AppCalendar.shared)
+            let slot = DayHalfPlanner.slot(
+                index * UIConstants.scheduleSpacingSeconds, in: .morning, on: today, using: AppCalendar.shared
+            )
+            assignment.setScheduledFor(slot, using: AppCalendar.shared)
         }
         if viewContext.safeSave() {
             selection.clear()

@@ -348,7 +348,7 @@ extension WeekPlanSection {
         }
         // Swift's sort is not stable, and every legacy row still sits at
         // midnight — the tiebreak in the ordering keeps the day from reshuffling.
-        return byDay.mapValues { $0.sorted(by: LessonAssignmentOrdering.isOrderedBefore) }
+        return byDay.mapValues { LessonAssignmentOrdering.sorted($0, using: calendar) }
     }
 }
 

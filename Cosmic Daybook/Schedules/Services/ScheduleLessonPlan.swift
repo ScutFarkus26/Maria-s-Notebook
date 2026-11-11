@@ -26,8 +26,9 @@ enum ScheduleLessonPlan {
     /// The presentations planned from `start` through the day before `end`
     /// (scheduled, not yet given), as `schedule_for_range` reads them
     /// (`TodayDataFetcher.fetchLessons`), placed. A half's order counts every
-    /// lesson in it, timed ones too, in the order of `scheduledFor`, which is
-    /// how the planner keeps the guide's order.
+    /// lesson in it, timed ones too, in the shared order for a day
+    /// (`LessonAssignmentOrdering`): set times first by clock, then the hand
+    /// order the planner keeps in `scheduledFor`.
     static func planned(
         from start: Date,
         to end: Date,
@@ -56,7 +57,11 @@ enum ScheduleLessonPlan {
         }
         let halves = Dictionary(grouping: placed) { HalfKey(day: $0.day, half: $0.half) }
         return halves.values.flatMap { group in
-            group.sorted(by: plannedFirst).enumerated().map { order, item in
+            group
+                .map { (key: LessonAssignmentOrdering.Key($0.presentation, using: calendar), item: $0) }
+                .sorted { $0.key < $1.key }
+                .map(\.item)
+                .enumerated().map { order, item in
                 Planned(
                     presentation: item.presentation, id: item.id, day: item.day, half: item.half,
                     minute: item.minute, order: order
@@ -73,14 +78,6 @@ enum ScheduleLessonPlan {
     private struct HalfKey: Hashable {
         let day: Date
         let half: ScheduleDayHalf
-    }
-
-    /// Earlier `scheduledFor` first, then the lower id: the planner's order.
-    private static func plannedFirst(_ lhs: Planned, _ rhs: Planned) -> Bool {
-        let left = lhs.presentation.scheduledFor ?? .distantPast
-        let right = rhs.presentation.scheduledFor ?? .distantPast
-        if left != right { return left < right }
-        return lhs.id.uuidString < rhs.id.uuidString
     }
 
     /// The guide's lessons on `day` for the resolver, with their names (the

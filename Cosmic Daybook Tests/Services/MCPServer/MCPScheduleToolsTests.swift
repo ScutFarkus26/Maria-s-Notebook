@@ -163,11 +163,25 @@ struct MCPScheduleToolsTests {
         #expect(planned.scheduledForDay == AppCalendar.startOfDay(try CoreDataTestHelpers.day("2026-09-18")))
         #expect(MCPNotebookTools.timeString(planned.scheduledFor) == "09:45")
 
-        // A bare date drops back into the morning half of the new day.
+        // A bare date moves it and the set time goes with it (plan "Lesson
+        // times on cards", decision 5); it used to drop to the morning half.
         let dated = try await reschedule.handler([
             "presentation_id": .string(id), "date": .string("2026-09-21")
         ])
-        #expect(dated.contains("now scheduled for 2026-09-21 in the morning."))
+        #expect(dated.contains("now scheduled for 2026-09-21 at 09:45."))
+
+        // "none" takes the time off and leaves it in its half of the same day.
+        let untimed = try await reschedule.handler([
+            "presentation_id": .string(id), "time": .string("none")
+        ])
+        #expect(untimed.contains("stays on 2026-09-21, now in the morning."))
+        #expect(planned.scheduledForDay == AppCalendar.startOfDay(try CoreDataTestHelpers.day("2026-09-21")))
+
+        // Without a set time, a bare date lands in the morning half.
+        let bare = try await reschedule.handler([
+            "presentation_id": .string(id), "date": .string("2026-09-22")
+        ])
+        #expect(bare.contains("now scheduled for 2026-09-22 in the morning."))
 
         // Off the calendar, a time has no day to go with.
         _ = try await reschedule.handler(["presentation_id": .string(id), "unschedule": .bool(true)])

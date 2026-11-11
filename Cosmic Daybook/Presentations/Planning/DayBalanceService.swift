@@ -32,7 +32,8 @@ enum DayBalanceService {
     /// A day's presentations in the form the balancer takes them.
     ///
     /// A row with no `scheduledFor` reads as a morning, the same half every
-    /// other part of the planner gives it.
+    /// other part of the planner gives it. A lesson with a set time is marked
+    /// so the balancer leaves it where it is.
     static func bookings(
         for assignments: [CDLessonAssignment],
         using calendar: Calendar
@@ -44,7 +45,8 @@ enum DayBalanceService {
             return DayHalfBalancer.Booking(
                 id: id,
                 period: period,
-                studentIDs: Set(assignment.resolvedStudentIDs)
+                studentIDs: Set(assignment.resolvedStudentIDs),
+                isTimed: DayHalfPlanner.isSetTime(assignment.scheduledFor, using: calendar)
             )
         }
     }
@@ -55,6 +57,25 @@ enum DayBalanceService {
         using calendar: Calendar
     ) -> [DayPeriod: Set<UUID>] {
         DayHalfBalancer.clashes(in: bookings(for: assignments, using: calendar))
+    }
+
+    /// The day's lessons set for the same start time as another lesson that
+    /// day, whoever the children are (`DayHalfPlanner.sameTimeClashes`).
+    /// `assignments` is one day's lessons.
+    static func sameTimeClashes(
+        for assignments: [CDLessonAssignment],
+        using calendar: Calendar
+    ) -> Set<UUID> {
+        DayHalfPlanner.sameTimeClashes(
+            in: Dictionary(
+                assignments.compactMap { item in
+                    guard let id = item.id, let when = item.scheduledFor else { return nil }
+                    return (id, when)
+                },
+                uniquingKeysWith: { first, _ in first }
+            ),
+            using: calendar
+        )
     }
 
     // MARK: - Rearranging
@@ -94,8 +115,9 @@ enum DayBalanceService {
             if let when = assignment.scheduledFor { previous[id] = when }
         }
 
-        // A card the balancer left in its half keeps a time the guide set
-        // (10:30 through Claude); a card it moved takes a slot in the other.
+        // A card the balancer left in its half keeps a time the guide set —
+        // every timed card, since the balancer never moves one; a card it
+        // moved takes a slot in the other half.
         let placements = outcome.placements.map { placement in
             var placement = placement
             if let current = byID[placement.id]?.scheduledFor,

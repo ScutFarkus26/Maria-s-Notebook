@@ -18,11 +18,13 @@ extension WeekPlanSection {
     /// matched to `WeekDayColumn.scheduledLessonsForDay`, since the balancer's
     /// idea of the day has to be the one the guide is looking at.
     private func pendingPresentations(on day: Date) -> [CDLessonAssignment] {
-        lessonAssignments.filter { assignment in
-            guard let scheduled = assignment.scheduledFor, !assignment.isGiven else { return false }
-            return calendar.isDate(scheduled, inSameDayAs: day)
-        }
-        .sorted(by: LessonAssignmentOrdering.isOrderedBefore)
+        LessonAssignmentOrdering.sorted(
+            lessonAssignments.filter { assignment in
+                guard let scheduled = assignment.scheduledFor, !assignment.isGiven else { return false }
+                return calendar.isDate(scheduled, inSameDayAs: day)
+            },
+            using: calendar
+        )
     }
 
     func balanceVisibleDays() {
