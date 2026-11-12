@@ -27,6 +27,14 @@ extension PresentationPlannerCard {
         let time: LessonClockTime?
         /// Another lesson that day starts at the same minute (decision 7).
         var isClash = false
+        /// Children away with a co-teacher during the lesson, or in its half
+        /// when it has no set time (plan "Co-teacher times when scheduling",
+        /// decision 6). Its own kind of clash: it borrows the amber look when
+        /// `isClash` on the note is set, but never the same-time words.
+        var away: AwayOnCards.Note?
+
+        /// A set time that overlaps a co-teacher's group for one of the children.
+        var isAwayClash: Bool { time != nil && away?.isClash == true }
         /// Whether this card's picker is up. Nil (a drag preview) draws the
         /// chip as plain, with nothing to press.
         var isPickerShown: Binding<Bool>?
@@ -50,7 +58,7 @@ extension PresentationPlannerCard {
             if chip.time == nil {
                 self = .unset
             } else {
-                self = chip.isClash ? .clash : .set
+                self = chip.isClash || chip.isAwayClash ? .clash : .set
             }
         }
 
@@ -159,6 +167,28 @@ extension PresentationPlannerCard {
         )
     }
 
+    // MARK: - Away with a co-teacher
+
+    /// The card's line about children away with a co-teacher, under the
+    /// children where "work to check first" goes: amber with the mark for a
+    /// set time that overlaps a group, quiet secondary text for a lesson with
+    /// no set time (decision 6). The mark is the picker's, so the two agree.
+    @ViewBuilder
+    var awayLine: some View {
+        if let note = timeChip?.away {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Image(systemName: LessonTimePicker.awaySymbol)
+                    .accessibilityHidden(true)
+                // Wraps in full: a narrow iPhone column would otherwise cut
+                // off the teacher's name, the part that says where she went.
+                Text(note.line)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .font(.caption2.weight(.medium))
+            .foregroundStyle(note.isClash ? AnyShapeStyle(Self.clashRing) : AnyShapeStyle(.secondary))
+        }
+    }
+
     // MARK: - VoiceOver
 
     /// "Set Time" or "Change Time", opening the same picker as the chip.
@@ -189,6 +219,8 @@ extension PresentationPlannerCard {
             period?.label,
             time.map { LessonTimeText.spokenPhrase($0) },
             time != nil && timeChip?.isClash == true ? "another lesson at the same time" : nil,
+            timeChip?.isAwayClash == true ? AwayText.chipSpoken : nil,
+            timeChip?.away?.line,
             showFirstLine
         ]
         .compactMap { $0 }

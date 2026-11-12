@@ -47,6 +47,7 @@ extension WeekDayColumn {
         // inside every card, which meant walking the day once per card on it.
         let clashes = clashingStudentIDs
         let sameTime = sameTimeClashIDs
+        let names = awayNames
         let rows = Array(scheduledLessonsForDay.enumerated())
         let marks = Self.listMarks(for: scheduledLessonsForDay.map(place(of:)))
         // Lazy because a day can carry a classroom's worth of presentations
@@ -60,7 +61,7 @@ extension WeekDayColumn {
                 if marks[index].anyTimeDivider {
                     anyTimeDivider
                 }
-                presentationCard(la, clashing: clashes, sameTime: sameTime)
+                presentationCard(la, clashing: clashes, sameTime: sameTime, awayNames: names)
             }
         }
     }
@@ -114,7 +115,8 @@ extension WeekDayColumn {
     func presentationCard(
         _ la: CDLessonAssignment,
         clashing: [DayPeriod: Set<UUID>],
-        sameTime: Set<UUID> = []
+        sameTime: Set<UUID> = [],
+        awayNames: [String: String] = [:]
     ) -> some View {
         let laID = la.id ?? UUID()
         let period = half(of: la)
@@ -132,7 +134,7 @@ extension WeekDayColumn {
             period: period,
             // The Morning / Afternoon labels above the cards say it already.
             showsPeriodBadge: false,
-            timeChip: timeChip(for: la, sameTimeClashes: sameTime)
+            timeChip: timeChip(for: la, sameTimeClashes: sameTime, awayNames: awayNames)
         )
         .id(laID)
         .overlay {
@@ -146,7 +148,7 @@ extension WeekDayColumn {
         .draggable(UnifiedCalendarDragPayload.presentation(laID).stringRepresentation) {
             dragPreview(
                 la, doubleBooked: dayDoubleBooked, period: period,
-                timeChip: plainTimeChip(for: la, sameTimeClashes: sameTime)
+                timeChip: plainTimeChip(for: la, sameTimeClashes: sameTime, awayNames: awayNames)
             )
         }
         .contextMenu {

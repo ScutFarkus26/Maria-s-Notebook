@@ -80,6 +80,13 @@ struct WeekPlanSection: View {
     /// The strip's measured width, which the day columns share between them.
     /// Zero until the first layout, which reads as the minimum column width.
     @State var stripWidth: CGFloat = 0
+    /// Who is away with a co-teacher on each day of the window, keyed by
+    /// start of day (WeekPlanSection+Away.swift).
+    @State var awayDays: [Date: AwayDay] = [:]
+    /// Bumped by every timetable change; `loadedAwayVersion` is the one the
+    /// away times were last read at.
+    @State var awayVersion = 0
+    @State var loadedAwayVersion = 0
 
     /// Days on screen at once: three, wide enough for a day's cards to read
     /// at a glance (2026-10-13; it was a five-day school week). The strip
@@ -279,7 +286,8 @@ struct WeekPlanSection: View {
                         pillActions: pillActions,
                         workToShowFirst: workToShowFirst,
                         showFirstActions: showFirstActions,
-                        columnWidth: columnWidth
+                        columnWidth: columnWidth,
+                        awayDay: awayDay(for: day)
                     )
                     .id(day)
                 }

@@ -111,6 +111,11 @@ struct WeekPlanHeader<Actions: View>: View {
                     .frame(width: 24, height: 14)
                     .capsuleFill(PresentationPlannerCard.clashRing.opacity(UIConstants.OpacityConstants.light))
             }
+            legendItem(label: AwayText.legend) {
+                // The mark on the card's line and in the time picker.
+                Image(systemName: LessonTimePicker.awaySymbol)
+                    .foregroundStyle(PresentationPlannerCard.clashRing)
+            }
             legendItem(label: "Absent") {
                 ringSwatch(PresentationPlannerCard.absentRing) { EmptyView() }
             }

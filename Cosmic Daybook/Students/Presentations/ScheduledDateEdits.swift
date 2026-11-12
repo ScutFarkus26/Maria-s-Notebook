@@ -72,4 +72,61 @@ nonisolated enum ScheduledDateEdits {
             return DayHalfPlanner.setMinute(of: assignment.scheduledFor, using: calendar)
         })
     }
+
+    /// Who is away with a co-teacher on one day, for the sheet's lesson
+    /// (docs/Plans/Plan - Co-teacher times when scheduling.md, Phase 3): what
+    /// its time picker lists and marks, and the line under the Time row. The
+    /// same rules and words as the Scheduled cards (`AwayOnCards`).
+    struct AwayInfo: Equatable {
+        let day: AwayDay
+        /// The children's short names, by upper-cased ID.
+        let names: [String: String]
+        /// The day's other lessons' set times.
+        let ownStarts: Set<Int>
+
+        static let empty = AwayInfo(day: .empty, names: [:], ownStarts: [])
+
+        /// The picker's away list, marks and free times; nil with nobody away.
+        func picker(children: some Sequence<UUID>) -> LessonTimeAway? {
+            AwayOnCards.pickerAway(
+                in: day, children: AwayDay.keys(children), ownStarts: ownStarts, name: { names[$0] }
+            )
+        }
+
+        /// The card's clash line for a lesson at `minute`, when that time
+        /// overlaps a group for one of the children; nil otherwise.
+        func clashLine(children: some Sequence<UUID>, at minute: Int?) -> String? {
+            guard let minute else { return nil }
+            let note = AwayOnCards.note(
+                in: day, children: AwayDay.keys(children), setMinute: minute,
+                half: LessonTimeChoices.half(ofMinute: minute), name: { names[$0] }
+            )
+            return note?.isClash == true ? note?.line : nil
+        }
+    }
+
+    /// One day's away times for a lesson with `children`, read when asked
+    /// (the picker opening, the day or the children changing): one timetable
+    /// fetch for the day, the children's names, and the day's other set times.
+    @MainActor
+    static func awayInfo(
+        on day: Date,
+        children: Set<UUID>,
+        excluding lessonID: UUID?,
+        in context: NSManagedObjectContext,
+        using calendar: Calendar = AppCalendar.shared
+    ) -> AwayInfo {
+        let start = calendar.startOfDay(for: day)
+        guard !children.isEmpty,
+              let awayDay = AwayTimes.days(from: start, through: start, in: context, calendar: calendar)[start],
+              !awayDay.away(children: AwayDay.keys(children)).isEmpty
+        else { return .empty }
+        let request = CDFetchRequest(CDStudent.self)
+        request.predicate = NSPredicate(format: "id IN %@", Array(children))
+        return AwayInfo(
+            day: awayDay,
+            names: AwayOnCards.names(context.safeFetch(request)),
+            ownStarts: takenMinutes(on: day, excluding: lessonID, in: context, using: calendar)
+        )
+    }
 }

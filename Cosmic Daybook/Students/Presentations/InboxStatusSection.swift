@@ -6,6 +6,9 @@ struct InboxStatusSection: View {
     var lessonTitle: String = ""
     /// The presentation being edited, left out of the day's taken times.
     var presentationID: UUID?
+    /// The children as the sheet has them now (saved or not), for who is
+    /// away with a co-teacher at the time picked.
+    var children: Set<UUID> = []
 
     @Environment(\.calendar) private var calendar
 
@@ -67,7 +70,8 @@ struct InboxStatusSection: View {
             DayHalfPicker(date: $scheduledFor)
 
             ScheduledTimeRow(
-                scheduledFor: $scheduledFor, lessonTitle: lessonTitle, presentationID: presentationID
+                scheduledFor: $scheduledFor, lessonTitle: lessonTitle, presentationID: presentationID,
+                children: children
             )
 
             Button {
@@ -116,20 +120,42 @@ struct InboxStatusSection: View {
 /// The sheet's Time row: "Time" and the set time, or "None", which opens the
 /// lesson time picker (docs/Plans/Plan - Lesson times on cards.md, Phase 4).
 /// Set and remove go through `ScheduledDateEdits`, on the date the sheet
-/// saves later.
+/// saves later. When a child is away with a co-teacher that day the picker
+/// says so, and a set time that overlaps the group gets the card's line
+/// under the row (docs/Plans/Plan - Co-teacher times when scheduling.md).
 struct ScheduledTimeRow: View {
     @Binding var scheduledFor: Date?
     let lessonTitle: String
     let presentationID: UUID?
+    var children: Set<UUID> = []
 
     @Environment(\.calendar) private var calendar
     @Environment(\.managedObjectContext) private var viewContext
     @State private var timeTarget: TimeTarget?
+    /// The day's away times for the line under the row, read when the day or
+    /// the children change.
+    @State private var away = ScheduledDateEdits.AwayInfo.empty
 
-    /// One opening of the time picker: the day's other start times, read when it opens.
+    /// One opening of the time picker: the day's other start times and who
+    /// is away, read when it opens.
     private struct TimeTarget: Identifiable {
         let id = UUID()
         let takenMinutes: Set<Int>
+        var away: LessonTimeAway?
+    }
+
+    /// What the line under the row is read from: the day and the children.
+    private struct AwayKey: Equatable {
+        let day: Date?
+        let children: Set<UUID>
+    }
+
+    private var awayKey: AwayKey {
+        AwayKey(day: scheduledFor.map { calendar.startOfDay(for: $0) }, children: children)
+    }
+
+    private var clashLine: String? {
+        away.clashLine(children: children, at: setTime?.minutesAfterMidnight)
     }
 
     private var setTime: LessonClockTime? {
@@ -138,15 +164,49 @@ struct ScheduledTimeRow: View {
 
     /// "Time" and the set time, or "None"; either opens the time picker.
     var body: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
+            timeRow
+            if let clashLine {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Image(systemName: LessonTimePicker.awaySymbol)
+                        .accessibilityHidden(true)
+                    Text(clashLine)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .font(.caption)
+                .foregroundStyle(PresentationPlannerCard.clashRing)
+            }
+        }
+        .task(id: awayKey) { loadAway(awayKey) }
+    }
+
+    private func loadAway(_ key: AwayKey) {
+        guard let day = key.day else {
+            away = .empty
+            return
+        }
+        away = ScheduledDateEdits.awayInfo(
+            on: day, children: key.children, excluding: presentationID, in: viewContext, using: calendar
+        )
+    }
+
+    private var timeRow: some View {
         HStack(spacing: AppTheme.Spacing.small) {
             Label("Time", systemImage: "clock")
                 .font(AppTheme.ScaledFont.body)
             Spacer(minLength: AppTheme.Spacing.small)
             Button {
                 guard let scheduledFor else { return }
-                timeTarget = TimeTarget(takenMinutes: ScheduledDateEdits.takenMinutes(
-                    on: scheduledFor, excluding: presentationID, in: viewContext, using: calendar
-                ))
+                let info = ScheduledDateEdits.awayInfo(
+                    on: scheduledFor, children: children, excluding: presentationID, in: viewContext, using: calendar
+                )
+                away = info
+                timeTarget = TimeTarget(
+                    takenMinutes: ScheduledDateEdits.takenMinutes(
+                        on: scheduledFor, excluding: presentationID, in: viewContext, using: calendar
+                    ),
+                    away: info.picker(children: children)
+                )
             } label: {
                 Text(setTime.map { LessonTimeText.spoken($0) } ?? "None")
                     .monospacedDigit()
@@ -154,7 +214,8 @@ struct ScheduledTimeRow: View {
             }
             .buttonStyle(.borderless)
             .accessibilityLabel("Start time")
-            .accessibilityValue(setTime.map { LessonTimeText.spoken($0) } ?? "None")
+            .accessibilityValue([setTime.map { LessonTimeText.spoken($0) } ?? "None", clashLine]
+                .compactMap { $0 }.joined(separator: ", "))
             .accessibilityHint(setTime == nil ? "Sets a start time" : "Changes or removes the start time")
             .lessonTimePicker(item: $timeTarget) { target in
                 LessonTimePicker(
@@ -162,6 +223,7 @@ struct ScheduledTimeRow: View {
                     current: setTime,
                     takenMinutes: target.takenMinutes,
                     startingHalf: scheduledFor.map { DayPeriod(scheduledFor: $0, using: calendar) } ?? .morning,
+                    away: target.away,
                     set: { hour, minute in
                         scheduledFor = ScheduledDateEdits.settingTime(
                             hour: hour, minute: minute, on: scheduledFor, using: calendar

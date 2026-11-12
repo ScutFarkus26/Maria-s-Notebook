@@ -62,6 +62,10 @@ struct WeekDayColumn: View {
     /// `WeekPlanSection.columnWidth(forStripWidth:dayCount:)`. Defaulted so a
     /// column can be built on its own, as the menu tests do.
     var columnWidth: CGFloat = WeekPlanSection.minimumColumnWidth
+    /// Who is away with a co-teacher this day, and when, loaded by
+    /// `WeekPlanSection` for every day of the strip at once (plan "Co-teacher
+    /// times when scheduling", Phase 3). Empty draws nothing new.
+    var awayDay: AwayDay = .empty
 
     /// Card frames, written after every layout pass but read only by the drop
     /// delegate and the mid-drag insertion bar. Kept in a reference box rather

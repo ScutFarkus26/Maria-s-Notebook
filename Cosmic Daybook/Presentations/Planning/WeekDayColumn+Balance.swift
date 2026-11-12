@@ -26,15 +26,49 @@ extension WeekDayColumn {
     /// child clashing in both halves counts once: she is one child either way,
     /// and one line in the warning), and start times given to more than one
     /// lesson, which the guide can't both give (plan "Lesson times on cards",
-    /// decision 7).
+    /// decision 7), and lessons whose set time overlaps a co-teacher's group
+    /// for one of their children (plan "Co-teacher times when scheduling",
+    /// decision 6): one each. Those are their own kind, counted and spoken
+    /// apart; they only borrow the amber look.
     struct DayClashes: Equatable {
         var children = 0
         /// Start times that two or more lessons share: one clash each.
         var sameTimes = 0
         /// The lessons at those start times, for the spoken line.
         var sameTimeLessons = 0
+        /// Lessons with a set time while one of their children is away.
+        var away = 0
 
-        var total: Int { children + sameTimes }
+        var total: Int { children + sameTimes + away }
+
+        /// The plain badge's words for its kinds: rearranging never moves a
+        /// lesson with a set time, so only changing a time clears these.
+        var timedParts: [String] {
+            var parts: [String] = []
+            if sameTimes > 0 {
+                parts.append(sameTimes == 1
+                    ? "\(sameTimeLessons) lessons at the same time"
+                    : "\(sameTimeLessons) lessons sharing \(sameTimes) start times")
+            }
+            if away > 0 {
+                // "2 with a child away" after the same-time part; standing
+                // alone it names the lessons.
+                parts.append(parts.isEmpty
+                    ? (away == 1 ? "1 lesson" : "\(away) lessons") + " while a child is with another teacher"
+                    : AwayText.badgeCount(away))
+            }
+            return parts
+        }
+
+        /// The plain badge's help: what it counts, and what clears it.
+        var plainHelp: String {
+            if away == 0 { return "Two lessons start at the same time. Change one of the times." }
+            let line = timedParts.joined(separator: ", ")
+            let lead = line.prefix(1).uppercased() + line.dropFirst() + "."
+            return sameTimes > 0
+                ? lead + " Change one of the times."
+                : lead + (away == 1 ? " Change its time to clear it." : " Change their times to clear it.")
+        }
 
         /// "1 clash", "3 clashes".
         var badgeText: String { total == 1 ? "1 clash" : "\(total) clashes" }
@@ -48,11 +82,7 @@ extension WeekDayColumn {
                     ? "1 child booked twice in the same half"
                     : "\(children) children booked twice in the same half")
             }
-            if sameTimes > 0 {
-                parts.append(sameTimes == 1
-                    ? "\(sameTimeLessons) lessons at the same time"
-                    : "\(sameTimeLessons) lessons sharing \(sameTimes) start times")
-            }
+            parts += timedParts
             let line = parts.joined(separator: ", ")
             let sentence = line.prefix(1).uppercased() + line.dropFirst() + "."
             return children > 0 ? sentence + " Rearrange this day." : sentence
@@ -61,23 +91,37 @@ extension WeekDayColumn {
 
     /// The day's clashes, from the children doubled up in each half and each
     /// lesson's set start time (minutes after midnight; untimed lessons absent).
+    /// `awayClashes` is the number of timed lessons with a child away then.
     static func dayClashes(
         childClashes: [DayPeriod: Set<UUID>],
-        setMinutes: [Int]
+        setMinutes: [Int],
+        awayClashes: Int = 0
     ) -> DayClashes {
         let perMinute = setMinutes.reduce(into: [Int: Int]()) { $0[$1, default: 0] += 1 }
         return DayClashes(
             children: childClashes.values.reduce(into: Set<UUID>()) { $0.formUnion($1) }.count,
             sameTimes: perMinute.values.filter { $0 > 1 }.count,
-            sameTimeLessons: perMinute.values.filter { $0 > 1 }.reduce(0, +)
+            sameTimeLessons: perMinute.values.filter { $0 > 1 }.reduce(0, +),
+            away: awayClashes
         )
     }
 
     var dayClashes: DayClashes {
         Self.dayClashes(
             childClashes: clashingStudentIDs,
-            setMinutes: scheduledLessonsForDay.compactMap { $0.setTimeMinute(using: calendar) }
+            setMinutes: scheduledLessonsForDay.compactMap { $0.setTimeMinute(using: calendar) },
+            awayClashes: awayClashCount
         )
+    }
+
+    /// The day's timed lessons that overlap a co-teacher's group for one of
+    /// their children. No words are needed to count, so no roster lookup.
+    var awayClashCount: Int {
+        guard !awayDay.isEmpty else { return 0 }
+        return scheduledLessonsForDay.count { lesson in
+            guard let start = lesson.setTimeMinute(using: calendar) else { return false }
+            return !awayDay.clashes(children: lesson.studentIDs, start: start).isEmpty
+        }
     }
 
     /// Only on a day with a clash. With a child doubled up it is the
@@ -92,14 +136,14 @@ extension WeekDayColumn {
                 clashBadge(clashes, systemImage: "wand.and.sparkles")
             }
             .buttonStyle(.plain)
-            .help(clashes.sameTimes > 0
+            .help(clashes.sameTimes > 0 || clashes.away > 0
                 ? "Rearrange this day so no child has two lessons in the same half. "
                     + "Lessons with a start time stay where they are."
                 : "Rearrange this day so no child has two lessons in the same half")
             .accessibilityLabel(clashes.spokenLabel)
-        } else if clashes.sameTimes > 0 {
+        } else if clashes.sameTimes > 0 || clashes.away > 0 {
             clashBadge(clashes, systemImage: "exclamationmark.triangle.fill")
-                .help("Two lessons start at the same time. Change one of the times.")
+                .help(clashes.plainHelp)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(clashes.spokenLabel)
         }

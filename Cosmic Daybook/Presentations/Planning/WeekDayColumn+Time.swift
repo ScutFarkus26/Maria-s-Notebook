@@ -98,12 +98,13 @@ extension WeekDayColumn {
     // MARK: - The chip and its picker
 
     func timeChip(
-        for assignment: CDLessonAssignment, sameTimeClashes: Set<UUID>
+        for assignment: CDLessonAssignment, sameTimeClashes: Set<UUID>, awayNames: [String: String] = [:]
     ) -> PresentationPlannerCard.TimeChip {
         let id = assignment.id
         return PresentationPlannerCard.TimeChip(
             time: assignment.setTimeMinute(using: calendar).map(LessonClockTime.init(minutesAfterMidnight:)),
             isClash: id.map(sameTimeClashes.contains) ?? false,
+            away: awayNote(for: assignment, names: awayNames),
             isPickerShown: Binding(
                 get: { id != nil && timePickerID == id },
                 set: { shown in
@@ -120,11 +121,44 @@ extension WeekDayColumn {
 
     /// The chip as a drag preview draws it: the same look, nothing to press.
     func plainTimeChip(
-        for assignment: CDLessonAssignment, sameTimeClashes: Set<UUID>
+        for assignment: CDLessonAssignment, sameTimeClashes: Set<UUID>, awayNames: [String: String] = [:]
     ) -> PresentationPlannerCard.TimeChip {
         PresentationPlannerCard.TimeChip(
             time: assignment.setTimeMinute(using: calendar).map(LessonClockTime.init(minutesAfterMidnight:)),
-            isClash: assignment.id.map(sameTimeClashes.contains) ?? false
+            isClash: assignment.id.map(sameTimeClashes.contains) ?? false,
+            away: awayNote(for: assignment, names: awayNames)
+        )
+    }
+
+    // MARK: - Away with a co-teacher
+
+    /// The children's short names for the away words, by upper-cased ID:
+    /// built once per list, from the roster the strip already holds.
+    var awayNames: [String: String] {
+        awayDay.isEmpty ? [:] : AwayOnCards.names(students)
+    }
+
+    /// The card's line about children away with a co-teacher (decision 6).
+    func awayNote(for assignment: CDLessonAssignment, names: [String: String]) -> AwayOnCards.Note? {
+        guard !awayDay.isEmpty else { return nil }
+        return AwayOnCards.note(
+            in: awayDay,
+            children: assignment.studentIDs,
+            setMinute: assignment.setTimeMinute(using: calendar),
+            half: half(of: assignment) ?? .morning,
+            name: { names[$0] }
+        )
+    }
+
+    /// What the card's picker says about who is away that day (decision 4).
+    func pickerAway(for assignment: CDLessonAssignment) -> LessonTimeAway? {
+        guard !awayDay.isEmpty else { return nil }
+        let names = awayNames
+        return AwayOnCards.pickerAway(
+            in: awayDay,
+            children: assignment.studentIDs,
+            ownStarts: takenMinutes(besides: assignment),
+            name: { names[$0] }
         )
     }
 
@@ -135,6 +169,7 @@ extension WeekDayColumn {
             current: assignment.setTimeMinute(using: calendar).map(LessonClockTime.init(minutesAfterMidnight:)),
             takenMinutes: takenMinutes(besides: assignment),
             startingHalf: half(of: assignment) ?? .morning,
+            away: pickerAway(for: assignment),
             set: { hour, minute in setTime(of: assignment, hour: hour, minute: minute) },
             remove: { removeTime(of: assignment) }
         )

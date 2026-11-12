@@ -149,12 +149,15 @@ extension WeekPlanSection {
 }
 
 extension View {
-    /// The strip's card-data refresh, a later pill's "Open whose work?" and
-    /// Move All Forward's question, attached in `WeekPlanSection.body`.
+    /// The strip's card-data and away-times refresh, a later pill's "Open
+    /// whose work?" and Move All Forward's question, attached in
+    /// `WeekPlanSection.body`.
     func weekPlanPrompts(_ section: WeekPlanSection) -> some View {
         section.attachClearAllDialog(
             to: section.attachMoveForwardDialog(
-                to: section.attachLaterPillDialog(to: section.attachCardRefresh(to: self))
+                to: section.attachLaterPillDialog(
+                    to: section.attachAwayRefresh(to: section.attachCardRefresh(to: self))
+                )
             )
         )
     }

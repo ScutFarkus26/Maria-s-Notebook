@@ -370,7 +370,8 @@ extension PresentationDetailContentView {
                 InboxStatusSection(
                     scheduledFor: $vm.scheduledFor,
                     lessonTitle: currentLesson?.name ?? "",
-                    presentationID: vm.lessonAssignment.id
+                    presentationID: vm.lessonAssignment.id,
+                    children: vm.selectedStudentIDs
                 )
             }
             .formStyle(.grouped)

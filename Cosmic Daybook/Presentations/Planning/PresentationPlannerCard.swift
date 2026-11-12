@@ -128,6 +128,7 @@ struct PresentationPlannerCard: View {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
                 titleRow
                 studentChipsRow
+                awayLine
                 showFirstLine
                 readinessFooter
             }
