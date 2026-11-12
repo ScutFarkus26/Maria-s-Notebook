@@ -1,6 +1,6 @@
 // ConsolidatePresentationsSheet+Chip.swift
 // One child's chip in Merge Groups: dragged onto another group to move her,
-// or removed from its menu. Split from ConsolidatePresentationsSheet.swift for
+// or moved ("Move to Group N") or removed from its right-click menu. Split from ConsolidatePresentationsSheet.swift for
 // SwiftLint's file-length limit.
 
 import SwiftUI
@@ -13,6 +13,9 @@ struct DraggableStudentChip: View {
     let lessonID: UUID
     let areaColor: Color
     let isDuplicate: Bool
+    /// The other groups she can go to, and a new group when hers has others.
+    let moves: [BacklogChipMove]
+    let onMove: (BacklogChipMove) -> Void
     let onRemove: () -> Void
 
     private var label: String {
@@ -62,10 +65,21 @@ struct DraggableStudentChip: View {
             return provider
         }
         .contextMenu {
+            ForEach(moves) { move in
+                Button(move.title, systemImage: move.target == nil ? "plus.circle" : "arrow.right.circle") {
+                    onMove(move)
+                }
+            }
+            if !moves.isEmpty { Divider() }
             Button(role: .destructive, action: onRemove) {
                 Label("Remove from this presentation", systemImage: "person.fill.xmark")
             }
         }
         .accessibilityLabel(isDuplicate ? "\(label), also in another presentation" : label)
+        .accessibilityActions {
+            ForEach(moves) { move in
+                Button(move.spokenTitle(for: label)) { onMove(move) }
+            }
+        }
     }
 }

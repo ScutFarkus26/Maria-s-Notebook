@@ -3,7 +3,8 @@
 // right-click on the Mac, long-press on iPad, "Move to Group N" for each
 // other group and "Move to a New Group" when her group has others in it.
 //
-// The write is `PresentationGroupMove`, the same path a chip dragged onto
+// The write is `PresentationGroupMove` (through `GroupChildMover`, which
+// Merge Groups' chip menu shares), the same path a chip dragged onto
 // another group takes, so her notes and year-plan entries go with her and a
 // group she leaves empty is folded away. The toast offers Undo, as Presented
 // Today does. Merge Groups… stays the other way to the same result.
@@ -102,36 +103,50 @@ extension ReadyToPresentSection {
     // MARK: - The write
 
     func moveChild(_ chip: BacklogChip, from la: CDLessonAssignment, move: BacklogChipMove) {
+        GroupChildMover(context: viewContext, saveCoordinator: saveCoordinator, toasts: dependencies.toastService)
+            .move(chip.id, name: chip.name, from: la, move: move)
+    }
+}
+
+/// The write behind a "Move to Group N" menu item, shared by the Ready
+/// backlog's chips and Merge Groups' chips: one save through
+/// `PresentationGroupMove`, then a toast that offers Undo.
+struct GroupChildMover {
+    let context: NSManagedObjectContext
+    let saveCoordinator: SaveCoordinator
+    let toasts: ToastService
+
+    func move(_ studentID: UUID, name: String, from la: CDLessonAssignment, move: BacklogChipMove) {
         var receipt: PresentationGroupMove.Receipt?
-        let saved = saveCoordinator.saveEdit(in: viewContext, reason: "Move a child between groups") {
+        let saved = saveCoordinator.saveEdit(in: context, reason: "Move a child between groups") {
             if let target = move.target {
-                receipt = PresentationGroupMove.move(chip.id, from: la, to: target, in: viewContext)
+                receipt = PresentationGroupMove.move(studentID, from: la, to: target, in: context)
             } else {
-                receipt = PresentationGroupMove.moveToNewGroup(chip.id, from: la, in: viewContext)
+                receipt = PresentationGroupMove.moveToNewGroup(studentID, from: la, in: context)
             }
         }
         guard saved else {
-            dependencies.toastService.showError("Couldn't move \(chip.name). Try again.")
+            toasts.showError("Couldn't move \(name). Try again.")
             return
         }
         // Nil only when the groups changed under the menu; nothing was written.
         guard let receipt else { return }
         PresentationDetailUtilities.notifyInboxRefresh()
         let destination = move.groupNumber.map { "Group \($0)" } ?? "a new group"
-        dependencies.toastService.show(
-            "Moved \(chip.name) to \(destination).",
+        toasts.show(
+            "Moved \(name) to \(destination).",
             type: .success,
             duration: 6,
-            undoAction: { undoChildMove(receipt, name: chip.name) }
+            undoAction: { undo(receipt, name: name) }
         )
     }
 
-    private func undoChildMove(_ receipt: PresentationGroupMove.Receipt, name: String) {
-        let saved = saveCoordinator.saveEdit(in: viewContext, reason: "Undo moving a child between groups") {
-            guard PresentationGroupMove.undo(receipt, in: viewContext) else { throw GroupMoveUndoRefused() }
+    private func undo(_ receipt: PresentationGroupMove.Receipt, name: String) {
+        let saved = saveCoordinator.saveEdit(in: context, reason: "Undo moving a child between groups") {
+            guard PresentationGroupMove.undo(receipt, in: context) else { throw GroupMoveUndoRefused() }
         }
         guard saved else {
-            dependencies.toastService.showError("Couldn't move \(name) back. Try Merge Groups… instead.")
+            toasts.showError("Couldn't move \(name) back. Try Merge Groups… instead.")
             return
         }
         PresentationDetailUtilities.notifyInboxRefresh()
