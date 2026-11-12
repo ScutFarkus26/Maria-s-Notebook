@@ -1,6 +1,6 @@
 # Co-teacher times when scheduling
 
-> **Working on it.** Written 2026-11-11 from Danny's two co-teacher schedules (Morah Devora's kodesh groups and Miss Nicole's Book Club) and two mockups he approved in the planning session.
+> **Done 2026-11-11** (4b0d8d555). Written 2026-11-11 from Danny's two co-teacher schedules (Morah Devora's kodesh groups and Miss Nicole's Book Club) and two mockups he approved in the planning session.
 > In short: when Danny gives a lesson a time, the app shows which of its children are away with a co-teacher then, suggests times when everyone is free, and marks a clashing card; the Schedules sheet gets an end time and a field for typing names.
 
 ## Goal
@@ -13,15 +13,19 @@ Marks: `plan/coteacher-times` (each phase tags the primary checkout `plan/coteac
 Primary checkout: `/Users/dannydeberry/Developer/Maria's Notebook`
 Build board: https://claude.ai/artifact/WAKaFZGNPQsfKD4A5GbqsM
 
-- [ ] Phase 1: The rules for who is away · started 2026-11-11 · runs as: session · needs: — · est. $8–16 (~1%)
-- [x] Phase 2: The picker shows it · done 2026-11-11 (47b7d27eb) · session 6659992a-fc72-4fff-9fbd-2b39bf631a98 · actual $2.83 (~0.1%)
-- [ ] Phase 3: Cards, the day badge and the lesson's sheet · runs as: session · needs: 1, 2 · est. $10–20 (~1%)
-- [ ] Phase 4: The Schedules group sheet · runs as: session · needs: — · est. $6–12 (~0.5%)
-- [ ] Phase 5: Final check · runs as: session · needs: 3, 4 · est. $8–18 (~1%)
+- [x] Phase 1: The rules for who is away · done 2026-11-11 (33420e683) · session a4527ae6-0161-4ee3-9d9a-5d7777c1c67c · actual $8.72 (~0.4%)
+- [x] Phase 2: The picker shows it · done 2026-11-11 (47b7d27eb) · session 6659992a-fc72-4fff-9fbd-2b39bf631a98 · actual $4.11 (~0.2%, $2.83 when it merged)
+- [x] Phase 3: Cards, the day badge and the lesson's sheet · done 2026-11-11 (706712086) · session 00e73027-b6d8-4cf6-a399-ab1810734261 · actual $8.84 (~0.4%)
+- [x] Phase 4: The Schedules group sheet · done 2026-11-11 (3bed2ba32) · session 7fde6292-c5ab-4fd9-af56-4df0dca70d07 · actual $4.94 (~0.2%)
+- [x] Phase 5: Final check · done 2026-11-11 (4b0d8d555) · session ba45148a-0769-40ee-b874-d9b2a42f3cc5 · actual $6.97 (~0.3%)
+
+Main was pushed to GitHub on 2026-11-11 at Danny's request, with every phase on it. Not in a TestFlight build yet: it goes out with lesson times ([Tide row](<tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Roll%20out%20lesson%20times%20to%20every%20device%20together%20%28Mac%2C%20iPhone%2C%20iPad%20and%20the%20Assistant%29>)), which needs a build newer than 300000000044.
 
 ## Cost
 
 About $65–114 at list prices, which is 3–5% of the weekly limit at this week's rate ($22.00 for 1%, measured 2026-11-11): five phase sessions on Opus 5.5 ($37–76) plus the conductor on Fable 5.2 ($28–38: the mockups, planning and review had cost $22.94 when the plan was presented, and the wakes and close-out are still to come; about 4–5% of Fable's own window). On 2026-11-11 the week stood at 72% used with 28% left until Fri Nov 13, 12:00 PM EST, and Fable's window at 35%. Fits. The phase sizes come from the five Cosmic Daybook lesson-times phases in the cost log ($5–13 each, all on the same files), with their top ends kept because Phase 3 touches both the planner and the sheet.
+
+**Actual:** $62.80 at list prices, 2.9% of the weekly limit, just under the low end of the estimate. The five phase sessions cost $33.58 against $37–76, and the conductor (mockups, planning, review, checks and close-out) $29.22 against $28–38.
 
 ## Before you go
 
@@ -54,6 +58,12 @@ About $65–114 at list prices, which is 3–5% of the weekly limit at this week
 10. **Left for later** (not in this plan): "Not this time" on a warning (Only This Day already cancels a group for a day); day columns tinting during a drag; "who's leaving next" on Today; the Settings row for the length; the free-times MCP tool.
 11. **Against Apple's guidance, on purpose:** none. Where Apple is silent (discouraged-but-allowed choices, suggestions in a popover, names into chips) the choices above are ours and are marked as such under Apple guidance.
 12. **Decided in Phase 2:** the Away list sits under the grid and the Everyone's free row above it; a chip sets its time and closes the picker, as a quick time does; the lesson's own current time carries the mark too when it clashes; a time that is both taken and marked is spoken as "Already has a lesson." followed by the sentence. The symbol is `figure.walk.departure`. The no-away picture matched the lesson-times picture byte for byte.
+
+13. **Decided in Phase 1** (for Danny to look over: [Tide row](<tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Co-teacher%20times%3A%20review%20four%20choices%20Claude%20made%20in%20the%20rules%20for%20who%20is%20away>)): one child in two groups reads "Lucy T is away during this lesson", or "…part of the morning" for a lesson with no time, since the plan's wording would have said "1 children"; a group that runs past noon counts in both halves for the free times, so the picker never says "Free all afternoon" when a 1:00 lesson would clash; with no lane marked as Danny's in Schedules nobody counts as away, as the Schedules page shows no warnings then; a group with no length never warns. Two test files are extensions of existing suites (`ScheduleDayResolverTests+TimedWarnings.swift`, `MCPScheduleToolsTests+Away.swift`).
+14. **Decided in Phase 3:** the badge's words standing alone are "1 lesson while a child is with another teacher" (after a same-time part it keeps "2 with a child away"), and its help adds "Change its time to clear it."; the card's line carries the picker's `figure.walk.departure` symbol, amber or grey, and wraps in full, because cut to two lines it lost the teacher's name in a narrow iPhone column.
+15. **Decided in Phase 4** (for Danny to look over: [Tide row](<tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Co-teacher%20times%3A%20review%20the%20Schedules%20names%20field%27s%20wording%20%28%22No%20child%20is%20called%20Vivi.%20Check%20the%20spelling.%22%20and%20%22Two%20children%20are%20called%20Sarah.%20Add%20a%20last%20initial.%22%29>)): the names field's wording, "No child is called Vivi. Check the spelling.", "Add more of the last name." when a name with a last initial still fits two children, and the prompt "Type or paste names: Lucy, Leora". The Length row moved into its own file, `ScheduleLengthRow.swift`, to keep the sheet under the lint limit.
+16. **Final check (Phase 5).** The whole suite passed on main (4,968 tests in 801 suites). A cold review led to three fixes: on the Mac, Return in the names field no longer also presses Save; two identical leftover names no longer break the unmatched list; the lesson's sheet reads the day's lesson times once. Known and left as they are: a group outside the quick-time hours (say 11:35) still counts its half as busy, so the picker offers a chip instead of "Free all morning" (decision 5 as written); a group that runs past noon counts in both halves for free times but only in its starting half for an untimed card's line and MCP's reply; marking a day as no school doesn't refresh the planner's away times until its days or the timetable change; the lesson's sheet doesn't refresh its clash line if a group is edited while it is open; `LessonTimePicker.swift` is 43 lines over the lint's 400-line file limit.
+17. **About the run itself.** The plan's wait commands were written `--needs 1 2`; `plan-wait` takes `--needs 1,2`. The build board could not be reached from any session in this run (it belongs to Danny's other claude.ai organization), so this Progress list was the live record.
 
 ## Apple guidance
 
@@ -117,7 +127,7 @@ Checked 2026-11-11 against Xcode 27.2 (27B52), iOS 27.2 and macOS 27.2 SDKs; tar
   - Tide rows (Check on a device): open the picker on a card whose child is in a Monday group and read the Away list and the marks; set a clashing time and see the amber chip and line; change a group in Schedules and see the card follow.
 - Cost: $10–20, ~1% (lesson-times Phases 3 and 4, the same files, cost $6.92 and $5.02).
 - Done when: the `Cosmic Daybook` scheme builds for the iOS simulator and for the Mac (build only); `AwayOnCardsTests`, `LessonTimeChipTests`, `WeekPlanLayoutTests`, `LessonTimePickerTests` and `TodayLessonTimeTests` pass with counts above zero; the four pictures exist and show the three card states.
-- By hand: none overnight (rows in Tide).
+- By hand: three checks wait in Tide: [the picker](<tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Co-teacher%20times%3A%20on%20a%20Monday%2C%20open%20the%20time%20picker%20on%20a%20Scheduled%20card%20whose%20child%20is%20in%20a%20co-teacher%27s%20group%2C%20and%20check%20the%20Away%20list%2C%20the%20marked%20times%20and%20Everyone%27s%20free%20read%20right>), [the amber chip and badge](<tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Co-teacher%20times%3A%20give%20a%20Scheduled%20card%20a%20time%20that%20overlaps%20a%20child%27s%20co-teacher%20group%2C%20and%20check%20the%20chip%20turns%20amber%20with%20the%20line%20saying%20who%20leaves%20and%20when%2C%20and%20the%20day%27s%20badge%20counts%20it>), [a group changed in Schedules](<tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Co-teacher%20times%3A%20with%20Lessons%20%26%20Work%20open%2C%20move%20or%20cancel%20a%20co-teacher%27s%20group%20in%20Schedules%2C%20and%20check%20the%20planner%27s%20card%20and%20its%20picker%20follow%20within%20a%20moment>).
 
 ## Phase 4: The Schedules group sheet
 
@@ -132,7 +142,7 @@ Checked 2026-11-11 against Xcode 27.2 (27B52), iOS 27.2 and macOS 27.2 SDKs; tar
   - Tide rows (Check on a device): paste a line of names into a new group and save; read the end time while stepping the length; on the Mac, press Return in the names field and check it adds the name and doesn't save the sheet.
 - Cost: $6–12, ~0.5% (a small surface on a settled model costs $5–7 in the log).
 - Done when: the `Cosmic Daybook` scheme builds for the iOS simulator and for the Mac (build only); `ScheduleNameEntryTests` passes with a count above zero and `ScheduleBlockSheetTests` with more than the 6 tests it has on main (name the new ones in the final message); `SchedulesPageModelTests` and `SchedulesPageWeekTests` still pass; the pictures exist or the final message says which couldn't be drawn.
-- By hand: none overnight (rows in Tide).
+- By hand: three checks wait in Tide: [pasting names](<tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Co-teacher%20times%3A%20in%20Schedules%2C%20paste%20a%20line%20of%20names%20%28Lucy%2C%20Leora%2C%20Naomi%29%20into%20a%20new%20person%27s%20group%2C%20save%20it%2C%20and%20check%20every%20child%20joined>), [the end time](<tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Co-teacher%20times%3A%20in%20a%20Schedules%20group%27s%20sheet%2C%20step%20the%20length%20up%20and%20down%20and%20check%20the%20Length%20row%27s%20end%20time%20follows%20%2830%20min%20%C2%B7%20ends%2010%3A20%29>), [Return on the Mac](<tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Co-teacher%20times%3A%20on%20the%20Mac%2C%20type%20a%20child%27s%20name%20into%20a%20Schedules%20group%27s%20names%20field%2C%20press%20Return%2C%20and%20check%20it%20adds%20the%20name%20without%20saving%20the%20sheet>).
 
 ## Phase 5: Final check
 
