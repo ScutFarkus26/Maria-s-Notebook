@@ -474,7 +474,7 @@ finish or park the step in hand, commit, note where to pick up here and in Tide,
 ## Deferred
 - Real lesson times with a length (start + length, snapping to 15 minutes). The co-teacher plan needs
   them too. They would make clash warnings exact ("9:00–9:45") instead of "this morning".
-- Warnings in the Lessons & Work planner itself, not only on the Schedules page.
+- [x] Warnings in the Lessons & Work planner itself, not only on the Schedules page. Done 2026-11-11 by [Co-teacher times when scheduling](<Plan - Co-teacher times when scheduling.md>): cards, the day badge, the time picker and the lesson's sheet.
 - Morah Devora editing her own lane from her own app (the co-teacher plan).
 - Notifications ("Your turn in the adolescent room in 5 minutes").
 - A Schedules widget, or a now-and-next line in the Assistant's Attendance tab.

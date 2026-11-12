@@ -45,6 +45,8 @@ struct ScheduleBlockSheet: View {
     @State private var teacherName = ""
     @State private var childIDs: Set<UUID> = []
     @State private var names = ScheduleNameEntry()
+    /// The names field has focus: Return there sorts names, so it mustn't also press Save.
+    @State private var namesFocused = false
     @State private var showingChildren = false
     @State private var question: ScheduleScopeQuestion?
     @State private var loaded = false
@@ -103,6 +105,7 @@ struct ScheduleBlockSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(isEditing ? "Save" : "Add") { askOrSave() }
                         .disabled(!canSave)
+                        .keyboardShortcut(namesFocused ? nil : .defaultAction)
                 }
             }
             .scheduleScopeDialog($question) { asked, scope in
@@ -191,7 +194,10 @@ struct ScheduleBlockSheet: View {
             } else {
                 Text(chosen.map(\.shortName).joined(separator: ", "))
             }
-            ScheduleNameField(entry: $names, childIDs: $childIDs, students: ScheduleNameEntry.candidates(students))
+            ScheduleNameField(
+                entry: $names, childIDs: $childIDs, students: ScheduleNameEntry.candidates(students),
+                onFocusChange: { namesFocused = $0 }
+            )
             Button("Choose Children…") { showingChildren = true }
                 .popover(isPresented: $showingChildren) {
                     StudentPickerPopover(

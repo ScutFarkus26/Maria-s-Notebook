@@ -201,10 +201,13 @@ struct ScheduledTimeRow: View {
                     on: scheduledFor, children: children, excluding: presentationID, in: viewContext, using: calendar
                 )
                 away = info
+                // The away lookup already read the day's taken times when anyone is away.
                 timeTarget = TimeTarget(
-                    takenMinutes: ScheduledDateEdits.takenMinutes(
-                        on: scheduledFor, excluding: presentationID, in: viewContext, using: calendar
-                    ),
+                    takenMinutes: info.ownStarts.isEmpty
+                        ? ScheduledDateEdits.takenMinutes(
+                            on: scheduledFor, excluding: presentationID, in: viewContext, using: calendar
+                        )
+                        : info.ownStarts,
                     away: info.picker(children: children)
                 )
             } label: {

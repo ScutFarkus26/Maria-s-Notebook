@@ -165,10 +165,18 @@ struct ScheduleNameField: View {
     @Binding var entry: ScheduleNameEntry
     @Binding var childIDs: Set<UUID>
     let students: [StudentNameMatcher.Candidate]
+    /// Told when the field gains or loses focus, so the sheet can take Return
+    /// off its Save button while names are being typed (on the Mac, Return in
+    /// a field otherwise presses the sheet's default button too).
+    var onFocusChange: (Bool) -> Void = { _ in }
+
+    @FocusState private var focused: Bool
 
     var body: some View {
         TextField("Add by name", text: $entry.text, prompt: Text("Type or paste names: Lucy, Leora"), axis: .vertical)
             .lineLimit(1...4)
+            .focused($focused)
+            .onChange(of: focused) { _, isFocused in onFocusChange(isFocused) }
             .autocorrectionDisabled()
             #if os(iOS)
             .textInputAutocapitalization(.words)
@@ -181,7 +189,7 @@ struct ScheduleNameField: View {
                     entry.dropStaleLines()
                 }
             }
-        ForEach(entry.unmatched, id: \.name) { unmatched in
+        ForEach(Array(entry.unmatched.enumerated()), id: \.offset) { _, unmatched in
             Label(ScheduleNameEntry.line(for: unmatched), systemImage: "exclamationmark.circle")
                 .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.secondary)

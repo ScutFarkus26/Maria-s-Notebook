@@ -358,6 +358,17 @@ A scheduled lesson (`CDLessonAssignment.scheduledFor`) sits in a half of a day a
 - Set and remove through `CDLessonAssignment.setTime/removeTime` (or the pure `DayHalfPlanner` functions for an unsaved `Date`, as the lesson's sheet does in `ScheduledDateEdits`). The picker hands back an hour and a minute, never a date.
 - Every device must run a build with these rules: an older build reads a lesson set for exactly 9:00 or 2:00 as an ordinary slot, and a drag or balance there erases that time.
 
+### Clashes with a set time (2026-11-11)
+
+A set time can clash two ways. Both only warn; neither blocks a save, a drag or an MCP write.
+
+- **Another lesson at the same time:** two timed lessons on a day share a start (the chip's amber look, `DayClashes` in `WeekDayColumn+Balance.swift`).
+- **A child is with another teacher:** a lesson's child is in a co-teacher's group then (plan "Co-teacher times when scheduling"). Lessons have no length, so a lesson is taken as `LessonLength.assumedMinutes` (30) long (`Schedules/Model/TimetableValues.swift`). A lesson starting at minute `s` clashes with a group `[b, e)` when `s < e` and `s + 30 > b`, so a group that ends as the lesson starts, or starts as it ends, isn't a clash; a group with no length never is.
+  - Who counts as away: a child named in a block of a person lane other than the guide's own, on the day as the Schedules page resolves it (`AwayTimes.day(from:guideLaneID:)` over `ScheduleDayResolver`), so Only This Day, cancelled blocks, Out Today and no-school days all count. Room blocks and turns in the adolescent room don't. With no lane marked as the guide's, nobody counts as away.
+  - The rules are `AwayDay` (`Schedules/Services/AwayTimes.swift`): `clashes(children:start:)`, `away(children:in:)`, `freeStarts(children:ownStarts:)` (every 5 minutes inside the quick-time hours, no group in the next 30 minutes and no other timed lesson of the guide's within 30 minutes either side; the first start of each free stretch, four at most) and `freeHalves`. Every sentence comes from `AwayText`. `AwayTimes.days(from:through:in:calendar:)` loads a whole range with one timetable fetch.
+  - The planner holds one `[Date: AwayDay]` for its days (`WeekPlanSection+Away.swift`), reloaded when a `TimetableLane`, `TimetableBlock` or `TimetableChange` changes and when the strip's days change; cards, columns and the picker only read it (`AwayOnCards`). The lesson's sheet loads one day at tap time (`ScheduledDateEdits.awayInfo`) for its unsaved roster.
+  - A timed clash turns the chip amber with one line under the children and counts in the day's badge (a day with only these or same-time clashes shows the plain badge, never Rearrange, which can't move a timed lesson). An untimed lesson with a child away in its half gets a quiet line, not a clash. The Schedules page's warning, `weekly_schedules`, and the replies of `schedule_presentation` and `reschedule_presentation` use the same rule.
+
 ## Version History
 
 - **2026-02-04**: Initial implementation
