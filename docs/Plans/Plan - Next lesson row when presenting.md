@@ -1,6 +1,6 @@
 # Plan - Next lesson row when presenting
 
-> **Working on it.**
+> **Done 2026-11-11** (dab4cfbf5; on main as 500265eaf).
 > In short: when a child is marked Ready for next in the present-a-lesson sheet, a "Next lesson" row shows where the next lesson will go (the Inbox by default) and lets you put it on a day, with an optional start time, before you press Done.
 
 Written 2026-11-11. Branch `claude/lesson-auto-inbox-scheduling-286848`, starting from main `e3549bb6f`.
@@ -201,4 +201,4 @@ None that block the build. Two things Danny may want different, both small to ch
 - [x] Pictures of the row (`docs/Pictures/Next lesson row/`)
 - [x] Full checks; Tide row
 - [ ] Build board (it is in Danny's other claude.ai sign-in; not reachable from this session)
-- [ ] On main
+- [x] On main (500265eaf, 2026-11-11; not pushed, not rolled out). Main had taken on the co-teacher times work meanwhile: the whole iPhone suite passed on the combination (4,935 tests in 799 suites) and the Mac app built.
