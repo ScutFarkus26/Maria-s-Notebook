@@ -30,9 +30,21 @@ enum ParentReportNotificationService {
         await UNUserNotificationCenter.current().notificationSettings().authorizationStatus == .denied
     }
 
+    /// At launch: sets the reminder up again when it's on and notifications
+    /// are allowed, never asking for them. Replacing it keeps one.
+    static func restoreIfEnabled(defaults: UserDefaults = .standard) async {
+        guard defaults.bool(forKey: UserDefaultsKeys.parentReportsReminderEnabled) else { return }
+        let status = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+        guard status == .authorized || status == .provisional else { return }
+        await scheduleMonthlyReminder()
+    }
+
     /// Returns false when notifications aren't allowed, so nothing was scheduled.
     @discardableResult
     static func scheduleMonthlyReminder() async -> Bool {
+        // Not from a Debug build on the Mac: the reminder would ring from
+        // that build after it's gone (`ReminderCopyPolicy`).
+        guard ReminderCopyPolicy.setsUpReminders else { return true }
         let center = UNUserNotificationCenter.current()
         do {
             let granted = try await center.requestAuthorization(options: [.alert, .badge, .sound])

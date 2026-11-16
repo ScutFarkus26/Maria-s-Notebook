@@ -55,6 +55,9 @@ Scripts/locked_xcodebuild.sh -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic
 # the MCP bridge launches. Builds main's last commit in a throwaway worktree (never a working tree), keeps
 # the archive + dSYM in Xcode's Organizer, refuses while the installed copy runs, saves the old copy to the
 # Trash as a zip (an app bundle there gets registered again), and drops dead LaunchServices registrations.
+# Before the swap it opens the old copy hidden with -CosmicDaybookClearReminders YES so its pending reminders
+# go with it: macOS counts the new copy as a different sender, which can't cancel the old one's (2026-11-13).
+# A Debug build on the Mac sets up no reminders for the same reason (ReminderCopyPolicy).
 # Run it after merging to main.
 # Schema 21 not rolled out yet (2026-10-25): don't run this until the Hebrew birthdays roll-out row in Tide is done.
 Scripts/install_release.sh

@@ -25,8 +25,9 @@
 # - Refuses to replace the installed copy while it is running (it may be an
 #   MCP-only copy with no window, launched by the bridge), unless --quit: then it
 #   quits that copy right before the swap — a normal Quit, then SIGTERM after 15 s,
-#   then SIGKILL after 10 more. The
-#   replaced copy goes to the Trash as a zip.
+#   then SIGKILL after 10 more. Before the swap the old copy is opened once more,
+#   hidden, to remove its pending reminders (they would otherwise keep ringing
+#   from a copy that is gone). The replaced copy goes to the Trash as a zip.
 # - Last, drops the LaunchServices registrations of the bundle id whose app is
 #   gone from disk or in the Trash (every worktree build that has since been
 #   removed leaves one), so Spotlight and Shortcuts have fewer stale copies to
@@ -131,6 +132,36 @@ if (( force_quit )) && [[ -n $(installed_pids) ]]; then
   [[ -n $(installed_pids) ]] && kill -KILL ${(f)"$(installed_pids)"} 2>/dev/null && sleep 1
   [[ -z $(installed_pids) ]] || die "cannot quit the installed copy"
 fi
+
+# The old copy's reminders go before it does. Once it is unregistered below,
+# macOS counts the new copy as a different sender: reminders the old one set up
+# for the next two weeks would still ring, and the new one can't see or cancel
+# them (the ParentLocker reminders of 2026-11-13 rang though the day was sent).
+# Opened once more, hidden, with -CosmicDaybookClearReminders YES, it removes
+# its pending reminders and quits before it opens the notebook
+# (ReplacedCopyReminders.swift); the new copy sets up the ones still wanted
+# when it opens. A copy from before 2026-11-13 doesn't know the argument and
+# would open as usual, so it is left alone.
+clear_old_reminders() {
+  local exe="$dest/Contents/MacOS/Cosmic Daybook" opener
+  [[ -x $exe ]] || return 0
+  if ! grep -qaF -e -CosmicDaybookClearReminders $exe; then
+    print "  The installed copy is too old to hand over its reminders; any it set up may still ring."
+    return 0
+  fi
+  open -W -g -j -n $dest --args -CosmicDaybookClearReminders YES &
+  opener=$!
+  for _ in {1..40}; do kill -0 $opener 2>/dev/null || break; sleep 0.5; done
+  if kill -0 $opener 2>/dev/null; then
+    kill $opener 2>/dev/null
+    [[ -n $(installed_pids) ]] && kill -TERM ${(f)"$(installed_pids)"} 2>/dev/null && sleep 1
+    print "  The old copy didn't hand over its reminders within 20 s; any it set up may still ring."
+    return 0
+  fi
+  print "Cleared the old copy's reminders"
+}
+clear_old_reminders
+
 staged="/Applications/.$app_name.installing"
 rm -rf $staged
 ditto $app $staged || die "cannot copy the new app into /Applications"

@@ -42,6 +42,11 @@ struct CosmicDaybookApp: App {
     // MARK: - Initialization
 
     init() {
+        #if os(macOS)
+        // The install script's last launch of a copy it is replacing: that
+        // copy's reminders go, and it quits before anything else starts.
+        ReplacedCopyReminders.handOffIfRequested()
+        #endif
         let appInit = LaunchSignposts.begin("AppInit")
         defer { LaunchSignposts.end("AppInit", appInit) }
 
