@@ -14,7 +14,7 @@ Marks: `plan/domain-logic` (each phase tags the primary checkout `plan/domain-lo
 Build board: https://claude.ai/artifact/CN28oMqiKihr3cjEPqmrVc (the conductor keeps it current; tasks p1–p10 are the phases)
 - [ ] Phase 1: Schema 25 and backup format 47 · runs as: session · needs: — · est. $15–30 (~1%)
 - [ ] Phase 2: Attendance rules in the store · runs as: session · needs: — · est. $10–20 (~1%)
-- [ ] Phase 3: Schedules, Restock and repeating to-dos · runs as: session · needs: — · est. $15–30 (~1%)
+- [x] Phase 3: Schedules, Restock and repeating to-dos · done 2026-11-21 (208cd6aa3) · agent acfea9405548e36ca, squashed by the conductor · actual ~350k agent tokens
 - [ ] Phase 4: Presenting and mastery · runs as: session · needs: 1 · est. $18–35 (~1–2%)
 - [ ] Phase 5: Work rules · runs as: agent (Fable 5.2) · needs: 2, 4 · est. $50–90 (~2–4%)
 - [ ] Phase 6: Lesson order, year plan and prerequisites · runs as: session · needs: 4, 5 · est. $12–25 (~1%)
@@ -68,6 +68,7 @@ Settled here (safer, easier to undo):
 18. **No roll-out, no push, no install in this plan.** Phases merge to local main; Phase 10 adds the roll-out row to Tide.
 20. **2026-11-21: the phases run as background agents of the conductor, not as sessions.** The go-ahead came over Remote Control, and a Remote Control turn can't start sessions. Phase 1 runs as `feature-phase-deep` (Opus, xhigh); the rest as `feature-phase` (Opus, high), except as Decision 21 says.
 21. **2026-11-21, Danny: use Fable where it's the better model.** Fable 5.2 (high) runs Phase 5 (the ownership rule and what a due date means, across about 25 files) and Phase 9 (the pinned calendar, which every day calculation in both apps follows), plus Phase 10's cold review. Those are where a subtle mistake is hardest to notice. Fable costs about 2.5× Opus per token, so the rest stay on Opus. Phase 1 was already running on Opus xhigh and stays. The conductor launches each phase once the phases it needs are marked (`plan-wait --status`), at most three at once, and runs Phase 10's full builds and whole suites itself. See "If you are a phase agent" below.
+22. **2026-11-21: the conductor does every merge.** A guard refuses any git command an agent runs in the primary checkout, so Phase 3 couldn't squash itself. The conductor squashes each finished branch onto main with `git commit-tree` (main's tip as parent, the branch's tree) under `plan-merge-lock`, then runs `plan-wait --mark <N>`.
 
 ## Apple guidance
 
@@ -360,6 +361,7 @@ Not applicable: no other new Apple APIs. App Intents, SwiftUI and the rest chang
   - The full iOS app, Assistant and Mac builds on main.
   - The whole notebook suite on the leased iOS simulator and the whole Assistant suite on the leased SE (iOS 26.5).
   - Fix what fails (the errors name files; the files map to phases).
+  - Left over from Phase 3 (outside its files): `Students/Presentations/ScheduledDateEdits.swift` should use `awayDay.touches(children:)`, so the lesson sheet shows a turn or an Out day even when no child is away; the `WeekPlanHeader.swift` legend still says "Two lessons at the same time" (should match "lessons at overlapping times").
   - The cold review, and one round of fixes for what holds up.
   - Update `MCP_SERVER.md`, `Work_Models_Best_Practices.md`, `LESSON_PRESENTATION_WORK_INTEGRATION.md` and `SIRI.md` where behavior changed.
   - Set the review's status line ("Fixed <date> (<commit>)").
@@ -392,7 +394,7 @@ Follow "Running a phase" above, with these changes:
 - **Effort:** if you are `feature-phase-deep` you already run at xhigh; do the delicate parts yourself (no nested agents). Use helper agents only if your tools offer them.
 - **Step 3:** skip `plan-cost session` (inside an agent it measures the conductor's whole session). Keep "two tries, then stop".
 - **Step 5:** skip the board; the conductor updates it.
-- **Step 6:** still mark the phase (`plan-wait … --mark <N>`) under the merge lock right after the squash commit, or `--stopped` in step 7.
+- **Step 6 (Decision 22):** don't merge, and don't take the merge lock or mark the phase: a guard refuses agents' git commands in the primary checkout. Commit everything on your own branch, run `git merge main` so it contains local main, and end with `Phase <N> ready (<branch tip sha>)`. The conductor squashes it onto main and marks it. Use `--stopped` only for a real failure (step 3's two tries).
 - **Step 8:** your reply is at most 15 lines, starting with the done or stopped line (no session id: write `Session: agent`). Then the files changed, build and test counts, Decided items, and what differed from the plan.
 
 ## Open questions
