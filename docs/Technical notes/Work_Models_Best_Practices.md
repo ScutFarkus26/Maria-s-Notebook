@@ -76,7 +76,7 @@ The core work assignment model.
 - `kind: WorkKind?` - Type of work (practice, followUp, research, report)
 - `status: WorkStatus` - The row's one verdict (active, review, mastered, keepPracticing, incomplete, done)
 - `dueAt: Date?` - A due date the guide set (optional), and nothing else. Since 2026-11-21 scheduling a check no longer copies its day here; the next check is the earliest scheduled check-in (`WorkCheckInService.nextCheckDay`)
-- `assignmentID: String?` - The assignment this row is a copy of (schema 25). Every child's copy of work given to a group carries the same id; a row given to one child carries its own. Nil on older rows until `WorkAssignmentFill` stamps it, at launch and after a restore
+- `assignmentID: String?` - The assignment this row is a copy of (schema 25). Every child's copy of work given to a group carries the same id; a row given to one child carries its own. Nil on older rows until `WorkAssignmentFill` stamps it, at launch and after a restore. At every launch the fill also settles copies that disagree (two devices that each saw part of a group): they all take the lowest id, and a row with copies beside it is not a shared row. New project work is stamped shared when it's made
 - `isSharedRow: Bool` - The row is one its children share (a project's work), not one child's copy (schema 25)
 - `assignedAt: Date` - When assigned
 - `completedAt: Date?` - When work was fully completed
