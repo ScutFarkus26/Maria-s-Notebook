@@ -60,10 +60,14 @@ struct WorkRepository: Repository {
         return stale.count
     }
 
-    /// Resolves the presentationID for a work item
-    private func resolvePresentationID(studentID: UUID, lessonID: UUID, presentationID: UUID?) -> UUID? {
+    /// Resolves the presentation a work item follows, and whether it is one
+    /// she has been given. A presentation the caller names counts as given:
+    /// it is the one the work follows.
+    private func resolvePresentation(
+        studentID: UUID, lessonID: UUID, presentationID: UUID?
+    ) -> (id: UUID?, given: Bool) {
         if let presentationID {
-            return presentationID
+            return (presentationID, true)
         }
 
         let lessonIDString = lessonID.uuidString
@@ -73,7 +77,8 @@ struct WorkRepository: Repository {
         // presentation naming her in lower case wasn't found.
         let candidates = context.safeFetch(request)
             .filter { $0.studentIDs.contains { OrphanStudentGrace.normalizedID($0) == studentID.uuidString } }
-        return Self.preferredAssignment(among: candidates)?.id
+        let preferred = Self.preferredAssignment(among: candidates)
+        return (preferred?.id, preferred?.isPresented == true)
     }
 
     /// Picks the assignment a work item should link to. Follow-up work belongs to the
@@ -130,11 +135,14 @@ struct WorkRepository: Repository {
     ) throws -> CDWorkModel {
         try requireEnrolled(studentID)
 
-        let studentLessonID = resolvePresentationID(
+        let resolved = resolvePresentation(
             studentID: studentID, lessonID: lessonID,
             presentationID: presentationID
         )
-        let workKind = kind ?? (studentLessonID != nil ? .practiceLesson : .followUpAssignment)
+        let studentLessonID = resolved.id
+        // Practice only after a giving: a plan not given yet links the work
+        // but leaves it Follow-Up (domain logic Phase 10).
+        let workKind = kind ?? (resolved.given ? .practiceLesson : .followUpAssignment)
 
         let work = CDWorkModel(context: context)
         work.title = title ?? ""

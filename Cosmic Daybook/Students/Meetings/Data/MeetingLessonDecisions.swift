@@ -200,7 +200,8 @@ enum MeetingLessonDecisions {
         let now = Date()
         let alone = Set(presentation.resolvedStudentIDs) == [studentID]
         if alone {
-            presentation.needsAnotherPresentation = true
+            // Through `set`, so her row's own value can't disagree (R24).
+            presentation.set(.needsAnotherPresentation, to: true, for: [studentID])
             presentation.modifiedAt = now
         }
         let row = try ownRow(on: presentation, studentID: studentID, createIfMissing: !alone, context: context)

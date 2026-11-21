@@ -42,8 +42,29 @@ enum MasteryMarking {
         var unchanged: [Unchanged] = []
         /// Children with no history row for the lesson; nothing was written for them.
         var unrecorded: [UUID] = []
-        /// Work rows closed as Mastered.
-        var closedWork = 0
+        /// What happened to each child's open work, child by child, for the
+        /// children whose work it touched.
+        var work: [WorkClosed] = []
+
+        /// Work rows it closed: hers as Mastered, and shared ones she was the
+        /// last to finish, as Finished.
+        var closedWork: Int {
+            work.reduce(0) { $0 + $1.asMastered + $1.sharedClosedAsFinished }
+        }
+    }
+
+    /// One child's open work on the lesson, after her mark.
+    struct WorkClosed: Equatable {
+        let studentID: UUID
+        /// Rows hers alone, closed as Mastered.
+        var asMastered = 0
+        /// Shared rows where only her part was finished: for each, how many
+        /// classmates still have theirs open.
+        var partsFinished: [Int] = []
+        /// Shared rows hers was the last part of, closed as Finished.
+        var sharedClosedAsFinished = 0
+
+        var isEmpty: Bool { asMastered == 0 && partsFinished.isEmpty && sharedClosedAsFinished == 0 }
     }
 
     struct Unchanged: Equatable {
@@ -98,7 +119,8 @@ enum MasteryMarking {
                 }
                 outcome.unchanged.append(Unchanged(studentID: studentID, masteredOn: masteredOn))
             }
-            outcome.closedWork += closeOpenWork(of: studentID, lessonID: lessonID, on: day, in: context)
+            let closed = closeOpenWork(of: studentID, lessonID: lessonID, on: day, in: context)
+            if !closed.isEmpty { outcome.work.append(closed) }
         }
         return outcome
     }
@@ -141,7 +163,7 @@ enum MasteryMarking {
 
     // MARK: - Her work
 
-    /// Closes her open work on the lesson and returns how many rows closed. Her
+    /// Closes her open work on the lesson and says what happened to it. Her
     /// work is the one ownership rule's (`WorkOwnership`, domain logic review
     /// 2026-11-20, R22): the rows she owns, and the rows she is on with no
     /// copy of her own. A classmate's copy that names her beside her own is
@@ -156,7 +178,7 @@ enum MasteryMarking {
     /// children nobody marked.
     private static func closeOpenWork(
         of studentID: UUID, lessonID: UUID, on day: Date, in context: NSManagedObjectContext
-    ) -> Int {
+    ) -> WorkClosed {
         let request = CDFetchRequest(CDWorkModel.self)
         request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
             NSPredicate(format: "lessonID == %@", lessonID.uuidString), WorkStatus.openPredicate
@@ -165,20 +187,24 @@ enum MasteryMarking {
         let rows = context.safeFetch(request).filter { !$0.isDeleted }
         let ownership = WorkOwnership.Reader(covering: rows, in: context)
         let hers = rows.filter { ownership.isWork($0, of: studentID) }
-        guard !hers.isEmpty else { return 0 }
+        var closed = WorkClosed(studentID: studentID)
+        guard !hers.isEmpty else { return closed }
         let own = hers.filter { ownership.isHersAlone($0, studentID) }
         let shared = hers.filter { !ownership.isHersAlone($0, studentID) }
-        var closed = 0
         do {
             if !own.isEmpty {
                 try WorkLogService.log(
                     own.map { .init(work: $0, status: .mastered) }, on: day, context: context, saveImmediately: false
                 )
-                closed += own.count
+                closed.asMastered += own.count
             }
             for row in shared {
                 let finished = try WorkLogService.finishPart(of: row, for: studentID, on: day, context: context)
-                if finished.closedRow { closed += 1 }
+                if finished.closedRow {
+                    closed.sharedClosedAsFinished += 1
+                } else if finished.recorded {
+                    closed.partsFinished.append(WorkLogService.partsStillOpen(on: row).count)
+                }
             }
         } catch {
             logger.warning("Couldn't close work for a mastery mark: \(error)")

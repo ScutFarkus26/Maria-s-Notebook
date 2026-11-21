@@ -216,7 +216,7 @@ nonisolated extension PresentationRecordIndex {
             studentID: string(row, Column.studentID),
             lessonID: string(row, Column.lessonID),
             presentedAt: row[Column.presentedAt] as? Date,
-            mastered: row[Column.masteredAt] is Date || state == .proficient
+            mastered: SequenceStanding.isMasteryMark(masteredAt: row[Column.masteredAt] as? Date, state: state)
         )
     }
 

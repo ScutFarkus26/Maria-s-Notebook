@@ -28,7 +28,7 @@ final class PresentationDetailActions {
 
         lessonAssignment.lessonID = editingLessonID.uuidString
         lessonAssignment.notes = notes
-        lessonAssignment.needsAnotherPresentation = needsAnotherPresentation
+        Self.applyNeedsAnotherPresentation(needsAnotherPresentation, to: lessonAssignment)
         lessonAssignment.studentIDs = selectedStudentIDs.map(\.uuidString)
         if let lesson = lessons.first(where: { $0.id == editingLessonID }) {
             lessonAssignment.lesson = lesson
@@ -195,6 +195,14 @@ final class PresentationDetailActions {
             }
         }
         return true
+    }
+
+    /// The sheet's toggle is the whole presentation's: through `set`, so a
+    /// child's own value can't keep the old answer (R24). Only when it
+    /// changed, since setting everyone clears what each child had.
+    private static func applyNeedsAnotherPresentation(_ value: Bool, to assignment: CDLessonAssignment) {
+        guard value != assignment.groupValue(.needsAnotherPresentation) else { return }
+        assignment.set(.needsAnotherPresentation, to: value)
     }
 }
 

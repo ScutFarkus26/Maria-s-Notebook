@@ -30,6 +30,10 @@ struct SessionWorkAssignmentService {
         work.lessonID = lessonID.uuidString
         work.sourceContextType = .projectSession
         work.sourceContextID = session.id?.uuidString ?? ""
+        // Its own assignment, and a row its children share, as the launch
+        // fill would stamp it (`WorkAssignmentFill`, R22).
+        work.assignmentID = work.id?.uuidString
+        work.isSharedRow = true
 
         if !instructions.trimmed().isEmpty {
             work.setLegacyNoteText(instructions, in: context)
@@ -70,6 +74,9 @@ struct SessionWorkAssignmentService {
         // 2026-10-11 #65; older rows: `repairProjectWorkContextType`).
         workModel.sourceContextType = .projectSession
         workModel.sourceContextID = (session.id ?? UUID()).uuidString
+        // Project work is shared by construction: stamped so, as the launch
+        // fill stamps an older project row (`WorkAssignmentFill`, R22).
+        workModel.isSharedRow = true
 
         if !instructions.isEmpty {
             workModel.setLegacyNoteText(instructions, in: context)

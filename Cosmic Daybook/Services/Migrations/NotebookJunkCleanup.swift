@@ -122,7 +122,7 @@ nonisolated enum NotebookJunkCleanup {
                assignmentIDs.contains(normalized(presentationID)) {
                 return false
             }
-            if record.masteredAt != nil || record.state == .proficient { return false }
+            if SequenceStanding.isMasteryMark(record) { return false }
             return true
         }, into: &counts.presentationsOfDeletedLessons)
 

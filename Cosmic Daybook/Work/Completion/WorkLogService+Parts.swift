@@ -79,19 +79,37 @@ extension WorkLogService {
     /// moment of the log, so it is settled with the rest and the calendar
     /// shows the day it was checked. Nil, changing nothing, for a check-in
     /// that isn't scheduled any more.
+    ///
+    /// A due date on the day it leaves is an older build's copy of that day,
+    /// and goes with it (`WorkCheckInService.releaseDueDate`); left behind, a
+    /// check done early asked for the guide once more on the old day, as if a
+    /// due date had come (domain logic Phase 10, cold review finding 7). A
+    /// Due Date check's day is the guide's own due date, so it stays.
     static func moveChecked(_ checkIn: CDWorkCheckIn, to when: Date) -> MovedCheckIn? {
         guard checkIn.status == .scheduled, !checkIn.isDeleted else { return nil }
-        let moved = MovedCheckIn(objectID: checkIn.objectID, from: checkIn.date, to: when)
+        let work = checkIn.work
+        let dueBefore = work?.dueAt
+        let planned = checkIn.date
         checkIn.date = when
-        return moved
+        if let work, !WorkCheckInService.isDueDateCheck(checkIn) {
+            WorkCheckInService.releaseDueDate(of: work, followingCheckOn: planned)
+        }
+        return MovedCheckIn(
+            objectID: checkIn.objectID, from: planned, to: when,
+            dueAt: work?.dueAt != dueBefore ? MovedDueDate(from: dueBefore, to: work?.dueAt) : nil
+        )
     }
 
     /// Undo's half: the checked check-in goes back to the day it was planned
-    /// for, unless the guide has moved or marked it since.
+    /// for, unless the guide has moved or marked it since, and a due date it
+    /// let go of or carried comes back unless the guide has changed it since.
     static func restoreChecked(_ moved: MovedCheckIn?, in context: NSManagedObjectContext) {
         guard let moved,
               let checkIn = context.existing(CDWorkCheckIn.self, moved.objectID),
               checkIn.status == .scheduled, checkIn.date == moved.to else { return }
         checkIn.date = moved.from
+        if let due = moved.dueAt, let work = checkIn.work, work.dueAt == due.to {
+            work.dueAt = due.from
+        }
     }
 }

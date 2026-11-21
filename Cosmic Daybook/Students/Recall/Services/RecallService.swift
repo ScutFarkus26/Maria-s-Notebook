@@ -125,8 +125,9 @@ struct RecallService {
             if needsAnotherPresentation {
                 markForAnotherPresentation(assignment, studentID: sid)
             }
-            if needsPractice && alone {
-                assignment.needsPractice = true
+            if needsPractice && alone, let studentUUID = UUID(uuidString: sid) {
+                // Through `set`, so her row's own value can't disagree (R24).
+                assignment.set(.needsPractice, to: true, for: [studentUUID])
                 assignment.modifiedAt = Date()
                 flaggedHerOwn = true
             }

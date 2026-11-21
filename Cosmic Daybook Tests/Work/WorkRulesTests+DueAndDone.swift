@@ -89,4 +89,42 @@ extension WorkRulesTests {
         #expect(ahead.date == planned)
         #expect(missed.status == .scheduled)
     }
+
+    /// Phase 10, cold review finding 7: work with a check still to come when
+    /// it moved to schema 25 carries that day in `dueAt`, an older build's
+    /// copy. Doing the check early moved the check-in but left the copy, and
+    /// on the old day it asked for the guide once as if a due date had come.
+    @Test("A check done early takes the old copy of its day out of the due date, and Undo puts it back")
+    func earlyCheckReleasesTheOldCopy() throws {
+        let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+        let work = CoreDataTestHelpers.seedWorkModel(in: context, title: "Bead frame")
+        work.id = UUID()
+        let planned = day(3)
+        let check = CDWorkCheckIn.make(for: work, on: planned, in: context)
+        work.dueAt = planned
+        let guideSet = CoreDataTestHelpers.seedWorkModel(in: context, title: "Poster")
+        guideSet.id = UUID()
+        let posterCheck = CDWorkCheckIn.make(for: guideSet, on: planned, in: context)
+        guideSet.dueAt = day(9)
+        // A Due Date check: its day is the guide's due date, not a copy.
+        let report = CoreDataTestHelpers.seedWorkModel(in: context, title: "Report")
+        report.id = UUID()
+        report.dueAt = planned
+        let dueCheck = CDWorkCheckIn.make(for: report, on: planned, purpose: CheckInReason.dueDate.purpose, in: context)
+        #expect(CoreDataTestHelpers.save(context))
+
+        let receipt = try WorkLogService.log([.init(work: work)], checked: check, context: context)
+        _ = try WorkLogService.log([.init(work: guideSet)], checked: posterCheck, context: context)
+        _ = try WorkLogService.log([.init(work: report)], checked: dueCheck, context: context)
+
+        #expect(work.dueAt == nil, "the copy went with its check")
+        #expect(LessonsAndWorkTriage.bucket(for: work, context: context, asOf: planned) != .attention)
+        #expect(guideSet.dueAt == day(9), "a due date the guide set stays")
+        #expect(report.dueAt == planned, "a Due Date check done early leaves the due date where the guide put it")
+
+        try WorkLogService.undo(receipt.token, context: context)
+
+        #expect(check.date == planned)
+        #expect(work.dueAt == planned, "Undo puts the work back as it was")
+    }
 }

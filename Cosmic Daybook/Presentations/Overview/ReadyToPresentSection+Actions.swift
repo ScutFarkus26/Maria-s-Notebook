@@ -29,7 +29,8 @@ extension ReadyToPresentSection {
 
     func unlockBrewingLesson(_ la: CDLessonAssignment) {
         guard !la.manuallyUnblocked, let ctx = la.managedObjectContext else { return }
-        la.manuallyUnblocked = true
+        // One value for the whole plan (Phase 4), written through `set` (R24).
+        la.set(.manuallyUnblocked, to: true)
         la.modifiedAt = Date()
         ctx.safeSave()
     }

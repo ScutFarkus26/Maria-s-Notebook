@@ -66,7 +66,8 @@ struct UnlockNextLessonService {
             if existing.manuallyUnblocked {
                 return .alreadyUnlocked
             }
-            existing.manuallyUnblocked = true
+            // One value for the whole plan (Phase 4), written through `set` (R24).
+            existing.set(.manuallyUnblocked, to: true)
             if saveImmediately {
                 context.safeSave()
             }
@@ -78,7 +79,7 @@ struct UnlockNextLessonService {
             studentIDs: [studentID],
             context: context
         )
-        draft.manuallyUnblocked = true
+        draft.set(.manuallyUnblocked, to: true)
         if saveImmediately {
             context.safeSave()
         }

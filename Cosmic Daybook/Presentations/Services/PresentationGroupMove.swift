@@ -164,7 +164,7 @@ enum PresentationGroupMove {
         group.lessonSectionSnapshot = source.lessonSectionSnapshot
         // Unlock Lesson is the guide's word about the lesson; without it a
         // child moved out of an unlocked group would drop back to Brewing.
-        group.manuallyUnblocked = source.manuallyUnblocked
+        group.set(.manuallyUnblocked, to: source.groupValue(.manuallyUnblocked))
     }
 
     private static func deletedGroup(_ group: CDLessonAssignment) -> DeletedGroup {

@@ -65,6 +65,15 @@ extension WorkLogService {
         let objectID: NSManagedObjectID
         let from: Date?
         let to: Date
+        /// The work's due date before and after the move, when the move
+        /// changed it (an older build's copy of the planned day).
+        var dueAt: MovedDueDate?
+    }
+
+    /// A due date a checked check-in let go of or carried with it.
+    struct MovedDueDate {
+        let from: Date?
+        let to: Date?
     }
 
     /// Everything one `log` call changed, in the order it was changed.

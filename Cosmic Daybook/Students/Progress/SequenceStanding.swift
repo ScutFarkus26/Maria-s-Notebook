@@ -60,7 +60,13 @@ struct SequenceStanding: Identifiable {
     /// Whether a presentation row counts as a mastery mark: the one rule every
     /// reader uses (domain logic review 2026-11-20, R2), off the main actor too.
     nonisolated static func isMasteryMark(_ row: CDLessonPresentation) -> Bool {
-        row.masteredAt != nil || row.state == .proficient
+        isMasteryMark(masteredAt: row.masteredAt, state: row.state)
+    }
+
+    /// The same rule over a row's two columns, for a reader that holds them
+    /// without the row (the presentation index's column fetch).
+    nonisolated static func isMasteryMark(masteredAt: Date?, state: LessonPresentationState) -> Bool {
+        masteredAt != nil || state == .proficient
     }
 }
 

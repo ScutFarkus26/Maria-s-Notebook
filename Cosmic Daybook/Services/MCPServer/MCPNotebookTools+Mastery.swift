@@ -24,8 +24,10 @@ extension MCPNotebookTools {
             description: "Record that the guide assessed a lesson as mastered for one or more children. Marks "
                 + "each child's existing presentation records for that lesson mastered, "
                 + "which is what counts the lesson mastered in her sequence (student_record, tracks section); "
-                + "record_presentation alone never does. It also closes her open work on the lesson as "
-                + "Mastered. Refuses, and writes nothing, if any named "
+                + "record_presentation alone never does. It also closes her own open work on the lesson as "
+                + "Mastered; on work she shares with classmates only her part is finished, and the shared "
+                + "work closes, as Finished, when the last child's part is done. The reply says which, "
+                + "child by child. Refuses, and writes nothing, if any named "
                 + "child has no presentation of the lesson on record: file it with record_presentation "
                 + "first. Only use this when the guide says they assessed mastery; never infer it. "
                 + "To confirm a whole list at once pass marks, an array of these same fields: every "
@@ -218,10 +220,42 @@ extension MCPNotebookTools {
                 lines.append("- \(student.fullName) (mastered \(dayString(earlier.masteredOn)))")
             }
         }
-        if outcome.closedWork > 0 {
-            lines.append("Closed \(outcome.closedWork) open work item(s) on it as Mastered.")
+        let workLines = outcome.work.compactMap { closed -> String? in
+            guard let student = request.students.first(where: { $0.id == closed.studentID }) else { return nil }
+            let phrases = describeWork(closed)
+            return phrases.isEmpty ? nil : "- \(student.fullName): " + phrases.joined(separator: "; ")
+        }
+        if !workLines.isEmpty {
+            lines.append("Her open work on it:")
+            lines += workLines
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// What a mastery mark did to one child's open work, in plain words: her
+    /// own rows close as Mastered, and on a row she shares only her part
+    /// finishes, closing it as Finished when hers was the last part open.
+    static func describeWork(_ closed: MasteryMarking.WorkClosed) -> [String] {
+        func items(_ count: Int, _ noun: String) -> String {
+            count == 1 ? "1 \(noun)" : "\(count) \(noun)s"
+        }
+        var phrases: [String] = []
+        if closed.asMastered > 0 {
+            phrases.append("closed \(items(closed.asMastered, "work item")) as Mastered")
+        }
+        for stillOpen in closed.partsFinished {
+            phrases.append(
+                "finished her part of a shared work item; it stays open for \(items(stillOpen, "classmate"))"
+            )
+        }
+        if closed.sharedClosedAsFinished > 0 {
+            let rows = closed.sharedClosedAsFinished
+            phrases.append(
+                "closed \(rows == 1 ? "the shared work item" : "\(rows) shared work items") as Finished, "
+                    + "since hers was the last part open"
+            )
+        }
+        return phrases
     }
 
     private static func describeUnmarking(_ request: MasteryRequest, _ outcome: MasteryMarking.Outcome) -> String {
