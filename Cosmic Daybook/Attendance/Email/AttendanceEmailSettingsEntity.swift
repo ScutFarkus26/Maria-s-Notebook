@@ -61,17 +61,6 @@ nonisolated extension CDAttendanceEmailSettings: Identifiable {}
 /// devices write.
 extension AttendanceEmailLog {
 
-    /// The zone a first real save from a Mac gives a row with none: the
-    /// Mac's own, where sharing is set up and the class's days were made.
-    /// Other devices never fill it in by themselves; a phone may be traveling.
-    nonisolated static var firstSaveZoneID: String? {
-        #if os(macOS)
-        TimeZone.current.identifier
-        #else
-        nil
-        #endif
-    }
-
     /// The classroom's time zone and session as the share carries them: each
     /// from the newest row that holds one, so a duplicate row written by
     /// another of the guide's devices can't hide them.

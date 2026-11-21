@@ -114,6 +114,11 @@ public final class SchoolCalendarService {
         return set
     }
 
+    /// The start of the day before `day`, taken again after the step back.
+    private func dayStart(before day: Date) -> Date {
+        cal.startOfDay(for: cal.date(byAdding: .day, value: -1, to: day) ?? day)
+    }
+
     // MARK: - Lookups (synchronous, cached)
 
     /// Returns true if the given date is a non-school day (weekend or configured
@@ -127,13 +132,13 @@ public final class SchoolCalendarService {
     /// Returns the next school day strictly after the given date.
     /// Weekends and configured non-school days are skipped; weekend overrides are respected.
     public func nextSchoolDaySync(after date: Date, using context: NSManagedObjectContext) -> Date {
-        var d = cal.startOfDay(for: date)
-        // Start from the following day
-        d = cal.date(byAdding: .day, value: 1, to: d) ?? d
+        // Each step takes the day start again: where a day starts at 1:00, a
+        // day added to it lands an hour into the next one.
+        var d = AppCalendar.dayStart(after: cal.startOfDay(for: date), calendar: cal)
         // Safety cap to avoid infinite loops in case of data errors
         for _ in 0..<730 { // up to ~2 years
             if !isNonSchoolDaySync(d, using: context) { return d }
-            d = cal.date(byAdding: .day, value: 1, to: d) ?? d
+            d = AppCalendar.dayStart(after: d, calendar: cal)
         }
         return cal.startOfDay(for: date)
     }
@@ -148,12 +153,11 @@ public final class SchoolCalendarService {
     /// Returns the previous school day strictly before the given date.
     /// Weekends and configured non-school days are skipped; weekend overrides are respected.
     public func previousSchoolDaySync(before date: Date, using context: NSManagedObjectContext) -> Date {
-        var d = cal.startOfDay(for: date)
-        // Start from the previous day
-        d = cal.date(byAdding: .day, value: -1, to: d) ?? d
+        // As above, each step back takes the day start again.
+        var d = dayStart(before: cal.startOfDay(for: date))
         for _ in 0..<730 { // up to ~2 years
             if !isNonSchoolDaySync(d, using: context) { return d }
-            d = cal.date(byAdding: .day, value: -1, to: d) ?? d
+            d = dayStart(before: d)
         }
         return cal.startOfDay(for: date)
     }
@@ -228,7 +232,8 @@ public final class SchoolCalendarService {
             if !isNonSchoolDaySync(cursor, using: context) {
                 count += 1
             }
-            guard let next = cal.date(byAdding: .day, value: 1, to: cursor), next > cursor else { break }
+            let next = AppCalendar.dayStart(after: cursor, calendar: cal)
+            guard next > cursor else { break }
             cursor = next
         }
 
@@ -290,7 +295,7 @@ public final class SchoolCalendarService {
     @discardableResult
     public func toggleNonSchoolDay(_ date: Date, using context: NSManagedObjectContext) async throws -> Bool {
         let day = cal.startOfDay(for: date)
-        let nextDay = cal.date(byAdding: .day, value: 1, to: day) ?? day.addingTimeInterval(86_400)
+        let nextDay = AppCalendar.dayStart(after: day, calendar: cal)
         let onDay = NSPredicate(format: "date >= %@ AND date < %@", day as NSDate, nextDay as NSDate)
         let wd = cal.component(.weekday, from: day)
         let isWeekend = (wd == 1 || wd == 7)

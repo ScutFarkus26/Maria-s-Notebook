@@ -255,14 +255,15 @@ enum AttendanceEmailLog {
     ///
     /// The row's classroom time zone and session (schema 25) aren't part of
     /// `Settings` and stay as they are: a duplicate row dropped here hands
-    /// its own to the row kept, and the first real save from a Mac fills an
-    /// unset zone with the Mac's (`firstSaveZoneID`).
+    /// its own to the row kept. Only the zone picker sets the zone: a save
+    /// here once filled an unset one with the Mac's, and a Mac west of the
+    /// class then showed every day already saved a day earlier, on every
+    /// device (cold review 2026-11-21).
     @discardableResult
     static func saveSettings(
         _ settings: Settings,
         role: CDClassroomMembership.ClassroomRole,
         now: Date = Date(),
-        firstSaveZoneID: String? = AttendanceEmailLog.firstSaveZoneID,
         in context: NSManagedObjectContext
     ) -> Bool {
         guard role == .leadGuide else { return false }
@@ -291,8 +292,6 @@ enum AttendanceEmailLog {
         row.sendMethodRaw = settings.sendMethod.rawValue
         row.parentLockerSite = settings.parentLockerSite
         row.modifiedAt = now
-        // Not the launch's own write: that row is only a stand-in.
-        if now != launchSeedStamp, row.classroomTimeZoneID == nil { row.classroomTimeZoneID = firstSaveZoneID }
         ClassroomCalendarFollower.refresh(from: context)
         return true
     }
