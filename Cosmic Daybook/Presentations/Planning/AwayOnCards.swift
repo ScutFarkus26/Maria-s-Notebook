@@ -31,19 +31,27 @@ nonisolated enum AwayOnCards {
         name: (String) -> String?
     ) -> Note? {
         guard !day.isEmpty else { return nil }
+        // Out Today: no lesson that day can be given, at a set time or not.
+        if day.guideIsOut { return Note(line: AwayText.outLine, isClash: true) }
         if let setMinute {
             let clashes = day.clashes(children: children, start: setMinute)
-            return AwayText.clashLine(clashes, start: setMinute, name: name).map { Note(line: $0, isClash: true) }
+            if let line = AwayText.clashLine(clashes, start: setMinute, name: name) {
+                return Note(line: line, isClash: true)
+            }
+            return day.turnClash(children: children, start: setMinute)
+                .map { Note(line: AwayText.turnLine($0), isClash: true) }
         }
         let scheduleHalf: ScheduleDayHalf = half == .morning ? .morning : .afternoon
         let clashes = day.away(children: children, in: scheduleHalf)
         return AwayText.untimedLine(clashes, half: scheduleHalf, name: name).map { Note(line: $0, isClash: false) }
     }
 
-    /// What the time picker shows for a lesson with `children`: the Away list,
-    /// a sentence on each quick time that overlaps a group, the Everyone's
-    /// free starts and the "Free all…" words. Nil when none of the children is
-    /// away that day, so the picker draws as it always has (decision 4).
+    /// What the time picker shows for a lesson with `children`: the Away list
+    /// (groups, children away from class, then the guide's turns), a sentence
+    /// on each quick time that overlaps one, the Everyone's free starts and
+    /// the "Free all…" words; on a day he is out, only that. Nil when nothing
+    /// touches the lesson that day, so the picker draws as it always has
+    /// (decision 4).
     /// `ownStarts` are the day's other lessons' set times.
     static func pickerAway(
         in day: AwayDay,
@@ -51,17 +59,21 @@ nonisolated enum AwayOnCards {
         ownStarts: some Sequence<Int>,
         name: (String) -> String?
     ) -> LessonTimeAway? {
+        guard day.touches(children: children) else { return nil }
+        if day.guideIsOut { return LessonTimeAway(rows: [AwayText.outLine]) }
         let away = day.away(children: children)
-        guard !away.isEmpty else { return nil }
+        let turns = day.busyTurns(children: children)
         var sentences: [Int: String] = [:]
         for minute in LessonTimeChoices.morning + LessonTimeChoices.afternoon {
             let clashes = day.clashes(children: children, start: minute)
             if let line = AwayText.clashLine(clashes, start: minute, name: name) {
                 sentences[minute] = line
+            } else if let turn = day.turnClash(children: children, start: minute) {
+                sentences[minute] = AwayText.turnLine(turn)
             }
         }
         return LessonTimeAway(
-            rows: away.map { AwayText.awayRow($0, name: name) },
+            rows: away.map { AwayText.awayRow($0, name: name) } + turns.map(AwayText.turnRow),
             sentences: sentences,
             suggestions: day.freeStarts(children: children, ownStarts: Array(ownStarts)),
             freeWords: AwayText.freeWords(day.freeHalves(children: children))

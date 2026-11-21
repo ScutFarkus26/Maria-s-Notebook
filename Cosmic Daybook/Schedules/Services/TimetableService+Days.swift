@@ -43,13 +43,19 @@ extension TimetableService {
         in context: NSManagedObjectContext,
         calendar: Calendar = AppCalendar.shared
     ) -> TimetableBlockValues? {
-        let newest = changes(of: block, on: day, in: context, calendar: calendar).max { lhs, rhs in
+        let newest = newestChange(of: changes(of: block, on: day, in: context, calendar: calendar))
+        return newest?.kind == .changed ? newest?.values : nil
+    }
+
+    /// The newest of one day's copies of a change, as `ScheduleDayResolver`
+    /// reads them: the latest `modifiedAt`, then the greater id.
+    static func newestChange(of copies: [CDTimetableChange]) -> CDTimetableChange? {
+        copies.max { lhs, rhs in
             let left = lhs.modifiedAt ?? .distantPast
             let right = rhs.modifiedAt ?? .distantPast
             if left != right { return left < right }
             return (lhs.id?.uuidString ?? "") < (rhs.id?.uuidString ?? "")
         }
-        return newest?.kind == .changed ? newest?.values : nil
     }
 
     /// Whether `lane`'s person is out on `day`.

@@ -36,19 +36,25 @@ extension WeekDayColumn {
         var sameTimes = 0
         /// The lessons at those start times, for the spoken line.
         var sameTimeLessons = 0
-        /// Lessons with a set time while one of their children is away.
+        /// Lessons with a set time while one of their children is away, or
+        /// during one of the guide's turns.
         var away = 0
+        /// The day's lessons on a day the guide is out (Out Today).
+        var out = 0
 
-        var total: Int { children + sameTimes + away }
+        var total: Int { children + sameTimes + away + out }
 
         /// The plain badge's words for its kinds: rearranging never moves a
         /// lesson with a set time, so only changing a time clears these.
         var timedParts: [String] {
             var parts: [String] = []
+            if out > 0 {
+                parts.append(out == 1 ? "you're out with 1 lesson planned" : "you're out with \(out) lessons planned")
+            }
             if sameTimes > 0 {
                 parts.append(sameTimes == 1
-                    ? "\(sameTimeLessons) lessons at the same time"
-                    : "\(sameTimeLessons) lessons sharing \(sameTimes) start times")
+                    ? "\(sameTimeLessons) lessons at overlapping times"
+                    : "\(sameTimeLessons) lessons at \(sameTimes) overlapping times")
             }
             if away > 0 {
                 // "2 with a child away" after the same-time part; standing
@@ -62,7 +68,8 @@ extension WeekDayColumn {
 
         /// The plain badge's help: what it counts, and what clears it.
         var plainHelp: String {
-            if away == 0 { return "Two lessons start at the same time. Change one of the times." }
+            if out > 0 { return "You're out this day. Move its lessons to another day." }
+            if away == 0 { return "Two lessons overlap. Change one of the times." }
             let line = timedParts.joined(separator: ", ")
             let lead = line.prefix(1).uppercased() + line.dropFirst() + "."
             return sameTimes > 0
@@ -91,18 +98,24 @@ extension WeekDayColumn {
 
     /// The day's clashes, from the children doubled up in each half and each
     /// lesson's set start time (minutes after midnight; untimed lessons absent).
-    /// `awayClashes` is the number of timed lessons with a child away then.
+    /// `awayClashes` is the number of timed lessons with a child away then
+    /// or during a turn; `outLessons`, the day's lessons when the guide is out.
+    /// Set times less than `LessonLength.assumedMinutes` apart overlap
+    /// (decision 5 of plan "Domain logic fixes"): each run of overlapping
+    /// times is one clash.
     static func dayClashes(
         childClashes: [DayPeriod: Set<UUID>],
         setMinutes: [Int],
-        awayClashes: Int = 0
+        awayClashes: Int = 0,
+        outLessons: Int = 0
     ) -> DayClashes {
-        let perMinute = setMinutes.reduce(into: [Int: Int]()) { $0[$1, default: 0] += 1 }
+        let runs = DayHalfPlanner.overlappingRuns(setMinutes)
         return DayClashes(
             children: childClashes.values.reduce(into: Set<UUID>()) { $0.formUnion($1) }.count,
-            sameTimes: perMinute.values.filter { $0 > 1 }.count,
-            sameTimeLessons: perMinute.values.filter { $0 > 1 }.reduce(0, +),
-            away: awayClashes
+            sameTimes: runs.count,
+            sameTimeLessons: runs.reduce(0) { $0 + $1.count },
+            away: awayClashes,
+            out: outLessons
         )
     }
 
@@ -110,17 +123,20 @@ extension WeekDayColumn {
         Self.dayClashes(
             childClashes: clashingStudentIDs,
             setMinutes: scheduledLessonsForDay.compactMap { $0.setTimeMinute(using: calendar) },
-            awayClashes: awayClashCount
+            awayClashes: awayClashCount,
+            outLessons: awayDay.guideIsOut ? scheduledLessonsForDay.count : 0
         )
     }
 
-    /// The day's timed lessons that overlap a co-teacher's group for one of
-    /// their children. No words are needed to count, so no roster lookup.
+    /// The day's timed lessons that overlap a time one of their children is
+    /// away, or one of the guide's turns. No words are needed to count, so no
+    /// roster lookup. None on a day he is out, which counts every lesson.
     var awayClashCount: Int {
-        guard !awayDay.isEmpty else { return 0 }
+        guard !awayDay.isEmpty, !awayDay.guideIsOut else { return 0 }
         return scheduledLessonsForDay.count { lesson in
             guard let start = lesson.setTimeMinute(using: calendar) else { return false }
             return !awayDay.clashes(children: lesson.studentIDs, start: start).isEmpty
+                || awayDay.turnClash(children: lesson.studentIDs, start: start) != nil
         }
     }
 
@@ -141,7 +157,7 @@ extension WeekDayColumn {
                     + "Lessons with a start time stay where they are."
                 : "Rearrange this day so no child has two lessons in the same half")
             .accessibilityLabel(clashes.spokenLabel)
-        } else if clashes.sameTimes > 0 || clashes.away > 0 {
+        } else if clashes.sameTimes > 0 || clashes.away > 0 || clashes.out > 0 {
             clashBadge(clashes, systemImage: "exclamationmark.triangle.fill")
                 .help(clashes.plainHelp)
                 .accessibilityElement(children: .ignore)

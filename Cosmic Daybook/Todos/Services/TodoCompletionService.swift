@@ -10,6 +10,7 @@
 // `TodoRepeatRule`.
 
 import CoreData
+import CryptoKit
 import Foundation
 
 @MainActor
@@ -56,7 +57,11 @@ enum TodoCompletionService {
     /// occurrence, not two (bug hunt 2026-10-10, P2 #22) — but only while the
     /// copy is still as `complete` made it: open, and with the same title,
     /// notes, children, tags, priority and dates, no checklist, and not yet
-    /// shared with Tide. Does not save.
+    /// shared with Tide. The copy is found by its id (`nextOccurrenceID`),
+    /// else by title for one made before ids were worked out; a copy whose
+    /// title now differs stays, as nobody can tell whether it or the todo
+    /// was renamed, and completing the todo again makes no second one.
+    /// Does not save.
     static func reopen(_ todo: CDTodoItem) {
         if let copy = untouchedNextOccurrence(of: todo, calendar: AppCalendar.shared) {
             copy.managedObjectContext?.delete(copy)
@@ -67,14 +72,31 @@ enum TodoCompletionService {
 
     /// The next occurrence of a repeating todo, inserted into the todo's
     /// context, or nil when the pattern yields no next date. Its dates follow
-    /// `TodoRepeatRule`, counted on the day the todo was completed.
+    /// `TodoRepeatRule`, counted on the day the todo was completed; its id
+    /// is `nextOccurrenceID` of the todo's, so two devices completing the
+    /// same todo make one next occurrence once they sync (plan "Domain logic
+    /// fixes", R25). When that next occurrence is already here (an untick
+    /// kept it because it had been changed), it is returned and none is made.
     @discardableResult
     static func nextOccurrence(after todo: CDTodoItem, calendar: Calendar) -> CDTodoItem? {
         let completedOn = todo.completedAt ?? Date()
         guard let dates = repeatRule(for: todo).nextDates(today: completedOn, calendar: calendar),
               let context = todo.managedObjectContext else { return nil }
 
+        // Completing it again (after an untick that kept a changed copy)
+        // makes no second copy: the one with the id stands.
+        var nextID: UUID?
+        if let id = todo.id {
+            let next = nextOccurrenceID(of: id)
+            let request = CDFetchRequest(CDTodoItem.self)
+            request.predicate = NSPredicate(format: "id == %@", next as CVarArg)
+            if let existing = context.safeFetch(request).first(where: { !$0.isDeleted && $0 !== todo }) {
+                return existing
+            }
+            nextID = next
+        }
         let newTodo = CDTodoItem(context: context)
+        if let nextID { newTodo.id = nextID }
         newTodo.title = todo.title
         newTodo.notes = todo.notes
         newTodo.orderIndex = 0
@@ -88,6 +110,21 @@ enum TodoCompletionService {
         newTodo.tags = todo.tags
         newTodo.linkedWorkItemID = todo.linkedWorkItemID
         return newTodo
+    }
+
+    /// The id of the next occurrence that completing the to-do `id` makes:
+    /// the first 16 bytes of a SHA-256 of it, marked as an RFC 9562 version 8
+    /// (custom) UUID, as `TimetableService.splitCopyID` does for blocks. Two
+    /// devices completing the same to-do before they sync make the same next
+    /// occurrence, and the same-id cleanup folds the two into one.
+    nonisolated static func nextOccurrenceID(of id: UUID) -> UUID {
+        var bytes = Array(SHA256.hash(data: Data("TodoNextOccurrence|\(id.uuidString)".utf8)).prefix(16))
+        bytes[6] = (bytes[6] & 0x0F) | 0x80
+        bytes[8] = (bytes[8] & 0x3F) | 0x80
+        return UUID(uuid: (
+            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+            bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]
+        ))
     }
 
     /// `todo`'s repeat, with the date its own previous occurrence counted
@@ -107,25 +144,47 @@ enum TodoCompletionService {
         return rule
     }
 
-    /// The completed todo whose completion made `todo`, if it is still here.
+    /// The completed todo whose completion made `todo`, if it is still here:
+    /// the one whose `nextOccurrenceID` is `todo`'s id, so a rename doesn't
+    /// lose it, else (a next occurrence made before ids were worked out) one
+    /// with the same title.
     private static func occurrence(before todo: CDTodoItem) -> CDTodoItem? {
         guard let createdAt = todo.createdAt, let context = todo.managedObjectContext else { return nil }
         let request = CDFetchRequest(CDTodoItem.self)
-        request.predicate = sameSeries(as: todo, completed: true, dateKey: "completedAt", near: createdAt)
-        return context.safeFetch(request).first { $0 !== todo }
+        request.predicate = sameSeries(
+            as: todo, completed: true, dateKey: "completedAt", near: createdAt, byTitle: false
+        )
+        let near = context.safeFetch(request).filter { $0 !== todo }
+        if let id = todo.id, let made = near.first(where: { $0.id.map(nextOccurrenceID(of:)) == id }) {
+            return made
+        }
+        return near.first { $0.title == todo.title }
     }
 
     /// The open next occurrence completing `todo` made, while nobody has
-    /// changed it since.
+    /// changed it since: found by its id (`nextOccurrenceID`), so a rename of
+    /// either doesn't lose it, else (one made before ids were worked out) by
+    /// the title and when it was made.
     private static func untouchedNextOccurrence(of todo: CDTodoItem, calendar: Calendar) -> CDTodoItem? {
         guard todo.isCompleted, todo.recurrence != .none,
               let completedAt = todo.completedAt, let context = todo.managedObjectContext,
               let expected = repeatRule(for: todo).nextDates(today: completedAt, calendar: calendar)
         else { return nil }
         let request = CDFetchRequest(CDTodoItem.self)
-        request.predicate = sameSeries(as: todo, completed: false, dateKey: "createdAt", near: completedAt)
-        return context.safeFetch(request).first { copy in
+        var candidates: [CDTodoItem] = []
+        if let id = todo.id {
+            request.predicate = NSPredicate(
+                format: "isCompleted == NO AND id == %@", nextOccurrenceID(of: id) as CVarArg
+            )
+            candidates = context.safeFetch(request).filter { $0 !== todo }
+        }
+        if candidates.isEmpty {
+            request.predicate = sameSeries(as: todo, completed: false, dateKey: "createdAt", near: completedAt)
+            candidates = context.safeFetch(request)
+        }
+        return candidates.first { copy in
             copy !== todo
+                && copy.title == todo.title
                 && copy.notes == todo.notes
                 && copy.priorityRaw == todo.priorityRaw
                 && copy.repeatAfterCompletion == todo.repeatAfterCompletion
@@ -146,16 +205,20 @@ enum TodoCompletionService {
     }
 
     /// Todos of `todo`'s repeat, open or done, whose `dateKey` is within
-    /// `sameCompletion` of `date`.
+    /// `sameCompletion` of `date`: with `todo`'s title, unless `byTitle` is false.
     private static func sameSeries(
-        as todo: CDTodoItem, completed: Bool, dateKey: String, near date: Date
+        as todo: CDTodoItem, completed: Bool, dateKey: String, near date: Date, byTitle: Bool = true
     ) -> NSPredicate {
-        NSPredicate(
-            format: "isCompleted == %@ AND title == %@ AND recurrenceRaw == %@ AND %K >= %@ AND %K <= %@",
-            NSNumber(value: completed), todo.title, todo.recurrenceRaw,
+        let series = NSPredicate(
+            format: "isCompleted == %@ AND recurrenceRaw == %@ AND %K >= %@ AND %K <= %@",
+            NSNumber(value: completed), todo.recurrenceRaw,
             dateKey, date.addingTimeInterval(-sameCompletion) as NSDate,
             dateKey, date.addingTimeInterval(sameCompletion) as NSDate
         )
+        guard byTitle else { return series }
+        return NSCompoundPredicate(andPredicateWithSubpredicates: [
+            series, NSPredicate(format: "title == %@", todo.title)
+        ])
     }
 
     private static func isSameDate(_ lhs: Date?, _ rhs: Date?) -> Bool {

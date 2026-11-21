@@ -10,6 +10,12 @@ import Foundation
 nonisolated enum TimetableLaneKind: String, Sendable, CaseIterable {
     case room
     case person
+
+    /// The stored kind of the adolescent room (`CDTimetableLane.kindRaw`): a
+    /// room, marked as the one where the guide's turns hold his adolescents'
+    /// lessons. Read as `.room` everywhere, and by builds before 2026-11-20,
+    /// which read any kind they don't know as a room.
+    static let adolescentRoomRaw = "adolescentRoom"
 }
 
 /// What one day's change does (`CDTimetableChange.kindRaw`).
@@ -132,6 +138,8 @@ nonisolated struct TimetableLaneSnapshot: Sendable, Equatable, Identifiable {
     var isGuide: Bool
     var sortOrder: Int
     var colorRaw: String
+    /// A room stored as the adolescent room (`TimetableLaneKind.adolescentRoomRaw`).
+    var isAdolescentRoom: Bool
 
     init(
         id: UUID = UUID(),
@@ -139,7 +147,8 @@ nonisolated struct TimetableLaneSnapshot: Sendable, Equatable, Identifiable {
         kind: TimetableLaneKind,
         isGuide: Bool = false,
         sortOrder: Int = 0,
-        colorRaw: String = ""
+        colorRaw: String = "",
+        isAdolescentRoom: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -147,6 +156,7 @@ nonisolated struct TimetableLaneSnapshot: Sendable, Equatable, Identifiable {
         self.isGuide = isGuide
         self.sortOrder = sortOrder
         self.colorRaw = colorRaw
+        self.isAdolescentRoom = kind == .room && isAdolescentRoom
     }
 }
 

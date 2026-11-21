@@ -18,7 +18,9 @@ import SwiftUI
 extension WeekPlanSection {
 
     /// What the away times are built from: a save touching one reloads them.
-    nonisolated static let awayEntityNames: Set<String> = ["TimetableLane", "TimetableBlock", "TimetableChange"]
+    nonisolated static let awayEntityNames: Set<String> = [
+        "TimetableLane", "TimetableBlock", "TimetableChange", ScheduleChildrenAway.entityName, "Student"
+    ]
 
     /// How long a burst of timetable saves is waited out, as the Schedules
     /// page waits (`SchedulesPageModel.scheduleReload`).

@@ -11,7 +11,8 @@ nonisolated public class CDTimetableLane: NSManagedObject {
     @NSManaged public var id: UUID?
     /// As the guide typed it.
     @NSManaged public var name: String
-    /// A `TimetableLaneKind` raw value: "room" or "person".
+    /// A `TimetableLaneKind` raw value, "room" or "person", or
+    /// `TimetableLaneKind.adolescentRoomRaw` for the adolescent room.
     @NSManaged public var kindRaw: String
     /// True for the one person lane that reads the guide's planned lessons.
     @NSManaged public var isGuide: Bool
@@ -39,6 +40,16 @@ nonisolated extension CDTimetableLane {
         get { TimetableLaneKind(rawValue: kindRaw) ?? .room }
         set { kindRaw = newValue.rawValue }
     }
+
+    /// Whether this room is the adolescent room. Setting it on a person's
+    /// lane does nothing; clearing it leaves a plain room.
+    var isAdolescentRoom: Bool {
+        get { kindRaw == TimetableLaneKind.adolescentRoomRaw }
+        set {
+            guard kind == .room else { return }
+            kindRaw = newValue ? TimetableLaneKind.adolescentRoomRaw : TimetableLaneKind.room.rawValue
+        }
+    }
 }
 
 nonisolated extension TimetableLaneSnapshot {
@@ -51,7 +62,8 @@ nonisolated extension TimetableLaneSnapshot {
             kind: lane.kind,
             isGuide: lane.isGuide,
             sortOrder: Int(lane.sortOrder),
-            colorRaw: lane.colorRaw
+            colorRaw: lane.colorRaw,
+            isAdolescentRoom: lane.isAdolescentRoom
         )
     }
 }

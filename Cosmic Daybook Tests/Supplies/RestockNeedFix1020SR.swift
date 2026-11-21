@@ -20,6 +20,9 @@ struct RestockNeedFix1020SRTests {
     func mergeKeepsLargestQuantityAndNotes() throws {
         let context = try CoreDataTestHelpers.makeContext()
         let towels = try RestockTestSupport.staple("Paper Towels", place: "", source: .office, link: nil, in: context)
+        // A staple with a need is Low: a Stocked one with a need would be made
+        // Low by reconcile (plan "Domain logic fixes", A2).
+        towels.level = .low
         let supplyID = try #require(towels.id?.uuidString)
         func need(created: Date, quantity: Int64, notes: String) -> CDOrderItem {
             let item = CDOrderItem(context: context)
@@ -49,6 +52,9 @@ struct RestockNeedFix1020SRTests {
     func mergeOfSameCopiesLeavesKeptAlone() throws {
         let context = try CoreDataTestHelpers.makeContext()
         let towels = try RestockTestSupport.staple("Paper Towels", place: "", source: .office, link: nil, in: context)
+        // A staple with a need is Low: a Stocked one with a need would be made
+        // Low by reconcile (plan "Domain logic fixes", A2).
+        towels.level = .low
         let supplyID = try #require(towels.id?.uuidString)
         func need(created: Date) -> CDOrderItem {
             let item = CDOrderItem(context: context)

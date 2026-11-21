@@ -2,7 +2,8 @@
 // A Scheduled card's start-time chip (docs/Plans/Plan - Lesson times on
 // cards.md, Phase 3): "10:00" in blue when the guide set a time, a dashed
 // "Set time" with a clock when not, and amber when another lesson that day
-// starts at the same minute. It leads the line of children's names rather
+// starts less than a lesson's length from it (`DayHalfPlanner.sameTimeClashes`).
+// It leads the line of children's names rather
 // than ending the title row, as the plan first had it: a day column is about
 // 170 points wide, and a chip beside the title squeezed most titles down to a
 // letter or two. On the names line it wraps like a name chip instead.
@@ -218,7 +219,7 @@ extension PresentationPlannerCard {
             studentNames.joined(separator: ", "),
             period?.label,
             time.map { LessonTimeText.spokenPhrase($0) },
-            time != nil && timeChip?.isClash == true ? "another lesson at the same time" : nil,
+            time != nil && timeChip?.isClash == true ? "another lesson overlaps it" : nil,
             timeChip?.isAwayClash == true ? AwayText.chipSpoken : nil,
             timeChip?.away?.line,
             showFirstLine

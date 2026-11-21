@@ -81,6 +81,15 @@ final class AssistantScheduleModel {
         resolved.flatMap { AssistantScheduleRows.changedLine(for: $0, isToday: isToday) }
     }
 
+    /// "Danny's lessons show for today and the next two weeks.", on a day
+    /// outside the days the guide's devices write his lessons for
+    /// (`TimetableBookingWindow`), so a day without them isn't taken for one
+    /// with none. Nil on today and the 13 days after it.
+    var bookingWindowLine: String? {
+        guard !TimetableBookingWindow.contains(day, today: now(), calendar: calendar) else { return nil }
+        return "\(guideName)'s lessons show for today and the next two weeks."
+    }
+
     /// "Morah Devora is out.", for each person out that day.
     var outLines: [String] {
         resolved.map { AssistantScheduleRows.outLines(for: $0, names: names) } ?? []

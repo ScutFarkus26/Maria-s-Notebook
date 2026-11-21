@@ -54,6 +54,8 @@ enum TodayScheduleRows {
         let lanes = Dictionary(day.lanes.map { ($0.id, $0.lane) }, uniquingKeysWith: { first, _ in first })
         let order = Dictionary(day.lanes.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
         var rows: [Row] = []
+        // The guide's turns are in the rooms Schedules reads as his (`turnRoomIDs`).
+        let turnRooms = ScheduleDayResolver.turnRoomIDs(in: day.lanes.map(\.lane))
         for lane in day.lanes {
             if lane.isOut {
                 rows.append(Row(
@@ -65,7 +67,7 @@ enum TodayScheduleRows {
             for item in lane.items {
                 // A turn is the room's block, listed once from the room; lessons are Today's own.
                 guard case .block(let block) = item.kind else { continue }
-                rows.append(row(block, lane: lane.lane, lanes: lanes, names: names))
+                rows.append(row(block, lane: lane.lane, lanes: lanes, turnRooms: turnRooms, names: names))
             }
         }
         return rows.sorted { lhs, rhs in
@@ -86,13 +88,14 @@ enum TodayScheduleRows {
         _ block: ScheduleDay.Block,
         lane: TimetableLaneSnapshot,
         lanes: [UUID: TimetableLaneSnapshot],
+        turnRooms: Set<UUID>,
         names: (String) -> String?
     ) -> Row {
         let values = block.values
         let title = values.title.trimmed()
         var heading = title.isEmpty ? lane.name : title
         var detail: String?
-        if let teacherID = block.teacherLaneID, lanes[teacherID]?.isGuide == true, lane.kind == .room {
+        if let teacherID = block.teacherLaneID, lanes[teacherID]?.isGuide == true, turnRooms.contains(lane.id) {
             heading = block.teacherIsOut
                 ? ScheduleText.turnTitle(room: lane.name, title: title)
                 : ScheduleText.yourTurnTitle(room: lane.name, title: title)

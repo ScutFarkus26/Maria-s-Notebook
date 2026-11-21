@@ -28,6 +28,22 @@ nonisolated enum AwayText {
         "\(count) with a child away"
     }
 
+    /// The card's line, and the picker's one row, on a day the guide is out.
+    static let outLine = "You're out this day"
+
+    /// "During your turn in Adolescent room (10:45–11:30)": a lesson at a
+    /// set time that overlaps one of the guide's turns.
+    static func turnLine(_ turn: AwayTurn) -> String {
+        let room = turn.roomName.trimmed().isEmpty ? "a room" : turn.roomName.trimmed()
+        return "During your turn in \(room) (\(TimetableDay.rangeText(turn.values)))"
+    }
+
+    /// "10:45–11:30 · Your turn in Adolescent room": one turn in the Away list.
+    static func turnRow(_ turn: AwayTurn) -> String {
+        let room = turn.roomName.trimmed().isEmpty ? "a room" : turn.roomName.trimmed()
+        return "\(TimetableDay.rangeText(turn.values)) · Your turn in \(room)"
+    }
+
     /// "Free all morning" or "Free all afternoon", when exactly one half has
     /// no group for the lesson's children; nil otherwise (with both halves
     /// free nobody is away, and the picker shows nothing new).
@@ -39,9 +55,16 @@ nonisolated enum AwayText {
     // MARK: - The picker
 
     /// "9:15–9:45 · Lucy T, Ora P · Miss Nicole": one group in the Away list.
+    /// "From 1:30 · Lucy T · Leaving early" and "All day · Lucy T · Absent"
+    /// for children away from class.
     static func awayRow(_ clash: AwayClash, name: (String) -> String?) -> String {
         let children = childList(clash.studentIDs, name: name, joiner: ", ")
-        return "\(range(clash.block)) · \(children) · \(clash.block.personName)"
+        switch clash.block.reason {
+        case .group: return "\(range(clash.block)) · \(children) · \(clash.block.personName)"
+        case .leavingEarly:
+            return "From \(TimetableDay.clockText(clash.block.startMinute)) · \(children) · Leaving early"
+        case .absent: return "All day · \(children) · Absent"
+        }
     }
 
     // MARK: - A lesson with a set time
@@ -53,12 +76,14 @@ nonisolated enum AwayText {
     ///   with Miss Nicole until 9:45" (already there when it starts).
     /// - One child, more than one group: "Lucy T is away during this lesson".
     /// - Otherwise: "3 children are away during this lesson".
+    /// - A child leaving early: "Lucy T leaves at 1:30"; absent: "Lucy T is absent".
     static func clashLine(_ clashes: [AwayClash], start: Int, name: (String) -> String?) -> String? {
         guard let first = clashes.first else { return nil }
         let children = distinctChildren(clashes)
         if clashes.count == 1, children.count <= 2 {
             let who = childList(first.studentIDs, name: name)
             let plural = first.studentIDs.count > 1
+            if let line = childAwayLine(first, who: who, plural: plural) { return line }
             if first.block.startMinute > start {
                 return "\(who) \(plural ? "leave" : "leaves") at \(TimetableDay.clockText(first.block.startMinute)) "
                     + "for \(first.block.personName)"
@@ -87,7 +112,9 @@ nonisolated enum AwayText {
         let children = distinctChildren(clashes)
         if clashes.count == 1, children.count <= 2 {
             let plural = first.studentIDs.count > 1
-            return "\(childList(first.studentIDs, name: name)) \(plural ? "are" : "is") away \(range(first.block))"
+            let who = childList(first.studentIDs, name: name)
+            if let line = childAwayLine(first, who: who, plural: plural) { return line }
+            return "\(who) \(plural ? "are" : "is") away \(range(first.block))"
         }
         if children.count == 1 {
             return "\(childName(children[0], name: name)) is away part of the \(half.word)"
@@ -107,6 +134,7 @@ nonisolated enum AwayText {
         clashes.map { clash in
             let who = childList(clash.studentIDs, name: name)
             let plural = clash.studentIDs.count > 1
+            if let line = childAwayLine(clash, who: who, plural: plural) { return line + " that day." }
             if lessonMinute != nil {
                 return "\(who) \(plural ? "are" : "is") with \(clash.block.personName) \(range(clash.block))."
             }
@@ -115,6 +143,17 @@ nonisolated enum AwayText {
     }
 
     // MARK: - Pieces
+
+    /// "Lucy T leaves at 1:30" or "Lucy T is absent" for children away from
+    /// class; nil for a co-teacher's group.
+    private static func childAwayLine(_ clash: AwayClash, who: String, plural: Bool) -> String? {
+        switch clash.block.reason {
+        case .group: nil
+        case .leavingEarly:
+            "\(who) \(plural ? "leave" : "leaves") at \(TimetableDay.clockText(clash.block.startMinute))"
+        case .absent: "\(who) \(plural ? "are" : "is") absent"
+        }
+    }
 
     /// "9:50–10:20".
     static func range(_ block: AwayBlock) -> String {

@@ -168,6 +168,7 @@ extension MCPNotebookTools {
             lessons: ScheduleLessonPlan.lessons(on: day, in: modelContext, calendar: calendar),
             studentLevels: ScheduleLessonPlan.studentLevels(in: modelContext),
             isSchoolDay: isSchoolDay,
+            childrenAway: ScheduleChildrenAway.on(day, in: modelContext, calendar: calendar),
             calendar: calendar
         ))
     }
@@ -302,16 +303,81 @@ extension MCPNotebookTools {
         return wrapped * 60 + minute
     }
 
-    /// The children named, as the student ID strings a block stores. A first
-    /// name two children share throws, asking for the full name.
+    /// The children named, as the student ID strings a block stores, matched
+    /// the way the block sheet matches typed names: `StudentNameMatcher` over
+    /// the class, then over the children who have left (plan "Domain logic
+    /// fixes", R7). So a child who has left never stands in the way of a
+    /// first name in the class, and isn't added herself. A UUID names a child
+    /// directly, and is refused the same way for a child who has left. A
+    /// name two children share throws, asking for the full name; a name that
+    /// only starts or sounds like a child's throws too, naming the child it
+    /// found, so Claude asks rather than guesses.
     static func timetableChildren(
         _ names: [String], in modelContext: NSManagedObjectContext
     ) throws -> [String] {
-        try names.map { name in
-            let student = try resolveStudentReference(name, in: modelContext)
-            guard let id = student.id else { throw MCPToolError("\(student.fullName) has no saved identifier.") }
+        let students = modelContext.safeFetch(CDFetchRequest(CDStudent.self))
+        let enrolled = students.filterEnrolled()
+        let enrolledIDs = Set(enrolled.compactMap(\.id))
+        var byID: [UUID: CDStudent] = [:]
+        for student in students {
+            if let id = student.id, byID[id] == nil { byID[id] = student }
+        }
+        let current = timetableCandidates(enrolled)
+        let former = { timetableCandidates(students.filter { $0.id.map { !enrolledIDs.contains($0) } ?? false }) }
+        return try names.map { name in
+            if UUID(uuidString: name) != nil {
+                let student = try resolveStudentReference(name, in: modelContext)
+                guard let id = student.id else { throw MCPToolError("\(student.fullName) has no saved identifier.") }
+                guard enrolledIDs.contains(id) else {
+                    throw MCPToolError("\(student.fullName) has left the class, so can't be added to a group.")
+                }
+                return id.uuidString
+            }
+            let found = StudentNameMatcher.matches(for: name, current: current, former: former).compactMap {
+                byID[$0.id]
+            }
+            guard !found.isEmpty else { throw MCPToolError("No student named \"\(name)\" was found.") }
+            guard found.count == 1, let student = found.first, let id = student.id else {
+                let listed = found.map { "\($0.fullName) (\($0.shortName))" }.sorted().joined(separator: ", ")
+                throw MCPToolError(
+                    "More than one student matches \"\(name)\": \(listed). Ask which student the guide means, "
+                        + "then pass that child's full name or the short name shown."
+                )
+            }
+            guard enrolledIDs.contains(id) else {
+                throw MCPToolError("\(student.fullName) has left the class, so can't be added to a group.")
+            }
+            guard isNamed(student, name) else {
+                throw MCPToolError(
+                    "No student is named \"\(name)\". Did you mean \(student.shortName)? Ask the guide, then "
+                        + "pass that child's full name or the short name shown."
+                )
+            }
             return id.uuidString
         }
+    }
+
+    /// `students` as the name matcher reads them.
+    private static func timetableCandidates(_ students: [CDStudent]) -> [StudentNameMatcher.Candidate] {
+        students.compactMap { student in
+            student.id.map {
+                StudentNameMatcher.Candidate(
+                    id: $0, firstName: student.firstName, lastName: student.lastName, nickname: student.nickname
+                )
+            }
+        }
+    }
+
+    /// Whether `name` is one of `student`'s own names as written: her full or
+    /// short name, first name, nickname or last name, with or without a
+    /// closing period, ignoring case and accents.
+    private static func isNamed(_ student: CDStudent, _ name: String) -> Bool {
+        var token = name.folded()
+        if token.hasSuffix(".") { token.removeLast() }
+        let nickname = (student.nickname ?? "").trimmed()
+        var forms = [student.fullName, student.shortName, student.firstName, student.lastName]
+        if !nickname.isEmpty { forms += [nickname, "\(nickname) \(student.lastName)"] }
+        return forms.contains { $0.folded() == token }
     }
 
     /// A block's values from a tool call's fields; `base` supplies whatever isn't given.

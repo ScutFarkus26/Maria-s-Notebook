@@ -80,7 +80,8 @@ struct SchedulesPageWeekTests {
 
         #expect(model.warningLines.map(\.text) == ["Lucy T is with Morah Devora 9:00–9:45 this morning."])
         let warning = try #require(model.warningLines.first?.warning)
-        let row = try #require(ScheduleDayRows.row(holdingLesson: warning.lessonID, in: model.resolved))
+        let lessonID = try #require(warning.lessonID)
+        let row = try #require(ScheduleDayRows.row(holdingLesson: lessonID, in: model.resolved))
         #expect(row.lane.isGuide)
     }
 

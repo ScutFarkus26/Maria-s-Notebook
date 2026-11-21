@@ -257,7 +257,7 @@ struct ScheduleDayResolverTests {
         #expect(untitled[1] == "A lesson at 10:45 is during your turn in the adolescent room (10:30–11:45).")
     }
 
-    @Test("When the guide is out, his turns take no lessons and nothing warns about them")
+    @Test("When the guide is out, his turns take no lessons, which are set aside with one warning")
     func guideOut() {
         let turn = Support.block(room, .monday, Support.minutes(10, 30), 75, "Danny's turn", teacher: guide)
         let algebra = ScheduleLessonSnapshot(id: UUID(), title: "Algebra", half: .morning, studentIDs: [Support.ari])
@@ -265,8 +265,10 @@ struct ScheduleDayResolverTests {
         let day = Support.resolve(Support.monday, blocks: [turn], changes: [out], lessons: [algebra])
         #expect(day.lane(room.id)?.items.first?.block?.teacherIsOut == true)
         #expect(day.lane(room.id)?.items.first?.block?.lessons.isEmpty == true)
-        #expect(Support.titles(guide, in: day) == ["morning:Algebra"])
-        #expect(day.warnings.isEmpty)
+        // Out Today sets his lessons aside (plan "Domain logic fixes", R16).
+        #expect(Support.titles(guide, in: day).isEmpty)
+        #expect(day.setAsideLessons.map(\.id) == [algebra.id])
+        #expect(day.warnings == [.guideOut(lessonCount: 1)])
     }
 
     // MARK: - Now

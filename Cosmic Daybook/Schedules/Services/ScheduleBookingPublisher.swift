@@ -56,7 +56,7 @@ final class ScheduleBookingPublisher {
     }
 
     /// Today and the 13 days after it.
-    nonisolated static let windowDays = 14
+    nonisolated static let windowDays = TimetableBookingWindow.days
     /// How old a booking for a presentation this device doesn't know must be
     /// before it goes.
     nonisolated static let unknownGrace: TimeInterval = 60 * 60

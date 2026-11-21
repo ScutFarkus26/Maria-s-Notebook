@@ -124,7 +124,7 @@ enum TimetableService {
         let myName = ClassroomNames.myName(role: .leadGuide, in: context).trimmed()
         return [
             insertLane("Our class", kind: .room, sortOrder: 0, in: context, now: now),
-            insertLane("Adolescent room", kind: .room, sortOrder: 1, in: context, now: now),
+            insertLane("Adolescent room", kind: .room, isAdolescentRoom: true, sortOrder: 1, in: context, now: now),
             insertLane(
                 myName.isEmpty ? guideLaneFallbackName : myName, kind: .person, isGuide: true, sortOrder: 2,
                 in: context, now: now
@@ -167,6 +167,14 @@ enum TimetableService {
         lane.modifiedAt = now
     }
 
+    /// Marks `lane` as the adolescent room, the one whose blocks the guide
+    /// teaches are his turns there, or takes the mark off. Only a room takes it.
+    static func setAdolescentRoom(_ lane: CDTimetableLane, _ isAdolescentRoom: Bool, now: Date = Date()) {
+        guard lane.kind == .room, lane.isAdolescentRoom != isAdolescentRoom else { return }
+        lane.isAdolescentRoom = isAdolescentRoom
+        lane.modifiedAt = now
+    }
+
     /// Puts the lanes in `ordered`'s order; only those whose place changed are written.
     static func reorder(_ ordered: [CDTimetableLane], now: Date = Date()) {
         for (index, lane) in ordered.enumerated() where lane.sortOrder != Int64(index) {
@@ -181,6 +189,7 @@ enum TimetableService {
         _ name: String,
         kind: TimetableLaneKind,
         isGuide: Bool = false,
+        isAdolescentRoom: Bool = false,
         sortOrder: Int64,
         in context: NSManagedObjectContext,
         now: Date
@@ -189,6 +198,7 @@ enum TimetableService {
         assignToGuideStore(lane, in: context)
         lane.name = name
         lane.kind = kind
+        lane.isAdolescentRoom = isAdolescentRoom
         lane.isGuide = isGuide
         lane.sortOrder = sortOrder
         lane.createdAt = now

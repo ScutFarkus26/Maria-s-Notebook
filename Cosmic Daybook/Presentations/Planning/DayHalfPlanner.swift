@@ -202,21 +202,35 @@ nonisolated enum DayHalfPlanner {
 
     // MARK: - Clashes
 
-    /// The lessons of one day set for the same start time as another lesson
-    /// that day, whoever the children are: the guide can only give one of
-    /// them (decision 7). Lessons with no set time never clash here.
+    /// The lessons of one day set less than `LessonLength.assumedMinutes`
+    /// from another lesson that day, whoever the children are: the guide can
+    /// only give one of them (decision 7, overlap since plan "Domain logic
+    /// fixes", decision 5, as free times count them). Lessons with no set
+    /// time never clash here.
     static func sameTimeClashes(
         in scheduled: [UUID: Date],
         using calendar: Calendar = AppCalendar.shared
     ) -> Set<UUID> {
-        var byMinute: [Int: [UUID]] = [:]
-        for (id, date) in scheduled {
-            guard let minute = setMinute(of: date, using: calendar) else { continue }
-            byMinute[minute, default: []].append(id)
+        let timed = scheduled.compactMap { id, date in setMinute(of: date, using: calendar).map { (id, $0) } }
+        let clashing = Set(overlappingRuns(timed.map(\.1)).flatMap { $0 })
+        return Set(timed.filter { clashing.contains($0.1) }.map(\.0))
+    }
+
+    /// The set start times (minutes after midnight) that clash, in runs, in
+    /// order: each run holds two or more times, each less than
+    /// `LessonLength.assumedMinutes` after the one before.
+    nonisolated static func overlappingRuns(_ minutes: [Int]) -> [[Int]] {
+        var runs: [[Int]] = []
+        var run: [Int] = []
+        for minute in minutes.sorted() {
+            if let last = run.last, minute - last >= LessonLength.assumedMinutes {
+                if run.count > 1 { runs.append(run) }
+                run = []
+            }
+            run.append(minute)
         }
-        return byMinute.values.reduce(into: Set<UUID>()) { clashing, ids in
-            if ids.count > 1 { clashing.formUnion(ids) }
-        }
+        if run.count > 1 { runs.append(run) }
+        return runs
     }
 
     // MARK: - Placing a day

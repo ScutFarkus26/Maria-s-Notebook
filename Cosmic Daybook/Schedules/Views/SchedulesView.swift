@@ -292,7 +292,8 @@ struct SchedulesPage: View {
 
     /// Scrolls to the lesson a warning is about and outlines it for a moment.
     private func showWarning(_ warning: ScheduleDay.Warning) {
-        guard let row = ScheduleDayRows.row(holdingLesson: warning.lessonID, in: model.resolved) else { return }
+        guard let lessonID = warning.lessonID,
+              let row = ScheduleDayRows.row(holdingLesson: lessonID, in: model.resolved) else { return }
         if isCompact {
             if laneFilter != nil, laneFilter != row.lane.id { laneFilter = nil }
             scrollTarget = row.id

@@ -141,13 +141,16 @@ final class SchedulesPageModel {
             in: first..<TimetableService.dayAfter(last, calendar: calendar), using: context, calendar: calendar
         )
         let levels = ScheduleLessonPlan.studentLevels(in: context)
-        resolved = resolve(day, timetable: timetable, nonSchool: nonSchool, levels: levels)
+        let away = ScheduleChildrenAway.days(from: first, through: last, in: context, calendar: calendar)
+        resolved = resolve(day, timetable: timetable, nonSchool: nonSchool, levels: levels, away: away)
         guard mode == .week else {
             week = []
             return
         }
         week = Self.schoolDays(of: weekDays, nonSchool: nonSchool, calendar: calendar).map {
-            WeekColumn(day: $0, resolved: resolve($0, timetable: timetable, nonSchool: nonSchool, levels: levels))
+            WeekColumn(
+                day: $0, resolved: resolve($0, timetable: timetable, nonSchool: nonSchool, levels: levels, away: away)
+            )
         }
     }
 
@@ -164,13 +167,15 @@ final class SchedulesPageModel {
         _ day: Date,
         timetable: TimetableService.Timetable,
         nonSchool: Set<Date>,
-        levels: [String: CDStudent.Level]
+        levels: [String: CDStudent.Level],
+        away: [Date: [ScheduleChildAway]]
     ) -> ScheduleDay {
-        let isSchoolDay = !nonSchool.contains(calendar.startOfDay(for: day))
+        let start = calendar.startOfDay(for: day)
+        let isSchoolDay = !nonSchool.contains(start)
         return ScheduleDayResolver.resolve(ScheduleDayResolver.Input(
             day: day, lanes: timetable.lanes, blocks: timetable.blocks, changes: timetable.changes,
             lessons: isSchoolDay ? ScheduleLessonPlan.lessons(on: day, in: context, calendar: calendar) : [],
-            studentLevels: levels, isSchoolDay: isSchoolDay, calendar: calendar
+            studentLevels: levels, isSchoolDay: isSchoolDay, childrenAway: away[start] ?? [], calendar: calendar
         ))
     }
 
@@ -209,7 +214,7 @@ final class SchedulesPageModel {
     /// (another window, MCP, a CloudKit import), reloads it.
     nonisolated static let inputEntities: Set<String> = [
         "TimetableLane", "TimetableBlock", "TimetableChange", "LessonAssignment",
-        "NonSchoolDay", "SchoolDayOverride", "Student"
+        "NonSchoolDay", "SchoolDayOverride", "Student", ScheduleChildrenAway.entityName
     ]
 
     nonisolated static func inputChanges() -> some Publisher<Void, Never> {

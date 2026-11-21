@@ -35,13 +35,19 @@ extension MCPNotebookTools {
             lessonMinute = nil
             clashes = away.away(children: children, in: period == .afternoon ? .afternoon : .morning)
         }
-        guard !clashes.isEmpty else { return "" }
+        var turnLine: String?
+        if away.guideIsOut {
+            turnLine = "You're out that day."
+        } else if let minute = lessonMinute, let turn = away.turnClash(children: children, start: minute) {
+            turnLine = AwayText.turnLine(turn) + "."
+        }
+        guard !clashes.isEmpty || turnLine != nil else { return "" }
         let students = (try? StudentRepository(context: modelContext).fetchStudents(ids: studentIDs)) ?? []
         let names = Dictionary(
             students.compactMap { student in student.id.map { ($0.uuidString.uppercased(), student.shortName) } },
             uniquingKeysWith: { first, _ in first }
         )
         let lines = AwayText.scheduledLines(clashes, lessonMinute: lessonMinute) { names[$0] }
-        return " " + lines.joined(separator: " ")
+        return " " + (lines + [turnLine].compactMap { $0 }).joined(separator: " ")
     }
 }

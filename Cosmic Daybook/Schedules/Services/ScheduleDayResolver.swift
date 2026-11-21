@@ -23,12 +23,17 @@ import Foundation
 ///    adolescent room that half (or the turn its set time falls in); with no
 ///    turn that half it stays in the list with a note. A lesson that mixes
 ///    levels stays in the list. Only the adolescent room's blocks are those
-///    turns (`isAdolescentRoom`), not a block he teaches in our class; when no
-///    room's name says which it is, any room's are.
+///    turns (`turnRoomIDs`), not a block he teaches in our class: the room
+///    stored as the adolescent room, else one whose name says so, else any
+///    room's. On a day he is out (Out Today) his lessons are set aside.
 /// 6. **Warnings**, gentle: a child with another person during one of the
 ///    guide's timed lessons (taken as `LessonLength.assumedMinutes` long), or
 ///    in the same half as an untimed one; an adolescents-only lesson with no turn that
-///    half; a set-time lesson, not adolescents-only, during a guide's turn.
+///    half; a set-time lesson, not adolescents-only, overlapping a guide's turn;
+///    one warning for the lessons set aside on a day he is out; two timed
+///    lessons less than a lesson apart; a child in two people's blocks at
+///    once, or a person with two blocks at once; and a child absent or
+///    leaving early (from attendance) during one of his lessons.
 nonisolated enum ScheduleDayResolver {
 
     /// The note on an adolescents-only lesson with no turn that half.
@@ -36,11 +41,24 @@ nonisolated enum ScheduleDayResolver {
         "No turn in the adolescent room \(half.thisHalf)"
     }
 
-    /// Whether `lane` is the adolescent room, by its name ("Adolescent room",
-    /// "Adolescents"): lanes carry no other mark of it.
+    /// Whether `lane`'s name says it is the adolescent room ("Adolescent
+    /// room", "Adolescents"): how a room is known as that when none is stored
+    /// as the adolescent room (`TimetableLaneSnapshot.isAdolescentRoom`).
     static func isAdolescentRoom(_ lane: TimetableLaneSnapshot) -> Bool {
         lane.kind == .room
             && lane.name.range(of: "adolescen", options: [.caseInsensitive, .diacriticInsensitive]) != nil
+    }
+
+    /// The rooms where a block the guide teaches is his turn for his
+    /// adolescents' lessons: the room stored as the adolescent room; with
+    /// none stored, those whose name says so; with none of those either,
+    /// every room. Today's "Your turn" reads the same rooms.
+    static func turnRoomIDs(in lanes: [TimetableLaneSnapshot]) -> Set<UUID> {
+        let rooms = lanes.filter { $0.kind == .room }
+        let stored = rooms.filter(\.isAdolescentRoom)
+        if !stored.isEmpty { return Set(stored.map(\.id)) }
+        let named = rooms.filter(isAdolescentRoom)
+        return Set((named.isEmpty ? rooms : named).map(\.id))
     }
 
     // MARK: - Resolving
@@ -59,20 +77,29 @@ nonisolated enum ScheduleDayResolver {
         var blocks = dayBlocks(input, day: day, context: context)
         let guideLane = lanes.first { $0.isGuide && $0.kind == .person }
         var placement = LessonPlacement()
+        var setAside: [ScheduleDay.Lesson] = []
         if let guideLane {
-            placement = place(
-                uniqueLessons(input.lessons), guideLane: guideLane,
-                guideIsOut: blocks.outLanes.contains(guideLane.id), blocks: &blocks.blocks, context: context
-            )
+            let lessons = uniqueLessons(input.lessons)
+            if blocks.outLanes.contains(guideLane.id) {
+                // He's out: none of his lessons is given, so they're set
+                // aside, and one warning stands for them all.
+                setAside = lessons.map { ScheduleDay.Lesson(snapshot: $0, isAdolescentsOnly: false) }
+                if !setAside.isEmpty { placement.warnings.append(.guideOut(lessonCount: setAside.count)) }
+            } else {
+                placement = place(lessons, guideLane: guideLane, blocks: &blocks.blocks, context: context)
+            }
         }
         let warnings = childWarnings(
             blocks: blocks.blocks, context: context, guideLaneID: guideLane?.id, lessons: placement.all
         ) + placement.warnings
+            + lessonOverlapWarnings(placement.all)
+            + blockOverlapWarnings(blocks.blocks, context: context)
+            + childAwayWarnings(input.childrenAway, lessons: placement.all)
         return ScheduleDay(
             day: day, isSchoolDay: true,
             lanes: dayLanes(blocks: blocks, placement: placement, guideLane: guideLane, context: context),
             changeCount: blocks.changeCount, warnings: warnings.sorted(by: warningOrder),
-            cancelledBlocks: blocks.cancelled
+            cancelledBlocks: blocks.cancelled, childrenAway: input.childrenAway, setAsideLessons: setAside
         )
     }
 
@@ -105,8 +132,7 @@ nonisolated enum ScheduleDayResolver {
             lanesByID = Dictionary(lanes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
             personIDs = Set(lanes.filter { $0.kind == .person }.map(\.id))
             roomIDs = Set(lanes.filter { $0.kind == .room }.map(\.id))
-            let adolescentRooms = Set(lanes.filter(ScheduleDayResolver.isAdolescentRoom).map(\.id))
-            turnRoomIDs = adolescentRooms.isEmpty ? roomIDs : adolescentRooms
+            turnRoomIDs = ScheduleDayResolver.turnRoomIDs(in: lanes)
             self.levels = Dictionary(
                 levels.map { ($0.key.uppercased(), $0.value) }, uniquingKeysWith: { first, _ in first }
             )
@@ -215,12 +241,12 @@ nonisolated enum ScheduleDayResolver {
     private static func place(
         _ lessons: [ScheduleLessonSnapshot],
         guideLane: TimetableLaneSnapshot,
-        guideIsOut: Bool,
         blocks: inout [ScheduleDay.Block],
         context: DayContext
     ) -> LessonPlacement {
-        // The guide's turns in the adolescent room, unless he's out.
-        let turns = guideIsOut ? [] : blocks.indices.filter {
+        // The guide's turns in the adolescent room (he isn't out: his lessons
+        // are set aside then).
+        let turns = blocks.indices.filter {
             blocks[$0].teacherLaneID == guideLane.id && context.turnRoomIDs.contains(blocks[$0].laneID)
         }
         var placement = LessonPlacement()
@@ -237,12 +263,13 @@ nonisolated enum ScheduleDayResolver {
                 placement.all.append(lesson)
                 continue
             }
-            if onlyAdolescents, halfTurns.isEmpty, !guideIsOut {
+            if onlyAdolescents, halfTurns.isEmpty {
                 lesson.note = noTurnNote(snapshot.half)
                 placement.warnings.append(.adolescentLessonWithoutTurn(
                     lessonID: snapshot.id, lessonTitle: snapshot.title, half: snapshot.half
                 ))
-            } else if !onlyAdolescents, let minute = snapshot.minute, let turn = containing {
+            } else if !onlyAdolescents, let minute = snapshot.minute,
+                      let turn = turns.first(where: { blocks[$0].values.overlaps(lessonStart: minute) }) {
                 placement.warnings.append(.lessonDuringTurn(
                     lessonID: snapshot.id, lessonTitle: snapshot.title, minute: minute,
                     turnID: blocks[turn].id, turnValues: blocks[turn].values
@@ -298,6 +325,107 @@ nonisolated enum ScheduleDayResolver {
         return warnings
     }
 
+    /// Two timed lessons of the guide's less than `LessonLength.assumedMinutes`
+    /// apart: one warning per pair, earlier first (decision 5 of plan
+    /// "Domain logic fixes").
+    private static func lessonOverlapWarnings(_ lessons: [ScheduleDay.Lesson]) -> [ScheduleDay.Warning] {
+        let timed = lessons.compactMap { lesson in
+            lesson.snapshot.minute.map {
+                ScheduleDay.LessonMention(id: lesson.id, title: lesson.snapshot.title, minute: $0)
+            }
+        }.sorted { lhs, rhs in
+            lhs.minute != rhs.minute ? lhs.minute < rhs.minute : lhs.id.uuidString < rhs.id.uuidString
+        }
+        var warnings: [ScheduleDay.Warning] = []
+        for (index, first) in timed.enumerated() {
+            for second in timed[(index + 1)...] {
+                guard second.minute - first.minute < LessonLength.assumedMinutes else { break }
+                warnings.append(.lessonsOverlap(first: first, second: second))
+            }
+        }
+        return warnings
+    }
+
+    /// A child in two people's blocks that overlap, and a person with two
+    /// blocks or turns at once (a turn they're out for doesn't count).
+    private static func blockOverlapWarnings(
+        _ blocks: [ScheduleDay.Block], context: DayContext
+    ) -> [ScheduleDay.Warning] {
+        var warnings: [ScheduleDay.Warning] = []
+        let personBlocks = blocks.filter { context.personIDs.contains($0.laneID) && $0.values.lengthMinutes > 0 }
+        for (index, first) in personBlocks.enumerated() {
+            for second in personBlocks[(index + 1)...] where overlap(first.values, second.values) {
+                let shared = Set(first.values.studentIDs.map { $0.uppercased() })
+                var seen = Set<String>()
+                for child in second.values.studentIDs where shared.contains(child.uppercased())
+                    && seen.insert(child.uppercased()).inserted {
+                    warnings.append(.childInTwoBlocks(
+                        studentID: child, first: mention(first, in: context), second: mention(second, in: context)
+                    ))
+                }
+            }
+        }
+        for personID in context.personIDs {
+            guard let person = context.lanesByID[personID] else { continue }
+            let own = blocks.filter { block in
+                guard block.values.lengthMinutes > 0 else { return false }
+                if block.laneID == personID { return true }
+                return block.teacherLaneID == personID && !block.teacherIsOut && context.roomIDs.contains(block.laneID)
+            }
+            for (index, first) in own.enumerated() {
+                for second in own[(index + 1)...] where overlap(first.values, second.values) {
+                    warnings.append(.personInTwoBlocks(
+                        laneID: personID, personName: person.name,
+                        first: mention(first, in: context, ownLane: personID),
+                        second: mention(second, in: context, ownLane: personID)
+                    ))
+                }
+            }
+        }
+        return warnings
+    }
+
+    /// A child absent, or leaving early, who is in one of the guide's
+    /// lessons: one warning per child, about the first such lesson in his
+    /// order. A timed lesson clashes when she's gone before it ends; an
+    /// untimed one, when she's gone for some of its half.
+    private static func childAwayWarnings(
+        _ away: [ScheduleChildAway], lessons: [ScheduleDay.Lesson]
+    ) -> [ScheduleDay.Warning] {
+        guard !away.isEmpty, !lessons.isEmpty else { return [] }
+        var warnings: [ScheduleDay.Warning] = []
+        var seen = Set<String>()
+        for child in away where seen.insert(child.studentID).inserted {
+            let clashing = lessons.first { lesson in
+                guard lesson.snapshot.studentIDs.contains(where: { $0.uppercased() == child.studentID }) else {
+                    return false
+                }
+                if let minute = lesson.snapshot.minute { return child.isAway(duringLessonAt: minute) }
+                return child.isAway(in: lesson.snapshot.half)
+            }
+            guard let lesson = clashing else { continue }
+            warnings.append(.childAwayFromClass(
+                studentID: child.studentID, fromMinute: child.fromMinute, lessonID: lesson.id,
+                half: lesson.snapshot.half, lessonMinute: lesson.snapshot.minute
+            ))
+        }
+        return warnings
+    }
+
+    /// Whether two blocks share any time (an end that meets a start doesn't).
+    private static func overlap(_ lhs: TimetableBlockValues, _ rhs: TimetableBlockValues) -> Bool {
+        lhs.startMinute < rhs.endMinute && rhs.startMinute < lhs.endMinute
+    }
+
+    /// A block named in a warning, by its lane; a person's own block in a
+    /// warning about that person goes by its title alone.
+    private static func mention(
+        _ block: ScheduleDay.Block, in context: DayContext, ownLane: UUID? = nil
+    ) -> ScheduleDay.BlockMention {
+        let laneName = block.laneID == ownLane ? "" : (context.lanesByID[block.laneID]?.name ?? "")
+        return ScheduleDay.BlockMention(blockID: block.id, laneName: laneName, values: block.values)
+    }
+
     // MARK: - Orders
 
     private static func laneOrder(_ lhs: TimetableLaneSnapshot, _ rhs: TimetableLaneSnapshot) -> Bool {
@@ -347,6 +475,8 @@ extension ScheduleDayResolver {
         var studentLevels: [String: CDStudent.Level]
         /// False on a day the school calendar has no school.
         var isSchoolDay: Bool
+        /// The children away from class that day, from attendance.
+        var childrenAway: [ScheduleChildAway]
         var calendar: Calendar
 
         init(
@@ -357,6 +487,7 @@ extension ScheduleDayResolver {
             lessons: [ScheduleLessonSnapshot] = [],
             studentLevels: [String: CDStudent.Level] = [:],
             isSchoolDay: Bool = true,
+            childrenAway: [ScheduleChildAway] = [],
             calendar: Calendar = AppCalendar.shared
         ) {
             self.day = day
@@ -366,6 +497,7 @@ extension ScheduleDayResolver {
             self.lessons = lessons
             self.studentLevels = studentLevels
             self.isSchoolDay = isSchoolDay
+            self.childrenAway = childrenAway
             self.calendar = calendar
         }
     }

@@ -121,6 +121,11 @@ extension TimetableService {
     ///   that leaves the weekly values as they were changes `day` alone.
     /// - Every week edits the block itself, and `day`'s own change with it.
     ///
+    /// Every week and This Day and After also reach the later days' own
+    /// changes, field by field: a field a later change still has at the
+    /// block's old value takes the edit, and one it set itself stays
+    /// (`carry`, plan "Domain logic fixes", R15). Only This Day leaves them.
+    ///
     /// A one-off is edited in place whatever the scope.
     @discardableResult
     static func edit(
@@ -139,9 +144,11 @@ extension TimetableService {
         }
         let own = changedValues(of: block, on: day, in: context, calendar: calendar)
         let dayValues = edit.applied(to: own ?? block.values)
-        let weekly = edit.applied(to: block.values)
+        let old = block.values
+        let weekly = edit.applied(to: old)
         switch scope {
         case .everyWeek:
+            carry(old, to: weekly, intoChangesOf: block, after: day, in: context, now: now, calendar: calendar)
             touch(block, with: weekly, now: now)
             if own != nil {
                 setDayValues(dayValues, for: block, on: day, in: context, now: now, calendar: calendar)
@@ -157,6 +164,7 @@ extension TimetableService {
                 setDayValues(dayValues, for: block, on: day, in: context, now: now, calendar: calendar)
                 return block
             }
+            carry(old, to: weekly, intoChangesOf: block, after: day, in: context, now: now, calendar: calendar)
             // The day keeps what it showed with the edit, unless that is every week's now.
             if dayValues == weekly {
                 undoChanges(to: block, on: day, in: context, calendar: calendar)
@@ -297,13 +305,66 @@ extension TimetableService {
         return block
     }
 
-    private static func touch(_ block: CDTimetableBlock, with values: TimetableBlockValues, now: Date) {
+    static func touch(_ block: CDTimetableBlock, with values: TimetableBlockValues, now: Date) {
         if block.apply(values) { block.modifiedAt = now }
+    }
+
+    /// An edit of `block` from `old` to `new` reaching the days after `day`
+    /// that have a "changed" change of their own: each field the day's
+    /// change still has at `old`'s value takes `new`'s, and a field it set
+    /// itself stays (the teacher is one field, lane and name together; the
+    /// children compare as a set). Worked out from the day's newest change,
+    /// as readers take it, and written to every copy, as `upsertChange`
+    /// does; a day that ends up showing `new` loses its change. A day whose
+    /// newest change is a cancel stays cancelled.
+    static func carry( // swiftlint:disable:this function_parameter_count
+        _ old: TimetableBlockValues,
+        to new: TimetableBlockValues,
+        intoChangesOf block: CDTimetableBlock,
+        after day: Date,
+        in context: NSManagedObjectContext,
+        now: Date,
+        calendar: Calendar
+    ) {
+        guard old != new else { return }
+        let later = changes(of: block, from: dayAfter(day, calendar: calendar), in: context, calendar: calendar)
+        let byDay = Dictionary(grouping: later.filter { $0.day != nil }) { calendar.startOfDay(for: $0.day ?? day) }
+        for copies in byDay.values {
+            guard let newest = newestChange(of: copies), newest.kind == .changed else { continue }
+            let values = carried(newest.values, from: old, to: new)
+            if values == new {
+                for change in copies { context.delete(change) }
+                continue
+            }
+            for change in copies where change.kind != .changed || change.values != values {
+                change.kind = .changed
+                change.values = values
+                change.modifiedAt = now
+            }
+        }
+    }
+
+    /// `values` with each field still at `old`'s value set to `new`'s (see `carry`).
+    nonisolated static func carried(
+        _ values: TimetableBlockValues, from old: TimetableBlockValues, to new: TimetableBlockValues
+    ) -> TimetableBlockValues {
+        var result = values
+        if values.startMinute == old.startMinute { result.startMinute = new.startMinute }
+        if values.lengthMinutes == old.lengthMinutes { result.lengthMinutes = new.lengthMinutes }
+        if values.title == old.title { result.title = new.title }
+        if values.note == old.note { result.note = new.note }
+        if values.teacherLaneID == old.teacherLaneID, values.teacherName == old.teacherName {
+            result.teacherLaneID = new.teacherLaneID
+            result.teacherName = new.teacherName
+        }
+        let children = { (ids: [String]) in Set(ids.map { $0.uppercased() }) }
+        if children(values.studentIDs) == children(old.studentIDs) { result.studentIDs = new.studentIDs }
+        return result
     }
 
     /// This Day and After: see `edit`, which has already set the day's own
     /// change, so it moves to the copy with the later days'.
-    private static func split( // swiftlint:disable:this function_parameter_count
+    static func split( // swiftlint:disable:this function_parameter_count
         _ block: CDTimetableBlock,
         from day: Date,
         values: TimetableBlockValues,

@@ -249,13 +249,21 @@ nonisolated extension RestockService {
     /// (`takeRequest`), so the order is still followed. If none had, the one
     /// kept takes the largest quantity and every note (`takeWhatWasChosen`).
     ///
-    /// It also mends one way a staple's level and its need fall out of step
-    /// across devices (one checks the need off as another marks the staple
-    /// Out): a Low or Out staple with no open need gets one, once its level
-    /// has stood `settledAfter`. The need is stamped as added by whoever set
-    /// the level, and writes no history (setting the level wrote that). The
-    /// other way round, a Stocked staple with an open need, is left alone:
-    /// another device's half-arrived import could make closing it wrong.
+    /// It also mends the two ways a staple's level and its need fall out of
+    /// step across devices, once things have settled (`settledAfter`):
+    /// - A Low or Out staple with no open need gets one (one device checked
+    ///   the need off as another marked the staple Out). The need is stamped
+    ///   as added by whoever set the level, and writes no history (setting
+    ///   the level wrote that).
+    /// - A Stocked staple with an open need: the later of the two wins (plan
+    ///   "Domain logic fixes", A2). A need added after the staple was
+    ///   stocked makes it Low, stamped as set by the need's adder when she
+    ///   added it, with no history (adding the need was the change); a
+    ///   staple stocked after its need was added closes the need, as
+    ///   restocking does. Waiting until both have stood `settledAfter` keeps
+    ///   another device's half-arrived import from deciding it; a level with
+    ///   no date (an older build) is left alone, as which came later can't
+    ///   be told.
     ///
     /// Run it after remote-change imports and when the page appears, never in
     /// a loop: a second run finds nothing. Returns how many needs it deleted
@@ -287,7 +295,41 @@ nonisolated extension RestockService {
                 removed += 1
             }
         }
-        return removed + openMissingNeeds(besides: Set(byStaple.keys), store: store, now: now, in: context)
+        let settled = settleStockedNeeds(store: store, now: now, in: context)
+        return removed + settled + openMissingNeeds(besides: Set(byStaple.keys), store: store, now: now, in: context)
+    }
+
+    /// A Stocked staple with an open need, both settled: the later wins (see
+    /// `reconcile`). Returns how many staples it mended.
+    private static func settleStockedNeeds(
+        store: NSPersistentStore?, now: Date, in context: NSManagedObjectContext
+    ) -> Int {
+        let cutoff = now.addingTimeInterval(-settledAfter)
+        let request = CDFetchRequest(CDSupply.self)
+        request.predicate = NSPredicate(
+            format: "levelRaw == %@ AND levelChangedAt != nil AND levelChangedAt <= %@",
+            RestockLevel.stocked.rawValue, cutoff as NSDate
+        )
+        if let store { request.affectedStores = [store] }
+        var mended = 0
+        for supply in context.safeFetch(request) {
+            let open = openNeeds(for: supply, in: context, store: store).filter { !$0.isDeleted }
+            guard let levelAt = supply.levelChangedAt,
+                  let newest = open.filter({ $0.createdAt != nil }).max(by: isOlder),
+                  let needAt = newest.createdAt, needAt <= cutoff
+            else { continue }
+            if needAt > levelAt {
+                supply.level = .low
+                supply.levelChangedAt = needAt
+                supply.levelChangedByID = newest.addedByID
+                supply.levelChangedByName = newest.addedByName
+                supply.modifiedAt = now
+            } else {
+                close(open, at: now, in: context)
+            }
+            mended += 1
+        }
+        return mended
     }
 
     /// The kept need becomes the copy the office was asked for: what was

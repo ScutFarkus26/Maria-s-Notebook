@@ -5,6 +5,33 @@
 
 import Foundation
 
+/// A child away from class for all or part of a day, from attendance: absent
+/// (`fromMinute` nil), or leaving early at `fromMinute` (minutes after
+/// midnight), planned (`leavesAt`) or already gone (Left Early).
+nonisolated struct ScheduleChildAway: Sendable, Equatable {
+    /// Upper-cased.
+    let studentID: String
+    let fromMinute: Int?
+
+    init(studentID: String, fromMinute: Int?) {
+        self.studentID = studentID.uppercased()
+        self.fromMinute = fromMinute
+    }
+
+    /// Whether she is away during a lesson starting at `lessonStart` and
+    /// lasting `LessonLength.assumedMinutes`.
+    func isAway(duringLessonAt lessonStart: Int) -> Bool {
+        guard let fromMinute else { return true }
+        return lessonStart + LessonLength.assumedMinutes > fromMinute
+    }
+
+    /// Whether she is away for some of `half`: she leaves in it or before.
+    func isAway(in half: ScheduleDayHalf) -> Bool {
+        guard let fromMinute else { return true }
+        return half == .afternoon || fromMinute < ScheduleDayHalf.noon
+    }
+}
+
 /// One day of the Schedules lanes, as `ScheduleDayResolver` worked it out.
 nonisolated struct ScheduleDay: Sendable, Equatable {
 
@@ -144,17 +171,38 @@ nonisolated struct ScheduleDay: Sendable, Equatable {
         )
         /// An adolescents-only lesson with no turn in the adolescent room that half.
         case adolescentLessonWithoutTurn(lessonID: UUID, lessonTitle: String?, half: ScheduleDayHalf)
-        /// A set-time lesson, not adolescents-only, during the guide's turn.
+        /// A set-time lesson, not adolescents-only, that overlaps the guide's
+        /// turn (`TimetableBlockValues.overlaps`).
         case lessonDuringTurn(
             lessonID: UUID, lessonTitle: String?, minute: Int, turnID: UUID, turnValues: TimetableBlockValues
         )
+        /// The guide is out (Out Today) with lessons planned: they're set
+        /// aside, and this one warning stands for them all.
+        case guideOut(lessonCount: Int)
+        /// Two of the guide's lessons with set times less than
+        /// `LessonLength.assumedMinutes` apart: he can give only one.
+        case lessonsOverlap(first: LessonMention, second: LessonMention)
+        /// A child in two people's blocks that overlap.
+        case childInTwoBlocks(studentID: String, first: BlockMention, second: BlockMention)
+        /// A person with two blocks or turns at once.
+        case personInTwoBlocks(laneID: UUID, personName: String, first: BlockMention, second: BlockMention)
+        /// A child in one of the guide's lessons is absent (`fromMinute` nil)
+        /// or leaves early: during it, for a lesson with a set time; in that
+        /// half or before it, for one without.
+        case childAwayFromClass(
+            studentID: String, fromMinute: Int?, lessonID: UUID, half: ScheduleDayHalf, lessonMinute: Int?
+        )
 
-        /// The lesson it's about, for a tap that scrolls to it.
-        var lessonID: UUID {
+        /// The lesson it's about, for a tap that scrolls to it; nil when it
+        /// is about no one lesson.
+        var lessonID: UUID? {
             switch self {
             case .childWithPerson(_, _, _, _, _, let id, _, _): id
             case .adolescentLessonWithoutTurn(let id, _, _): id
             case .lessonDuringTurn(let id, _, _, _, _): id
+            case .lessonsOverlap(let first, _): first.id
+            case .childAwayFromClass(_, _, let id, _, _): id
+            case .guideOut, .childInTwoBlocks, .personInTwoBlocks: nil
             }
         }
 
@@ -175,6 +223,21 @@ nonisolated struct ScheduleDay: Sendable, Equatable {
                 let lesson = title ?? "A lesson"
                 return "\(lesson) at \(TimetableDay.clockText(minute)) is during your turn in the adolescent room "
                     + "(\(TimetableDay.rangeText(values)))."
+            case let .guideOut(count):
+                return count == 1 ? "You're out; 1 lesson is planned." : "You're out; \(count) lessons are planned."
+            case let .lessonsOverlap(first, second):
+                return "\(first.title ?? "A lesson") at \(TimetableDay.clockText(first.minute)) and "
+                    + "\(second.title ?? "another lesson") at \(TimetableDay.clockText(second.minute)) overlap."
+            case let .childInTwoBlocks(studentID, first, second):
+                let child = name(studentID) ?? "A child"
+                return "\(child) is in two groups at once: \(first.text) and \(second.text)."
+            case let .personInTwoBlocks(_, personName, first, second):
+                return "\(personName) has two things at once: \(first.text) and \(second.text)."
+            case let .childAwayFromClass(studentID, fromMinute, _, half, lessonMinute):
+                let child = name(studentID) ?? "A child"
+                let away = fromMinute.map { "leaves at \(TimetableDay.clockText($0))" } ?? "is absent"
+                guard let lessonMinute else { return "\(child) \(away), and is in a lesson planned \(half.thisHalf)." }
+                return "\(child) \(away), and is in your \(TimetableDay.clockText(lessonMinute)) lesson."
             }
         }
 
@@ -183,6 +246,12 @@ nonisolated struct ScheduleDay: Sendable, Equatable {
             case let .childWithPerson(_, _, _, _, values, _, _, _): values.startMinute
             case let .adolescentLessonWithoutTurn(_, _, half): half.listMinute
             case let .lessonDuringTurn(_, _, minute, _, _): minute
+            case .guideOut: -1
+            case let .lessonsOverlap(first, _): first.minute
+            case let .childInTwoBlocks(_, _, second), let .personInTwoBlocks(_, _, _, second):
+                second.values.startMinute
+            case let .childAwayFromClass(_, fromMinute, _, half, lessonMinute):
+                lessonMinute ?? fromMinute ?? half.listMinute
             }
         }
 
@@ -191,7 +260,38 @@ nonisolated struct ScheduleDay: Sendable, Equatable {
             case let .childWithPerson(studentID, _, _, blockID, _, _, _, _): "0\(blockID.uuidString)\(studentID)"
             case let .adolescentLessonWithoutTurn(id, _, _): "1\(id.uuidString)"
             case let .lessonDuringTurn(id, _, _, _, _): "2\(id.uuidString)"
+            case .guideOut: "3"
+            case let .lessonsOverlap(first, second): "4\(first.id.uuidString)\(second.id.uuidString)"
+            case let .childInTwoBlocks(studentID, first, second):
+                "5\(first.blockID.uuidString)\(second.blockID.uuidString)\(studentID)"
+            case let .personInTwoBlocks(laneID, _, first, second):
+                "6\(laneID.uuidString)\(first.blockID.uuidString)\(second.blockID.uuidString)"
+            case let .childAwayFromClass(studentID, _, lessonID, _, _): "7\(lessonID.uuidString)\(studentID)"
             }
+        }
+    }
+
+    /// A lesson named in a warning, with its set time.
+    struct LessonMention: Sendable, Equatable {
+        let id: UUID
+        let title: String?
+        let minute: Int
+    }
+
+    /// A block named in a warning: "Morah Devora's Reading 9:15–9:45".
+    struct BlockMention: Sendable, Equatable {
+        let blockID: UUID
+        /// The lane it is in, or the room for a turn.
+        let laneName: String
+        let values: TimetableBlockValues
+
+        /// "Morah Devora's Reading 9:15–9:45", "Our class 9:15–9:45".
+        var text: String {
+            let range = TimetableDay.rangeText(values)
+            let title = values.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            let lane = laneName.trimmingCharacters(in: .whitespacesAndNewlines)
+            if title.isEmpty { return lane.isEmpty ? range : "\(lane) \(range)" }
+            return lane.isEmpty ? "\(title) \(range)" : "\(lane)'s \(title) \(range)"
         }
     }
 
@@ -209,6 +309,11 @@ nonisolated struct ScheduleDay: Sendable, Equatable {
     /// The blocks cancelled for this day only, with their every-week values,
     /// so each cancel can be taken back on its own.
     var cancelledBlocks: [Block] = []
+    /// The children away from class that day (absent, or leaving early), as
+    /// the day was worked out with them.
+    var childrenAway: [ScheduleChildAway] = []
+    /// The guide's lessons set aside because he is out (Out Today).
+    var setAsideLessons: [Lesson] = []
 
     var isChanged: Bool { changeCount > 0 }
 

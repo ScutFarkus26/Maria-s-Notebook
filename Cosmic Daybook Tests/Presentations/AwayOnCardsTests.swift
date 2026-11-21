@@ -176,7 +176,8 @@ struct AwayOnCardsTests {
         let day = [
             planned(at: at(9, 45), children: [kids.lucy], in: kids.context),
             planned(at: at(10, 45), children: [kids.ora], in: kids.context),
-            planned(at: at(11, 0), children: [kids.naomi], in: kids.context),
+            // 11:15, half an hour after 10:45: two lessons less apart overlap.
+            planned(at: at(11, 15), children: [kids.naomi], in: kids.context),
             planned(at: slot(0, .afternoon), children: [kids.lucy], in: kids.context)
         ]
         let col = column(for: day, students: kids.students, away: realMonday(kids))
@@ -198,11 +199,11 @@ struct AwayOnCardsTests {
     func badgeBothKinds() {
         let both = WeekDayColumn.dayClashes(childClashes: [:], setMinutes: [570, 570, 600], awayClashes: 2)
         #expect(both.total == 3)
-        #expect(both.spokenLabel == "2 lessons at the same time, 2 with a child away.")
-        #expect(both.plainHelp == "2 lessons at the same time, 2 with a child away. Change one of the times.")
+        #expect(both.spokenLabel == "2 lessons at overlapping times, 2 with a child away.")
+        #expect(both.plainHelp == "2 lessons at overlapping times, 2 with a child away. Change one of the times.")
 
         let sameOnly = WeekDayColumn.dayClashes(childClashes: [:], setMinutes: [570, 570])
-        #expect(sameOnly.plainHelp == "Two lessons start at the same time. Change one of the times.", "unchanged")
+        #expect(sameOnly.plainHelp == "Two lessons overlap. Change one of the times.")
 
         let withChild = WeekDayColumn.dayClashes(
             childClashes: [.morning: [UUID()]], setMinutes: [600], awayClashes: 1
@@ -226,7 +227,7 @@ struct AwayOnCardsTests {
             showFirstLine: nil
         )
         #expect(clash.contains(AwayText.chipSpoken))
-        #expect(!clash.contains("another lesson at the same time"))
+        #expect(!clash.contains("another lesson overlaps it"))
         #expect(clash.hasSuffix("a child is with another teacher then, Lucy T leaves at 9:50 for Morah Devora"))
 
         let untimed = PresentationPlannerCard.spokenLabel(

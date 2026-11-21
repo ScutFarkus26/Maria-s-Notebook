@@ -49,7 +49,10 @@ extension AwayOnCardsTests {
 
     @Test("The strip reloads on any change to lanes, groups or one-day changes, and the watch is allowed")
     func reloadSignals() {
-        #expect(WeekPlanSection.awayEntityNames == ["TimetableLane", "TimetableBlock", "TimetableChange"])
+        // Attendance (children leaving early or absent) and the roster (who
+        // is an adolescent) feed the busy picture too (plan "Domain logic fixes", R16).
+        #expect(WeekPlanSection.awayEntityNames
+            == ["TimetableLane", "TimetableBlock", "TimetableChange", "AttendanceRecord", "Student"])
         #expect(WeekPlanSection.awayEntityNames.isSubset(of: PersistentHistoryProcessor.presentationEntityNames))
         let first = WeekPlanSection.AwayKey(first: Days.monday, last: Days.friday, version: 0)
         #expect(first != WeekPlanSection.AwayKey(first: Days.monday, last: Days.friday, version: 1))

@@ -295,11 +295,15 @@ struct AssistantScheduleView: View {
             let rows = model.rows
             Section {
                 if rows.isEmpty, model.resolved != nil {
-                    Text(emptyDayText)
+                    Text(model.bookingWindowLine ?? emptyDayText)
                         .foregroundStyle(.secondary)
                 }
                 ForEach(rows) { row in
                     AssistantScheduleRowView(row: row, showsLane: model.laneFilter == nil)
+                }
+            } footer: {
+                if !rows.isEmpty, let line = model.bookingWindowLine {
+                    Text(line)
                 }
             }
         }

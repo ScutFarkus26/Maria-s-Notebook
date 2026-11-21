@@ -121,6 +121,9 @@ struct RestockNeedTests {
         let context = try makeContext()
         let towels = try staple("Paper Towels", in: context)
         let supplyID = try #require(towels.id?.uuidString)
+        // A staple with a need is Low: a Stocked one with a need would be made
+        // Low by reconcile (plan "Domain logic fixes", A2).
+        towels.level = .low
         func need(_ id: String, created: Date) -> CDOrderItem {
             let item = CDOrderItem(context: context)
             item.id = UUID(uuidString: id)
@@ -162,20 +165,21 @@ struct RestockNeedTests {
         for need in RestockService.openNeeds(for: soap, in: context) {
             context.delete(need)
         }
-        // Stocked, with a need still open: left alone.
+        // Stocked, then a need added on another device: the need is later,
+        // so the staple becomes Low (plan "Domain logic fixes", A2).
         let tissues = try staple("Tissues", in: context)
         RestockService.openNeed(for: tissues, by: guide, at: at(5), store: nil, in: context)
         #expect(CoreDataTestHelpers.save(context))
         let history = try context.count(for: CDFetchRequest(CDSupplyTransaction.self))
 
-        #expect(RestockService.reconcile(in: context, now: at(400)) == 1)
+        #expect(RestockService.reconcile(in: context, now: at(400)) == 2)
         let opened = try #require(RestockService.openNeeds(for: towels, in: context).first)
         #expect(opened.addedByID == "_ana")
         #expect(opened.addedByName == "Ana")
         #expect(opened.createdAt == at(400))
         #expect(opened.source == .office)
         #expect(RestockService.openNeeds(for: soap, in: context).isEmpty, "marked 200 s ago: not settled")
-        #expect(tissues.level == .stocked)
+        #expect(tissues.level == .low)
         #expect(RestockService.openNeeds(for: tissues, in: context).count == 1)
         #expect(try context.count(for: CDFetchRequest(CDSupplyTransaction.self)) == history)
         #expect(CoreDataTestHelpers.save(context))
@@ -311,6 +315,9 @@ extension RestockNeedTests {
         let context = try makeContext()
         let towels = try staple("Paper Towels", in: context)
         let supplyID = try #require(towels.id?.uuidString)
+        // A staple with a need is Low: a Stocked one with a need would be made
+        // Low by reconcile (plan "Domain logic fixes", A2).
+        towels.level = .low
         func need(created: Date) -> CDOrderItem {
             let item = CDOrderItem(context: context)
             item.title = "Paper Towels"
@@ -343,6 +350,9 @@ extension RestockNeedTests {
         let context = try makeContext()
         let glue = try staple("Glue Sticks", in: context)
         let supplyID = try #require(glue.id?.uuidString)
+        // A staple with a need is Low: a Stocked one with a need would be made
+        // Low by reconcile (plan "Domain logic fixes", A2).
+        glue.level = .low
         let older = CDOrderItem(context: context)
         older.title = "Glue Sticks"
         older.urlString = "https://www.example.com/glue"

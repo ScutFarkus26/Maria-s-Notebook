@@ -100,3 +100,19 @@ nonisolated extension ScheduleLessonSnapshot {
         )
     }
 }
+
+/// The days bookings are written for: today and the 13 days after it. The
+/// guide's publisher writes them for these days only, and the Daybook
+/// Assistant says so on a day outside them rather than showing it empty.
+nonisolated enum TimetableBookingWindow {
+    /// Today and the 13 days after it.
+    static let days = 14
+
+    /// Whether `day` is one bookings are written for, counted from `today`.
+    static func contains(_ day: Date, today: Date, calendar: Calendar) -> Bool {
+        let first = calendar.startOfDay(for: today)
+        let start = calendar.startOfDay(for: day)
+        guard let end = calendar.date(byAdding: .day, value: days, to: first) else { return start >= first }
+        return start >= first && start < end
+    }
+}
