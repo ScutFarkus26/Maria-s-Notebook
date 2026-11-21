@@ -153,8 +153,9 @@ struct ChecklistCellCard: View {
         HStack(spacing: 6) {
             ForEach(ChecklistLadderStep.allCases) { step in
                 let isReached = step.isReached(by: status)
+                let tap = step.action(at: status)
                 Button {
-                    onAction(step.action, cell)
+                    if let tap { onAction(tap, cell) }
                 } label: {
                     VStack(spacing: 6) {
                         ChecklistMark(status: step.status, size: 16)
@@ -172,10 +173,13 @@ struct ChecklistCellCard: View {
                     .contentShape(RoundedRectangle(cornerRadius: 8))
                 }
                 .buttonStyle(.plain)
-                .disabled(isReached)
-                .help(isReached ? "Already \(step.label.lowercased())" : "Mark \(step.label.lowercased())")
+                .disabled(tap == nil)
+                .help(tap == .unmarkMastered
+                    ? "Not mastered: take the mastery mark back"
+                    : isReached ? "Already \(step.label.lowercased())" : "Mark \(step.label.lowercased())")
                 .accessibilityLabel(step.label)
                 .accessibilityValue(isReached ? "Done" : "")
+                .accessibilityHint(tap == .unmarkMastered ? "Takes the mastery mark back" : "")
             }
         }
     }

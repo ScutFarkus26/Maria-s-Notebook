@@ -30,6 +30,9 @@ enum ChecklistCellAction: String {
     case markPracticing
     case markReviewing
     case markComplete
+    /// Not Mastered, on a mastered cell: takes back the mastery mark only
+    /// (`ChecklistCellRecords.unmarkMastered`).
+    case unmarkMastered
     case clearStatus
     /// Card buttons that open something: the present-a-lesson sheet, the new-work sheet,
     /// the lesson, the student. The grid handles these; the view model never sees them.

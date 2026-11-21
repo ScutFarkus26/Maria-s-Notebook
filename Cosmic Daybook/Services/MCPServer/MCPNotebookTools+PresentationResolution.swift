@@ -37,41 +37,39 @@ extension MCPNotebookTools {
         let conflicts: [RepeatConflict]
     }
 
-    /// Prefers a presentation already recorded for this lesson, these students
-    /// and this day (so re-filing the same account edits it rather than
-    /// duplicating it), then a plan waiting to be given, and finally a new
-    /// record — mirroring the command bar's `resolvePresentation`.
+    /// The app's one answer (`PresentationRecorder.resolvePlan`, domain logic
+    /// review 2026-11-20, R12), shared with the command bar and Siri: a
+    /// presentation of the lesson already given that day to these children (so
+    /// re-filing the same account edits it rather than duplicating it), then a
+    /// plan waiting for them (split off a larger one when it holds others too),
+    /// and finally a new record.
     static func resolveAssignment(
         for filing: PresentationFiling, in modelContext: NSManagedObjectContext
     ) -> (assignment: CDLessonAssignment, origin: PresentationOrigin) {
-        let request = CDFetchRequest(CDLessonAssignment.self)
-        request.predicate = NSPredicate(format: "lessonID == %@", filing.lessonID.uuidString)
-        let expected = Set(filing.studentIDs)
-        let candidates = modelContext.safeFetch(request).filter { Set($0.resolvedStudentIDs) == expected }
-
-        if let sameDay = candidates.first(where: { assignment in
-            guard assignment.isPresented, let recordedAt = assignment.presentedAt else { return false }
-            return AppCalendar.shared.isDate(recordedAt, inSameDayAs: filing.presentedAt)
-        }) {
-            return (sameDay, .alreadyRecorded)
+        let resolved = PresentationRecorder.resolvePlan(
+            lesson: filing.lesson, present: filing.students, on: filing.presentedAt, context: modelContext
+        )
+        let origin: PresentationOrigin = switch resolved.origin {
+        case .alreadyRecorded: .alreadyRecorded
+        case .plannedLesson: .plannedLesson
+        case .newRecord: .newRecord
         }
+        return (resolved.assignment, origin)
+    }
 
-        let planned = candidates
-            .filter { !$0.isPresented }
-            .sorted {
-                if $0.isScheduled != $1.isScheduled { return $0.isScheduled }
-                return ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast)
-            }
-            .first
-        if let planned {
-            return (planned, .plannedLesson)
+    /// Records the filing's presentation on its day. One already given that
+    /// day is an edit: it keeps its time and its children's follow-ups.
+    static func record(
+        _ resolved: ResolvedFiling, in modelContext: NSManagedObjectContext
+    ) throws -> CDLessonAssignment {
+        let origin: PresentationRecorder.PlanOrigin = switch resolved.origin {
+        case .alreadyRecorded: .alreadyRecorded
+        case .plannedLesson: .plannedLesson
+        case .newRecord: .newRecord
         }
-
-        return (
-            PresentationFactory.makeDraft(
-                lesson: filing.lesson, students: filing.students, context: modelContext
-            ),
-            .newRecord
+        return try PresentationRecorder.recordResolved(
+            PresentationRecorder.ResolvedPlan(assignment: resolved.assignment, origin: origin),
+            on: resolved.filing.presentedAt, context: modelContext
         )
     }
 

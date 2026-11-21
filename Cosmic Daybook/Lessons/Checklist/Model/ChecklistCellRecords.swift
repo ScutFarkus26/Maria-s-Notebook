@@ -6,9 +6,9 @@
 //  (its menu, card and keys) and the selection bar, so the two can't mean
 //  different things again (bug hunt 2026-10-10, #41 and #42).
 //
-//  Mastered closes the child's work on the lesson. It used to look at open
-//  work only and, finding none, made a second row and closed it, so a child
-//  whose work was already closed got a duplicate.
+//  Mastered marks every history row she has and closes her open work on the
+//  lesson as Mastered, through `MasteryMarking` (domain logic review
+//  2026-11-20, R2). Not Mastered takes back the mastery rows only.
 //
 //  Clear takes the child off the cell entirely: her plans and presentations
 //  for the lesson, her work on it (open or finished), and its history and
@@ -36,36 +36,36 @@ enum ChecklistCellRecords {
 
     // MARK: - Mastered
 
-    /// The child's work on the lesson ends closed. Her open row closes as Done;
-    /// with only closed rows, the newest stays as it is; a row is made (and
-    /// closed) only when she has none.
-    static func closeWorkForMastery(studentID: UUID, lessonID: UUID, in context: NSManagedObjectContext) {
-        if let work = cellWork(studentID: studentID, lessonID: lessonID, in: context) {
-            guard work.status.isOpen else { return }
-            do {
-                try WorkLogService.log([.init(work: work, status: .done)], context: context, saveImmediately: false)
-            } catch {
-                logger.warning("Couldn't close work for a mastery mark: \(error)")
-            }
-            return
-        }
-        do {
-            let work = try WorkRepository(context: context).createWork(
-                studentID: studentID, lessonID: lessonID, saveImmediately: false
+    /// Mastered, from the cell or the selection bar: she goes on a presentation
+    /// of the lesson first when she is on none (an undated one: the mark says
+    /// she has it, not that she was given it today, bug hunt 2026-11-03 #8) and
+    /// gets a history row when she has none. Then `MasteryMarking` marks every
+    /// row she has and closes her open work on the lesson as Mastered (domain
+    /// logic review 2026-11-20, R2). This closed it as Finished, and made a
+    /// closed row when she had no work; the mark is what the grid reads.
+    static func markMastered(student: CDStudent, lesson: CDLesson, in context: NSManagedObjectContext) {
+        guard let studentID = student.id, let lessonID = lesson.id else { return }
+        let studentKey = student.cloudKitKey
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "lessonID == %@", lessonID.uuidString)
+        let allLAs = context.safeFetch(request)
+        let given = allLAs.first { !$0.isDeleted && $0.isPresented && $0.studentIDs.contains(studentKey) }
+            ?? ChecklistBatchActionExecutor.addStudentToPresentedLesson(
+                student: student, lesson: lesson, in: allLAs, attachment: .undated, context: context
             )
-            try WorkLogService.log([.init(work: work, status: .done)], context: context, saveImmediately: false)
-        } catch {
-            logger.warning("Couldn't create work for a mastery mark: \(error)")
+        if MasteryMarking.rows(of: studentID, lessonID: lessonID, in: context).isEmpty {
+            ChecklistBatchActionExecutor.upsertLessonPresentation(
+                studentID: studentID.uuidString, lessonID: lessonID.uuidString,
+                state: .presented, from: [], givenOn: given?.presentedAt, context: context
+            )
         }
+        MasteryMarking.mark([studentID], lessonID: lessonID, in: context)
     }
 
-    /// The row a cell reads (`ClassGridEngine.cellWork`: open before
-    /// closed, then newest), from the rows she owns when she owns any, so a
-    /// linked copy that names her as a classmate is never closed in her place.
-    static func cellWork(studentID: UUID, lessonID: UUID, in context: NSManagedObjectContext) -> CDWorkModel? {
-        let rows = work(on: lessonID, involving: studentID, in: context)
-        let owned = rows.filter { WorkGrouping.owner(of: $0) == studentID }
-        return ClassGridEngine.cellWork(owned.isEmpty ? rows : owned)
+    /// Not Mastered: only her mastery rows go back to Presented. Her
+    /// presentations, her other history and her work stay as they are.
+    static func unmarkMastered(studentID: UUID, lessonID: UUID, in context: NSManagedObjectContext) {
+        MasteryMarking.unmark([studentID], lessonID: lessonID, in: context)
     }
 
     // MARK: - Clear
@@ -121,7 +121,7 @@ enum ChecklistCellRecords {
             summary.givenPresentations += presentations(of: lessonKey, naming: studentKey, in: context)
                 .filter(\.isPresented).count
             if history(of: lessonKey, for: studentKey, in: context)
-                .contains(where: { $0.masteredAt != nil || $0.state == .proficient }) {
+                .contains(where: SequenceStanding.isMasteryMark) {
                 summary.masteryMarks += 1
             }
             summary.finishedWork += work(on: cell.lessonID, involving: cell.studentID, in: context)

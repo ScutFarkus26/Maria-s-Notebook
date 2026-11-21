@@ -333,6 +333,7 @@ extension PresentationDetailContentView {
                     studentObservations: session.childNotes,
                     studentIDs: ids,
                     presentationID: presentationID,
+                    observedOn: vm.lessonAssignment.presentedAt,
                     context: viewContext
                 )
                 // The alert below says what failed, so the global one stays quiet.

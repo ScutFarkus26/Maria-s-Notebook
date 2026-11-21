@@ -81,6 +81,14 @@ enum ChecklistLadderStep: CaseIterable, Identifiable {
         Self.rank(current) >= Self.rank(status)
     }
 
+    /// What tapping the step does when the cell reads `current`: its rung when not
+    /// reached yet; on a mastered cell, the Mastered step takes the mark back (Not
+    /// Mastered); nil for any other rung already reached.
+    func action(at current: ChecklistDisplayStatus) -> ChecklistCellAction? {
+        guard isReached(by: current) else { return action }
+        return self == .mastered && current == .mastered ? .unmarkMastered : nil
+    }
+
     private static func rank(_ status: ChecklistDisplayStatus) -> Int {
         ChecklistDisplayStatus.allCases.firstIndex(of: status) ?? 0
     }

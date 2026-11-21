@@ -96,6 +96,12 @@ nonisolated extension CDLessonAssignment {
 
     /// CDStudent IDs as string array. Uses JSON encoding via CloudKitStringArrayStorage.
     /// The decode is memoised per object (see `studentIDsMemo`).
+    ///
+    /// Setting it keeps the confirmations to children still on the presentation
+    /// (domain logic review 2026-11-20, R24): the detail sheet's Save and the
+    /// Checklist's removal took a child off without them, so taken off and added
+    /// back she read as confirmed and ready for the next lesson. Ids compare
+    /// trimmed and upper-cased; a confirmation kept keeps its own spelling.
     var studentIDs: [String] {
         get {
             let data = _studentIDsData
@@ -104,7 +110,18 @@ nonisolated extension CDLessonAssignment {
             studentIDsMemo = DecodedStringArrayMemo(data: data, ids: ids)
             return ids
         }
-        set { _studentIDsData = CloudKitStringArrayStorage.encode(newValue) }
+        set {
+            _studentIDsData = CloudKitStringArrayStorage.encode(newValue)
+            let confirmed = confirmedStudentIDs
+            guard !confirmed.isEmpty else { return }
+            let onIt = Set(newValue.map(Self.studentKey))
+            let kept = confirmed.filter { onIt.contains(Self.studentKey($0)) }
+            if kept.count != confirmed.count { confirmedStudentIDs = kept }
+        }
+    }
+
+    private static func studentKey(_ id: String) -> String {
+        id.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
     }
 
     /// Student IDs that the teacher has confirmed as proficient for this lesson.

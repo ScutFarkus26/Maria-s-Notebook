@@ -200,27 +200,7 @@ enum ChecklistBatchActionExecutor {
         prefetchedLPs: [CDLessonPresentation],
         context: NSManagedObjectContext
     ) {
-        let studentIDString = student.cloudKitKey
-        let lessonIDString = lesson.id?.uuidString ?? ""
-
-        let laRequest = CDFetchRequest(CDLessonAssignment.self)
-        laRequest.predicate = NSPredicate(format: "lessonID == %@", lessonIDString as CVarArg)
-        let allLAs = context.safeFetch(laRequest)
-        // With no presentation on record, an undated one, as the cell's Mastered attaches:
-        // the mark says she has it, not that she was given it today (bug hunt 2026-11-03 #8).
-        let given = allLAs.first { !$0.isDeleted && $0.isPresented && $0.studentIDs.contains(studentIDString) }
-            ?? addStudentToPresentedLesson(
-                student: student, lesson: lesson,
-                in: allLAs, attachment: .undated, context: context
-            )
-
-        if let studentID = student.id, let lessonID = lesson.id {
-            ChecklistCellRecords.closeWorkForMastery(studentID: studentID, lessonID: lessonID, in: context)
-        }
-
-        upsertLessonPresentation(
-            studentID: studentIDString, lessonID: lessonIDString,
-            state: .proficient, from: prefetchedLPs, givenOn: given?.presentedAt, context: context
-        )
+        // The cell's own Mastered, so the two leave the same rows and work (R2).
+        ChecklistCellRecords.markMastered(student: student, lesson: lesson, in: context)
     }
 }

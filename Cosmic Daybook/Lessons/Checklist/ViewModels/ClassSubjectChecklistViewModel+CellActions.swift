@@ -68,6 +68,8 @@ extension ClassAreaChecklistViewModel {
         case .markReviewing:
             return { self.markWorkNoRecompute(.review, student: $0, lesson: $1, context: $2) }
         case .markComplete: return { self.markCompleteNoRecompute(student: $0, lesson: $1, context: $2) }
+        case .unmarkMastered:
+            return { self.unmarkMasteredNoRecompute(student: $0, lesson: $1, context: $2) }
         case .clearStatus: return { self.clearStatusNoRecompute(student: $0, lesson: $1, context: $2) }
         default: return nil
         }
@@ -173,28 +175,16 @@ extension ClassAreaChecklistViewModel {
         }
     }
 
+    /// Mastered: on an undated presentation first if she is on none, then every row
+    /// she has marked and her open work closed as Mastered (`ChecklistCellRecords`).
     func markCompleteNoRecompute(student: CDStudent, lesson: CDLesson, context: NSManagedObjectContext) {
+        ChecklistCellRecords.markMastered(student: student, lesson: lesson, in: context)
+    }
+
+    /// Not Mastered: only her mastery rows go back to Presented.
+    func unmarkMasteredNoRecompute(student: CDStudent, lesson: CDLesson, context: NSManagedObjectContext) {
         guard let studentUUID = student.id, let lessonUUID = lesson.id else { return }
-        let studentIDString = studentUUID.uuidString
-        let lessonIDString = lessonUUID.uuidString
-
-        let request = CDFetchRequest(CDLessonAssignment.self)
-        request.predicate = NSPredicate(format: "lessonID == %@", lessonIDString)
-        let allLAs = context.safeFetch(request)
-        // With no presentation on record, an undated one: the mark says she has the
-        // lesson, not that she was given it today (bug hunt 2026-11-03 #8).
-        let given = findGivenLessonContaining(student: studentIDString, in: allLAs)
-            ?? addStudentToUndatedLesson(
-                student: student, studentIDString: studentIDString,
-                lesson: lesson, in: allLAs, context: context
-            )
-
-        ChecklistCellRecords.closeWorkForMastery(studentID: studentUUID, lessonID: lessonUUID, in: context)
-
-        upsertLessonPresentation(
-            studentID: studentIDString, lessonID: lessonIDString,
-            state: .proficient, givenOn: given?.presentedAt, context: context
-        )
+        ChecklistCellRecords.unmarkMastered(studentID: studentUUID, lessonID: lessonUUID, in: context)
     }
 
     func togglePresented(student: CDStudent, lesson: CDLesson, context: NSManagedObjectContext) {

@@ -3,9 +3,8 @@
 //
 // Every write goes through the service the rest of the app uses for it:
 // observations through PresentationOutcomePersistenceService, the per-child
-// decisions through CaptureFollowUpPersistence (the command bar's and MCP
-// record_presentation's path), the follow-up rows through
-// PresentationFollowUpService, check-ins through WorkCheckInService, the
+// decisions and their follow-up rows through CaptureFollowUpPersistence (the
+// command bar's and MCP record_presentation's path), check-ins through WorkCheckInService, the
 // next lesson through PlanNextLessonService, and untouched work a changed
 // decision leaves behind through WorkDeletionService. All of it lands or none
 // of it does.
@@ -142,19 +141,20 @@ enum PresentationSessionCommit {
             studentObservations: input.childNotes,
             studentIDs: input.studentIDs,
             presentationID: presentationID,
+            // Dated the day it was given, not the day the notes were written (R10).
+            observedOn: input.assignment.presentedAt,
             context: context
         )
         receipt.noteCount = notes.count
 
+        // The changed decisions, and their follow-up rows, the one way Claude
+        // and the command bar write them too (R6). Keep watching flags only a
+        // note that exists; with none, the open follow-up row is the reminder.
         let entries = input.studentIDs.compactMap { id -> CaptureFollowUpPersistence.Entry? in
             guard let decision = input.decisions[id] else { return nil }
-            let note = input.childNotes[id]?.trimmed() ?? ""
-            // Keep watching only flags a note that exists; with none, the open
-            // follow-up row is the reminder.
-            let followUp: CaptureFollowUp = decision == .continueObserving && note.isEmpty ? .none : decision
             return CaptureFollowUpPersistence.Entry(
-                studentID: id, observation: note, followUp: followUp,
-                followUpDetail: followUp == .followUpWork ? input.followUpDetail : ""
+                studentID: id, observation: input.childNotes[id]?.trimmed() ?? "", followUp: decision,
+                followUpDetail: decision == .followUpWork ? input.followUpDetail : ""
             )
         }
         receipt.workCount = try CaptureFollowUpPersistence.persist(
@@ -166,7 +166,9 @@ enum PresentationSessionCommit {
                 lessonName: input.lesson.name,
                 presentationID: presentationID,
                 context: context
-            )
+            ),
+            reviewAt: input.checkIn.day,
+            now: now
         )
 
         // Ready alongside work: confirmed as Ready for next confirms her; her
@@ -188,9 +190,10 @@ enum PresentationSessionCommit {
         return receipt
     }
 
-    /// The guide's own follow-up, per child: work to check stays open with
-    /// its date, a re-presentation or a next lesson closes it, and keep
-    /// watching leaves it open.
+    /// What `CaptureFollowUpPersistence` leaves to the sheet: an unchanged
+    /// work-giving decision still takes the new check-in date, and a changed
+    /// "no decision" goes back to watching, as the sheet has always read it
+    /// (Claude's and the command bar's "none" leave the row alone).
     private static func updateFollowUpRows(
         _ input: Input,
         presentationID: UUID,
@@ -201,39 +204,10 @@ enum PresentationSessionCommit {
         for row in rows {
             guard let studentID = UUID(uuidString: row.studentID),
                   let decision = input.allDecisions[studentID] else { continue }
-            apply(
-                decision,
-                changed: input.decisions[studentID] != nil,
-                to: row,
-                reviewAt: input.checkIn.day,
-                now: now
-            )
-        }
-    }
-
-    private static func apply(
-        _ decision: CaptureFollowUp,
-        changed: Bool,
-        to row: CDLessonPresentation,
-        reviewAt: Date?,
-        now: Date
-    ) {
-        // An unchanged work-giving decision still takes a new check-in date.
-        guard changed || (decision.createsWork && row.hasOpenFollowUp) else { return }
-        if row.followUpActionRaw == nil {
-            PresentationFollowUpService.beginFollowing(row, at: now)
-        }
-        switch decision {
-        case .practice, .followUpWork:
-            PresentationFollowUpService.reopen(row, at: now)
-            PresentationFollowUpService.setAction(.checkWork, for: [row], reviewAt: reviewAt, now: now)
-        case .represent:
-            PresentationFollowUpService.resolve(.supportOrRepresent, row: row, at: now)
-        case .readyForNextLesson:
-            PresentationFollowUpService.resolve(.readyForNextPresentation, row: row, at: now)
-        case .continueObserving, .none:
-            PresentationFollowUpService.reopen(row, at: now)
-            PresentationFollowUpService.setAction(.watchWork, for: [row], now: now)
+            let changed = input.decisions[studentID] != nil
+            let redate = !changed && decision.createsWork && row.hasOpenFollowUp
+            guard redate || (changed && decision == .none) else { continue }
+            CaptureFollowUpPersistence.writeFollowUpRow(decision, to: row, reviewAt: input.checkIn.day, now: now)
         }
     }
 

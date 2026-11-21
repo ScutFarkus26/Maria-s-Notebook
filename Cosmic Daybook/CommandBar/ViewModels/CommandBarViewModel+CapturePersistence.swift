@@ -143,10 +143,10 @@ extension CommandBarViewModel {
             studentObservations: observations,
             studentIDs: proposal.studentIDs,
             presentationID: presentationID,
+            // The notes are about the day the lesson was given.
+            observedOn: presentedAt,
             context: context
         )
-        // The notes are about the day the lesson was given.
-        notes.forEach { $0.createdAt = presentedAt }
         let persistence = CapturePersistenceContext(
             lessonID: lessonID,
             lessonName: lesson.name,
@@ -167,26 +167,20 @@ extension CommandBarViewModel {
         )
     }
 
+    /// The presentation this capture lands on, by the app's one rule
+    /// (`PresentationRecorder.resolvePlan`, R12): saving the same capture twice
+    /// edits the presentation already given that day rather than making a
+    /// second one, and a plan holding these children and others is split.
     private func resolvePresentation(
         _ request: CapturePresentationRequest
     ) throws -> CDLessonAssignment {
-        guard let lessonID = request.lesson.id else {
+        guard request.lesson.id != nil else {
             throw CaptureSaveError.lessonMissing
         }
-        let assignment = try reusableAssignment(
-            lessonID: lessonID,
-            studentIDs: request.studentIDs,
-            context: request.context
-        ) ?? PresentationFactory.makeDraft(
-            lesson: request.lesson,
-            students: request.students,
-            context: request.context
+        let resolved = PresentationRecorder.resolvePlan(
+            lesson: request.lesson, present: request.students, on: request.presentedAt, context: request.context
         )
-        return try LifecycleService.recordPresentation(
-            from: assignment,
-            presentedAt: request.presentedAt,
-            modelContext: request.context
-        )
+        return try PresentationRecorder.recordResolved(resolved, on: request.presentedAt, context: request.context)
     }
 
     private func persistFollowUps(

@@ -152,6 +152,12 @@ extension WorkDetailView {
                 }
                 .popoverTip(WorkLifecycleTip(), arrowEdge: .top)
 
+                if masteryMarkOffered {
+                    Toggle("Also mark \(lessonTitle()) mastered", isOn: $viewModel.alsoMarksLessonMastered)
+                        .font(AppTheme.ScaledFont.body)
+                        .help("Marks the lesson mastered for \(studentName()) when you save")
+                }
+
                 // Saved with the status on Save — "Keep Practicing, needs the
                 // trinomial cube again" is one gesture, not two sections.
                 TextField("Add a note with this status…", text: $viewModel.completionNote)
@@ -244,8 +250,27 @@ extension WorkDetailView {
     // MARK: - Action Methods
 
     func save() {
+        let marksLesson = masteryMarkOffered && viewModel.alsoMarksLessonMastered
         guard viewModel.save(modelContext: modelContext, saveCoordinator: saveCoordinator) else { return }
+        if marksLesson, let studentID = viewModel.resolvedStudentID, let lessonID = viewModel.resolvedLessonID {
+            MasteryMarking.mark([studentID], lessonID: lessonID, in: modelContext)
+            saveCoordinator.save(modelContext, reason: "Marking the lesson mastered")
+        }
         close()
+    }
+
+    /// Closing the work as Mastered offers the lesson's mastery mark, at the time
+    /// only (domain logic review 2026-11-20, R2: closing work as Mastered never
+    /// wrote a mark, and none is filled in for work closed before). Offered when
+    /// the guide picks Mastered in this sitting and the child has the lesson on
+    /// record without a mark; the work is already closed by Save, so the mark
+    /// changes only her history rows.
+    var masteryMarkOffered: Bool {
+        guard viewModel.status == .mastered, viewModel.storedStatus != .mastered,
+              let studentID = viewModel.resolvedStudentID, let lessonID = viewModel.resolvedLessonID
+        else { return false }
+        let rows = MasteryMarking.rows(of: studentID, lessonID: lessonID, in: modelContext)
+        return !rows.isEmpty && !MasteryMarking.isMastered(rows)
     }
 
     func close() { onDone?() ?? dismiss() }

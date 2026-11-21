@@ -273,8 +273,10 @@ enum BlockingAlgorithmEngine {
             )
 
             if prerequisiteWork.isEmpty {
-                // No work assigned yet — if practice is required, student isn't ready
-                workComplete = !assignment.needsPractice
+                // No work assigned yet — if practice is required, student isn't ready.
+                // Her own needs-practice first: on a group presentation the group's
+                // flag is "any child" (Decision 15, R24).
+                workComplete = !assignment.value(.needsPractice, for: studentID)
             } else {
                 for work in prerequisiteWork where !isWorkCompleteForStudent(work: work, studentID: studentID) {
                     workComplete = false

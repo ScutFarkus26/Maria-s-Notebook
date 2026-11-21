@@ -23,12 +23,18 @@ struct PresentationOutcomePersistenceService {
 
     /// Saves one shared observation plus any student-specific observations.
     /// Blank text is ignored, and retrying the same save does not duplicate notes.
+    ///
+    /// The notes are dated `observedOn`, the day the lesson was given, when one
+    /// is passed: Friday's notes written on Monday are Friday's (domain logic
+    /// review 2026-11-20, R10). Claude's and the command bar's paths re-dated
+    /// the notes afterwards and the sheet didn't at all; now all of them pass it.
     @discardableResult
     static func persistObservations(
         groupObservation: String,
         studentObservations: [UUID: String],
         studentIDs: [UUID],
         presentationID: UUID?,
+        observedOn: Date? = nil,
         context: NSManagedObjectContext
     ) throws -> [CDNote] {
         guard let presentationID else {
@@ -76,6 +82,9 @@ struct PresentationOutcomePersistenceService {
             }
         }
 
+        if let observedOn {
+            for note in persisted { note.createdAt = observedOn }
+        }
         return persisted
     }
 

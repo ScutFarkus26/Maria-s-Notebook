@@ -275,23 +275,18 @@ extension MCPNotebookTools {
         in modelContext: NSManagedObjectContext
     ) throws -> FiledPresentation {
         let filing = resolved.filing
-        let assignment = try LifecycleService.recordPresentation(
-            from: resolved.assignment,
-            presentedAt: filing.presentedAt,
-            modelContext: modelContext
-        )
+        let assignment = try record(resolved, in: modelContext)
         let notes = try PresentationOutcomePersistenceService.persistObservations(
             groupObservation: filing.groupObservation,
             studentObservations: filing.observations,
             studentIDs: filing.studentIDs,
             presentationID: assignment.id,
+            // A presentation filed for an earlier day: its notes carry that day.
+            observedOn: filing.presentedAt,
             context: modelContext
         )
 
-        // The in-app flow stamps notes as they are written; a presentation
-        // filed for an earlier day should carry that day's date instead.
         for note in notes {
-            note.createdAt = filing.presentedAt
             if case .student(let studentID) = note.scope, filing.followUpIDs.contains(studentID) {
                 note.needsFollowUp = true
             }

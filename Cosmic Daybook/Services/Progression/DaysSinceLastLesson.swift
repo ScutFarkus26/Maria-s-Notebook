@@ -75,9 +75,11 @@ enum DaysSinceLastLesson {
 
     // MARK: - From the Store
 
-    /// Each child's last given lesson of the last year, from the store.
+    /// Each child's last given lesson of the last year, from the store: her
+    /// presented assignments and her dated history rows, as the record index
+    /// reads "given".
     ///
-    /// Both queries read as little as the answer needs: the lesson query asks
+    /// The queries read as little as the answer needs: the lesson query asks
     /// the store for the Parsha candidates instead of folding every lesson in
     /// Swift, and the assignment query filters in SQL and reads five columns
     /// as dictionaries rather than faulting a year of objects (a dirty context
@@ -88,8 +90,44 @@ enum DaysSinceLastLesson {
         // A year back: the roster's window, so it never reads the whole history.
         let cutoff = calendar.date(byAdding: .year, value: -1, to: now) ?? now.addingTimeInterval(-365 * 24 * 3600)
         return lastLessons(
-            from: presentedRows(since: cutoff, in: context), parshaLessonIDs: parshaLessonIDs(in: context)
+            from: presentedRows(since: cutoff, in: context) + historyRows(since: cutoff, in: context),
+            parshaLessonIDs: parshaLessonIDs(in: context)
         )
+    }
+
+    /// Her dated history rows since `cutoff`. "Given" is what
+    /// `PresentationRecordIndex.given` reads (domain logic review 2026-11-20,
+    /// R3): a presented assignment naming her, or a history row with the day
+    /// she had it. This read only the assignments, so a lesson on her record
+    /// only as a history row never reset the count.
+    private static func historyRows(since cutoff: Date, in context: NSManagedObjectContext) -> [Given] {
+        let predicate = NSPredicate(format: "presentedAt >= %@", cutoff as CVarArg)
+        if !context.hasChanges {
+            let request = NSFetchRequest<NSDictionary>(entityName: "LessonPresentation")
+            request.resultType = .dictionaryResultType
+            request.predicate = predicate
+            request.propertiesToFetch = ["studentID", "lessonID", "presentedAt"]
+            if let rows = try? context.fetch(request) {
+                return rows.compactMap { row in
+                    historyGiven(
+                        studentID: row["studentID"] as? String, lessonID: row["lessonID"] as? String,
+                        presentedAt: row["presentedAt"] as? Date
+                    )
+                }
+            }
+        }
+        let request = CDFetchRequest(CDLessonPresentation.self)
+        request.predicate = predicate
+        return context.safeFetch(request).compactMap { row in
+            row.isDeleted ? nil : historyGiven(
+                studentID: row.studentID, lessonID: row.lessonID, presentedAt: row.presentedAt
+            )
+        }
+    }
+
+    private static func historyGiven(studentID: String?, lessonID: String?, presentedAt: Date?) -> Given? {
+        guard let studentID = studentID.flatMap({ UUID(uuidString: $0.trimmed()) }) else { return nil }
+        return Given(lessonID: lessonID.flatMap { UUID(uuidString: $0) }, studentIDs: [studentID], date: presentedAt)
     }
 
     /// Presented assignments given since `cutoff`: windowed on the date the

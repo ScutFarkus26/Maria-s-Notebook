@@ -115,7 +115,7 @@ nonisolated extension PresentationRecordIndex {
                 studentID: row.studentID,
                 lessonID: row.lessonID,
                 presentedAt: row.presentedAt,
-                mastered: row.masteredAt != nil || row.state == .proficient
+                mastered: SequenceStanding.isMasteryMark(row)
             )
         }
         let assignments = fetchObjects(CDLessonAssignment.self, lessonIDs: lessonIDs, in: context).map { row in

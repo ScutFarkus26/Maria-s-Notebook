@@ -135,6 +135,12 @@ nonisolated extension DataCleanupService {
         if canonical.presentationID == nil { canonical.presentationID = duplicate.presentationID }
         if canonical.lastObservedAt == nil { canonical.lastObservedAt = duplicate.lastObservedAt }
         if canonical.masteredAt == nil { canonical.masteredAt = duplicate.masteredAt }
+        // A mastery mark on either copy is a mastery mark on the kept one: copying
+        // only the day left a row with a mastered day still reading Presented
+        // (domain logic review 2026-11-20, R2).
+        if SequenceStanding.isMasteryMark(duplicate), canonical.state != .proficient {
+            canonical.state = .proficient
+        }
         if (canonical.notes ?? "").isEmpty { canonical.notes = duplicate.notes }
 
         // Follow-up is one conflict-resolution bundle. Mixing an older action with

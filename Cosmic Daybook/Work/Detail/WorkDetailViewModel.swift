@@ -47,6 +47,9 @@ final class WorkDetailViewModel {
     var workTitle: String = ""
     var checkInStyle: CheckInStyle = .flexible
     var completionNote: String = ""
+    /// Closing as Mastered offers the lesson's mastery mark too; Save writes it
+    /// when this is on (`WorkDetailView+Helpers`, domain logic review R2).
+    var alsoMarksLessonMastered = false
 
     /// What the row held when the page last read it: on load, and again when
     /// the row changes underneath (`refreshHeaderFromStore`). A header field

@@ -141,10 +141,11 @@ enum YearPlanReleaseService {
 
         guard remaining.isEmpty else {
             guard !dryRun else { return Outcome(rostersTrimmed: 1) }
-            // The same pair of writes the detail view's Save and MCP's
-            // update_presentation_roster make.
+            // The roster setter keeps the confirmations to the children still
+            // on it, for every writer (domain logic review 2026-11-20, R24).
+            // This comment used to say the detail view's Save made the same
+            // pair of writes; it didn't, and neither did the Checklist's removal.
             other.studentIDs = remaining
-            other.confirmedStudentIDs = other.confirmedStudentIDs.filter { remaining.contains($0) }
             other.modifiedAt = Date()
             return Outcome(rostersTrimmed: 1)
         }

@@ -9,6 +9,13 @@
 //  through here, so a decision filed from Claude Desktop lands in the same
 //  rows the in-app review would have written.
 //
+//  That includes her follow-up row on the presentation (domain logic review
+//  2026-11-20, R6): Ready resolves it, Re-present resolves it as support,
+//  Practice and Follow-up work leave it open as work to check, and Keep
+//  watching leaves it open to watch. Only the sheet wrote it, so a child
+//  Claude or the command bar filed as Ready stayed in Keep Watching. No
+//  decision (`.none`) leaves the row as it is.
+//
 
 import CoreData
 import Foundation
@@ -25,46 +32,90 @@ enum CaptureFollowUpPersistence {
     /// Applies every entry's outcome against the recorded presentation and
     /// returns how many work items were created. Nothing here saves; the
     /// caller owns the save so the whole review lands or none of it does.
+    /// - Parameter reviewAt: when the work to check comes due, for Practice and
+    ///   Follow-up work; nil leaves it undated.
     @discardableResult
     static func persist(
         _ entries: [Entry],
         assignment: CDLessonAssignment,
         lesson: CDLesson,
-        persistence: CapturePersistenceContext
+        persistence: CapturePersistenceContext,
+        reviewAt: Date? = nil,
+        now: Date = Date()
     ) throws -> Int {
+        let rows = PresentationFollowUpService.rows(for: persistence.presentationID, in: persistence.context)
         var workCount = 0
         for entry in entries {
-            switch entry.followUp {
-            case .none:
-                break
-            case .continueObserving:
-                markObservationForFollowUp(entry: entry, assignment: assignment, context: persistence.context)
-            case .practice:
-                if try createWorkIfNeeded(kind: .practiceLesson, entry: entry, persistence: persistence) {
-                    workCount += 1
-                }
-            case .followUpWork:
-                if try createWorkIfNeeded(kind: .followUpAssignment, entry: entry, persistence: persistence) {
-                    workCount += 1
-                }
-            case .represent:
-                // The record she has is the one that did not take: filed the
-                // way a meeting's or a recall check's Re-present files it, so
-                // the planning reads see the second pass and not just a new
-                // draft. The shared flag only when she had it alone; in a group
-                // her own row says it, or one child's Re-present read as the
-                // whole group's (bug hunt 2026-10-12, #45).
-                try MeetingLessonDecisions.flagForAnotherPresentation(
-                    assignment, studentID: entry.studentID, context: persistence.context
-                )
-                try createRepresentationIfNeeded(
-                    studentID: entry.studentID, lesson: lesson, context: persistence.context
-                )
-            case .readyForNextLesson:
-                assignment.confirmStudent(entry.studentID)
+            if try apply(entry, assignment: assignment, lesson: lesson, persistence: persistence) {
+                workCount += 1
             }
+            guard entry.followUp != .none,
+                  let row = rows.first(where: { UUID(uuidString: $0.studentID) == entry.studentID })
+            else { continue }
+            writeFollowUpRow(entry.followUp, to: row, reviewAt: reviewAt, now: now)
         }
         return workCount
+    }
+
+    /// One entry's records, apart from her follow-up row. True when it made work.
+    private static func apply(
+        _ entry: Entry, assignment: CDLessonAssignment, lesson: CDLesson, persistence: CapturePersistenceContext
+    ) throws -> Bool {
+        switch entry.followUp {
+        case .none:
+            return false
+        case .continueObserving:
+            // With no note, the open follow-up row is the reminder.
+            if !entry.observation.trimmed().isEmpty {
+                markObservationForFollowUp(entry: entry, assignment: assignment, context: persistence.context)
+            }
+            return false
+        case .practice:
+            return try createWorkIfNeeded(kind: .practiceLesson, entry: entry, persistence: persistence)
+        case .followUpWork:
+            return try createWorkIfNeeded(kind: .followUpAssignment, entry: entry, persistence: persistence)
+        case .represent:
+            // The record she has is the one that did not take: filed the
+            // way a meeting's or a recall check's Re-present files it, so
+            // the planning reads see the second pass and not just a new
+            // draft. The shared flag only when she had it alone; in a group
+            // her own row says it, or one child's Re-present read as the
+            // whole group's (bug hunt 2026-10-12, #45).
+            try MeetingLessonDecisions.flagForAnotherPresentation(
+                assignment, studentID: entry.studentID, context: persistence.context
+            )
+            try createRepresentationIfNeeded(
+                studentID: entry.studentID, lesson: lesson, context: persistence.context
+            )
+            return false
+        case .readyForNextLesson:
+            assignment.confirmStudent(entry.studentID)
+            return false
+        }
+    }
+
+    /// One child's decision on her follow-up row for the presentation: work to
+    /// check stays open with its date, a re-presentation or a next lesson
+    /// resolves it, and keep watching leaves it open to watch. Shared with the
+    /// sheet, which also re-dates an unchanged work-giving decision.
+    static func writeFollowUpRow(
+        _ decision: CaptureFollowUp, to row: CDLessonPresentation, reviewAt: Date?, now: Date
+    ) {
+        if row.followUpActionRaw == nil {
+            PresentationFollowUpService.beginFollowing(row, at: now)
+        }
+        switch decision {
+        case .practice, .followUpWork:
+            PresentationFollowUpService.reopen(row, at: now)
+            PresentationFollowUpService.setAction(.checkWork, for: [row], reviewAt: reviewAt, now: now)
+        case .represent:
+            PresentationFollowUpService.resolve(.supportOrRepresent, row: row, at: now)
+        case .readyForNextLesson:
+            PresentationFollowUpService.resolve(.readyForNextPresentation, row: row, at: now)
+        case .continueObserving, .none:
+            PresentationFollowUpService.reopen(row, at: now)
+            PresentationFollowUpService.setAction(.watchWork, for: [row], now: now)
+        }
     }
 
     /// Creates the practice or follow-up work item once per (presentation,

@@ -3,11 +3,10 @@
 //  Cosmic Daybook
 //
 //  Records that a lesson was presented to a student — by voice or from
-//  Shortcuts, without opening the app. Reuses an existing draft/scheduled
-//  presentation for that lesson+student when one exists — splitting the
-//  student out via PresentationSplitService when the assignment covers a
-//  group, so classmates aren't marked presented too. Otherwise creates a
-//  new one. Marking uses CDLessonAssignment.markPresented (the canonical path).
+//  Shortcuts, without opening the app. The presentation is the one
+//  `PresentationRecorder.resolvePlan` picks: one already given to her that
+//  day (nothing more is recorded), a waiting plan (split when it covers a
+//  group, so classmates aren't marked presented too), or a new one.
 //
 
 import AppIntents
@@ -47,40 +46,9 @@ struct MarkLessonPresentedIntent: AppIntent {
         // resolving the exact lesson and child, before splitting or creating data.
         try await requestConfirmation()
 
-        // Reuse an existing not-yet-presented assignment for this lesson + student.
-        let existing = cdLesson.lessonAssignments.first {
-            !$0.isPresented && $0.studentIDs.contains(studentID.uuidString)
-        }
-
-        let assignment: CDLessonAssignment
-        if let existing {
-            // A group assignment must be split first (same path as the UI) so
-            // only this student is recorded as presented; the classmates keep
-            // their original, unpresented assignment.
-            if existing.studentIDs.count > 1,
-               let split = PresentationSplitService.splitReadyStudents(
-                   from: existing,
-                   readyStudentIDs: [studentID],
-                   asDraft: true,
-                   context: context
-               ) {
-                assignment = split
-            } else {
-                assignment = existing
-            }
-        } else {
-            assignment = PresentationFactory.makeDraft(
-                lesson: cdLesson,
-                students: [cdStudent],
-                context: context
-            )
-        }
+        let origin: PresentationRecorder.PlanOrigin
         do {
-            _ = try LifecycleService.recordPresentation(
-                from: assignment,
-                presentedAt: Date(),
-                modelContext: context
-            )
+            origin = try Self.record(cdLesson, for: cdStudent, on: Date(), in: context)
         } catch {
             // The raw error would reach Siri as system text; it goes to the log instead.
             let ns = error as NSError
@@ -95,7 +63,25 @@ struct MarkLessonPresentedIntent: AppIntent {
 
         Logger.database.info("Marked lesson presented via Siri for student \(studentID.uuidString, privacy: .public)")
         // The short name, so the two Ettys are told apart ("Etty D").
+        if origin == .alreadyRecorded {
+            return .result(dialog: "\(cdLesson.name) was already marked as presented to \(cdStudent.shortName) today.")
+        }
         return .result(dialog: "Marked \(cdLesson.name) as presented to \(cdStudent.shortName).")
+    }
+
+    /// Records the lesson as given to her on `day`, on the presentation the app's
+    /// one rule picks (`PresentationRecorder.resolvePlan`, domain logic review
+    /// 2026-11-20, R12): one already given to her that day is left as it is, so a
+    /// second "presented" makes no second record; a plan waiting for her (split
+    /// off a group plan, so classmates keep theirs) comes next; then a new one.
+    @MainActor
+    @discardableResult
+    static func record(
+        _ lesson: CDLesson, for student: CDStudent, on day: Date, in context: NSManagedObjectContext
+    ) throws -> PresentationRecorder.PlanOrigin {
+        let resolved = PresentationRecorder.resolvePlan(lesson: lesson, present: [student], on: day, context: context)
+        try PresentationRecorder.recordResolved(resolved, on: day, context: context)
+        return resolved.origin
     }
 
     /// The chosen child, if she is still in the class. The name query falls

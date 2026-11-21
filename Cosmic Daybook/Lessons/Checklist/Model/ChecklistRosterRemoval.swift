@@ -125,6 +125,6 @@ enum ChecklistRosterRemoval {
     }
 
     private static func isMasteryMark(_ row: CDLessonPresentation) -> Bool {
-        row.masteredAt != nil || row.state == .proficient
+        SequenceStanding.isMasteryMark(row)
     }
 }

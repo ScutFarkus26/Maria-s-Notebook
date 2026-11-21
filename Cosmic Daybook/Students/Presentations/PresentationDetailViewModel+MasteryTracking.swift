@@ -30,8 +30,9 @@ extension PresentationDetailViewModel {
             lp.lessonID == lessonID && studentIDs.contains(lp.studentID)
         }
 
-        // Return the "highest" state found (mastered > readyForAssessment > practicing > presented)
-        if matching.contains(where: { $0.state == .proficient }) {
+        // Return the "highest" state found (mastered > readyForAssessment > practicing > presented).
+        // Mastered is any mastery mark, read the one way (`SequenceStanding.isMasteryMark`).
+        if matching.contains(where: SequenceStanding.isMasteryMark) {
             return .proficient
         } else if matching.contains(where: { $0.state == .readyForAssessment }) {
             return .readyForAssessment
@@ -71,6 +72,10 @@ extension PresentationDetailViewModel {
     /// counts as a change for that child alone, so the row a Save makes for
     /// her (a child added to a given presentation) carries it too (bug hunt
     /// 2026-11-03 #18).
+    ///
+    /// Mastered goes through `MasteryMarking`, as the Checklist and Claude do:
+    /// every row she has is marked and her open work on the lesson closes as
+    /// Mastered (domain logic review 2026-11-20, R2).
     func updateProficiencyState(
         lessonID: String,
         studentIDs: [String],
@@ -95,18 +100,23 @@ extension PresentationDetailViewModel {
             }
             if !existing.isEmpty {
                 guard changed else { continue }
-                for row in existing {
-                    Self.apply(state, to: row)
+                if state != .proficient {
+                    for row in existing {
+                        Self.apply(state, to: row)
+                    }
                 }
             } else {
                 let lp = CDLessonPresentation(context: viewContext)
                 lp.studentID = studentID
                 lp.lessonID = lessonID
                 lp.presentationID = lessonAssignment.id?.uuidString
-                lp.state = state
+                lp.state = state == .proficient ? .presented : state
                 lp.presentedAt = lessonAssignment.presentedAt
                 lp.lastObservedAt = Date()
-                lp.masteredAt = state == .proficient ? Date() : nil
+            }
+            if state == .proficient, let student = UUID(uuidString: studentID),
+               let lesson = UUID(uuidString: lessonID) {
+                MasteryMarking.mark([student], lessonID: lesson, in: viewContext)
             }
         }
     }
@@ -121,7 +131,7 @@ extension PresentationDetailViewModel {
     ///
     /// The choice is also remembered (`recapStateEdits`), so the rows a later Save or
     /// Record makes for her on this lesson carry it rather than starting at Presented.
-    func updateSiblingLessonProficiencyState(
+    func updateSiblingLessonProficiencyState( // swiftlint:disable:this function_parameter_count
         lessonID: String,
         studentID: String,
         state: LessonPresentationState,
@@ -149,24 +159,59 @@ extension PresentationDetailViewModel {
         let existing = allLessonPresentations.filter {
             $0.lessonID == lessonID && $0.studentID == studentID && !$0.isDeleted
         }
-        if !existing.isEmpty {
+        if existing.isEmpty {
+            makeRecapRow(
+                lessonID: lessonID, studentID: studentID, state: state, isCurrent: isCurrent,
+                lessons: lessons, students: students
+            )
+        } else if state != .proficient {
             for row in existing {
                 Self.apply(state, to: row)
             }
-        } else {
-            let lp = CDLessonPresentation(context: viewContext)
-            lp.studentID = studentID
-            lp.lessonID = lessonID
-            // On the lesson given here, the row is this presentation's.
-            lp.presentationID = isCurrent ? lessonAssignment.id?.uuidString : nil
-            lp.state = state
-            lp.presentedAt = isCurrent ? lessonAssignment.presentedAt : Date()
-            lp.lastObservedAt = Date()
-            lp.masteredAt = state == .proficient ? Date() : nil
+        }
+        if state == .proficient, let student = UUID(uuidString: studentID),
+           let lesson = UUID(uuidString: lessonID) {
+            MasteryMarking.mark([student], lessonID: lesson, in: viewContext)
         }
 
         _ = saveCoordinator.save(viewContext, reason: "Updating sibling lesson proficiency state")
         recomputeSequenceRecap(currentLesson: currentLesson, students: students)
+    }
+
+    /// Her first row for a lesson from the recap, at Presented (a mastery mark is
+    /// put on it next, through `MasteryMarking`). On the lesson given here it is
+    /// this presentation's. On another lesson she has no record of, she goes on the
+    /// lesson's undated presentation first, as the Checklist's marks do, and the
+    /// row carries no day: it used to be dated today with no presentation behind
+    /// it, so reports and Three Years read the lesson as given today (domain logic
+    /// review 2026-11-20, R3). One already on a given presentation takes its day.
+    private func makeRecapRow( // swiftlint:disable:this function_parameter_count
+        lessonID: String, studentID: String, state: LessonPresentationState, isCurrent: Bool,
+        lessons: [CDLesson], students: [CDStudent]
+    ) {
+        var presentation: CDLessonAssignment? = isCurrent ? lessonAssignment : nil
+        let studentUUID = UUID(uuidString: studentID)
+        if !isCurrent, let lessonUUID = UUID(uuidString: lessonID),
+           let student = students.first(where: { $0.id != nil && $0.id == studentUUID }),
+           let lesson = lessons.first(where: { $0.id == lessonUUID })
+            ?? viewContext.object(CDLesson.self, id: lessonUUID) {
+            let request = CDFetchRequest(CDLessonAssignment.self)
+            request.predicate = NSPredicate(format: "lessonID == %@", lessonUUID.uuidString)
+            let all = viewContext.safeFetch(request)
+            let key = student.cloudKitKey
+            presentation = all.first { !$0.isDeleted && $0.isPresented && $0.studentIDs.contains(key) }
+                ?? ChecklistBatchActionExecutor.addStudentToPresentedLesson(
+                    student: student, lesson: lesson, in: all, attachment: .undated, context: viewContext
+                )
+        }
+        let lp = CDLessonPresentation(context: viewContext)
+        lp.studentID = studentID
+        lp.lessonID = lessonID
+        lp.presentationID = presentation?.id?.uuidString
+        lp.state = state == .proficient ? .presented : state
+        // Set either way: a new row starts dated today.
+        lp.presentedAt = presentation?.presentedAt
+        lp.lastObservedAt = Date()
     }
 
     // MARK: - The Recap's Choices

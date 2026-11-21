@@ -297,13 +297,14 @@ struct SequenceRecapHistory {
     let notes: String?
 
     init(rows: [CDLessonPresentation]) {
-        let highest = rows.map(\.state).max { Self.rank($0) < Self.rank($1) }
+        // Any mastery mark (`SequenceStanding.isMasteryMark`) reads as mastered,
+        // a row carrying only its mastered day included.
+        let marks = rows.filter(SequenceStanding.isMasteryMark)
+        let highest = marks.isEmpty ? rows.map(\.state).max { Self.rank($0) < Self.rank($1) } : .proficient
         state = highest
         firstPresentedAt = rows.compactMap(\.presentedAt).min()
         lastObservedAt = rows.compactMap { $0.lastObservedAt ?? $0.presentedAt }.max()
-        masteredAt = highest == .proficient
-            ? rows.filter { $0.state == .proficient }.compactMap(\.masteredAt).min()
-            : nil
+        masteredAt = marks.compactMap(\.masteredAt).min()
         notes = rows
             .sorted { Self.seen($0) > Self.seen($1) }
             .lazy.compactMap(\.notes).first { !$0.isEmpty }

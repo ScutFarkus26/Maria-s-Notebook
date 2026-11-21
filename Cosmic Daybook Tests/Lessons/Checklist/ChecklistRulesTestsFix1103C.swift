@@ -188,6 +188,9 @@ struct ChecklistRulesFix1103CTests {
 
     // MARK: - #15 Mastered marks the latest row
 
+    // Since the domain logic fixes (Phase 4, R2) every path marks every row she
+    // has, so the latest is marked whatever order the store returns them in.
+
     @Test("#15: the cell's Mastered marks her latest history row")
     func cellMasteredMarksLatestRow() throws {
         // On disk, so an unsorted fetch returns rows in the order they were made.
@@ -201,7 +204,7 @@ struct ChecklistRulesFix1103CTests {
 
         #expect(rows.newer.state == .proficient)
         #expect(rows.newer.masteredAt != nil)
-        #expect(rows.older.state == .presented)
+        #expect(rows.older.state == .proficient)
     }
 
     @Test("#15: the selection's Mastered marks her latest history row")
@@ -215,7 +218,7 @@ struct ChecklistRulesFix1103CTests {
 
         #expect(rows.newer.state == .proficient)
         #expect(rows.newer.masteredAt != nil)
-        #expect(rows.older.state == .presented)
+        #expect(rows.older.state == .proficient)
     }
 
     /// Maya given the first lesson in September and again in October, the older row made first.

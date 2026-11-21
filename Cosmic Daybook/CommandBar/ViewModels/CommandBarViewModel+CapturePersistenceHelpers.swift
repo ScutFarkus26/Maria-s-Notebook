@@ -19,23 +19,6 @@ extension CommandBarViewModel {
         return try context.fetch(request).first
     }
 
-    func reusableAssignment(
-        lessonID: UUID,
-        studentIDs: [UUID],
-        context: NSManagedObjectContext
-    ) throws -> CDLessonAssignment? {
-        let request = CDFetchRequest(CDLessonAssignment.self)
-        request.predicate = NSPredicate(format: "lessonID == %@", lessonID.uuidString)
-        let expected = Set(studentIDs)
-        return try context.fetch(request)
-            .filter { !$0.isPresented && Set($0.resolvedStudentIDs) == expected }
-            .sorted {
-                if $0.isScheduled != $1.isScheduled { return $0.isScheduled }
-                return ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast)
-            }
-            .first
-    }
-
     func makeStandaloneObservationNotes(
         proposal: CaptureProposal,
         context: NSManagedObjectContext

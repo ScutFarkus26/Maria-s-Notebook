@@ -57,8 +57,9 @@ struct SequenceStanding: Identifiable {
         "\(area.trimmed().folded())|\(sequence.trimmed().folded())"
     }
 
-    /// Whether a presentation row counts as a mastery mark.
-    static func isMasteryMark(_ row: CDLessonPresentation) -> Bool {
+    /// Whether a presentation row counts as a mastery mark: the one rule every
+    /// reader uses (domain logic review 2026-11-20, R2), off the main actor too.
+    nonisolated static func isMasteryMark(_ row: CDLessonPresentation) -> Bool {
         row.masteredAt != nil || row.state == .proficient
     }
 }

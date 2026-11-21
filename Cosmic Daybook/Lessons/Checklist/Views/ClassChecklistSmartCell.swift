@@ -168,8 +168,16 @@ struct ClassChecklistSmartCell: View, Equatable {
                 Label("Previously Presented", systemImage: "clock.badge.checkmark")
             }
         }
-        Button { onAction(.markComplete, cell) } label: {
-            Label("Mark Mastered", systemImage: "checkmark.circle.fill")
+        // Mastered is a toggle too: on a mastered cell it takes the mark back,
+        // leaving her presentations and work as they are.
+        if state?.isMastered == true {
+            Button { onAction(.unmarkMastered, cell) } label: {
+                Label("Not Mastered", systemImage: "arrow.uturn.backward.circle")
+            }
+        } else {
+            Button { onAction(.markComplete, cell) } label: {
+                Label("Mark Mastered", systemImage: "checkmark.circle.fill")
+            }
         }
         Divider()
         Button(role: .destructive) { onAction(.clearStatus, cell) } label: {

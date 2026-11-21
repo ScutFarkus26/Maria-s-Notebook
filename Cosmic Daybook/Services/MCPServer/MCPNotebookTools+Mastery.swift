@@ -1,10 +1,13 @@
 // MCPNotebookTools+Mastery.swift
-// The mastery write: `mark_mastered` flips a child's existing presentation
-// record for a lesson to mastered, which is the only thing that counts the
-// lesson mastered in her sequence standing. Recording a presentation never does.
+// The mastery write: `mark_mastered` marks a child's presentation records for
+// a lesson mastered, which is the only thing that counts the lesson mastered
+// in her sequence standing. Recording a presentation never does. It writes
+// through `MasteryMarking`, as the Checklist and the presentation sheet do:
+// every record she has for the lesson is marked, and her open work on it
+// closes as Mastered. `unmark: true` takes the mark back the same way.
 //
 // One lesson or a `marks` array of them: either way every child is resolved
-// and her row found before anything is written, so one unrecorded name
+// and her rows found before anything is written, so one unrecorded name
 // refuses the whole call rather than half-marking the rest.
 
 import CoreData
@@ -18,21 +21,25 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "mark_mastered",
             title: "Mark Lesson Mastered",
-            description: "Record that the guide assessed a lesson as mastered for one or more children. Flips "
-                + "each child's existing presentation record for that lesson to mastered in place, "
+            description: "Record that the guide assessed a lesson as mastered for one or more children. Marks "
+                + "each child's existing presentation records for that lesson mastered, "
                 + "which is what counts the lesson mastered in her sequence (student_record, tracks section); "
-                + "record_presentation alone never does. Refuses, and writes nothing, if any named "
+                + "record_presentation alone never does. It also closes her open work on the lesson as "
+                + "Mastered. Refuses, and writes nothing, if any named "
                 + "child has no presentation of the lesson on record: file it with record_presentation "
                 + "first. Only use this when the guide says they assessed mastery; never infer it. "
                 + "To confirm a whole list at once pass marks, an array of these same fields: every "
                 + "child is checked before anything is written and one save covers them all. "
-                + "mastery_candidates proposes that list, with its evidence, and hands back the call to make.",
+                + "mastery_candidates proposes that list, with its evidence, and hands back the call to make. "
+                + "Pass unmark: true to take a mark back instead, only when the guide says it was a "
+                + "mistake: her records go back to presented, and her presentations and work stay as they are.",
             inputSchema: markMasteredSchema,
             annotations: .idempotentWrite,
             handler: { arguments in
                 try undoingOnFailure(context()) { modelContext in
-                    let markings = try makeMarkings(arguments: arguments, in: modelContext)
-                    return try apply(markings, in: modelContext)
+                    let requests = try makeRequests(arguments: arguments, in: modelContext)
+                    let unmark = arguments["unmark"]?.boolValue == true
+                    return try apply(requests, unmark: unmark, in: modelContext)
                 }
             }
         )
@@ -49,6 +56,11 @@ extension MCPNotebookTools {
                 "properties": JSONValue.object(masteryProperties).withoutDescriptions,
                 "required": ["lesson", "student_names"]
             ]
+        ]
+        properties["unmark"] = [
+            "type": "boolean",
+            "description": .string("True takes the mastery mark back for every lesson and child named, "
+                + "instead of marking it (default false)")
         ]
         return .object(["type": "object", "properties": .object(properties)])
     }()
@@ -75,26 +87,27 @@ extension MCPNotebookTools {
 
     // MARK: - Resolution
 
-    /// One `mark_mastered` call with every reference resolved to a record and
-    /// every child's row found. Built before anything is written, so a child
-    /// with no presentation on record fails the whole call rather than leaving
-    /// the others half-marked.
-    private struct MasteryMarking {
+    /// One lesson of a `mark_mastered` call with every reference resolved and
+    /// every child's records found. Built before anything is written, so a
+    /// child with no presentation on record fails the whole call rather than
+    /// leaving the others half-marked.
+    private struct MasteryRequest {
         let lesson: CDLesson
+        let lessonID: UUID
         let assessedAt: Date
-        let rows: [(student: CDStudent, row: CDLessonPresentation)]
+        let students: [CDStudent]
     }
 
-    /// The call's marks, one per lesson: the single form, or every item of
+    /// The call's requests, one per lesson: the single form, or every item of
     /// `marks`. All of them are resolved here, before `apply` writes anything,
     /// so an unrecorded child in the last item leaves the first unmarked too.
-    private static func makeMarkings(
+    private static func makeRequests(
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
-    ) throws -> [MasteryMarking] {
+    ) throws -> [MasteryRequest] {
         // One lesson table for the whole call, however many marks name a lesson.
         let lessons = LessonReferences(in: modelContext)
         guard let batch = arguments["marks"]?.arrayValue else {
-            return [try makeMarking(arguments: arguments, lessons: lessons, in: modelContext)]
+            return [try makeRequest(arguments: arguments, lessons: lessons, in: modelContext)]
         }
         guard arguments["lesson"] == nil, arguments["student_names"] == nil else {
             throw MCPToolError(
@@ -109,18 +122,18 @@ extension MCPNotebookTools {
                 throw MCPToolError("marks[\(index)] must be an object.")
             }
             do {
-                return try makeMarking(arguments: fields, lessons: lessons, in: modelContext)
+                return try makeRequest(arguments: fields, lessons: lessons, in: modelContext)
             } catch let error as MCPToolError {
                 throw MCPToolError("marks[\(index)]: \(error.message)")
             }
         }
     }
 
-    private static func makeMarking(
+    private static func makeRequest(
         arguments: [String: JSONValue], lessons: LessonReferences, in modelContext: NSManagedObjectContext
-    ) throws -> MasteryMarking {
+    ) throws -> MasteryRequest {
         let lesson = try lessons.resolve(requireString(arguments, "lesson"))
-        guard let lessonID = lesson.id?.uuidString else {
+        guard let lessonID = lesson.id else {
             throw MCPToolError("\"\(lesson.name)\" has no saved identifier and cannot be marked.")
         }
 
@@ -131,19 +144,12 @@ extension MCPNotebookTools {
         let students = try names.map { try resolveStudentReference($0, in: modelContext) }.uniqueByID
         let assessedAt = try dayArgument(arguments, "date") ?? Date()
 
-        let request = CDFetchRequest(CDLessonPresentation.self)
-        request.predicate = NSPredicate(format: "lessonID == %@", lessonID)
-        let lessonRows = modelContext.safeFetch(request)
-
-        var rows: [(student: CDStudent, row: CDLessonPresentation)] = []
         var unrecorded: [String] = []
         for student in students {
-            guard let studentID = student.id?.uuidString else {
+            guard let studentID = student.id else {
                 throw MCPToolError("A matched student record has no identifier.")
             }
-            if let row = latestRow(among: lessonRows, for: studentID) {
-                rows.append((student, row))
-            } else {
+            if MasteryMarking.rows(of: studentID, lessonID: lessonID, in: modelContext).isEmpty {
                 unrecorded.append(student.fullName)
             }
         }
@@ -156,79 +162,79 @@ extension MCPNotebookTools {
                     + "the lesson with find_lessons if the guide meant a different one."
             )
         }
-        return MasteryMarking(lesson: lesson, assessedAt: assessedAt, rows: rows)
-    }
-
-    /// A child can hold several rows for one lesson (one per presentation, or
-    /// legacy duplicates), so mark the most recent one: mastery is assessed
-    /// against the latest presentation, not the first.
-    private static func latestRow(
-        among rows: [CDLessonPresentation], for studentID: String
-    ) -> CDLessonPresentation? {
-        rows.filter { $0.studentID == studentID }
-            .sorted { ($0.presentedAt ?? .distantPast) > ($1.presentedAt ?? .distantPast) }
-            .first
+        return MasteryRequest(lesson: lesson, lessonID: lessonID, assessedAt: assessedAt, students: students)
     }
 
     // MARK: - Writing
 
-    /// Marks every resolved item, then saves once. The receipts read exactly
-    /// as a run of single calls would, joined in the order they were given.
+    /// Marks (or unmarks) every resolved request, then saves once. The
+    /// receipts read exactly as a run of single calls would, joined in the
+    /// order they were given.
     private static func apply(
-        _ markings: [MasteryMarking], in modelContext: NSManagedObjectContext
+        _ requests: [MasteryRequest], unmark: Bool, in modelContext: NSManagedObjectContext
     ) throws -> String {
-        let applied = markings.map { ($0, mark($0)) }
-        guard modelContext.safeSave() else {
-            throw MCPToolError("The mastery marks could not be saved, so nothing was marked.")
+        let applied = requests.map { request in
+            let ids = request.students.compactMap(\.id)
+            let outcome = unmark
+                ? MasteryMarking.unmark(ids, lessonID: request.lessonID, in: modelContext)
+                : MasteryMarking.mark(ids, lessonID: request.lessonID, on: request.assessedAt, in: modelContext)
+            return (request, outcome)
         }
-        return applied.map { marking, outcome in
-            describeMarking(
-                lesson: marking.lesson, assessedAt: marking.assessedAt, marked: outcome.marked,
-                alreadyMastered: outcome.alreadyMastered, in: modelContext
-            )
+        guard modelContext.safeSave() else {
+            throw MCPToolError(unmark
+                ? "The mastery marks could not be saved, so nothing was taken back."
+                : "The mastery marks could not be saved, so nothing was marked.")
+        }
+        return applied.map { request, outcome in
+            unmark
+                ? describeUnmarking(request, outcome)
+                : describeMarking(request, outcome, in: modelContext)
         }.joined(separator: "\n")
     }
 
-    /// Who one mark changed, and who was already mastered before it.
-    private struct MarkOutcome {
-        var marked: [CDStudent] = []
-        var alreadyMastered: [(CDStudent, Date?)] = []
-    }
-
-    /// Flips one lesson's rows in place without saving — the batch saves once.
-    private static func mark(_ marking: MasteryMarking) -> MarkOutcome {
-        var outcome = MarkOutcome()
-        for (student, row) in marking.rows {
-            if row.state == .proficient {
-                outcome.alreadyMastered.append((student, row.masteredAt))
-                continue
-            }
-            row.state = .proficient
-            row.masteredAt = marking.assessedAt
-            if (row.lastObservedAt ?? .distantPast) < marking.assessedAt {
-                row.lastObservedAt = marking.assessedAt
-            }
-            outcome.marked.append(student)
-        }
-        return outcome
+    private static func students(_ ids: [UUID], of request: MasteryRequest) -> [CDStudent] {
+        ids.compactMap { id in request.students.first { $0.id == id } }
     }
 
     private static func describeMarking(
-        lesson: CDLesson, assessedAt: Date, marked: [CDStudent],
-        alreadyMastered: [(CDStudent, Date?)], in modelContext: NSManagedObjectContext
+        _ request: MasteryRequest, _ outcome: MasteryMarking.Outcome, in modelContext: NSManagedObjectContext
     ) -> String {
         var lines: [String] = []
+        let marked = students(outcome.changed, of: request)
         if !marked.isEmpty {
-            lines.append("Marked mastered on \(dayString(assessedAt)): \(describeLesson(lesson))")
+            lines.append("Marked mastered on \(dayString(request.assessedAt)): \(describeLesson(request.lesson))")
             for student in marked {
-                lines.append("- \(student.fullName)\(standingSuffix(on: lesson, for: student, in: modelContext))")
+                lines.append(
+                    "- \(student.fullName)\(standingSuffix(on: request.lesson, for: student, in: modelContext))"
+                )
             }
         }
-        if !alreadyMastered.isEmpty {
+        if !outcome.unchanged.isEmpty {
             lines.append("Already mastered, left as recorded:")
-            for (student, masteredAt) in alreadyMastered {
-                lines.append("- \(student.fullName) (mastered \(dayString(masteredAt)))")
+            for earlier in outcome.unchanged {
+                guard let student = request.students.first(where: { $0.id == earlier.studentID }) else {
+                    continue
+                }
+                lines.append("- \(student.fullName) (mastered \(dayString(earlier.masteredOn)))")
             }
+        }
+        if outcome.closedWork > 0 {
+            lines.append("Closed \(outcome.closedWork) open work item(s) on it as Mastered.")
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    private static func describeUnmarking(_ request: MasteryRequest, _ outcome: MasteryMarking.Outcome) -> String {
+        var lines: [String] = []
+        let unmarked = students(outcome.changed, of: request)
+        if !unmarked.isEmpty {
+            lines.append("No longer mastered: \(describeLesson(request.lesson))")
+            lines += unmarked.map { "- \($0.fullName)" }
+        }
+        let notMastered = students(outcome.unchanged.map(\.studentID), of: request)
+        if !notMastered.isEmpty {
+            lines.append("Not marked mastered, so nothing to take back:")
+            lines += notMastered.map { "- \($0.fullName)" }
         }
         return lines.joined(separator: "\n")
     }
