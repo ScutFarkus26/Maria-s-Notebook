@@ -57,6 +57,12 @@ struct AttendanceStatusReportConfig {
     func counts(_ record: CDAttendanceRecord) -> Bool {
         status == .tardy ? record.cameLate : record.status == status
     }
+
+    /// This report's figure in a child's tally: her absences, or her late
+    /// arrivals (left early after coming late included, as `counts` has it).
+    func count(in tally: AttendanceTally) -> Int {
+        status == .tardy ? tally.late : tally.absent
+    }
 }
 
 /// Sheet showing per-student counts of one attendance status over a selected
@@ -103,30 +109,38 @@ struct AttendanceStatusReport: View {
     /// six times per body pass (directly and via the total), each read
     /// re-running the ranged fetch, the per-day dedup, and the sort — and the
     /// body re-evaluates on every date-picker change.
-    private func computeRows() -> [StatusRow] {
+    private func computeRows() -> [AttendanceStatusReportRow] {
         guard startDate <= endDate else { return [] }
-        let start = AppCalendar.startOfDay(startDate)
-        let end = AppCalendar.startOfDay(endDate)
+        let range = AppCalendar.startOfDay(startDate)...AppCalendar.startOfDay(endDate)
+        return Self.rows(config: config, students: students, in: range, context: viewContext)
+    }
 
-        // Fetch all records in the range, then filter for the status in memory
-        let fetchRequest = CDFetchRequest(CDAttendanceRecord.self)
-        fetchRequest.predicate = NSPredicate(format: "date >= %@ AND date <= %@", start as NSDate, end as NSDate)
-        let records = viewContext.safeFetch(fetchRequest)
-            .deduplicatedPerStudentDay()
-
-        // Count matching records per studentID
-        var countsByID: [String: Int] = [:]
-        for record in records where config.counts(record) {
-            countsByID[record.studentID, default: 0] += 1
+    /// The report's rows for `range`: each of `students` with at least one
+    /// of `config`'s marks, most first, counted by the tallies' rule
+    /// (`AttendanceTallies`): only on school days she was in the class, so
+    /// a day made a day off after it was marked drops out.
+    static func rows(
+        config: AttendanceStatusReportConfig,
+        students: [CDStudent],
+        in range: ClosedRange<Date>,
+        context: NSManagedObjectContext
+    ) -> [AttendanceStatusReportRow] {
+        let request = CDFetchRequest(CDAttendanceRecord.self)
+        request.predicate = NSPredicate(
+            format: "date >= %@ AND date <= %@", range.lowerBound as NSDate, range.upperBound as NSDate
+        )
+        let tallies = AttendanceTallies.tallies(
+            records: context.safeFetch(request).deduplicatedPerStudentDay(),
+            students: students,
+            days: AttendanceTallies.days(in: range),
+            daysOff: AttendanceTallies.daysOff(in: range, context: context)
+        )
+        let rows: [AttendanceStatusReportRow] = students.compactMap { student in
+            guard let tally = tallies[student.cloudKitKey] else { return nil }
+            let count = config.count(in: tally)
+            guard count > 0 else { return nil }
+            return AttendanceStatusReportRow(student: student, count: count, daysEnrolled: tally.daysEnrolled)
         }
-
-        // Map to student names, include only students with at least 1 match
-        let rows: [StatusRow] = students.compactMap { student in
-            let key = student.cloudKitKey
-            guard let count = countsByID[key], count > 0 else { return nil }
-            return StatusRow(student: student, count: count)
-        }
-
         return rows.sorted { $0.count > $1.count }
     }
 
@@ -225,7 +239,7 @@ struct AttendanceStatusReport: View {
 
     // MARK: - Summary Bar
 
-    private func summaryBar(rows: [StatusRow], total: Int) -> some View {
+    private func summaryBar(rows: [AttendanceStatusReportRow], total: Int) -> some View {
         HStack(spacing: AppTheme.Spacing.lg) {
             summaryChip(
                 value: rows.count,
@@ -256,14 +270,14 @@ struct AttendanceStatusReport: View {
 
     // MARK: - Results List
 
-    private func resultsList(_ rows: [StatusRow]) -> some View {
+    private func resultsList(_ rows: [AttendanceStatusReportRow]) -> some View {
         List {
             ForEach(rows) { row in
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(row.student.fullName)
                             .font(.body)
-                        Text(row.student.level.rawValue)
+                        Text("\(row.student.level.rawValue) · \(row.daysEnrolled) school days")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -316,10 +330,13 @@ struct AttendanceStatusReport: View {
 
 // MARK: - Supporting Types
 
-private struct StatusRow: Identifiable {
+/// One child's line in an absence or tardy report.
+struct AttendanceStatusReportRow: Identifiable {
     let id: UUID = UUID()
     let student: CDStudent
     let count: Int
+    /// The school days she was in the class over the range.
+    let daysEnrolled: Int
 }
 
 // The `#Preview` closure is expanded and type-checked in every compiler job

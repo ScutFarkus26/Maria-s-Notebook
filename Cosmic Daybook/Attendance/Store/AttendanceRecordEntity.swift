@@ -104,3 +104,64 @@ nonisolated extension CDAttendanceRecord {
         set { studentID = newValue?.uuidString ?? "" }
     }
 }
+
+// MARK: - Paired fields
+
+nonisolated extension CDAttendanceRecord {
+    /// Whether the fields that belong to one status disagree with it
+    /// (`normalize` would change something).
+    var hasMismatchedFields: Bool { pairFixes(apply: false) }
+
+    /// Puts the fields that belong to one status right, as
+    /// `CDAttendanceStore` writes them: a reason only on an absence, the
+    /// status left from only on a Left Early (and only present or late),
+    /// no times on an unmarked record, no trip out on an absence or a Left
+    /// Early, and a return only after a time out. A restore or an import
+    /// writes the fields one by one and could keep an odd pair, such as a
+    /// present mark with an old "Sick" (domain-logic review A13). The note
+    /// and a planned pickup belong to any status and stay. A status this
+    /// build doesn't know (a newer build's) is left alone, as is
+    /// `modifiedAt`: this is no one's change. Returns whether it changed.
+    @discardableResult
+    func normalize() -> Bool { pairFixes(apply: true) }
+
+    private func pairFixes(apply: Bool) -> Bool {
+        guard let status = AttendanceStatus(rawValue: statusRaw) else { return false }
+        var changed = false
+        func clear<Value>(_ path: ReferenceWritableKeyPath<CDAttendanceRecord, Value?>) {
+            guard self[keyPath: path] != nil else { return }
+            changed = true
+            if apply { self[keyPath: path] = nil }
+        }
+        if status != .absent, absenceReasonRaw != AbsenceReason.none.rawValue {
+            changed = true
+            if apply { absenceReasonRaw = AbsenceReason.none.rawValue }
+        }
+        let leftFrom = [AttendanceStatus.present.rawValue, AttendanceStatus.tardy.rawValue]
+        if status != .leftEarly || !leftFrom.contains(statusBeforeLeavingRaw ?? leftFrom[0]) {
+            clear(\.statusBeforeLeavingRaw)
+        }
+        switch status {
+        case .unmarked:
+            clear(\.markedAt)
+            clear(\.leftAt)
+            clear(\.returnedAt)
+        case .absent:
+            clear(\.leftAt)
+            clear(\.returnedAt)
+        case .leftEarly:
+            clear(\.returnedAt)
+        case .present, .tardy:
+            if leftAt == nil { clear(\.returnedAt) }
+        }
+        return changed
+    }
+
+    /// `normalize()` on every attendance record `context` holds; returns
+    /// how many changed. For after a restore, whose rows come field by
+    /// field. The caller saves.
+    @discardableResult
+    static func normalizeAll(in context: NSManagedObjectContext) -> Int {
+        context.safeFetch(CDFetchRequest(CDAttendanceRecord.self)).count { $0.normalize() }
+    }
+}

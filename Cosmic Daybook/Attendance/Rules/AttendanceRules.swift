@@ -33,9 +33,11 @@ enum AttendanceRules {
 
     /// Whether `status` can be set on `day`. Ahead of the day there's no
     /// arrival to record, so only Absent, or clearing a mark, is allowed.
-    /// The intents follow the same rule.
-    static func allows(_ status: AttendanceStatus, on day: Date, now: Date = Date()) -> Bool {
-        let calendar = Calendar.current
+    /// Every path follows it: the store's `mark(student:status:reason:on:)`
+    /// checks it for the grids, Siri and Claude alike.
+    nonisolated static func allows(
+        _ status: AttendanceStatus, on day: Date, now: Date = Date(), calendar: Calendar = .current
+    ) -> Bool {
         guard calendar.startOfDay(for: day) > calendar.startOfDay(for: now) else { return true }
         return status == .absent || status == .unmarked
     }

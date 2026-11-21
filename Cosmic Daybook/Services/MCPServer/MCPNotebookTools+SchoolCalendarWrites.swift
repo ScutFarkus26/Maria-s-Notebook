@@ -146,9 +146,14 @@ extension MCPNotebookTools {
         // A weekend is out of session with no row, so a reason has nowhere to
         // be kept; the reply used to echo it as saved (2026-10-17 hunt, #16).
         let weekendsWithoutReason = (reason != nil && !inSession) ? days.filter(isWeekend) : []
-        return tally.lines(
+        var lines = tally.lines(
             state: inSession ? "in session" : "no school", reason: reason, weekendsWithoutReason: weekendsWithoutReason
-        ).joined(separator: "\n")
+        )
+        // A day off that already holds marks: they stop counting (R19).
+        if !inSession, let notice = SchoolCalendarService.shared.markedDaysOffNotice(for: days, using: modelContext) {
+            lines.append(notice)
+        }
+        return lines.joined(separator: "\n")
     }
 
     /// The days named by `date`, `dates`, and `from`/`to`, each at start of

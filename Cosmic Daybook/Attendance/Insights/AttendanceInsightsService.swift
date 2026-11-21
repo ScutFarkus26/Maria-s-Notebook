@@ -95,17 +95,23 @@ enum AttendanceInsightsService {
         students: [CDStudent],
         context: NSManagedObjectContext
     ) -> AttendanceClassSummary {
-        classSummary(records: fetchRecords(in: range, context: context, fetchLabel: "classSummary"), students: students)
+        classSummary(
+            records: fetchRecords(in: range, context: context, fetchLabel: "classSummary"), students: students,
+            daysOff: AttendanceTallies.daysOff(in: range, context: context)
+        )
     }
 
-    /// `classSummary(in:students:context:)` over records already read for the range.
-    static func classSummary(records: [CDAttendanceRecord], students: [CDStudent]) -> AttendanceClassSummary {
-        let studentIDs = Set(students.map(\.cloudKitKey))
-
+    /// `classSummary(in:students:context:)` over records already read for the range,
+    /// with `daysOff` covering it. Counts by the tallies' rule (`AttendanceTallies`):
+    /// a mark on a day off, or after a child's last day, doesn't count. "School days"
+    /// are the school days with a mark.
+    static func classSummary(
+        records: [CDAttendanceRecord], students: [CDStudent], daysOff: Set<Date>
+    ) -> AttendanceClassSummary {
         var summary = AttendanceClassSummary()
         var daysWithMarks: Set<Date> = []
 
-        for record in records where studentIDs.contains(record.studentID) {
+        for record in AttendanceTallies.countedRecords(records, students: students, daysOff: daysOff) {
             guard let date = record.date else { continue }
             let day = AppCalendar.startOfDay(date)
             switch record.status {
@@ -162,20 +168,24 @@ extension AttendanceInsightsService {
         let patternRange = patternDayRange(endingAt: end, count: 10, context: context)
         let patternRecords = recentPatternRecords(in: patternRange, context: context)
         return watchList(
-            records: records, students: students,
+            records: records, students: students, daysOff: AttendanceTallies.daysOff(in: range, context: context),
             patternDays: patternRange, patternRecords: patternRecords, limit: limit
         )
     }
 
-    /// `watchList(in:…)` over records already read for the range and the pattern days.
+    /// `watchList(in:…)` over records already read for the range and the pattern days,
+    /// with `daysOff` covering the range. Counts by the tallies' rule (`AttendanceTallies`).
     static func watchList(
         records: [CDAttendanceRecord],
         students: [CDStudent],
+        daysOff: Set<Date>,
         patternDays patternRange: [Date],
         patternRecords: [CDAttendanceRecord],
         limit: Int
     ) -> [AttendanceWatchListEntry] {
-        let (absentByID, tardyByID) = tallyAbsencesAndTardies(records)
+        let (absentByID, tardyByID) = tallyAbsencesAndTardies(
+            AttendanceTallies.countedRecords(records, students: students, daysOff: daysOff)
+        )
 
         let candidates: [AttendanceWatchListEntry] = students.compactMap { student in
             buildWatchEntry(

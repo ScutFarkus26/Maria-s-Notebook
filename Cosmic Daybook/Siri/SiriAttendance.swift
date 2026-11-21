@@ -124,6 +124,24 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
         return student
     }
 
+    /// The store's refusal (`CDAttendanceStore.mark`) as Siri says it, the
+    /// child named as `student(for:)` names her.
+    private func siriError(for refusal: AttendanceMarkRefusal, student: CDStudent) -> SiriAttendanceError {
+        switch refusal {
+        case .roleCannotWrite: .viewOnly
+        case .locked: .dayLocked
+        case .notOnRoll(.notStarted): .notStarted(refusalName(for: student))
+        case .notOnRoll(.departed):
+            if SiriHost.refusesFormerByName {
+                .notEnrolled(refusalName(for: student))
+            } else {
+                .studentNotFound(refusalName(for: student))
+            }
+        case .notOnRoll(.testStudent): .studentNotFound(refusalName(for: student))
+        case .aheadOfDay, .dayOff: .cannotMark
+        }
+    }
+
     /// `student`'s name on the phone grids (`AttendanceGridNames`), worked
     /// out among the children Siri can name, with her among them.
     private func refusalName(for student: CDStudent) -> String {
@@ -209,27 +227,29 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
     ) async throws -> (previous: AttendanceStatus, changed: Bool) {
         try refuseIfViewOnly()
         guard !store.isLocked(today) else { throw SiriAttendanceError.dayLocked }
-        guard let record = try store.ensureRecord(for: student, on: today) else {
-            throw SiriAttendanceError.cannotMark
+        let outcome: AttendanceMarkOutcome
+        do {
+            // The store's one mark, with the rules every grid follows. A day
+            // off has been asked about already (`confirmIfNoSchool`), and
+            // Siri's day is today, so it is never one still to come: the
+            // clock, but never before that day (a session made for a test day).
+            outcome = try store.mark(
+                student: student, status: status, reason: reason, on: today,
+                now: max(Date(), today), dayOffConfirmed: true
+            )
+        } catch let refusal as AttendanceMarkRefusal {
+            throw siriError(for: refusal, student: student)
         }
-        let previous = record.status
-        let previousReasonRaw = record.absenceReasonRaw
-        let before = AttendanceRecordSnapshot(record).values
+        guard outcome.changed, let record = outcome.record else { return (outcome.previous, false) }
         let created = record.isInserted ? [record] : []
-        let statusChanges = previous != status
-        if statusChanges {
-            guard store.updateStatus(record, to: status) else { throw SiriAttendanceError.cannotMark }
-        }
-        let reasonChanges = status == .absent && reason.map { store.updateAbsenceReason(record, to: $0) } == true
-        guard statusChanges || reasonChanges else { return (previous, false) }
-        var pending = Pending(record: record, from: previous, to: status, before: before)
-        if reasonChanges {
-            pending.fromReasonRaw = previousReasonRaw
+        var pending = Pending(record: record, from: outcome.previous, to: status, before: outcome.before)
+        if outcome.reasonChanged {
+            pending.fromReasonRaw = outcome.previousReasonRaw
             pending.toReasonRaw = record.absenceReasonRaw
         }
         let name = name ?? spokenName(for: student)
         try await commit([pending], created: created, summary: "\(name) \(status.spokenWord)", name: name)
-        return (previous, true)
+        return (outcome.previous, true)
     }
 
     /// "Here": present, or late once arrival has closed in the Assistant

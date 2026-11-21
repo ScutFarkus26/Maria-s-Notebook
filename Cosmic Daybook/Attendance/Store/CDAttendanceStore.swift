@@ -86,8 +86,11 @@ struct CDAttendanceStore { // swiftlint:disable:this type_body_length
         return coordinator.persistentStores.first { $0.configurationName == wanted }
     }
 
-    /// Stamps attribution on a record that was just changed.
+    /// Stamps attribution on a record that was just changed, and puts its
+    /// paired fields right (`normalize`): a row a restore or an older build
+    /// wrote field by field can hold an odd pair the change would keep.
     private func stamp(_ record: CDAttendanceRecord) {
+        record.normalize()
         record.recordedBy = role.rawValue
         record.recordedByID = ClassroomIdentity.currentUserRecordName
         // Only assistants carry a name: an unlabelled mark is the guide's own,
@@ -367,13 +370,17 @@ struct CDAttendanceStore { // swiftlint:disable:this type_body_length
 
     /// Marks every student still unmarked on `date` present, creating records
     /// for those without one. Anyone already marked (late, absent, left
-    /// early) keeps their mark: this used to overwrite them all. Returns only
-    /// the records it changed, so the caller can undo exactly those. Callers
+    /// early) keeps their mark: this used to overwrite them all. Nothing on
+    /// a day still to come (`AttendanceRules.allows`). Returns only the
+    /// records it changed, so the caller can undo exactly those. Callers
     /// save afterwards.
     @discardableResult
-    func markUnmarkedPresent(for date: Date, students: [CDStudent]) throws -> [CDAttendanceRecord] {
-        guard canWrite(on: date) else { return [] }
-        let now = Date()
+    func markUnmarkedPresent(
+        for date: Date, students: [CDStudent], now: Date = Date()
+    ) throws -> [CDAttendanceRecord] {
+        guard canWrite(on: date), AttendanceRules.allows(.present, on: date, now: now, calendar: calendar) else {
+            return []
+        }
         var changed: [CDAttendanceRecord] = []
         // As in `markUnmarkedAbsent`: a status this build doesn't know isn't unmarked.
         for rec in try ensureRecords(for: students, on: date) where AttendanceDeduplication.closeArrivalMarks(rec) {
@@ -474,4 +481,118 @@ struct CDAttendanceStore { // swiftlint:disable:this type_body_length
     }
 
     #endif
+}
+
+// MARK: - Marking a child
+
+extension CDAttendanceStore {
+
+    /// Marks `student` `status` on `date`: the one way every path sets a
+    /// child's mark (the grids, Siri, Claude's `mark_attendance`), so the
+    /// rules hold whoever asks (domain-logic review 2026-11-20, R5). Only a
+    /// backup restore writes records without it. Throws an
+    /// `AttendanceMarkRefusal`, with nothing written, when
+    /// - this role may not write attendance, or the day is locked;
+    /// - the child isn't on the day's roll as the grids draw it
+    ///   (`AttendanceRoster`: no record that day and her dates leave her
+    ///   out, or a test student this device hides), since a record would
+    ///   put her on it, on the grid, the here count and the front desk;
+    /// - the day hasn't come yet and the mark is anything but Absent or
+    ///   Unmarked (`AttendanceRules.allows`);
+    /// - the day has no school, unless `dayOffConfirmed`: Siri asks first,
+    ///   Claude passes `confirm_day_off`, and the notebook's grid shows its
+    ///   day-off warning above the tiles.
+    ///
+    /// Unmarked clears every copy of the day (`unmark`), or a duplicate's
+    /// mark would win the child back, and makes no record for a child with
+    /// none. Absent on Close Arrival's automatic absence makes it the
+    /// guide's own, so an Undo of Close Arrival leaves it. `reason` applies
+    /// to Absent only; nil leaves the reason as it is. The caller saves.
+    @discardableResult
+    func mark(
+        student: CDStudent,
+        status: AttendanceStatus,
+        reason: AbsenceReason? = nil,
+        on date: Date,
+        now: Date = Date(),
+        dayOffConfirmed: Bool = false
+    ) throws -> AttendanceMarkOutcome {
+        let day = date.normalizedDay(using: calendar)
+        guard roleMayWrite else { throw AttendanceMarkRefusal.roleCannotWrite }
+        guard !isLocked(day) else { throw AttendanceMarkRefusal.locked }
+        let key = student.id?.uuidString ?? ""
+        let existing = try fetchRecords(for: day).filter { $0.studentID == key }
+        // A record this save is still to insert says nothing about the roll:
+        // it was made a moment ago, for this very mark or another.
+        if let offRoll = offRoll(student, on: day, hasRecord: existing.contains { !$0.isInserted }) {
+            throw AttendanceMarkRefusal.notOnRoll(offRoll)
+        }
+        guard AttendanceRules.allows(status, on: day, now: now, calendar: calendar) else {
+            throw AttendanceMarkRefusal.aheadOfDay
+        }
+        guard dayOffConfirmed || !isDayOff(day) else { throw AttendanceMarkRefusal.dayOff }
+
+        let winner = existing.deduplicatedPerStudentDay().first
+        guard winner != nil || status != .unmarked else { return .nothingToClear }
+        let record = winner ?? makeRecord(studentKey: key, day: day)
+        var outcome = AttendanceMarkOutcome(
+            record: record,
+            previous: record.status,
+            wasMarked: AttendanceDeduplication.isMarked(record),
+            previousReasonRaw: record.absenceReasonRaw,
+            before: AttendanceRecordSnapshot(record).values,
+            created: winner == nil
+        )
+        outcome.statusChanged = apply(status, reason: reason, to: record, at: now)
+        if status == .absent, let reason, record.absenceReasonRaw != reason.rawValue {
+            record.absenceReason = reason
+            stamp(record)
+            outcome.reasonChanged = true
+        }
+        return outcome
+    }
+
+    /// Sets `record`'s status for `mark(student:…)`, and returns whether it
+    /// changed. Absent on Close Arrival's automatic absence takes the marker
+    /// off (with `reason`, if one came), so the absence is a person's.
+    private func apply(
+        _ status: AttendanceStatus, reason: AbsenceReason?, to record: CDAttendanceRecord, at now: Date
+    ) -> Bool {
+        switch status {
+        case .unmarked:
+            return unmark(record)
+        case .absent where AttendanceDeduplication.isAutomaticAbsence(record):
+            record.absenceReason = reason ?? .none
+            stamp(record)
+            return true
+        default:
+            guard record.status != status else { return false }
+            mark(record, as: status, at: now)
+            return true
+        }
+    }
+
+    /// Why `student` isn't on `day`'s roll, or nil when she is: as the grids
+    /// draw it (`AttendanceRoster`), a record that day or her dates, with
+    /// the test students this device hides left out (`TestStudentsFilter`).
+    private func offRoll(_ student: CDStudent, on day: Date, hasRecord: Bool) -> AttendanceMarkRefusal.OffRoll? {
+        guard student.id != nil else { return .departed }
+        if TestStudentsFilter.filterVisible([student]).isEmpty { return .testStudent }
+        guard !hasRecord, !AttendanceRoster.wasEnrolled(student, on: day, calendar: calendar) else { return nil }
+        return student.isEnrolled ? .notStarted : .departed
+    }
+
+    /// Whether `day` has no school, by `SchoolDayChecker`'s rule. In the
+    /// Assistant, the guide's calendar in the classroom share only, as its
+    /// day-off screen reads it (`AttendanceEmailLog.nonSchoolDays`).
+    func isDayOff(_ day: Date) -> Bool {
+        let start = calendar.startOfDay(for: day)
+        guard let end = calendar.date(byAdding: .day, value: 1, to: start) else { return false }
+        #if ASSISTANT_APP
+        let daysOff = AttendanceEmailLog.nonSchoolDays(in: start..<end, using: context, calendar: calendar)
+        #else
+        let daysOff = SchoolDayChecker.nonSchoolDaySet(in: start..<end, using: context, calendar: calendar)
+        #endif
+        return daysOff.contains(start)
+    }
 }

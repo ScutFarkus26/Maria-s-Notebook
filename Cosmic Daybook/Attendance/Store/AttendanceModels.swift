@@ -87,6 +87,78 @@ enum AbsenceReason: String, Codable, CaseIterable, Sendable {
     }
 }
 
+// MARK: - Marking a child
+
+/// Why `CDAttendanceStore.mark(student:status:reason:on:)` wrote nothing.
+/// Each caller words it its own way: the grids in plain words
+/// (`userMessage`), Siri as its own errors, Claude as a refusal that says why.
+enum AttendanceMarkRefusal: Error, Equatable {
+    /// Why a child isn't on the day's roll.
+    enum OffRoll: Equatable {
+        /// Her start date is after the day.
+        case notStarted
+        /// She left the class before the day (or has no id to mark).
+        case departed
+        /// A test student this device hides (`TestStudentsFilter`).
+        case testStudent
+    }
+
+    /// This role may not write attendance (added as View only).
+    case roleCannotWrite
+    /// The day is locked; nobody's marks change until the guide unlocks it.
+    case locked
+    /// The child isn't on the day's roll, so a mark would put her there.
+    case notOnRoll(OffRoll)
+    /// Ahead of the day only an absence, or clearing a mark, is taken.
+    case aheadOfDay
+    /// The day has no school, and the caller hasn't confirmed the mark.
+    case dayOff
+
+    /// The plain sentence a grid shows.
+    var userMessage: String {
+        switch self {
+        case .roleCannotWrite: "You can look at attendance here, but not change it."
+        case .locked: "This day is locked, so its attendance can't be changed."
+        case .notOnRoll(.notStarted): "That child hasn't started yet, so there's nothing to mark."
+        case .notOnRoll: "That child isn't on this day's roll, so there's nothing to mark."
+        case .aheadOfDay: "This day hasn't come yet. Only an absence can be marked ahead."
+        case .dayOff: "There's no school this day, so attendance wasn't marked."
+        }
+    }
+}
+
+/// What `CDAttendanceStore.mark(student:status:reason:on:)` did.
+struct AttendanceMarkOutcome {
+    /// The child's record for the day: nil only when a child with no record
+    /// was cleared, which writes nothing.
+    let record: CDAttendanceRecord?
+    /// Her mark before (unmarked when she had no record).
+    let previous: AttendanceStatus
+    /// Whether she held a mark before, read from the raw value as
+    /// `AttendanceDeduplication.isMarked` reads it.
+    let wasMarked: Bool
+    /// The stored reason before.
+    let previousReasonRaw: String
+    /// The whole record before the mark, for an Undo; nil with no record.
+    let before: AttendanceRecordSnapshot.Values?
+    /// The record was made for this mark (the caller saves it).
+    let created: Bool
+    /// The status changed, or an automatic absence became the guide's.
+    var statusChanged = false
+    /// The absence's reason changed.
+    var reasonChanged = false
+
+    var changed: Bool { statusChanged || reasonChanged }
+
+    /// Clearing a child who had no record: nothing to write.
+    static var nothingToClear: AttendanceMarkOutcome {
+        AttendanceMarkOutcome(
+            record: nil, previous: .unmarked, wasMarked: false, previousReasonRaw: AbsenceReason.none.rawValue,
+            before: nil, created: false
+        )
+    }
+}
+
 // MARK: - Date Normalization Helper
 
 nonisolated extension Date {

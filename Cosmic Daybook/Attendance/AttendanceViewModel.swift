@@ -157,13 +157,9 @@ final class AttendanceViewModel {
     /// mark. Returns whether anything changed.
     @discardableResult
     func setStatus(_ status: AttendanceStatus, for row: AttendanceRow, modelContext: NSManagedObjectContext) -> Bool {
-        guard AttendanceRules.allows(status, on: selectedDate),
-              let record = record(for: row, modelContext: modelContext) else { return false }
-        let store = CDAttendanceStore(context: modelContext)
-        // Clearing goes through every copy of the day, or a duplicate's mark
-        // would win the child straight back (`CDAttendanceStore.unmark`).
-        let didChange = status == .unmarked ? store.unmark(record) : store.updateStatus(record, to: status)
-        guard didChange else { return false }
+        guard AttendanceRules.allows(status, on: selectedDate), let record = mark(row, status, modelContext) else {
+            return false
+        }
         changed([record])
         welcomeBack(row, to: status)
         return true
@@ -172,11 +168,8 @@ final class AttendanceViewModel {
     /// Absent with a reason (or none), in one step: the menu's Absent
     /// choices. Allowed on days ahead, for a known vacation or appointment.
     func markAbsent(reason: AbsenceReason, for row: AttendanceRow, modelContext: NSManagedObjectContext) {
-        guard let record = record(for: row, modelContext: modelContext) else { return }
-        let store = CDAttendanceStore(context: modelContext)
-        let marked = store.updateStatus(record, to: .absent)
-        let reasoned = store.updateAbsenceReason(record, to: reason)
-        if marked || reasoned { changed([record]) }
+        guard let record = mark(row, .absent, reason: reason, modelContext) else { return }
+        changed([record])
     }
 
     /// Back in Class: a child who left early has come back, to present or
@@ -334,6 +327,9 @@ final class AttendanceViewModel {
         let id = UUID()
         let message: String
     }
+
+    /// Shows a plain `message` on the roll, with nothing to log.
+    func show(_ message: String) { problem = Problem(message: message) }
 
     /// Logs `error` and sets the plain `message` for the screen to show.
     func report(_ message: String, _ error: Error, while activity: String) {

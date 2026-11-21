@@ -200,11 +200,14 @@ struct MCPWorkAndAttendanceToolsTests {
         CoreDataTestHelpers.save(context)
 
         let markTool = try tool(named: "mark_attendance", in: tools)
-        let today = MCPNotebookTools.isoDay.string(from: Date())
+        // The latest weekday: a weekend has no school, which mark_attendance
+        // refuses without confirm_day_off (domain-logic review R5).
+        var schoolDay = AppCalendar.startOfDay(Date())
+        while AppCalendar.shared.isDateInWeekend(schoolDay) { schoolDay = AppCalendar.addingDays(-1, to: schoolDay) }
         _ = try await markTool.handler([
             "student_name": .string("Lila"),
             "status": .string("tardy"),
-            "date": .string(today)
+            "date": .string(MCPNotebookTools.isoDay.string(from: schoolDay))
         ])
 
         let output = try await tool(named: "student_record", in: tools).presetting("sections", ["attendance"]).handler([

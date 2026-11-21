@@ -27,6 +27,8 @@ extension MCPNotebookTools {
     struct AttendanceBatch {
         let named: [AttendanceMark]
         let markRestPresent: Bool
+        /// `confirm_day_off`: the guide said to mark a day with no school.
+        var dayOffConfirmed = false
     }
 
     /// The named marks: `students`, plus a top-level `student_name` and
@@ -68,7 +70,8 @@ extension MCPNotebookTools {
             marks.append(AttendanceMark(student: student, status: try attendanceStatus(topStatus)))
         }
         return AttendanceBatch(
-            named: try oneMarkPerChild(marks), markRestPresent: arguments["mark_all_present"]?.boolValue == true
+            named: try oneMarkPerChild(marks), markRestPresent: arguments["mark_all_present"]?.boolValue == true,
+            dayOffConfirmed: arguments["confirm_day_off"]?.boolValue == true
         )
     }
 
@@ -111,15 +114,18 @@ extension MCPNotebookTools {
         // this only fires if a role without it is ever added. It stays as the
         // defense against that silent no-op.
         guard store.canWrite(on: day) else { throw attendanceRoleRefusal }
+        if batch.markRestPresent { try refuseEveryonePresent(on: day, store: store, batch: batch) }
         var lines: [String] = []
         var named: Set<UUID> = []
         var kept: [String] = []
         do {
+            // One refusal fails the whole call: the caller rolls back what
+            // the marks before it wrote.
             for mark in batch.named {
-                guard let record = try store.ensureRecord(for: mark.student, on: day) else {
-                    throw attendanceRoleRefusal
-                }
-                store.updateStatus(record, to: mark.status)
+                try markThroughStore(
+                    store, student: mark.student, status: mark.status, on: day,
+                    dayOffConfirmed: batch.dayOffConfirmed
+                )
                 if let id = mark.student.id { named.insert(id) }
                 lines.append("- \(mark.student.fullName) — \(mark.status.displayName.lowercased())")
             }
@@ -174,10 +180,18 @@ extension MCPNotebookTools {
         return (marked, kept)
     }
 
-    private static var attendanceRoleRefusal: MCPToolError {
-        MCPToolError(
-            "Attendance could not be written — this classroom role may not have permission "
-                + "to mark attendance."
-        )
+    /// Everyone present follows the rules each named mark does
+    /// (`CDAttendanceStore.mark`): nothing ahead of the day, and a day off
+    /// only when confirmed. The store's `markUnmarkedPresent` would skip a
+    /// day ahead silently; this says why.
+    private static func refuseEveryonePresent(
+        on day: Date, store: CDAttendanceStore, batch: AttendanceBatch
+    ) throws {
+        if !AttendanceRules.allows(.present, on: day, calendar: AppCalendar.shared) {
+            throw attendanceRefusal(.aheadOfDay, student: nil, status: .present, on: day)
+        }
+        if !batch.dayOffConfirmed, store.isDayOff(day) {
+            throw attendanceRefusal(.dayOff, student: nil, status: .present, on: day)
+        }
     }
 }

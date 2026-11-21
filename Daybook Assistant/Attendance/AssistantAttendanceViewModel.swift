@@ -430,13 +430,12 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
         guard !reloadIfGone(row) else { return false }
         guard canMark, Self.allows(status, on: date, now: now()) else { return false }
         do {
-            guard let record = try store.ensureRecord(for: row.student, on: date) else { return false }
-            if record.isInserted { createdSinceSave.append(record) }
-            let wasHere = Self.isHere(record.status)
-            let before = AttendanceDeduplication.isMarked(record) ? AttendanceRecordSnapshot(record).values : nil
-            // Clearing goes through every copy of the day, or a duplicate's
-            // mark would win the child straight back (`CDAttendanceStore.unmark`).
-            _ = status == .unmarked ? store.unmark(record) : store.updateStatus(record, to: status)
+            // The store's one mark, with the rules every path follows:
+            // clearing goes through every copy of the day, or a duplicate's
+            // mark would win the child straight back (`CDAttendanceStore.mark`).
+            guard let outcome = try storeMark(status, for: row), let record = outcome.record else { return false }
+            let wasHere = Self.isHere(outcome.previous)
+            let before = outcome.wasMarked ? outcome.before : nil
             persist(updating: [record])
             guard saveError == nil else { return true }
             // After the save, so the snapshots carry the record's lasting id.
@@ -453,6 +452,31 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
             Self.logger.error("Marking failed: \(error.localizedDescription, privacy: .public)")
             saveError = "Couldn't save that mark. Try again."
             return false
+        }
+    }
+
+    /// `CDAttendanceStore.mark(student:…)` for `row` on the day on screen,
+    /// the rules every path follows. A record it made joins
+    /// `createdSinceSave`. A refusal means the day changed since the load
+    /// (locked, made a day off, the child gone from the roll), so the day
+    /// reloads and the grid says why; nil then. A day off the screen already
+    /// shows (`dayOff`, the day-off view in place of the grid) is its own
+    /// warning, as the notebook's banner is; one made since the load is
+    /// refused, and the reload shows it.
+    private func storeMark(
+        _ status: AttendanceStatus, reason: AbsenceReason? = nil, for row: Row
+    ) throws -> AttendanceMarkOutcome? {
+        do {
+            let outcome = try store.mark(
+                student: row.student, status: status, reason: reason, on: date, now: now(),
+                dayOffConfirmed: dayOff != nil
+            )
+            if outcome.created, let record = outcome.record { createdSinceSave.append(record) }
+            return outcome
+        } catch let refusal as AttendanceMarkRefusal {
+            load()
+            saveError = refusal.userMessage
+            return nil
         }
     }
 
@@ -630,10 +654,7 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
         guard !reloadIfGone(row) else { return }
         guard canMark, Self.allows(.absent, on: date, now: now()) else { return }
         do {
-            guard let record = try store.ensureRecord(for: row.student, on: date) else { return }
-            if record.isInserted { createdSinceSave.append(record) }
-            store.updateStatus(record, to: .absent)
-            store.updateAbsenceReason(record, to: reason)
+            guard let record = try storeMark(.absent, reason: reason, for: row)?.record else { return }
             persist(updating: [record])
         } catch {
             Self.logger.error("Marking absent failed: \(error.localizedDescription, privacy: .public)")

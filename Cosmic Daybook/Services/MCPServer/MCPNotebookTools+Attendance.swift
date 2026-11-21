@@ -121,6 +121,8 @@ extension MCPNotebookTools {
                 + "with an optional absence reason and note. Pass students for several at once, and "
                 + "mark_all_present to mark present everyone else who has no mark yet: a mark "
                 + "already made (by an assistant, say) is kept, and the reply names who kept one. "
+                + "The app's rules apply: on a day still to come only absent or unmarked; only "
+                + "children on that day's roll; a day off needs confirm_day_off. "
                 + "Marks are attributed and sync to the classroom.",
             inputSchema: markAttendanceSchema,
             annotations: .idempotentWrite,
@@ -179,6 +181,11 @@ extension MCPNotebookTools {
             "note": [
                 "type": "string",
                 "description": "A note about the day (optional); single student only"
+            ],
+            "confirm_day_off": [
+                "type": "boolean",
+                "description": .string("The day has no school (a weekend or a day off), and the guide said to "
+                    + "mark it anyway, for a school event, say. Without it a mark on a day off is refused.")
             ]
         ]
     ]
@@ -214,32 +221,34 @@ extension MCPNotebookTools {
             requireString(arguments, "student_name"), in: modelContext
         )
         let status = try attendanceStatus(try requireString(arguments, "status"))
-
-        let store = CDAttendanceStore(context: modelContext, calendar: AppCalendar.shared)
-        try refuseLockedDay(day, store: store)
-        guard let record = try store.ensureRecord(for: student, on: day) else {
-            throw MCPToolError(
-                "Attendance could not be written — this classroom role may not have permission "
-                    + "to mark attendance."
-            )
-        }
-        store.updateStatus(record, to: status)
-
-        var extras: [String] = []
+        var reason: AbsenceReason?
         if let reasonRaw = nonEmpty(arguments["absence_reason"]?.stringValue) {
-            guard let reason = AbsenceReason(rawValue: reasonRaw) else {
+            guard let parsed = AbsenceReason(rawValue: reasonRaw) else {
                 let allowed = AbsenceReason.allCases.map(\.rawValue).joined(separator: ", ")
                 throw MCPToolError("absence_reason must be one of: \(allowed). Got \"\(reasonRaw)\".")
             }
-            // The store refuses a reason on a status other than absent, which is
-            // the rule the grid enforces too — say so rather than failing silently.
+            // The store takes a reason on an absence only, which is the rule
+            // the grid enforces too — say so rather than failing silently.
             guard status == .absent else {
                 throw MCPToolError("An absence reason only applies when the status is absent.")
             }
-            store.updateAbsenceReason(record, to: reason)
-            extras.append(reason.displayName.lowercased())
+            reason = parsed
         }
+
+        let store = CDAttendanceStore(context: modelContext, calendar: AppCalendar.shared)
+        // The store's one mark, with every rule the grids follow (R5).
+        let outcome = try markThroughStore(
+            store, student: student, status: status, reason: reason, on: day,
+            dayOffConfirmed: arguments["confirm_day_off"]?.boolValue == true
+        )
+
+        var extras: [String] = []
+        if let reason { extras.append(reason.displayName.lowercased()) }
         if let note = nonEmpty(arguments["note"]?.stringValue) {
+            // Clearing a child who had no record made none; a note needs one.
+            guard let record = try outcome.record ?? store.ensureRecord(for: student, on: day) else {
+                throw attendanceRoleRefusal
+            }
             store.updateNote(record, to: note)
             extras.append("note filed")
         }

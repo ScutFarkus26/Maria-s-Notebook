@@ -109,6 +109,11 @@ extension AttendanceInsightsService {
         let pool = AttendanceRecordPool(raw: raw)
 
         let current = pool.records(in: range)
+        // One read of the calendar covering both windows.
+        let daysOff = AttendanceTallies.daysOff(
+            in: min(range.lowerBound, priorRange.lowerBound)...max(range.upperBound, priorRange.upperBound),
+            context: context
+        )
         let patternRecords = patternDays.first.flatMap { first in
             patternDays.last.map { pool.records(in: first...$0) }
         } ?? []
@@ -116,7 +121,7 @@ extension AttendanceInsightsService {
         // Every child on the list, so a family's whole count is known
         // before the list is cut to `patternLimit`.
         let everyone = watchList(
-            records: current, students: students,
+            records: current, students: students, daysOff: daysOff,
             patternDays: patternDays, patternRecords: patternRecords, limit: .max
         )
         let keys = familyKeys(for: students, context: context)
@@ -125,8 +130,8 @@ extension AttendanceInsightsService {
             uniquingKeysWith: { first, _ in first }
         )
         return AttendanceSidebarInsights(
-            summary: classSummary(records: current, students: students),
-            priorSummary: classSummary(records: pool.records(in: priorRange), students: students),
+            summary: classSummary(records: current, students: students, daysOff: daysOff),
+            priorSummary: classSummary(records: pool.records(in: priorRange), students: students, daysOff: daysOff),
             patterns: patterns(
                 everyone, familyKey: { keys[$0] }, familyName: { lastNames[$0] ?? "" }, limit: patternLimit
             )

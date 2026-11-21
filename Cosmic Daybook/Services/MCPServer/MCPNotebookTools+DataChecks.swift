@@ -9,6 +9,9 @@
 //  them: a child's history row left on the old lesson when Change Lesson
 //  moved a given presentation to another one, and a birthday before 1900,
 //  which a spreadsheet import stored when it read "3/5/15" as the year 3.
+//  A third (2026-11-20, domain-logic review A13): attendance marks whose
+//  details don't fit the mark, which a restore or an import writes field by
+//  field; `CDAttendanceRecord.normalize` puts each right at its next change.
 //  This tool only lists them, with citations, so they can be checked and
 //  fixed by hand. It writes nothing.
 //
@@ -27,14 +30,19 @@ extension MCPNotebookTools {
                 + "different lesson than the given presentation it belongs to (left behind when Change "
                 + "Lesson moved a presentation before 2026-10-10; opening the presentation in the app and "
                 + "saving it moves its rows). early_birthdays: birthdays before 1900, which an old "
-                + "spreadsheet import stored by reading a two-digit year as a year like 0015. Without "
-                + "check, runs both.",
+                + "spreadsheet import stored by reading a two-digit year as a year like 0015. "
+                + "attendance_pairs: attendance marks whose details don't fit the mark (a reason on a "
+                + "present mark, a return time on an absence), which a restore or an import can write; "
+                + "the next change to the mark puts it right. Without check, runs all three.",
             inputSchema: [
                 "type": "object",
                 "properties": [
                     "check": [
                         "type": "string",
-                        "enum": [.string(DataChecks.historyLessons), .string(DataChecks.earlyBirthdays)],
+                        "enum": [
+                            .string(DataChecks.historyLessons), .string(DataChecks.earlyBirthdays),
+                            .string(DataChecks.attendancePairs)
+                        ],
                         "description": "Run only this check"
                     ]
                 ]
@@ -50,18 +58,21 @@ extension MCPNotebookTools {
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
     ) throws -> String {
         let check = nonEmpty(arguments["check"]?.stringValue)
-        let known = [DataChecks.historyLessons, DataChecks.earlyBirthdays]
+        let known = [DataChecks.historyLessons, DataChecks.earlyBirthdays, DataChecks.attendancePairs]
         if let check, !known.contains(check) {
             throw MCPToolError(
-                "Unknown check \"\(check)\". Use \(known.joined(separator: " or ")), or leave it out for both."
+                "Unknown check \"\(check)\". Use \(known.joined(separator: ", ")), or leave it out for all three."
             )
         }
         var sections = ["Data checks (read-only; nothing was changed)."]
-        if check != DataChecks.earlyBirthdays {
+        if check == nil || check == DataChecks.historyLessons {
             sections.append(describeMisfiledHistoryRows(in: modelContext))
         }
-        if check != DataChecks.historyLessons {
+        if check == nil || check == DataChecks.earlyBirthdays {
             sections.append(describeEarlyBirthdays(in: modelContext))
+        }
+        if check == nil || check == DataChecks.attendancePairs {
+            sections.append(describeMismatchedAttendance(in: modelContext))
         }
         return sections.joined(separator: "\n\n")
     }
@@ -107,6 +118,28 @@ extension MCPNotebookTools {
         return "[lesson id=\(lessonID)] \(name)"
     }
 
+    private static func describeMismatchedAttendance(in modelContext: NSManagedObjectContext) -> String {
+        let records = DataChecks.mismatchedAttendance(in: modelContext)
+        guard !records.isEmpty else { return "Attendance marks with details that don't fit the mark: none." }
+        let students = DataChecks.studentNames(ids: Set(records.map(\.studentID)), in: modelContext)
+        var lines = ["Attendance marks with details that don't fit the mark: \(records.count)."]
+        for record in records.prefix(dataCheckLineLimit) {
+            let name = students[DataChecks.normalized(record.studentID)] ?? "a student no longer on the roster"
+            lines.append(
+                "- [attendance id=\(citationID(record.id))] \(name), \(dayString(record.date)): "
+                    + record.status.displayName.lowercased()
+            )
+        }
+        if records.count > dataCheckLineLimit {
+            lines.append("- and \(records.count - dataCheckLineLimit) more")
+        }
+        lines.append(
+            "Their mark stands; only the details that don't belong to it (a reason, a time) go. The next "
+                + "change to the mark in the app puts each right."
+        )
+        return lines.joined(separator: "\n")
+    }
+
     private static func describeEarlyBirthdays(in modelContext: NSManagedObjectContext) -> String {
         let students = DataChecks.earlyBirthdays(in: modelContext)
         guard !students.isEmpty else { return "Birthdays before 1900: none." }
@@ -128,6 +161,17 @@ extension MCPNotebookTools {
 enum DataChecks {
     static let historyLessons = "history_lessons"
     static let earlyBirthdays = "early_birthdays"
+    static let attendancePairs = "attendance_pairs"
+
+    /// Attendance records whose details don't fit their mark
+    /// (`CDAttendanceRecord.hasMismatchedFields`), oldest day first.
+    static func mismatchedAttendance(in context: NSManagedObjectContext) -> [CDAttendanceRecord] {
+        context.safeFetch(CDFetchRequest(CDAttendanceRecord.self))
+            .filter(\.hasMismatchedFields)
+            .sorted {
+                ($0.date ?? .distantPast, $0.id?.uuidString ?? "") < ($1.date ?? .distantPast, $1.id?.uuidString ?? "")
+            }
+    }
 
     /// A history row and the presentation it names, filed under different lessons.
     struct MisfiledHistoryRow {

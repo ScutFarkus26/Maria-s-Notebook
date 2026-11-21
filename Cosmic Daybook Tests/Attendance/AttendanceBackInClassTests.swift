@@ -205,13 +205,14 @@ struct AttendanceBackInClassTests {
         #expect(!AttendanceStatusReportConfig.absence.counts(late.record))
 
         let watch = AttendanceInsightsService.watchList(
-            records: [late.record], students: [late.student], patternDays: [], patternRecords: [], limit: 5
+            records: [late.record], students: [late.student], daysOff: [],
+            patternDays: [], patternRecords: [], limit: 5
         )
         #expect(watch.first?.tardyCount == 1)
 
         let records = [late.record, onTime.record, unknown.record]
         let summary = AttendanceInsightsService.classSummary(
-            records: records, students: [late.student, onTime.student, unknown.student]
+            records: records, students: [late.student, onTime.student, unknown.student], daysOff: []
         )
         #expect(summary.leftEarlyCount == 3)
         #expect(summary.leftEarlyOnTimeCount == 1)
