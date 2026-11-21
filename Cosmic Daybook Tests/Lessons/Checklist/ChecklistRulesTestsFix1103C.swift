@@ -163,7 +163,8 @@ struct ChecklistRulesFix1103CTests {
         let fixture = try Fixture.make()
         let noa = CoreDataTestHelpers.seedStudent(in: fixture.context, firstName: "Noa", lastName: "Levi")
         fixture.eli.enrollmentStatus = .withdrawn
-        fixture.eli.dateWithdrawn = Date()
+        // A child is in class through her last day (domain logic Phase 7), so Eli left yesterday.
+        fixture.eli.dateWithdrawn = Calendar.current.date(byAdding: .day, value: -1, to: Date())
         try fixture.context.save()
 
         fixture.viewModel.refreshMatrix(context: fixture.context)
