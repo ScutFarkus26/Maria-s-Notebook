@@ -11,6 +11,7 @@ Item numbers below are the review's: **R1–R25** are the top 25 and **A1–A20*
 
 ## Progress
 Marks: `plan/domain-logic` (each phase tags the primary checkout `plan/domain-logic/phase-<N>` when it merges; see `~/.claude/bin/plan-wait`)
+Build board: https://claude.ai/artifact/CN28oMqiKihr3cjEPqmrVc (the conductor keeps it current; tasks p1–p10 are the phases)
 - [ ] Phase 1: Schema 25 and backup format 47 · runs as: session · needs: — · est. $15–30 (~1%)
 - [ ] Phase 2: Attendance rules in the store · runs as: session · needs: — · est. $10–20 (~1%)
 - [ ] Phase 3: Schedules, Restock and repeating to-dos · runs as: session · needs: — · est. $15–30 (~1%)
