@@ -494,6 +494,8 @@ Each note can be scoped to:
 - **One student** — Specific to that child
 - **Multiple students** — An observation about a group interaction
 
+A child's Notes tab and her reports show her own notes, the group notes that name her, and the class's notes. Notes from a community meeting and a calendar day's notes are about the class's day rather than any one child, so they stay off each child's Notes tab. In a report draft, other children's names become "a classmate".
+
 ## Tags and Categories
 
 Notes can be tagged with custom labels. Common categories include Academic, Behavioral, Social, Emotional, Health, and General. You can create your own tags in Settings.
@@ -834,6 +836,15 @@ Access Settings from **More ▸ System** (the last row of the sidebar on Mac and
 - Grade levels and age groups
 - School year start and end dates
 - School day schedule
+
+## School Year
+
+The **School year** card sets when the school year starts. Below it:
+
+- **First and last days of school.** Turn on **Set the first and last days**, pick the **First day** and **Last day**, and choose **Save**. The summer before the first day and after the last day then counts as days off: attendance, planning and reminders skip it, here and on your assistant's phone. Without them, every weekday counts as a school day, also over the summer. The first day also becomes the start of the school year.
+- **Time zone.** The class's days begin and end in this time zone on every device, so a phone that is traveling still shows the class's day. Until you pick one it uses this device's zone; the first save from your Mac fills in the Mac's.
+
+Only the lead guide can change these, and they're shared with your assistant.
 
 ## Calendar
 

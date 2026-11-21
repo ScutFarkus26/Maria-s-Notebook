@@ -75,7 +75,9 @@ The core work assignment model.
 - `title: String` - Work title/description
 - `kind: WorkKind?` - Type of work (practice, followUp, research, report)
 - `status: WorkStatus` - The row's one verdict (active, review, mastered, keepPracticing, incomplete, done)
-- `dueAt: Date?` - Due date (optional)
+- `dueAt: Date?` - A due date the guide set (optional), and nothing else. Since 2026-11-21 scheduling a check no longer copies its day here; the next check is the earliest scheduled check-in (`WorkCheckInService.nextCheckDay`)
+- `assignmentID: String?` - The assignment this row is a copy of (schema 25). Every child's copy of work given to a group carries the same id; a row given to one child carries its own. Nil on older rows until `WorkAssignmentFill` stamps it, at launch and after a restore
+- `isSharedRow: Bool` - The row is one its children share (a project's work), not one child's copy (schema 25)
 - `assignedAt: Date` - When assigned
 - `completedAt: Date?` - When work was fully completed
 - `completionOutcomeRaw: String?` - **Legacy.** Folded into `status` by `WorkStatusMigration` (launch repair + backup importer); nothing else reads it
@@ -88,9 +90,9 @@ The core work assignment model.
 
 **Best Practices:**
 - Always set `kind` when creating new work
-- Use `WorkRepository.createWork()` for consistent initialization
+- Give work through `WorkAssignmentService.create`, for one child or several: it makes one row per child through `WorkRepository.createWork`, gives a group's copies one `assignmentID`, makes the first check-in through `WorkCheckInService.addCheckIn` (a closed day moves to the next school day), and links the copies to each other once. Quick New Work and Claude's `assign_work` both use it
 - Change `status` only through `WorkLogService.log` — it stamps `completedAt`, writes the `CDWorkCompletionRecord`, settles the row's check-ins (today's → completed, later ones on a closed row → skipped, dates kept) and files the note; every in-app control and `update_work` go through it
-- Set `dueAt` for time-sensitive work
+- Set `dueAt` only for a real due date. Put work on a day with a check-in (`WorkCheckInService.addCheckIn`, or `scheduleCheck` to move the earliest one), never by writing `dueAt`
 
 ### WorkKind Enum
 Describes the type of work assignment.
@@ -100,6 +102,8 @@ Describes the type of work assignment.
 - `.followUpAssignment` - Follow-up work after a lesson
 - `.research` - Student research/project work
 - `.report` - Multi-step report with defined steps
+
+**Default:** `createWork` with no kind makes Practice when the row can follow a presentation of the lesson naming the child (given ones first, else a plan), and Follow-Up when there is none. It reads the presentation it resolves, not the argument, so work made without one is still Practice (2026-11-21).
 
 **UI Properties:**
 - `color: Color` - Standard color for this kind
@@ -117,7 +121,7 @@ let icon = kind.iconName // "pencil.circle"
 The one verdict a work row carries, per child. Until 2026-09-15 a row had a
 lifecycle status *and* a completion outcome that were only ever set together.
 
-**Open (`isOpen`):**
+**Open (`isOpen`):** the status alone, on the row as in every fetch (`CDWorkModel.isOpen` is `status.isOpen` since 2026-11-21; it used to read a shared row as closed once every child was stamped done).
 - `.active` - "Working"
 - `.review` - "Needs Review": the guide has to look before it moves on
 
@@ -158,9 +162,30 @@ An entry with `status: nil` means "seen, unchanged": the day's check-in is
 still marked completed. `WorkLogTargets.resolve(work:students:in:)` turns a
 gesture into rows — everyone on a fan-out group, or the copies a set of
 children own; a `.shared` row refuses a subset rather than being split.
+Since 2026-11-21 "everyone" leaves out the copy of a child who has left the
+class (`CDStudent.hasLeft(by:)`): it is her record and stays as she left it.
 
-**Linked copies (2026-10-10, revised the same day).** `WorkGrouping` treats
-two rows as copies of one assignment only when:
+**The check happened (2026-11-21).** Done on Today, Done on the work page and
+Claude's `complete_check_in_on` pass the check-in as `checked:` with a
+"seen, unchanged" entry. It is dated the day it was checked (never later than
+today), every earlier check-in still waiting is settled with it, and Undo puts
+it back. The work page and Claude used to mark that one check-in alone, so
+Monday's missed check stayed overdue.
+
+**One child's part of a shared row (2026-11-21).** `WorkLogService.finishPart(of:for:)`
+stamps her participant row and writes her completion; the row stays open for
+the others. When hers was the last part open, the row closes through `log`
+(as Finished unless a closing status is given), so its check-ins and linked
+todos settle like any other close. Claude's `completed_by` and a mastery mark
+on a shared row use it. For a row that is hers alone, log a closing status
+instead.
+
+**Linked copies (2026-10-10, revised the same day; `assignmentID` since
+2026-11-21).** A row that carries its `assignmentID` is matched by it: its
+copies are the rows with the same id, whatever their titles, days or
+presentations have become. The rule below is now the fallback for a row not
+filled yet, and what `WorkAssignmentFill` writes down. `WorkGrouping` treats
+two such rows as copies of one assignment only when:
 - their owners name each other,
 - they match on lesson and kind,
 - they were created within 60 seconds of each other, and
@@ -184,10 +209,41 @@ The work editor carries a new title or kind to every linked copy. Status
 logs, removal, delete clean-up, the grid menu and MCP check-ins all go
 through this rule.
 
+**Whose work it is (2026-11-21).** `WorkOwnership` is the one rule. A row is
+a child's when she owns it (her own work, or her copy of work given to a
+group), or when she is named on it and owns no copy of its assignment (a row
+its children share, or a classmate's row she is on with none of her own). A
+classmate's copy that names her is not hers while she has her own. It
+replaced five rules (`WorkGrouping.visibleWork`, `WorkVisibility`, the Class
+Grid's `ownWork`, readiness's `gatingWork` and `workInvolvesStudent`) and the
+owner-only reads in Today and the meetings. Use `WorkOwnership.work(of:among:in:)`
+for a list, or a `WorkOwnership.Reader` over rows in hand.
+
+**How long work has gone quiet (2026-11-21).** `WorkNeglect` is the one clock:
+school days since the latest meaningful touch, the latest of a log
+(`lastTouchedAt`), a completed check-in on or before today, a note, the
+completion, and the day a rest ended; with none of these, the day it was
+assigned. Triage, Today's Gone quiet, the card's age bar, the Checklist's dot
+and the meeting's stuck list all read it, so work set aside for a month no
+longer wakes up as a month untouched.
+
+**Practice (2026-11-21).** A practice is a completed check-in that has
+minutes or the practice purpose (`CDWorkCheckIn.isPractice`, and
+`practicePredicate` for a fetch); a practice still on the calendar, or skipped
+when its work closed, isn't one. Three Years, the Checklist and the timeline
+hand the ladder the same input (`LadderInput`), and a Practicing or Ready for
+Assessment state the guide stored by hand is a floor the mark never reads
+below.
+
 **Undo from a meeting.** A meeting card's choice (Keep Working or Keep
 Practicing, Finished, Mastered, Re-present) sets the work's status at once;
-Ready for Next is a switch beside it that sets no status and only plans the
-next lesson when the meeting is filed (2026-10-30). The meeting keeps each
+Ready for Next is a switch beside it that sets no status (2026-10-30). Since
+2026-11-21 Re-present and Ready for Next also plan at the tap, not when the
+meeting is filed: Re-present plans the lesson again as a second pass, and
+Ready for Next confirms her on the lesson and puts the next one On Deck. The
+draft keeps a receipt of what the tap made and changed (`MeetingTapPlan`), so
+the card, Rest or Clear can take it back after a relaunch; taking back
+refuses once anything has moved since. The meeting keeps each
 close's `UndoToken` with its stored draft (`MeetingCloseToken`, object IDs as
 URIs), so Rest or another choice can undo it after a relaunch, and Clear can
 undo a Re-present. Before undoing, it checks the work is still as
@@ -225,7 +281,7 @@ Links students to work assignments.
 - `work: CDWorkModel?` - Back-reference to work
 
 **Best Practices:**
-- Don't directly set `completedAt` - `WorkLogService` sets it when a row closes
+- Don't directly set `completedAt` - `WorkLogService` sets it when a row closes, and `WorkLogService.finishPart` for one child's part of a shared row
 - Used primarily for determining which students are assigned to work
 - The completion date is automatically synced from WorkCompletionRecord
 
@@ -283,8 +339,24 @@ try repository.createWork(
     lessonID: lesson.id,
     title: "Practice multiplication",
     kind: .practiceLesson,
-    scheduledDate: tomorrow
+    scheduledDate: dueDay // the due date the guide set, never a check day
 )
+```
+
+To give work to one child or a group with a first check-in, use the one path
+Quick New Work and `assign_work` use (it doesn't save; the caller does):
+
+```swift
+let assigned = try WorkAssignmentService(context: context).create(.init(
+    lessonID: lesson.id,
+    studentIDs: [maya.id, leo.id],
+    title: "Practice multiplication",
+    kind: nil, // Practice when it follows a presentation of the lesson
+    dueDate: nil,
+    checkIn: .init(day: tomorrow, purpose: "Progress check")
+))
+// assigned.works: one row per child, sharing one assignmentID
+// assigned.checkInAskedFor: set when the day wasn't a school day and moved
 ```
 
 ### Marking Work Complete
