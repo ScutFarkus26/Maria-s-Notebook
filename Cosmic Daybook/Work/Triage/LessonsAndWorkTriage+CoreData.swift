@@ -25,15 +25,17 @@ extension WorkTriageInput {
         let workCheckIns = checkIns ?? ((work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? [])
         let workNotes = notes ?? ((work.unifiedNotes?.allObjects as? [CDNote]) ?? [])
 
-        let lastTouch = WorkAgingPolicy.lastMeaningfulTouchDate(
+        let lastTouch = WorkNeglect.lastMeaningfulTouchDate(
             for: work,
             checkIns: workCheckIns,
-            notes: workNotes
+            notes: workNotes,
+            asOf: now
         )
 
         self.init(
             status: work.status,
             dueAt: work.dueAt,
+            lastSeen: WorkNeglect.lastSeen(for: work, checkIns: workCheckIns, notes: workNotes, asOf: now),
             restingUntil: work.restingUntil,
             scheduledCheckInDates: workCheckIns
                 .filter { $0.status == .scheduled }

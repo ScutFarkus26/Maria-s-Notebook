@@ -126,10 +126,10 @@ final class StudentAnalysisService {
         workIDRequest.predicate = NSPredicate(format: "studentID == %@", studentID.uuidString)
         let workIDs = try modelContext.fetch(workIDRequest).compactMap { ($0["id"] as? UUID)?.uuidString }
         let practiceRequest = CDFetchRequest(CDWorkCheckIn.self)
-        practiceRequest.predicate = NSPredicate(
-            format: "date >= %@ AND workID IN %@ AND (durationMinutes != nil OR purpose == %@)",
-            since as NSDate, workIDs, PracticeCheckIns.purpose
-        )
+        practiceRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            NSPredicate(format: "date >= %@ AND workID IN %@", since as NSDate, workIDs),
+            CDWorkCheckIn.practicePredicate
+        ])
         practiceRequest.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
         let practice = try modelContext.fetch(practiceRequest)
 

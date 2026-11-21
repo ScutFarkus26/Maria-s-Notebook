@@ -11,7 +11,7 @@
 //  a lesson that only sorts first by name isn't one the child had to finish
 //  first, so a sequence left all at 0 has nothing earlier. "Open" is
 //  `WorkStatus.isOpen`; "the child's" is the Work column's rule
-//  (`QuietStudentsOrder.openStudentIDs` through `WorkVisibility`): her own
+//  (`QuietStudentsOrder.openStudentIDs` through `WorkOwnership.Reader`): her own
 //  copy of linked work, or a shared row she hasn't finished her part of. A
 //  classmate's open copy that names her is not hers.
 //
@@ -22,7 +22,7 @@
 //  name one of the children, plus, only where one of those names more than
 //  one child, a second of every row on those lessons: a child's closed copy is
 //  what tells a classmate's open copy from a row she shares
-//  (`WorkVisibility(covering:)`'s rule).
+//  (`WorkOwnership.Reader(covering:)`'s rule).
 //
 
 import CoreData
@@ -179,46 +179,24 @@ enum WorkToShowFirst {
     private static func openWork(
         _ openRows: [CDWorkModel], for children: Set<UUID>, in context: NSManagedObjectContext
     ) -> [String: [UUID: [OpenRow]]] {
-        let rows = rowsToTellApart(openRows, in: context)
-        let visibility = WorkVisibility(rows: rows)
-        var rowsByLesson: [String: [CDWorkModel]] = [:]
-        for row in rows { rowsByLesson[row.lessonID, default: []].append(row) }
+        let ownership = WorkOwnership.Reader(covering: openRows, in: context)
 
         var open: [String: [UUID: [OpenRow]]] = [:]
         for row in openRows {
             let named = WorkGrouping.studentIDs(of: row)
             let owner = WorkGrouping.owner(of: row)
-            // More than one child named: hers alone only as one of a set of
-            // linked copies, never as a shared row.
-            let isLinkedCopy = named.count > 1 && !WorkGrouping.closure(
-                from: row, among: (rowsByLesson[row.lessonID] ?? []).filter { $0 !== row }
-            ).filter { $0 !== row }.isEmpty
-            for child in QuietStudentsOrder.openStudentIDs(of: row, visibility: visibility)
+            // More than one child named: hers alone only as her own copy,
+            // never as a shared row.
+            let isShared = named.count > 1 && ownership.isShared(row)
+            for child in QuietStudentsOrder.openStudentIDs(of: row, ownership: ownership)
             where children.contains(child) {
-                let hersAlone = owner == child && (named.count <= 1 || isLinkedCopy)
+                let hersAlone = owner == child && !isShared
                 open[row.lessonID, default: [:]][child, default: []].append(
                     OpenRow(work: row, isHersAlone: hersAlone)
                 )
             }
         }
         return open
-    }
-
-    /// `openRows`, plus every row on the lessons where one of them names more
-    /// than one child (`WorkVisibility(covering:)`'s fetch, kept in hand here
-    /// for the linked-copy test).
-    private static func rowsToTellApart(
-        _ openRows: [CDWorkModel], in context: NSManagedObjectContext
-    ) -> [CDWorkModel] {
-        let lessonIDs = Set(openRows.filter { WorkGrouping.studentIDs(of: $0).count > 1 }.map(\.lessonID))
-        guard !lessonIDs.isEmpty else { return openRows }
-        let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(format: "lessonID IN %@", Array(lessonIDs))
-        request.relationshipKeyPathsForPrefetching = ["participants"]
-        var seen = Set<ObjectIdentifier>()
-        return (openRows + context.safeFetch(request)).filter {
-            !$0.isDeleted && seen.insert(ObjectIdentifier($0)).inserted
-        }
     }
 
     /// One request's answer, out of the open rows already sorted by lesson.

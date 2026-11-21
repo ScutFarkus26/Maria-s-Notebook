@@ -61,13 +61,13 @@ enum QuietStudentsOrder {
     /// a classmate's copy hers, and she still read as carrying work after hers
     /// was done.
     ///
-    /// - Parameter visibility: whose each row is, read per linked group (a
+    /// - Parameter ownership: whose each row is, read per linked group (a
     ///   copy counts only for its owner, a shared row for everyone on it).
     ///   Nil reads the row as shared.
-    static func openStudentIDs(of work: CDWorkModel, visibility: WorkVisibility? = nil) -> Set<UUID> {
+    static func openStudentIDs(of work: CDWorkModel, ownership: WorkOwnership.Reader? = nil) -> Set<UUID> {
         let ids = namedOpenStudentIDs(of: work)
-        guard let visibility else { return ids }
-        return ids.filter { visibility.isVisible(work, to: $0) }
+        guard let ownership else { return ids }
+        return ids.filter { ownership.isWork(work, of: $0) }
     }
 
     private static func namedOpenStudentIDs(of work: CDWorkModel) -> Set<UUID> {
@@ -109,17 +109,17 @@ enum QuietStudentsOrder {
     /// files it under Scheduled), so it doesn't count toward how long a child
     /// has gone unattended: its last touch is usually weeks back, and it made
     /// her look long quiet. A child whose open work is all set aside still
-    /// carries work and reads as seen today, the way `WorkAgingPolicy` reads
+    /// carries work and reads as seen today, the way `WorkNeglect` reads
     /// resting work as fresh.
     ///
     /// - Parameters:
-    ///   - visibility: whose each row is (see `openStudentIDs`).
+    ///   - ownership: whose each row is (see `openStudentIDs`).
     ///   - age: school days since that work item was last meaningfully
     ///     touched. Passed in so the caller can supply the count it has already
     ///     made rather than have this walk check-ins and notes a second time.
     static func daysSinceTouchByStudent(
         in works: [CDWorkModel],
-        visibility: WorkVisibility? = nil,
+        ownership: WorkOwnership.Reader? = nil,
         asOf now: Date = Date(),
         age: (CDWorkModel) -> Int
     ) -> [UUID: Int] {
@@ -129,7 +129,7 @@ enum QuietStudentsOrder {
         for work in works {
             let isSetAside = work.restingUntil.map { AppCalendar.startOfDay($0) > today } ?? false
             let days = max(0, age(work))
-            for id in openStudentIDs(of: work, visibility: visibility) {
+            for id in openStudentIDs(of: work, ownership: ownership) {
                 if isSetAside {
                     if result[id] == nil { setAsideOnly.insert(id) }
                     continue

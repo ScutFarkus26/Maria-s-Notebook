@@ -15,8 +15,9 @@ enum TodayCheckInFollowUpActions {
     /// (bug hunt 2026-10-12, #51).
     ///
     /// Done means "checked today": the row's own check-in moves to now, so the
-    /// work calendar shows the day it was checked, not the day it was due —
-    /// the rule `WorkCheckInService.markCompleted` kept, kept deliberately.
+    /// work calendar shows the day it was checked, not the day it was due
+    /// (`WorkLogService.log`'s `checked`, the one rule the work page's Done and
+    /// Claude's `complete_check_in_on` keep too).
     /// Later overdue check-ins keep their days, as a log from the week strip
     /// leaves them.
     ///
@@ -29,17 +30,15 @@ enum TodayCheckInFollowUpActions {
         context: NSManagedObjectContext,
         saveCoordinator: SaveCoordinator? = nil
     ) throws {
-        let checkIn = item.checkIn
-        let dueDate = checkIn.date
         // Takes back the report's stage ticks too, if the log doesn't save.
         let transaction = ContextMutationTransaction(context: context)
-        checkIn.date = now
         let entries = presentedEntries(for: item, at: now, context: context) ?? [.init(work: item.work)]
         do {
-            try WorkLogService.log(entries, on: now, context: context, saveCoordinator: saveCoordinator)
+            try WorkLogService.log(
+                entries, on: now, checked: item.checkIn, context: context, saveCoordinator: saveCoordinator
+            )
         } catch {
             transaction.rollback()
-            checkIn.date = dueDate
             throw error
         }
         transaction.commit()

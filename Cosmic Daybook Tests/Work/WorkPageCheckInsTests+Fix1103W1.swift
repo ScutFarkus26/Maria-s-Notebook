@@ -31,7 +31,7 @@ struct WorkPageCheckInsFix1103W1Tests {
         #expect(!fixture.context.hasChanges)
     }
 
-    @Test("Deleting a check-in with no note takes it off, and the due date follows what is left")
+    @Test("Deleting a check-in with no note takes it off, and the old copy of its day goes with it")
     func checkInDeleteWithoutNoteRemovesIt() throws {
         let fixture = try Fix1103W1WorkPage.make()
         let mine = fixture.work(for: fixture.maya)
@@ -46,7 +46,9 @@ struct WorkPageCheckInsFix1103W1Tests {
         page.deleteCheckIn(first, modelContext: fixture.context, saveCoordinator: fixture.saveCoordinator)
 
         #expect(WorkLogService.checkIns(of: mine, in: fixture.context).compactMap(\.date) == [monday])
-        #expect(mine.dueAt == monday)
+        // The next check is the check-in left; the due date no longer copies it (R4).
+        #expect(mine.dueAt == nil)
+        #expect(WorkCheckInService.nextCheckDay(of: mine, in: fixture.context) == monday)
         #expect(!fixture.context.hasChanges)
     }
 

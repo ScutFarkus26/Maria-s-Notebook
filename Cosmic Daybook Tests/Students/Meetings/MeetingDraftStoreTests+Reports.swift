@@ -26,9 +26,13 @@ extension MeetingDraftStoreTests {
         let context = try CoreDataTestHelpers.makeContext()
         let child = UUID()
         let report = try seedReport(for: child, with: UUID(), in: context)[0]
-        report.createdAt = AppCalendar.addingDays(-60, to: Date())
+        // Given two months ago and not touched since (`WorkNeglect`).
+        let longAgo = AppCalendar.addingDays(-60, to: Date())
+        report.createdAt = longAgo
+        report.assignedAt = longAgo
         let practice = CoreDataTestHelpers.seedWorkModel(in: context, title: "Stamp Game", studentID: child)
-        practice.createdAt = AppCalendar.addingDays(-60, to: Date())
+        practice.createdAt = longAgo
+        practice.assignedAt = longAgo
 
         let split = MeetingWorkSnapshotHelper.sessionWork([report, practice], workOverdueDays: 14, reviewed: [])
         #expect(split.reports == [report])

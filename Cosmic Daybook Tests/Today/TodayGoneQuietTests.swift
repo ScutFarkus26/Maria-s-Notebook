@@ -141,7 +141,7 @@ struct TodayGoneQuietTests {
         let scheduled = WorkLogService.scheduledCheckIns(of: work, in: room.context)
         #expect(scheduled.count == 1)
         #expect(scheduled.first?.date == day)
-        #expect(work.dueAt == day)
+        #expect(work.dueAt == nil, "scheduling a check leaves the due date to the guide (R4)")
         #expect(done.status == .completed)
         #expect(quietWorkIDs(reloaded(room)).isEmpty)
     }

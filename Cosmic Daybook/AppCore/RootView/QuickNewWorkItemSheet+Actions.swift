@@ -42,51 +42,29 @@ extension QuickNewWorkItemSheet {
     }
 
     /// One work row per selected child, with its check-in and the group's
-    /// participants. Nothing is saved here.
+    /// participants, through `WorkAssignmentService`, the one way work is
+    /// given (Claude's `assign_work` uses it too). The check-in lands on a
+    /// school day: picked for a weekend or a day off, it moves forward to the
+    /// next one. The sheet used to make it on the day picked, closed or not
+    /// (domain logic review 2026-11-20, A3). Nothing is saved here.
     private func makeWorkRows(lessonID: UUID) throws -> [CDWorkModel] {
-        let repository = WorkRepository(context: viewContext)
         let title = workTitle.trimmed()
-        var createdWorks: [CDWorkModel] = []
-
-        for studentID in selectedStudentIDs {
-            let work = try repository.createWork(
-                studentID: studentID,
-                lessonID: lessonID,
-                title: title.isEmpty ? nil : title,
-                kind: workKind,
-                scheduledDate: hasDueDate ? dueDate : nil,
-                sampleWorkID: selectedSampleWorkID,
-                saveImmediately: false
+        let assigned = try WorkAssignmentService(context: viewContext).create(.init(
+            lessonID: lessonID,
+            studentIDs: Array(selectedStudentIDs),
+            title: title.isEmpty ? nil : title,
+            kind: workKind,
+            dueDate: hasDueDate ? dueDate : nil,
+            sampleWorkID: selectedSampleWorkID,
+            checkInStyle: checkInStyle,
+            checkIn: hasCheckIn ? WorkAssignmentService.CheckIn(day: checkInDate, purpose: checkInReason.purpose) : nil
+        ))
+        if let landed = assigned.checkInDay, assigned.checkInAskedFor != nil {
+            ToastService.shared.showInfo(
+                "That isn't a school day, so the check-in is on \(DateFormatters.weekdayAndDate.string(from: landed))."
             )
-
-            // Set check-in style for multi-student work
-            if selectedStudentIDs.count > 1 {
-                work.checkInStyle = checkInStyle
-            }
-
-            // Create check-in if scheduled
-            if hasCheckIn {
-                CDWorkCheckIn.make(
-                    for: work, on: AppCalendar.startOfDay(checkInDate),
-                    purpose: checkInReason.purpose, in: viewContext
-                )
-            }
-
-            createdWorks.append(work)
         }
-
-        // Link multi-student work as participants on each other's work items
-        if createdWorks.count > 1 {
-            for work in createdWorks {
-                for otherWork in createdWorks where otherWork !== work {
-                    let participant = CDWorkParticipantEntity(context: viewContext)
-                    participant.id = UUID()
-                    participant.studentID = otherWork.studentID
-                    participant.work = work
-                }
-            }
-        }
-        return createdWorks
+        return assigned.works
     }
 
     // MARK: - Check-In Reason Helpers

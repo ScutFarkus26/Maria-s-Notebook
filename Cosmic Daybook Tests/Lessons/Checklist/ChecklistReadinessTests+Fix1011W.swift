@@ -48,14 +48,9 @@ struct ChecklistReadinessFix1011WTests {
                     kind: .practiceLesson, presentationID: giving.id, saveImmediately: false
                 )
             }
-            for work in works {
-                for other in works where other !== work {
-                    let participant = CDWorkParticipantEntity(context: context)
-                    participant.id = UUID()
-                    participant.studentID = other.studentID
-                    participant.work = work
-                }
-            }
+            // The copies name each other and share an assignment id, as New
+            // Work makes them (`WorkAssignmentService.link`).
+            WorkAssignmentService.link(works, in: context)
             try context.save()
             return works
         }

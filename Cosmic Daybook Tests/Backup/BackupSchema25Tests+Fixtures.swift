@@ -95,10 +95,13 @@ extension BackupSchema25Tests {
 
     /// The fields `setSchema25Fields` set: still there when `optionalsKept`,
     /// otherwise every optional one cleared and the work flag still there.
+    /// A cleared assignment doesn't stay nil: the after-restore fill gives the
+    /// row one again, its own (`WorkAssignmentFill`), and leaves the flag.
     func expectSchema25Fields(on ids: Fixture46IDs, in context: NSManagedObjectContext, optionalsKept: Bool) throws {
         let work = try Self.record("WorkModel", ids.work, in: context)
         #expect(work.value(forKey: "isSharedRow") as? Bool == true)
-        #expect(work.value(forKey: "assignmentID") as? String == (optionalsKept ? assignmentID.uuidString : nil))
+        let ownAssignment = optionalsKept ? assignmentID.uuidString : ids.work.uuidString
+        #expect(work.value(forKey: "assignmentID") as? String == ownAssignment)
         let presentation = try Self.record("LessonPresentation", ids.presentation, in: context)
         #expect(presentation.value(forKey: "needsPractice") as? Bool == (optionalsKept ? false : nil))
         #expect(presentation.value(forKey: "needsAnotherPresentation") as? Bool == (optionalsKept ? true : nil))

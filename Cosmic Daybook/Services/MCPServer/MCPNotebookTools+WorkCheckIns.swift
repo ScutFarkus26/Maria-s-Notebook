@@ -68,8 +68,9 @@ extension MCPNotebookTools {
 
     // MARK: - Scheduling
 
-    /// The one way MCP makes a check-in — assign_work's and add_check_in_on's
-    /// both — so the two can never write different records.
+    /// How add_check_in_on makes a check-in, on a day its guards have already
+    /// landed on a school day. assign_work's goes through
+    /// `WorkAssignmentService`, which keeps the same rules.
     @discardableResult
     static func scheduleCheckIn(
         for work: CDWorkModel, on day: Date, purpose: String,

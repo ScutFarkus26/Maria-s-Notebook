@@ -129,7 +129,7 @@ final class StudentDetailViewModel {
     /// Fetch work models for the student (non-complete only): the rows she
     /// owns, plus rows she is a passenger on when no copy in that group is
     /// hers — the same rule the MCP `student_work` reader applies, see
-    /// `WorkGrouping.visibleWork`.
+    /// `WorkOwnership.work`.
     func fetchWorkModelsForStudent(viewContext: NSManagedObjectContext) -> [CDWorkModel] {
         guard let studentID = student.id else { return [] }
         let sid = studentID.uuidString
@@ -144,8 +144,8 @@ final class StudentDetailViewModel {
         // Prefetch unifiedNotes so StudentOverviewTab's needsAttention/latestNoteDate
         // reads each work's notes from the row cache instead of faulting per row (N+1).
         descriptor.relationshipKeyPathsForPrefetching = ["unifiedNotes", "participants"]
-        return WorkGrouping.visibleWork(
-            for: studentID, among: viewContext.safeFetch(descriptor), in: viewContext
+        return WorkOwnership.work(
+            of: studentID, among: viewContext.safeFetch(descriptor), in: viewContext
         )
     }
 

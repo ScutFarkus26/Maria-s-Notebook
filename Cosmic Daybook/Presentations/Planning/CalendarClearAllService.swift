@@ -80,8 +80,10 @@ enum CalendarClearAllService {
 
         let service = WorkCheckInService(context: context)
         var works: [NSManagedObjectID: CDWorkModel] = [:]
+        var clearedDays: [NSManagedObjectID: [Date]] = [:]
         for checkIn in CalendarForwardShiftService.movableCheckIns(in: context) {
             let work = checkIn.resolvedWork(in: context)
+            let plannedDay = checkIn.date
             switch service.unschedule(checkIn) {
             case .removed(let removed):
                 result.receipt.checkIns.append(removed)
@@ -91,18 +93,25 @@ enum CalendarClearAllService {
             case nil:
                 continue
             }
-            if let work { works[work.objectID] = work }
+            if let work {
+                works[work.objectID] = work
+                if let plannedDay { clearedDays[work.objectID, default: []].append(plannedDay) }
+            }
             result.checkIns += 1
         }
         context.processPendingChanges()
 
-        // The due date follows what is left, as it does when the plan moves:
-        // with no check still scheduled it is none, which is To Schedule.
+        // The due date is the guide's and stays (domain logic review
+        // 2026-11-20, R4). Only one that sat on a cleared check's own day, the
+        // copy older builds kept there, goes with it, so the work is back in
+        // To Schedule.
         for work in works.values {
-            let due = CalendarForwardShiftService.earliestScheduledDate(of: work, in: context)
-            guard due != work.dueAt else { continue }
-            result.receipt.dueDays.append(.init(objectID: work.objectID, before: work.dueAt, after: due))
-            work.dueAt = due
+            guard let due = work.dueAt,
+                  (clearedDays[work.objectID] ?? []).contains(where: { AppCalendar.isSameDay($0, due) }) else {
+                continue
+            }
+            result.receipt.dueDays.append(.init(objectID: work.objectID, before: due, after: nil))
+            work.dueAt = nil
         }
         return result
     }

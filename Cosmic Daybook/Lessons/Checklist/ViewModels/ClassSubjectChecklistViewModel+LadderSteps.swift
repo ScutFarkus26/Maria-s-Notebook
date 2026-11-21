@@ -85,7 +85,7 @@ extension ClassAreaChecklistViewModel {
         )
     }
 
-    /// Her open work on the lesson, by the cell's own rule (`WorkVisibility`): the copy
+    /// Her open work on the lesson, by the cell's own rule (`WorkOwnership.Reader`): the copy
     /// she owns first, then a shared row she is on. Group work is one linked copy per
     /// child, each naming the whole group, so the first open row naming her could be a
     /// classmate's, and moving it changed the classmate's work (bug hunt 2026-10-29 #10).
@@ -98,8 +98,8 @@ extension ClassAreaChecklistViewModel {
         request.predicate = NSPredicate(format: "lessonID == %@", lessonID.uuidString)
         request.relationshipKeyPathsForPrefetching = ["participants"]
         let rows = context.safeFetch(request).filter { !$0.isDeleted }
-        let visibility = WorkVisibility(rows: rows)
-        let open = rows.filter { $0.status.isOpen && visibility.isVisible($0, to: studentID) }
+        let ownership = WorkOwnership.Reader(rows: rows)
+        let open = rows.filter { $0.status.isOpen && ownership.isWork($0, of: studentID) }
         return open.first { WorkGrouping.owner(of: $0) == studentID } ?? ClassGridEngine.cellWork(open)
     }
 }

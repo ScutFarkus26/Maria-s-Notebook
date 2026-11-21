@@ -155,21 +155,24 @@ extension WorkDetailView {
         )
     }
 
-    /// Done goes through `WorkCheckInService.markCompleted`, as Today's Done
-    /// does: it also completes the todos linked to this work and dates the
-    /// check-in to the day it was checked, which is what the card's age reads.
-    /// Setting the status alone skipped both.
+    /// Done is a "seen, unchanged" line in the work log, as Today's Done is
+    /// (`WorkLogService.log`'s `checked`): the check-in is dated the day it was
+    /// checked, every earlier check-in still waiting is settled with it, the
+    /// work is stamped as seen, and its linked todos close. It used to mark
+    /// this one check-in alone, so Monday's missed check stayed overdue
+    /// (domain logic review 2026-11-20, R11).
     func setStatus(_ status: WorkCheckInStatus, of checkIn: CDWorkCheckIn) {
-        if status == .completed {
+        if status == .completed, let work = checkIn.resolvedWork(in: modelContext) {
             do {
-                try WorkCheckInService(context: modelContext).markCompleted(checkIn, at: Date())
+                try WorkLogService.log(
+                    [.init(work: work)], checked: checkIn, context: modelContext, saveCoordinator: saveCoordinator
+                )
             } catch {
                 ToastService.shared.showError("Couldn't mark that check-in done. Try again.")
-                return
             }
-        } else {
-            checkIn.status = status
+            return
         }
+        checkIn.status = status
         saveCoordinator.save(modelContext, reason: "Update check-in status")
     }
 

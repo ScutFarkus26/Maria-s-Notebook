@@ -106,7 +106,11 @@ final class ClassGridChildrenModel {
         // Each assignment's studentIDs blob decoded once, not once per student;
         // each student's slice keeps the fetch order the per-student filter had.
         let assignmentsByStudent = Self.groupByStudent(allAssignments)
-        let workByStudent = Self.groupByStudent(allWork, visibility: WorkVisibility(rows: allWork))
+        let workByStudent = Self.groupByStudent(allWork, ownership: WorkOwnership.Reader(rows: allWork))
+        // Finished practice and the stored state: the ladder's other two inputs.
+        let ladder = LadderEvidence(
+            lessonIDs: Set(lessonsByPair.values.joined().compactMap { $0.id?.uuidString }), works: allWork, in: context
+        )
 
         // Cards
         var cards: [StudentProgressionCard] = []
@@ -177,7 +181,9 @@ final class ClassGridChildrenModel {
                         scheduledFor: planned.compactMap(\.scheduledFor).min(),
                         isPlanned: !planned.isEmpty || isNextOnYearPlan,
                         isMastered: masteryMarks[lessonIDStr]?.contains(studentIDStr) ?? false,
-                        workStatuses: (workByLesson[lessonIDStr] ?? []).map(\.status)
+                        workStatuses: (workByLesson[lessonIDStr] ?? []).map(\.status),
+                        practiceSessions: ladder.practiceSessions(lesson: lessonIDStr, student: studentIDStr),
+                        storedState: ladder.storedState(lesson: lessonIDStr, student: studentIDStr)
                     ))
 
                     pills.append(LessonPillState(
@@ -247,14 +253,14 @@ final class ClassGridChildrenModel {
     }
 
     /// studentID → the work that counts as hers, by the Checklist's rule
-    /// (`WorkVisibility`): the rows she owns, and a shared row she is on (project
+    /// (`WorkOwnership.Reader`): the rows she owns, and a shared row she is on (project
     /// work: one row, several children) even though another child owns it. Filing
     /// work by owner alone left a child's shared project work off her card (bug
     /// hunt 2026-10-29 #16); a classmate's linked copy that names her still isn't hers.
-    static func groupByStudent(_ works: [CDWorkModel], visibility: WorkVisibility) -> [String: [CDWorkModel]] {
+    static func groupByStudent(_ works: [CDWorkModel], ownership: WorkOwnership.Reader) -> [String: [CDWorkModel]] {
         var grouped: [String: [CDWorkModel]] = [:]
         for work in works {
-            for studentID in WorkGrouping.studentIDs(of: work) where visibility.isVisible(work, to: studentID) {
+            for studentID in WorkGrouping.studentIDs(of: work) where ownership.isWork(work, of: studentID) {
                 grouped[studentID.uuidString, default: []].append(work)
             }
         }

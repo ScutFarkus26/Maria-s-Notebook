@@ -2,6 +2,7 @@
 // Service for filtering lessons and work items by student level.
 // Encapsulates level filtering logic used by TodayViewModel.
 
+import CoreData
 import Foundation
 
 // MARK: - Today Level Filter Service
@@ -60,10 +61,15 @@ enum TodayLevelFilterService {
         studentsByID: [UUID: CDStudent],
         levelFilter: LevelFilter
     ) -> [CDWorkModel] {
-        workItems.filter { work in
-            guard let uuid = UUID(uuidString: work.studentID),
-                  let student = studentsByID[uuid] else { return false }
-            return levelFilter.matches(student.level)
+        // Any child the row counts for (`WorkOwnership`): a shared row used to
+        // show only for its owner's level.
+        let ownership = workItems.lazy.compactMap(\.managedObjectContext).first.map {
+            WorkOwnership.Reader(covering: workItems, in: $0)
+        } ?? WorkOwnership.Reader(rows: workItems)
+        return workItems.filter { work in
+            ownership.students(of: work).contains { id in
+                studentsByID[id].map { levelFilter.matches($0.level) } ?? false
+            }
         }
     }
 }

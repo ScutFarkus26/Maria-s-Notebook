@@ -7,7 +7,7 @@
 // same split instead of each re-deriving it.
 //
 // That matters for more than tidiness. Placing one work item runs
-// `WorkAgingPolicy.lastMeaningfulTouchDate` over its check-ins and notes and
+// `WorkNeglect.lastMeaningfulTouchDate` over its check-ins and notes and
 // then a school-day count through `SchoolCalendarService` — cheap once,
 // wasteful once per consumer per body pass. Before this type existed the
 // Attention list and the work grid ran the rule over the same array on the same

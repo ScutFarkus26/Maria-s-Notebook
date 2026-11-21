@@ -61,19 +61,26 @@ enum LessonNodeStatus: Sendable, Equatable {
     ///   - isMastered: The child has a mastery mark on the lesson
     ///     (`PresentationRecordIndex.masteryMarks`).
     ///   - workStatuses: The child's work on the lesson, open and closed.
+    ///   - practiceSessions: Finished practices on her work on the lesson.
+    ///   - storedState: The furthest state the guide stored by hand on her record of the
+    ///     lesson (Practicing or Ready for Assessment): a floor (`LadderInput`).
     static func resolve(
         isPresented: Bool,
         scheduledFor: Date?,
         isPlanned: Bool = false,
         isMastered: Bool,
-        workStatuses: [WorkStatus]
+        workStatuses: [WorkStatus],
+        practiceSessions: Int = 0,
+        storedState: LessonPresentationState? = nil
     ) -> LessonNodeStatus {
-        let rung = ChecklistDisplayStatus.resolve(
+        let rung = ChecklistDisplayStatus.resolve(LadderInput(
             isMastered: isMastered,
             workStatuses: workStatuses,
+            practiceSessions: practiceSessions,
+            storedState: storedState,
             isPresented: isPresented,
             isPlanned: scheduledFor != nil || isPlanned
-        )
+        ))
         switch rung {
         case .mastered:   return .mastered
         case .reviewing:  return .reviewing

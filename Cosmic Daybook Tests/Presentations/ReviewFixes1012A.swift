@@ -153,7 +153,11 @@ struct ReviewFixes1012A {
 
         #expect(overdue.date == monday)
         #expect(upcoming.date == tuesday)
-        #expect(work.dueAt == monday)
+        // The next check is read off the check-ins now; the due date that sat on
+        // the overdue check's day was the old copy of it, and is let go
+        // (domain logic review 2026-11-20, R4).
+        #expect(work.dueAt == nil)
+        #expect(WorkCheckInService.nextCheckDay(of: work, in: classroom.context) == monday)
     }
 
     // MARK: - 6. A failed Move All Forward save is taken back whole

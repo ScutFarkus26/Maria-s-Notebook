@@ -144,7 +144,8 @@ extension ClassGridEngine {
                     isMastered: records.masteryMarks[lessonIDString]?.contains(studentKey) ?? false,
                     isOnYearPlan: records.yearPlanned[lessonIDString]?.contains(studentKey) ?? false,
                     checkFirstReasons: verdict.checkFirstReasons,
-                    brewingPlans: brewing
+                    brewingPlans: brewing,
+                    ladder: records.ladder.entry(lesson: lessonIDString, student: studentKey)
                 )
             }
             matrix[studentID] = studentRow
@@ -163,6 +164,8 @@ extension ClassGridEngine {
         let works: [String: [String: [CDWorkModel]]]
         let masteryMarks: [String: Set<String>]
         let yearPlanned: [String: Set<String>]
+        /// Finished practice and the stored state, the ladder's other two inputs.
+        let ladder: LadderEvidence
     }
 
     /// The row lessons' records, in one fetch per entity, plus their mastery marks.
@@ -173,9 +176,10 @@ extension ClassGridEngine {
         return LessonRecordIndex(
             assignments: assignmentsByLesson(assignments),
             inboxRows: InboxPlacement.inboxRows(among: assignments),
-            works: worksByLesson(works, visibility: WorkVisibility(rows: works)),
+            works: worksByLesson(works, ownership: WorkOwnership.Reader(rows: works)),
             masteryMarks: PresentationRecordIndex.masteryMarks(lessonIDs: rowIDs, in: context),
-            yearPlanned: yearPlannedByLesson(lessonIDs: fetchIDs, context: context)
+            yearPlanned: yearPlannedByLesson(lessonIDs: fetchIDs, context: context),
+            ladder: LadderEvidence(lessonIDs: rowIDs, works: works, in: context)
         )
     }
 
@@ -260,7 +264,8 @@ extension ClassGridEngine {
         isMastered: Bool = false,
         isOnYearPlan: Bool = false,
         checkFirstReasons: [String] = [],
-        brewingPlans: [UUID: [UUID]] = [:]
+        brewingPlans: [UUID: [UUID]] = [:],
+        ladder: LadderEvidence.Entry = .init()
     ) -> StudentChecklistRowState {
         let nonPresented = studentLAs.filter { !$0.isPresented }
         let plannedCandidate = nonPresented.first
@@ -278,11 +283,12 @@ extension ClassGridEngine {
         let isWorkActive = studentWorkModels.contains { $0.status == WorkStatus.active }
         let isWorkReview = studentWorkModels.contains { $0.status == WorkStatus.review }
 
-        // Compute staleness using pre-computed calendar & today (avoids per-cell allocation)
-        let lastActivityDate = workModelForLesson?.lastTouchedAt ?? workModelForLesson?.createdAt
-        let isStale = !isComplete && isStale(lastActivity: lastActivityDate, calendar: calendar, today: today)
+        // The one clock (`WorkNeglect`): a check-in, a practice, a note or the
+        // end of a rest is a touch, and resting work is never stale.
+        let lastActivityDate = workModelForLesson.map { WorkNeglect.lastMeaningfulTouchDate(for: $0, asOf: today) }
+        let isStale = !isComplete && isStale(workModelForLesson, today: today)
 
-        return StudentChecklistRowState(
+        var state = StudentChecklistRowState(
             lessonID: lesson.id ?? UUID(),
             plannedItemID: plannedCandidate?.id,
             presentationLogID: nil,
@@ -303,22 +309,9 @@ extension ClassGridEngine {
             isBrewing: brewingHeldBy != nil,
             brewingHeldBy: brewingHeldBy ?? []
         )
-    }
-
-    /// The one work row a cell reads its rung and staleness from: open work (Working or
-    /// Needs Review) over closed, then the most recently touched. The fetch has no order,
-    /// so taking `.first` let an old closed row hide new practice depending on the store.
-    static func cellWork(_ works: [CDWorkModel]) -> CDWorkModel? {
-        works.max { lhs, rhs in
-            if lhs.status.isClosed != rhs.status.isClosed { return lhs.status.isClosed }
-            let lhsDate = lastActivity(lhs), rhsDate = lastActivity(rhs)
-            if lhsDate != rhsDate { return lhsDate < rhsDate }
-            return (lhs.id?.uuidString ?? "") < (rhs.id?.uuidString ?? "")
-        }
-    }
-
-    private static func lastActivity(_ work: CDWorkModel) -> Date {
-        work.lastTouchedAt ?? work.completedAt ?? work.createdAt ?? .distantPast
+        state.practiceSessions = ladder.practiceSessions
+        state.storedState = ladder.storedState
+        return state
     }
 }
 
@@ -335,12 +328,13 @@ extension ClassGridEngine {
     }
 
     /// Same for work, with participants prefetched so indexing doesn't fault a
-    /// to-many relationship per work. Every row of each lesson, open and closed,
-    /// which is what telling a linked copy from a shared row needs.
+    /// to-many relationship per work, and check-ins and notes for the cell's
+    /// staleness (`WorkNeglect` reads both). Every row of each lesson, open and
+    /// closed, which is what telling a linked copy from a shared row needs.
     private static func fetchWorks(lessonIDs: [String], context: NSManagedObjectContext) -> [CDWorkModel] {
         let request: NSFetchRequest<CDWorkModel> = CDFetchRequest(CDWorkModel.self)
         request.predicate = NSPredicate(format: "lessonID IN %@", lessonIDs)
-        request.relationshipKeyPathsForPrefetching = ["participants"]
+        request.relationshipKeyPathsForPrefetching = ["participants", "checkIns", "unifiedNotes"]
         return context.safeFetch(request)
     }
 
@@ -382,14 +376,14 @@ extension ClassGridEngine {
 
     /// Work indexed by lesson and then by the children each row counts for: a
     /// set of linked copies only for each copy's owner, a genuinely shared row
-    /// for everyone on it (`WorkVisibility`). Filing a row under every
+    /// for everyone on it (`WorkOwnership.Reader`). Filing a row under every
     /// participant showed a classmate's open copy as the child's own.
     private static func worksByLesson(
-        _ works: [CDWorkModel], visibility: WorkVisibility
+        _ works: [CDWorkModel], ownership: WorkOwnership.Reader
     ) -> [String: [String: [CDWorkModel]]] {
         var result: [String: [String: [CDWorkModel]]] = [:]
         for work in works {
-            for studentID in WorkGrouping.studentIDs(of: work) where visibility.isVisible(work, to: studentID) {
+            for studentID in WorkGrouping.studentIDs(of: work) where ownership.isWork(work, of: studentID) {
                 result[work.lessonID, default: [:]][studentID.uuidString, default: []].append(work)
             }
         }

@@ -4,7 +4,7 @@ import Testing
 @testable import CosmicDaybook
 
 /// The student page's work list (`StudentDetailViewModel.fetchWorkModelsForStudent`):
-/// each assignment once, through `WorkGrouping.visibleWork`, even when the
+/// each assignment once, through `WorkOwnership.work`, even when the
 /// same work was given to the same children twice.
 @Suite("Student detail work list")
 @MainActor

@@ -90,23 +90,30 @@ enum TriageBucket: String, CaseIterable, Identifiable, Sendable {
 /// Everything the rule needs to place one work item, as plain values.
 struct WorkTriageInput: Sendable, Equatable {
     var status: WorkStatus
+    /// A due date the guide set. Never the day of a check: that is
+    /// `scheduledCheckInDates` (domain logic review 2026-11-20, R4).
     var dueAt: Date?
+    /// The last day the guide looked at the work (`WorkNeglect.lastSeen`): a
+    /// log, a finished check-in or a note. Nil when nobody has yet.
+    var lastSeen: Date?
     /// Set when the guide has deliberately put the work aside until a date.
     var restingUntil: Date?
     /// Dates of this work's check-ins that are still in the `.scheduled` state.
     var scheduledCheckInDates: [Date]
-    /// School days since the last meaningful touch, per `WorkAgingPolicy`.
+    /// School days since the last meaningful touch, per `WorkNeglect`.
     var schoolDaysSinceLastTouch: Int
 
     init(
         status: WorkStatus,
         dueAt: Date? = nil,
+        lastSeen: Date? = nil,
         restingUntil: Date? = nil,
         scheduledCheckInDates: [Date] = [],
         schoolDaysSinceLastTouch: Int = 0
     ) {
         self.status = status
         self.dueAt = dueAt
+        self.lastSeen = lastSeen
         self.restingUntil = restingUntil
         self.scheduledCheckInDates = scheduledCheckInDates
         self.schoolDaysSinceLastTouch = schoolDaysSinceLastTouch
@@ -151,13 +158,19 @@ enum LessonsAndWorkTriage {
     /// reason to nag, because resting *is* a plan; then the four ways work can
     /// ask for the guide; then the two ways it can be planned. Anything left
     /// is open with no date on it, which is precisely "to schedule".
+    ///
+    /// The due date and the next check are read apart. A due date that has
+    /// come asks for the guide until the work has been looked at on or after
+    /// that day; once it has, he knows, and it stops asking. Before, the due
+    /// date doubled as the check day and nothing ever cleared it, so work
+    /// logged "keep working" on Monday sat in Attention every day after.
     static func bucket(for work: WorkTriageInput, asOf now: Date = Date()) -> TriageBucket {
         let today = AppCalendar.startOfDay(now)
 
         if work.status.isClosed { return .done }
 
         // Work the guide deliberately set aside comes back on its own date. It
-        // is planned, not neglected — the same reason `WorkAgingPolicy`
+        // is planned, not neglected — the same reason `WorkNeglect`
         // suppresses overdue and stale while `restingUntil` is in the future.
         if let restingUntil = work.restingUntil, AppCalendar.startOfDay(restingUntil) > today {
             return .scheduled
@@ -165,7 +178,11 @@ enum LessonsAndWorkTriage {
 
         if work.status == .review { return .attention }
 
-        if let dueAt = work.dueAt, AppCalendar.startOfDay(dueAt) <= today { return .attention }
+        if let dueAt = work.dueAt {
+            let dueDay = AppCalendar.startOfDay(dueAt)
+            let seenSince = work.lastSeen.map { AppCalendar.startOfDay($0) >= dueDay } ?? false
+            if dueDay <= today, !seenSince { return .attention }
+        }
 
         let hasDueCheckIn = work.scheduledCheckInDates.contains { date in
             AppCalendar.startOfDay(date) <= today
@@ -174,8 +191,10 @@ enum LessonsAndWorkTriage {
 
         if work.schoolDaysSinceLastTouch >= staleSchoolDays { return .attention }
 
-        // Past dates were all caught above, so any date still here is future.
-        if work.dueAt != nil { return .scheduled }
+        // A day still ahead: a due date to come, or a check (past checks were
+        // all caught above). A due date that has passed and been seen is no
+        // plan, so that work is back to be scheduled.
+        if let dueAt = work.dueAt, AppCalendar.startOfDay(dueAt) > today { return .scheduled }
         if !work.scheduledCheckInDates.isEmpty { return .scheduled }
 
         return .toSchedule

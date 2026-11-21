@@ -269,8 +269,11 @@ extension TodayView {
         toast("Logged as \(status.displayName)")
     }
 
-    /// The week-plan rule: the check-in date and the work's `dueAt` move together.
+    /// Moves the check-in. The work's due date is the guide's and stays; only
+    /// one sitting on the check's old day goes with it
+    /// (`WorkCheckInService.releaseDueDate`).
     func rescheduleCheckInFollowUp(_ item: WorkCheckInFollowUp, to day: Date) {
+        let plannedDay = item.checkIn.date
         do {
             try WorkCheckInService(context: viewContext).reschedule(item.checkIn, to: day)
         } catch {
@@ -278,7 +281,10 @@ extension TodayView {
             toast("Couldn't move that check-in. Try again.")
             return
         }
-        item.work.dueAt = day
+        WorkCheckInService.releaseDueDate(
+            of: item.work, followingCheckOn: plannedDay,
+            dueDateCheckMovedTo: WorkCheckInService.isDueDateCheck(item.checkIn) ? day : nil
+        )
         guard saveCoordinator.save(viewContext, reason: "Reschedule work check-in") else { return }
         viewModel.reload()
         toast("Moved to \(DateFormatters.weekdayAndDate.string(from: day))")

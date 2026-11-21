@@ -56,8 +56,9 @@ extension WorksAgendaView {
         }
     }
 
-    /// Puts a work item on `day` to be checked: its earliest check-in moves
-    /// there, or one is made, and the due date follows so the two never drift.
+    /// Puts a work item on `day` to be checked: its earliest scheduled check-in
+    /// moves there, or one is made (`WorkCheckInService.scheduleCheck`). The due
+    /// date is the guide's and is left alone.
     ///
     /// `day` used to be today and nothing else — the button said so. It is a
     /// parameter now because the same write serves the Schedule menu and the

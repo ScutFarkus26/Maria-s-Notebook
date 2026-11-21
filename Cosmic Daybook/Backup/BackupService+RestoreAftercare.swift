@@ -46,6 +46,12 @@ extension BackupService {
         // it (domain-logic review A13).
         BackupRestoreFill(name: "attendance pairs") { context, _ in
             CDAttendanceRecord.normalizeAll(in: context)
+        },
+        // A format-46 backup's work rows carry no assignment, and a row can
+        // be restored without one: each gets its `assignmentID` and
+        // `isSharedRow` from the guess, as at launch (domain-logic review R22).
+        BackupRestoreFill(name: "work assignments") { context, _ in
+            _ = WorkAssignmentFill.run(in: context)
         }
     ]
 

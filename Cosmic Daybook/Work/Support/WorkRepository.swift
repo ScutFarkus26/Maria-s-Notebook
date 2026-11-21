@@ -46,7 +46,7 @@ struct WorkRepository: Repository {
         request.predicate = NSPredicate(
             format: "presentationID == %@ AND lessonID != %@", presentationID.uuidString, lessonID.uuidString
         )
-        let stale = context.safeFetch(request).filter { !$0.isDeleted && $0.isOpen }
+        let stale = context.safeFetch(request).filter { !$0.isDeleted && $0.status.isOpen }
         let newName = lessons.first { $0.id == lessonID }?.name
         for work in stale {
             let oldName = UUID(uuidString: work.lessonID).flatMap { old in lessons.first { $0.id == old }?.name }
@@ -102,7 +102,20 @@ struct WorkRepository: Repository {
 
     // MARK: - Create
 
-    /// Create a new CDWorkModel for a single student
+    /// Create a new CDWorkModel for a single student.
+    ///
+    /// - Parameters:
+    ///   - kind: nil takes the default: Practice when the work follows a
+    ///     presentation she has had, Follow-Up when there is none to follow.
+    ///     The default reads the presentation resolved here, not the argument:
+    ///     most callers pass none, so their practice was labeled Follow-Up and
+    ///     missing from Record Practice (domain logic review 2026-11-20, R14).
+    ///   - scheduledDate: the due date the guide set, if any; never a check
+    ///     day (R4).
+    ///   - assignmentID: the assignment this row is one copy of, when it is
+    ///     given to a group (`WorkAssignmentService`); nil makes the row its
+    ///     own assignment. Either way the row is stamped as one child's own,
+    ///     not a shared row (R22).
     @discardableResult
     func createWork(
         studentID: UUID,
@@ -112,16 +125,16 @@ struct WorkRepository: Repository {
         presentationID: UUID? = nil,
         scheduledDate: Date? = nil,
         sampleWorkID: UUID? = nil,
+        assignmentID: String? = nil,
         saveImmediately: Bool = true
     ) throws -> CDWorkModel {
         try requireEnrolled(studentID)
 
-        // Use WorkKind directly (new system), with smart defaults
-        let workKind = kind ?? (presentationID != nil ? .practiceLesson : .followUpAssignment)
         let studentLessonID = resolvePresentationID(
             studentID: studentID, lessonID: lessonID,
             presentationID: presentationID
         )
+        let workKind = kind ?? (studentLessonID != nil ? .practiceLesson : .followUpAssignment)
 
         let work = CDWorkModel(context: context)
         work.title = title ?? ""
@@ -141,6 +154,8 @@ struct WorkRepository: Repository {
         work.studentID = studentID.uuidString
         work.lessonID = lessonID.uuidString
         work.presentationID = studentLessonID?.uuidString
+        work.assignmentID = assignmentID ?? work.id?.uuidString
+        work.isSharedRow = false
 
         // Create participant
         let participant = CDWorkParticipantEntity(context: context)

@@ -34,23 +34,23 @@ struct WorkCheckInService {
 
     // MARK: - Updates
 
-    /// Mark a check-in as completed, and complete the open todos linked to
-    /// its work: the check-in is the follow-up they were about. Does not save.
-    func markCompleted(_ checkIn: CDWorkCheckIn, note: String? = nil, at date: Date = Date()) throws {
-        checkIn.status = .completed
-        checkIn.date = date
-        if let note {
-            checkIn.setLegacyNoteText(note, in: context)
-        }
-        if let workID = checkIn.work?.id ?? UUID(uuidString: checkIn.workID) {
-            TodoCompletionService.completeTodosLinked(toWork: workID, in: context)
-        }
-    }
+    // "The check happened" is `WorkLogService.log`'s to write (its `checked`
+    // argument): Done on Today, Done on the work page and Claude's
+    // `complete_check_in_on` all go there. The `markCompleted` that lived
+    // here touched one check-in alone (domain logic review 2026-11-20, R11).
 
     /// Puts a work item on `day` to be checked: its earliest check-in still
-    /// marked Scheduled moves there, or one is made, and the due date follows
-    /// so the two never drift. The Work grid's Schedule and a child's overview
-    /// card both write through here. Does not save.
+    /// marked Scheduled moves there, or one is made. The Work grid's Schedule,
+    /// Today's Gone quiet rows and a child's overview card all write through
+    /// here. Does not save.
+    ///
+    /// The due date is the guide's and is left alone (domain logic review
+    /// 2026-11-20, R4). This used to copy the check day into it "so the two
+    /// never drift", which lost a real due date the moment a check was
+    /// dragged, and left logged work in Attention for good: the check was
+    /// done, the copy of its day stayed. The next check is the earliest
+    /// scheduled check-in (`nextCheckDay`). Only a due date sitting on the
+    /// day the check moves from goes with it (`releaseDueDate`).
     ///
     /// A finished check-in, and the note on it, stays on the day it happened.
     /// Open work usually carries one — logging "keep working" completes that
@@ -59,7 +59,6 @@ struct WorkCheckInService {
     @discardableResult
     func scheduleCheck(for work: CDWorkModel, on day: Date) -> CDWorkCheckIn {
         let checkDay = AppCalendar.startOfDay(day)
-        work.dueAt = checkDay
         let earliest = WorkLogService.scheduledCheckIns(of: work, in: context).min { lhs, rhs in
             let lhsDate = lhs.date ?? .distantFuture
             let rhsDate = rhs.date ?? .distantFuture
@@ -71,9 +70,49 @@ struct WorkCheckInService {
                 for: work, on: checkDay, purpose: CheckInReason.progressCheck.rawValue, in: context
             )
         }
+        Self.releaseDueDate(
+            of: work, followingCheckOn: earliest.date,
+            dueDateCheckMovedTo: Self.isDueDateCheck(earliest) ? checkDay : nil
+        )
         earliest.date = checkDay
         if earliest.work == nil { earliest.work = work }
         return earliest
+    }
+
+    // MARK: - The next check and the due date
+
+    /// The day `work` is next to be checked: its earliest check-in still
+    /// scheduled, or nil when none is. This, not `dueAt`, is what puts work
+    /// on a day.
+    static func nextCheckDay(of work: CDWorkModel, in context: NSManagedObjectContext) -> Date? {
+        WorkLogService.scheduledCheckIns(of: work, in: context).compactMap(\.date).min()
+    }
+
+    /// Lets go of a due date that sits on `day`, the day a scheduled check
+    /// is leaving (moved or taken off the calendar). Builds before schema 25
+    /// copied every check day into `dueAt`, so a due date on a check's own day
+    /// is that copy; left behind, it would read as a due date nobody set, and
+    /// keep unscheduled work out of To Schedule. A due date on any other day
+    /// is the guide's and stays. Does not save.
+    ///
+    /// - Parameter newDay: where the check moved, when the check *is* the due
+    ///   date (`isDueDateCheck`): then the due date moves with it instead of
+    ///   going, as a project follow-up's always has.
+    static func releaseDueDate(
+        of work: CDWorkModel, followingCheckOn day: Date?, dueDateCheckMovedTo newDay: Date? = nil
+    ) {
+        guard let day, let due = work.dueAt, AppCalendar.isSameDay(due, day) else { return }
+        work.dueAt = newDay
+    }
+
+    /// Whether a check-in stands for the work's due date: made with the Due
+    /// Date reason (New Work), or as a project follow-up's due day
+    /// (`SessionWorkAssignmentService`), which writes the same day into
+    /// `dueAt`. Moving one moves the due date.
+    static func isDueDateCheck(_ checkIn: CDWorkCheckIn) -> Bool {
+        let purpose = checkIn.purpose.trimmed()
+        return [CheckInReason.dueDate.purpose, CheckInReason.dueDate.rawValue]
+            .contains { $0.caseInsensitiveCompare(purpose) == .orderedSame }
     }
 
     /// Reschedule a check-in and persist immediately.
@@ -231,8 +270,9 @@ struct WorkCheckInService {
     /// To Schedule. One carrying a note is marked skipped where it was, since
     /// deleting it would lose the note; one with none is deleted, and what it
     /// was comes back for Undo. A check-in that isn't scheduled is history and
-    /// is never touched (nil). The work's due date is the caller's to reset,
-    /// once every check-in it is clearing has gone. Does not save.
+    /// is never touched (nil). The work's due date is the guide's and stays;
+    /// the caller lets go of one sitting on the check-in's day
+    /// (`releaseDueDate`). Does not save.
     @discardableResult
     func unschedule(_ checkIn: CDWorkCheckIn) -> Unscheduled? {
         guard checkIn.status == .scheduled, !checkIn.isDeleted else { return nil }

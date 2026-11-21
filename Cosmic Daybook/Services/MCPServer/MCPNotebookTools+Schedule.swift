@@ -153,11 +153,11 @@ extension MCPNotebookTools {
         // check-in dropped onto the week plan before the relationship was
         // always set still names its work here. For one child, only the rows
         // her own list shows: a classmate's linked copy names her too, but it
-        // is the classmate's (`WorkGrouping.visibleWork`).
+        // is the classmate's (`WorkOwnership.work`).
         let checkIns = modelContext.safeFetch(checkInRequest).filter { checkIn in
             guard let studentID else { return true }
             guard let work = checkIn.resolvedWork(in: modelContext) else { return false }
-            return !WorkGrouping.visibleWork(for: studentID, among: [work], in: modelContext).isEmpty
+            return !WorkOwnership.work(of: studentID, among: [work], in: modelContext).isEmpty
         }
 
         // Calendar events and the day's pad belong to the classroom as a whole, so a

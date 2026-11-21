@@ -4,10 +4,10 @@
 //
 //  Assigning work and moving it along.
 //
-//  Writes go through WorkRepository and WorkCompletionService — the same paths
+//  Writes go through WorkAssignmentService and WorkLogService — the same paths
 //  the Quick New Work sheet and the work detail screen use — so work assigned
-//  or completed over MCP carries the same participant rows, track links, and
-//  completion history as work created in the app.
+//  or completed over MCP carries the same participant rows, assignment id,
+//  check-ins and completion history as work created in the app.
 //
 
 import CoreData
@@ -143,7 +143,6 @@ extension MCPNotebookTools {
     ) throws -> String {
         let assignment = try makeAssignment(arguments: arguments, in: modelContext)
         let created = try createWork(for: assignment, in: modelContext)
-        linkParticipants(across: created, in: modelContext)
 
         guard modelContext.safeSave() else {
             throw MCPToolError("The work could not be saved.")
@@ -158,47 +157,27 @@ extension MCPNotebookTools {
         return "Assigned \"\(assignment.title)\" to \(who)\(due)\(check). \(ids)"
     }
 
+    /// Through `WorkAssignmentService`, the one way work is given, as Quick
+    /// New Work does: one row per child sharing an assignment id, the
+    /// check-in on a school day, and each copy naming the others (domain
+    /// logic review 2026-11-20, A3). `due_date` sets only the due date; the
+    /// check day is the check-in's.
     private static func createWork(
         for assignment: WorkAssignment, in modelContext: NSManagedObjectContext
     ) throws -> [CDWorkModel] {
-        let repository = WorkRepository(context: modelContext)
-        var created: [CDWorkModel] = []
         do {
-            for studentID in assignment.studentIDs {
-                let work = try repository.createWork(
-                    studentID: studentID,
-                    lessonID: assignment.lessonID,
-                    title: assignment.title,
-                    kind: assignment.kind,
-                    scheduledDate: assignment.dueDate,
-                    saveImmediately: false
-                )
-                if let checkInDate = assignment.checkInDate {
-                    scheduleCheckIn(
-                        for: work, on: checkInDate, purpose: assignment.checkInPurpose, in: modelContext
-                    )
+            return try WorkAssignmentService(context: modelContext).create(.init(
+                lessonID: assignment.lessonID,
+                studentIDs: assignment.studentIDs,
+                title: assignment.title,
+                kind: assignment.kind,
+                dueDate: assignment.dueDate,
+                checkIn: assignment.checkInDate.map {
+                    WorkAssignmentService.CheckIn(day: $0, purpose: assignment.checkInPurpose)
                 }
-                created.append(work)
-            }
+            )).works
         } catch {
             throw MCPToolError("The work could not be created", underlying: error)
-        }
-        return created
-    }
-
-    /// Multi-student work links each item to the others, the way the Quick New
-    /// Work sheet does, so the group reads as one piece of work in every view.
-    private static func linkParticipants(
-        across created: [CDWorkModel], in modelContext: NSManagedObjectContext
-    ) {
-        guard created.count > 1 else { return }
-        for work in created {
-            for other in created where other !== work {
-                let participant = CDWorkParticipantEntity(context: modelContext)
-                participant.id = UUID()
-                participant.studentID = other.studentID
-                participant.work = work
-            }
         }
     }
 
@@ -269,7 +248,8 @@ extension MCPNotebookTools {
             "completed_by": [
                 "type": "string",
                 "description": .string("Only for a row several children share: records that child's "
-                    + "finish without closing the item. Refused beside a closing status (the status "
+                    + "finish and leaves the item open for the others; when the last child on it has "
+                    + "finished, the item closes as Finished. Refused beside a closing status (the status "
                     + "records the finish itself); refused on a child's own linked copy or a row with "
                     + "only one child (log that child's status instead); and a classmate named on a "
                     + "linked copy is refused with their own copy's id")

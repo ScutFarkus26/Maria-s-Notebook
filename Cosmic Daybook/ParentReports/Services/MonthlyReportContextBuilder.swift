@@ -208,7 +208,7 @@ struct MonthlyReportContextBuilder {
         )
         let fetched = context.safeFetch(workRequest)
         let works = UUID(uuidString: studentID).map {
-            WorkGrouping.visibleWork(for: $0, among: fetched, in: context)
+            WorkOwnership.work(of: $0, among: fetched, in: context)
         } ?? fetched
         for work in works {
             guard let id = work.id?.uuidString,
@@ -223,10 +223,10 @@ struct MonthlyReportContextBuilder {
 
         // Practice is a check-in on her work; a breakthrough is its note's tag.
         let practiceRequest = CDFetchRequest(CDWorkCheckIn.self)
-        practiceRequest.predicate = NSPredicate(
-            format: "date >= %@ AND date < %@ AND (durationMinutes != nil OR purpose == %@)",
-            interval.start as NSDate, interval.end as NSDate, PracticeCheckIns.purpose
-        )
+        practiceRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            NSPredicate(format: "date >= %@ AND date < %@", interval.start as NSDate, interval.end as NSDate),
+            CDWorkCheckIn.practicePredicate
+        ])
         for checkIn in context.safeFetch(practiceRequest) {
             guard let id = checkIn.id?.uuidString,
                   let date = checkIn.date,

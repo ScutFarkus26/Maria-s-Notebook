@@ -29,7 +29,7 @@ extension CalendarWorkShiftTests {
         let scheduledToday = [earlier, later].filter { $0.status == .scheduled && $0.date == time(10, on: monday) }
         #expect(scheduledToday.count == 1)
         #expect([earlier, later].filter { $0.status == .skipped }.count == 1)
-        #expect(work.dueAt == time(10, on: monday))
+        #expect(work.dueAt == nil, "the old copy of the check day goes; the check-in carries the day")
 
         let restored = CalendarForwardShiftService.undo(moved.receipt, in: context, calendar: AppCalendar.shared)
 

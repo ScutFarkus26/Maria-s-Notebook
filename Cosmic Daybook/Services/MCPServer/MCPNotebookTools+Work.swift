@@ -81,6 +81,9 @@ extension MCPNotebookTools {
         if let due = work.dueAt {
             lines.append("  Due: \(dayString(due))")
         }
+        if let nextCheck = WorkCheckInService.nextCheckDay(of: work, in: modelContext) {
+            lines.append("  Next check: \(dayString(nextCheck))")
+        }
         if let completedAt = work.completedAt {
             lines.append("  Completed: \(dayString(completedAt))")
         }

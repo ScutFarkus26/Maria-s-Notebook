@@ -15,7 +15,7 @@
 //
 //  "Her work" is the Work column's rule, the one "work to show first" uses
 //  (`WorkToShowFirst`): her own copy of linked work, or a shared row she is on
-//  (`WorkVisibility`); a shared row is open for her until her own part is done
+//  (`WorkOwnership.Reader`); a shared row is open for her until her own part is done
 //  (`QuietStudentsOrder.openStudentIDs`). A classmate's copy that names her is
 //  not hers. The last check-in is the status her latest closed row on the
 //  lesson was logged with (`WorkLogService` closes a row with the check's
@@ -286,14 +286,14 @@ struct PreviousLessonRecord {
         guard !rows.isEmpty else { return [:] }
         // A row naming several children is told apart from a set of linked
         // copies by the other rows on its lesson, read here in one more fetch.
-        let visibility = WorkVisibility(covering: rows, in: context)
+        let ownership = WorkOwnership.Reader(covering: rows, in: context)
 
         var facts: [Pair: WorkFacts] = [:]
         for row in rows {
-            let openFor = row.status.isOpen ? QuietStudentsOrder.openStudentIDs(of: row, visibility: visibility) : []
+            let openFor = row.status.isOpen ? QuietStudentsOrder.openStudentIDs(of: row, ownership: ownership) : []
             for child in WorkGrouping.studentIDs(of: row) {
                 let pair = Pair(studentID: child.uuidString, lessonID: row.lessonID)
-                guard wanted.contains(pair), visibility.isVisible(row, to: child) else { continue }
+                guard wanted.contains(pair), ownership.isWork(row, of: child) else { continue }
                 var fact = facts[pair] ?? WorkFacts()
                 if openFor.contains(child) {
                     fact.open += 1

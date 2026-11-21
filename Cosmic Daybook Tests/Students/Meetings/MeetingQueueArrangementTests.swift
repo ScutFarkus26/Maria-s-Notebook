@@ -100,7 +100,7 @@ struct MeetingQueueArrangementTests {
 
     // MARK: - Stuck work
 
-    @Test("Work set resting isn't stuck in the queue or the next meeting; this meeting's card stays")
+    @Test("Work resting, or just back from a rest, isn't stuck in the queue or the next meeting; this card stays")
     @MainActor
     func restingWorkIsNotStuck() throws {
         let context = try CoreDataTestHelpers.makeContext()
@@ -110,29 +110,34 @@ struct MeetingQueueArrangementTests {
         let startOfToday = AppCalendar.startOfDay(today)
         let nextWeek = try #require(AppCalendar.shared.date(byAdding: .day, value: 7, to: startOfToday))
         let resting = CoreDataTestHelpers.seedWorkModel(in: context, title: "Resting", studentID: child)
-        resting.createdAt = monthAgo
         resting.restingUntil = nextWeek
         let stuck = CoreDataTestHelpers.seedWorkModel(in: context, title: "Stuck", studentID: child)
-        stuck.createdAt = monthAgo
         let woke = CoreDataTestHelpers.seedWorkModel(in: context, title: "Woke today", studentID: child)
-        woke.createdAt = monthAgo
         woke.restingUntil = startOfToday
+        // Given a month ago and not touched since: stuck is school days since the
+        // last touch now (`WorkNeglect`), no longer days since the work was made.
+        for work in [resting, stuck, woke] {
+            work.createdAt = monthAgo
+            work.assignedAt = monthAgo
+        }
         #expect(CoreDataTestHelpers.save(context))
 
+        // A rest that ended today is a touch: the work is back, not a month
+        // neglected (domain logic review 2026-11-20, R13). It used to count.
         let queue = MeetingQueueModel()
         queue.refreshIfNeeded(context: context, workOverdueDays: 14, now: today)
-        #expect(queue.signals[child]?.stuckWork == 2)
+        #expect(queue.signals[child]?.stuckWork == 1)
 
         let work = [resting, stuck, woke]
         let nextMeeting = MeetingWorkSnapshotHelper.sessionWork(work, workOverdueDays: 14, reviewed: [], now: today)
-        #expect(nextMeeting.stuck.map(\.title) == ["Stuck", "Woke today"])
-        #expect(nextMeeting.open.map(\.title) == ["Resting"])
+        #expect(nextMeeting.stuck.map(\.title) == ["Stuck"])
+        #expect(nextMeeting.open.map(\.title) == ["Resting", "Woke today"])
 
         let restedNow = try #require(resting.id)
         let thisMeeting = MeetingWorkSnapshotHelper.sessionWork(
             work, workOverdueDays: 14, reviewed: [restedNow], now: today
         )
-        #expect(thisMeeting.stuck.map(\.title) == ["Resting", "Stuck", "Woke today"])
+        #expect(thisMeeting.stuck.map(\.title) == ["Resting", "Stuck"])
     }
 
     @Test("The queue's day moves at midnight even when no signal does, so its cutoffs redraw")

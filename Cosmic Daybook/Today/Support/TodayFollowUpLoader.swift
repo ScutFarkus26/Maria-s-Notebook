@@ -21,7 +21,7 @@
 // Work and assign_work make, one per child, each naming the whole group — is
 // its owner's alone, so the level filter and the "left" mark follow her, and
 // her classmates are named only as company ("with Eli R, Ana T"). A genuinely
-// shared row (project work) is everyone's on it. `WorkVisibility` tells the
+// shared row (project work) is everyone's on it. `WorkOwnership.Reader` tells the
 // two apart, as the checklist and the Work column do.
 //
 // Pure after the fetches the caller already holds, so `build` is
@@ -99,7 +99,7 @@ enum TodayFollowUpLoader {
     // - levelFilter: `.all` keeps every row; otherwise a row stays when a
     //   child it counts for (see the file comment) matches.
     // - context: when given, the due rows' lessons are read once
-    //   (`WorkVisibility(covering:in:)`), so a copy whose classmates have
+    //   (`WorkOwnership.Reader(covering:in:)`), so a copy whose classmates have
     //   closed theirs still reads as a copy. Without it, only the open rows in
     //   `fetch` are compared, and nothing touches a context.
     // swiftlint:disable:next function_parameter_count
@@ -122,13 +122,13 @@ enum TodayFollowUpLoader {
                   let checkInDate = checkIn.date else { return nil }
             return DueCheckIn(workID: workID, work: work, checkIn: checkIn, date: checkInDate)
         }
-        let visibility = context.map { WorkVisibility(covering: due.map(\.work), in: $0) }
-            ?? WorkVisibility(rows: fetch.workItems)
+        let ownership = context.map { WorkOwnership.Reader(covering: due.map(\.work), in: $0) }
+            ?? WorkOwnership.Reader(rows: fetch.workItems)
 
         for entry in due {
             let work = entry.work
             let studentIDs = WorkGrouping.studentIDs(of: work)
-            let counted = studentIDs.filter { visibility.isVisible(work, to: $0) }
+            let counted = studentIDs.filter { ownership.isWork(work, of: $0) }
             let named = counted.compactMap { id -> (id: UUID, student: CDStudent)? in
                 guard let student = studentsByID[id] ?? departedStudentsByID[id] else { return nil }
                 return (id, student)

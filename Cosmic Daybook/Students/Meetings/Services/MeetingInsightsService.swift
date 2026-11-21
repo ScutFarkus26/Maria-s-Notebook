@@ -84,8 +84,11 @@ final class MeetingInsightsService {
         let meetingData = relevantMeetings.map { MeetingSnapshot(from: $0) }
         let workSnapshot = WorkContextSnapshot(
             openCount: workModels.filter { !$0.isCompleted }.count,
+            // The meeting's own "stuck" (`MeetingWorkSnapshotHelper.isStuck`), not a
+            // count of days since the work was made.
             overdueCount: workModels.filter {
-                !$0.isCompleted && ($0.createdAt ?? Date()).timeIntervalSinceNow < -Double(14 * 86_400)
+                $0.status.isOpen
+                    && MeetingWorkSnapshotHelper.isStuck($0, overdueDays: WorkAgeDefaults.overdueDays)
             }.count,
             recentCompletedCount: workModels.filter {
                 $0.isCompleted && ($0.completedAt ?? .distantPast).timeIntervalSinceNow > -Double(7 * 86_400)

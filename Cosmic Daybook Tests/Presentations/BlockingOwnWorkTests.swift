@@ -15,12 +15,18 @@ struct BlockingOwnWorkTests {
 
     private let ada = UUID()
     private let ben = UUID()
+    private let lesson = UUID()
 
-    /// One linked copy: owned by `owner`, listing both children.
+    /// One linked copy: owned by `owner`, listing both children. Copies of one
+    /// assignment are on one lesson, which is how they are told from a row the
+    /// two share (`WorkOwnership`); `onLesson` makes a row of its own.
     private func copy(
-        owner: UUID, presentationID: String, done: Set<UUID>, in context: NSManagedObjectContext
+        owner: UUID, presentationID: String, done: Set<UUID>, onLesson: UUID? = nil,
+        in context: NSManagedObjectContext
     ) -> CDWorkModel {
-        let work = CoreDataTestHelpers.seedWorkModel(in: context, title: "Checkerboard work", studentID: owner)
+        let work = CoreDataTestHelpers.seedWorkModel(
+            in: context, title: "Checkerboard work", studentID: owner, lessonID: onLesson ?? lesson
+        )
         work.presentationID = presentationID
         for child in [ada, ben] {
             let participant = CDWorkParticipantEntity(context: context)
@@ -41,8 +47,13 @@ struct BlockingOwnWorkTests {
         #expect(BlockingAlgorithmEngine.gatingWork(for: ada, among: [adaCopy, benCopy]) == [adaCopy])
         #expect(BlockingAlgorithmEngine.gatingWork(for: ben, among: [adaCopy, benCopy]) == [benCopy])
 
-        // A shared row owned by Ben still gates Ada, who owns nothing.
-        #expect(BlockingAlgorithmEngine.gatingWork(for: ada, among: [benCopy]) == [benCopy])
+        // A classmate's copy never gates her, even when it is the only row in
+        // hand: the one ownership rule (domain logic review 2026-11-20, R22).
+        // It used to, for a child who owned nothing among the rows.
+        #expect(BlockingAlgorithmEngine.gatingWork(for: ada, among: [benCopy]).isEmpty)
+        // A row the two share, owned by Ben, gates Ada too.
+        let shared = copy(owner: ben, presentationID: "p", done: [], onLesson: UUID(), in: context)
+        #expect(BlockingAlgorithmEngine.gatingWork(for: ada, among: [shared]) == [shared])
     }
 
     @Test("The readiness check holds up only the child whose own copy is open")

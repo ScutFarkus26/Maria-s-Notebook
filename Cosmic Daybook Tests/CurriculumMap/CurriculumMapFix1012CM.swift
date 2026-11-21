@@ -33,13 +33,16 @@ struct CurriculumMapFix1012CM {
         )
     }
 
+    /// `shared` is the loader's reading of the row (`WorkOwnership.isShared`): one
+    /// row its children share, rather than one child's copy.
     private func work(
-        _ lesson: CurriculumLessonRef, owner: UUID?, students: [UUID], status: WorkStatus = .active
+        _ lesson: CurriculumLessonRef, owner: UUID?, students: [UUID], status: WorkStatus = .active,
+        shared: Bool = false
     ) -> CurriculumWorkRef {
         CurriculumWorkRef(
             id: UUID(), lessonID: lesson.id, studentIDs: students, statusRaw: status.rawValue,
             assignedAt: day("2026-09-14"), completedAt: status.isClosed ? day("2026-09-20") : nil,
-            lastTouchedAt: nil, ownerID: owner
+            lastTouchedAt: nil, ownerID: owner, isSharedRow: shared
         )
     }
 
@@ -79,7 +82,7 @@ struct CurriculumMapFix1012CM {
         #expect(mine.evidence.workIDs == [shared.id])
     }
 
-    @Test("The cell sheet keeps her own rows, lesson by lesson")
+    @Test("The cell sheet keeps her own rows and the rows she shares, lesson by lesson")
     func ownWorkPerLesson() {
         let laws = lesson("Commutative Law", order: 0)
         let squares = lesson("Squares", order: 1)
@@ -87,10 +90,15 @@ struct CurriculumMapFix1012CM {
         let hers = work(laws, owner: maya, students: group)
         let elisLaws = work(laws, owner: eli, students: group)
         let elisSquares = work(squares, owner: eli, students: group)
+        let project = work(squares, owner: eli, students: group, shared: true)
         let unrelated = work(squares, owner: ana, students: [ana])
 
-        let shown = ClassGridEngine.ownWork(for: maya, among: [hers, elisLaws, elisSquares, unrelated])
-        #expect(shown.map(\.id) == [hers.id, elisSquares.id])
+        let rows = [hers, elisLaws, elisSquares, project, unrelated]
+        let shown = WorkOwnership.work(of: maya, among: rows)
+        // Her own copy on Laws, so Eli's copy there isn't hers; nothing of her
+        // own on Squares, so the row of Eli's she is on counts; and a shared
+        // row counts wherever she is on it.
+        #expect(shown.map(\.id) == [hers.id, elisSquares.id, project.id])
     }
 
     // MARK: - #31 A stamped checklist date is not a presentation date

@@ -85,7 +85,7 @@ struct TodayEngineTests {
         }
         #expect(CoreDataTestHelpers.save(context))
         let works = context.safeFetch(CDFetchRequest(CDWorkModel.self))
-        let expected = works.filter { WorkAgingPolicy.isStale($0, using: context) }.count
+        let expected = works.filter { WorkNeglect.isStale($0, using: context) }.count
         try #require(expected > TodayScheduleBuilder.staleRowLimit)
 
         let result = TodayScheduleBuilder.buildSchedule(

@@ -173,8 +173,7 @@ struct TodayFollowUpLoaderTests {
         #expect(viewModel.followUpCheckIns.count == 1)
         #expect(viewModel.followUpCheckIns.first?.isOverdue == false)
 
-        try service.markCompleted(checkIn, note: nil, at: Date())
-        #expect(CoreDataTestHelpers.save(context))
+        try WorkLogService.log([.init(work: work)], checked: checkIn, context: context)
         viewModel.reload()
         #expect(viewModel.followUpCheckIns.isEmpty)
     }

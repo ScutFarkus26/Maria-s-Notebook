@@ -50,6 +50,7 @@ enum TodayScheduleBuilder {
         var placedWorkIDs: Set<UUID> = []
 
         let startToday = referenceDate.startOfDay
+        let ownership = WorkOwnership.Reader(covering: workItems, in: context)
 
         for work in workItems {
             // Filter by Level — mirrors TodayLevelFilterService.filterWork:
@@ -57,9 +58,11 @@ enum TodayScheduleBuilder {
             // (enrolled + visible) AND matches the level filter. Items whose
             // student is missing (withdrawn, hidden test students, garbage IDs)
             // are excluded, not kept.
-            guard let sid = UUID(uuidString: work.studentID),
-                  let s = studentsByID[sid],
-                  levelFilter.matches(s.level) else {
+            // "Its student" is any child the row counts for (`WorkOwnership`):
+            // a shared row used to be read by its owner alone.
+            guard ownership.students(of: work).contains(where: { id in
+                studentsByID[id].map { levelFilter.matches($0.level) } ?? false
+            }) else {
                 continue
             }
 
@@ -69,7 +72,7 @@ enum TodayScheduleBuilder {
 
             // Determine Last Meaningful Touch to validate overdue status
             let checkIns = (work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? []
-            let lastTouch = WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: workNotes)
+            let lastTouch = WorkNeglect.lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: workNotes)
             let startLastTouch = lastTouch.startOfDay
 
             // --- Overdue Logic ---
@@ -94,8 +97,8 @@ enum TodayScheduleBuilder {
 
             // --- Stale/Follow-Up Logic ---
             if !isOverdueOrToday && !hasUpcomingCheckIn(checkIns + workCheckIns, after: startToday) {
-                if WorkAgingPolicy.isStale(work, using: context, checkIns: checkIns, notes: workNotes) {
-                    let days = WorkAgingPolicy.daysSinceLastTouch(
+                if WorkNeglect.isStale(work, using: context, checkIns: checkIns, notes: workNotes) {
+                    let days = WorkNeglect.daysSinceLastTouch(
                         for: work, using: context,
                         checkIns: checkIns, notes: workNotes
                     )

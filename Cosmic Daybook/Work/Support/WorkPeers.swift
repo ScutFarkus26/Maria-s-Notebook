@@ -199,7 +199,7 @@ enum WorkPeers {
         let calendar = SchoolCalendarService.shared
         let today = Date()
         let touched = rows.map { row in
-            WorkAgingPolicy.lastMeaningfulTouchDate(
+            WorkNeglect.lastMeaningfulTouchDate(
                 for: row,
                 checkIns: (row.checkIns?.allObjects as? [CDWorkCheckIn]) ?? [],
                 notes: (row.unifiedNotes?.allObjects as? [CDNote]) ?? []

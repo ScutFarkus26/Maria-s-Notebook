@@ -146,7 +146,7 @@ struct WeekStripFix1012Pr {
         #expect(plan.laterCheck.date == time(13, on: try day("2026-10-15")))
     }
 
-    @Test("The work's due day is its earliest moved check-in, not the last one processed")
+    @Test("The work's next check is its earliest moved check-in; the old copy of the check day is let go")
     func dueDayIsTheEarliestCheck() throws {
         let plan = try seedPlan()
 
@@ -155,7 +155,11 @@ struct WeekStripFix1012Pr {
             from: plan.monday, nextSchoolDay: nextWeekday(after:)
         )
 
-        #expect(plan.work.dueAt == time(13, on: try day("2026-10-13")))
+        // The due date no longer follows the checks (domain logic review
+        // 2026-11-20, R4): the next check is read off the check-ins.
+        #expect(plan.work.dueAt == nil)
+        let nextCheck = WorkCheckInService.nextCheckDay(of: plan.work, in: plan.context)
+        #expect(nextCheck == time(13, on: try day("2026-10-13")))
     }
 
     @Test("With the Show filter on Work, presentations stay; work checks move whatever it shows")

@@ -88,8 +88,8 @@ nonisolated public enum ChecklistDisplayStatus: Sendable, Hashable, CaseIterable
     /// Three-Year View, the student page's track timeline): the highest rung reached,
     /// mastered > reviewing > practicing > presented > planned, then ready or not yet ready by
     /// `blockingReason`. Only a mastery mark is Mastered; closed work without one is Reviewing,
-    /// however it closed. Practice sessions count where a screen reads them (Three Years): one
-    /// is Practicing, three are Reviewing.
+    /// however it closed. Finished practice counts on every screen: one is Practicing, three
+    /// are Reviewing. `resolve(_:)` (`LadderInput`) adds the stored state's floor.
     public static func resolve( // swiftlint:disable:this function_parameter_count
         isMastered: Bool,
         hasReviewWork: Bool,
@@ -169,6 +169,12 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
     /// is waiting on. The Inbox holds the whole group while any one of them isn't, so this
     /// may not include her. Empty unless `isBrewing`.
     public let brewingHeldBy: [UUID]
+    /// Finished practices on her work on the lesson, and the furthest state the
+    /// guide stored by hand (Practicing or Ready for Assessment): the ladder's
+    /// other two inputs (`LadderInput`), which only Three Years used to read.
+    /// Set by the engine after `init`.
+    var practiceSessions = 0
+    var storedState: LessonPresentationState?
 
     /// The highest rung reached: mastered > reviewing > practicing > presented > planned,
     /// then ready or not yet ready by the blocking reason. Closed work counts as Reviewing
@@ -181,15 +187,18 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
     /// by Add Sequence, still wait on later lessons; such an entry still counts for the
     /// Ready count and the row's Plan, so she isn't planned twice.
     public var displayStatus: ChecklistDisplayStatus {
-        .resolve(
+        let rung = ChecklistDisplayStatus.resolve(
             isMastered: isMastered,
             hasReviewWork: isWorkReview,
             allWorkClosed: isComplete,
             hasActiveWork: isWorkActive,
+            practiceSessions: practiceSessions,
             isPresented: isPresented,
             isPlanned: isScheduled || isNextOnYearPlan,
             blockingReason: blockingReason
         )
+        // The stored state is a floor, as in `ChecklistDisplayStatus.resolve(_:)`.
+        return storedState.flatMap(ChecklistDisplayStatus.floor(for:)).map { max(rung, $0) } ?? rung
     }
 
     /// Her year plan's entry for this lesson is the one she's up to: the lesson before has

@@ -36,15 +36,9 @@ extension ReportStages {
             addStandardSteps(to: work, context: context)
             created.append(work)
         }
-        guard created.count > 1 else { return created }
-        for work in created {
-            for other in created where other !== work {
-                let participant = CDWorkParticipantEntity(context: context)
-                participant.id = UUID()
-                participant.studentID = other.studentID
-                participant.work = work
-            }
-        }
+        // One assignment given to a group: the copies name each other and
+        // share an assignment id, as work from New Work does.
+        WorkAssignmentService.link(created, in: context)
         return created
     }
 }

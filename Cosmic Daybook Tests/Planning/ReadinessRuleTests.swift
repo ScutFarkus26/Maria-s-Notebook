@@ -260,14 +260,9 @@ struct ReadinessRuleTests {
                 kind: .practiceLesson, presentationID: given.id, saveImmediately: false
             )
         }
-        for copy in copies {
-            for other in copies where other !== copy {
-                let participant = CDWorkParticipantEntity(context: room.context)
-                participant.id = UUID()
-                participant.studentID = other.studentID
-                participant.work = copy
-            }
-        }
+        // One assignment given to both: the copies name each other and share
+        // an assignment id, as New Work makes them (`WorkAssignmentService`).
+        WorkAssignmentService.link(copies, in: room.context)
         copies[0].status = .done
 
         #expect(try #require(try item(room.maya, in: room)).tier == .ready)

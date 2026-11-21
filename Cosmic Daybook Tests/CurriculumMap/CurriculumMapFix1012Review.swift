@@ -108,10 +108,10 @@ struct CurriculumMapFix1012ReviewShared {
         #expect(cell.state == .practicing)
         #expect(Set(cell.evidence.workIDs) == [hersID, projectID])
 
-        let sheet = ClassGridEngine.ownWork(for: maya, among: input.work)
+        let sheet = WorkOwnership.work(of: maya, among: input.work)
         #expect(Set(sheet.map(\.id)) == [hersID, projectID])
         // Eli sees the project row and nothing of hers.
-        #expect(ClassGridEngine.ownWork(for: eli, among: input.work).map(\.id) == [projectID])
+        #expect(WorkOwnership.work(of: eli, among: input.work).map(\.id) == [projectID])
     }
 }
 

@@ -23,7 +23,7 @@ struct BackupRetiredTrackEntriesTests {
     /// Written for every record since: schema 25's work flag (format 47),
     /// false for a work row from before it. The optional fields added then
     /// stay unset, so aren't written.
-    private static let laterFields: Set<String> = ["isSharedRow"]
+    private static let laterFields: Set<String> = ["isSharedRow", "assignmentID"]
 
     @Test("A v44 backup with track entries reads without a warning and restores everything else")
     func v44BackupRestores() async throws {

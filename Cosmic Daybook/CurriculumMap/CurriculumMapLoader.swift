@@ -94,16 +94,19 @@ nonisolated enum CurriculumMapLoader {
             guard let id = record.id,
                   let studentID = UUID(uuidString: record.studentID),
                   let lessonID = UUID(uuidString: record.lessonID) else { return nil }
-            // The mastery rule `SequenceStanding` shares: a mastered date or the mastered state.
-            let isMastered = record.masteredAt != nil || record.state == .proficient
+            // The one mastery rule (`SequenceStanding.isMasteryMark`, what
+            // `MasteryMarking.isMastered` reads), and the state the guide
+            // stored by hand, which holds the ladder's floor.
+            let state = record.state
             return CurriculumMasteryRef(
                 id: id,
                 studentID: studentID,
                 lessonID: lessonID,
-                isMastered: isMastered,
+                isMastered: SequenceStanding.isMasteryMark(record),
                 presentedAt: record.presentedAt,
                 masteredAt: record.masteredAt,
-                lastObservedAt: record.lastObservedAt
+                lastObservedAt: record.lastObservedAt,
+                storedState: ChecklistDisplayStatus.floor(for: state) == nil ? nil : state
             )
         }
     }
@@ -119,7 +122,12 @@ nonisolated enum CurriculumMapLoader {
     }
 
     private static func work(in context: NSManagedObjectContext) -> [CurriculumWorkRef] {
-        context.safeFetch(workRequest()).compactMap { work in
+        let rows = context.safeFetch(workRequest())
+        // Whose each row is: the one ownership rule's two facts about a row,
+        // read here so the engine can apply it to the snapshot
+        // (`WorkOwnership.work(of:among:)`).
+        let ownership = WorkOwnership.Reader(rows: rows)
+        return rows.compactMap { work in
             guard let id = work.id, let lessonID = UUID(uuidString: work.lessonID) else { return nil }
             let participants = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
             var studentIDs: [UUID] = participants.compactMap { UUID(uuidString: $0.studentID) }
@@ -136,7 +144,8 @@ nonisolated enum CurriculumMapLoader {
                 completedAt: work.completedAt,
                 lastTouchedAt: work.lastTouchedAt,
                 ownerID: owner,
-                isSharedRow: work.sourceContextType == .projectSession
+                isSharedRow: studentIDs.count > 1 && ownership.isShared(work),
+                assignmentKey: ownership.assignment(of: work)
             )
         }
     }
@@ -144,9 +153,7 @@ nonisolated enum CurriculumMapLoader {
     /// Practice is a check-in (`CDWorkCheckIn.isPractice`), on one child's work.
     private static func practice(in context: NSManagedObjectContext) -> [CurriculumPracticeRef] {
         let request = CDFetchRequest(CDWorkCheckIn.self)
-        request.predicate = NSPredicate(
-            format: "durationMinutes != nil OR purpose == %@", PracticeCheckIns.purpose
-        )
+        request.predicate = CDWorkCheckIn.practicePredicate
         request.fetchBatchSize = 200
         return context.safeFetch(request).compactMap { checkIn in
             guard let id = checkIn.id, let workID = UUID(uuidString: checkIn.workID) else { return nil }

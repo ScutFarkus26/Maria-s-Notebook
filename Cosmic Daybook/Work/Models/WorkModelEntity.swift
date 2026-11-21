@@ -151,13 +151,13 @@ nonisolated extension CDWorkModel {
     // MARK: - Completion helpers
     var isCompleted: Bool { completedAt != nil }
 
-    /// A work item is considered open if any participant has not completed their work.
-    var isOpen: Bool {
-        if status.isClosed { return false }
-        let parts = (participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
-        if parts.isEmpty { return true }
-        return parts.contains { $0.completedAt == nil }
-    }
+    /// Open means the status, here as in triage and every fetch. This used to
+    /// read a row as closed once every participant was stamped done, while
+    /// the lists went by status: a shared project finished child by child
+    /// read Working, went stale and refused Add Check-in as "closed". Now the
+    /// last child's finish closes the row (`WorkLogService.finishPart`), so
+    /// the two can't disagree (domain logic review 2026-11-20, R23).
+    var isOpen: Bool { status.isOpen }
 
     // MARK: - Status Helpers
 

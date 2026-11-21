@@ -55,9 +55,9 @@ enum WorksLogRows {
     /// Whether the row belongs to any of the children the filter picked
     /// (none picked keeps every row): her own copy of linked work, or a
     /// shared row she is on — never a classmate's copy that names her.
-    static func matches(_ work: CDWorkModel, students: Set<UUID>, visibility: WorkVisibility) -> Bool {
+    static func matches(_ work: CDWorkModel, students: Set<UUID>, ownership: WorkOwnership.Reader) -> Bool {
         guard !students.isEmpty else { return true }
-        return students.contains { visibility.isVisible(work, to: $0) }
+        return students.contains { ownership.isWork(work, of: $0) }
     }
 
     /// Whether the log shows the row at all.

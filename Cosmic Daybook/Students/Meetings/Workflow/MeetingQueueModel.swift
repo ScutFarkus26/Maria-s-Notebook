@@ -250,14 +250,14 @@ final class MeetingQueueModel {
     private static func addStuckWork(
         to result: inout [UUID: MeetingQueueSignals], overdueDays: Int, now: Date, context: NSManagedObjectContext
     ) {
-        let overdueBefore = AppCalendar.shared.date(byAdding: .day, value: -overdueDays, to: now) ?? now
+        // The meeting's own rule (`MeetingWorkSnapshotHelper.isStuck`), so the
+        // queue's count is the list the meeting will show: quiet by the one
+        // clock, never resting work (it has a plan) and never a report.
         let work = CDFetchRequest(CDWorkModel.self)
-        work.predicate = NSPredicate(
-            format: "statusRaw IN %@ AND createdAt < %@",
-            WorkStatus.openCases.map(\.rawValue), overdueBefore as NSDate
-        )
-        // Resting work has a plan (Rest… on a decision card), so it isn't stuck.
-        for item in context.safeFetch(work) where !item.isResting(asOf: now) {
+        work.predicate = WorkStatus.openPredicate
+        work.relationshipKeyPathsForPrefetching = ["checkIns", "unifiedNotes"]
+        for item in context.safeFetch(work)
+        where MeetingWorkSnapshotHelper.isStuck(item, overdueDays: overdueDays, now: now) {
             guard let id = UUID(uuidString: item.studentID) else { continue }
             result[id, default: MeetingQueueSignals()].stuckWork += 1
         }

@@ -59,12 +59,22 @@ extension WorkLogService {
         }
     }
 
+    /// The check-in a log was the doing of (`log`'s `checked`), and the day
+    /// it was planned for before it moved to the day it was checked.
+    struct MovedCheckIn {
+        let objectID: NSManagedObjectID
+        let from: Date?
+        let to: Date
+    }
+
     /// Everything one `log` call changed, in the order it was changed.
     struct UndoToken {
         let day: Date
         var rows: [RowSnapshot] = []
         var participants: [ParticipantSnapshot] = []
         var checkIns: [CheckInSnapshot] = []
+        /// The checked check-in, moved to its log's moment before it was settled.
+        var checkedCheckIn: MovedCheckIn?
         /// Linked todos the call completed; each was open before it. A
         /// repeating one's next occurrence is in `createdObjectIDs`.
         var completedTodos: [NSManagedObjectID] = []
@@ -126,6 +136,7 @@ extension WorkLogService {
                 checkIn.date = snapshot.date
             }
         }
+        restoreChecked(token.checkedCheckIn, in: context)
         for objectID in token.completedTodos {
             if let todo = context.existing(CDTodoItem.self, objectID) {
                 TodoCompletionService.reopen(todo)

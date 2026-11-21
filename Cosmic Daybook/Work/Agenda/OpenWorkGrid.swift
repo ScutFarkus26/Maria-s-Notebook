@@ -168,7 +168,7 @@ struct OpenWorkGrid: View {
         let allDates = works.map { work in
             let checkIns = (work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? []
             let notes = (work.unifiedNotes?.allObjects as? [CDNote]) ?? []
-            return WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: notes)
+            return WorkNeglect.lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: notes)
         }
         
         guard let minDate = allDates.min(), allDates.max() != nil else { return }
@@ -181,7 +181,7 @@ struct OpenWorkGrid: View {
         for work in works {
             let checkInsArray = (work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? []
             let notesArray = (work.unifiedNotes?.allObjects as? [CDNote]) ?? []
-            let lastTouch = WorkAgingPolicy.lastMeaningfulTouchDate(
+            let lastTouch = WorkNeglect.lastMeaningfulTouchDate(
                 for: work, checkIns: checkInsArray, notes: notesArray
             )
             let age = cache.schoolDaysSinceCreation(

@@ -1,3 +1,4 @@
+import CoreData
 import Foundation
 
 // MARK: - Meeting Work Snapshot Helper
@@ -13,26 +14,46 @@ enum MeetingWorkSnapshotHelper {
         let recentCompleted: [CDWorkModel]
     }
 
+    // MARK: - Stuck
+
+    /// Whether open work is stuck: gone `overdueDays` school days (the guide's
+    /// Work Age setting) without a touch, by the one clock every screen reads
+    /// (`WorkNeglect`), and not resting. A meeting used to count calendar
+    /// days since the work was made, so work practiced yesterday was stuck
+    /// and a rest that had just ended read as a month of neglect (domain
+    /// logic review 2026-11-20, R13). A report takes weeks, so it never is.
+    ///
+    /// - Parameter reviewed: the meeting has just decided on this item. Its
+    ///   own log is a touch, so the item is read as it stood before today
+    ///   (resting or not), and stays in the list it was decided in.
+    static func isStuck(
+        _ work: CDWorkModel, overdueDays: Int, reviewed: Bool = false, now: Date = Date()
+    ) -> Bool {
+        guard !ReportStages.isReport(work), let context = work.managedObjectContext else { return false }
+        guard reviewed else {
+            return WorkNeglect.hasGoneQuiet(work, for: overdueDays, using: context, asOf: now)
+        }
+        return WorkNeglect.quietDays(
+            for: work, using: context, asOf: now, before: AppCalendar.startOfDay(now)
+        ) >= overdueDays
+    }
+
     // MARK: - Work Statistics
 
-    /// Computes work statistics for a student.
+    /// Computes work statistics for a student: her work by the one ownership
+    /// rule (`WorkOwnership`), so project work she shares counts though
+    /// another child owns the row.
     static func computeWorkStats(
         for studentID: UUID,
         allWorkModels: [CDWorkModel],
         workOverdueDays: Int
     ) -> WorkStats {
-        let sid = studentID.uuidString
-        let workModelsForStudent = allWorkModels.filter { $0.studentID == sid }
-
-        let overdueThreshold = AppCalendar.shared.date(
-            byAdding: .day, value: -workOverdueDays, to: Date()
-        ) ?? Date.distantPast
+        let ownership = WorkOwnership.Reader(rows: allWorkModels)
+        let workModelsForStudent = allWorkModels.filter { ownership.isWork($0, of: studentID) }
 
         let notComplete = workModelsForStudent.filter { $0.status.isOpen }
 
-        let overdueWork = notComplete.filter {
-            ($0.createdAt ?? Date()) < overdueThreshold && !$0.isResting
-        }
+        let overdueWork = notComplete.filter { isStuck($0, overdueDays: workOverdueDays) }
 
         let overdueIDs = Set(overdueWork.compactMap(\.id))
         let openWork = notComplete.filter { work in
@@ -96,7 +117,7 @@ enum MeetingWorkSnapshotHelper {
 
     /// The meeting's work lists, from the child's own work rows.
     struct SessionWork {
-        /// Open work older than the overdue setting: each needs a decision.
+        /// Open work gone quiet for the overdue setting (`isStuck`): each needs a decision.
         let stuck: [CDWorkModel]
         let open: [CDWorkModel]
         /// Her reports, open or resting, in a section of their own: a report
@@ -115,13 +136,12 @@ enum MeetingWorkSnapshotHelper {
         reviewed: Set<UUID>,
         now: Date = Date()
     ) -> SessionWork {
-        let overdueBefore = AppCalendar.shared.date(byAdding: .day, value: -workOverdueDays, to: now) ?? .distantPast
         let isReviewed = { (item: CDWorkModel) in item.id.map(reviewed.contains) ?? false }
         let visible = work.filter { $0.status.isOpen || isReviewed($0) }
         let reports = visible.filter(ReportStages.isReport)
         let shown = visible.filter { !ReportStages.isReport($0) }
         let stuck = shown.filter {
-            ($0.createdAt ?? now) < overdueBefore && (isReviewed($0) || !$0.isResting(asOf: now))
+            isStuck($0, overdueDays: workOverdueDays, reviewed: isReviewed($0), now: now)
         }
         let stuckIDs = Set(stuck.compactMap(\.id))
         return SessionWork(

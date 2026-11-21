@@ -136,8 +136,8 @@ struct ChecklistMatrixBuilderEquivalenceTests {
 /// The builder as it was before the batched fetches (2026-09-22): one fetch per
 /// lesson (and per giving), calling the shared `buildCellState`. Its rules
 /// follow the builder's since bug hunt 2026-10-11 #17/#18: a cell reads the
-/// work that counts as the child's (`WorkGrouping.visibleWork`, row by row,
-/// against the builder's batched `WorkVisibility`). Since 2026-10-18 "Not yet" and
+/// work that counts as the child's (`WorkOwnership.work`, row by row,
+/// against the builder's batched `WorkOwnership.Reader`). Since 2026-10-18 "Not yet" and
 /// "Ready, check first" are the one readiness rule (`ReadyForNextEngine.readiness(of:)`),
 /// read here one cell at a time. Brewing (2026-11-10) is the Inbox's rule asked the way
 /// the Inbox asks it, over the whole assignment and work tables, against the builder's
@@ -176,8 +176,8 @@ private enum LegacyMatrixBuilder {
                 guard let lessonID = lesson.id else { continue }
                 let lessonIDString = lessonID.uuidString
                 let studentLAs = (lasByLessonID[lessonIDString] ?? []).filter { $0.studentIDs.contains(studentKey) }
-                let studentWorks = WorkGrouping.visibleWork(
-                    for: studentUUID, among: worksByLessonID[lessonIDString] ?? [], in: context
+                let studentWorks = WorkOwnership.work(
+                    of: studentUUID, among: worksByLessonID[lessonIDString] ?? [], in: context
                 )
                 var readiness = (blocking: BlockingReason.none, checkFirst: [String]())
                 if !studentLAs.contains(where: { $0.isPresented }), let preceding = precedingLessonMap[lessonID] {

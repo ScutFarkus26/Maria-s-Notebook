@@ -19,7 +19,7 @@ struct WorksLogView: View {
         request.fetchBatchSize = 50
         // Prefetch unifiedNotes so latestUnifiedNoteText doesn't fault the relationship
         // per row (N+1) when filtering/searching the works list, and participants
-        // for the per-group visibility a picked child reads (WorkVisibility).
+        // for the per-group ownership a picked child reads (WorkOwnership.Reader).
         request.relationshipKeyPathsForPrefetching = ["unifiedNotes", "participants"]
         return request
     }())
@@ -78,7 +78,7 @@ struct WorksLogView: View {
         // Whose each row is, read per linked group. `allWorks` is the whole
         // table, so every row's group is already in hand; only built while a
         // child is picked.
-        let visibility = WorkVisibility(rows: selectedStudentIDs.isEmpty ? [] : Array(allWorks))
+        let ownership = WorkOwnership.Reader(rows: selectedStudentIDs.isEmpty ? [] : Array(allWorks))
         let visibleIDs = Set(students.compactMap(\.id))
         let hiddenIDs = Set(dependencies.roster.all.compactMap(\.id)).subtracting(visibleIDs)
         return allWorks.filter { work in
@@ -96,7 +96,7 @@ struct WorksLogView: View {
             // Status filter
             if !WorksLogRows.matches(work, statuses: selectedStatuses) { return false }
 
-            if !WorksLogRows.matches(work, students: selectedStudentIDs, visibility: visibility) { return false }
+            if !WorksLogRows.matches(work, students: selectedStudentIDs, ownership: ownership) { return false }
 
             // Search filter
             // (title, notes, and the child it is for, as the live list reads them)

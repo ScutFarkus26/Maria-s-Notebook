@@ -68,7 +68,7 @@ struct WorksAgendaView: View {
     /// Whose each open row is, read per linked group, for the column and its
     /// child filter. Built with `partition`, on the same debounced path: it
     /// fetches every row on the open work's lessons.
-    @State var workVisibility = WorkVisibility(rows: [])
+    @State var workOwnership = WorkOwnership.Reader(rows: [])
 
     /// Every record on screen, triaged once. The Attention list reads it, the
     /// card badges read it, and the picker's counts will. Rebuilt on the same

@@ -114,7 +114,7 @@ struct LessonsAndWorkTriageTests {
     @Test("Work deliberately set aside is planned, not neglected")
     func restingIsScheduled() {
         #expect(bucket(work(restingUntil: tomorrow)) == .scheduled)
-        // Resting outranks every reason to nag, matching WorkAgingPolicy.
+        // Resting outranks every reason to nag, matching WorkNeglect.
         #expect(bucket(work(.review, restingUntil: nextWeek)) == .scheduled)
         #expect(bucket(work(dueAt: yesterday, restingUntil: nextWeek)) == .scheduled)
         #expect(bucket(work(restingUntil: nextWeek, checkIns: [yesterday])) == .scheduled)

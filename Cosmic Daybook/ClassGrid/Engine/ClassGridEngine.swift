@@ -162,6 +162,8 @@ nonisolated enum ClassGridEngine {
         let lessonID: UUID
         var presentations: [CurriculumPresentationRef] = []
         var mastery: CurriculumMasteryRef?
+        /// The furthest state stored by hand on any of her rows for the lesson.
+        var storedState: LessonPresentationState?
         var works: [CurriculumWorkRef] = []
         var practice: [CurriculumPracticeRef] = []
         var recalls: [CurriculumRecallRef] = []
@@ -190,6 +192,7 @@ nonisolated enum ClassGridEngine {
         for mastery in input.masteries {
             update(mastery.studentID, mastery.lessonID) { builder in
                 builder.mastery = stronger(builder.mastery, mastery)
+                builder.storedState = LadderEvidence.further(builder.storedState, mastery.storedState)
             }
         }
         for work in input.work {
@@ -228,7 +231,7 @@ nonisolated enum ClassGridEngine {
 
     private static func finalize(_ bucket: CellBuilder) -> CurriculumCell {
         var builder = bucket
-        builder.works = ownWork(for: builder.studentID, among: builder.works)
+        builder.works = WorkOwnership.work(of: builder.studentID, among: builder.works)
         var cell = CurriculumCell(studentID: builder.studentID, lessonID: builder.lessonID)
         let confirmed = builder.presentations.contains { $0.confirmedStudentIDs.contains(builder.studentID) }
         let isPresented = !builder.presentations.isEmpty || builder.mastery != nil
@@ -240,6 +243,7 @@ nonisolated enum ClassGridEngine {
             isMastered: isMastered,
             workStatuses: builder.works.map(\.status),
             practiceSessions: builder.practice.count,
+            storedState: builder.storedState,
             isPresented: isPresented
         )
 

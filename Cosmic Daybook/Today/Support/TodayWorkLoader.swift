@@ -106,10 +106,9 @@ enum TodayWorkLoader {
 
         // Collect student IDs for completed work
         var neededStudentIDs = Set<UUID>()
+        let ownership = WorkOwnership.Reader(covering: workItems, in: context)
         for work in workItems {
-            if let sid = UUID(uuidString: work.studentID) {
-                neededStudentIDs.insert(sid)
-            }
+            neededStudentIDs.formUnion(ownership.students(of: work))
         }
 
         return CompletedWorkResult(

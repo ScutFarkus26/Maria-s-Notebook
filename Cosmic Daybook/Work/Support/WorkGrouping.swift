@@ -57,12 +57,19 @@
 //  Project-session rows are shared rows by construction, never copies, even
 //  when two of them end up naming the same children.
 //
+//  Since schema 25 a row carries the answer (domain logic review 2026-11-20,
+//  R22): `assignmentID`, which every copy made in one assignment shares, and
+//  `isSharedRow`. A row that has them is matched by them, and the recovery
+//  above is only the guess for a row not filled yet (`WorkAssignmentFill`
+//  writes the guess down at launch and after a restore). Whose a row is, is
+//  `WorkOwnership`'s rule.
+//
 
 import CoreData
 import Foundation
 
 /// How the children on a work item are actually stored.
-enum WorkShape: Equatable {
+nonisolated enum WorkShape: Equatable {
     /// One child on one row.
     case single
 
@@ -76,7 +83,7 @@ enum WorkShape: Equatable {
 }
 
 /// A work item together with the rows it was created alongside.
-struct WorkGroup {
+nonisolated struct WorkGroup {
     /// The row this group was resolved from.
     let anchor: CDWorkModel
 
@@ -87,11 +94,14 @@ struct WorkGroup {
     /// Everyone named on `anchor` — its owner plus its participants.
     let studentIDs: [UUID]
 
+    /// Whether `anchor` is a row its children share (`WorkOwnership.isShared`).
+    let isSharedRow: Bool
+
     var shape: WorkShape {
         if members.count > 1 {
             return .linkedCopies(total: members.count)
         }
-        return studentIDs.count > 1 ? .shared(childCount: studentIDs.count) : .single
+        return isSharedRow && studentIDs.count > 1 ? .shared(childCount: studentIDs.count) : .single
     }
 
     /// The rows other than the anchor.
@@ -100,7 +110,7 @@ struct WorkGroup {
     }
 }
 
-enum WorkGrouping {
+nonisolated enum WorkGrouping {
 
     // MARK: - Membership
 
@@ -135,28 +145,6 @@ enum WorkGrouping {
         studentIDs(of: work).contains(studentID)
     }
 
-    // MARK: - What a Child Sees
-
-    /// The rows a child's own work list should show, out of every row that
-    /// names her.
-    ///
-    /// Linked copies each name the whole group, so a naive "everything that
-    /// names her" lists the same assignment once per copy. She sees the copy
-    /// she owns; a row she is only a passenger on counts only when no member
-    /// of its group is hers. The copies themselves keep naming every child —
-    /// that mutual naming is what `areLinkedCopies` reads, and what lets
-    /// "with Leshem" render on each copy.
-    static func visibleWork(
-        for studentID: UUID, among works: [CDWorkModel], in context: NSManagedObjectContext
-    ) -> [CDWorkModel] {
-        works.filter { work in
-            guard involves(studentID, in: work) else { return false }
-            if owner(of: work) == studentID { return true }
-            let group = group(containing: work, in: context)
-            return !group.members.contains { owner(of: $0) == studentID }
-        }
-    }
-
     // MARK: - Grouping
 
     /// Resolves the fan-out group a work item belongs to.
@@ -175,7 +163,8 @@ enum WorkGrouping {
                 if lhs != rhs { return lhs < rhs }
                 return ($0.id?.uuidString ?? "") < ($1.id?.uuidString ?? "")
             },
-            studentIDs: studentIDs(of: work)
+            studentIDs: studentIDs(of: work),
+            isSharedRow: WorkOwnership.isShared(work) { members }
         )
     }
 
@@ -191,12 +180,27 @@ enum WorkGrouping {
     private static func closure(
         from work: CDWorkModel, in context: NSManagedObjectContext
     ) -> [CDWorkModel] {
-        closure(from: work, among: candidateRows(sharingLessonWith: work, in: context))
+        closure(from: work, among: candidateRows(for: work, in: context))
     }
 
-    /// The same walk over rows already in hand: `candidates` are the other
-    /// rows on the work's lesson (`WorkVisibility` passes them).
+    /// The copies made with `work`, itself included, out of rows already in
+    /// hand: `candidates` are the other rows on the work's lesson
+    /// (`WorkOwnership.Reader` passes them).
+    ///
+    /// A row that carries its assignment is matched by it: its copies are the
+    /// rows with the same `assignmentID`, whatever their titles, days or
+    /// presentations have become since. A row not filled yet falls back to
+    /// the guess.
     static func closure(
+        from work: CDWorkModel, among candidates: [CDWorkModel]
+    ) -> [CDWorkModel] {
+        guard WorkOwnership.isFilled(work) else { return guessedClosure(from: work, among: candidates) }
+        return [work] + candidates.filter { $0 !== work && !$0.isDeleted && $0.assignmentID == work.assignmentID }
+    }
+
+    /// The guess: the walk over the mutual-link relation, for a row with no
+    /// `assignmentID`. `WorkAssignmentFill` stamps what this finds.
+    static func guessedClosure(
         from work: CDWorkModel, among candidates: [CDWorkModel]
     ) -> [CDWorkModel] {
         guard !candidates.isEmpty else { return [work] }
@@ -245,7 +249,7 @@ enum WorkGrouping {
     /// How alike two rows are, best first when compared with `>`: the same
     /// title counts most, then the same presentation, then how close
     /// together they were created.
-    private struct MatchRank: Comparable {
+    private nonisolated struct MatchRank: Comparable {
         let sameTitle: Bool
         let samePresentation: Bool
         let secondsApart: TimeInterval
@@ -301,12 +305,18 @@ enum WorkGrouping {
     }
 
     /// Rows that could plausibly be siblings, narrowed in the fetch so grouping
-    /// does not fault the whole work table for every lookup.
+    /// does not fault the whole work table for every lookup: the rows with
+    /// the work's `assignmentID`, or, for a row not filled yet, the rows on
+    /// its lesson.
     private static func candidateRows(
-        sharingLessonWith work: CDWorkModel, in context: NSManagedObjectContext
+        for work: CDWorkModel, in context: NSManagedObjectContext
     ) -> [CDWorkModel] {
         let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(format: "lessonID == %@", work.lessonID)
+        if let assignmentID = work.assignmentID, !assignmentID.isEmpty {
+            request.predicate = NSPredicate(format: "assignmentID == %@", assignmentID)
+        } else {
+            request.predicate = NSPredicate(format: "lessonID == %@", work.lessonID)
+        }
         return context.safeFetch(request).filter { $0 !== work }
     }
 

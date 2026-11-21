@@ -84,17 +84,18 @@ extension WorkDetailViewModel {
     /// app does, through `WorkCheckInService.unschedule`: one carrying a note
     /// is marked skipped where it is, so the note stays; one with none is
     /// deleted. It used to be deleted outright, and the note typed on it
-    /// went with it (bug hunt 2026-11-03 #35). The due date then follows the
-    /// check-ins left, as Clear All's does. A failed save takes it all back.
+    /// went with it (bug hunt 2026-11-03 #35). The due date is the guide's
+    /// and stays; only one sitting on this check-in's day goes with it, as
+    /// Clear All's does. A failed save takes it all back.
     func deleteCheckIn(
         _ item: CDWorkCheckIn, modelContext: NSManagedObjectContext, saveCoordinator: SaveCoordinator
     ) {
         let saved = saveCoordinator.saveEdit(in: modelContext, reason: "Deleting check-in") {
+            let plannedDay = item.date
             guard WorkCheckInService(context: modelContext).unschedule(item) != nil,
                   let work else { return }
             modelContext.processPendingChanges()
-            let due = CalendarForwardShiftService.earliestScheduledDate(of: work, in: modelContext)
-            if due != work.dueAt { work.dueAt = due }
+            WorkCheckInService.releaseDueDate(of: work, followingCheckOn: plannedDay)
         }
         if !saved {
             ToastService.shared.showError("Couldn't delete the check-in. Try again.")

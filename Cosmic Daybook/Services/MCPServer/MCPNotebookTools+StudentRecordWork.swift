@@ -32,8 +32,15 @@ extension MCPNotebookTools {
         in modelContext: NSManagedObjectContext
     ) -> String {
         let all = allWork(for: studentID, in: modelContext)
+        // Soonest first, by whichever comes first: the due date the guide set
+        // or the next check (the due date no longer doubles as the check day).
         let open = all.filter { !$0.isClosed }
-            .sorted { ($0.dueAt ?? .distantFuture) < ($1.dueAt ?? .distantFuture) }
+            .map { work in
+                let nextCheck = WorkCheckInService.nextCheckDay(of: work, in: modelContext)
+                return (work: work, soonest: [work.dueAt, nextCheck].compactMap { $0 }.min() ?? .distantFuture)
+            }
+            .sorted { $0.soonest < $1.soonest }
+            .map(\.work)
         let done = all.filter(\.isClosed)
             .sorted { ($0.completedAt ?? .distantPast) > ($1.completedAt ?? .distantPast) }
             .prefix(limit)
@@ -69,6 +76,9 @@ extension MCPNotebookTools {
         }
         if let due = work.dueAt {
             details.append("due \(dayString(due))")
+        }
+        if let nextCheck = WorkCheckInService.nextCheckDay(of: work, in: modelContext) {
+            details.append("next check \(dayString(nextCheck))")
         }
         let progress = work.stepProgress
         if progress.total > 0 {
@@ -116,12 +126,12 @@ extension MCPNotebookTools {
     /// Work a student owns plus work they are a passenger on, so a child
     /// listed only as a collaborator still sees the group's project — but each
     /// assignment once. Linked copies all name the whole group, so the copy
-    /// she owns stands in for the others; see `WorkGrouping.visibleWork`.
+    /// she owns stands in for the others; see `WorkOwnership.work`.
     static func allWork(
         for studentID: UUID, in modelContext: NSManagedObjectContext
     ) -> [CDWorkModel] {
-        WorkGrouping.visibleWork(
-            for: studentID,
+        WorkOwnership.work(
+            of: studentID,
             among: modelContext.safeFetch(CDFetchRequest(CDWorkModel.self)),
             in: modelContext
         )

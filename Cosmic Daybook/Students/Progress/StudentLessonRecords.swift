@@ -12,7 +12,7 @@ import Foundation
 ///
 /// What counts:
 /// - her presentations, given and planned;
-/// - the work that is hers by the Checklist's rule (`WorkVisibility`): the rows she owns,
+/// - the work that is hers by the Checklist's rule (`WorkOwnership.Reader`): the rows she owns,
 ///   and a shared row she is on (project work) though another child owns it, never a
 ///   classmate's linked copy naming her. Reading only the rows she owned left her shared
 ///   project work off the timeline while her Children card counted it (#26);
@@ -37,6 +37,10 @@ struct StudentLessonRecords {
     /// lessonID → the work on it that counts as hers.
     let workByLesson: [String: [CDWorkModel]]
     let masteredLessonIDs: Set<String>
+    /// Her finished practice and stored state on the lessons: the ladder's other two
+    /// inputs, which only Three Years used to read (`LadderInput`).
+    let ladder: LadderEvidence
+    private let studentKey: String
     /// The lessons whose year-plan entry is the one she's up to.
     let yearPlanNextLessonIDs: Set<String>
 
@@ -54,8 +58,10 @@ struct StudentLessonRecords {
         self.presentations = (presentations ?? Self.fetchPresentations(lessonIDs: lessonIDs, context: context))
             .filter { $0.studentIDs.contains(key) }
         let rows = Self.fetchWork(lessonIDs: lessonIDs, context: context)
-        let visibility = WorkVisibility(rows: rows)
-        workByLesson = Dictionary(grouping: rows.filter { visibility.isVisible($0, to: studentID) }, by: \.lessonID)
+        let ownership = WorkOwnership.Reader(rows: rows)
+        workByLesson = Dictionary(grouping: rows.filter { ownership.isWork($0, of: studentID) }, by: \.lessonID)
+        ladder = LadderEvidence(lessonIDs: Set(lessonIDs), works: rows, in: context)
+        studentKey = key
         masteredLessonIDs = Set(
             PresentationRecordIndex.masteryMarks(lessonIDs: Set(lessonIDs), in: context)
                 .filter { $0.value.contains(key) }
@@ -87,7 +93,9 @@ struct StudentLessonRecords {
                 scheduledFor: planned.compactMap(\.scheduledFor).min(),
                 isPlanned: !planned.isEmpty || yearPlanNextLessonIDs.contains(lessonID),
                 isMastered: masteredLessonIDs.contains(lessonID),
-                workStatuses: work.map(\.status)
+                workStatuses: work.map(\.status),
+                practiceSessions: ladder.practiceSessions(lesson: lessonID, student: studentKey),
+                storedState: ladder.storedState(lesson: lessonID, student: studentKey)
             )
             let isNext = !foundNext && status == .notStarted
             if isNext { foundNext = true }
@@ -109,7 +117,7 @@ struct StudentLessonRecords {
 
     /// Every row of the lessons, open and closed, whoever owns it, with who is on
     /// it: a child's closed copy is what tells her classmate's open copy apart from
-    /// a row she shares (`WorkVisibility`).
+    /// a row she shares (`WorkOwnership.Reader`).
     private static func fetchWork(lessonIDs: [String], context: NSManagedObjectContext) -> [CDWorkModel] {
         let request = CDFetchRequest(CDWorkModel.self)
         request.predicate = NSPredicate(format: "lessonID IN %@", lessonIDs)

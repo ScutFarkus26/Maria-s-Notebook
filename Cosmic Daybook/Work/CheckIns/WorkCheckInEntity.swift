@@ -115,20 +115,31 @@ nonisolated extension CDWorkCheckIn {
         set { durationMinutes = newValue.flatMap { $0 > 0 ? NSNumber(value: Int16(clamping: $0)) : nil } }
     }
 
-    /// A practice logged as a check-in (`PracticeCheckIns`): it says how long
-    /// it lasted, or it was recorded as practice.
+    /// A practice logged as a check-in (`PracticeCheckIns`): it happened (the
+    /// check-in is completed), and it says how long it lasted or was recorded
+    /// as practice. A practice check-in still on the calendar isn't one yet,
+    /// and one skipped when its work closed never was: both used to count
+    /// (domain logic review 2026-11-20, R14).
     var isPractice: Bool {
-        durationMinutesValue != nil || purpose == PracticeCheckIns.purpose
+        status == .completed && (durationMinutesValue != nil || purpose == PracticeCheckIns.purpose)
+    }
+
+    /// `isPractice` for a fetch: the one predicate. Four files each carried
+    /// their own copy of the string.
+    static var practicePredicate: NSPredicate {
+        NSPredicate(
+            format: "statusRaw == %@ AND (durationMinutes != nil OR purpose == %@)",
+            WorkCheckInStatus.completed.rawValue, PracticeCheckIns.purpose
+        )
     }
 
     /// The practice check-ins on any of `workIDs`, newest first.
     static func practice(onWorkIDs workIDs: Set<String>, in context: NSManagedObjectContext) -> [CDWorkCheckIn] {
         guard !workIDs.isEmpty else { return [] }
         let request = CDFetchRequest(CDWorkCheckIn.self)
-        request.predicate = NSPredicate(
-            format: "workID IN %@ AND (durationMinutes != nil OR purpose == %@)",
-            Array(workIDs), PracticeCheckIns.purpose
-        )
+        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            NSPredicate(format: "workID IN %@", Array(workIDs)), practicePredicate
+        ])
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkCheckIn.date, ascending: false)]
         return context.safeFetch(request).filter { !$0.isDeleted && $0.isPractice }
     }

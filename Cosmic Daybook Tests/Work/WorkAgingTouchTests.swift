@@ -26,17 +26,17 @@ struct WorkAgingTouchTests {
         note.createdAt = AppCalendar.addingDays(-1, to: Date())
         note.updatedAt = note.createdAt
 
-        let touch = WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: [checkIn], notes: [note])
+        let touch = WorkNeglect.lastMeaningfulTouchDate(for: work, checkIns: [checkIn], notes: [note])
         #expect(touch == AppCalendar.startOfDay(AppCalendar.addingDays(-1, to: Date())))
 
         // An explicit touch still counts when it is the latest.
         work.lastTouchedAt = Date()
-        #expect(WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: [checkIn], notes: [note])
+        #expect(WorkNeglect.lastMeaningfulTouchDate(for: work, checkIns: [checkIn], notes: [note])
             == AppCalendar.startOfDay(Date()))
 
         // Nothing at all: the day it was assigned.
         work.lastTouchedAt = nil
-        #expect(WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: [], notes: [])
+        #expect(WorkNeglect.lastMeaningfulTouchDate(for: work, checkIns: [], notes: [])
             == AppCalendar.startOfDay(AppCalendar.addingDays(-60, to: Date())))
     }
 }

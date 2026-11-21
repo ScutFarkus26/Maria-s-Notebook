@@ -16,6 +16,16 @@
 // log on its own day: Mastered on Thursday's pill on Monday dated the
 // completion and the note Thursday, and completed Tuesday's and Wednesday's
 // check-ins too (bug hunt 2026-10-12 #37). A later day is logged as today.
+//
+// "The check happened" is a log too (domain logic review 2026-11-20, R11):
+// Done on Today, Done on the work page and Claude's `complete_check_in_on`
+// all pass the check-in as `checked`, with a "seen, unchanged" entry. It is
+// dated the day it was checked (never later than today), and every earlier
+// check-in still waiting is settled with it. The work page and Claude used to
+// mark that one check-in alone, so Monday's missed check stayed overdue.
+//
+// One child's finish on a row several children share is `finishPart`; the
+// last child's finish closes the row here (R23).
 
 import CoreData
 import Foundation
@@ -73,10 +83,16 @@ enum WorkLogService {
     ///
     /// `day` may be in the past (a check logged late); a day after today is
     /// logged as today, since nothing has happened on it yet.
+    ///
+    /// - Parameter checked: the check-in this log is the doing of (Done on a
+    ///   check-in row). It moves to the moment of the log, `day` or now if
+    ///   `day` is still to come, so the calendar shows the day it was
+    ///   checked, and is settled with the rest. Undo puts it back.
     @discardableResult
     static func log(
         _ entries: [Entry],
         on day: Date = Date(),
+        checked: CDWorkCheckIn? = nil,
         context: NSManagedObjectContext,
         saveCoordinator: SaveCoordinator? = nil,
         saveImmediately: Bool = true
@@ -88,6 +104,7 @@ enum WorkLogService {
         context.processPendingChanges()
         let insertedBefore = context.insertedObjects
         var token = UndoToken(day: logDay)
+        token.checkedCheckIn = checked.flatMap { moveChecked($0, to: min(day, now)) }
         var closed = 0
         var reopened = 0
         var settled = 0
@@ -144,8 +161,8 @@ enum WorkLogService {
     /// book-club work) is about everyone on it. A check-in's note is scoped
     /// the same way (`CDWorkCheckIn.setLegacyNoteText`).
     static func studentsLogged(on work: CDWorkModel, in context: NSManagedObjectContext) -> [UUID] {
-        let group = WorkGrouping.group(containing: work, in: context)
-        if case .shared = group.shape { return group.studentIDs }
+        let named = WorkGrouping.studentIDs(of: work)
+        if named.count > 1, WorkOwnership.isShared(work, in: context) { return named }
         return WorkGrouping.owner(of: work).map { [$0] } ?? []
     }
 
@@ -164,12 +181,19 @@ enum WorkLogService {
     ) -> [ParticipantSnapshot] {
         work.completedAt = day
         var snapshots: [ParticipantSnapshot] = []
+        // A child whose part was finished earlier (`finishPart`) has her
+        // completion record already; the close writes one for the rest.
+        var finishedEarlier = Set<UUID>()
         for participant in participants(of: work, among: students) {
             snapshots.append(ParticipantSnapshot(participant))
-            if participant.completedAt == nil { participant.completedAt = day }
+            if participant.completedAt == nil {
+                participant.completedAt = day
+            } else if let id = UUID(uuidString: participant.studentID) {
+                finishedEarlier.insert(id)
+            }
         }
         guard let workID = work.id else { return snapshots }
-        for studentID in students {
+        for studentID in students where !finishedEarlier.contains(studentID) {
             _ = try? WorkCompletionService.markCompleted(
                 workID: workID, studentID: studentID, at: day, in: context, saveImmediately: false
             )

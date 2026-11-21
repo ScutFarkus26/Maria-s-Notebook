@@ -140,9 +140,12 @@ struct ChecklistIncrementalUpdateTests {
         // A mastery mark is as good as a confirmation under the one readiness rule
         // (Simplify the app, Phase 3): the next lesson is Ready.
         #expect(try blocking(fixture, fixture.ada, fixture.next) == BlockingReason.none)
-        #expect(fixture.viewModel.state(for: fixture.ada, lesson: fixture.middle)?.isComplete == true)
-        // The shared work closed for Bruno too, and his cell in the touched row shows it.
-        #expect(fixture.viewModel.state(for: fixture.bruno, lesson: fixture.middle)?.isComplete == true)
+        #expect(fixture.viewModel.state(for: fixture.ada, lesson: fixture.middle)?.isMastered == true)
+        // The mark is Ada's alone: her part of the shared work is finished and the
+        // row stays open for Bruno, whose cell in the touched row still shows it.
+        // It used to close for him too (domain logic review 2026-11-20, R22 and R23).
+        #expect(fixture.viewModel.state(for: fixture.bruno, lesson: fixture.middle)?.isComplete == false)
+        #expect(fixture.viewModel.state(for: fixture.bruno, lesson: fixture.middle)?.isWorkActive == true)
     }
 
     @Test("Clearing a mastered middle lesson matches a full rebuild and blocks the next one again")

@@ -102,7 +102,7 @@ extension WorksAgendaView {
     func rebuildPartition() {
         let unresolvedFollowUpIDs = LessonsAndWorkTriage.unresolvedFollowUpAssignmentIDs(in: viewContext)
         let works = Array(openWork).uniqueByID
-        workVisibility = WorkVisibility(covering: works, in: viewContext)
+        workOwnership = WorkOwnership.Reader(covering: works, in: viewContext)
         partition = LessonsAndWorkPartition(
             openWork: works,
             assignments: LessonsAndWorkPartition.workspaceAssignments(
@@ -152,7 +152,7 @@ extension WorksAgendaView {
         let today = Date()
 
         let touchDates = works.map { work in
-            WorkAgingPolicy.lastMeaningfulTouchDate(
+            WorkNeglect.lastMeaningfulTouchDate(
                 for: work,
                 checkIns: (work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? [],
                 notes: (work.unifiedNotes?.allObjects as? [CDNote]) ?? []
@@ -174,7 +174,7 @@ extension WorksAgendaView {
 
         workAgeByID = ageByWorkID
         quietDaysByStudent = QuietStudentsOrder.daysSinceTouchByStudent(
-            in: works, visibility: workVisibility
+            in: works, ownership: workOwnership
         ) { work in
             work.id.flatMap { ageByWorkID[$0] } ?? 0
         }
@@ -295,7 +295,7 @@ extension WorksAgendaView {
             rosterIDs: Set(rosterStudents.compactMap(\.id))
         )
         var works = filter.apply(
-            to: Array(openWork).uniqueByID, partition: partition, visibility: workVisibility
+            to: Array(openWork).uniqueByID, partition: partition, ownership: workOwnership
         )
 
         // Optional search (use debounced text for filtering)

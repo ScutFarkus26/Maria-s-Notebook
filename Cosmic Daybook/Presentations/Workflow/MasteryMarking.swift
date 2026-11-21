@@ -13,7 +13,8 @@
 //  - Her open work on the lesson closes as Mastered (Danny, 2026-11-20). The
 //    Checklist closed it as Finished, the pill and Claude left it open. No work
 //    is made when she has none: the mark is what the grid reads. "Her work" is
-//    the Checklist cell's (`closeOpenWork`).
+//    the one ownership rule's (`WorkOwnership`): on a row she shares with
+//    classmates only her part is finished (`closeOpenWork`).
 //  - "Already mastered" means any row is a mastery mark, read one way
 //    (`SequenceStanding.isMasteryMark`): `masteredAt` set or the proficient state.
 //  - Unmark takes back the mastery rows only: her presentations, her other
@@ -140,13 +141,19 @@ enum MasteryMarking {
 
     // MARK: - Her work
 
-    /// Closes her open work on the lesson as Mastered and returns how many rows
-    /// closed. Her work is what her Checklist cell shows: the rows she owns, or,
-    /// when she owns none, the group rows that name her with no owner of their
-    /// own (a classmate on one then reads Reviewing, as the grid always showed).
-    /// A classmate's linked copy that names her is never hers. This is the one
-    /// place the ownership rule is read here, so Phase 5's rule replaces it in
-    /// one spot.
+    /// Closes her open work on the lesson and returns how many rows closed. Her
+    /// work is the one ownership rule's (`WorkOwnership`, domain logic review
+    /// 2026-11-20, R22): the rows she owns, and the rows she is on with no
+    /// copy of her own. A classmate's copy that names her beside her own is
+    /// never hers.
+    ///
+    /// A row that is hers alone closes as Mastered. On a row she shares
+    /// (project work, a group row with no owner, a classmate's row she is on)
+    /// the mark is hers alone, so only her part is finished
+    /// (`WorkLogService.finishPart`): classmates still working keep the row,
+    /// and it closes, as Finished, once hers was the last part open. Closing
+    /// it as Mastered for everyone on it would have logged a verdict for
+    /// children nobody marked.
     private static func closeOpenWork(
         of studentID: UUID, lessonID: UUID, on day: Date, in context: NSManagedObjectContext
     ) -> Int {
@@ -155,21 +162,28 @@ enum MasteryMarking {
             NSPredicate(format: "lessonID == %@", lessonID.uuidString), WorkStatus.openPredicate
         ])
         request.relationshipKeyPathsForPrefetching = ["participants"]
-        let involving = context.safeFetch(request).filter {
-            !$0.isDeleted && WorkGrouping.involves(studentID, in: $0)
-        }
-        let owned = involving.filter { WorkGrouping.owner(of: $0) == studentID }
-        let open = owned.isEmpty ? involving.filter { WorkGrouping.owner(of: $0) == nil } : owned
-        guard !open.isEmpty else { return 0 }
+        let rows = context.safeFetch(request).filter { !$0.isDeleted }
+        let ownership = WorkOwnership.Reader(covering: rows, in: context)
+        let hers = rows.filter { ownership.isWork($0, of: studentID) }
+        guard !hers.isEmpty else { return 0 }
+        let own = hers.filter { ownership.isHersAlone($0, studentID) }
+        let shared = hers.filter { !ownership.isHersAlone($0, studentID) }
+        var closed = 0
         do {
-            try WorkLogService.log(
-                open.map { .init(work: $0, status: .mastered) }, on: day, context: context, saveImmediately: false
-            )
-            return open.count
+            if !own.isEmpty {
+                try WorkLogService.log(
+                    own.map { .init(work: $0, status: .mastered) }, on: day, context: context, saveImmediately: false
+                )
+                closed += own.count
+            }
+            for row in shared {
+                let finished = try WorkLogService.finishPart(of: row, for: studentID, on: day, context: context)
+                if finished.closedRow { closed += 1 }
+            }
         } catch {
             logger.warning("Couldn't close work for a mastery mark: \(error)")
-            return 0
         }
+        return closed
     }
 
     private static func unique(_ ids: [UUID]) -> [UUID] {

@@ -22,11 +22,11 @@ struct WorkAgendaFilter {
 
     /// - Parameters:
     ///   - partition: the triage the pills show.
-    ///   - visibility: whose each row is, for the child filter and the roster.
+    ///   - ownership: whose each row is, for the child filter and the roster.
     func apply(
         to works: [CDWorkModel],
         partition: LessonsAndWorkPartition,
-        visibility: WorkVisibility
+        ownership: WorkOwnership.Reader
     ) -> [CDWorkModel] {
         var works = works
 
@@ -49,7 +49,7 @@ struct WorkAgendaFilter {
         if let rosterIDs {
             works = works.filter { work in
                 let named = WorkGrouping.studentIDs(of: work)
-                return named.isEmpty || named.contains { rosterIDs.contains($0) && visibility.isVisible(work, to: $0) }
+                return named.isEmpty || named.contains { rosterIDs.contains($0) && ownership.isWork(work, of: $0) }
             }
         }
 
@@ -58,7 +58,7 @@ struct WorkAgendaFilter {
         // hasn't finished her part of — so the two read alike.
         if let studentID {
             works = works.filter {
-                QuietStudentsOrder.openStudentIDs(of: $0, visibility: visibility).contains(studentID)
+                QuietStudentsOrder.openStudentIDs(of: $0, ownership: ownership).contains(studentID)
             }
         }
         return works

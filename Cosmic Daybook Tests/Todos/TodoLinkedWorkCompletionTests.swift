@@ -95,7 +95,7 @@ struct TodoLinkedWorkCompletionTests {
         let (work, todo) = seedLinkedWork(in: context)
         let checkIn = CDWorkCheckIn.make(for: work, on: Date(), purpose: "progressCheck", in: context)
 
-        try WorkCheckInService(context: context).markCompleted(checkIn)
+        try WorkLogService.log([.init(work: work)], checked: checkIn, context: context)
 
         #expect(checkIn.status == .completed)
         #expect(todo.isCompleted)

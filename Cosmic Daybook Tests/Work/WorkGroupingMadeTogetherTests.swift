@@ -121,7 +121,7 @@ struct WorkGroupingMadeTogetherTests {
         CoreDataTestHelpers.save(context)
 
         let all = context.safeFetch(CDFetchRequest(CDWorkModel.self))
-        let naomiSees = WorkGrouping.visibleWork(for: naomi, among: all, in: context)
+        let naomiSees = WorkOwnership.work(of: naomi, among: all, in: context)
         let naomis = (first + second).filter { $0.studentID == naomi.uuidString }
         #expect(Set(naomiSees.map(\.objectID)) == Set(naomis.map(\.objectID)))
         #expect(naomiSees.count == 2)

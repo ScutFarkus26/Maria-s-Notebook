@@ -149,13 +149,17 @@ enum CalendarForwardShiftService {
         result.receipt.checkIns = shift.receipt.checkIns
         result.receipt.folded = shift.receipt.folded
 
-        // The work's due date travels with its checks — the same pairing a
-        // single dragged pill keeps — and is the soonest check still waiting
-        // after the move.
+        // The work's due date is the guide's and stays where it is (domain
+        // logic review 2026-11-20, R4). Only one that sat on a moved check's
+        // own day is touched: the copy older builds kept there is let go, and
+        // a Due Date check carries its due date to its new day.
         for work in shift.touched.values {
-            guard let due = earliestScheduledDate(of: work, in: context), due != work.dueAt else { continue }
-            result.receipt.dueDays.append(Move(objectID: work.objectID, before: work.dueAt, after: due))
-            work.dueAt = due
+            guard let due = work.dueAt,
+                  let left = (shift.leftDays[work.objectID] ?? []).first(where: {
+                      AppCalendar.isSameDay($0.day, due)
+                  }) else { continue }
+            result.receipt.dueDays.append(Move(objectID: work.objectID, before: due, after: left.dueDateMovedTo))
+            work.dueAt = left.dueDateMovedTo
         }
         return result
     }
@@ -256,13 +260,17 @@ enum CalendarForwardShiftService {
 
     // MARK: - Moving the checks
 
-    /// The check-ins one shift has placed, so none moves twice, and the works
-    /// they belong to, whose due dates follow.
+    /// The check-ins one shift has placed, so none moves twice, the works
+    /// they belong to, and the days their checks left (moved or folded): a
+    /// due date sitting on one of those is the old copy of the check day.
     private struct CheckInShift {
         let service: WorkCheckInService
         var receipt = Receipt()
         var placed = Set<NSManagedObjectID>()
         var touched: [NSManagedObjectID: CDWorkModel] = [:]
+        /// A day a work's check left, and, when that check stood for the
+        /// due date and moved, the day it moved to.
+        var leftDays: [NSManagedObjectID: [(day: Date, dueDateMovedTo: Date?)]] = [:]
         /// Each work's linked copies, resolved once per group.
         private var siblings: [NSManagedObjectID: [CDWorkModel]] = [:]
 
@@ -279,11 +287,14 @@ enum CalendarForwardShiftService {
             guard placed.insert(checkIn.objectID).inserted else { return }
             touched[work.objectID] = work
             if service.blockingCheckIn(of: work, on: day, excluding: checkIn) != nil {
+                leftDays[work.objectID, default: []].append((current, nil))
                 fold(checkIn)
             } else {
                 let moved = preservingTimeOfDay(from: current, onto: day, using: calendar)
                 checkIn.date = moved
                 receipt.checkIns.append(Move(objectID: checkIn.objectID, before: current, after: moved))
+                let carried = WorkCheckInService.isDueDateCheck(checkIn) ? moved : nil
+                leftDays[work.objectID, default: []].append((current, carried))
             }
             let fromDay = calendar.startOfDay(for: current)
             for sibling in linkedCopies(of: work) where !sibling.isClosed {
@@ -298,12 +309,15 @@ enum CalendarForwardShiftService {
             case .moved(let checkIn):
                 guard placed.insert(checkIn.objectID).inserted, let after = checkIn.date else { return }
                 touched[sibling.objectID] = sibling
+                let carried = WorkCheckInService.isDueDateCheck(checkIn) ? after : nil
+                leftDays[sibling.objectID, default: []].append((fromDay, carried))
                 // Only the day changed, so the time it had is the time it has.
                 let before = preservingTimeOfDay(from: after, onto: fromDay, using: AppCalendar.shared)
                 receipt.checkIns.append(Move(objectID: checkIn.objectID, before: before, after: after))
             case .blocked(let checkIn, _):
                 guard placed.insert(checkIn.objectID).inserted else { return }
                 touched[sibling.objectID] = sibling
+                leftDays[sibling.objectID, default: []].append((fromDay, nil))
                 fold(checkIn)
             case .childHasLeft, .settled, .noneOnDay:
                 break

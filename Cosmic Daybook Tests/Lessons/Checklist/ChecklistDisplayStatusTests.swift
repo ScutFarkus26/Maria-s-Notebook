@@ -169,7 +169,7 @@ struct ChecklistDisplayStatusTests {
         #expect(fixture.status(fixture.dov, 1) == .planned)
     }
 
-    @Test("Mastered from the grid writes the mark, and a classmate on the closed work shows Reviewing")
+    @Test("Mastered from the grid writes the mark and finishes her part; a classmate still on the work keeps it")
     func masteringFromTheGrid() throws {
         let fixture = try makeFixture()
         let shared = CDWorkModel(context: fixture.context)
@@ -188,7 +188,12 @@ struct ChecklistDisplayStatusTests {
         fixture.viewModel.markComplete(student: fixture.ada, lesson: fixture.decimal[1], context: fixture.context)
 
         #expect(fixture.status(fixture.ada, 1) == .mastered)
-        #expect(fixture.status(fixture.bruno, 1) == .reviewing)
+        // The mark is Ada's, so only her part of the shared row is finished:
+        // Bruno is still working. It used to close for him too and read
+        // Reviewing (domain logic review 2026-11-20, R22 and R23).
+        #expect(fixture.status(fixture.bruno, 1) == .practicing)
+        #expect(shared.status.isOpen)
+        #expect(shared.participant(for: try #require(fixture.ada.id))?.completedAt != nil)
         // The incremental refresh read the new mark exactly as a full build does.
         let full = ClassGridEngine.buildMatrix(
             students: fixture.viewModel.rosterStudents, lessons: fixture.viewModel.lessons, context: fixture.context

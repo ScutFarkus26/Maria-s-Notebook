@@ -87,6 +87,9 @@ nonisolated struct CurriculumMasteryRef: Sendable, Hashable, Identifiable {
     let presentedAt: Date?
     let masteredAt: Date?
     let lastObservedAt: Date?
+    /// The state the guide stored by hand on this row, when it is Practicing
+    /// or Ready for Assessment: the ladder's floor (`LadderInput`).
+    var storedState: LessonPresentationState?
 }
 
 /// A work item (`CDWorkModel`) with everyone on it — owner and participants.
@@ -102,10 +105,18 @@ nonisolated struct CurriculumWorkRef: Sendable, Hashable, Identifiable {
     /// one. Linked copies each list the whole group in `studentIDs`, so only
     /// this tells a child's own copy from a classmate's.
     var ownerID: UUID?
-    /// One row carrying several children by construction (project-session
-    /// work), never one of a set of linked copies: it counts for everyone on
-    /// it. `WorkGrouping.areLinkedCopies`' rule.
+    /// A row its children share (`WorkOwnership.isShared`), never one of a
+    /// set of linked copies: it counts for everyone on it.
     var isSharedRow = false
+    /// What names the row's assignment (`WorkOwnership.Reader.assignment`):
+    /// every copy made in one assignment carries the same. Nil on a ref made
+    /// without one, which is then read by its lesson.
+    var assignmentKey: String?
+
+    /// The row's assignment for the ownership rule (`WorkOwnership.work(of:among:)`):
+    /// its key, or, without one, its lesson, which is how the Class Grid told
+    /// copies apart before rows carried an assignment.
+    var assignment: String { assignmentKey ?? "lesson:" + lessonID.uuidString }
 
     var isBeyondActive: Bool { status != .active }
 

@@ -102,7 +102,7 @@ struct BackupSchema25Tests {
 
     // MARK: - Format 46
 
-    @Test("A format-46 backup restores every record, field for field, with schema 25's fields unset")
+    @Test("A format-46 backup restores every record, field for field; only the work's assignment is filled in")
     func format46BackupRestores() async throws {
         let v46 = try Self.loadFixture()
         #expect(v46["private/LevelChange"] == nil)
@@ -112,7 +112,11 @@ struct BackupSchema25Tests {
         try await Self.merge(v46, formatVersion: 46, into: target)
 
         let work = try Self.record("WorkModel", try Self.firstID(in: v46["private/WorkModel"]), in: target)
-        #expect(work.value(forKey: "assignmentID") == nil)
+        // The backup has no assignment for the row, so the after-restore fill
+        // gives it one (plan "Domain logic fixes", Decision 19): a row alone is
+        // its own assignment, and one child's.
+        let workID = try Self.firstID(in: v46["private/WorkModel"])
+        #expect(work.value(forKey: "assignmentID") as? String == workID.uuidString)
         #expect(work.value(forKey: "isSharedRow") as? Bool == false)
         let presentation = try Self.record(
             "LessonPresentation", try Self.firstID(in: v46["private/LessonPresentation"]), in: target
@@ -140,7 +144,7 @@ struct BackupSchema25Tests {
         #expect(Set(reexported.keys) == Set(expected.keys))
         for (key, body) in expected.sorted(by: { $0.key < $1.key }) {
             #expect(
-                Self.rows(reexported[key] ?? "", dropping: ["isSharedRow"]) == Self.rows(body),
+                Self.rows(reexported[key] ?? "", dropping: ["isSharedRow", "assignmentID"]) == Self.rows(body),
                 "\(key) came back different"
             )
         }

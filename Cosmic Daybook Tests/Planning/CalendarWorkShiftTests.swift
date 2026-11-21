@@ -126,9 +126,10 @@ struct CalendarWorkShiftTests {
         #expect(moved == CalendarForwardShiftService.Result(presentations: 1, checkIns: 1))
         #expect(assignment.scheduledFor == time(9, 30, on: tuesday))
         #expect(checkIn.date == time(13, 15, on: tuesday))
-        // The work's due date travels with its check, or the two disagree about
-        // which day the child is being seen on.
-        #expect(work.dueAt == time(13, 15, on: tuesday))
+        // The check-in says which day the child is seen on. The due date that sat
+        // on the check's old day was the old builds' copy of it, and is let go; it
+        // used to travel with the check (domain logic review 2026-11-20, R4).
+        #expect(work.dueAt == nil)
     }
 
     @Test("A Friday's work lands on Monday, on the same day as the Friday's lessons")
@@ -218,7 +219,7 @@ struct CalendarWorkShiftTests {
 
         #expect(moved.checkIns == 1)
         #expect(overdue.date == time(13, 15, on: monday))
-        #expect(work.dueAt == time(13, 15, on: monday))
+        #expect(work.dueAt == nil, "the old copy of the check day goes; the check-in carries the day")
     }
 
     @Test("Every child's linked copy moves with the group, overdue ones included")

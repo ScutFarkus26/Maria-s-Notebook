@@ -39,17 +39,23 @@ struct WorkGroupingFix1010CTests {
         return Fixture(context: context, lessonID: lessonID, maya: mayaID, eli: eliID)
     }
 
-    /// One Quick New Work for both children: `createWork` per child, then a
-    /// participant row naming each other child, as the sheet does.
+    /// One Quick New Work for both children, as a build before schema 25 made
+    /// it: `createWork` per child, then a participant row naming each other
+    /// child, and no `assignmentID` on any row. These tests are about the
+    /// guess that tells such copies apart, which rows not filled yet still
+    /// read by and `WorkAssignmentFill` writes down; copies made now share an
+    /// assignment id instead (`WorkAssignmentService`, WorkOwnershipTests).
     private func quickNewWork(
         _ fixture: Fixture, title: String = "Commutative law follow-up", for students: [UUID]? = nil
     ) throws -> [CDWorkModel] {
         let repository = WorkRepository(context: fixture.context)
         let works = try (students ?? [fixture.maya, fixture.eli]).map { studentID in
-            try repository.createWork(
+            let work = try repository.createWork(
                 studentID: studentID, lessonID: fixture.lessonID, title: title,
                 kind: .followUpAssignment, saveImmediately: false
             )
+            work.assignmentID = nil
+            return work
         }
         for work in works {
             for other in works where other !== work {
@@ -106,7 +112,7 @@ struct WorkGroupingFix1010CTests {
         let fixture = try makeFixture()
         let works = try quickNewWork(fixture)
         let all = fixture.context.safeFetch(CDFetchRequest(CDWorkModel.self))
-        let eliSees = WorkGrouping.visibleWork(for: fixture.eli, among: all, in: fixture.context)
+        let eliSees = WorkOwnership.work(of: fixture.eli, among: all, in: fixture.context)
         #expect(eliSees.map(\.objectID) == [works[1].objectID])
     }
 

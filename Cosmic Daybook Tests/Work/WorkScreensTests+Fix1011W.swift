@@ -34,7 +34,8 @@ struct WorkScreensFix1011WTests {
     }
 
     /// One Quick New Work for these children: a row per child, each naming
-    /// every other child, as the sheet makes them.
+    /// every other child and all sharing one assignment id, as the sheet
+    /// makes them (`WorkAssignmentService.link`).
     private func quickNewWork(_ fixture: Fixture, for students: [UUID]) throws -> [CDWorkModel] {
         let repository = WorkRepository(context: fixture.context)
         let works = try students.map { studentID in
@@ -42,14 +43,7 @@ struct WorkScreensFix1011WTests {
                 studentID: studentID, lessonID: fixture.lessonID, kind: .practiceLesson, saveImmediately: false
             )
         }
-        for work in works {
-            for other in works where other !== work {
-                let participant = CDWorkParticipantEntity(context: fixture.context)
-                participant.id = UUID()
-                participant.studentID = other.studentID
-                participant.work = work
-            }
-        }
+        WorkAssignmentService.link(works, in: fixture.context)
         CoreDataTestHelpers.save(fixture.context)
         return works
     }
@@ -92,7 +86,7 @@ struct WorkScreensFix1011WTests {
         #expect(scheduled !== done)
         #expect(scheduled.date == AppCalendar.startOfDay(tomorrow))
         #expect(scheduled.status == .scheduled)
-        #expect(work.dueAt == AppCalendar.startOfDay(tomorrow))
+        #expect(work.dueAt == nil, "scheduling a check leaves the due date to the guide (R4)")
         #expect(WorkLogService.checkIns(of: work, in: fixture.context).count == 2)
     }
 
@@ -125,8 +119,8 @@ struct WorkScreensFix1011WTests {
         CoreDataTestHelpers.save(fixture.context)
         let open = [copies[1]]
 
-        let visibility = WorkVisibility(covering: open, in: fixture.context)
-        let rollup = QuietStudentsOrder.daysSinceTouchByStudent(in: open, visibility: visibility) { _ in 4 }
+        let ownership = WorkOwnership.Reader(covering: open, in: fixture.context)
+        let rollup = QuietStudentsOrder.daysSinceTouchByStudent(in: open, ownership: ownership) { _ in 4 }
 
         #expect(rollup[fixture.eli] == 4)
         #expect(rollup[fixture.maya] == nil)
@@ -137,8 +131,8 @@ struct WorkScreensFix1011WTests {
         let fixture = try makeFixture()
         let row = sharedRow(fixture, owner: fixture.maya, children: [fixture.maya, fixture.eli])
 
-        let visibility = WorkVisibility(covering: [row], in: fixture.context)
-        #expect(QuietStudentsOrder.openStudentIDs(of: row, visibility: visibility) == [fixture.maya, fixture.eli])
+        let ownership = WorkOwnership.Reader(covering: [row], in: fixture.context)
+        #expect(QuietStudentsOrder.openStudentIDs(of: row, ownership: ownership) == [fixture.maya, fixture.eli])
     }
 
     @Test("Picking Maya in the column shows her own copy, not Eli's and Ana's")
@@ -149,7 +143,7 @@ struct WorkScreensFix1011WTests {
         let filter = WorkAgendaFilter(studentID: fixture.maya)
         let shown = filter.apply(
             to: copies, partition: LessonsAndWorkPartition(),
-            visibility: WorkVisibility(covering: copies, in: fixture.context)
+            ownership: WorkOwnership.Reader(covering: copies, in: fixture.context)
         )
         #expect(shown.map(\.objectID) == [copies[0].objectID])
     }
@@ -160,9 +154,9 @@ struct WorkScreensFix1011WTests {
         let copies = try quickNewWork(fixture, for: [fixture.maya, fixture.eli, fixture.ana])
         let shared = sharedRow(fixture, owner: fixture.eli, children: [fixture.eli, fixture.maya])
         let all = fixture.context.safeFetch(CDFetchRequest(CDWorkModel.self))
-        let visibility = WorkVisibility(rows: all)
+        let ownership = WorkOwnership.Reader(rows: all)
 
-        let mayas = all.filter { WorksLogRows.matches($0, students: [fixture.maya], visibility: visibility) }
+        let mayas = all.filter { WorksLogRows.matches($0, students: [fixture.maya], ownership: ownership) }
         #expect(Set(mayas.map(\.objectID)) == [copies[0].objectID, shared.objectID])
     }
 
@@ -185,7 +179,7 @@ struct WorkScreensFix1011WTests {
         #expect(partition.work.scheduled.map(\.objectID) == [upcoming.objectID])
 
         let filter = WorkAgendaFilter(hideScheduled: true, chip: .all)
-        let shown = filter.apply(to: rows, partition: partition, visibility: WorkVisibility(rows: rows))
+        let shown = filter.apply(to: rows, partition: partition, ownership: WorkOwnership.Reader(rows: rows))
         #expect(Set(shown.map(\.objectID)) == [overdue.objectID, unplanned.objectID])
     }
 
@@ -202,7 +196,9 @@ struct WorkScreensFix1011WTests {
 
         let filter = WorkAgendaFilter(rosterIDs: [fixture.maya, fixture.eli])
         let rows = [mayas, anas, unclaimed]
-        let shown = filter.apply(to: rows, partition: LessonsAndWorkPartition(), visibility: WorkVisibility(rows: rows))
+        let shown = filter.apply(
+            to: rows, partition: LessonsAndWorkPartition(), ownership: WorkOwnership.Reader(rows: rows)
+        )
         #expect(shown.map(\.objectID) == [mayas.objectID, unclaimed.objectID])
     }
 

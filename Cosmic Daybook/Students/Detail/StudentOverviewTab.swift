@@ -75,11 +75,11 @@ struct StudentOverviewTab: View {
     }
     
     private func needsAttention(for work: CDWorkModel) -> Bool {
-        // Needs attention if overdue by due date, or last note is 10+ days old.
-        if let due = work.dueAt {
-            let today = AppCalendar.startOfDay(Date())
-            if AppCalendar.startOfDay(due) < today { return true }
-        }
+        // Needs attention when the Attention list would hold it (a due date
+        // nobody has looked at since, a check that has come, work gone quiet),
+        // or the last note is 10+ days old. It used to flag any past due date,
+        // which the check day was copied into (domain logic review 2026-11-20, R4).
+        if LessonsAndWorkTriage.bucket(for: work, context: viewContext) == .attention { return true }
         if let lastNoteDate = latestNoteDate(for: work) {
             return daysSince(lastNoteDate) >= 10
         }
@@ -187,13 +187,11 @@ struct StudentOverviewTab: View {
                                 onSchedule: { w, day in
                                     // The Work grid's own write: the earliest
                                     // still-scheduled check-in moves to the day
-                                    // (or one is made) and the due date follows.
-                                    // Setting only the due date left nothing on
-                                    // the calendar for that day.
+                                    // (or one is made).
                                     WorkCheckInService(context: viewContext).scheduleCheck(for: w, on: day)
                                     if saveCoordinator.save(viewContext, reason: "Schedule work check") {
                                         // Re-fetch so the card's parent-computed attention state
-                                        // (derived from dueAt) recomputes deterministically.
+                                        // recomputes deterministically.
                                         onWorkChanged()
                                     }
                                 }
@@ -246,7 +244,7 @@ struct StudentOverviewTab: View {
         
         // Find date range for all work items
         let allDates = workCache.map { work in
-            WorkAgingPolicy.lastMeaningfulTouchDate(
+            WorkNeglect.lastMeaningfulTouchDate(
                 for: work,
                 checkIns: (work.checkIns?.allObjects as? [CDWorkCheckIn]),
                 notes: (work.unifiedNotes?.allObjects as? [CDNote])
@@ -261,7 +259,7 @@ struct StudentOverviewTab: View {
         // Compute all age values using cached data
         var result: [UUID: Int] = [:]
         for work in workCache {
-            let lastTouch = WorkAgingPolicy.lastMeaningfulTouchDate(
+            let lastTouch = WorkNeglect.lastMeaningfulTouchDate(
                 for: work,
                 checkIns: (work.checkIns?.allObjects as? [CDWorkCheckIn]),
                 notes: (work.unifiedNotes?.allObjects as? [CDNote])

@@ -332,11 +332,17 @@ extension WeekPlanSection {
         let checkIns = ids.compactMap { viewContext.object(CDWorkCheckIn.self, id: $0) }
         guard !checkIns.isEmpty else { return }
 
+        // The work's due date is the guide's and stays (domain logic review
+        // 2026-11-20, R4); only one sitting on the check's old day goes with
+        // it, and a Due Date check carries its due date along.
         for checkIn in checkIns {
-            checkIn.date = day
-            if let workID = checkIn.workID.asUUID {
-                fetchWork(id: workID)?.dueAt = day
+            if let workID = checkIn.workID.asUUID, let work = fetchWork(id: workID) {
+                WorkCheckInService.releaseDueDate(
+                    of: work, followingCheckOn: checkIn.date,
+                    dueDateCheckMovedTo: WorkCheckInService.isDueDateCheck(checkIn) ? day : nil
+                )
             }
+            checkIn.date = day
         }
         saveCoordinator.save(viewContext, reason: "Reschedule work check-ins from calendar")
         Task { await refreshCheckIns() }
@@ -365,7 +371,6 @@ extension WeekPlanSection {
         if !note.trimmed().isEmpty {
             checkIn.setLegacyNoteText(note, in: viewContext)
         }
-        work.dueAt = date
         saveCoordinator.save(viewContext, reason: "Schedule work check-in from calendar")
         Task { await refreshCheckIns() }
     }

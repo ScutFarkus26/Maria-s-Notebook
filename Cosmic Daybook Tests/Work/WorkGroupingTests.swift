@@ -191,11 +191,11 @@ struct WorkGroupingTests {
         CoreDataTestHelpers.save(context)
 
         let all = context.safeFetch(CDFetchRequest(CDWorkModel.self))
-        let avigailSees = WorkGrouping.visibleWork(for: avigail, among: all, in: context)
+        let avigailSees = WorkOwnership.work(of: avigail, among: all, in: context)
         #expect(Set(avigailSees.map(\.objectID)) == Set([avigailsCopy.objectID, sharedRow.objectID]))
 
         // Sarah has no copy of her own, so the row she rides on is hers to see.
-        #expect(WorkGrouping.visibleWork(for: sarah, among: all, in: context).map(\.objectID) == [avigailsCopy.objectID])
+        #expect(WorkOwnership.work(of: sarah, among: all, in: context).map(\.objectID) == [avigailsCopy.objectID])
 
         // The copies still name every child: the mutual test is intact.
         #expect(WorkGrouping.studentIDs(of: avigailsCopy).count == 3)

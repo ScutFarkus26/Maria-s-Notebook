@@ -2,7 +2,8 @@
 //  MCPNotebookTools+WorkCompletion.swift
 //  Cosmic Daybook
 //
-//  update_work's `completed_by`: one child finished, the item stays open.
+//  update_work's `completed_by`: one child finished; the item stays open for
+//  the others, and closes when the last of them has (`WorkLogService.finishPart`).
 //  Split out of +WorkWrites when the linked-copy refusal (bug hunt
 //  2026-10-12, #15) took that file past SwiftLint's length limit.
 //  `complete_check_in_on` moved in from +WorkCheckIns for the same reason
@@ -15,7 +16,10 @@ import Foundation
 extension MCPNotebookTools {
 
     /// Records one child as finished without closing the item for everyone —
-    /// group work is often finished at different times.
+    /// group work is often finished at different times. When hers was the last
+    /// part open, the row closes as Finished through the work log, so it
+    /// leaves the schedule like any other close; it used to read Working for
+    /// good (domain logic review 2026-11-20, R23).
     ///
     /// That holds for a shared row: one row with several children on it. A
     /// linked copy belongs to its owner alone, though it names the whole
@@ -35,20 +39,23 @@ extension MCPNotebookTools {
         }
         try refuseFinishOnOwnRow(student, studentID: studentID, work: work, in: modelContext)
         try refuseClassmateOnLinkedCopy(student, studentID: studentID, work: work, in: modelContext)
+        let finished: WorkLogService.PartFinished
         do {
             // Saved with the rest of the call, so a later argument's refusal
             // undoes this too.
-            try WorkCompletionService.markCompleted(
-                workID: workID, studentID: studentID,
+            finished = try WorkLogService.finishPart(
+                of: work, for: studentID,
                 note: nonEmpty(arguments["note"]?.stringValue) ?? "",
-                in: modelContext,
-                saveImmediately: false
+                context: modelContext
             )
         } catch {
             throw MCPToolError("That completion could not be recorded", underlying: error)
         }
-        work.participant(for: studentID)?.completedAt = Date()
-        return ["recorded \(student.fullName) as finished"]
+        guard finished.recorded else {
+            return ["\(student.fullName) was already recorded as finished"]
+        }
+        let line = "recorded \(student.fullName) as finished"
+        return [finished.closedRow ? line + ", the last child on it, so the work is closed as Finished" : line]
     }
 
     /// A closing status writes the completion record and files the note for
@@ -104,8 +111,12 @@ extension MCPNotebookTools {
 
     // MARK: - Completing
 
-    /// Through the app's service, so the work's linked todos close with it;
-    /// the check-in keeps its day, which is how MCP names it. The service
+    /// A "seen, unchanged" line in the work log, as Done on Today and on the
+    /// work page is (`WorkLogService.log`'s `checked`): every earlier check-in
+    /// still waiting is settled with it, the work is stamped as seen and its
+    /// linked todos close. The check-in keeps its day, which is how MCP names
+    /// it, unless that day is still to come: nothing has happened on it yet,
+    /// so it is dated today (domain logic review 2026-11-20, R11). The log
     /// closes those todos without a word, so the reply names them.
     static func applyCheckInCompletion(
         _ arguments: [String: JSONValue], to work: CDWorkModel,
@@ -115,7 +126,10 @@ extension MCPNotebookTools {
         let checkIn = try scheduledCheckIn(of: work, on: day, in: modelContext)
         let closing = openTodos(linkedTo: checkIn.work?.id ?? UUID(uuidString: checkIn.workID), in: modelContext)
         do {
-            try WorkCheckInService(context: modelContext).markCompleted(checkIn, at: checkIn.date ?? day)
+            try WorkLogService.log(
+                [.init(work: work)], on: checkIn.date ?? day, checked: checkIn,
+                context: modelContext, saveImmediately: false
+            )
         } catch {
             throw MCPToolError("That check-in could not be completed", underlying: error)
         }

@@ -70,6 +70,8 @@ struct WorkCheckInDurationTests {
         #expect(!checkIn.isPractice)
         checkIn.durationMinutesValue = 25
         #expect(checkIn.durationMinutesValue == 25)
+        #expect(!checkIn.isPractice, "still on the calendar: a practice is one that happened (R14)")
+        checkIn.status = .completed
         #expect(checkIn.isPractice)
         checkIn.durationMinutesValue = 0
         #expect(checkIn.durationMinutes == nil)

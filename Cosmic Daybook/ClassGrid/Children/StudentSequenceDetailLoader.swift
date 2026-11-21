@@ -89,7 +89,7 @@ enum StudentSequenceDetailLoader {
     }
 
     /// The work that counts as hers, by the rule her Children card files it by
-    /// (`WorkVisibility`): the rows she owns, and a shared row she is on (project
+    /// (`WorkOwnership.Reader`): the rows she owns, and a shared row she is on (project
     /// work) though another child owns it; never a classmate's linked copy naming
     /// her. Reading only the rows she owned, the card said Practicing while this
     /// sheet said "No work items" (bug hunt 2026-11-03 #26, finishing 10-29 #16).
@@ -106,8 +106,8 @@ enum StudentSequenceDetailLoader {
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.assignedAt, ascending: false)]
         request.relationshipKeyPathsForPrefetching = ["participants"]
         let rows = context.safeFetch(request).filter { !$0.isDeleted }
-        let visibility = WorkVisibility(rows: rows)
-        return rows.filter { visibility.isVisible($0, to: studentID) }.map { work in
+        let ownership = WorkOwnership.Reader(rows: rows)
+        return rows.filter { ownership.isWork($0, of: studentID) }.map { work in
             let lessonUUID = UUID(uuidString: work.lessonID)
             let lessonName = lessonUUID.flatMap { lessonMap[$0]?.name } ?? "Lesson"
             return WorkDetailItem(
