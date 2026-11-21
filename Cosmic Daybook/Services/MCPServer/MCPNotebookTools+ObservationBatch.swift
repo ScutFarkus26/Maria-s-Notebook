@@ -201,7 +201,9 @@ extension MCPNotebookTools {
         note.body = draft.body
         note.scope = draft.scope
         if !draft.tags.isEmpty {
-            note.tagsArray = draft.tags
+            // "social" files under the notebook's "Social|Purple" (domain logic review A10).
+            let vocabulary = TagHelper.noteTagVocabulary(in: modelContext)
+            note.tagsArray = TagHelper.canonicalTags(draft.tags, existing: vocabulary)
         }
         note.needsFollowUp = draft.needsFollowUp
         note.syncStudentLinks(in: modelContext)

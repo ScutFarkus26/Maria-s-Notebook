@@ -226,14 +226,19 @@ enum SequenceActivityFetches {
         return context.safeFetch(request)
     }
 
-    /// The child's notes about the sequence's lessons: a note names its
-    /// children through `studentLinks`.
+    /// The child's notes about the sequence's lessons: her own and the group
+    /// notes naming her (`NoteAudience.herOwn`). They were found through
+    /// student links alone, which only a note about two or more children
+    /// has, so a lesson note about her alone never counted (domain logic
+    /// review R9).
     static func notes(studentID: String, lessonIDs: [String], in context: NSManagedObjectContext) -> [CDNote] {
+        guard let studentUUID = UUID(uuidString: studentID) else { return [] }
         let request = CDFetchRequest(CDNote.self)
-        request.predicate = NSPredicate(
-            format: "lessonID IN[c] %@ AND ANY studentLinks.studentID ==[c] %@", lessonIDs, studentID
-        )
+        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            NSPredicate(format: "lessonID IN[c] %@", lessonIDs),
+            CDNote.aboutPredicate(studentUUID, .herOwn)
+        ])
         request.sortDescriptors = [NSSortDescriptor(key: "updatedAt", ascending: false)]
-        return context.safeFetch(request)
+        return context.safeFetch(request).filter { $0.isAbout(studentUUID, .herOwn) }
     }
 }

@@ -57,7 +57,6 @@ enum SequenceRecapResolver {
         )
         let buckets = SequenceRecapNoteBucketer.bucket(
             notes: collected.notes,
-            studentLinks: collected.studentLinks,
             studentIDSet: Set(studentIDStrings),
             lessonIDSet: Set(lessonIDStrings)
         )
@@ -166,7 +165,6 @@ enum SequenceRecapResolver {
                 buildWorkItem(
                     work: $0,
                     studentIDString: studentIDString,
-                    studentLinks: collected.studentLinks,
                     buckets: buckets
                 )
             }
@@ -209,8 +207,7 @@ enum SequenceRecapResolver {
             let aidString = aid.uuidString
             let attached = scopedNoteSnapshots(
                 buckets.notesByAssignment[aidString] ?? [],
-                studentIDString: studentIDString,
-                studentLinks: collected.studentLinks
+                studentIDString: studentIDString
             )
             // Drain matching work so any leftovers can be reported as unattached.
             let workItems = (workByPresentationID.removeValue(forKey: aidString) ?? [])
@@ -219,7 +216,6 @@ enum SequenceRecapResolver {
                     buildWorkItem(
                         work: $0,
                         studentIDString: studentIDString,
-                        studentLinks: collected.studentLinks,
                         buckets: buckets
                     )
                 }
@@ -241,7 +237,6 @@ enum SequenceRecapResolver {
     private static func buildWorkItem(
         work: CDWorkModel,
         studentIDString: String,
-        studentLinks: [String: Set<String>],
         buckets: SequenceRecapNoteBuckets
     ) -> SequenceRecapWorkItem? {
         guard let wid = work.id else { return nil }
@@ -252,8 +247,7 @@ enum SequenceRecapResolver {
             guard let ciid = ci.id else { return nil }
             let ciNotes = scopedNoteSnapshots(
                 buckets.notesByCheckIn[ciid.uuidString] ?? [],
-                studentIDString: studentIDString,
-                studentLinks: studentLinks
+                studentIDString: studentIDString
             )
             return SequenceRecapCheckIn(
                 id: ciid,
@@ -266,8 +260,7 @@ enum SequenceRecapResolver {
 
         let workNotes = scopedNoteSnapshots(
             buckets.notesByWork[wid.uuidString] ?? [],
-            studentIDString: studentIDString,
-            studentLinks: studentLinks
+            studentIDString: studentIDString
         )
 
         return SequenceRecapWorkItem(
@@ -286,15 +279,13 @@ enum SequenceRecapResolver {
 
     private static func scopedNoteSnapshots(
         _ notes: [CDNote],
-        studentIDString: String,
-        studentLinks: [String: Set<String>]
+        studentIDString: String
     ) -> [SequenceRecapNote] {
         notes
             .filter {
                 SequenceRecapNoteBucketer.noteApplies(
                     $0,
-                    to: studentIDString,
-                    links: studentLinks
+                    to: studentIDString
                 )
             }
             .map { SequenceRecapNote(from: $0) }

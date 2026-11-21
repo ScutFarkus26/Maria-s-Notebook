@@ -74,7 +74,8 @@ enum StudentDeletion {
         "WorkCycleEntry",
         "Guardian",
         "ParentCommunication",
-        "LessonRecallCheck"
+        "LessonRecallCheck",
+        "LevelChange"
     ]
 
     /// Deletes every student row with `studentID` (a CloudKit duplicate

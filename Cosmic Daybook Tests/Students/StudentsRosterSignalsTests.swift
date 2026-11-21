@@ -236,7 +236,8 @@ struct StudentsRosterSignalsTests {
 
         let direct = CoreDataTestHelpers.seedNote(in: context, body: "Direct")
         direct.scope = .student(adaID)
-        direct.updatedAt = base.addingTimeInterval(100)
+        direct.createdAt = base.addingTimeInterval(100)
+        direct.updatedAt = base.addingTimeInterval(5000) // a later edit isn't a new observation
 
         let older = CoreDataTestHelpers.seedNote(in: context, body: "Older")
         older.scope = .student(adaID)
@@ -245,7 +246,7 @@ struct StudentsRosterSignalsTests {
 
         let group = CoreDataTestHelpers.seedNote(in: context, body: "Group")
         group.scope = .students([benID, cyID])
-        group.updatedAt = base.addingTimeInterval(200)
+        group.createdAt = base.addingTimeInterval(200)
         for id in [benID, cyID] {
             let link = CDNoteStudentLink(context: context)
             link.studentIDUUID = id
@@ -254,7 +255,7 @@ struct StudentsRosterSignalsTests {
 
         let wholeClass = CoreDataTestHelpers.seedNote(in: context, body: "Everyone")
         wholeClass.scope = .all
-        wholeClass.updatedAt = base.addingTimeInterval(900)
+        wholeClass.createdAt = base.addingTimeInterval(900)
         let classLink = CDNoteStudentLink(context: context)
         classLink.studentIDUUID = cyID
         classLink.note = wholeClass

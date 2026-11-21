@@ -97,9 +97,11 @@ struct StudentNoteRowView: View {
         // If reportedBy is nil or "guide", consider it from the guide. A note
         // kept from an old note field is the guide's own too: its internal
         // label used to show as "Legacyfield: system".
+        // The app's own notes (the rollover's, `CDNote.appReporter`) read as
+        // hers too; the marker only keeps them out of "last observed".
         guard let reportedBy = item.reportedBy else { return true }
         return reportedBy.lowercased() == "guide" || reportedBy.isEmpty
-            || reportedBy == LegacyNoteFieldConstants.reporter
+            || reportedBy == LegacyNoteFieldConstants.reporter || reportedBy == CDNote.appReporter
     }
     
     @ViewBuilder

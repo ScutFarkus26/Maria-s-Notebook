@@ -62,6 +62,10 @@ struct LogObservationIntent: AppIntent {
         note.syncStudentLinks(in: context)
 
         guard context.safeSave() else { throw LogObservationError.saveFailed }
+        // The note lists wait for this, as for the app's own editors and
+        // Claude's, so a note logged by voice shows without another save
+        // (domain logic review A17).
+        NotificationCenter.default.post(name: .noteDidSave, object: note.id)
 
         Logger.notes.info("Logged observation via Siri for student \(studentID.uuidString, privacy: .public)")
         // The short name, so the two Ettys are told apart ("Etty D").

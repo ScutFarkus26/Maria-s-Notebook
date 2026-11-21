@@ -91,17 +91,21 @@ struct SmartNoteFormatter {
 /// Hope doesn't turn "she will" into "she Student W".
 struct NameAnonymizer {
     private let replacements: [(regex: NSRegularExpression, label: String)]
+    /// Whether a label that opens a sentence is capitalized ("A classmate
+    /// laughed"), for a lowercase label.
+    private var capitalizesSentenceStarts = false
 
     init(students: [CDStudent]) {
+        self.init(students: students, keeping: [], label: Self.label(for:))
+    }
+
+    /// `keeping` holds forms (lowercased) never replaced: the child a report
+    /// is about, whose own names stay even where a classmate shares one.
+    private init(students: [CDStudent], keeping: Set<String>, label: (CDStudent) -> String) {
         var forms: [(form: String, label: String)] = []
         for student in students {
-            let label = Self.label(for: student)
-            let first = student.firstName.trimmed()
-            let last = student.lastName.trimmed()
-            let candidates = [
-                "\(first) \(last)", student.shortName, first, (student.nickname ?? "").trimmed(), last
-            ]
-            for form in candidates where form.count >= 2 {
+            let label = label(student)
+            for form in Self.forms(of: student) where form.count >= 2 && !keeping.contains(form.lowercased()) {
                 forms.append((form, label))
             }
         }
@@ -117,6 +121,25 @@ struct NameAnonymizer {
         }
     }
 
+    /// Swaps `others`' names for `label` ("a classmate"), keeping every name
+    /// of `student`'s own: in her report, a classmate who shares her first
+    /// name is left out by her full or short name, and a sibling's last name
+    /// (hers too) stays (domain logic review R1).
+    static func classmates(of student: CDStudent, among others: [CDStudent], label: String) -> NameAnonymizer {
+        let hers = Set(forms(of: student).map { $0.lowercased() })
+        var anonymizer = NameAnonymizer(students: others, keeping: hers) { _ in label }
+        anonymizer.capitalizesSentenceStarts = true
+        return anonymizer
+    }
+
+    /// The forms a child's name is written in: full name, short name, first
+    /// name, nickname and last name.
+    private static func forms(of student: CDStudent) -> [String] {
+        let first = student.firstName.trimmed()
+        let last = student.lastName.trimmed()
+        return ["\(first) \(last)", student.shortName, first, (student.nickname ?? "").trimmed(), last]
+    }
+
     /// The label that stands in for a child: "Student" and her first initial.
     static func label(for student: CDStudent) -> String {
         "Student \(student.firstName.prefix(1))"
@@ -128,6 +151,27 @@ struct NameAnonymizer {
             let range = NSRange(result.startIndex..., in: result)
             result = regex.stringByReplacingMatches(
                 in: result, range: range, withTemplate: NSRegularExpression.escapedTemplate(for: label)
+            )
+        }
+        return capitalizesSentenceStarts ? Self.capitalizingSentenceStarts(of: result, labels: labels) : result
+    }
+
+    private var labels: Set<String> { Set(replacements.map(\.label)) }
+
+    /// Capitalizes a lowercase label at the start of the text, a line or a
+    /// sentence.
+    private static func capitalizingSentenceStarts(of text: String, labels: Set<String>) -> String {
+        var result = text
+        for label in labels {
+            guard let first = label.first, first.isLowercase else { continue }
+            let pattern = "(^|[.!?]\\s+)" + NSRegularExpression.escapedPattern(for: label)
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.anchorsMatchLines]) else {
+                continue
+            }
+            let capitalized = first.uppercased() + label.dropFirst()
+            let template = "$1" + NSRegularExpression.escapedTemplate(for: capitalized)
+            result = regex.stringByReplacingMatches(
+                in: result, range: NSRange(result.startIndex..., in: result), withTemplate: template
             )
         }
         return result

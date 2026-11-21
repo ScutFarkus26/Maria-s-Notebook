@@ -288,7 +288,7 @@ enum MigrationRunner {
         // Every launch outside the first download, each saving on its own: work rows with no
         // assignment get one (WorkAssignmentFill, after the repair above, which it reads), retired
         // practice sessions become practice check-ins, and lesson-order ties and year plans are put right.
-        WorkAssignmentFill.runIfDue(using: context, firstDownloadPending: firstDownloadPending)
+        runDomainFills(using: context, firstDownloadPending: firstDownloadPending) // + guardian people
         if !firstDownloadPending { PracticeCheckInCopy.runAndSave(in: context) }
         if !firstDownloadPending { YearPlanEntryRepair.repairAllAndSave(in: context) }
         return results

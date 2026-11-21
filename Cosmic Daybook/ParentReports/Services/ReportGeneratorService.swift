@@ -20,31 +20,14 @@ typealias PlatformColor = NSColor
 struct ReportGeneratorService {
     // MARK: - Core Data API (Primary)
 
-    /// Fetch flagged notes for a student within a date range (Core Data)
+    /// The notes marked Include in Report that are about her within a date
+    /// range (`ReportNotes.flagged`, the one picker every report uses).
     func fetchReportNotes(
         for student: CDStudent,
         dateRange: ClosedRange<Date>,
         context: NSManagedObjectContext
     ) -> [CDNote] {
-        let startDate = dateRange.lowerBound
-        let endDate = dateRange.upperBound
-
-        let request = CDFetchRequest(CDNote.self)
-        request.predicate = NSPredicate(
-            format: "includeInReport == YES AND createdAt >= %@ AND createdAt <= %@",
-            startDate as NSDate,
-            endDate as NSDate
-        )
-        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
-        request.relationshipKeyPathsForPrefetching = ["studentLinks"]
-
-        let allFlagged = context.safeFetch(request)
-
-        // Filter to notes visible to this student
-        guard let studentID = student.id else { return [] }
-        return allFlagged.filter { note in
-            note.scopeIsAll || note.searchIndexStudentID == studentID || note.scope.applies(to: studentID)
-        }
+        ReportNotes.flagged(for: student, in: dateRange, context: context)
     }
 
     // MARK: - Report Options
@@ -266,11 +249,16 @@ extension ReportGeneratorService {
         if let narrative = aiNarrative {
             appendNarrativeText(to: result, narrative: narrative)
         }
-        appendGroupedNotesText(to: result, notes: notes, style: style)
+        // A family reads this: other children's names become "a classmate"
+        // (domain logic review R1). The note itself is never changed.
+        let classmates = ReportNotes.classmateNames(for: student, during: dateRange)
+        appendGroupedNotesText(to: result, notes: notes, style: style, classmates: classmates)
         return result
     }
 
-    private func appendGroupedNotesText(to result: NSMutableAttributedString, notes: [CDNote], style: ReportStyle) {
+    private func appendGroupedNotesText(
+        to result: NSMutableAttributedString, notes: [CDNote], style: ReportStyle, classmates: NameAnonymizer
+    ) {
         let groupedNotes: [(String, [CDNote])] = style.groupsByCategory
             ? groupNotesByCategory(notes)
             : [("Notes", notes)]
@@ -285,7 +273,9 @@ extension ReportGeneratorService {
                 result.append(NSAttributedString(
                     string: "\(dateText)\n", attributes: Self.attributes(size: 10, color: ReportInk.secondary)
                 ))
-                result.append(NSAttributedString(string: "\(note.body)\n", attributes: Self.attributes(size: 11)))
+                result.append(NSAttributedString(
+                    string: "\(classmates.anonymized(note.body))\n", attributes: Self.attributes(size: 11)
+                ))
                 let tagLabel = note.tagsArray.map { TagHelper.tagName($0) }.joined(separator: ", ")
                 result.append(NSAttributedString(
                     string: "[\(tagLabel.isEmpty ? "General" : tagLabel)]\n\n",

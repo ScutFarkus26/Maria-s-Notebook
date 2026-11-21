@@ -147,32 +147,13 @@ extension MCPNotebookTools {
             verb = "Added"
         }
 
-        var changes: [String] = []
-        if let name = nonEmpty(arguments["name"]?.stringValue) {
-            guardian.name = name
-            changes.append("name")
-        }
-        if let email = arguments["email"]?.stringValue {
-            guardian.email = email.trimmed()
-            changes.append("email")
-        }
-        if let raw = nonEmpty(arguments["relationship"]?.stringValue) {
-            guard let relationship = GuardianRelationship(rawValue: raw) else {
-                let allowed = GuardianRelationship.allCases.map(\.rawValue).joined(separator: ", ")
-                throw MCPToolError("relationship must be one of: \(allowed). Got \"\(raw)\".")
-            }
-            guardian.relationship = relationship
-            changes.append("relationship")
-        }
-        if let receives = arguments["receives_reports"]?.boolValue {
-            guardian.receivesReports = receives
-            changes.append(receives ? "receives reports" : "no longer receives reports")
-        }
-        if let notes = arguments["notes"]?.stringValue {
-            guardian.notes = notes.trimmed()
-            changes.append("notes")
-        }
-        guardian.modifiedAt = Date()
+        // One person's rows on each of her children change together
+        // (`GuardianPeople`; domain logic review A9). The notes stay on this
+        // child's row. A row not matched yet joins before the edit and after.
+        let (edit, changes) = try guardianEdit(from: arguments)
+        GuardianPeople.match(guardian)
+        GuardianPeople.apply(edit, to: guardian)
+        GuardianPeople.match(guardian)
 
         guard !changes.isEmpty else {
             throw MCPToolError("Nothing to change — pass at least one field.")
@@ -184,7 +165,44 @@ extension MCPNotebookTools {
             throw MCPToolError("The guardian could not be saved.")
         }
         let id = guardian.id?.uuidString ?? "unknown"
-        return "\(verb) [guardian id=\(id)] \(guardian.name): \(changes.joined(separator: ", "))."
+        // The notes stay on this child's row, so they alone reach no sibling.
+        let shared = changes.contains { $0 != "notes" }
+        let siblings = shared ? GuardianPeople.otherChildren(of: guardian).map(\.fullName) : []
+        let also = siblings.isEmpty ? "" : " Also changed on \(siblings.joined(separator: ", "))'s record."
+        return "\(verb) [guardian id=\(id)] \(guardian.name): \(changes.joined(separator: ", "))." + also
+    }
+
+    /// The fields update_guardian was given, and what it says changed.
+    private static func guardianEdit(
+        from arguments: [String: JSONValue]
+    ) throws -> (GuardianPeople.Edit, [String]) {
+        var edit = GuardianPeople.Edit()
+        var changes: [String] = []
+        if let name = nonEmpty(arguments["name"]?.stringValue) {
+            edit.name = name
+            changes.append("name")
+        }
+        if let email = arguments["email"]?.stringValue {
+            edit.email = email.trimmed()
+            changes.append("email")
+        }
+        if let raw = nonEmpty(arguments["relationship"]?.stringValue) {
+            guard let relationship = GuardianRelationship(rawValue: raw) else {
+                let allowed = GuardianRelationship.allCases.map(\.rawValue).joined(separator: ", ")
+                throw MCPToolError("relationship must be one of: \(allowed). Got \"\(raw)\".")
+            }
+            edit.relationship = relationship
+            changes.append("relationship")
+        }
+        if let receives = arguments["receives_reports"]?.boolValue {
+            edit.receivesReports = receives
+            changes.append(receives ? "receives reports" : "no longer receives reports")
+        }
+        if let notes = arguments["notes"]?.stringValue {
+            edit.notes = notes.trimmed()
+            changes.append("notes")
+        }
+        return (edit, changes)
     }
 
     private static func makeGuardian(

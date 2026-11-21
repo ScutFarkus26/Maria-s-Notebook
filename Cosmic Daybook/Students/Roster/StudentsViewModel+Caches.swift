@@ -90,7 +90,10 @@ extension StudentsViewModel {
 
     /// Each student's latest observation: a note indexed to her
     /// (`searchIndexStudentID`) or linked to her through a scoped (not
-    /// whole-class) note, dated `updatedAt ?? createdAt`.
+    /// whole-class) note, dated when it was written (`createdAt`). An edit
+    /// isn't a new observation, so a typo fix no longer moves "last
+    /// observed", and a note the app wrote itself (`CDNote.isAppWritten`,
+    /// the rollover's) isn't one at all (domain logic review A11).
     ///
     /// Reads three columns per row as dictionaries when the context has no
     /// unsaved changes (a dictionary fetch cannot see them); the object path
@@ -108,27 +111,24 @@ extension StudentsViewModel {
            let noteRows = directNoteRows(in: context),
            let linkRows = linkRows(in: context) {
             for row in noteRows {
-                note(row["student"] as? UUID, (row["updatedAt"] as? Date) ?? (row["createdAt"] as? Date))
+                note(row["student"] as? UUID, row["createdAt"] as? Date)
             }
             for row in linkRows {
-                note(
-                    (row["student"] as? String).flatMap(UUID.init(uuidString:)),
-                    (row["updatedAt"] as? Date) ?? (row["createdAt"] as? Date)
-                )
+                note((row["student"] as? String).flatMap(UUID.init(uuidString:)), row["createdAt"] as? Date)
             }
             return latest
         }
 
         let noteRequest = CDFetchRequest(CDNote.self)
         noteRequest.predicate = NSPredicate(format: "searchIndexStudentID != nil")
-        for row in context.safeFetch(noteRequest) {
-            note(row.searchIndexStudentID, row.updatedAt ?? row.createdAt)
+        for row in context.safeFetch(noteRequest) where !row.isAppWritten {
+            note(row.searchIndexStudentID, row.createdAt)
         }
         let linkRequest: NSFetchRequest<CDNoteStudentLink> = NSFetchRequest(entityName: "NoteStudentLink")
         linkRequest.relationshipKeyPathsForPrefetching = ["note"]
         for link in context.safeFetch(linkRequest) {
-            guard let linked = link.note, !linked.scopeIsAll else { continue }
-            note(link.studentIDUUID, linked.updatedAt ?? linked.createdAt)
+            guard let linked = link.note, !linked.scopeIsAll, !linked.isAppWritten else { continue }
+            note(link.studentIDUUID, linked.createdAt)
         }
         return latest
     }
@@ -146,10 +146,12 @@ extension StudentsViewModel {
     static func directNoteRows(in context: NSManagedObjectContext) -> [NSDictionary]? {
         let request = NSFetchRequest<NSDictionary>(entityName: "Note")
         request.resultType = .dictionaryResultType
-        request.predicate = NSPredicate(format: "searchIndexStudentID != nil")
+        request.predicate = NSPredicate(
+            format: "searchIndexStudentID != nil AND (reportedBy == nil OR reportedBy != %@)",
+            CDNote.appReporter
+        )
         request.propertiesToFetch = [
             column("searchIndexStudentID", as: "student", type: .UUIDAttributeType),
-            column("updatedAt", as: "updatedAt", type: .dateAttributeType),
             column("createdAt", as: "createdAt", type: .dateAttributeType)
         ]
         return try? context.fetch(request)
@@ -158,10 +160,12 @@ extension StudentsViewModel {
     static func linkRows(in context: NSManagedObjectContext) -> [NSDictionary]? {
         let request = NSFetchRequest<NSDictionary>(entityName: "NoteStudentLink")
         request.resultType = .dictionaryResultType
-        request.predicate = NSPredicate(format: "note != nil AND note.scopeIsAll == NO")
+        request.predicate = NSPredicate(
+            format: "note != nil AND note.scopeIsAll == NO AND (note.reportedBy == nil OR note.reportedBy != %@)",
+            CDNote.appReporter
+        )
         request.propertiesToFetch = [
             column("studentID", as: "student", type: .stringAttributeType),
-            column("note.updatedAt", as: "updatedAt", type: .dateAttributeType),
             column("note.createdAt", as: "createdAt", type: .dateAttributeType)
         ]
         return try? context.fetch(request)

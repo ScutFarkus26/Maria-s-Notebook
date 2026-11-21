@@ -23,10 +23,10 @@ struct ParentReportsSectionView: View {
     @Environment(\.calendar) private var calendar
     @TestStudentVisibility private var testStudents
 
-    @FetchRequest(
-        sortDescriptors: [],
-        predicate: NSPredicate(format: "enrollmentStatusRaw == %@", CDStudent.EnrollmentStatus.enrolled.rawValue)
-    ) private var enrolledStudents: FetchedResults<CDStudent>
+    // Every child, narrowed to the ones in class that month as the Parent
+    // Reports screen narrows them (`ParentReportsQueueView.studentsInClass`):
+    // a child who left during the month still has a report due.
+    @FetchRequest(sortDescriptors: []) private var allStudents: FetchedResults<CDStudent>
 
     @FetchRequest(
         sortDescriptors: [],
@@ -59,8 +59,9 @@ struct ParentReportsSectionView: View {
     var body: some View {
         let now = Date()
         let window = cycle.cycleWindow(calendar: calendar)
-        // The class as the roster and the Parent Reports screen count it.
-        let classIDs = Set(testStudents.visible(enrolledStudents).compactMap { $0.id?.uuidString })
+        // The class as the Parent Reports screen counts it.
+        let inClass = ParentReportsQueueView.studentsInClass(Array(allStudents), during: cycle, calendar: calendar)
+        let classIDs = Set(testStudents.visible(inClass).compactMap { $0.id?.uuidString })
         let total = classIDs.count
         let sent = Self.sentCount(sentReportStudentIDs: sentReports.map(\.studentID), studentIDs: classIDs)
         let isOverdue = isRunningOut(now: now, window: window)

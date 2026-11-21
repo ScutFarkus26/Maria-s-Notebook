@@ -106,17 +106,15 @@ final class StudentAnalysisService {
 
         // Her notes: the ones about her alone, and the group observations that name
         // her among others (no single student in the index, so they're matched by
-        // their scope; they used to be left out). Whole-class notes stay out.
+        // their scope; they used to be left out). Whole-class notes stay out
+        // (`NoteAudience.herOwn`, the one "about her" rule).
         let noteRequest = CDFetchRequest(CDNote.self)
-        noteRequest.predicate = NSPredicate(
-            format: "createdAt >= %@ AND (searchIndexStudentID == %@ "
-                + "OR (scopeIsAll == NO AND searchIndexStudentID == nil))",
-            since as NSDate, studentID as CVarArg
-        )
+        noteRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            NSPredicate(format: "createdAt >= %@", since as NSDate),
+            CDNote.aboutPredicate(studentID, .herOwn)
+        ])
         noteRequest.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
-        let notes = ((try? modelContext.fetch(noteRequest)) ?? []).filter { note in
-            note.searchIndexStudentID == studentID || note.scope.applies(to: studentID)
-        }
+        let notes = ((try? modelContext.fetch(noteRequest)) ?? []).filter { $0.isAbout(studentID, .herOwn) }
 
         // Practice is a check-in on her work (`CDWorkCheckIn.isPractice`). Her
         // work ids are read as plain values, so no work row is materialized.

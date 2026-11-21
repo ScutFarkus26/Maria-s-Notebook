@@ -8,6 +8,7 @@ struct TodoRowCard: View {
     @ObservedObject var todo: CDTodoItem
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
+    @Environment(\.dependencies) private var dependencies
     let onSelect: () -> Void
     let onEdit: () -> Void
     let onDelete: () -> Void
@@ -59,13 +60,13 @@ struct TodoRowCard: View {
                 TodoRowComponents.titleAndNotes(todo: todo)
 
                 if todo.effectiveDate != nil || todo.isSomeday ||
-                    !todo.tagsArray.isEmpty || todo.recurrence != .none {
+                    !chipTags.isEmpty || todo.recurrence != .none {
                     HStack(spacing: 6) {
                         TodoRowComponents.dateChip(todo: todo)
 
                         TodoRowComponents.recurrenceChip(todo: todo)
 
-                        if !todo.tagsArray.isEmpty {
+                        if !chipTags.isEmpty {
                             tagBadgeStack
                         }
                     }
@@ -183,14 +184,23 @@ struct TodoRowCard: View {
         }
     }
 
+    /// Its tags, the children's drawn from its student ids under their names
+    /// today (`TagHelper.chipTags`).
+    private var chipTags: [String] {
+        TodoTagHelper.chipTags(stored: todo.tagsArray, studentIDs: todo.resolvedStudentIDs) {
+            dependencies.roster.student(id: $0)?.fullName
+        }
+    }
+
     @ViewBuilder
     private var tagBadgeStack: some View {
+        let tags = chipTags
         ViewThatFits(in: .horizontal) {
-            ForEach(Array(stride(from: todo.tagsArray.count, through: 1, by: -1)), id: \.self) { visibleCount in
-                tagBadgeRow(tags: todo.tagsArray, visibleCount: visibleCount)
+            ForEach(Array(stride(from: tags.count, through: 1, by: -1)), id: \.self) { visibleCount in
+                tagBadgeRow(tags: tags, visibleCount: visibleCount)
             }
 
-            Text("+\(todo.tagsArray.count)")
+            Text("+\(tags.count)")
                 .font(AppTheme.ScaledFont.captionSmallSemibold)
                 .foregroundStyle(.tertiary)
         }

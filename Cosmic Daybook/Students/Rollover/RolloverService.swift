@@ -208,9 +208,7 @@ enum RolloverService {
                 continue
             case .promote(let target):
                 guard target != student.level else { continue }
-                student.previousLevelRaw = student.levelRaw
-                student.level = target
-                student.dateLastPromoted = plan.effectiveDate
+                StudentLevelHistory.change(student, to: target, on: plan.effectiveDate)
             case .transfer:
                 student.enrollmentStatus = .transferred
                 student.dateWithdrawn = plan.effectiveDate
@@ -335,6 +333,9 @@ enum RolloverService {
         note.createdAt = date
         note.updatedAt = date
         note.includeInReport = true
+        // Written by the app, not the guide: it isn't an observation of her
+        // (no "last observed"; domain logic review A11).
+        note.reportedBy = CDNote.appReporter
         note.syncStudentLinks(in: context)
     }
 }

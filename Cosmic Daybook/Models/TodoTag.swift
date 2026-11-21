@@ -1,3 +1,4 @@
+import CoreData
 import Foundation
 import SwiftUI
 
@@ -136,6 +137,63 @@ nonisolated struct TagHelper {
             firstName: String(fullName[..<lastSpace]),
             lastName: String(fullName[fullName.index(after: lastSpace)...])
         )
+    }
+
+    /// `tags` as the notebook stores them: a bare name ("social") takes the
+    /// stored tag of that name, color and spelling included ("Social|Purple"),
+    /// from `existing`; a name the notebook doesn't have yet is filed Gray;
+    /// a tag that names its color keeps it. One per name, in order. Claude's
+    /// tags came in bare and split one tag in two in the filter (domain logic
+    /// review A10).
+    static func canonicalTags(_ tags: [String], existing: [String]) -> [String] {
+        var known: [String: String] = [:]
+        for tag in existing {
+            let key = tagName(tag).trimmed().lowercased()
+            if !key.isEmpty, known[key] == nil, tag.contains("|") { known[key] = tag }
+        }
+        var seen = Set<String>()
+        var result: [String] = []
+        for raw in tags {
+            let tag = raw.trimmed()
+            let name = tagName(tag).trimmed()
+            let key = name.lowercased()
+            guard !key.isEmpty, seen.insert(key).inserted else { continue }
+            let parts = tag.split(separator: "|")
+            let namesColor = parts.count == 2 && TagColor(rawValue: String(parts[1])) != nil
+            result.append(namesColor ? tag : known[key] ?? createTag(name: name, color: .gray))
+        }
+        return result
+    }
+
+    /// The tags a note can be filed under: every tag already on a note, then
+    /// the Montessori and curriculum tags the editor offers.
+    static func noteTagVocabulary(in context: NSManagedObjectContext) -> [String] {
+        // Objects, not dictionaries: a dictionary fetch can hand back a
+        // Transformable column as its archived data on SQLite.
+        let request = NSFetchRequest<CDNote>(entityName: "Note")
+        request.predicate = NSPredicate(format: "tags != nil")
+        request.propertiesToFetch = ["tags"]
+        request.returnsObjectsAsFaults = false
+        let stored = ((try? context.fetch(request)) ?? []).flatMap(\.tagsArray)
+        return stored + MontessoriObservationTags.allTags + MontessoriObservationTags.curriculumDomainTags
+    }
+
+    /// The chips a to-do shows: its own tags, with the student tags drawn
+    /// from the children it names (`studentIDs`) under their names today, so
+    /// a renamed child's chip follows her and a deleted child's goes (domain
+    /// logic review A12). The stored name tags stay for older builds and
+    /// filters. A to-do naming no child by id keeps its stored tags.
+    static func chipTags(
+        stored: [String], studentIDs: [UUID], fullName: (UUID) -> String?
+    ) -> [String] {
+        guard !studentIDs.isEmpty else { return stored }
+        let color = stored.first(where: isStudentTag).map(tagColor) ?? .green
+        var seen = Set<UUID>()
+        let students = studentIDs.compactMap { id -> String? in
+            guard seen.insert(id).inserted, let name = fullName(id)?.trimmed(), !name.isEmpty else { return nil }
+            return createStudentTag(name: name, color: color)
+        }
+        return stored.filter { !isStudentTag($0) } + students
     }
 
     static func createStudentTag(name: String, color: TagColor = .green) -> String {

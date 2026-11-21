@@ -18,6 +18,8 @@ struct GuardianEditSheet: View {
     @State private var receivesReports = true
     @State private var notes = ""
     @State private var showingDeleteConfirmation = false
+    /// Read once when the sheet opens (`alsoLine(for:)`).
+    @State private var alsoLine: String?
 
     private var isNew: Bool { guardian == nil }
 
@@ -62,6 +64,8 @@ struct GuardianEditSheet: View {
                     if let problem = Self.emailProblem(email) {
                         Text(problem)
                             .foregroundStyle(AppColors.warning)
+                    } else if let alsoLine {
+                        Text(alsoLine)
                     }
                 }
                 Section {
@@ -112,6 +116,7 @@ struct GuardianEditSheet: View {
 
     private func loadDraft() {
         guard let guardian else { return }
+        alsoLine = Self.alsoLine(for: guardian)
         name = guardian.name
         email = guardian.email
         relationship = guardian.relationship
@@ -119,10 +124,24 @@ struct GuardianEditSheet: View {
         notes = guardian.notes
     }
 
+    /// "Also Leo S's mother.": the other children whose row is the same
+    /// person (`GuardianPeople`), so the guide knows an edit reaches them.
+    static func alsoLine(for guardian: CDGuardian?) -> String? {
+        guard let guardian else { return nil }
+        let names = GuardianPeople.otherChildren(of: guardian).map(\.shortName)
+        guard !names.isEmpty else { return nil }
+        let role = guardian.relationship == .other ? "contact" : guardian.relationship.displayName.lowercased()
+        let children = ListFormatter.localizedString(byJoining: names)
+        return "Also \(children)'s \(role). Changes here are made there too, except the notes."
+    }
+
     private func save() {
         let target: CDGuardian
         if let guardian {
             target = guardian
+            // A sibling's row not matched yet joins before the edit, so the
+            // edit reaches it too (domain logic review A9).
+            GuardianPeople.match(target)
         } else {
             target = CDGuardian(context: viewContext)
             target.studentID = studentID
@@ -130,12 +149,13 @@ struct GuardianEditSheet: View {
             let siblingCount = (try? viewContext.count(for: request)) ?? 0
             target.sortOrder = Int64(siblingCount)
         }
-        target.name = trimmedName
-        target.email = trimmedEmail
-        target.relationship = relationship
-        target.receivesReports = receivesReports
-        target.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
-        target.modifiedAt = Date()
+        let edit = GuardianPeople.Edit(
+            name: trimmedName, email: trimmedEmail, relationship: relationship,
+            receivesReports: receivesReports,
+            notes: notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+        GuardianPeople.apply(edit, to: target)
+        if isNew { GuardianPeople.match(target) }
         viewContext.safeSave()
         dismiss()
     }

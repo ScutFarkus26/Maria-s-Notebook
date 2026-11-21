@@ -297,13 +297,20 @@ extension MCPNotebookTools {
         // Reassigning the children leaves the presentation relationship alone,
         // the way UnifiedNoteEditor does: it attaches a note to its context
         // only when the note is first created, never on a later edit.
-        let keptPresentationLink = edits.scope != nil && note.lessonAssignment != nil
+        let keptPresentationLink = edits.studentIDs != nil && note.lessonAssignment != nil
+        let (scope, descriptions) = resolvedNoteScope(
+            studentIDs: edits.studentIDs, descriptions: edits.descriptions, for: note
+        )
+        // "social" files under the notebook's "Social|Purple" (domain logic review A10).
+        let tags = edits.tags.map {
+            TagHelper.canonicalTags($0, existing: TagHelper.noteTagVocabulary(in: modelContext))
+        }
 
         repository.updateNote(
             id: noteID,
             body: edits.body,
-            tags: edits.tags,
-            scope: edits.scope,
+            tags: tags,
+            scope: scope,
             includeInReport: edits.includeInReport,
             needsFollowUp: edits.needsFollowUp
         )
@@ -313,7 +320,7 @@ extension MCPNotebookTools {
         announceSavedNote(noteID)
         let linkNote = keptPresentationLink ? " Still linked to its presentation." : ""
         return "Updated observation [note id=\(idString)]: "
-            + edits.descriptions.joined(separator: ", ") + ".\(linkNote)"
+            + descriptions.joined(separator: ", ") + ".\(linkNote)"
     }
 
     /// The parsed shape of an `update_observation` request: what to hand
@@ -321,7 +328,8 @@ extension MCPNotebookTools {
     private struct NoteEdits {
         var body: String?
         var tags: [String]?
-        var scope: NoteScope?
+        /// The children `student_names` named; empty when it named none.
+        var studentIDs: [UUID]?
         var includeInReport: Bool?
         var needsFollowUp: Bool?
         var descriptions: [String] = []
@@ -351,19 +359,19 @@ extension MCPNotebookTools {
             edits.descriptions.append(includeInReport ? "included in reports" : "excluded from reports")
         }
         if let reassignment = try parseNoteScope(arguments, in: modelContext) {
-            edits.scope = reassignment.scope
+            edits.studentIDs = reassignment.ids
             edits.descriptions.append(reassignment.description)
         }
         return edits
     }
 
-    /// Rebuilds the note's scope from `student_names`. The list replaces the
-    /// note's children the way `update_todo` does, and an empty list widens the
-    /// note to the whole class — the same reading `UnifiedNoteEditor` gives an
-    /// empty selection.
+    /// The children `student_names` names. The list replaces the note's
+    /// children the way `update_todo` does, and an empty list reads as
+    /// `UnifiedNoteEditor` reads an empty selection (`resolvedNoteScope`): the
+    /// whole class, or a presentation's children for a note on one.
     private static func parseNoteScope(
         _ arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
-    ) throws -> (scope: NoteScope, description: String)? {
+    ) throws -> (ids: [UUID], description: String)? {
         guard let entries = arguments["student_names"]?.arrayValue else { return nil }
         let names = entries.compactMap { $0.stringValue?.trimmed() }.filter { !$0.isEmpty }
         let students = try names.map { try resolveStudentReference($0, in: modelContext) }.uniqueByID
@@ -371,12 +379,7 @@ extension MCPNotebookTools {
         guard ids.count == students.count else {
             throw MCPToolError("A matched student record has no identifier.")
         }
-        guard !ids.isEmpty else {
-            return (.all, "now a whole-class note")
-        }
-        let scope: NoteScope = ids.count == 1
-            ? .student(ids[0])
-            : .students(ids.sorted { $0.uuidString < $1.uuidString })
-        return (scope, "now about \(students.map(\.fullName).joined(separator: ", "))")
+        guard !ids.isEmpty else { return (ids, wholeClassDescription) }
+        return (ids, "now about \(students.map(\.fullName).joined(separator: ", "))")
     }
 }

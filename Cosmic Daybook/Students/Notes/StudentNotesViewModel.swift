@@ -85,41 +85,19 @@ final class StudentNotesViewModel {
 // MARK: - CDNote Source Fetchers
 
 extension StudentNotesViewModel {
-    /// 1) General notes where scope matches this student.
+    /// 1) General notes about her: her own, the group notes naming her and the
+    /// class's, but not the class's context notes (a community meeting's
+    /// lines, a calendar day's note), which aren't about any one child
+    /// (`NoteAudience.withClass`, domain logic review R9). A group note shows
+    /// while its scope names her, whatever links it carries.
     func fetchGeneralNotes(
         noteSort: [NSSortDescriptor], studentIDString: String
     ) -> [UnifiedNoteItem] {
-        let primaryFetch = CDFetchRequest(CDNote.self)
-        if let studentID = student.id {
-            primaryFetch.predicate = NSPredicate(
-                format: "scopeIsAll == YES OR searchIndexStudentID == %@",
-                studentID as CVarArg
-            )
-        } else {
-            primaryFetch.predicate = NSPredicate(format: "scopeIsAll == YES")
-        }
-        primaryFetch.sortDescriptors = noteSort
-        let primaryNotes: [CDNote] = viewContext.safeFetch(primaryFetch)
-
-        let linkFetch: NSFetchRequest<CDNoteStudentLink> = NSFetchRequest(entityName: "NoteStudentLink")
-        linkFetch.predicate = NSPredicate(format: "studentID ==[c] %@", studentIDString as CVarArg)
-        let links: [CDNoteStudentLink] = viewContext.safeFetch(linkFetch)
-        // A link counts only while the note's scope still names her: a link
-        // left by an older re-scope doesn't put the note on her tab.
-        let linkedNotes = links.compactMap(\.note).filter { note in
-            guard let studentID = student.id else { return false }
-            return note.scope.applies(to: studentID)
-        }
-
-        // One row per note, however many links name her (two devices could
-        // each link the same child).
-        var seenIDs = Set(primaryNotes.compactMap(\.id))
-        var visibleNotes = primaryNotes
-        for note in linkedNotes {
-            guard let noteID = note.id, !seenIDs.contains(noteID) else { continue }
-            seenIDs.insert(noteID)
-            visibleNotes.append(note)
-        }
+        guard let studentID = student.id else { return [] }
+        let fetch = CDFetchRequest(CDNote.self)
+        fetch.predicate = CDNote.aboutPredicate(studentID, .withClass)
+        fetch.sortDescriptors = noteSort
+        let visibleNotes = viewContext.safeFetch(fetch).filter { $0.isAbout(studentID, .withClass) }
 
         return visibleNotes.compactMap { note in
             guard let noteID = note.id else { return nil }
@@ -169,7 +147,7 @@ extension StudentNotesViewModel {
             // The owner sees a note unless it names other children only; a
             // participant sees the row's whole-class notes and those naming her.
             let isOwner = work.studentID.caseInsensitiveCompare(studentIDString) == .orderedSame
-            let isHers = note.scopeIsAll || note.scope.applies(to: studentID)
+            let isHers = note.isAbout(studentID, .everything)
             guard isHers || (isOwner && note.searchIndexStudentID != nil) else { return nil }
             let context = lessonNameByWorkID[workID.uuidString] ?? (work.title.isEmpty ? "Work" : work.title)
             return UnifiedNoteItem(
@@ -201,7 +179,7 @@ extension StudentNotesViewModel {
             guard let noteID = note.id,
                   let pres = note.lessonAssignment,
                   pres.studentIDs.contains(studentIDString) else { return nil }
-            guard let studentID = student.id, note.scope.applies(to: studentID) else { return nil }
+            guard let studentID = student.id, note.isAbout(studentID, .everything) else { return nil }
 
             let context: String = {
                 if let lessonID = UUID(uuidString: pres.lessonID),

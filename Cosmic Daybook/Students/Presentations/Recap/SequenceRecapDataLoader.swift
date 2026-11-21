@@ -23,17 +23,12 @@ enum SequenceRecapDataLoader {
         )
         let work = fetchWork(lessonIDs: lessonIDs, studentIDs: studentIDs, context: context)
         let notes = fetchLessonScopedNotes(lessonIDs: lessonIDs, context: context)
-        let studentLinks = fetchStudentLinks(
-            noteIDs: notes.compactMap { $0.id?.uuidString },
-            context: context
-        )
         return SequenceRecapCollectedData(
             assignmentsByLesson: Dictionary(grouping: assignments) { $0.lessonID },
             presentationByPair: indexPresentations(presentations),
             representations: ChildRepresentations(rows: presentations),
             workByPair: indexWork(work),
-            notes: notes,
-            studentLinks: studentLinks
+            notes: notes
         )
     }
 
@@ -113,21 +108,6 @@ enum SequenceRecapDataLoader {
         return context.safeFetch(req)
     }
 
-    private static func fetchStudentLinks(
-        noteIDs: [String],
-        context: NSManagedObjectContext
-    ) -> [String: Set<String>] {
-        guard !noteIDs.isEmpty else { return [:] }
-        let req = CDFetchRequest(CDNoteStudentLink.self)
-        req.predicate = NSPredicate(format: "noteID IN %@", noteIDs)
-        let links = context.safeFetch(req)
-        var byNote: [String: Set<String>] = [:]
-        for link in links {
-            byNote[link.noteID, default: []].insert(link.studentID)
-        }
-        return byNote
-    }
-
     // MARK: - Indexing
 
     /// Every history row a child has for a lesson, read as one. Each giving
@@ -162,7 +142,6 @@ enum SequenceRecapNoteBucketer {
 
     static func bucket(
         notes: [CDNote],
-        studentLinks: [String: Set<String>],
         studentIDSet: Set<String>,
         lessonIDSet: Set<String>
     ) -> SequenceRecapNoteBuckets {
@@ -173,11 +152,7 @@ enum SequenceRecapNoteBucketer {
         var orphanByStudent: [String: [CDNote]] = [:]
 
         for note in notes {
-            let effective = resolveStudents(
-                for: note,
-                links: studentLinks,
-                studentIDSet: studentIDSet
-            )
+            let effective = resolveStudents(for: note, studentIDSet: studentIDSet)
             guard !effective.isEmpty else { continue }
 
             if assign(note: note, byCheckIn: &byCheckIn) { continue }
@@ -223,32 +198,17 @@ enum SequenceRecapNoteBucketer {
         return true
     }
 
-    /// Returns whether a note's explicit scope includes a particular student.
-    ///
-    /// The denormalized search fields and NoteStudentLink rows make common queries fast,
-    /// while decoding `scopeBlob` keeps older multi-student notes visible when those
-    /// indexes were not populated correctly.
-    static func noteApplies(
-        _ note: CDNote,
-        to studentID: String,
-        links: [String: Set<String>]
-    ) -> Bool {
+    /// Returns whether a lesson note is about a particular student: the one
+    /// "about her" rule with the class's notes in (`NoteAudience.withClass`).
+    /// The note's scope decides, not its student links, so a link left by an
+    /// older re-scope no longer puts a note in her recap (domain logic review R9).
+    static func noteApplies(_ note: CDNote, to studentID: String) -> Bool {
         guard let studentUUID = UUID(uuidString: studentID) else { return false }
-        if note.scopeIsAll { return true }
-        if note.searchIndexStudentID == studentUUID { return true }
-        if let noteID = note.id?.uuidString,
-           links[noteID]?.contains(studentID) == true {
-            return true
-        }
-        return note.decodeScope()?.applies(to: studentUUID) == true
+        return note.isAbout(studentUUID, .withClass)
     }
 
-    private static func resolveStudents(
-        for note: CDNote,
-        links: [String: Set<String>],
-        studentIDSet: Set<String>
-    ) -> Set<String> {
-        Set(studentIDSet.filter { noteApplies(note, to: $0, links: links) })
+    private static func resolveStudents(for note: CDNote, studentIDSet: Set<String>) -> Set<String> {
+        Set(studentIDSet.filter { noteApplies(note, to: $0) })
     }
 }
 
@@ -262,7 +222,6 @@ struct SequenceRecapCollectedData {
     let representations: ChildRepresentations
     let workByPair: [SequenceRecapPairKey: [CDWorkModel]]
     let notes: [CDNote]
-    let studentLinks: [String: Set<String>]
 
     /// The recap is one child's: the group's flag, or her own Re-present.
     func needsAnotherPresentation(_ assignment: CDLessonAssignment, for studentID: String) -> Bool {

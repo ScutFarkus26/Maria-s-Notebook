@@ -33,9 +33,53 @@ final class SchoolYearRolloverViewModel {
             if lhs.level != rhs.level { return levelOrder(lhs.level) < levelOrder(rhs.level) }
             return lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName) == .orderedAscending
         }
-        plan = RolloverPlan(effectiveDate: Self.defaultEffectiveDate(store: store))
+        let firstDay = students.lazy.compactMap(\.managedObjectContext).first.flatMap(Self.sessionFirstDay(in:))
+        plan = RolloverPlan(effectiveDate: Self.defaultEffectiveDate(store: store, sessionFirstDay: firstDay))
+        applyGradeDefaults(store: store)
         appliedChangeCount = 0
         phase = .assign
+    }
+
+    // MARK: - Grade defaults
+
+    /// Starts each child at the level her grade next year calls for (1st–3rd
+    /// Lower, 4th–6th Upper, 7th–8th Adolescent, by the Florida birthday rule
+    /// on the incoming year's first day), so a 3rd grader in Lower starts at
+    /// Upper rather than Stay (domain logic review A8). Only ever up: a child
+    /// already past her grade's level, one without a birthday, a
+    /// kindergartner and a graduate start at Stay. The guide changes any of
+    /// them before applying.
+    private func applyGradeDefaults(store: SchoolYearStore) {
+        let incomingStart = incomingYear(store: store).start
+        for student in students {
+            guard let birthday = student.birthday,
+                  let target = Self.level(
+                    for: FloridaGradeCalculator.grade(
+                        for: birthday, referenceDate: incomingStart, calendar: AppCalendar.shared
+                    )
+                  ),
+                  levelOrder(target) > levelOrder(student.level) else { continue }
+            setOutcome(.promote(to: target), for: student)
+        }
+    }
+
+    /// The class level a grade belongs to; nil for kindergarten and graduates.
+    static func level(for grade: GradeResult) -> CDStudent.Level? {
+        guard case .grade(let number) = grade else { return nil }
+        switch number {
+        case ...3: return .lower
+        case 4...6: return .upper
+        default: return .adolescent
+        }
+    }
+
+    /// The session's first day the guide set (`AttendanceEmailSettings`,
+    /// the newest row), if any.
+    private static func sessionFirstDay(in context: NSManagedObjectContext) -> Date? {
+        let request = CDFetchRequest(CDAttendanceEmailSettings.self)
+        request.sortDescriptors = [NSSortDescriptor(key: "modifiedAt", ascending: false)]
+        request.fetchLimit = 1
+        return context.safeFetchFirst(request)?.sessionFirstDay
     }
 
     private func levelOrder(_ level: CDStudent.Level) -> Int {
@@ -52,13 +96,24 @@ final class SchoolYearRolloverViewModel {
     /// than 30 days old, which in autumn closed out the year still under way
     /// (2026-10-11 hunt, #35); a closing stretch of only 60 days then sent a June
     /// rollover back a year (review 2026-10-11 (c) #1).
-    static func defaultEffectiveDate(today: Date = Date(), store: SchoolYearStore) -> Date {
+    ///
+    /// When the guide has set the session's first day and it is still ahead,
+    /// the day before it closes out the year instead, as long as that day is
+    /// in the same school year the default would close out (a first day that
+    /// disagrees with the year's start is left to the guide).
+    static func defaultEffectiveDate(
+        today: Date = Date(), store: SchoolYearStore, sessionFirstDay: Date? = nil
+    ) -> Date {
         let calendar = AppCalendar.shared
         let current = currentYear(today: today, store: store)
-        if isInSecondHalf(today, of: current) {
-            return calendar.date(byAdding: .day, value: -1, to: current.end) ?? current.end
-        }
-        return calendar.date(byAdding: .day, value: -1, to: current.start) ?? today
+        let standard = isInSecondHalf(today, of: current)
+            ? calendar.date(byAdding: .day, value: -1, to: current.end) ?? current.end
+            : calendar.date(byAdding: .day, value: -1, to: current.start) ?? today
+        guard let firstDay = sessionFirstDay.map(calendar.startOfDay(for:)), firstDay > today,
+              let dayBefore = calendar.date(byAdding: .day, value: -1, to: firstDay),
+              currentYear(today: dayBefore, store: store) == currentYear(today: standard, store: store)
+        else { return standard }
+        return dayBefore
     }
 
     /// The school year under way on `today`, by the store's start.
@@ -216,23 +271,15 @@ final class SchoolYearRolloverViewModel {
     // MARK: - Report support
 
     /// Number of report-flagged observations visible to this student in the outgoing
-    /// year — the notes a generated PDF summary would draw from. Mirrors
-    /// `ReportGeneratorService.fetchReportNotes`.
+    /// year — the notes a generated PDF summary would draw from, picked as
+    /// every report picks them (`ReportNotes.flagged`).
     func flaggedNoteCount(
         for student: CDStudent,
         store: SchoolYearStore,
         context: NSManagedObjectContext
     ) -> Int {
-        guard let studentID = student.id else { return 0 }
         let year = outgoingYear(store: store)
-        let request = CDFetchRequest(CDNote.self)
-        request.predicate = NSPredicate(
-            format: "includeInReport == YES AND createdAt >= %@ AND createdAt < %@",
-            year.start as NSDate, year.end as NSDate
-        )
-        let flagged = context.safeFetch(request)
-        return flagged.filter { note in
-            note.scopeIsAll || note.searchIndexStudentID == studentID || note.scope.applies(to: studentID)
-        }.count
+        let lastInstant = max(year.start, year.end.addingTimeInterval(-0.001))
+        return ReportNotes.flagged(for: student, in: year.start...lastInstant, context: context).count
     }
 }

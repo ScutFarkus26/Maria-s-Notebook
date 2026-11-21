@@ -90,11 +90,10 @@ struct StudentRepository: SavingRepository {
         if let lastName { student.lastName = lastName }
         if let birthday { student.birthday = birthday }
         if let nickname { student.nickname = nickname.isEmpty ? nil : nickname }
-        if let level, level != student.level {
-            // Record the move so the profile can show "Promoted · Lower → Upper on <date>".
-            student.previousLevelRaw = student.levelRaw
-            student.dateLastPromoted = Date()
-            student.level = level
+        if let level {
+            // A dated step in her level history; one undone the same day
+            // leaves none (domain logic review A8).
+            StudentLevelHistory.change(student, to: level)
         }
         if let dateStarted { student.dateStarted = dateStarted }
         if enrollmentStatus != nil || dateWithdrawn != nil {

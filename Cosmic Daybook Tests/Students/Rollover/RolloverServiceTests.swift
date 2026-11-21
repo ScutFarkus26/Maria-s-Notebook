@@ -188,14 +188,16 @@ struct FormerStudentRosterTests {
     func transferredStudentsAreFormer() throws {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
         let ctx = stack.viewContext
+        // Their last day was yesterday: a child is in class through her last day.
+        let yesterday = AppCalendar.shared.date(byAdding: .day, value: -1, to: Date()) ?? Date()
         CoreDataTestHelpers.seedStudent(in: ctx, firstName: "Active", lastName: "One", level: .upper)
         CoreDataTestHelpers.seedStudent(
             in: ctx, firstName: "Trans", lastName: "Ferred", level: .lower,
-            enrollmentStatus: .transferred, dateWithdrawn: Date()
+            enrollmentStatus: .transferred, dateWithdrawn: yesterday
         )
         CoreDataTestHelpers.seedStudent(
             in: ctx, firstName: "With", lastName: "Drawn", level: .lower,
-            enrollmentStatus: .withdrawn, dateWithdrawn: Date()
+            enrollmentStatus: .withdrawn, dateWithdrawn: yesterday
         )
         CoreDataTestHelpers.save(ctx)
 

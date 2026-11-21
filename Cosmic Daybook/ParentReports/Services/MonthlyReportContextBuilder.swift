@@ -75,21 +75,27 @@ struct MonthlyReportContextBuilder {
             excludingLessonIDs: presentationItems.coveredLessonIDs
         )
 
+        // The level she had that month, not today's (domain logic review A8).
+        let level = StudentLevelHistory.level(of: student, on: interval.start, calendar: calendar)
+        // Other children's names in the guide's notes and her own words
+        // become "a classmate" before the draft (domain logic review R1).
+        let classmates = ReportNotes.classmateNames(for: student, during: month.closedRange(calendar: calendar))
+
         let reflections: [MonthlyReportEvidenceItem]
-        if includeStudentReflection && student.level == .adolescent {
-            reflections = reflectionEvidence(studentID: studentID, interval: interval)
+        if includeStudentReflection && level == .adolescent {
+            reflections = reflectionEvidence(studentID: studentID, interval: interval, classmates: classmates)
         } else {
             reflections = []
         }
 
         return MonthlyReportContext(
             studentName: student.shortName,
-            level: student.level,
+            level: level,
             month: month,
             lessonsPresented: (presentationItems.items + assignmentItems).sorted { $0.date < $1.date },
             workEvidence: workEvidence(studentID: studentID, interval: interval),
-            observations: observationEvidence(student: student, month: month),
-            contributions: student.level == .adolescent
+            observations: observationEvidence(student: student, month: month, classmates: classmates),
+            contributions: level == .adolescent
                 ? contributionEvidence(studentID: studentID, interval: interval)
                 : [],
             studentReflections: reflections,
@@ -244,7 +250,9 @@ struct MonthlyReportContextBuilder {
 
     // MARK: - Observations (includeInReport notes, privacy-scoped)
 
-    private func observationEvidence(student: CDStudent, month: ReportMonth) -> [MonthlyReportEvidenceItem] {
+    private func observationEvidence(
+        student: CDStudent, month: ReportMonth, classmates: NameAnonymizer
+    ) -> [MonthlyReportEvidenceItem] {
         let notes = reportService.fetchReportNotes(
             for: student,
             dateRange: month.closedRange(calendar: calendar),
@@ -254,7 +262,7 @@ struct MonthlyReportContextBuilder {
             guard let id = note.id?.uuidString, let createdAt = note.createdAt else { return nil }
             let body = note.body.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !body.isEmpty else { return nil }
-            return MonthlyReportEvidenceItem(ref: "note:\(id)", date: createdAt, phrase: body)
+            return MonthlyReportEvidenceItem(ref: "note:\(id)", date: createdAt, phrase: classmates.anonymized(body))
         }
         .sorted { $0.date < $1.date }
     }
@@ -286,7 +294,9 @@ struct MonthlyReportContextBuilder {
 
     // MARK: - Student reflections (adolescent, per-report opt-in)
 
-    private func reflectionEvidence(studentID: String, interval: DateInterval) -> [MonthlyReportEvidenceItem] {
+    private func reflectionEvidence(
+        studentID: String, interval: DateInterval, classmates: NameAnonymizer
+    ) -> [MonthlyReportEvidenceItem] {
         let request = CDFetchRequest(CDStudentMeeting.self)
         request.predicate = NSPredicate(
             format: "studentID == %@ AND date >= %@ AND date < %@",
@@ -299,7 +309,7 @@ struct MonthlyReportContextBuilder {
             return MonthlyReportEvidenceItem(
                 ref: "meeting:\(id)",
                 date: date,
-                phrase: "In their own words: “\(reflection)”"
+                phrase: "In their own words: “\(classmates.anonymized(reflection))”"
             )
         }
         .sorted { $0.date < $1.date }

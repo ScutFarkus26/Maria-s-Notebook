@@ -7,11 +7,20 @@ import SwiftUI
 
 struct TodoTodayRow: View {
     let todo: CDTodoItem
+    @Environment(\.dependencies) private var dependencies
     /// The roster's short names by full name (`RosterStore.shortNamesByFullName`),
     /// so a `Students/<Full Name>` tag reads "Naomi F" without a fetch per draw.
     var studentShortNames: [String: String] = [:]
     var onToggle: () -> Void
     var onTap: () -> Void
+
+    /// Its tags, the children's drawn from its student ids under their names
+    /// today (`TagHelper.chipTags`).
+    private var chipTags: [String] {
+        TodoTagHelper.chipTags(stored: todo.tagsArray, studentIDs: todo.resolvedStudentIDs) {
+            dependencies.roster.student(id: $0)?.fullName
+        }
+    }
 
     private var accessibilityLabelText: String {
         var label = todo.title
@@ -106,11 +115,10 @@ struct TodoTodayRow: View {
                                     .foregroundStyle(.purple.opacity(UIConstants.OpacityConstants.prominent))
                             }
 
-                            if !todo.tagsArray.isEmpty {
-                                let firstName = TodoTagHelper.displayName(
-                                    todo.tagsArray[0], studentShortNames: studentShortNames
-                                )
-                                let firstColor = TodoTagHelper.tagColor(todo.tagsArray[0])
+                            let tags = chipTags
+                            if let first = tags.first {
+                                let firstName = TodoTagHelper.displayName(first, studentShortNames: studentShortNames)
+                                let firstColor = TodoTagHelper.tagColor(first)
                                 Text(firstName)
                                     .font(AppTheme.ScaledFont.captionSmallSemibold)
                                     .foregroundStyle(firstColor.color)
@@ -118,8 +126,8 @@ struct TodoTodayRow: View {
                                     .padding(.vertical, 1)
                                     .background(firstColor.lightColor)
                                     .clipRounded(UIConstants.CornerRadius.tiny)
-                                if todo.tagsArray.count > 1 {
-                                    Text("+\(todo.tagsArray.count - 1)")
+                                if tags.count > 1 {
+                                    Text("+\(tags.count - 1)")
                                         .font(AppTheme.ScaledFont.captionSmall)
                                         .foregroundStyle(.secondary)
                                 }

@@ -219,6 +219,10 @@ struct StudentInfoRows: View {
         return text
     }
 
+    private func levelRank(_ level: CDStudent.Level) -> Int {
+        CDStudent.Level.allCases.firstIndex(of: level) ?? 0
+    }
+
     private var attendanceInfoRow: some View {
         AttendanceInfoRow(student: student)
     }
@@ -262,8 +266,15 @@ struct StudentInfoRows: View {
             icon: "graduationcap", title: "Florida Grade Equivalent",
             value: gradeDescription
         )
-        if let previous = student.previousLevel {
-            InfoRowView(icon: "arrow.up.circle", title: "Promoted", value: promotionDescription(from: previous))
+        if let previous = student.previousLevel, previous != student.level {
+            // Her latest level step: the history keeps these two fields matching it
+            // (`StudentLevelHistory`), and a step back down isn't a promotion.
+            let isPromotion = levelRank(student.level) > levelRank(previous)
+            InfoRowView(
+                icon: isPromotion ? "arrow.up.circle" : "arrow.down.circle",
+                title: isPromotion ? "Promoted" : "Level Changed",
+                value: promotionDescription(from: previous)
+            )
         }
         DaysSinceLastLessonView(student: student)
         attendanceInfoRow

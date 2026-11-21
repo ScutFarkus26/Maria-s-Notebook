@@ -127,7 +127,8 @@ struct MCPObservationBatchToolsTests {
         let note = try #require(notes(in: context).first)
         let id = try #require(note.id).uuidString
         #expect(receipt == "Recorded observation [note id=\(id)] about Ora Levi on 2026-09-14.")
-        #expect(note.tagsArray == ["math"])
+        // A tag the notebook doesn't have yet is filed Gray (domain logic review A10).
+        #expect(note.tagsArray == ["math|Gray"])
         #expect(note.needsFollowUp)
     }
 

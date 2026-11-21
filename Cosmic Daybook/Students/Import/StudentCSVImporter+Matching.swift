@@ -23,7 +23,8 @@ extension StudentCSVImporter {
             existing.dateStarted = ds; didChange = true
         }
         if let lvl = r.level, existing.level != lvl {
-            existing.level = lvl; didChange = true
+            // A dated step in her level history (domain logic review A8).
+            StudentLevelHistory.change(existing, to: lvl); didChange = true
         }
         if didChange { existing.modifiedAt = Date() }
         return didChange

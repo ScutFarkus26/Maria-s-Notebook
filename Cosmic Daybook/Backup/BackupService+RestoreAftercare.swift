@@ -57,6 +57,12 @@ extension BackupService {
         // numbered in the one lesson order, as at launch (domain-logic review R21).
         BackupRestoreFill(name: "lesson order ties") { context, _ in
             LessonOrder.renumberTies(in: context.safeFetch(CDFetchRequest(CDLesson.self)))
+        },
+        // A backup from before schema 25 has no personID on its guardians, and
+        // a restore can bring a sibling's row back: one person's rows share
+        // one again (domain logic review A9).
+        BackupRestoreFill(name: "guardian people") { context, _ in
+            _ = GuardianPeople.fill(in: context)
         }
         // Year-plan entries are put right at the next launch and when her plan
         // opens (`YearPlanEntryRepair`), not here, so a restore brings each
