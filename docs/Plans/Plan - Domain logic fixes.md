@@ -15,18 +15,18 @@ Marks: `plan/domain-logic` (each phase tags the primary checkout `plan/domain-lo
 - [ ] Phase 2: Attendance rules in the store · runs as: session · needs: — · est. $10–20 (~1%)
 - [ ] Phase 3: Schedules, Restock and repeating to-dos · runs as: session · needs: — · est. $15–30 (~1%)
 - [ ] Phase 4: Presenting and mastery · runs as: session · needs: 1 · est. $18–35 (~1–2%)
-- [ ] Phase 5: Work rules · runs as: session · needs: 2, 4 · est. $30–55 (~1–2%)
+- [ ] Phase 5: Work rules · runs as: agent (Fable 5.2) · needs: 2, 4 · est. $50–90 (~2–4%)
 - [ ] Phase 6: Lesson order, year plan and prerequisites · runs as: session · needs: 4, 5 · est. $12–25 (~1%)
 - [ ] Phase 7: Who's in class, departures and meetings · runs as: session · needs: 3, 6 · est. $12–25 (~1%)
 - [ ] Phase 8: Notes, reports, level history, guardians and rollover · runs as: session · needs: 7 · est. $20–40 (~1–2%)
-- [ ] Phase 9: School session, time zone and the front desk · runs as: session · needs: 7 · est. $20–40 (~1–2%)
+- [ ] Phase 9: School session, time zone and the front desk · runs as: agent (Fable 5.2) · needs: 7 · est. $35–65 (~2–3%)
 - [ ] Phase 10: Final check · runs as: session · needs: 1–9 · est. $15–35 (~1%)
 
 Phases 1, 2 and 3 start together. Then the middle runs in a line, because those phases share files: 4 after 1, 5 after 4 (and 2), 6 after 5, 7 after 6 (and 3). 8 and 9 run together after 7, and 10 comes last. Every phase needs the ones before it in that line, so at most three run at once.
 
 ## Cost
 
-About **$260–430 (11–19%)** of the weekly limit: phases $167–335, plus the conductor (planning about $60 so far, about ten wakes at $2–3 each, plus the close). 1% is about $23 this week (calibrated 2026-11-20 against 10% used). You have 90% left until Fri Nov 27. **Fits.** The run brakes itself if a phase costs more than twice the top of its range or the week passes 90%. Past Cosmic Daybook phases came in at about half their estimates, so the low end is the likelier one.
+About **$300–495 (13–21%)** of the weekly limit, of which about $90–160 is Fable (22–40% of Fable's own window, at 3% now): phases $205–398, plus the conductor (planning about $60 so far, about ten wakes at $2–3 each, plus the close). 1% is about $23 this week (calibrated 2026-11-20 against 10% used). You have 90% left until Fri Nov 27. **Fits.** The run brakes itself if a phase costs more than twice the top of its range or the week passes 90%. Past Cosmic Daybook phases came in at about half their estimates, so the low end is the likelier one.
 
 ## Before you go
 
@@ -65,7 +65,8 @@ Settled here (safer, easier to undo):
 16. **Year-plan promotion (R17): fix the drift with shared functions plus the repair run wherever the index is built.** Ruled out: deriving promotion from the record. It is L, and the stored fields are still read by older builds and backups.
 17. **A20 was not checked by hand.** Phase 8 checks it first and fixes it only if real.
 18. **No roll-out, no push, no install in this plan.** Phases merge to local main; Phase 10 adds the roll-out row to Tide.
-20. **2026-11-21: the phases run as background agents of the conductor, not as sessions.** The go-ahead came over Remote Control, and a Remote Control turn can't start sessions. Phases 1, 5 and 9 run as `feature-phase-deep` (Opus, xhigh); the rest as `feature-phase` (Opus, high). The conductor launches each phase once the phases it needs are marked (`plan-wait --status`), at most three at once, and runs Phase 10's full builds and whole suites itself. See "If you are a phase agent" below.
+20. **2026-11-21: the phases run as background agents of the conductor, not as sessions.** The go-ahead came over Remote Control, and a Remote Control turn can't start sessions. Phase 1 runs as `feature-phase-deep` (Opus, xhigh); the rest as `feature-phase` (Opus, high), except as Decision 21 says.
+21. **2026-11-21, Danny: use Fable where it's the better model.** Fable 5.2 (high) runs Phase 5 (the ownership rule and what a due date means, across about 25 files) and Phase 9 (the pinned calendar, which every day calculation in both apps follows), plus Phase 10's cold review. Those are where a subtle mistake is hardest to notice. Fable costs about 2.5× Opus per token, so the rest stay on Opus. Phase 1 was already running on Opus xhigh and stays. The conductor launches each phase once the phases it needs are marked (`plan-wait --status`), at most three at once, and runs Phase 10's full builds and whole suites itself. See "If you are a phase agent" below.
 
 ## Apple guidance
 
@@ -199,7 +200,7 @@ Not applicable: no other new Apple APIs. App Intents, SwiftUI and the rest chang
 - By hand: none.
 
 ## Phase 5: Work rules
-- Who: phase session (Opus 5.5, high). R4 (what `dueAt` means) and R22 (the ownership rule and its fill) go to a `feature-phase-deep` agent (xhigh); the session does the rest. Seven items across about 25 files.
+- Who: `feature-phase` agent on Fable 5.2 (high), Decision 21. Seven items across about 25 files; R4 changes what `dueAt` means and R22 changes who owns what.
 - Needs: 2, 4 (4 shares `BlockingAlgorithmEngine` and `createWork`)
 - Steps:
   - **R4:** the next check comes from the earliest scheduled check-in. `dueAt` holds only a due date the guide set; scheduling stops copying the check day into it, and triage reads the two apart. Claude's `due_date` sets only the due date, and scheduling a check goes through `scheduleCheck`.
@@ -324,7 +325,7 @@ Not applicable: no other new Apple APIs. App Intents, SwiftUI and the rest chang
 - By hand: none.
 
 ## Phase 9: School session, time zone and the front desk
-- Who: phase session (Opus 5.5, high). A4 (the pinned calendar) and R20 (session dates) go to a `feature-phase-deep` agent (xhigh); the session does the rest. Day math everywhere, and both apps.
+- Who: `feature-phase` agent on Fable 5.2 (high), Decision 21. Day math everywhere, and both apps.
 - Needs: 7 (and through it 1 and 2)
 - Steps:
   - **A4:** `AppCalendar` (`AppCore/AppCalendar.swift`) uses the classroom time zone from the shared settings row, and falls back to the device's zone when unset. The zone is cached and read once the store has opened (it opens off the main thread); before that, and on a bad identifier, it is the device's zone. Attendance records, locks and sends match by the day's range instead of exact midnight (Apple guidance). The guide's Settings › Classroom sets it, defaulting to the Mac's zone on first save. Every `startOfDay` and day match follows from that. Watch days that start at 1:00 (DST); see Apple guidance.
@@ -352,7 +353,7 @@ Not applicable: no other new Apple APIs. App Intents, SwiftUI and the rest chang
 - By hand: none.
 
 ## Phase 10: Final check
-- Who: phase session (Opus 5.5, high), with one cold-review subagent (`general-purpose`, Opus) over the combined diff `e25eb65d8..main` against this plan and the review.
+- Who: `feature-phase` agent (Opus 5.5, high); the conductor runs the full builds and whole suites itself (Decision 20). The cold review is a `general-purpose` agent on Fable 5.2 (Decision 21) over the combined diff `e25eb65d8..main` against this plan and the review.
 - Needs: 1–9
 - Steps:
   - The full iOS app, Assistant and Mac builds on main.
