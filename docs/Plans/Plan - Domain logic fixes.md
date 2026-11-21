@@ -12,7 +12,7 @@ Item numbers below are the review's: **R1–R25** are the top 25 and **A1–A20*
 ## Progress
 Marks: `plan/domain-logic` (each phase tags the primary checkout `plan/domain-logic/phase-<N>` when it merges; see `~/.claude/bin/plan-wait`)
 Build board: https://claude.ai/artifact/CN28oMqiKihr3cjEPqmrVc (the conductor keeps it current; tasks p1–p10 are the phases)
-- [ ] Phase 1: Schema 25 and backup format 47 · runs as: session · needs: — · est. $15–30 (~1%)
+- [x] Phase 1: Schema 25 and backup format 47 · done 2026-11-21 (26778c516) · agent aafee66e9eb655d1a, squashed by the conductor · actual ~600k agent tokens over 4 h
 - [x] Phase 2: Attendance rules in the store · done 2026-11-21 (2adf0ebd2) · agent aeb81f407260b1f20, squashed by the conductor · actual ~265k agent tokens
 - [x] Phase 3: Schedules, Restock and repeating to-dos · done 2026-11-21 (208cd6aa3) · agent acfea9405548e36ca, squashed by the conductor · actual ~350k agent tokens
 - [ ] Phase 4: Presenting and mastery · runs as: session · needs: 1 · est. $18–35 (~1–2%)
@@ -361,7 +361,7 @@ Not applicable: no other new Apple APIs. App Intents, SwiftUI and the rest chang
   - The full iOS app, Assistant and Mac builds on main.
   - The whole notebook suite on the leased iOS simulator and the whole Assistant suite on the leased SE (iOS 26.5).
   - Fix what fails (the errors name files; the files map to phases).
-  - Left over from Phase 2: restore must call `CDAttendanceRecord.normalizeAll(in:)` through Phase 1's after-restore hook (Phase 1 was asked to register it; check it did).
+  - Left over from Phase 2: restore must call `CDAttendanceRecord.normalizeAll(in:)` through Phase 1's after-restore hook (done in Phase 1: the first after-restore step).
   - Left over from Phase 3 (outside its files): `Students/Presentations/ScheduledDateEdits.swift` should use `awayDay.touches(children:)`, so the lesson sheet shows a turn or an Out day even when no child is away; the `WeekPlanHeader.swift` legend still says "Two lessons at the same time" (should match "lessons at overlapping times").
   - The cold review, and one round of fixes for what holds up.
   - Update `MCP_SERVER.md`, `Work_Models_Best_Practices.md`, `LESSON_PRESENTATION_WORK_INTEGRATION.md` and `SIRI.md` where behavior changed.

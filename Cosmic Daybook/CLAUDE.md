@@ -169,14 +169,14 @@ MVVM with services on `NSPersistentCloudKitContainer` (private and shared stores
 
 ## Data Model
 
-93 entities (schema 24): 66 private (59 in use and 7 retired: ClassroomJob, JobAssignment, NoteTemplate, PracticeSession, Reminder, TodoSubtask, TodoTemplate, listed in `CoreDataStack.retiredEntities`, class names blanked, rows kept, not backed up), 15 in the classroom share, 12 dormant tombstones (schema 23 turned the four track entities into tombstones so sync history survives the migration). Schema 24 adds `WorkCheckIn.durationMinutes` (practice minutes). Core Data rules: `CD` prefix, no unique constraints, enums as raw `String`, foreign keys as `String`, every property optional or defaulted, `modifiedAt` for conflicts. Integrity rules and the entity table: `docs/Technical notes/DATA_MODELS.md`.
+94 entities (schema 25): 67 private (60 in use and 7 retired: ClassroomJob, JobAssignment, NoteTemplate, PracticeSession, Reminder, TodoSubtask, TodoTemplate, listed in `CoreDataStack.retiredEntities`, class names blanked, rows kept, not backed up), 15 in the classroom share, 12 dormant tombstones (schema 23 turned the four track entities into tombstones so sync history survives the migration). Schema 24 adds `WorkCheckIn.durationMinutes` (practice minutes). Schema 25 (domain logic fixes) adds the `LevelChange` entity, `WorkModel.assignmentID` and `isSharedRow`, optional `needsPractice`/`needsAnotherPresentation`/`manuallyUnblocked` on LessonPresentation, `Guardian.personID`, and the classroom time zone and session dates on the shared AttendanceEmailSettings. Core Data rules: `CD` prefix, no unique constraints, enums as raw `String`, foreign keys as `String`, every property optional or defaulted, `modifiedAt` for conflicts. Integrity rules and the entity table: `docs/Technical notes/DATA_MODELS.md`.
 
 ## Sharing Model
 
 - **Lead Guide** — full read/write on everything; the only role that sets up sharing (on the Mac only) or locks a day
 - **Assistant** — the Daybook Assistant: reads the classroom share, writes attendance on any unlocked day, marks staples, checks off the office run and adds needs (Restock), and sets her own name (`ClassroomNames`). An assistant added as View only (the Add Member picker no longer offers it, but older members may hold it) changes nothing: attendance and Restock both refuse
 - These roles are app conventions, not access control: CloudKit enforces only the share participant's permission, over all 15 share types. "Attendance, Restock and your own name only", "only the guide locks" and "a locked day refuses edits" hold because the apps enforce them (`ClassroomPermissions`, `CDAttendanceStore`), and `recordedBy`/`recordedByName` are stamped by the writing device.
-- Classroom share (15 types, listed in `CoreDataStack.sharedEntityNames`; schema 24 is current): Student (schema 21 adds `bornAfterSunset`, which moves the Hebrew birthday a day), AttendanceRecord, NonSchoolDay, SchoolDayOverride, AttendanceDayLock, AttendanceEmailSend, AttendanceEmailSettings (schema 12), Supply, SupplyTransaction, OrderItem (schema 15), ClassroomPerson (schema 16: the name each person sets, looked up when a line is worded; `ClassroomNames` is the only reader and writer), and the four Schedules types TimetableLane, TimetableBlock, TimetableChange and TimetableBooking (schema 20: only the guide's devices write them, assistants read)
+- Classroom share (15 types, listed in `CoreDataStack.sharedEntityNames`; schema 25 is current): Student (schema 21 adds `bornAfterSunset`, which moves the Hebrew birthday a day), AttendanceRecord, NonSchoolDay, SchoolDayOverride, AttendanceDayLock, AttendanceEmailSend, AttendanceEmailSettings (schema 12), Supply, SupplyTransaction, OrderItem (schema 15), ClassroomPerson (schema 16: the name each person sets, looked up when a line is worded; `ClassroomNames` is the only reader and writer), and the four Schedules types TimetableLane, TimetableBlock, TimetableChange and TimetableBooking (schema 20: only the guide's devices write them, assistants read)
 - **This school year only (2026-09-30):** students who are enrolled or left during this school year, and attendance from its first day on (`ClassroomShareScope`); last year leaves the share only by the Mac's Settings › Classroom › Remove Last Year from the Share (`ClassroomShareRelease`). See CloudKit.
 - Everything else is the guide's own (66 types, 7 of them retired): lessons, notes, work, todos, projects, meetings, ClassroomMembership, …
 
@@ -243,7 +243,7 @@ Rules: `docs/Technical notes/PARENTLOCKER.md`. The password stays in the Keychai
 
 ## Backup System
 
-Format v46; rules: `docs/Technical notes/BACKUP_SYSTEM.md`. A new entity or attribute needs a line in `Backup/BackupEntityTable.swift` and a format-version bump; merge restore is an upsert, never delete and reinsert.
+Format v47; rules: `docs/Technical notes/BACKUP_SYSTEM.md`. A new entity or attribute needs a line in `Backup/BackupEntityTable.swift` and a format-version bump; merge restore is an upsert, never delete and reinsert.
 
 ## Todos for Danny
 
