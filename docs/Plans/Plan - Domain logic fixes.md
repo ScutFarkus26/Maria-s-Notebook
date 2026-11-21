@@ -30,7 +30,7 @@ About **$260–430 (11–19%)** of the weekly limit: phases $167–335, plus the
 
 ## Before you go
 
-- **Raise this session's effort to xhigh** (a card). Phases 1 (the schema) and 9 (the time zone) need xhigh, and a phase session can't run above the conductor.
+- **Effort:** the conductor can't raise its own effort, so every phase session runs at high. Phases 1, 5 and 9 hand their delicate parts to a `feature-phase-deep` agent (Opus, xhigh).
 - **Permission mode:** bypass. Already on.
 - **The screen is locked and locks itself straight away,** so nothing in this run drives the Mac or a simulator by hand. Every "check on a device" item becomes a Tide row for the morning. No app grants are needed.
 - **Keep awake** is on, also on battery, and the Mac is plugged in. A closed lid still sleeps.
@@ -100,7 +100,7 @@ Not applicable: no other new Apple APIs. App Intents, SwiftUI and the rest chang
 - In close-out, skip `git pull --ff-only` (nothing is pushed in this plan); work from local main only.
 
 ## Phase 1: Schema 25 and backup format 47
-- Who: phase session (Opus 5.5, xhigh). Storage only; it changes no behavior. Also leaves a small public hook in `Backup/BackupService+RestoreAftercare.swift` that later phases' after-restore fills and `normalize()` register with.
+- Who: phase session (Opus 5.5, high). The model, backup and migration edits go to a `feature-phase-deep` agent (xhigh); the session checks, tests and merges. Storage only; it changes no behavior. Also leaves a small public hook in `Backup/BackupService+RestoreAftercare.swift` that later phases' after-restore fills and `normalize()` register with.
 - Needs: —
 - Steps:
   - `Cosmic Daybook/CosmicDaybook.xcdatamodeld`, the one model version edited in place, to schema 25. All fields are optional or defaulted, with no unique constraints and no relationships:
@@ -197,7 +197,7 @@ Not applicable: no other new Apple APIs. App Intents, SwiftUI and the rest chang
 - By hand: none.
 
 ## Phase 5: Work rules
-- Who: phase session (Opus 5.5, xhigh). Seven items across about 25 files; R4 changes what `dueAt` means and R22 changes who owns what.
+- Who: phase session (Opus 5.5, high). R4 (what `dueAt` means) and R22 (the ownership rule and its fill) go to a `feature-phase-deep` agent (xhigh); the session does the rest. Seven items across about 25 files.
 - Needs: 2, 4 (4 shares `BlockingAlgorithmEngine` and `createWork`)
 - Steps:
   - **R4:** the next check comes from the earliest scheduled check-in. `dueAt` holds only a due date the guide set; scheduling stops copying the check day into it, and triage reads the two apart. Claude's `due_date` sets only the due date, and scheduling a check goes through `scheduleCheck`.
@@ -322,7 +322,7 @@ Not applicable: no other new Apple APIs. App Intents, SwiftUI and the rest chang
 - By hand: none.
 
 ## Phase 9: School session, time zone and the front desk
-- Who: phase session (Opus 5.5, xhigh). Day math everywhere, and both apps.
+- Who: phase session (Opus 5.5, high). A4 (the pinned calendar) and R20 (session dates) go to a `feature-phase-deep` agent (xhigh); the session does the rest. Day math everywhere, and both apps.
 - Needs: 7 (and through it 1 and 2)
 - Steps:
   - **A4:** `AppCalendar` (`AppCore/AppCalendar.swift`) uses the classroom time zone from the shared settings row, and falls back to the device's zone when unset. The zone is cached and read once the store has opened (it opens off the main thread); before that, and on a bad identifier, it is the device's zone. Attendance records, locks and sends match by the day's range instead of exact midnight (Apple guidance). The guide's Settings › Classroom sets it, defaulting to the Mac's zone on first save. Every `startOfDay` and day match follows from that. Watch days that start at 1:00 (DST); see Apple guidance.
