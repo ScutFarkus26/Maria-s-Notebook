@@ -154,7 +154,19 @@ nonisolated extension CoreDataStack {
     ///   lasted, now that practice sessions fold into check-ins (plan "Simplify
     ///   the app, round two", Phase 2; `PracticeCheckInCopy`). Additive
     ///   optional Integer 16; nil for every check-in made before it.
-    nonisolated static let currentSchemaVersion = 24
+    /// - `25` — plan "Domain logic fixes", Phase 1: storage only, every field
+    ///   optional or defaulted. Private: `WorkModel.assignmentID` and
+    ///   `isSharedRow` (which copies belong to one assignment, and the row a
+    ///   group shares), `LessonPresentation.needsPractice`,
+    ///   `needsAnotherPresentation` and `manuallyUnblocked` (one child's
+    ///   facts on her own row; optional Booleans with no default, so nil reads
+    ///   as "not set here" and falls back to the group record),
+    ///   `Guardian.personID` (a sibling's copy of the same parent), and a new
+    ///   entity `LevelChange` (a child's level history). Shared:
+    ///   `AttendanceEmailSettings.classroomTimeZoneID`, `sessionFirstDay` and
+    ///   `sessionLastDay` (the classroom's time zone and the school session's
+    ///   first and last days). Additive attributes and one additive entity.
+    nonisolated static let currentSchemaVersion = 25
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"

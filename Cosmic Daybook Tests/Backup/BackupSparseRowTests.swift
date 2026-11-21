@@ -31,7 +31,7 @@ struct BackupSparseRowTests {
         "WorkStep", "SampleWorkStep", nil, "LessonAttachment", "NoteStudentLink",
         "BookClubMeeting", nil, "MeetingWorkReview", "AttendanceDayLock",
         "SupplyTransaction", "AttendanceEmailSend", "AttendanceEmailSettings", "ClassroomPerson",
-        "TimetableLane", "TimetableBlock", "TimetableChange", "TimetableBooking"
+        "TimetableLane", "TimetableBlock", "TimetableChange", "TimetableBooking", "LevelChange"
     ]
 
     /// The entity types written through `ModelRow`.

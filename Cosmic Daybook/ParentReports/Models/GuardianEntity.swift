@@ -17,6 +17,10 @@ nonisolated public class CDGuardian: NSManagedObject {
     @NSManaged public var notes: String
     @NSManaged public var createdAt: Date?
     @NSManaged public var modifiedAt: Date?
+    /// The person this row is a copy of (schema 25): a sibling's row for the
+    /// same parent carries the same id. Nil until it is filled; a row without
+    /// one stands for itself, as every row did before.
+    @NSManaged public var personID: String?
 
     // MARK: - Computed Properties
 

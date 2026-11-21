@@ -200,7 +200,8 @@ enum LegacyBackupPreviewAnalyzer {
             "TimetableLane": payload.timetableLanes?.count ?? 0,
             "TimetableBlock": payload.timetableBlocks?.count ?? 0,
             "TimetableChange": payload.timetableChanges?.count ?? 0,
-            "TimetableBooking": payload.timetableBookings?.count ?? 0
+            "TimetableBooking": payload.timetableBookings?.count ?? 0,
+            "LevelChange": payload.levelChanges?.count ?? 0
         ]
     }
 

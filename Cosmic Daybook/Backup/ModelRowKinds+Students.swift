@@ -1,6 +1,7 @@
 // ModelRowKinds+Students.swift
 // The student's backup row, as the hand-written StudentDTO wrote and restored
-// it until "Simplify round two", Phase 7 (see ModelRowKinds.swift).
+// it until "Simplify round two", Phase 7 (see ModelRowKinds.swift), and her
+// level history's (format v47).
 
 import CoreData
 import Foundation
@@ -69,6 +70,15 @@ public enum StudentBackupRow: ModelRowKind {
         ],
         dropsRecordsWithoutID: true
     )
+}
+
+public typealias LevelChangeDTO = ModelRow<LevelChangeBackupRow>
+
+/// One step in a child's level history (format v47+, schema 25): the levels
+/// as stored ("Lower", "Upper"), the day it took effect, and the child by
+/// `studentID`. Nothing older reads it, so nothing needs filling.
+public enum LevelChangeBackupRow: ModelRowKind {
+    public static let spec = ModelRowSpec("LevelChange")
 }
 
 /// The backup's word for each level: the old row's own enum, lower-cased

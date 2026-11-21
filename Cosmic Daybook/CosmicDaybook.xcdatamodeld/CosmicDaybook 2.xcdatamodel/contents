@@ -179,6 +179,9 @@
         <attribute name="followUpEvidenceRaw" optional="YES" attributeType="String"/>
         <attribute name="followUpNote" optional="YES" attributeType="String"/>
         <attribute name="followUpSupportRaw" optional="YES" attributeType="String"/>
+        <attribute name="needsPractice" optional="YES" attributeType="Boolean" usesScalarValueType="NO"/>
+        <attribute name="needsAnotherPresentation" optional="YES" attributeType="Boolean" usesScalarValueType="NO"/>
+        <attribute name="manuallyUnblocked" optional="YES" attributeType="Boolean" usesScalarValueType="NO"/>
         <fetchIndex name="byStudentLesson">
             <fetchIndexElement property="studentID" type="Binary" order="ascending"/>
             <fetchIndexElement property="lessonID" type="Binary" order="ascending"/>
@@ -607,6 +610,8 @@
         <attribute name="legacyStudentLessonID" optional="YES" attributeType="String"/>
         <attribute name="checkInStyleRaw" optional="YES" attributeType="String"/>
         <attribute name="restingUntil" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="assignmentID" optional="YES" attributeType="String"/>
+        <attribute name="isSharedRow" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <relationship name="participants" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="WorkParticipantEntity" inverseName="work" inverseEntity="WorkParticipantEntity"/>
         <relationship name="checkIns" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="WorkCheckIn" inverseName="work" inverseEntity="WorkCheckIn"/>
         <relationship name="steps" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="WorkStep" inverseName="work" inverseEntity="WorkStep"/>
@@ -777,6 +782,9 @@
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="sendMethodRaw" attributeType="String" defaultValueString="email"/>
         <attribute name="parentLockerSite" optional="YES" attributeType="String"/>
+        <attribute name="classroomTimeZoneID" optional="YES" attributeType="String"/>
+        <attribute name="sessionFirstDay" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="sessionLastDay" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
     <!-- ==================== GoingOut ==================== -->
     <entity name="GoingOut" representedClassName="CDGoingOut" syncable="YES">
@@ -1073,6 +1081,20 @@
         <attribute name="receivesReports" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
         <attribute name="sortOrder" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="notes" attributeType="String" defaultValueString=""/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="personID" optional="YES" attributeType="String"/>
+        <fetchIndex name="byStudentID">
+            <fetchIndexElement property="studentID" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+    <!-- ==================== LevelChange ==================== -->
+    <entity name="LevelChange" representedClassName="CDLevelChange" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="studentID" attributeType="String" defaultValueString=""/>
+        <attribute name="fromLevelRaw" attributeType="String" defaultValueString=""/>
+        <attribute name="toLevelRaw" attributeType="String" defaultValueString=""/>
+        <attribute name="changedOn" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <fetchIndex name="byStudentID">

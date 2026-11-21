@@ -173,18 +173,21 @@ enum BackupStreamingFixtures {
     /// JSON string the transformer encodes without sorted keys, and
     /// `JSONEncoder` orders unsorted keys differently from one encode to the
     /// next, so no two collections — old code included — agree on it byte for
-    /// byte. Each Note line's scope is rewritten with sorted keys; every other
-    /// byte, of every line and every entity, is left exactly as written.
+    /// byte. Each Note line's scope is rewritten with sorted keys, and the
+    /// fields the old code never knew (`LegacyRows.fieldsAddedSinceFreeze`)
+    /// are taken out; every other byte, of every line and every entity, is
+    /// left exactly as written.
     static func comparable(_ ndjson: Data, entityName: String) throws -> Data {
-        guard entityName == "Note" else { return ndjson }
+        let later = LegacyRows.fieldsAddedSinceFreeze[entityName] ?? []
+        guard entityName == "Note" || !later.isEmpty else { return ndjson }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         encoder.dateEncodingStrategy = BackupDateCoding.encodingStrategy
         var result = Data()
         for line in ndjson.split(separator: 0x0A) {
-            var bytes = Data(line)
+            var bytes = removing(later, from: Data(line))
             let object = try #require(try JSONSerialization.jsonObject(with: bytes) as? [String: Any])
-            if let scope = object["scope"] as? String {
+            if entityName == "Note", let scope = object["scope"] as? String {
                 let parsed = try JSONSerialization.jsonObject(with: Data(scope.utf8), options: [.fragmentsAllowed])
                 let sortedData = try JSONSerialization.data(
                     withJSONObject: parsed, options: [.sortedKeys, .fragmentsAllowed]
@@ -198,6 +201,24 @@ enum BackupStreamingFixtures {
             result.append(0x0A)
         }
         return result
+    }
+
+    /// `line` without `keys` and their values (a string, a Boolean, a number
+    /// or null) and the comma beside each; every other byte as written.
+    static func removing(_ keys: Set<String>, from line: Data) -> Data {
+        guard !keys.isEmpty, var text = String(bytes: line, encoding: .utf8) else { return line }
+        for key in keys.sorted() {
+            let pattern = #""\#(key)":("(?:[^"\\]|\\.)*"|true|false|null|-?[0-9.eE+-]+)"#
+            guard let field = try? Regex(pattern), let match = text.firstMatch(of: field) else { continue }
+            var range = match.range
+            if range.upperBound < text.endIndex, text[range.upperBound] == "," {
+                range = range.lowerBound..<text.index(after: range.upperBound)
+            } else if range.lowerBound > text.startIndex, text[text.index(before: range.lowerBound)] == "," {
+                range = text.index(before: range.lowerBound)..<range.upperBound
+            }
+            text.removeSubrange(range)
+        }
+        return Data(text.utf8)
     }
 
     /// NDJSON lines in byte order, for comparing rows regardless of order.

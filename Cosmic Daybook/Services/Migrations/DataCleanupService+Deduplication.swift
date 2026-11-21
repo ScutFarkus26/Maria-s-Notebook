@@ -368,6 +368,7 @@ nonisolated extension DataCleanupService {
 
         // Other models
         results["TodoItem"] = deduplicate(CDTodoItem.self, using: context, container: c, scope: s, merge: mergeTodoItem)
+        results["LevelChange"] = deduplicate(CDLevelChange.self, using: context, container: c, scope: s)
         return results
     }
 }

@@ -361,5 +361,7 @@ extension BackupService {
             CDTimetableChange.self, using: viewContext) { TimetableChangeDTO.rows($0) }
         payload.timetableBookings = fetchAndTransformInBatches(
             CDTimetableBooking.self, using: viewContext) { TimetableBookingDTO.rows($0) }
+        payload.levelChanges = fetchAndTransformInBatches(
+            CDLevelChange.self, using: viewContext) { LevelChangeDTO.rows($0) }
     }
 }

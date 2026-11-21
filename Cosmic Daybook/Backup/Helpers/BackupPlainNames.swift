@@ -53,6 +53,7 @@ nonisolated enum BackupPlainNames {
         "ScheduledMeeting": "Scheduled meetings",
         "Guardian": "Parents and guardians",
         "ParentCommunication": "Messages to parents",
+        "LevelChange": "Level changes",
         // Attendance and the calendar
         "AttendanceRecord": "Attendance",
         "AttendanceDayLock": "Locked attendance days",

@@ -1,5 +1,6 @@
 import CoreData
 import Foundation
+import Testing
 @testable import CosmicDaybook
 
 // The table `BackupSpecOracleTests` is driven by: for each of the 38 types the
@@ -148,6 +149,12 @@ extension BackupSpecOracleTests {
         index.predatedValues.putBack()
         try context.save()
         try BackupService().repairDenormalizedFields(viewContext: context)
+        // Every restore's after-restore fills, which came after the freeze (the
+        // attendance tidy-up): the two are compared on what they import.
+        #expect(
+            BackupService().runAfterRestoreFills(formatVersion: BackupWriter.formatVersion, in: context),
+            "The old merge left an unsaved change, so the after-restore fills didn't run"
+        )
     }
 
     // MARK: - The types

@@ -31,6 +31,19 @@ import Testing
 // you add a `FieldSpec` for it below — one line if nothing needs special
 // handling; every one of its attributes is then covered automatically.
 
+/// The fixture's attendance mark is present, with an absence reason and a
+/// left-from status. Both are written as stored (the golden export), but a
+/// present mark keeps neither, and every restore's tidy-up clears them
+/// (`CDAttendanceRecord.normalize`). An absence's reason and a Left Early's
+/// left-from status restore as set
+/// (`BackupRestoreFillTests.restoreTidiesAttendancePairs`).
+private let attendanceTidiedOnRestore: [String: @MainActor (NSManagedObject, NSManagedObject) -> Bool] = [
+    "absenceReasonRaw": { _, restored in
+        restored.value(forKey: "absenceReasonRaw") as? String == AbsenceReason.none.rawValue
+    },
+    "statusBeforeLeavingRaw": { _, restored in restored.value(forKey: "statusBeforeLeavingRaw") == nil }
+]
+
 // MARK: - Spec Model
 
 /// Per-entity description of how to populate and verify its attributes.
@@ -430,7 +443,8 @@ final class BackupFieldCoverageTests {
         FieldSpec(
             "AttendanceRecord",
             // Exported as parsed enums (a.status.rawValue) — must be valid, non-default rawValues.
-            overrides: ["statusRaw": "present", "absenceReasonRaw": "sick"]
+            overrides: ["statusRaw": "present", "absenceReasonRaw": "sick"],
+            checks: attendanceTidiedOnRestore
         ),
         FieldSpec("WorkCompletionRecord"),
         FieldSpec("Project"),
@@ -673,7 +687,12 @@ final class BackupFieldCoverageTests {
         FieldSpec("TimetableLane"),
         FieldSpec("TimetableBlock"),
         FieldSpec("TimetableChange"),
-        FieldSpec("TimetableBooking")
+        FieldSpec("TimetableBooking"),
+        FieldSpec(
+            "LevelChange",
+            // The levels are `CDStudent.Level` raw values.
+            overrides: ["fromLevelRaw": "Lower", "toLevelRaw": "Upper"]
+        )
     ]
 
     /// Inserts this suite's fixture — one instance of every backed-up entity,

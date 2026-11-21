@@ -26,6 +26,12 @@ nonisolated public class CDWorkModel: NSManagedObject {
     @NSManaged public var sampleWorkID: String?
     @NSManaged public var checkInStyleRaw: String?
     @NSManaged public var restingUntil: Date?
+    /// The assignment this copy belongs to (schema 25): every child's copy of
+    /// one assignment carries the same id. Nil on a row not yet filled.
+    @NSManaged public var assignmentID: String?
+    /// Whether this row is the one the children on it share (a group's
+    /// project), rather than one child's own copy (schema 25).
+    @NSManaged public var isSharedRow: Bool
 
     // MARK: - Relationships
     @NSManaged public var participants: NSSet?
@@ -88,6 +94,8 @@ nonisolated public class CDWorkModel: NSManagedObject {
         self.sampleWorkID = nil
         self.checkInStyleRaw = nil
         self.restingUntil = nil
+        self.assignmentID = nil
+        self.isSharedRow = false
     }
 }
 

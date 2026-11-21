@@ -22,6 +22,13 @@ nonisolated public class CDLessonPresentation: NSManagedObject {
     @NSManaged public var followUpEvidenceRaw: String?
     @NSManaged public var followUpNote: String?
     @NSManaged public var followUpSupportRaw: String?
+    /// The group presentation's per-child facts, on this child's own row
+    /// (schema 25). Each is nil when it was never set on her row, and a reader
+    /// then falls back to the group record's value, so a row from before
+    /// schema 25 (or a format-46 restore) keeps its meaning.
+    @NSManaged public var needsPractice: NSNumber?
+    @NSManaged public var needsAnotherPresentation: NSNumber?
+    @NSManaged public var manuallyUnblocked: NSNumber?
 
     // MARK: - Convenience Initializer
     @discardableResult

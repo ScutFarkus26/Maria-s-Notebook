@@ -138,7 +138,17 @@ nonisolated public enum BackupWriter {
     ///   assignments, practice sessions, note templates) are no longer
     ///   written, and an older backup's entries for them are passed over
     ///   without a warning (`BackupEntityTable.skippedOnImport`).
-    public static let formatVersion: Int = 46
+    /// - v47: plan "Domain logic fixes" (schema 25). `WorkModel` entries carry
+    ///   `assignmentID` and `isSharedRow`, `LessonPresentation` entries
+    ///   `needsPractice`, `needsAnotherPresentation` and `manuallyUnblocked`
+    ///   (left out while unset), `Guardian` entries `personID`, and
+    ///   `AttendanceEmailSettings` entries `classroomTimeZoneID`,
+    ///   `sessionFirstDay` and `sessionLastDay`; new `LevelChange` entries
+    ///   under `private/`, each child's level history. Purely additive:
+    ///   restoring an older backup leaves a record's own values for the new
+    ///   fields (`BackupFieldsAddedLater`, `ModelRowSpec.addedLater`), and a
+    ///   new record reads them as unset.
+    public static let formatVersion: Int = 47
 
     public enum WriterError: LocalizedError {
         case entityEncodingFailed(entityName: String, underlying: Error)

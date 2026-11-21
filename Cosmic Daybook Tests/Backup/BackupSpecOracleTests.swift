@@ -30,9 +30,13 @@ import Testing
 ///
 /// It passes trivially while a type is still hand-written, the app running the
 /// same code; it is the check that moving a type to `ModelRow` changed nothing.
+/// A field a type gained after the freeze (`LegacyRows.fieldsAddedSinceFreeze`)
+/// is left out of every comparison: the old code never knew it.
 @Suite("Backup spec oracle", .serialized)
 @MainActor
 struct BackupSpecOracleTests {
+    private static let addedSinceFreeze = LegacyRows.fieldsAddedSinceFreeze
+
     @Test("The table holds every hand-written type once, in archive order, under its archive name")
     func tableCoversTheTypes() {
         #expect(Self.oracleTypes.map(\.entityName) == Self.entityNames)
@@ -89,17 +93,20 @@ struct BackupSpecOracleTests {
             }
             expectSameRows(
                 old: first[index].compactMap(object), oldAgain: second[index].compactMap(object),
-                new: written.compactMap(object), situation: "\(situation), \(name)"
+                new: written.compactMap(object), skipping: addedSinceFreeze[name] ?? [],
+                situation: "\(situation), \(name)"
             )
         }
     }
 
     /// Rows matched by `id` where the old code's two exports agree on it; the
-    /// rest (an id it made up) in the order written.
+    /// rest (an id it made up) in the order written. Keys in `skipping` aren't
+    /// compared.
     private static func expectSameRows(
         old: [[String: Any]],
         oldAgain: [[String: Any]],
         new: [[String: Any]],
+        skipping: Set<String>,
         situation: String
     ) {
         #expect(new.count == old.count, "\(situation): \(old.count) rows from the old code, \(new.count) now")
@@ -124,7 +131,7 @@ struct BackupSpecOracleTests {
                 Issue.record("\(situation): row \(key) is written by the old code only")
                 continue
             }
-            expectSameRow(was, again, now, situation: "\(situation) row \(key)")
+            expectSameRow(was, again, now, skipping: skipping, situation: "\(situation) row \(key)")
         }
         for key in Set(newByID.keys).subtracting(kept).sorted() {
             Issue.record("\(situation): row \(key) is written now only")
@@ -135,7 +142,9 @@ struct BackupSpecOracleTests {
             "\(situation): \(oldLoose.count) rows with a made-up id from the old code, \(newLoose.count) now"
         )
         for (offset, (was, now)) in zip(oldLoose, newLoose).enumerated() where offset < againLoose.count {
-            expectSameRow(was, againLoose[offset], now, situation: "\(situation) row with a made-up id")
+            expectSameRow(
+                was, againLoose[offset], now, skipping: skipping, situation: "\(situation) row with a made-up id"
+            )
         }
     }
 
@@ -143,9 +152,10 @@ struct BackupSpecOracleTests {
         _ old: [String: Any],
         _ oldAgain: [String: Any],
         _ new: [String: Any],
+        skipping: Set<String>,
         situation: String
     ) {
-        for key in Set(old.keys).union(oldAgain.keys).union(new.keys).sorted() {
+        for key in Set(old.keys).union(oldAgain.keys).union(new.keys).subtracting(skipping).sorted() {
             let (was, again, now) = (canonical(old[key]), canonical(oldAgain[key]), canonical(new[key]))
             if was != again {
                 // Made up as it was written: only whether it is written counts.
@@ -255,12 +265,15 @@ struct BackupSpecOracleTests {
             // Not vacuous: the whole row makes a record (CalendarEvent is carried, never restored).
             #expect(old[recordID.uuidString] != nil, "\(label): the old restore made no record")
         }
-        Self.expectSameRecords(old: old, new: new, situation: label)
+        Self.expectSameRecords(
+            old: old, new: new, skipping: Self.addedSinceFreeze[oracle.entityName] ?? [], situation: label
+        )
     }
 
     private static func expectSameRecords(
         old: [String: [String: String]],
         new: [String: [String: String]],
+        skipping: Set<String>,
         situation: String
     ) {
         for id in Set(old.keys).union(new.keys).sorted() {
@@ -269,7 +282,7 @@ struct BackupSpecOracleTests {
                 Issue.record("\(situation): record \(id) is in the \(only) store only")
                 continue
             }
-            for field in Set(was.keys).union(now.keys).sorted() where was[field] != now[field] {
+            for field in Set(was.keys).union(now.keys).subtracting(skipping).sorted() where was[field] != now[field] {
                 Issue.record("""
                     \(situation): \(field) is \(was[field] ?? "missing") through the old code, \
                     \(now[field] ?? "missing") through the app

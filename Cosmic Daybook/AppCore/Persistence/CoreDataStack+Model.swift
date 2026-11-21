@@ -186,6 +186,9 @@ extension CoreDataStack {
         "LessonSequenceSettings",
         "ParentCommunication",
         "Guardian",
+        // A child's level history (schema 25): the guide's own, like her
+        // level's other records; the Assistant reads only the current level.
+        "LevelChange",
         "MeetingWorkReview",
         "StudentFocusItem",
         "DayPad",

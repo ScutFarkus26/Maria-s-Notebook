@@ -18,12 +18,17 @@ public typealias WorkCompletionRecordDTO = ModelRow<WorkCompletionRecordBackupRo
 /// a raw no build has written as active); the outcome itself restores as it
 /// is. A record without an `id` goes out with a new one, as one without a
 /// created or assigned date goes out dated now. The two pre-migration
-/// `legacy…` ids aren't backed up.
+/// `legacy…` ids aren't backed up. Which assignment a copy belongs to and
+/// whether it is the shared row (format v47, schema 25) are missing from
+/// older backups' rows: a record already here keeps its own
+/// (`isSharedRow` here, `assignmentID` through `BackupFieldsAddedLater`), and
+/// a new one reads as unfilled, for the fill to stamp.
 public enum WorkModelBackupRow: ModelRowKind {
     public static let spec = ModelRowSpec(
         "WorkModel",
         filling: ["createdAt", "assignedAt"],
         omitting: ["legacyContractID", "legacyStudentLessonID"],
+        addedLater: ["isSharedRow"],
         computed: [
             .computed(
                 "statusRaw", .string, of: CDWorkModel.self, required: true,

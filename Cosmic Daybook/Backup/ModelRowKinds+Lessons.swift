@@ -98,7 +98,11 @@ public enum LessonAssignmentBackupRow: ModelRowKind {
 
 /// One child's record of a lesson given. A state that isn't one restores as
 /// presented (it goes out as stored). A record without a presentation date
-/// goes out dated now, as one without an `id` gets a new one.
+/// goes out dated now, as one without an `id` gets a new one. Her own
+/// `needsPractice`, `needsAnotherPresentation` and `manuallyUnblocked`
+/// (format v47) are left out while unset (nil: the group record's value
+/// stands), and an older backup leaves a record's own
+/// (`BackupFieldsAddedLater`).
 public enum LessonPresentationBackupRow: ModelRowKind {
     public static let spec = ModelRowSpec(
         "LessonPresentation",

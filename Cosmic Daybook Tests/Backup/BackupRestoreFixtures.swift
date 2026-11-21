@@ -62,7 +62,9 @@ enum BackupRestoreFixtures {
     }
 
     /// The restore as it was: every entry read, the whole archive decoded, then
-    /// the old import.
+    /// the old import. Then the steps every restore has ended with since the
+    /// freeze (`BackupService.afterRestoreFills`: the attendance tidy-up and
+    /// the fills), so the two restores are compared on what they import.
     static func legacyRestore(
         _ url: URL,
         into context: NSManagedObjectContext,
@@ -73,6 +75,10 @@ enum BackupRestoreFixtures {
         let summary = try await BackupImporter.legacyImportDecoded(
             archive, from: url, into: context, mode: mode, appRouter: AppRouter(),
             progress: { log.append($0, $1) }
+        )
+        #expect(
+            BackupService().runAfterRestoreFills(formatVersion: archive.manifest.formatVersion, in: context),
+            "The old restore left an unsaved change, so the after-restore fills didn't run"
         )
         return Outcome(summary: summary, progress: log.steps)
     }
@@ -123,7 +129,7 @@ enum BackupRestoreFixtures {
         "AlbumBookmark", "AlbumPageNote", "AlbumRecentVisit", "AlbumReadingPosition", "AlbumHighlight",
         "AlbumPageInk", "OrderItem", "AttendanceDayLock", "SupplyTransaction",
         "AttendanceEmailSend", "AttendanceEmailSettings", "ClassroomPerson",
-        "TimetableLane", "TimetableBlock", "TimetableChange", "TimetableBooking"
+        "TimetableLane", "TimetableBlock", "TimetableChange", "TimetableBooking", "LevelChange"
     ]
 
     /// Restores `url` into two fresh stores prepared alike, the old way and

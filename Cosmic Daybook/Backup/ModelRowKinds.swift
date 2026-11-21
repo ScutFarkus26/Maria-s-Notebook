@@ -111,6 +111,9 @@ public enum BookClubSessionBackupRow: ModelRowKind {
 
 public typealias GuardianDTO = ModelRow<GuardianBackupRow>
 
+/// A child's parent or guardian. `personID` (format v47), the person a
+/// sibling's copy also stands for, is left out while unset, and an older
+/// backup leaves a record's own (`BackupFieldsAddedLater`).
 public enum GuardianBackupRow: ModelRowKind {
     public static let spec = ModelRowSpec(
         "Guardian",
@@ -207,7 +210,9 @@ public typealias AttendanceEmailSettingsDTO = ModelRow<AttendanceEmailSettingsBa
 /// and ParentLocker site (format v40) are missing from older backups' rows: a
 /// new record reads as email at the default site, and one already in the
 /// store keeps its own (`sendMethodRaw` here, `parentLockerSite` through
-/// `BackupFieldsAddedLater`).
+/// `BackupFieldsAddedLater`). The classroom's time zone and the session's
+/// first and last days (format v47) are left out while unset, and an older
+/// backup leaves a record's own (`BackupFieldsAddedLater`).
 public enum AttendanceEmailSettingsBackupRow: ModelRowKind {
     public static let spec = ModelRowSpec("AttendanceEmailSettings", addedLater: ["sendMethodRaw"])
 }

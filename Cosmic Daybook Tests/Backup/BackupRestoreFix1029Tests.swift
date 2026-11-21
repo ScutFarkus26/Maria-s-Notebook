@@ -117,6 +117,7 @@ struct BackupReplaceOlderFormatTests {
         #expect(since["Student"] == 0)
         #expect(since["ClassroomPerson"] == 38)
         for entity in Fix1029.scheduleTypes { #expect(since[entity] == 42, "\(entity)") }
+        #expect(since["LevelChange"] == 47)
         #expect(BackupEntityTable.entities.allSatisfy { $0.isCarried(by: BackupWriter.formatVersion) })
     }
 

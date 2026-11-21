@@ -75,8 +75,11 @@ nonisolated public enum BackupReader {
     /// whether each child was born after sunset; v44 when each lesson file
     /// last changed; v45 the track entities gone (an older backup's track
     /// entries are skipped); v46 how long a check-in's practice took, and no
-    /// rows of the types retired in Simplify round two.
-    public static let supportedFormatVersions: ClosedRange<Int> = 17...46
+    /// rows of the types retired in Simplify round two; v47 schema 25's
+    /// fields (work's assignment, a child's own presentation facts, a
+    /// guardian's person, the classroom's time zone and session days) and
+    /// each child's level history.
+    public static let supportedFormatVersions: ClosedRange<Int> = 17...47
 
     // MARK: - Public API
 

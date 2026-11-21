@@ -167,6 +167,8 @@ extension BackupService {
         // A Replace clears check-ins and an older backup's practice sessions
         // are skipped: the copies come back from the sessions still here.
         PracticeCheckInCopy.runAndSave(in: viewContext)
+        // What the restored rows left unset, filled as at launch.
+        runAfterRestoreFills(formatVersion: source.envelope.formatVersion, in: viewContext)
         AlbumLibrary.shared.reloadAfterRestore()
         appRouter.signalAppDataDidRestore()
 
@@ -356,6 +358,7 @@ extension BackupService {
         try run.importV34Entities()
         try run.importV38Entities()
         try run.importV42Entities()
+        try run.importV47Entities()
     }
 
     /// The restore's own warnings for the summary: the album reattach warning,

@@ -13,7 +13,8 @@ extension BackupRestoreFixtures {
     /// to-many as its targets' ids, sorted. Dates from the last hour — stamped
     /// by an insert or a restore rather than carried by a backup — read
     /// "recent"; binary data reads as its length and digest. Lines are sorted,
-    /// so fetch order doesn't matter.
+    /// so fetch order doesn't matter. The fields the one-pass restore never
+    /// knew (`LegacyRows.fieldsAddedSinceFreeze`) are left out.
     static func snapshot(of context: NSManagedObjectContext) throws -> [String: [String]] {
         guard let model = context.persistentStoreCoordinator?.managedObjectModel else { return [:] }
         let recent = Date().addingTimeInterval(-3_600)
@@ -31,7 +32,8 @@ extension BackupRestoreFixtures {
 
     private static func line(for object: NSManagedObject, entity: NSEntityDescription, recent: Date) -> String {
         var parts: [String] = []
-        for key in entity.attributesByName.keys.sorted() {
+        let later = LegacyRows.fieldsAddedSinceFreeze[entity.name ?? ""] ?? []
+        for key in entity.attributesByName.keys.sorted() where !later.contains(key) {
             parts.append("\(key)=\(text(object.value(forKey: key), recent: recent))")
         }
         for (key, relationship) in entity.relationshipsByName.sorted(by: { $0.key < $1.key }) {

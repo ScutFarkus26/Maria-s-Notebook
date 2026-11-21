@@ -54,6 +54,9 @@
     "LessonSequenceSettings" : [
       "rejected"
     ],
+    "LevelChange" : [
+      "rejected"
+    ],
     "MeetingTemplate" : [
       "rejected"
     ],
@@ -209,6 +212,10 @@
     "LessonSequenceSettings" : [
       "{\"area\":\"\",\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000000A\",\"modifiedAt\":\"<now>\",\"requiresPractice\":true,\"requiresTeacherConfirmation\":true,\"sequence\":\"\"}",
       "{\"area\":\"\",\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"modifiedAt\":\"<now>\",\"requiresPractice\":true,\"requiresTeacherConfirmation\":true,\"sequence\":\"\"}"
+    ],
+    "LevelChange" : [
+      "{\"fromLevelRaw\":\"\",\"id\":\"00000000-0000-4000-8000-000000000025\",\"studentID\":\"\",\"toLevelRaw\":\"\"}",
+      "{\"fromLevelRaw\":\"\",\"id\":\"<new id>\",\"studentID\":\"\",\"toLevelRaw\":\"\"}"
     ],
     "MeetingTemplate" : [
       "{\"createdAt\":\"<now>\",\"focusPrompt\":\"\",\"guideNotesPrompt\":\"\",\"id\":\"00000000-0000-4000-8000-000000000001\",\"isActive\":false,\"isBuiltIn\":false,\"name\":\"\",\"reflectionPrompt\":\"\",\"requestsPrompt\":\"\",\"sortOrder\":0}",

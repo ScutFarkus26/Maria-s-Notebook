@@ -127,6 +127,7 @@ nonisolated public struct BackupPayload: Codable, Sendable {
         case attendanceEmailSettings
         case classroomPeople
         case timetableLanes, timetableBlocks, timetableChanges, timetableBookings
+        case levelChanges
         case preferences
     }
 
@@ -275,6 +276,9 @@ nonisolated public struct BackupPayload: Codable, Sendable {
     public var timetableBlocks: [TimetableBlockDTO]?
     public var timetableChanges: [TimetableChangeDTO]?
     public var timetableBookings: [TimetableBookingDTO]?
+
+    // Each child's level history (format v47+, schema 25), the guide's own.
+    public var levelChanges: [LevelChangeDTO]?
 
     // Lightweight app/user metadata (preferences) as typed dictionary
     public var preferences: PreferencesDTO

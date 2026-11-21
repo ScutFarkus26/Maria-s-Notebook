@@ -1,8 +1,8 @@
 // BackupRestoreRun+LaterTypes.swift
 // The restore order, last part: the format v12–v14 types, then v18 (stories,
 // book club, year plan, day pads), v20 (guardians, parent communications), v21
-// (teaching-album annotations), v27 (orders), v30, v31, v34, v38 (names) and
-// v42 (Schedules).
+// (teaching-album annotations), v27 (orders), v30, v31, v34, v38 (names), v42
+// (Schedules) and v47 (level history).
 
 import CoreData
 import Foundation
@@ -322,6 +322,21 @@ extension BackupRestoreRun {
             BackupEntityImporter.importRows(
                 bookings, as: CDTimetableBooking.self, into: viewContext,
                 existing: { try index.existing(CDTimetableBooking.self, id: $0) }
+            )
+        }
+    }
+
+    /// v47+ entities: each child's level history. Matched on `id` like every
+    /// row; a change names its child by `studentID` only, so the order
+    /// doesn't matter.
+    func importV47Entities() throws {
+        let viewContext = context
+        let index = self.index
+
+        if let changes = try rows(\.levelChanges) {
+            BackupEntityImporter.importRows(
+                changes, as: CDLevelChange.self, into: viewContext,
+                existing: { try index.existing(CDLevelChange.self, id: $0) }
             )
         }
     }

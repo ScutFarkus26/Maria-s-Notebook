@@ -6,7 +6,8 @@ import Testing
 /// Pins the exact bytes the backup writes for a store holding one fully
 /// populated instance of every backed-up entity (the field-coverage fixture,
 /// deterministic by design), and that those bytes restore to a store that
-/// writes them again. Any change to how a row is encoded or decoded — the
+/// writes them again, but for the attendance mark's odd pair that every
+/// restore tidies (`asRestored`). Any change to how a row is encoded or decoded — the
 /// model-driven backup work of 2026-09 in particular — must leave both intact.
 ///
 /// The reference is `BackupGolden-v27.json` beside this file: one NDJSON body
@@ -43,10 +44,31 @@ struct BackupGoldenOutputTests {
         let restorable = golden.filter { key, _ in
             !BackupEntityRegistry.keptOnRestoreEntityNames.contains(String(key.split(separator: "/").last ?? ""))
         }
-        Self.expectSame(reexported, restorable, context: "restore then export")
+        Self.expectSame(reexported, Self.asRestored(restorable), context: "restore then export")
     }
 
     // MARK: - Helpers
+
+    /// A reference as a restore leaves it. Its one attendance mark is present,
+    /// out and back again, with an absence reason and a left-from status that
+    /// don't fit a present mark, and every restore's tidy-up
+    /// (`CDAttendanceRecord.normalize`, in `BackupService.afterRestoreFills`)
+    /// clears those two, as the store would have written the mark. Every
+    /// other byte is as recorded.
+    static func asRestored(_ bodies: [String: String]) -> [String: String] {
+        var bodies = bodies
+        for key in bodies.keys where key.hasSuffix("/AttendanceRecord") {
+            let lines = (bodies[key] ?? "").split(separator: "\n").map { line in
+                #expect(line.contains(#""status":"present""#), "\(key): the fixture's mark is no longer present")
+                let tidied = BackupStreamingFixtures.removing(
+                    ["absenceReason", "statusBeforeLeavingRaw"], from: Data(line.utf8)
+                )
+                return String(bytes: tidied, encoding: .utf8) ?? String(line)
+            }
+            bodies[key] = lines.map { $0 + "\n" }.joined()
+        }
+        return bodies
+    }
 
     /// `<store>/<Entity>` → NDJSON body, for every entry the writer produced.
     static func exportFixture() throws -> [String: String] {

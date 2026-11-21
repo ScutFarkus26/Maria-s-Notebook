@@ -35,7 +35,16 @@ nonisolated enum BackupFieldsAddedLater {
         "OrderItem": ["supplyID": 37, "addedByID": 37],
         // How attendance goes to the school (schema 18). The two non-optional
         // fields with an "email" default are `addedLater` in their row specs.
-        "AttendanceEmailSettings": ["parentLockerSite": 40],
+        // The classroom's time zone and the session's days (schema 25).
+        "AttendanceEmailSettings": [
+            "parentLockerSite": 40,
+            "classroomTimeZoneID": 47, "sessionFirstDay": 47, "sessionLastDay": 47
+        ],
+        // Plan "Domain logic fixes" (schema 25): which assignment a copy is
+        // of (its non-optional `isSharedRow` is `addedLater` in the row spec),
+        // and the person a guardian row stands for.
+        "WorkModel": ["assignmentID": 47],
+        "Guardian": ["personID": 47],
         "ScheduledMeeting": ["purpose": 24],
         // Lesson, Student, Note, LessonPresentation, TodoItem and Document
         // fields that joined during v17–v19 (June to August 2026, no bumps).
@@ -55,7 +64,10 @@ nonisolated enum BackupFieldsAddedLater {
         ],
         "LessonPresentation": [
             "followUpActionRaw": 20, "followUpEvidenceRaw": 20, "followUpNote": 20, "followUpResolutionRaw": 20,
-            "followUpResolvedAt": 20, "followUpReviewAt": 20, "followUpSupportRaw": 20, "followUpUpdatedAt": 20
+            "followUpResolvedAt": 20, "followUpReviewAt": 20, "followUpSupportRaw": 20, "followUpUpdatedAt": 20,
+            // One child's own facts on her row (schema 25): nil is "not set
+            // here", so an older backup leaves the record's own.
+            "needsPractice": 47, "needsAnotherPresentation": 47, "manuallyUnblocked": 47
         ],
         "TodoItem": ["moodRaw": 20, "tideLink": 41],
         // Non-optional, but exported as nil when empty: "" is its "missing".

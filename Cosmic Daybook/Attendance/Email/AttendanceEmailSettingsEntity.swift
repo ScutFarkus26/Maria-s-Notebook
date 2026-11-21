@@ -30,6 +30,14 @@ nonisolated public class CDAttendanceEmailSettings: NSManagedObject {
     /// The school's ParentLocker host ("yyli.parentlocker.com"); nil reads as
     /// `AttendanceEmailLog.defaultParentLockerSite` (schema 18).
     @NSManaged public var parentLockerSite: String?
+    /// The classroom's time zone, a `TimeZone` identifier ("America/New_York")
+    /// that every device's day math follows (schema 25). Nil, or an identifier
+    /// `TimeZone(identifier:)` doesn't know, reads as the device's own zone.
+    @NSManaged public var classroomTimeZoneID: String?
+    /// The school session's first and last days (schema 25): days outside them
+    /// are days off for every reader. Nil keeps the behavior from before them.
+    @NSManaged public var sessionFirstDay: Date?
+    @NSManaged public var sessionLastDay: Date?
 
     @discardableResult
     convenience init(context: NSManagedObjectContext) {

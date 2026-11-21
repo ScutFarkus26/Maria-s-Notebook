@@ -140,6 +140,7 @@ extension BackupService {
         importV21Entities(from: payload, into: viewContext, index: index)
         importV27Entities(from: payload, into: viewContext, index: index)
         importV42Entities(from: payload, into: viewContext, index: index)
+        importV47Entities(from: payload, into: viewContext, index: index)
 
         // Notes import early, but many of their relationship targets (work,
         // check-ins, meetings, etc.) import in later phases — relink them now
@@ -925,6 +926,20 @@ extension BackupService {
             BackupEntityImporter.importRows(
                 bookings, as: CDTimetableBooking.self, into: viewContext,
                 existing: { try index.existing(CDTimetableBooking.self, id: $0) }
+            )
+        }
+    }
+
+    /// v47+ entities: each child's level history, kept in step with the live restore.
+    private func importV47Entities(
+        from payload: BackupPayload,
+        into viewContext: NSManagedObjectContext,
+        index: BackupEntityIndex
+    ) {
+        if let changes = payload.levelChanges {
+            BackupEntityImporter.importRows(
+                changes, as: CDLevelChange.self, into: viewContext,
+                existing: { try index.existing(CDLevelChange.self, id: $0) }
             )
         }
     }

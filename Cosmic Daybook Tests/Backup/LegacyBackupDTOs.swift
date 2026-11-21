@@ -35,6 +35,16 @@ import Foundation
 /// wrote, or read, by a millisecond. A string read where a date was written
 /// still gets the archive's text.
 nonisolated enum LegacyRows {
+    /// Fields a type gained after the freeze, by archive name: schema 25's
+    /// (plan "Domain logic fixes", Phase 1). The frozen code never knew them,
+    /// so every comparison with it leaves them out (`BackupSpecOracleTests`,
+    /// `BackupStreamingFixtures.comparable`, `BackupRestoreFixtures.snapshot`);
+    /// `BackupSchema25Tests` checks that each is written and restored.
+    static let fieldsAddedSinceFreeze: [String: Set<String>] = [
+        "WorkModel": ["assignmentID", "isSharedRow"],
+        "LessonPresentation": ["needsPractice", "needsAnotherPresentation", "manuallyUnblocked"]
+    ]
+
     static func rows<To: Decodable, From: Encodable>(_ from: [From], as: To.Type) -> [To] {
         let written = DatesWritten()
         let encoder = BackupWriter.ndjsonEncoder()

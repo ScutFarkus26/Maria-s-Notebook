@@ -317,8 +317,9 @@ nonisolated enum BackupEntityTable {
     /// Format v18 (stories, book club, year plan, day pads), v20 (guardians,
     /// parent communications), v21 (teaching-album annotations), v27 (orders),
     /// v30 (attendance day locks), v31 (supply transactions), v34 (front-desk
-    /// emails and their settings), v38 (the names people set for themselves)
-    /// and v42 (Schedules), each with the format it joined (`since`). Locked
+    /// emails and their settings), v38 (the names people set for themselves),
+    /// v42 (Schedules) and v47 (each child's level history), each with the
+    /// format it joined (`since`). Locked
     /// days say v23: from then until v30 a backup carried them as
     /// `Attendance.locked.<date>` settings, which a restore turns into lock
     /// records (`AttendanceDayLocks.carryOverRestoredLocks`).
@@ -377,6 +378,9 @@ nonisolated enum BackupEntityTable {
         .optional("TimetableLane", CDTimetableLane.self, \.timetableLanes, TimetableLaneDTO.rows, since: 42),
         .optional("TimetableBlock", CDTimetableBlock.self, \.timetableBlocks, TimetableBlockDTO.rows, since: 42),
         .optional("TimetableChange", CDTimetableChange.self, \.timetableChanges, TimetableChangeDTO.rows, since: 42),
-        .optional("TimetableBooking", CDTimetableBooking.self, \.timetableBookings, TimetableBookingDTO.rows, since: 42)
+        .optional(
+            "TimetableBooking", CDTimetableBooking.self, \.timetableBookings, TimetableBookingDTO.rows, since: 42
+        ),
+        .optional("LevelChange", CDLevelChange.self, \.levelChanges, LevelChangeDTO.rows, since: 47)
     ]
 }

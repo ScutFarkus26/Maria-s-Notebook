@@ -1,10 +1,12 @@
 // BackupService+RestoreAftercare.swift
 // What a restore does around its records: the student links its notes need,
-// the denormalized day it repairs after saving, the album warning it gives,
-// how it says it failed after its save, and its wait for iCloud.
+// the denormalized day it repairs after saving, the fills it runs once saved,
+// the album warning it gives, how it says it failed after its save, and its
+// wait for iCloud.
 
 import CoreData
 import Foundation
+import OSLog
 
 /// A restore that failed after its records were saved: the store holds the
 /// restore, so a replace restore goes back to its checkpoint
@@ -16,7 +18,65 @@ nonisolated struct BackupRestoreSavedError: LocalizedError {
     var errorDescription: String? { (underlying as? any LocalizedError)?.errorDescription }
 }
 
+/// One step every restore runs on the notebook once its records are saved:
+/// a fill that stamps a field the restored rows left unset (an older backup's
+/// rows lack it, and so does a record restored without it), or a tidy-up of
+/// fields that go in pairs. Each keys on what it finds (a nil, an odd pair),
+/// never on a one-time flag, so the same step can run at every launch too
+/// and a second run changes nothing (plan "Domain logic fixes", Decision 19).
+nonisolated struct BackupRestoreFill: Sendable {
+    /// What the log calls it.
+    let name: String
+    /// Changes records in the context; `runAfterRestoreFills` saves once
+    /// after every fill. `formatVersion` is the restored backup's.
+    let run: @MainActor @Sendable (_ context: NSManagedObjectContext, _ formatVersion: Int) -> Void
+}
+
 extension BackupService {
+
+    // MARK: - After-Restore Fills
+
+    /// Every restore's fills, in the order they run. A fill joins by its line
+    /// here, beside the launch step that runs the same code: the work
+    /// assignment fill and the guardian person fill of plan "Domain logic
+    /// fixes" each add one.
+    static let afterRestoreFills: [BackupRestoreFill] = [
+        // A restore writes a mark's fields one by one, so an odd pair (a
+        // present mark with an old "Sick") is put right as the store writes
+        // it (domain-logic review A13).
+        BackupRestoreFill(name: "attendance pairs") { context, _ in
+            CDAttendanceRecord.normalizeAll(in: context)
+        }
+    ]
+
+    /// Runs `fills` on `context`, then saves what they changed: once the
+    /// restore's own save is done, so a fill sees every restored record.
+    /// Returns false when the save failed; what the fills changed is then
+    /// rolled back, and since each keys on what it finds, the next launch or
+    /// restore fills it again. Nothing runs while the context holds someone
+    /// else's unsaved change, which the save would commit with it.
+    @discardableResult
+    func runAfterRestoreFills(
+        _ fills: [BackupRestoreFill] = BackupService.afterRestoreFills,
+        formatVersion: Int,
+        in context: NSManagedObjectContext
+    ) -> Bool {
+        guard !fills.isEmpty else { return true }
+        guard !context.hasChanges else {
+            Logger.backup.warning("Skipped the after-restore fills: the notebook had unsaved changes")
+            return false
+        }
+        for fill in fills {
+            fill.run(context, formatVersion)
+        }
+        guard context.safeSave() else {
+            context.rollback()
+            let names = fills.map(\.name).joined(separator: ", ")
+            Logger.backup.error("The after-restore fills couldn't be saved (\(names, privacy: .public))")
+            return false
+        }
+        return true
+    }
 
     // MARK: - Album Reattachment
 

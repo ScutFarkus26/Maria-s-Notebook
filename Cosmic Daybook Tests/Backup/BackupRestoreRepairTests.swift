@@ -308,8 +308,10 @@ struct BackupRestoreKeepsTests {
         #expect(record.recordedByName == nil, "v28 carries who marked it, so a row without one means no one")
         #expect(record.markedAt == Repair.day)
         #expect(record.leavesAt == Repair.day.addingTimeInterval(3_600))
-        #expect(record.leftAt == Repair.day.addingTimeInterval(3_700))
-        #expect(record.statusBeforeLeavingRaw == AttendanceStatus.present.rawValue)
+        // The trip out it kept doesn't fit the absence the row restored, and
+        // every restore's tidy-up puts the pair right (domain-logic review A13).
+        #expect(record.leftAt == nil, "an absence keeps no time out")
+        #expect(record.statusBeforeLeavingRaw == nil, "an absence keeps no left-from status")
         #expect(need.title == "Glue sticks", "the row was restored")
         #expect(need.supplyID == supplyID)
         #expect(need.addedByID == "assistant-1")

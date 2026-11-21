@@ -20,6 +20,10 @@ struct BackupRetiredTrackEntriesTests {
 
     private static let fixtureName = "BackupGolden-v44"
     private static let retiredFields: Set<String> = ["trackID", "trackStepID", "studentTrackEnrollmentID"]
+    /// Written for every record since: schema 25's work flag (format 47),
+    /// false for a work row from before it. The optional fields added then
+    /// stay unset, so aren't written.
+    private static let laterFields: Set<String> = ["isSharedRow"]
 
     @Test("A v44 backup with track entries reads without a warning and restores everything else")
     func v44BackupRestores() async throws {
@@ -59,20 +63,24 @@ struct BackupRetiredTrackEntriesTests {
 
         // Backed up again: every entry but the track ones and the seven types
         // round-two Simplify retired (skipped on import, never backed up),
-        // every field but the ones that named a track. Types a restore leaves
-        // alone (this device's classroom pin) come back out only if the store
-        // had them.
+        // every field but the ones that named a track, the ones added since
+        // and the attendance pair every restore tidies
+        // (`BackupGoldenOutputTests.asRestored`). Types a restore leaves alone (this device's classroom pin)
+        // come back out only if the store had them.
         let reexported = try BackupGoldenOutputTests.export(stack.viewContext)
-        let expected = v44.filter { key, _ in
+        let expected = BackupGoldenOutputTests.asRestored(v44.filter { key, _ in
             let name = String(key.split(separator: "/").last ?? "")
             return !BackupEntityTable.retiredNames.contains(name)
                 && !BackupEntityTable.skippedOnImport.contains(name)
                 && !BackupEntityRegistry.keptOnRestoreEntityNames.contains(name)
-        }
+        })
         #expect(Set(reexported.keys) == Set(expected.keys))
+        #expect(reexported["private/WorkModel"]?.contains(#""isSharedRow":false"#) == true)
+        #expect(reexported["private/WorkModel"]?.contains(#""isSharedRow":true"#) == false)
         for (key, body) in expected.sorted(by: { $0.key < $1.key }) {
             #expect(
-                Self.rows(reexported[key] ?? "") == Self.rows(body, dropping: Self.retiredFields),
+                Self.rows(reexported[key] ?? "", dropping: Self.laterFields)
+                    == Self.rows(body, dropping: Self.retiredFields),
                 "\(key) came back different"
             )
         }
