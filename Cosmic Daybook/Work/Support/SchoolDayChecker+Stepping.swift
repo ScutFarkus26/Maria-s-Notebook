@@ -9,13 +9,14 @@ nonisolated extension SchoolDayChecker {
         from date: Date,
         forward: Bool,
         using context: NSManagedObjectContext,
-        calendar: Calendar = .current
+        calendar: Calendar = AppCalendar.shared
     ) -> Date? {
         var day = calendar.startOfDay(for: date)
+        let session = SchoolSession.read(in: context)
         for _ in 0..<366 {
             guard let moved = calendar.date(byAdding: .day, value: forward ? 1 : -1, to: day) else { return nil }
-            day = moved
-            if !isNonSchoolDay(day, using: context) { return day }
+            day = calendar.startOfDay(for: moved)
+            if !isNonSchoolDay(day, session: session, using: context) { return day }
         }
         return nil
     }
@@ -28,12 +29,12 @@ nonisolated extension SchoolDayChecker {
         from date: Date,
         forward: Bool,
         daysOff: Set<Date>,
-        calendar: Calendar = .current
+        calendar: Calendar = AppCalendar.shared
     ) -> Date? {
         var day = calendar.startOfDay(for: date)
         for _ in 0..<366 {
             guard let moved = calendar.date(byAdding: .day, value: forward ? 1 : -1, to: day) else { return nil }
-            day = moved
+            day = calendar.startOfDay(for: moved)
             if !daysOff.contains(day) { return day }
         }
         return nil

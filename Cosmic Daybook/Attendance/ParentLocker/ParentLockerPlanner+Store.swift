@@ -39,7 +39,7 @@ nonisolated extension ParentLockerPlanner {
         on day: Date, for studentIDs: Set<UUID>? = nil, in context: NSManagedObjectContext
     ) -> [UUID: DayMark] {
         let request = CDFetchRequest(CDAttendanceRecord.self)
-        request.predicate = NSPredicate(format: "date == %@", AppCalendar.startOfDay(day) as NSDate)
+        request.predicate = AppCalendar.dayPredicate(on: day)
         scopeToClassroom(request, in: context)
         var result: [UUID: DayMark] = [:]
         for record in context.safeFetch(request).deduplicatedPerStudentDay() {

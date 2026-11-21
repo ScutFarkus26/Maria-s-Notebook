@@ -131,6 +131,12 @@ extension AttendanceExpandedView {
     /// again" (bug hunt 2026-10-20, #15). `send` is the day's newest, read
     /// on its own before the day's sends are.
     func frontDeskSummary(_ send: AttendanceEmailLog.Send) -> String {
+        // Marks changed since it went: "2 changes since 9:02 AM · Send an
+        // update" (domain-logic review R18). Read with the rows, so it shows
+        // as the mark is made.
+        if let changes = AttendanceEmailLog.changesSinceReported(on: date, in: viewContext) {
+            return changes.line(for: date)
+        }
         let sends = AttendanceEmailLog.daySends(on: date, in: viewContext)
             ?? AttendanceEmailLog.DaySends(first: send, again: nil)
         let name = sends.first.senderName(
@@ -190,34 +196,30 @@ extension AttendanceExpandedView {
         }
     }
 
+    /// The day's email, written from the shared settings row by the builder
+    /// the Daybook Assistant uses (domain-logic review A5).
+    var attendanceEmailDraft: AttendanceEmailDraft {
+        AttendanceEmail.emailSettings(in: viewContext, isSampleClass: dependencies.isSampleClassroom).draft(
+            for: date,
+            present: emailStudents(for: .present),
+            tardy: emailStudents(for: .tardy),
+            absent: emailStudents(for: .absent),
+            leftEarly: emailStudents(for: .leftEarly)
+        )
+    }
+
     func prepareAttendanceEmail() {
-        let present = emailStudents(for: .present)
-        let tardy = emailStudents(for: .tardy)
-        let absent = emailStudents(for: .absent)
-        let leftEarly = emailStudents(for: .leftEarly)
 #if os(iOS)
         if MFMailComposeViewController.canSendMail() {
             showMailSheet = true
-        } else if let url = AttendanceEmail.makeMailtoURL(
-            to: AttendanceEmail.parseRecipients(from: AttendanceEmail.storedToAddress()),
-            subject: AttendanceEmail.makeSubject(for: date),
-            body: AttendanceEmail.makeBody(
-                present: present, tardy: tardy, absent: absent, leftEarly: leftEarly, date: date
-            )
-        ) {
+        } else if let url = attendanceEmailDraft.mailtoURL {
             // Another Mail app can't say whether it sent; ask only if one opened.
             UIApplication.shared.open(url) { accepted in
                 if accepted { askingWhetherSent = true } else { onToast("No email app is set up on this device") }
             }
         }
 #else
-        AttendanceEmail.sendUsingMailAppForCurrentPrefs(
-            present: present,
-            tardy: tardy,
-            absent: absent,
-            leftEarly: leftEarly,
-            date: date
-        ) { success in
+        AttendanceEmail.sendUsingMailApp(attendanceEmailDraft) { success in
             if success {
                 onToast("Email sent")
                 recordFrontDeskSend(confirmedByHand: false)

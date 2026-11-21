@@ -10,8 +10,10 @@ import SwiftUI
 ///
 /// The method, the ParentLocker address and the due time show as the shared
 /// settings row holds them, which is what everything else reads; the email's
-/// own fields as this device's preferences hold them, which the notebook's
-/// own email is written from (`AttendanceEmail.shownSettings`). Only the
+/// own fields as this device's preferences hold them, where they are typed
+/// (`AttendanceEmail.shownSettings`). Each edit also goes onto the shared row,
+/// which the email itself is written from (`AttendanceEmail.emailSettings`,
+/// domain-logic review A5). Only the
 /// person's own actions write, each only the field it changed
 /// (`AttendanceEmail.shareEdit`), so a device whose preferences are behind
 /// the share, or a change synced in while Settings is open, never switches

@@ -301,6 +301,9 @@ final class CoreDataStack {
         // Configure view context
         configureViewContext()
 
+        // The classroom's time zone and session, from the app's own store only.
+        if opened.isAppNotebook { ClassroomCalendarFollower.follow(container) }
+
         // The Daybook Assistant gets neither the processor nor the listener:
         // on every remote-change burst they read history for dedup requests
         // (compiled out there) and entity notifications nothing in it observes.

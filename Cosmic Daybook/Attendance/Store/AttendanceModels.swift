@@ -162,8 +162,9 @@ struct AttendanceMarkOutcome {
 // MARK: - Date Normalization Helper
 
 nonisolated extension Date {
-    /// Returns the start of the day for this date using the provided calendar (default .current).
-    func normalizedDay(using calendar: Calendar = .current) -> Date {
+    /// Returns the start of the day for this date using the provided calendar
+    /// (the app's, in the classroom's time zone, unless another is given).
+    func normalizedDay(using calendar: Calendar = AppCalendar.shared) -> Date {
         return calendar.startOfDay(for: self)
     }
 }

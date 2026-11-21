@@ -47,12 +47,7 @@ enum ProjectActivity {
     /// so changing the year start in Settings moves this line too, and the
     /// screen and the tool stay in step without either needing dependencies.
     static func currentYearStart(asOf date: Date = Date()) -> Date {
-        SchoolYear.containing(
-            date,
-            startMonth: FloridaGradeCalculator.schoolStartMonth,
-            startDay: FloridaGradeCalculator.schoolStartDay,
-            calendar: AppCalendar.shared
-        ).start
+        SchoolYear.currentStart(asOf: date)
     }
 
     /// `closed` when the guide marked it complete; otherwise `active` if it has

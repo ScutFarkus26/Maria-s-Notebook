@@ -165,8 +165,8 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
         self.container = container
         self.defaults = defaults
         self.now = now
-        self.shownOn = Calendar.current.startOfDay(for: now())
-        self.date = Calendar.current.startOfDay(for: date)
+        self.shownOn = AppCalendar.shared.startOfDay(for: now())
+        self.date = AppCalendar.shared.startOfDay(for: date)
         // The role is hardcoded rather than read from the membership row: this
         // app is only ever used by an assistant, and ClassroomPermissions is
         // what stops a mis-set membership from writing beyond attendance.
@@ -223,7 +223,7 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
     func returnedToApp(fromBackground: Bool) {
         let reloadDue = importReloader?.hasReloadDue ?? false
         followScene(isActive: true)
-        let dayTurned = Calendar.current.startOfDay(for: now()) != shownOn
+        let dayTurned = AppCalendar.shared.startOfDay(for: now()) != shownOn
         guard fromBackground || reloadDue || dayTurned else { return }
         reloadAfterAway()
     }
@@ -277,11 +277,11 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
         if current != names { names = current }
     }
 
-    var isToday: Bool { Calendar.current.isDate(date, inSameDayAs: now()) }
+    var isToday: Bool { AppCalendar.shared.isDate(date, inSameDayAs: now()) }
 
     /// A day after today: only absences (a known vacation, an appointment)
     /// and notes can be marked ahead.
-    var isFuture: Bool { date > Calendar.current.startOfDay(for: now()) }
+    var isFuture: Bool { date > AppCalendar.shared.startOfDay(for: now()) }
 
     /// The statuses the long-press menu offers on the day on screen.
     var menuStatuses: [AttendanceStatus] {
@@ -309,7 +309,7 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
     /// Shows `newDate` (any day, school or not), or reloads the current one.
     func load(_ newDate: Date? = nil) {
         if let newDate {
-            let day = Calendar.current.startOfDay(for: newDate)
+            let day = AppCalendar.shared.startOfDay(for: newDate)
             if day != date {
                 lastLateBatch = []
                 lastLateReopened = false
@@ -374,7 +374,11 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
         do {
             let fetched = try store.loadRecords(for: date)
             loadError = nil
-            return (fetched, AttendanceLatePhase.closedAnywhere(on: date, records: fetched, defaults: defaults))
+            let noted = AttendanceEmailLog.arrivalClosedAt(on: date, in: context)
+            let closed = AttendanceLatePhase.closedAnywhere(
+                on: date, records: fetched, closedAt: noted, defaults: defaults
+            )
+            return (fetched, closed)
         } catch {
             Self.logger.error("Loading attendance failed: \(error.localizedDescription, privacy: .public)")
             loadError = "Couldn't load the attendance for \(dayPhrase). Pull down to try again."
@@ -391,7 +395,7 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
     /// yesterday's marks (bug hunt 2026-10-20, #1). Within the day, a day
     /// she picked stays.
     func reloadAfterAway() {
-        let today = Calendar.current.startOfDay(for: now())
+        let today = AppCalendar.shared.startOfDay(for: now())
         defer { shownOn = today }
         load(today == shownOn ? nil : today)
     }
@@ -687,7 +691,7 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
         _ update: (CDAttendanceStore, CDAttendanceRecord) -> Bool
     ) -> Bool {
         forgetLastTap()
-        let day = day.map { Calendar.current.startOfDay(for: $0) } ?? date
+        let day = day.map { AppCalendar.shared.startOfDay(for: $0) } ?? date
         let isOnScreen = day == date
         guard !reloadIfGone(row), isOnScreen ? canMark : store.canWrite(on: day) else { return false }
         do {
@@ -722,7 +726,10 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
         let copies = copiesByStudentID.values.flatMap { $0 }
         // Who carries Close Arrival's absence now (a close here, a tap on
         // one of them), and the phase that gives, as a load would read it.
-        let closedAnywhere = AttendanceLatePhase.closedAnywhere(on: date, records: copies, defaults: defaults)
+        let closedAnywhere = AttendanceLatePhase.closedAnywhere(
+            on: date, records: copies,
+            closedAt: AttendanceEmailLog.arrivalClosedAt(on: date, in: context), defaults: defaults
+        )
         readsClosed = closedAnywhere
         phase = AttendanceLatePhase.isLate(on: date, closedAnywhere: closedAnywhere, defaults: defaults)
             ? .late : .arrival
@@ -751,6 +758,7 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
         }
         saveError = nil
         createdSinceSave = []
+        frontDesk.marksChanged()
         return true
     }
 

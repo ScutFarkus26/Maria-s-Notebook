@@ -21,6 +21,9 @@ final class AssistantFrontDesk {
     /// The day's sends as the bar's line words them: who sent it first and
     /// whether that was on time, then "sent again" (bug hunt 2026-10-20, #15).
     private(set) var daySends: AttendanceEmailLog.DaySends?
+    /// The marks changed since the day's latest send, when any have: the
+    /// school's copy is behind (domain-logic review R18).
+    private(set) var changes: AttendanceEmailLog.ChangesSinceReported?
     /// ParentLocker said it isn't expecting the day's attendance, on this
     /// phone or another: nothing to send (#19).
     private(set) var isNotExpected = false
@@ -46,19 +49,26 @@ final class AssistantFrontDesk {
         self.container = container
     }
 
+    /// A mark just changed on the day shown: is the school's copy behind now?
+    func marksChanged() {
+        guard latestSend != nil else { return }
+        changes = AttendanceEmailLog.changesSinceReported(on: date, in: context)
+    }
+
     /// Reads `day`'s send and the guide's settings; the attendance screen's
     /// every load (a day change, an import) calls it. The error line goes
     /// with another day, or once a send newer than the error is in: "The
     /// email didn't send" used to stay under the line saying another
     /// assistant had sent it (review of the 2026-10-20 fixes).
     func load(_ day: Date) {
-        let isAnotherDay = !Calendar.current.isDate(day, inSameDayAs: date)
+        let isAnotherDay = !AppCalendar.shared.isDate(day, inSameDayAs: date)
         date = day
         settings = AttendanceEmailLog.settings(in: context)
         // The day's sends and its "not expected" note, in one read (bug hunt 2026-11-03 #18).
         let records = AttendanceEmailLog.dayRecords(on: day, in: context)
         latestSend = records.latestSend
         daySends = records.daySends
+        changes = AttendanceEmailLog.changesSinceReported(on: day, in: context)
         isNotExpected = settings?.sendMethod == .parentLocker && records.isNotExpected
         if isAnotherDay || (latestSend != nil && latestSend != sendAtError) { errorMessage = nil }
     }
@@ -162,7 +172,7 @@ final class AssistantFrontDesk {
         }
         errorMessage = nil
         sendsRecorded += 1
-        guard Calendar.current.isDate(day, inSameDayAs: date) else { return }
+        guard AppCalendar.shared.isDate(day, inSameDayAs: date) else { return }
         latestSend = AttendanceEmailLog.Send(send)
         daySends = AttendanceEmailLog.daySends(on: date, in: context)
     }

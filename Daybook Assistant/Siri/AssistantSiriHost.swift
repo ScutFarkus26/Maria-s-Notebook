@@ -119,7 +119,8 @@ enum SiriHost {
             return Set(dates.map(AppCalendar.startOfDay))
         }
         return !SchoolDayChecker.isNonSchoolDay(
-            start, nonSchoolDayDates: days(CDNonSchoolDay.self), overrideDates: days(CDSchoolDayOverride.self)
+            start, nonSchoolDayDates: days(CDNonSchoolDay.self), overrideDates: days(CDSchoolDayOverride.self),
+            session: SchoolSession.read(in: context)
         )
     }
 

@@ -19,13 +19,13 @@ import CoreData
 /// dedup passes exist to clean up.
 struct CDAttendanceStore { // swiftlint:disable:this type_body_length
     let context: NSManagedObjectContext
-    var calendar: Calendar = .current
+    var calendar: Calendar = AppCalendar.shared
     /// The role stamped onto mutations and checked against the permission matrix.
     let role: CDClassroomMembership.ClassroomRole
 
     init(
         context: NSManagedObjectContext,
-        calendar: Calendar = .current,
+        calendar: Calendar = AppCalendar.shared,
         role: CDClassroomMembership.ClassroomRole? = nil
     ) {
         self.context = context
@@ -177,7 +177,7 @@ struct CDAttendanceStore { // swiftlint:disable:this type_body_length
     /// private store (bug hunt 2026-10-20, #6). The notebook reads both.
     private func fetchRecords(for normalizedDate: Date) throws -> [CDAttendanceRecord] {
         let request = CDFetchRequest(CDAttendanceRecord.self)
-        request.predicate = NSPredicate(format: "date == %@", normalizedDate as NSDate)
+        request.predicate = AppCalendar.dayPredicate(on: normalizedDate)
         AttendanceEmailLog.scopeToClassroom(request, in: context)
         return try context.fetch(request)
     }
@@ -365,7 +365,10 @@ struct CDAttendanceStore { // swiftlint:disable:this type_body_length
     /// (`AttendanceLatePhase.isLate(on:closedAnywhere:)`). `defaults` holds
     /// what this device has seen (the Sample Class keeps its own).
     func arrivalClosed(on date: Date, defaults: UserDefaults = .standard) throws -> Bool {
-        AttendanceLatePhase.closedAnywhere(on: date, records: try loadRecords(for: date), defaults: defaults)
+        AttendanceLatePhase.closedAnywhere(
+            on: date, records: try loadRecords(for: date),
+            closedAt: AttendanceEmailLog.arrivalClosedAt(on: date, in: context), defaults: defaults
+        )
     }
 
     /// Marks every student still unmarked on `date` present, creating records

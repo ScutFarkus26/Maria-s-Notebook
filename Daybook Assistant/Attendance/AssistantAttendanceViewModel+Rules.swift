@@ -84,6 +84,11 @@ extension AssistantAttendanceViewModel {
             return context.safeFetch(request)
         }
         let holidays = dayRows(CDNonSchoolDay.self)
+        // Outside the school session the guide set (domain-logic review R20):
+        // no record stands behind it, so it reads as its own kind of day off.
+        if holidays.isEmpty, SchoolSession.read(in: context)?.isOut(day) == true {
+            return .holiday(summerBreak)
+        }
         let isDayOff = SchoolDayChecker.isNonSchoolDay(
             day,
             nonSchoolDayDates: holidays.isEmpty ? [] : [day],
@@ -96,6 +101,9 @@ extension AssistantAttendanceViewModel {
         }
         return .weekend
     }
+
+    /// What a day outside the school session reads as, in a holiday's place.
+    static let summerBreak = "Summer break"
 
     static func hereLine(_ rows: [Row]) -> String { AttendanceRules.hereLine(rows) }
 

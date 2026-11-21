@@ -87,6 +87,36 @@ nonisolated extension SchoolYear {
     }
 }
 
+nonisolated extension SchoolYear {
+    /// The start month and day set in Settings › School Year (September 1
+    /// until the guide moves it), defaulted the way `SchoolYearStore` and
+    /// `YearPlanStaleness` default them.
+    static func configuredStart(_ defaults: UserDefaults = .standard) -> (month: Int, day: Int) {
+        let month = defaults.object(forKey: UserDefaultsKeys.schoolYearStartMonth) as? Int
+        let day = defaults.object(forKey: UserDefaultsKeys.schoolYearStartDay) as? Int
+        return (
+            month.map { (1...12).contains($0) ? $0 : 9 } ?? 9,
+            day.map { (1...31).contains($0) ? $0 : 1 } ?? 1
+        )
+    }
+
+    /// The first day of the school year `date` falls in: the one definition
+    /// projects, grades and the classroom share's cutoff read (domain-logic
+    /// review R20). The school session's first day when the guide set one and
+    /// `date` is within the year it begins (`SchoolSession.yearStart`); else
+    /// the configured month and day, as before.
+    static func currentStart(
+        asOf date: Date = Date(),
+        calendar: Calendar = AppCalendar.shared,
+        session: SchoolSession? = ClassroomCalendar.current.session,
+        defaults: UserDefaults = .standard
+    ) -> Date {
+        if let first = session?.yearStart(containing: date, calendar: calendar) { return first }
+        let (month, day) = configuredStart(defaults)
+        return containing(date, startMonth: month, startDay: day, calendar: calendar).start
+    }
+}
+
 /// The active viewing lens. `.allTime` resolves to *no* date filter (today's behavior).
 nonisolated enum SchoolYearSelection: Equatable, Sendable {
     case year(SchoolYear)

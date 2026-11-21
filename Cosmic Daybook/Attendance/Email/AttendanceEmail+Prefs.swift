@@ -25,26 +25,10 @@ public enum AttendanceEmailPrefs {
 
 /// The guide's stored preferences, and prefilled mail senders built from them.
 extension AttendanceEmail {
-    public static func storedToAddress() -> String? {
-        let s = SyncedPreferencesStore.shared.string(forKey: AttendanceEmailPrefs.toKey)?.trimmed()
-        guard let s, !s.isEmpty else { return nil }
-        return s
-    }
-
     public static func storedFromAddress() -> String? {
         let s = SyncedPreferencesStore.shared.string(forKey: AttendanceEmailPrefs.fromKey)?.trimmed()
         guard let s, !s.isEmpty else { return nil }
         return s
-    }
-
-    /// Falls back to "First Last" so an unset preference reads the way the report always has.
-    public static func storedNameOrder() -> AttendanceEmailNameOrder {
-        let raw = SyncedPreferencesStore.shared.string(forKey: AttendanceEmailPrefs.nameOrderKey)
-        return raw.flatMap(AttendanceEmailNameOrder.init(rawValue:)) ?? .firstLast
-    }
-
-    public static func storedGroupByLevel() -> Bool {
-        SyncedPreferencesStore.shared.bool(forKey: AttendanceEmailPrefs.groupByLevelKey)
     }
 
     /// The guide's settings as the classroom share carries them. The switch
@@ -88,8 +72,9 @@ extension AttendanceEmail {
     // MARK: - Settings' writes (bug hunt 2026-10-13 afternoon, H1)
 
     /// This device's side of the guide's settings: its synced preferences
-    /// (which the notebook's own email is written from) and where a write the
-    /// share still owes is kept. Tests pass their own.
+    /// (which Settings types into, and the email falls back to before the
+    /// share has a row) and where a write the share still owes is kept.
+    /// Tests pass their own.
     struct DeviceSettings {
         /// The guide's preferences, as `storedSettings` reads them.
         var stored: () -> AttendanceEmailLog.Settings
@@ -121,9 +106,9 @@ extension AttendanceEmail {
     /// time as the shared row holds them, which is what the roll, the sync,
     /// the reminder, MCP and the assistants read; this device's preferences
     /// only before there is a row. The email's own fields as this device's
-    /// preferences hold them, which the notebook's email is written from; in
-    /// the Sample Class as its row holds them, since nothing there writes the
-    /// preferences.
+    /// preferences hold them, where Settings types them (the email itself is
+    /// written from the row: `emailSettings`); in the Sample Class as its row
+    /// holds them, since nothing there writes the preferences.
     static func shownSettings(
         row: AttendanceEmailLog.Settings?, preferences: AttendanceEmailLog.Settings, isSampleClass: Bool
     ) -> AttendanceEmailLog.Settings {
@@ -216,88 +201,51 @@ extension AttendanceEmail {
         return context.safeSave()
     }
 
-    /// Builds the body using the teacher's stored name-order and grouping preferences.
-    public static func makeBody(
-        present: [AttendanceEmailStudent],
-        tardy: [AttendanceEmailStudent],
-        absent: [AttendanceEmailStudent],
-        leftEarly: [AttendanceEmailStudent] = [],
-        date: Date,
-        calendar: Calendar = .current
-    ) -> String {
-        AttendanceEmailReport.makeBody(
-            present: present,
-            tardy: tardy,
-            absent: absent,
-            leftEarly: leftEarly,
-            date: date,
-            calendar: calendar,
-            nameOrder: storedNameOrder(),
-            groupByLevel: storedGroupByLevel()
-        )
+    // MARK: - The notebook's email (domain-logic review A5)
+
+    /// What the notebook's email is written from: the shared settings row,
+    /// the one source the Daybook Assistant, the reminder and Claude read
+    /// too, so the guide's devices and the assistants' phones send the same
+    /// email to the same people. This device's preferences stand in only
+    /// before the share has a row of the guide's own (none yet, or only the
+    /// launch's stand-in, as Settings shows it: `shownRow`). They used to
+    /// write every email here, and could be behind the row.
+    static func emailSettings(
+        in context: NSManagedObjectContext,
+        isSampleClass: Bool,
+        preferences: @autoclosure () -> AttendanceEmailLog.Settings = AttendanceEmail.storedSettings()
+    ) -> AttendanceEmailLog.Settings {
+        shownRow(in: context, isSampleClass: isSampleClass) ?? preferences()
     }
 
     #if os(iOS)
-    /// Creates a prefilled mail composer using current preferences.
-    /// - Important: Check `AttendanceEmail.isAvailable` before
-    ///   presenting. If unavailable, consider using
-    ///   `mailtoURLForCurrentPrefs(...)` as a fallback.
-    public static func composerForCurrentPrefs(
-        present: [AttendanceEmailStudent],
-        tardy: [AttendanceEmailStudent],
-        absent: [AttendanceEmailStudent],
-        leftEarly: [AttendanceEmailStudent] = [],
-        date: Date = Date(),
-        calendar: Calendar = .current,
+    /// A mail composer filled in with `draft`, from this device's preferred
+    /// sending address (its own preference: the row has no field for it).
+    /// - Important: Check `AttendanceEmail.isAvailable` before presenting. If
+    ///   unavailable, fall back to `draft.mailtoURL`.
+    static func composer(
+        for draft: AttendanceEmailDraft,
         onComplete: @escaping (MFMailComposeResult, Error?) -> Void
     ) -> MailComposerView {
-        let subject = makeSubject(for: date, calendar: calendar)
-        let body = makeBody(
-            present: present,
-            tardy: tardy,
-            absent: absent,
-            leftEarly: leftEarly,
-            date: date,
-            calendar: calendar
-        )
-        let to = parseRecipients(from: storedToAddress())
-        let from = storedFromAddress()
-        return MailComposerView(
-            toRecipients: to,
-            subject: subject,
-            body: body,
-            preferredSender: from,
+        MailComposerView(
+            toRecipients: draft.recipients,
+            subject: draft.subject,
+            body: draft.body,
+            preferredSender: storedFromAddress(),
             onComplete: onComplete
         )
     }
     #endif
 
     #if os(macOS)
-    public static func sendUsingMailAppForCurrentPrefs(
-        present: [AttendanceEmailStudent],
-        tardy: [AttendanceEmailStudent],
-        absent: [AttendanceEmailStudent],
-        leftEarly: [AttendanceEmailStudent] = [],
-        date: Date = Date(),
-        calendar: Calendar = .current,
-        completion: @escaping (Bool) -> Void
-    ) {
-        let subject = makeSubject(for: date, calendar: calendar)
-        let body = makeBody(
-            present: present,
-            tardy: tardy,
-            absent: absent,
-            leftEarly: leftEarly,
-            date: date,
-            calendar: calendar
-        )
+    /// Hands `draft` to the Mail app.
+    static func sendUsingMailApp(_ draft: AttendanceEmailDraft, completion: @escaping (Bool) -> Void) {
         MacOSMailSender.send(
-            to: storedToAddress(),
-            subject: subject,
-            body: body,
+            to: draft.recipients.isEmpty ? nil : draft.recipients.joined(separator: ", "),
+            subject: draft.subject,
+            body: draft.body,
             completion: completion
         )
     }
-
     #endif
 }

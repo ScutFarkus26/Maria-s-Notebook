@@ -100,7 +100,7 @@ enum FrontDeskEmailReminder {
         var day = calendar.startOfDay(for: now)
         let today = day
         for _ in 0..<(count * 3) where dates.count < count {
-            defer { day = calendar.date(byAdding: .day, value: 1, to: day) ?? day }
+            defer { day = AppCalendar.dayStart(after: day, calendar: calendar) }
             guard !nonSchoolDays.contains(day) else { continue }
             if day == today, todayIsDone { continue }
             guard let fire = clockTime(minutes, on: day, calendar: calendar), fire > now else { continue }
@@ -187,6 +187,7 @@ enum FrontDeskEmailReminder {
                 content.sound = .default
                 var components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
                 components.calendar = calendar // The app's calendar, not the phone's (bug hunt 2026-11-03 #20).
+                components.timeZone = calendar.timeZone // And the class's 9:00, not the phone's (review A4).
                 let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
                 let id = idPrefix + AppCalendar.dayID(date) + "-" + kind.suffix
                 return UNNotificationRequest(identifier: id, content: content, trigger: trigger)

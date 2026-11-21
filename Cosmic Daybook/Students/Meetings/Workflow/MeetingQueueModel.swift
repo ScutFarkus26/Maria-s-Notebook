@@ -320,7 +320,7 @@ final class MeetingQueueModel {
         to result: inout [UUID: MeetingQueueSignals], now: Date, context: NSManagedObjectContext
     ) {
         let attendance = CDFetchRequest(CDAttendanceRecord.self)
-        attendance.predicate = NSPredicate(format: "date == %@", now.normalizedDay() as NSDate)
+        attendance.predicate = AppCalendar.dayPredicate(on: now)
         for record in context.safeFetch(attendance).deduplicatedPerStudentDay() where record.status == .absent {
             guard let id = UUID(uuidString: record.studentID) else { continue }
             result[id, default: MeetingQueueSignals()].isAbsentToday = true

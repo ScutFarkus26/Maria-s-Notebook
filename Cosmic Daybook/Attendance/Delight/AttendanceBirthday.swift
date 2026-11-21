@@ -32,7 +32,7 @@ enum AttendanceBirthday: Equatable {
     /// (`CDStudent`'s initializer stamps `Date()`), which would put a cake on
     /// that date every year; a child under three can't be in the class, so
     /// those are left out. A Feb 29 birthday is kept on Feb 28 in other years.
-    static func on(_ day: Date, birthday: Date?, calendar: Calendar = .current) -> AttendanceBirthday? {
+    static func on(_ day: Date, birthday: Date?, calendar: Calendar = AppCalendar.shared) -> AttendanceBirthday? {
         guard let birthday,
               let age = calendar.dateComponents([.year], from: calendar.startOfDay(for: birthday), to: day).year,
               (3...21).contains(age)

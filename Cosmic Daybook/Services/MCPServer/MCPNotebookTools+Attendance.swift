@@ -64,6 +64,10 @@ extension MCPNotebookTools {
         } else if let sent {
             lines.append("  Front desk email: " + sent)
         }
+        // The school's copy is behind: marks changed after it went (review R18).
+        if let changes = AttendanceEmailLog.changesSinceReported(on: day, in: modelContext) {
+            lines.append("  " + changes.line(for: day))
+        }
         return lines.joined(separator: "\n")
     }
 

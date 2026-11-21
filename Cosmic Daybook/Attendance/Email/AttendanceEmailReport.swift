@@ -101,44 +101,41 @@ public struct AttendanceEmailReport {
     /// blank lines and capitalization to carry the hierarchy.
     private static let nameIndent = "    "
 
-    /// "Jan 15, 2024", for the subject. Kept here rather than borrowed from
-    /// `DateFormatters` because the Daybook Assistant compiles this file too.
-    private static let subjectFormatter: DateFormatter = {
+    /// The day as the email words it: "Jan 15, 2024" (`.medium`) for the
+    /// subject, "Monday, January 15, 2024" (`.full`) under the report's
+    /// title. In `calendar`'s zone, the classroom's: a formatter left on the
+    /// device's zone names the day before on a phone west of the class.
+    /// Built here rather than borrowed from `DateFormatters` because the
+    /// Daybook Assistant compiles this file too.
+    private static func dayText(_ date: Date, style: DateFormatter.Style, calendar: Calendar) -> String {
         let formatter = DateFormatter()
-        formatter.dateStyle = .medium
+        formatter.dateStyle = style
         formatter.timeStyle = .none
-        return formatter
-    }()
+        formatter.timeZone = calendar.timeZone
+        return formatter.string(from: calendar.startOfDay(for: date))
+    }
 
-    /// "Monday, January 15, 2024", under the report's title.
-    private static let headerFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .full
-        formatter.timeStyle = .none
-        return formatter
-    }()
-
-    public static func makeSubject(
+    static func makeSubject(
         for date: Date,
-        calendar: Calendar = .current
+        calendar: Calendar = AppCalendar.shared
     ) -> String {
-        let dayStr = subjectFormatter.string(from: calendar.startOfDay(for: date))
+        let dayStr = dayText(date, style: .medium, calendar: calendar)
         return "Attendance \u{2022} \(dayStr)"
     }
 
-    public static func makeBody(
+    static func makeBody(
         present: [AttendanceEmailStudent],
         tardy: [AttendanceEmailStudent],
         absent: [AttendanceEmailStudent],
         leftEarly: [AttendanceEmailStudent] = [],
         date: Date,
-        calendar: Calendar = .current,
+        calendar: Calendar = AppCalendar.shared,
         nameOrder: AttendanceEmailNameOrder = .firstLast,
         groupByLevel: Bool = false
     ) -> String {
         let header = [
             "Attendance Report",
-            headerFormatter.string(from: calendar.startOfDay(for: date))
+            dayText(date, style: .full, calendar: calendar)
         ]
         // Left Early appears only on a day someone left, so an ordinary day's report
         // doesn't gain a "(0) None" section.
@@ -257,7 +254,7 @@ public struct AttendanceEmailDraft: Identifiable, Sendable {
 
 /// Recipients and mailto links, shared by every email the apps compose.
 public enum AttendanceEmail {
-    public static func makeSubject(for date: Date, calendar: Calendar = .current) -> String {
+    static func makeSubject(for date: Date, calendar: Calendar = AppCalendar.shared) -> String {
         AttendanceEmailReport.makeSubject(for: date, calendar: calendar)
     }
 

@@ -35,7 +35,7 @@ nonisolated enum AttendanceDayLocks {
     /// reader that scopes it to a store (`CDAttendanceStore.isLocked`).
     static func request(on date: Date) -> NSFetchRequest<CDAttendanceDayLock> {
         let request = CDFetchRequest(CDAttendanceDayLock.self)
-        request.predicate = NSPredicate(format: "date == %@", AppCalendar.startOfDay(date) as NSDate)
+        request.predicate = AppCalendar.dayPredicate(on: date)
         request.fetchLimit = 1
         return request
     }
@@ -55,7 +55,7 @@ nonisolated enum AttendanceDayLocks {
         guard role == .leadGuide else { return false }
         let day = AppCalendar.startOfDay(date)
         let request = CDFetchRequest(CDAttendanceDayLock.self)
-        request.predicate = NSPredicate(format: "date == %@", day as NSDate)
+        request.predicate = AppCalendar.dayPredicate(on: day)
         let existing = context.safeFetch(request)
         if locked {
             guard existing.isEmpty else { return false }

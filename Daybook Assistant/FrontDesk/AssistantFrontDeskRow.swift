@@ -180,7 +180,11 @@ struct AssistantFrontDeskRow: View {
     /// "Emailed 8:42 AM by Sarah", "Sent to ParentLocker 8:47 AM by you",
     /// "… · sent again 10:15 AM": who and when from the day's first send
     /// (bug hunt 2026-10-20, #15).
+    ///
+    /// Once marks have changed since it went, that comes first: "2 changes
+    /// since 9:02 AM · Send an update" (domain-logic review R18).
     private func summary(of sends: AttendanceEmailLog.DaySends) -> String {
+        if let changes = frontDesk.changes { return changes.line(for: viewModel.date) }
         let name = sends.first.senderName(
             viewerRole: .assistant,
             myRecordName: ClassroomIdentity.currentUserRecordName,
@@ -197,8 +201,8 @@ struct AssistantFrontDeskRow: View {
             Button("Send Again", systemImage: "envelope", action: onSend)
         } label: {
             HStack(spacing: 6) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
+                Image(systemName: frontDesk.changes == nil ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                    .foregroundStyle(frontDesk.changes == nil ? .green : .orange)
                 Text("Front desk: \(summary)")
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -230,7 +234,7 @@ extension AssistantFrontDeskRow {
                     isSending: isSendingNow || sync.status.state == .sending,
                     offersSend: frontDesk.offersParentLockerSend(by: viewModel),
                     sendNowMessage: sendNowMessage.flatMap {
-                        Calendar.current.isDate($0.day, inSameDayAs: viewModel.date) ? $0.text : nil
+                        AppCalendar.shared.isDate($0.day, inSameDayAs: viewModel.date) ? $0.text : nil
                     },
                     onSendNow: { sendNow(sync) },
                     onSignIn: onParentLockerSignIn

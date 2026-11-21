@@ -67,7 +67,7 @@ enum AssistantDayRoll {
         request.predicate = NSPredicate(format: "date != nil")
         request.sortDescriptors = [NSSortDescriptor(key: "date", ascending: true)]
         request.fetchLimit = 1
-        return context.safeFetchFirst(request)?.date.map { Calendar.current.startOfDay(for: $0) }
+        return context.safeFetchFirst(request)?.date.map { AppCalendar.shared.startOfDay(for: $0) }
     }
 
     /// Siri's day: today's roll, the children on it with no mark yet, and

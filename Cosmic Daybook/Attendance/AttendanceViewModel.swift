@@ -109,7 +109,10 @@ final class AttendanceViewModel {
         // Closed here, or on another device: its automatic absences, or this
         // device saw them and their children aren't all unmarked again (an
         // Undo), as `CDAttendanceStore.arrivalClosed` reads them.
-        let closedAnywhere = AttendanceLatePhase.closedAnywhere(on: target, records: fetched, defaults: defaults)
+        let closedAnywhere = AttendanceLatePhase.closedAnywhere(
+            on: target, records: fetched,
+            closedAt: AttendanceEmailLog.arrivalClosedAt(on: target, in: modelContext), defaults: defaults
+        )
         readsClosed = closedAnywhere
         phase = AttendanceLatePhase.isLate(on: target, closedAnywhere: closedAnywhere, defaults: defaults)
             ? .late : .arrival
@@ -237,7 +240,10 @@ final class AttendanceViewModel {
             AttendanceLatePhase.setLate(true, on: selectedDate, defaults: defaults)
             // Who it marked, so their absences undone on another device (two
             // closed at once, one undid) bring this one back to Arrival too.
-            readsClosed = AttendanceLatePhase.closedAnywhere(on: selectedDate, records: marked, defaults: defaults)
+            readsClosed = AttendanceLatePhase.closedAnywhere(
+                on: selectedDate, records: marked,
+                closedAt: AttendanceEmailLog.arrivalClosedAt(on: selectedDate, in: modelContext), defaults: defaults
+            )
             // As on the Assistant's grid: Siri's last change is from before
             // arrival closed, so "Undo that" can't reach past this.
             SiriAttendanceChange.forget(ifOn: selectedDate, defaults: defaults)

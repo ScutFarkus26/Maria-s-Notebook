@@ -32,16 +32,17 @@ struct AttendanceEmailPreferencesTests {
     }
 
     private func bodyLines() -> [String] {
-        AttendanceEmail
-            .makeBody(present: students, tardy: [], absent: [], date: Date())
+        AttendanceEmail.storedSettings()
+            .draft(for: Date(), present: students, tardy: [], absent: [])
+            .body
             .components(separatedBy: "\n")
     }
 
     @Test("Unset preferences leave the report the shape it has always had")
     func unsetPreferences() {
         withCleanPreferences {
-            #expect(AttendanceEmail.storedNameOrder() == .firstLast)
-            #expect(AttendanceEmail.storedGroupByLevel() == false)
+            #expect(AttendanceEmail.storedSettings().nameOrder == .firstLast)
+            #expect(AttendanceEmail.storedSettings().groupByLevel == false)
             #expect(bodyLines().contains("    • Ada Zeller"))
         }
     }
@@ -53,7 +54,7 @@ struct AttendanceEmailPreferencesTests {
                 AttendanceEmailNameOrder.lastFirst.rawValue,
                 forKey: AttendanceEmailPrefs.nameOrderKey
             )
-            #expect(AttendanceEmail.storedNameOrder() == .lastFirst)
+            #expect(AttendanceEmail.storedSettings().nameOrder == .lastFirst)
             #expect(bodyLines().contains("    • Adams, Bo"))
         }
     }
@@ -62,7 +63,7 @@ struct AttendanceEmailPreferencesTests {
     func storedGroupingReachesBody() {
         withCleanPreferences {
             SyncedPreferencesStore.shared.set(true, forKey: AttendanceEmailPrefs.groupByLevelKey)
-            #expect(AttendanceEmail.storedGroupByLevel())
+            #expect(AttendanceEmail.storedSettings().groupByLevel)
             let lines = bodyLines()
             #expect(lines.contains("UPPER ELEMENTARY"))
             #expect(lines.contains("    • Ada Zeller"))

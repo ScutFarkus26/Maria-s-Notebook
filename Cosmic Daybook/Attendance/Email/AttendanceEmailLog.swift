@@ -49,7 +49,7 @@ enum AttendanceEmailLog {
     /// The deadline is the clock time, also on the days the clocks change,
     /// as the reminders read it (bug hunt 2026-11-03 #17).
     static func urgency(
-        for day: Date, deadlineMinutes: Int, now: Date = Date(), calendar: Calendar = .current
+        for day: Date, deadlineMinutes: Int, now: Date = Date(), calendar: Calendar = AppCalendar.shared
     ) -> Urgency {
         guard calendar.isDate(day, inSameDayAs: now),
               let deadline = FrontDeskEmailReminder.clockTime(deadlineMinutes, on: day, calendar: calendar)
@@ -62,7 +62,9 @@ enum AttendanceEmailLog {
     /// The two moments on `day` the screens' email line changes, where
     /// `urgency` turns due and then late: half an hour before the due time,
     /// and at it.
-    static func changeTimes(on day: Date, deadlineMinutes: Int, calendar: Calendar = .current) -> [Date] {
+    static func changeTimes(
+        on day: Date, deadlineMinutes: Int, calendar: Calendar = AppCalendar.shared
+    ) -> [Date] {
         guard let deadline = FrontDeskEmailReminder.clockTime(deadlineMinutes, on: day, calendar: calendar)
         else { return [] }
         return [deadline.addingTimeInterval(-Double(dueWindowMinutes) * 60), deadline]
@@ -200,7 +202,7 @@ enum AttendanceEmailLog {
         /// sender said it went, with "(late)" after the day's deadline. The
         /// date shows too when it went on another day than the one it reports.
         func summary(
-            senderName: String, for day: Date, deadlineMinutes: Int? = nil, calendar: Calendar = .current
+            senderName: String, for day: Date, deadlineMinutes: Int? = nil, calendar: Calendar = AppCalendar.shared
         ) -> String {
             let when = Self.time(sentAt, reporting: day, calendar: calendar)
             let verb = switch (channel, wasConfirmedByHand) {
@@ -216,11 +218,14 @@ enum AttendanceEmailLog {
         }
 
         /// "8:42 AM", or "Oct 19, 8:42 AM" when it went on another day than
-        /// the one it reports.
-        static func time(_ sentAt: Date, reporting day: Date, calendar: Calendar = .current) -> String {
-            calendar.isDate(sentAt, inSameDayAs: day)
-                ? sentAt.formatted(date: .omitted, time: .shortened)
-                : sentAt.formatted(.dateTime.month(.abbreviated).day().hour().minute())
+        /// the one it reports: the class's clock (`calendar`'s zone), which a
+        /// phone in another zone would otherwise show as its own.
+        static func time(_ sentAt: Date, reporting day: Date, calendar: Calendar = AppCalendar.shared) -> String {
+            var style = calendar.isDate(sentAt, inSameDayAs: day)
+                ? Date.FormatStyle(date: .omitted, time: .shortened)
+                : Date.FormatStyle.dateTime.month(.abbreviated).day().hour().minute()
+            style.timeZone = calendar.timeZone
+            return sentAt.formatted(style)
         }
     }
 
@@ -247,11 +252,17 @@ enum AttendanceEmailLog {
     /// them (with ParentLocker picked, the email off). Only the lead guide
     /// may, and nothing is written when they already match. Returns whether
     /// anything changed; the caller saves.
+    ///
+    /// The row's classroom time zone and session (schema 25) aren't part of
+    /// `Settings` and stay as they are: a duplicate row dropped here hands
+    /// its own to the row kept, and the first real save from a Mac fills an
+    /// unset zone with the Mac's (`firstSaveZoneID`).
     @discardableResult
     static func saveSettings(
         _ settings: Settings,
         role: CDClassroomMembership.ClassroomRole,
         now: Date = Date(),
+        firstSaveZoneID: String? = AttendanceEmailLog.firstSaveZoneID,
         in context: NSManagedObjectContext
     ) -> Bool {
         guard role == .leadGuide else { return false }
@@ -263,10 +274,11 @@ enum AttendanceEmailLog {
 
         // Two of the guide's devices can each write one before either syncs:
         // keep the newest, drop the rest.
-        rows.dropFirst().forEach(context.delete)
         let row: CDAttendanceEmailSettings
         if let newest = rows.first {
             row = newest
+            carryClassroomCalendar(from: rows.dropFirst(), to: newest)
+            rows.dropFirst().forEach(context.delete)
         } else {
             row = CDAttendanceEmailSettings(context: context)
             if let store = destinationStore(for: role, in: context) { context.assign(row, to: store) }
@@ -279,6 +291,9 @@ enum AttendanceEmailLog {
         row.sendMethodRaw = settings.sendMethod.rawValue
         row.parentLockerSite = settings.parentLockerSite
         row.modifiedAt = now
+        // Not the launch's own write: that row is only a stand-in.
+        if now != launchSeedStamp, row.classroomTimeZoneID == nil { row.classroomTimeZoneID = firstSaveZoneID }
+        ClassroomCalendarFollower.refresh(from: context)
         return true
     }
 
@@ -331,49 +346,6 @@ enum AttendanceEmailLog {
         }
         if let shared { request.affectedStores = [shared] }
         #endif
-    }
-
-    /// The days with no school in `range`, by `SchoolDayChecker`'s rule, from
-    /// the days off and school-day overrides the classroom share holds: what
-    /// the reminders go by (the front desk's and the Assistant's arrival
-    /// reminder). In the Assistant, the guide's calendar only, never a
-    /// notebook of the assistant's own on the same Apple Account, as for the
-    /// settings and sends above (bug hunt 2026-10-20). The notebook reads both
-    /// stores, as `SchoolDayChecker.nonSchoolDaySet` does.
-    static func nonSchoolDays(
-        in range: Range<Date>,
-        using context: NSManagedObjectContext,
-        calendar: Calendar = AppCalendar.shared
-    ) -> Set<Date> {
-        let start = calendar.startOfDay(for: range.lowerBound)
-        let end = calendar.startOfDay(for: range.upperBound)
-        guard start < end else { return [] }
-        let daysOff = classroomDates(CDNonSchoolDay.self, from: start, to: end, in: context, calendar: calendar)
-        let overrides = classroomDates(CDSchoolDayOverride.self, from: start, to: end, in: context, calendar: calendar)
-        var result: Set<Date> = []
-        var day = start
-        while day < end {
-            let isOff = SchoolDayChecker.isNonSchoolDay(
-                day, nonSchoolDayDates: daysOff, overrideDates: overrides, calendar: calendar
-            )
-            if isOff { result.insert(day) }
-            guard let next = calendar.date(byAdding: .day, value: 1, to: day), next > day else { break }
-            day = next
-        }
-        return result
-    }
-
-    /// The start of each day in [`start`, `end`) holding a record of `type`
-    /// in the classroom's store.
-    private static func classroomDates<T: NSManagedObject>(
-        _ type: T.Type, from start: Date, to end: Date, in context: NSManagedObjectContext, calendar: Calendar
-    ) -> Set<Date> {
-        let request = CDFetchRequest(T.self)
-        request.predicate = NSPredicate(format: "date >= %@ AND date < %@", start as NSDate, end as NSDate)
-        scopeToClassroom(request, in: context)
-        return Set(context.safeFetch(request).compactMap { record in
-            (record.value(forKey: "date") as? Date).map { calendar.startOfDay(for: $0) }
-        })
     }
 
     /// Where a new record goes: the guide's own records live in the private

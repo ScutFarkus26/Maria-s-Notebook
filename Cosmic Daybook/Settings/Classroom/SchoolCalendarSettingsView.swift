@@ -14,7 +14,14 @@ struct SchoolYearStartSettingsView: View {
     @Environment(\.dependencies) private var dependencies
 
     var body: some View {
-        SchoolYearStartConfig(store: dependencies.schoolYearStore)
+        VStack(alignment: .leading, spacing: 8) {
+            SchoolYearStartConfig(store: dependencies.schoolYearStore)
+
+            Divider()
+                .padding(.vertical, 4)
+
+            SchoolSessionSettingsView()
+        }
     }
 }
 

@@ -60,14 +60,21 @@ enum AttendanceSchoolDayCount {
         return calendar.date(from: DateComponents(year: startYear, month: 7, day: 1)) ?? calendar.startOfDay(for: date)
     }
 
-    /// The first day any child was marked here in the school year beginning
-    /// `yearStart`, or nil before the first mark comes in.
+    /// The first day of the school year beginning `yearStart`: the school
+    /// session's first day when the guide set one in that year (domain-logic
+    /// review R20), so one stray August mark is no longer Day 1. Without one,
+    /// the first day any child was marked here, or nil before the first mark
+    /// comes in.
     static func firstDay(
         inYearStarting yearStart: Date,
         in context: NSManagedObjectContext,
         calendar: Calendar = AppCalendar.shared
     ) -> Date? {
         guard let yearEnd = calendar.date(byAdding: .year, value: 1, to: yearStart) else { return nil }
+        if let first = SchoolSession.read(in: context).map({ calendar.startOfDay(for: $0.firstDay) }),
+           first >= yearStart, first < yearEnd {
+            return first
+        }
         let request = CDFetchRequest(CDAttendanceRecord.self)
         let here = [AttendanceStatus.present, .tardy, .leftEarly].map(\.rawValue)
         request.predicate = NSPredicate(
@@ -97,7 +104,8 @@ enum AttendanceSchoolDayCount {
         var count = 0
         while cursor <= day {
             if !nonSchoolDays.contains(cursor) { count += 1 }
-            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+            let next = AppCalendar.dayStart(after: cursor, calendar: calendar)
+            guard next > cursor else { break }
             cursor = next
         }
         return count
@@ -111,7 +119,8 @@ enum AttendanceSchoolDayCount {
         calendar: Calendar = AppCalendar.shared
     ) -> Int? {
         let day = calendar.startOfDay(for: date)
-        guard day >= firstDay, let end = calendar.date(byAdding: .day, value: 1, to: day) else { return nil }
+        guard day >= firstDay else { return nil }
+        let end = AppCalendar.dayStart(after: day, calendar: calendar)
         #if ASSISTANT_APP
         // The guide's calendar only, as the grid's days off are.
         let daysOff = AttendanceEmailLog.nonSchoolDays(in: firstDay..<end, using: context, calendar: calendar)

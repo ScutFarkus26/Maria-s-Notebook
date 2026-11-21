@@ -36,7 +36,7 @@ enum AttendanceRules {
     /// Every path follows it: the store's `mark(student:status:reason:on:)`
     /// checks it for the grids, Siri and Claude alike.
     nonisolated static func allows(
-        _ status: AttendanceStatus, on day: Date, now: Date = Date(), calendar: Calendar = .current
+        _ status: AttendanceStatus, on day: Date, now: Date = Date(), calendar: Calendar = AppCalendar.shared
     ) -> Bool {
         guard calendar.startOfDay(for: day) > calendar.startOfDay(for: now) else { return true }
         return status == .absent || status == .unmarked
@@ -162,7 +162,7 @@ enum AttendanceRules {
     /// day ahead (a parent's note for Friday), never a day gone by, and not
     /// for a child absent or already gone home.
     static func allowsPickup(for row: AttendanceRow, on day: Date, now: Date = Date()) -> Bool {
-        let calendar = Calendar.current
+        let calendar = AppCalendar.shared
         guard calendar.startOfDay(for: day) >= calendar.startOfDay(for: now) else { return false }
         return row.status != .absent && row.status != .leftEarly
     }
@@ -171,7 +171,7 @@ enum AttendanceRules {
     /// next half hour today (noon on a day ahead), on `day`.
     static func suggestedPickup(for row: AttendanceRow, on day: Date, now: Date = Date()) -> Date {
         if let set = row.leavesAt { return set }
-        let calendar = Calendar.current
+        let calendar = AppCalendar.shared
         let start = calendar.startOfDay(for: day)
         // Clock times, not minutes from midnight: on the day the clocks
         // change, midnight plus twelve hours is 11:00 or 1:00.
@@ -187,7 +187,7 @@ enum AttendanceRules {
     /// `time`'s hour and minute on `day`: a picker's answer, put on the
     /// record's own day.
     static func pickup(_ time: Date, on day: Date) -> Date {
-        let calendar = Calendar.current
+        let calendar = AppCalendar.shared
         let parts = calendar.dateComponents([.hour, .minute], from: time)
         let start = calendar.startOfDay(for: day)
         return calendar.date(bySettingHour: parts.hour ?? 0, minute: parts.minute ?? 0, second: 0, of: start)

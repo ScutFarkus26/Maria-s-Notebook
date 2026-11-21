@@ -19,12 +19,24 @@ extension AttendanceEmailLog {
     /// it as an email that went, as it reads every ParentLocker send.
     nonisolated static let notExpectedChannel = "notExpected"
 
+    /// The `channelRaw` of the other note: arrival closed on the day, at the
+    /// row's `sentAt` (domain-logic review A1). Nothing writes one yet. This
+    /// build only reads: no read of the day's sends counts it, and the Late
+    /// rule can take the close's time from it (`arrivalClosedAt`). The writer
+    /// comes a release later, once every device has a build that reads it
+    /// this way; a build from before would show it as an email that went.
+    nonisolated static let arrivalClosedChannel = "arrivalClosed"
+
+    /// The channels that mark a note, not a send.
+    nonisolated static let noteChannels = [notExpectedChannel, arrivalClosedChannel]
+
     /// The day's records of this type: its sends, and with `notes`, its
-    /// "not expected" note too. A row with no channel at all is a send.
+    /// notes too. A row with no channel at all is a send. Matched by the
+    /// day's range, not its exact midnight (`AppCalendar.dayPredicate`).
     private static func recordsRequest(on day: Date, notes: Bool) -> NSFetchRequest<CDAttendanceEmailSend> {
         let request = CDFetchRequest(CDAttendanceEmailSend.self)
-        let onDay = NSPredicate(format: "date == %@", AppCalendar.startOfDay(day) as NSDate)
-        let sendsOnly = NSPredicate(format: "channelRaw == nil OR channelRaw != %@", notExpectedChannel)
+        let onDay = AppCalendar.dayPredicate(on: day)
+        let sendsOnly = NSPredicate(format: "channelRaw == nil OR NOT (channelRaw IN %@)", noteChannels)
         request.predicate = notes ? onDay : NSCompoundPredicate(andPredicateWithSubpredicates: [onDay, sendsOnly])
         return request
     }
@@ -61,7 +73,7 @@ extension AttendanceEmailLog {
         /// "Emailed 8:42 AM by Sarah · sent again 10:15 AM". `senderName`
         /// is `first`'s, as `Send.senderName` reads it.
         func summary(
-            senderName: String, for day: Date, deadlineMinutes: Int? = nil, calendar: Calendar = .current
+            senderName: String, for day: Date, deadlineMinutes: Int? = nil, calendar: Calendar = AppCalendar.shared
         ) -> String {
             let line = first.summary(
                 senderName: senderName, for: day, deadlineMinutes: deadlineMinutes, calendar: calendar
@@ -103,10 +115,9 @@ extension AttendanceEmailLog {
         request.sortDescriptors = [NSSortDescriptor(key: "sentAt", ascending: false)]
         scopeToClassroom(request, in: context)
         let records = context.safeFetch(request)
-        let notes = records.filter { $0.channelRaw == notExpectedChannel }
         return DayRecords(
-            sends: records.filter { $0.channelRaw != notExpectedChannel }.map(Send.init),
-            isNotExpected: !notes.isEmpty
+            sends: records.filter { !noteChannels.contains($0.channelRaw) }.map(Send.init),
+            isNotExpected: records.contains { $0.channelRaw == notExpectedChannel }
         )
     }
 
@@ -121,13 +132,71 @@ extension AttendanceEmailLog {
     /// ParentLocker said it isn't expecting the class's attendance on `day`,
     /// on this device or another (`notExpectedChannel`).
     static func isNotExpected(on day: Date, in context: NSManagedObjectContext) -> Bool {
-        let request = CDFetchRequest(CDAttendanceEmailSend.self)
-        request.predicate = NSPredicate(
-            format: "date == %@ AND channelRaw == %@", AppCalendar.startOfDay(day) as NSDate, notExpectedChannel
-        )
+        let request = noteRequest(notExpectedChannel, on: day)
         request.fetchLimit = 1
         scopeToClassroom(request, in: context)
         return context.safeFetchFirst(request) != nil
+    }
+
+    /// When arrival closed on `day`, by the day's `arrivalClosedChannel` note
+    /// (the earliest, should two devices each write one), or nil without one.
+    static func arrivalClosedAt(on day: Date, in context: NSManagedObjectContext) -> Date? {
+        let request = noteRequest(arrivalClosedChannel, on: day)
+        scopeToClassroom(request, in: context)
+        return context.safeFetch(request).compactMap(\.sentAt).min()
+    }
+
+    private static func noteRequest(_ channel: String, on day: Date) -> NSFetchRequest<CDAttendanceEmailSend> {
+        let request = CDFetchRequest(CDAttendanceEmailSend.self)
+        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            AppCalendar.dayPredicate(on: day), NSPredicate(format: "channelRaw == %@", channel)
+        ])
+        return request
+    }
+
+    // MARK: - Changed since reported
+
+    /// The marks changed on a day after the school was last told (domain-logic
+    /// review R18): the 9:00 email says Maya is absent, she comes in at 10:30,
+    /// and the school's copy is now wrong. Worked out, never stored.
+    struct ChangesSinceReported: Equatable, Sendable {
+        /// How many children's records changed after the send.
+        let count: Int
+        /// The day's latest send, which they changed after.
+        let send: Send
+
+        /// "2 changes since 9:02 AM".
+        func summary(for day: Date, calendar: Calendar = AppCalendar.shared) -> String {
+            let changes = count == 1 ? "1 change" : "\(count) changes"
+            return "\(changes) since \(Send.time(send.sentAt, reporting: day, calendar: calendar))"
+        }
+
+        /// The line both apps and Claude show: "2 changes since 9:02 AM ·
+        /// Send an update". ParentLocker takes only the day's own marks, so a
+        /// day behind it is put right there by hand.
+        func line(for day: Date, calendar: Calendar = AppCalendar.shared) -> String {
+            let action = send.channel == .parentLocker ? "Update it in ParentLocker" : "Send an update"
+            return summary(for: day, calendar: calendar) + " · " + action
+        }
+    }
+
+    /// The children whose record on `day` changed after the day's latest
+    /// send (`modifiedAt`, which every mark, reason, note and pickup stamps),
+    /// or nil when nothing was sent or nothing changed since. One record per
+    /// child, the one the grid shows (`deduplicatedPerStudentDay`). Today's
+    /// ParentLocker send is left out: ParentLocker follows today's marks as
+    /// they change.
+    static func changesSinceReported(
+        on day: Date, now: Date = Date(), in context: NSManagedObjectContext
+    ) -> ChangesSinceReported? {
+        guard let send = latestSend(on: day, in: context) else { return nil }
+        if send.channel == .parentLocker, AppCalendar.isSameDay(day, now) { return nil }
+        let request = CDFetchRequest(CDAttendanceRecord.self)
+        request.predicate = AppCalendar.dayPredicate(on: day)
+        scopeToClassroom(request, in: context)
+        let changed = context.safeFetch(request).deduplicatedPerStudentDay()
+            .filter { ($0.modifiedAt ?? .distantPast) > send.sentAt }
+        return changed.isEmpty ? nil : ChangesSinceReported(count: changed.count, send: send)
     }
 
     /// Records that `day`'s attendance went, by `channel` (the email unless

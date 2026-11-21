@@ -149,6 +149,7 @@ enum ArrivalReminder {
             content.sound = .default
             var components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
             components.calendar = calendar // The app's calendar, not the phone's (bug hunt 2026-11-03 #20).
+            components.timeZone = calendar.timeZone // And the class's clock, not the phone's (review A4).
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
             return UNNotificationRequest(identifier: identifier(on: date), content: content, trigger: trigger)
         }

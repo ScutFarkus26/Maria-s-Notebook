@@ -19,10 +19,10 @@ extension AttendanceViewModel {
 
     // MARK: - The day
 
-    var isToday: Bool { Calendar.current.isDateInToday(selectedDate) }
+    var isToday: Bool { AppCalendar.shared.isDateInToday(selectedDate) }
 
     /// A day after today: only absences and notes can be marked ahead.
-    var isFuture: Bool { selectedDate > Calendar.current.startOfDay(for: Date()) }
+    var isFuture: Bool { selectedDate > AppCalendar.shared.startOfDay(for: Date()) }
 
     /// The statuses the menu offers on the day on screen.
     var menuStatuses: [AttendanceStatus] { AttendanceRules.menuStatuses(on: selectedDate) }

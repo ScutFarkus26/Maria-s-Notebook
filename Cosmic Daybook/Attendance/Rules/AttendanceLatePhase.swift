@@ -47,7 +47,7 @@ enum AttendanceLatePhase {
 
     /// Whether arrival was closed on `day` on this device.
     static func isLate(on day: Date, defaults: UserDefaults = .standard) -> Bool {
-        lateDays(defaults).contains { Calendar.current.isDate($0, inSameDayAs: day) }
+        lateDays(defaults).contains { AppCalendar.shared.isDate($0, inSameDayAs: day) }
     }
 
     /// Whether `day` is in Late as this device sees it: arrival closed here,
@@ -85,9 +85,16 @@ enum AttendanceLatePhase {
     /// (review of the 2026-10-20 fixes, (a) 2). A day with no records at all
     /// (a store still downloading) says nothing about an Undo, so what was
     /// seen stands.
+    ///
+    /// `closedAt` is the close's time from the day's shared note, when a
+    /// device has written one (`AttendanceEmailLog.arrivalClosedAt`,
+    /// domain-logic review A1; nothing writes one yet). It only dates the
+    /// close: who it took in, and whether it still stands, are read from the
+    /// records as before.
     @discardableResult
     static func closedAnywhere(
-        on day: Date, records: [CDAttendanceRecord], defaults: UserDefaults = .standard
+        on day: Date, records: [CDAttendanceRecord], closedAt noted: Date? = nil,
+        defaults: UserDefaults = .standard
     ) -> Bool {
         let id = dayKey(day)
         var seen = seenClosed(defaults)
@@ -98,7 +105,7 @@ enum AttendanceLatePhase {
             records.deduplicatedPerStudentDay().map { ($0.studentID, $0) }, uniquingKeysWith: { first, _ in first }
         )
         var current = remembered.union(automatic.map(\.studentID))
-        let closeTime = ([closedAt[id]] + automatic.map(\.markedAt)).compactMap { $0 }.min()
+        let closeTime = ([closedAt[id], noted] + automatic.map(\.markedAt)).compactMap { $0 }.min()
         if !current.isEmpty, let closeTime {
             current.formUnion(shown.values.filter { cameInAfter(closeTime, $0) }.map(\.studentID))
         }
@@ -164,7 +171,7 @@ enum AttendanceLatePhase {
     /// Whether arrival was reopened on `day` here (`reopen`) and not
     /// closed again since.
     static func isReopened(on day: Date, defaults: UserDefaults = .standard) -> Bool {
-        days(reopenedKey, defaults).contains { Calendar.current.isDate($0, inSameDayAs: day) }
+        days(reopenedKey, defaults).contains { AppCalendar.shared.isDate($0, inSameDayAs: day) }
     }
 
     /// Forgets every day: leaving the class, or the Sample Class.
@@ -191,8 +198,8 @@ enum AttendanceLatePhase {
     private static func save(
         _ days: [Date], with day: Date, included: Bool, key: String, defaults: UserDefaults
     ) {
-        var days = days.filter { !Calendar.current.isDate($0, inSameDayAs: day) }
-        if included { days.append(Calendar.current.startOfDay(for: day)) }
+        var days = days.filter { !AppCalendar.shared.isDate($0, inSameDayAs: day) }
+        if included { days.append(AppCalendar.shared.startOfDay(for: day)) }
         defaults.set(Array(days.sorted().suffix(dayLimit)), forKey: key)
     }
 
@@ -200,7 +207,7 @@ enum AttendanceLatePhase {
 
     /// `day` as `yyyy-MM-dd` in this device's calendar, which sorts by date.
     private static func dayKey(_ day: Date) -> String {
-        let parts = Calendar.current.dateComponents([.year, .month, .day], from: day)
+        let parts = AppCalendar.shared.dateComponents([.year, .month, .day], from: day)
         return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
     }
 

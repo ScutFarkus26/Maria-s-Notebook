@@ -14,7 +14,10 @@ import Foundation
 ///   front-desk email, Restock's staples and needs) always belongs.
 ///
 /// The first day is the school-year start (`YearPlanStaleness.currentYearStart`, the synced
-/// setting). Records outside the scope stay in the notebook; they just aren't shared. Every
+/// setting), or the school session's first day when the guide set one that falls before it
+/// (`SchoolYear.currentStart`): the session can only bring the cutoff forward in the year,
+/// never push it later, so setting one takes nothing out of the share (domain-logic review
+/// R20). Records outside the scope stay in the notebook; they just aren't shared. Every
 /// path that puts records into the share filters through this (Set Up Classroom Sharing,
 /// "Add Them to the Share", `SharedStoreOrphanGuard`), and `ClassroomShareRelease` takes out
 /// what falls outside it when a school year ends.
@@ -22,7 +25,8 @@ nonisolated struct ClassroomShareScope: Sendable, Equatable {
     /// Bumped whenever the scope's rules or the safety net around releasing records change,
     /// and logged at launch, so a device's build can be checked before a release (the Mac's
     /// release refuses to reason about devices it can't see; this is how a person can).
-    static let version = 1
+    /// 2 (schema 25): the cutoff also reads the school session's first day.
+    static let version = 2
 
     /// Start of the first day of the school year the share holds.
     let cutoff: Date
@@ -42,7 +46,7 @@ nonisolated struct ClassroomShareScope: Sendable, Equatable {
     /// This school year, as this device knows it.
     init() {
         self.init(
-            cutoff: YearPlanStaleness.currentYearStart(),
+            cutoff: min(YearPlanStaleness.currentYearStart(), SchoolYear.currentStart()),
             isProvisional: !YearPlanStaleness.hasConfiguredStart
         )
     }

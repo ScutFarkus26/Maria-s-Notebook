@@ -43,15 +43,9 @@ struct FloridaGradeCalculator {
     /// Month of the school year start. Configurable via Settings; defaults to September.
     /// Read from `UserDefaultsKeys.schoolYearStartMonth` so the grade boundary and the
     /// school-year viewing lens (`SchoolYearStore`) stay in lockstep.
-    static var schoolStartMonth: Int {
-        let value = UserDefaults.standard.integer(forKey: UserDefaultsKeys.schoolYearStartMonth)
-        return (1...12).contains(value) ? value : 9
-    }
+    static var schoolStartMonth: Int { SchoolYear.configuredStart().month }
     /// Day of the school year start. Configurable via Settings; defaults to the 1st.
-    static var schoolStartDay: Int {
-        let value = UserDefaults.standard.integer(forKey: UserDefaultsKeys.schoolYearStartDay)
-        return (1...31).contains(value) ? value : 1
-    }
+    static var schoolStartDay: Int { SchoolYear.configuredStart().day }
     /// Florida's grade cutoff: a child's grade follows her age on September 1,
     /// the date the grade guidelines in Settings name. Fixed, not the class's
     /// configured start: with the year starting August 25, a child born
@@ -66,25 +60,18 @@ struct FloridaGradeCalculator {
 
     // MARK: - Helpers
 
-    /// Computes September 1 (or your configured start) for the proper school year
-    /// relative to the given reference date.
-    static func schoolYearStart(for referenceDate: Date = Date(), calendar: Calendar = .current) -> Date {
-        let year = calendar.component(.year, from: referenceDate)
-        var components = DateComponents(year: year, month: schoolStartMonth, day: schoolStartDay)
-        let startThisYear = calendar.date(from: components)!
-        if referenceDate < startThisYear {
-            components.year = year - 1
-            return calendar.date(from: components) ?? startThisYear
-        } else {
-            return startThisYear
-        }
+    /// The first day of the school year `referenceDate` falls in
+    /// (`SchoolYear.currentStart`): the school session's first day when the
+    /// guide set one, else September 1 or the configured start.
+    static func schoolYearStart(for referenceDate: Date = Date(), calendar: Calendar = AppCalendar.shared) -> Date {
+        SchoolYear.currentStart(asOf: referenceDate, calendar: calendar)
     }
 
     /// September 1 of the school year under way on `referenceDate`: the
     /// configured start says which school year that is (so the week between an
     /// August 25 start and September 1 already counts as the new year), and the
     /// cutoff is that year's September 1.
-    static func gradeCutoff(for referenceDate: Date = Date(), calendar: Calendar = .current) -> Date {
+    static func gradeCutoff(for referenceDate: Date = Date(), calendar: Calendar = AppCalendar.shared) -> Date {
         let beginYear = calendar.component(.year, from: schoolYearStart(for: referenceDate, calendar: calendar))
         let components = DateComponents(year: beginYear, month: gradeCutoffMonth, day: gradeCutoffDay)
         return calendar.date(from: components) ?? schoolYearStart(for: referenceDate, calendar: calendar)
@@ -96,7 +83,7 @@ struct FloridaGradeCalculator {
     static func ageOnSchoolYearStart(
         birthday: Date,
         referenceDate: Date = Date(),
-        calendar: Calendar = .current
+        calendar: Calendar = AppCalendar.shared
     ) -> Int {
         let cutoff = gradeCutoff(for: referenceDate, calendar: calendar)
         let birthdayStartOfDay = calendar.startOfDay(for: birthday)
@@ -117,7 +104,9 @@ struct FloridaGradeCalculator {
     ///  - Age 13 → 8th Grade
     ///  - Age 14+ → Graduated
     ///  - Age < 6 → Kindergarten
-    static func grade(for birthday: Date, referenceDate: Date = Date(), calendar: Calendar = .current) -> GradeResult {
+    static func grade(
+        for birthday: Date, referenceDate: Date = Date(), calendar: Calendar = AppCalendar.shared
+    ) -> GradeResult {
         let age = ageOnSchoolYearStart(birthday: birthday, referenceDate: referenceDate, calendar: calendar)
         if age >= graduatedAgeThreshold {
             return .graduated

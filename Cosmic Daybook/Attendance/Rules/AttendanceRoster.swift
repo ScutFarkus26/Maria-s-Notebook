@@ -25,7 +25,7 @@ nonisolated enum AttendanceRoster {
         on day: Date,
         from students: [CDStudent],
         recordStudentIDs: Set<String>,
-        calendar: Calendar = .current
+        calendar: Calendar = AppCalendar.shared
     ) -> [CDStudent] {
         students.filter { student in
             if let key = student.id?.uuidString, recordStudentIDs.contains(key) { return true }
@@ -35,7 +35,7 @@ nonisolated enum AttendanceRoster {
 
     /// Whether `student`'s dates put them on `day`'s roll: whether she was in
     /// the class that day (`CDStudent.isInClass(on:)`, the one rule).
-    static func wasEnrolled(_ student: CDStudent, on day: Date, calendar: Calendar = .current) -> Bool {
+    static func wasEnrolled(_ student: CDStudent, on day: Date, calendar: Calendar = AppCalendar.shared) -> Bool {
         student.isInClass(on: day, calendar: calendar)
     }
 
@@ -44,7 +44,7 @@ nonisolated enum AttendanceRoster {
     static func predicate(
         on day: Date,
         recordStudentIDs: Set<String>,
-        calendar: Calendar = .current
+        calendar: Calendar = AppCalendar.shared
     ) -> NSPredicate {
         let start = calendar.startOfDay(for: day)
         let nextDay = calendar.date(byAdding: .day, value: 1, to: start) ?? start
@@ -62,7 +62,7 @@ nonisolated enum AttendanceRoster {
     /// a record means someone put the child on that day's roll.
     static func recordStudentIDs(on day: Date, in context: NSManagedObjectContext) -> Set<String> {
         let request = CDFetchRequest(CDAttendanceRecord.self)
-        request.predicate = NSPredicate(format: "date == %@", day.normalizedDay() as NSDate)
+        request.predicate = AppCalendar.dayPredicate(on: day)
         return Set(context.safeFetch(request).map(\.studentID))
     }
 }

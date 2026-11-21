@@ -14,7 +14,7 @@ nonisolated extension NSManagedObjectContext {
         let day = date.normalizedDay()
         let requestedStrings = Set(studentIDs.uuidStrings)
         let request = CDFetchRequest(CDAttendanceRecord.self)
-        request.predicate = NSPredicate(format: "date == %@", day as NSDate)
+        request.predicate = AppCalendar.dayPredicate(on: day)
         let recs = safeFetch(request).deduplicatedPerStudentDay()
         var result: [UUID: AttendanceStatus] = [:]
         for rec in recs {

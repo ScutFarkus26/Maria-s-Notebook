@@ -242,13 +242,7 @@ struct AttendanceExpandedView: View {
         }
         .sheet(isPresented: $showMailSheet) {
 #if os(iOS)
-            AttendanceEmail.composerForCurrentPrefs(
-                present: students(for: .present),
-                tardy: students(for: .tardy),
-                absent: students(for: .absent),
-                leftEarly: emailStudents(for: .leftEarly),
-                date: date
-            ) { result, error in
+            AttendanceEmail.composer(for: attendanceEmailDraft) { result, error in
                 switch result {
                 case .sent:
                     onToast("Email sent")

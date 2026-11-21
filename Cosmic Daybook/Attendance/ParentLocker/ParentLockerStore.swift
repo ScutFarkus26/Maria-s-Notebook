@@ -200,7 +200,10 @@ final class ParentLockerCoreDataStore: ParentLockerStore {
             // on the records, or seen here and not all undone, so a late
             // child or a reason given doesn't reopen the day for ParentLocker
             // (bug hunt 2026-10-20, #2).
-            arrivalClosed: AttendanceLatePhase.closedAnywhere(on: start, records: records, defaults: lateDefaults),
+            arrivalClosed: AttendanceLatePhase.closedAnywhere(
+                on: start, records: records,
+                closedAt: AttendanceEmailLog.arrivalClosedAt(on: start, in: context), defaults: lateDefaults
+            ),
             sentToParentLocker: channels.contains(AttendanceSendMethod.parentLocker.rawValue),
             notExpected: channels.contains(AttendanceEmailLog.notExpectedChannel),
             deadlineMinutes: settings?.deadlineMinutes ?? AttendanceEmailLog.defaultDeadlineMinutes
@@ -222,9 +225,9 @@ final class ParentLockerCoreDataStore: ParentLockerStore {
     func children(inRecords records: [NSManagedObjectID], on day: Date) -> Set<UUID> {
         guard !records.isEmpty else { return [] }
         let request = CDFetchRequest(CDAttendanceRecord.self)
-        request.predicate = NSPredicate(
-            format: "SELF IN %@ AND date == %@", records, AppCalendar.startOfDay(day) as NSDate
-        )
+        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            NSPredicate(format: "SELF IN %@", records), AppCalendar.dayPredicate(on: day)
+        ])
         scopeToClassroom(request)
         return Set(context.safeFetch(request).compactMap { UUID(uuidString: $0.studentID) })
     }
@@ -311,7 +314,7 @@ final class ParentLockerCoreDataStore: ParentLockerStore {
     /// The day's records, every copy (the dedup reads them all).
     private func records(on start: Date) -> [CDAttendanceRecord] {
         let request = CDFetchRequest(CDAttendanceRecord.self)
-        request.predicate = NSPredicate(format: "date == %@", start as NSDate)
+        request.predicate = AppCalendar.dayPredicate(on: start)
         scopeToClassroom(request)
         return context.safeFetch(request)
     }
