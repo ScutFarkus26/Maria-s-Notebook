@@ -151,7 +151,9 @@ extension MeetingDraftStoreTests {
         #expect(draft.nextLessonName(after: try #require(room.first.id).uuidString) == "Dot Board")
         #expect(!draft.hasNextLesson(after: try #require(room.second.id).uuidString))
         #expect(!draft.hasNextLesson(after: try #require(loose.id).uuidString))
-        #expect(!draft.hasNextLesson(after: try #require(tiedA.id).uuidString))
+        // Two lessons tied on their step: the one lesson order (`LessonOrder`)
+        // puts Map A first, so it has a next and Map B, now last, doesn't.
+        #expect(draft.nextLessonName(after: try #require(tiedA.id).uuidString) == "Map B")
         #expect(!draft.hasNextLesson(after: try #require(tiedB.id).uuidString))
         #expect(!draft.hasNextLesson(after: "not a lesson"))
     }

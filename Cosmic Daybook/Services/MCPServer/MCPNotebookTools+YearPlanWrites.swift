@@ -28,11 +28,12 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "update_year_plan_entry",
             title: "Update Year Plan Entry",
-            description: "Change one year-plan entry: move its target date, mark it skipped, or "
-                + "put a skipped one back to planned. Skipping never deletes — the entry stays "
-                + "readable through year_plan and can be restored. Entries already promoted onto "
-                + "the calendar are refused: they belong to a real presentation now, so move that "
-                + "with reschedule_presentation instead.",
+            description: "Change one year-plan entry: move its target date (the later planned lessons "
+                + "in her sequence move with it, keeping their spacing, as a drag on the year plan "
+                + "does), mark it skipped, or put a skipped one back to planned. Skipping never "
+                + "deletes — the entry stays readable through year_plan and can be restored. "
+                + "Entries already promoted onto the calendar are refused: they belong to a real "
+                + "presentation now, so move that with reschedule_presentation instead.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -98,18 +99,7 @@ extension MCPNotebookTools {
         // a day the school is open. Asking for Rosh Hashana gets the next open
         // morning rather than a refusal — but the reply never lets that pass
         // silently, or the plan and the answer would disagree.
-        var moved: String = ""
-        if let day {
-            let asked: Date = AppCalendar.startOfDay(day)
-            let landing: Date = YearPlanPacing.schoolDay(onOrAfter: asked, in: modelContext)
-            if landing != asked {
-                let from: String = dayString(asked)
-                let to: String = dayString(landing)
-                moved = "\(from) is not a school day, so the target moved to \(to).\n"
-            }
-            entry.plannedDate = landing
-            entry.modifiedAt = Date()
-        }
+        let moved: String = day.map { moveYearPlanEntry(entry, to: $0, in: modelContext) } ?? ""
 
         guard modelContext.safeSave() else {
             throw MCPToolError("The year-plan entry could not be saved.")
@@ -117,6 +107,36 @@ extension MCPNotebookTools {
         let lessons: [UUID: String] = lessonNameIndex(in: modelContext)
         let line: String = yearPlanEntryLine(entry, lessons: lessons, includeStatus: true)
         return moved + "Updated " + line
+    }
+
+    /// Moves one entry's target to `day` and says what happened beyond the
+    /// move itself. A planned entry moves the way a drag on the year plan
+    /// moves it (`YearPlanPacing.reschedule`): the lessons after it in her
+    /// sequence shift with it, keeping their spacing, so none is left ahead
+    /// of it (domain-logic review R17). A skipped one just takes the date.
+    private static func moveYearPlanEntry(
+        _ entry: CDYearPlanEntry, to day: Date, in modelContext: NSManagedObjectContext
+    ) -> String {
+        let asked: Date = AppCalendar.startOfDay(day)
+        let landing: Date
+        var successors: String = ""
+        if entry.isPlanned {
+            let move = YearPlanPacing.reschedule(entry, to: asked, in: modelContext)
+            landing = move.landing
+            let count: Int = move.successorsMoved
+            if count > 0 {
+                let lessons: String = count == 1 ? "1 later lesson" : "\(count) later lessons"
+                successors = "\(lessons) in the sequence moved with it, keeping their spacing.\n"
+            }
+        } else {
+            landing = YearPlanPacing.schoolDay(onOrAfter: asked, in: modelContext)
+            entry.plannedDate = landing
+            entry.modifiedAt = Date()
+        }
+        guard landing != asked else { return successors }
+        let from: String = dayString(asked)
+        let to: String = dayString(landing)
+        return "\(from) is not a school day, so the target moved to \(to).\n" + successors
     }
 
     // MARK: - Skip a Whole Plan

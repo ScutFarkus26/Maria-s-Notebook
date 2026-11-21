@@ -91,7 +91,9 @@ struct DayDetailPopover: View {
                 }
                 .font(.caption)
 
-                Button("Remove", role: .destructive) {
+                // Skips, never deletes: the entry stays, marked Skipped, and
+                // Add Sequence can plan it again (domain-logic review A16).
+                Button("Skip") {
                     onRemove(entry)
                 }
                 .font(.caption)

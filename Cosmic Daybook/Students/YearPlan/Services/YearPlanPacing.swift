@@ -103,6 +103,60 @@ enum YearPlanPacing {
         }
     }
 
+    /// What `reschedule` did.
+    struct Reschedule {
+        /// Where the entry landed: the day asked for, or the next open one.
+        let landing: Date
+        /// How many later lessons of its sequence moved with it.
+        let successorsMoved: Int
+    }
+
+    /// Moves `entry` to `date`, forward to an open day, and shifts every later
+    /// planned entry of hers in the same sequence after it, each by its own
+    /// spacing in school days. The one move the year plan's drag and Claude's
+    /// `update_year_plan_entry` both make: Claude's used to move the one entry
+    /// and leave the lessons after it ahead of it (domain-logic review R17).
+    /// An entry with no sequence moves alone. Does not save.
+    @discardableResult
+    static func reschedule(
+        _ entry: CDYearPlanEntry, to date: Date, in context: NSManagedObjectContext
+    ) -> Reschedule {
+        // Read before the move, so its new date doesn't change its place.
+        let successors = laterEntries(after: entry, in: context)
+        let landing = schoolDay(onOrAfter: date, in: context)
+        entry.plannedDate = landing
+        entry.modifiedAt = Date()
+
+        var currentDate = landing
+        for next in successors {
+            currentDate = advance(from: currentDate, bySchoolDays: next.spacingSchoolDays, in: context)
+            next.plannedDate = currentDate
+            next.modifiedAt = Date()
+        }
+        return Reschedule(landing: landing, successorsMoved: successors.count)
+    }
+
+    /// The planned entries after `entry` in its sequence, hers only, in the
+    /// order they are given: the lessons' own order (the load renumbers
+    /// entries from their lessons, bug hunt 2026-11-03 #24), the target date
+    /// for a tie. An entry the record already answers isn't moved.
+    static func laterEntries(
+        after entry: CDYearPlanEntry, in context: NSManagedObjectContext
+    ) -> [CDYearPlanEntry] {
+        guard !entry.sequenceGroupKey.isEmpty else { return [] }
+        let request = CDFetchRequest(CDYearPlanEntry.self)
+        request.predicate = NSPredicate(
+            format: "studentID == %@ AND sequenceGroupKey == %@", entry.studentID, entry.sequenceGroupKey
+        )
+        let siblings = context.safeFetch(request).filter { !$0.isDeleted }
+        let satisfaction = YearPlanSatisfaction.index(for: siblings, in: context)
+        let sequence = inSequenceOrder(siblings.filter {
+            $0 === entry || ($0.isPlanned && !$0.isSatisfied(by: satisfaction))
+        })
+        guard let position = sequence.firstIndex(where: { $0 === entry }) else { return [] }
+        return Array(sequence[(position + 1)...])
+    }
+
     /// The order a sequence is given in: its own numbering first, and the
     /// target date to break ties for entries that were never numbered.
     static func inSequenceOrder(_ entries: [CDYearPlanEntry]) -> [CDYearPlanEntry] {

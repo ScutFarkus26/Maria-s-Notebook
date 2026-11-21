@@ -23,15 +23,9 @@ struct ThreadRowData: Identifiable {
 
     var id: String { key.id }
 
+    /// The one lesson order (`LessonOrder`).
     static func lessonSortOrder(_ lhs: CDLesson, _ rhs: CDLesson) -> Bool {
-        if lhs.orderInSequence != rhs.orderInSequence {
-            return lhs.orderInSequence < rhs.orderInSequence
-        }
-        let nameCompare = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
-        if nameCompare != .orderedSame {
-            return nameCompare == .orderedAscending
-        }
-        return (lhs.id?.uuidString ?? "") < (rhs.id?.uuidString ?? "")
+        LessonOrder.precedes(lhs, rhs)
     }
 }
 

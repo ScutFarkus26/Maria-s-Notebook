@@ -53,33 +53,16 @@ extension BlockingAlgorithmEngine {
         return cache
     }
 
-    /// The library split into sub-areas, each sorted the way the sub-area
-    /// reads. Two lessons filed at the same `orderInSequence` would otherwise
-    /// take whichever order the fetch returned, so name breaks the tie and
-    /// the caches answer the same way twice running.
+    /// The library split into sub-areas, each in the one lesson order
+    /// (`LessonOrder`): order, then `sortIndex`, then name, then id, so the
+    /// caches answer the same way twice running and agree with plan-next
+    /// (domain-logic review R21).
     nonisolated static func orderedSequenceGroups(_ lessons: [CDLesson]) -> [[CDLesson]] {
-        var groups: [String: [CDLesson]] = [:]
-        for lesson in lessons {
-            let area = lesson.area.trimmed()
-            let sequence = lesson.sequence.trimmed()
-            guard !area.isEmpty, !sequence.isEmpty else { continue }
-            groups[sequenceGroupKey(area: area, sequence: sequence), default: []].append(lesson)
-        }
-        return groups.values.map { group in
-            group.sorted { lhs, rhs in
-                if lhs.orderInSequence != rhs.orderInSequence {
-                    return lhs.orderInSequence < rhs.orderInSequence
-                }
-                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-            }
-        }
+        LessonOrder.subAreas(lessons)
     }
 
-    /// Case-insensitive key matching the `caseInsensitiveCompare` test in
-    /// `computePrecedingLesson`. Inputs are already trimmed.
+    /// The sub-area key `LessonOrder` groups by. Inputs are already trimmed.
     nonisolated static func sequenceGroupKey(area: String, sequence: String) -> String {
-        area.folding(options: .caseInsensitive, locale: nil)
-            + "\u{1F}"
-            + sequence.folding(options: .caseInsensitive, locale: nil)
+        LessonOrder.foldedKey(area: area, sequence: sequence)
     }
 }

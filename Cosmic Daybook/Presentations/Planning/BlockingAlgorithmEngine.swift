@@ -369,29 +369,9 @@ enum BlockingAlgorithmEngine {
         return computePrecedingLesson(currentLesson: currentLesson, lessons: lessons)
     }
 
-    /// Internal implementation of preceding lesson computation.
-    /// Separated to allow reuse in context initialization without recursion.
+    /// The lesson before in its sub-area, in the one lesson order
+    /// (`LessonOrder`, domain-logic review R21).
     private static func computePrecedingLesson(currentLesson: CDLesson, lessons: [CDLesson]) -> CDLesson? {
-        let currentArea = currentLesson.area.trimmed()
-        let currentSequence = currentLesson.sequence.trimmed()
-
-        guard !currentArea.isEmpty, !currentSequence.isEmpty else {
-            return nil
-        }
-
-        // Find all lessons in the same area/sequence
-        let candidates = lessons.filter { lesson in
-            lesson.area.trimmed().caseInsensitiveCompare(currentArea) == .orderedSame &&
-            lesson.sequence.trimmed().caseInsensitiveCompare(currentSequence) == .orderedSame
-        }
-        .sorted { $0.orderInSequence < $1.orderInSequence }
-
-        // Find the current lesson's index
-        guard let currentIndex = candidates.firstIndex(where: { $0.id == currentLesson.id }),
-              currentIndex > 0 else {
-            return nil // No preceding lesson
-        }
-
-        return candidates[currentIndex - 1]
+        LessonOrder.previous(before: currentLesson, in: lessons)
     }
 }

@@ -117,7 +117,8 @@ final class StudentYearPlanViewModel {
     ) -> Bool {
         let wasClean = !context.hasChanges
         let repaired = YearPlanEntryRepair.repair(
-            entries, lessonsByID: lessonsByID, assignments: assignments
+            entries, lessonsByID: lessonsByID, assignments: assignments,
+            existingAssignmentIDs: YearPlanEntryRepair.existingAssignmentIDs(linkedFrom: entries, in: context)
         )
         guard repaired > 0 else { return false }
         if wasClean { context.safeSave() }
@@ -190,13 +191,20 @@ final class StudentYearPlanViewModel {
         return cellLookup
     }
 
+    /// Remove on the calendar: the entry is skipped, never deleted, as
+    /// everywhere else a year-plan intention is retired (Claude's tools, a
+    /// departure), so it still reads back and Add Sequence can plan it again
+    /// in place (domain-logic review A16).
     func removeEntry(_ entry: CDYearPlanEntry, context: NSManagedObjectContext) {
-        context.delete(entry)
+        guard !entry.isDeleted, entry.status != .skipped else { return }
+        entry.status = .skipped
+        entry.modifiedAt = Date()
         context.safeSave()
     }
 
     /// Reschedules an entry and cascades the shift to all subsequent planned entries
-    /// in the same sequence, maintaining spacing.
+    /// in the same sequence, maintaining spacing (`YearPlanPacing.reschedule`, the
+    /// move Claude's `update_year_plan_entry` makes too).
     ///
     /// A drop onto a day the school is closed lands on the next open day — the
     /// guide is asking for "about here", and no lesson is given on Rosh Hashana.
@@ -206,33 +214,7 @@ final class StudentYearPlanViewModel {
         studentID: UUID,
         context: NSManagedObjectContext
     ) async {
-        // The planned entries after this one in its sequence, in the order it
-        // is given: the lessons' own order (the load renumbers entries from
-        // their lessons, bug hunt 2026-11-03 #24), the target date for a tie.
-        // Read before the move, so its new date doesn't change its place.
-        let sequence = YearPlanPacing.inSequenceOrder(entries.filter {
-            $0 === entry || (
-                $0.sequenceGroupKey == entry.sequenceGroupKey &&
-                $0.studentID == entry.studentID &&
-                $0.isPlanned && !$0.isSatisfied(by: satisfaction)
-            )
-        })
-        let position = sequence.firstIndex(where: { $0 === entry }) ?? sequence.endIndex
-        let subsequent = sequence.suffix(from: min(position + 1, sequence.endIndex))
-
-        let landing = YearPlanPacing.schoolDay(onOrAfter: newDate, in: context)
-        entry.plannedDate = landing
-        entry.modifiedAt = Date()
-
-        var currentDate = landing
-        for next in subsequent {
-            currentDate = YearPlanPacing.advance(
-                from: currentDate, bySchoolDays: next.spacingSchoolDays, in: context
-            )
-            next.plannedDate = currentDate
-            next.modifiedAt = Date()
-        }
-
+        YearPlanPacing.reschedule(entry, to: newDate, in: context)
         context.safeSave()
         load(studentID: studentID, context: context)
     }

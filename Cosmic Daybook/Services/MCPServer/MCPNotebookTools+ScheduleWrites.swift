@@ -76,9 +76,7 @@ extension MCPNotebookTools {
             throw MCPToolError("\"\(lesson.name)\" has no saved identifier and cannot be scheduled.")
         }
         let names = stringArrayArgument(arguments, "student_names")
-        guard !names.isEmpty else {
-            throw MCPToolError("At least one student name is required.")
-        }
+        guard !names.isEmpty else { throw MCPToolError("At least one student name is required.") }
         let students = try names.map { try resolveStudentReference($0, in: modelContext) }.uniqueByID
         try requireEnrolledToSchedule(students)
         let studentIDs = students.compactMap(\.id)
@@ -103,8 +101,11 @@ extension MCPNotebookTools {
         let assignment = existing
             ?? PresentationFactory.makeDraft(lesson: lesson, students: students, context: modelContext)
         schedule(assignment, onDay: day, at: time)
-        // The plan answers any matching year-plan intention.
-        let promoted = YearPlanPromotionService.promoteMatchingEntries(into: assignment, context: modelContext)
+        // The plan answers any matching year-plan intention, which moves to
+        // its day, as on every screen (domain-logic review R17).
+        let promoted = YearPlanPromotionService.promoteMatchingEntries(
+            into: assignment, scheduledFor: day, context: modelContext
+        )
         if let purpose {
             recordRepeatIntent(
                 RepeatIntent(

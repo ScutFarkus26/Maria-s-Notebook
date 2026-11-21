@@ -52,7 +52,15 @@ extension BackupService {
         // `isSharedRow` from the guess, as at launch (domain-logic review R22).
         BackupRestoreFill(name: "work assignments") { context, _ in
             _ = WorkAssignmentFill.run(in: context)
+        },
+        // A backup can hold two lessons on one step of a sub-area: it is
+        // numbered in the one lesson order, as at launch (domain-logic review R21).
+        BackupRestoreFill(name: "lesson order ties") { context, _ in
+            LessonOrder.renumberTies(in: context.safeFetch(CDFetchRequest(CDLesson.self)))
         }
+        // Year-plan entries are put right at the next launch and when her plan
+        // opens (`YearPlanEntryRepair`), not here, so a restore brings each
+        // entry back as it was backed up.
     ]
 
     /// Runs `fills` on `context`, then saves what they changed: once the

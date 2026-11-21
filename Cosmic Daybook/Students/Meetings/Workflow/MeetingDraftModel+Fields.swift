@@ -90,23 +90,14 @@ extension MeetingDraftModel {
 
     /// Ready for Next plans what `PlanNextLessonService.findNextLesson` finds:
     /// the lesson after this one in its area and sequence, here by name for
-    /// each lesson that has one. One lesson fetch. Lessons tied for last
-    /// place count as having none, so the switch never offers a plan
-    /// Complete can't make.
+    /// each lesson that has one. One lesson fetch, and the one lesson order
+    /// (`LessonOrder`), which breaks every tie, so a lesson tied with the last
+    /// one has a next exactly when Complete can plan it (domain-logic review R21).
     static func nextLessonNames(in context: NSManagedObjectContext) -> [UUID: String] {
-        var sequences: [String: [CDLesson]] = [:]
-        for lesson in context.safeFetch(CDFetchRequest(CDLesson.self)) {
-            let area = lesson.area.trimmed().lowercased()
-            let sequence = lesson.sequence.trimmed().lowercased()
-            guard !area.isEmpty, !sequence.isEmpty else { continue }
-            sequences[area + "\u{1F}" + sequence, default: []].append(lesson)
-        }
         var result: [UUID: String] = [:]
-        for lessons in sequences.values {
-            let ordered = lessons.sorted { $0.orderInSequence < $1.orderInSequence }
-            guard let last = ordered.last?.orderInSequence else { continue }
-            for (index, lesson) in ordered.enumerated() where lesson.orderInSequence < last {
-                if let id = lesson.id { result[id] = ordered[index + 1].name }
+        for ordered in LessonOrder.subAreas(context.safeFetch(CDFetchRequest(CDLesson.self))) {
+            for (lesson, next) in zip(ordered, ordered.dropFirst()) {
+                if let id = lesson.id { result[id] = next.name }
             }
         }
         return result

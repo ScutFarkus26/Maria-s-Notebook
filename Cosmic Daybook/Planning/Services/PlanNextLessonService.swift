@@ -25,32 +25,16 @@ struct PlanNextLessonService {
 
     // MARK: - Find Next CDLesson
 
-    /// Finds the next lesson in the same area/sequence sequence.
+    /// The next lesson in the same area and sequence, in the one lesson
+    /// order every screen reads (`LessonOrder`): two lessons tied on
+    /// `orderInSequence` used to come back in fetch order here while Groups
+    /// read them by name (domain-logic review R21).
     /// - Parameters:
     ///   - current: The current lesson to find the successor for
     ///   - allLessons: All available lessons to search through
     /// - Returns: The next lesson in the sequence, or nil if none exists
     static func findNextLesson(after current: CDLesson, in allLessons: [CDLesson]) -> CDLesson? {
-        let currentArea = current.area.trimmed()
-        let currentSequence = current.sequence.trimmed()
-
-        guard !currentArea.isEmpty, !currentSequence.isEmpty else { return nil }
-
-        // Find all lessons in the same area/sequence, sorted by order
-        let candidates = allLessons
-            .filter { lesson in
-                lesson.area.trimmed().caseInsensitiveCompare(currentArea) == .orderedSame &&
-                lesson.sequence.trimmed().caseInsensitiveCompare(currentSequence) == .orderedSame
-            }
-            .sorted { $0.orderInSequence < $1.orderInSequence }
-
-        // Find the current lesson's position and return the next one
-        guard let currentIndex = candidates.firstIndex(where: { $0.id == current.id }),
-              currentIndex + 1 < candidates.count else {
-            return nil
-        }
-
-        return candidates[currentIndex + 1]
+        LessonOrder.next(after: current, in: allLessons)
     }
 
     // MARK: - Check for Existing

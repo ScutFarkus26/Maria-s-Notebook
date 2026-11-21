@@ -58,7 +58,7 @@ final class LessonCatalog {
     private var bySequence: [SequenceKey: [CDLesson]] {
         derived(&bySequenceCache) { rows in
             Dictionary(grouping: rows) { SequenceKey(area: $0.area, sequence: $0.sequence) }
-                .mapValues { $0.sorted { $0.orderInSequence < $1.orderInSequence } }
+                .mapValues { LessonOrder.sorted($0) }
         }
     }
 
@@ -115,7 +115,7 @@ final class LessonCatalog {
         byID[id]
     }
 
-    /// The lessons of one sequence, in `orderInSequence` order. Area and
+    /// The lessons of one sequence, in the one lesson order (`LessonOrder`). Area and
     /// sequence are matched trimmed and case-insensitively.
     func lessons(area: String, sequence: String) -> [CDLesson] {
         bySequence[SequenceKey(area: area, sequence: sequence)] ?? []

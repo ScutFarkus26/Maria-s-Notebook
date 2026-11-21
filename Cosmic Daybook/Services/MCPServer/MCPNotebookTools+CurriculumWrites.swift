@@ -150,7 +150,7 @@ extension MCPNotebookTools {
             name: "update_lesson",
             title: "Update Lesson",
             description: "Rename a lesson, move it to another sub-area (or area), or change its "
-                + "notes. Only the fields passed change. A move puts the lesson at the end of its "
+                + "notes or prerequisites. Only the fields passed change. A move puts the lesson at the end of its "
                 + "new sub-area; use reorder_lessons to place it. A rename or move onto a name the "
                 + "sub-area already has is refused. Presentations, plans and work reference "
                 + "the lesson by id, so a rename breaks nothing.",
@@ -176,6 +176,13 @@ extension MCPNotebookTools {
                         "type": "boolean",
                         "description": .string("Mark or unmark the lesson as a key lesson, a milestone the "
                             + "Three-Year View shows by default")
+                    ],
+                    "prerequisites": [
+                        "type": "array",
+                        "items": ["type": "string"],
+                        "description": .string("Replaces the lessons from other sequences a child should "
+                            + "have first (ids or exact names); an empty list clears them. Until she has "
+                            + "had them, readiness says \"check first: <lesson> not yet presented\".")
                     ]
                 ],
                 "required": ["lesson"]
@@ -206,6 +213,9 @@ extension MCPNotebookTools {
         if let isKey = arguments["is_key_lesson"]?.boolValue, isKey != lesson.isKeyLesson {
             lesson.isKeyLesson = isKey
             changes.append(isKey ? "marked as a key lesson" : "no longer a key lesson")
+        }
+        if let change = try applyPrerequisites(arguments, to: lesson, in: modelContext) {
+            changes.append(change)
         }
         if let move {
             changes.append(applyLessonFiling(move, to: lesson, from: lessons))
@@ -276,6 +286,32 @@ extension MCPNotebookTools {
             changes.append(value.trimmed().isEmpty ? "cleared \(field.label)" : "\(field.label)")
         }
         return changes
+    }
+
+    /// `prerequisites` replaces the lesson's list, as the lesson editor does
+    /// (domain-logic review A6). Each is a lesson id or exact name; a lesson
+    /// can't be its own. Returns the change log's words, or nil when the
+    /// argument is absent or changes nothing.
+    private static func applyPrerequisites(
+        _ arguments: [String: JSONValue], to lesson: CDLesson, in modelContext: NSManagedObjectContext
+    ) throws -> String? {
+        guard arguments["prerequisites"] != nil else { return nil }
+        let wanted = try stringArrayArgument(arguments, "prerequisites")
+            .map { try resolveLessonReference($0, in: modelContext) }
+        if wanted.contains(where: { $0.objectID == lesson.objectID }) {
+            throw MCPToolError("A lesson can't be its own prerequisite. Nothing was changed.")
+        }
+        var ids: [UUID] = []
+        for prerequisite in wanted {
+            guard let id = prerequisite.id else {
+                throw MCPToolError("\"\(prerequisite.name)\" has no saved identifier. Nothing was changed.")
+            }
+            if !ids.contains(id) { ids.append(id) }
+        }
+        guard ids != lesson.prerequisiteLessonUUIDs else { return nil }
+        lesson.prerequisiteLessonUUIDs = ids
+        guard !ids.isEmpty else { return "cleared prerequisites" }
+        return "prerequisites " + wanted.map(\.name).joined(separator: ", ")
     }
 
     /// Where a move sends a lesson.

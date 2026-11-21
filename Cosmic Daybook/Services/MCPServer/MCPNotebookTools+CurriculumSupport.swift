@@ -55,20 +55,9 @@ extension MCPNotebookTools {
         )
     }
 
-    /// The area's sub-areas in the map's saved order, with "Ungrouped" where
-    /// the guide placed it when any lesson is filed without one — the same
-    /// list `LessonsRootView.syncReorderableSequences` builds. Appending it
-    /// last instead moved unfiled lessons to the end of the area's
-    /// `sortIndex` on every tool edit (bug hunt 2026-10-12, #28).
+    /// The area's sub-areas in the map's saved order (`LessonRepository`).
     static func orderedSequences(inArea area: String, from lessons: [CDLesson]) -> [String] {
-        let sequences = LessonsViewModel().groups(for: area, lessons: lessons)
-        let hasUngrouped = lessons.contains { sameFiling($0.area, area) && $0.sequence.trimmed().isEmpty }
-        guard hasUngrouped else { return sequences }
-        return FilterOrderStore.loadSequenceOrder(
-            for: area.trimmed(), existing: sequences + [ungroupedSequenceLabel]
-        )
-        // A sub-area once typed as "ungrouped" folds into the label; spell it one way.
-        .map { isUngroupedLabel($0) ? ungroupedSequenceLabel : $0 }
+        LessonRepository.orderedSequences(inArea: area, from: lessons)
     }
 
     static let ungroupedSequenceLabel = SubAreaOrder.ungroupedName
@@ -103,24 +92,12 @@ extension MCPNotebookTools {
 
     // MARK: - Reading a Sub-Area
 
-    /// The lessons filed under one sub-area in their taught order — the sort
-    /// every sequence-level screen uses. Pass `ungroupedSequenceLabel` for
-    /// lessons filed with no sub-area; it also takes in any sub-area literally
-    /// named "Ungrouped", which `orderedSequences` folds into the label.
+    /// The lessons filed under one sub-area in the one lesson order
+    /// (`LessonRepository.lessonsInSequence`).
     static func lessonsInSequence(
         _ sequence: String, area: String, from lessons: [CDLesson]
     ) -> [CDLesson] {
-        lessons.filter { lesson in
-            guard sameFiling(lesson.area, area) else { return false }
-            if isUngroupedLabel(sequence) {
-                return lesson.sequence.trimmed().isEmpty || isUngroupedLabel(lesson.sequence)
-            }
-            return sameFiling(lesson.sequence, sequence)
-        }
-        .sorted { lhs, rhs in
-            if lhs.orderInSequence != rhs.orderInSequence { return lhs.orderInSequence < rhs.orderInSequence }
-            return LessonsViewModel.lessonNameOrder(lhs, rhs)
-        }
+        LessonRepository.lessonsInSequence(sequence, area: area, from: lessons)
     }
 
     // MARK: - Settling an Edit
@@ -128,22 +105,13 @@ extension MCPNotebookTools {
     /// Numbers a sub-area 0…n in the given order, the way every in-app move
     /// does (`moveLessonsInArea`, `insertLessonAfter`).
     static func renumberSequence(_ ordered: [CDLesson]) {
-        for (index, lesson) in ordered.enumerated() where lesson.orderInSequence != Int64(index) {
-            lesson.orderInSequence = Int64(index)
-        }
+        LessonOrder.renumber(ordered)
     }
 
-    /// Mirrors `LessonsRootView.rebuildSortIndexForArea`: walks the area's
-    /// sub-areas in the map's order and numbers every lesson, so the area
-    /// view and the pickers that sort on `sortIndex` agree with the sub-areas.
+    /// The area's `sortIndex` rebuilt as an in-app move rebuilds it
+    /// (`LessonRepository.rebuildSortIndex`).
     static func rebuildSortIndex(forArea area: String, from lessons: [CDLesson]) {
-        var position: Int64 = 0
-        for sequence in orderedSequences(inArea: area, from: lessons) {
-            for lesson in lessonsInSequence(sequence, area: area, from: lessons) {
-                if lesson.sortIndex != position { lesson.sortIndex = position }
-                position += 1
-            }
-        }
+        LessonRepository.rebuildSortIndex(forArea: area, from: lessons)
     }
 
     // MARK: - Output

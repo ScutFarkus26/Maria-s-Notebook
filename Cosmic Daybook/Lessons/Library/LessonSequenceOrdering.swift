@@ -74,8 +74,6 @@ enum LessonSequenceOrdering {
 
     /// Writes 0, 1, 2… as `orderInSequence`, touching only lessons whose number changes.
     static func renumber(_ ordered: [CDLesson]) {
-        for (index, lesson) in ordered.enumerated() where lesson.orderInSequence != Int64(index) {
-            lesson.orderInSequence = Int64(index)
-        }
+        LessonOrder.renumber(ordered)
     }
 }

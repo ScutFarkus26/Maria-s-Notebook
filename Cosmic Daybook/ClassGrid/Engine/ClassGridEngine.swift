@@ -24,12 +24,11 @@ nonisolated enum ClassGridEngine {
 
     // MARK: - Ordering
 
-    /// Taught order within a sequence: `orderInSequence`, then the area-wide
-    /// `sortIndex`, then name — the sort every sequence-level screen uses.
+    /// Taught order within a sequence: the one lesson order (`LessonOrder`:
+    /// `orderInSequence`, then the area-wide `sortIndex`, then name, then id)
+    /// every sequence-level screen uses.
     static func precedes(_ lhs: CurriculumLessonRef, _ rhs: CurriculumLessonRef) -> Bool {
-        if lhs.orderInSequence != rhs.orderInSequence { return lhs.orderInSequence < rhs.orderInSequence }
-        if lhs.sortIndex != rhs.sortIndex { return lhs.sortIndex < rhs.sortIndex }
-        return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+        LessonOrder.precedes(lhs, rhs)
     }
 
     /// Area and sequence names compare the way the Lessons screens compare

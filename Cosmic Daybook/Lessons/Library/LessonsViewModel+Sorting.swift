@@ -66,12 +66,7 @@ extension LessonsViewModel {
         if !query.isEmpty || selectedSequence == nil && selectedArea == nil {
             return sortByAreaSequenceOrder(fetched, areaIndex: areaIndex, sequenceIndexCache: sequenceIdxCache)
         } else if selectedSequence != nil {
-            return fetched.sorted { lhs, rhs in
-                if lhs.orderInSequence == rhs.orderInSequence {
-                    return Self.lessonNameOrder(lhs, rhs)
-                }
-                return lhs.orderInSequence < rhs.orderInSequence
-            }
+            return LessonOrder.sorted(fetched)
         } else {
             return fetched.sorted { lhs, rhs in
                 if lhs.sortIndex != rhs.sortIndex { return lhs.sortIndex < rhs.sortIndex }
@@ -145,19 +140,14 @@ extension LessonsViewModel {
         let keyed = lessons.map { lesson -> (CDLesson, LessonSortKey) in
             let si = areaIndex[norm(lesson.area)] ?? Int.max
             let gi = sequenceIndexCache[norm(lesson.area)]?[norm(lesson.sequence)] ?? Int.max
-            let key = LessonSortKey(
-                areaIdx: si, groupIdx: gi, orderInSequence: lesson.orderInSequence,
-                name: lesson.name, id: lesson.id?.uuidString ?? ""
-            )
+            let key = LessonSortKey(areaIdx: si, groupIdx: gi, order: lesson.lessonOrderKey)
             return (lesson, key)
         }
         return keyed.sorted { lhs, rhs in
             let (_, l) = lhs; let (_, r) = rhs
             if l.areaIdx != r.areaIdx { return l.areaIdx < r.areaIdx }
             if l.groupIdx != r.groupIdx { return l.groupIdx < r.groupIdx }
-            if l.orderInSequence != r.orderInSequence { return l.orderInSequence < r.orderInSequence }
-            let n = l.name.localizedCaseInsensitiveCompare(r.name)
-            return n == .orderedSame ? l.id < r.id : n == .orderedAscending
+            return LessonOrder.precedes(l.order, r.order)
         }.map { $0.0 }
     }
 }

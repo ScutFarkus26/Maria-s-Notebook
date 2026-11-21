@@ -123,9 +123,8 @@ struct LessonsViewModel {
     struct LessonSortKey {
         let areaIdx: Int
         let groupIdx: Int
-        let orderInSequence: Int64
-        let name: String
-        let id: String
+        /// Within a sub-area, the one lesson order (`LessonOrder`).
+        let order: LessonOrder.Key
     }
 
 }

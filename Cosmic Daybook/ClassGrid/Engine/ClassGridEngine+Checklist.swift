@@ -51,10 +51,10 @@ extension ClassGridEngine {
     // MARK: - Rebuild Rows
 
     /// Recomputes, in place, the rows a change to `touchedLessonIDs` can reach: each touched
-    /// lesson's own row and the rows of the lessons that follow one in its sequence (their
-    /// blocking reason reads the touched lesson's records). Only those lessons and their
-    /// predecessors are fetched. The result is exactly what `buildMatrix` would give for those
-    /// rows; every other row is left as it was.
+    /// lesson's own row and the rows of the lessons that follow one in its sequence (their blocking
+    /// reason reads the touched lesson's records) or list one as a prerequisite (their check-first
+    /// reasons do). Only those lessons and their predecessors are fetched. The result is exactly
+    /// what `buildMatrix` would give for those rows; every other row is left as it was.
     ///
     /// - Parameter lessons: The whole area, so "preceding lesson" means what it does in a full build.
     static func rebuildRows(
@@ -69,6 +69,7 @@ extension ClassGridEngine {
         let rowLessons = lessons.filter { lesson in
             guard let lessonID = lesson.id else { return false }
             if touchedLessonIDs.contains(lessonID) { return true }
+            if lesson.prerequisiteLessonUUIDs.contains(where: touchedLessonIDs.contains) { return true }
             guard let precedingID = precedingLessonMap[lessonID]?.id else { return false }
             return touchedLessonIDs.contains(precedingID)
         }
@@ -106,7 +107,7 @@ extension ClassGridEngine {
         guard !rowIDs.isEmpty || !precedingLessons.isEmpty else { return }
         let records = loadRecords(rowIDs: rowIDs, context: context)
         let readiness = PrecedingReadiness(
-            preceding: precedingLessons, students: students, context: context
+            rows: rowLessons, preceding: precedingLessons, students: students, context: context
         )
         let brewing = brewingPlans(
             inboxRows: records.inboxRows, lessons: lessons, students: students, context: context
@@ -131,7 +132,7 @@ extension ClassGridEngine {
                 let isPresented = studentLAs.contains { $0.isPresented }
                 let isUnlocked = studentLAs.contains { !$0.isPresented && $0.manuallyUnblocked }
                 let verdict = isPresented || isUnlocked ? CellReadiness.ready : readiness.cell(
-                    precedingLessonID: rowPrecedingMap[lessonID]?.id?.uuidString, studentID: studentID
+                    lesson: lessonIDString, after: rowPrecedingMap[lessonID]?.id?.uuidString, studentID: studentID
                 )
 
                 studentRow[lessonID] = buildCellState(
@@ -208,10 +209,12 @@ extension ClassGridEngine {
         let record: PreviousLessonRecord
         /// Each predecessor's rules, by lesson ID string.
         let rules: [String: LessonProgressionRules.ResolvedRules]
+        let prerequisites: ReadyForNextEngine.PrerequisiteRecord
 
-        init(preceding: [String: CDLesson], students: [CDStudent], context: NSManagedObjectContext) {
+        init(rows: [CDLesson], preceding: [String: CDLesson], students: [CDStudent], context: NSManagedObjectContext) {
             let precedingIDs = Set(preceding.keys)
             let studentIDs = Set(students.compactMap { $0.id?.uuidString })
+            prerequisites = ReadyForNextEngine.PrerequisiteRecord(lessons: rows, students: studentIDs, in: context)
             guard !precedingIDs.isEmpty, !studentIDs.isEmpty else {
                 index = PresentationRecordIndex(rows: PresentationRecordIndex.RecordRows(), students: [])
                 record = PreviousLessonRecord(pairs: [], in: context)
@@ -232,17 +235,21 @@ extension ClassGridEngine {
         }
 
         /// Ready (with what to check first, if anything) or why not. The first lesson of a
-        /// sequence (no preceding lesson) is always ready.
-        func cell(precedingLessonID: String?, studentID: UUID) -> CellReadiness {
-            guard let precedingLessonID else { return .ready }
+        /// sequence (no preceding lesson) is ready, though a prerequisite of `lesson` from another
+        /// sequence she hasn't had still makes it one to check first, as in the ready queue (A6).
+        func cell(lesson: String, after precedingLessonID: String?, studentID: UUID) -> CellReadiness {
             let student = studentID.uuidString
-            guard let given = index.given(student: student, lesson: precedingLessonID) else {
-                return CellReadiness(blockingReason: .prerequisiteNotPresented, checkFirstReasons: [])
+            var verdict = ReadinessVerdict(tier: .ready, reasons: [])
+            if let precedingLessonID {
+                guard let given = index.given(student: student, lesson: precedingLessonID) else {
+                    return CellReadiness(blockingReason: .prerequisiteNotPresented, checkFirstReasons: [])
+                }
+                verdict = ReadyForNextEngine.readiness(
+                    of: record.status(student: student, lesson: precedingLessonID, given: given),
+                    rules: rules[precedingLessonID] ?? ReadyForNextEngine.bothGates
+                )
             }
-            let verdict = ReadyForNextEngine.readiness(
-                of: record.status(student: student, lesson: precedingLessonID, given: given),
-                rules: rules[precedingLessonID] ?? ReadyForNextEngine.bothGates
-            )
+            verdict = verdict.checkingFirst(prerequisites.reasons(lesson: lesson, student: student))
             switch verdict.tier {
             case .notReady: return CellReadiness(blockingReason: .confirmationRequired, checkFirstReasons: [])
             case .almostReady: return CellReadiness(blockingReason: .none, checkFirstReasons: verdict.reasons)

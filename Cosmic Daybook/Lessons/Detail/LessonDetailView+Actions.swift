@@ -36,6 +36,11 @@ extension LessonDetailView {
         }
         guard saveCoordinator.save(viewContext, reason: "Update lesson") else {
             onDisk.restore(lesson)
+            // A move rebuilt both areas' numbers; with the lesson back where
+            // it was, they are rebuilt again rather than left for the next save.
+            if draft.movesFiling(of: lesson) {
+                LessonEditDraft.rebuildSortIndex(areas: [lesson.area, draft.area], in: viewContext)
+            }
             return
         }
         if draft.pagesFileChange != .unchanged {

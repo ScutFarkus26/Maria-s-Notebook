@@ -256,9 +256,7 @@ enum MigrationRunner {
         // Notes saved with no scope blob join the whole-class index, once per
         // device (see +NoteScopeIndex); before the presentation-note repair, so
         // one on a presentation is narrowed to its roster in this same pass.
-        if noteScopeRepairDue {
-            DataMigrations.repairMissingNoteScopeIndex(using: context)
-        }
+        if noteScopeRepairDue { DataMigrations.repairMissingNoteScopeIndex(using: context) }
         DataMigrations.repairPresentationNoteScopes(using: context)
         // Attendance notes kept as private Notes join their shared record.
         AttendanceNoteMove.run(using: context)
@@ -288,10 +286,11 @@ enum MigrationRunner {
         // outside the first download; it saves on its own (see +ProjectWorkContext).
         DataCleanupService.repairProjectWorkContextTypeIfDue(using: context, firstDownloadPending: firstDownloadPending)
         // Every launch outside the first download, each saving on its own: work rows with no
-        // assignment get one (WorkAssignmentFill, after the repair above, which it reads), and
-        // retired practice sessions become practice check-ins (PracticeCheckInCopy).
+        // assignment get one (WorkAssignmentFill, after the repair above, which it reads), retired
+        // practice sessions become practice check-ins, and lesson-order ties and year plans are put right.
         WorkAssignmentFill.runIfDue(using: context, firstDownloadPending: firstDownloadPending)
         if !firstDownloadPending { PracticeCheckInCopy.runAndSave(in: context) }
+        if !firstDownloadPending { YearPlanEntryRepair.repairAllAndSave(in: context) }
         return results
     }
 

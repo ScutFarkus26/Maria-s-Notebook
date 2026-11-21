@@ -192,20 +192,33 @@ extension MCPNotebookTools {
         }
         let repeatTail = try recordRepeats(adding, to: assignment, arguments, in: modelContext)
 
-        // The same write the detail view's Save and the departure retraction
-        // make, including sending a removed child's promoted entry back to planned.
-        PresentationRecordCleanup.removeStudents(
-            Set(assignment.studentIDs).subtracting(roster), from: assignment, in: modelContext
-        )
-        assignment.studentIDs = roster
-        assignment.confirmedStudentIDs = assignment.confirmedStudentIDs.filter { roster.contains($0) }
-        assignment.modifiedAt = Date()
+        writeRoster(roster, to: assignment, in: modelContext)
         guard modelContext.safeSave() else {
             throw MCPToolError("The presentation could not be saved.")
         }
         let id: String = assignment.id?.uuidString ?? "unknown"
         return "[presentation id=\(id)] \(changes.joined(separator: ", "))\(repeatTail). "
             + "Now: \(presentationSummary(assignment, in: modelContext))"
+    }
+
+    /// Writes the new group. Leaving is the same write the detail view's Save
+    /// and the departure retraction make, including sending a removed child's
+    /// promoted entry back to planned; a child joining answers her own
+    /// year-plan intention, on the plan's day, as the Checklist's toggle does
+    /// (domain-logic review R17). Does not save.
+    private static func writeRoster(
+        _ roster: [String], to assignment: CDLessonAssignment, in modelContext: NSManagedObjectContext
+    ) {
+        PresentationRecordCleanup.removeStudents(
+            Set(assignment.studentIDs).subtracting(roster), from: assignment, in: modelContext
+        )
+        let joining = Set(roster).subtracting(assignment.studentIDs)
+        assignment.studentIDs = roster
+        assignment.confirmedStudentIDs = assignment.confirmedStudentIDs.filter { roster.contains($0) }
+        assignment.modifiedAt = Date()
+        for studentID in joining.compactMap(UUID.init(uuidString:)) {
+            YearPlanPromotionService.promoteMatchingEntry(for: studentID, into: assignment, context: modelContext)
+        }
     }
 
     /// The regive guard for the children joining a plan, as

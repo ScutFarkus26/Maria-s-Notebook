@@ -118,7 +118,56 @@ nonisolated enum ReadyForNextEngine {
             if let id = lesson.id { lessonsByID[id.uuidString] = lesson }
         }
 
-        let progression = ProgressionRulesLookup(context: context)
+        let candidates = candidates(
+            studentIDs: studentIDs, lessonsByID: lessonsByID, nextCache: nextCache, index: index,
+            progression: ProgressionRulesLookup(context: context)
+        )
+        guard !candidates.isEmpty else { return [] }
+
+        let record = PreviousLessonRecord(
+            pairs: candidates.map { PreviousLessonRecord.Pair(studentID: $0.studentID, lessonID: $0.lessonID) },
+            in: context
+        )
+        // A prerequisite from another sequence she hasn't had is one more
+        // reason to look first (domain-logic review A6).
+        let prerequisites = PrerequisiteRecord(
+            lessons: Set(candidates.map(\.nextLessonID)).compactMap { lessonsByID[$0] },
+            students: Set(candidates.map(\.studentID)),
+            in: context
+        )
+        let items = candidates.map { candidate in
+            let previous = record.status(
+                student: candidate.studentID, lesson: candidate.lessonID, given: candidate.detail
+            )
+            let verdict = readiness(of: previous, rules: candidate.rules).checkingFirst(
+                prerequisites.reasons(lesson: candidate.nextLessonID, student: candidate.studentID)
+            )
+            return ReadyForNextItem(
+                studentID: candidate.studentID,
+                lessonID: candidate.lessonID,
+                nextLessonID: candidate.nextLessonID,
+                basis: candidate.detail.mastered ? .mastered : .confirmed,
+                tier: verdict.tier,
+                reasons: verdict.reasons,
+                basisDate: candidate.detail.days.last,
+                previous: previous
+            )
+        }
+        // A dictionary walk has no order of its own; the callers want the same
+        // queue twice running.
+        return items.sorted { $0.id < $1.id }
+    }
+
+    /// Every child confirmed or mastered on a lesson whose successor she has
+    /// neither had nor been planned for.
+    @MainActor
+    private static func candidates(
+        studentIDs: [String],
+        lessonsByID: [String: CDLesson],
+        nextCache: [UUID: CDLesson],
+        index: PresentationRecordIndex,
+        progression: ProgressionRulesLookup
+    ) -> [Candidate] {
         var candidates: [Candidate] = []
         for studentID in Set(studentIDs) {
             for (lessonID, detail) in index.givenByStudent[studentID] ?? [:] {
@@ -137,31 +186,7 @@ nonisolated enum ReadyForNextEngine {
                 ))
             }
         }
-        guard !candidates.isEmpty else { return [] }
-
-        let record = PreviousLessonRecord(
-            pairs: candidates.map { PreviousLessonRecord.Pair(studentID: $0.studentID, lessonID: $0.lessonID) },
-            in: context
-        )
-        let items = candidates.map { candidate in
-            let previous = record.status(
-                student: candidate.studentID, lesson: candidate.lessonID, given: candidate.detail
-            )
-            let verdict = readiness(of: previous, rules: candidate.rules)
-            return ReadyForNextItem(
-                studentID: candidate.studentID,
-                lessonID: candidate.lessonID,
-                nextLessonID: candidate.nextLessonID,
-                basis: candidate.detail.mastered ? .mastered : .confirmed,
-                tier: verdict.tier,
-                reasons: verdict.reasons,
-                basisDate: candidate.detail.days.last,
-                previous: previous
-            )
-        }
-        // A dictionary walk has no order of its own; the callers want the same
-        // queue twice running.
-        return items.sorted { $0.id < $1.id }
+        return candidates
     }
 
     /// A child confirmed or mastered on a lesson whose successor is waiting.

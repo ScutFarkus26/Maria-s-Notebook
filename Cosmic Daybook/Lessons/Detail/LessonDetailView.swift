@@ -82,6 +82,9 @@ struct LessonDetailView: View {
     @State private var showingGreatLessonTagEditor = false
     @State var showingSampleWorkEditor = false
     @State var editingSampleWork: CDSampleWork?
+    /// The edit form's Add Prerequisite picker, and the lesson it picked.
+    @State var showingPrerequisitePicker = false
+    @State var pickedPrerequisite: CDLesson?
 
     @State var showingPagesImporter = false
     @State var resolvedPagesURL: URL?

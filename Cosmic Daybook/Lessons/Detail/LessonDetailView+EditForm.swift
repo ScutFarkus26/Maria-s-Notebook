@@ -64,6 +64,8 @@ extension LessonDetailView {
                     .foregroundStyle(.tertiary)
             }
 
+            prerequisitesEditor
+
             // Three-Year View milestone flag
             VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
                 Toggle("Key lesson", isOn: $draft.isKeyLesson)
@@ -192,5 +194,71 @@ extension LessonDetailView {
             }
         }
         .padding(.horizontal, AppTheme.Spacing.small)
+    }
+
+    /// Lessons from other sequences to have first (domain-logic review A6).
+    /// Until she has them, the Checklist and Groups say "Check first: <lesson>
+    /// not yet presented" (`ReadyForNextEngine.PrerequisiteRecord`).
+    private var prerequisitesEditor: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
+            HStack {
+                Text("Prerequisites")
+                    .font(AppTheme.ScaledFont.calloutSemibold)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    showingPrerequisitePicker = true
+                } label: {
+                    Label("Add Prerequisite", systemImage: "plus.circle")
+                }
+                .buttonStyle(.bordered)
+            }
+            ForEach(draft.prerequisiteLessonIDs, id: \.self) { id in
+                let name = prerequisiteName(id)
+                HStack(spacing: AppTheme.Spacing.small) {
+                    Text(name)
+                        .font(AppTheme.ScaledFont.body)
+                    Spacer()
+                    Button {
+                        draft.prerequisiteLessonIDs.removeAll { $0 == id }
+                    } label: {
+                        Image(systemName: "minus.circle")
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Remove \(name)")
+                }
+            }
+            Text("Lessons from other sequences a child should have first. Until she has had them, "
+                 + "the Checklist and Groups say to check first.")
+                .font(AppTheme.ScaledFont.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .sheet(isPresented: $showingPrerequisitePicker) {
+            NavigationStack {
+                LessonSearchPicker(selectedLesson: $pickedPrerequisite)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") { showingPrerequisitePicker = false }
+                        }
+                    }
+            }
+            #if os(macOS)
+            .frame(minWidth: 420, minHeight: 480)
+            #endif
+        }
+        .onChange(of: pickedPrerequisite) { _, picked in
+            pickedPrerequisite = nil
+            guard let id = picked?.id, id != lesson.id, !draft.prerequisiteLessonIDs.contains(id) else { return }
+            draft.prerequisiteLessonIDs.append(id)
+        }
+    }
+
+    /// A prerequisite's name, or a plain line when it has left the curriculum.
+    private func prerequisiteName(_ id: UUID) -> String {
+        let lesson = allLessons.first { $0.id == id } ?? viewContext.object(CDLesson.self, id: id)
+        guard let name = lesson?.name.trimmed(), !name.isEmpty else {
+            return lesson == nil ? "A lesson no longer in your curriculum" : "Untitled Lesson"
+        }
+        return name
     }
 }

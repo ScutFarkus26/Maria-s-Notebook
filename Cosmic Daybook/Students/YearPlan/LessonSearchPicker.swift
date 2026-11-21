@@ -28,7 +28,7 @@ struct LessonSearchPicker: View {
             let areaLessons = byArea[area] ?? []
             let bySequence = Dictionary(grouping: areaLessons) { $0.sequence }
             let groups = bySequence.keys.sorted().map { sequence in
-                let sorted = (bySequence[sequence] ?? []).sorted { $0.orderInSequence < $1.orderInSequence }
+                let sorted = LessonOrder.sorted(bySequence[sequence] ?? [])
                 return (sequence: sequence, lessons: sorted)
             }
             return (area: area, groups: groups)
