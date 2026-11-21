@@ -30,6 +30,7 @@ About **$260–430 (11–19%)** of the weekly limit: phases $167–335, plus the
 
 ## Before you go
 
+- **How it runs (2026-11-21):** as background agents inside the conductor session (Decision 20). You can't open or stop one phase on its own, and per-phase costs are rougher. If you type "go" on the Mac, the conductor can start the remaining phases as sessions instead; they pick up from the same marks.
 - **Effort:** the conductor can't raise its own effort, so every phase session runs at high. Phases 1, 5 and 9 hand their delicate parts to a `feature-phase-deep` agent (Opus, xhigh).
 - **Permission mode:** bypass. Already on.
 - **The screen is locked and locks itself straight away,** so nothing in this run drives the Mac or a simulator by hand. Every "check on a device" item becomes a Tide row for the morning. No app grants are needed.
@@ -64,6 +65,7 @@ Settled here (safer, easier to undo):
 16. **Year-plan promotion (R17): fix the drift with shared functions plus the repair run wherever the index is built.** Ruled out: deriving promotion from the record. It is L, and the stored fields are still read by older builds and backups.
 17. **A20 was not checked by hand.** Phase 8 checks it first and fixes it only if real.
 18. **No roll-out, no push, no install in this plan.** Phases merge to local main; Phase 10 adds the roll-out row to Tide.
+20. **2026-11-21: the phases run as background agents of the conductor, not as sessions.** The go-ahead came over Remote Control, and a Remote Control turn can't start sessions. Phases 1, 5 and 9 run as `feature-phase-deep` (Opus, xhigh); the rest as `feature-phase` (Opus, high). The conductor launches each phase once the phases it needs are marked (`plan-wait --status`), at most three at once, and runs Phase 10's full builds and whole suites itself. See "If you are a phase agent" below.
 
 ## Apple guidance
 
@@ -381,6 +383,15 @@ You were started by the conductor. Danny accepted this plan and is likely away. 
    - Wherever it says "stop and ask", stop instead: release the lock, don't merge, and report it.
 7. If you stopped without merging, mark it so the phases waiting on you stop too (`plan-wait … --mark <N> --stopped`), and shut down your simulators (`~/.claude/bin/sim-lease --done`). close-out releases them otherwise.
 8. End with this line first, so the conductor's note shows it: `Phase <N> done (<commit>). Session <your id from step 0>. By hand: <list or none>.`, or `Phase <N> stopped: <plain reason>. Session <id>. Nothing merged.` Then, under it, any "Decided:" items and anything that differed from the plan.
+
+## If you are a phase agent (Decision 20)
+Follow "Running a phase" above, with these changes:
+- **Step 0:** skip `plan-wait`. The conductor started you only after your needs merged. Run `git merge main` first (your worktree starts from the last *pushed* main, which lacks this plan and the earlier phases), then read this plan.
+- **Effort:** if you are `feature-phase-deep` you already run at xhigh; do the delicate parts yourself (no nested agents). Use helper agents only if your tools offer them.
+- **Step 3:** skip `plan-cost session` (inside an agent it measures the conductor's whole session). Keep "two tries, then stop".
+- **Step 5:** skip the board; the conductor updates it.
+- **Step 6:** still mark the phase (`plan-wait … --mark <N>`) under the merge lock right after the squash commit, or `--stopped` in step 7.
+- **Step 8:** your reply is at most 15 lines, starting with the done or stopped line (no session id: write `Session: agent`). Then the files changed, build and test counts, Decided items, and what differed from the plan.
 
 ## Open questions
 None. Everything left open is settled under Decisions; anything new goes to Tide as a `Review choices` row.
