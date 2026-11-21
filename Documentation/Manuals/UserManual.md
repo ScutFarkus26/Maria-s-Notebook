@@ -842,7 +842,7 @@ Access Settings from **More ▸ System** (the last row of the sidebar on Mac and
 The **School year** card sets when the school year starts. Below it:
 
 - **First and last days of school.** Turn on **Set the first and last days**, pick the **First day** and **Last day**, and choose **Save**. The summer before the first day and after the last day then counts as days off: attendance, planning and reminders skip it, here and on your assistant's phone. Without them, every weekday counts as a school day, also over the summer. The first day also becomes the start of the school year.
-- **Time zone.** The class's days begin and end in this time zone on every device, so a phone that is traveling still shows the class's day. Until you pick one it uses this device's zone; the first save from your Mac fills in the Mac's.
+- **Time zone.** The class's days begin and end in this time zone on every device, so a phone that is traveling still shows the class's day. Until you pick one, each device uses its own zone. If you pick a zone that would move days already marked, the app tells you which way they'd move and lets you cancel.
 
 Only the lead guide can change these, and they're shared with your assistant.
 
