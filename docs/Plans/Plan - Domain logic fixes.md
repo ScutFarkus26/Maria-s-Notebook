@@ -15,7 +15,7 @@ Build board: https://claude.ai/artifact/CN28oMqiKihr3cjEPqmrVc (the conductor ke
 - [x] Phase 1: Schema 25 and backup format 47 · done 2026-11-21 (26778c516) · agent aafee66e9eb655d1a, squashed by the conductor · actual ~600k agent tokens over 4 h
 - [x] Phase 2: Attendance rules in the store · done 2026-11-21 (2adf0ebd2) · agent aeb81f407260b1f20, squashed by the conductor · actual ~265k agent tokens
 - [x] Phase 3: Schedules, Restock and repeating to-dos · done 2026-11-21 (208cd6aa3) · agent acfea9405548e36ca, squashed by the conductor · actual ~350k agent tokens
-- [ ] Phase 4: Presenting and mastery · runs as: session · needs: 1 · est. $18–35 (~1–2%)
+- [x] Phase 4: Presenting and mastery · done 2026-11-21 (ee5314e55) · agent a919b3cb55fb86036, squashed by the conductor · actual ~193k agent tokens over 1.9 h
 - [ ] Phase 5: Work rules · runs as: agent (Fable 5.2) · needs: 2, 4 · est. $50–90 (~2–4%)
 - [ ] Phase 6: Lesson order, year plan and prerequisites · runs as: session · needs: 4, 5 · est. $12–25 (~1%)
 - [ ] Phase 7: Who's in class, departures and meetings · runs as: session · needs: 3, 6 · est. $12–25 (~1%)
@@ -363,6 +363,7 @@ Not applicable: no other new Apple APIs. App Intents, SwiftUI and the rest chang
   - Fix what fails (the errors name files; the files map to phases).
   - Left over from Phase 2: restore must call `CDAttendanceRecord.normalizeAll(in:)` through Phase 1's after-restore hook (done in Phase 1: the first after-restore step).
   - Left over from Phase 3 (outside its files): `Students/Presentations/ScheduledDateEdits.swift` should use `awayDay.touches(children:)`, so the lesson sheet shows a turn or an Out day even when no child is away; the `WeekPlanHeader.swift` legend still says "Two lessons at the same time" (should match "lessons at overlapping times").
+  - Left over from Phase 4 (outside its files): the mastery rule still has its own copies in `NotebookJunkCleanup.swift:125` and the presentation index's column path; both should read `MasteryMarking.isMastered`. (The copies in `CurriculumMapLoader.swift` and the Class Grid engine, and the Checklist cell's "given" reading in `ClassGrid/`, went to Phase 5, which owns those files.) Flag writers Phase 4 left alone: RecallService, MeetingLessonDecisions, UnlockNextLessonService, ReadyToPresentSection+Actions, PresentationGroupMove; check that each writes the per-child flags the way `LessonPresentation+ChildFacts` reads them.
   - The cold review, and one round of fixes for what holds up.
   - Update `MCP_SERVER.md`, `Work_Models_Best_Practices.md`, `LESSON_PRESENTATION_WORK_INTEGRATION.md` and `SIRI.md` where behavior changed.
   - Set the review's status line ("Fixed <date> (<commit>)").
