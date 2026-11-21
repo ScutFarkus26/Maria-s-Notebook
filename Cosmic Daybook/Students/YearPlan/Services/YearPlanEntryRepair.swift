@@ -26,7 +26,11 @@
 //    device, or by a path that skipped `PresentationRecordCleanup`) goes back
 //    to planned, as an in-app delete sends it. An undated draft in the Inbox
 //    still counts as there. An entry changed within the last day is left for
-//    later: its presentation may simply not have synced in yet.
+//    later: its presentation may simply not have synced in yet. One sent
+//    back too soon (its scheduled presentation arrived later) is promoted
+//    into it again: a planned entry whose lesson is scheduled for her, on a
+//    presentation no entry links to, is promoted into the earliest such one,
+//    as scheduling it in the app would have done (Phase 10 review, finding 4).
 //
 //  Each step writes only a value that differs from what is there, so a second
 //  pass changes nothing. Every value is read from the lesson or the
@@ -61,9 +65,9 @@ nonisolated enum YearPlanEntryRepair {
             assignments.compactMap { assignment in assignment.id.map { ($0.uuidString, assignment) } },
             uniquingKeysWith: { first, _ in first }
         )
-        var unlinkedGiven = earliestUnlinkedGiven(
-            in: assignments, linked: Set(entries.compactMap(\.promotedAssignmentID))
-        )
+        let linked = Set(entries.compactMap(\.promotedAssignmentID))
+        var unlinkedGiven = earliestUnlinkedGiven(in: assignments, linked: linked)
+        var unlinkedScheduled = earliestUnlinkedScheduled(in: assignments, linked: linked)
 
         var changed = 0
         for entry in entries where !entry.isDeleted {
@@ -87,6 +91,13 @@ nonisolated enum YearPlanEntryRepair {
                 entry.promotedAssignmentID = id
                 entry.plannedDate = AppCalendar.startOfDay(day)
                 unlinkedGiven[lessonKey] = nil
+                touched = true
+            } else if entry.isPlanned, let scheduled = unlinkedScheduled[lessonKey],
+                      let id = scheduled.id?.uuidString, let day = scheduled.scheduledFor {
+                entry.status = .promoted
+                entry.promotedAssignmentID = id
+                entry.plannedDate = AppCalendar.startOfDay(day)
+                unlinkedScheduled[lessonKey] = nil
                 touched = true
             } else if entry.isPromoted, let id = entry.promotedAssignmentID, let linked = byID[id],
                       let date = linked.scheduledFor ?? linked.presentedAt,
@@ -182,6 +193,23 @@ nonisolated enum YearPlanEntryRepair {
                   let given = assignment.presentedAt, !assignment.lessonID.isEmpty else { continue }
             let lessonKey = normalized(assignment.lessonID)
             if let current = earliest[lessonKey]?.presentedAt, current <= given { continue }
+            earliest[lessonKey] = assignment
+        }
+        return earliest
+    }
+
+    /// Her scheduled presentations not yet given that no entry links to, the
+    /// earliest per lesson (by day, then id, so two devices pick the same).
+    private static func earliestUnlinkedScheduled(
+        in assignments: [CDLessonAssignment], linked: Set<String>
+    ) -> [String: CDLessonAssignment] {
+        var earliest: [String: CDLessonAssignment] = [:]
+        for assignment in assignments where !assignment.isGiven && !assignment.isDeleted {
+            guard let id = assignment.id?.uuidString, !linked.contains(id),
+                  let day = assignment.scheduledFor, !assignment.lessonID.isEmpty else { continue }
+            let lessonKey = normalized(assignment.lessonID)
+            if let current = earliest[lessonKey], let currentDay = current.scheduledFor,
+               currentDay < day || (currentDay == day && (current.id?.uuidString ?? "") < id) { continue }
             earliest[lessonKey] = assignment
         }
         return earliest

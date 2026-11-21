@@ -70,6 +70,33 @@ struct MCPDepartedStudentToolsTests {
         #expect(works.allSatisfy { $0.status == .done })
     }
 
+    @Test("assign_work gives work to a child whose last day is still ahead, and refuses one who has left")
+    func assignWorkFollowsHerLastDay() async throws {
+        let (tools, context) = try makeTools()
+        CoreDataTestHelpers.seedLesson(in: context, name: "Volcano Study", area: "Science", sequence: "Geology")
+        let ava = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ava", lastName: "Bloom")
+        let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Fine")
+        ava.enrollmentStatus = .withdrawn
+        ava.dateWithdrawn = AppCalendar.addingDays(3, to: Date())
+        ora.enrollmentStatus = .transferred
+        ora.dateWithdrawn = yesterday
+        CoreDataTestHelpers.save(context)
+        let assign = try tool(named: "assign_work", in: tools)
+
+        _ = try await assign.handler([
+            "lesson": .string("Volcano Study"), "student_names": .array([.string("Ava")])
+        ])
+        let works = context.safeFetch(CDFetchRequest(CDWorkModel.self))
+        #expect(works.map(\.studentID) == [try #require(ava.id).uuidString])
+
+        await #expect(throws: (any Error).self) {
+            _ = try await assign.handler([
+                "lesson": .string("Volcano Study"), "student_names": .array([.string("Ora")])
+            ])
+        }
+        #expect(context.safeFetch(CDFetchRequest(CDWorkModel.self)).count == 1)
+    }
+
     @Test("update_student takes a child out with her last day, and back in, un-skipping her year plan")
     func updateStudentLeavesAndComesBack() async throws {
         let (tools, context) = try makeTools()

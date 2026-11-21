@@ -180,9 +180,10 @@ extension MCPNotebookTools {
                     "prerequisites": [
                         "type": "array",
                         "items": ["type": "string"],
-                        "description": .string("Replaces the lessons from other sequences a child should "
-                            + "have first (ids or exact names); an empty list clears them. Until she has "
-                            + "had them, readiness says \"check first: <lesson> not yet presented\".")
+                        "description": .string("Replaces the lessons a child should have first, from any "
+                            + "sequence (ids or exact names; never the lesson itself); an empty list clears "
+                            + "them. Until she has had them, readiness says \"check first: <lesson> not yet "
+                            + "presented\".")
                     ]
                 ],
                 "required": ["lesson"]

@@ -34,7 +34,7 @@ struct StudentDepartureCascadeTests {
     }
 
     @discardableResult
-    private func seedEntry(_ room: Room, on day: Date, status: YearPlanEntryStatus = .planned) -> CDYearPlanEntry {
+    private func seedEntry(_ room: Room, on day: Date?, status: YearPlanEntryStatus = .planned) -> CDYearPlanEntry {
         let entry = CDYearPlanEntry(context: room.context)
         entry.studentID = room.mayaID.uuidString
         entry.lessonID = room.lesson.id?.uuidString ?? ""
@@ -44,10 +44,14 @@ struct StudentDepartureCascadeTests {
         return entry
     }
 
-    private func seedPlan(_ room: Room, on day: Date) -> CDLessonAssignment {
+    private func seedPlan(_ room: Room, on day: Date?) -> CDLessonAssignment {
         let plan = PresentationFactory.makeDraft(lesson: room.lesson, students: [room.maya], context: room.context)
-        plan.schedule(for: day, using: calendar)
+        if let day { plan.schedule(for: day, using: calendar) }
         return plan
+    }
+
+    private func herPlans(_ room: Room) -> [CDLessonAssignment] {
+        StudentDeparturePlans.futurePlans(for: room.mayaID, in: room.context)
     }
 
     @Test("Leaving on Friday keeps this week's plans and entries and comes off what's after")
@@ -155,5 +159,102 @@ struct StudentDepartureCascadeTests {
         #expect(change.departure == nil)
         #expect(room.maya.enrollmentStatus == .withdrawn)
         #expect(entry.status == .planned)
+    }
+
+    // MARK: - The rest, once her last day has passed (Phase 10 review, finding 1)
+
+    @Test("Leaving today owes the rest, and the first launch after her last day finishes it, once")
+    func owedCascadeFinishesAfterHerLastDay() throws {
+        let room = try makeRoom()
+        let ledger = DepartureSkipLedger.inMemory()
+        let lessonID = try #require(room.lesson.id)
+        _ = seedPlan(room, on: nil)
+        _ = seedPlan(room, on: day(16))
+        let undatedEntry = seedEntry(room, on: nil)
+        let work = CoreDataTestHelpers.seedWorkModel(
+            in: room.context, title: "Rhombus drawing", studentID: room.mayaID, lessonID: lessonID
+        )
+        #expect(CoreDataTestHelpers.save(room.context))
+
+        // Wednesday is her last day: nothing is after it yet.
+        room.repository.updateEnrollment(room.maya, status: .withdrawn, lastDay: day(18), now: day(18), ledger: ledger)
+        #expect(CoreDataTestHelpers.save(room.context))
+        #expect(herPlans(room).count == 2)
+        #expect(ledger.isOwed(room.mayaID))
+
+        // Later that day, and during a first download, the launch waits.
+        #expect(StudentDeparture.finishOwedAndSave(
+            in: room.context, now: day(18, hour: 15), firstDownloadPending: false, ledger: ledger
+        ) == 0)
+        #expect(StudentDeparture.finishOwedAndSave(
+            in: room.context, now: day(19), firstDownloadPending: true, ledger: ledger
+        ) == 0)
+        #expect(herPlans(room).count == 2)
+        #expect(undatedEntry.status == .planned)
+        #expect(work.status == .active)
+
+        // Thursday's launch finishes it: the Inbox and overdue plans, the
+        // undated entry and her own work.
+        #expect(StudentDeparture.finishOwedAndSave(
+            in: room.context, now: day(19), firstDownloadPending: false, ledger: ledger
+        ) == 1)
+        #expect(herPlans(room).isEmpty)
+        #expect(undatedEntry.status == .skipped)
+        #expect(work.status == .incomplete)
+        #expect(!ledger.isOwed(room.mayaID))
+        #expect(!room.context.hasChanges, "saved")
+
+        // A second launch (or a second device) finds nothing left to do.
+        #expect(StudentDeparture.finishOwedAndSave(
+            in: room.context, now: day(20), firstDownloadPending: false, ledger: ledger
+        ) == 0)
+    }
+
+    @Test("Keep Plans owes nothing, and coming back clears what was owed")
+    func keepAndComingBackOweNothing() throws {
+        let room = try makeRoom()
+        let ledger = DepartureSkipLedger.inMemory()
+        _ = seedPlan(room, on: nil)
+        #expect(CoreDataTestHelpers.save(room.context))
+
+        room.repository.updateEnrollment(
+            room.maya, status: .withdrawn, lastDay: day(18), carryOutDeparture: false, now: day(18), ledger: ledger
+        )
+        #expect(!ledger.isOwed(room.mayaID))
+        #expect(CoreDataTestHelpers.save(room.context))
+        #expect(StudentDeparture.finishOwed(in: room.context, now: day(19), ledger: ledger).isEmpty)
+        #expect(herPlans(room).count == 1)
+
+        // Moving her last day with Remove owes it again; coming back clears it.
+        room.repository.updateEnrollment(room.maya, status: .withdrawn, lastDay: day(20), now: day(18), ledger: ledger)
+        #expect(ledger.isOwed(room.mayaID))
+        room.repository.updateEnrollment(room.maya, status: .enrolled, lastDay: nil, now: day(18), ledger: ledger)
+        #expect(!ledger.isOwed(room.mayaID))
+    }
+
+    @Test("The student page asks about what comes off later too, but not this week's lessons")
+    func questionCountsTheWholeCascade() throws {
+        let room = try makeRoom()
+        let lessonID = try #require(room.lesson.id)
+        let inbox = seedPlan(room, on: nil)
+        let thursday = seedPlan(room, on: day(19))
+        let monday = seedPlan(room, on: day(23))
+        _ = CoreDataTestHelpers.seedWorkModel(
+            in: room.context, title: "Rhombus drawing", studentID: room.mayaID, lessonID: lessonID
+        )
+        #expect(CoreDataTestHelpers.save(room.context))
+
+        let now = StudentDeparture.pending(
+            studentID: room.mayaID, lastDay: day(20), in: room.context, now: day(18)
+        )
+        #expect(now.plans.map(\.objectID) == [monday.objectID])
+        #expect(now.openWork.isEmpty)
+
+        let asked = StudentDeparture.pending(
+            studentID: room.mayaID, lastDay: day(20), in: room.context, now: day(18), eventually: true
+        )
+        #expect(Set(asked.plans.map(\.objectID)) == [inbox.objectID, monday.objectID])
+        #expect(!asked.plans.contains { $0.objectID == thursday.objectID })
+        #expect(asked.openWork.count == 1)
     }
 }

@@ -92,4 +92,35 @@ struct StudentDeparturePlansTests {
         #expect(shared.resolvedStudentIDs == [try #require(staying.id)])
         #expect(StudentDeparturePlans.futurePlans(for: try #require(staying.id), in: context).count == 2)
     }
+
+    @Test("A rollover departure is the student page's: her open work closes once her last day has passed")
+    func rolloverDepartureRunsTheWholeCascade() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let leaving = CoreDataTestHelpers.seedStudent(in: context, firstName: "Naomi", lastName: "Levin")
+        let later = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Pardo")
+        let leavingID = try #require(leaving.id)
+        let laterID = try #require(later.id)
+        let past = CoreDataTestHelpers.seedWorkModel(in: context, title: "Fraction strips", studentID: leavingID)
+        let ahead = CoreDataTestHelpers.seedWorkModel(in: context, title: "Fraction strips", studentID: laterID)
+        CoreDataTestHelpers.save(context)
+        let ledger = DepartureSkipLedger.inMemory()
+
+        var gone = RolloverPlan(effectiveDate: AppCalendar.addingDays(-1, to: Date()), writeNotes: false)
+        gone.outcomes[leavingID] = .withdraw
+        try RolloverService.apply(
+            gone, students: [leaving], incomingYearLabel: "2026–2027", context: context, ledger: ledger
+        )
+        #expect(past.status == .incomplete)
+        #expect(!ledger.isOwed(leavingID))
+
+        // Leaving on a day still ahead: her work waits, owed to the first launch after it.
+        var soon = RolloverPlan(effectiveDate: AppCalendar.addingDays(3, to: Date()), writeNotes: false)
+        soon.outcomes[laterID] = .transfer
+        try RolloverService.apply(
+            soon, students: [later], incomingYearLabel: "2026–2027", context: context, ledger: ledger
+        )
+        #expect(later.enrollmentStatus == .transferred)
+        #expect(ahead.status == .active)
+        #expect(ledger.isOwed(laterID))
+    }
 }

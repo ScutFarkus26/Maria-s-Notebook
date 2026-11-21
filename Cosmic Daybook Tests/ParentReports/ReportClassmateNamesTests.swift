@@ -122,4 +122,41 @@ struct ReportClassmateNamesTests {
         #expect(observations(for: room.maya, in: room.context)
             .contains("Maya says she will teach a classmate the chain."))
     }
+
+    // MARK: - Phase 10 review, finding 6
+
+    @Test("A classmate's last name alone is a word: Brown Stair and Long Division stay")
+    func lastNameAloneIsAWord() throws {
+        let room = try makeRoom()
+        let leo = CoreDataTestHelpers.seedStudent(in: room.context, firstName: "Leo", lastName: "Brown")
+        let ari = CoreDataTestHelpers.seedStudent(in: room.context, firstName: "Ari", lastName: "Long")
+        ari.nickname = "Lee"
+        try flaggedNote(
+            "Maya built the Brown Stair with Leo Brown, then did Long Division beside Lee Long.",
+            about: [room.maya, leo, ari], in: room.context
+        )
+        #expect(CoreDataTestHelpers.save(room.context))
+
+        let mayas = observations(for: room.maya, in: room.context)
+        #expect(mayas == "Maya built the Brown Stair with a classmate, then did Long Division beside a classmate.")
+    }
+
+    @Test("A classmate's name in a work title doesn't reach her draft")
+    func workTitlesSwapped() throws {
+        let room = try makeRoom()
+        let mayaID = try #require(room.maya.id)
+        let work = CoreDataTestHelpers.seedWorkModel(
+            in: room.context, title: "Research with Leo", studentID: mayaID
+        )
+        work.status = .done
+        work.completedAt = september(12)
+        #expect(CoreDataTestHelpers.save(room.context))
+
+        let phrases = MonthlyReportContextBuilder(
+            context: room.context, reportService: ReportGeneratorService(), calendar: calendar
+        )
+        .buildContext(for: room.maya, month: month, includeStudentReflection: false)
+        .workEvidence.map(\.phrase)
+        #expect(phrases == ["Finished “Research with a classmate”"])
+    }
 }

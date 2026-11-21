@@ -195,9 +195,11 @@ enum RolloverService {
         incomingYearLabel: String,
         carryOverLanding: Date? = nil,
         carryOverBefore: Date? = nil,
-        context: NSManagedObjectContext
+        context: NSManagedObjectContext,
+        ledger: DepartureSkipLedger = .synced
     ) throws -> Int {
         var changed = 0
+        let repository = StudentRepository(context: context)
         for student in students {
             let outcome = plan.outcome(for: student.id)
             // The note describes the move, so build it before mutating the level.
@@ -209,14 +211,16 @@ enum RolloverService {
             case .promote(let target):
                 guard target != student.level else { continue }
                 StudentLevelHistory.change(student, to: target, on: plan.effectiveDate)
-            case .transfer:
-                student.enrollmentStatus = .transferred
-                student.dateWithdrawn = plan.effectiveDate
-                retractFuturePlans(for: student, context: context)
-            case .withdraw:
-                student.enrollmentStatus = .withdrawn
-                student.dateWithdrawn = plan.effectiveDate
-                retractFuturePlans(for: student, context: context)
+            case .transfer, .withdraw:
+                // The student page's departure (status and last day together,
+                // her groups, her open work once the day has passed, the
+                // un-skip list), plus the rollover's own choice: her whole
+                // plan comes off now, not only what lies after her last day.
+                repository.updateEnrollment(
+                    student, status: outcome == .transfer ? .transferred : .withdrawn,
+                    lastDay: plan.effectiveDate, ledger: ledger
+                )
+                retractFuturePlans(for: student, context: context, ledger: ledger)
             }
             student.modifiedAt = Date()
             changed += 1
@@ -284,7 +288,9 @@ enum RolloverService {
     /// those plans generate work naming her when they are presented — nor
     /// should her year plan keep pencilling in lessons she will not be here
     /// for. The entries are skipped, not deleted, so a return finds them.
-    private static func retractFuturePlans(for student: CDStudent, context: NSManagedObjectContext) {
+    private static func retractFuturePlans(
+        for student: CDStudent, context: NSManagedObjectContext, ledger: DepartureSkipLedger
+    ) {
         guard let studentID = student.id else { return }
         // Through the departure's own retract, so re-enrolling her un-skips
         // these entries (`StudentDeparture.returning`).
@@ -292,7 +298,7 @@ enum RolloverService {
             studentID: studentID,
             plans: StudentDeparturePlans.futurePlans(for: studentID, in: context),
             entries: StudentDeparturePlans.plannedEntries(for: studentID, in: context),
-            in: context
+            in: context, ledger: ledger
         )
     }
 

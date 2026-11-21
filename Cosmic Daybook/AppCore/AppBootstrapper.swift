@@ -218,6 +218,14 @@ final class AppBootstrapper {
             AttendanceEmail.shareSettingsIfMissing(in: viewContext)
         }
 
+        // A departure recorded on or before her last day finishes its cascade
+        // (undated and overdue plans, year plan, her open work) at the first
+        // launch after that day; it waits out a first download and saves on its
+        // own. On the view context: closing work can write classroom rows.
+        if CoreDataStack.isPrimaryProcess, !DatabaseInitializationService.isInMemorySession() {
+            StudentDeparture.finishOwedAndSave(in: viewContext)
+        }
+
         // Classroom records this device created before the classroom share's
         // pin arrived (a new device) go in now, if the share is here. Nothing
         // else is swept in: see SharedStoreOrphanGuard.

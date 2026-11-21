@@ -183,6 +183,35 @@ struct YearPlanDomainFixesTests {
         #expect(YearPlanEntryRepair.repairAllAndSave(in: context) == 0)
     }
 
+    @Test("an entry sent back to planned before its scheduled presentation synced in is promoted into it again")
+    func entrySentBackTooSoonFollowsItsPresentation() throws {
+        let context = try Fixture.makeContext()
+        let ada = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ada", lastName: "Levi")
+        let lessons = Fixture.seedSequence([0], in: context)
+        let entry = Fixture.seedEntry(for: ada, lesson: lessons[0], on: try day("2027-01-11"), in: context)
+        let presentationID = UUID()
+        entry.status = .promoted
+        entry.promotedAssignmentID = presentationID.uuidString
+        entry.modifiedAt = Date(timeIntervalSinceNow: -3 * 86_400)
+        #expect(CoreDataTestHelpers.save(context))
+
+        // Its presentation isn't here yet: the launch sends the entry back.
+        YearPlanEntryRepair.repairAllAndSave(in: context)
+        #expect(entry.status == .planned)
+
+        // Then it arrives from the other device, scheduled for the 12th.
+        let presentation = PresentationFactory.makeDraft(lesson: lessons[0], students: [ada], context: context)
+        presentation.id = presentationID
+        presentation.schedule(for: try day("2027-01-12"), using: AppCalendar.shared)
+        #expect(CoreDataTestHelpers.save(context))
+
+        #expect(YearPlanEntryRepair.repairAllAndSave(in: context) == 1)
+        #expect(entry.status == .promoted)
+        #expect(entry.promotedAssignmentID == presentationID.uuidString)
+        #expect(entry.plannedDate == (try day("2027-01-12")))
+        #expect(YearPlanEntryRepair.repairAllAndSave(in: context) == 0)
+    }
+
     // MARK: - A16: Remove skips
 
     @Test("Remove on the year-plan calendar skips the entry and keeps it")

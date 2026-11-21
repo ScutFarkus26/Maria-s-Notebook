@@ -1,5 +1,12 @@
 import SwiftUI
 
+/// The legend's words that must match the cards' own: the clash badge says
+/// "2 lessons at overlapping times" (lessons less than a lesson apart clash,
+/// plan "Domain logic fixes", Decision 5).
+enum WeekPlanLegend {
+    static let overlappingTimes = "Lessons at overlapping times"
+}
+
 /// The week strip's controls: date navigation, the legend and the actions menu,
 /// on one row.
 ///
@@ -103,7 +110,7 @@ struct WeekPlanHeader<Actions: View>: View {
                         .foregroundStyle(PresentationPlannerCard.clashRing)
                 }
             }
-            legendItem(label: "Two lessons at the same time") {
+            legendItem(label: WeekPlanLegend.overlappingTimes) {
                 // The card's clash chip in small: amber, with the triangle.
                 Image(systemName: "exclamationmark.triangle.fill")
                     .imageScale(.small)

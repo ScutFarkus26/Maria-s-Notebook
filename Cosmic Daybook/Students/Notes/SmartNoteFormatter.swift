@@ -101,11 +101,17 @@ struct NameAnonymizer {
 
     /// `keeping` holds forms (lowercased) never replaced: the child a report
     /// is about, whose own names stay even where a classmate shares one.
-    private init(students: [CDStudent], keeping: Set<String>, label: (CDStudent) -> String) {
+    /// Without `lastNameAlone`, a last name is matched only after a first
+    /// name or nickname, so a classmate called Brown or Long leaves "Brown
+    /// Stair" and "Long Division" as they are.
+    private init(
+        students: [CDStudent], keeping: Set<String>, lastNameAlone: Bool = true, label: (CDStudent) -> String
+    ) {
         var forms: [(form: String, label: String)] = []
         for student in students {
             let label = label(student)
-            for form in Self.forms(of: student) where form.count >= 2 && !keeping.contains(form.lowercased()) {
+            let written = Self.forms(of: student, lastNameAlone: lastNameAlone)
+            for form in written where form.count >= 2 && !keeping.contains(form.lowercased()) {
                 forms.append((form, label))
             }
         }
@@ -124,20 +130,28 @@ struct NameAnonymizer {
     /// Swaps `others`' names for `label` ("a classmate"), keeping every name
     /// of `student`'s own: in her report, a classmate who shares her first
     /// name is left out by her full or short name, and a sibling's last name
-    /// (hers too) stays (domain logic review R1).
+    /// (hers too) stays (domain logic review R1). A last name counts only
+    /// next to a first name or nickname ("Leo Katz", "Lee Katz"), not alone,
+    /// where it is as often a word ("Brown Stair", "Long Division"). Writing
+    /// Help's Anonymize (`init(students:)`) still hides a last name alone.
     static func classmates(of student: CDStudent, among others: [CDStudent], label: String) -> NameAnonymizer {
-        let hers = Set(forms(of: student).map { $0.lowercased() })
-        var anonymizer = NameAnonymizer(students: others, keeping: hers) { _ in label }
+        let hers = Set(forms(of: student, lastNameAlone: true).map { $0.lowercased() })
+        var anonymizer = NameAnonymizer(students: others, keeping: hers, lastNameAlone: false) { _ in label }
         anonymizer.capitalizesSentenceStarts = true
         return anonymizer
     }
 
     /// The forms a child's name is written in: full name, short name, first
-    /// name, nickname and last name.
-    private static func forms(of student: CDStudent) -> [String] {
+    /// name, nickname, nickname and last name, and (with `lastNameAlone`)
+    /// last name.
+    private static func forms(of student: CDStudent, lastNameAlone: Bool) -> [String] {
         let first = student.firstName.trimmed()
         let last = student.lastName.trimmed()
-        return ["\(first) \(last)", student.shortName, first, (student.nickname ?? "").trimmed(), last]
+        let nickname = (student.nickname ?? "").trimmed()
+        var forms = ["\(first) \(last)", student.shortName, first, nickname]
+        if !nickname.isEmpty, !last.isEmpty { forms.append("\(nickname) \(last)") }
+        if lastNameAlone { forms.append(last) }
+        return forms
     }
 
     /// The label that stands in for a child: "Student" and her first initial.

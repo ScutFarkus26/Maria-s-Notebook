@@ -125,7 +125,10 @@ struct StudentRepository: SavingRepository {
     /// Leaving without a last day takes today as the last one. Leaving, or a
     /// departed child's last day moving, runs the departure cascade
     /// (`StudentDeparture.carryOut`) unless `carryOutDeparture` is false.
-    /// Does not save.
+    /// While her last day is still ahead (or today) the rest of the cascade
+    /// is marked owed and finishes at the first launch after it
+    /// (`StudentDeparture.finishOwedAndSave`); Keep Plans and coming back
+    /// clear the mark. Does not save.
     @discardableResult
     func updateEnrollment(
         _ student: CDStudent, status: CDStudent.EnrollmentStatus, lastDay: Date?,
@@ -138,6 +141,7 @@ struct StudentRepository: SavingRepository {
         guard status != .enrolled else {
             student.dateWithdrawn = nil
             if wasStatus != .enrolled, let id = student.id {
+                ledger.setOwed(false, for: id)
                 change.entriesRestored = StudentDeparture.returning(studentID: id, in: context, ledger: ledger)
             }
             return change
@@ -146,10 +150,14 @@ struct StudentRepository: SavingRepository {
         // again with no date keeps none, so she stays out of past rolls.
         student.dateWithdrawn = lastDay ?? wasLastDay ?? (wasStatus == .enrolled ? now : nil)
         let moved = wasStatus == .enrolled || student.dateWithdrawn != wasLastDay
-        if moved, carryOutDeparture, let id = student.id {
-            change.departure = StudentDeparture.carryOut(
-                studentID: id, lastDay: student.dateWithdrawn, in: context, now: now, ledger: ledger
-            )
+        if moved, let id = student.id {
+            if carryOutDeparture {
+                change.departure = StudentDeparture.carryOut(
+                    studentID: id, lastDay: student.dateWithdrawn, in: context, now: now, ledger: ledger
+                )
+            }
+            let owed = carryOutDeparture && !StudentDeparture.hasGone(lastDay: student.dateWithdrawn, now: now)
+            ledger.setOwed(owed, for: id)
         }
         return change
     }

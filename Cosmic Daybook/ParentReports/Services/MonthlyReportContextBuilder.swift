@@ -77,8 +77,9 @@ struct MonthlyReportContextBuilder {
 
         // The level she had that month, not today's (domain logic review A8).
         let level = StudentLevelHistory.level(of: student, on: interval.start, calendar: calendar)
-        // Other children's names in the guide's notes and her own words
-        // become "a classmate" before the draft (domain logic review R1).
+        // Other children's names in the guide's notes, her own words and the
+        // titles the guide typed (work, outings) become "a classmate" before
+        // the draft (domain logic review R1).
         let classmates = ReportNotes.classmateNames(for: student, during: month.closedRange(calendar: calendar))
 
         let reflections: [MonthlyReportEvidenceItem]
@@ -93,10 +94,10 @@ struct MonthlyReportContextBuilder {
             level: level,
             month: month,
             lessonsPresented: (presentationItems.items + assignmentItems).sorted { $0.date < $1.date },
-            workEvidence: workEvidence(studentID: studentID, interval: interval),
+            workEvidence: workEvidence(studentID: studentID, interval: interval, classmates: classmates),
             observations: observationEvidence(student: student, month: month, classmates: classmates),
             contributions: level == .adolescent
-                ? contributionEvidence(studentID: studentID, interval: interval)
+                ? contributionEvidence(studentID: studentID, interval: interval, classmates: classmates)
                 : [],
             studentReflections: reflections,
             attendance: attendanceSummary(studentID: studentID, interval: interval)
@@ -198,7 +199,9 @@ struct MonthlyReportContextBuilder {
 
     // MARK: - Work
 
-    private func workEvidence(studentID: String, interval: DateInterval) -> [MonthlyReportEvidenceItem] {
+    private func workEvidence(
+        studentID: String, interval: DateInterval, classmates: NameAnonymizer
+    ) -> [MonthlyReportEvidenceItem] {
         var items: [MonthlyReportEvidenceItem] = []
 
         // Her own rows and the shared rows she is on. A shared project
@@ -223,7 +226,8 @@ struct MonthlyReportContextBuilder {
             items.append(MonthlyReportEvidenceItem(
                 ref: "work:\(id)\(worded.refSuffix)",
                 date: completedAt,
-                phrase: worded.phrase
+                // "Research with Leo" is a classmate's name too.
+                phrase: classmates.anonymized(worded.phrase)
             ))
         }
 
@@ -269,7 +273,9 @@ struct MonthlyReportContextBuilder {
 
     // MARK: - Adolescent contributions (valorization: real, meaningful work)
 
-    private func contributionEvidence(studentID: String, interval: DateInterval) -> [MonthlyReportEvidenceItem] {
+    private func contributionEvidence(
+        studentID: String, interval: DateInterval, classmates: NameAnonymizer
+    ) -> [MonthlyReportEvidenceItem] {
         var items: [MonthlyReportEvidenceItem] = []
 
         let goingOutRequest = CDFetchRequest(CDGoingOut.self)
@@ -285,7 +291,7 @@ struct MonthlyReportContextBuilder {
             items.append(MonthlyReportEvidenceItem(
                 ref: "goingOut:\(id)",
                 date: date,
-                phrase: "Went out to \(destination)"
+                phrase: classmates.anonymized("Went out to \(destination)")
             ))
         }
 

@@ -101,14 +101,16 @@ extension MCPNotebookTools {
             throw MCPToolError("At least one student name is required.")
         }
         let students = try names.map { try resolveStudentReference($0, in: modelContext) }.uniqueByID
-        let former = students.filter { !$0.isEnrolled }
+        // As the app refuses (`WorkRepository`): only a child who has left. One
+        // leaving on Friday is still in class and can be given work until then.
+        let former = students.filter { $0.hasLeft() }
         if !former.isEmpty {
             // Names resolve against every student on file, so a former student
             // still matches; she is refused here with her status rather than
             // quietly put back on the roster through a work item.
             let described = former.map { "\($0.fullName) (\($0.enrollmentStatusRaw))" }.joined(separator: ", ")
             throw MCPToolError(
-                "Work can only be assigned to enrolled students. Not enrolled: \(described). "
+                "Work can only be assigned to children still in the class. Already left: \(described). "
                     + "list_students shows the current roster."
             )
         }

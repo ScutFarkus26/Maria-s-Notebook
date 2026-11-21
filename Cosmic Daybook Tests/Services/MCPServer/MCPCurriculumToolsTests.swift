@@ -327,4 +327,25 @@ struct MCPCurriculumToolsTests {
         let created = try #require(lessons(in: context).first { $0.name == "Predicate" })
         #expect(created.objectID.persistentStore?.configurationName == CoreDataStack.privateConfiguration)
     }
+
+    @Test("update_lesson's prerequisites take a lesson from the same sequence, as its schema text now says")
+    func prerequisitesFromAnySequence() async throws {
+        let (tools, context) = try makeTools()
+        let lessons = seedSequence(["Golden Beads", "Stamp Game"], area: "Math", sequence: "Operations", in: context)
+        #expect(CoreDataTestHelpers.save(context))
+        let update = try tool(named: "update_lesson", in: tools)
+        let schema = String(decoding: try JSONEncoder().encode(update.inputSchema), as: UTF8.self)
+        #expect(!schema.contains("other sequences"))
+        #expect(schema.contains("from any sequence"))
+
+        _ = try await update.handler([
+            "lesson": .string("Stamp Game"), "prerequisites": .array([.string("Golden Beads")])
+        ])
+        #expect(lessons[1].prerequisiteLessonUUIDs == [try #require(lessons[0].id)])
+        await #expect(throws: (any Error).self) {
+            _ = try await update.handler([
+                "lesson": .string("Stamp Game"), "prerequisites": .array([.string("Stamp Game")])
+            ])
+        }
+    }
 }

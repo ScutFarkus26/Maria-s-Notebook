@@ -18,22 +18,28 @@ struct PendingDeparture {
     var isInGroups = false
     /// The day after her last day, from which her groups lose her.
     var firstDayGone = Date()
+    /// Her last day is still ahead (or today): the rest comes off after it.
+    var isLeavingLater = false
 }
 
 extension StudentDetailView {
     /// Collects what a child being withdrawn or transferred is still committed
-    /// to after her last day (`StudentDeparture.pending`), stashing it for the
-    /// alert. Returns true when there is something to ask about, so the
-    /// caller holds the save until the guide has answered. The repository
+    /// to after her last day, now or once that day has passed
+    /// (`StudentDeparture.pending`, `eventually`), stashing it for the alert.
+    /// Returns true when there is something to ask about, so the caller
+    /// holds the save until the guide has answered. The repository
     /// carries it out on Remove (`StudentDeparture.carryOut`).
     func stageDepartureIfNeeded(for studentID: UUID) -> Bool {
         guard student.isEnrolled, draftEnrollmentStatus != .enrolled else { return false }
-        let pending = StudentDeparture.pending(studentID: studentID, lastDay: draftDateWithdrawn, in: viewContext)
+        let pending = StudentDeparture.pending(
+            studentID: studentID, lastDay: draftDateWithdrawn, in: viewContext, eventually: true
+        )
         guard !pending.isEmpty else { return false }
         pendingDeparture = PendingDeparture(
             plans: pending.plans, entries: pending.entries,
             openWorkCount: pending.openWork.count, isInGroups: pending.isInGroups,
-            firstDayGone: StudentDeparture.firstDayGone(lastDay: draftDateWithdrawn)
+            firstDayGone: StudentDeparture.firstDayGone(lastDay: draftDateWithdrawn),
+            isLeavingLater: !StudentDeparture.hasGone(lastDay: draftDateWithdrawn)
         )
         showsDepartureAlert = true
         return true
@@ -57,7 +63,8 @@ extension StudentDetailView {
         if departure.openWorkCount > 0 {
             let noun: String = departure.openWorkCount == 1 ? "piece" : "pieces"
             let count: Int = departure.openWorkCount
-            lines.append("Removing also closes \(first)'s \(count) open \(noun) of work as Incomplete.")
+            let when: String = departure.isLeavingLater ? " after \(first)'s last day" : ""
+            lines.append("Removing also closes \(first)'s \(count) open \(noun) of work as Incomplete\(when).")
         }
         if departure.isInGroups {
             let day: String = DateFormatters.mediumDate.string(from: departure.firstDayGone)

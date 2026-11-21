@@ -32,4 +32,11 @@ struct LessonOverlapClashTests {
         #expect(clashes == WeekDayColumn.DayClashes(children: 0, sameTimes: 1, sameTimeLessons: 2))
         #expect(clashes.plainHelp == "Two lessons overlap. Change one of the times.")
     }
+
+    @Test("The legend names the clash as the badge does: lessons at overlapping times")
+    func legendMatchesTheBadge() {
+        let badge = WeekDayColumn.DayClashes(children: 0, sameTimes: 1, sameTimeLessons: 2).timedParts
+        #expect(badge == ["2 lessons at overlapping times"])
+        #expect(badge[0].hasSuffix(WeekPlanLegend.overlappingTimes.lowercased()))
+    }
 }

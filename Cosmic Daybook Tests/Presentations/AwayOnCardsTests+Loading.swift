@@ -90,4 +90,20 @@ extension AwayOnCardsTests {
         ) == .empty)
         _ = other
     }
+
+    @Test("The sheet shows the guide's Out day with nobody away")
+    func sheetShowsOutDay() throws {
+        let kids = try makeClass()
+        let lanes = TimetableService.makeStarterLanes(in: kids.context)
+        let guide = try #require(lanes.first { $0.isGuide })
+        TimetableService.setOut(guide, true, on: Days.monday, in: kids.context, calendar: calendar)
+        #expect(kids.context.safeSave())
+
+        let info = ScheduledDateEdits.awayInfo(
+            on: at(9, 45), children: [kids.naomi], excluding: nil, in: kids.context, using: calendar
+        )
+        #expect(info != .empty)
+        #expect(info.picker(children: [kids.naomi])?.rows == [AwayText.outLine])
+        #expect(info.clashLine(children: [kids.naomi], at: minutes(9, 45)) == AwayText.outLine)
+    }
 }

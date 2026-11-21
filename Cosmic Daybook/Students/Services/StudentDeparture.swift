@@ -20,6 +20,13 @@
 //  Recorded on Monday that Maya leaves Friday, she keeps this week's lessons,
 //  groups and work, and is in class on every screen through Friday.
 //
+//  A departure recorded ahead of (or on) her last day leaves the rest owed:
+//  the undated and overdue plans and entries and her open work wait for the
+//  day after it. The ledger marks her (`DepartureSkipLedger.setOwed`), unless
+//  the guide chose Keep Plans, and the first launch after her last day
+//  finishes the cascade (`finishOwedAndSave`). Without that, nothing ran
+//  again once the day had passed: saving her again changes neither field.
+//
 //  Re-enrolling her un-skips the year-plan entries her departure skipped,
 //  and only those (`returning`). A hand skip looks the same on the entry, so
 //  the departure keeps the ids it skipped in a list of its own
@@ -59,18 +66,39 @@ enum StudentDeparture {
         return calendar.date(byAdding: .day, value: 1, to: start) ?? start
     }
 
+    /// Whether her last day has passed (a departure with no last day counts
+    /// from today): the whole cascade can run.
+    static func hasGone(lastDay: Date?, now: Date = Date(), calendar: Calendar = AppCalendar.shared) -> Bool {
+        firstDayGone(lastDay: lastDay, now: now, calendar: calendar) <= calendar.startOfDay(for: now)
+    }
+
     // MARK: - What it would do
 
+    /// What the cascade takes her off now. With `eventually`, also what it
+    /// takes off once her last day has passed (the undated and overdue
+    /// plans and entries, her open work), though not this week's lessons
+    /// before her last day, which she is expected to have: what the student
+    /// page asks about, so Keep Plans is offered for what Remove will take.
     static func pending(
         studentID: UUID, lastDay: Date?, in context: NSManagedObjectContext,
-        now: Date = Date(), calendar: Calendar = AppCalendar.shared
+        now: Date = Date(), calendar: Calendar = AppCalendar.shared, eventually: Bool = false
     ) -> Pending {
         let gone = firstDayGone(lastDay: lastDay, now: now, calendar: calendar)
-        let hasGone = gone <= calendar.startOfDay(for: now)
+        let today = calendar.startOfDay(for: now)
+        let hasGone = gone <= today
+        // A plan or entry comes off now when it falls after her last day, or
+        // every one once she has gone; `eventually` adds the undated and overdue.
+        let comesOff: (Date?) -> Bool = { date in
+            if hasGone { return true }
+            guard let date else { return eventually }
+            return date >= gone || (eventually && date < today)
+        }
         return Pending(
-            plans: plans(for: studentID, from: gone, hasGone: hasGone, in: context),
-            entries: entries(for: studentID, from: gone, hasGone: hasGone, in: context),
-            openWork: hasGone ? openWorkHersAlone(studentID, in: context) : [],
+            plans: StudentDeparturePlans.futurePlans(for: studentID, in: context)
+                .filter { comesOff($0.scheduledFor) },
+            entries: StudentDeparturePlans.plannedEntries(for: studentID, in: context)
+                .filter { comesOff($0.plannedDate) },
+            openWork: hasGone || eventually ? openWorkHersAlone(studentID, in: context) : [],
             isInGroups: isInGroups(studentID, from: gone, in: context, calendar: calendar)
         )
     }
@@ -99,6 +127,58 @@ enum StudentDeparture {
             }
         }
         return report
+    }
+
+    /// The departures still owed (see the file comment) whose last day has
+    /// passed: each child's cascade runs now, the whole of it. Children who
+    /// came back, or whose last day is still ahead, are left; so is a
+    /// marker whose child isn't in the store (she may still be on her way
+    /// down). Returns the children it finished. Does not save, and leaves
+    /// the markers for the caller to clear once saved.
+    @discardableResult
+    static func finishOwed(
+        in context: NSManagedObjectContext, now: Date = Date(),
+        calendar: Calendar = AppCalendar.shared, ledger: DepartureSkipLedger = .synced
+    ) -> [UUID] {
+        let request = CDFetchRequest(CDStudent.self)
+        request.predicate = NSPredicate(
+            format: "enrollmentStatusRaw != %@", CDStudent.EnrollmentStatus.enrolled.rawValue
+        )
+        var finished: [UUID] = []
+        for student in context.safeFetch(request) where !student.isDeleted {
+            guard let id = student.id, ledger.isOwed(id),
+                  hasGone(lastDay: student.dateWithdrawn, now: now, calendar: calendar) else { continue }
+            carryOut(
+                studentID: id, lastDay: student.dateWithdrawn, in: context, now: now, calendar: calendar,
+                ledger: ledger
+            )
+            finished.append(id)
+        }
+        return finished
+    }
+
+    /// The launch step: `finishOwed`, saved, then the markers cleared. Waits
+    /// out a first download (the children and their plans may not be here
+    /// yet) and a context holding someone else's edit. Two devices agree:
+    /// what one took her off the other no longer finds once it has synced,
+    /// and both write the same values. Two launching before either syncs
+    /// each close her work, which leaves a second completion record for the
+    /// same day (the dedup folds rows by id only); the work itself reads the
+    /// same. Returns how many children it finished.
+    @discardableResult
+    static func finishOwedAndSave(
+        in context: NSManagedObjectContext, now: Date = Date(),
+        firstDownloadPending: Bool = FirstDownloadGate.isPending(), ledger: DepartureSkipLedger = .synced
+    ) -> Int {
+        guard !firstDownloadPending, !context.hasChanges else { return 0 }
+        let finished = finishOwed(in: context, now: now, ledger: ledger)
+        guard !finished.isEmpty else { return 0 }
+        guard !context.hasChanges || context.safeSave() else {
+            context.rollback()
+            return 0
+        }
+        for id in finished { ledger.setOwed(false, for: id) }
+        return finished.count
     }
 
     /// Takes her off `plans` and skips `entries`, keeping the ids of every
@@ -146,24 +226,6 @@ enum StudentDeparture {
 
     // MARK: - Pieces
 
-    /// Unpresented plans naming her that fall after her last day: dated from
-    /// `gone` on, and every one (undated, overdue) once she has gone.
-    private static func plans(
-        for studentID: UUID, from gone: Date, hasGone: Bool, in context: NSManagedObjectContext
-    ) -> [CDLessonAssignment] {
-        let all = StudentDeparturePlans.futurePlans(for: studentID, in: context)
-        guard !hasGone else { return all }
-        return all.filter { plan in plan.scheduledFor.map { $0 >= gone } ?? false }
-    }
-
-    private static func entries(
-        for studentID: UUID, from gone: Date, hasGone: Bool, in context: NSManagedObjectContext
-    ) -> [CDYearPlanEntry] {
-        let all = StudentDeparturePlans.plannedEntries(for: studentID, in: context)
-        guard !hasGone else { return all }
-        return all.filter { entry in entry.plannedDate.map { $0 >= gone } ?? false }
-    }
-
     /// Her open work that is hers alone (`WorkOwnership`): her own rows and
     /// her copies of group work, not rows she shares with classmates.
     private static func openWorkHersAlone(_ studentID: UUID, in context: NSManagedObjectContext) -> [CDWorkModel] {
@@ -205,9 +267,14 @@ enum StudentDeparture {
 /// The year-plan entries each child's departure skipped, by child, so
 /// re-enrolling her un-skips those and no others. Kept in iCloud key-value
 /// storage (`SyncedPreferencesStore`), under one key per child, so the device
-/// that re-enrols her months later has the list too. Tests pass `inMemory`.
+/// that re-enrols her months later has the list too. It also marks a
+/// departure whose cascade is still owed (`setOwed`), under the same prefix
+/// so it syncs the same way. Tests pass `inMemory`.
 struct DepartureSkipLedger {
     static let keyPrefix = "YearPlan.departureSkips."
+    /// The owed markers' keys, under `keyPrefix`: never a child's UUID, so
+    /// `ids(for:)` never reads one.
+    static let owedKeyPrefix = keyPrefix + "owed."
 
     let read: (String) -> [String]
     let write: (String, [String]?) -> Void
@@ -228,6 +295,21 @@ struct DepartureSkipLedger {
 
     static func key(for studentID: UUID) -> String { keyPrefix + studentID.uuidString }
 
+    static func owedKey(for studentID: UUID) -> String { owedKeyPrefix + studentID.uuidString }
+
+    /// Whether her departure's cascade is still owed: recorded before her
+    /// last day had passed, with Remove (or by Claude).
+    func isOwed(_ studentID: UUID) -> Bool { !read(Self.owedKey(for: studentID)).isEmpty }
+
+    func setOwed(_ owed: Bool, for studentID: UUID) {
+        let key = Self.owedKey(for: studentID)
+        if owed {
+            write(key, [studentID.uuidString])
+        } else if !read(key).isEmpty {
+            write(key, nil)
+        }
+    }
+
     func ids(for studentID: UUID) -> [UUID] {
         read(Self.key(for: studentID)).compactMap(UUID.init(uuidString:))
     }
@@ -240,7 +322,9 @@ struct DepartureSkipLedger {
         write(key, stored)
     }
 
+    /// Forgets her skips and any owed cascade.
     func clear(for studentID: UUID) {
         write(Self.key(for: studentID), nil)
+        setOwed(false, for: studentID)
     }
 }

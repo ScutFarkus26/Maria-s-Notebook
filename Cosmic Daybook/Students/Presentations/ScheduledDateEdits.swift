@@ -86,7 +86,8 @@ nonisolated enum ScheduledDateEdits {
 
         static let empty = AwayInfo(day: .empty, names: [:], ownStarts: [])
 
-        /// The picker's away list, marks and free times; nil with nobody away.
+        /// The picker's away list, marks and free times; nil when nothing on
+        /// the day touches the lesson (nobody away, no turn of his, not out).
         func picker(children: some Sequence<UUID>) -> LessonTimeAway? {
             AwayOnCards.pickerAway(
                 in: day, children: AwayDay.keys(children), ownStarts: ownStarts, name: { names[$0] }
@@ -105,7 +106,8 @@ nonisolated enum ScheduledDateEdits {
         }
     }
 
-    /// One day's away times for a lesson with `children`, read when asked
+    /// One day's away times for a lesson with `children` (a child away, the
+    /// guide's turn or his Out day: `AwayDay.touches`), read when asked
     /// (the picker opening, the day or the children changing): one timetable
     /// fetch for the day, the children's names, and the day's other set times.
     @MainActor
@@ -119,7 +121,7 @@ nonisolated enum ScheduledDateEdits {
         let start = calendar.startOfDay(for: day)
         guard !children.isEmpty,
               let awayDay = AwayTimes.days(from: start, through: start, in: context, calendar: calendar)[start],
-              !awayDay.away(children: AwayDay.keys(children)).isEmpty
+              awayDay.touches(children: AwayDay.keys(children))
         else { return .empty }
         let request = CDFetchRequest(CDStudent.self)
         request.predicate = NSPredicate(format: "id IN %@", Array(children))
