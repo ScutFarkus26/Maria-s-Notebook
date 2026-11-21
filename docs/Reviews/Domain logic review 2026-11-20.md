@@ -1,6 +1,6 @@
 # Domain logic review 2026-11-20
 
-> **Not started.** Found at main e25eb65d8 (2026-11-20). The review changed nothing in the code; the fixes are planned in <../Plans/Plan - Domain logic fixes.md>.
+> **Fixed 2026-11-21** (4d5eb1c9c). Found at main e25eb65d8 (2026-11-20); fixed by <../Plans/Plan - Domain logic fixes.md>. Where each item landed is at the end.
 > In short: the top 25 ways to improve the app's classroom rules. Most come from one pattern: a rule that lives in a screen's view model gets copied by Claude's tools, Siri or the command bar, and the copies drift.
 
 **Scope.** "Domain logic" here means the classroom rules and how they are kept: lessons and mastery, work, attendance, the school calendar, students and meetings, notes, schedules, Restock and to-dos. It leaves out UI, sync plumbing, build and speed. This is not a bug hunt, but it includes real bugs, marked **BUG**. Five read-only reviewers each took one area, and a sixth compared Claude's tools, Siri, the command bar and restore against the screens. Each of the 25 was then checked by hand at the cited lines; #25 is the one marked Plausible, and the "Also found" list rests on the reviewers' reading. Nothing was built or run. Paths are under `Cosmic Daybook/`.
@@ -146,3 +146,55 @@ The next occurrence gets a random id (`Todos/Services/TodoCompletionService.swif
 - **A18. Age, grade and the attendance birthday cake use the device's calendar,** while birthday countdowns use the app's fixed Gregorian one; they differ on a device set to the Hebrew calendar. S.
 - **A19. Meetings: a child who never met isn't counted late,** though `isLate`'s comment says she is (`MeetingQueueModel.swift:117-119`), and a meeting saved "not finished" still counts as met. S.
 - **A20. Claude's `update_observation` with no children may widen a presentation note to the whole class** (reported by a reviewer's helper, not checked by hand). Check first; fix if real. S.
+
+## Where each one landed
+
+Checked 2026-11-21 against main 4d5eb1c9c: the iPhone, Mac and Assistant builds succeed, 5,166 notebook tests, 20 time-zone tests and 650 Assistant tests pass. "Mostly" lines name what's left; each is in the plan's Phase 10 leftovers.
+
+| Item | Where | Result | Notes |
+|---|---|---|---|
+| R1 | Phase 8 (2379fb21d), fix A (b5e057e89) | Fixed | Report drafts call other children "a classmate", in work titles too. |
+| R2 | Phase 4 (ee5314e55), fix C (b96b2ceea) | Fixed | One mastery mark everywhere; the last separate copies read the one rule. |
+| R3 | Phase 4 (ee5314e55) | Fixed |  |
+| R4 | Phase 5 (778d586cc), fix C (b96b2ceea) | Fixed | The due date stands apart from the next check. |
+| R5 | Phase 2 (2adf0ebd2) | Fixed |  |
+| R6 | Phase 4 (ee5314e55) | Fixed |  |
+| R7 | Phase 3 (208cd6aa3), Phase 7 (feddeb717), fix A (b5e057e89) | Mostly | One in-class rule; a departure now finishes after her last day. A few screens still read the raw status. |
+| R8 | Phase 7 (feddeb717) | Fixed | Older meeting drafts are still carried out at Complete. |
+| R9 | Phase 8 (2379fb21d) | Mostly | One "about her" rule on five readers; "last observed" and two loaders aren't on it yet. |
+| R10 | Phase 4 (ee5314e55) | Fixed |  |
+| R11 | Phase 5 (778d586cc) | Fixed |  |
+| R12 | Phase 4 (ee5314e55) | Fixed |  |
+| R13 | Phase 5 (778d586cc), Phase 7 (feddeb717) | Fixed |  |
+| R14 | Phase 5 (778d586cc), fix C (b96b2ceea) | Fixed | Practice only after a giving. |
+| R15 | Phase 3 (208cd6aa3) | Fixed |  |
+| R16 | Phase 3 (208cd6aa3), fix A (b5e057e89) | Fixed |  |
+| R17 | Phase 6 (1be26969b), fix A (b5e057e89) | Fixed | The entry repair doesn't run after a restore, so restores stay exact. |
+| R18 | Phase 9 (96a376623) | Fixed |  |
+| R19 | Phase 2 (2adf0ebd2) | Fixed |  |
+| R20 | Phase 9 (96a376623) | Fixed | The days-off grid doesn't shade summer. |
+| R21 | Phase 6 (1be26969b) | Fixed |  |
+| R22 | Phase 5 (778d586cc), fix C (b96b2ceea) | Fixed | A child's meeting still lists only the work she owns. |
+| R23 | Phase 5 (778d586cc) | Fixed |  |
+| R24 | Phase 4 (ee5314e55), fix C (b96b2ceea) | Fixed |  |
+| R25 | Phase 3 (208cd6aa3) | Fixed |  |
+| A1 | Phase 9 (96a376623) | Readers only | Decision 9: the writer comes in the release after schema 25 (Tide row). |
+| A2 | Phase 3 (208cd6aa3) | Fixed |  |
+| A3 | Phase 5 (778d586cc) | Fixed |  |
+| A4 | Phase 9 (96a376623), fix B (a8926521f) | Mostly | Attendance, locks, sends and reminders follow the class's zone, set only from the picker. Time pickers and Claude's date parsing still use the device's. |
+| A5 | Phase 9 (96a376623) | Mostly | The email reads the shared row; Settings still shows this device's copy. |
+| A6 | Phase 6 (1be26969b) | Mostly | "Check first" shows in the ready queue, Today, Groups, Claude and the Checklist, not the Inbox planner. |
+| A7 | Phase 3 (208cd6aa3) | Fixed |  |
+| A8 | Phase 8 (2379fb21d) | Fixed |  |
+| A9 | Phase 8 (2379fb21d) | Fixed | Matched by email and name; guardians have no phone field. |
+| A10 | Phase 8 (2379fb21d) | Fixed |  |
+| A11 | Phase 8 (2379fb21d) | Mostly | Reads the creation date and skips app-written notes; still reads student links. |
+| A12 | Phase 8 (2379fb21d) | Fixed |  |
+| A13 | Phase 2 (2adf0ebd2) | Fixed |  |
+| A14 | Phase 3 (208cd6aa3) | Fixed |  |
+| A15 | Phase 6 (1be26969b) | Fixed |  |
+| A16 | Phase 6 (1be26969b) | Fixed |  |
+| A17 | Phase 8 (2379fb21d) | Fixed |  |
+| A18 | Phase 9 (96a376623) | Fixed |  |
+| A19 | Phase 7 (feddeb717) | Fixed |  |
+| A20 | Phase 8 (2379fb21d) | Fixed |  |

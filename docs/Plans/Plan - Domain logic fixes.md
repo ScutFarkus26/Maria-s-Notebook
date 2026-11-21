@@ -1,6 +1,6 @@
 # Domain logic fixes
 
-> **Not started.** Written 2026-11-20 from <../Reviews/Domain logic review 2026-11-20.md> (found at main e25eb65d8).
+> **Done 2026-11-21** (4d5eb1c9c). Written 2026-11-20 from <../Reviews/Domain logic review 2026-11-20.md> (found at main e25eb65d8).
 > In short: fix all 25 findings and the 20 smaller ones from the 2026-11-20 domain-logic review, in nine phases plus a final check, with one schema bump (25, backup format 47) that touches both stores.
 
 ## Goal
@@ -21,7 +21,7 @@ Build board: https://claude.ai/artifact/CN28oMqiKihr3cjEPqmrVc (the conductor ke
 - [x] Phase 7: Who's in class, departures and meetings · done 2026-11-21 (feddeb717) · agent ae3ad03fceba82141, squashed by the conductor · actual ~299k agent tokens over 1.5 h
 - [x] Phase 8: Notes, reports, level history, guardians and rollover · done 2026-11-21 (2379fb21d) · agent a61013dc8a5fb54d5, squashed by the conductor · actual ~321k agent tokens over 1.4 h
 - [x] Phase 9: School session, time zone and the front desk · done 2026-11-21 (96a376623) · agent a2ffbc0f4a8b840a4 on Fable, squashed by the conductor · actual ~560k agent tokens over 1.7 h
-- [ ] Phase 10: Final check · runs as: session · needs: 1–9 · est. $15–35 (~1%)
+- [x] Phase 10: Final check · done 2026-11-21 (4d5eb1c9c) · conductor builds and whole suites, a cold review on Fable, three fix agents (A b5e057e89, B a8926521f, C b96b2ceea) and a docs agent (7a41c6e74) · iPhone, Mac and Assistant build; 5,166 notebook, 20 time-zone and 650 Assistant tests pass
 
 Phases 1, 2 and 3 start together. Then the middle runs in a line, because those phases share files: 4 after 1, 5 after 4 (and 2), 6 after 5, 7 after 6 (and 3). 8 and 9 run together after 7, and 10 comes last. Every phase needs the ones before it in that line, so at most three run at once.
 
