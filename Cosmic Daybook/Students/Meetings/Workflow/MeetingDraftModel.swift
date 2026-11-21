@@ -53,16 +53,21 @@ final class MeetingDraftModel {
     var reviewedWorkIDs: Set<UUID> = [] {
         didSet { changed(\.decisionWorkIDs, oldValue.symmetricDifference(reviewedWorkIDs)) }
     }
-    /// Work decided as Re-present: closed as Incomplete now, its lesson
-    /// planned again as a second pass on Complete.
+    /// Work decided as Re-present: closed as Incomplete and its lesson
+    /// planned again as a second pass, both at the tap (R8).
     var representWorkIDs: Set<UUID> = [] {
         didSet { changed(\.decisionWorkIDs, oldValue.symmetricDifference(representWorkIDs)) }
     }
-    /// Work switched to Ready for Next: its next lesson goes On Deck on
-    /// Complete. A switch beside the card's choice, not a choice itself: it
+    /// Work switched to Ready for Next: its next lesson goes On Deck at the
+    /// tap (R8). A switch beside the card's choice, not a choice itself: it
     /// leaves the work's status alone and goes with any choice but Re-present.
     var readyWorkIDs: Set<UUID> = [] {
         didSet { changed(\.decisionWorkIDs, oldValue.symmetricDifference(readyWorkIDs)) }
+    }
+    /// What each Re-present and Ready for Next planned at the tap, so taking
+    /// the decision back takes the plan back too.
+    var tapPlans: [UUID: MeetingTapPlan] = [:] {
+        didSet { changed(\.decisionWorkIDs, Self.changedKeys(oldValue, tapPlans)) }
     }
     /// The `WorkLogService` receipt of the status each card's choice set,
     /// kept with the draft so Clear, Rest or another outcome can take the
@@ -138,6 +143,7 @@ final class MeetingDraftModel {
             representWorkIDs: representWorkIDs.map(\.uuidString),
             readyWorkIDs: readyWorkIDs.map(\.uuidString),
             closeTokens: Dictionary(uniqueKeysWithValues: closeTokens.map { ($0.key.uuidString, $0.value) }),
+            tapPlans: Dictionary(uniqueKeysWithValues: tapPlans.map { ($0.key.uuidString, $0.value) }),
             newTodos: newTodos,
             doneTodoIDs: doneTodoIDs.map(\.uuidString).sorted()
         )
@@ -250,6 +256,7 @@ final class MeetingDraftModel {
         representWorkIDs = []
         readyWorkIDs = []
         closeTokens = [:]
+        tapPlans = [:]
         newTodos = []
         doneTodoIDs = []
         storedFocusText = ""
@@ -308,6 +315,7 @@ final class MeetingDraftModel {
         update(\.representWorkIDs, to: Self.merged(representWorkIDs, Self.ids(stored.representWorkIDs), keeping: work))
         update(\.readyWorkIDs, to: Self.merged(readyWorkIDs, Self.ids(stored.readyWorkIDs), keeping: work))
         update(\.closeTokens, to: Self.merged(closeTokens, Self.keyed(stored.closeTokens), keeping: work))
+        update(\.tapPlans, to: Self.merged(tapPlans, Self.keyed(stored.tapPlans), keeping: work))
         update(\.newTodos, to: Self.merged(newTodos, stored.newTodos ?? [], keeping: mine.newTodoIDs))
         update(\.doneTodoIDs, to: Self.merged(doneTodoIDs, Self.ids(stored.doneTodoIDs), keeping: mine.doneTodoIDs))
     }

@@ -184,7 +184,7 @@ struct WorkCheckInService {
     func ownerHasLeft(_ work: CDWorkModel) -> Bool {
         guard let owner = WorkGrouping.owner(of: work),
               let student = StudentRepository(context: context).fetchStudent(id: owner) else { return false }
-        return !student.isEnrolled
+        return student.hasLeft()
     }
 
     // MARK: - Moving a linked copy's check-in

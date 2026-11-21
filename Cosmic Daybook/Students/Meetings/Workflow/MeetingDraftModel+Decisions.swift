@@ -4,7 +4,9 @@ import Foundation
 // A work card's outcomes in a meeting. Each applies at once through
 // `WorkLogService`, the only status writer, and reaches the stored draft at
 // once too, so quitting right after a tap can't leave the work closed with
-// no decision to plan or take back (bug hunt 2026-10-10, #16).
+// no decision to plan or take back (bug hunt 2026-10-10, #16). Re-present
+// and Ready for Next plan their lessons at the tap as well, each with a
+// `MeetingTapPlan` receipt (domain logic review 2026-11-20, R8).
 extension MeetingDraftModel {
 
     /// Applies a status from a decision card at once and counts the item as
@@ -20,11 +22,13 @@ extension MeetingDraftModel {
         return true
     }
 
-    /// The work didn't take: it closes as Incomplete now, and Complete plans
-    /// its lesson again as a second pass. That leaves no next lesson to be
-    /// ready for, so Ready for Next switches off.
+    /// The work didn't take: it closes as Incomplete and its lesson is
+    /// planned again as a second pass, both now, in one save (R8), so the
+    /// plan is there on every device whether or not the meeting is ever
+    /// completed. That leaves no next lesson to be ready for, so Ready for
+    /// Next switches off, and the next lesson it planned comes off again.
     func represent(_ work: CDWorkModel, context: NSManagedObjectContext) {
-        guard apply(.incomplete, to: work, context: context) else { return }
+        guard apply(.incomplete, to: work, context: context, planning: .represent) else { return }
         if let id = work.id {
             representWorkIDs.insert(id)
             readyWorkIDs.remove(id)
@@ -32,19 +36,39 @@ extension MeetingDraftModel {
         flush()
     }
 
-    /// She's ready to move on (2026-10-30): Complete confirms her on the
-    /// lesson (not a mastery mark) and puts the next one in the sequence On
-    /// Deck. A switch beside the card's choice: the work's status is left
-    /// as it is, and it isn't the card's decision. Refused while Re-present
-    /// is chosen, which plans this lesson again instead.
-    func setReadyForNext(_ isReady: Bool, for work: CDWorkModel) {
+    /// She's ready to move on (2026-10-30): she is confirmed on the lesson
+    /// (not a mastery mark) and the next one in the sequence goes On Deck,
+    /// now (R8). Switching it off takes that back, unless the plan has been
+    /// scheduled or changed since. A switch beside the card's choice: the
+    /// work's status is left as it is, and it isn't the card's decision.
+    /// Refused while Re-present is chosen, which plans this lesson again
+    /// instead. `context` defaults to the work's own.
+    func setReadyForNext(_ isReady: Bool, for work: CDWorkModel, context: NSManagedObjectContext? = nil) {
         takeUpStored()
-        guard let id = work.id, !(isReady && representWorkIDs.contains(id)) else { return }
+        guard let id = work.id, !(isReady && representWorkIDs.contains(id)),
+              let context = context ?? work.managedObjectContext else { return }
+        guard isReady != readyWorkIDs.contains(id) else { return }
+        let transaction = ContextMutationTransaction(context: context)
+        if let earlier = tapPlans[id], earlier.kind == .ready { earlier.takeBack(in: context) }
+        var plan: MeetingTapPlan?
+        if isReady {
+            plan = MeetingTapPlan.capture(.ready, in: context) {
+                MeetingLessonDecisions.planNextLesson(of: work, studentID: studentID, context: context)
+                    .map { [$0] } ?? []
+            }
+        }
+        guard context.safeSave() else {
+            transaction.rollback()
+            ToastService.shared.showError(Self.decisionFailure)
+            return
+        }
+        transaction.commit()
         if isReady {
             readyWorkIDs.insert(id)
         } else {
             readyWorkIDs.remove(id)
         }
+        tapPlans[id] = plan
         flush()
     }
 
@@ -57,6 +81,10 @@ extension MeetingDraftModel {
         let transaction = ContextMutationTransaction(context: context)
         let wasRepresent = work.id.map(representWorkIDs.contains) ?? false
         let takeBack = takeBackEarlierChoice(on: work, context: context)
+        // Re-present's second pass goes with it.
+        if wasRepresent, let plan = work.id.flatMap({ tapPlans[$0] }), plan.kind == .represent {
+            plan.takeBack(in: context)
+        }
         if wasRepresent, takeBack == .nothing || takeBack == .unreadable, work.status.isClosed {
             do {
                 try WorkLogService.log([.init(work: work, status: .active)], context: context, saveImmediately: false)
@@ -75,6 +103,7 @@ extension MeetingDraftModel {
         }
         transaction.commit()
         guard let id = work.id else { return }
+        if wasRepresent { tapPlans[id] = nil }
         representWorkIDs.remove(id)
         closeTokens[id] = nil
         reviewedWorkIDs.insert(id)
@@ -97,8 +126,11 @@ extension MeetingDraftModel {
         return true
     }
 
-    private func apply(_ status: WorkStatus, to work: CDWorkModel, context: NSManagedObjectContext) -> Bool {
-        apply(to: work, context: context) {
+    private func apply(
+        _ status: WorkStatus, to work: CDWorkModel, context: NSManagedObjectContext,
+        planning: MeetingTapPlan.Kind? = nil
+    ) -> Bool {
+        apply(to: work, context: context, planning: planning) {
             work.status == status ? [] : [.init(work: work, status: status)]
         }
     }
@@ -107,13 +139,20 @@ extension MeetingDraftModel {
     /// whatever the choice changes besides the status and returns the
     /// statuses to log. The newest receipt for the work is read from the
     /// stored draft first, in case the choice before this one was made in
-    /// another window.
+    /// another window. A plan made at an earlier tap goes with the choice it
+    /// belonged to: Re-present's with any new choice, Ready for Next's only
+    /// when Re-present replaces it. `planning: .represent` plans the lesson
+    /// again in the same save.
     private func apply(
-        to work: CDWorkModel, context: NSManagedObjectContext, changes: () -> [WorkLogService.Entry]
+        to work: CDWorkModel, context: NSManagedObjectContext, planning: MeetingTapPlan.Kind? = nil,
+        changes: () -> [WorkLogService.Entry]
     ) -> Bool {
         takeUpStored()
         let transaction = ContextMutationTransaction(context: context)
         _ = takeBackEarlierChoice(on: work, context: context)
+        let earlierPlan = work.id.flatMap { tapPlans[$0] }
+        let dropsPlan = earlierPlan.map { $0.kind == .represent || planning == .represent } ?? false
+        if dropsPlan { earlierPlan?.takeBack(in: context) }
         // A rest this choice ends rides in its receipt, so taking the choice
         // back puts the rest back too (bug hunt 2026-10-10, #15).
         let endedRest = work.isResting ? work.restingUntil : nil
@@ -130,6 +169,19 @@ extension MeetingDraftModel {
             }
         }
         work.lastTouchedAt = Date()
+        var plan: MeetingTapPlan?
+        if planning == .represent {
+            do {
+                plan = try MeetingTapPlan.capture(.represent, in: context) {
+                    try MeetingLessonDecisions.planRepresentation(of: work, studentID: studentID, context: context)
+                        .map { [$0] } ?? []
+                }
+            } catch {
+                transaction.rollback()
+                ToastService.shared.showError(Self.decisionFailure)
+                return false
+            }
+        }
         let token = receipt.flatMap {
             MeetingCloseToken($0.token, leaving: work, endingRestUntil: endedRest, in: context)
         }
@@ -143,6 +195,8 @@ extension MeetingDraftModel {
         // Another choice replaces a Re-present chosen earlier.
         representWorkIDs.remove(id)
         closeTokens[id] = token.map { [$0] }
+        if dropsPlan { tapPlans[id] = nil }
+        if let plan { tapPlans[id] = plan }
         reviewedWorkIDs.insert(id)
         return true
     }

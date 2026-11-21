@@ -63,6 +63,11 @@ struct StudentRepository: SavingRepository {
 
     /// Update an existing CDStudent's properties. An edit that changes something stamps
     /// `modifiedAt`, which `ClassroomShareRelease` reads to keep the newer of two copies.
+    ///
+    /// Status and last day are written together (`updateEnrollment`): a child
+    /// leaving runs the departure cascade unless `carryOutDeparture` is false
+    /// (the student page's Keep Plans), and one coming back gets back the
+    /// year-plan entries her departure skipped.
     @discardableResult
     func updateStudent(
         id: UUID,
@@ -74,7 +79,9 @@ struct StudentRepository: SavingRepository {
         dateStarted: Date? = nil,
         enrollmentStatus: CDStudent.EnrollmentStatus? = nil,
         dateWithdrawn: Date?? = nil,
-        bornAfterSunset: Bool? = nil
+        bornAfterSunset: Bool? = nil,
+        carryOutDeparture: Bool = true,
+        ledger: DepartureSkipLedger = .synced
     ) -> Bool {
         guard let student = fetchStudent(id: id) else { return false }
         let before = student.dictionaryWithValues(forKeys: Self.editableKeys) as NSDictionary
@@ -90,14 +97,62 @@ struct StudentRepository: SavingRepository {
             student.level = level
         }
         if let dateStarted { student.dateStarted = dateStarted }
-        if let enrollmentStatus { student.enrollmentStatus = enrollmentStatus }
-        if let dateWithdrawn { student.dateWithdrawn = dateWithdrawn }
+        if enrollmentStatus != nil || dateWithdrawn != nil {
+            updateEnrollment(
+                student, status: enrollmentStatus ?? student.enrollmentStatus,
+                lastDay: dateWithdrawn ?? student.dateWithdrawn,
+                carryOutDeparture: carryOutDeparture, ledger: ledger
+            )
+        }
         Self.set(bornAfterSunset: bornAfterSunset, on: student)
 
         if !before.isEqual(to: student.dictionaryWithValues(forKeys: Self.editableKeys)) {
             student.modifiedAt = Date()
         }
         return true
+    }
+
+    /// What a change of status or last day did beyond the two fields.
+    struct EnrollmentChange: Equatable {
+        /// The departure cascade's report, when she left (or her last day moved).
+        var departure: StudentDeparture.Report?
+        /// Year-plan entries given back to her when she came back.
+        var entriesRestored = 0
+    }
+
+    /// Writes her status and last day together, the one place they change
+    /// (domain logic review R7). Back to enrolled clears the last day and
+    /// un-skips the entries her departure skipped (`StudentDeparture.returning`).
+    /// Leaving without a last day takes today as the last one. Leaving, or a
+    /// departed child's last day moving, runs the departure cascade
+    /// (`StudentDeparture.carryOut`) unless `carryOutDeparture` is false.
+    /// Does not save.
+    @discardableResult
+    func updateEnrollment(
+        _ student: CDStudent, status: CDStudent.EnrollmentStatus, lastDay: Date?,
+        carryOutDeparture: Bool = true, now: Date = Date(), ledger: DepartureSkipLedger = .synced
+    ) -> EnrollmentChange {
+        let wasStatus = student.enrollmentStatus
+        let wasLastDay = student.dateWithdrawn
+        var change = EnrollmentChange()
+        student.enrollmentStatus = status
+        guard status != .enrolled else {
+            student.dateWithdrawn = nil
+            if wasStatus != .enrolled, let id = student.id {
+                change.entriesRestored = StudentDeparture.returning(studentID: id, in: context, ledger: ledger)
+            }
+            return change
+        }
+        // Today stands in only when she leaves now: a departed child saved
+        // again with no date keeps none, so she stays out of past rolls.
+        student.dateWithdrawn = lastDay ?? wasLastDay ?? (wasStatus == .enrolled ? now : nil)
+        let moved = wasStatus == .enrolled || student.dateWithdrawn != wasLastDay
+        if moved, carryOutDeparture, let id = student.id {
+            change.departure = StudentDeparture.carryOut(
+                studentID: id, lastDay: student.dateWithdrawn, in: context, now: now, ledger: ledger
+            )
+        }
+        return change
     }
 
     /// The attributes `updateStudent` can change.

@@ -88,7 +88,10 @@ public final class SyncedPreferencesStore {
         "Attendance.locked.",
         // Each area's sub-area order (Class Grid Move Up / Move Down, the map's drag,
         // reorder_lessons' sub_areas), since 2026-11-09.
-        FilterOrderStore.sequenceOrderKeyPrefix
+        FilterOrderStore.sequenceOrderKeyPrefix,
+        // The year-plan entries each child's departure skipped, so re-enrolling
+        // her on any device un-skips just those (domain logic review R7).
+        DepartureSkipLedger.keyPrefix
     ]
     
     @ObservationIgnored nonisolated(unsafe) private var changeTask: Task<Void, Never>?

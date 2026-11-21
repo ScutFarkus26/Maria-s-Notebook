@@ -1,11 +1,15 @@
 import CoreData
 import Foundation
 
-/// Re-present and Ready for Next on a meeting's work cards: what filing the
-/// meeting plans, and what Clear takes back. Re-present closes its work the
-/// moment the card is tapped; Ready for Next is a switch that leaves the
-/// work's status alone (2026-10-30). Both plan their lessons only when the
-/// meeting is filed, and they ride in the child's stored draft until then.
+/// Re-present and Ready for Next on a meeting's work cards: what they plan,
+/// and what Clear takes back. Re-present closes its work as Incomplete;
+/// Ready for Next is a switch that leaves the work's status alone
+/// (2026-10-30). Both plan their lessons the moment the card is tapped
+/// (domain logic review 2026-11-20, R8): `planRepresentation` and
+/// `planNextLesson`, recorded in a `MeetingTapPlan` kept with the draft, so
+/// a meeting left unfinished, or finished on another device, still leaves
+/// the lesson planned. Filing the meeting then has nothing left to carry
+/// out; it plans only decisions in a draft stored before this build.
 ///
 /// The Meetings workflow's draft model and the student record's Meetings tab
 /// both come through here, so the tab's Clear and Save to History treat the
@@ -34,11 +38,27 @@ enum MeetingLessonDecisions {
     /// then names `changedSince` (`changedSinceMessage`).
     static func file(_ draft: Draft, studentID: UUID, context: NSManagedObjectContext) throws -> Filed {
         let tokens = draft.closeTokens ?? [:]
+        let tapPlans = draft.tapPlans ?? [:]
         var filed = Filed()
-        try planRepresentations(
-            uuids(draft.representWorkIDs), tokens: tokens, studentID: studentID, context: context, into: &filed
-        )
-        planNextLessons(uuids(draft.readyWorkIDs), studentID: studentID, context: context, into: &filed)
+        // Decisions carried out at the tap only name their lessons here.
+        var represent = Set<UUID>()
+        for id in uuids(draft.representWorkIDs) {
+            if let plan = tapPlans[id.uuidString], plan.kind == .represent {
+                filed.planned.formUnion(plan.plannedLessonIDs)
+            } else {
+                represent.insert(id)
+            }
+        }
+        var ready = Set<UUID>()
+        for id in uuids(draft.readyWorkIDs) {
+            if let plan = tapPlans[id.uuidString], plan.kind == .ready {
+                filed.planned.formUnion(plan.plannedLessonIDs)
+            } else {
+                ready.insert(id)
+            }
+        }
+        try planRepresentations(represent, tokens: tokens, studentID: studentID, context: context, into: &filed)
+        planNextLessons(ready, studentID: studentID, context: context, into: &filed)
         return filed
     }
 
@@ -140,20 +160,32 @@ enum MeetingLessonDecisions {
         context: NSManagedObjectContext, into filed: inout Filed
     ) throws {
         for workID in workIDs {
-            guard let (work, lesson) = workAndLesson(workID, context: context),
-                  let lessonID = lesson.id else { continue }
+            guard let (work, _) = workAndLesson(workID, context: context) else { continue }
             guard isAsTheMeetingLeftIt(work, decided: .incomplete, tokens: tokens, context: context) else {
                 filed.changedSince.append(work)
                 continue
             }
-            if let presentation = presentation(of: work, context: context) {
-                try flagForAnotherPresentation(presentation, studentID: studentID, context: context)
+            if let lessonID = try planRepresentation(of: work, studentID: studentID, context: context) {
+                filed.planned.insert(lessonID)
             }
-            try CaptureFollowUpPersistence.createRepresentationIfNeeded(
-                studentID: studentID, lesson: lesson, context: context
-            )
-            filed.planned.insert(lessonID)
         }
+    }
+
+    /// Re-present for one work: the presentation is flagged as not taking
+    /// for her, and its lesson planned again as a second pass unless she
+    /// already has it planned. Returns the lesson, or nil for work with no
+    /// lesson. Nothing here saves.
+    static func planRepresentation(
+        of work: CDWorkModel, studentID: UUID, context: NSManagedObjectContext
+    ) throws -> UUID? {
+        guard let lesson = lesson(of: work, context: context), let lessonID = lesson.id else { return nil }
+        if let presentation = presentation(of: work, context: context) {
+            try flagForAnotherPresentation(presentation, studentID: studentID, context: context)
+        }
+        try CaptureFollowUpPersistence.createRepresentationIfNeeded(
+            studentID: studentID, lesson: lesson, context: context
+        )
+        return lessonID
     }
 
     /// Records that the presentation didn't take for her (bug hunt
@@ -212,7 +244,11 @@ enum MeetingLessonDecisions {
         return row
     }
 
-    // MARK: - Ready for Next
+}
+
+// MARK: - Ready for Next
+
+extension MeetingLessonDecisions {
 
     /// Confirms her on each ready work's lesson (not a mastery mark) and puts
     /// the next lesson in its sequence On Deck, unless she already has it
@@ -222,25 +258,41 @@ enum MeetingLessonDecisions {
     ) {
         guard !workIDs.isEmpty else { return }
         let allLessons = context.safeFetch(CDFetchRequest(CDLesson.self))
-        let child = studentID.uuidString
         for workID in workIDs {
-            guard let (work, lesson) = workAndLesson(workID, context: context) else { continue }
-            presentation(of: work, context: context)?.confirmStudent(studentID)
-            resolveFollowUp(of: work, studentID: studentID, as: .readyForNextPresentation, context: context)
-            guard let next = PlanNextLessonService.findNextLesson(after: lesson, in: allLessons),
-                  let nextID = next.id else { continue }
-            let record = PresentationRecordIndex(lessonIDs: [nextID.uuidString], students: [child], in: context)
-            guard record.given(student: child, lesson: nextID.uuidString) == nil else { continue }
-            filed.planned.insert(nextID)
-            let request = CDFetchRequest(CDLessonAssignment.self)
-            request.predicate = NSPredicate(format: "lessonID == %@", nextID.uuidString)
-            let existing = context.safeFetch(request).filter { !$0.isPresented && !$0.isDeleted }
-            guard !existing.contains(where: { $0.resolvedStudentIDs.contains(studentID) }) else { continue }
-            PlanNextLessonService.planLesson(
-                next, forStudents: [studentID], allStudents: [], allLessons: allLessons,
-                existingLessonAssignments: existing, context: context
-            )
+            guard let (work, _) = workAndLesson(workID, context: context) else { continue }
+            if let nextID = planNextLesson(of: work, studentID: studentID, allLessons: allLessons, context: context) {
+                filed.planned.insert(nextID)
+            }
         }
+    }
+
+    /// Ready for Next for one work: she is confirmed on its lesson and her
+    /// follow-up resolved, and the next lesson in the one lesson order
+    /// (`LessonOrder.next`) goes On Deck. Returns that lesson, or nil when
+    /// there is none or she has had it already; one she already has planned
+    /// is returned without a second plan. `allLessons` defaults to a fetch.
+    /// Nothing here saves.
+    @discardableResult
+    static func planNextLesson(
+        of work: CDWorkModel, studentID: UUID, allLessons: [CDLesson]? = nil, context: NSManagedObjectContext
+    ) -> UUID? {
+        guard let lesson = lesson(of: work, context: context) else { return nil }
+        let child = studentID.uuidString
+        presentation(of: work, context: context)?.confirmStudent(studentID)
+        resolveFollowUp(of: work, studentID: studentID, as: .readyForNextPresentation, context: context)
+        let lessons = allLessons ?? context.safeFetch(CDFetchRequest(CDLesson.self))
+        guard let next = LessonOrder.next(after: lesson, in: lessons), let nextID = next.id else { return nil }
+        let record = PresentationRecordIndex(lessonIDs: [nextID.uuidString], students: [child], in: context)
+        guard record.given(student: child, lesson: nextID.uuidString) == nil else { return nil }
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "lessonID == %@", nextID.uuidString)
+        let existing = context.safeFetch(request).filter { !$0.isPresented && !$0.isDeleted }
+        guard !existing.contains(where: { $0.resolvedStudentIDs.contains(studentID) }) else { return nextID }
+        PlanNextLessonService.planLesson(
+            next, forStudents: [studentID], allStudents: [], allLessons: lessons,
+            existingLessonAssignments: existing, context: context
+        )
+        return nextID
     }
 
     /// Closes her follow-up on the work's presentation the way the
@@ -256,7 +308,11 @@ enum MeetingLessonDecisions {
         }
     }
 
-    // MARK: - Lookups
+}
+
+// MARK: - Lookups
+
+extension MeetingLessonDecisions {
 
     private static func uuids(_ strings: [String]?) -> Set<UUID> {
         Set((strings ?? []).compactMap(UUID.init(uuidString:)))

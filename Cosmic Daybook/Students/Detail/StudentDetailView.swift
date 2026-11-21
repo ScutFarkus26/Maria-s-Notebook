@@ -51,7 +51,7 @@ struct StudentDetailView: View {
     // Not private: StudentDetailView+Departure reads it to decide whether this
     // edit is a departure, as it does with pendingDeparture.
     @State var draftEnrollmentStatus: CDStudent.EnrollmentStatus = .enrolled
-    @State private var draftDateWithdrawn: Date?
+    @State var draftDateWithdrawn: Date?
     @State private var showDeleteAlert = false
     /// What a child being withdrawn or transferred is still planned for, held
     /// while the guide decides whether to take her off it. The alert presents
@@ -125,24 +125,17 @@ struct StudentDetailView: View {
         // her year plan still pencils in more. Both are named at the point of
         // departure — see StudentDeparturePlans.
         if stageDepartureIfNeeded(for: studentID) { return }
-        commitEdit(retractingPlans: [], skippingEntries: [])
+        commitEdit(carryOutDeparture: true)
     }
 
-    private func commitEdit(
-        retractingPlans plans: [CDLessonAssignment],
-        skippingEntries entries: [CDYearPlanEntry]
-    ) {
+    /// Saves the edit. A departure's cascade (plans, year plan, groups, open
+    /// work) runs in the repository unless the guide chose Keep Plans.
+    private func commitEdit(carryOutDeparture: Bool) {
         let fn = draftFirstName.trimmed()
         let ln = draftLastName.trimmed()
         guard !fn.isEmpty, !ln.isEmpty else { return }
         let nick = draftNickname.trimmed()
         guard let studentID = student.id else { return }
-        if !plans.isEmpty {
-            StudentDeparturePlans.retract(studentID: studentID, from: plans, in: managedObjectContext)
-        }
-        if !entries.isEmpty {
-            StudentDeparturePlans.skip(entries: entries)
-        }
         repository.updateStudent(
             id: studentID,
             firstName: fn,
@@ -153,7 +146,8 @@ struct StudentDetailView: View {
             dateStarted: Self.editedDate(draftStartDate, placeholder: placeholderStartDate),
             enrollmentStatus: draftEnrollmentStatus,
             dateWithdrawn: .some(draftDateWithdrawn),
-            bornAfterSunset: draftBornAfterSunset
+            bornAfterSunset: draftBornAfterSunset,
+            carryOutDeparture: carryOutDeparture
         )
         _ = repository.save(reason: "Edit student details")
         isEditing = false
@@ -258,13 +252,13 @@ struct StudentDetailView: View {
             isPresented: $showsDepartureAlert,
             departure: pendingDeparture,
             message: departureAlertMessage(for:),
-            onRemove: { departure in
+            onRemove: { _ in
                 pendingDeparture = nil
-                commitEdit(retractingPlans: departure.plans, skippingEntries: departure.entries)
+                commitEdit(carryOutDeparture: true)
             },
             onKeep: {
                 pendingDeparture = nil
-                commitEdit(retractingPlans: [], skippingEntries: [])
+                commitEdit(carryOutDeparture: false)
             },
             onCancel: {
                 pendingDeparture = nil

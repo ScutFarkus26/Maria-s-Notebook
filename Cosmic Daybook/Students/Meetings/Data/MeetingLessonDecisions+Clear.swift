@@ -3,7 +3,8 @@ import Foundation
 
 // Clear: the Re-present work a meeting closed goes back as it was before the
 // meeting, and the confirmation names it first. Ready for Next closed nothing
-// (2026-10-30), so it just goes with the draft.
+// (2026-10-30). What both planned at the tap (R8) comes off again through
+// their `MeetingTapPlan` receipts.
 extension MeetingLessonDecisions {
 
     /// Puts the Re-present work in `draft` back as it was before the
@@ -16,12 +17,13 @@ extension MeetingLessonDecisions {
     @discardableResult
     static func takeBack(_ draft: Draft, context: NSManagedObjectContext) -> Bool {
         let works = representedWork(in: draft, context: context)
-        guard !works.isEmpty else { return true }
+        let tapPlans = draft.tapPlans ?? [:]
+        guard !works.isEmpty || !tapPlans.isEmpty else { return true }
         let tokens = draft.closeTokens ?? [:]
 
         let transaction = ContextMutationTransaction(context: context)
         var reopen: [CDWorkModel] = []
-        var leftAlone: [CDWorkModel] = []
+        var leftAlone = takeBackTapPlans(tapPlans, context: context)
         for work in works {
             switch MeetingCloseToken.takeBack(receipts(of: work, in: tokens), of: work, in: context) {
             case .takenBack:
@@ -45,10 +47,23 @@ extension MeetingLessonDecisions {
             ToastService.shared.showError("Couldn't put the work back to Working. Open it to change it by hand.")
             return false
         }
-        if let message = leftAloneMessage(leftAlone, context: context) {
+        let named = NSOrderedSet(array: leftAlone).array.compactMap { $0 as? CDWorkModel }
+        if let message = leftAloneMessage(named, context: context) {
             ToastService.shared.showInfo(message, duration: 4)
         }
         return true
+    }
+
+    /// What Re-present and Ready for Next planned at the tap comes off again
+    /// (R8). Returns the work whose plan was scheduled or changed since, and
+    /// so stays. In memory only.
+    private static func takeBackTapPlans(
+        _ plans: [String: MeetingTapPlan], context: NSManagedObjectContext
+    ) -> [CDWorkModel] {
+        plans.compactMap { key, plan in
+            guard !plan.takeBack(in: context), let id = UUID(uuidString: key) else { return nil }
+            return context.object(CDWorkModel.self, id: id)
+        }
     }
 
     /// "<Lesson> was changed after the meeting, so it was left as it is."

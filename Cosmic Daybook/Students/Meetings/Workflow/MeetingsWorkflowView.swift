@@ -75,9 +75,9 @@ struct MeetingsWorkflowView: View {
         }
     }
 
-    /// "3 of 8 met · every 7 days", led by the level when one is chosen.
+    /// "3 of 8 met · every 7 school days", led by the level when one is chosen.
     private func queueSubtitle(_ queue: MeetingQueueArrangement) -> String {
-        let counts = "\(queue.met.count) of \(queue.total) met · every \(cadenceDays) days"
+        let counts = "\(queue.met.count) of \(queue.total) met · every \(cadenceDays) school days"
         guard let level else { return counts }
         return "\(level.title) · \(counts)"
     }

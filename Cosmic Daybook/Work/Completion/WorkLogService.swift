@@ -315,13 +315,18 @@ enum WorkLogTargets {
         }
     }
 
-    /// `students == nil` means everyone: every linked copy of the row. A set
+    /// `students == nil` means everyone: every linked copy of the row whose
+    /// child is still in the class, and the row itself whoever's it is. A
+    /// copy belonging to a child who has left (`CDStudent.hasLeft(by:)`) is
+    /// her record and stays as she left it (domain logic review R7). A set
     /// narrows it to the copies those children own.
     static func resolve(
-        work: CDWorkModel, students: Set<UUID>? = nil, in context: NSManagedObjectContext
+        work: CDWorkModel, students: Set<UUID>? = nil, in context: NSManagedObjectContext, now: Date = Date()
     ) throws -> [CDWorkModel] {
         let group = WorkGrouping.group(containing: work, in: context)
-        guard let students else { return group.members }
+        guard let students else {
+            return group.members.filter { $0 === work || !ownerHasLeft($0, by: now, in: context) }
+        }
         if case .shared(let count) = group.shape {
             guard Set(group.studentIDs).isSubset(of: students) else {
                 throw TargetError.sharedRowNeedsEveryone(childCount: count)
@@ -333,5 +338,13 @@ enum WorkLogTargets {
         }
         guard !rows.isEmpty else { throw TargetError.noneOfThoseChildren }
         return rows
+    }
+
+    /// Whether the row's owner is on file and had left the class by `day`.
+    /// A row whose child can't be found counts as still hers to log.
+    private static func ownerHasLeft(_ work: CDWorkModel, by day: Date, in context: NSManagedObjectContext) -> Bool {
+        guard let owner = WorkGrouping.owner(of: work),
+              let student = context.object(CDStudent.self, id: owner) else { return false }
+        return student.hasLeft(by: day)
     }
 }

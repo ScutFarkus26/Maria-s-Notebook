@@ -141,3 +141,79 @@ nonisolated extension CDStudent {
         return (try? ctx.fetch(req)) ?? []
     }
 }
+
+// MARK: - In class
+
+// "Was she in the class then?" has one answer (domain logic review
+// 2026-11-20, R7). A departed child's `dateWithdrawn` is her last day in
+// class, inclusive: recorded on Monday that Maya leaves Friday, she is in
+// class through Friday. A departed child with no date is out. A start date
+// after the day keeps her out of that day.
+//
+// `isEnrolled` stays the stored status alone, for the few places that mean
+// the status itself (the departure prompt, "not started" against "left").
+// The attendance roll, the history lenses, the classroom share, the parent
+// reports' queue and Claude's work writes all read this rule, and today's
+// lists (`filterEnrolled`, `enrolledPredicate`) read `hasLeft(by:)`, its
+// departure half: a child whose start date is still to come is on them, as
+// she always was. This file is compiled by the Daybook Assistant too.
+
+nonisolated extension CDStudent {
+
+    /// Whether a child with these dates was in the class at some point in
+    /// `[start, end)`: started before `end` (or no start date), and still
+    /// enrolled or departed on or after `start`'s day.
+    static func isInClass(
+        status: EnrollmentStatus, started: Date?, lastDay: Date?,
+        from start: Date, until end: Date, calendar: Calendar = AppCalendar.shared
+    ) -> Bool {
+        if let started, started >= end { return false }
+        return !hasLeft(status: status, lastDay: lastDay, by: start, calendar: calendar)
+    }
+
+    /// Whether a child with this status and last day had left the class by
+    /// `day`: departed, with no last day or one before `day`'s.
+    static func hasLeft(
+        status: EnrollmentStatus, lastDay: Date?, by day: Date, calendar: Calendar = AppCalendar.shared
+    ) -> Bool {
+        switch status {
+        case .enrolled:
+            return false
+        case .withdrawn, .transferred:
+            guard let lastDay else { return true }
+            return calendar.startOfDay(for: lastDay) < calendar.startOfDay(for: day)
+        }
+    }
+
+    /// Whether she is in the class on `day`.
+    func isInClass(on day: Date, calendar: Calendar = AppCalendar.shared) -> Bool {
+        let start = calendar.startOfDay(for: day)
+        let end = calendar.date(byAdding: .day, value: 1, to: start) ?? start
+        return isInClass(from: start, until: end, calendar: calendar)
+    }
+
+    /// Whether she was in the class at some point in `[start, end)`.
+    func isInClass(from start: Date, until end: Date, calendar: Calendar = AppCalendar.shared) -> Bool {
+        Self.isInClass(
+            status: enrollmentStatus, started: dateStarted, lastDay: dateWithdrawn,
+            from: start, until: end, calendar: calendar
+        )
+    }
+
+    /// Whether she had left the class by `day`. Today's lists keep a child
+    /// until this is true.
+    func hasLeft(by day: Date = Date(), calendar: Calendar = AppCalendar.shared) -> Bool {
+        Self.hasLeft(status: enrollmentStatus, lastDay: dateWithdrawn, by: day, calendar: calendar)
+    }
+
+    /// `hasLeft(by:)` as a fetch predicate: the children who hadn't left by
+    /// `day`.
+    static func notLeftPredicate(by day: Date = Date(), calendar: Calendar = AppCalendar.shared) -> NSPredicate {
+        NSPredicate(
+            format: "enrollmentStatusRaw == %@ OR (enrollmentStatusRaw != %@ AND dateWithdrawn >= %@)",
+            EnrollmentStatus.enrolled.rawValue,
+            EnrollmentStatus.enrolled.rawValue,
+            calendar.startOfDay(for: day) as NSDate
+        )
+    }
+}

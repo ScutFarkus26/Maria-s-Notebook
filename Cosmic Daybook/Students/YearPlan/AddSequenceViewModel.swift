@@ -165,7 +165,7 @@ final class AddSequenceViewModel {
     @discardableResult
     func scheduleAll(student: CDStudent, context: NSManagedObjectContext) -> Bool {
         refusalMessage = nil
-        guard student.isEnrolled else {
+        guard !student.hasLeft() else {
             refusalMessage = Self.notEnrolledMessage(for: student)
             return false
         }

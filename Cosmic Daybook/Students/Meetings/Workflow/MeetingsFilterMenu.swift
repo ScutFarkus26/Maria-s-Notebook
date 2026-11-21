@@ -30,7 +30,7 @@ struct MeetingsFilterMenu: View {
             }
             Section("Meet Every") {
                 ForEach(Self.cadenceChoices, id: \.self) { days in
-                    checkButton("\(days) days", checked: cadenceDays == days) { cadenceDays = days }
+                    checkButton("\(days) school days", checked: cadenceDays == days) { cadenceDays = days }
                 }
             }
             Section("Ages") {
@@ -82,8 +82,8 @@ struct MeetingsFilterMenu: View {
         default: ages = "\(selectedAgeRanges.count) ages"
         }
         // A chosen level stands in for "All ages".
-        guard let level else { return "Every \(cadenceDays) days · \(ages)" }
-        let parts = ["Every \(cadenceDays) days", level.title] + (selectedAgeRanges.isEmpty ? [] : [ages])
+        guard let level else { return "Every \(cadenceDays) school days · \(ages)" }
+        let parts = ["Every \(cadenceDays) school days", level.title] + (selectedAgeRanges.isEmpty ? [] : [ages])
         return parts.joined(separator: " · ")
     }
 }

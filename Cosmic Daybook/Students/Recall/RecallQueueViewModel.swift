@@ -57,7 +57,7 @@ final class RecallQueueViewModel {
                 continue
             }
             nameByID[key] = student.fullName
-            if student.isEnrolled { visibleIDs.insert(key) }
+            if !student.hasLeft() { visibleIDs.insert(key) }
         }
 
         let curriculum = queries.fetchAllLessons(sortBy: CDLesson.sortByCurriculumOrder)

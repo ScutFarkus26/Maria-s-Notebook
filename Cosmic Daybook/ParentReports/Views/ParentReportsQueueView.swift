@@ -24,14 +24,28 @@ struct ParentReportsQueueView: View {
             NSSortDescriptor(key: "firstName", ascending: true),
             NSSortDescriptor(key: "lastName", ascending: true)
         ],
-        predicate: NSPredicate(format: "enrollmentStatusRaw == %@", CDStudent.EnrollmentStatus.enrolled.rawValue),
         animation: .default
-    ) private var enrolledStudents: FetchedResults<CDStudent>
+    ) private var allStudents: FetchedResults<CDStudent>
 
-    /// The class as the roster shows it: hidden test students and sync's
-    /// duplicate rows left out, as the Today banner counts it.
+    /// The children in the class during the selected month, a child who left
+    /// partway through it included (`studentsInClass`), with hidden test
+    /// students and sync's duplicate rows left out, as the Today banner
+    /// counts it.
     private var students: [CDStudent] {
-        testStudents.visible(enrolledStudents)
+        testStudents.visible(Self.studentsInClass(Array(allStudents), during: month))
+    }
+
+    /// The queue lists the children in the class during `month`, not those
+    /// enrolled today: a child who left on the 12th still gets that month's
+    /// report, and one who left last month doesn't (domain logic review R7).
+    /// It reads the departure half of the rule (`hasLeft(by:)`) and not start
+    /// dates, which were often typed in as the day a child was entered, long
+    /// after she started, and would hide her from the months before.
+    static func studentsInClass(
+        _ students: [CDStudent], during month: ReportMonth, calendar: Calendar = AppCalendar.shared
+    ) -> [CDStudent] {
+        let interval = month.dateInterval(calendar: calendar)
+        return students.filter { !$0.hasLeft(by: interval.start, calendar: calendar) }
     }
 
     private var sentCount: Int {

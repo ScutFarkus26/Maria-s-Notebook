@@ -14,26 +14,56 @@ import SwiftUI
 struct PendingDeparture {
     let plans: [CDLessonAssignment]
     let entries: [CDYearPlanEntry]
+    var openWorkCount = 0
+    var isInGroups = false
+    /// The day after her last day, from which her groups lose her.
+    var firstDayGone = Date()
 }
 
 extension StudentDetailView {
     /// Collects what a child being withdrawn or transferred is still committed
-    /// to, stashing it for the alert. Returns true when there is something to
-    /// ask about, so the caller holds the save until the guide has answered.
+    /// to after her last day (`StudentDeparture.pending`), stashing it for the
+    /// alert. Returns true when there is something to ask about, so the
+    /// caller holds the save until the guide has answered. The repository
+    /// carries it out on Remove (`StudentDeparture.carryOut`).
     func stageDepartureIfNeeded(for studentID: UUID) -> Bool {
         guard student.isEnrolled, draftEnrollmentStatus != .enrolled else { return false }
-        let plans = StudentDeparturePlans.futurePlans(for: studentID, in: viewContext)
-        let entries = StudentDeparturePlans.plannedEntries(for: studentID, in: viewContext)
-        guard !plans.isEmpty || !entries.isEmpty else { return false }
-        pendingDeparture = PendingDeparture(plans: plans, entries: entries)
+        let pending = StudentDeparture.pending(studentID: studentID, lastDay: draftDateWithdrawn, in: viewContext)
+        guard !pending.isEmpty else { return false }
+        pendingDeparture = PendingDeparture(
+            plans: pending.plans, entries: pending.entries,
+            openWorkCount: pending.openWork.count, isInGroups: pending.isInGroups,
+            firstDayGone: StudentDeparture.firstDayGone(lastDay: draftDateWithdrawn)
+        )
         showsDepartureAlert = true
         return true
     }
 
     func departureAlertMessage(for departure: PendingDeparture) -> String {
-        [plannedLessonsParagraph(departure.plans), yearPlanParagraph(departure.entries)]
-            .compactMap { $0 }
-            .joined(separator: "\n\n")
+        [
+            plannedLessonsParagraph(departure.plans),
+            yearPlanParagraph(departure.entries),
+            workAndGroupsParagraph(departure)
+        ]
+        .compactMap { $0 }
+        .joined(separator: "\n\n")
+    }
+
+    /// "Remove" also closes her own open work as Incomplete (once her last
+    /// day has passed) and takes her out of her groups from the day after.
+    private func workAndGroupsParagraph(_ departure: PendingDeparture) -> String? {
+        let first: String = student.firstName
+        var lines: [String] = []
+        if departure.openWorkCount > 0 {
+            let noun: String = departure.openWorkCount == 1 ? "piece" : "pieces"
+            let count: Int = departure.openWorkCount
+            lines.append("Removing also closes \(first)'s \(count) open \(noun) of work as Incomplete.")
+        }
+        if departure.isInGroups {
+            let day: String = DateFormatters.mediumDate.string(from: departure.firstDayGone)
+            lines.append("\(first) comes out of the schedule's groups from \(day).")
+        }
+        return lines.isEmpty ? nil : lines.joined(separator: " ")
     }
 
     /// The lessons themselves, named — these are the ones that generate work.

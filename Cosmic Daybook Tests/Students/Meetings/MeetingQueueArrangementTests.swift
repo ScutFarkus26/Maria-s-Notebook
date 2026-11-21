@@ -25,7 +25,10 @@ struct MeetingQueueArrangementTests {
         _ signals: [UUID: MeetingQueueSignals],
         rules: MeetingQueueRules = MeetingQueueRules(cadenceDays: 7)
     ) -> MeetingQueueArrangement {
-        MeetingQueueArrangement.arrange(ids: ids, signals: signals, rules: rules, now: now, calendar: calendar)
+        // No year-start reset: the dates here are fixed, the school year isn't.
+        MeetingQueueArrangement.arrange(
+            ids: ids, signals: signals, rules: rules, now: now, calendar: calendar, epoch: nil
+        )
     }
 
     @Test("A child met within the cadence is met; older, never, and absent children are not")

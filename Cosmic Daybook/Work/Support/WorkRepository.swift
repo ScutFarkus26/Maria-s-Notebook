@@ -31,7 +31,7 @@ struct WorkRepository: Repository {
     /// id with no record passes: tests and imports create work for children
     /// whose rows arrive later, and that was never the failure here.
     func requireEnrolled(_ studentID: UUID) throws {
-        guard let student = context.object(CDStudent.self, id: studentID), !student.isEnrolled else { return }
+        guard let student = context.object(CDStudent.self, id: studentID), student.hasLeft() else { return }
         throw AssignmentError.studentNotEnrolled(name: student.fullName, status: student.enrollmentStatusRaw)
     }
 

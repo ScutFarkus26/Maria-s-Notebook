@@ -107,7 +107,7 @@ struct WorkDecisionCard: View {
                     outcomeButton("Re-present", selected: isReviewed && isRepresenting) {
                         draft.represent(work, context: viewContext)
                     }
-                    .help("Closes this work as Incomplete and plans the lesson again when you complete the meeting")
+                    .help("Closes this work as Incomplete and plans the lesson again")
                 }
                 restButton
             }
@@ -167,10 +167,10 @@ struct WorkDecisionCard: View {
             .help(
                 isRepresenting
                     ? "Re-present plans this lesson again, so there's no next lesson yet"
-                    : "Puts the next lesson in the Inbox when you complete the meeting"
+                    : "Puts the next lesson in the Inbox now"
             )
             if isReady {
-                Text("Goes in the Inbox when you complete the meeting")
+                Text("In the Inbox now. Switch it off to take it back.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -180,7 +180,7 @@ struct WorkDecisionCard: View {
     private var readyBinding: Binding<Bool> {
         Binding(
             get: { isReady },
-            set: { draft.setReadyForNext($0, for: work) }
+            set: { draft.setReadyForNext($0, for: work, context: viewContext) }
         )
     }
 

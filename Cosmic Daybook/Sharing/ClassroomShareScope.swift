@@ -61,9 +61,14 @@ nonisolated struct ClassroomShareScope: Sendable, Equatable {
     // MARK: - The rules
 
     func studentBelongs(status: CDStudent.EnrollmentStatus, dateWithdrawn: Date?, hasAttendanceThisYear: Bool) -> Bool {
-        if status == .enrolled || hasAttendanceThisYear { return true }
-        guard let dateWithdrawn else { return false }
-        return AppCalendar.startOfDay(dateWithdrawn) >= cutoff
+        if hasAttendanceThisYear { return true }
+        // In class at some point from the first day on (`CDStudent.isInClass`,
+        // domain logic review R7). No start date is passed: a child starting
+        // later in the year belongs from the day she's added.
+        return CDStudent.isInClass(
+            status: status, started: nil, lastDay: dateWithdrawn,
+            from: cutoff, until: .distantFuture, calendar: AppCalendar.shared
+        )
     }
 
     /// `belongingStudentIDs` must be normalized with `normalizedID`.

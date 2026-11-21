@@ -104,7 +104,7 @@ final class StudentAreaProgressionViewModel {
 
     /// Whether the timeline offers Plan Lesson: only for a child in the class.
     var canPlanLessons: Bool {
-        student?.isEnrolled ?? false
+        student.map { !$0.hasLeft() } ?? false
     }
 
     /// Plans `lesson` itself for the child, as an inbox draft. It used to plan the

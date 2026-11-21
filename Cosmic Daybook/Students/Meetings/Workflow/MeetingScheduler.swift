@@ -218,7 +218,7 @@ enum MeetingScheduler {
         let anyoneStillHere = rest.contains { id in
             guard let uuid = UUID(uuidString: id),
                   let student = context.object(CDStudent.self, id: uuid) else { return true }
-            return student.isEnrolled
+            return !student.hasLeft()
         }
         guard let first = rest.first, anyoneStillHere else {
             context.delete(meeting)

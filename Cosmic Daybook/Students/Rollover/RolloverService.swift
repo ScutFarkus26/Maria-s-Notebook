@@ -288,9 +288,14 @@ enum RolloverService {
     /// for. The entries are skipped, not deleted, so a return finds them.
     private static func retractFuturePlans(for student: CDStudent, context: NSManagedObjectContext) {
         guard let studentID = student.id else { return }
-        let plans = StudentDeparturePlans.futurePlans(for: studentID, in: context)
-        StudentDeparturePlans.retract(studentID: studentID, from: plans, in: context)
-        StudentDeparturePlans.skip(entries: StudentDeparturePlans.plannedEntries(for: studentID, in: context))
+        // Through the departure's own retract, so re-enrolling her un-skips
+        // these entries (`StudentDeparture.returning`).
+        StudentDeparture.retract(
+            studentID: studentID,
+            plans: StudentDeparturePlans.futurePlans(for: studentID, in: context),
+            entries: StudentDeparturePlans.plannedEntries(for: studentID, in: context),
+            in: context
+        )
     }
 
     // MARK: - Notes

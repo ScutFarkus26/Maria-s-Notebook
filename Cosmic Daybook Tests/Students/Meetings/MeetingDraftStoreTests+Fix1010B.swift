@@ -177,14 +177,20 @@ extension MeetingDraftStoreTests {
 
     // MARK: - Work changed after the meeting (#13)
 
-    @Test("Complete plans nothing for Re-present work marked Mastered after the meeting")
+    // A Re-present now plans at the tap (R8), so this is a draft stored
+    // before that build: the decision with no tap plan, left for Complete.
+    @Test("Complete plans nothing for an older draft's Re-present work marked Mastered after the meeting")
     @MainActor
     func completeSkipsRepresentChangedSince() throws {
         let room = try makeDecisionRoom()
         defer { MeetingPersistenceService.clearCurrent(studentID: room.child) }
+        try WorkLogService.log([.init(work: room.work, status: .incomplete)], context: room.context)
+        var older = MeetingPersistenceService.CurrentMeetingData()
+        older.representWorkIDs = [try #require(room.work.id).uuidString]
+        MeetingPersistenceService.saveCurrent(studentID: room.child, data: older)
         let draft = MeetingDraftModel(studentID: room.child)
         draft.load(context: room.context)
-        draft.represent(room.work, context: room.context)
+        #expect(openPlans(for: room.first, in: room.context).isEmpty)
 
         try WorkLogService.log([.init(work: room.work, status: .mastered)], context: room.context)
         #expect(draft.complete(context: room.context, saveCoordinator: .preview) { _ in nil })

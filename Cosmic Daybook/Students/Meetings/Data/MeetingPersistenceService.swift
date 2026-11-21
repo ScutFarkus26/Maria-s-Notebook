@@ -54,6 +54,11 @@ enum MeetingPersistenceService {
         /// Rest or another outcome can take them back after a relaunch.
         /// Absent in drafts saved before 2026-10-09.
         var closeTokens: [String: [MeetingCloseToken]]?
+        /// What each Re-present and Ready for Next planned at the tap, keyed by
+        /// workID uuidString, so the card, Rest or Clear can take it back
+        /// (domain logic review R8). A decision with none was made before
+        /// 2026-11-21 and is planned on Complete, as it was then.
+        var tapPlans: [String: MeetingTapPlan]?
 
         /// To-dos the guide owes the child, typed in For Me to Do; each
         /// becomes a to-do naming her on Complete. Absent in drafts saved
@@ -77,6 +82,7 @@ enum MeetingPersistenceService {
             (representWorkIDs ?? []).isEmpty &&
             (readyWorkIDs ?? []).isEmpty &&
             (closeTokens ?? [:]).isEmpty &&
+            (tapPlans ?? [:]).isEmpty &&
             (newTodos ?? []).allSatisfy { $0.text.trimmed().isEmpty } &&
             (doneTodoIDs ?? []).isEmpty
         }
@@ -93,6 +99,7 @@ enum MeetingPersistenceService {
             merged.representWorkIDs = representWorkIDs ?? stored.representWorkIDs
             merged.readyWorkIDs = readyWorkIDs ?? stored.readyWorkIDs
             merged.closeTokens = closeTokens ?? stored.closeTokens
+            merged.tapPlans = tapPlans ?? stored.tapPlans
             merged.newTodos = newTodos ?? stored.newTodos
             merged.doneTodoIDs = doneTodoIDs ?? stored.doneTodoIDs
             return merged

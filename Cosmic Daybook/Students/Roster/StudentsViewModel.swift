@@ -90,7 +90,7 @@ final class StudentsViewModel {
         )
         let matching = students.filter { student in
             // Former students (withdrawn or transferred) only in their own list.
-            guard student.isEnrolled == (filter != .withdrawn) else { return false }
+            guard !student.hasLeft() == (filter != .withdrawn) else { return false }
             if let level = filter.level, student.level != level { return false }
             if filter == .presentNow || filter == .dueForLesson {
                 guard let id = student.id else { return false }

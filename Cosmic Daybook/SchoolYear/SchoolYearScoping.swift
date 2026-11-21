@@ -7,12 +7,17 @@ import Foundation
 import CoreData
 
 nonisolated extension CDStudent {
-    /// True if this student's enrollment overlaps `range` (i.e. they were active during it).
-    /// Students with no start date are treated as always active (fail-open).
+    /// True if this student was in the class at some point during `range`
+    /// (`isInClass(from:until:)`, the one rule, domain logic review R7). A
+    /// student with no start date counts from the beginning; a departed one
+    /// with no last day is out, as she is on the attendance roll.
     func isActive(in range: DateRange) -> Bool {
-        let startedOK = dateStarted.map { $0 < range.end } ?? true
-        let withdrawnOK = dateWithdrawn.map { $0 >= range.start } ?? true
-        return startedOK && withdrawnOK
+        isInClass(during: range)
+    }
+
+    /// Whether she was in the class at some point during `range`.
+    func isInClass(during range: DateRange, calendar: Calendar = AppCalendar.shared) -> Bool {
+        isInClass(from: range.start, until: range.end, calendar: calendar)
     }
 }
 

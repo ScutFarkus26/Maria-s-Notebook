@@ -69,7 +69,11 @@ extension MCPNotebookTools {
             name: "update_student",
             title: "Update Student",
             description: "Edit a student's profile: nickname, first or last name, birthday, level, "
-                + "or whether they were born after sunset. Only the fields provided are changed.",
+                + "whether they were born after sunset, or their enrollment (a child leaving the class, "
+                + "with their last day, or coming back). Only the fields provided are changed. A child "
+                + "leaving comes off lessons and year-plan entries after their last day and out of the "
+                + "schedule's groups from the day after it; once that day has passed, their own open work "
+                + "closes as Incomplete. A child coming back gets back the year-plan entries leaving skipped.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -90,6 +94,15 @@ extension MCPNotebookTools {
                         "description": .string("Whether the child was born after sunset. A Hebrew date begins "
                             + "at sunset, so true moves their Hebrew birthday to the next day's date; "
                             + "false moves it back")
+                    ],
+                    "enrollment": [
+                        "type": "string",
+                        "description": "\"enrolled\", \"withdrawn\" or \"transferred\""
+                    ],
+                    "last_day": [
+                        "type": "string",
+                        "description": .string("A leaving child's last day in class as YYYY-MM-DD (inclusive). "
+                            + "Defaults to today when a child leaves without one")
                     ]
                 ],
                 "required": ["student"]
@@ -111,10 +124,11 @@ extension MCPNotebookTools {
         }
 
         let edits = try parseStudentEdits(from: arguments)
-        guard !edits.descriptions.isEmpty else {
+        let enrollment = try parseEnrollment(from: arguments, for: student)
+        guard !edits.descriptions.isEmpty || enrollment != nil else {
             throw MCPToolError(
                 "No changes were provided. Pass nickname, first_name, last_name, birthday, level, "
-                    + "or born_after_sunset."
+                    + "born_after_sunset, enrollment or last_day."
             )
         }
 
@@ -130,10 +144,16 @@ extension MCPNotebookTools {
         ) else {
             throw MCPToolError("The student record could not be updated.")
         }
+        var descriptions = edits.descriptions
+        if let enrollment {
+            // The one write of status and last day, departure cascade included.
+            let change = repository.updateEnrollment(student, status: enrollment.status, lastDay: enrollment.lastDay)
+            descriptions += enrollmentDescriptions(student, change: change)
+        }
         guard modelContext.safeSave() else {
             throw MCPToolError("The student changes could not be saved.")
         }
-        return "Updated \(student.fullName): \(edits.descriptions.joined(separator: ", "))."
+        return "Updated \(student.fullName): \(descriptions.joined(separator: ", "))."
     }
 
     private struct StudentEdits {

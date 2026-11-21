@@ -59,7 +59,7 @@ struct StudentYearPlanTab: View {
 
                     // A child who has left the class gets no new plans, as
                     // she gets no new work (bug hunt 2026-11-03 #32).
-                    if student.isEnrolled {
+                    if !student.hasLeft() {
                         Button {
                             showAddSequenceSheet = true
                         } label: {

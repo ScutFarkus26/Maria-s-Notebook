@@ -88,6 +88,8 @@ struct MeetingQueueRequeueFix1017StTests {
             let meeting = CDStudentMeeting(context: context)
             meeting.studentID = child.uuidString
             meeting.date = date
+            // Only a finished meeting counts as met (R13).
+            meeting.completed = true
             ids.insert(try #require(meeting.id))
         }
         #expect(CoreDataTestHelpers.save(context))

@@ -232,8 +232,8 @@ struct MeetingQueueRow: View {
     }
 
     private var waitText: String {
-        guard let days = signal.daysWaiting() else { return "New · never met" }
-        return days == 1 ? "1 day" : "\(days) days"
+        guard let days = signal.waited() else { return "New · never met" }
+        return days == 1 ? "1 school day" : "\(days) school days"
     }
 
     private var extraText: String? {

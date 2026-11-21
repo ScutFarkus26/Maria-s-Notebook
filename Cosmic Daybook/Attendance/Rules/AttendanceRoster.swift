@@ -33,18 +33,10 @@ nonisolated enum AttendanceRoster {
         }
     }
 
-    /// Whether `student`'s dates put them on `day`'s roll.
+    /// Whether `student`'s dates put them on `day`'s roll: whether she was in
+    /// the class that day (`CDStudent.isInClass(on:)`, the one rule).
     static func wasEnrolled(_ student: CDStudent, on day: Date, calendar: Calendar = .current) -> Bool {
-        let start = calendar.startOfDay(for: day)
-        guard let nextDay = calendar.date(byAdding: .day, value: 1, to: start) else { return false }
-        if let started = student.dateStarted, started >= nextDay { return false }
-        switch student.enrollmentStatus {
-        case .enrolled:
-            return true
-        case .withdrawn, .transferred:
-            guard let lastDay = student.dateWithdrawn else { return false }
-            return lastDay >= start
-        }
+        student.isInClass(on: day, calendar: calendar)
     }
 
     /// The same roll as a fetch predicate, for a fetch that only wants the
@@ -56,14 +48,10 @@ nonisolated enum AttendanceRoster {
     ) -> NSPredicate {
         let start = calendar.startOfDay(for: day)
         let nextDay = calendar.date(byAdding: .day, value: 1, to: start) ?? start
-        let byDates = NSPredicate(
-            format: "(dateStarted == nil OR dateStarted < %@) AND "
-                + "(enrollmentStatusRaw == %@ OR (enrollmentStatusRaw != %@ AND dateWithdrawn >= %@))",
-            nextDay as NSDate,
-            CDStudent.EnrollmentStatus.enrolled.rawValue,
-            CDStudent.EnrollmentStatus.enrolled.rawValue,
-            start as NSDate
-        )
+        let byDates = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            NSPredicate(format: "dateStarted == nil OR dateStarted < %@", nextDay as NSDate),
+            CDStudent.notLeftPredicate(by: start, calendar: calendar)
+        ])
         let ids = recordStudentIDs.compactMap(UUID.init(uuidString:))
         guard !ids.isEmpty else { return byDates }
         let withRecords = NSPredicate(format: "id IN %@", ids)

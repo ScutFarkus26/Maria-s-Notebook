@@ -28,7 +28,7 @@ struct StudentListRow: View {
     private var isAway: Bool { presence == .absent || presence == .leftEarly }
 
     private var soonBirthdayDays: Int? {
-        guard student.isEnrolled else { return nil }
+        guard !student.hasLeft() else { return nil }
         return RosterSignalRules.daysUntilSoonBirthday(student.birthday, calendar: calendar)
     }
 
@@ -51,7 +51,7 @@ struct StudentListRow: View {
                 HStack(spacing: 6) {
                     Text(student.fullName)
                         .font(AppTheme.ScaledFont.bodySemibold)
-                        .foregroundStyle(student.isEnrolled ? .primary : .secondary)
+                        .foregroundStyle(student.hasLeft() ? .secondary : .primary)
                         .lineLimit(1)
                         .layoutPriority(1)
                     if let tag = presenceTag {
@@ -68,7 +68,7 @@ struct StudentListRow: View {
 
             Spacer(minLength: 8)
 
-            if student.isEnrolled, let accessory = sortAccessory {
+            if !student.hasLeft(), let accessory = sortAccessory {
                 Text(accessory)
                     .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)

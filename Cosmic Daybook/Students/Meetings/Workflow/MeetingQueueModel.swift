@@ -6,7 +6,14 @@ import Combine
 
 /// What the Meetings queue knows about one child.
 struct MeetingQueueSignals: Equatable {
+    /// Her last finished meeting. One saved "not finished" doesn't count as
+    /// met (domain logic review R13).
     var lastMet: Date?
+    /// School days since `lastMet`, counted from the school-year start when
+    /// counters reset there (`SchoolCalendarService.schoolDaysSinceCreation`),
+    /// as "due for a lesson" counts (R13). Filled when the queue is built;
+    /// nil when she has never met, or for signals made without the store.
+    var schoolDaysWaiting: Int?
     /// The child's earliest booked meeting, individual or group.
     var scheduled: Date?
     var isAbsentToday = false
@@ -25,6 +32,26 @@ struct MeetingQueueSignals: Equatable {
         guard let lastMet else { return nil }
         let from = SchoolYearCounters.countFrom(lastMet)
         return max(0, calendar.dateComponents([.day], from: from, to: now).day ?? 0)
+    }
+
+    /// How long she has waited, the queue's one clock: school days when the
+    /// queue was built from the store, else calendar days. Nil when she has
+    /// never met.
+    func waited(now: Date = Date(), calendar: Calendar = AppCalendar.shared) -> Int? {
+        guard lastMet != nil else { return nil }
+        return schoolDaysWaiting ?? daysWaiting(now: now, calendar: calendar)
+    }
+
+    /// Met within the cadence. The year-start reset restarts the count but
+    /// isn't a meeting: one held before this school year's first day
+    /// (`epoch`, when counters reset there) doesn't count as met.
+    func hasMet(
+        within cadenceDays: Int, now: Date = Date(), calendar: Calendar = AppCalendar.shared,
+        epoch: Date? = SchoolYearCounters.epoch
+    ) -> Bool {
+        guard let lastMet, let waited = waited(now: now, calendar: calendar) else { return false }
+        if let epoch, lastMet < epoch { return false }
+        return waited < cadenceDays
     }
 }
 
@@ -47,7 +74,7 @@ enum MeetingQueueOrder: String, CaseIterable {
 
 /// The guide's queue settings.
 struct MeetingQueueRules: Equatable {
-    /// A child who hasn't met within this many days needs a meeting.
+    /// A child who hasn't met within this many school days needs a meeting.
     var cadenceDays: Int
     /// Children put back by hand although they met recently.
     var requeued: Set<UUID> = []
@@ -72,15 +99,15 @@ struct MeetingQueueArrangement: Equatable {
         signals: [UUID: MeetingQueueSignals],
         rules: MeetingQueueRules,
         now: Date = Date(),
-        calendar: Calendar = AppCalendar.shared
+        calendar: Calendar = AppCalendar.shared,
+        epoch: Date? = SchoolYearCounters.epoch
     ) -> MeetingQueueArrangement {
-        let threshold = calendar.date(byAdding: .day, value: -rules.cadenceDays, to: now) ?? now
         var result = MeetingQueueArrangement()
         var needs: [UUID] = []
         for id in ids {
             let signal = signals[id] ?? MeetingQueueSignals()
-            let metRecently = (signal.lastMet ?? .distantPast) >= threshold
-            if metRecently && !rules.requeued.contains(id) {
+            let met = signal.hasMet(within: rules.cadenceDays, now: now, calendar: calendar, epoch: epoch)
+            if met && !rules.requeued.contains(id) {
                 result.met.append(id)
             } else if signal.isAbsentToday {
                 result.absent.append(id)
@@ -114,9 +141,10 @@ struct MeetingQueueArrangement: Equatable {
         return result
     }
 
-    /// Late = waited at least twice the cadence (or never met).
+    /// Late = waited at least twice the cadence, or never met (A19: the
+    /// comment always said so, and the guard used to say the opposite).
     static func isLate(_ signal: MeetingQueueSignals, cadenceDays: Int, now: Date = Date()) -> Bool {
-        guard let days = signal.daysWaiting(now: now) else { return false }
+        guard let days = signal.waited(now: now) else { return true }
         return days >= cadenceDays * 2
     }
 }
@@ -149,7 +177,9 @@ final class MeetingQueueModel {
     }
 
     nonisolated static let inputEntities: Set<String> = [
-        "StudentMeeting", "ScheduledMeeting", "WorkModel", "StudentFocusItem", "AttendanceRecord"
+        "StudentMeeting", "ScheduledMeeting", "WorkModel", "StudentFocusItem", "AttendanceRecord",
+        // Days off move the school-day count (R13).
+        "NonSchoolDay", "SchoolDayOverride"
     ]
 
     /// Saves and imports that can move a queue signal, delivered on the main
@@ -218,6 +248,7 @@ final class MeetingQueueModel {
         Self.addStuckWork(to: &result, overdueDays: stamp.overdueDays, now: now, context: context)
         Self.addFocus(to: &result, context: context)
         Self.addAbsences(to: &result, now: now, context: context)
+        Self.countSchoolDays(in: &result, now: now, context: context)
         if result != signals { signals = result }
         refreshDrafts()
     }
@@ -230,10 +261,23 @@ final class MeetingQueueModel {
             if let meetingID = meeting.id {
                 result[id, default: MeetingQueueSignals()].meetingIDs.insert(meetingID)
             }
-            guard let date = meeting.date else { continue }
+            // A meeting saved as not finished isn't a meeting met (R13).
+            guard meeting.completed, let date = meeting.date else { continue }
             if (result[id]?.lastMet ?? .distantPast) < date {
                 result[id, default: MeetingQueueSignals()].lastMet = date
             }
+        }
+    }
+
+    /// School days each child has waited since her last meeting (R13).
+    private static func countSchoolDays(
+        in result: inout [UUID: MeetingQueueSignals], now: Date, context: NSManagedObjectContext
+    ) {
+        for (id, signal) in result {
+            guard let lastMet = signal.lastMet else { continue }
+            result[id]?.schoolDaysWaiting = SchoolCalendarService.shared.schoolDaysSinceCreation(
+                createdAt: lastMet, asOf: now, using: context
+            )
         }
     }
 
