@@ -12,7 +12,7 @@ struct RootDetailContent: View {
     #endif
 
     /// The destination actually shown: an aliased case (`.note`, `.logs`,
-    /// `.curriculumMap`, `.stories`…) renders as its target, which opens on the
+    /// `.curriculumMap`, `.parshaCalendar`…) renders as its target, which opens on the
     /// alias's view through `AppRouter.screenLanding`.
     private var item: RootView.NavigationItem { selectedNavItem.canonical }
 
@@ -37,7 +37,7 @@ struct RootDetailContent: View {
                 curriculumContent
             case .todos, .planningCalendar:
                 planningContent
-            case .supplies, .schedules, .resourceLibrary:
+            case .supplies, .schedules:
                 resourcesContent
             case .notes, .settings:
                 toolsContent
@@ -46,7 +46,7 @@ struct RootDetailContent: View {
             // Aliases: `item` is canonical, so these never get here.
             case .note, .more, .perpetualCalendar, .orders, .logs, .curriculumMap,
                  .progressDashboard, .lessonRecall, .parshaCalendar, .stories, .procedures,
-                 .bookClub, .askAI, .parentReports, .planningProjects, .community:
+                 .resourceLibrary, .bookClub, .askAI, .parentReports, .planningProjects, .community:
                 EmptyView()
             }
         }
@@ -98,7 +98,6 @@ struct RootDetailContent: View {
         switch item {
         case .supplies: RestockView()
         case .schedules: SchedulesView()
-        case .resourceLibrary: ResourcesView()
         default: EmptyView()
         }
     }

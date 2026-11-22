@@ -7,8 +7,7 @@ import UIKit
 #endif
 
 /// Renders a JPEG (quality 0.7, white background) of a PDF page scaled to fit a
-/// target size while keeping the page's aspect ratio. `LibraryThumbnailGenerator`
-/// (the Resources screen's cards) forwards here. Nonisolated so the Student Files
+/// target size while keeping the page's aspect ratio. Nonisolated so the Student Files
 /// thumbnails (`StudentFileThumbnailCache`) can render off the main thread; the
 /// page and its document must stay on the calling thread.
 nonisolated enum PDFThumbnailRenderer {

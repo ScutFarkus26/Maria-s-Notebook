@@ -3,10 +3,11 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-/// `list_supplies` and `list_resources` printing each row once.
+/// `list_supplies` printing each row once. (`list_resources`, which had the
+/// same fold, went with Resources on 2026-11-22.)
 ///
-/// The live notebook held three supplies and answered with six lines, two
-/// resources and answered with six — the same id repeated, because the shelf was
+/// The live notebook held three supplies and answered with six lines — the
+/// same id repeated, because the shelf was
 /// cloned between the private and shared stores and an unscoped fetch
 /// legitimately sees both copies. The launch-time cleanup now folds them, but
 /// the readers fold too: they must be right on the run *before* the cleanup has
@@ -69,22 +70,6 @@ struct MCPSupplyAndResourceToolsTests {
             "reason": .string("Used in a lesson")
         ])
         #expect(receipt.contains("now 90"))
-    }
-
-    @Test("Three copies of one resource are listed once")
-    func resourcesAreFoldedByID() async throws {
-        let (tools, context) = try makeTools()
-        let sharedID = UUID()
-        for offset in 0..<3 {
-            let resource = CDResource(context: context)
-            resource.id = sharedID
-            resource.title = "Timeline of Life"
-            resource.createdAt = Date(timeIntervalSince1970: TimeInterval(1_000 + offset))
-        }
-        #expect(CoreDataTestHelpers.save(context))
-
-        let listing = try await tool(named: "list_resources", in: tools).handler([:])
-        #expect(occurrences(of: "Timeline of Life", in: listing) == 1)
     }
 
     @Test("Two genuinely different supplies are both still listed")
