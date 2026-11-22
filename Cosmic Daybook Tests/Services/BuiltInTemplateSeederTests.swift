@@ -85,4 +85,24 @@ struct BuiltInTemplateSeederTests {
         let meetingTemplateCount = try count("MeetingTemplate", in: context)
         #expect(meetingTemplateCount == 2)
     }
+
+    @Test("Meetings read the active built-in template, else the first built-in, never a custom one")
+    func meetingsReadTheBuiltIn() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        func template(_ name: String, builtIn: Bool, active: Bool) -> CDMeetingTemplate {
+            let template = CDMeetingTemplate(context: context)
+            template.name = name
+            template.isBuiltIn = builtIn
+            template.isActive = active
+            return template
+        }
+        let custom = template("Old custom", builtIn: false, active: true)
+        let standard = template("Standard Student Meeting", builtIn: true, active: false)
+        let checkIn = template("Quick Check-In", builtIn: true, active: true)
+
+        #expect(BuiltInTemplateSeeder.meetingTemplate(from: [custom, standard, checkIn]) === checkIn)
+        checkIn.isActive = false
+        #expect(BuiltInTemplateSeeder.meetingTemplate(from: [custom, standard, checkIn]) === standard)
+        #expect(BuiltInTemplateSeeder.meetingTemplate(from: [custom]) == nil)
+    }
 }

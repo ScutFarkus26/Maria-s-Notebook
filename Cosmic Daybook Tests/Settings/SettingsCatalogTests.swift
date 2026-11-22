@@ -8,10 +8,10 @@ import Testing
 @Suite("Settings catalog")
 struct SettingsCatalogTests {
 
-    @Test("Six categories, each with at least one card")
+    @Test("Five categories, each with at least one card")
     func everyCategoryHasCards() {
         #expect(SettingsCategory.allCases == [
-            .schoolYear, .classroom, .lookAndFeel, .templates, .syncBackup, .intelligence
+            .schoolYear, .classroom, .lookAndFeel, .syncBackup, .intelligence
         ])
         for category in SettingsCategory.allCases {
             #expect(!category.groups.isEmpty, "\(category) has no cards")
@@ -36,7 +36,7 @@ struct SettingsCatalogTests {
         #expect(SettingsCategory(storedValue: "database") == .syncBackup)
         #expect(SettingsCategory(storedValue: "advanced") == .syncBackup)
         #expect(SettingsCategory(storedValue: "classroom") == .classroom)
-        #expect(SettingsCategory(storedValue: "templates") == .templates)
+        #expect(SettingsCategory(storedValue: "templates") == .schoolYear)
         #expect(SettingsCategory(storedValue: "") == nil)
         #expect(SettingsCategory(storedValue: "somethingElse") == nil)
     }
@@ -51,7 +51,6 @@ struct SettingsCatalogTests {
             ("age indicators", .lookAndFeel),
             ("quick capture", .lookAndFeel),
             ("order requests", .lookAndFeel),
-            ("meeting templates", .templates),
             ("apple calendar", .intelligence),
             ("tide", .intelligence),
             ("private cloud", .intelligence),

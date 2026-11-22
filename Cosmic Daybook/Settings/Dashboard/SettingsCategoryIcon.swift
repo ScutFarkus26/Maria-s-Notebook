@@ -26,7 +26,6 @@ struct SettingsCategoryIcon: View {
         case .schoolYear: return .red
         case .classroom: return .green
         case .lookAndFeel: return .pink
-        case .templates: return .purple
         case .intelligence: return .indigo
         case .syncBackup: return .blue
         }

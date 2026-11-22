@@ -20,6 +20,17 @@ enum BuiltInTemplateSeeder {
         seedMeetingTemplatesIfNeeded(context: context)
     }
 
+    // MARK: - The template meetings read
+
+    /// The template a meeting's prompts come from: the active built-in one,
+    /// else the first built-in one. Custom templates (and the Settings pane
+    /// that made them) were taken out on 2026-11-22; none was ever made, and
+    /// any a backup brings back is kept but not read.
+    static func meetingTemplate(from templates: some Sequence<CDMeetingTemplate>) -> CDMeetingTemplate? {
+        let builtIns = templates.filter(\.isBuiltIn)
+        return builtIns.first(where: \.isActive) ?? builtIns.first
+    }
+
     // MARK: - Meeting Templates
 
     private static func seedMeetingTemplatesIfNeeded(context: NSManagedObjectContext) {

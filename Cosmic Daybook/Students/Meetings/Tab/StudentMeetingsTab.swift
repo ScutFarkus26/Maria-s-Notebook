@@ -51,9 +51,9 @@ struct StudentMeetingsTab: View {
     // Already scoped to this student at the fetch level (see init).
     var meetingItems: [CDStudentMeeting] { Array(meetingItemsRaw) }
 
-    // Get the active meeting template for placeholder prompts
+    // The built-in meeting template, for placeholder prompts
     private var activeTemplate: CDMeetingTemplate? {
-        meetingTemplates.first { $0.isActive }
+        BuiltInTemplateSeeder.meetingTemplate(from: meetingTemplates)
     }
 
     // Template placeholder prompts (with fallbacks)

@@ -307,7 +307,7 @@ private struct MeetingSessionContent: View {
     }
 
     private var activeTemplate: CDMeetingTemplate? {
-        templates.first { $0.isActive }
+        BuiltInTemplateSeeder.meetingTemplate(from: templates)
     }
 
     private func decidedCount(_ stuck: [CDWorkModel]) -> Int {

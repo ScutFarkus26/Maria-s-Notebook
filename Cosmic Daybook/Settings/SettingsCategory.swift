@@ -2,23 +2,23 @@ import Foundation
 
 // MARK: - Settings Category
 
-/// The sidebar's six categories, one job each (regrouped 2026-09-29, ten
-/// became six 2026-11-03). The cards inside each one, and what search finds
-/// them by, live in `SettingsCopy.Group`. The open category is saved by raw
+/// The sidebar's five categories, one job each (regrouped 2026-09-29, ten
+/// became six 2026-11-03, and Templates left 2026-11-22). The cards inside
+/// each one, and what search finds them by, live in `SettingsCopy.Group`. The open category is saved by raw
 /// value, so a retired one is read through `init(storedValue:)`, never renamed.
 enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
     case schoolYear
     case classroom
     case lookAndFeel
-    case templates
     case syncBackup
     case intelligence
 
     var id: String { rawValue }
 
     /// Raw values a selection may still hold, and the category that took each
-    /// over: older builds' names, and the four retired 2026-11-03 (Overview
-    /// is now the status row at the top of the list).
+    /// over: older builds' names, the four retired 2026-11-03 (Overview
+    /// is now the status row at the top of the list), and Templates, whose
+    /// custom meeting templates were taken out on 2026-11-22.
     static let aliases: [String: SettingsCategory] = [
         "overview": .schoolYear,
         "messages": .lookAndFeel,
@@ -30,7 +30,8 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         "communication": .lookAndFeel,
         "aiFeatures": .intelligence,
         "database": .syncBackup,
-        "advanced": .syncBackup
+        "advanced": .syncBackup,
+        "templates": .schoolYear
     ]
 
     /// The category Settings opens on when nothing usable is saved.
@@ -61,7 +62,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
 
     var section: Section {
         switch self {
-        case .schoolYear, .classroom, .lookAndFeel, .templates: return .yourClassroom
+        case .schoolYear, .classroom, .lookAndFeel: return .yourClassroom
         case .syncBackup, .intelligence: return .beyondTheNotebook
         }
     }
@@ -73,7 +74,6 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         case .schoolYear: return "School year"
         case .classroom: return "Classroom"
         case .lookAndFeel: return "Look and feel"
-        case .templates: return "Templates"
         case .syncBackup: return "Sync and backup"
         case .intelligence: return "Intelligence"
         }
@@ -84,7 +84,6 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         case .schoolYear: return "Days off, year start, rollover"
         case .classroom: return "Sharing with your assistant"
         case .lookAndFeel: return "Age colors, quick capture, messages"
-        case .templates: return "Meeting templates"
         case .syncBackup: return "iCloud, backups, repairs"
         case .intelligence: return "Apple Intelligence, Siri, Calendar"
         }
@@ -95,7 +94,6 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         case .schoolYear: return "calendar"
         case .classroom: return "person.2.fill"
         case .lookAndFeel: return "paintpalette.fill"
-        case .templates: return "doc.on.doc.fill"
         case .syncBackup: return "icloud.fill"
         case .intelligence: return "apple.intelligence"
         }
