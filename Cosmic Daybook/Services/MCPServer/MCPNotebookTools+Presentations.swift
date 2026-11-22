@@ -28,7 +28,11 @@ extension MCPNotebookTools {
                 + "for those same students is completed rather than duplicated, and the same lesson, "
                 + "students and day filed twice updates the first. A new record for a child who "
                 + "already has the lesson is refused unless purpose says why she is having it again; "
-                + "re-filing the same day, and completing a plan, are exempt. Use find_lessons first "
+                + "re-filing the same day, and completing a plan, are exempt. Pass "
+                + "planned_presentation_id to complete a particular plan even when the group differs. "
+                + "Practice and follow-up work come back for a check the school day before the child's "
+                + "next planned lesson in the sequence (three school days later with none), and the reply "
+                + "names any child still practicing an earlier lesson in it. Use find_lessons first "
                 + "so the lesson is unambiguous. To file a whole day pass presentations, an array of "
                 + "these same fields: every name is checked before anything is written and one save "
                 + "covers them all.",
@@ -69,6 +73,8 @@ extension MCPNotebookTools {
     struct PresentationFiling {
         let lesson: CDLesson
         let lessonID: UUID
+        /// The plan `planned_presentation_id` names, not yet given.
+        let plan: CDLessonAssignment?
         let students: [CDStudent]
         let studentIDs: [UUID]
         let presentedAt: Date
@@ -85,7 +91,8 @@ extension MCPNotebookTools {
     private static func makeFiling(
         arguments: [String: JSONValue], lessons: LessonReferences, in modelContext: NSManagedObjectContext
     ) throws -> PresentationFiling {
-        let lesson = try lessons.resolve(requireString(arguments, "lesson"))
+        let plan = try plannedPresentation(arguments, in: modelContext)
+        let lesson = try filingLesson(arguments, plan: plan, lessons: lessons, in: modelContext)
         guard let lessonID = lesson.id else {
             throw MCPToolError("\"\(lesson.name)\" has no saved identifier and cannot be presented.")
         }
@@ -100,10 +107,18 @@ extension MCPNotebookTools {
             throw MCPToolError("A matched student record has no identifier.")
         }
 
+        if let plan, Set(plan.resolvedStudentIDs).isDisjoint(with: studentIDs) {
+            throw MCPToolError(
+                "None of these children is on that plan, so it can't be the one given. Name who was "
+                    + "there from the plan, or leave planned_presentation_id out."
+            )
+        }
+
         let observed = try studentObservations(arguments, presented: studentIDs, in: modelContext)
         return PresentationFiling(
             lesson: lesson,
             lessonID: lessonID,
+            plan: plan,
             students: students,
             studentIDs: studentIDs,
             presentedAt: try dayArgument(arguments, "date") ?? Date(),
@@ -179,11 +194,16 @@ extension MCPNotebookTools {
         /// The receipt's account of the regive guard, empty unless a purpose
         /// was given.
         let repeatNote: String
+        /// One line per child still practicing an earlier lesson in the sequence.
+        let warnings: [String]
     }
 
     private static func file(
         _ filings: [PresentationFiling], in modelContext: NSManagedObjectContext
     ) throws -> String {
+        try refuseSharedPlans(filings)
+        // The sequences, read once: practice timing and the warnings both ask.
+        let sequences = WorkToShowFirst.Sequences(lessons: DataQueryService(context: modelContext).fetchAllLessons())
         // The record is read once, before anything is resolved or written, so
         // the guard and the second-pass flag both see it as it stands; a lesson
         // an earlier filing in this call wrote is read again (`fileInOrder`).
@@ -204,7 +224,9 @@ extension MCPNotebookTools {
         let filed: [FiledPresentation] = try undoingOnFailure(modelContext) { modelContext in
             let filed: [FiledPresentation]
             do {
-                filed = try fileInOrder(order.map { filings[$0] }, index: index, in: modelContext)
+                filed = try fileInOrder(
+                    order.map { filings[$0] }, index: index, sequences: sequences, in: modelContext
+                )
             } catch let error as MCPToolError {
                 throw error
             } catch {
@@ -240,6 +262,7 @@ extension MCPNotebookTools {
     /// takes back whatever was written.
     private static func fileInOrder(
         _ filings: [PresentationFiling], index: PresentationRecordIndex,
+        sequences: WorkToShowFirst.Sequences,
         in modelContext: NSManagedObjectContext
     ) throws -> [FiledPresentation] {
         var filed: [FiledPresentation] = []
@@ -260,7 +283,7 @@ extension MCPNotebookTools {
                 refused.append(resolved)
                 continue
             }
-            filed.append(try write(resolved, index: record, in: modelContext))
+            filed.append(try write(resolved, index: record, sequences: sequences, in: modelContext))
             writtenLessons.insert(lessonID)
         }
         try refuseUnexplainedRepeats(refused)
@@ -272,6 +295,7 @@ extension MCPNotebookTools {
     private static func write(
         _ resolved: ResolvedFiling,
         index: PresentationRecordIndex,
+        sequences: WorkToShowFirst.Sequences,
         in modelContext: NSManagedObjectContext
     ) throws -> FiledPresentation {
         let filing = resolved.filing
@@ -294,16 +318,9 @@ extension MCPNotebookTools {
 
         var workCount = 0
         if !filing.outcomes.isEmpty, let presentationID = assignment.id {
-            workCount = try CaptureFollowUpPersistence.persist(
-                filing.outcomes,
-                assignment: assignment,
-                lesson: filing.lesson,
-                persistence: CapturePersistenceContext(
-                    lessonID: filing.lessonID,
-                    lessonName: filing.lesson.name,
-                    presentationID: presentationID,
-                    context: modelContext
-                )
+            workCount = try persistOutcomes(
+                filing, assignment: assignment, presentationID: presentationID,
+                sequences: sequences, in: modelContext
             )
         }
 
@@ -322,6 +339,10 @@ extension MCPNotebookTools {
             noteCount: notes.count, firstNoteID: notes.lazy.compactMap(\.id).first, workCount: workCount,
             repeatNote: repeatReceipt(
                 filing.purpose, conflicts: resolved.conflicts.count, of: filing.students.count
+            ),
+            warnings: practiceWarningLines(
+                lessonID: filing.lessonID.uuidString, studentIDs: filing.studentIDs,
+                sequences: sequences, in: modelContext
             )
         )
     }
@@ -357,6 +378,6 @@ extension MCPNotebookTools {
                 text += " \(filed.workCount) work item(s) created."
             }
         }
-        return text
+        return text + practiceWarningSuffix(filed.warnings)
     }
 }

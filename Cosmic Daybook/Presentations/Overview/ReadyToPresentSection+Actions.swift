@@ -22,6 +22,7 @@ extension ReadyToPresentSection {
             )
             assignment.setScheduledFor(slot, using: AppCalendar.shared)
         }
+        PracticeCheckInTiming.followPlannedLessons(selected, in: viewContext)
         if viewContext.safeSave() {
             selection.clear()
         }

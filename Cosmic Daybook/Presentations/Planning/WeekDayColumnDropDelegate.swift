@@ -134,6 +134,9 @@ struct WeekDayColumnDropDelegate: PresentationDropTarget {
                 touched.append(item)
             }
         }
+        // The cards dropped onto a new day bring earlier practice forward;
+        // their neighbors only moved within the day.
+        PracticeCheckInTiming.followPlannedLessons(placed.compactMap { assignmentsByID[$0] }, in: viewContext)
         guard save(touched) else { return }
 
         for id in placed {

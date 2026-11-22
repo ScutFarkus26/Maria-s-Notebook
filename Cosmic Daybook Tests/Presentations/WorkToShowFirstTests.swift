@@ -172,14 +172,16 @@ struct WorkToShowFirstTests {
         #expect(WorkToShowFirst.earlierLessonIDs(before: UUID().uuidString, in: sequences).isEmpty)
     }
 
-    @Test("Earlier means a lower step number: lessons tied on one, ordered only by name, aren't earlier")
-    func tiesAreNotEarlier() throws {
+    @Test("Earlier means a lower step number, and on a tie the sub-area's order (by name here)")
+    func tiesFallBackToSubAreaOrder() throws {
         let context = try CoreDataTestHelpers.makeContext()
         // A sequence never numbered: every lesson at 0, sorted by name alone.
         let apple = lesson("Apple Addition", step: 0, sequence: "Unordered", in: context)
         let banana = lesson("Banana Addition", step: 0, sequence: "Unordered", in: context)
-        try work(for: ada, on: apple, in: context)
-        #expect(try find(banana, for: [ada], lessons: [apple, banana], in: context).isEmpty)
+        let onApple = try work(for: ada, on: apple, in: context)
+        try work(for: ada, on: banana, in: context)
+        #expect(try find(banana, for: [ada], lessons: [apple, banana], in: context)[ada]?.map(\.work) == [onApple])
+        #expect(try find(apple, for: [ada], lessons: [apple, banana], in: context).isEmpty, "nothing sorts before it")
 
         // Two lessons sharing step 1 and one at step 2.
         let bead = lesson("Bead Addition", step: 1, in: context)
@@ -188,7 +190,8 @@ struct WorkToShowFirstTests {
         let onBead = try work(for: ada, on: bead, in: context)
         let onChain = try work(for: ada, on: chain, in: context)
         let lessons = [bead, chain, stamp]
-        #expect(try find(chain, for: [ada], lessons: lessons, in: context).isEmpty, "Bead sorts first by name only")
+        #expect(try find(chain, for: [ada], lessons: lessons, in: context)[ada]?.map(\.work) == [onBead])
+        #expect(try find(bead, for: [ada], lessons: lessons, in: context).isEmpty)
         let beforeStamp = try find(stamp, for: [ada], lessons: lessons, in: context)[ada]?.map(\.work)
         #expect(Set(try #require(beforeStamp)) == [onBead, onChain])
     }

@@ -232,7 +232,7 @@ extension MCPNotebookTools {
             lines.append(contentsOf: day.checkIns.map { checkIn in
                 let work = checkIn.resolvedWork(in: modelContext)
                 let id = work?.id?.uuidString ?? "unknown"
-                let title = nonEmpty(work?.title) ?? "Untitled work"
+                let title = work.map { MCPNotebookTools.title(of: $0) } ?? "Untitled work"
                 // No work row at all means the check-in outlived its work; say
                 // so rather than printing it as an unassigned plan.
                 let who = work.map { scheduleStudentLabel(for: $0, in: modelContext) }

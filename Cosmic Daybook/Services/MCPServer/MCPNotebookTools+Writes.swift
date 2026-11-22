@@ -228,8 +228,9 @@ extension MCPNotebookTools {
             name: "update_observation",
             title: "Update Observation",
             description: "Edit an existing observation note by its id (as returned by "
-                + "student_record (observations) or search_notebook): its text, tags, flags, or which "
-                + "children it is about. Only the fields provided are changed.",
+                + "student_record (observations), search_notebook or schedule_for_range (unrecorded)): its "
+                + "text, tags, flags, or which children it is about. Only the fields provided are changed. "
+                + "New text on a quick note takes its \"to fill in\" tag off.",
             inputSchema: updateObservationSchema,
             annotations: .idempotentWrite,
             handler: { arguments in
@@ -302,8 +303,14 @@ extension MCPNotebookTools {
             studentIDs: edits.studentIDs, descriptions: edits.descriptions, for: note
         )
         // "social" files under the notebook's "Social|Purple" (domain logic review A10).
-        let tags = edits.tags.map {
+        var tags = edits.tags.map {
             TagHelper.canonicalTags($0, existing: TagHelper.noteTagVocabulary(in: modelContext))
+        }
+        // New words fill in a quick note, so its "to fill in" tag comes off,
+        // even when the same call lists it again (`QuickNote`).
+        let filledIn = edits.body != nil && QuickNote.isWaiting(note)
+        if edits.body != nil, let current = tags ?? (QuickNote.isWaiting(note) ? note.tagsArray : nil) {
+            tags = QuickNote.removingTag(from: current)
         }
 
         repository.updateNote(
@@ -319,8 +326,9 @@ extension MCPNotebookTools {
         }
         announceSavedNote(noteID)
         let linkNote = keptPresentationLink ? " Still linked to its presentation." : ""
+        let filledNote = filledIn ? " The quick note is filled in (its \"\(QuickNote.tagName)\" tag is off)." : ""
         return "Updated observation [note id=\(idString)]: "
-            + descriptions.joined(separator: ", ") + ".\(linkNote)"
+            + descriptions.joined(separator: ", ") + ".\(linkNote)\(filledNote)"
     }
 
     /// The parsed shape of an `update_observation` request: what to hand

@@ -192,13 +192,16 @@ extension MCPNotebookTools {
         }
         let repeatTail = try recordRepeats(adding, to: assignment, arguments, in: modelContext)
 
+        let joining = roster.filter { !assignment.studentIDs.contains($0) }.compactMap(UUID.init(uuidString:))
         writeRoster(roster, to: assignment, in: modelContext)
+        // A child joining a later lesson brings her earlier practice forward.
+        let practice = followPractice(on: assignment, warningAbout: joining, in: modelContext)
         guard modelContext.safeSave() else {
             throw MCPToolError("The presentation could not be saved.")
         }
         let id: String = assignment.id?.uuidString ?? "unknown"
         return "[presentation id=\(id)] \(changes.joined(separator: ", "))\(repeatTail). "
-            + "Now: \(presentationSummary(assignment, in: modelContext))"
+            + "Now: \(presentationSummary(assignment, in: modelContext))" + practice
     }
 
     /// Writes the new group. Leaving is the same write the detail view's Save
@@ -206,7 +209,7 @@ extension MCPNotebookTools {
     /// promoted entry back to planned; a child joining answers her own
     /// year-plan intention, on the plan's day, as the Checklist's toggle does
     /// (domain-logic review R17). Does not save.
-    private static func writeRoster(
+    static func writeRoster(
         _ roster: [String], to assignment: CDLessonAssignment, in modelContext: NSManagedObjectContext
     ) {
         PresentationRecordCleanup.removeStudents(

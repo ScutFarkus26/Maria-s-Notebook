@@ -79,13 +79,16 @@ extension MCPNotebookTools {
         )
     }
 
-    /// The plan for a span of days, or the meetings booked but not yet held.
+    /// The plan for a span of days, what is still open from the days just gone,
+    /// or the meetings booked but not yet held.
     static func scheduleTool(context: @escaping MCPContextProvider) -> MCPToolDefinition {
         combinedReadTool(
             name: "schedule_for_range", title: "Schedule",
-            intro: "What is planned. Without view you get the plan for a day or span of days.",
+            intro: "What is planned, and what is still open from the days just gone. Without view "
+                + "you get the plan for a day or span of days.",
             defaultView: "plan",
             views: [("plan", scheduleForRangeTool(context: context)),
+                    ("unrecorded", unrecordedTool(context: context)),
                     ("meetings", scheduledMeetingsTool(context: context))]
         )
     }

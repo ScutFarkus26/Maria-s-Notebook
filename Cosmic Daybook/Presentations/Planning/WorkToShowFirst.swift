@@ -7,9 +7,11 @@
 //
 //  Danny's definition (2026-10-13): a child's open work whose lesson comes
 //  earlier in the same sub-area than the lesson being given. "Earlier" is a
-//  strictly lower `orderInSequence`: the ready queue breaks ties by name, but
-//  a lesson that only sorts first by name isn't one the child had to finish
-//  first, so a sequence left all at 0 has nothing earlier. "Open" is
+//  lower `orderInSequence`, and, where two lessons share one, the sub-area's
+//  own order (`LessonOrder.precedes`: `sortIndex`, then name). Until
+//  2026-11-22 a tie was never earlier, so a sequence left all at 0 warned
+//  about nothing (plan "Cut unused features and close the lesson loop",
+//  Decisions › The lesson loop). "Open" is
 //  `WorkStatus.isOpen`; "the child's" is the Work column's rule
 //  (`QuietStudentsOrder.openStudentIDs` through `WorkOwnership.Reader`): her own
 //  copy of linked work, or a shared row she hasn't finished her part of. A
@@ -109,13 +111,15 @@ enum WorkToShowFirst {
     // MARK: - Earlier lessons
 
     /// The lessons in `lessonID`'s sub-area with a lower `orderInSequence`,
-    /// first first. Empty for the first lesson, for one tied with every lesson
-    /// before it, and for one with no area or sequence.
+    /// or the same one and an earlier place in the sub-area's order, first
+    /// first. Empty for the first lesson and for one with no area or sequence.
     static func earlierLessonIDs(before lessonID: String, in sequences: Sequences) -> [String] {
         guard let position = sequences.order.position(of: lessonID),
               let rank = sequences.ranks[lessonID] else { return [] }
         return sequences.order.lessonIDs(area: position.area, sequence: position.sequence).filter { id in
-            sequences.ranks[id].map { $0 < rank } ?? false
+            guard let other = sequences.ranks[id] else { return false }
+            if other != rank { return other < rank }
+            return (sequences.order.position(of: id)?.step ?? .max) < position.step
         }
     }
 

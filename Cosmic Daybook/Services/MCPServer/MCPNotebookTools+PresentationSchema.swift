@@ -16,11 +16,12 @@ extension MCPNotebookTools {
         properties["presentations"] = [
             "type": "array",
             "description": .string("Several presentations in one call, each with the fields above "
-                + "(lesson, student_names, date, purpose, group_observation, student_observations)"),
+                + "(lesson, planned_presentation_id, student_names, date, purpose, group_observation, "
+                + "student_observations)"),
             "items": [
                 "type": "object",
                 "properties": JSONValue.object(presentationProperties).withoutDescriptions,
-                "required": ["lesson", "student_names"]
+                "required": ["student_names"]
             ]
         ]
         return .object(["type": "object", "properties": .object(properties)])
@@ -31,7 +32,14 @@ extension MCPNotebookTools {
     private static let presentationProperties: [String: JSONValue] = [
         "lesson": [
             "type": "string",
-            "description": "The lesson presented: a lesson id from find_lessons, or its exact name"
+            "description": .string("The lesson presented: a lesson id from find_lessons, or its exact name. "
+                + "May be left out when planned_presentation_id is given.")
+        ],
+        "planned_presentation_id": [
+            "type": "string",
+            "description": .string("The plan this giving completes, as schedule_for_range lists it. The "
+                + "record takes that plan over: children named here who weren't on it are added, and "
+                + "children on it who aren't named stay planned on it, on its day.")
         ],
         "student_names": [
             "type": "array",

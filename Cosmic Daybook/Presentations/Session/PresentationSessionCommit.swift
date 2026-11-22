@@ -281,6 +281,7 @@ enum PresentationSessionCommit {
         if let moment = input.nextLessonPlace?.scheduledMoment() {
             plan.schedule(for: moment)
             YearPlanPromotionService.promoteMatchingEntries(into: plan, scheduledFor: moment, context: context)
+            PracticeCheckInTiming.followPlannedLessons([plan], in: context)
         }
         return plan
     }

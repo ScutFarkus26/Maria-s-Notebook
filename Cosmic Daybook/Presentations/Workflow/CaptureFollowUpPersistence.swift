@@ -136,9 +136,7 @@ enum CaptureFollowUpPersistence {
         request.fetchLimit = 1
         guard try persistence.context.fetch(request).isEmpty else { return false }
 
-        let defaultTitle = kind == .practiceLesson
-            ? "Practice: \(persistence.lessonName)"
-            : "Follow up: \(persistence.lessonName)"
+        let defaultTitle = WorkRepository.defaultTitle(kind: kind, lessonName: persistence.lessonName)
         let detail = entry.followUpDetail.trimmed()
         _ = try WorkRepository(context: persistence.context).createWork(
             studentID: entry.studentID,

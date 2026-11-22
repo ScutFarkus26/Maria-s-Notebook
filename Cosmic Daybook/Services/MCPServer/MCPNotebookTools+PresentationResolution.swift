@@ -81,12 +81,15 @@ extension MCPNotebookTools {
     /// The other two origins are exempt by construction. `.alreadyRecorded` is
     /// the same lesson, children and day filed twice — an edit of that record,
     /// not a second giving. `.plannedLesson` completes a plan that passed this
-    /// same guard when `schedule_presentation` made it.
+    /// same guard when `schedule_presentation` made it; only a child added to
+    /// a plan named by `planned_presentation_id` is asked (`takeOverPlan`).
     static func resolve(
         _ filing: PresentationFiling,
         index: PresentationRecordIndex,
         in modelContext: NSManagedObjectContext
     ) -> ResolvedFiling {
+        // A plan named by id is taken over, whatever else is waiting.
+        if let taken = takeOverPlan(filing, index: index, in: modelContext) { return taken }
         let resolved = resolveAssignment(for: filing, in: modelContext)
         let conflicts: [RepeatConflict] = resolved.origin == .newRecord
             ? repeatConflicts(

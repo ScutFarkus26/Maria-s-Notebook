@@ -119,8 +119,15 @@ extension MCPNotebookTools {
         WorkDeletionService.checkIns(of: work, in: modelContext)
     }
 
+    /// The work's title, or its lesson's name when it has none.
     static func title(of work: CDWorkModel) -> String {
-        nonEmpty(work.title) ?? "Untitled work"
+        nonEmpty(work.title) ?? lessonName(of: work) ?? "Untitled work"
+    }
+
+    /// The name of the lesson a work row is on, when it has one.
+    static func lessonName(of work: CDWorkModel) -> String? {
+        guard let context = work.managedObjectContext, let id = UUID(uuidString: work.lessonID) else { return nil }
+        return nonEmpty(context.object(CDLesson.self, id: id)?.name)
     }
 
     /// Work a student owns plus work they are a passenger on, so a child

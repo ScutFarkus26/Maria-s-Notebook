@@ -145,7 +145,7 @@ struct WorkRepository: Repository {
         let workKind = kind ?? (resolved.given ? .practiceLesson : .followUpAssignment)
 
         let work = CDWorkModel(context: context)
-        work.title = title ?? ""
+        work.title = Self.title(title, kind: workKind, lessonID: lessonID, in: context)
         work.kind = workKind
         work.studentLessonID = studentLessonID
         work.createdAt = Date()
@@ -184,6 +184,27 @@ struct WorkRepository: Repository {
             context.safeSave()
         }
         return work
+    }
+
+    /// The title a new row is made with: the one given, or, for practice and
+    /// follow-up work given none, "Practice: <lesson>" or "Follow up: <lesson>",
+    /// the names `record_presentation` has always used. The Class Grid's
+    /// ladder, the recap's Add Practice and New Work with no title used to
+    /// make rows Claude read back as "Untitled work" (plan "Cut unused features
+    /// and close the lesson loop", 2026-11-21).
+    static func title(
+        _ given: String?, kind: WorkKind, lessonID: UUID, in context: NSManagedObjectContext
+    ) -> String {
+        if let given = given?.trimmed(), !given.isEmpty { return given }
+        guard kind == .practiceLesson || kind == .followUpAssignment,
+              let name = context.object(CDLesson.self, id: lessonID)?.name.trimmed(), !name.isEmpty
+        else { return given ?? "" }
+        return defaultTitle(kind: kind, lessonName: name)
+    }
+
+    /// "Practice: Golden Beads", or "Follow up: Golden Beads".
+    static func defaultTitle(kind: WorkKind, lessonName: String) -> String {
+        kind == .practiceLesson ? "Practice: \(lessonName)" : "Follow up: \(lessonName)"
     }
 
     // MARK: - Update

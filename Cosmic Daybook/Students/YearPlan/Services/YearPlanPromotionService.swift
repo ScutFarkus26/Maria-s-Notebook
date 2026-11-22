@@ -41,6 +41,7 @@ enum YearPlanPromotionService {
         // a set time (plan "Lesson times on cards", decision 4).
         assignment.schedule(onDay: day)
         let promoted = promoteMatchingEntries(into: assignment, scheduledFor: day, context: context)
+        PracticeCheckInTiming.followPlannedLessons([assignment], in: context)
         logger.info("Auto-promoted \(promoted) entries for lesson \(assignment.lessonID) on \(day)")
     }
 

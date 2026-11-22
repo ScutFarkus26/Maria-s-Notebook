@@ -30,7 +30,9 @@ extension MCPNotebookTools {
                 + "out, and refuses when any named child already has the lesson on record unless "
                 + "purpose says why she is having it again. The reply names any of the children who are "
                 + "with another teacher during the lesson (a set time is taken as 30 minutes long) or, "
-                + "for a lesson with no time, in that half of the day; it never refuses for that.",
+                + "for a lesson with no time, in that half of the day; it never refuses for that. It "
+                + "also names any child still practicing an earlier lesson in the sequence, and moves "
+                + "that practice's check-ins to the school day before the lesson when they fall later.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -115,18 +117,18 @@ extension MCPNotebookTools {
                 draft: assignment, plannedOn: day, in: modelContext
             )
         }
+        let practice = followPractice(on: assignment, warningAbout: studentIDs, in: modelContext)
 
         guard modelContext.safeSave() else {
             throw MCPToolError("The presentation could not be scheduled.")
         }
 
-        let id = assignment.id?.uuidString ?? "unknown"
-        let who = students.map(\.fullName).joined(separator: ", ")
-        let verb = existing == nil ? "Scheduled" : "Moved the existing plan for"
-        return "\(verb) [presentation id=\(id)] \(lesson.name) — \(who) on \(dayString(day))"
+        let who = students.map(\.fullName).joined(separator: ", ") + " on \(dayString(day))"
+        return (existing == nil ? "Scheduled" : "Moved the existing plan for")
+            + " [presentation id=\(assignment.id?.uuidString ?? "unknown")] \(lesson.name) — \(who)"
             + "\(timeSuffix(assignment))\(repeatReceipt(purpose, conflicts: conflicts.count, of: students.count))"
             + "\(promotionReceipt(promoted))."
-            + awaySuffix(for: assignment, in: modelContext)
+            + awaySuffix(for: assignment, in: modelContext) + practice
     }
 
     /// " (1 year-plan entry promoted into it)", or nothing.
@@ -348,12 +350,13 @@ extension MCPNotebookTools {
             throw MCPToolError("Pass a new date and/or time, or unschedule: true to take it off the calendar.")
         }
         moveYearPlanEntries(with: assignment, in: modelContext)
+        let practice = unschedule ? "" : followPractice(on: assignment, warningAbout: [], in: modelContext)
 
         guard modelContext.safeSave() else {
             throw MCPToolError("The presentation could not be rescheduled.")
         }
         return "[presentation id=\(id.uuidString)] \(outcome)"
-            + (unschedule ? "" : awaySuffix(for: assignment, in: modelContext))
+            + (unschedule ? "" : awaySuffix(for: assignment, in: modelContext)) + practice
     }
 
     /// The year-plan entries promoted into a moved plan go with it, as on a

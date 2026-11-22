@@ -57,6 +57,9 @@ final class PresentationDetailActions {
         // id, so they follow the edit here or read as given for good.
         if let context = lessonAssignment.managedObjectContext {
             PresentationRecordCleanup.removeStudents(removedStudentIDs, from: lessonAssignment, in: context)
+            // A plan on a new day, or with a child added, brings earlier
+            // practice forward to the school day before it.
+            PracticeCheckInTiming.followPlannedLessons([lessonAssignment], in: context)
             if lessonChanged {
                 PresentationRecordCleanup.returnEntriesForOtherLessons(promotedInto: lessonAssignment, in: context)
             }
