@@ -46,6 +46,9 @@ final class QuickCaptureActions {
         /// A Handoff this window took (`WindowHandoff`): opens it in this
         /// window, never another one.
         var continueHandoff: (Handoff.Destination) -> Void = { _ in }
+        /// A `cosmicdaybook://` link this window took (`WindowHandoff`):
+        /// looked up in this window's notebook and opened here.
+        var openLink: (NotebookLink.Target) -> Void = { _ in }
     }
 
     private var handlers: Handlers?
@@ -69,6 +72,7 @@ final class QuickCaptureActions {
     }
     func switchClassroom(to workspace: ClassroomWorkspace) { handlers?.switchClassroom(workspace) }
     func continueHandoff(to destination: Handoff.Destination) { handlers?.continueHandoff(destination) }
+    func openLink(_ target: NotebookLink.Target) { handlers?.openLink(target) }
 
     /// Runs one of the radial menu's five actions in this window.
     func perform(_ action: PieMenuAction) {

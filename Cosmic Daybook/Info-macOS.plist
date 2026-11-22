@@ -35,6 +35,19 @@
 			<string>Any</string>
 		</dict>
 	</dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>CFBundleURLName</key>
+			<string>DanielSDeBerry.MariasNoteBook.link</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>cosmicdaybook</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>DanielSDeBerry.MariasNoteBook.handoff.student</string>

@@ -93,6 +93,8 @@ struct DetailWindowScene<Value: Codable & Hashable, Host: View>: Scene {
         .windowToolbarStyle(.unified(showsTitle: true))
         .windowResizability(.automatic)
         .defaultSize(width: defaultSize.width, height: defaultSize.height)
+        // A `cosmicdaybook://` link goes to the main window, never here.
+        .handlesExternalEvents(matching: [])
     }
 
     @ViewBuilder

@@ -112,7 +112,10 @@ struct MCPRequestHandler: Sendable {
         real classroom data — students, lesson presentations, observations, student meetings, \
         follow-ups, work, attendance, and todos — from the teacher's live notebook. Dates use \
         ISO 8601 (YYYY-MM-DD). Treat student information as sensitive and only surface what \
-        the teacher asks for.
+        the teacher asks for. To link to one item from elsewhere (a Tide to-do's link field), \
+        use cosmicdaybook://student/<id>, cosmicdaybook://lesson/<id> or \
+        cosmicdaybook://follow-up/<id> with an id a tool returned (a follow-up is a todo, goal \
+        or flagged note from list_todos); opening one shows it in the app and changes nothing.
         """
 
     // MARK: - Tools

@@ -3,6 +3,7 @@
 // album page on screen, picked up from the Dock or the app switcher.
 
 import Foundation
+import OSLog
 import SwiftUI
 
 /// The three things Handoff carries between the guide's iPhone, iPad and Mac.
@@ -105,6 +106,9 @@ private struct HandoffContinuationModifier: ViewModifier {
             .onContinueUserActivity(Handoff.ActivityType.student, perform: route)
             .onContinueUserActivity(Handoff.ActivityType.lesson, perform: route)
             .onContinueUserActivity(Handoff.ActivityType.albumPage, perform: route)
+            // A `cosmicdaybook://` link (`NotebookLink`), taken by the same
+            // main window, so none opens a second one.
+            .onOpenURL(perform: open)
             // A main window already open takes the activity. With no window
             // saying so, SwiftUI opened another main window for every Handoff
             // (bug hunt 2026-10-17 #33).
@@ -114,6 +118,14 @@ private struct HandoffContinuationModifier: ViewModifier {
     private func route(_ activity: NSUserActivity) {
         guard let destination = Handoff.destination(from: activity) else { return }
         window.continueHandoff(to: destination, router: router)
+    }
+
+    private func open(_ url: URL) {
+        guard let target = NotebookLink.target(from: url) else {
+            Logger.app_.notice("Ignored a link the app doesn't know: \(url.absoluteString, privacy: .private)")
+            return
+        }
+        window.openLink(target)
     }
 }
 
@@ -136,9 +148,17 @@ extension View {
 final class WindowHandoff {
     /// This window's screen, while it's up.
     private weak var screen: QuickCaptureActions?
+    /// A link that came before the screen was up. Unlike a Handoff it waits
+    /// here, not in the router: only the screen can look its id up in the
+    /// notebook, and a link to nothing must open nothing.
+    private var pendingLink: NotebookLink.Target?
 
     func screenAppeared(_ actions: QuickCaptureActions) {
         screen = actions
+        if let pendingLink {
+            self.pendingLink = nil
+            actions.openLink(pendingLink)
+        }
     }
 
     /// Unhooks `actions` only while it is still this window's screen: the
@@ -152,6 +172,16 @@ final class WindowHandoff {
             screen.continueHandoff(to: destination)
         } else {
             router.continueHandoff(to: destination)
+        }
+    }
+
+    /// Opens a `cosmicdaybook://` link in this window's screen, now if it's
+    /// up, else as soon as it appears. A later link replaces one still waiting.
+    func openLink(_ target: NotebookLink.Target) {
+        if let screen {
+            screen.openLink(target)
+        } else {
+            pendingLink = target
         }
     }
 }

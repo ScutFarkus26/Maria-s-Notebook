@@ -23,7 +23,8 @@ extension RootView {
             goTo: { goInThisWindow($0) },
             openLessonsAndWork: { openLessonsAndWorkInThisWindow($0) },
             switchClassroom: { requestClassroomSwitch(to: $0) },
-            continueHandoff: { continueHandoffInThisWindow($0) }
+            continueHandoff: { continueHandoffInThisWindow($0) },
+            openLink: { openLinkInThisWindow($0) }
         ))
     }
 
@@ -46,6 +47,23 @@ extension RootView {
     /// not in whichever main window sees the router first (review c #3).
     private func continueHandoffInThisWindow(_ destination: Handoff.Destination) {
         appRouter.continueHandoff(to: destination) { selectInThisWindow($0) }
+    }
+
+    /// A `cosmicdaybook://` link this window took: opened by the Handoff
+    /// route once its id is found in this window's notebook, else nothing
+    /// opens (another classroom's id, a deleted or not yet synced record).
+    /// A link only opens; it never changes data.
+    private func openLinkInThisWindow(_ target: NotebookLink.Target) {
+        switch NotebookLink.landing(for: target, in: dependencies.viewContext) {
+        case .handoff(let destination):
+            continueHandoffInThisWindow(destination)
+        case .section(let item):
+            goInThisWindow(item)
+        case nil:
+            Self.logger.notice(
+                "A link named nothing in this notebook (\(target.host, privacy: .public)); nothing opened"
+            )
+        }
     }
 
     /// Goes to the section that answers `request` in this window and leaves

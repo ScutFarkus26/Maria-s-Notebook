@@ -33,6 +33,8 @@ struct LessonQuickNoteWindowScene: Scene {
         .windowResizability(.contentSize)
         .defaultSize(width: 440, height: 240)
         .windowLevel(.floating)
+        // A `cosmicdaybook://` link goes to the main window, never here.
+        .handlesExternalEvents(matching: [])
     }
 }
 

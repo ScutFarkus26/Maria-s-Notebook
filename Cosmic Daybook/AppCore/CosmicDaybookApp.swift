@@ -179,6 +179,8 @@ struct CosmicDaybookApp: App {
         .windowToolbarStyle(.unified(showsTitle: true))
         .windowResizability(.automatic)
         .defaultSize(width: 480, height: 600)
+        // A `cosmicdaybook://` link goes to the main window, never here.
+        .handlesExternalEvents(matching: [])
 
         DetailWindowScene(
             id: "LessonDetailWindow", for: UUID.self, dependencies: detailWindowDependencies,
