@@ -150,32 +150,4 @@ struct AppRouterFix1011R {
             buttonSize: 56, trailingInset: 16, bottomInset: 24
         ) == offset)
     }
-
-    // MARK: - #9 Template sort order
-
-    @Test("A new custom template goes after the last one, even after a deletion left a gap")
-    func templateSortOrderAfterDeletion() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        for order in [Int64(0), 1] {
-            let builtIn = CDMeetingTemplate(context: context)
-            builtIn.isBuiltIn = true
-            builtIn.sortOrder = order
-        }
-        // Custom templates 100, 101 and 102, then 101 deleted.
-        for order in [Int64(100), 102] {
-            let custom = CDMeetingTemplate(context: context)
-            custom.isBuiltIn = false
-            custom.sortOrder = order
-        }
-        #expect(TemplateSortOrder.nextCustom(for: CDMeetingTemplate.self, in: context) == 103)
-    }
-
-    @Test("The first custom template starts at 100")
-    func templateSortOrderFirstCustom() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let builtIn = CDMeetingTemplate(context: context)
-        builtIn.isBuiltIn = true
-        builtIn.sortOrder = 3
-        #expect(TemplateSortOrder.nextCustom(for: CDMeetingTemplate.self, in: context) == 100)
-    }
 }

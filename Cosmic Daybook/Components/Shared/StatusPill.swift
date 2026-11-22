@@ -19,21 +19,8 @@ struct StatusPill: View {
         var tintOpacity: Double = UIConstants.OpacityConstants.medium
         var capsuleStyle: RoundedCornerStyle = .circular
 
-        /// 16 pt icon, footnote text — attendance, lesson and project status.
+        /// 16 pt icon, footnote text — attendance and lesson status.
         static var standard: Metrics { Metrics() }
-
-        /// 9 pt icon, caption2 semibold, 8 × 4, continuous — going-out status.
-        static var compact: Metrics {
-            var metrics = Metrics()
-            metrics.spacing = 4
-            metrics.iconFont = .system(size: 9)
-            metrics.textFont = .caption2
-            metrics.textWeight = .semibold
-            metrics.horizontalPadding = 8
-            metrics.verticalPadding = 4
-            metrics.capsuleStyle = .continuous
-            return metrics
-        }
 
         /// 10 pt semibold icon, caption2 semibold, 10 × 6, tint 0.15 —
         /// work status and kind on the presentation workflow panel.
@@ -99,7 +86,6 @@ private struct StatusPillPreview: View {
             StatusPill(text: "Active", color: .green)
             StatusPill(text: "Pending", color: .orange, icon: "clock")
             StatusPill(text: "Complete", color: .blue, icon: "checkmark")
-            StatusPill(text: "Proposed", color: .orange, icon: "clock", metrics: .compact)
             StatusPill(text: "Working", color: .blue, icon: "hammer", metrics: .emphasized)
             StatusPill(text: "Practicing", color: .blue, metrics: .mini)
         }

@@ -56,7 +56,6 @@ struct UnifiedNoteEditor: View {
         case projectSession(CDProjectSession)
         case communityTopic(CDCommunityTopicEntity)
         case schoolDayOverride(CDSchoolDayOverride)
-        case goingOut(CDGoingOut)
     }
 
     // MARK: - Properties

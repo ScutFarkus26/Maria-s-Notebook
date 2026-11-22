@@ -66,13 +66,6 @@ extension MCPNotebookTools {
             "update_order_items", into: "mark_supplies", pass: "needs: [the same entries]"
         )
 
-        // Features Claude no longer reaches: the feature stays in the app, or is gone.
-        let inTheAppOnly = "stays in the app; Claude no longer reaches it."
-        table["list_going_outs"] = "list_going_outs is retired: Going Out \(inTheAppOnly)"
-        table["update_going_out"] = "update_going_out is retired: Going Out \(inTheAppOnly)"
-        table["list_procedures"] = "list_procedures is retired: Procedures \(inTheAppOnly)"
-        table["list_stories"] = "list_stories is retired: the story shelf \(inTheAppOnly)"
-
         // Retired in Phases 1 and 2.
         table["list_reminders"] = "list_reminders is retired: Apple Reminders sync was removed, and to-dos live in "
             + "Tide. list_todos shows the notebook's own check-ins and follow-ups."
@@ -101,6 +94,14 @@ extension MCPNotebookTools {
         table["update_community_topic"] = "update_community_topic is retired: Community topics \(takenOut)"
         table["list_issues"] = "list_issues is retired: Issues \(takenOut)"
         table["update_issue"] = "update_issue is retired: Issues \(takenOut)"
+
+        // Cut unused features, Phase 2 (2026-11-22).
+        let takenOutNow = "was taken out of the app on 2026-11-22; its records are kept."
+        table["list_resources"] = "list_resources is retired: the Resources library \(takenOutNow)"
+        table["list_procedures"] = "list_procedures is retired: Procedures \(takenOutNow)"
+        table["list_stories"] = "list_stories is retired: the story shelf \(takenOutNow)"
+        table["list_going_outs"] = "list_going_outs is retired: Going Out \(takenOutNow)"
+        table["update_going_out"] = "update_going_out is retired: Going Out \(takenOutNow)"
         return table
     }()
 

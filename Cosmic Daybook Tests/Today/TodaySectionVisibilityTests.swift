@@ -33,16 +33,6 @@ struct TodaySectionVisibilityTests {
         #expect(TodaySectionVisibility.showsRestock(officeRun: 0, toOrder: 2))
     }
 
-    // MARK: - Day pad
-
-    @Test("The pad shows when it has writing on it, or when the guide opened it")
-    func dayPadGate() {
-        #expect(TodaySectionVisibility.showsDayPad(hasBody: false, isExpanded: false) == false)
-        #expect(TodaySectionVisibility.showsDayPad(hasBody: false, isExpanded: true))
-        #expect(TodaySectionVisibility.showsDayPad(hasBody: true, isExpanded: false))
-        #expect(TodaySectionVisibility.showsDayPad(hasBody: true, isExpanded: true))
-    }
-
     // MARK: - Orderings
 
     @Test("The agenda, its meetings, the schedules and Gone quiet own the macOS left column")

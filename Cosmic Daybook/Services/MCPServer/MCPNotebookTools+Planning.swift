@@ -159,8 +159,8 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "list_templates",
             title: "List Templates",
-            description: "The reusable scaffolding the teacher has set up: meeting prompts "
-                + "and sample work with its steps. Naming a kind "
+            description: "The reusable scaffolding the app keeps: the built-in meeting "
+                + "prompts and sample work with its steps. Naming a kind "
                 + "returns just that kind.",
             inputSchema: [
                 "type": "object",

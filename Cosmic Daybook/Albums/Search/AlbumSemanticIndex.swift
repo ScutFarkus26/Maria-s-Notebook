@@ -16,9 +16,8 @@ import Synchronization
 /// Everything runs locally; vectors are cached per album as raw floats
 /// (`AlbumVectorCacheFile`).
 ///
-/// Related to but separate from `Stories/StoryLessonMatcher`, which matches
-/// stories to lessons with averaged word vectors. This index works over album
-/// lesson titles and bodies; consolidating the two is a possible follow-up.
+/// It works over album lesson titles and bodies. (The story shelf's own
+/// story-to-lesson matcher went with Stories on 2026-11-22.)
 @Observable
 final class AlbumSemanticIndex {
     enum Status: Equatable { case idle, building, ready, unavailable }

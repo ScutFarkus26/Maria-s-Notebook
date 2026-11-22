@@ -2,8 +2,8 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-/// Pins the six Settings categories' saved raw values and the aliases for
-/// the four retired 2026-11-03, so a selection an older build saved still
+/// Pins the five Settings categories' saved raw values and the aliases for
+/// the four retired 2026-11-03 and Templates (2026-11-22), so a selection an older build saved still
 /// opens the category that took it over.
 @Suite("Settings category aliases")
 struct SettingsCategoryAliasTests {
@@ -14,7 +14,8 @@ struct SettingsCategoryAliasTests {
             ("overview", SettingsCategory.schoolYear),
             ("messages", .lookAndFeel),
             ("connections", .intelligence),
-            ("troubleshooting", .syncBackup)
+            ("troubleshooting", .syncBackup),
+            ("templates", .schoolYear)
         ]
     )
     func retiredCategoriesLand(stored: String, category: SettingsCategory) {
@@ -22,10 +23,10 @@ struct SettingsCategoryAliasTests {
         #expect(SettingsCategory(storedValue: stored) == category)
     }
 
-    @Test("The six raw values are the saved ones, never renamed")
+    @Test("The five raw values are the saved ones, never renamed")
     func rawValuesArePinned() {
         #expect(SettingsCategory.allCases.map(\.rawValue)
-            == ["schoolYear", "classroom", "lookAndFeel", "templates", "syncBackup", "intelligence"])
+            == ["schoolYear", "classroom", "lookAndFeel", "syncBackup", "intelligence"])
         for category in SettingsCategory.allCases {
             #expect(SettingsCategory(storedValue: category.rawValue) == category)
         }

@@ -19,7 +19,7 @@ struct KeyboardShortcutsHelpView: View {
                     ShortcutItem(keys: "\u{2318}4", description: "Lessons & Work"),
                     ShortcutItem(keys: "\u{2318}5", description: "Lessons"),
                     ShortcutItem(keys: "\u{2318}6", description: "Notes"),
-                    ShortcutItem(keys: "\u{2318}7", description: "Todos"),
+                    ShortcutItem(keys: "\u{2318}7", description: "Groups"),
                     ShortcutItem(keys: "\u{2318},", description: "Settings")
                 ])
 

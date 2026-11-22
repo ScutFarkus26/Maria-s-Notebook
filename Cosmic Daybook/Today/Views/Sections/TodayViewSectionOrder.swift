@@ -66,7 +66,6 @@ extension TodayView {
         followingPresentationsListSection
         recentNotesListSection
         calendarEventsListSection
-        dayPadListSection
         doneTodayListSection
     }
     #endif
@@ -115,7 +114,6 @@ extension TodayView {
         followingPresentationsListSection
         recentNotesListSection
         calendarEventsListSection
-        dayPadListSection
         doneTodayListSection
     }
 
@@ -162,7 +160,7 @@ extension TodayView {
 
                 // A fresh form per todo: switching rows saves the old one on
                 // its way out (`EditTodoForm` saves on disappear).
-                EditTodoForm(todo: selectedTodoItem)
+                EditTodoForm(todo: selectedTodoItem) { self.selectedTodoItem = nil }
                     .id(selectedTodoItem.objectID)
             }
         }

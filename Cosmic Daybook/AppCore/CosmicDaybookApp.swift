@@ -193,14 +193,6 @@ struct CosmicDaybookApp: App {
         .centeredOnOpen()
 
         DetailWindowScene(
-            id: "ResourceDetailWindow", for: UUID.self, dependencies: detailWindowDependencies,
-            defaultSize: CGSize(width: 760, height: 760), minimumSize: CGSize(width: 500, height: 360),
-            loadingStyle: .labeled,
-            placeholder: .unavailable("No Resource Selected", systemImage: "doc.text"),
-            countsAsEditor: false
-        ) { ResourceDetailWindowHost(resourceID: $0) }
-
-        DetailWindowScene(
             id: "NoteEditorWindow", for: UUID.self, dependencies: detailWindowDependencies,
             defaultSize: CGSize(width: 700, height: 600), minimumSize: CGSize(width: 480, height: 320),
             loadingStyle: .labeled,

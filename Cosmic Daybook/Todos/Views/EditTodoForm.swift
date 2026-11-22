@@ -1,5 +1,7 @@
 // EditTodoForm.swift
-// Elegant full-screen todo list view inspired by Things and Bear
+// The to-do editor: Today's to-do section, a child's Watching list and
+// meetings open it. Since the Todos screen was taken out (2026-11-22) it is
+// also where a to-do is deleted.
 
 import SwiftUI
 import CoreData
@@ -8,9 +10,24 @@ import CoreData
 
 struct EditTodoForm: View {
     @ObservedObject var todo: CDTodoItem
+    /// Closes the editor once the to-do is deleted: the host clears what it
+    /// was showing.
+    var onDelete: () -> Void = {}
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
+    @State private var isConfirmingDelete = false
 
     var body: some View {
+        // A deleted to-do has no title to bind to: the editor goes blank while
+        // its host closes it, rather than reading the deleted row.
+        if todo.isDeleted || todo.managedObjectContext == nil {
+            Color.clear
+        } else {
+            form
+        }
+    }
+
+    private var form: some View {
         Form {
             Section("Details") {
                 TextField("Title", text: $todo.title)
@@ -55,6 +72,16 @@ struct EditTodoForm: View {
                     .font(AppTheme.ScaledFont.body)
                 }
             }
+
+            Section {
+                Button("Delete To-do", role: .destructive) {
+                    isConfirmingDelete = true
+                }
+            }
+        }
+        .confirmationDialog("Delete this to-do?", isPresented: $isConfirmingDelete, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) { deleteTodo() }
+            Button("Cancel", role: .cancel) {}
         }
         .onChange(of: todo.title) { _, _ in saveTodoChanges() }
         .onChange(of: todo.notes) { _, _ in saveTodoChanges() }
@@ -119,6 +146,15 @@ struct EditTodoForm: View {
     }
 
     private func saveTodoChanges() {
+        guard !todo.isDeleted, todo.managedObjectContext != nil else { return }
         viewContext.safeSave()
+    }
+
+    /// Deletes the to-do as the Todos screen did, after asking: the host
+    /// closes the editor first.
+    private func deleteTodo() {
+        onDelete()
+        viewContext.delete(todo)
+        dependencies.saveCoordinator.save(viewContext, reason: "Delete todo")
     }
 }

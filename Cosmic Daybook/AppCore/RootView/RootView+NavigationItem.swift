@@ -73,29 +73,31 @@ extension RootView {
             .progressDashboard: .planningChecklist,
             .lessonRecall: .planningChecklist,
             .parshaCalendar: .thisWeeksParsha,
-            .stories: .resourceLibrary,
-            .procedures: .resourceLibrary,
             .bookClub: .today,
             .askAI: .today,
             // Cut unused features, Phase 1 (2026-11-21): the retired screens'
             // rows open the screen nearest to what they held.
             .parentReports: .students,
             .planningProjects: .today,
-            .community: .today
+            .community: .today,
+            // Cut unused features, Phase 2 (2026-11-22).
+            .resourceLibrary: .lessons,
+            .stories: .lessons,
+            .procedures: .lessons,
+            .goingOut: .today,
+            .todos: .today
         ]
 
         /// The destination this item actually shows.
         var canonical: Self { Self.aliases[self] ?? self }
 
         /// Where a retired row opens inside the screen that replaced it: the
-        /// Class Grid on its view, Resources on its type, the Parsha screen
-        /// with the year list showing. Nil for every row still in the sidebar.
+        /// Class Grid on its view, the Parsha screen with the year list showing.
+        /// Nil for every row still in the sidebar.
         var landing: ScreenLanding? {
             switch self {
             case .curriculumMap, .progressDashboard:
                 return ClassGridViewKind.opening(self).map(ScreenLanding.classGrid)
-            case .stories: return .resources(.stories)
-            case .procedures: return .resources(.procedures)
             case .parshaCalendar: return .parshaYearList
             default: return nil
             }

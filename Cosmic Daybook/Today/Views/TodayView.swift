@@ -73,8 +73,7 @@ struct TodayView: View {
     // MARK: - Todo State
     @State var selectedTodoItem: CDTodoItem?
 
-    // MARK: - Day Pad / Done Today / Day Cards State
-    @AppStorage(UserDefaultsKeys.todayDayPadExpanded) var isDayPadExpanded: Bool = false
+    // MARK: - Done Today / Day Cards State
     @AppStorage(UserDefaultsKeys.todayDoneTodayExpanded) var isDoneTodayExpanded: Bool = false
     /// Bumped when a day card is dismissed to force the section to recompute.
     @State var dayCardsRefreshTrigger: Int = 0

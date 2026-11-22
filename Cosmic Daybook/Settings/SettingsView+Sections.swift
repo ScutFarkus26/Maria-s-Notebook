@@ -15,8 +15,6 @@ extension SettingsView {
                 .settingsAnchor(.classroomSharing)
         case .lookAndFeel:
             lookAndFeelPane
-        case .templates:
-            SettingsTemplatesPane()
         case .intelligence:
             SettingsIntelligencePane()
         case .syncBackup:

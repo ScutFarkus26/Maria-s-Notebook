@@ -152,7 +152,7 @@ private struct StudentWatchingSheets: ViewModifier {
             #endif
             .sheet(item: $todoBeingEdited) { todo in
                 NavigationStack {
-                    EditTodoForm(todo: todo)
+                    EditTodoForm(todo: todo) { todoBeingEdited = nil }
                         .navigationTitle("Edit Todo")
                         .inlineNavigationTitle()
                         .toolbar {

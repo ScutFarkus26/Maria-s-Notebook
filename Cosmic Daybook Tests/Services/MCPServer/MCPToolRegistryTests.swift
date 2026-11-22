@@ -58,7 +58,7 @@ struct MCPToolRegistryTests {
         "families", "update_guardian",
         // classroom
         "list_supplies", "adjust_supply", "mark_supplies",
-        "list_resources", "day_pad",
+        "day_pad",
         // school calendar and the app
         "school_calendar", "set_school_days", "update_school_calendar",
         "create_backup"
@@ -72,7 +72,7 @@ struct MCPToolRegistryTests {
             serverVersion: "1.0-test", tools: MCPNotebookTools.makeTools(context: { context })
         )
         let table = MCPNotebookTools.retiredTools
-        #expect(table.count == 45)
+        #expect(table.count == 46)
         for (name, sentence) in table.sorted(by: { $0.key < $1.key }) {
             let request = #"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"\#(name)","arguments":{}}}"#
             let reply = try #require(await handler.handle(line: Data(request.utf8)))

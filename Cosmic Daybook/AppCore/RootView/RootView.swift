@@ -51,7 +51,6 @@ struct RootView: View {
     /// (`NavigationRowVisibility`), read at launch and after each save of
     /// their kinds.
     @State private var hiddenNavItems: Set<NavigationItem> = []
-    @State private var hiddenLibraryKinds: Set<LibraryKind> = []
     @AppStorage(UserDefaultsKeys.quickCaptureButtonVisible)
     private var isQuickCaptureButtonVisible = true
 
@@ -230,7 +229,7 @@ struct RootView: View {
     private var rootLayoutWithObservers: some View {
         rootLayout
         .environment(\.navigationRowFilter, NavigationRowFilter(
-            hidden: hiddenNavItems, hiddenLibraryKinds: hiddenLibraryKinds, kept: [selectedNavItem]
+            hidden: hiddenNavItems, kept: [selectedNavItem]
         ))
         .onAppear(perform: restoreSelectionIfNeeded)
         .onReceive(
@@ -409,8 +408,6 @@ struct RootView: View {
             select: { selectedNavItem = $0 },
             hide: { if hiddenNavItems != $0 { hiddenNavItems = $0 } }
         )
-        let kinds = NavigationRowVisibility.hiddenLibraryKinds(in: viewContext)
-        if hiddenLibraryKinds != kinds { hiddenLibraryKinds = kinds }
     }
 
     private func persistSelection(_ item: RootView.NavigationItem) {

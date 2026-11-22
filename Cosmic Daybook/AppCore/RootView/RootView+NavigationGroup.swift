@@ -19,15 +19,15 @@ extension RootView {
         let title: String
         let items: [NavigationItem]
         /// Only Classroom starts collapsed: the room's running (Restock,
-        /// schedules, outings) is reached a few times a term, not daily.
+        /// schedules) is reached a few times a term, not daily.
         let isExpandedByDefault: Bool
 
-        /// Six groups, 18 rows (Simplify the app, Phase 11; Cut unused
-        /// features, 2026-11-21). The retired rows are aliases
+        /// Six groups, 15 rows (Simplify the app, Phase 11; Cut unused
+        /// features, 2026-11-21 and 22). The retired rows are aliases
         /// (`NavigationItem.aliases`) and open inside these.
         static let all: [NavigationGroup] = [
             .init(id: .today, title: "Today",
-                  items: [.today, .attendance, .todos],
+                  items: [.today, .attendance],
                   isExpandedByDefault: true),
             .init(id: .children, title: "Children",
                   items: [.students, .meetings, .notes],
@@ -37,10 +37,10 @@ extension RootView {
                           .thisWeeksParsha],
                   isExpandedByDefault: true),
             .init(id: .classroom, title: "Classroom",
-                  items: [.supplies, .goingOut, .schedules],
+                  items: [.supplies, .schedules],
                   isExpandedByDefault: false),
             .init(id: .library, title: "Library",
-                  items: [.lessons, .teachingAlbums, .resourceLibrary],
+                  items: [.lessons, .teachingAlbums],
                   isExpandedByDefault: true),
             .init(id: .system, title: "System",
                   items: [.settings],

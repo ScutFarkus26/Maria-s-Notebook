@@ -2,7 +2,7 @@ import SwiftUI
 import CoreData
 
 /// Unified planning calendar — year-at-a-glance grid that overlays:
-///  • CDDayPad (the day's note: the same text as Today's Pad)
+///  • CDDayPad (the day's note, which Claude's day_pad tool reads and writes too)
 ///  • PerpetualHolidays (system holidays)
 ///  • CDCalendarEvent (Mac calendar events synced via EventKit)
 ///  • CDTodoItem due dates

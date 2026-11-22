@@ -5,7 +5,8 @@ import Testing
 /// `AppRouter.hideRows`: when an empty Classroom row leaves the lists, a
 /// window selected on it moves to Today first and only then loses the row,
 /// as Apple's note on a `TabView` whose selection is no longer one of its
-/// tabs asks (round-two Simplify, Phase 2).
+/// tabs asks (round-two Simplify, Phase 2). No row hides since Going Out was
+/// taken out (2026-11-22), so Schedules stands in for one that would.
 @Suite("Hidden rows move the selection first")
 @MainActor
 struct AppRouterHiddenRowTests {
@@ -31,41 +32,40 @@ struct AppRouterHiddenRowTests {
 
     @Test("A selected row that newly hides moves the selection to Today before it goes")
     func newlyHiddenSelectionMovesFirst() {
-        #expect(steps(hidden: [.goingOut], previouslyHidden: [], selection: .goingOut)
-            == [.select(.today), .hide([.goingOut])])
+        #expect(steps(hidden: [.schedules], previouslyHidden: [], selection: .schedules)
+            == [.select(.today), .hide([.schedules])])
     }
 
     @Test("At launch nothing was hidden, so a saved selection on an empty row lands on Today")
     func launchWithSavedSelectionOnEmptyRow() {
-        #expect(steps(hidden: [.goingOut], previouslyHidden: [], selection: .goingOut)
-            == [.select(.today), .hide([.goingOut])])
+        #expect(steps(hidden: [.schedules], previouslyHidden: [], selection: .schedules)
+            == [.select(.today), .hide([.schedules])])
     }
 
     @Test("A retired alias of a hidden row moves too")
     func aliasOfHiddenRowMoves() {
-        // Going Out has no alias since Clubs & Projects left (2026-11-21), so
-        // the rule is checked on Restock and its retired Orders row.
+        // Checked on Restock and its retired Orders row.
         #expect(steps(hidden: [.supplies], previouslyHidden: [], selection: .orders)
             == [.select(.today), .hide([.supplies])])
     }
 
     @Test("A row that was already hidden keeps a window opened onto it on purpose")
     func alreadyHiddenRowStays() {
-        #expect(steps(hidden: [.goingOut], previouslyHidden: [.goingOut], selection: .goingOut)
-            == [.hide([.goingOut])])
+        #expect(steps(hidden: [.schedules], previouslyHidden: [.schedules], selection: .schedules)
+            == [.hide([.schedules])])
     }
 
     @Test("A selection on a row that stays, or on a tab in the bar, doesn't move")
     func otherSelectionsStay() {
-        #expect(steps(hidden: [.goingOut], previouslyHidden: [], selection: .supplies) == [.hide([.goingOut])])
+        #expect(steps(hidden: [.schedules], previouslyHidden: [], selection: .supplies) == [.hide([.schedules])])
         for tab in RootView.NavigationGroup.primaryTabs {
-            #expect(steps(hidden: [.goingOut], previouslyHidden: [], selection: tab)
-                == [.hide([.goingOut])])
+            #expect(steps(hidden: [.schedules], previouslyHidden: [], selection: tab)
+                == [.hide([.schedules])])
         }
     }
 
     @Test("Rows coming back move nothing")
     func rowsShowingAgainMoveNothing() {
-        #expect(steps(hidden: [], previouslyHidden: [.goingOut], selection: .today) == [.hide([])])
+        #expect(steps(hidden: [], previouslyHidden: [.schedules], selection: .today) == [.hide([])])
     }
 }

@@ -4,7 +4,7 @@
 // Today used to render every section it owns whether or not the section had
 // anything in it: the reminders section (retired 2026-11-03) arrived each
 // morning holding forty-one undated Apple Reminders from last year, the day
-// pad announced itself while
+// pad (its card left Today 2026-11-22) announced itself while
 // the pad was empty, the parent-report nudge (taken out 2026-11-21) stayed up
 // for three weeks after the cycle closed. A screen that always looks the same tells the guide
 // nothing, so she stopped reading it.
@@ -39,7 +39,6 @@ enum TodaySection: String, CaseIterable, Sendable {
     case followingPresentations
     case recentNotes
     case calendarEvents
-    case dayPad
     case doneToday
 }
 
@@ -83,15 +82,6 @@ enum TodaySectionVisibility {
     /// The retrospective roll-up (lessons presented, work checked, meetings held).
     static func showsDoneToday(total: Int) -> Bool { total > 0 }
 
-    // MARK: Day pad
-
-    /// The pad shows when it has something written on it, or when the guide
-    /// has deliberately opened it (from the header or the toolbar `+` menu).
-    /// An empty, closed pad is noise on every single day.
-    static func showsDayPad(hasBody: Bool, isExpanded: Bool) -> Bool {
-        hasBody || isExpanded
-    }
-
     // MARK: - Orderings
 
     /// iPhone and iPad, top to bottom: the day's plan first — the lessons,
@@ -99,7 +89,7 @@ enum TodaySectionVisibility {
     /// work gone quiet — then
     /// the Needs-a-lesson card and her todo list, then what she is watching
     /// (ready-for-next, following presentations, observations), then the
-    /// external feeds, then the pad, and last the retrospective.
+    /// external feeds, and last the retrospective.
     ///
     /// There is no Right Now hero any more, on either platform: its Next up
     /// is the Next card at the top of the plan, and its "open work to check"
@@ -120,7 +110,6 @@ enum TodaySectionVisibility {
         .followingPresentations,
         .recentNotes,
         .calendarEvents,
-        .dayPad,
         .doneToday
     ]
 

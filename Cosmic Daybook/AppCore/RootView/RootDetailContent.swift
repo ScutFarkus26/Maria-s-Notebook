@@ -12,7 +12,7 @@ struct RootDetailContent: View {
     #endif
 
     /// The destination actually shown: an aliased case (`.note`, `.logs`,
-    /// `.curriculumMap`, `.stories`…) renders as its target, which opens on the
+    /// `.curriculumMap`, `.parshaCalendar`…) renders as its target, which opens on the
     /// alias's view through `AppRouter.screenLanding`.
     private var item: RootView.NavigationItem { selectedNavItem.canonical }
 
@@ -30,14 +30,14 @@ struct RootDetailContent: View {
             switch item {
             case .today, .attendance:
                 dailyContent
-            case .students, .meetings, .goingOut:
+            case .students, .meetings:
                 studentsContent
             case .lessons, .teachingAlbums, .planningChecklist, .planningAgenda,
                  .smallSequencePlanner:
                 curriculumContent
-            case .todos, .planningCalendar:
-                planningContent
-            case .supplies, .schedules, .resourceLibrary:
+            case .planningCalendar:
+                PlanningCalendarView()
+            case .supplies, .schedules:
                 resourcesContent
             case .notes, .settings:
                 toolsContent
@@ -46,7 +46,8 @@ struct RootDetailContent: View {
             // Aliases: `item` is canonical, so these never get here.
             case .note, .more, .perpetualCalendar, .orders, .logs, .curriculumMap,
                  .progressDashboard, .lessonRecall, .parshaCalendar, .stories, .procedures,
-                 .bookClub, .askAI, .parentReports, .planningProjects, .community:
+                 .resourceLibrary, .goingOut, .bookClub, .askAI, .parentReports, .planningProjects,
+                 .community, .todos:
                 EmptyView()
             }
         }
@@ -63,20 +64,10 @@ struct RootDetailContent: View {
     }
 
     @ViewBuilder
-    private var planningContent: some View {
-        switch item {
-        case .todos: TodoMainView()
-        case .planningCalendar: PlanningCalendarView()
-        default: EmptyView()
-        }
-    }
-
-    @ViewBuilder
     private var studentsContent: some View {
         switch item {
         case .students: StudentsView()
         case .meetings: MeetingsWorkflowView()
-        case .goingOut: GoingOutRootView()
         default: EmptyView()
         }
     }
@@ -98,7 +89,6 @@ struct RootDetailContent: View {
         switch item {
         case .supplies: RestockView()
         case .schedules: SchedulesView()
-        case .resourceLibrary: ResourcesView()
         default: EmptyView()
         }
     }

@@ -27,14 +27,6 @@ struct FeatureScreenMessagesTests {
         #expect(error.errorDescription == "\"The Rhombus\" is already in Geometry › Area. Choose a different name.")
     }
 
-    @Test("Story analysis failures stored on a story are plain sentences")
-    func storyAnalyzerMessages() {
-        #expect(StoryAnalyzerError.timedOut.errorDescription == "This took too long. Try again.")
-        #expect(StoryAnalyzerError.unreadablePDF.errorDescription
-                == "Couldn't open this PDF. Add the details yourself.")
-        #expect(StoryAnalyzerError.aiUnavailable.errorDescription == AppleIntelligenceMessages.notAvailable)
-    }
-
     @Test("Parsha suggestions with no album lessons say what to add")
     func parshaNoLessons() {
         #expect(ParshaSuggestionError.noAlbumLessons.errorDescription

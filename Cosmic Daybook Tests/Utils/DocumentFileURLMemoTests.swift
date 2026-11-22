@@ -157,8 +157,9 @@ struct DocumentFileURLMemoTests {
 
     // MARK: - The resource detail's Share and Print items
 
-    /// `ResourceDetailView.resolvedFileURL` before the change, verbatim but
-    /// for the resource's column, which it read in place.
+    /// The resource detail's `resolvedFileURL` before the change (the detail went
+    /// with Resources on 2026-11-22), verbatim but for the resource's column,
+    /// which it read in place.
     private func oldResourceFile(relativePath: String) -> URL? {
         guard !relativePath.isEmpty else { return nil }
         return try? LibraryFileStorage.resolveResource(relativePath: relativePath)
