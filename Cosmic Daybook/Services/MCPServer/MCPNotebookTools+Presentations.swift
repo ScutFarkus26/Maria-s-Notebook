@@ -221,11 +221,17 @@ extension MCPNotebookTools {
         }
         // Every presentation in the call lands, or none does; a refusal or a
         // failed save undoes only this call's rows.
+        // Every lesson the call records, with its children: a plan for one of
+        // them is being given now, so it doesn't time another lesson's practice.
+        let recordedNow = Dictionary(
+            filings.map { ($0.lessonID, Set($0.studentIDs)) }, uniquingKeysWith: { $0.union($1) }
+        )
         let filed: [FiledPresentation] = try undoingOnFailure(modelContext) { modelContext in
             let filed: [FiledPresentation]
             do {
                 filed = try fileInOrder(
-                    order.map { filings[$0] }, index: index, sequences: sequences, in: modelContext
+                    order.map { filings[$0] }, index: index, sequences: sequences,
+                    recordedNow: recordedNow, in: modelContext
                 )
             } catch let error as MCPToolError {
                 throw error
@@ -263,6 +269,7 @@ extension MCPNotebookTools {
     private static func fileInOrder(
         _ filings: [PresentationFiling], index: PresentationRecordIndex,
         sequences: WorkToShowFirst.Sequences,
+        recordedNow: [UUID: Set<UUID>],
         in modelContext: NSManagedObjectContext
     ) throws -> [FiledPresentation] {
         var filed: [FiledPresentation] = []
@@ -283,7 +290,9 @@ extension MCPNotebookTools {
                 refused.append(resolved)
                 continue
             }
-            filed.append(try write(resolved, index: record, sequences: sequences, in: modelContext))
+            filed.append(try write(
+                resolved, index: record, sequences: sequences, recordedNow: recordedNow, in: modelContext
+            ))
             writtenLessons.insert(lessonID)
         }
         try refuseUnexplainedRepeats(refused)
@@ -296,6 +305,7 @@ extension MCPNotebookTools {
         _ resolved: ResolvedFiling,
         index: PresentationRecordIndex,
         sequences: WorkToShowFirst.Sequences,
+        recordedNow: [UUID: Set<UUID>],
         in modelContext: NSManagedObjectContext
     ) throws -> FiledPresentation {
         let filing = resolved.filing
@@ -320,7 +330,7 @@ extension MCPNotebookTools {
         if !filing.outcomes.isEmpty, let presentationID = assignment.id {
             workCount = try persistOutcomes(
                 filing, assignment: assignment, presentationID: presentationID,
-                sequences: sequences, in: modelContext
+                sequences: sequences, recordedNow: recordedNow, in: modelContext
             )
         }
 

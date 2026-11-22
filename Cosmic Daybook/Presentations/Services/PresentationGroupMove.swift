@@ -120,6 +120,9 @@ enum PresentationGroupMove {
         // as Remove Plan does, so neither the move nor its Undo loses it.
         ChecklistRosterRemoval.keepMasteryMarks(on: source, studentIDs: [studentID], in: context)
         PresentationRecordCleanup.moveStudents([studentID], from: source, to: target, notes: notes, in: context)
+        // She is now planned on the target's day: her earlier practice comes
+        // back before it, as when she is added to any plan.
+        PracticeCheckInTiming.followPlannedLessons([target], in: context)
         guard source.studentIDs.isEmpty else { return false }
         ChecklistRosterRemoval.keepMasteryMarks(on: source, studentIDs: nil, in: context)
         PresentationRecordCleanup.prepareToMerge(source, into: target, in: context)

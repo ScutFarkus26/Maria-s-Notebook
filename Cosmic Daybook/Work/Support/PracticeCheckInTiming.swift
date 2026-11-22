@@ -13,6 +13,12 @@
 //  - A new check-in is never earlier than the next school day after the
 //    lesson, nor earlier than today: a lesson filed a week late still comes
 //    back on a day that is still ahead.
+//  - A plan being recorded in the same call (a chat call that files two
+//    lessons of one sequence) isn't a lesson still to come, so it doesn't
+//    time the earlier lesson's practice.
+//  - Work that already has a check-in keeps it: filing the same lesson again
+//    leaves a check-in moved later by hand where it is, and adds nothing
+//    after a done one. Only new work gets one.
 //  - When a later lesson in the sequence is planned or moved for a child,
 //    and none of her open work's check-ins on an earlier lesson falls by the
 //    school day before it, the earliest one moves there. Only that one moves
@@ -40,11 +46,16 @@ enum PracticeCheckInTiming {
 
     /// The day practice on `lessonID`, given on `givenOn`, is next checked for
     /// each of `studentIDs`.
+    ///
+    /// - Parameter recordedNow: lessons being recorded in the same call, each
+    ///   with the children it is recorded for. A waiting plan for one of them
+    ///   is being given, not still to come, so it times nobody's practice.
     static func checkInDays(
         lessonID: String,
         givenOn: Date,
         studentIDs: Set<UUID>,
         sequences: WorkToShowFirst.Sequences,
+        recordedNow: [UUID: Set<UUID>] = [:],
         in context: NSManagedObjectContext,
         now: Date = Date()
     ) -> [UUID: Date] {
@@ -57,7 +68,8 @@ enum PracticeCheckInTiming {
         )
         let fallback = max(threeSchoolDays(after: given, in: context), floor)
         let nextPlanned = nextPlannedLessonDays(
-            after: lessonID, from: given, for: studentIDs, sequences: sequences, in: context
+            after: lessonID, from: given, for: studentIDs, sequences: sequences,
+            recordedNow: recordedNow, in: context
         )
 
         var days: [UUID: Date] = [:]
@@ -71,11 +83,11 @@ enum PracticeCheckInTiming {
         return days
     }
 
-    /// Puts each child's open work from `presentationID` up for a check on
-    /// her day in `days`: the earliest check-in still scheduled moves there
-    /// when it is later, or one is made when she has none. Filing the same
-    /// presentation again finds the check-in already there and makes no
-    /// second one. Returns how many check-ins it made or moved.
+    /// Gives each child's open work from `presentationID` a check-in on her
+    /// day in `days`, when the work has none yet. Work that already has one,
+    /// scheduled or done, keeps what it has: filing the same presentation
+    /// again leaves a check-in the guide moved where she put it, and adds
+    /// nothing after one already done. Returns how many check-ins it made.
     @discardableResult
     static func scheduleCheckIns(
         forWorkFrom presentationID: UUID,
@@ -83,27 +95,48 @@ enum PracticeCheckInTiming {
         in context: NSManagedObjectContext
     ) -> Int {
         guard !days.isEmpty else { return 0 }
-        let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(format: "presentationID == %@", presentationID.uuidString)
-        let service = WorkCheckInService(context: context)
         var count = 0
-        for work in context.safeFetch(request) where !work.isDeleted && work.status.isOpen {
-            guard let studentID = UUID(uuidString: work.studentID), let day = days[studentID] else { continue }
-            let scheduled = WorkLogService.scheduledCheckIns(of: work, in: context)
-            if let earliest = scheduled.compactMap(\.date).min(),
-               AppCalendar.startOfDay(earliest) <= AppCalendar.startOfDay(day) {
-                continue
-            }
-            if !scheduled.isEmpty {
-                service.scheduleCheck(for: work, on: day)
-            } else {
-                CDWorkCheckIn.make(
-                    for: work, on: day, purpose: CheckInReason.progressCheck.rawValue, in: context
-                )
-            }
+        for work in openWork(from: presentationID, in: context) {
+            guard let studentID = UUID(uuidString: work.studentID), let day = days[studentID],
+                  WorkLogService.checkIns(of: work, in: context).isEmpty else { continue }
+            CDWorkCheckIn.make(for: work, on: day, purpose: CheckInReason.progressCheck.rawValue, in: context)
             count += 1
         }
         return count
+    }
+
+    /// `days`, with each child whose work from `presentationID` already has a
+    /// check-in given the day she is already checked instead: her earliest
+    /// one still scheduled, else her follow-up row's day (nothing when it has
+    /// none). Her follow-up row then keeps the day her check-in kept.
+    static func keepingDaysAlreadySet(
+        _ days: [UUID: Date], forWorkFrom presentationID: UUID, in context: NSManagedObjectContext
+    ) -> [UUID: Date] {
+        var kept = days
+        var rows: [String: CDLessonPresentation]?
+        for work in openWork(from: presentationID, in: context) {
+            guard let studentID = UUID(uuidString: work.studentID), days[studentID] != nil else { continue }
+            let checkIns = WorkLogService.checkIns(of: work, in: context)
+            guard !checkIns.isEmpty else { continue }
+            if let scheduled = checkIns.filter({ $0.status == .scheduled }).compactMap(\.date).min() {
+                kept[studentID] = AppCalendar.startOfDay(scheduled)
+                continue
+            }
+            if rows == nil {
+                rows = Dictionary(
+                    PresentationFollowUpService.rows(for: presentationID, in: context).map { ($0.studentID, $0) },
+                    uniquingKeysWith: { first, _ in first }
+                )
+            }
+            kept[studentID] = rows?[work.studentID]?.followUpReviewAt.map(AppCalendar.startOfDay)
+        }
+        return kept
+    }
+
+    private static func openWork(from presentationID: UUID, in context: NSManagedObjectContext) -> [CDWorkModel] {
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(format: "presentationID == %@", presentationID.uuidString)
+        return context.safeFetch(request).filter { !$0.isDeleted && $0.status.isOpen }
     }
 
     // MARK: - A later lesson planned or moved
@@ -185,12 +218,14 @@ enum PracticeCheckInTiming {
     // MARK: - Reading
 
     /// Each child's next waiting plan, by day, for a lesson later than
-    /// `lessonID` in its sequence and on or after `day`.
+    /// `lessonID` in its sequence and on or after `day`, leaving out a child's
+    /// place on a plan whose lesson `recordedNow` is recording for her.
     static func nextPlannedLessonDays(
         after lessonID: String,
         from day: Date,
         for studentIDs: Set<UUID>,
         sequences: WorkToShowFirst.Sequences,
+        recordedNow: [UUID: Set<UUID>] = [:],
         in context: NSManagedObjectContext
     ) -> [UUID: Date] {
         let later = laterLessonIDs(after: lessonID, in: sequences)
@@ -204,7 +239,9 @@ enum PracticeCheckInTiming {
         for plan in context.safeFetch(request) where !plan.isDeleted && !plan.isGiven {
             guard let scheduled = plan.scheduledFor else { continue }
             let planDay = AppCalendar.startOfDay(scheduled)
-            for studentID in plan.resolvedStudentIDs where studentIDs.contains(studentID) {
+            let beingGiven = recordedNow[plan.resolvedLessonID] ?? []
+            for studentID in plan.resolvedStudentIDs
+            where studentIDs.contains(studentID) && !beingGiven.contains(studentID) {
                 if let held = days[studentID], held <= planDay { continue }
                 days[studentID] = planDay
             }

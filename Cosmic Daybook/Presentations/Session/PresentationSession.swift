@@ -44,7 +44,16 @@ final class PresentationSession {
     /// The Everyone row's choice; each child inherits it unless overridden.
     private(set) var everyone = PresentationChoice(.continueObserving)
     private(set) var overrides: [UUID: PresentationChoice] = [:]
-    var checkIn: PresentationCheckIn = .nextWorkCycle
+    /// The check-in day shown on the sheet. Set it through `pickCheckIn`, so
+    /// a day the guide picks is told from the one the sheet put there.
+    private(set) var checkIn: PresentationCheckIn = .nextWorkCycle
+    /// Each child's day from `PracticeCheckInTiming`, as chat files it, when
+    /// the sheet starts from it (nothing is decided on the record yet). The
+    /// sheet shows the earliest; each child gets her own unless the guide
+    /// picks a day.
+    private(set) var timedCheckIns: [UUID: Date] = [:]
+    /// Whether the guide chose the check-in on the sheet.
+    private(set) var checkInPicked = false
     /// What the follow-up work is, as its title; blank gives "Follow up: <lesson>".
     var followUpDetail = ""
     /// Where the next lesson goes for the newly ready children. Nil until the
@@ -103,6 +112,20 @@ final class PresentationSession {
         overrides = [:]
         followUpDetail = ""
         nextLessonPlace = nil
+        checkInPicked = false
+        timedCheckIns = [:]
+    }
+
+    /// A check-in day the guide chose on the sheet: it wins over the timed one.
+    func pickCheckIn(_ choice: PresentationCheckIn) {
+        checkIn = choice
+        checkInPicked = true
+    }
+
+    /// The days Done gives the work-giving children: each one's timed day,
+    /// unless the guide picked a day (then `checkIn` is everyone's).
+    var checkInDaysForDone: [UUID: Date] {
+        checkInPicked ? [:] : timedCheckIns
     }
 
     func showWho() {
@@ -225,6 +248,7 @@ final class PresentationSession {
             decisions: pendingDecisions(for: studentIDs),
             allDecisions: decisions(for: studentIDs),
             checkIn: checkIn,
+            timedCheckIns: checkInDaysForDone,
             lessons: lessons,
             followUpDetail: followUpDetail,
             alsoReady: newlyAlsoReady(for: studentIDs),
@@ -238,11 +262,17 @@ final class PresentationSession {
     /// Reads what the children already have and restores a Later draft, so a
     /// presentation reopened from Following shows where it was left.
     ///
-    /// - Parameter defaultDecision: the lesson's own rule — practice when its
-    ///   progression rules require it, otherwise keep watching.
+    /// - Parameters:
+    ///   - defaultDecision: the lesson's own rule — practice when its
+    ///     progression rules require it, otherwise keep watching.
+    ///   - timedCheckIns: each child's check-in day from
+    ///     `PracticeCheckInTiming.checkInDays`. The sheet starts from them
+    ///     when the record has no check-in day and no work yet; a Later draft
+    ///     or a record already decided keeps its own day.
     func loadDecisions(
         studentIDs: [UUID],
         defaultDecision: CaptureFollowUp,
+        timedCheckIns timing: [UUID: Date] = [:],
         context: NSManagedObjectContext,
         defaults: UserDefaults = .standard
     ) {
@@ -250,6 +280,8 @@ final class PresentationSession {
         applied = records.choices
         loadedCheckIn = records.checkIn
         checkIn = records.checkIn
+        checkInPicked = false
+        timedCheckIns = [:]
 
         if let draft = PresentationSessionDraftStore.load(presentationID: presentationID, defaults: defaults) {
             everyone = PresentationChoice(rawValue: draft.everyone) ?? PresentationChoice(defaultDecision)
@@ -267,6 +299,17 @@ final class PresentationSession {
                 nextLessonPlace = draft.nextLessonPlace
             }
             return
+        }
+
+        // Nothing decided yet: practice comes back on the day chat would give
+        // it, unless the guide picks another. A record already decided keeps
+        // its day, so reopening it moves nothing nobody touched.
+        let timed = timing.filter { studentIDs.contains($0.key) }
+        if records.checkIn == .nextWorkCycle, !records.decisions.values.contains(where: \.createsWork),
+           let earliest = timed.values.min() {
+            timedCheckIns = timed.mapValues(AppCalendar.startOfDay)
+            checkIn = PresentationCheckIn(day: earliest)
+            loadedCheckIn = checkIn
         }
 
         let watching = PresentationChoice(.continueObserving)
@@ -302,65 +345,5 @@ final class PresentationSession {
     func clearNotes() {
         groupNote = ""
         childNotes = [:]
-    }
-
-    // MARK: - Reading the records
-
-    struct AppliedState: Equatable {
-        var decisions: [UUID: CaptureFollowUp]
-        /// Children with open work who are also confirmed ready for the next lesson.
-        var alsoReady: Set<UUID> = []
-        var checkIn: PresentationCheckIn
-
-        var choices: [UUID: PresentationChoice] {
-            decisions.reduce(into: [:]) { choices, entry in
-                choices[entry.key] = PresentationChoice(entry.value, alsoReady: alsoReady.contains(entry.key))
-            }
-        }
-    }
-
-    /// Each child's standing decision, read from her follow-up row and the work
-    /// this presentation gave her: a resolved re-present or next-lesson row,
-    /// open practice or follow-up work (ready as well when the presentation
-    /// confirms her), and otherwise keep watching.
-    static func appliedState(presentationID: UUID, in context: NSManagedObjectContext) -> AppliedState {
-        let rows = PresentationFollowUpService.rows(for: presentationID, in: context)
-        let workRequest = CDFetchRequest(CDWorkModel.self)
-        workRequest.predicate = NSPredicate(format: "presentationID == %@", presentationID.uuidString)
-        let openWork = context.safeFetch(workRequest).filter { $0.status.isOpen }
-        let workByStudent = Dictionary(grouping: openWork, by: \.studentID)
-
-        var decisions: [UUID: CaptureFollowUp] = [:]
-        var checkInDay: Date?
-        for row in rows {
-            guard let studentID = UUID(uuidString: row.studentID) else { continue }
-            if row.followUpResolvedAt != nil, let resolution = row.followUpResolution {
-                switch resolution {
-                case .supportOrRepresent: decisions[studentID] = .represent
-                case .readyForNextPresentation: decisions[studentID] = .readyForNextLesson
-                case .continueIndependentWork, .noFurtherFollowUp: decisions[studentID] = .continueObserving
-                }
-                continue
-            }
-            let kinds = Set((workByStudent[row.studentID] ?? []).compactMap(\.kind))
-            if kinds.contains(.practiceLesson) {
-                decisions[studentID] = .practice
-            } else if kinds.contains(.followUpAssignment) {
-                decisions[studentID] = .followUpWork
-            } else {
-                decisions[studentID] = .continueObserving
-            }
-            if checkInDay == nil, row.hasOpenFollowUp, row.followUpAction == .checkWork {
-                checkInDay = row.followUpReviewAt
-            }
-        }
-        let assignmentRequest = CDFetchRequest(CDLessonAssignment.self)
-        assignmentRequest.predicate = NSPredicate(format: "id == %@", presentationID as CVarArg)
-        assignmentRequest.fetchLimit = 1
-        let assignment = context.safeFetch(assignmentRequest).first
-        let alsoReady = Set(decisions.keys.filter { id in
-            decisions[id]?.createsWork == true && assignment?.isStudentConfirmed(id) == true
-        })
-        return AppliedState(decisions: decisions, alsoReady: alsoReady, checkIn: PresentationCheckIn(day: checkInDay))
     }
 }

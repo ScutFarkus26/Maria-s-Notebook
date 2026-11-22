@@ -8,7 +8,9 @@
 //  as "planned" for days with nothing pointing at them.
 //
 //  Day by day it lists the plans not given, with each child's open-practice
-//  line; the quick notes still tagged "to fill in"; and days with an all-day
+//  line; the quick notes still tagged "to fill in" (and, after the days, any
+//  written before them, or whose lesson was discarded, until each is filled
+//  in or deleted); and days with an all-day
 //  "No School" event that the school calendar still counts as in session (the
 //  app's school-day rule doesn't read calendar events, so it says which call
 //  fixes the day). It closes with the calls that settle each item.
@@ -98,7 +100,9 @@ extension MCPNotebookTools {
         }
 
         let plans = unrecordedPlans(from: start, before: after, in: modelContext)
-        let notes = QuickNote.waiting(from: start, before: after, in: modelContext)
+        let waiting = QuickNote.waiting(before: after, in: modelContext)
+        let earlier = waiting.filter { ($0.createdAt ?? .distantPast) < start }
+        let notes = waiting.filter { ($0.createdAt ?? .distantPast) >= start }
         let open = days.map { day in
             OpenDay(
                 day: day,
@@ -108,7 +112,7 @@ extension MCPNotebookTools {
             )
         }.filter { !$0.isEmpty }
 
-        guard !open.isEmpty else {
+        guard !open.isEmpty || !earlier.isEmpty else {
             return "Nothing is open between \(dayString(start)) and \(dayString(last)): every planned "
                 + "lesson is recorded and no quick note is waiting."
         }
@@ -116,7 +120,10 @@ extension MCPNotebookTools {
         let sequences = WorkToShowFirst.Sequences(lessons: DataQueryService(context: modelContext).fetchAllLessons())
         var sections = ["Still open from \(dayString(start)) through \(dayString(last)):"]
         sections += open.map { describe($0, sequences: sequences, in: modelContext) }
-        sections.append(settlingCalls(open))
+        if !earlier.isEmpty {
+            sections.append(describeEarlier(earlier, before: start, in: modelContext))
+        }
+        sections.append(settlingCalls(open, earlierNotes: !earlier.isEmpty))
         if span > maximumScheduleDays {
             sections.append("(Range truncated to \(maximumScheduleDays) days.)")
         }
@@ -177,7 +184,22 @@ extension MCPNotebookTools {
         return lines.joined(separator: "\n")
     }
 
+    /// Quick notes written before the days listed, or left by a discarded
+    /// lesson, each with the day it was written.
+    private static func describeEarlier(
+        _ notes: [CDNote], before start: Date, in modelContext: NSManagedObjectContext
+    ) -> String {
+        var lines = ["Quick notes from before \(dayString(start)) still to fill in:"]
+        for note in notes {
+            let written = note.createdAt.map { ", written \(dayString($0))" } ?? ""
+            lines.append("    - [note id=\(citationID(note.id))] \"\(note.body.trimmed())\""
+                + "\(noteContext(note, in: modelContext))\(written)")
+        }
+        return lines.joined(separator: "\n")
+    }
+
     /// " — Ora L, Maya S (Golden Beads)": who the note is about and its lesson.
+    /// A note whose lesson was discarded names the lesson from the library.
     private static func noteContext(_ note: CDNote, in modelContext: NSManagedObjectContext) -> String {
         let who: String = switch note.scope {
         case .all: "the class"
@@ -185,11 +207,13 @@ extension MCPNotebookTools {
         case .students(let ids): shortNames(ids, in: modelContext)
         }
         let lesson = note.lessonAssignment.flatMap { nonEmpty($0.lessonTitleSnapshot) ?? $0.lesson?.name }
+            ?? note.lessonID.flatMap(UUID.init(uuidString:))
+                .flatMap { modelContext.object(CDLesson.self, id: $0)?.name }
         return " — \(who)" + (lesson.map { " (\($0))" } ?? "")
     }
 
     /// The calls that settle what was listed.
-    private static func settlingCalls(_ open: [OpenDay]) -> String {
+    private static func settlingCalls(_ open: [OpenDay], earlierNotes: Bool) -> String {
         var lines = ["To settle these:"]
         if open.contains(where: { !$0.plans.isEmpty }) {
             lines.append("- Given: record_presentation with planned_presentation_id and student_names (who was "
@@ -197,7 +221,7 @@ extension MCPNotebookTools {
             lines.append("- Moved: reschedule_presentation with presentation_id and the new date.")
             lines.append("- Not given and not wanted: discard_presentation with presentation_id and confirm: true.")
         }
-        if open.contains(where: { !$0.notes.isEmpty }) {
+        if earlierNotes || open.contains(where: { !$0.notes.isEmpty }) {
             lines.append("- A quick note: update_observation with note_id and the fuller body (that takes "
                 + "the \"\(QuickNote.tagName)\" tag off).")
         }

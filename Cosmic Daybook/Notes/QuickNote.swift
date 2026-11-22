@@ -43,8 +43,8 @@ enum QuickNote {
     }
 
     /// Files a quick note on `presentation`, about `students` (the
-    /// presentation's children when empty), dated the day it was given, or
-    /// now while it hasn't been. Saves.
+    /// presentation's children when empty), stamped the moment it was
+    /// written; on the day it was given when that was another day. Saves.
     ///
     /// - Returns: the note, or nil when `text` is empty or the save failed
     ///   (the note is taken back then).
@@ -78,7 +78,7 @@ enum QuickNote {
         let chosen = (students.isEmpty ? presentation.resolvedStudentIDs : students).filter { seen.insert($0).inserted }
         let note = CDNote(context: context)
         note.body = body
-        note.createdAt = presentation.presentedAt ?? now
+        note.createdAt = stamp(given: presentation.presentedAt, now: now)
         switch chosen.count {
         case 0: note.scope = .all
         case 1: note.scope = .student(chosen[0])
@@ -91,17 +91,44 @@ enum QuickNote {
         return note
     }
 
-    /// The quick notes still waiting, written on or after `start` and before
-    /// `end`, oldest first. Tags are transformable and can't be asked for in a
-    /// predicate, so the fetch is held to notes on a presentation in the span
-    /// and the tag is read from each.
-    static func waiting(from start: Date, before end: Date, in context: NSManagedObjectContext) -> [CDNote] {
+    /// When a note written at `now` about a lesson given at `given` is
+    /// stamped: `now`, or, for a lesson given on another day, that day at
+    /// `now`'s time of day. A recorded lesson's day is midnight, and a note
+    /// stamped with it sorted first in its day.
+    static func stamp(given: Date?, now: Date) -> Date {
+        guard let given, !AppCalendar.isSameDay(given, now) else { return now }
+        let calendar = AppCalendar.shared
+        let time = calendar.dateComponents([.hour, .minute, .second], from: now)
+        return calendar.date(
+            bySettingHour: time.hour ?? 0, minute: time.minute ?? 0, second: time.second ?? 0, of: given
+        ) ?? given
+    }
+
+    /// The quick notes still waiting, written before `end`, oldest first. A
+    /// note stays until it is filled in or deleted, however old, and also
+    /// once its lesson was discarded (`keep(from:)` leaves it on the lesson
+    /// alone). Tags are transformable and can't be asked for in a predicate,
+    /// so the fetch is held to notes on a lesson and the tag is read from each.
+    static func waiting(before end: Date, in context: NSManagedObjectContext) -> [CDNote] {
         let request = CDFetchRequest(CDNote.self)
         request.predicate = NSPredicate(
-            format: "lessonAssignment != nil AND createdAt >= %@ AND createdAt < %@",
-            start as NSDate, end as NSDate
+            format: "(lessonAssignment != nil OR lessonID != nil) AND createdAt < %@", end as NSDate
         )
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: true)]
+        request.fetchBatchSize = 200
         return context.safeFetch(request).filter(isWaiting)
+    }
+
+    /// Takes the quick notes still to fill in off `presentation` before it is
+    /// deleted, so they don't go with it (its notes cascade). Each keeps its
+    /// lesson and children and stays on the end-of-day list. Returns how many.
+    @discardableResult
+    static func keep(from presentation: CDLessonAssignment) -> Int {
+        let waiting = ((presentation.unifiedNotes as? Set<CDNote>) ?? []).filter(isWaiting)
+        for note in waiting {
+            if (note.lessonID ?? "").isEmpty { note.lessonID = presentation.lessonID }
+            note.lessonAssignment = nil
+        }
+        return waiting.count
     }
 }

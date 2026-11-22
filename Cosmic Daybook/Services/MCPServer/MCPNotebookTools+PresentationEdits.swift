@@ -72,11 +72,21 @@ extension MCPNotebookTools {
     ) throws -> String {
         let assignment = try resolvePlannedPresentation(requireString(arguments, "presentation_id"), in: modelContext)
         let id: String = assignment.id?.uuidString ?? "unknown"
-        let notes: Int = assignment.unifiedNotes?.count ?? 0
+        let allNotes = (assignment.unifiedNotes as? Set<CDNote>) ?? []
+        let quickNotes = allNotes.filter(QuickNote.isWaiting).count
+        let notes = allNotes.filter { !$0.isDeleted }.count - quickNotes
         let promoted = promotedYearPlanEntries(for: assignment, in: modelContext)
 
         var report: [String] = ["[presentation id=\(id)] \(presentationSummary(assignment, in: modelContext))"]
-        report.append(notes == 0 ? "No notes are written on it." : "\(notes) note(s) written on it would go with it.")
+        if notes > 0 {
+            report.append("\(notes) note(s) written on it would go with it.")
+        } else if quickNotes == 0 {
+            report.append("No notes are written on it.")
+        }
+        if quickNotes > 0 {
+            // Kept until filled in or deleted (`QuickNote.keep(from:)`).
+            report.append("\(quickNotes) quick note(s) still to fill in would stay, on the end-of-day list.")
+        }
         if !promoted.isEmpty {
             report.append("\(promoted.count) year-plan entr\(promoted.count == 1 ? "y" : "ies") promoted into it "
                 + "would return to planned.")
@@ -88,6 +98,7 @@ extension MCPNotebookTools {
                 + "Re-call with confirm: true to delete it.\n\n" + report.joined(separator: "\n")
         }
 
+        QuickNote.keep(from: assignment)
         PresentationRecordCleanup.prepareToDelete(assignment, in: modelContext)
         modelContext.delete(assignment)
         guard modelContext.safeSave() else {

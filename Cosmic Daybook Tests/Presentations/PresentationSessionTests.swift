@@ -78,7 +78,7 @@ struct PresentationSessionTests {
         let first = PresentationSession(presentationID: presentationID)
         first.setEveryone(.practice)
         first.setDecision(.represent, for: ben)
-        first.checkIn = .on(monday)
+        first.pickCheckIn(.on(monday))
         first.followUpDetail = "Draw three pairs of lines"
         PresentationSessionDraftStore.save(first.draft, presentationID: presentationID, defaults: defaults)
 

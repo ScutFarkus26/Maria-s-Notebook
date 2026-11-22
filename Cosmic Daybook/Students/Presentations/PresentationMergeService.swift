@@ -45,6 +45,9 @@ enum PresentationMergeService {
         // target first.
         PresentationRecordCleanup.prepareToMerge(source, into: target, in: context)
         context.delete(source)
+        // The source's children are now planned on the target's day: earlier
+        // practice of theirs comes back before it, as for any plan.
+        PracticeCheckInTiming.followPlannedLessons([target], in: context)
         context.safeSave()
         PresentationDetailUtilities.notifyInboxRefresh()
         toastService.showSuccess("Presentations merged")

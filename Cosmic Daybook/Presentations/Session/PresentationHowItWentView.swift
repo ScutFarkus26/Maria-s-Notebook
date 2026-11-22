@@ -278,14 +278,14 @@ private extension PresentationHowItWentView {
                 title: "Next work cycle",
                 look: session.checkIn == .nextWorkCycle ? .chosen : .plain
             ) {
-                session.checkIn = .nextWorkCycle
+                session.pickCheckIn(.nextWorkCycle)
             }
             if let nextSchoolDay {
                 PresentationDecisionChip(
                     title: nextSchoolDay.formatted(.dateTime.weekday(.wide)),
                     look: session.checkIn.day == AppCalendar.startOfDay(nextSchoolDay) ? .chosen : .plain
                 ) {
-                    session.checkIn = .on(nextSchoolDay)
+                    session.pickCheckIn(.on(nextSchoolDay))
                 }
             }
             if let custom = session.checkIn.day, custom != nextSchoolDay.map(AppCalendar.startOfDay) {
@@ -312,7 +312,7 @@ private extension PresentationHowItWentView {
                     .datePickerStyle(.graphical)
                     .labelsHidden()
                     Button("Check on This Day") {
-                        session.checkIn = .on(pickedDay)
+                        session.pickCheckIn(.on(pickedDay))
                         showDatePicker = false
                     }
                     .buttonStyle(.borderedProminent)

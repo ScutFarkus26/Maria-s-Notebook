@@ -25,6 +25,10 @@ enum PresentationSessionCommit {
         /// Every child's decision, for the check-in date on work-giving ones.
         let allDecisions: [UUID: CaptureFollowUp]
         let checkIn: PresentationCheckIn
+        /// Each work-giving child's own check-in day, from practice timing,
+        /// when the guide didn't pick one; `checkIn` is the day for anyone
+        /// not in it.
+        var timedCheckIns: [UUID: Date] = [:]
         /// The catalog, for the next lesson in the sequence.
         let lessons: [CDLesson]
         /// The new follow-up work's title; blank gives "Follow up: <lesson>".
@@ -37,6 +41,11 @@ enum PresentationSessionCommit {
         /// Where the next lesson goes for the newly ready children. Nil leaves
         /// it to the year plan: its day if it has one, otherwise the Inbox.
         var nextLessonPlace: PresentationNextLessonPlace?
+
+        /// The day `studentID`'s work comes back: her timed day, else the sheet's.
+        func checkInDay(for studentID: UUID) -> Date? {
+            timedCheckIns[studentID].map(AppCalendar.startOfDay) ?? checkIn.day
+        }
     }
 
     struct Receipt: Equatable {
@@ -157,19 +166,23 @@ enum PresentationSessionCommit {
                 followUpDetail: decision == .followUpWork ? input.followUpDetail : ""
             )
         }
-        receipt.workCount = try CaptureFollowUpPersistence.persist(
-            entries,
-            assignment: input.assignment,
-            lesson: input.lesson,
-            persistence: CapturePersistenceContext(
-                lessonID: lessonID,
-                lessonName: input.lesson.name,
-                presentationID: presentationID,
-                context: context
-            ),
-            reviewAt: input.checkIn.day,
-            now: now
+        let persistence = CapturePersistenceContext(
+            lessonID: lessonID,
+            lessonName: input.lesson.name,
+            presentationID: presentationID,
+            context: context
         )
+        // One pass per check-in day: each child's follow-up row carries hers.
+        for (day, dayEntries) in Dictionary(grouping: entries, by: { input.checkInDay(for: $0.studentID) }) {
+            receipt.workCount += try CaptureFollowUpPersistence.persist(
+                dayEntries,
+                assignment: input.assignment,
+                lesson: input.lesson,
+                persistence: persistence,
+                reviewAt: day,
+                now: now
+            )
+        }
 
         // Ready alongside work: confirmed as Ready for next confirms her; her
         // row stays open for the work.
@@ -207,20 +220,21 @@ enum PresentationSessionCommit {
             let changed = input.decisions[studentID] != nil
             let redate = !changed && decision.createsWork && row.hasOpenFollowUp
             guard redate || (changed && decision == .none) else { continue }
-            CaptureFollowUpPersistence.writeFollowUpRow(decision, to: row, reviewAt: input.checkIn.day, now: now)
+            CaptureFollowUpPersistence.writeFollowUpRow(
+                decision, to: row, reviewAt: input.checkInDay(for: studentID), now: now
+            )
         }
     }
 
-    /// Puts a check-in on the chosen day on each work-giving child's open work
-    /// from this presentation, moving one already scheduled rather than adding
-    /// a second.
+    /// Puts a check-in on each work-giving child's day (`Input.checkInDay`)
+    /// on her open work from this presentation, moving one already scheduled
+    /// rather than adding a second.
     private static func scheduleCheckIns(
         _ input: Input,
         presentationID: UUID,
         skipping leftBehind: Set<NSManagedObjectID>,
         context: NSManagedObjectContext
     ) throws -> Int {
-        guard let day = input.checkIn.day else { return 0 }
         let studentIDs = Set(input.studentIDs.filter { input.allDecisions[$0]?.createsWork == true }.map(\.uuidString))
         guard !studentIDs.isEmpty else { return 0 }
 
@@ -233,6 +247,8 @@ enum PresentationSessionCommit {
         let service = WorkCheckInService(context: context)
         var count = 0
         for work in works {
+            guard let studentID = UUID(uuidString: work.studentID),
+                  let day = input.checkInDay(for: studentID) else { continue }
             let scheduled = WorkDeletionService.checkIns(of: work, in: context)
                 .filter { $0.status == .scheduled && !$0.isDeleted }
             if scheduled.contains(where: { AppCalendar.shared.isDate($0.date ?? .distantPast, inSameDayAs: day) }) {

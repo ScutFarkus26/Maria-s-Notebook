@@ -106,6 +106,13 @@ extension MCPNotebookTools {
         } else if let split = PresentationSplitService.splitReadyStudents(
             from: plan, readyStudentIDs: present, asDraft: true, context: modelContext
         ) {
+            // A quick note was written at the lesson, so it goes with the
+            // lesson given, even one about the whole group; one about only
+            // children who weren't there stays on the plan. (The split itself
+            // keeps a group's notes on the plan, as the in-app split wants.)
+            PresentationRecordCleanup.moveNotes(
+                from: plan, to: split, only: quickNotes(on: plan, about: Set(present))
+            )
             assignment = split
         } else {
             return nil
@@ -125,6 +132,19 @@ extension MCPNotebookTools {
         return ResolvedFiling(filing: filing, assignment: assignment, origin: .plannedLesson, conflicts: conflicts)
     }
 
+    /// The quick notes still to fill in on `plan` that are about the class
+    /// or about any of `present`.
+    private static func quickNotes(on plan: CDLessonAssignment, about present: Set<UUID>) -> [CDNote] {
+        ((plan.unifiedNotes as? Set<CDNote>) ?? []).filter { note in
+            guard QuickNote.isWaiting(note) else { return false }
+            switch note.scope {
+            case .all: return true
+            case .student(let id): return present.contains(id)
+            case .students(let ids): return !present.isDisjoint(with: ids)
+            }
+        }
+    }
+
     // MARK: - Practice coming back
 
     /// The guide's decisions, with each work-giving child's check-in on the
@@ -135,12 +155,18 @@ extension MCPNotebookTools {
         assignment: CDLessonAssignment,
         presentationID: UUID,
         sequences: WorkToShowFirst.Sequences,
+        recordedNow: [UUID: Set<UUID>] = [:],
         in modelContext: NSManagedObjectContext
     ) throws -> Int {
         let working = Set(filing.outcomes.filter { $0.followUp.createsWork }.map(\.studentID))
-        let days = working.isEmpty ? [:] : PracticeCheckInTiming.checkInDays(
+        let timed = working.isEmpty ? [:] : PracticeCheckInTiming.checkInDays(
             lessonID: filing.lessonID.uuidString, givenOn: filing.presentedAt, studentIDs: working,
-            sequences: sequences, in: modelContext
+            sequences: sequences, recordedNow: recordedNow, in: modelContext
+        )
+        // Filed again: work that already has a check-in keeps its day, and
+        // so does her follow-up row.
+        let days = PracticeCheckInTiming.keepingDaysAlreadySet(
+            timed, forWorkFrom: presentationID, in: modelContext
         )
         let persistence = CapturePersistenceContext(
             lessonID: filing.lessonID,

@@ -138,23 +138,28 @@ struct ScheduleParshaLessonSheet: View {
             return selectedStudentIDs.contains(id)
         }
 
-        if includeDate {
-            _ = PresentationFactory.makeScheduled(
-                lesson: lesson,
-                students: students,
-                scheduledFor: scheduleDate,
-                context: viewContext
-            )
-        } else {
-            _ = PresentationFactory.makeDraft(
-                lesson: lesson,
-                students: students,
-                context: viewContext
-            )
-        }
-
+        Self.addPlan(
+            lesson: lesson, students: students, scheduledFor: includeDate ? scheduleDate : nil, context: viewContext
+        )
         saveCoordinator.save(viewContext, reason: "Schedule parsha lesson")
         onDone()
         dismiss()
+    }
+
+    /// The plan the sheet adds: on `day`, or in the Inbox without one. A plan
+    /// on a day brings the children's earlier practice in the sequence back
+    /// before it, as any plan does. Doesn't save.
+    @discardableResult
+    static func addPlan(
+        lesson: CDLesson, students: [CDStudent], scheduledFor day: Date?, context: NSManagedObjectContext
+    ) -> CDLessonAssignment {
+        guard let day else {
+            return PresentationFactory.makeDraft(lesson: lesson, students: students, context: context)
+        }
+        let plan = PresentationFactory.makeScheduled(
+            lesson: lesson, students: students, scheduledFor: day, context: context
+        )
+        PracticeCheckInTiming.followPlannedLessons([plan], in: context)
+        return plan
     }
 }

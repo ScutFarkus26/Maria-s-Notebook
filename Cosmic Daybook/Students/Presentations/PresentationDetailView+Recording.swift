@@ -289,9 +289,13 @@ extension PresentationDetailContentView {
         // Back from Edit Details, the decisions she made are still hers.
         if !session.hasOpenedHowItWent {
             let rules = LessonProgressionRules.resolve(for: lesson, context: viewContext)
+            let ids = recordedStudentIDs
             session.loadDecisions(
-                studentIDs: recordedStudentIDs,
+                studentIDs: ids,
                 defaultDecision: rules.requiresPractice ? .practice : .continueObserving,
+                timedCheckIns: PresentationSession.timedCheckInDays(
+                    lesson: lesson, givenOn: vm.givenAt, studentIDs: ids, lessons: lessons, context: viewContext
+                ),
                 context: viewContext
             )
         }
