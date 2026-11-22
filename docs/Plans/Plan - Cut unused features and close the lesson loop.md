@@ -98,7 +98,7 @@ About $150–265 in all: the phases $120–220, the conductor $30–45 (this pla
 - Kept in `Models/`, now unused: the project year-overlap rule, the matching Book Club rule, and the `LibraryFileStorage.packets` folder name (the storage tests check it). Only the packet import went.
 - The Claude tool count's test range moved from 58–64 to 50–58 (56 now). The Progress tab's empty state reads "No open reports or lessons in progress." The removed project-work service's tests went with it.
 - Two whole-suite failures left by cut 1 were fixed in 87cc322e9; reverting cut 1 alone means reverting that commit too.
-- `Scripts/locked_xcodebuild.sh` returns 0 even when the build fails, so a test run can use an old build. Later phases check the log, not the exit code.
+- Phase 1 saw a build report success when it had failed, so a test run used an old build. The script itself passes on xcodebuild's own exit code; piping its output (`| tail`, `| tee`) without `pipefail` hides it. Later phases check the log's `** BUILD SUCCEEDED **` / `** TEST SUCCEEDED **` line, not only the exit code.
 
 ## Apple guidance
 
