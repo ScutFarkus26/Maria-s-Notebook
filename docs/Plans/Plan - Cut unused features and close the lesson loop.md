@@ -34,7 +34,7 @@ Marks: `plan/cuts-loop` (each phase tags the primary checkout `plan/cuts-loop/ph
 The last version with every feature in it is the tag `retired/2026-11-cuts`: at the go-ahead the conductor fast-forwards main to this plan's commit and tags it there, before Phase 1 starts.
 
 - [x] Phase 1: Cut Parent Reports, recall checks, Projects and Book Club, Community topics, Issues · done 2026-11-22 (30bf2e6f6) · session 4dd54666-95a3-4afb-bf9e-24b4020d48ea · actual $21.29 (~1%)
-- [ ] Phase 2: Cut Resources, Stories, Procedures, Going Out, Today's pad card, custom templates, the To-dos screen · runs as: session · needs: 1 · est. $30–50 (~1–2%)
+- [x] Phase 2: Cut Resources, Stories, Procedures, Going Out, Today's pad card, custom templates, the To-dos screen · done 2026-11-22 (87658f085) · session eb7e5815-b7fa-4eef-8167-2585f7885f15 · actual $15.71 (~1%)
 - [ ] Phase 3: The lesson loop in chat (services and Claude tools) · runs as: session · needs: 2 · est. $15–30 (~1%)
 - [ ] Phase 4: The lesson loop on the Mac (screens) and ways into Groups · runs as: session · needs: 3 · est. $20–35 (~1–2%)
 - [ ] Phase 5: A Tide note for each cut feature, and four Tide rows · runs as: session (Sonnet, high) · needs: 2 · est. $4–10 (<1%) ← runs beside 3 and 4
@@ -99,6 +99,14 @@ About $150–265 in all: the phases $120–220, the conductor $30–45 (this pla
 - The Claude tool count's test range moved from 58–64 to 50–58 (56 now). The Progress tab's empty state reads "No open reports or lessons in progress." The removed project-work service's tests went with it.
 - Two whole-suite failures left by cut 1 were fixed in 87cc322e9; reverting cut 1 alone means reverting that commit too.
 - Phase 1 saw a build report success when it had failed, so a test run used an old build. The script itself passes on xcodebuild's own exit code; piping its output (`| tail`, `| tee`) without `pipefail` hides it. Later phases check the log's `** BUILD SUCCEEDED **` / `** TEST SUCCEEDED **` line, not only the exit code.
+
+**Decided in Phase 2** (each has a Tide Review choices row):
+- A window last left on Settings › Templates opens on School Year.
+- Meetings use only the built-in prompts; a hand-made template stays in the notebook but isn't shown.
+- The rule that hides an empty sidebar row stays, though no row uses it now. `TodoScheduling` stays, unused. `TodoWhenPopover` stays: the to-do forms use its schedule picker.
+- The to-do editor gained Delete To-do (the only way to delete one now).
+- Removed as unused: the lesson link picker and `LessonFilesSectionTests`, the status pill's compact size, and the test files `SmallerFeaturesFix1010J1Tests` and `TemplateFix1017St`.
+- ⌘7 → Groups went into the To-dos commit. The Mac wasn't rebuilt at Phase 2's tip (Phase 6's full builds cover it).
 
 ## Apple guidance
 
