@@ -3,7 +3,7 @@ import Foundation
 import OSLog
 
 /// Renders the JPEG thumbnail of a PDF's first page that the Resources
-/// screen's cards show, for stories, book club packets and resource files alike.
+/// screen's cards show, for stories and resource files alike.
 enum LibraryThumbnailGenerator {
     private static let logger = Logger.resources
     private static let thumbnailSize = CGSize(width: 240, height: 320)

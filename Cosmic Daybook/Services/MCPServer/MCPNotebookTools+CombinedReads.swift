@@ -48,12 +48,11 @@ extension MCPNotebookTools {
         combinedReadTool(
             name: "class_progress", title: "Class Progress",
             intro: "Class-wide lists of who needs what next. pending reads the year plan, ready and "
-                + "mastery_candidates read the presentation record, recall reads the spaced re-checks, "
+                + "mastery_candidates read the presentation record, "
                 + "missing_observations reads the gaps in what was written down.",
             views: [("pending", studentsPendingTool(context: context)),
                     ("ready", studentsReadyTool(context: context)),
                     ("mastery_candidates", masteryCandidatesTool(context: context)),
-                    ("recall", recallChecksTool(context: context)),
                     ("missing_observations", presentationsMissingObservationsTool(context: context))]
         )
     }
@@ -69,13 +68,14 @@ extension MCPNotebookTools {
         )
     }
 
-    /// Guardians on file, and the letters and reports sent home to them.
+    /// Guardians on file. The letters home (`communications`) went with
+    /// Parent Reports (2026-11-21); the records stay.
     static func familiesTool(context: @escaping MCPContextProvider) -> MCPToolDefinition {
         combinedReadTool(
             name: "families", title: "Families",
-            intro: "The children's families: who the guardians are, and what has been written home.",
-            views: [("guardians", listGuardiansTool(context: context)),
-                    ("communications", parentCommunicationsTool(context: context))]
+            intro: "The children's families: who the guardians are. Without view you get the guardians.",
+            defaultView: "guardians",
+            views: [("guardians", listGuardiansTool(context: context))]
         )
     }
 

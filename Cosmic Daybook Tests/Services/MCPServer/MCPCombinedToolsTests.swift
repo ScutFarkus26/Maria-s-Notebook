@@ -81,7 +81,7 @@ struct MCPCombinedToolsTests {
     @Test("A tool with a view names the views it has when none or a wrong one is asked for")
     func viewIsRequiredWhereThereIsNoDefault() async throws {
         let (tools, _) = try makeTools()
-        for name in ["class_progress", "albums", "families", "notebook_status"] {
+        for name in ["class_progress", "albums", "notebook_status"] {
             let combined = try tool(named: name, in: tools)
             for arguments: [String: JSONValue] in [[:], ["view": "nonsense"]] {
                 do {
@@ -107,6 +107,12 @@ struct MCPCombinedToolsTests {
         #expect(roster.contains("Maya Soto"))
         let snapshot = try await tool(named: "list_students", in: tools).handler(["view": "snapshot"])
         #expect(snapshot.contains("=== CLASSROOM SNAPSHOT ==="))
+
+        // families kept one view, guardians, when the letters home went
+        // with Parent Reports (2026-11-21), so it needs no view.
+        let families = try tool(named: "families", in: tools)
+        #expect((families.inputSchema.objectValue?["required"]) == nil)
+        _ = try await families.handler([:])
 
         let todos = try tool(named: "list_todos", in: tools)
         let views = try #require(todos.inputSchema.objectValue?["properties"]?.objectValue?["view"]?.objectValue)

@@ -76,55 +76,6 @@ struct MCPFamilyToolsTests {
         #expect(!filtered.contains("Chris Ross"))
     }
 
-    // MARK: - Communications
-
-    @Test("record_parent_communication files a draft without sending it")
-    func recordCommunicationFilesDraft() async throws {
-        let (tools, context) = try makeTools()
-        CoreDataTestHelpers.seedStudent(in: context, firstName: "Ana", lastName: "Perez")
-        CoreDataTestHelpers.save(context)
-
-        _ = try await tool(named: "record_parent_communication", in: tools).handler([
-            "student_name": .string("Ana"),
-            "subject": .string("September report"),
-            "body": .string("Ana has settled into the decimal work."),
-            "type": .string("monthlyReport"),
-            "month": .string("2026-09")
-        ])
-
-        let communication = try #require(
-            context.safeFetch(CDFetchRequest(CDParentCommunication.self)).first
-        )
-        #expect(communication.status == .draft)
-        // Filing must never look like sending — nothing leaves the app here.
-        #expect(communication.sentAt == nil)
-    }
-
-    @Test("record_parent_communication stamps the sent date when marked sent")
-    func recordCommunicationStampsSentDate() async throws {
-        let (tools, context) = try makeTools()
-        CoreDataTestHelpers.seedStudent(in: context, firstName: "Sam", lastName: "Lee")
-        CoreDataTestHelpers.save(context)
-
-        _ = try await tool(named: "record_parent_communication", in: tools).handler([
-            "student_name": .string("Sam"),
-            "subject": .string("Conference notes")
-        ])
-        let communication = try #require(
-            context.safeFetch(CDFetchRequest(CDParentCommunication.self)).first
-        )
-        let id = try #require(communication.id).uuidString
-
-        _ = try await tool(named: "record_parent_communication", in: tools).handler([
-            "communication_id": .string(id),
-            "status": .string("sent"),
-            "sent_date": .string("2026-09-14")
-        ])
-        #expect(communication.status == .sent)
-        let expected = try #require(MCPNotebookTools.isoDay.date(from: "2026-09-14"))
-        #expect(communication.sentAt == expected)
-    }
-
     // MARK: - Todos
 
     @Test("list_todos narrows to a student and hides completed items by default")

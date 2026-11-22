@@ -22,21 +22,22 @@ extension RootView {
         /// schedules, outings) is reached a few times a term, not daily.
         let isExpandedByDefault: Bool
 
-        /// Six groups, 21 rows (Simplify the app, Phase 11). The retired rows
-        /// are aliases (`NavigationItem.aliases`) and open inside these.
+        /// Six groups, 18 rows (Simplify the app, Phase 11; Cut unused
+        /// features, 2026-11-21). The retired rows are aliases
+        /// (`NavigationItem.aliases`) and open inside these.
         static let all: [NavigationGroup] = [
             .init(id: .today, title: "Today",
                   items: [.today, .attendance, .todos],
                   isExpandedByDefault: true),
             .init(id: .children, title: "Children",
-                  items: [.students, .meetings, .notes, .parentReports],
+                  items: [.students, .meetings, .notes],
                   isExpandedByDefault: true),
             .init(id: .planning, title: "Plan",
                   items: [.planningAgenda, .smallSequencePlanner, .planningChecklist, .planningCalendar,
                           .thisWeeksParsha],
                   isExpandedByDefault: true),
             .init(id: .classroom, title: "Classroom",
-                  items: [.supplies, .community, .planningProjects, .goingOut, .schedules],
+                  items: [.supplies, .goingOut, .schedules],
                   isExpandedByDefault: false),
             .init(id: .library, title: "Library",
                   items: [.lessons, .teachingAlbums, .resourceLibrary],

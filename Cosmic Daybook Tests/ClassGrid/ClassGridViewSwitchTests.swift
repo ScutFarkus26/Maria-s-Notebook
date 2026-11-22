@@ -16,10 +16,10 @@ struct ClassGridViewSwitchTests {
         return defaults
     }
 
-    @Test("Four views, named as the canvas names them, in order")
-    func fourViews() {
-        #expect(ClassGridViewKind.allCases.map(\.title) == ["Checklist", "Three Years", "Children", "Recall"])
-        #expect(ClassGridViewKind.allCases.filter(\.allowsAllAreas) == [.threeYears, .children, .recall])
+    @Test("Three views, named as the canvas names them, in order (Recall was taken out)")
+    func threeViews() {
+        #expect(ClassGridViewKind.allCases.map(\.title) == ["Checklist", "Three Years", "Children"])
+        #expect(ClassGridViewKind.allCases.filter(\.allowsAllAreas) == [.threeYears, .children])
     }
 
     @Test("Each old destination opens the Class Grid on its view")
@@ -27,15 +27,14 @@ struct ClassGridViewSwitchTests {
         #expect(ClassGridViewKind.opening(.planningChecklist) == .checklist)
         #expect(ClassGridViewKind.opening(.curriculumMap) == .threeYears)
         #expect(ClassGridViewKind.opening(.progressDashboard) == .children)
-        #expect(ClassGridViewKind.opening(.lessonRecall) == .recall)
+        #expect(ClassGridViewKind.opening(.lessonRecall) == nil)
         #expect(ClassGridViewKind.opening(.today) == nil)
 
         #expect(ClassAreaChecklistView().initialView == .checklist)
         #expect(ClassCurriculumMapView().initialView == .threeYears)
         #expect(ProgressDashboardView().initialView == .children)
-        #expect(RecallQueueView().initialView == .recall)
         #expect(ProgressDashboardView.reloadEntityNames == ClassGridChildrenView.reloadEntityNames)
-        #expect(ClassGridView(initialView: .recall).initialView == .recall)
+        #expect(ClassGridView(initialView: .children).initialView == .children)
         #expect(ClassGridView().initialView == .checklist)
     }
 
@@ -61,7 +60,7 @@ struct ClassGridViewSwitchTests {
 
         scope.pick(area: "Math")
         #expect(scope.menuTitle(for: .threeYears) == "Math")
-        #expect(scope.menuTitle(for: .recall) == "Math")
+        #expect(scope.menuTitle(for: .children) == "Math")
         #expect(scope.checklistAreaToShow == "Math")
         #expect(defaults.string(forKey: UserDefaultsKeys.checklistSelectedArea) == "Math")
 

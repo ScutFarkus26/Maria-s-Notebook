@@ -4,9 +4,9 @@ import Testing
 @testable import CosmicDaybook
 
 // Bug hunt 2026-10-12, agent MR, continued: mastery evidence (#7),
-// record_parent_communication's monthly reports and sent dates (#10, #11),
-// former families (#12), repeat ordinals under `since` (#13), the smaller
-// items (#14) and draft_parent_report's no-op replies (#20).
+// former families (#12), repeat ordinals under `since` (#13) and the smaller
+// items (#14). The parent-report items (#10, #11, #20) went with Parent
+// Reports (2026-11-21).
 
 @Suite("MCP families, history and reports (Fix1012MR)")
 @MainActor
@@ -99,103 +99,6 @@ struct MCPReadToolsFix1012MRTests {
         #expect(output.contains("confirmed ready (last given 2026-09-08)"))
     }
 
-    // MARK: - #10 / #11: record_parent_communication
-
-    @discardableResult
-    private func seedMonthlyReport(
-        for student: CDStudent, month: String, in context: NSManagedObjectContext
-    ) throws -> CDParentCommunication {
-        let report = CDParentCommunication(context: context)
-        report.id = UUID()
-        report.studentID = try #require(student.id).uuidString
-        report.monthKey = month
-        report.communicationType = .monthlyReport
-        report.subject = "September report"
-        report.body = "The guide's own words."
-        report.status = .draft
-        return report
-    }
-
-    @Test("a second monthly report for the same child and month is refused")
-    func secondMonthlyReportIsRefused() async throws {
-        let (tools, context) = try makeTools()
-        let sam = CoreDataTestHelpers.seedStudent(in: context, firstName: "Sam", lastName: "Lee")
-        let existing = try seedMonthlyReport(for: sam, month: "2026-09", in: context)
-        CoreDataTestHelpers.save(context)
-
-        let message = await refusal("record_parent_communication", [
-            "student_name": .string("Sam"),
-            "type": .string("monthlyReport"),
-            "month": .string("2026-9"),
-            "subject": .string("Another September report")
-        ], in: tools)
-
-        let text = try #require(message)
-        #expect(text.contains("[communication id=\(try #require(existing.id).uuidString)]"))
-        #expect(text.contains("draft_parent_report"))
-        #expect(context.safeFetch(CDFetchRequest(CDParentCommunication.self)).count == 1)
-    }
-
-    @Test("month is read as a report month: 2026-9 is September, a word is refused")
-    func monthIsParsedAsAReportMonth() async throws {
-        let (tools, context) = try makeTools()
-        CoreDataTestHelpers.seedStudent(in: context, firstName: "Eli", lastName: "Ross")
-        CoreDataTestHelpers.save(context)
-
-        _ = try await call("record_parent_communication", [
-            "student_name": .string("Eli"),
-            "type": .string("monthlyReport"),
-            "month": .string("2026-9"),
-            "subject": .string("September report")
-        ], in: tools)
-        let filed = try #require(context.safeFetch(CDFetchRequest(CDParentCommunication.self)).first)
-        #expect(filed.monthKey == "2026-09")
-
-        let message = await refusal("record_parent_communication", [
-            "student_name": .string("Eli"),
-            "subject": .string("Note"),
-            "month": .string("September")
-        ], in: tools)
-        #expect(message?.contains("YYYY-MM") == true)
-        #expect(context.safeFetch(CDFetchRequest(CDParentCommunication.self)).count == 1)
-    }
-
-    @Test("sent_date on its own marks the communication sent")
-    func sentDateMeansSent() async throws {
-        let (tools, context) = try makeTools()
-        CoreDataTestHelpers.seedStudent(in: context, firstName: "Sam", lastName: "Lee")
-        CoreDataTestHelpers.save(context)
-
-        _ = try await call("record_parent_communication", [
-            "student_name": .string("Sam"),
-            "subject": .string("Conference notes"),
-            "sent_date": .string("2026-09-14")
-        ], in: tools)
-
-        let communication = try #require(context.safeFetch(CDFetchRequest(CDParentCommunication.self)).first)
-        // `status` reads sent whenever a date is set; the stored status is what
-        // was left saying draft, and what the reply's "marked sent" now matches.
-        #expect(communication.statusRaw == MonthlyReportStatus.sent.rawValue)
-        #expect(communication.sentAt == (try CoreDataTestHelpers.day("2026-09-14")))
-    }
-
-    @Test("sent_date with a status other than sent is refused")
-    func sentDateWithAnotherStatusIsRefused() async throws {
-        let (tools, context) = try makeTools()
-        CoreDataTestHelpers.seedStudent(in: context, firstName: "Sam", lastName: "Lee")
-        CoreDataTestHelpers.save(context)
-
-        let message = await refusal("record_parent_communication", [
-            "student_name": .string("Sam"),
-            "subject": .string("Conference notes"),
-            "status": .string("draft"),
-            "sent_date": .string("2026-09-14")
-        ], in: tools)
-
-        #expect(message?.contains("sent_date") == true)
-        #expect(context.safeFetch(CDFetchRequest(CDParentCommunication.self)).isEmpty)
-    }
-
     // MARK: - #12: list_guardians
 
     @Test("the whole-class guardian list leaves out families of children who left")
@@ -258,39 +161,5 @@ struct MCPReadToolsFix1012MRTests {
         let output = try await call("student_record", ["sections": ["observations"], "student_name": .string("Etty Klein")], in: tools)
 
         #expect(output.contains("No notes about Etty Klein"))
-    }
-
-    // MARK: - #20: draft_parent_report's no-op replies
-
-    private func outcome(of block: () async throws -> String) async throws -> MCPCallOutcome {
-        let outcome = MCPCallOutcome()
-        _ = try await MCPCallOutcome.$current.withValue(outcome) { try await block() }
-        return outcome
-    }
-
-    @Test("draft_parent_report's \"already has a draft\" and \"no evidence\" replies are not journaled")
-    func draftReportNoOpsWriteNothing() async throws {
-        let stack = try CoreDataTestHelpers.makeInMemoryStack()
-        let context = stack.viewContext
-        let dependencies = AppDependencies(coreDataStack: stack)
-        let tools = MCPNotebookTools.makeTools(context: { context }, dependencies: { dependencies })
-        let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Levi")
-        CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Klein")
-        try seedMonthlyReport(for: ora, month: "2026-08", in: context)
-        CoreDataTestHelpers.save(context)
-
-        let kept = try await outcome {
-            try await call("draft_parent_report", [
-                "student_name": .string("Ora"), "month": .string("2026-08")
-            ], in: tools)
-        }
-        #expect(kept.wroteNothing)
-
-        let empty = try await outcome {
-            try await call("draft_parent_report", [
-                "student_name": .string("Etty"), "month": .string("2026-08")
-            ], in: tools)
-        }
-        #expect(empty.wroteNothing)
     }
 }

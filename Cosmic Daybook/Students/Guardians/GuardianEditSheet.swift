@@ -36,9 +36,9 @@ struct GuardianEditSheet: View {
         let typed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !typed.isEmpty else { return nil }
         let check = AttendanceEmail.checkRecipients(typed)
-        if check.addresses.count > 1 { return AppErrorMessages.ParentReports.guardianOneAddress }
+        if check.addresses.count > 1 { return AppErrorMessages.Guardians.guardianOneAddress }
         if check.addresses.count == 1, check.leftOut.isEmpty { return nil }
-        return AppErrorMessages.ParentReports.guardianNotAnAddress
+        return AppErrorMessages.Guardians.guardianNotAnAddress
     }
 
     var body: some View {

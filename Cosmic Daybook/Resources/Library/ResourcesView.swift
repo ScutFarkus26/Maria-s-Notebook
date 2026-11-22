@@ -3,7 +3,6 @@ import SwiftUI
 /// What the Resources screen lists, one type at a time.
 nonisolated enum LibraryKind: String, CaseIterable, Identifiable, Sendable {
     case stories
-    case packets
     case files
     case procedures
 
@@ -13,14 +12,13 @@ nonisolated enum LibraryKind: String, CaseIterable, Identifiable, Sendable {
     var title: String {
         switch self {
         case .stories: return "Stories"
-        case .packets: return "Packets"
         case .files: return "Files"
         case .procedures: return "Procedures"
         }
     }
 }
 
-/// The Resources screen: stories, book club packets, resource files and
+/// The Resources screen: stories, resource files and
 /// written procedures, one type at a time, each on the shared
 /// `PDFLibraryListView`. The type filter is a segmented control in the
 /// toolbar on the Mac and tabs under the title on iPhone and iPad.
@@ -83,7 +81,6 @@ struct ResourcesView: View {
     private var list: some View {
         switch kind {
         case .stories: StoriesLibrary()
-        case .packets: PacketsLibrary()
         case .files: FilesLibrary()
         case .procedures: ProceduresLibrary()
         }

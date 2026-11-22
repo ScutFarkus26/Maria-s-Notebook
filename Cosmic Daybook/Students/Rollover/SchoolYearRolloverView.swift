@@ -16,7 +16,6 @@ struct SchoolYearRolloverView: View {
     @TestStudentVisibility private var testStudents
 
     @State private var viewModel = SchoolYearRolloverViewModel()
-    @State private var reportStudent: CDStudent?
     /// Asking before a rollover dated inside the year still under way (#35).
     @State private var confirmingYearInProgress = false
 
@@ -40,9 +39,6 @@ struct SchoolYearRolloverView: View {
                 students: testStudents.visible(enrolledStudents),
                 store: store
             )
-        }
-        .sheet(item: $reportStudent) { student in
-            ReportGeneratorView(student: student)
         }
         .alert(
             "Rollover Not Applied",
@@ -294,29 +290,13 @@ private extension SchoolYearRolloverView {
                     }
                 } header: {
                     Text("Departing Students")
-                } footer: {
-                    Text("Summaries draw from observations flagged \u{201C}Include in report\u{201D} "
-                         + "in the outgoing school year. Flag more from a student's Notes tab first if needed.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
                 }
             }
         }
     }
 
     func departingRow(for student: CDStudent) -> some View {
-        let noteCount = viewModel.flaggedNoteCount(for: student, store: store, context: viewContext)
-        return HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(student.fullName)
-                Text("\(noteCount) report note\(noteCount == 1 ? "" : "s")")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Button("Generate Summary") { reportStudent = student }
-                .buttonStyle(.bordered)
-        }
+        Text(student.fullName)
     }
 }
 

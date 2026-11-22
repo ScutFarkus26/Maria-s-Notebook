@@ -30,14 +30,14 @@ struct RootDetailContent: View {
             switch item {
             case .today, .attendance:
                 dailyContent
-            case .students, .parentReports, .meetings, .goingOut:
+            case .students, .meetings, .goingOut:
                 studentsContent
             case .lessons, .teachingAlbums, .planningChecklist, .planningAgenda,
-                 .planningProjects, .smallSequencePlanner:
+                 .smallSequencePlanner:
                 curriculumContent
             case .todos, .planningCalendar:
                 planningContent
-            case .supplies, .schedules, .community, .resourceLibrary:
+            case .supplies, .schedules, .resourceLibrary:
                 resourcesContent
             case .notes, .settings:
                 toolsContent
@@ -46,7 +46,7 @@ struct RootDetailContent: View {
             // Aliases: `item` is canonical, so these never get here.
             case .note, .more, .perpetualCalendar, .orders, .logs, .curriculumMap,
                  .progressDashboard, .lessonRecall, .parshaCalendar, .stories, .procedures,
-                 .bookClub, .askAI:
+                 .bookClub, .askAI, .parentReports, .planningProjects, .community:
                 EmptyView()
             }
         }
@@ -75,7 +75,6 @@ struct RootDetailContent: View {
     private var studentsContent: some View {
         switch item {
         case .students: StudentsView()
-        case .parentReports: ParentReportsQueueView()
         case .meetings: MeetingsWorkflowView()
         case .goingOut: GoingOutRootView()
         default: EmptyView()
@@ -89,7 +88,6 @@ struct RootDetailContent: View {
         case .teachingAlbums: AlbumsRootView()
         case .planningChecklist: ClassGridView()
         case .planningAgenda: WorksAgendaView()
-        case .planningProjects: ProjectsRootView()
         case .smallSequencePlanner: GroupsView()
         default: EmptyView()
         }
@@ -100,7 +98,6 @@ struct RootDetailContent: View {
         switch item {
         case .supplies: RestockView()
         case .schedules: SchedulesView()
-        case .community: CommunityMeetingsView()
         case .resourceLibrary: ResourcesView()
         default: EmptyView()
         }

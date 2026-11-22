@@ -1,6 +1,5 @@
 import CoreData
 import Foundation
-@preconcurrency import PDFKit
 import Testing
 @testable import CosmicDaybook
 
@@ -17,7 +16,6 @@ struct LibraryImportServiceTests {
     private struct Scratch {
         let root: URL
         let stories: ManagedPDFFileStorage
-        let packets: ManagedPDFFileStorage
         let resources: ManagedPDFFileStorage
 
         init() throws {
@@ -28,12 +26,9 @@ struct LibraryImportServiceTests {
             let cache = UbiquityContainerCache(system: .init(identity: { 1 }, containerURL: { container }))
             var stories = LibraryFileStorage.stories
             stories.ubiquityContainer = cache
-            var packets = LibraryFileStorage.packets
-            packets.ubiquityContainer = cache
             var resources = LibraryFileStorage.resources
             resources.ubiquityContainer = cache
             self.stories = stories
-            self.packets = packets
             self.resources = resources
         }
 
@@ -71,25 +66,6 @@ struct LibraryImportServiceTests {
         #expect(LibraryFileStorage.url(for: story, in: scratch.stories) == copied)
     }
 
-    @Test("A PDF imports as a packet into Book Club Files, titled after the file, with its page count and thumbnail")
-    func importsAPacket() throws {
-        let scratch = try Scratch()
-        defer { scratch.remove() }
-        let context = try CoreDataTestHelpers.makeContext()
-        let source = try scratch.sourcePDF(named: "Charlotte's Web.pdf")
-
-        let packet = try LibraryImportService.importPacket(at: source, context: context, storage: scratch.packets)
-
-        #expect(packet.title == "Charlotte's Web")
-        #expect(packet.packetPDFRelativePath == "Charlotte-s Web.pdf", "the old filename scheme")
-        #expect(packet.pageCount == 1)
-        #expect(packet.thumbnailData != nil)
-        #expect(!packet.hasChanges, "the import saves the new packet")
-        let copied = try #require(LibraryFileStorage.url(for: packet, in: scratch.packets))
-        #expect(copied.deletingLastPathComponent().lastPathComponent == "Book Club Files")
-        #expect(PDFDocument(url: copied)?.pageCount == 1)
-    }
-
     @Test("The same title twice gets a numbered file, as before")
     func secondImportIsNumbered() throws {
         let scratch = try Scratch()
@@ -104,7 +80,7 @@ struct LibraryImportServiceTests {
         #expect(second.pdfFileRelativePath == "Owl Moon-2.pdf")
     }
 
-    @Test("A file that isn't a PDF is turned down in each library's own words, and nothing is saved")
+    @Test("A file that isn't a PDF is turned down in the library's own words, and nothing is saved")
     func rejectsNonPDFs() throws {
         let scratch = try Scratch()
         defer { scratch.remove() }
@@ -115,13 +91,8 @@ struct LibraryImportServiceTests {
         #expect(throws: LibraryImportService.ImportRejection.notAPDF(.story)) {
             try LibraryImportService.importStory(at: text, context: context, storage: scratch.stories)
         }
-        #expect(throws: LibraryImportService.ImportRejection.notAPDF(.packet)) {
-            try LibraryImportService.importPacket(at: text, context: context, storage: scratch.packets)
-        }
         #expect(LibraryImportService.ImportRejection.notAPDF(.story).errorDescription
                 == "Only PDF files can be added as stories.")
-        #expect(LibraryImportService.ImportRejection.notAPDF(.packet).errorDescription
-                == "Only PDF files can be added as book club packets.")
         #expect(context.registeredObjects.isEmpty)
     }
 
@@ -133,7 +104,7 @@ struct LibraryImportServiceTests {
         let missing = scratch.root.appendingPathComponent("Gone.pdf")
 
         do {
-            try LibraryImportService.importPacket(at: missing, context: context, storage: scratch.packets)
+            try LibraryImportService.importStory(at: missing, context: context, storage: scratch.stories)
             Issue.record("A missing file imported")
         } catch {
             #expect(LibraryImportService.message(for: error)

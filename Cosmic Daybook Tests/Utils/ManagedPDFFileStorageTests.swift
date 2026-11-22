@@ -151,7 +151,7 @@ struct ManagedPDFFileStorageTests {
                 == "Couldn't add this PDF. Try again.")
     }
 
-    @Test("Story and book club imports tell a failed copy from a failed save")
+    @Test("Story imports tell a failed copy from a failed save")
     func copyAndSaveFailuresDiffer() {
         let outOfSpace = CocoaError(.fileWriteOutOfSpace)
         let copyMessage = ManagedPDFFileStorage.ImportError.copyFailureMessage(for: outOfSpace)
@@ -159,7 +159,5 @@ struct ManagedPDFFileStorageTests {
                 == "There isn't enough space to add this PDF. Free up some space and try again.")
         #expect(LibraryImportService.ImportRejection.saveFailed(.story).errorDescription
                 == "Couldn't save the new story. Try again.")
-        #expect(LibraryImportService.ImportRejection.saveFailed(.packet).errorDescription
-                == "Couldn't save the new packet. Try again.")
     }
 }

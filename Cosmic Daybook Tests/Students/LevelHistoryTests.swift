@@ -91,8 +91,8 @@ struct LevelHistoryTests {
         #expect(maya.dateLastPromoted == promoted)
     }
 
-    @Test("A monthly report reads the level she had that month")
-    func reportReadsThatMonthsLevel() throws {
+    @Test("A month reads the level she had at its start")
+    func monthReadsThatMonthsLevel() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "America/New_York") ?? .current
         let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
@@ -104,16 +104,12 @@ struct LevelHistoryTests {
         step.changedOn = calendar.date(from: DateComponents(year: 2026, month: 10, day: 5))
         #expect(CoreDataTestHelpers.save(context))
 
-        let builder = MonthlyReportContextBuilder(
-            context: context, reportService: ReportGeneratorService(), calendar: calendar
-        )
-        func level(_ month: Int) -> CDStudent.Level {
-            builder.buildContext(
-                for: maya, month: ReportMonth(year: 2026, month: month), includeStudentReflection: false
-            ).level
+        func level(_ month: Int) throws -> CDStudent.Level {
+            let start = try #require(calendar.date(from: DateComponents(year: 2026, month: month, day: 1)))
+            return StudentLevelHistory.level(of: maya, on: start, calendar: calendar)
         }
-        #expect(level(9) == .lower)
-        #expect(level(10) == .lower, "a change during the month counts from the next one")
-        #expect(level(11) == .upper)
+        #expect(try level(9) == .lower)
+        #expect(try level(10) == .lower, "a change during the month counts from the next one")
+        #expect(try level(11) == .upper)
     }
 }

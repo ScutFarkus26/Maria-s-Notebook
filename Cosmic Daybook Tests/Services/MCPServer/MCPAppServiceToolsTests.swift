@@ -24,32 +24,17 @@ struct MCPAppServiceToolsTests {
         try #require(tools.first { $0.name == name })
     }
 
-    @discardableResult
-    private func seedReport(
-        in context: NSManagedObjectContext, student: CDStudent, month: String,
-        body: String, status: MonthlyReportStatus
-    ) throws -> CDParentCommunication {
-        let report = CDParentCommunication(context: context)
-        report.studentID = try #require(student.id).uuidString
-        report.monthKey = month
-        report.communicationType = .monthlyReport
-        report.subject = "Report"
-        report.body = body
-        report.status = status
-        return report
-    }
-
     // MARK: - Registration
 
-    @Test("both app-service tools are registered")
+    @Test("the app-service tool is registered, and draft_parent_report is gone")
     func toolsAreRegistered() throws {
         let harness = try makeHarness()
         let names = Set(harness.tools.map(\.name))
         #expect(names.contains("create_backup"))
-        #expect(names.contains("draft_parent_report"))
+        #expect(!names.contains("draft_parent_report"))
     }
 
-    @Test("without a registered container the tools say the app is still starting")
+    @Test("without a registered container the tool says the app is still starting")
     func toolsRefuseWithoutDependencies() async throws {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
         let context = stack.viewContext
@@ -57,11 +42,6 @@ struct MCPAppServiceToolsTests {
 
         await #expect(throws: MCPToolError.self) {
             _ = try await tool(named: "create_backup", in: tools).handler([:])
-        }
-        CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Levi")
-        CoreDataTestHelpers.save(context)
-        await #expect(throws: MCPToolError.self) {
-            _ = try await tool(named: "draft_parent_report", in: tools).handler(["student_name": .string("Ora")])
         }
     }
 
@@ -82,90 +62,5 @@ struct MCPAppServiceToolsTests {
         #expect(FileManager.default.fileExists(atPath: path))
         #expect(path.contains("ManualBackup-"))
         try? FileManager.default.removeItem(atPath: path)
-    }
-
-    // MARK: - draft_parent_report
-
-    @Test("draft_parent_report reports a month with no evidence instead of filing an empty draft")
-    func draftWithNoEvidenceWritesNothing() async throws {
-        let harness = try makeHarness()
-        let ora = CoreDataTestHelpers.seedStudent(in: harness.context, firstName: "Ora", lastName: "Levi")
-        CoreDataTestHelpers.save(harness.context)
-
-        let output = try await tool(named: "draft_parent_report", in: harness.tools).handler([
-            "student_name": .string("Ora"), "month": .string("2026-08")
-        ])
-        #expect(output.contains("No evidence was recorded for Ora Levi in August 2026"))
-        let reports = harness.context.safeFetch(CDFetchRequest(CDParentCommunication.self))
-        #expect(reports.isEmpty)
-        #expect(ora.id != nil)
-    }
-
-    @Test("draft_parent_report refuses to touch a reviewed or sent report")
-    func draftRefusesReviewedReport() async throws {
-        let harness = try makeHarness()
-        let ora = CoreDataTestHelpers.seedStudent(in: harness.context, firstName: "Ora", lastName: "Levi")
-        try seedReport(in: harness.context, student: ora, month: "2026-08", body: "Sent already.", status: .sent)
-        CoreDataTestHelpers.save(harness.context)
-
-        do {
-            _ = try await tool(named: "draft_parent_report", in: harness.tools).handler([
-                "student_name": .string("Ora"), "month": .string("2026-08"), "overwrite": .bool(true)
-            ])
-            Issue.record("Expected the sent report to be protected")
-        } catch let error as MCPToolError {
-            #expect(error.message.contains("already sent"))
-            #expect(error.message.contains("[communication id="))
-        }
-        let report = try #require(harness.context.safeFetch(CDFetchRequest(CDParentCommunication.self)).first)
-        #expect(report.body == "Sent already.")
-        #expect(report.status == .sent)
-    }
-
-    @Test("draft_parent_report keeps an existing draft's text unless overwrite is true")
-    func draftKeepsExistingDraftWithoutOverwrite() async throws {
-        let harness = try makeHarness()
-        let ora = CoreDataTestHelpers.seedStudent(in: harness.context, firstName: "Ora", lastName: "Levi")
-        try seedReport(in: harness.context, student: ora, month: "2026-08", body: "Guide's own words.", status: .draft)
-        CoreDataTestHelpers.save(harness.context)
-
-        let output = try await tool(named: "draft_parent_report", in: harness.tools).handler([
-            "student_name": .string("Ora"), "month": .string("2026-08")
-        ])
-        #expect(output.contains("already has a draft"))
-        #expect(output.contains("Pass overwrite: true"))
-        let report = try #require(harness.context.safeFetch(CDFetchRequest(CDParentCommunication.self)).first)
-        #expect(report.body == "Guide's own words.")
-    }
-
-    @Test("draft_parent_report rejects a malformed month")
-    func draftRejectsBadMonth() async throws {
-        let harness = try makeHarness()
-        CoreDataTestHelpers.seedStudent(in: harness.context, firstName: "Ora", lastName: "Levi")
-        CoreDataTestHelpers.save(harness.context)
-
-        do {
-            _ = try await tool(named: "draft_parent_report", in: harness.tools).handler([
-                "student_name": .string("Ora"), "month": .string("September")
-            ])
-            Issue.record("Expected the month to be rejected")
-        } catch let error as MCPToolError {
-            #expect(error.message.contains("YYYY-MM"))
-        }
-    }
-
-    // Logic-break sweep 2026-09-29, E6: with no month the tool drafted the
-    // month barely begun, not the one the Parent Reports queue has open.
-    @Test("draft_parent_report defaults to the month open for reporting, last month")
-    func draftDefaultsToTheOpenCycle() throws {
-        var components = DateComponents()
-        components.year = 2027
-        components.month = 3
-        components.day = 10
-        let march = try #require(AppCalendar.shared.date(from: components))
-        let month = try MCPNotebookTools.reportMonthArgument([:], "month", now: march)
-        #expect(month == ReportMonth(year: 2027, month: 2))
-        #expect(try MCPNotebookTools.reportMonthArgument(["month": .string("2026-08")], "month", now: march)
-            == ReportMonth(year: 2026, month: 8))
     }
 }

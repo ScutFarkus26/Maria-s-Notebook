@@ -2,7 +2,7 @@
 // Empty Classroom rows stay out of the lists until their first record (plan
 // "Simplify the app, round two", Phase 2).
 //
-// Going Out, Clubs & Projects and the Resources screen's Procedures filter
+// Going Out and the Resources screen's Procedures filter
 // are kept for when Danny uses them, but while they hold nothing they only
 // lengthen the sidebar, the iPad sidebar and the iPhone More list. Each shows
 // once a record of its kind exists. The `NavigationItem` cases stay (they are
@@ -16,8 +16,7 @@ import SwiftUI
 nonisolated enum NavigationRowVisibility {
     /// Each hideable row and the entities whose first record shows it.
     static let rowEntities: [RootView.NavigationItem: [String]] = [
-        .goingOut: ["GoingOut"],
-        .planningProjects: ["Project", "BookClubSession"]
+        .goingOut: ["GoingOut"]
     ]
 
     /// The entity whose first record shows the Procedures filter.

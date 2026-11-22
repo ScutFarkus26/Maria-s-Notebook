@@ -10,12 +10,8 @@ struct StudentNotesTab: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
     @State private var showingSmartAssistant = false
-    @State private var showingReportGenerator = false
     /// The notes Writing Help drafts from, gathered when it opens.
     @State private var writingHelpNotes: [CDNote] = []
-    #if os(macOS)
-    @Environment(\.openWindow) private var openWindow
-    #endif
 
     init(student: CDStudent) {
         self.student = student
@@ -27,19 +23,6 @@ struct StudentNotesTab: View {
             .padding(.horizontal, 32)
             .padding(.bottom, 24)
             .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        #if os(macOS)
-                        if let studentID = student.id {
-                            openWindow(id: "StudentReportWindow", value: studentID)
-                        }
-                        #else
-                        showingReportGenerator = true
-                        #endif
-                    } label: {
-                        Label("Generate Report", systemImage: "doc.text")
-                    }
-                }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         openWritingHelp()
@@ -54,9 +37,6 @@ struct StudentNotesTab: View {
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
                     #endif
-            }
-            .sheet(isPresented: $showingReportGenerator) {
-                ReportGeneratorView(student: student)
             }
     }
 

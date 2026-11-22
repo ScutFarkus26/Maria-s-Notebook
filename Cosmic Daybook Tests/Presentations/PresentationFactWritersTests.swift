@@ -93,26 +93,4 @@ struct PresentationFactWritersTests {
         given.studentIDs = [room.adaID, room.benID].map(\.uuidString)
         #expect(given.value(.needsAnotherPresentation, for: room.adaID), "Ben back on it doesn't undo hers")
     }
-
-    @Test("A Shaky recall on her own presentation leaves no old no on her row")
-    func recallShakyClearsHerOldNo() throws {
-        let room = try PresentingRoom.make()
-        let given = try aloneWithAnOldNo(.needsPractice, room)
-        let entry = RecallQueueEntry(
-            id: UUID().uuidString, studentID: room.adaID.uuidString, area: room.first.area,
-            sequence: room.first.sequence, frontierLessonID: try #require(room.first.id),
-            frontierLessonName: room.first.name, frontierOrderInSequence: 1, frontierMasteredAt: nil,
-            coveredLessons: [], lastCheckedAt: nil, dueReason: .spacedDue
-        )
-
-        let service = RecallService(
-            context: room.context, saveCoordinator: room.coordinator, schoolYearStore: SchoolYearStore()
-        )
-        #expect(service.record(entry: entry, outcome: .shaky, note: ""))
-
-        #expect(given.needsPractice)
-        #expect(room.rows(room.ada, room.first).first?.ownValue(.needsPractice) == nil)
-        given.studentIDs = [room.adaID, room.benID].map(\.uuidString)
-        #expect(given.value(.needsPractice, for: room.adaID), "Ben back on it doesn't undo hers")
-    }
 }

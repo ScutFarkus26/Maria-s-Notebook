@@ -8,7 +8,8 @@
 //  email addresses. The tools read and write it because the guide asked for
 //  it; nothing here contacts anybody.
 //
-//  Letters home live in MCPNotebookTools+Communications.swift.
+//  The letters home (parent communications) stay in the notebook, but since
+//  Parent Reports was taken out (2026-11-21) Claude no longer reads or files them.
 //
 
 import CoreData

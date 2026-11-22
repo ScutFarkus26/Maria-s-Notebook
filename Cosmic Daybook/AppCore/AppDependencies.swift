@@ -155,15 +155,9 @@ final class AppDependencies {
         modelContext: viewContext,
         mcpClient: mcpClient
     )
-    @ObservationIgnored lazy var _reportGeneratorService = ReportGeneratorService()
     @ObservationIgnored lazy var _meetingInsightsService = MeetingInsightsService(
         modelContext: viewContext,
         mcpClient: mcpClient
-    )
-    @ObservationIgnored lazy var _monthlyReportDraftService = MonthlyReportDraftService(
-        modelContext: viewContext,
-        mcpClient: mcpClient,
-        reportService: reportGeneratorService
     )
 
     // MARK: - UI Services

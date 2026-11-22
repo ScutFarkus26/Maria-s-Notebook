@@ -3,8 +3,8 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-/// Bug hunt 2026-10-10, P2 #61, #65's recall check, #70, #72's fetch caps and
-/// Find Students item, and #90's daylight-saving `schedule(onDay:)`.
+/// Bug hunt 2026-10-10, P2 #61, #70, #72's fetch caps and
+/// Find Students item, and #90's daylight-saving `schedule(onDay:)` (#65 went with Recall).
 @Suite("Students and presentations small fixes (bug hunt 2026-10-10)")
 @MainActor
 struct StudentsSmallFixesFix1010ITests {
@@ -18,77 +18,6 @@ struct StudentsSmallFixesFix1010ITests {
         let chosen = standIn.addingTimeInterval(-86_400 * 3_000)
         #expect(StudentDetailView.editedDate(chosen, placeholder: standIn) == chosen)
         #expect(StudentDetailView.editedDate(chosen, placeholder: nil) == chosen)
-    }
-
-    // MARK: - #65 A shaky recall check gates only that child
-
-    private func recall(
-        _ outcome: RecallOutcome, for student: CDStudent, lesson: CDLesson, in context: NSManagedObjectContext
-    ) throws {
-        let coordinator = SaveCoordinator()
-        coordinator.suppressAlerts = true
-        let service = RecallService(context: context, saveCoordinator: coordinator, schoolYearStore: SchoolYearStore())
-        let entry = RecallQueueEntry(
-            id: UUID().uuidString,
-            studentID: try #require(student.id).uuidString,
-            area: lesson.area,
-            sequence: lesson.sequence,
-            frontierLessonID: try #require(lesson.id),
-            frontierLessonName: lesson.name,
-            frontierOrderInSequence: 1,
-            frontierMasteredAt: nil,
-            coveredLessons: [],
-            lastCheckedAt: nil,
-            dueReason: .spacedDue
-        )
-        #expect(service.record(entry: entry, outcome: outcome, note: ""))
-    }
-
-    private func given(
-        _ students: [CDStudent], lesson: CDLesson, in context: NSManagedObjectContext
-    ) throws -> CDLessonAssignment {
-        let assignment = PresentationFactory.makeDraft(
-            lessonID: try #require(lesson.id), studentIDs: try students.map { try #require($0.id) }, context: context
-        )
-        assignment.markPresented(at: try CoreDataTestHelpers.day("2026-09-14"))
-        return assignment
-    }
-
-    @Test("Shaky on a group presentation gives that child practice work and leaves the group's flag alone")
-    func shakyInAGroupIsPerChild() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let ada = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ada")
-        let ben = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ben")
-        let lesson = CoreDataTestHelpers.seedLesson(in: context)
-        let group = try given([ada, ben], lesson: lesson, in: context)
-        #expect(CoreDataTestHelpers.save(context))
-
-        try recall(.shaky, for: ada, lesson: lesson, in: context)
-
-        #expect(!group.needsPractice)
-        let work = context.safeFetch(CDFetchRequest(CDWorkModel.self))
-        #expect(work.count == 1)
-        #expect(work.first?.studentID == ada.id?.uuidString)
-        #expect(work.first?.presentationID == group.id?.uuidString)
-        #expect(work.first?.status.isOpen == true)
-
-        // A second shaky check doesn't add a second row.
-        try recall(.shaky, for: ada, lesson: lesson, in: context)
-        #expect(context.safeFetch(CDFetchRequest(CDWorkModel.self)).count == 1)
-    }
-
-    @Test("Shaky on a presentation she had alone still sets its flag")
-    func shakyAloneSetsTheFlag() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let ada = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ada")
-        let lesson = CoreDataTestHelpers.seedLesson(in: context)
-        let solo = try given([ada], lesson: lesson, in: context)
-        #expect(CoreDataTestHelpers.save(context))
-
-        try recall(.shaky, for: ada, lesson: lesson, in: context)
-
-        #expect(solo.needsPractice)
-        #expect(context.safeFetch(CDFetchRequest(CDWorkModel.self)).isEmpty)
     }
 
     // MARK: - #70 Attendance history

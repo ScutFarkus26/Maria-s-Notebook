@@ -69,15 +69,9 @@ struct StudentInClassTests {
         #expect([room.maya, room.ora].filterEnrolled(now: saturday).map(\.firstName) == ["Ora"])
     }
 
-    @Test("Her month's report, this year's history and the classroom share keep her; later ones don't")
+    @Test("This year's history and the classroom share keep her; later ones don't")
     func periodsSheWasIn() throws {
         let room = try makeRoom()
-        let november = ReportMonth(year: 2026, month: 11)
-        let december = ReportMonth(year: 2026, month: 12)
-        let students = [room.maya, room.ora]
-        #expect(ParentReportsQueueView.studentsInClass(students, during: november).map(\.firstName) == ["Maya", "Ora"])
-        #expect(ParentReportsQueueView.studentsInClass(students, during: december).map(\.firstName) == ["Ora"])
-
         let thisWeek = DateRange(start: day(16, hour: 0), end: day(23, hour: 0))
         let nextWeek = DateRange(start: day(23, hour: 0), end: day(30, hour: 0))
         #expect(room.maya.isActive(in: thisWeek))

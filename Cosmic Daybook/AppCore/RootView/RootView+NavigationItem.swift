@@ -75,8 +75,13 @@ extension RootView {
             .parshaCalendar: .thisWeeksParsha,
             .stories: .resourceLibrary,
             .procedures: .resourceLibrary,
-            .bookClub: .planningProjects,
-            .askAI: .today
+            .bookClub: .today,
+            .askAI: .today,
+            // Cut unused features, Phase 1 (2026-11-21): the retired screens'
+            // rows open the screen nearest to what they held.
+            .parentReports: .students,
+            .planningProjects: .today,
+            .community: .today
         ]
 
         /// The destination this item actually shows.
@@ -87,7 +92,7 @@ extension RootView {
         /// with the year list showing. Nil for every row still in the sidebar.
         var landing: ScreenLanding? {
             switch self {
-            case .curriculumMap, .progressDashboard, .lessonRecall:
+            case .curriculumMap, .progressDashboard:
                 return ClassGridViewKind.opening(self).map(ScreenLanding.classGrid)
             case .stories: return .resources(.stories)
             case .procedures: return .resources(.procedures)
@@ -157,7 +162,7 @@ extension RootView {
             case .bookClub:            return "Manage book club packets and run sessions with students"
             case .more:                return "Everything else"
             case .todos:               return "Manage your personal todos and tasks"
-            case .planningChecklist:   return "The class against the curriculum: Checklist, Three Years, Children and Recall"
+            case .planningChecklist:   return "The class against the curriculum: Checklist, Three Years and Children"
             case .planningAgenda:      return "Plan lessons, follow presentations, and manage student work"
             case .planningProjects:    return "Student projects and book club sessions"
             case .planningCalendar, .perpetualCalendar:
@@ -169,7 +174,7 @@ extension RootView {
             case .smallSequencePlanner:   return "See which children are ready for the same next lesson, and plan it"
             case .community:           return "View community meetings and topics"
             case .schedules:           return "Our class, the adolescent room and who is where, by day or week"
-            case .resourceLibrary:     return "Stories, book club packets, files and procedures"
+            case .resourceLibrary:     return "Stories, files and procedures"
             case .askAI:               return "Ask questions about your classroom data"
             case .logs:                return "View activity and observation logs"
             case .notes:               return "Browse and search your observation notes"
@@ -190,7 +195,6 @@ extension RootView {
             case .students:   self = .students
             case .albums:     self = .lessons
             case .planning:   self = .planningAgenda
-            case .community:  self = .community
             case .logs:       self = .notes
             case .settings:   self = .settings
             }
@@ -207,7 +211,6 @@ extension RootView {
         case today     = "Today"
         case logs      = "Logs"
         case attendance = "Attendance"
-        case community = "Community"
         case settings  = "Settings"
 
         var id: String { rawValue }
@@ -301,8 +304,6 @@ extension RootView {
                 return NavigationSelectionResolution(item: .planningAgenda)
             case "Open Work":
                 return NavigationSelectionResolution(item: .planningAgenda, lessonsAndWorkScope: .attention)
-            case "Projects":
-                return NavigationSelectionResolution(item: .planningProjects)
             case "Checklist":
                 return NavigationSelectionResolution(item: .planningChecklist)
             default:

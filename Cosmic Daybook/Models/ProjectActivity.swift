@@ -8,8 +8,8 @@
 // when something has happened to it *this school year*; last year's is dormant
 // until someone touches it again.
 //
-// Pure — no fetch, no context — so both the Projects screen and the MCP tool
-// can ask the same question and give the same answer.
+// Pure — no fetch, no context. The Projects screen and its Claude tool left
+// the app on 2026-11-21; the records stay, and this rule stays with them.
 
 import CoreData
 import Foundation
@@ -44,8 +44,7 @@ enum ProjectActivity {
 
     /// The start of the school year `date` falls in, read through the same
     /// configurable start month/day the year lens and the grade boundary use —
-    /// so changing the year start in Settings moves this line too, and the
-    /// screen and the tool stay in step without either needing dependencies.
+    /// so changing the year start in Settings moves this line too.
     static func currentYearStart(asOf date: Date = Date()) -> Date {
         SchoolYear.currentStart(asOf: date)
     }

@@ -19,9 +19,8 @@ final class ClassGridScope {
     private(set) var checklistArea: String
     /// Every area with a lesson, in the Lessons screen's saved order.
     private(set) var areas: [String] = []
-    /// Lessons on the Checklist, children on Children, lessons and children on
-    /// Recall (Mac and iPad). Three Years and the iPhone's Recall show no field,
-    /// so they ignore it (`query(for:isRegular:)`) and keep it for the way back.
+    /// Lessons on the Checklist, children on Children. Three Years shows no
+    /// field, so it ignores it (`query(for:isRegular:)`) and keep it for the way back.
     var searchText = ""
     /// What `searchText` looks through: the target of the last view that showed
     /// a field.
@@ -97,7 +96,6 @@ final class ClassGridScope {
             return shown.isEmpty ? "Search lessons" : "Search \(shown)"
         case .threeYears: return "Search lessons"
         case .children: return "Search children"
-        case .recall: return "Search"
         }
     }
 

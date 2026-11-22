@@ -63,11 +63,6 @@ extension SettingsView {
                     .frame(maxWidth: .infinity)
             }
 
-            SettingsGroup(.parentReports) {
-                ParentReportsSettingsView()
-                    .frame(maxWidth: .infinity)
-            }
-
             SettingsGroup(.orderRequests) {
                 OrderRequestSettingsView()
                     .frame(maxWidth: .infinity)

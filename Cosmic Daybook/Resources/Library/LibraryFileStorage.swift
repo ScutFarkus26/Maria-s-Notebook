@@ -3,7 +3,9 @@ import Foundation
 /// The Resources screen's file folders, one `ManagedPDFFileStorage` each:
 /// stories under `Documents/Story Files/`, book club packets under
 /// `Documents/Book Club Files/`, and resource files under
-/// `Documents/Resource Files/<Category>/` (visible in Finder).
+/// `Documents/Resource Files/<Category>/` (visible in Finder). Book Club left
+/// the app on 2026-11-21; its folder is left on disk as it is, and still named
+/// here so the folder tests and the container cache know it.
 ///
 /// Stored files are found by these folder names (and the filename scheme in
 /// `ManagedPDFFileStorage`), so none of them may change: they are the names
@@ -32,7 +34,7 @@ enum LibraryFileStorage {
         logger: .resources
     )
 
-    // MARK: - Stories and packets
+    // MARK: - Stories
 
     /// Where a story's PDF is, preferring its bookmark and falling back to its
     /// relative path; nil when it can't be found.
@@ -40,21 +42,10 @@ enum LibraryFileStorage {
         storage.resolveURL(bookmark: story.pdfFileBookmark, relativePath: story.pdfFileRelativePath)
     }
 
-    /// Where a book club packet's PDF is; nil when it can't be found.
-    static func url(for packet: CDBookClubPacket, in storage: ManagedPDFFileStorage = packets) -> URL? {
-        storage.resolveURL(bookmark: packet.packetPDFBookmark, relativePath: packet.packetPDFRelativePath)
-    }
-
     /// Removes a story's PDF when it lives in the story folder.
     static func deleteFile(of story: CDStory) {
         guard let url = url(for: story) else { return }
         try? stories.deleteIfManaged(url)
-    }
-
-    /// Removes a packet's PDF when it lives in the book club folder.
-    static func deleteFile(of packet: CDBookClubPacket) {
-        guard let url = url(for: packet) else { return }
-        try? packets.deleteIfManaged(url)
     }
 
     // MARK: - Resource files

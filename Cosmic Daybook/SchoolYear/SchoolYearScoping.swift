@@ -30,5 +30,5 @@ extension Sequence where Element == CDStudent {
     }
 }
 
-// `CDProject.overlaps(_:)` lives in Projects/Services/ProjectActivity.swift,
+// `CDProject.overlaps(_:)` lives in Models/ProjectActivity.swift,
 // beside the `lastActivity` definition it and the Active/Dormant label share.

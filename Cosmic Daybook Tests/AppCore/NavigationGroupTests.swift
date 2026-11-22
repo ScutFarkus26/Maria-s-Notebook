@@ -55,12 +55,12 @@ struct NavigationGroupTests {
 
     // MARK: - Group shape
 
-    @Test("Six groups in order, 21 rows, and only Classroom starts collapsed")
+    @Test("Six groups in order, 20 rows, and only Classroom starts collapsed")
     func groupOrderAndDefaults() {
         #expect(NavigationGroup.all.map(\.id) == [.today, .children, .planning, .classroom, .library, .system])
         #expect(NavigationGroup.all.map(\.title) == ["Today", "Children", "Plan", "Classroom", "Library", "System"])
         #expect(NavigationGroup.all.filter { !$0.isExpandedByDefault }.map(\.id) == [.classroom])
-        #expect(NavigationGroup.all.flatMap(\.items).count == 21)
+        #expect(NavigationGroup.all.flatMap(\.items).count == 18)
         #expect(NavigationGroup.primaryTabs == [.today, .students, .attendance, .planningAgenda])
         // The Plan group keeps the old Planning group's expansion key.
         #expect(RootView.NavigationGroupID.planning.rawValue == "planning")
@@ -70,10 +70,10 @@ struct NavigationGroupTests {
     func groupRows() {
         let rows = Dictionary(uniqueKeysWithValues: NavigationGroup.all.map { ($0.id, $0.items) })
         #expect(rows[.today] == [.today, .attendance, .todos])
-        #expect(rows[.children] == [.students, .meetings, .notes, .parentReports])
+        #expect(rows[.children] == [.students, .meetings, .notes])
         #expect(rows[.planning] == [.planningAgenda, .smallSequencePlanner, .planningChecklist,
                                     .planningCalendar, .thisWeeksParsha])
-        #expect(rows[.classroom] == [.supplies, .community, .planningProjects, .goingOut, .schedules])
+        #expect(rows[.classroom] == [.supplies, .goingOut, .schedules])
         #expect(rows[.library] == [.lessons, .teachingAlbums, .resourceLibrary])
         #expect(rows[.system] == [.settings])
     }
@@ -82,7 +82,6 @@ struct NavigationGroupTests {
     func mergedScreenNames() {
         #expect(NavigationItem.planningChecklist.displayName == "Class Grid")
         #expect(NavigationItem.resourceLibrary.displayName == "Resources")
-        #expect(NavigationItem.planningProjects.displayName == "Clubs & Projects")
     }
 
     @Test("Settings sits at the bottom of the sidebar, in System")
@@ -139,8 +138,7 @@ struct NavigationGroupTests {
     @Test(
         "A saved navigation item lands on the destination it meant",
         arguments: [
-            ("community", NavigationItem.community, TriageBucket?.none),
-            ("planningWork", .planningAgenda, .attention),
+            ("planningWork", NavigationItem.planningAgenda, Optional(TriageBucket.attention)),
             ("needsLesson", .planningAgenda, .toSchedule),
             ("perpetualCalendar", .planningCalendar, nil),
             ("more", .today, nil),
@@ -161,14 +159,17 @@ struct NavigationGroupTests {
             ("logs", NavigationItem.notes, ScreenLanding?.none),
             ("curriculumMap", .planningChecklist, .classGrid(.threeYears)),
             ("progressDashboard", .planningChecklist, .classGrid(.children)),
-            ("lessonRecall", .planningChecklist, .classGrid(.recall)),
+            ("lessonRecall", .planningChecklist, nil),
             ("planningChecklist", .planningChecklist, nil),
             ("parshaCalendar", .thisWeeksParsha, .parshaYearList),
             ("stories", .resourceLibrary, .resources(.stories)),
             ("procedures", .resourceLibrary, .resources(.procedures)),
             ("resourceLibrary", .resourceLibrary, nil),
-            ("bookClub", .planningProjects, nil),
-            ("askAI", .today, nil)
+            ("bookClub", .today, nil),
+            ("planningProjects", .today, nil),
+            ("community", .today, nil),
+            ("askAI", .today, nil),
+            ("parentReports", .students, nil)
         ]
     )
     func retiredRowResolves(raw: String, item: NavigationItem, landing: ScreenLanding?) {
@@ -187,10 +188,10 @@ struct NavigationGroupTests {
     @Test("A router jump to a retired row opens its new screen on its view, once")
     func routerJumpToRetiredRowSetsLanding() {
         let router = AppRouter()
-        router.navigateTo(.lessonRecall)
-        #expect(router.selectedNavItem == .lessonRecall)
+        router.navigateTo(.curriculumMap)
+        #expect(router.selectedNavItem == .curriculumMap)
         #expect(router.takePendingNavItem() == .planningChecklist)
-        #expect(router.screenLanding == .classGrid(.recall))
+        #expect(router.screenLanding == .classGrid(.threeYears))
         // Resources doesn't take the Class Grid's landing.
         #expect(router.consumeScreenLanding { landing -> LibraryKind? in
             if case .resources(let kind) = landing { return kind }
@@ -199,7 +200,7 @@ struct NavigationGroupTests {
         #expect(router.consumeScreenLanding { landing -> ClassGridViewKind? in
             if case .classGrid(let view) = landing { return view }
             return nil
-        } == .recall)
+        } == .threeYears)
         #expect(router.screenLanding == nil)
 
         router.navigateTo(.notes)
@@ -213,16 +214,17 @@ struct NavigationGroupTests {
                 == .init(item: .students)
         )
         #expect(
-            Restorer.resolve(navItemRaw: "garbage", legacyTabRaw: "Community", planningModeRaw: nil)
-                == .init(item: .community)
+            Restorer.resolve(navItemRaw: "garbage", legacyTabRaw: "Students", planningModeRaw: nil)
+                == .init(item: .students)
         )
     }
 
     @Test("A scene saved by the old Tab enum still opens the matching screen")
     func legacyTabResolves() {
         #expect(
+            // The Community tab left with the Community screen (2026-11-21).
             Restorer.resolve(navItemRaw: nil, legacyTabRaw: "Community", planningModeRaw: nil)
-                == .init(item: .community)
+                == .init(item: .today)
         )
         #expect(
             Restorer.resolve(navItemRaw: nil, legacyTabRaw: "Planning", planningModeRaw: "Open Work")
@@ -233,8 +235,9 @@ struct NavigationGroupTests {
                 == .init(item: .planningAgenda)
         )
         #expect(
+            // The Projects planning mode left with the Projects screen (2026-11-21).
             Restorer.resolve(navItemRaw: nil, legacyTabRaw: "Planning", planningModeRaw: "Projects")
-                == .init(item: .planningProjects)
+                == .init(item: .planningAgenda, lessonsAndWorkScope: .toSchedule)
         )
         #expect(
             Restorer.resolve(navItemRaw: nil, legacyTabRaw: "Planning", planningModeRaw: "Checklist")
@@ -279,39 +282,36 @@ struct NavigationGroupTests {
 // MARK: - Empty rows hide (round-two Simplify, Phase 2)
 
 extension NavigationGroupTests {
-    @Test("Only Going Out and Clubs & Projects can hide, both in Classroom, never a tab in the bar")
+    @Test("Only Going Out can hide, in Classroom, never a tab in the bar")
     func onlyTheEmptyClassroomRowsHide() {
         let hideable = Set(NavigationRowVisibility.rowEntities.keys)
-        #expect(hideable == [.goingOut, .planningProjects])
+        #expect(hideable == [.goingOut])
         for item in hideable {
             #expect(NavigationGroup.containing(item)?.id == .classroom)
             #expect(!NavigationGroup.primaryTabs.contains(item))
         }
-        #expect(NavigationRowVisibility.watchedEntities == ["GoingOut", "Project", "BookClubSession", "Procedure"])
+        #expect(NavigationRowVisibility.watchedEntities == ["GoingOut", "Procedure"])
     }
 
     @Test("A hidden row leaves every list, but stays while it is selected")
     func filterHidesUnlessKept() throws {
         let classroom = try #require(NavigationGroup.all.first { $0.id == .classroom })
-        let filter = NavigationRowFilter(hidden: [.goingOut, .planningProjects])
-        #expect(classroom.items(shownBy: filter) == [.supplies, .community, .schedules])
+        let filter = NavigationRowFilter(hidden: [.goingOut])
+        #expect(classroom.items(shownBy: filter) == [.supplies, .schedules])
         #expect(classroom.items(shownBy: NavigationRowFilter()) == classroom.items)
-        let kept = NavigationRowFilter(hidden: [.goingOut, .planningProjects], kept: [.goingOut])
-        #expect(classroom.items(shownBy: kept) == [.supplies, .community, .goingOut, .schedules])
+        let kept = NavigationRowFilter(hidden: [.goingOut], kept: [.goingOut])
+        #expect(classroom.items(shownBy: kept) == [.supplies, .goingOut, .schedules])
         for group in NavigationGroup.secondaryGroups {
             #expect(!group.secondaryItems(shownBy: filter).contains(.goingOut))
-            #expect(!group.secondaryItems(shownBy: filter).contains(.planningProjects))
         }
     }
 
     @Test("Rows and the Procedures filter show from their first record")
     func rowsShowFromTheirFirstRecord() throws {
         let context = try CoreDataTestHelpers.makeContext()
-        #expect(NavigationRowVisibility.hiddenItems(in: context) == [.goingOut, .planningProjects])
+        #expect(NavigationRowVisibility.hiddenItems(in: context) == [.goingOut])
         #expect(NavigationRowVisibility.hiddenLibraryKinds(in: context) == [.procedures])
 
-        NSEntityDescription.insertNewObject(forEntityName: "BookClubSession", into: context)
-        #expect(NavigationRowVisibility.hiddenItems(in: context) == [.goingOut])
         NSEntityDescription.insertNewObject(forEntityName: "GoingOut", into: context)
         #expect(NavigationRowVisibility.hiddenItems(in: context).isEmpty)
         NSEntityDescription.insertNewObject(forEntityName: "Procedure", into: context)

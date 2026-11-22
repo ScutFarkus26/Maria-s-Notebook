@@ -1,11 +1,12 @@
 // ClassGridView.swift
 // The Class Grid (Simplify the app, Phase 5; canvas approved 2026-10-18): one
-// screen with four views of the class against the curriculum.
+// screen with three views of the class against the curriculum.
 //
 //   Checklist    the Checklist's grid and every tool it had
 //   Three Years  the class Three-Year View: children by year in class
 //   Children     the Progress Dashboard: one row per child, a strip per sequence
-//   Recall       Lesson Recall: retention, by child, the due queue, the check
+//
+// (Recall, the old Lesson Recall, was taken out on 2026-11-21.)
 //
 // The view switch is a segmented control in the Mac toolbar and tabs under the
 // title on iPad and iPhone. The area menu, the search and the children filter
@@ -14,9 +15,8 @@
 // view with no field ignores it. Each view adds its own tools (the Checklist's
 // lens, Three Years' sequence menu and Key / All).
 //
-// It opens at the Checklist's destination. Until Phase 11 aliases them, the
-// Three-Year View, Progress Dashboard and Lesson Recall destinations open it on
-// their view (ClassGridDestinations.swift).
+// It opens at the Checklist's destination. The Three-Year View and Progress
+// Dashboard destinations open it on their view (ClassGridDestinations.swift).
 
 import CoreData
 import SwiftUI
@@ -67,8 +67,8 @@ struct ClassGridView: View {
             .onChange(of: appRouter.checklistFilterArea) { _, area in
                 if area != nil { selection = .checklist }
             }
-            // A retired row (Three-Year View, Progress Dashboard, Lesson
-            // Recall) opens the grid on its view.
+            // A retired row (Three-Year View, Progress Dashboard) opens the
+            // grid on its view.
             .onChange(of: appRouter.screenLanding, initial: true) { _, _ in
                 if let view = appRouter.consumeScreenLanding(where: { landing -> ClassGridViewKind? in
                     if case .classGrid(let view) = landing { return view }
@@ -162,7 +162,6 @@ struct ClassGridView: View {
         case .checklist: ClassGridChecklistView()
         case .threeYears: ClassGridYearsView()
         case .children: ClassGridChildrenView()
-        case .recall: ClassGridRecallView()
         }
     }
 
@@ -239,7 +238,7 @@ private struct ClassGridSearch: ViewModifier {
 
 #if os(iOS)
 /// The iPhone's row under the title: the area menu, then the view's search
-/// field, or Three Years' caption. Recall searches nothing on the phone.
+/// field, or Three Years' caption.
 private struct ClassGridCompactScopeRow<AreaMenu: View>: View {
     let view: ClassGridViewKind
     @ViewBuilder let areaMenu: () -> AreaMenu
@@ -265,8 +264,6 @@ private struct ClassGridCompactScopeRow<AreaMenu: View>: View {
                 Text("Furthest mark · oldest first")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-            case .recall:
                 Spacer(minLength: 0)
             }
         }

@@ -8,8 +8,7 @@ import Testing
 // - #70: Today dropped a todo whose planned day had passed, which the Todos
 //   screen's Today list shows (10-10 #25); the two now use one rule.
 // - #71: lessons past the first thousand read "Lesson".
-// - #77: the Parent Reports banner counted a report twice when sync left two
-//   copies, and counted children who have left.
+// - #77 (the Parent Reports banner's count) went with Parent Reports in 2026-11.
 
 @Suite("Today (Fix1011P)")
 @MainActor
@@ -68,15 +67,5 @@ struct TodayTests {
         cache.loadLessonsIfNeeded(ids: Set(ids), context: context)
         let unnamed = ids.filter { cache.lessonName(for: $0) == "Lesson" }
         #expect(unnamed.isEmpty, "\(unnamed.count) lesson(s) read \"Lesson\"")
-    }
-
-    // MARK: - #77 Parent Reports banner
-
-    @Test("The banner counts each child with a sent report once, and only children still here")
-    func bannerCountsChildrenOnce() {
-        let here = ["A", "B", "C"]
-        let sent = ["A", "A", "B", "GONE"]
-        #expect(ParentReportsSectionView.sentCount(sentReportStudentIDs: sent, studentIDs: Set(here)) == 2)
-        #expect(ParentReportsSectionView.sentCount(sentReportStudentIDs: [], studentIDs: Set(here)) == 0)
     }
 }

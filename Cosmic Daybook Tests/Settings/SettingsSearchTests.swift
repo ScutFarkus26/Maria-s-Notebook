@@ -32,8 +32,7 @@ struct SettingsSearchTests {
 
     @Test("Matching ignores case and accents")
     func caseAndDiacritics() {
-        // "PARENT" alone now finds Attendance to the School first, by its "ParentLocker".
-        #expect(SettingsSearch.firstMatchingGroup(in: .lookAndFeel, query: "PARENT REPORTS") == .parentReports)
+        #expect(SettingsSearch.firstMatchingGroup(in: .lookAndFeel, query: "ORDER REQUESTS") == .orderRequests)
         #expect(SettingsSearch.firstMatchingGroup(in: .lookAndFeel, query: "PARENTLOCKER") == .attendanceEmail)
         #expect(SettingsSearch.firstMatchingGroup(in: .intelligence, query: "sirì") == .siri)
     }

@@ -267,19 +267,4 @@ final class SchoolYearRolloverViewModel {
         appliedCarryOver = carryOver
         phase = .done
     }
-
-    // MARK: - Report support
-
-    /// Number of report-flagged observations visible to this student in the outgoing
-    /// year — the notes a generated PDF summary would draw from, picked as
-    /// every report picks them (`ReportNotes.flagged`).
-    func flaggedNoteCount(
-        for student: CDStudent,
-        store: SchoolYearStore,
-        context: NSManagedObjectContext
-    ) -> Int {
-        let year = outgoingYear(store: store)
-        let lastInstant = max(year.start, year.end.addingTimeInterval(-0.001))
-        return ReportNotes.flagged(for: student, in: year.start...lastInstant, context: context).count
-    }
 }
