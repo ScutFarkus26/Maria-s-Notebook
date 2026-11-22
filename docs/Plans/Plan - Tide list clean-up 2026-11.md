@@ -11,7 +11,7 @@ Marks: `plan/todo-cleanup` (each phase tags the primary checkout `plan/todo-clea
 - [x] Phase 1: Check every row in the list · done 2026-11-22 (aa4d09d90) · session 43da1668-83e6-4096-9ffe-cd0da5fc0293 · actual $3.67 (~0.2%) · 8 completed, 8 dropped, 52 doubtful, 241 still apply; the list is 294 rows. The Opus re-check moved two of the eighteen proposed closes to doubtful.
 - [x] Phase 2: Lesson loop gaps · done 2026-11-22 (f5f3d4c54) · session 0ff35573-e1cc-4d2b-bfe6-04d44dd64eb9 · actual $9.55 (~0.4%) · 15 new tests (13 failed on the old code), 228 tests in 31 suites pass
 - [x] Phase 3: Tidy after the cuts, and the manuals · done 2026-11-22 (fd3515ff6) · session c8c941cd-335f-4a35-aa29-0b01f1f2cce1 · actual $5.09 (~0.2%) · iOS, Mac and Assistant build; 53 tests in 9 suites pass. `LibraryFileStorage`, `ProjectActivity`, the Book Club year rule and `TodoScheduling` went as whole files (nothing used any part); the manuals' "Todos", "Meeting Templates" and "Todos Module" headings were renamed; sat idle 12:09–2:50 pm on a lost wake-up.
-- [ ] Phase 4: Screens and settings · runs as: session · needs: — · est. $15–28 (~1%) ← 1, 2, 3 and 4 run at the same time (1 builds nothing)
+- [x] Phase 4: Screens and settings · done 2026-11-22 (0d5d222e6) · session 426d33d2-b45b-46cf-819c-e9a489a8f710 · actual $14.69 (~0.6%) · iOS, Mac and Assistant build; 81 tests in 13 suites pass; pictures in docs/Pictures. Stalled mid-turn 12:23–2:50 pm.
 - [ ] Phase 5: A link that opens one item · runs as: session · needs: 3 · est. $12–22 (~1%)
 - [ ] Phase 6: Arrival-closed note, share setup, name-list tests · runs as: session · needs: 2 · est. $30–50 (~2%)
 - [ ] Phase 7: Final check · runs as: session · needs: 1, 2, 3, 4, 5, 6 · est. $15–30 (~1%)
@@ -61,6 +61,12 @@ About $150–265 at list prices, which is 6–11% of the weekly limit at this we
   - The present-a-lesson sheet shows the earliest child's check-in day and gives each child her own day on Done; picking any day sets one day for everyone. Quick Record still files "Next work cycle".
   - Moving a child between groups now brings her earlier practice forward (on Undo too; it only ever moves check-ins earlier).
   - Left for Phase 7: the lesson-loop paragraph in `Cosmic Daybook/CLAUDE.md` doesn't mention these changes yet.
+- **D14. What Phase 4 decided and found** (one Review choices row and one Check on a device row in Tide):
+  - On Today, the class control, search and the sync dot are Today's own toolbar items at the left end of the bar; the right end is already full on the 11-inch iPad. The class control shows its icon without the class name there.
+  - At accessibility text sizes a Settings link row puts its icon above the title, and the title wraps by word.
+  - The whole empty-sidebar-row rule is gone (`NavigationRowVisibility.swift` and its tests), not just its empty list.
+  - The plan was wrong about the iPad mini: it uses the iPhone's top bar and never had the overlap. The pictures are on the iPad Air 11-inch, My Class only; the Sample Class needs a tap, so it's in the device row.
+  - Seen and left alone (not new): on the 11-inch iPad the ‹ Today › pill loses its › and Go to Date and + fold into the ••• menu; Settings card titles break mid-word at the largest text in a narrow column; `RootView.swift` is 439 lines, over the 400-line limit.
 - **D12. A stopped phase doesn't cancel the rest.** `plan-wait` reports "stopped" as soon as one needed phase stops. Phases 5 and 6 need 3 and 2 only to keep three builders at once, not for their work, so they start anyway. Phase 7 then waits for the phases still running, checks main as it stands and names what's missing; Phase 8 rolls out whatever passed Phase 7.
 
 ## Apple guidance
