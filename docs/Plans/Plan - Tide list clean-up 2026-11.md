@@ -10,7 +10,7 @@ Cosmic Daybook's list in Tide (`Areas/App Development/Cosmic Daybook/To do.md`) 
 Marks: `plan/todo-cleanup` (each phase tags the primary checkout `plan/todo-cleanup/phase-<N>` when it merges; see `~/.claude/bin/plan-wait`)
 - [x] Phase 1: Check every row in the list · done 2026-11-22 (aa4d09d90) · session 43da1668-83e6-4096-9ffe-cd0da5fc0293 · actual $3.67 (~0.2%) · 8 completed, 8 dropped, 52 doubtful, 241 still apply; the list is 294 rows. The Opus re-check moved two of the eighteen proposed closes to doubtful.
 - [x] Phase 2: Lesson loop gaps · done 2026-11-22 (f5f3d4c54) · session 0ff35573-e1cc-4d2b-bfe6-04d44dd64eb9 · actual $9.55 (~0.4%) · 15 new tests (13 failed on the old code), 228 tests in 31 suites pass
-- [ ] Phase 3: Tidy after the cuts, and the manuals · runs as: session · needs: — · est. $6–14 (~0.5%)
+- [x] Phase 3: Tidy after the cuts, and the manuals · done 2026-11-22 (fd3515ff6) · session c8c941cd-335f-4a35-aa29-0b01f1f2cce1 · actual $5.09 (~0.2%) · iOS, Mac and Assistant build; 53 tests in 9 suites pass. `LibraryFileStorage`, `ProjectActivity`, the Book Club year rule and `TodoScheduling` went as whole files (nothing used any part); the manuals' "Todos", "Meeting Templates" and "Todos Module" headings were renamed; sat idle 12:09–2:50 pm on a lost wake-up.
 - [ ] Phase 4: Screens and settings · runs as: session · needs: — · est. $15–28 (~1%) ← 1, 2, 3 and 4 run at the same time (1 builds nothing)
 - [ ] Phase 5: A link that opens one item · runs as: session · needs: 3 · est. $12–22 (~1%)
 - [ ] Phase 6: Arrival-closed note, share setup, name-list tests · runs as: session · needs: 2 · est. $30–50 (~2%)
