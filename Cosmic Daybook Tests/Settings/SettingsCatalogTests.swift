@@ -50,7 +50,6 @@ struct SettingsCatalogTests {
             ("assistant", .classroom),
             ("age indicators", .lookAndFeel),
             ("quick capture", .lookAndFeel),
-            ("parent reports", .lookAndFeel),
             ("order requests", .lookAndFeel),
             ("meeting templates", .templates),
             ("apple calendar", .intelligence),
