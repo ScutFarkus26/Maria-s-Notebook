@@ -13,7 +13,7 @@ Marks: `plan/todo-cleanup` (each phase tags the primary checkout `plan/todo-clea
 - [x] Phase 3: Tidy after the cuts, and the manuals · done 2026-11-22 (fd3515ff6) · session c8c941cd-335f-4a35-aa29-0b01f1f2cce1 · actual $5.09 (~0.2%) · iOS, Mac and Assistant build; 53 tests in 9 suites pass. `LibraryFileStorage`, `ProjectActivity`, the Book Club year rule and `TodoScheduling` went as whole files (nothing used any part); the manuals' "Todos", "Meeting Templates" and "Todos Module" headings were renamed; sat idle 12:09–2:50 pm on a lost wake-up.
 - [x] Phase 4: Screens and settings · done 2026-11-22 (0d5d222e6) · session 426d33d2-b45b-46cf-819c-e9a489a8f710 · actual $14.69 (~0.6%) · iOS, Mac and Assistant build; 81 tests in 13 suites pass; pictures in docs/Pictures. Stalled mid-turn 12:23–2:50 pm.
 - [ ] Phase 5: A link that opens one item · runs as: session · needs: 3 · est. $12–22 (~1%)
-- [ ] Phase 6: Arrival-closed note, share setup, name-list tests · runs as: session · needs: 2 · est. $30–50 (~2%)
+- [x] Phase 6: Arrival-closed note, share setup, name-list tests · done 2026-11-22 (2cc47748d) · session 686136c2-d17f-4f29-935e-071b0d441ef5 · actual $27.61 (~1.2%) · 746 notebook and 543 Assistant tests pass; all six name-list tests fail without their guards; the ParentLocker suite passed twice running; no data-model change. Missed its wake-up when Phase 2 merged and was started by message at 2:50 pm.
 - [ ] Phase 7: Final check · runs as: session · needs: 1, 2, 3, 4, 5, 6 · est. $15–30 (~1%)
 - [ ] Phase 8: Roll out to TestFlight · runs as: session · needs: 7 · est. $5–12 (~0.5%)
 
@@ -67,6 +67,13 @@ About $150–265 at list prices, which is 6–11% of the weekly limit at this we
   - The whole empty-sidebar-row rule is gone (`NavigationRowVisibility.swift` and its tests), not just its empty list.
   - The plan was wrong about the iPad mini: it uses the iPhone's top bar and never had the overlap. The pictures are on the iPad Air 11-inch, My Class only; the Sample Class needs a tap, so it's in the device row.
   - Seen and left alone (not new): on the 11-inch iPad the ‹ Today › pill loses its › and Go to Date and + fold into the ••• menu; Settings card titles break mid-word at the largest text in a narrow column; `RootView.swift` is 439 lines, over the 400-line limit.
+- **D15. What Phase 6 decided and found** (one Review choices row and one Check on a device row in Tide):
+  - A locked day keeps its note. Reopen deletes the note even when the day's marks still read closed.
+  - If saving only the note fails, it's logged and nothing shows. If Siri closes arrival with nobody to mark and the note won't save, the note is dropped and arrival still closes.
+  - Undo of Reset Day writes the note again at the first close's time.
+  - The sharing screen's refresh and the re-read after sharing stops moved off the main thread too.
+  - The notebook's Siri has no Close Arrival, only Undo, so only the Assistant's Siri writes the note; Siri's Undo takes it back in both apps.
+  - A guard round that crashes the test app (`storesGoneDuringTheWait`) leaves a saved setting on the test simulator that fails an unrelated sharing test; removing the app from the simulator clears it.
 - **D12. A stopped phase doesn't cancel the rest.** `plan-wait` reports "stopped" as soon as one needed phase stops. Phases 5 and 6 need 3 and 2 only to keep three builders at once, not for their work, so they start anyway. Phase 7 then waits for the phases still running, checks main as it stands and names what's missing; Phase 8 rolls out whatever passed Phase 7.
 
 ## Apple guidance
