@@ -141,10 +141,10 @@ struct TodayTodosSectionView<FollowUpRow: View>: View {
 
     /// Open, not someday, and planned or due by the last day, or high
     /// priority; a someday todo once it is due by the last day (bug hunt
-    /// 2026-11-03 #57). The Todos screen's Today list and this one read the same rule
-    /// (`TodoListFilter.isDueOrPlanned`): Today used to drop a todo whose
-    /// planned day had passed, and one overdue but planned later, which the
-    /// Todos screen shows since 10-10 #25 (bug hunt 2026-10-11 #70).
+    /// 2026-11-03 #57). It reads `TodoListFilter.isDueOrPlanned`, the rule the
+    /// Todos screen's Today list read until that screen went (2026-11-22):
+    /// Today used to drop a todo whose planned day had passed, and one overdue
+    /// but planned later (bug hunt 2026-10-10 #25, 2026-10-11 #70).
     private static func isShown(_ todo: CDTodoItem, lastDay: Date) -> Bool {
         guard !todo.isCompleted else { return false }
         // A someday todo joins once its deadline arrives.

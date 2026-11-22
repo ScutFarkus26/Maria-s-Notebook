@@ -66,7 +66,7 @@ struct WindowGoMenuTests {
 
     @Test("Going to a section routes as the router does: plain sections as they are, Lessons & Work on To Schedule")
     func routesMatchTheRouter() {
-        for item: RootView.NavigationItem in [.today, .attendance, .students, .lessons, .notes, .todos] {
+        for item: RootView.NavigationItem in [.today, .attendance, .students, .lessons, .notes, .smallSequencePlanner] {
             let route = WindowSectionRequests.route(to: item)
             #expect(route.section == item.canonical)
             #expect(route.lessonsAndWork == nil)

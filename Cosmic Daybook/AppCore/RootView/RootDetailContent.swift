@@ -35,8 +35,8 @@ struct RootDetailContent: View {
             case .lessons, .teachingAlbums, .planningChecklist, .planningAgenda,
                  .smallSequencePlanner:
                 curriculumContent
-            case .todos, .planningCalendar:
-                planningContent
+            case .planningCalendar:
+                PlanningCalendarView()
             case .supplies, .schedules:
                 resourcesContent
             case .notes, .settings:
@@ -47,7 +47,7 @@ struct RootDetailContent: View {
             case .note, .more, .perpetualCalendar, .orders, .logs, .curriculumMap,
                  .progressDashboard, .lessonRecall, .parshaCalendar, .stories, .procedures,
                  .resourceLibrary, .goingOut, .bookClub, .askAI, .parentReports, .planningProjects,
-                 .community:
+                 .community, .todos:
                 EmptyView()
             }
         }
@@ -60,15 +60,6 @@ struct RootDetailContent: View {
         case .today: AnyView(TodayRootView())
         case .attendance: AnyView(attendanceContent)
         default: AnyView(EmptyView())
-        }
-    }
-
-    @ViewBuilder
-    private var planningContent: some View {
-        switch item {
-        case .todos: TodoMainView()
-        case .planningCalendar: PlanningCalendarView()
-        default: EmptyView()
         }
     }
 

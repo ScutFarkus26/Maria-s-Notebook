@@ -3,9 +3,10 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-/// The Todos screen's lists and quick moves (bug hunt 2026-10-10, P2 #25,
-/// #26 and #30's Upcoming order; #28's templates retired 2026-11).
-@Suite("Todos: Today, quick moves and Upcoming")
+/// Today's to-do rule and the quick moves (bug hunt 2026-10-10, P2 #25 and
+/// #26; #28's templates retired 2026-11, and #30's Upcoming order went with
+/// the Todos screen on 2026-11-22).
+@Suite("Todos: Today and quick moves")
 @MainActor
 struct TodoListFix1010Tests {
 
@@ -84,23 +85,5 @@ struct TodoListFix1010Tests {
             #expect(monday > date)
             #expect(monday <= AppCalendar.addingDays(7, to: AppCalendar.startOfDay(date)))
         }
-    }
-
-    // MARK: - Upcoming
-
-    @Test("Upcoming's day headings run into the new year in order")
-    func upcomingDaysCrossTheNewYear() throws {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = AppCalendar.shared.timeZone
-        let december28 = try #require(calendar.date(from: DateComponents(year: 2026, month: 12, day: 28)))
-        let days = [30, 31, 33, 35].map { AppCalendar.addingDays($0 - 28, to: december28) }
-        let keys = days.map(TodoMainView.upcomingDayKey).shuffled()
-
-        let sorted = keys.sorted {
-            (TodoMainView.upcomingDayDate($0, today: december28) ?? .distantFuture)
-                < (TodoMainView.upcomingDayDate($1, today: december28) ?? .distantFuture)
-        }
-        #expect(sorted == days.map(TodoMainView.upcomingDayKey))
-        #expect(TodoMainView.upcomingDayDate(TodoMainView.upcomingDayKey(days[2]), today: december28) == days[2])
     }
 }

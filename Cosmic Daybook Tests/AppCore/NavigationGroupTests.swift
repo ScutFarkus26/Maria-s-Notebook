@@ -55,12 +55,12 @@ struct NavigationGroupTests {
 
     // MARK: - Group shape
 
-    @Test("Six groups in order, 16 rows, and only Classroom starts collapsed")
+    @Test("Six groups in order, 15 rows, and only Classroom starts collapsed")
     func groupOrderAndDefaults() {
         #expect(NavigationGroup.all.map(\.id) == [.today, .children, .planning, .classroom, .library, .system])
         #expect(NavigationGroup.all.map(\.title) == ["Today", "Children", "Plan", "Classroom", "Library", "System"])
         #expect(NavigationGroup.all.filter { !$0.isExpandedByDefault }.map(\.id) == [.classroom])
-        #expect(NavigationGroup.all.flatMap(\.items).count == 16)
+        #expect(NavigationGroup.all.flatMap(\.items).count == 15)
         #expect(NavigationGroup.primaryTabs == [.today, .students, .attendance, .planningAgenda])
         // The Plan group keeps the old Planning group's expansion key.
         #expect(RootView.NavigationGroupID.planning.rawValue == "planning")
@@ -69,7 +69,7 @@ struct NavigationGroupTests {
     @Test("Each group lists the rows the Simplify plan settled on, in order")
     func groupRows() {
         let rows = Dictionary(uniqueKeysWithValues: NavigationGroup.all.map { ($0.id, $0.items) })
-        #expect(rows[.today] == [.today, .attendance, .todos])
+        #expect(rows[.today] == [.today, .attendance])
         #expect(rows[.children] == [.students, .meetings, .notes])
         #expect(rows[.planning] == [.planningAgenda, .smallSequencePlanner, .planningChecklist,
                                     .planningCalendar, .thisWeeksParsha])
@@ -165,6 +165,7 @@ struct NavigationGroupTests {
             ("procedures", .lessons, nil),
             ("resourceLibrary", .lessons, nil),
             ("goingOut", .today, nil),
+            ("todos", .today, nil),
             ("bookClub", .today, nil),
             ("planningProjects", .today, nil),
             ("community", .today, nil),

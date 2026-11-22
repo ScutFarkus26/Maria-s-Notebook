@@ -108,7 +108,7 @@ struct TodayViewSheets: ViewModifier {
 #if os(iOS)
     private func editTodoSheet(_ todo: CDTodoItem) -> some View {
         NavigationStack {
-            EditTodoForm(todo: todo)
+            EditTodoForm(todo: todo) { selectedTodoItem = nil }
                 .navigationTitle("Edit Todo")
                 .inlineNavigationTitle()
                 .toolbar {

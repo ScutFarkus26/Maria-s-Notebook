@@ -84,7 +84,8 @@ extension RootView {
             .resourceLibrary: .lessons,
             .stories: .lessons,
             .procedures: .lessons,
-            .goingOut: .today
+            .goingOut: .today,
+            .todos: .today
         ]
 
         /// The destination this item actually shows.

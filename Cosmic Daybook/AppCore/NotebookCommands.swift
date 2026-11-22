@@ -124,7 +124,7 @@ struct NotebookCommands: Commands {
                 .keyboardShortcut("6", modifiers: .command)
                 .disabled(quickCapture == nil)
 
-            Button("Todos") { quickCapture?.go(to: .todos) }
+            Button("Groups") { quickCapture?.go(to: .smallSequencePlanner) }
                 .keyboardShortcut("7", modifiers: .command)
                 .disabled(quickCapture == nil)
         }

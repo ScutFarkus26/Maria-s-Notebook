@@ -24,7 +24,7 @@ nonisolated struct TideNotebookTodo: Equatable, Sendable {
 
 /// The notebook's side of the sync. Everything the sync changes in the
 /// notebook goes through here, never straight to Core Data from the engine:
-/// `NotebookTideTodoStore` makes the changes the Todos screens make.
+/// `NotebookTideTodoStore` makes the changes the to-do editor makes.
 protocol TideTodoStore: AnyObject {
     /// Every open to-do, and the ticked ones among `closed` that are linked.
     func todos(alsoClosed closed: Set<UUID>) -> [TideNotebookTodo]
