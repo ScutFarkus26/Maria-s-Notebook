@@ -8,7 +8,7 @@ Cosmic Daybook's list in Tide (`Areas/App Development/Cosmic Daybook/To do.md`) 
 
 ## Progress
 Marks: `plan/todo-cleanup` (each phase tags the primary checkout `plan/todo-cleanup/phase-<N>` when it merges; see `~/.claude/bin/plan-wait`)
-- [ ] Phase 1: Check every row in the list · runs as: session · needs: — · est. $12–22 (~1%)
+- [x] Phase 1: Check every row in the list · done 2026-11-22 (aa4d09d90) · session 43da1668-83e6-4096-9ffe-cd0da5fc0293 · actual $3.67 (~0.2%) · 8 completed, 8 dropped, 52 doubtful, 241 still apply; the list is 294 rows. The Opus re-check moved two of the eighteen proposed closes to doubtful.
 - [ ] Phase 2: Lesson loop gaps · runs as: session · needs: — · est. $18–32 (~1%)
 - [ ] Phase 3: Tidy after the cuts, and the manuals · runs as: session · needs: — · est. $6–14 (~0.5%)
 - [ ] Phase 4: Screens and settings · runs as: session · needs: — · est. $15–28 (~1%) ← 1, 2, 3 and 4 run at the same time (1 builds nothing)
