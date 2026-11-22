@@ -33,7 +33,7 @@ What the analysis found (live notebook, read 2026-11-21):
 Marks: `plan/cuts-loop` (each phase tags the primary checkout `plan/cuts-loop/phase-<N>` when it merges; see `~/.claude/bin/plan-wait`)
 The last version with every feature in it is the tag `retired/2026-11-cuts`: at the go-ahead the conductor fast-forwards main to this plan's commit and tags it there, before Phase 1 starts.
 
-- [ ] Phase 1: Cut Parent Reports, recall checks, Projects and Book Club, Community topics, Issues · runs as: session · needs: — · est. $35–60 (~2–3%)
+- [x] Phase 1: Cut Parent Reports, recall checks, Projects and Book Club, Community topics, Issues · done 2026-11-22 (30bf2e6f6) · session 4dd54666-95a3-4afb-bf9e-24b4020d48ea · actual $21.29 (~1%)
 - [ ] Phase 2: Cut Resources, Stories, Procedures, Going Out, Today's pad card, custom templates, the To-dos screen · runs as: session · needs: 1 · est. $30–50 (~1–2%)
 - [ ] Phase 3: The lesson loop in chat (services and Claude tools) · runs as: session · needs: 2 · est. $15–30 (~1%)
 - [ ] Phase 4: The lesson loop on the Mac (screens) and ways into Groups · runs as: session · needs: 3 · est. $20–35 (~1–2%)
@@ -89,6 +89,16 @@ About $150–265 in all: the phases $120–220, the conductor $30–45 (this pla
 - This Week's Parsha stays; revisit it at the next feature review (a Tide row).
 - Class Grid cells get no practice mark in this plan (the Brewing mark already covers the gated sequences).
 - A system-wide hotkey for quick notes: Apple offers none for SwiftUI (see Apple guidance), and a menu bar item wasn't asked for.
+
+**Decided in Phase 1** (the first four have Tide Review choices rows):
+- The old monthly parent-report reminder is cleared at every launch, not once.
+- The school-year rollover still lists who is leaving, without the report button or the flagged-notes count.
+- An old Lesson Recall link opens the Class Grid on its usual view; the legacy "Projects" planning mode opens Lessons & Work.
+- Claude's `families` tool shows guardians when no view is given.
+- Kept in `Models/`, now unused: the project year-overlap rule, the matching Book Club rule, and the `LibraryFileStorage.packets` folder name (the storage tests check it). Only the packet import went.
+- The Claude tool count's test range moved from 58–64 to 50–58 (56 now). The Progress tab's empty state reads "No open reports or lessons in progress." The removed project-work service's tests went with it.
+- Two whole-suite failures left by cut 1 were fixed in 87cc322e9; reverting cut 1 alone means reverting that commit too.
+- `Scripts/locked_xcodebuild.sh` returns 0 even when the build fails, so a test run can use an old build. Later phases check the log, not the exit code.
 
 ## Apple guidance
 
