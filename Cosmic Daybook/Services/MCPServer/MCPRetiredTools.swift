@@ -99,6 +99,8 @@ extension MCPNotebookTools {
         table["book_club"] = "book_club is retired: Book Club \(takenOut)"
         table["community_topics"] = "community_topics is retired: Community topics \(takenOut)"
         table["update_community_topic"] = "update_community_topic is retired: Community topics \(takenOut)"
+        table["list_issues"] = "list_issues is retired: Issues \(takenOut)"
+        table["update_issue"] = "update_issue is retired: Issues \(takenOut)"
         return table
     }()
 

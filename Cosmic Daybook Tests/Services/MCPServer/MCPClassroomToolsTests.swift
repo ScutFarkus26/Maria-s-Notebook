@@ -79,49 +79,4 @@ struct MCPClassroomToolsTests {
         let transaction = try #require(context.safeFetch(CDFetchRequest(CDSupplyTransaction.self)).first)
         #expect(transaction.quantityChange == 4)
     }
-
-    // MARK: - Issues
-
-    @Test("update_issue stamps the resolution date when it is resolved")
-    func updateIssueStampsResolution() async throws {
-        let (tools, context) = try makeTools()
-        let raised = try await tool(named: "update_issue", in: tools).handler([
-            "title": .string("Loose shelf bracket"),
-            "category": .string("Facility"),
-            "priority": .string("High")
-        ])
-        #expect(raised.contains("Raised"))
-
-        let issue = try #require(context.safeFetch(CDFetchRequest(CDIssue.self)).first)
-        #expect(issue.resolvedAt == nil)
-        let id = try #require(issue.id).uuidString
-
-        _ = try await tool(named: "update_issue", in: tools).handler([
-            "issue_id": .string(id),
-            "status": .string("Resolved"),
-            "resolution": .string("Re-anchored the bracket")
-        ])
-        #expect(issue.status == .resolved)
-        #expect(issue.resolvedAt != nil)
-    }
-
-    @Test("list_issues hides settled issues unless a status is asked for")
-    func listIssuesHidesSettledByDefault() async throws {
-        let (tools, context) = try makeTools()
-        let issue = CDIssue(context: context)
-        issue.id = UUID()
-        issue.title = "Old spill"
-        issue.status = .closed
-        issue.priority = .low
-        issue.category = .facility
-        CoreDataTestHelpers.save(context)
-
-        let byDefault = try await tool(named: "list_issues", in: tools).handler([:])
-        #expect(byDefault.contains("No issues are open."))
-
-        let asked = try await tool(named: "list_issues", in: tools).handler([
-            "status": .string("Closed")
-        ])
-        #expect(asked.contains("Old spill"))
-    }
 }

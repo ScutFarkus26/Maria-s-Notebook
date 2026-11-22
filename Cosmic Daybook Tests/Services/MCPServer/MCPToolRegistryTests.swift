@@ -16,7 +16,9 @@ struct MCPToolRegistryTests {
         let names: [String] = tools.map(\.name)
         #expect(names.count == Self.expectedTools.count)
         #expect(Set(names).count == names.count)
-        #expect((58...64).contains(names.count), "round-two Simplify, Phase 6: about 60 tools, not 97")
+        // Round-two Simplify, Phase 6 left about 60 tools, not 97; cutting
+        // unused features (2026-11-21) took eight more.
+        #expect((50...58).contains(names.count), "about 55 tools since the 2026-11-21 cuts")
         #expect(Set(names) == Set(Self.expectedTools))
         // A retired name is answered, never listed.
         #expect(Set(names).isDisjoint(with: MCPNotebookTools.retiredTools.keys))
@@ -56,7 +58,6 @@ struct MCPToolRegistryTests {
         "families", "update_guardian",
         // classroom
         "list_supplies", "adjust_supply", "mark_supplies",
-        "list_issues", "update_issue",
         "list_resources", "day_pad",
         // school calendar and the app
         "school_calendar", "set_school_days", "update_school_calendar",
@@ -71,7 +72,7 @@ struct MCPToolRegistryTests {
             serverVersion: "1.0-test", tools: MCPNotebookTools.makeTools(context: { context })
         )
         let table = MCPNotebookTools.retiredTools
-        #expect(table.count == 43)
+        #expect(table.count == 45)
         for (name, sentence) in table.sorted(by: { $0.key < $1.key }) {
             let request = #"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"\#(name)","arguments":{}}}"#
             let reply = try #require(await handler.handle(line: Data(request.utf8)))
@@ -138,7 +139,7 @@ struct MCPToolRegistryTests {
         // edits in place
         "day_pad", "mark_attendance", "mark_mastered", "reorder_lessons",
         "reschedule_presentation", "resolve_follow_up",
-        "update_guardian", "update_issue", "update_lesson",
+        "update_guardian", "update_lesson",
         "update_observation", "update_presentation_roster",
         "update_student", "update_todo", "update_work", "update_year_plan_entry",
         "set_school_days", "update_school_calendar", "change_schedule_day",
