@@ -66,7 +66,6 @@ extension TodayView {
         followingPresentationsListSection
         recentNotesListSection
         calendarEventsListSection
-        dayPadListSection
         doneTodayListSection
     }
     #endif
@@ -115,7 +114,6 @@ extension TodayView {
         followingPresentationsListSection
         recentNotesListSection
         calendarEventsListSection
-        dayPadListSection
         doneTodayListSection
     }
 

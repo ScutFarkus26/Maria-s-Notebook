@@ -107,7 +107,7 @@ enum MigrationRunner {
     ///   (`FirstDownloadGate`), nor before this launch has caught up with
     ///   iCloud (`copyCalendarNotesToPadsOnceCaughtUp`): pads already holding
     ///   the copies, or edited on the iPad since, may still be on their way down.
-    /// - On the view context, where Today's Pad and the Calendar edit: a pad
+    /// - On the view context, where the Calendar edits: a pad
     ///   open in an editor sees the added text and merges it with her typing
     ///   (`TodayDataFetcher.savePadText`), where a second context's save
     ///   could cross hers.

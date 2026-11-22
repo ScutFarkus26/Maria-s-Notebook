@@ -8,8 +8,9 @@ import SwiftUI
 /// Holds the day cell whose text field is open and the text being typed into
 /// it, and writes the draft back to that day's pad (`CDDayPad`) on commit.
 ///
-/// A day has one note, its pad: the Calendar, Today's Pad and the Claude tools
-/// read and write the same text (Simplify the app, Phase 7). The Calendar's
+/// A day has one note, its pad: the Calendar and the Claude tools read and
+/// write the same text (Simplify the app, Phase 7; Today's pad card, which
+/// edited it too, was taken out on 2026-11-22). The Calendar's
 /// own notes (`CDCalendarNote`) were copied into the pads at launch
 /// (`CalendarNotePadCopy`) and are no longer written.
 ///

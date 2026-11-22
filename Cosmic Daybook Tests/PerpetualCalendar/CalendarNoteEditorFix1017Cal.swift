@@ -10,7 +10,7 @@ import Testing
 /// nothing writes nothing.
 ///
 /// Since Simplify the app's Phase 7 what is stored is the day's pad, the
-/// note Today's Pad edits too; these pin the same rules against it.
+/// note Claude's day_pad tool edits too; these pin the same rules against it.
 @Suite("Calendar note editor (Fix1017 Cal)")
 @MainActor
 struct CalendarNoteEditorFix1017Cal {
