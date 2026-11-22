@@ -12,7 +12,7 @@ Marks: `plan/todo-cleanup` (each phase tags the primary checkout `plan/todo-clea
 - [x] Phase 2: Lesson loop gaps · done 2026-11-22 (f5f3d4c54) · session 0ff35573-e1cc-4d2b-bfe6-04d44dd64eb9 · actual $9.55 (~0.4%) · 15 new tests (13 failed on the old code), 228 tests in 31 suites pass
 - [x] Phase 3: Tidy after the cuts, and the manuals · done 2026-11-22 (fd3515ff6) · session c8c941cd-335f-4a35-aa29-0b01f1f2cce1 · actual $5.09 (~0.2%) · iOS, Mac and Assistant build; 53 tests in 9 suites pass. `LibraryFileStorage`, `ProjectActivity`, the Book Club year rule and `TodoScheduling` went as whole files (nothing used any part); the manuals' "Todos", "Meeting Templates" and "Todos Module" headings were renamed; sat idle 12:09–2:50 pm on a lost wake-up.
 - [x] Phase 4: Screens and settings · done 2026-11-22 (0d5d222e6) · session 426d33d2-b45b-46cf-819c-e9a489a8f710 · actual $14.69 (~0.6%) · iOS, Mac and Assistant build; 81 tests in 13 suites pass; pictures in docs/Pictures. Stalled mid-turn 12:23–2:50 pm.
-- [ ] Phase 5: A link that opens one item · runs as: session · needs: 3 · est. $12–22 (~1%)
+- [x] Phase 5: A link that opens one item · done 2026-11-22 (b80804509) · session 9478060a-5533-4ec8-b6c5-fc7584449763 · actual $9.49 (~0.4%) · iOS and Mac build (the Mac with signing off); 24 tests pass. The link opening its page on a device is not checked (iOS asks "Open in Cosmic Daybook?", which needs a tap): one device row in Tide. Missed its wake-up when Phase 3 merged and was started by message.
 - [x] Phase 6: Arrival-closed note, share setup, name-list tests · done 2026-11-22 (2cc47748d) · session 686136c2-d17f-4f29-935e-071b0d441ef5 · actual $27.61 (~1.2%) · 746 notebook and 543 Assistant tests pass; all six name-list tests fail without their guards; the ParentLocker suite passed twice running; no data-model change. Missed its wake-up when Phase 2 merged and was started by message at 2:50 pm.
 - [ ] Phase 7: Final check · runs as: session · needs: 1, 2, 3, 4, 5, 6 · est. $15–30 (~1%)
 - [ ] Phase 8: Roll out to TestFlight · runs as: session · needs: 7 · est. $5–12 (~0.5%)
@@ -74,6 +74,12 @@ About $150–265 at list prices, which is 6–11% of the weekly limit at this we
   - The sharing screen's refresh and the re-read after sharing stops moved off the main thread too.
   - The notebook's Siri has no Close Arrival, only Undo, so only the Assistant's Siri writes the note; Siri's Undo takes it back in both apps.
   - A guard round that crashes the test app (`storesGoneDuringTheWait`) leaves a saved setting on the test simulator that fails an unrelated sharing test; removing the app from the simulator clears it.
+- **D16. What Phase 5 decided and found** (one Review choices row and one Check on a device row in Tide):
+  - Claude's follow-up ids are to-dos, goals and flagged notes, not presentations. A goal, or a note about one child, opens that child's page; a to-do, or a note about several children or the class, opens Today. A to-do's link never opens its edit form.
+  - Anything after the id (a query, a `#` part, another path part) opens nothing. A window on the Sample Class ignores My Class ids, and a link never switches classroom.
+  - A link that arrives while the app is still opening waits until the notebook is up; a second one before then replaces the first.
+  - A signed Mac Debug build fails on this Mac: the provisioning profile doesn't include the signing certificate (Xcode isn't signed in). The Mac compile was checked with signing off.
+  - A Mac Debug build registers itself as the handler for `cosmicdaybook://`, and a Debug copy opens the live notebook. Phase 5 unregistered it; any later Mac Debug build should do the same.
 - **D12. A stopped phase doesn't cancel the rest.** `plan-wait` reports "stopped" as soon as one needed phase stops. Phases 5 and 6 need 3 and 2 only to keep three builders at once, not for their work, so they start anyway. Phase 7 then waits for the phases still running, checks main as it stands and names what's missing; Phase 8 rolls out whatever passed Phase 7.
 
 ## Apple guidance
