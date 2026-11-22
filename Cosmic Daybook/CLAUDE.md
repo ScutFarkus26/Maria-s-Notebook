@@ -102,7 +102,7 @@ Cosmic Daybook/
 │   ├── Windows/      #   Window registration and detail-window plumbing
 │   ├── Theme/        #   AppTheme, AppColors, spacing
 │   └── SampleClassroom/ # Sample-class seeder
-├── Models/           # Cross-feature NSManagedObject subclasses (single-feature entities live in their feature)
+├── Models/           # Cross-feature NSManagedObject subclasses (single-feature entities live in their feature), and the kept entities of features taken out 2026-11-21/22 (Projects, Book Club, Community topics, Issues, Resources, Stories, Procedures, Going Out, recall checks, parent communications)
 ├── Repositories/     # Data access repositories
 ├── Services/         # Cross-feature infrastructure and system integrations
 │   ├── Sync/         #   CloudKit status, persistent history, dedup, synced preferences
@@ -112,7 +112,7 @@ Cosmic Daybook/
 ├── Components/       # Reusable SwiftUI used by two or more unrelated features (Toast/, WaitingStudents/, Shared/…)
 ├── Utils/            # Extensions/, Formatting/, SwiftUI/, Visibility/, Files/, CoreData/, Platform/, Diagnostics/
 │
-├── Students/         # Student profiles, detail, meetings, progress, notes, import, reports
+├── Students/         # Student profiles, detail, meetings, progress, notes, import; Guardians/ (guardians, their edit sheet and list)
 ├── Lessons/          # Lesson library, detail, attachments, scope map, parsha lessons
 │   └── Checklist/    #   The Class Grid's Checklist view: Views/, Model/, ViewModels/
 ├── Work/             # Work items and check-ins (practice is a check-in with minutes)
@@ -122,33 +122,25 @@ Cosmic Daybook/
 ├── Groups/           # Groups page: who is ready for the same next lesson, sequence ladder
 ├── CommandBar/       # Command bar: Views/, ViewModels/, Services/ (parsing, capture)
 ├── Today/            # Daily hub views, view model, and support
-├── Todos/            # Todo models, screens, forms, and support
-├── Notes/            # Observation browsing, editing, and quick capture
+├── Todos/            # Todo models, the new and edit forms, and support (no Todos screen since 2026-11-22)
+├── Notes/            # Observation browsing, editing, quick capture, and the lesson's quick note (QuickNote, LessonQuickNote*)
 ├── ObservationMode/  # Developmental traits and observation quick tags
 │
 ├── Albums/           # Teaching-album PDFs: Library/, Search/, Detail/, LessonLinks/
-├── BookClub/         # Book club sessions (shown in Clubs & Projects) and packets (shown in Resources)
-├── ClassGrid/        # The Class Grid: Checklist, Three Years, Children and Recall views over one engine (Engine/)
+├── ClassGrid/        # The Class Grid: Checklist, Three Years and Children views over one engine (Engine/)
 ├── CurriculumMap/    # Per-child Three-Year View (on the student page) and the loader/store/types the Class Grid reads
-├── GoingOut/         # Going Out planning
 ├── Logs/             # Attendance and meetings log views (Attendance's List, Meetings' History)
 ├── Orders/           # Restock's needs to order: request email, stages, link titles
-├── ParentReports/    # Monthly parent reports, guardians, report generator
 ├── Parsha/           # Weekly parsha calendar and lesson tagging
 ├── PerpetualCalendar/# Calendar notes
-├── Procedures/       # Procedure documentation
-├── Projects/         # Project management & sessions
-├── Resources/        # Resource records and detail; Library/ is the one Resources screen (Stories, Packets, Files, Procedures, one import service)
 ├── Schedules/        # Schedules: rooms' and people's weekly blocks, one-day changes, the guide's lessons (Model/, Services/, Views/); old Schedule/ScheduleSlot files kept unused
-├── Stories/          # Story library: import, analysis, covers
 ├── Supplies/         # Restock: staples with levels, needs, the one page
-├── Topics/           # Community topics, solutions, community meetings, and their models
 │
 ├── SchoolYear/       # School-year lens: store, picker, scoping, rollover grades
 ├── Sharing/          # CloudKit sharing (classroom collaboration)
 ├── Siri/             # App Intents, Siri attendance, Spotlight indexing
 ├── Backup/           # Backup & restore
-├── Settings/         # App configuration, six categories (`SettingsCategory`): Classroom/, Sync/, Intelligence/, DataManagement/, Templates/, Preferences/, Dashboard/
+├── Settings/         # App configuration, five categories (`SettingsCategory`; a saved Templates pick lands on School Year): Classroom/, Sync/, Intelligence/, DataManagement/, Preferences/, Dashboard/
 ├── AppIcon.icon/     # App icon
 ├── Assets.xcassets/  # Asset catalog
 └── CosmicDaybook.xcdatamodeld/ # Core Data model
@@ -161,7 +153,7 @@ Documentation/        # manuals (Manuals/) and their PDFs (Generated/) only
 docs/                 # everything else; start at docs/Start here.md (plans and status); old doc paths in code comments: docs/Old names.md
 ```
 
-Sidebar/tab grouping lives in `RootView.NavigationGroup` (`AppCore/RootView/RootView+NavigationGroup.swift`); `NavigationGroupTests` pins it, and pins every `NavigationItem` raw value (they are persisted — never rename one; alias a retired case via `NavigationItem.aliases`; `landing` / `ScreenLanding` opens it on the right view of its replacement). Six groups, 21 rows.
+Sidebar/tab grouping lives in `RootView.NavigationGroup` (`AppCore/RootView/RootView+NavigationGroup.swift`); `NavigationGroupTests` pins it, and pins every `NavigationItem` raw value (they are persisted — never rename one; alias a retired case via `NavigationItem.aliases`; `landing` / `ScreenLanding` opens it on the right view of its replacement). Six groups, 15 rows (2026-11-22; the rows of features taken out are aliases to Today, Students, Lessons or the Class Grid).
 
 ## Architecture
 
@@ -169,7 +161,7 @@ MVVM with services on `NSPersistentCloudKitContainer` (private and shared stores
 
 ## Data Model
 
-94 entities (schema 25): 67 private (60 in use and 7 retired: ClassroomJob, JobAssignment, NoteTemplate, PracticeSession, Reminder, TodoSubtask, TodoTemplate, listed in `CoreDataStack.retiredEntities`, class names blanked, rows kept, not backed up), 15 in the classroom share, 12 dormant tombstones (schema 23 turned the four track entities into tombstones so sync history survives the migration). Schema 24 adds `WorkCheckIn.durationMinutes` (practice minutes). Schema 25 (domain logic fixes) adds the `LevelChange` entity, `WorkModel.assignmentID` and `isSharedRow`, optional `needsPractice`/`needsAnotherPresentation`/`manuallyUnblocked` on LessonPresentation, `Guardian.personID`, and the classroom time zone and session dates on the shared AttendanceEmailSettings. Core Data rules: `CD` prefix, no unique constraints, enums as raw `String`, foreign keys as `String`, every property optional or defaulted, `modifiedAt` for conflicts. Integrity rules and the entity table: `docs/Technical notes/DATA_MODELS.md`.
+94 entities (schema 25): 67 private (60 in use and 7 retired: ClassroomJob, JobAssignment, NoteTemplate, PracticeSession, Reminder, TodoSubtask, TodoTemplate, listed in `CoreDataStack.retiredEntities`, class names blanked, rows kept, not backed up), 15 in the classroom share, 12 dormant tombstones (schema 23 turned the four track entities into tombstones so sync history survives the migration). Schema 24 adds `WorkCheckIn.durationMinutes` (practice minutes). Schema 25 (domain logic fixes) adds the `LevelChange` entity, `WorkModel.assignmentID` and `isSharedRow`, optional `needsPractice`/`needsAnotherPresentation`/`manuallyUnblocked` on LessonPresentation, `Guardian.personID`, and the classroom time zone and session dates on the shared AttendanceEmailSettings. Core Data rules: `CD` prefix, no unique constraints, enums as raw `String`, foreign keys as `String`, every property optional or defaulted, `modifiedAt` for conflicts. Fourteen features taken out on 2026-11-21/22 kept every entity, backup row, preference key and note link (not retired, still backed up): the list is DATA_MODELS.md › Kept, no screen; never delete their entities or drop their backup rows. Integrity rules and the entity table: `docs/Technical notes/DATA_MODELS.md`.
 
 ## Sharing Model
 
@@ -231,7 +223,11 @@ Rules: `docs/Technical notes/ALBUMS.md`. The PDFs stay where they live; never co
 
 ## MCP Server (Claude Desktop)
 
-Rules: `docs/Technical notes/MCP_SERVER.md`. Every write goes through the service the in-app control uses, never straight to Core Data; every tool gets an `MCPToolAnnotations` and a line in `MCPToolRegistryTests`. 64 tools (2026-11-04); a retired name answers with a sentence from `MCPNotebookTools.retiredTools`.
+Rules: `docs/Technical notes/MCP_SERVER.md`. Every write goes through the service the in-app control uses, never straight to Core Data; every tool gets an `MCPToolAnnotations` and a line in `MCPToolRegistryTests`. 56 tools (2026-11-22, after the feature cuts); a retired name answers with a sentence from `MCPNotebookTools.retiredTools`.
+
+## The lesson loop
+
+A quick note is an ordinary note tagged `to fill in`, linked to the lesson and its children (`Notes/QuickNote.swift`; `update_observation` drops the tag when it replaces the words). Practice and follow-up check-ins follow `Work/Support/PracticeCheckInTiming.swift`: the school day before the child's next planned lesson in that sequence, else three school days after; planning a later lesson (or moving one to a new day, or adding a child) moves the earliest open check-in on earlier work to the school day before it, only when none falls by then, never a due-date check or a done one, and never before the next school day after the work was set. The 3:45 pm school-day Claude chat ("End of the school day") reads `schedule_for_range` › `unrecorded`. Design: `docs/Plans/Plan - Cut unused features and close the lesson loop.md`.
 
 ## Restock (Supplies + Orders)
 

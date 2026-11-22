@@ -129,7 +129,7 @@ extension MCPNotebookTools {
             ],
             "receives_reports": [
                 "type": "boolean",
-                "description": "Whether monthly reports go to this guardian"
+                "description": "The guardian's receives-reports flag. It is kept on the record, but the app no longer sends reports (Parent Reports left it on 2026-11-21)"
             ],
             "notes": ["type": "string", "description": "Anything worth remembering"]
         ]

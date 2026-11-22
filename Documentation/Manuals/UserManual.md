@@ -33,11 +33,11 @@ The groups under **More** (and in the sidebar) are:
 
 | Group | What it holds |
 |-------|---------------|
-| Today | Today, Attendance, Todos |
-| Children | Students, Meetings, Notes (your observations), Parent Reports |
+| Today | Today, Attendance |
+| Children | Students, Meetings, Notes (your observations) |
 | Plan | Lessons & Work, Groups, Class Grid, Calendar, This Week’s Parsha |
-| Classroom | Restock, Community, Clubs & Projects, Going Out, Schedules |
-| Library | Lessons (your full lesson library), Albums, Resources |
+| Classroom | Restock, Schedules |
+| Library | Lessons (your full lesson library), Albums |
 | System | Settings |
 
 On the Mac, click a group's heading to collapse or expand it; the app remembers your choice. **Classroom** starts collapsed because you reach for it a few times a term. Choosing something inside a collapsed group — with a keyboard shortcut, say — opens the group for you.
@@ -47,12 +47,15 @@ Some screens you may remember now live inside others, and old links and saved wi
 | If you are looking for… | Find it in… |
 |-------------------------|-------------|
 | Logs | **Notes** for observations; **History** or **List** inside Meetings, Attendance and Lessons & Work for the rest |
-| Three-Year View, Progress Dashboard, Lesson Recall | **Class Grid**, on that view |
+| Three-Year View, Progress Dashboard | **Class Grid**, on that view |
 | Parsha Calendar | **This Week’s Parsha**, with the year list beside it (the **Year** button on iPhone) |
-| Stories, Procedures | **Resources**, on that type |
-| Book Club | **Clubs & Projects** |
+| Todos | **Today** (your to-dos are listed there) |
 
 The in-app Ask AI chat has been removed.
+
+### Features taken out
+
+On 2026-11-21 and 2026-11-22 these features lost their screens and their Claude tools: **Parent Reports** (the monthly letters) and the per-child report, **recall checks** (spaced re-checks of lessons), **Projects**, **Book Club**, **Community** topics, **Issues**, **Resources** (the library of files, Stories and packets), **Procedures**, **Going Out**, **Today's Pad** card, custom **meeting templates**, and the **Todos** screen. Nothing you wrote in them was deleted: every record stays in your notebook and in your backups. Old recall checks still show as rings in the Class Grid and the curriculum map, and still count toward readiness. Old links and saved windows open the nearest screen that stayed: Parent Reports opens Students; Projects, Book Club, Community, Going Out and Todos open Today; Resources, Stories and Procedures open Lessons. **Restock** and the guardians on a child's Overview stay.
 
 ## Switching Between My Class and Sample Class
 
@@ -124,7 +127,11 @@ Any reminders due today or overdue from previous days.
 
 ### Lessons Due
 
-Presentations you've scheduled for today. Tap a lesson to open it, view the lesson plan, and mark it as given.
+Presentations you've scheduled for today. Tap a lesson to open it, view the lesson plan, and mark it as given. The first lesson not yet given is drawn as the **Next** card.
+
+If a child on a lesson still has practice open from an earlier lesson in the same sequence, the row says so under the lesson, for example **Still practicing: Maya S (Bead Addition)**. It is a heads-up, not a block: you can give the lesson anyway.
+
+**Given — Quick Note.** Right after giving a lesson, tap **Given — Quick Note** on the Next card (or choose it from the lesson row's context menu). The lesson is marked given and a small note form opens; type what you saw and save. The note is kept as an ordinary note linked to the lesson and to each child who had it, and it carries the tag **to fill in**, so you can find it later and write the full observation. On a lesson already given, the row's menu has **Quick Note…**. On the Mac you can also choose **File ▸ Quick Note on the Lesson** (⌃⌘J) from anywhere in the app: a small Quick Note window floats above your other windows for the lesson you just gave (or, if you haven't given one, the first lesson planned today). On iPad and iPhone the form is a sheet. When you replace the words of a quick note with a full observation, the **to fill in** tag drops off by itself.
 
 ### Meetings
 
@@ -142,9 +149,9 @@ If you have set up a schedule in **Schedules**, today's slots appear here, group
 
 Your to-do items for today. Tap the checkbox to mark them complete.
 
-### Today's Pad
+### The Day's Note
 
-The pad is the day's note — a place to jot whatever you want to remember about the day. It is the one note for a day: the **Calendar** reads and writes the same pad, so a note you add on a Calendar day shows up on that day's pad and the other way around. Notes you wrote on the Calendar before this change were copied into their days' pads for you (on the Mac, at launch); until a note has been copied, iPhone and iPad show it beside the pad, read only.
+Today no longer has a pad card. The day's note, a place to jot whatever you want to remember about the day, lives in the **Calendar**: open a day there and write in it. The note is the same one the pad used, so what you wrote on a pad earlier is still on its day.
 
 ### Completed Items
 
@@ -192,12 +199,12 @@ The flow has three steps:
 
 1. **Assign** — For each student choose an outcome: **Stay**, **Promote** (to the next level — Lower → Upper → Adolescent), **Transfer Out** (moved to another class at your school), or **Withdraw** (left the school). Use the **Set All** menu on a level header to assign a whole group at once. The effective date defaults to the last day of the outgoing school year, which keeps departing students visible in that year's view and out of the new year's roster. Leave "Log an observation for each change" on to record each move in the student's notes timeline.
 2. **Review** — Check the summary ("7 promoted to Adolescent · 12 transferred · …") and tap **Apply Rollover**. All changes are saved together.
-3. **Done** — For each departing student, tap **Generate Summary** to produce a PDF report to hand to their next guide. Reports draw from observations flagged "Include in report" (the rollover's own observation is flagged automatically).
+3. **Done** — The screen lists the departing students. The per-child summary report was taken out, so there is no Generate Summary button any more.
 
 Nothing is deleted by a rollover:
 
 - **Promoted** students stay on your active roster at their new level, and their profile shows the move (for example "Promoted · Upper → Adolescent").
-- **Transferred** and **Withdrawn** students move to the collapsed **Former Students** section at the bottom of the roster, labeled with how they left. Their full history — observations, presentations, attendance, work — is preserved, they still appear in search, and past-year reports and logs continue to include them. Re-enroll a former student at any time by editing them and setting Enrollment back to Enrolled.
+- **Transferred** and **Withdrawn** students move to the collapsed **Former Students** section at the bottom of the roster, labeled with how they left. Their full history — observations, presentations, attendance, work — is preserved, they still appear in search, and past-year logs continue to include them. Re-enroll a former student at any time by editing them and setting Enrollment back to Enrolled.
 
 ## Student Detail View
 
@@ -248,7 +255,7 @@ Tap any lesson to see its full details:
 | Age Range | Recommended student ages |
 | Teacher Notes | Your personal notes about teaching this lesson |
 | Follow-Up Work | Suggested activities for after the presentation |
-| Files | The lesson's attachments (PDFs, images, Pages documents) and any Resources linked to it, together in one list; tap a Resource to open it |
+| Files | The lesson's attachments (PDFs, images, Pages documents); tap one to open it |
 | Lesson Journey | A timeline showing which students have received this lesson and their progress |
 
 ## Adding a Lesson
@@ -307,6 +314,10 @@ The same sheet then turns into **How it went**:
 - **What did you notice?** One note for the group, typed or dictated. **Split by Child** files the parts about each child on that child's row.
 - **What's next for each child**: Practice, Follow-up work, Re-present, Ready for next, or Keep watching. Set it once on the **Everyone** row, then tap only the children who differ. Choose when to check the work if you want a date.
 - **When you press Done** says exactly what will be created. **Done** saves it all; **Later** saves your notes and keeps the decisions waiting in **Following Presentations**. **Undo** in the header takes the recording back.
+
+**When the practice comes back.** Practice or follow-up work set here gets a check-in. The check-in lands on the school day before that child's next planned lesson in the same sequence; with nothing planned, it lands 3 school days after the lesson (never before the next school day). When you later plan the next lesson for the child, or move it to a new day, her earliest open check-in on that practice moves to the school day before it, unless one already falls by then. A check-in only ever moves earlier, never to before the next school day after the practice was set, and a due-date check (the work's deadline), a check-in you have already done, and a change to the lesson's notes or time alone leave things where they are. Practice made without a title is called **Practice: <lesson>** or **Follow up: <lesson>**.
+
+**Practice warnings.** When you schedule or give a lesson to a child who still has practice open on an earlier lesson in the same sequence, you are told, never stopped: **Still practicing: …** on Today's rows and Next card, a **Practicing …** badge beside her name in the schedule and student pickers, and a "check first" reason in the **Ready** band of Upcoming. Chat shows the same warning as a line.
 
 For the everyday case, use **Presented Today** on a Ready lesson in **Lessons & Work** (the button appears on hover on the Mac, or long-press the row). It records the lesson for the children who are here and adds their usual next step; the message that follows has **Undo** and **Details…**.
 
@@ -494,7 +505,7 @@ Each note can be scoped to:
 - **One student** — Specific to that child
 - **Multiple students** — An observation about a group interaction
 
-A child's Notes tab and her reports show her own notes, the group notes that name her, and the class's notes. Notes from a community meeting and a calendar day's notes are about the class's day rather than any one child, so they stay off each child's Notes tab. In a report draft, other children's names become "a classmate".
+A child's Notes tab shows her own notes, the group notes that name her, and the class's notes. Notes from a community meeting and a calendar day's notes are about the class's day rather than any one child, so they stay off each child's Notes tab.
 
 ## Tags and Categories
 
@@ -516,7 +527,7 @@ In Settings, you can create templates — pre-written observation starters that 
 
 # Todos
 
-Todos are your personal task list — things you need to do that aren't directly student work items.
+Todos are your personal task list — things you need to do that aren't directly student work items. There is no separate Todos screen any more (it was taken out on 2026-11-22; every to-do is kept). Your to-dos show on **Today**, in a meeting's **For Me to Do**, in Tide when you share them, and in chat. To change or delete one, open it from one of those places: the edit form has **Delete To-do**, which asks before it deletes.
 
 ## Creating a Todo
 
@@ -551,7 +562,7 @@ If you also use the Tide app for your classroom to-dos, Cosmic Daybook can share
 - **Turn it on** in **Settings ▸ Connections ▸ Tide** on the Mac, with Tide open. Sharing runs from the Mac; to-dos made on iPhone or iPad reach Tide when the Mac is on. If Tide isn't open, the screen says so, and to-dos go across when it is.
 - **What goes to Tide:** your to-dos, except the automatic work check-ins ("Check in with Maya on …"), which stay here.
 - **Ticking off works both ways.** Tick a to-do in either app and the other follows.
-- **From Tide:** to-dos that live in your Tide classroom lists show in a **From Tide** section in Todos. A Tide to-do that names a child (full name, or the short form such as "Maya S") also shows on that child's page. A first name two children share doesn't match.
+- **From Tide:** to-dos that live in your Tide classroom lists show in a **From Tide** section on a child's page when they name that child (full name, or the short form such as "Maya S"). A first name two children share doesn't match.
 - **Once a to-do has been sent, Tide owns the wording.** Changing its title here doesn't change it in Tide, so make wording changes in Tide.
 
 The first time you turn sharing on, Cosmic Daybook matches to-dos you already have on both sides by their words, so you don't get doubles.
@@ -594,27 +605,6 @@ The status automatically updates based on your current quantity versus the minim
 
 ---
 
-# Procedures
-
-Document your classroom procedures and routines so you have them in one place — useful for substitutes, assistants, and your own reference. Procedures live in **Resources** (in the **Library** group) alongside Stories, Packets, and Files. Choose **Procedures** to see them, one type at a time.
-
-## Adding a Procedure
-
-Tap the add button with **Procedures** chosen in Resources:
-
-- **Title** (required) — e.g., "Morning Arrival Routine"
-- **Category** — Classroom Management, Practical Life, Transitions, Grace & Courtesy, Academic, or Other
-- **Steps** — The step-by-step procedure
-- **Materials** — What's needed
-- **Age Group** — Which students this applies to
-- **Notes** — Teaching tips or reminders
-
-Procedures are searchable and filterable by category.
-
-## Resources
-
-**Resources** is the one place for your reference material. Choose a type: **Stories**, **Packets** (book club reading), **Files**, or **Procedures**. Only one type shows at a time, and the filter sits in the toolbar. Stories keep their cover pictures and story analysis; Files keep their categories, tags, favorites, and links to lessons and areas.
-
 # Planning Tools
 
 **Lessons & Work** is on the iPhone bar; the rest of the planning tools are under **More ▸ Plan** (or the Plan group in the sidebar).
@@ -625,16 +615,15 @@ The shared planning workspace for presentations, follow-up, active child work, a
 
 ## Class Grid
 
-The **Class Grid** is one screen for seeing the whole class against the curriculum, with four views. On the Mac, switch between them with the segmented control in the toolbar; on iPad and iPhone, use the tabs under the title.
+The **Class Grid** is one screen for seeing the whole class against the curriculum, with three views. On the Mac, switch between them with the segmented control in the toolbar; on iPad and iPhone, use the tabs under the title.
 
 | View | What it shows |
 |------|---------------|
 | Checklist | The class-wide checklist by area and group: which children have had which lessons. Check off items as you go — useful for weekly or monthly planning. |
 | Three Years | Children grouped by year in class, with the Great Lessons first and then one row per area, showing each child's furthest mark. Pick an area to see its key lessons (or all of them). |
 | Children | One row per child, grouped by level, with a strip for each sequence they have started (for example "4/8"). Click a strip to open that sequence: work, presentations, and notes. |
-| Recall | A list rather than a grid: retention tiles (held, checked, to present again, faded over summer, due), a by-child list, and the queue of recall checks that are due, grouped by child, with the recall check beside it. |
 
-The **area menu** ("All areas" or one area), **search**, and the **children filter** carry across all four views, so you can switch views without losing your place.
+The **area menu** ("All areas" or one area), **search**, and the **children filter** carry across all three views, so you can switch views without losing your place.
 
 ### Marks
 
@@ -648,14 +637,14 @@ The same marks are used everywhere in the grid:
 
 **Brewing** is a planned lesson that is waiting. When you add a child to the Inbox from the Checklist, the lesson goes to the Inbox in **Lessons & Work**. The Inbox keeps two lists: **Ready**, and **Brewing** for a lesson where a child on it hasn't finished the lesson before. The Inbox opens on Ready, so a brewing lesson is easy to miss there; the mark tells you which list to look under. Every child on a brewing lesson shows the mark, because the Inbox holds the whole group while any one of them isn't ready. Tap the cell and its card says what the lesson is waiting on, for example "In the Inbox under Brewing, waiting on Avital B and 2 others for Division with Decimals". The key under the grid counts Brewing apart from Planned. A lesson on a dated plan, or one that is only on the year plan, is never Brewing.
 
-Recall checks show as a ring around the mark: **solid green** still has it, **dashed orange** shaky, **dotted red** forgotten.
+Recall checks made before the feature was taken out still show as a ring around the mark: **solid green** still has it, **dashed orange** shaky, **dotted red** forgotten. No new recall checks can be made.
 
 ### Ready
 
 Cells for lessons not yet given show whether the child is ready for them:
 
 - **Ready** — a grey ring. The previous lesson is confirmed or mastered, no work from it is open, and the last check-in didn't ask for more practice.
-- **Ready, check first** — a grey ring with an amber dot. The child is ready, but look first. Tap the cell and its card says why, for example "2 pieces of work still open".
+- **Ready, check first** — a grey ring with an amber dot. The child is ready, but look first. Tap the cell and its card says why, for example "2 pieces of work still open" or "practice still open on an earlier lesson".
 - **Not yet** — a small grey dot.
 
 The cell card also has a **Previous lesson** box: the lesson's name and the date it was given, any open work, the last check-in, and whether it was mastered. Confirming a lesson is not the same as mastery; only a mastery mark turns a cell green.
@@ -683,6 +672,8 @@ Which children can you put together for the same next lesson? **Groups** answers
 - Lessons with only one child ready are folded into one row at the bottom; tap it to open them.
 - Narrow by level from the toolbar, or by area with the chips. Tap a card's area and sequence to open its **sequence ladder**: every lesson in the sequence, with each child standing on the next one they need, and ‹ › to step through the area's other sequences.
 
+You can also reach Groups from the **Groups** button beside the Class Grid's lens control (it opens the ladder for the sequence you are looking at; with several sequences showing it is a menu to pick one), from **Groups** in the toolbar of **Lessons & Work ▸ Upcoming**, and with ⌘7 on the Mac.
+
 ---
 
 # Needs Attention
@@ -704,39 +695,6 @@ Open an item to:
 - Reschedule for later
 - Record an objective observation
 - Resolve the follow-up when no further guide action is needed
-
----
-
-# Clubs & Projects
-
-Track long-term student projects, research initiatives, and independent studies, and run book clubs. **Clubs & Projects** is one screen in the **Classroom** group that lists your projects and your book club sessions together. Each opens to its own page. A project makes work for its students; a club has a schedule and rotating leaders. A club's reading packets live in **Resources** (choose **Packets**).
-
-## Creating a Project
-
-Tap the add button from the Clubs & Projects screen:
-
-- **Title** — The project name
-- **Description** — What the project is about
-- **Students** — Select participating students
-- **Start and End Dates** — Or mark as "ongoing"
-- **Roles** — Define responsibilities (e.g., "Lead Researcher," "Scribe," "Presenter")
-
-## Project Weeks
-
-For multi-week projects, you can define a week-by-week structure. Each week has:
-
-- Role assignments (which student has which responsibility)
-- Goals for that week
-- Notes
-
-## Project Sessions
-
-Log individual work sessions:
-
-- Date and students present
-- What was accomplished
-- Notes and observations
-- Deliverables
 
 ---
 
@@ -790,7 +748,7 @@ Open the meeting to record:
 
 ## Meeting Templates
 
-Create templates in Settings for common meeting types (e.g., "Progress Check," "Behavior Discussion," "Parent Follow-Up") with pre-filled purpose and note starters.
+Meetings use the app's built-in prompts. Custom meeting templates can no longer be made or edited (any you made earlier are kept in the notebook but aren't shown).
 
 ---
 
@@ -862,11 +820,6 @@ Only the lead guide can change these, and they're shared with your assistant.
 - Create custom observation templates
 - Pre-written starters for common observations
 - Default tags and categories
-
-## Meeting Templates
-
-- Templates for common meeting types
-- Pre-filled purpose and note fields
 
 ## Connections ▸ Tide (Mac)
 
@@ -943,7 +896,8 @@ Create a manual backup at least once a week, or enable auto-backup in Settings. 
 
 | Shortcut | What it does |
 |----------|-------------|
-| Cmd+1 … Cmd+7 | Go to Today, Attendance, Students, Lessons & Work, Lessons, Notes, Todos |
+| Cmd+1 … Cmd+7 | Go to Today, Attendance, Students, Lessons & Work, Lessons, Notes, Groups |
+| Ctrl+Cmd+J | Quick Note on the Lesson (a floating note window for the lesson you just gave) |
 | Cmd+N | New item (context-dependent) |
 | Cmd+S | Save |
 | Cmd+, | Open Settings |
@@ -966,5 +920,6 @@ Create a manual backup at least once a week, or enable auto-backup in Settings. 
 | Command Bar | The natural-language text input for typing commands in plain English |
 | Needs Attention | The Lessons & Work view that combines open presentation follow-ups with work that needs a guide check |
 | Mastery | When a student demonstrates proficiency in a lesson or skill |
-| Class Grid | One screen, four views (Checklist, Three Years, Children, Recall), showing the whole class against the curriculum |
-| Ready, check first | A readiness level: the child is ready for the next lesson, but something from the previous one (open work, a check-in asking for practice, a shaky recall check) deserves a look first |
+| Class Grid | One screen, three views (Checklist, Three Years, Children), showing the whole class against the curriculum |
+| Quick note | A short note saved right after a lesson, linked to the lesson and its children and tagged **to fill in** until you write the full observation |
+| Ready, check first | A readiness level: the child is ready for the next lesson, but something from the previous one (open work, a check-in asking for practice, an old shaky recall check) deserves a look first |

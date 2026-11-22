@@ -144,6 +144,27 @@ struct StudentDeletionFix1017StTests {
         #expect(hersAlone.participantStudentIDs.isEmpty)
     }
 
+    /// Cut unused features, Phase 6 review: an issue's delete cascades to its
+    /// notes, so an issue left with nobody stays, and its class-wide note
+    /// with it.
+    @Test("An issue about her alone stays, and so does its class-wide note")
+    func emptiedIssueKeepsItsNotes() throws {
+        let room = try makeClass()
+        let issue = CDIssue(context: room.context)
+        issue.title = "Sharing the bead frame"
+        issue.studentIDs = [room.danny.uuidString]
+        let note = CoreDataTestHelpers.seedNote(in: room.context, body: "We talked it over at the circle.")
+        note.scope = .all
+        note.issue = issue
+
+        _ = try delete(room.danny, in: room.context)
+
+        #expect(!isGone(issue))
+        #expect(issue.studentIDs.isEmpty)
+        #expect(!isGone(note))
+        #expect(note.issue == issue)
+    }
+
     @Test("A practice session that stays loses her deleted work's id")
     func practiceSessionsLoseHerDeletedWork() throws {
         let room = try makeClass()

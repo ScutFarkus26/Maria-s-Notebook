@@ -94,7 +94,8 @@ extension MCPNotebookTools {
     static func takeOverPlan(
         _ filing: PresentationFiling, index: PresentationRecordIndex, in modelContext: NSManagedObjectContext
     ) -> ResolvedFiling? {
-        guard let plan = filing.plan else { return nil }
+        // An earlier filing in the same call may have given it already.
+        guard let plan = filing.plan, !plan.isGiven else { return nil }
         let onPlan = Set(plan.resolvedStudentIDs)
         let present = filing.studentIDs.filter(onPlan.contains)
         guard !present.isEmpty else { return nil }

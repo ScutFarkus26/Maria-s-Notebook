@@ -46,7 +46,7 @@ RootView (main shell)
             +-- LessonsListView / LessonDetailView
             +-- WorkListView / WorkDetailView
             +-- AttendanceView
-            +-- PlanningViews (agenda, projects) + ClassGridView (Checklist, Three Years, Children, Recall)
+            +-- PlanningViews (agenda, Groups) + ClassGridView (Checklist, Three Years, Children)
             +-- InboxView
             +-- SettingsView
             +-- ... (40+ feature views)
@@ -194,25 +194,27 @@ A view presents sheets by setting `appRouter.navigationDestination`.
 ```swift
 // AppCore/RootView/RootView+NavigationItem.swift
 enum NavigationItem: String, Hashable, Identifiable, CaseIterable {
-    case today, todos
-    case students, attendance, meetings, notes, parentReports
+    case today, attendance
+    case students, meetings, notes
     case planningAgenda, smallSequencePlanner, planningChecklist, planningCalendar, thisWeeksParsha
-    case supplies, community, planningProjects, goingOut, schedules
-    case lessons, teachingAlbums, resourceLibrary
+    case supplies, schedules
+    case lessons, teachingAlbums
     case settings
     // Retired rows, kept so a saved raw value still decodes (each is an alias):
     case note, more, perpetualCalendar, orders, logs, curriculumMap, progressDashboard,
-         lessonRecall, parshaCalendar, stories, procedures, bookClub, askAI
+         lessonRecall, parshaCalendar, stories, procedures, bookClub, askAI,
+         // Cut unused features (2026-11-21 and 22):
+         parentReports, planningProjects, community, resourceLibrary, goingOut, todos
 }
 ```
 
 Navigation happens by setting `appRouter.selectedNavItem = .students`.
 
-**Raw values are frozen.** They live in `@SceneStorage("RootView.selectedNavItem")`, so renaming one silently resets every device's selection. `NavigationGroupTests.rawValuesArePinned` holds every literal; a case that stops being a destination stays in the enum and is mapped by `NavigationItem.aliases` → `canonical` (`.perpetualCalendar → .planningCalendar`, `.note`/`.more`/`.askAI → .today`, `.logs → .notes`, `.curriculumMap`/`.progressDashboard`/`.lessonRecall → .planningChecklist`, `.stories`/`.procedures → .resourceLibrary`, `.bookClub → .planningProjects`, `.parshaCalendar → .thisWeeksParsha`, `.orders → .supplies`). An alias whose replacement has views opens it on the right one: `NavigationItem.landing` gives a `ScreenLanding` (`AppCore/RootView/ScreenLanding.swift`: `.classGrid(ClassGridViewKind)`, `.resources(LibraryKind)`, `.parshaYearList`), which a saved scene or a router jump sets on `AppRouter.screenLanding` and the Class Grid, Resources or the Parsha screen takes once. A case that is removed outright is handled by `NavigationSelectionRestorer` (same file), the pure function that turns the saved raw value, the pre-`NavigationItem` `Tab` string, and the old Planning mode into today's destination.
+**Raw values are frozen.** They live in `@SceneStorage("RootView.selectedNavItem")`, so renaming one silently resets every device's selection. `NavigationGroupTests.rawValuesArePinned` holds every literal; a case that stops being a destination stays in the enum and is mapped by `NavigationItem.aliases` → `canonical` (`.perpetualCalendar → .planningCalendar`, `.note`/`.more`/`.askAI → .today`, `.logs → .notes`, `.curriculumMap`/`.progressDashboard`/`.lessonRecall → .planningChecklist`, `.parshaCalendar → .thisWeeksParsha`, `.orders → .supplies`; from the 2026-11 cuts `.parentReports → .students`, `.planningProjects`/`.community`/`.goingOut`/`.todos`/`.bookClub → .today`, `.resourceLibrary`/`.stories`/`.procedures → .lessons`). An alias whose replacement has views opens it on the right one: `NavigationItem.landing` gives a `ScreenLanding` (`AppCore/RootView/ScreenLanding.swift`: `.classGrid(ClassGridViewKind)`, `.parshaYearList`), which a saved scene or a router jump sets on `AppRouter.screenLanding` and the Class Grid or the Parsha screen takes once. `.lessonRecall` now lands on the Class Grid's usual view. A case that is removed outright is handled by `NavigationSelectionRestorer` (same file), the pure function that turns the saved raw value, the pre-`NavigationItem` `Tab` string, and the old Planning mode into today's destination.
 
 ### Navigation groups
 
-`RootView.NavigationGroup` (`AppCore/RootView/RootView+NavigationGroup.swift`) is the single table that decides where every destination sits. The macOS sidebar (`RootSidebar`), the iPad sidebar and the iPhone tab bar plus its More list (`RootAdaptiveTabs`) all iterate it; nothing lists items by hand. Six groups, 21 rows, in order: Today (Today, Attendance, Todos), Children (Students, Meetings, Notes, Parent Reports), Plan (Lessons & Work, Groups, Class Grid, Calendar, This Week's Parsha; its raw value is still `planning`, so an old collapsed state carries over), Classroom (Restock, Community, Clubs & Projects, Going Out, Schedules; collapsed by default), Library (Lessons, Albums, Resources), System (Settings). `NavigationGroup.primaryTabs` is the iPhone bar — Today, Students, Attendance, Lessons & Work — and `secondaryGroups` is what "More" shows. `NavigationGroupTests` pins that every destination is in exactly one group, that the TabView lists each once, the group order, and every alias with the view it lands on.
+`RootView.NavigationGroup` (`AppCore/RootView/RootView+NavigationGroup.swift`) is the single table that decides where every destination sits. The macOS sidebar (`RootSidebar`), the iPad sidebar and the iPhone tab bar plus its More list (`RootAdaptiveTabs`) all iterate it; nothing lists items by hand. Six groups, 15 rows, in order: Today (Today, Attendance), Children (Students, Meetings, Notes), Plan (Lessons & Work, Groups, Class Grid, Calendar, This Week's Parsha; its raw value is still `planning`, so an old collapsed state carries over), Classroom (Restock, Schedules; collapsed by default), Library (Lessons, Albums), System (Settings). No row hides any more (`NavigationRowVisibility.rowEntities` is empty; the mechanism stays for a future hideable row). `NavigationGroup.primaryTabs` is the iPhone bar — Today, Students, Attendance, Lessons & Work — and `secondaryGroups` is what "More" shows. `NavigationGroupTests` pins that every destination is in exactly one group, that the TabView lists each once, the group order, and every alias with the view it lands on.
 
 The macOS sidebar persists each group's collapsed state under `UserDefaultsKeys.sidebarGroupExpanded(groupID)` and auto-expands the group holding a selection that arrives from outside the sidebar (a Go-menu shortcut, an album deep link, a restored selection), so nothing lands invisibly inside a collapsed Classroom.
 
@@ -657,19 +659,21 @@ CDStudent ←── studentID ──── CDLessonAssignment ───── le
 | `CDCalendarEvent` | Calendar integration events |
 | `CDNonSchoolDay` / `CDSchoolDayOverride` | Calendar exceptions |
 | `CDStudentMeeting` | One-on-one meetings with outcomes |
-| `CDMeetingTemplate` | Reusable meeting structures |
-| `CDProject` / `CDProjectSession` | Project-based learning |
+| `CDMeetingTemplate` | Meeting structures (built-in only; custom ones are kept but not shown) |
+| `CDProject` / `CDProjectSession` | Project-based learning (kept, no screen) |
 | `CDLessonSequenceSettings` | A sequence's progression rules |
 | `CDSupply` / `CDSupplyTransaction` | Classroom inventory |
-| `CDCommunityTopic` / `CDProposedSolution` | Community discussions |
-| `CDDocument` | Learning resources |
-| `CDIssue` / `CDIssueAction` | Issue tracking |
-| `CDProcedure` | Standard procedures |
+| `CDCommunityTopic` / `CDProposedSolution` | Community discussions (kept, no screen) |
+| `CDDocument` | Learning resources (kept, no screen) |
+| `CDIssue` / `CDIssueAction` | Issue tracking (kept, no screen) |
+| `CDProcedure` | Standard procedures (kept, no screen) |
 | `CDLessonAttachment` | Files attached to lessons |
 | `CDLessonPresentation` | Per-student mastery tracking |
 | `CDAlbumGroupOrder` / `CDAlbumGroupUIState` | UI state persistence |
 | `CDTodayAgendaOrder` | Custom agenda ordering |
 | `CDDevelopmentSnapshot` | Progress snapshots |
+
+Entities of the cut features (Parent Reports' communications, Projects, Book Club, Community topics, Issues, Resources, Stories, Procedures, Going Out, custom meeting templates, and recall checks) are all still in the model, in backups and in sync; only their screens, services and Claude tools went (plan `docs/Plans/Plan - Cut unused features and close the lesson loop.md`). Entity files that lived in a removed folder moved to `Models/` (guardians to `Students/Guardians/`). Reads that protect kept data stay: launch repairs, dedups, `StudentDeletion`'s cleanup, note link fields, and the recall reads behind Class Grid rings, the curriculum map, readiness and mastery evidence. The last build with every feature is the git tag `retired/2026-11-cuts`.
 | `CDPlanningRecommendation` | AI recommendations |
 | `CDWorkCompletionRecord` | Historical completion tracking |
 
@@ -804,7 +808,7 @@ Conforms to `MCPClientProtocol` and sends every request to Apple Intelligence:
 the on-device model first, then Private Cloud Compute when Settings → AI allows
 it. See `docs/Technical notes/AI.md`.
 
-It serves the generate calls: Parsha suggestions, Stories, parent reports, meeting and student insights, note summaries. There is no chat; Ask AI was removed in the Simplify the app plan (Phase 1).
+It serves the generate calls: Parsha suggestions, meeting and student insights, note summaries. There is no chat; Ask AI was removed in the Simplify the app plan (Phase 1).
 
 ### ReminderSyncService (macOS)
 
@@ -913,6 +917,7 @@ The daily dashboard. Shows everything relevant to the selected date.
 | `scheduledMeetings` / `completedMeetings` | Meetings |
 | `attendanceSummary` | Attendance stats |
 | `recentNotes` | Recent observations |
+| `stillPracticingLines` | Presentation id → "Still practicing: Maya S (Bead Addition)" for each lesson not yet given with a child whose practice is still open (`TodayViewModel+StillPracticing.swift`, set in `reload`; read by `LessonListRow.stillPracticing`) |
 
 ### Supporting Components
 
@@ -921,6 +926,10 @@ The daily dashboard. Shows everything relevant to the selected date.
 - **TodayScheduleBuilder** — constructs the schedule from work data
 - **TodayAttendanceLoader** — fetches and summarizes attendance
 - **SchoolCalendarService** — the app-wide school-day cache (`AppCore/`), kept per persistent store coordinator so Sample Class and My Class never answer for each other
+
+There is no day pad card: `TodayViewDayPadSection`, `DayPadEditor`, `TodaySection.dayPad` and the Today button and menu item went on 2026-11-22. The day note is still the `CDDayPad` record, edited in the Calendar; its fetch moved to `PerpetualCalendar/TodayDataFetcher+DayPad.swift`, and `todayDayPadExpanded` stays on the backed-up preferences list. The Parent Reports section and `TodaySection.parentReports` are gone too.
+
+The lesson-loop additions to Today live in `Today/Views/TodayView+QuickNote.swift` (`markGivenWithQuickNote`, `openLessonQuickNote(for:)`): the Next card's **Given — Quick Note** button, the same item in every unpresented row's context menu, and **Quick Note…** on a presented row. `ActiveSheet` gains `.lessonQuickNote(presentationID:)`. "Mark Presented Now" also records `LessonQuickNoteTarget.lastGivenID`.
 
 ### Reload Strategy
 
@@ -933,7 +942,7 @@ The daily dashboard. Shows everything relevant to the selected date.
 
 The feature is organized by subdomain: `Roster/`, `Detail/`, `Models/`, `Files/`, `Import/`,
 `Notes/`, `Presentations/`, `Progress/`, `Selection/`, `Printing/`, `Meetings/`, `Insights/`,
-`Recall/`, `YearPlan/`, and `LessonDetail/`.
+`Guardians/`, `YearPlan/`, and `LessonDetail/`. (The `Recall/` screens and the per-child report went on 2026-11-21; old recall checks are still read.)
 
 ### Student Roster
 
@@ -1003,7 +1012,7 @@ The feature is organized into `Agenda/`, `CheckIns/`, `Completion/`, `Detail/`, 
 | Presentation | Automatically when a lesson is presented with follow-up work |
 | Manual | Teacher creates directly |
 | Inbox | From follow-up recommendations |
-| Project | From project session assignments |
+| Project | From project session assignments (existing work only; the Projects screens were taken out) |
 
 ### Work Check-Ins
 
@@ -1079,9 +1088,8 @@ Multiple planning views:
 | View | Purpose |
 |------|---------|
 | Agenda | Drag-and-drop lesson scheduler |
-| Class Grid (`ClassGrid/`) | Checklist (class-wide subject tracking), Three Years, Children and Recall, over one engine (`ClassGridEngine`) |
+| Class Grid (`ClassGrid/`) | Checklist (class-wide subject tracking), Three Years and Children, over one engine (`ClassGridEngine`) |
 | Open Work | All active work items |
-| Projects | Project-based learning management |
 | Classroom Jobs | Job rotation management |
 
 ## Notes Module
@@ -1094,18 +1102,45 @@ Universal observation system. Notes can be:
 - Categorized (academic, behavioral, social, emotional, health, attendance, general)
 - Tagged with custom tags (format: `"TagName|Color"`)
 - Pinned, flagged for follow-up, or marked for inclusion in reports
+- Tagged **to fill in** when saved as a lesson quick note (see Lesson Quick Notes below)
 - Attached to work items via the `unifiedNotes` relationship
+
+### Lesson Quick Notes
+
+A quick note is an ordinary `CDNote` saved at the lesson, tagged `to fill in`. No schema change: the tag is a normal note tag.
+
+- `Notes/QuickNote.swift`, `enum QuickNote`: `tagName` (`"to fill in"`), `tag` (the stored `"to fill in|Orange"` form), `save(text:presentation:students:context:now:) -> CDNote?` (trims; nil for empty text or a failed save, in which case the inserted note is deleted again; scope is the given students, else the presentation's children; `createdAt` is the lesson's `presentedAt`, else now; sets `lessonID` and `lessonAssignment`), `insert(...)` (the same without saving, for a caller that saves its own batch), `isWaiting(_:)`, `isTag(_:)`, `removingTag(from:)`, `waiting(from:before:in:)`.
+- `update_observation` drops the tag when it replaces a note's body (`QuickNote.removingTag(from:)`).
+- `Notes/LessonQuickNote.swift`: `LessonQuickNote` (`markGiven` marks the lesson presented and remembers it, `save(text:presentationID:context:)` goes through `QuickNote.save`, `target(lastGivenID:now:calendar:context:)` picks the menu command's lesson: the one just given today, else the first planned today and not given, else the one given today that changed last; `windowID = "quick-note"`; `givenTitle = "Given — Quick Note"`) and the `@Observable` singleton `LessonQuickNoteTarget` (`presentationID`, `openCount` bumps only when the lesson changes, `lastGivenID`).
+- `Notes/LessonQuickNoteForm.swift`: the shared form, and `LessonQuickNoteSheet` for iPad and iPhone.
+- `Notes/LessonQuickNoteWindow.swift` (macOS): a `Window("Quick Note", id: "quick-note")` with `.windowResizability(.contentSize)` and `.windowLevel(.floating)`, inside `DetailWindowGate` (internal, in `AppCore/Windows/DetailWindowScene.swift`), registered in `CosmicDaybookApp.swift`. `LessonQuickNoteCommands` adds File ▸ **Quick Note on the Lesson** (⌃⌘J; also in `KeyboardShortcutsHelpView`). `UtilityWindow` and a panel were ruled out (plan Apple guidance): the first hides when the app is inactive, and panels shouldn't take typing.
+
+### Practice Timing and Warnings
+
+`Work/Support/PracticeCheckInTiming.swift` (`enum PracticeCheckInTiming`) decides when practice comes back:
+
+- `checkInDays(lessonID:givenOn:studentIDs:sequences:in:now:)` gives each child a day: **the school day before her next planned lesson in the same sequence, else 3 school days after the lesson**; never before the next school day after the lesson, and never before today.
+- `scheduleCheckIns(forWorkFrom:on:in:)` gives each child's open work from that presentation one check-in on her day (it moves the earliest existing one earlier, or makes one).
+- `followPlannedLessons(_:sequences:in:now:)` is the move-earlier rule: when a later lesson is planned or moved earlier, the earliest open check-in on each piece of a child's earlier work in that sequence moves to the school day before it, unless one already falls by then. It only ever moves a check-in earlier (a move to a later day doesn't call it), never before the first school day from today or the next school day after the work was set (`assignedAt`), never moves a due-date check (`WorkCheckInService.isDueDateCheck`), and leaves done check-ins alone. `PresentationDetailActions` calls it only when the day, lesson or children change, and `reschedule_presentation` only for a new day. It is called from `PresentationDetailActions` (roster and date edits), `WeekDayColumnDropDelegate` (week board drops), `ReadyToPresentSection+Actions.scheduleSelectionToday`, `PresentationSessionCommit.planNextLesson`, `YearPlanPromotionService` (auto-schedule), and, in chat, `schedule_presentation`, `reschedule_presentation` and `update_presentation_roster`.
+- `WorkRepository.createWork` titles untitled follow-up work "Practice: <lesson>" or "Follow up: <lesson>"; chat reads print the lesson name when a title is empty.
+
+Warnings come from `WorkToShowFirst` (`Presentations/Planning/`). When two lessons tie on `orderInSequence`, it falls back to sub-area order (sortIndex, then name), so sequences left at order 0 still warn. `WorkToShowFirst+Lines.swift` has `practicingLine` and `stillPracticingLine`. Pickers: `StudentPickerRow` gains `checkFirstReason`, `practicing` and `isCheckFirst`; **`isReady` now means ready with nothing to check first** (placement `.ready` holds both). `Query` gains `checkFirst` and `practicing`. `ReadyGroups.readiness(for:among:lessons:in:)` returns the ready children and the check-first reasons (`readyStudentIDs` wraps it), and `StudentPickerModel.practicing(for:among:lessons:in:)` feeds the **Practicing …** badge in `SchedulePresentationSheet` rows. Chat prints the same warning as a line (see `docs/Technical notes/MCP_SERVER.md`).
+
+### Ways into Groups
+
+`AppRouter.navigateToGroups(area:sequence:)` sets `pendingSequenceLadder`; `GroupsView` takes it once with `consumePendingSequenceLadder()` and opens that sequence's ladder (`.navigationDestination(item:)`). `ChecklistGroupsButton` (in `Lessons/Checklist/Views/ChecklistLensControls.swift`) sits beside the Class Grid lens on the Mac, iPad and iPhone (one sequence is a button, several are a menu), and Lessons & Work has **Groups** on Presentations ▸ Upcoming (through the per-window `quickCapture.go`). ⌘7 opens Groups (`NotebookCommands`, `KeyboardShortcutsHelpView`).
 
 ## Todos Module
 
 **Across:** `Todos/Models/TodoItemEntity.swift`, `Todos/Views/`, `Todos/Support/`, `Todos/Services/`
+
+There is no To-dos screen (taken out 2026-11-22; ⌘7 is Groups now). What stays: `EditTodoForm` (with a confirmed **Delete To-do**, via its `onDelete:` closure; the only delete path in the app), `NewTodoForm`, `TodoCompletionService`, `TodoRepeatRule`, Tide sharing, Today's to-do section, meetings' For Me to Do, and the Claude to-do tools. `TodoListFilter` is a caseless enum (`isOnToday`, `isDueOrPlanned`, `isDue`); `TodoScheduling` has no app users now. The `todoTagOrder` and `todoHideCompleted` keys stay on the backed-up preferences list.
 
 Teacher task management with:
 
 - **Subtasks** (`CDTodoSubtask`) — checklist within a todo
 - **Tags** — categorization
 - **Due dates** — with overdue tracking
-- **Export** (`TodoExportService`) — export to files
 
 ## Settings Module
 
@@ -1120,7 +1155,8 @@ Teacher task management with:
 | AI | Private Cloud Compute opt-in; lesson-planning prompt, temperature and timeout |
 | CloudKit | Sync enable/disable, status, deduplication |
 | Data | Statistics, export, import, test student filtering |
-| Templates | Meeting templates |
+
+Settings has five categories (`SettingsCategory`: school year, classroom, look and feel, sync and backup, intelligence). A saved "templates" selection maps to `.schoolYear` through `SettingsCategory.aliases`. Meetings read only the built-in template (`BuiltInTemplateSeeder.meetingTemplate(from:)`: the active built-in, else any built-in).
 
 ## Backup & Restore
 
@@ -1145,8 +1181,7 @@ Teacher task management with:
 AI services:
 - `StudentAnalysisService` — progress analysis per student
 - `LessonPlanningService` — AI-assisted lesson planning
-- `ReportGeneratorService` — generate progress reports
-- `MonthlyReportDraftService`, `MeetingInsightsService` — parent report drafts, meeting insights
+- `MeetingInsightsService` — meeting insights
 
 ---
 
@@ -1529,7 +1564,7 @@ Cosmic Daybook/
 |   +-- Meetings/                        One-on-one meetings
 |   |   +-- Services/                     Meeting insight generation
 |   +-- Insights/Services/               Student analysis
-|   +-- Recall/Services/                 Recall scoring and retention
+|   +-- Guardians/                       Guardian entity, list and edit sheet (shown on the child's Overview)
 |   +-- YearPlan/Services/               Year-plan promotion
 |
 +-- Lessons/
@@ -1559,14 +1594,11 @@ Cosmic Daybook/
 |   +-- Workflow/                         Presentation and follow-up workflow
 |   +-- Services/                         Presentation splitting
 +-- Attendance/                          Daily tracking
-+-- ClassGrid/                           The Class Grid: Checklist, Three Years, Children, Recall
++-- ClassGrid/                           The Class Grid: Checklist, Three Years, Children
 |   +-- Engine/                           ClassGridEngine (one ladder, one mark)
-|   +-- ThreeYears/, Children/, Recall/   The other three views
+|   +-- ThreeYears/, Children/             The other two views
 +-- CurriculumMap/                       Per-child Three-Year View on the student page, and its loader/store/types
-+-- Resources/                           Resource records, detail, import
-|   +-- Library/                          One Resources screen: Stories, Packets, Files, Procedures;
-|                                         LibraryImportService, LibraryThumbnailGenerator, LibraryFileStorage
-+-- BookClub/                            Book club sessions (shown in Clubs & Projects) and packets (in Resources)
++-- Groups/                              Groups page: cards, sequence ladder
 +-- Logs/                                Attendance and Meetings log views (Attendance's List, Meetings' History)
 +-- Planning/                            Scheduling and curriculum
 |   +-- AIPlanning/LessonPlanning/        AI planning service and state
@@ -1576,22 +1608,18 @@ Cosmic Daybook/
 |   +-- ViewModels/TodayViewModel.swift   Today hub state
 |   +-- Support/                          Builders, loaders, caches, navigation
 +-- Todos/                               Todo management
-|   +-- Views/                            Screens, forms, rows, and sheets
-|   +-- Support/                          Filters, sorting, and date parsing
-|   +-- Services/                         Parsing, notifications, and export
-+-- Projects/                            Project-based learning
-|   +-- Services/                         Session work assignment
+|   +-- Views/                            The to-do forms (new, edit with Delete) and the schedule picker
+|   +-- Support/                          Today filters and scheduling
+|   +-- Services/                         Completion and repeat rules
 +-- Notes/                               Observation and note capture
 |   +-- Observations/                     Browsing, filtering, and AI summaries
 |   +-- Editor/                           Note editors and tag selection
 |   +-- QuickCapture/                     Quick-note sheet and parsing
+|   +-- QuickNote.swift, LessonQuickNote*.swift  The lesson quick note: tag, helper, form, Mac window
 |   +-- Views/                            Scoped note presentation
 +-- Parsha/Services/                     Parsha metadata and suggestions
-+-- Procedures/Services/                Procedure operations
 +-- Supplies/                            Inventory management
 |   +-- Services/                         Supply operations
-+-- Topics/
-|   +-- ViewModels/TopicDetailViewModel.swift  Topic detail state
 +-- Settings/                            App configuration
 +-- Backup/                              Backup and restore
 |

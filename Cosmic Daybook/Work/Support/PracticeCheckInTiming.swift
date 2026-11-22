@@ -14,9 +14,13 @@
 //    lesson, nor earlier than today: a lesson filed a week late still comes
 //    back on a day that is still ahead.
 //  - When a later lesson in the sequence is planned or moved for a child,
-//    her open check-ins on earlier lessons in it that fall after the school
-//    day before that lesson move to it. They only ever move earlier, never
-//    to before today, and a check-in already done is left where it happened.
+//    and none of her open work's check-ins on an earlier lesson falls by the
+//    school day before it, the earliest one moves there. Only that one moves
+//    (a later check on the same work keeps its day), a due-date check never
+//    moves (it is the work's deadline), and a check-in already done is left
+//    where it happened. A moved one only ever moves earlier, and never to
+//    before the first school day from today, nor before the next school day
+//    after the work was set: practice given today isn't checked today.
 //
 //  "Later in the sequence" is `WorkToShowFirst`'s "earlier", turned round, so
 //  what the guide is warned about before a lesson is what comes back before
@@ -49,7 +53,7 @@ enum PracticeCheckInTiming {
         let given = calendar.startOfDay(for: givenOn)
         let floor = max(
             SchoolDayChecker.schoolDay(from: given, forward: true, using: context) ?? given,
-            calendar.startOfDay(for: now)
+            schoolDay(onOrAfter: now, in: context)
         )
         let fallback = max(threeSchoolDays(after: given, in: context), floor)
         let nextPlanned = nextPlannedLessonDays(
@@ -133,26 +137,40 @@ enum PracticeCheckInTiming {
         guard !found.isEmpty else { return 0 }
 
         var moved = 0
-        for (work, target) in targetDays(for: waiting, found: found, in: context, now: now).values {
-            for checkIn in WorkLogService.scheduledCheckIns(of: work, in: context) {
-                guard let date = checkIn.date, AppCalendar.startOfDay(date) > target else { continue }
-                WorkCheckInService.move(checkIn, toDay: target)
-                moved += 1
-            }
+        for (work, planDay) in targetDays(for: waiting, found: found, in: context, now: now).values {
+            let target = max(planDay, dayAfterSetting(work, in: context))
+            let scheduled = WorkLogService.scheduledCheckIns(of: work, in: context)
+                .filter { $0.date != nil }
+            // Already looked at by then: nothing to bring forward.
+            if scheduled.contains(where: { AppCalendar.startOfDay($0.date ?? target) <= target }) { continue }
+            guard let earliest = scheduled
+                .filter({ !WorkCheckInService.isDueDateCheck($0) })
+                .min(by: { ($0.date ?? .distantFuture) < ($1.date ?? .distantFuture) })
+            else { continue }
+            WorkCheckInService.move(earliest, toDay: target)
+            moved += 1
         }
         return moved
     }
 
+    /// The next school day after `work` was set, so practice given today
+    /// isn't pulled back to today; the distant past when it has no date.
+    private static func dayAfterSetting(_ work: CDWorkModel, in context: NSManagedObjectContext) -> Date {
+        guard let set = work.assignedAt ?? work.createdAt else { return .distantPast }
+        let start = AppCalendar.startOfDay(set)
+        return SchoolDayChecker.schoolDay(from: start, forward: true, using: context) ?? start
+    }
+
     /// Each piece of earlier open work, with the day it should be checked by:
     /// the school day before the soonest plan in the call that it comes
-    /// before, never before today.
+    /// before, never before the first school day from today.
     private static func targetDays(
         for plans: [CDLessonAssignment],
         found: [NSManagedObjectID: WorkToShowFirst.ByChild],
         in context: NSManagedObjectContext,
         now: Date
     ) -> [NSManagedObjectID: (work: CDWorkModel, day: Date)] {
-        let today = AppCalendar.startOfDay(now)
+        let today = schoolDay(onOrAfter: now, in: context)
         var targets: [NSManagedObjectID: (work: CDWorkModel, day: Date)] = [:]
         for plan in plans {
             guard let byChild = found[plan.objectID], let scheduled = plan.scheduledFor else { continue }
@@ -202,6 +220,13 @@ enum PracticeCheckInTiming {
         return Set(ids.filter { id in
             id != lessonID && WorkToShowFirst.earlierLessonIDs(before: id, in: sequences).contains(lessonID)
         })
+    }
+
+    /// `day` itself when it is a school day, else the next one.
+    static func schoolDay(onOrAfter day: Date, in context: NSManagedObjectContext) -> Date {
+        let start = AppCalendar.startOfDay(day)
+        if SchoolDayChecker.isSchoolDay(start, using: context) { return start }
+        return SchoolDayChecker.schoolDay(from: start, forward: true, using: context) ?? start
     }
 
     /// The school day before `day`'s, or that day itself when none is found.

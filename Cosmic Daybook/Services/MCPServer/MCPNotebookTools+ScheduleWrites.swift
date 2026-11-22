@@ -32,7 +32,8 @@ extension MCPNotebookTools {
                 + "with another teacher during the lesson (a set time is taken as 30 minutes long) or, "
                 + "for a lesson with no time, in that half of the day; it never refuses for that. It "
                 + "also names any child still practicing an earlier lesson in the sequence, and moves "
-                + "that practice's check-ins to the school day before the lesson when they fall later.",
+                + "that practice's earliest check-in to the school day before the lesson when none "
+                + "falls by then (a due-date check never moves).",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -350,7 +351,9 @@ extension MCPNotebookTools {
             throw MCPToolError("Pass a new date and/or time, or unschedule: true to take it off the calendar.")
         }
         moveYearPlanEntries(with: assignment, in: modelContext)
-        let practice = unschedule ? "" : followPractice(on: assignment, warningAbout: [], in: modelContext)
+        // Only a new day brings practice forward; a time alone keeps the day.
+        let practice = unschedule || day == nil
+            ? "" : followPractice(on: assignment, warningAbout: [], in: modelContext)
 
         guard modelContext.safeSave() else {
             throw MCPToolError("The presentation could not be rescheduled.")

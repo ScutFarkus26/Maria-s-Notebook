@@ -557,6 +557,26 @@ Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-02 so that file keeps 
 - **Backups and restores are the notebook's own store.** A backup holds, and a restore writes, only `private.sqlite`; a restore keeps this device's membership pin and the mirrored Apple reminders and calendar events as they are.
 - **The retired outcome goes when a status is written.** `completionOutcomeRaw` is cleared by `CDWorkModel.status`'s setter and by the launch merge, so a later plain Done is never turned back into an old verdict.
 
+## Kept, no screen (2026-11-21/22)
+
+Fourteen features lost their screens and Claude tools on 2026-11-21/22 (`docs/Plans/Plan - Cut unused features and close the lesson loop.md`, one `Cut:` commit each; the last version with them is the tag `retired/2026-11-cuts`). Unlike round-two Simplify's `CoreDataStack.retiredEntities`, these entities are **not** retired: their classes, model entries, backup rows (`BackupEntityTable`), dedup merges, launch repairs, `StudentDeletion` cleanup and note link fields all stay, so backups and restores carry them unchanged and the backup golden didn't move. Only nothing in the app shows or edits them now.
+
+| Feature taken out | Entities kept | Still read by |
+|---|---|---|
+| Parent Reports, the per-child report | `ParentCommunication` (`Models/`) | backups only; `Guardian` keeps its screen on a child's Overview |
+| Spaced recall checks | `LessonRecallCheck` | Class Grid rings, the curriculum map, readiness and mastery evidence, `student_record` |
+| Projects | `Project`, `ProjectSession`, `ProjectRole`, `ProjectAssignmentTemplate`, `ProjectTemplateWeek`, `ProjectWeekRoleAssignment` | work from a session (`WorkSourceContextType.projectSession`), note links, `SchoolYearScoping` (`CDProject.overlaps`) |
+| Book Club | `BookClubPacket`, `BookClubSession`, `BookClubMeeting` | work type `.bookClubSession`, note links |
+| Community topics | `CommunityTopic`, `ProposedSolution`, `CommunityAttachment` | `Note.communityTopicID`, the note editor's topic context |
+| Issues | `Issue`, `IssueAction` | note links, `StudentDeletion` |
+| Resources, Stories, Procedures | `Resource`, `Story`, `Procedure` (files stay on disk) | backups only |
+| Going Out | `GoingOut`, `GoingOutChecklistItem` | `Note.goingOutID`, `StudentDeletion` |
+| Today's day pad card | `DayPad` | the Calendar's day note, `day_pad` |
+| Custom meeting templates | `MeetingTemplate` | the built-in templates (`BuiltInTemplateSeeder.meetingTemplate(from:)`) |
+| The To-dos screen | `TodoItem` | Today, meetings, Tide sharing, chat (`TODOS.md`) |
+
+Deletes that reach notes: an `Issue`'s and a `ProjectSession`'s delete cascades to their notes (`Issue.notes`, `ProjectSession.noteItems`); a `CommunityTopic`'s notes link by id (`Note.communityTopicID`), so its delete leaves them, but cascades to its solutions and attachments. Nothing in the app deletes any of the three now except a Replace restore and the same-id dedup: `mergeProjectSession` moves the notes to the kept copy first, `mergeCommunityTopic` moves the solutions and attachments, and `Issue` has no dedup. Deleting a child leaves an issue with nobody on it in place rather than deleting it with its notes (`StudentDeletion`, 2026-11-22).
+
 ## Core models, patterns and integrity rules (moved from CLAUDE.md, 2026-10-04)
 
 Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-04 so that file keeps only a pointer and the few rules a session needs before touching this area. These are still rules: follow them.
@@ -572,7 +592,7 @@ Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-04 so that file keeps 
 | LessonPresentation | `CDLessonPresentation` | Presentation scheduling & history; schema 25: her own `needsPractice`, `needsAnotherPresentation` and `manuallyUnblocked` (optional, nil when not set on her row) |
 | LessonAssignment | `CDLessonAssignment` | Links students to lessons |
 | WorkModel | `CDWorkModel` | Work items; one `WorkStatus` per row (Working / Needs Review open; Mastered / Keep Practicing / Incomplete / legacy Done closed), changed only through `WorkLogService`; schema 25: `assignmentID` (the assignment a copy is of) and `isSharedRow` |
-| LevelChange | `CDLevelChange` | One change of a child's level (schema 25, private): `studentID`, `fromLevelRaw`, `toLevelRaw` (`CDStudent.Level` raw values) and the day it took effect, `changedOn`. Written only by `StudentLevelHistory` (the student page, `update_student`, the rollover and the roster import); a change undone the same day leaves no step, so a mis-tap leaves no history. Monthly reports read it, so a report uses the level she had that month. The student's own `previousLevelRaw` and `dateLastPromoted`, which the promotion line and older builds read, are kept matching the latest step |
+| LevelChange | `CDLevelChange` | One change of a child's level (schema 25, private): `studentID`, `fromLevelRaw`, `toLevelRaw` (`CDStudent.Level` raw values) and the day it took effect, `changedOn`. Written only by `StudentLevelHistory` (the student page, `update_student`, the rollover and the roster import); a change undone the same day leaves no step, so a mis-tap leaves no history. Monthly reports read it until they were taken out (2026-11-21); the records stay. The student's own `previousLevelRaw` and `dateLastPromoted`, which the promotion line and older builds read, are kept matching the latest step |
 | Guardian | `CDGuardian` | A child's parent or guardian (private), one row per child. `personID` (schema 25) is shared by the rows on different children that are one person, matched by email and name (guardians have no phone field); a lone row keeps nil, which stands for itself. Filled where nil at every launch and after every restore, never during a first download (`GuardianPeople`). An edit changes every row with that id, notes aside, so "receives reports" follows the person, and the guardian sheet names her other children |
 | Note | `CDNote` | Observations with tags, multi-student scoping |
 | AttendanceRecord | `CDAttendanceRecord` | Daily attendance tracking; `leavesAt` (schema 13) is a planned early pickup, not a mark; `returnedAt` + `statusBeforeLeavingRaw` (schema 14) record a child who left early and came back |

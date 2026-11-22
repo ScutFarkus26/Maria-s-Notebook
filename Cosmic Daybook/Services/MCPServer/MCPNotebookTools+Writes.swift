@@ -267,7 +267,7 @@ extension MCPNotebookTools {
             ],
             "include_in_report": [
                 "type": "boolean",
-                "description": "Include or exclude the note from generated reports"
+                "description": "The note's include-in-report flag. It is kept on the note, but the app no longer makes reports from it (taken out on 2026-11-21)"
             ]
         ],
         "required": ["note_id"]

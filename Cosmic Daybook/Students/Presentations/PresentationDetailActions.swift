@@ -25,6 +25,9 @@ final class PresentationDetailActions {
         let removedStudentIDs = Set(lessonAssignment.studentIDs)
             .subtracting(selectedStudentIDs.map(\.uuidString))
         let lessonChanged = lessonAssignment.lessonID != editingLessonID.uuidString
+        let previousDay = lessonAssignment.scheduledFor.map { calendar.startOfDay(for: $0) }
+        let childAdded = !selectedStudentIDs.map(\.uuidString)
+            .allSatisfy(Set(lessonAssignment.studentIDs).contains)
 
         lessonAssignment.lessonID = editingLessonID.uuidString
         lessonAssignment.notes = notes
@@ -57,9 +60,13 @@ final class PresentationDetailActions {
         // id, so they follow the edit here or read as given for good.
         if let context = lessonAssignment.managedObjectContext {
             PresentationRecordCleanup.removeStudents(removedStudentIDs, from: lessonAssignment, in: context)
-            // A plan on a new day, or with a child added, brings earlier
-            // practice forward to the school day before it.
-            PracticeCheckInTiming.followPlannedLessons([lessonAssignment], in: context)
+            // A plan on a new day, for a new lesson, or with a child added,
+            // brings earlier practice forward to the school day before it. An
+            // edit of its notes alone moves nothing.
+            let newDay = lessonAssignment.scheduledFor.map { calendar.startOfDay(for: $0) }
+            if newDay != previousDay || childAdded || lessonChanged {
+                PracticeCheckInTiming.followPlannedLessons([lessonAssignment], in: context)
+            }
             if lessonChanged {
                 PresentationRecordCleanup.returnEntriesForOtherLessons(promotedInto: lessonAssignment, in: context)
             }

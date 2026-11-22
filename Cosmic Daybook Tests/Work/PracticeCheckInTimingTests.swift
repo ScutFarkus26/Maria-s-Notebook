@@ -157,29 +157,88 @@ struct PracticeCheckInTimingTests {
 
     // MARK: - A later lesson planned
 
+    /// Ada's open work on `lesson`, set on Friday 2026-11-20.
+    private func openWork(on lesson: CDLesson, in context: NSManagedObjectContext) throws -> CDWorkModel {
+        let work = CoreDataTestHelpers.seedWorkModel(
+            in: context, title: "Practice", studentID: ada, lessonID: try #require(lesson.id)
+        )
+        work.id = UUID()
+        work.status = .active
+        work.assignedAt = try day("2026-11-20")
+        work.createdAt = work.assignedAt
+        return work
+    }
+
+    @discardableResult
+    private func follow(
+        _ plan: CDLessonAssignment, lessons: [CDLesson], now: Date, in context: NSManagedObjectContext
+    ) -> Int {
+        PracticeCheckInTiming.followPlannedLessons(
+            [plan], sequences: WorkToShowFirst.Sequences(lessons: lessons), in: context, now: now
+        )
+    }
+
     @Test("Planning a later lesson moves an open check-in earlier and leaves a done one")
     func movesOpenCheckInEarlier() throws {
         let context = try CoreDataTestHelpers.makeContext()
         let first = lesson("Bead Addition", step: 1, in: context)
         let second = lesson("Stamp Game Addition", step: 2, in: context)
-        let work = CoreDataTestHelpers.seedWorkModel(
-            in: context, title: "Practice", studentID: ada, lessonID: try #require(first.id)
-        )
-        work.id = UUID()
-        work.status = .active
+        let work = try openWork(on: first, in: context)
         let late = CDWorkCheckIn.make(for: work, on: try day("2026-11-30"), in: context)
         let done = CDWorkCheckIn.make(for: work, on: try day("2026-12-01"), status: .completed, in: context)
-        let soon = CDWorkCheckIn.make(for: work, on: try day("2026-11-24"), in: context)
         let thursday = plan(second, on: try day("2026-11-26"), in: context)
 
-        let moved = PracticeCheckInTiming.followPlannedLessons(
-            [thursday], sequences: WorkToShowFirst.Sequences(lessons: [first, second]),
-            in: context, now: try day("2026-11-23")
-        )
-        #expect(moved == 1)
+        #expect(follow(thursday, lessons: [first, second], now: try day("2026-11-23"), in: context) == 1)
         #expect(late.date.map(AppCalendar.startOfDay) == (try day("2026-11-25")))
         #expect(done.date.map(AppCalendar.startOfDay) == (try day("2026-12-01")), "a done check-in stays")
+    }
+
+    @Test("Only the earliest check-in moves; a later one on the same work keeps its day")
+    func onlyTheEarliestMoves() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let first = lesson("Bead Addition", step: 1, in: context)
+        let second = lesson("Stamp Game Addition", step: 2, in: context)
+        let work = try openWork(on: first, in: context)
+        let wednesday = CDWorkCheckIn.make(for: work, on: try day("2026-12-02"), in: context)
+        let monday = CDWorkCheckIn.make(for: work, on: try day("2026-11-30"), in: context)
+        let thursday = plan(second, on: try day("2026-11-26"), in: context)
+
+        #expect(follow(thursday, lessons: [first, second], now: try day("2026-11-23"), in: context) == 1)
+        #expect(monday.date.map(AppCalendar.startOfDay) == (try day("2026-11-25")))
+        #expect(wednesday.date.map(AppCalendar.startOfDay) == (try day("2026-12-02")))
+    }
+
+    @Test("A check-in already due by the day before moves nothing")
+    func alreadyCheckedInTimeMovesNothing() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let first = lesson("Bead Addition", step: 1, in: context)
+        let second = lesson("Stamp Game Addition", step: 2, in: context)
+        let work = try openWork(on: first, in: context)
+        let soon = CDWorkCheckIn.make(for: work, on: try day("2026-11-24"), in: context)
+        let late = CDWorkCheckIn.make(for: work, on: try day("2026-11-30"), in: context)
+        let thursday = plan(second, on: try day("2026-11-26"), in: context)
+
+        #expect(follow(thursday, lessons: [first, second], now: try day("2026-11-23"), in: context) == 0)
         #expect(soon.date.map(AppCalendar.startOfDay) == (try day("2026-11-24")), "never later")
+        #expect(late.date.map(AppCalendar.startOfDay) == (try day("2026-11-30")))
+    }
+
+    @Test("A due-date check is the work's deadline and never moves")
+    func dueDateCheckStays() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let first = lesson("Bead Addition", step: 1, in: context)
+        let second = lesson("Stamp Game Addition", step: 2, in: context)
+        let work = try openWork(on: first, in: context)
+        let friday = try day("2026-11-27")
+        work.dueAt = friday
+        let due = CDWorkCheckIn.make(
+            for: work, on: friday, purpose: CheckInReason.dueDate.rawValue, in: context
+        )
+        let thursday = plan(second, on: try day("2026-11-26"), in: context)
+
+        #expect(follow(thursday, lessons: [first, second], now: try day("2026-11-23"), in: context) == 0)
+        #expect(due.date.map(AppCalendar.startOfDay) == friday)
+        #expect(work.dueAt == friday)
     }
 
     @Test("A moved check-in is never put before today")
@@ -187,18 +246,69 @@ struct PracticeCheckInTimingTests {
         let context = try CoreDataTestHelpers.makeContext()
         let first = lesson("Bead Addition", step: 1, in: context)
         let second = lesson("Stamp Game Addition", step: 2, in: context)
-        let work = CoreDataTestHelpers.seedWorkModel(
-            in: context, title: "Practice", studentID: ada, lessonID: try #require(first.id)
-        )
-        work.id = UUID()
-        work.status = .active
+        let work = try openWork(on: first, in: context)
         let checkIn = CDWorkCheckIn.make(for: work, on: try day("2026-11-30"), in: context)
         let tuesday = try day("2026-11-24")
         let plan = plan(second, on: tuesday, in: context)
 
-        PracticeCheckInTiming.followPlannedLessons(
-            [plan], sequences: WorkToShowFirst.Sequences(lessons: [first, second]), in: context, now: tuesday
-        )
+        follow(plan, lessons: [first, second], now: tuesday, in: context)
         #expect(checkIn.date.map(AppCalendar.startOfDay) == tuesday)
+    }
+
+    @Test("Planned on a Sunday, practice moves to Monday, not the Friday gone or the Sunday")
+    func weekendTodaySnapsToASchoolDay() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let first = lesson("Bead Addition", step: 1, in: context)
+        let second = lesson("Stamp Game Addition", step: 2, in: context)
+        let work = try openWork(on: first, in: context)
+        let checkIn = CDWorkCheckIn.make(for: work, on: try day("2026-12-02"), in: context)
+        let monday = try day("2026-11-23")
+        let plan = plan(second, on: monday, in: context)
+
+        follow(plan, lessons: [first, second], now: try day("2026-11-22"), in: context)
+        #expect(checkIn.date.map(AppCalendar.startOfDay) == monday)
+    }
+
+    @Test("Practice set today isn't pulled back to today by tomorrow's lesson")
+    func practiceSetTodayKeepsTomorrow() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let first = lesson("Bead Addition", step: 1, in: context)
+        let second = lesson("Stamp Game Addition", step: 2, in: context)
+        let work = try openWork(on: first, in: context)
+        let monday = try day("2026-11-23")
+        let tuesday = try day("2026-11-24")
+        work.assignedAt = monday
+        let checkIn = CDWorkCheckIn.make(for: work, on: tuesday, in: context)
+        let plan = plan(second, on: tuesday, in: context)
+
+        #expect(follow(plan, lessons: [first, second], now: monday, in: context) == 0)
+        #expect(checkIn.date.map(AppCalendar.startOfDay) == tuesday)
+    }
+
+    @Test("Editing a plan's notes in the app moves nothing; moving its day does")
+    func onlyADayOrRosterChangeMoves() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let first = lesson("Bead Addition", step: 1, in: context)
+        let second = lesson("Stamp Game Addition", step: 2, in: context)
+        let work = try openWork(on: first, in: context)
+        // Far ahead, so "never before today" doesn't come into it.
+        let checkIn = CDWorkCheckIn.make(for: work, on: try day("2030-01-21"), in: context)
+        let thursday = try day("2030-01-10")
+        let plan = plan(second, on: thursday, in: context)
+        let students = context.safeFetch(CDFetchRequest(CDStudent.self))
+        let edit = { (day: Date, notes: String) in
+            PresentationDetailActions().applyEditsToModel(
+                lessonAssignment: plan, editingLessonID: second.id ?? UUID(), scheduledFor: day,
+                givenAt: nil, isPresented: false, notes: notes, needsAnotherPresentation: false,
+                selectedStudentIDs: [self.ada], studentsAll: students, lessons: [first, second],
+                calendar: AppCalendar.shared
+            )
+        }
+
+        edit(thursday, "Bring the stamp game.")
+        #expect(checkIn.date.map(AppCalendar.startOfDay) == (try day("2030-01-21")))
+
+        edit(try day("2030-01-09"), "Bring the stamp game.")
+        #expect(checkIn.date.map(AppCalendar.startOfDay) == (try day("2030-01-08")))
     }
 }

@@ -238,10 +238,14 @@ enum StudentDeletion {
         let idString = studentID.uuidString
         detachFromPresentations(idString, in: context, report: &report)
 
-        // Group records with nobody left on them mean nothing and go.
+        // An issue stays with nobody on it: deleting one cascades to its
+        // notes, class-wide ones and ones about other children included, and
+        // since the Issues screen left the app (2026-11-21) nobody could see
+        // what would go.
         detach(idString, from: \CDIssue.studentIDs,
-               deleteWhenEmpty: true, in: context, report: &report)
+               deleteWhenEmpty: false, in: context, report: &report)
         detachFromIssueActions(idString, in: context, report: &report)
+        // Group records with nobody left on them mean nothing and go.
         detach(idString, from: \CDPlanningRecommendation.studentIDs,
                deleteWhenEmpty: true, in: context, report: &report)
         detachFromPracticeSessions(idString, in: context, report: &report)

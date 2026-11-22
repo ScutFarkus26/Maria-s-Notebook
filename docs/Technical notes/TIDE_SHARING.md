@@ -1,6 +1,6 @@
 # Sharing to-dos with Tide
 
-**Last Updated:** 2026-11-03 (bug hunt 2026-11-02, findings 3, 11 and 46 to 51: edits go to Tide, ticks outlive clearing)
+**Last Updated:** 2026-11-22 (the Todos screen taken out; earlier: bug hunt 2026-11-02, findings 3, 11 and 46 to 51)
 
 The notebook's to-dos and Danny's classroom to-dos in Tide are one list: every open notebook to-do goes to Tide except the automatic work check-ins and Someday ones, the to-dos in the Tide lists he picks show in the notebook, and a tick on either side ticks the other. Code: `Services/Tide/`; Settings › Connections › Tide (`Settings/Sync/TideSyncSettingsView.swift`).
 
@@ -57,7 +57,7 @@ Per linked to-do the sync remembers only whether both apps last agreed it was op
 ## Refusals
 
 - **Can't be aimed**: Tide names an action by its words, among every row of its list, ticked ones included (`MCPQueue.namedAction`, exact match, else a unique close one), and only `delete_action` takes a position as well. So a tick of an action whose words appear twice in its list (a weekly to-do sent each week, say) is refused as ambiguous. The sync asks again every run and says so plainly ("Tide can't tell which … to tick off … Tick it off in Tide"); once Danny ticks it there, the copy here is already closed and the sync stops asking. A positional `complete_action` in Tide would fix it ([Tide row](tide://box/Areas/App%20Development/Tide/To%20do.md?text=Let%20Tide%27s%20complete_action%20take%20a%20position%20and%20revision%2C%20as%20delete_action%20does%2C%20so%20Cosmic%20Daybook%20can%20tick%20an%20action%20whose%20words%20appear%20twice%20in%20its%20list)).
-- **Ticks outlive clearing (2026-11-03):** a to-do ticked here while both apps last agreed it was open is remembered with its link (`TideSyncState.pendingTicks`), so Clear Completed or a delete before the Mac told Tide still ticks its action; the entry goes once the tick has gone across. A tick and a delete arriving together from another device can't be recovered without a model change. A repeat ticked on both sides rolls once, not twice.
+- **Ticks outlive clearing (2026-11-03):** a to-do ticked here while both apps last agreed it was open is remembered with its link (`TideSyncState.pendingTicks`), so a delete before the Mac told Tide still ticks its action; the entry goes once the tick has gone across. A tick and a delete arriving together from another device can't be recovered without a model change. A repeat ticked on both sides rolls once, not twice.
 - **Passing by**: "isn't in Tide's store yet" and "Tide is still opening" are tried again next run, never reported as Tide not taking a to-do. "Tide is still opening" asks again after the usual change wait, not the 3-minute timer (2026-11-03). While Low Power Mode or heat pauses the sync, the status says "Paused while this Mac saves energy", not "Up to date"; Sync Now still shares.
 - **The heading gone**: the saved heading isn't checked against the read (it shows only headings that hold an unfinished action). Tide refuses a heading the list doesn't have, and the status says "The heading … isn't in Tide's … list any more. Pick another in Settings."; sending resumes once one is picked.
 - **Anything else** a send meets is named in the status ("Tide wouldn't take …"), with Tide's words under Details, and not sent again until its title changes.
@@ -69,10 +69,10 @@ Two CloudKit copies of a to-do with the same id: the sync uses the linked one, a
 
 ## Screens
 
-- Todos: a "From Tide" section in the sidebar, one row per Tide list.
+- The Todos screen, with its "From Tide" sidebar section, was taken out on 2026-11-22 (`TODOS.md`); Tide to-dos in the picked lists show on Today and a child's page like any other.
 - A child's page: open shared to-dos that name her (`TideNameMatcher`: full name or the short "Maya S" form anywhere; a first name no other child has only where it is written with a capital, and one that is also an everyday word (Mark, May, Will, Grace, Rose) only on a "For …" line; two Ettys make "Etty" name nobody) or list her as a child.
-- Today: no change; a Tide to-do with a due date shows with the rest by the Todos screen's own Today rule.
+- Today: no change; a Tide to-do with a due date shows with the rest by the shared Today rule (`TodoListFilter.isOnToday`).
 
 ## Not checked by an agent
 
-The Mac look of Settings and the sidebar section, and one live round trip with Tide open, are Danny's (agents never run the Mac app: its startup opens the live notebook). Schema 19 is in Production (2026-10-19); the round trip is a Tide row ([Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20schema%2019%20roll-out%2C%20turn%20on%20Tide%20sharing%20in%20Cosmic%20Daybook%27s%20Settings%20on%20the%20Mac%20with%20Tide%20open%2C%20check%20the%20first-run%20matches%20and%20how%20it%20looks%2C%20then%20tick%20a%20to-do%20on%20each%20side%20and%20see%20the%20other%20follow)).
+The Mac look of Settings, and one live round trip with Tide open, are Danny's (agents never run the Mac app: its startup opens the live notebook). Schema 19 is in Production (2026-10-19); the round trip is a Tide row ([Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20schema%2019%20roll-out%2C%20turn%20on%20Tide%20sharing%20in%20Cosmic%20Daybook%27s%20Settings%20on%20the%20Mac%20with%20Tide%20open%2C%20check%20the%20first-run%20matches%20and%20how%20it%20looks%2C%20then%20tick%20a%20to-do%20on%20each%20side%20and%20see%20the%20other%20follow)).
