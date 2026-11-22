@@ -586,6 +586,10 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
         forgetLastTap()
         lastLateReopened = AttendanceLatePhase.isReopened(on: date, defaults: defaults)
         AttendanceLatePhase.setLate(true, on: date, defaults: defaults)
+        // The close's time, for every device's Late rule: one note a day,
+        // saved and put into the classroom share with the marks (`persist`
+        // files every classroom record the save inserts, `AssistantSave`).
+        store.recordArrivalClosed(on: date)
         // Siri's last change is from before arrival closed: "Undo that" now
         // would put back an older voice mark, not this.
         SiriAttendanceChange.forget(ifOn: date, defaults: defaults)
@@ -606,6 +610,8 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
     /// to reopen on purpose, and the guide's later close was ignored here.
     /// A close made after a Reopen Arrival here is the exception: its Undo
     /// reopens the day again, as it was (bug hunt 2026-11-06, #3).
+    /// Either way the day's arrival-closed notes go, the guide's too, and
+    /// the delete is saved (plan "Tide list clean-up 2026-11", D3).
     /// Returns whether it went back: false on a day locked meanwhile, whose
     /// absences stand, so a ParentLocker send waiting on them goes ahead.
     @discardableResult
@@ -627,6 +633,9 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
             phase = .arrival
             if before != phase { phaseSwitches += 1 }
             AttendanceLatePhase.reopen(on: date, defaults: defaults)
+            // Its only change in the store. A save that fails says nothing:
+            // the day reads open or closed from its records, never the note.
+            if store.deleteArrivalClosedNotes(on: date) > 0 { save(quietly: true) }
             return true
         }
         if reopenedBefore {
@@ -642,6 +651,7 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
                   store.undoAutomaticAbsence(record) else { continue }
             reverted.append(record)
         }
+        store.deleteArrivalClosedNotes(on: date)
         // Saved only: the load below redraws every row and works out the
         // phase, which `persist` would do first for the reverted rows (#24).
         save()
@@ -745,15 +755,19 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
     }
 
     /// Saves and puts new records into the classroom share. Returns whether
-    /// the save went through.
+    /// the save went through. `quietly`: a failure is logged, not shown.
     @discardableResult
-    private func save() -> Bool {
+    private func save(quietly: Bool = false) -> Bool {
         // A failed save here is this phone's own store refusing the change,
         // not the network: iCloud sending is the sync line's business, and it
         // retries by itself. The change stays pending, so the next mark's
         // save tries it again.
         guard AssistantSave.save(context, container: container, created: createdSinceSave) else {
-            saveError = "Couldn't save that change. Try again."
+            if quietly {
+                Self.logger.error("Saving the day's taken-back arrival-closed note failed; the next save tries again")
+            } else {
+                saveError = "Couldn't save that change. Try again."
+            }
             return false
         }
         saveError = nil

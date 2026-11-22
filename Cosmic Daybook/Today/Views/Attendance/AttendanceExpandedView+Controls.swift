@@ -68,9 +68,7 @@ extension AttendanceExpandedView {
     private var moreMenu: some View {
         Menu {
             if isEditing, !viewModel.isFuture, viewModel.phase == .late {
-                Button("Reopen Arrival", systemImage: "arrow.uturn.backward") {
-                    withAnimation(.smooth(duration: 0.3)) { viewModel.reopenArrival() }
-                }
+                Button("Reopen Arrival", systemImage: "arrow.uturn.backward", action: reopenArrival)
             }
             Button("Reset Day…", systemImage: SFSymbol.Action.arrowCounterclockwise, role: .destructive) {
                 confirmingReset = true

@@ -47,10 +47,16 @@ extension AttendanceExpandedView {
             isEditing: isEditing,
             sendsToParentLocker: sendsToParentLocker && viewModel.isToday,
             onClose: closeArrival,
-            onReopen: {
-                withAnimation(.smooth(duration: 0.3)) { viewModel.reopenArrival() }
-            }
+            onReopen: reopenArrival
         )
+    }
+
+    /// Reopen Arrival, saved: the day's arrival-closed note leaves the
+    /// classroom share too. A save that fails is only logged: whether the
+    /// day reads closed comes from its records, never the note.
+    func reopenArrival() {
+        withAnimation(.smooth(duration: 0.3)) { viewModel.reopenArrival(modelContext: viewContext) }
+        saveCoordinator.save(viewContext, reason: "Reopen arrival", alertOnFailure: false)
     }
 
     func closeArrival() {
@@ -89,7 +95,12 @@ extension AttendanceExpandedView {
     // MARK: - Reset
 
     func resetDay() {
-        guard let undo = viewModel.resetDay(modelContext: viewContext) else { return }
+        guard let undo = viewModel.resetDay(modelContext: viewContext) else {
+            // Nothing to clear, though a day in Late reopened, and its
+            // arrival-closed note went.
+            saveCoordinator.save(viewContext, reason: "Reset day", alertOnFailure: false)
+            return
+        }
         // Reset reopens arrival: a Close Arrival & Send still waiting out its
         // Undo doesn't go. Its Undo can't bring it back (the guide's backstop,
         // or Send Now, sends the day once it's taken again).
@@ -103,7 +114,9 @@ extension AttendanceExpandedView {
             "Day reset",
             undoAction: {
                 MainActor.assumeIsolated {
-                    guard model.undoReset(undo, modelContext: context) > 0 else { return }
+                    // A day that was in Late closes again with its note, even
+                    // with every child marked again since.
+                    guard model.undoReset(undo, modelContext: context) > 0 || undo.wasLate else { return }
                     coordinator.save(context, reason: "Undo reset day")
                     onChange()
                 }

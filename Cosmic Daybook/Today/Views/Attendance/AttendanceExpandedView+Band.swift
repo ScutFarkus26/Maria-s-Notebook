@@ -194,9 +194,7 @@ extension AttendanceExpandedView {
                 EmptyView()
             } else if viewModel.phase == .late {
                 Menu {
-                    Button("Reopen Arrival", systemImage: "arrow.uturn.backward") {
-                        withAnimation(.smooth(duration: 0.3)) { viewModel.reopenArrival() }
-                    }
+                    Button("Reopen Arrival", systemImage: "arrow.uturn.backward", action: reopenArrival)
                 } label: {
                     Label("Arrival closed · a \(clickWord) now marks Late", systemImage: "clock.fill")
                 }

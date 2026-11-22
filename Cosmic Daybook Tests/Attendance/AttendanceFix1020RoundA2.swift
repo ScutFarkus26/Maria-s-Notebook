@@ -84,7 +84,7 @@ struct AttendanceFix1020RoundA2 {
         roll.load(students: [maya, ari], modelContext: context)
         #expect(roll.phase == .late)
 
-        roll.reopenArrival()
+        roll.reopenArrival(modelContext: context)
         roll.load(students: [maya, ari], modelContext: context)
         #expect(roll.phase == .arrival, "a reopen here still wins")
         #expect(roll.offersCloseArrival(canMark: true), "the way back to Late, with nobody to mark")

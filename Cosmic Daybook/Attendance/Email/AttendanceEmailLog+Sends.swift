@@ -2,9 +2,9 @@ import Foundation
 import CoreData
 
 // The day's sends of attendance to the school (`CDAttendanceEmailSend`):
-// read, recorded, and worded for MCP, and the note that ParentLocker isn't
-// expecting a day's attendance, which travels as one of these but is never
-// read as a send. Compiled into both apps.
+// read, recorded, and worded for MCP, and the two notes that travel as one
+// of these but are never read as a send: ParentLocker isn't expecting a
+// day's attendance, and arrival closed. Compiled into both apps.
 
 extension AttendanceEmailLog {
 
@@ -20,11 +20,16 @@ extension AttendanceEmailLog {
     nonisolated static let notExpectedChannel = "notExpected"
 
     /// The `channelRaw` of the other note: arrival closed on the day, at the
-    /// row's `sentAt` (domain-logic review A1). Nothing writes one yet. This
-    /// build only reads: no read of the day's sends counts it, and the Late
-    /// rule can take the close's time from it (`arrivalClosedAt`). The writer
-    /// comes a release later, once every device has a build that reads it
-    /// this way; a build from before would show it as an email that went.
+    /// row's `sentAt` (domain-logic review A1). Written once a day where
+    /// arrival closes (`recordArrivalClosed`: the notebook's Close Arrival
+    /// and its Undo of a Reset Day, the Assistant's Close Arrival and Siri's),
+    /// and taken back on every way back to Arrival (`deleteArrivalClosedNotes`:
+    /// Undo, Reopen, Siri's Undo, Reset Day). No read of the day's sends
+    /// counts it, and it closes no day by itself: the Late rule only takes
+    /// the close's time from it (`arrivalClosedAt`), and whether the day
+    /// reads closed still comes from its records (plan "Tide list clean-up
+    /// 2026-11", D3). Builds from schema 25 on read it this way; one from
+    /// before would show it as an email that went.
     nonisolated static let arrivalClosedChannel = "arrivalClosed"
 
     /// The channels that mark a note, not a send.
@@ -229,6 +234,48 @@ extension AttendanceEmailLog {
         record(on: day, role: role, channelRaw: notExpectedChannel, now: now, in: context)
     }
 
+    /// Notes that arrival closed on `day`, at `now` (`arrivalClosedChannel`),
+    /// stamped as a send is. One note a day: a day that already has one,
+    /// from this device or another, gets none, and nil comes back (two
+    /// devices that each write one before they sync leave two, and the
+    /// reader takes the earlier). Nil too when `role` may not write the
+    /// class's records (an assistant added as View only). The caller saves,
+    /// and in the Assistant puts the new record into the share.
+    @discardableResult
+    static func recordArrivalClosed(
+        on day: Date,
+        role: CDClassroomMembership.ClassroomRole,
+        now: Date = Date(),
+        in context: NSManagedObjectContext
+    ) -> CDAttendanceEmailSend? {
+        guard ClassroomPermissions.canWrite(entityName: noteEntityName, role: role),
+              arrivalClosedAt(on: day, in: context) == nil else { return nil }
+        return record(on: day, role: role, channelRaw: arrivalClosedChannel, now: now, in: context)
+    }
+
+    /// Takes back every arrival-closed note on `day`, whoever wrote it, as
+    /// `arrivalClosedAt` reads them (in the Assistant, the classroom share's
+    /// only). Returns how many; none when `role` may not delete the class's
+    /// records (an assistant added as View only). The caller saves. A
+    /// delete that never reaches another device leaves it a note that only
+    /// dates a close: it never closes the day there.
+    @discardableResult
+    static func deleteArrivalClosedNotes(
+        on day: Date,
+        role: CDClassroomMembership.ClassroomRole,
+        in context: NSManagedObjectContext
+    ) -> Int {
+        guard ClassroomPermissions.canDelete(entityName: noteEntityName, role: role) else { return 0 }
+        let request = noteRequest(arrivalClosedChannel, on: day)
+        scopeToClassroom(request, in: context)
+        let notes = context.safeFetch(request)
+        notes.forEach(context.delete)
+        return notes.count
+    }
+
+    /// The notes' entity, as the permission matrix names it.
+    private static let noteEntityName = "AttendanceEmailSend"
+
     private static func record(
         on day: Date,
         role: CDClassroomMembership.ClassroomRole,
@@ -263,5 +310,28 @@ extension AttendanceEmailLog {
             ? "the guide"
             : (ClassroomNames.name(forRecordName: send.sentByID, in: context) ?? send.sentByName ?? "an assistant")
         return sends.summary(senderName: name, for: day, deadlineMinutes: settings(in: context)?.deadlineMinutes)
+    }
+}
+
+// MARK: - The arrival-closed note, on a day this store may write
+
+extension CDAttendanceStore {
+
+    /// `AttendanceEmailLog.recordArrivalClosed` as this store's role, on a
+    /// day it may write: none on a locked day, as no mark goes on one. The
+    /// caller saves.
+    @discardableResult
+    func recordArrivalClosed(on day: Date, now: Date = Date()) -> CDAttendanceEmailSend? {
+        guard canWrite(on: day) else { return nil }
+        return AttendanceEmailLog.recordArrivalClosed(on: day, role: role, now: now, in: context)
+    }
+
+    /// `AttendanceEmailLog.deleteArrivalClosedNotes` as this store's role, on
+    /// a day it may write: a locked day keeps its note, as it keeps its
+    /// marks. Returns how many it deleted. The caller saves.
+    @discardableResult
+    func deleteArrivalClosedNotes(on day: Date) -> Int {
+        guard canWrite(on: day) else { return 0 }
+        return AttendanceEmailLog.deleteArrivalClosedNotes(on: day, role: role, in: context)
     }
 }

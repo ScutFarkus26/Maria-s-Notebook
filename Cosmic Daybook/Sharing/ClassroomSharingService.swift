@@ -155,10 +155,15 @@ final class ClassroomSharingService {
     /// Avoiding the iterate-all-stores approach prevents legacy shares left
     /// in the wrong store (from the pre-migration era) from being surfaced
     /// to the UI. Only the pinned share counts: with no pin this is nil.
-    func fetchExistingShare() throws -> CKShare? {
+    ///
+    /// The shares are read off the main actor (`ClassroomShareAttach.shares`):
+    /// `fetchShares(in:)` waits while an export or import holds the store, and
+    /// on the main thread froze the sharing screen mid-sync.
+    func fetchExistingShare() async throws -> CKShare? {
         var found: CKShare?
-        if let store = classroomShareStore {
-            found = CDClassroomMembership.classroomShare(among: try container.fetchShares(in: store), in: context)
+        if let storeID = classroomShareStore?.identifier {
+            let shares = try await ClassroomShareAttach.shares(inStoreWithIdentifier: storeID, container: container)
+            found = CDClassroomMembership.classroomShare(among: shares, in: context)
         }
         publishShare(found)
         return found
@@ -187,11 +192,6 @@ final class ClassroomSharingService {
             SharedStoreOrphanGuard.shared.flushPendingIfPossible()
         }
         #endif
-    }
-
-    /// Refreshes participant list from the current CKShare.
-    func refreshParticipants() throws {
-        publishParticipants(of: try fetchExistingShare())
     }
 
     /// Reads the pinned share and its participants off the main actor. The
@@ -293,10 +293,10 @@ final class ClassroomSharingService {
         currentShare = nil
         participants = []
         isSharing = false
-        // Re-read store truth; if the container hasn't recorded the share
-        // deletion yet this may transiently resurface it, and the next
-        // remote-change-driven refresh converges.
-        _ = try? fetchExistingShare()
+        // Re-read store truth, off the main actor; if the container hasn't
+        // recorded the share deletion yet this may transiently resurface it,
+        // and the next remote-change-driven refresh converges.
+        Task { _ = try? await fetchExistingShare() }
     }
 
     /// Leaves the current shared classroom (assistant only).

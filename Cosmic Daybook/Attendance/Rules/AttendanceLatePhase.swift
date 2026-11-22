@@ -86,11 +86,11 @@ enum AttendanceLatePhase {
     /// (a store still downloading) says nothing about an Undo, so what was
     /// seen stands.
     ///
-    /// `closedAt` is the close's time from the day's shared note, when a
-    /// device has written one (`AttendanceEmailLog.arrivalClosedAt`,
-    /// domain-logic review A1; nothing writes one yet). It only dates the
-    /// close: who it took in, and whether it still stands, are read from the
-    /// records as before.
+    /// `closedAt` is the close's time from the day's shared note, which a
+    /// device writes as arrival closes there (`AttendanceEmailLog.arrivalClosedAt`,
+    /// domain-logic review A1). It only dates the close: who it took in, and
+    /// whether it still stands, are read from the records as before, so a
+    /// note left behind closes no day by itself.
     @discardableResult
     static func closedAnywhere(
         on day: Date, records: [CDAttendanceRecord], closedAt noted: Date? = nil,

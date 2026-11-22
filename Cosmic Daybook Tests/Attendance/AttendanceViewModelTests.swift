@@ -224,7 +224,7 @@ struct AttendanceViewModelTests {
         roll.tap(try #require(roll.rows.first { $0.shortName == "Maya" }), modelContext: context)
         #expect(status(roll, "Maya") == .tardy)
 
-        roll.reopenArrival()
+        roll.reopenArrival(modelContext: context)
         roll.load(students: [maya, ari], modelContext: context)
         #expect(roll.phase == .arrival)
         roll.tap(try #require(roll.rows.first { $0.shortName == "Ari" }), modelContext: context)

@@ -547,9 +547,37 @@ struct SiriAttendance { // swiftlint:disable:this type_body_length
     /// (`SiriHost.closeArrivalUndone`), and an open grid shows it. Going by
     /// the records then found the first close's absences and stayed in
     /// Late, while Siri said "Arrival is open again" (bug hunt 2026-11-06, #3).
+    /// The day's arrival-closed notes go too (`takeBackArrivalClosedNotes`).
     private func undoCloseArrival(_ change: SiriAttendanceChange) {
         SiriHost.closeArrivalUndone(on: today, reopen: change.reopenedBefore == true)
+        takeBackArrivalClosedNotes()
         NotificationCenter.default.post(name: .attendanceChangedBySiri, object: nil)
+    }
+
+    /// Deletes the day's arrival-closed notes and saves, after the marks'
+    /// own commit. A save that fails is only logged, and the delete waits
+    /// for the next save: whether the day reads closed comes from its
+    /// records, never the note.
+    private func takeBackArrivalClosedNotes() {
+        guard store.deleteArrivalClosedNotes(on: today) > 0 else { return }
+        guard saveAndFile() else {
+            Self.logger.error("Siri couldn't save taking back the arrival-closed note")
+            return
+        }
+    }
+
+    /// Saves a change that is no mark (the arrival-closed note, written or
+    /// taken back), filing every classroom record the save inserts into the
+    /// share, under Siri's keep-alive, as `commit` files them (bug hunt
+    /// 2026-11-03 #25). Returns whether the save went through.
+    func saveAndFile() -> Bool {
+        let toFile = SiriHost.recordsToFile(created: [], in: context)
+        guard save(context) else { return false }
+        let ids = toFile.map(\.objectID)
+        guard !ids.isEmpty else { return true }
+        let stack = self.stack
+        SiriSyncKeepAlive.run { await SiriHost.didSave(created: ids, in: stack) }
+        return true
     }
 }
 

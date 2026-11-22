@@ -136,8 +136,17 @@ Checked 2026-10-06 against Xcode 27.0 (27A266a), iOS/macOS 27.0 SDKs. Xcode 27.1
   5. `writeWaitingNameOnce` (~166): check the stores again after the lookup, since an Assistant stack rebuild mid-wait leaves an empty context. In `AssistantNameStore`, skip when the bootstrapper's stack is no longer the one passed in.
   6. `ClassroomYourNameCard.swift` (~79): compare against the name being saved, not `stored`. Otherwise "change it, change it back" during a save drops the second change.
 - Fixed in 0dab11dc: all six, five with tests. The focused suites pass (74 notebook, 33 Assistant).
+- Each new test checked against its guard (2026-11-22, Tide list clean-up Phase 6): the guard taken out, the test's suite run alone on a leased simulator, the guard put back with `git checkout`. Every test failed without its guard, so none needed strengthening.
+
+  | Test | Guard taken out | Without the guard |
+  |---|---|---|
+  | `accountChangeDuringARename` | `setMyName`: the `unmark` when another account signed in during the wait | Failed: the name stayed waiting for the new account, the old name wasn't put back (3 issues) |
+  | `renameWaitsDuringTheLookup` | `setMyName`: marking the name waiting before the gate (marked only after a failed lookup, as before the fix) | Failed: nothing was waiting during the lookup (2 issues) |
+  | `waitingRoleRowsAreLookedUp` | `writeWaitingNameOnce`: `lookupRole = nameWaitingAs ?? deviceRole` and its role check (the device's role only) | Failed: his row's zone was never asked (1 issue) |
+  | `unansweredCopyIsLeftOutOfTheWrite` | `inPinnedClassroom`: `.noAnswer` left out of the writes (counted in) | Failed: the late copy was the row written and renamed (3 issues) |
+  | `storesGoneDuringTheWait` | `lookUpMyZones`: the check that the context still has its stores | Failed: the write went on and saved into a coordinator with no stores, crashing the test host; `renameWaitsDuringTheLookup`'s second half failed too |
+  | `waitingNameForgottenForNewAccount` (Assistant) | `AssistantNameStore.forgetForNewAccount`: `nameWaitingAs = nil` | Failed: the name still waited, and went into the new account's row (2 issues) |
 - Left for later, in Tide:
-  - [check that each new name-list test fails when its guard is removed](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=In%20a%20new%20Claude%20session%2C%20check%20that%20each%20new%20name-list%20test%20fails%20when%20its%20guard%20is%20removed)
   - [have the Assistant's name save notice when its storage was rebuilt](tide://box/Areas/App%20Development/Daybook%20Assistant/To%20do.md?text=In%20a%20new%20Claude%20session%2C%20have%20the%20Assistant%27s%20name%20save%20notice%20when%20its%20storage%20was%20rebuilt). That's the part of finding 5 that was left out; nothing is lost without it.
 - Next: run both whole suites again, land on main, push, then Phase 2.
 

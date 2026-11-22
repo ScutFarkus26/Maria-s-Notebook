@@ -63,7 +63,17 @@ enum AssistantSiriCommands {
         let reopened = Late.isReopened(on: session.today)
         // Late before the commit, whose notification reloads an open grid.
         Late.setLate(true, on: session.today)
+        // The close's time, for every device's Late rule: one note a day,
+        // saved and put into the classroom share with the marks (the commit
+        // files every classroom record its save inserts).
+        let note = session.store.recordArrivalClosed(on: session.today)
         if changed.isEmpty {
+            // No marks to commit: the note is saved and filed on its own, as
+            // a commit is. One that won't save is dropped, not left for
+            // another save, and arrival closes all the same.
+            if let note, !session.saveAndFile() {
+                session.context.delete(note)
+            }
             // Still remembered, so "Undo" reopens arrival rather than putting
             // back an earlier Siri mark.
             SiriAttendanceChange(
@@ -89,8 +99,10 @@ enum AssistantSiriCommands {
                 reopenedBefore: reopened
             )
         } catch {
-            // Nothing was saved (the commit put the marks back), so arrival
-            // stays open and asking again tries again, reopened as it was.
+            // Nothing was saved (the commit put the marks back, and the note
+            // goes too), so arrival stays open and asking again tries again,
+            // reopened as it was.
+            if let note { session.context.delete(note) }
             if reopened { Late.reopen(on: session.today) } else { Late.setLate(false, on: session.today) }
             throw error
         }

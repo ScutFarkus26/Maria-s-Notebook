@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import Foundation
 import SwiftUI
 import CoreData
@@ -12,7 +13,7 @@ import OSLog
 /// unmarked, and the first mark creates the record (`CDAttendanceStore`).
 /// Callers save after each change.
 @Observable
-final class AttendanceViewModel {
+final class AttendanceViewModel { // swiftlint:disable:this type_body_length
     private static let logger = Logger.attendance
     private(set) var selectedDate: Date
     /// The day's roll, sorted: enrolled that day by their dates, or holding a
@@ -238,6 +239,9 @@ final class AttendanceViewModel {
             try modelContext.obtainPermanentIDs(for: marked.filter(\.objectID.isTemporaryID))
             phase = .late
             AttendanceLatePhase.setLate(true, on: selectedDate, defaults: defaults)
+            // The close's time, for every device's Late rule: one note a day,
+            // which the screen's save puts into the classroom share.
+            store.recordArrivalClosed(on: selectedDate)
             // Who it marked, so their absences undone on another device (two
             // closed at once, one undid) bring this one back to Arrival too.
             readsClosed = AttendanceLatePhase.closedAnywhere(
@@ -271,18 +275,22 @@ final class AttendanceViewModel {
     /// Back to Arrival on the day on screen, even if another device closed
     /// it; marks stay as they are. The children the close took in stay
     /// remembered, so Close Arrival stays on offer as the way back to Late
-    /// (`offersCloseArrival`).
-    func reopenArrival() {
+    /// (`offersCloseArrival`). The day's arrival-closed notes go; the caller
+    /// saves.
+    func reopenArrival(modelContext: NSManagedObjectContext) {
         phase = .arrival
         AttendanceLatePhase.reopen(on: selectedDate, defaults: defaults)
+        CDAttendanceStore(context: modelContext).deleteArrivalClosedNotes(on: selectedDate)
     }
 
-    /// Undoes a Close Arrival: its day reopens, and the children it marked
-    /// absent (and still are) go back to unmarked. Returns how many.
+    /// Undoes a Close Arrival: its day reopens, the children it marked
+    /// absent (and still are) go back to unmarked, and the day's
+    /// arrival-closed notes go. Returns how many children.
     @discardableResult
     func undoCloseArrival(_ undo: BulkMark, modelContext: NSManagedObjectContext) -> Int {
         AttendanceLatePhase.reopen(on: undo.day, defaults: defaults)
         if undo.day == selectedDate { phase = .arrival }
+        CDAttendanceStore(context: modelContext).deleteArrivalClosedNotes(on: undo.day)
         return undoBulkMark(undo, modelContext: modelContext)
     }
 
@@ -293,19 +301,25 @@ final class AttendanceViewModel {
         let day: Date
         let snapshots: [AttendanceRecordSnapshot]
         let wasLate: Bool
+        /// The close's time from the note the reset took back, for the one
+        /// its Undo writes again.
+        let closedAt: Date?
     }
 
     /// Clears the day's marks, reasons and notes, and reopens arrival.
-    /// Returns what the Undo needs, or nil when nothing changed.
+    /// Cleared, the day reads open everywhere, so its arrival-closed notes
+    /// go too. Returns what the Undo needs, or nil when nothing changed.
     func resetDay(modelContext: NSManagedObjectContext) -> ResetUndo? {
         let store = CDAttendanceStore(context: modelContext)
         do {
             let snapshots = try store.resetDay(for: selectedDate, students: students)
             let wasLate = phase == .late
-            if wasLate { reopenArrival() }
+            let closedAt = AttendanceEmailLog.arrivalClosedAt(on: selectedDate, in: modelContext)
+            if wasLate { reopenArrival(modelContext: modelContext) }
+            store.deleteArrivalClosedNotes(on: selectedDate)
             changed(snapshots.compactMap { try? modelContext.existingObject(with: $0.objectID) as? CDAttendanceRecord })
             guard !snapshots.isEmpty else { return nil }
-            return ResetUndo(day: selectedDate, snapshots: snapshots, wasLate: wasLate)
+            return ResetUndo(day: selectedDate, snapshots: snapshots, wasLate: wasLate, closedAt: closedAt)
         } catch {
             report("Couldn't reset the day. Try again.", error, while: "resetting the day")
             return nil
@@ -313,13 +327,17 @@ final class AttendanceViewModel {
     }
 
     /// Puts back what `undo`'s reset cleared, child by child, unless a child
-    /// has been marked again since. Returns how many came back.
+    /// has been marked again since. A day that was in Late closes again,
+    /// with its arrival-closed note at the close's first time. Returns how
+    /// many came back.
     @discardableResult
     func undoReset(_ undo: ResetUndo, modelContext: NSManagedObjectContext) -> Int {
-        let restored = CDAttendanceStore(context: modelContext).restore(undo.snapshots)
+        let store = CDAttendanceStore(context: modelContext)
+        let restored = store.restore(undo.snapshots)
         if undo.wasLate {
             AttendanceLatePhase.setLate(true, on: undo.day, defaults: defaults)
             if undo.day == selectedDate { phase = .late }
+            store.recordArrivalClosed(on: undo.day, now: undo.closedAt ?? Date())
         }
         if undo.day == selectedDate { updateRows(for: restored) }
         return restored.count

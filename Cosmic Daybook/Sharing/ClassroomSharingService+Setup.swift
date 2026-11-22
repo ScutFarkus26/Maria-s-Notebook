@@ -172,16 +172,16 @@ extension ClassroomSharingService {
         return serverZones.isEmpty ? nil : .otherShareZonesExist(serverZones.count)
     }
 
-    /// Refuses unless setup is safe right now; returns the private store and
-    /// the pinned share when one already exists (a resumed setup), or one it
-    /// pinned just now (`adoptUnpinnedShare`).
+    /// Refuses unless setup is safe right now; returns the private store and the pinned share when one
+    /// already exists (a resumed setup), or one it pinned just now (`adoptUnpinnedShare`).
     private func setupPreflight(coreDataStack: CoreDataStack) async throws -> (NSPersistentStore, CKShare?) {
         if let blocker = Self.setupBlocker(coreDataStack: coreDataStack) { throw blocker }
         guard let store = coreDataStack.privatePersistentStore else { throw ClassroomShareError.sharedStoreUnavailable }
         let viewContext = coreDataStack.viewContext
 
         let serverZones = try await Self.fetchServerShareZoneNames()
-        let localShares = try container.fetchShares(in: store)
+        let storeID: String = store.identifier // its shares are read off the main actor
+        let localShares = try await ClassroomShareAttach.shares(inStoreWithIdentifier: storeID, container: container)
         let start = Self.setupStart(
             serverZones: serverZones,
             localShareZones: localShares.map(\.recordID.zoneID.zoneName),
@@ -310,7 +310,7 @@ extension ClassroomSharingService {
     /// and hold students, or an assistant would join an empty classroom (the
     /// 2026-09-28 failure). Returns what it holds, for the sheet to show.
     func shareForInvitations(coreDataStack: CoreDataStack) async throws -> (CKShare, ClassroomShareContents) {
-        guard let share = try fetchExistingShare() else { throw ClassroomShareError.notSetUp }
+        guard let share = try await fetchExistingShare() else { throw ClassroomShareError.notSetUp }
         let contents = try Self.invitable(await Self.shareContents(coreDataStack: coreDataStack))
         return (share, contents)
     }

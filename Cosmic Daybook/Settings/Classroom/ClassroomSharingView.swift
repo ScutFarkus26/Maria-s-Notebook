@@ -63,7 +63,7 @@ struct ClassroomSharingView: View {
         .task {
             let svc = dependencies.classroomSharingService
             sharingService = svc
-            try? svc.refreshParticipants()
+            try? await svc.refreshParticipantsOffMain()
             // Live participant updates only while this screen is on screen.
             svc.startObservingParticipants()
             await refreshContents()
@@ -270,7 +270,7 @@ struct ClassroomSharingView: View {
         do {
             let report = try await svc.setUpClassroomSharing(coreDataStack: dependencies.coreDataStack)
             contents = report.contents
-            try? svc.refreshParticipants()
+            try? await svc.refreshParticipantsOffMain()
             resultMessage = report.summary
         } catch {
             let ns = error as NSError
