@@ -1,6 +1,6 @@
 # Tide list clean-up: do the open code rows and clear the stale ones
 
-> **Not started.** Written 2026-11-22. Danny asked what Claude could do from Cosmic Daybook's open rows in Tide (309 of them), then asked for a plan that also confirms each row still applies.
+> **Working on it.** Written 2026-11-22; started 2026-11-22 (conductor and eight phase sessions). Danny asked what Claude could do from Cosmic Daybook's open rows in Tide (309 of them), then asked for a plan that also confirms each row still applies.
 > In short: Build the eleven code rows that still apply, check all 309 rows against today's code, close the ones that are done or obsolete, and send the result to TestFlight.
 
 ## Goal
