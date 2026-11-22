@@ -55,29 +55,20 @@ extension RootView {
     }
     #endif
 
+    /// The corner controls (`RootCornerControls`) acting in this window.
+    func cornerControls(showsSchoolYear: Bool) -> RootCornerControls {
+        RootCornerControls(
+            workspaceStore: classroomWorkspace,
+            showsSchoolYear: showsSchoolYear,
+            switchClassroom: { requestClassroomSwitch(to: $0) },
+            openSearch: { activeSheet = .search }
+        )
+    }
+
     var searchAndSyncOverlay: some View {
-        HStack(spacing: 8) {
-            ClassroomWorkspacePicker(workspaceStore: classroomWorkspace) { requestClassroomSwitch(to: $0) }
-            if selectedNavItem != .today {
-                SchoolYearPicker()
-            }
-            Button {
-                activeSheet = .search
-            } label: {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Search")
-            #if os(macOS)
-            .help("Search notes, lessons, students, and todos (⌘F)")
-            #endif
-            CompactSyncStatusIndicator(compact: true)
-                .opacity(classroomWorkspace.isShowingSampleClass ? 0 : 1)
-        }
-        .padding(.trailing, 12)
-        .padding(.top, 6)
+        cornerControls(showsSchoolYear: selectedNavItem != .today)
+            .padding(.trailing, 12)
+            .padding(.top, 6)
     }
 
     @ViewBuilder

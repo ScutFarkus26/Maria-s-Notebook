@@ -173,7 +173,8 @@ final class DatabaseErrorCoordinator {
             "Open Cosmic Daybook again to use your notebook. iCloud sync stays off, and while it's off, "
                 + "the notebook that wouldn't open is kept on this device, set aside. Once you turn sync "
                 + "on again, it's deleted when it's a month old, so get help moving anything you still "
-                + "need from it before then."
+                + "need from it before then.",
+            RestoredWithSyncOff.restoredNote
         ]
         lines += warnings
         return lines.joined(separator: "\n\n")

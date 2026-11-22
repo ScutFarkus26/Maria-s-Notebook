@@ -33,6 +33,10 @@ struct TodayView: View {
     @Environment(\.dependencies) var dependencies
     @Environment(\.calendar) var calendar
     @Environment(\.scenePhase) private var scenePhase
+    #if os(iOS)
+    /// RootView's corner controls, on the iPads that draw them in the corner.
+    @Environment(\.todayCornerControls) private var cornerControls
+    #endif
     @Environment(RestoreCoordinator.self) var restoreCoordinator
     @Environment(SaveCoordinator.self) var saveCoordinator
     #if os(macOS)
@@ -270,6 +274,12 @@ struct TodayView: View {
     /// the iPhone's bar out of room and folded Today and + into •••.
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
+        // The class control, search and sync dot, on the iPads that draw them
+        // in the corner (`todayCornerControls`).
+        if let cornerControls {
+            TodayCornerToolbarItems(controls: cornerControls)
+        }
+
         ToolbarItemGroup(placement: .topBarTrailing) {
             Button {
                 let prev = previousSchoolDaySync(before: viewModel.date)

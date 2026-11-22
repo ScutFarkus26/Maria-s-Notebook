@@ -18,6 +18,11 @@ nonisolated enum UserDefaultsKeys {
     /// banner reads it instead of searching `lastStoreErrorDescription`.
     static let inMemoryStoreSession = "Store.inMemorySession"
     static let enableCloudKitSync = "EnableCloudKitSync"
+    /// Set when the database-error screen restored a backup with iCloud
+    /// sync off (`RestoredWithSyncOff`): turning sync on asks first, since the
+    /// restored notebook uploads beside the copy already in iCloud. Cleared
+    /// on Turn On Anyway. Device-local; never backed up.
+    static let restoredWithSyncOff = "Sync.restoredWithSyncOff"
     static let cloudKitActive = "CloudKitActive"
     static let cloudKitLastErrorDescription = "CloudKitLastErrorDescription"
     static var cloudKitLastSuccessfulSyncDate: String {

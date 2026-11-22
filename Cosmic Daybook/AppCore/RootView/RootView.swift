@@ -47,10 +47,6 @@ struct RootView: View {
     @State var createRequests = WindowCreateRequests()
     @State var sectionRequests = WindowSectionRequests()
     @State var selectedNavItem: NavigationItem = .today
-    /// Classroom rows and Resources filters with no record yet
-    /// (`NavigationRowVisibility`), read at launch and after each save of
-    /// their kinds.
-    @State private var hiddenNavItems: Set<NavigationItem> = []
     @AppStorage(UserDefaultsKeys.quickCaptureButtonVisible)
     private var isQuickCaptureButtonVisible = true
 
@@ -228,15 +224,7 @@ struct RootView: View {
 
     private var rootLayoutWithObservers: some View {
         rootLayout
-        .environment(\.navigationRowFilter, NavigationRowFilter(
-            hidden: hiddenNavItems, kept: [selectedNavItem]
-        ))
         .onAppear(perform: restoreSelectionIfNeeded)
-        .onReceive(
-            CoordinatorChangeSignal.coalescedChanges(of: NavigationRowVisibility.watchedEntities, in: viewContext)
-        ) { _ in
-            refreshHiddenRows()
-        }
         .onChange(of: selectedNavItem) { _, item in
             persistSelection(item)
         }
@@ -284,9 +272,14 @@ struct RootView: View {
                 // The corner controls ride on the content, not the whole stack,
                 // so a banner above pushes them down instead of sitting under
                 // them (they covered Sample Class's "Return to My Class").
+                // Today's own toolbar carries them instead: the overlay sat on
+                // its ‹ Today › buttons.
                 mainContent
+                    .environment(\.todayCornerControls, cornerControls(showsSchoolYear: false))
                     .overlay(alignment: .topTrailing) {
-                        searchAndSyncOverlay
+                        if selectedNavItem.canonical != .today {
+                            searchAndSyncOverlay
+                        }
                     }
             }
         }
@@ -394,20 +387,6 @@ struct RootView: View {
         #if os(macOS)
         handleNavigationDestinationChange(nil, appRouter.navigationDestination)
         #endif
-        // After the saved selection is back, so one on an empty row lands on Today.
-        refreshHiddenRows()
-    }
-
-    /// Re-reads which rows are empty; the selection leaves a row before it goes.
-    private func refreshHiddenRows() {
-        let hidden = NavigationRowVisibility.hiddenItems(in: viewContext)
-        AppRouter.hideRows(
-            hidden,
-            previouslyHidden: hiddenNavItems,
-            selection: selectedNavItem,
-            select: { selectedNavItem = $0 },
-            hide: { if hiddenNavItems != $0 { hiddenNavItems = $0 } }
-        )
     }
 
     private func persistSelection(_ item: RootView.NavigationItem) {

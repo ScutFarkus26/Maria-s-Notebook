@@ -279,29 +279,3 @@ struct NavigationGroupTests {
         #expect(router.selectedNavItem == .notes)
     }
 }
-
-// MARK: - Empty rows hide (round-two Simplify, Phase 2)
-
-extension NavigationGroupTests {
-    @Test("No row hides since Going Out was taken out, and nothing is watched for one")
-    func noRowHides() throws {
-        #expect(NavigationRowVisibility.rowEntities.isEmpty)
-        #expect(NavigationRowVisibility.watchedEntities.isEmpty)
-        let context = try CoreDataTestHelpers.makeContext()
-        #expect(NavigationRowVisibility.hiddenItems(in: context).isEmpty)
-    }
-
-    @Test("A hidden row leaves every list, but stays while it is selected")
-    func filterHidesUnlessKept() throws {
-        // Schedules stands in for a row that would hide.
-        let classroom = try #require(NavigationGroup.all.first { $0.id == .classroom })
-        let filter = NavigationRowFilter(hidden: [.schedules])
-        #expect(classroom.items(shownBy: filter) == [.supplies])
-        #expect(classroom.items(shownBy: NavigationRowFilter()) == classroom.items)
-        let kept = NavigationRowFilter(hidden: [.schedules], kept: [.schedules])
-        #expect(classroom.items(shownBy: kept) == [.supplies, .schedules])
-        for group in NavigationGroup.secondaryGroups {
-            #expect(!group.secondaryItems(shownBy: filter).contains(.schedules))
-        }
-    }
-}

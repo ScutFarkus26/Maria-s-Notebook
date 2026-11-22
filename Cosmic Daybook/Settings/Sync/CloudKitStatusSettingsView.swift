@@ -6,6 +6,8 @@ struct CloudKitStatusSettingsView: View {
     @State private var isSyncDetailsExpanded = false
     @AppStorage(UserDefaultsKeys.enableCloudKitSync) private var isCloudKitEnabled = true
     @State private var showingTurnOffConfirmation = false
+    /// Asks before turning sync on after a restore with sync off (`RestoredWithSyncOff`).
+    @State private var showingRestoredTurnOnQuestion = false
 
     /// The three newest logged problems, decoded when the log changes rather than on every redraw.
     @State private var recentErrorLogs: [CloudKitConfigurationService.ErrorLogEntry] = []
@@ -125,15 +127,20 @@ struct CloudKitStatusSettingsView: View {
                 + "theirs won't reach you, until you turn sync back on."
             )
         }
+        .restoredWithSyncOffQuestion(isPresented: $showingRestoredTurnOnQuestion)
     }
 
-    /// Turning sync on applies at once; turning it off asks first.
+    /// Turning sync on applies at once, unless the notebook was restored with
+    /// sync off; turning it off asks first.
     private var syncToggle: Binding<Bool> {
         Binding(
             get: { isCloudKitEnabled },
             set: { newValue in
                 if newValue {
-                    isCloudKitEnabled = true
+                    switch RestoredWithSyncOff.turningSyncOn(in: .standard) {
+                    case .now: isCloudKitEnabled = true
+                    case .askFirst: showingRestoredTurnOnQuestion = true
+                    }
                 } else {
                     showingTurnOffConfirmation = true
                 }

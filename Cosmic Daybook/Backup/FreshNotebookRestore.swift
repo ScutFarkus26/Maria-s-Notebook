@@ -218,6 +218,9 @@ struct FreshNotebookRestore {
         // What belonged to the old stores (history positions, the share's
         // waiting list, repair ledgers) goes, as after a Re-download.
         CoreDataStack.clearLocalCacheResetFlags(in: defaults)
+        // Turning sync on later asks first: this notebook would upload beside
+        // the copy already in iCloud.
+        RestoredWithSyncOff.mark(in: defaults)
         let keptName = kept?.lastPathComponent ?? "nothing to keep"
         Self.logger.notice("Restored a backup into a fresh notebook; the old one is in \(keptName, privacy: .public)")
         return Result(summary: summary, keptFolder: kept)

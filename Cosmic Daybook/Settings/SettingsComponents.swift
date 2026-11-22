@@ -240,14 +240,39 @@ struct SettingsLinkRow: View {
     let systemImage: String
     var detail: String?
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    /// Whether the row stacks its words at `size`: at the accessibility sizes
+    /// the icon, title and detail side by side left the title so little room
+    /// that it broke letter by letter, so they stack (HIG, Accessibility).
+    static func stacks(at size: DynamicTypeSize) -> Bool {
+        size.isAccessibilitySize
+    }
+
     var body: some View {
         HStack(spacing: 10) {
-            Label(title, systemImage: systemImage)
+            if Self.stacks(at: dynamicTypeSize) {
+                VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
+                    Image(systemName: systemImage)
+                        .accessibilityHidden(true)
+                    Text(title)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let detail {
+                        Text(detail)
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 .foregroundStyle(.primary)
-            Spacer()
-            if let detail {
-                Text(detail)
-                    .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityElement(children: .combine)
+            } else {
+                Label(title, systemImage: systemImage)
+                    .foregroundStyle(.primary)
+                Spacer()
+                if let detail {
+                    Text(detail)
+                        .foregroundStyle(.secondary)
+                }
             }
             Image(systemName: "chevron.right")
                 .font(.caption.weight(.semibold))

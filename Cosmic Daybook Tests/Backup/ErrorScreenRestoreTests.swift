@@ -227,6 +227,7 @@ struct ErrorScreenRestoreTests {
         #expect(try scene.otherFolders() == [kept.lastPathComponent], "nothing else left beside the stores")
         #expect(scene.defaults.object(forKey: UserDefaultsKeys.persistentHistoryStoreTokens) == nil)
         #expect(!CoreDataStack.syncPreferred(in: scene.defaults), "sync stays off")
+        #expect(RestoredWithSyncOff.isMarked(in: scene.defaults), "turning sync on will ask first")
         #expect(!scene.lock.holdsExclusive)
 
         // The restored notebook passes the launch's checks and opens.
@@ -279,6 +280,7 @@ struct ErrorScreenRestoreTests {
         #expect(scene.holdsFailedNotebook(scene.directory))
         #expect(try scene.otherFolders().isEmpty, "no kept folder and no half-made notebook")
         #expect(scene.defaults.object(forKey: UserDefaultsKeys.persistentHistoryStoreTokens) != nil)
+        #expect(!RestoredWithSyncOff.isMarked(in: scene.defaults), "nothing restored, nothing to ask")
         #expect(!scene.lock.holdsExclusive)
     }
 
