@@ -3,8 +3,8 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-// Review of the 2026-10-12 MCP fixes, round B: the monthly-report guard on
-// updates (#1), a todo both dated and someday (#2, #12), and completed_by
+// Review of the 2026-10-12 MCP fixes, round B: (#1, the monthly-report guard on
+// updates, went with Parent Reports in 2026-11), a todo both dated and someday (#2, #12), and completed_by
 // beside a status or on a child's own copy (#3, #10). The case-only rename
 // (#4), record batches (#5), attendance batches (#6, #7), completed
 // check-ins' todos (#8) and descriptions (#9) are in
@@ -38,73 +38,6 @@ struct MCPToolsFix1012ReviewBTests {
             return reply
         }
         return (reply, outcome.wroteNothing)
-    }
-
-    // MARK: - #1: one monthly report a month, checked only when it matters
-
-    @discardableResult
-    private func seedMonthlyReport(
-        for student: CDStudent, month: String, subject: String, in context: NSManagedObjectContext
-    ) throws -> CDParentCommunication {
-        let report = CDParentCommunication(context: context)
-        report.id = UUID()
-        report.studentID = try #require(student.id).uuidString
-        report.monthKey = month
-        report.communicationType = .monthlyReport
-        report.subject = subject
-        report.body = "The guide's own words."
-        report.status = .draft
-        return report
-    }
-
-    @Test("one of two monthly reports already on file for a month can still be edited")
-    func duplicateReportsCanStillBeEdited() async throws {
-        let (tools, context) = try Fixture.makeTools()
-        let sam = CoreDataTestHelpers.seedStudent(in: context, firstName: "Sam", lastName: "Lee")
-        let first = try seedMonthlyReport(for: sam, month: "2026-09", subject: "September", in: context)
-        try seedMonthlyReport(for: sam, month: "2026-09", subject: "September again", in: context)
-        #expect(CoreDataTestHelpers.save(context))
-
-        let receipt = try await call("record_parent_communication", [
-            "communication_id": .string(try #require(first.id).uuidString),
-            "body": .string("Sam has started the long division.")
-        ], in: tools)
-
-        #expect(receipt.hasPrefix("Updated"))
-        #expect(first.body == "Sam has started the long division.")
-    }
-
-    @Test("moving a report onto a month that already has one is still refused")
-    func movingOntoATakenMonthIsRefused() async throws {
-        let (tools, context) = try Fixture.makeTools()
-        let sam = CoreDataTestHelpers.seedStudent(in: context, firstName: "Sam", lastName: "Lee")
-        try seedMonthlyReport(for: sam, month: "2026-09", subject: "September", in: context)
-        let october = try seedMonthlyReport(for: sam, month: "2026-10", subject: "October", in: context)
-        #expect(CoreDataTestHelpers.save(context))
-
-        let message = await refusal("record_parent_communication", [
-            "communication_id": .string(try #require(october.id).uuidString),
-            "month": .string("2026-09")
-        ], in: tools)
-
-        #expect(message.contains("already has a monthly report for 2026-09"))
-        #expect(october.monthKey == "2026-10")
-    }
-
-    @Test("a monthly report filed without a month is refused, nothing filed")
-    func monthlyReportNeedsAMonth() async throws {
-        let (tools, context) = try Fixture.makeTools()
-        CoreDataTestHelpers.seedStudent(in: context, firstName: "Sam", lastName: "Lee")
-        #expect(CoreDataTestHelpers.save(context))
-
-        let message = await refusal("record_parent_communication", [
-            "student_name": .string("Sam"),
-            "type": .string("monthlyReport"),
-            "subject": .string("A report")
-        ], in: tools)
-
-        #expect(message.contains("month"))
-        #expect(context.safeFetch(CDFetchRequest(CDParentCommunication.self)).isEmpty)
     }
 
     // MARK: - #2: add_follow_up with a day and someday

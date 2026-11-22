@@ -236,9 +236,9 @@ final class AppBootstrapper {
         await FrontDeskEmailReminder.reschedule(in: coreDataStack.viewContext)
         // From now on it follows sends, settings and days off from iCloud too.
         Self.followFrontDeskReminderImports(in: coreDataStack.viewContext)
-        // The monthly parent-report reminder, when it's on: a Mac copy that
-        // replaced another starts with none (`ReplacedCopyReminders`).
-        await ParentReportNotificationService.restoreIfEnabled()
+        // The monthly parent-report reminder left with Parent Reports
+        // (2026-11-21): take back any still waiting.
+        RetiredReminders.removePending()
 
         logger.info("Post-launch migrations finished in \(formatSeconds(Date().timeIntervalSince(start)))")
 

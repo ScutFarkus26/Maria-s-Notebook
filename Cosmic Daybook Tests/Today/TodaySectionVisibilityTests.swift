@@ -5,28 +5,9 @@ import Testing
 /// Boundary tests for `TodaySectionVisibility`, the rule that decides which
 /// Today sections render at all.
 ///
-/// Every date case pins an explicit "now" against a pinned report cycle, so
-/// nothing here depends on the wall clock, the school calendar, or Core Data.
+/// Nothing here depends on the wall clock, the school calendar, or Core Data.
 @Suite("Today section visibility")
 struct TodaySectionVisibilityTests {
-
-    // MARK: - Fixtures
-
-    private var calendar: Calendar { AppCalendar.shared }
-
-    private func day(_ year: Int, _ month: Int, _ dayOfMonth: Int) -> Date {
-        let components = DateComponents(year: year, month: month, day: dayOfMonth)
-        return AppCalendar.startOfDay(calendar.date(from: components)!)
-    }
-
-    /// The cycle for August 2026 reports: opens 1 September, due through the
-    /// end of day 7 September.
-    private var augustCycle: ReportMonth { ReportMonth(year: 2026, month: 8) }
-
-    private var augustWindow: DateInterval { augustCycle.cycleWindow(calendar: calendar) }
-
-    /// The whole enrolled roster in the live notebook.
-    private let enrolledRoster = 22
 
     // MARK: - Count-gated sections
 
@@ -60,60 +41,6 @@ struct TodaySectionVisibilityTests {
         #expect(TodaySectionVisibility.showsDayPad(hasBody: false, isExpanded: true))
         #expect(TodaySectionVisibility.showsDayPad(hasBody: true, isExpanded: false))
         #expect(TodaySectionVisibility.showsDayPad(hasBody: true, isExpanded: true))
-    }
-
-    // MARK: - Parent reports
-
-    @Test("The report nudge is silent before the cycle opens")
-    func parentReportsBeforeTheCycleOpens() {
-        #expect(TodaySectionVisibility.showsParentReports(
-            now: day(2026, 8, 28),
-            window: augustWindow,
-            enrolled: enrolledRoster,
-            sent: 0
-        ) == false)
-    }
-
-    @Test("Inside the cycle window, nothing sent yet, the nudge is up")
-    func parentReportsInsideTheWindow() {
-        #expect(TodaySectionVisibility.showsParentReports(
-            now: day(2026, 9, 3),
-            window: augustWindow,
-            enrolled: enrolledRoster,
-            sent: 0
-        ))
-    }
-
-    @Test("Past the end of the cycle window the nudge closes instead of nagging")
-    func parentReportsAfterTheWindowCloses() {
-        // This is the defect the gate fixes: day 10 with nothing sent used to
-        // keep the banner up for the rest of the month.
-        #expect(TodaySectionVisibility.showsParentReports(
-            now: day(2026, 9, 10),
-            window: augustWindow,
-            enrolled: enrolledRoster,
-            sent: 0
-        ) == false)
-    }
-
-    @Test("Every report sent hides the nudge even mid-window")
-    func parentReportsAllSent() {
-        #expect(TodaySectionVisibility.showsParentReports(
-            now: day(2026, 9, 3),
-            window: augustWindow,
-            enrolled: enrolledRoster,
-            sent: enrolledRoster
-        ) == false)
-    }
-
-    @Test("An empty roster has nothing to report on")
-    func parentReportsNoStudents() {
-        #expect(TodaySectionVisibility.showsParentReports(
-            now: day(2026, 9, 3),
-            window: augustWindow,
-            enrolled: 0,
-            sent: 0
-        ) == false)
     }
 
     // MARK: - Orderings

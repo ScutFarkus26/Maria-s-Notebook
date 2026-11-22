@@ -21,7 +21,6 @@ enum SettingsCopy {
         case ageIndicators
         case quickCapture
         case attendanceEmail
-        case parentReports
         case orderRequests
         // Templates
         case meetingTemplates
@@ -50,7 +49,7 @@ enum SettingsCopy {
             switch self {
             case .schoolYearStart, .daysOff, .newYear: return .schoolYear
             case .classroomSharing: return .classroom
-            case .ageIndicators, .quickCapture, .attendanceEmail, .parentReports, .orderRequests:
+            case .ageIndicators, .quickCapture, .attendanceEmail, .orderRequests:
                 return .lookAndFeel
             case .meetingTemplates: return .templates
             case .appleIntelligence, .lessonPlanning, .siri, .appleCalendar, .tide, .claudeDesktop:
@@ -69,7 +68,6 @@ enum SettingsCopy {
             case .ageIndicators: return "Age indicators"
             case .quickCapture: return "Quick capture"
             case .attendanceEmail: return "Attendance to the School"
-            case .parentReports: return "Parent reports"
             case .orderRequests: return "Order requests"
             case .meetingTemplates: return "Meeting templates"
             case .appleCalendar: return "Apple Calendar events"
@@ -97,7 +95,6 @@ enum SettingsCopy {
             case .ageIndicators: return "paintpalette.fill"
             case .quickCapture: return "plus.circle.fill"
             case .attendanceEmail: return "checkmark.circle.fill"
-            case .parentReports: return "envelope.badge.person.crop"
             case .orderRequests: return "cart.fill"
             case .meetingTemplates: return "person.2.wave.2.fill"
             case .appleCalendar: return "calendar.day.timeline.left"
@@ -138,8 +135,6 @@ enum SettingsCopy {
             case .attendanceEmail:
                 return ["Email", "Send to", "From", "Name order", "Group by level", "Front desk", "Deadline",
                         "Remind me", "ParentLocker", "Send attendance by", "Sign in", "Sign out", "Match Names"]
-            case .parentReports:
-                return ["Monthly reminder", "Reports"]
             case .orderRequests:
                 return ["Orders", "Restock", "Office", "Send requests to", "CC", "Copy", "Sign off", "Message"]
             case .meetingTemplates:

@@ -17,9 +17,5 @@ extension AppDependencies {
 
     var studentAnalysisService: StudentAnalysisService { _studentAnalysisService }
 
-    var reportGeneratorService: ReportGeneratorService { _reportGeneratorService }
-
-    var monthlyReportDraftService: MonthlyReportDraftService { _monthlyReportDraftService }
-
     var meetingInsightsService: MeetingInsightsService { _meetingInsightsService }
 }

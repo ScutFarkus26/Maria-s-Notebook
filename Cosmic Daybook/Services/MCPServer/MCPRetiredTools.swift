@@ -46,7 +46,6 @@ extension MCPNotebookTools {
             ("presentations_missing_observations", "class_progress/missing_observations"),
             ("list_open_follow_ups", "list_todos/open_follow_ups"),
             ("list_guardians", "families/guardians"),
-            ("parent_communications", "families/communications"),
             ("scheduled_meetings", "schedule_for_range/meetings")
         ]
         for (old, newHome) in views {
@@ -89,6 +88,15 @@ extension MCPNotebookTools {
         table["practice_sessions"] = "practice_sessions is retired: practice is recorded as work check-ins now. "
             + "student_record with sections: [\"work\"] shows a child's work and its check-ins, "
             + "and work_detail shows one item's."
+
+        // Cut unused features (2026-11-21): the feature left the app, its records stay.
+        let takenOut = "was taken out of the app on 2026-11-21; its records are kept."
+        table["draft_parent_report"] = "draft_parent_report is retired: Parent Reports \(takenOut)"
+        table["record_parent_communication"] = "record_parent_communication is retired: "
+            + "Parent Reports \(takenOut)"
+        table["parent_communications"] = "parent_communications is retired: the letters home went with "
+            + "Parent Reports, which was taken out of the app on 2026-11-21 (their records are kept); "
+            + "families still lists the guardians."
         return table
     }()
 

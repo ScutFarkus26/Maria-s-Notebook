@@ -2,10 +2,11 @@
 //  MCPNotebookTools+AppServices.swift
 //  Cosmic Daybook
 //
-//  The two tools that reach past Core Data into app-level services: writing
-//  a backup archive, and drafting a family's monthly report. Both find their
-//  service through MCPAppServices, which the app registers at startup; under
-//  tests the provider hands them a container built on an in-memory stack.
+//  The tool that reaches past Core Data into an app-level service: writing a
+//  backup archive. It finds the service through MCPAppServices, which the app
+//  registers at startup; under tests the provider hands it a container built
+//  on an in-memory stack. (Drafting a family's monthly report lived here too,
+//  until Parent Reports was taken out on 2026-11-21.)
 //
 
 import CoreData
@@ -57,139 +58,5 @@ extension MCPNotebookTools {
             // Manual backups are never change-gated, so this is defensive.
             return "Nothing has changed since the last backup, so no new file was written."
         }
-    }
-
-    // MARK: - Parent Report Draft
-
-    static func draftParentReportTool(
-        context: @escaping MCPContextProvider,
-        dependencies: @escaping MCPDependenciesProvider
-    ) -> MCPToolDefinition {
-        MCPToolDefinition(
-            name: "draft_parent_report",
-            title: "Draft Parent Report",
-            description: "Draft one child's monthly report from the month's recorded evidence (presentations, "
-                + "work, observations marked for the report, attendance) and file it as a draft parent "
-                + "communication. Never sends anything. Keeps an existing draft's text unless overwrite "
-                + "is true; a reviewed or sent report is never replaced.",
-            inputSchema: [
-                "type": "object",
-                "properties": [
-                    "student_name": [
-                        "type": "string",
-                        "description": "The student's first name, full name, nickname, or id"
-                    ],
-                    "month": [
-                        "type": "string",
-                        "description": "The report month, YYYY-MM (default: last month, the one open for reporting)"
-                    ],
-                    "include_student_reflection": [
-                        "type": "boolean",
-                        "description": "Include the child's own reflections from meetings (default false)"
-                    ],
-                    "overwrite": [
-                        "type": "boolean",
-                        "description": "Replace an existing draft's text (default false)"
-                    ]
-                ],
-                "required": ["student_name"]
-            ],
-            annotations: .write,
-            handler: { arguments in
-                guard let container = dependencies() else {
-                    throw MCPToolError("The app is still starting; report drafting is not available yet.")
-                }
-                let modelContext = context()
-                let student = try resolveStudentReference(requireString(arguments, "student_name"), in: modelContext)
-                let month = try reportMonthArgument(arguments, "month")
-                let includeReflection = arguments["include_student_reflection"]?.boolValue ?? false
-                let overwrite = arguments["overwrite"]?.boolValue ?? false
-                return try await draftReport(
-                    for: student, month: month, includeReflection: includeReflection,
-                    overwrite: overwrite, container: container
-                )
-            }
-        )
-    }
-
-    private static func draftReport(
-        for student: CDStudent,
-        month: ReportMonth,
-        includeReflection: Bool,
-        overwrite: Bool,
-        container: AppDependencies
-    ) async throws -> String {
-        let service = container.monthlyReportDraftService
-        let studentID = student.id?.uuidString ?? ""
-        let name = student.fullName
-
-        if let existing = service.existingReport(studentID: studentID, monthKey: month.monthKey) {
-            let id = existing.id?.uuidString ?? "unknown"
-            if existing.status != .draft {
-                throw MCPToolError(
-                    "\(name)'s \(month.displayName) report is already \(existing.status.displayName.lowercased()) "
-                        + "[communication id=\(id)]; it is not replaced. Edit it with "
-                        + "record_parent_communication if it needs changing."
-                )
-            }
-            if !overwrite, !existing.body.trimmed().isEmpty {
-                MCPCallOutcome.markNothingWritten()
-                return "\(name)'s \(month.displayName) report already has a draft [communication id=\(id)]. "
-                    + "Pass overwrite: true to replace its text."
-            }
-        }
-
-        let draft = await service.generateDraft(
-            for: student, month: month, includeStudentReflection: includeReflection
-        )
-        // Drafting takes a while; the guide may have reviewed or sent the
-        // report meanwhile, and the upsert would put it back to draft.
-        if let existing = service.existingReport(studentID: studentID, monthKey: month.monthKey),
-           existing.status != .draft {
-            throw MCPToolError(
-                "\(name)'s \(month.displayName) report was marked \(existing.status.displayName.lowercased()) "
-                    + "while it was being drafted [communication id=\(existing.id?.uuidString ?? "unknown")]; "
-                    + "it is not replaced."
-            )
-        }
-        guard !draft.narrative.isEmpty else {
-            MCPCallOutcome.markNothingWritten()
-            return "No evidence was recorded for \(name) in \(month.displayName) — no presentations, "
-                + "work, observations marked for the report, or attendance — so there is nothing to draft."
-        }
-
-        // Only the write is scoped: drafting above awaits the model, and the
-        // guide's own edits could land in a scope held open across it.
-        let report = try undoingOnFailure(container.viewContext) { context in
-            let report = service.upsertReport(for: student, month: month, draft: draft)
-            report.includeStudentReflection = includeReflection
-            guard context.safeSave() else {
-                throw MCPToolError("The report draft could not be saved.")
-            }
-            return report
-        }
-
-        let id = report.id?.uuidString ?? "unknown"
-        let source = draft.aiGenerated ? "AI-drafted" : "assembled from the evidence (the model was unavailable)"
-        return "Drafted [communication id=\(id)] \(name) — \(month.displayName), \(source), "
-            + "from \(draft.includedRefs.count) record(s). Status: draft.\n\n\(draft.narrative)"
-    }
-
-    /// Parses a `YYYY-MM` argument, defaulting to the month open for
-    /// reporting (`ReportMonth.currentCycle`: last month), as the app's
-    /// Parent Reports queue does. The current month used to be the default,
-    /// a report on a month barely begun.
-    static func reportMonthArgument(
-        _ arguments: [String: JSONValue], _ key: String, now: Date = Date()
-    ) throws -> ReportMonth {
-        guard let text = nonEmpty(arguments[key]?.stringValue) else {
-            return ReportMonth.currentCycle(now: now)
-        }
-        let parts = text.split(separator: "-")
-        guard parts.count == 2, let year = Int(parts[0]), let month = Int(parts[1]),
-              (1...12).contains(month), year > 1970 else {
-            throw MCPToolError("\(key) must be a month in YYYY-MM form, not \"\(text)\".")
-        }
-        return ReportMonth(year: year, month: month)
     }
 }

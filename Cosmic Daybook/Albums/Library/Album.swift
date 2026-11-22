@@ -8,7 +8,7 @@ import SwiftUI
 import PDFKit
 
 // PlatformImage comes from Albums/Detail/PrintUtils.swift; PlatformColor from
-// ParentReports/Services/ReportGeneratorService.swift.
+// Utils/Platform/PlatformTypes.swift.
 
 @Observable
 final class Album: Identifiable {

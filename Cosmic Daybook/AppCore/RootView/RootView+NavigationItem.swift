@@ -76,7 +76,10 @@ extension RootView {
             .stories: .resourceLibrary,
             .procedures: .resourceLibrary,
             .bookClub: .planningProjects,
-            .askAI: .today
+            .askAI: .today,
+            // Cut unused features, Phase 1 (2026-11-21): the retired screens'
+            // rows open the screen nearest to what they held.
+            .parentReports: .students
         ]
 
         /// The destination this item actually shows.

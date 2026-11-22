@@ -55,12 +55,12 @@ struct NavigationGroupTests {
 
     // MARK: - Group shape
 
-    @Test("Six groups in order, 21 rows, and only Classroom starts collapsed")
+    @Test("Six groups in order, 20 rows, and only Classroom starts collapsed")
     func groupOrderAndDefaults() {
         #expect(NavigationGroup.all.map(\.id) == [.today, .children, .planning, .classroom, .library, .system])
         #expect(NavigationGroup.all.map(\.title) == ["Today", "Children", "Plan", "Classroom", "Library", "System"])
         #expect(NavigationGroup.all.filter { !$0.isExpandedByDefault }.map(\.id) == [.classroom])
-        #expect(NavigationGroup.all.flatMap(\.items).count == 21)
+        #expect(NavigationGroup.all.flatMap(\.items).count == 20)
         #expect(NavigationGroup.primaryTabs == [.today, .students, .attendance, .planningAgenda])
         // The Plan group keeps the old Planning group's expansion key.
         #expect(RootView.NavigationGroupID.planning.rawValue == "planning")
@@ -70,7 +70,7 @@ struct NavigationGroupTests {
     func groupRows() {
         let rows = Dictionary(uniqueKeysWithValues: NavigationGroup.all.map { ($0.id, $0.items) })
         #expect(rows[.today] == [.today, .attendance, .todos])
-        #expect(rows[.children] == [.students, .meetings, .notes, .parentReports])
+        #expect(rows[.children] == [.students, .meetings, .notes])
         #expect(rows[.planning] == [.planningAgenda, .smallSequencePlanner, .planningChecklist,
                                     .planningCalendar, .thisWeeksParsha])
         #expect(rows[.classroom] == [.supplies, .community, .planningProjects, .goingOut, .schedules])
@@ -168,7 +168,8 @@ struct NavigationGroupTests {
             ("procedures", .resourceLibrary, .resources(.procedures)),
             ("resourceLibrary", .resourceLibrary, nil),
             ("bookClub", .planningProjects, nil),
-            ("askAI", .today, nil)
+            ("askAI", .today, nil),
+            ("parentReports", .students, nil)
         ]
     )
     func retiredRowResolves(raw: String, item: NavigationItem, landing: ScreenLanding?) {

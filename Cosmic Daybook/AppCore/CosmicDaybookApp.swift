@@ -217,14 +217,6 @@ struct CosmicDaybookApp: App {
         ) { NoteEditorWindowHost(noteID: $0) }
 
         DetailWindowScene(
-            id: "StudentReportWindow", for: UUID.self, dependencies: detailWindowDependencies,
-            defaultSize: CGSize(width: 1000, height: 720), minimumSize: CGSize(width: 600, height: 420),
-            loadingStyle: .labeled,
-            placeholder: .unavailable("No Student Selected", systemImage: "person.crop.circle", framed: false),
-            countsAsEditor: true
-        ) { StudentReportWindowHost(studentID: $0) }
-
-        DetailWindowScene(
             id: "StudentDocumentsWindow", for: UUID.self, dependencies: detailWindowDependencies,
             defaultSize: CGSize(width: 760, height: 680), minimumSize: CGSize(width: 640, height: 480),
             loadingStyle: .labeled,

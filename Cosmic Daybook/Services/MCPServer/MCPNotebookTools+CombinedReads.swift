@@ -69,13 +69,14 @@ extension MCPNotebookTools {
         )
     }
 
-    /// Guardians on file, and the letters and reports sent home to them.
+    /// Guardians on file. The letters home (`communications`) went with
+    /// Parent Reports (2026-11-21); the records stay.
     static func familiesTool(context: @escaping MCPContextProvider) -> MCPToolDefinition {
         combinedReadTool(
             name: "families", title: "Families",
-            intro: "The children's families: who the guardians are, and what has been written home.",
-            views: [("guardians", listGuardiansTool(context: context)),
-                    ("communications", parentCommunicationsTool(context: context))]
+            intro: "The children's families: who the guardians are. Without view you get the guardians.",
+            defaultView: "guardians",
+            views: [("guardians", listGuardiansTool(context: context))]
         )
     }
 

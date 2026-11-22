@@ -5,8 +5,8 @@
 // anything in it: the reminders section (retired 2026-11-03) arrived each
 // morning holding forty-one undated Apple Reminders from last year, the day
 // pad announced itself while
-// the pad was empty, the parent-report nudge stayed up for three weeks after
-// the cycle closed. A screen that always looks the same tells the guide
+// the pad was empty, the parent-report nudge (taken out 2026-11-21) stayed up
+// for three weeks after the cycle closed. A screen that always looks the same tells the guide
 // nothing, so she stopped reading it.
 //
 // The rule here is the opposite: a section earns its place on the screen by
@@ -39,7 +39,6 @@ enum TodaySection: String, CaseIterable, Sendable {
     case followingPresentations
     case recentNotes
     case calendarEvents
-    case parentReports
     case dayPad
     case doneToday
 }
@@ -93,24 +92,6 @@ enum TodaySectionVisibility {
         hasBody || isExpanded
     }
 
-    // MARK: Parent reports
-
-    /// The monthly nudge is live only inside the cycle window — day 1 through
-    /// the end of day 7 of the month after the month being reported on
-    /// (`ReportMonth.cycleWindow`).
-    ///
-    /// It was previously gated on "the cycle has opened", with no upper bound,
-    /// so a month where the guide sent nothing nagged her until the next
-    /// cycle replaced it. Past day 7 the reports are late, and a banner she
-    /// has read and declined twenty times is not what makes her send them.
-    ///
-    /// Zero enrolled students, or every enrolled student already sent, hides
-    /// it too.
-    static func showsParentReports(now: Date, window: DateInterval, enrolled: Int, sent: Int) -> Bool {
-        guard enrolled > 0, sent < enrolled else { return false }
-        return window.contains(now)
-    }
-
     // MARK: - Orderings
 
     /// iPhone and iPad, top to bottom: the day's plan first — the lessons,
@@ -118,8 +99,7 @@ enum TodaySectionVisibility {
     /// work gone quiet — then
     /// the Needs-a-lesson card and her todo list, then what she is watching
     /// (ready-for-next, following presentations, observations), then the
-    /// external feeds, then the monthly nudge, the pad, and last the
-    /// retrospective.
+    /// external feeds, then the pad, and last the retrospective.
     ///
     /// There is no Right Now hero any more, on either platform: its Next up
     /// is the Next card at the top of the plan, and its "open work to check"
@@ -140,7 +120,6 @@ enum TodaySectionVisibility {
         .followingPresentations,
         .recentNotes,
         .calendarEvents,
-        .parentReports,
         .dayPad,
         .doneToday
     ]

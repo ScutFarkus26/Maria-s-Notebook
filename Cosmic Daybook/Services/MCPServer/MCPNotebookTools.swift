@@ -4,10 +4,9 @@
 //
 //  The toolset the MCP server exposes to Claude Desktop. The goal is total
 //  coverage: anything the guide can see or change in the app should be
-//  reachable here. Two boundaries are deliberate — nothing deletes a record
+//  reachable here. One boundary is deliberate — nothing deletes a record
 //  outright (remove_student_from_work is the one exception, and it refuses
-//  until the guide has seen exactly what it will change), and
-//  record_parent_communication files a letter without sending it.
+//  until the guide has seen exactly what it will change).
 //  send_attendance_to_school is the one tool that reaches outside the
 //  notebook: it sends the day's attendance to the school's ParentLocker site.
 //
@@ -67,8 +66,7 @@ enum MCPNotebookTools {
         dependencies: @escaping MCPDependenciesProvider
     ) -> [MCPToolDefinition] {
         [
-            createBackupTool(dependencies: dependencies),
-            draftParentReportTool(context: context, dependencies: dependencies)
+            createBackupTool(dependencies: dependencies)
         ]
     }
 
@@ -154,7 +152,6 @@ enum MCPNotebookTools {
         [
             familiesTool(context: context),
             updateGuardianTool(context: context),
-            recordParentCommunicationTool(context: context),
             listSuppliesTool(context: context),
             adjustSupplyTool(context: context),
             markSuppliesTool(context: context),
