@@ -2,23 +2,21 @@
 // Empty Classroom rows stay out of the lists until their first record (plan
 // "Simplify the app, round two", Phase 2).
 //
-// Going Out is kept for when Danny uses it, but while it holds nothing it only
-// lengthens the sidebar, the iPad sidebar and the iPhone More list. It shows
-// once a record of its kind exists (the Resources screen's Procedures filter
-// worked the same way until Resources was taken out on 2026-11-22). The
-// `NavigationItem` cases stay (they are
-// persisted), and a row that is selected stays listed while it is, so a
-// window opened onto one (a menu command, a retired row's alias) can add the
-// first record. The four iPhone tabs are never hidden.
+// No row hides today: Going Out was the last one that did, and it was taken
+// out on 2026-11-22 (the Resources screen's Procedures filter went the same
+// day). The rule is kept for the next row that should wait for its first
+// record: a row listed in `rowEntities` shows once a record of its kind
+// exists. The `NavigationItem` cases stay (they are persisted), and a row
+// that is selected stays listed while it is, so a window opened onto one (a
+// menu command, a retired row's alias) can add the first record. The four
+// iPhone tabs are never hidden.
 
 import CoreData
 import SwiftUI
 
 nonisolated enum NavigationRowVisibility {
     /// Each hideable row and the entities whose first record shows it.
-    static let rowEntities: [RootView.NavigationItem: [String]] = [
-        .goingOut: ["GoingOut"]
-    ]
+    static let rowEntities: [RootView.NavigationItem: [String]] = [:]
 
     /// Every entity whose saves can show or hide something here.
     static var watchedEntities: Set<String> {

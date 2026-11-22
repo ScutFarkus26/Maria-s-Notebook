@@ -30,7 +30,7 @@ struct RootDetailContent: View {
             switch item {
             case .today, .attendance:
                 dailyContent
-            case .students, .meetings, .goingOut:
+            case .students, .meetings:
                 studentsContent
             case .lessons, .teachingAlbums, .planningChecklist, .planningAgenda,
                  .smallSequencePlanner:
@@ -46,7 +46,8 @@ struct RootDetailContent: View {
             // Aliases: `item` is canonical, so these never get here.
             case .note, .more, .perpetualCalendar, .orders, .logs, .curriculumMap,
                  .progressDashboard, .lessonRecall, .parshaCalendar, .stories, .procedures,
-                 .resourceLibrary, .bookClub, .askAI, .parentReports, .planningProjects, .community:
+                 .resourceLibrary, .goingOut, .bookClub, .askAI, .parentReports, .planningProjects,
+                 .community:
                 EmptyView()
             }
         }
@@ -76,7 +77,6 @@ struct RootDetailContent: View {
         switch item {
         case .students: StudentsView()
         case .meetings: MeetingsWorkflowView()
-        case .goingOut: GoingOutRootView()
         default: EmptyView()
         }
     }

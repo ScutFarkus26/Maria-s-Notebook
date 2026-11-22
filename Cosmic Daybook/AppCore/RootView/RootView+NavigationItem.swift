@@ -83,7 +83,8 @@ extension RootView {
             // Cut unused features, Phase 2 (2026-11-22).
             .resourceLibrary: .lessons,
             .stories: .lessons,
-            .procedures: .lessons
+            .procedures: .lessons,
+            .goingOut: .today
         ]
 
         /// The destination this item actually shows.
