@@ -18,8 +18,8 @@
 //  child named in `studentID`; a literal "delete the row she owns" takes every
 //  other child on that row with her. So removal of an owner is a
 //  self-participant delete plus promotion of a remaining participant into
-//  `studentID` — the rule `SessionWorkAssignmentService.removeSelection`
-//  already follows for project work. Only when the row is one of several
+//  `studentID` — the rule the Projects screen followed for project work
+//  until it left the app (2026-11-21). Only when the row is one of several
 //  linked copies is it truly hers alone, and only then is it deleted.
 //
 //  Nothing here saves on its own. Each operation runs inside a

@@ -3,23 +3,21 @@ import Foundation
 import CoreData
 import OSLog
 
-/// Adds files to the Resources screen: a PDF as a story or as a book club
-/// packet (validate → copy into its folder → insert → thumbnail → save, and for
-/// a story, analysis), and any file as a resource. Replaces the near-identical
-/// `StoryImportService` and `BookClubImportService`.
+/// Adds files to the Resources screen: a PDF as a story (validate → copy into
+/// its folder → insert → thumbnail → save → analysis), and any file as a
+/// resource. Replaces the near-identical `StoryImportService` and
+/// `BookClubImportService` (book club packets left the app on 2026-11-21).
 enum LibraryImportService {
     private static let logger = Logger.resources
 
     /// What a PDF is added as: decides the folder, the record and the words.
     nonisolated enum PDFKind: Sendable {
         case story
-        case packet
 
         /// The plural noun the "only PDFs" message names.
         var pluralNoun: String {
             switch self {
             case .story: return "stories"
-            case .packet: return "book club packets"
             }
         }
 
@@ -27,7 +25,6 @@ enum LibraryImportService {
         var singularNoun: String {
             switch self {
             case .story: return "story"
-            case .packet: return "packet"
             }
         }
     }
@@ -59,7 +56,7 @@ enum LibraryImportService {
         }
     }
 
-    // MARK: - Stories and packets
+    // MARK: - Stories
 
     /// Imports a PDF as a story and starts its analysis when Apple
     /// Intelligence is on. Returns the saved story.
@@ -98,28 +95,6 @@ enum LibraryImportService {
             for: story, extractedText: extracted?.text, url: pdf.file.url, context: context
         )
         return story
-    }
-
-    /// Imports a PDF as a book club packet. Returns the saved packet.
-    @discardableResult
-    static func importPacket(
-        at sourceURL: URL,
-        context: NSManagedObjectContext,
-        storage: ManagedPDFFileStorage = LibraryFileStorage.packets
-    ) throws -> CDBookClubPacket {
-        let pdf = try copyPDF(at: sourceURL, as: .packet, into: storage)
-
-        let packet = CDBookClubPacket(context: context)
-        packet.id = pdf.id
-        packet.title = pdf.title
-        packet.packetPDFBookmark = pdf.file.bookmark
-        packet.packetPDFRelativePath = pdf.file.relativePath
-        packet.pageCount = Int32(pdf.document.pageCount)
-        packet.thumbnailData = LibraryThumbnailGenerator.generateThumbnail(from: pdf.file.url)
-        packet.modifiedAt = Date()
-
-        try save(packet, kind: .packet, file: pdf.file.url, storage: storage, context: context)
-        return packet
     }
 
     /// The import's message for the alert: the rejection's plain sentence, or

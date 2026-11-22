@@ -10,8 +10,9 @@
 //    `CDWorkModel` per child and then give each row a participant row naming
 //    every other child. Three children means three rows, each listing all
 //    three.
-//  - *A shared row.* `SessionWorkAssignmentService` puts several children on
-//    one row. Project-session and book-club work is built this way on purpose.
+//  - *A shared row.* Several children on one row. Project-session and
+//    book-club work was built this way on purpose (their screens left the app
+//    on 2026-11-21; the rows stay).
 //
 //  Read one row on its own and the two are indistinguishable — which is how a
 //  guide ends up believing a fan-out group is a single item. Nothing records

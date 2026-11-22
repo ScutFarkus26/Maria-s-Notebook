@@ -106,9 +106,9 @@ struct WorkCheckInService {
     }
 
     /// Whether a check-in stands for the work's due date: made with the Due
-    /// Date reason (New Work), or as a project follow-up's due day
-    /// (`SessionWorkAssignmentService`), which writes the same day into
-    /// `dueAt`. Moving one moves the due date.
+    /// Date reason (New Work), or as a project follow-up's due day (made
+    /// before the Projects screen left the app on 2026-11-21), which wrote the
+    /// same day into `dueAt`. Moving one moves the due date.
     static func isDueDateCheck(_ checkIn: CDWorkCheckIn) -> Bool {
         let purpose = checkIn.purpose.trimmed()
         return [CheckInReason.dueDate.purpose, CheckInReason.dueDate.rawValue]

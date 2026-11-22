@@ -155,7 +155,6 @@ enum MCPNotebookTools {
             listSuppliesTool(context: context),
             adjustSupplyTool(context: context),
             markSuppliesTool(context: context),
-            listProjectsTool(context: context),
             listIssuesTool(context: context),
             updateIssueTool(context: context),
             communityTopicsTool(context: context),

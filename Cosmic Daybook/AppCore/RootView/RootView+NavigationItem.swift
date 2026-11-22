@@ -75,11 +75,12 @@ extension RootView {
             .parshaCalendar: .thisWeeksParsha,
             .stories: .resourceLibrary,
             .procedures: .resourceLibrary,
-            .bookClub: .planningProjects,
+            .bookClub: .today,
             .askAI: .today,
             // Cut unused features, Phase 1 (2026-11-21): the retired screens'
             // rows open the screen nearest to what they held.
-            .parentReports: .students
+            .parentReports: .students,
+            .planningProjects: .today
         ]
 
         /// The destination this item actually shows.
@@ -172,7 +173,7 @@ extension RootView {
             case .smallSequencePlanner:   return "See which children are ready for the same next lesson, and plan it"
             case .community:           return "View community meetings and topics"
             case .schedules:           return "Our class, the adolescent room and who is where, by day or week"
-            case .resourceLibrary:     return "Stories, book club packets, files and procedures"
+            case .resourceLibrary:     return "Stories, files and procedures"
             case .askAI:               return "Ask questions about your classroom data"
             case .logs:                return "View activity and observation logs"
             case .notes:               return "Browse and search your observation notes"
@@ -304,8 +305,6 @@ extension RootView {
                 return NavigationSelectionResolution(item: .planningAgenda)
             case "Open Work":
                 return NavigationSelectionResolution(item: .planningAgenda, lessonsAndWorkScope: .attention)
-            case "Projects":
-                return NavigationSelectionResolution(item: .planningProjects)
             case "Checklist":
                 return NavigationSelectionResolution(item: .planningChecklist)
             default:

@@ -37,14 +37,16 @@ struct AppRouterHiddenRowTests {
 
     @Test("At launch nothing was hidden, so a saved selection on an empty row lands on Today")
     func launchWithSavedSelectionOnEmptyRow() {
-        #expect(steps(hidden: [.goingOut, .planningProjects], previouslyHidden: [], selection: .planningProjects)
-            == [.select(.today), .hide([.goingOut, .planningProjects])])
+        #expect(steps(hidden: [.goingOut], previouslyHidden: [], selection: .goingOut)
+            == [.select(.today), .hide([.goingOut])])
     }
 
     @Test("A retired alias of a hidden row moves too")
     func aliasOfHiddenRowMoves() {
-        #expect(steps(hidden: [.planningProjects], previouslyHidden: [], selection: .bookClub)
-            == [.select(.today), .hide([.planningProjects])])
+        // Going Out has no alias since Clubs & Projects left (2026-11-21), so
+        // the rule is checked on Restock and its retired Orders row.
+        #expect(steps(hidden: [.supplies], previouslyHidden: [], selection: .orders)
+            == [.select(.today), .hide([.supplies])])
     }
 
     @Test("A row that was already hidden keeps a window opened onto it on purpose")
@@ -57,8 +59,8 @@ struct AppRouterHiddenRowTests {
     func otherSelectionsStay() {
         #expect(steps(hidden: [.goingOut], previouslyHidden: [], selection: .supplies) == [.hide([.goingOut])])
         for tab in RootView.NavigationGroup.primaryTabs {
-            #expect(steps(hidden: [.goingOut, .planningProjects], previouslyHidden: [], selection: tab)
-                == [.hide([.goingOut, .planningProjects])])
+            #expect(steps(hidden: [.goingOut], previouslyHidden: [], selection: tab)
+                == [.hide([.goingOut])])
         }
     }
 

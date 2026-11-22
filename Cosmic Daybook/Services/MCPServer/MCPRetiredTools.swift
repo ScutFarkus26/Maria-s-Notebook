@@ -71,13 +71,7 @@ extension MCPNotebookTools {
         table["list_going_outs"] = "list_going_outs is retired: Going Out \(inTheAppOnly)"
         table["update_going_out"] = "update_going_out is retired: Going Out \(inTheAppOnly)"
         table["list_procedures"] = "list_procedures is retired: Procedures \(inTheAppOnly)"
-        table["book_club"] = "book_club is retired: Book Club \(inTheAppOnly)"
         table["list_stories"] = "list_stories is retired: the story shelf \(inTheAppOnly)"
-        table["project_detail"] = "project_detail is retired: list_projects still shows the running projects, "
-            + "but their sessions and notes stay in the app."
-        table["update_project"] = "update_project is retired: projects \(inTheAppOnly) "
-            + "(list_projects still shows the running ones)."
-        table["add_project_session"] = "add_project_session is retired: project sessions \(inTheAppOnly)"
 
         // Retired in Phases 1 and 2.
         table["list_reminders"] = "list_reminders is retired: Apple Reminders sync was removed, and to-dos live in "
@@ -98,6 +92,11 @@ extension MCPNotebookTools {
             + "families still lists the guardians."
         table["recall_checks"] = "recall_checks is retired: Lesson Recall was taken out of the app on "
             + "2026-11-21; past checks are kept and still show in student_record and class_curriculum_map."
+        table["list_projects"] = "list_projects is retired: Projects \(takenOut)"
+        table["project_detail"] = "project_detail is retired: Projects \(takenOut)"
+        table["update_project"] = "update_project is retired: Projects \(takenOut)"
+        table["add_project_session"] = "add_project_session is retired: Projects \(takenOut)"
+        table["book_club"] = "book_club is retired: Book Club \(takenOut)"
         return table
     }()
 

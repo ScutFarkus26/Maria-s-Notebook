@@ -55,7 +55,10 @@ struct LibraryOldFoldersTests {
         bookmarkedStory.pdfFileRelativePath = ""
 
         let openedStory = try #require(LibraryFileStorage.url(for: story, in: stories))
-        let openedPacket = try #require(LibraryFileStorage.url(for: packet, in: packets))
+        // Book Club left the app (2026-11-21); its packets' files still resolve.
+        let openedPacket = try #require(
+            packets.resolveURL(bookmark: packet.packetPDFBookmark, relativePath: packet.packetPDFRelativePath)
+        )
         let openedBookmarked = try #require(LibraryFileStorage.url(for: bookmarkedStory, in: stories))
 
         #expect(openedStory.standardizedFileURL == storyFile.standardizedFileURL)

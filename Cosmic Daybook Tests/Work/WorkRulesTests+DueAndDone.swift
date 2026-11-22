@@ -45,7 +45,7 @@ extension WorkRulesTests {
     func dueDateCheckCarriesTheDueDate() throws {
         let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
         // A project follow-up keeps its due day on the work and on a Due Date
-        // check-in (`SessionWorkAssignmentService.createUniformWork`).
+        // check-in, as the Projects screen made them before it left the app.
         let project = CoreDataTestHelpers.seedWorkModel(in: context, title: "Poster")
         project.dueAt = day(3)
         CDWorkCheckIn.make(for: project, on: day(3), purpose: CheckInReason.dueDate.purpose, in: context)

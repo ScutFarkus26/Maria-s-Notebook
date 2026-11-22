@@ -1,6 +1,6 @@
 // swiftlint:disable file_length
 // StudentProgressTab.swift
-// Progress tab showing student's active projects, reports and the lesson
+// Progress tab showing the student's open reports and the lesson
 // sequences she is in the middle of, as detailed cards
 
 import SwiftUI
@@ -23,7 +23,6 @@ struct StudentProgressTab: View {
 
     // MARK: - State
     @State private var selectedStanding: SequenceStanding?
-    @State private var selectedProject: CDProject?
     @State private var selectedReport: CDWorkModel?
     @State private var selectedFollowUpAssignment: CDLessonAssignment?
     @State private var filterSheet: FilterSheet?
@@ -59,27 +58,7 @@ struct StudentProgressTab: View {
                     )
                 }
 
-                if !viewModel.activeProjects.isEmpty {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Label("Active Projects", systemImage: "book.closed.fill")
-                            .font(.headline)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, AppTheme.Spacing.xsmall)
-
-                        ForEach(viewModel.activeProjects) { project in
-                            Button {
-                                selectedProject = project
-                            } label: {
-                                projectRow(project)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityHint("Opens project details")
-                        }
-                    }
-                    .padding(.horizontal, AppTheme.Spacing.xsmall)
-                }
-
-                // 2. Reports Section
+                // Reports Section
                 if !viewModel.activeReports.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         Label("Active Reports", systemImage: "doc.text.fill")
@@ -101,9 +80,9 @@ struct StudentProgressTab: View {
                     .padding(.horizontal, AppTheme.Spacing.xsmall)
                 }
 
-                // 3. Sequences in progress, as detailed cards
+                // Sequences in progress, as detailed cards
                 if viewModel.standings.isEmpty {
-                    if viewModel.activeProjects.isEmpty && viewModel.activeReports.isEmpty {
+                    if viewModel.activeReports.isEmpty {
                         emptyStateView
                             .padding(.top, 60)
                     }
@@ -134,10 +113,6 @@ struct StudentProgressTab: View {
         // Sheets
         .sheet(item: $selectedStanding) { standing in
             StudentTrackDetailView(student: student, standing: standing)
-                .studentDetailSheetSizing()
-        }
-        .sheet(item: $selectedProject) { project in
-            ProjectDetailView(club: project)
                 .studentDetailSheetSizing()
         }
         .sheet(item: $selectedReport) { report in
@@ -178,48 +153,11 @@ struct StudentProgressTab: View {
             Label("No Active Work", systemImage: "list.clipboard")
                 .foregroundStyle(.secondary)
         } description: {
-            Text("No active projects or lessons in progress.")
+            Text("No open reports or lessons in progress.")
                 .font(.subheadline)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
         }
-    }
-    
-    // MARK: - CDProject Row
-    private func projectRow(_ project: CDProject) -> some View {
-        HStack(alignment: .center, spacing: AppTheme.Spacing.compact) {
-            ZStack {
-                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control, style: .continuous)
-                    .fill(AppColors.color(forArea: "Reading").opacity(UIConstants.OpacityConstants.faint))
-                    .frame(width: 44, height: 44)
-                Image(systemName: "book.closed.fill")
-                    .font(.system(size: 20))
-                    .foregroundStyle(AppColors.color(forArea: "Reading"))
-            }
-            
-            VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
-                Text(project.title)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                
-                if let book = project.bookTitle, !book.isEmpty {
-                    Text(book)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Spacer()
-            
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundStyle(.secondary.opacity(UIConstants.OpacityConstants.half))
-        }
-        .padding(AppTheme.Spacing.compact)
-        .surface(
-            UIConstants.CornerRadius.large,
-            fill: Color.primary.opacity(UIConstants.OpacityConstants.veryFaint),
-            style: .continuous
-        )
     }
     
     // MARK: - Sequence Card

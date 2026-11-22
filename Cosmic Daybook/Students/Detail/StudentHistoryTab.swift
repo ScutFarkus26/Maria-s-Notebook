@@ -1,7 +1,8 @@
 // StudentHistoryTab.swift
-// Past Learning: the sequences the child has mastered every lesson of, and
-// her finished projects. A completed sequence is read from her presentation
-// record (`SequenceStanding`), not stored (2026-11-03).
+// Past Learning: the sequences the child has mastered every lesson of. A
+// completed sequence is read from her presentation record
+// (`SequenceStanding`), not stored (2026-11-03). Past projects left with the
+// Projects screen on 2026-11-21; their records are kept.
 
 import SwiftUI
 import CoreData
@@ -11,17 +12,8 @@ struct StudentHistoryTab: View {
 
     @Environment(\.managedObjectContext) private var viewContext
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDProject.createdAt, ascending: false)])
-    private var allProjects: FetchedResults<CDProject>
-
     @State private var finishedStandings: [SequenceStanding] = []
     @State private var selectedStanding: SequenceStanding?
-    @State private var selectedProject: CDProject?
-
-    private var finishedProjects: [CDProject] {
-        let sid = student.id?.uuidString ?? ""
-        return allProjects.filter { $0.memberStudentIDsArray.contains(sid) && !$0.isActive }
-    }
 
     // Celebration colors for completed sequences
     private let celebrationColors: [Color] = [.green, .blue, .purple, .orange, .pink, .teal]
@@ -29,29 +21,9 @@ struct StudentHistoryTab: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // Past Projects Section
-                if !finishedProjects.isEmpty {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Label("Past Projects", systemImage: SFSymbol.Education.bookClosedFill)
-                            .font(.headline)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 4)
-
-                        ForEach(finishedProjects) { project in
-                            finishedProjectRow(project)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    selectedProject = project
-                                }
-                        }
-                    }
-                }
-
                 // Completed Sequences Section
                 if finishedStandings.isEmpty {
-                    if finishedProjects.isEmpty {
-                        emptyStateView
-                    }
+                    emptyStateView
                 } else {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack(spacing: 8) {
@@ -91,10 +63,6 @@ struct StudentHistoryTab: View {
             StudentTrackDetailView(student: student, standing: standing)
                 .studentDetailSheetSizing()
         }
-        .sheet(item: $selectedProject) { project in
-            ProjectDetailView(club: project)
-                .studentDetailSheetSizing()
-        }
     }
 
     private func loadStandings() {
@@ -123,48 +91,6 @@ struct StudentHistoryTab: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 60)
-    }
-
-    @ViewBuilder
-    private func finishedProjectRow(_ project: CDProject) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(Color.purple.opacity(UIConstants.OpacityConstants.accent))
-                    .frame(width: 44, height: 44)
-                Image(systemName: "book.closed.fill")
-                    .font(.title3)
-                    .foregroundStyle(.purple)
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(project.title)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-
-                if let book = project.bookTitle, !book.isEmpty {
-                    Text(book)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-        }
-        .padding(14)
-        .surface(
-            UIConstants.CornerRadius.extraLarge,
-            fill: Color.purple.opacity(UIConstants.OpacityConstants.hint),
-            style: .continuous
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge)
-                .strokeBorder(Color.purple.opacity(UIConstants.OpacityConstants.accent), lineWidth: 1)
-        )
     }
 
     private func finishedSequenceCard(standing: SequenceStanding, colorIndex: Int) -> some View {

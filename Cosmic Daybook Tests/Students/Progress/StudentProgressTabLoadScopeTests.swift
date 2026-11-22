@@ -138,7 +138,7 @@ struct StudentProgressTabLoadScopeTests {
     }
 
     @Test(
-        "The student's standings, stats, report and project are found among classmates",
+        "The student's standings, stats and report are found among classmates",
         arguments: [Store.inMemory, .sqlite]
     )
     func outputsAreScopedToTheStudent(store: Store) throws {
@@ -148,7 +148,6 @@ struct StudentProgressTabLoadScopeTests {
         viewModel.configure(for: seeded.student, context: seeded.context)
 
         #expect(viewModel.standings.map(\.title) == ["Math — Chains"])
-        #expect(viewModel.activeProjects.map(\.title) == ["Bridges"])
         #expect(viewModel.activeReports.map(\.objectID) == [seeded.report.objectID])
         #expect(viewModel.reportTitle(for: seeded.report) == "Bead Squares")
 

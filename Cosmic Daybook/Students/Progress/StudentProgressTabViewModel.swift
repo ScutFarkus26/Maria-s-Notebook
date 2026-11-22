@@ -16,7 +16,6 @@ final class StudentProgressTabViewModel {
     /// not every lesson mastered. Read from her presentation rows and the
     /// sequences' lessons (`SequenceStanding`), never from stored rows.
     private(set) var standings: [SequenceStanding] = []
-    private(set) var activeProjects: [CDProject] = []
     private(set) var activeReports: [CDWorkModel] = []
     /// Per-sequence activity, precomputed once in loadData so the view
     /// doesn't recompute it for every card on every render.
@@ -58,12 +57,6 @@ final class StudentProgressTabViewModel {
         workDescriptor.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
         allWorkModels = context.safeFetch(workDescriptor)
 
-        let projectDescriptor = CDFetchRequest(CDProject.self)
-        projectDescriptor.predicate = NSPredicate(format: "isActive == YES")
-        projectDescriptor.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
-        let allProjects = context.safeFetch(projectDescriptor)
-
-        activeProjects = allProjects.filter { $0.memberStudentIDsArray.contains(studentIDString) && $0.isActive }
         activeReports = allWorkModels.filter {
             $0.studentID == studentIDString && $0.kind == .report && $0.status.isOpen
         }

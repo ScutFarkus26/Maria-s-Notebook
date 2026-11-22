@@ -3,37 +3,14 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-// Domain logic Phase 10, from the docs pass: new project work carries its
-// stamp when it is made (R22), the default kind follows a giving rather than
-// a plan (R14), and mark_mastered says what it did to each row (R2, R23).
+// Domain logic Phase 10, from the docs pass: the default kind follows a
+// giving rather than a plan (R14), and mark_mastered says what it did to each
+// row (R2, R23). The R22 test of new project work left with the Projects
+// screen (2026-11-21).
 
 @Suite("Work made and closed (domain logic, Phase 10)")
 @MainActor
 struct FinalCheckWorkTests {
-
-    // MARK: - R22: stamped when made
-
-    @Test("New project work is stamped shared when made, so the launch fill has nothing to do")
-    func newProjectWorkIsStampedShared() throws {
-        let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
-        let ada = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ada", lastName: "Test")
-        let session = CDProjectSession(context: context)
-        session.id = UUID()
-        let service = SessionWorkAssignmentService(context: context)
-        let adaID = try #require(ada.id).uuidString
-
-        let offered = try service.createOfferedWork(session: session, title: "Poster", instructions: "", dueDate: nil)
-        let uniform = try #require(try service.createUniformWork(
-            session: session, studentID: adaID, lessonID: UUID(),
-            title: "Map", instructions: "", scheduledDate: Date()
-        ))
-
-        #expect(offered.isSharedRow, "offered to the class, a row its children share")
-        #expect(offered.assignmentID == offered.id?.uuidString, "its own assignment")
-        #expect(uniform.isSharedRow, "project work is shared by construction, as the fill stamps it")
-        #expect(CoreDataTestHelpers.save(context))
-        #expect(WorkAssignmentFill.run(in: context) == 0, "the new rows already read as the fill would write them")
-    }
 
     // MARK: - R14: the default kind
 
