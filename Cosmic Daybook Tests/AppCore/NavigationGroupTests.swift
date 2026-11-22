@@ -161,7 +161,7 @@ struct NavigationGroupTests {
             ("logs", NavigationItem.notes, ScreenLanding?.none),
             ("curriculumMap", .planningChecklist, .classGrid(.threeYears)),
             ("progressDashboard", .planningChecklist, .classGrid(.children)),
-            ("lessonRecall", .planningChecklist, .classGrid(.recall)),
+            ("lessonRecall", .planningChecklist, nil),
             ("planningChecklist", .planningChecklist, nil),
             ("parshaCalendar", .thisWeeksParsha, .parshaYearList),
             ("stories", .resourceLibrary, .resources(.stories)),
@@ -188,10 +188,10 @@ struct NavigationGroupTests {
     @Test("A router jump to a retired row opens its new screen on its view, once")
     func routerJumpToRetiredRowSetsLanding() {
         let router = AppRouter()
-        router.navigateTo(.lessonRecall)
-        #expect(router.selectedNavItem == .lessonRecall)
+        router.navigateTo(.curriculumMap)
+        #expect(router.selectedNavItem == .curriculumMap)
         #expect(router.takePendingNavItem() == .planningChecklist)
-        #expect(router.screenLanding == .classGrid(.recall))
+        #expect(router.screenLanding == .classGrid(.threeYears))
         // Resources doesn't take the Class Grid's landing.
         #expect(router.consumeScreenLanding { landing -> LibraryKind? in
             if case .resources(let kind) = landing { return kind }
@@ -200,7 +200,7 @@ struct NavigationGroupTests {
         #expect(router.consumeScreenLanding { landing -> ClassGridViewKind? in
             if case .classGrid(let view) = landing { return view }
             return nil
-        } == .recall)
+        } == .threeYears)
         #expect(router.screenLanding == nil)
 
         router.navigateTo(.notes)

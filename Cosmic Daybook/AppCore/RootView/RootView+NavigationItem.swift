@@ -90,7 +90,7 @@ extension RootView {
         /// with the year list showing. Nil for every row still in the sidebar.
         var landing: ScreenLanding? {
             switch self {
-            case .curriculumMap, .progressDashboard, .lessonRecall:
+            case .curriculumMap, .progressDashboard:
                 return ClassGridViewKind.opening(self).map(ScreenLanding.classGrid)
             case .stories: return .resources(.stories)
             case .procedures: return .resources(.procedures)
@@ -160,7 +160,7 @@ extension RootView {
             case .bookClub:            return "Manage book club packets and run sessions with students"
             case .more:                return "Everything else"
             case .todos:               return "Manage your personal todos and tasks"
-            case .planningChecklist:   return "The class against the curriculum: Checklist, Three Years, Children and Recall"
+            case .planningChecklist:   return "The class against the curriculum: Checklist, Three Years and Children"
             case .planningAgenda:      return "Plan lessons, follow presentations, and manage student work"
             case .planningProjects:    return "Student projects and book club sessions"
             case .planningCalendar, .perpetualCalendar:

@@ -45,22 +45,6 @@ private enum DateRange {
         meeting.focus = focus
         meeting.completed = true
     }
-
-    /// The lesson carries the context, so the seeder stays inside SwiftLint's
-    /// parameter budget.
-    static func seedRecall(
-        _ outcome: RecallOutcome, for student: CDStudent, of lesson: CDLesson,
-        daysOld: Int, note: String
-    ) throws {
-        let context = try #require(lesson.managedObjectContext)
-        let check = CDLessonRecallCheck(context: context)
-        check.id = UUID()
-        check.studentID = try #require(student.id).uuidString
-        check.lessonID = try #require(lesson.id).uuidString
-        check.outcome = outcome
-        check.checkedAt = daysAgo(daysOld)
-        check.note = note
-    }
 }
 
 /// `since` / `until` on the observation reads. The point of the arguments is
@@ -194,7 +178,7 @@ struct MCPDateRangeReadToolsTests {
     }
 }
 
-/// The same arguments on the meeting, practice and recall histories, whose
+/// The same arguments on the meeting and practice histories, whose
 /// ceilings were a 20-meeting cap and a one-year `days_back`.
 @Suite("MCP Date Range History Reads")
 @MainActor
@@ -262,42 +246,5 @@ struct MCPDateRangeHistoryToolsTests {
         ])
         #expect(output.contains("Sitting 24."))
         #expect(!output.contains("not shown"))
-    }
-
-    @Test("recall_checks: since and until move the window off the rolling ninety days")
-    func recallWindowMoves() async throws {
-        let (tools, context) = try DateRange.makeTools()
-        let rae = CoreDataTestHelpers.seedStudent(in: context, firstName: "Rae", lastName: "Kim")
-        let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "Bead Chains", area: "Math")
-        CoreDataTestHelpers.save(context)
-        try DateRange.seedRecall(.forgotten, for: rae, of: lesson, daysOld: 700,
-                                 note: "Lost it two years back.")
-        try DateRange.seedRecall(.retained, for: rae, of: lesson, daysOld: 2,
-                                 note: "Still had it this week.")
-        CoreDataTestHelpers.save(context)
-        let toolDefinition = try DateRange.tool(named: "class_progress", in: tools).presetting("view", "recall")
-
-        let byDefault = try await toolDefinition.handler(["student_name": .string("Rae")])
-        #expect(byDefault.contains("Still had it this week."))
-        #expect(!byDefault.contains("two years back"))
-
-        let widened = try await toolDefinition.handler([
-            "student_name": .string("Rae"), "since": DateRange.dayText(1000)
-        ])
-        #expect(widened.contains("Lost it two years back."))
-
-        let capped = try await toolDefinition.handler([
-            "student_name": .string("Rae"),
-            "since": DateRange.dayText(1000), "until": DateRange.dayText(600)
-        ])
-        #expect(capped.contains("Lost it two years back."))
-        #expect(!capped.contains("Still had it this week."))
-
-        await #expect(throws: MCPToolError.self) {
-            _ = try await toolDefinition.handler([
-                "student_name": .string("Rae"),
-                "since": DateRange.dayText(2), "until": DateRange.dayText(700)
-            ])
-        }
     }
 }

@@ -5,7 +5,7 @@ import Testing
 
 /// The Class Grid's three newer views, below the screen: Three Years groups children
 /// by year in class, oldest first; Children narrows to an area and says where a child
-/// stands; Recall's queue follows the area, the search and the children filter.
+/// stands.
 @Suite("Class Grid views")
 @MainActor
 struct ClassGridViewsTests {
@@ -80,49 +80,5 @@ struct ClassGridViewsTests {
         #expect(ChecklistDisplayStatus(LessonNodeStatus.scheduled(Date())) == .planned)
         #expect(ChecklistDisplayStatus(LessonNodeStatus.reviewing) == .reviewing)
         #expect(ChecklistDisplayStatus(LessonNodeStatus.mastered) == .mastered)
-    }
-
-    @Test("Recall: the queue follows the area, the search and the children filter")
-    func recallFilter() {
-        let maya = UUID()
-        let eli = UUID()
-        func entry(_ student: UUID, _ lesson: String, area: String) -> RecallQueueEntry {
-            RecallQueueEntry(
-                id: "\(student)|\(lesson)", studentID: student.uuidString, area: area, sequence: "Seq",
-                frontierLessonID: UUID(), frontierLessonName: lesson, frontierOrderInSequence: 0,
-                frontierMasteredAt: nil, coveredLessons: [], lastCheckedAt: nil, dueReason: .startOfYearSweep
-            )
-        }
-        let sections = [
-            RecallStudentSection(id: maya.uuidString, studentName: "Maya Stone", entries: [
-                entry(maya, "Division: Static", area: "Math"), entry(maya, "The Verb", area: "Language")
-            ]),
-            RecallStudentSection(id: eli.uuidString, studentName: "Eli Park", entries: [
-                entry(eli, "Types of Angles", area: "Geometry")
-            ])
-        ]
-        let all = RecallQueueFilter.sections(sections, area: nil, query: "", childIDs: [])
-        #expect(all.flatMap(\.entries).count == 3)
-
-        let math = RecallQueueFilter.sections(sections, area: " math ", query: "", childIDs: [])
-        #expect(math.map(\.studentName) == ["Maya Stone"])
-        #expect(math.flatMap(\.entries).map(\.frontierLessonName) == ["Division: Static"])
-
-        let verb = RecallQueueFilter.sections(sections, area: nil, query: "verb", childIDs: [])
-        #expect(verb.flatMap(\.entries).map(\.frontierLessonName) == ["The Verb"])
-
-        let eliOnly = RecallQueueFilter.sections(sections, area: nil, query: "", childIDs: [eli])
-        #expect(eliOnly.map(\.studentName) == ["Eli Park"])
-    }
-
-    @Test("Recall: what each outcome does, in plain words")
-    func recallOutcomeWords() {
-        #expect(RecallCheckText.consequence(of: .retained, coversCount: 4)
-            == "Updates when mastery was last seen, and marks the 4 lessons it covers as kept. Mastery isn't changed.")
-        #expect(RecallCheckText.consequence(of: .retained, coversCount: 0)
-            == "Updates when mastery was last seen. Mastery isn't changed.")
-        #expect(RecallCheckText.consequence(of: .shaky, coversCount: 2)
-            == "Adds a follow-up: more practice on this lesson. Mastery isn't changed.")
-        #expect(RecallCheckText.outcomes.map(RecallCheckText.title) == ["Still has it", "Shaky", "Forgotten"])
     }
 }

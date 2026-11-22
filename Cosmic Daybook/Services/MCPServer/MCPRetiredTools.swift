@@ -42,7 +42,6 @@ extension MCPNotebookTools {
             ("students_pending", "class_progress/pending"),
             ("students_ready", "class_progress/ready"),
             ("mastery_candidates", "class_progress/mastery_candidates"),
-            ("recall_checks", "class_progress/recall"),
             ("presentations_missing_observations", "class_progress/missing_observations"),
             ("list_open_follow_ups", "list_todos/open_follow_ups"),
             ("list_guardians", "families/guardians"),
@@ -97,6 +96,8 @@ extension MCPNotebookTools {
         table["parent_communications"] = "parent_communications is retired: the letters home went with "
             + "Parent Reports, which was taken out of the app on 2026-11-21 (their records are kept); "
             + "families still lists the guardians."
+        table["recall_checks"] = "recall_checks is retired: Lesson Recall was taken out of the app on "
+            + "2026-11-21; past checks are kept and still show in student_record and class_curriculum_map."
         return table
     }()
 

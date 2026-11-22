@@ -4,82 +4,13 @@ import SwiftUI
 import Testing
 @testable import CosmicDaybook
 
-// Bug hunt 2026-10-11, Students (#26–#34): recall Forgotten on a group
-// presentation, finishing one child's meeting from a group booking, a lesson
-// mastered twice in the recall queue, pinned notes past the first page, the
-// Next Birthday sort, departed children in recall's By Student, and the
-// profile's attendance counts.
+// Bug hunt 2026-10-11, Students (#26–#34): finishing one child's meeting from
+// a group booking, pinned notes past the first page, the Next Birthday sort,
+// and the profile's attendance counts. The recall items (#26, #28, #32) went
+// with Recall (2026-11-21).
 @Suite("Students and meetings (bug hunt 2026-10-11)")
 @MainActor
 struct StudentsMeetingsFix1011STests {
-
-    // MARK: - Recall Forgotten (#26)
-
-    private func recall(
-        _ outcome: RecallOutcome, for student: CDStudent, lesson: CDLesson, in context: NSManagedObjectContext
-    ) throws {
-        let coordinator = SaveCoordinator()
-        coordinator.suppressAlerts = true
-        let service = RecallService(context: context, saveCoordinator: coordinator, schoolYearStore: SchoolYearStore())
-        let entry = RecallQueueEntry(
-            id: UUID().uuidString,
-            studentID: try #require(student.id).uuidString,
-            area: lesson.area,
-            sequence: lesson.sequence,
-            frontierLessonID: try #require(lesson.id),
-            frontierLessonName: lesson.name,
-            frontierOrderInSequence: 1,
-            frontierMasteredAt: nil,
-            coveredLessons: [],
-            lastCheckedAt: nil,
-            dueReason: .spacedDue
-        )
-        #expect(service.record(entry: entry, outcome: outcome, note: ""))
-    }
-
-    private func given(
-        _ students: [CDStudent], lesson: CDLesson, in context: NSManagedObjectContext
-    ) throws -> CDLessonAssignment {
-        let assignment = PresentationFactory.makeDraft(
-            lessonID: try #require(lesson.id), studentIDs: try students.map { try #require($0.id) }, context: context
-        )
-        assignment.markPresented(at: try CoreDataTestHelpers.day("2026-09-14"))
-        return assignment
-    }
-
-    @Test("Forgotten on a group presentation marks only that child for re-presenting")
-    func forgottenInAGroupIsPerChild() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let ada = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ada")
-        let ben = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ben")
-        let lesson = CoreDataTestHelpers.seedLesson(in: context)
-        let group = try given([ada, ben], lesson: lesson, in: context)
-        #expect(CoreDataTestHelpers.save(context))
-
-        try recall(.forgotten, for: ada, lesson: lesson, in: context)
-
-        #expect(!group.needsAnotherPresentation)
-        let representations = ChildRepresentations(in: context)
-        let groupID = try #require(group.id).uuidString
-        #expect(representations.contains(presentationID: groupID, studentID: try #require(ada.id).uuidString))
-        #expect(!representations.contains(presentationID: groupID, studentID: try #require(ben.id).uuidString))
-        #expect(group.needsAnotherPresentation(for: try #require(ada.id).uuidString, given: representations))
-        #expect(!group.needsAnotherPresentation(for: try #require(ben.id).uuidString, given: representations))
-    }
-
-    // Guard: passes on the old code too.
-    @Test("Forgotten on a presentation she had alone still sets its flag")
-    func forgottenAloneSetsTheFlag() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let ada = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ada")
-        let lesson = CoreDataTestHelpers.seedLesson(in: context)
-        let solo = try given([ada], lesson: lesson, in: context)
-        #expect(CoreDataTestHelpers.save(context))
-
-        try recall(.forgotten, for: ada, lesson: lesson, in: context)
-
-        #expect(solo.needsAnotherPresentation)
-    }
 
     // MARK: - Group bookings (#27)
 
@@ -166,56 +97,6 @@ struct StudentsMeetingsFix1011STests {
         #expect(bookings(context).isEmpty)
     }
 
-    // MARK: - Recall duplicates (#28)
-
-    @Test("A lesson mastered twice is one queue entry, and its strand covers each lower lesson once")
-    func duplicateMasteryIsOneEntry() throws {
-        let board = UUID(), stamp = UUID(), racks = UUID()
-        let lessons = [
-            RecallLesson(id: board, name: "Board", area: "Math", sequence: "Division", orderInSequence: 1),
-            RecallLesson(id: stamp, name: "Stamp", area: "Math", sequence: "Division", orderInSequence: 2),
-            RecallLesson(id: racks, name: "Racks", area: "Math", sequence: "Division", orderInSequence: 3)
-        ]
-        let early = Date(timeIntervalSince1970: 1_741_000_000)
-        let later = Date(timeIntervalSince1970: 1_745_000_000)
-        let mastered = [
-            RecallMastery(studentID: "S1", lessonID: board.uuidString, masteredAt: early),
-            RecallMastery(studentID: "S1", lessonID: stamp.uuidString, masteredAt: later),
-            RecallMastery(studentID: "S1", lessonID: stamp.uuidString, masteredAt: early),
-            RecallMastery(studentID: "S1", lessonID: racks.uuidString, masteredAt: later),
-            RecallMastery(studentID: "S1", lessonID: racks.uuidString.lowercased(), masteredAt: early)
-        ]
-        let config = RecallConfig(
-            schoolYearStart: Date(timeIntervalSince1970: 1_756_684_800), schoolYearKey: "2025-2026",
-            spacedInterval: 90 * 86_400, now: Date(timeIntervalSince1970: 1_757_000_000)
-        )
-
-        let entries = RecallFrontierEngine.buildQueue(
-            lessons: lessons, mastered: mastered, existing: [], config: config
-        )
-
-        #expect(entries.count == 1)
-        let entry = try #require(entries.first)
-        #expect(entry.frontierLessonID == racks)
-        #expect(entry.frontierMasteredAt == early)
-        #expect(entry.coversCount == 2)
-        #expect(entry.coveredLessons.map(\.lessonID) == [board, stamp])
-        #expect(entry.coveredLessons.last?.originalMasteredAt == early)
-    }
-
-    @Test("Still Has It writes one covered row per lower lesson, even from a doubled entry")
-    func coveredIntentsDedupe() {
-        let board = UUID(), racks = UUID()
-        let ref = RecallCoveredRef(lessonID: board, name: "Board", originalMasteredAt: nil)
-        let entry = RecallQueueEntry(
-            id: "S1|\(racks.uuidString)", studentID: "S1", area: "Math", sequence: "Division",
-            frontierLessonID: racks, frontierLessonName: "Racks", frontierOrderInSequence: 3,
-            frontierMasteredAt: nil, coveredLessons: [ref, ref], lastCheckedAt: nil, dueReason: .spacedDue
-        )
-        let intents = RecallFrontierEngine.coveredIntents(forRetained: entry, existing: [], schoolYearKey: "2025-2026")
-        #expect(intents.count == 1)
-    }
-
     // MARK: - Pinned notes (#29)
 
     private func note(daysAgo: Int, pinned: Bool = false) -> UnifiedNoteItem {
@@ -258,30 +139,6 @@ struct StudentsMeetingsFix1011STests {
         let sorted = StudentsViewModel.filteredStudents([none, soon], filter: .all, sortOrder: .birthday, today: today)
 
         #expect(sorted.map(\.firstName) == ["Soon", "Nobirthday"])
-    }
-
-    // MARK: - Recall By Student (#32)
-
-    @Test("Recall's By Student names a child who has left")
-    func recallNamesDepartedChildren() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let gone = CoreDataTestHelpers.seedStudent(
-            in: context, firstName: "Etty", lastName: "Dahan", enrollmentStatus: .withdrawn
-        )
-        let store = SchoolYearStore()
-        let check = CDLessonRecallCheck(context: context)
-        check.studentID = try #require(gone.id).uuidString
-        check.lessonID = UUID().uuidString
-        check.outcome = .retained
-        check.source = .observed
-        check.checkedAt = Date()
-        check.schoolYearKey = store.current.key
-        #expect(CoreDataTestHelpers.save(context))
-
-        let model = RecallQueueViewModel()
-        model.loadData(context: context, schoolYearStore: store)
-
-        #expect(model.retentionByStudent.map(\.name) == [gone.fullName])
     }
 
     // MARK: - Profile attendance (#34)

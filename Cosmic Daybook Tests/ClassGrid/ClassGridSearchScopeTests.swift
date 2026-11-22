@@ -47,26 +47,11 @@ struct ClassGridSearchScopeTests {
         #expect(scope.searchText.isEmpty)
     }
 
-    @Test("Recall searches on the Mac and iPad, but not on the iPhone, which shows no field")
-    func recallFieldOnlyWhenRegular() throws {
-        let regular = try scope(openingOn: .recall, isRegular: true)
-        regular.searchText = "Maya"
-        #expect(regular.query(for: .recall, isRegular: true) == "Maya")
-
-        let phone = try scope(openingOn: .children, isRegular: false)
-        phone.searchText = "Maya"
-        phone.viewDidChange(to: .recall, isRegular: false)
-        #expect(phone.query(for: .recall, isRegular: false).isEmpty)
-        #expect(phone.searchText == "Maya")
-    }
-
     @Test("Only views that show a field have a search target")
     func searchTargets() {
         #expect(ClassGridViewKind.checklist.searchTarget(isRegular: false) == .lessons)
         #expect(ClassGridViewKind.threeYears.searchTarget(isRegular: true) == nil)
         #expect(ClassGridViewKind.children.searchTarget(isRegular: false) == .children)
-        #expect(ClassGridViewKind.recall.searchTarget(isRegular: true) == .lessonsAndChildren)
-        #expect(ClassGridViewKind.recall.searchTarget(isRegular: false) == nil)
     }
 
     @Test("The grid opens on All marks, and the Checklist's lens is kept while another view shows")

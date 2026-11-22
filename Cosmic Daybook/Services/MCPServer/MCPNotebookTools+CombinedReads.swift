@@ -48,12 +48,11 @@ extension MCPNotebookTools {
         combinedReadTool(
             name: "class_progress", title: "Class Progress",
             intro: "Class-wide lists of who needs what next. pending reads the year plan, ready and "
-                + "mastery_candidates read the presentation record, recall reads the spaced re-checks, "
+                + "mastery_candidates read the presentation record, "
                 + "missing_observations reads the gaps in what was written down.",
             views: [("pending", studentsPendingTool(context: context)),
                     ("ready", studentsReadyTool(context: context)),
                     ("mastery_candidates", masteryCandidatesTool(context: context)),
-                    ("recall", recallChecksTool(context: context)),
                     ("missing_observations", presentationsMissingObservationsTool(context: context))]
         )
     }

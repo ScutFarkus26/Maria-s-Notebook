@@ -50,61 +50,6 @@ struct MCPMeetingReadAndPracticeToolsTests {
         #expect(output.contains("No meetings are recorded"))
     }
 
-    // MARK: - recall_checks
-
-    @Test("recall_checks names the lesson and its outcome")
-    func recallChecksNameLessonAndOutcome() async throws {
-        let (tools, context) = try makeTools()
-        let student = CoreDataTestHelpers.seedStudent(in: context, firstName: "Rae", lastName: "Kim")
-        let lesson = CoreDataTestHelpers.seedLesson(
-            in: context, name: "Bead Chains", area: "Math", sequence: "Skip Counting"
-        )
-        CoreDataTestHelpers.save(context)
-
-        let check = CDLessonRecallCheck(context: context)
-        check.id = UUID()
-        check.studentID = try #require(student.id).uuidString
-        check.lessonID = try #require(lesson.id).uuidString
-        check.outcome = .shaky
-        check.checkedAt = Date()
-        check.note = "Needed a reminder of the pattern."
-        CoreDataTestHelpers.save(context)
-
-        let output = try await tool(named: "class_progress", in: tools).presetting("view", "recall").handler([
-            "student_name": .string("Rae")
-        ])
-        #expect(output.contains("Bead Chains"))
-        #expect(output.contains("shaky"))
-        #expect(output.contains("Needed a reminder of the pattern."))
-    }
-
-    @Test("recall_checks filters by outcome")
-    func recallChecksFilterByOutcome() async throws {
-        let (tools, context) = try makeTools()
-        let student = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ivy", lastName: "Chen")
-        let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "Stamp Game")
-        CoreDataTestHelpers.save(context)
-        let studentKey = try #require(student.id).uuidString
-        let lessonKey = try #require(lesson.id).uuidString
-
-        for outcome in [RecallOutcome.retained, .forgotten] {
-            let check = CDLessonRecallCheck(context: context)
-            check.id = UUID()
-            check.studentID = studentKey
-            check.lessonID = lessonKey
-            check.outcome = outcome
-            check.checkedAt = Date()
-        }
-        CoreDataTestHelpers.save(context)
-
-        let output = try await tool(named: "class_progress", in: tools).presetting("view", "recall").handler([
-            "student_name": .string("Ivy"),
-            "outcome": .string("forgotten")
-        ])
-        #expect(output.contains("1 recall check"))
-        #expect(output.contains("forgotten"))
-    }
-
     // MARK: - day_pad
 
     @Test("day_pad writes then reads the same day")

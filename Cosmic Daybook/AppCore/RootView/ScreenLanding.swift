@@ -4,8 +4,8 @@
 import Foundation
 
 /// The view a retired destination lands on (Simplify the app, Phase 11).
-/// Three-Year View, Progress Dashboard and Lesson Recall became views of the
-/// Class Grid; Stories and Procedures, types in Resources; Parsha Calendar,
+/// Three-Year View and Progress Dashboard became views of the Class Grid
+/// (Lesson Recall did too, until Recall was taken out on 2026-11-21); Stories and Procedures, types in Resources; Parsha Calendar,
 /// the year list on This Week's Parsha. A saved scene or a router jump to one
 /// of them sets `AppRouter.screenLanding`, and the screen takes it once.
 nonisolated enum ScreenLanding: Hashable, Sendable {

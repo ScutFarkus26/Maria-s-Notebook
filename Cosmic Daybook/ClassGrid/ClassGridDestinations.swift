@@ -1,8 +1,9 @@
 // ClassGridDestinations.swift
-// The four screens the Class Grid replaced, kept as names that open the grid
-// on their view. The sidebar routes the Checklist's destination straight to
-// `ClassGridView`; Three-Year View, Progress Dashboard and Lesson Recall are
-// aliases of it (Phase 11) and land on their view through `screenLanding`.
+// The screens the Class Grid replaced, kept as names that open the grid on
+// their view. The sidebar routes the Checklist's destination straight to
+// `ClassGridView`; Three-Year View and Progress Dashboard are aliases of it
+// (Phase 11) and land on their view through `screenLanding`. (Lesson Recall's
+// went with Recall on 2026-11-21.)
 
 import SwiftUI
 
@@ -32,15 +33,6 @@ struct ProgressDashboardView: View {
     /// What the Children view reloads on; kept here under the old name for the
     /// screen it replaced.
     static let reloadEntityNames = ClassGridChildrenView.reloadEntityNames
-
-    var body: some View {
-        ClassGridView(initialView: initialView)
-    }
-}
-
-/// Lesson Recall's destination (`.lessonRecall`): the Class Grid on Recall.
-struct RecallQueueView: View {
-    let initialView = ClassGridViewKind.recall
 
     var body: some View {
         ClassGridView(initialView: initialView)
