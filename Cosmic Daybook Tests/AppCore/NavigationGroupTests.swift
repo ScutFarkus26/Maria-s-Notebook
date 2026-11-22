@@ -60,7 +60,7 @@ struct NavigationGroupTests {
         #expect(NavigationGroup.all.map(\.id) == [.today, .children, .planning, .classroom, .library, .system])
         #expect(NavigationGroup.all.map(\.title) == ["Today", "Children", "Plan", "Classroom", "Library", "System"])
         #expect(NavigationGroup.all.filter { !$0.isExpandedByDefault }.map(\.id) == [.classroom])
-        #expect(NavigationGroup.all.flatMap(\.items).count == 19)
+        #expect(NavigationGroup.all.flatMap(\.items).count == 18)
         #expect(NavigationGroup.primaryTabs == [.today, .students, .attendance, .planningAgenda])
         // The Plan group keeps the old Planning group's expansion key.
         #expect(RootView.NavigationGroupID.planning.rawValue == "planning")
@@ -73,7 +73,7 @@ struct NavigationGroupTests {
         #expect(rows[.children] == [.students, .meetings, .notes])
         #expect(rows[.planning] == [.planningAgenda, .smallSequencePlanner, .planningChecklist,
                                     .planningCalendar, .thisWeeksParsha])
-        #expect(rows[.classroom] == [.supplies, .community, .goingOut, .schedules])
+        #expect(rows[.classroom] == [.supplies, .goingOut, .schedules])
         #expect(rows[.library] == [.lessons, .teachingAlbums, .resourceLibrary])
         #expect(rows[.system] == [.settings])
     }
@@ -138,8 +138,7 @@ struct NavigationGroupTests {
     @Test(
         "A saved navigation item lands on the destination it meant",
         arguments: [
-            ("community", NavigationItem.community, TriageBucket?.none),
-            ("planningWork", .planningAgenda, .attention),
+            ("planningWork", NavigationItem.planningAgenda, Optional(TriageBucket.attention)),
             ("needsLesson", .planningAgenda, .toSchedule),
             ("perpetualCalendar", .planningCalendar, nil),
             ("more", .today, nil),
@@ -168,6 +167,7 @@ struct NavigationGroupTests {
             ("resourceLibrary", .resourceLibrary, nil),
             ("bookClub", .today, nil),
             ("planningProjects", .today, nil),
+            ("community", .today, nil),
             ("askAI", .today, nil),
             ("parentReports", .students, nil)
         ]
@@ -214,16 +214,17 @@ struct NavigationGroupTests {
                 == .init(item: .students)
         )
         #expect(
-            Restorer.resolve(navItemRaw: "garbage", legacyTabRaw: "Community", planningModeRaw: nil)
-                == .init(item: .community)
+            Restorer.resolve(navItemRaw: "garbage", legacyTabRaw: "Students", planningModeRaw: nil)
+                == .init(item: .students)
         )
     }
 
     @Test("A scene saved by the old Tab enum still opens the matching screen")
     func legacyTabResolves() {
         #expect(
+            // The Community tab left with the Community screen (2026-11-21).
             Restorer.resolve(navItemRaw: nil, legacyTabRaw: "Community", planningModeRaw: nil)
-                == .init(item: .community)
+                == .init(item: .today)
         )
         #expect(
             Restorer.resolve(navItemRaw: nil, legacyTabRaw: "Planning", planningModeRaw: "Open Work")
@@ -296,10 +297,10 @@ extension NavigationGroupTests {
     func filterHidesUnlessKept() throws {
         let classroom = try #require(NavigationGroup.all.first { $0.id == .classroom })
         let filter = NavigationRowFilter(hidden: [.goingOut])
-        #expect(classroom.items(shownBy: filter) == [.supplies, .community, .schedules])
+        #expect(classroom.items(shownBy: filter) == [.supplies, .schedules])
         #expect(classroom.items(shownBy: NavigationRowFilter()) == classroom.items)
         let kept = NavigationRowFilter(hidden: [.goingOut], kept: [.goingOut])
-        #expect(classroom.items(shownBy: kept) == [.supplies, .community, .goingOut, .schedules])
+        #expect(classroom.items(shownBy: kept) == [.supplies, .goingOut, .schedules])
         for group in NavigationGroup.secondaryGroups {
             #expect(!group.secondaryItems(shownBy: filter).contains(.goingOut))
         }

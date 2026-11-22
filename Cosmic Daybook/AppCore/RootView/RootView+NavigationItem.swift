@@ -80,7 +80,8 @@ extension RootView {
             // Cut unused features, Phase 1 (2026-11-21): the retired screens'
             // rows open the screen nearest to what they held.
             .parentReports: .students,
-            .planningProjects: .today
+            .planningProjects: .today,
+            .community: .today
         ]
 
         /// The destination this item actually shows.
@@ -194,7 +195,6 @@ extension RootView {
             case .students:   self = .students
             case .albums:     self = .lessons
             case .planning:   self = .planningAgenda
-            case .community:  self = .community
             case .logs:       self = .notes
             case .settings:   self = .settings
             }
@@ -211,7 +211,6 @@ extension RootView {
         case today     = "Today"
         case logs      = "Logs"
         case attendance = "Attendance"
-        case community = "Community"
         case settings  = "Settings"
 
         var id: String { rawValue }

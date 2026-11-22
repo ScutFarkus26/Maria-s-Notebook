@@ -193,14 +193,6 @@ struct CosmicDaybookApp: App {
         .centeredOnOpen()
 
         DetailWindowScene(
-            id: "CommunityTopicWindow", for: UUID.self, dependencies: detailWindowDependencies,
-            defaultSize: CGSize(width: 720, height: 760), minimumSize: CGSize(width: 500, height: 360),
-            loadingStyle: .labeled,
-            placeholder: .unavailable("No Topic Selected", systemImage: "bubble.left.and.bubble.right"),
-            countsAsEditor: true
-        ) { CommunityTopicWindowHost(topicID: $0) }
-
-        DetailWindowScene(
             id: "ResourceDetailWindow", for: UUID.self, dependencies: detailWindowDependencies,
             defaultSize: CGSize(width: 760, height: 760), minimumSize: CGSize(width: 500, height: 360),
             loadingStyle: .labeled,

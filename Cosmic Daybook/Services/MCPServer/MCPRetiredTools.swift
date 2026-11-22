@@ -97,6 +97,8 @@ extension MCPNotebookTools {
         table["update_project"] = "update_project is retired: Projects \(takenOut)"
         table["add_project_session"] = "add_project_session is retired: Projects \(takenOut)"
         table["book_club"] = "book_club is retired: Book Club \(takenOut)"
+        table["community_topics"] = "community_topics is retired: Community topics \(takenOut)"
+        table["update_community_topic"] = "update_community_topic is retired: Community topics \(takenOut)"
         return table
     }()
 
