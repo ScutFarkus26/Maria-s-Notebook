@@ -266,8 +266,7 @@ struct UbiquityContainerCacheTests {
     func liveFoldersMatchTheOldLookup() throws {
         let live = FileManager.default.url(forUbiquityContainerIdentifier: nil)
         let libraries = [
-            LibraryFileStorage.packets, LibraryFileStorage.stories, StudentDocumentFileStorage.storage,
-            LibraryFileStorage.resources, LessonFileStorage.storage
+            StudentDocumentFileStorage.storage, LessonFileStorage.storage
         ]
         for library in libraries {
             #expect(try library.directory() == oldDirectory(folderName: library.folderName, container: live))

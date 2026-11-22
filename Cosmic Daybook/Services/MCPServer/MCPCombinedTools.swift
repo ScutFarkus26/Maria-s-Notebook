@@ -46,6 +46,9 @@ extension MCPNotebookTools {
             annotations: .readOnly,
             handler: { arguments in
                 let chosen = arguments["view"]?.stringValue?.trimmed().lowercased() ?? defaultView
+                if let chosen, let retired = retiredViews[name]?[chosen] {
+                    throw MCPToolError(retired)
+                }
                 guard let chosen, let view = views.first(where: { $0.name == chosen }) else {
                     throw MCPToolError("Pass view: one of \(names.joined(separator: ", ")).")
                 }

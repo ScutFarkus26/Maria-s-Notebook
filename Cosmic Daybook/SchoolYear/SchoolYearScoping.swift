@@ -29,6 +29,3 @@ extension Sequence where Element == CDStudent {
         filter { $0.isActive(in: range) }
     }
 }
-
-// `CDProject.overlaps(_:)` lives in Models/ProjectActivity.swift,
-// beside the `lastActivity` definition it and the Active/Dormant label share.

@@ -18,14 +18,8 @@ struct ManagedPDFFileStorageTests {
 
     private var libraries: [Library] {
         [
-            Library(name: "book club", storage: LibraryFileStorage.packets,
-                    folderName: "Book Club Files", fallbackFilename: "BookClub.pdf"),
-            Library(name: "story", storage: LibraryFileStorage.stories,
-                    folderName: "Story Files", fallbackFilename: "Story.pdf"),
             Library(name: "student document", storage: StudentDocumentFileStorage.storage,
                     folderName: "Student Files", fallbackFilename: "Document.pdf"),
-            Library(name: "resource", storage: LibraryFileStorage.resources,
-                    folderName: "Resource Files", fallbackFilename: "Resource.pdf"),
             Library(name: "lesson", storage: LessonFileStorage.storage,
                     folderName: "Lesson Files", fallbackFilename: "Lesson.pdf")
         ]
@@ -55,10 +49,7 @@ struct ManagedPDFFileStorageTests {
         for library in libraries {
             #expect(library.storage.folderName == library.folderName, "\(library.name)")
         }
-        #expect(try LibraryFileStorage.packets.directory().lastPathComponent == "Book Club Files")
-        #expect(try LibraryFileStorage.stories.directory().lastPathComponent == "Story Files")
         #expect(try StudentDocumentFileStorage.studentFilesDirectory().lastPathComponent == "Student Files")
-        #expect(try LibraryFileStorage.resources.directory().lastPathComponent == "Resource Files")
         #expect(try LessonFileStorage.lessonFilesDirectory().lastPathComponent == "Lesson Files")
     }
 
@@ -79,7 +70,7 @@ struct ManagedPDFFileStorageTests {
     @Test("Punctuation, non-ASCII and edge whitespace sanitize as the legacy code did")
     func sanitizerEdgeCases() throws {
         try withScratchDirectory { directory in
-            let storage = LibraryFileStorage.stories
+            let storage = LessonFileStorage.storage
             #expect(filename(storage, "  ..Hello__World--2026.. ", in: directory) == "Hello__World-2026.pdf")
             #expect(filename(storage, "Ñandú/Émile (draft)", in: directory) == "and-mile -draft.pdf")
         }
@@ -100,7 +91,7 @@ struct ManagedPDFFileStorageTests {
     @Test("Colliding names are numbered from -2, and the extension stays as given")
     func collisionNumbering() throws {
         try withScratchDirectory { directory in
-            let storage = LibraryFileStorage.packets
+            let storage = StudentDocumentFileStorage.storage
             let base = storage.sanitizedBaseName("Frog & Toad: Together!")
             #expect(base == "Frog - Toad- Together")
 

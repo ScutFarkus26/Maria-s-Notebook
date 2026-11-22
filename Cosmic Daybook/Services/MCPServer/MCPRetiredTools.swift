@@ -105,6 +105,20 @@ extension MCPNotebookTools {
         return table
     }()
 
+    /// Combined read tool → view name that was taken out → the sentence the call answers with, in place of the
+    /// general "Pass view: one of…" refusal. `combinedReadTool` looks here before it checks the view names.
+    static let retiredViews: [String: [String: String]] = [
+        "class_progress": [
+            "recall": "class_progress's recall view is retired: Lesson Recall was taken out of the app on "
+                + "2026-11-21; past checks are kept and still show in student_record and class_curriculum_map."
+        ],
+        "families": [
+            "communications": "families' communications view is retired: the letters home went with Parent "
+                + "Reports, which was taken out of the app on 2026-11-21 (their records are kept); "
+                + "view guardians still lists the guardians."
+        ]
+    ]
+
     private static func moved(_ old: String, into tool: String, pass argument: String) -> String {
         "\(old) moved into \(tool); call \(tool) with \(argument) and the same other arguments."
     }

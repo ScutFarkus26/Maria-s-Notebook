@@ -169,10 +169,9 @@ struct SchoolSessionTests {
         #expect(try start(day(2027, 9, 14), session) == day(2027, 9, 1))
         #expect(try start(day(2026, 11, 3), nil) == day(2026, 9, 1))
 
-        // One definition: grades and projects read the same start.
+        // One definition: grades read the same start.
         let today = Date()
         #expect(FloridaGradeCalculator.schoolYearStart(for: today) == SchoolYear.currentStart(asOf: today))
-        #expect(ProjectActivity.currentYearStart(asOf: today) == SchoolYear.currentStart(asOf: today))
     }
 }
 

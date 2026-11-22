@@ -116,7 +116,7 @@ struct UbiquitousFileTests {
     @Test("A managed PDF still in iCloud resolves, so Open stays offered, and can be deleted")
     func managedPlaceholderResolves() async throws {
         try await withScratchDirectory { container in
-            var storage = LibraryFileStorage.stories
+            var storage = LessonFileStorage.storage
             storage.ubiquityContainer = UbiquityContainerCache(system: .init(
                 identity: { 1 },
                 containerURL: { container }

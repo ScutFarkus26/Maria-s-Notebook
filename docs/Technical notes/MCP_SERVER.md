@@ -525,6 +525,8 @@ never existed is still an unknown-tool error. Nothing here is listed in `tools/l
 | `classroom_jobs`, `assign_job` | none: Classroom Jobs was removed (Phase 2) |
 | `practice_sessions` | none: practice is recorded as work check-ins (Phase 2); `student_record` with `sections: ["work"]` and `work_detail` show them |
 
+Two views were taken out of a combined read tool the same way. Asking for one answers with a plain sentence saying so (`MCPNotebookTools.retiredViews`, in `MCPRetiredTools.swift`), not the general "Pass view: one of…" list: `class_progress` view `recall` (Lesson Recall, 2026-11-21) and `families` view `communications` (Parent Reports, 2026-11-21).
+
 Skills and prompts that name a retired tool should be updated to the new call; on
 2026-11-04 `~/.claude/skills/` and the repo's `.claude/skills/` had none (the
 `update_project` they mention is Tide's).

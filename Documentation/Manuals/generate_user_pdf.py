@@ -213,7 +213,7 @@ def title_page(canvas, doc):
     # Version
     canvas.setFillColor(HexColor("#8899aa"))
     canvas.setFont('Helvetica', 11)
-    canvas.drawString(inch, h - 3.9 * inch, "March 2026")
+    canvas.drawString(inch, h - 3.9 * inch, "November 2026")
 
     # Below the dark block — feature highlights
     y = h - 5.2 * inch
@@ -226,7 +226,7 @@ def title_page(canvas, doc):
         "Observations & Notes",
         "Attendance & Scheduling",
         "Planning & Curriculum Progression",
-        "AI-Powered Insights",
+        "Teaching Albums & Search",
         "Backup & iCloud Sync",
     ]
 

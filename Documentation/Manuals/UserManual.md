@@ -145,7 +145,7 @@ Work items with check-ins due today. Tap to log your observation.
 
 If you have set up a schedule in **Schedules**, today's slots appear here, grouped by schedule. The section stays out of the way when there is no schedule.
 
-### Todos
+### To-dos
 
 Your to-do items for today. Tap the checkbox to mark them complete.
 
@@ -525,7 +525,7 @@ In Settings, you can create templates — pre-written observation starters that 
 
 ---
 
-# Todos
+# To-dos
 
 Todos are your personal task list — things you need to do that aren't directly student work items. There is no separate Todos screen any more (it was taken out on 2026-11-22; every to-do is kept). Your to-dos show on **Today**, in a meeting's **For Me to Do**, in Tide when you share them, and in chat. To change or delete one, open it from one of those places: the edit form has **Delete To-do**, which asks before it deletes.
 
@@ -547,7 +547,7 @@ The Command Bar understands natural language for todos:
 - "Finish report daily" — Creates a recurring daily todo
 - "Remind me to call Emma's parents" — Creates a todo titled "Call Emma's parents"
 
-## Todos in Today View
+## To-dos in Today View
 
 Your incomplete todos for today appear in a dedicated section. Tap the checkbox to mark them complete. Recurring todos automatically generate the next occurrence.
 
@@ -746,7 +746,7 @@ Open the meeting to record:
 - Outcomes and next steps
 - Follow-up actions
 
-## Meeting Templates
+## Meeting Prompts
 
 Meetings use the app's built-in prompts. Custom meeting templates can no longer be made or edited (any you made earlier are kept in the notebook but aren't shown).
 
@@ -823,7 +823,7 @@ Only the lead guide can change these, and they're shared with your assistant.
 
 ## Connections ▸ Tide (Mac)
 
-- Turn on sharing your to-dos with Tide (see **Sharing with Tide** under Todos)
+- Turn on sharing your to-dos with Tide (see **Sharing with Tide** under To-dos)
 - See whether Tide is reachable
 
 ## CloudKit Sync

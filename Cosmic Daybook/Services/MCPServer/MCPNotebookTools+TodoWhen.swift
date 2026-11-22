@@ -36,7 +36,7 @@ extension MCPNotebookTools {
     }
 
     /// The When day and Someday exclude each other, as in the app's When
-    /// popover (`TodoScheduling`): a day takes the todo out of Someday, and
+    /// popover: a day takes the todo out of Someday, and
     /// Someday clears the day. The deadline is left alone either way. Today
     /// and the lists hide Someday todos, so a day set on one that stayed in
     /// Someday never showed (bug hunt 2026-10-12, #23).

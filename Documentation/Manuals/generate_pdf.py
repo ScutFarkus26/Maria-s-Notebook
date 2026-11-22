@@ -221,7 +221,7 @@ def title_page(canvas, doc):
     # Metadata
     canvas.setFillColor(HexColor("#cccccc"))
     canvas.setFont('Helvetica', 12)
-    canvas.drawString(inch, h - 3.0 * inch, "Version: March 2026")
+    canvas.drawString(inch, h - 3.0 * inch, "Version: November 2026")
 
     # Below the dark block
     y = h - 4.5 * inch

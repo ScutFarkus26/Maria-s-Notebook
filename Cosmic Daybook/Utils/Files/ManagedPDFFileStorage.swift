@@ -4,11 +4,12 @@ import OSLog
 /// One managed-document folder under `Documents/<folderName>/` in the app's iCloud
 /// container, falling back to local Documents when iCloud is unavailable.
 ///
-/// `LibraryFileStorage` (stories, book club packets, resource files),
 /// `StudentDocumentFileStorage` and `LessonFileStorage` hold one configured
-/// instance per folder. Existing user files on disk depend on the folder name, the
-/// sanitized-filename scheme, the iCloud/local fallback order and the relative-path
-/// semantics, so none of those may change.
+/// instance per folder. (The story, book club and resource folders went with
+/// those screens; their files stay on disk, untouched.) Existing user files on
+/// disk depend on the folder name, the sanitized-filename scheme, the
+/// iCloud/local fallback order and the relative-path semantics, so none of those
+/// may change.
 ///
 /// Bookmarks are plain (not security-scoped): the files live in the app's own
 /// container, so they are deliberately not routed through `SecurityScopedBookmark`.

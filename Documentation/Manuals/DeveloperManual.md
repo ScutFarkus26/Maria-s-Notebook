@@ -1130,11 +1130,11 @@ Warnings come from `WorkToShowFirst` (`Presentations/Planning/`). When two lesso
 
 `AppRouter.navigateToGroups(area:sequence:)` sets `pendingSequenceLadder`; `GroupsView` takes it once with `consumePendingSequenceLadder()` and opens that sequence's ladder (`.navigationDestination(item:)`). `ChecklistGroupsButton` (in `Lessons/Checklist/Views/ChecklistLensControls.swift`) sits beside the Class Grid lens on the Mac, iPad and iPhone (one sequence is a button, several are a menu), and Lessons & Work has **Groups** on Presentations ▸ Upcoming (through the per-window `quickCapture.go`). ⌘7 opens Groups (`NotebookCommands`, `KeyboardShortcutsHelpView`).
 
-## Todos Module
+## To-do Module
 
 **Across:** `Todos/Models/TodoItemEntity.swift`, `Todos/Views/`, `Todos/Support/`, `Todos/Services/`
 
-There is no To-dos screen (taken out 2026-11-22; ⌘7 is Groups now). What stays: `EditTodoForm` (with a confirmed **Delete To-do**, via its `onDelete:` closure; the only delete path in the app), `NewTodoForm`, `TodoCompletionService`, `TodoRepeatRule`, Tide sharing, Today's to-do section, meetings' For Me to Do, and the Claude to-do tools. `TodoListFilter` is a caseless enum (`isOnToday`, `isDueOrPlanned`, `isDue`); `TodoScheduling` has no app users now. The `todoTagOrder` and `todoHideCompleted` keys stay on the backed-up preferences list.
+There is no To-dos screen (taken out 2026-11-22; ⌘7 is Groups now). What stays: `EditTodoForm` (with a confirmed **Delete To-do**, via its `onDelete:` closure; the only delete path in the app), `NewTodoForm`, `TodoCompletionService`, `TodoRepeatRule`, Tide sharing, Today's to-do section, meetings' For Me to Do, and the Claude to-do tools. `TodoListFilter` is a caseless enum (`isOnToday`, `isDueOrPlanned`, `isDue`); The `todoTagOrder` and `todoHideCompleted` keys stay on the backed-up preferences list.
 
 Teacher task management with:
 

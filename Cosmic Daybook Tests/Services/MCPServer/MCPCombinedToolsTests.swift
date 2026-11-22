@@ -172,4 +172,37 @@ struct MCPCombinedToolsTests {
         #expect(needs.contains("Requests go to:"))
         #expect(needs.contains("office run (1)") || needs.contains("to order, to_request (1)"))
     }
+
+    // MARK: - Retired views
+
+    @Test("A view that was taken out answers that it was taken out, not the general view list")
+    func retiredViewsAnswerPlainly() async throws {
+        let (tools, _) = try makeTools()
+        for (toolName, views) in MCPNotebookTools.retiredViews.sorted(by: { $0.key < $1.key }) {
+            let combined = try tool(named: toolName, in: tools)
+            for (view, sentence) in views {
+                do {
+                    _ = try await combined.handler(["view": .string(view)])
+                    Issue.record("\(toolName) view \(view) should be refused")
+                } catch let error as MCPToolError {
+                    #expect(error.message == sentence)
+                    #expect(error.message.contains("taken out"))
+                    #expect(!error.message.contains("Pass view"))
+                    #expect(!error.message.contains("\n"))
+                }
+            }
+        }
+        // The two the plan names, spelled out so a dropped table entry fails here.
+        #expect(MCPNotebookTools.retiredViews["class_progress"]?["recall"] != nil)
+        #expect(MCPNotebookTools.retiredViews["families"]?["communications"] != nil)
+
+        // A view that never existed still gets the general answer.
+        let families = try tool(named: "families", in: tools)
+        do {
+            _ = try await families.handler(["view": "no_such_view"])
+            Issue.record("an unknown view should be refused")
+        } catch let error as MCPToolError {
+            #expect(error.message.hasPrefix("Pass view: one of"))
+        }
+    }
 }

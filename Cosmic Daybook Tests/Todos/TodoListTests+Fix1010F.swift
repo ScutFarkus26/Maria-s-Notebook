@@ -3,10 +3,10 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-/// Today's to-do rule and the quick moves (bug hunt 2026-10-10, P2 #25 and
-/// #26; #28's templates retired 2026-11, and #30's Upcoming order went with
-/// the Todos screen on 2026-11-22).
-@Suite("Todos: Today and quick moves")
+/// Today's to-do rule (bug hunt 2026-10-10, P2 #25; #26's quick moves went with
+/// the Todos screen on 2026-11-22, #28's templates retired 2026-11, and #30's
+/// Upcoming order with the screen).
+@Suite("Todos: Today")
 @MainActor
 struct TodoListFix1010Tests {
 
@@ -52,38 +52,6 @@ struct TodoListFix1010Tests {
         }
         for todo in notInToday {
             #expect(!TodoListFilter.isOnToday(todo), "\(todo.title)")
-        }
-    }
-
-    // MARK: - Quick moves
-
-    @Test("The batch Today button plans the todos for today, as the swipe does, and keeps their deadlines")
-    func batchTodayMovesTheWhenDate() throws {
-        let context = try CoreDataTestHelpers.makeContext()
-        let someday = Self.todo("Someday", someday: true, in: context)
-        let dueLater = Self.todo("Due Friday", due: 4, scheduled: 3, in: context)
-
-        TodoScheduling.moveToToday([someday, dueLater])
-
-        for todo in [someday, dueLater] {
-            #expect(todo.scheduledDate == Self.today)
-            #expect(!todo.isSomeday)
-            #expect(TodoListFilter.isOnToday(todo))
-        }
-        #expect(dueLater.dueDate == AppCalendar.addingDays(4, to: Self.today))
-        #expect(someday.dueDate == nil)
-    }
-
-    @Test("Next Week is the coming Monday")
-    func nextWeekIsMonday() throws {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = AppCalendar.shared.timeZone
-        for day in 4...11 {   // Sunday 4 October 2026 through the next Sunday
-            let date = try #require(calendar.date(from: DateComponents(year: 2026, month: 10, day: day, hour: 15)))
-            let monday = TodoScheduling.nextMonday(after: date)
-            #expect(calendar.component(.weekday, from: monday) == 2)
-            #expect(monday > date)
-            #expect(monday <= AppCalendar.addingDays(7, to: AppCalendar.startOfDay(date)))
         }
     }
 }
