@@ -1,6 +1,6 @@
 # Cut unused features and close the lesson loop
 
-> **Not started.** Written 2026-11-21 from a usage analysis of the live notebook (Aug 25 – Nov 21) and a talk-through with Danny (session "Maria's Notebook feature analysis", branch `claude/marias-notebook-analysis-106de8`).
+> **Done 2026-11-22** (02e1eea2d). Written 2026-11-21 from a usage analysis of the live notebook (Aug 25 – Nov 21) and a talk-through with Danny (session "Maria's Notebook feature analysis", branch `claude/marias-notebook-analysis-106de8`).
 > In short: take out fourteen features Danny doesn't use (keeping all their data), and make the lesson loop close itself: a quick note at the lesson, a 3:45 chat that asks what happened to the day's lessons, and practice that comes back before the next lesson.
 
 ## Goal
@@ -35,11 +35,11 @@ The last version with every feature in it is the tag `retired/2026-11-cuts`: at 
 
 - [x] Phase 1: Cut Parent Reports, recall checks, Projects and Book Club, Community topics, Issues · done 2026-11-22 (30bf2e6f6) · session 4dd54666-95a3-4afb-bf9e-24b4020d48ea · actual $21.29 (~1%)
 - [x] Phase 2: Cut Resources, Stories, Procedures, Going Out, Today's pad card, custom templates, the To-dos screen · done 2026-11-22 (87658f085) · session eb7e5815-b7fa-4eef-8167-2585f7885f15 · actual $15.71 (~1%)
-- [ ] Phase 3: The lesson loop in chat (services and Claude tools) · runs as: session · needs: 2 · est. $15–30 (~1%)
-- [ ] Phase 4: The lesson loop on the Mac (screens) and ways into Groups · runs as: session · needs: 3 · est. $20–35 (~1–2%)
-- [ ] Phase 5: A Tide note for each cut feature, and four Tide rows · runs as: session (Sonnet, high) · needs: 2 · est. $4–10 (<1%) ← runs beside 3 and 4
-- [ ] Phase 6: Final check · runs as: session · needs: 4,5 · est. $15–30 (~1%)
-- [ ] Conductor: the 3:45 pm scheduled chat, made after Phase 6 merges
+- [x] Phase 3: The lesson loop in chat (services and Claude tools) · done 2026-11-22 (f8f1a077d) · session b0e4a456-8c53-4913-b354-3f77a11cf1e3 · actual $14.76 (~1%)
+- [x] Phase 4: The lesson loop on the Mac (screens) and ways into Groups · done 2026-11-22 (af83dfbf1) · session 992fe2ba-7c37-428f-bd7e-75ca67ab7a47 · actual $13.27 (~1%)
+- [x] Phase 5: A Tide note for each cut feature, and four Tide rows · done 2026-11-22 (no commit; Tide only) · session 857e43e6-d745-4fcc-ad9e-a7deffb43cca · actual $4.34 (<1%)
+- [x] Phase 6: Final check · done 2026-11-22 (02e1eea2d) · session 2cb0b7fc-7df5-4ddb-9422-38c8d52d7106 · actual $19.09 (~1%)
+- [x] Conductor: the 3:45 pm scheduled chat · made 2026-11-22 (task `daybook-end-of-day`, weekdays 3:45) · whole run, conductor included: $113.90 (~5%), against $150–265
 
 ## Cost
 
@@ -107,6 +107,14 @@ About $150–265 in all: the phases $120–220, the conductor $30–45 (this pla
 - The to-do editor gained Delete To-do (the only way to delete one now).
 - Removed as unused: the lesson link picker and `LessonFilesSectionTests`, the status pill's compact size, and the test files `SmallerFeaturesFix1010J1Tests` and `TemplateFix1017St`.
 - ⌘7 → Groups went into the To-dos commit. The Mac wasn't rebuilt at Phase 2's tip (Phase 6's full builds cover it).
+
+**Decided in Phase 3** (Tide Review choices rows): open practice check-ins only move earlier, never later, when a later lesson is planned (hooked into five planning paths in the app and three Claude tools; moves to a later day left out on purpose). Ties in a sequence go to the lesson earlier in its sub-area. New untitled work is named "Practice: <lesson>" / "Follow up: <lesson>" everywhere, not only in chat. `planned_presentation_id` refuses a plan already recorded.
+
+**Decided in Phase 4** (Tide Review choices rows): a child held at "check first" stays in the picker's Ready group, unticked, with the reason. Given — Quick Note shows on the Next card; other rows have it in their menu. ⌃⌘J is Mac-only; on the iPad the note opens from Today. The Lessons & Work Groups link shows on Presentations › Upcoming. No picture of the quick note itself (the headless renderer draws text boxes blank).
+
+**Decided in Phase 5:** the three shared commits (Parent Reports + per-child report, Projects + Book Club, Resources + Stories + Procedures) are reverted together; each Tide note says so.
+
+**Decided in Phase 6** (from the Fable review; Tide rows): only the earliest open check-in moves, and only if none already falls by the day before the lesson; a due-date check never moves. Practice set today isn't pulled back; on a weekend "today" is the next school day. Editing a plan's notes or only its time moves nothing. Deleting a child keeps an issue left with nobody on it (deleting it would cascade to its notes). Left as Build & fix rows: planning paths that don't move practice yet (merging presentations, moving a child into a planned group, Parsha scheduling), five smaller lesson-loop gaps, tidying leftovers.
 
 ## Apple guidance
 

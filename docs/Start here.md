@@ -9,7 +9,6 @@ run `docs-index`; edit only the Other documents section by hand.
 | Plan | What it is | Status | Date |
 |---|---|---|---|
 | [Plan - Assistant Today tab](<Plans/Plan - Assistant Today tab.md>) | a Today tab in Daybook Assistant with the school day, today's events, early pickups, class notes and to-dos anyone can add and check off (with an optional nudge), "watch for" lines the guide shares, a tomorrow peek and dots on Attendance tiles, plus a Class notes section in the notebook's Today; schema 19, backup v41. | Not started | 2026-10-14 |
-| [Plan - Cut unused features and close the lesson loop](<Plans/Plan - Cut unused features and close the lesson loop.md>) | take out fourteen features Danny doesn't use (keeping all their data), and make the lesson loop close itself: a quick note at the lesson, a 3:45 chat that asks what happened to the day's lessons, and practice that comes back before the next lesson. | Not started | 2026-11-21 |
 | [Plan - Daybook Assistant bug fixes](<Plans/Plan - Daybook Assistant bug fixes.md>) | Fixes for the ~50 findings of the 2026-10-04 Daybook Assistant bug hunt, in six phases. | Working on it | 2026-10-05 |
 | [Plan - Debug builds open a fake notebook](<Plans/Plan - Debug builds open a fake notebook.md>) | Debug builds open a fake, local-only notebook; the real one only through the Real Notebook scheme. | Not started | 2026-10-04 |
 | [Plan - Names you set yourself](<Plans/Plan - Names you set yourself.md>) | A small shared list of each person's current name, set by that person, so the Assistant says "Danny" instead of "your guide" and a rename shows everywhere, old entries included. | Working on it | 2026-10-05 |
@@ -24,6 +23,7 @@ run `docs-index`; edit only the Other documents section by hand.
 
 | Plan | What it is | Status | Date |
 |---|---|---|---|
+| [Plan - Cut unused features and close the lesson loop](<Plans/Plan - Cut unused features and close the lesson loop.md>) | take out fourteen features Danny doesn't use (keeping all their data), and make the lesson loop close itself: a quick note at the lesson, a 3:45 chat that asks what happened to the day's lessons, and practice that comes back before the next lesson. | Done (02e1eea2d) | 2026-11-22 |
 | [Plan - Domain logic fixes](<Plans/Plan - Domain logic fixes.md>) | fix all 25 findings and the 20 smaller ones from the 2026-11-20 domain-logic review, in nine phases plus a final check, with one schema bump (25, backup format 47) that touches both stores. | Done (4d5eb1c9c) | 2026-11-21 |
 | [Plan - Next lesson row when presenting](<Plans/Plan - Next lesson row when presenting.md>) | when a child is marked Ready for next in the present-a-lesson sheet, a "Next lesson" row shows where the next lesson will go (the Inbox by default) and lets you put it on a day, with an optional start time, before you press Done. | Done | 2026-11-11 |
 | [Plan - Lesson times on cards](<Plans/Plan - Lesson times on cards.md>) | a scheduled lesson can be given a start time from a chip on its card, and the time stays with it, shows on its sheet and on Today, and survives moves. | Done (879808eb0) | 2026-11-11 |
