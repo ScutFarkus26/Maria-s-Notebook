@@ -11,6 +11,9 @@ extension TodayView {
     /// for a todo, the inspector).
     enum ActiveSheet: Identifiable {
         case quickNote(studentIDs: Set<UUID>?)
+        /// The quick note at the lesson ("Given — Quick Note"): a sheet on the
+        /// iPad and iPhone; the Mac opens its Quick Note window instead.
+        case lessonQuickNote(presentationID: UUID)
         /// A new to-do, starting on the day Today lists (`TodayTodoDay.newTodoDate`,
         /// bug hunt 2026-11-03 #54).
         case newTodo(defaultDate: Date)
@@ -18,6 +21,7 @@ extension TodayView {
         var id: String {
             switch self {
             case .quickNote: return "quickNote"
+            case .lessonQuickNote(let id): return "lessonQuickNote-\(id.uuidString)"
             case .newTodo: return "newTodo"
             }
         }
@@ -78,6 +82,11 @@ struct TodayViewSheets: ViewModifier {
         switch sheet {
         case .quickNote(let studentIDs):
             quickNoteSheetContent(studentIDs: studentIDs)
+        case .lessonQuickNote(let presentationID):
+            LessonQuickNoteSheet(presentationID: presentationID) {
+                activeSheet = nil
+                onReload()
+            }
         case .newTodo(let defaultDate):
             newTodoSheet(defaultDate: defaultDate)
         }

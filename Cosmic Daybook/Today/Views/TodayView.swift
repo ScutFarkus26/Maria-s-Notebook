@@ -36,7 +36,7 @@ struct TodayView: View {
     @Environment(RestoreCoordinator.self) var restoreCoordinator
     @Environment(SaveCoordinator.self) var saveCoordinator
     #if os(macOS)
-    @Environment(\.openWindow) private var openWindow
+    @Environment(\.openWindow) var openWindow
     #endif
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass

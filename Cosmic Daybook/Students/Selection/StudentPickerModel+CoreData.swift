@@ -49,3 +49,24 @@ nonisolated extension StudentPickerModel {
         return byStudent
     }
 }
+
+extension StudentPickerModel {
+    /// What each of `studentIDs` is still practicing from earlier in
+    /// `lessonID`'s sequence: "Practicing The Distributive Law"
+    /// (`WorkToShowFirst`). A child with nothing open is absent. One read.
+    static func practicing(
+        for lessonID: UUID,
+        among studentIDs: Set<UUID>,
+        lessons: [CDLesson],
+        in context: NSManagedObjectContext
+    ) -> [UUID: String] {
+        guard !studentIDs.isEmpty, !lessons.isEmpty else { return [:] }
+        let found = WorkToShowFirst.find(
+            lessonID: lessonID.uuidString,
+            studentIDs: studentIDs,
+            sequences: WorkToShowFirst.Sequences(lessons: lessons),
+            in: context
+        )
+        return found.compactMapValues(WorkToShowFirst.practicingLine)
+    }
+}

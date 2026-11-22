@@ -38,14 +38,35 @@ nonisolated extension ReadyGroups {
         lessons: [CDLesson],
         in context: NSManagedObjectContext
     ) -> Set<String> {
+        readiness(for: lessonID, among: studentIDs, lessons: lessons, in: context).ready
+    }
+
+    /// Who a card would list for one lesson: Ready, and Ready, check first
+    /// with what to check ("2 pieces of work still open"). The picker shows
+    /// both in its Ready run, so a child the rules hold back says why
+    /// instead of dropping silently to Everyone Else.
+    struct OneLessonReadiness: Equatable {
+        var ready: Set<String> = []
+        /// Student id → the reasons, joined as a card joins them.
+        var checkFirst: [String: String] = [:]
+    }
+
+    /// `readyStudentIDs`, with the Ready, check first children as well.
+    @MainActor
+    static func readiness(
+        for lessonID: String,
+        among studentIDs: Set<String>,
+        lessons: [CDLesson],
+        in context: NSManagedObjectContext
+    ) -> OneLessonReadiness {
         guard !studentIDs.isEmpty,
-              LessonSequenceOrder(lessons: lessons).position(of: lessonID) != nil else { return [] }
+              LessonSequenceOrder(lessons: lessons).position(of: lessonID) != nil else { return OneLessonReadiness() }
         // Every lesson whose next is this one: normally one, but two lessons
         // filed at the same step would both lead here, as they do in the queue.
         let previous = Set(BlockingAlgorithmEngine.buildNextLessonCache(lessons).compactMap { key, next in
             next.id?.uuidString == lessonID ? key.uuidString : nil
         })
-        guard !previous.isEmpty else { return [] }
+        guard !previous.isEmpty else { return OneLessonReadiness() }
 
         let index = PresentationRecordIndex(
             lessonIDs: previous.union([lessonID]), students: studentIDs, in: context
@@ -56,11 +77,19 @@ nonisolated extension ReadyGroups {
         let marked = studentIDs.filter { studentID in
             previous.contains { index.given(student: studentID, lesson: $0) != nil }
         }
-        guard !marked.isEmpty else { return [] }
+        guard !marked.isEmpty else { return OneLessonReadiness() }
 
         let items = ReadyForNextEngine.items(
             studentIDs: Array(marked), lessons: lessons, index: index, in: context
         )
-        return Set(items.filter { $0.nextLessonID == lessonID && $0.tier == .ready }.map(\.studentID))
+        var result = OneLessonReadiness()
+        for item in items where item.nextLessonID == lessonID {
+            switch item.tier {
+            case .ready: result.ready.insert(item.studentID)
+            case .almostReady: result.checkFirst[item.studentID] = item.reasons.joined(separator: "; ")
+            case .notReady: break
+            }
+        }
+        return result
     }
 }

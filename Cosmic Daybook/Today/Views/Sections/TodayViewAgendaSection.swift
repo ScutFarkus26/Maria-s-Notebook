@@ -142,37 +142,55 @@ extension TodayView {
             onMoveAbsent: movesAbsent ? { moveAbsentToTomorrow(from: [sl]) } : nil,
             moveAbsentTitle: "Move absent to \(bumpTargetName)",
             onPresent: isNext ? { startNextAgendaItem(.lesson(sl)) } : nil,
-            presentShortcut: nextCardShortcut
+            presentShortcut: nextCardShortcut,
+            onGivenQuickNote: isNext && !sl.isPresented ? { markGivenWithQuickNote(sl) } : nil,
+            stillPracticing: sl.isPresented ? nil : viewModel.stillPracticingLine(for: sl)
         )
         .contentShape(Rectangle())
         .onTapGesture {
             selectedLessonAssignment = sl
         }
-        .contextMenu {
-            if !sl.isPresented {
-                Button {
-                    markLessonPresented(sl)
-                } label: {
-                    Label("Mark Presented Now", systemImage: "checkmark.circle")
-                }
+        .contextMenu { lessonRowMenu(sl, movesAbsent: movesAbsent) }
+    }
+
+    /// A lesson row's context menu: mark it given (alone, or with a quick
+    /// note), bump it, move the absent children, add a note.
+    @ViewBuilder
+    private func lessonRowMenu(_ sl: CDLessonAssignment, movesAbsent: Bool) -> some View {
+        if !sl.isPresented {
+            Button {
+                markLessonPresented(sl)
+            } label: {
+                Label("Mark Presented Now", systemImage: "checkmark.circle")
             }
             Button {
-                bumpLessonToTomorrow(sl)
+                markGivenWithQuickNote(sl)
             } label: {
-                Label("Bump to \(bumpTargetTitle)", systemImage: "calendar.badge.plus")
+                Label(LessonQuickNote.givenTitle, systemImage: "checkmark.bubble")
             }
-            if movesAbsent {
-                Button {
-                    moveAbsentToTomorrow(from: [sl])
-                } label: {
-                    Label("Move Absent Children to \(bumpTargetTitle)", systemImage: "person.badge.clock")
-                }
-            }
+        } else if let id = sl.id {
             Button {
-                quickNoteAboutLesson(sl)
+                openLessonQuickNote(for: id)
             } label: {
-                Label("Add Note About This Lesson", systemImage: "square.and.pencil")
+                Label("Quick Note…", systemImage: "text.bubble")
             }
+        }
+        Button {
+            bumpLessonToTomorrow(sl)
+        } label: {
+            Label("Bump to \(bumpTargetTitle)", systemImage: "calendar.badge.plus")
+        }
+        if movesAbsent {
+            Button {
+                moveAbsentToTomorrow(from: [sl])
+            } label: {
+                Label("Move Absent Children to \(bumpTargetTitle)", systemImage: "person.badge.clock")
+            }
+        }
+        Button {
+            quickNoteAboutLesson(sl)
+        } label: {
+            Label("Add Note About This Lesson", systemImage: "square.and.pencil")
         }
     }
 
@@ -183,6 +201,8 @@ extension TodayView {
             let result = try TodayMarkPresented.record(
                 sl, context: viewContext, saveCoordinator: saveCoordinator
             )
+            // The lesson just given, for File › Quick Note on the Lesson.
+            LessonQuickNoteTarget.shared.lastGivenID = sl.id
             viewModel.reload()
             toast(TodayMarkPresented.message(keptOnPlan: result.keptOnPlan.map { displayNameForID($0) }))
         } catch {

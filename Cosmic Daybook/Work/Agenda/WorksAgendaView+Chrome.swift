@@ -30,6 +30,10 @@ extension WorksAgendaView {
         }
 
         ToolbarItemGroup(placement: .primaryAction) {
+            if showsGroupsLink {
+                groupsLink
+            }
+
             Button {
                 newWorkInThisWindow()
             } label: {
@@ -92,6 +96,10 @@ extension WorksAgendaView {
                         }
                     } label: {
                         Label(workspaceKind.title, systemImage: workspaceKind.systemImage)
+                    }
+
+                    if showsGroupsLink {
+                        groupsLink
                     }
 
                     Button {
@@ -182,6 +190,29 @@ extension WorksAgendaView {
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(isCalendarExpanded ? "Hide the schedule" : "Show the schedule")
+    }
+
+    // MARK: - Groups
+
+    /// Groups is a step from the lessons waiting to be given: the Presentations
+    /// half's Upcoming list (Ready, Brewing, Follow Up), not its History.
+    var showsGroupsLink: Bool {
+        workspaceKind == .presentations && !showsHistory
+    }
+
+    /// "Groups": the Groups page, where the children ready for the same next
+    /// lesson are gathered, in this window.
+    var groupsLink: some View {
+        Button {
+            if let quickCapture {
+                quickCapture.go(to: .smallSequencePlanner)
+            } else {
+                appRouter.navigateTo(.smallSequencePlanner)
+            }
+        } label: {
+            Label("Groups", systemImage: "person.3")
+        }
+        .help("Open Groups: who is ready for the same next lesson")
     }
 
     /// New Work opens in this window only: the router's request was obeyed by

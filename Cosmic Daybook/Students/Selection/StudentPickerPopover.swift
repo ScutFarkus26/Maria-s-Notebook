@@ -11,8 +11,11 @@
 //
 //  The present-a-lesson caller arranges it Selected → Ready → Everyone Else
 //  (`arrangement: .selectedThenReady`), with a header over each run and no
-//  sort menu; the Ready run is `ReadyGroups.readyStudentIDs`, read once per
-//  lesson. Every picker offers only the levels its enrolled children are at.
+//  sort menu; the Ready run is `ReadyGroups.readiness`, read once per
+//  lesson: Ready, and Ready, check first with what to check, so a child the
+//  rules hold back says why instead of dropping to Everyone Else. Any row of
+//  a picker with a lesson says what the child is still practicing from
+//  earlier in its sequence (`WorkToShowFirst`). Every picker offers only the levels its enrolled children are at.
 //
 
 import SwiftUI
@@ -47,6 +50,11 @@ struct StudentPickerPopover: View {
     /// Who is ready for `lessonOnRecord`, read once when the picker is
     /// arranged around it.
     @State private var readyIDs: Set<UUID> = []
+    /// Who is Ready, check first for `lessonOnRecord`, with what to check.
+    @State private var checkFirst: [UUID: String] = [:]
+    /// What each child is still practicing from earlier in the lesson's
+    /// sequence (`WorkToShowFirst`), read once per lesson.
+    @State private var practicing: [UUID: String] = [:]
     /// The selection as the picker opened: the Selected run. Until it is
     /// captured the live selection stands in, which is the same set.
     @State private var openingSelection: Set<UUID>?
@@ -140,7 +148,9 @@ struct StudentPickerPopover: View {
                 formerStudents: formerStudents,
                 arrangement: arrangement,
                 pinned: openingSelection ?? selectedIDs,
-                ready: readyIDs
+                ready: readyIDs,
+                checkFirst: checkFirst,
+                practicing: practicing
             ),
             records: records
         )
@@ -356,22 +366,34 @@ extension StudentPickerPopover {
         guard let lessonID = lessonOnRecord?.id else {
             records = [:]
             readyIDs = []
+            checkFirst = [:]
+            practicing = [:]
             return
         }
         let index = PresentationRecordIndex(lessonIDs: [lessonID.uuidString], in: viewContext)
         records = StudentPickerModel.records(from: index, lesson: lessonID)
-        readyIDs = arrangement == .selectedThenReady ? loadReady(lessonID) : []
-    }
-
-    /// The enrolled children on offer who are ready for the lesson.
-    private func loadReady(_ lessonID: UUID) -> Set<UUID> {
-        let enrolled = Set(candidates.filter { $0.enrollmentBlock == nil }.map(\.id.uuidString))
-        let ready = ReadyGroups.readyStudentIDs(
+        practicing = StudentPickerModel.practicing(
+            for: lessonID, among: enrolledIDs, lessons: dependencies.lessonCatalog.all, in: viewContext
+        )
+        guard arrangement == .selectedThenReady else {
+            readyIDs = []
+            checkFirst = [:]
+            return
+        }
+        let readiness = ReadyGroups.readiness(
             for: lessonID.uuidString,
-            among: enrolled,
+            among: Set(enrolledIDs.map(\.uuidString)),
             lessons: dependencies.lessonCatalog.all,
             in: viewContext
         )
-        return Set(ready.compactMap(UUID.init(uuidString:)))
+        readyIDs = Set(readiness.ready.compactMap(UUID.init(uuidString:)))
+        checkFirst = Dictionary(uniqueKeysWithValues: readiness.checkFirst.compactMap { key, reason in
+            UUID(uuidString: key).map { ($0, reason) }
+        })
+    }
+
+    /// The enrolled children on offer.
+    private var enrolledIDs: Set<UUID> {
+        Set(candidates.filter { $0.enrollmentBlock == nil }.map(\.id))
     }
 }

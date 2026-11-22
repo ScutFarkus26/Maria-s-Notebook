@@ -145,6 +145,11 @@ final class AppRouter {
     /// consumed by `ClassAreaChecklistView`.
     var checklistLessonRequest: ChecklistLessonRequest?
 
+    /// One-shot request to open one sub-area's ladder on the Groups page,
+    /// consumed by `GroupsView` (the Class Grid's and Lessons & Work's
+    /// Groups buttons).
+    var pendingSequenceLadder: SequenceLadderRoute?
+
     /// Refresh trigger for planning inbox
     var planningInboxRefreshTrigger: UUID = UUID()
 
@@ -301,6 +306,17 @@ final class AppRouter {
     func consumeChecklistLessonRequest() -> ChecklistLessonRequest? {
         defer { checklistLessonRequest = nil }
         return checklistLessonRequest
+    }
+
+    /// Opens Groups on one sub-area's ladder: who is ready, step by step.
+    func navigateToGroups(area: String, sequence: String) {
+        pendingSequenceLadder = SequenceLadderRoute(area: area, sequence: sequence)
+        selectedNavItem = .smallSequencePlanner
+    }
+
+    func consumePendingSequenceLadder() -> SequenceLadderRoute? {
+        defer { pendingSequenceLadder = nil }
+        return pendingSequenceLadder
     }
 
     /// Trigger planning inbox refresh

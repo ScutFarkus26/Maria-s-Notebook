@@ -119,11 +119,20 @@ nonisolated struct StudentPickerRow: Identifiable, Equatable, Sendable {
     /// Where she sits in a picker arranged Selected → Ready → Everyone Else;
     /// `nil` in a picker ordered by its sort menu.
     var placement: StudentPickerModel.Placement?
+    /// In the Ready run but held at Ready, check first: what to check
+    /// ("2 pieces of work still open").
+    var checkFirstReason: String?
+    /// "Practicing The Distributive Law": practice still open on an earlier
+    /// lesson in the picker's lesson's sequence (`WorkToShowFirst`).
+    var practicing: String?
 
     var id: UUID { candidate.id }
     var isSelectable: Bool { block == nil }
-    /// Ready for the picker's lesson by the ready queue's rules.
-    var isReady: Bool { placement == .ready }
+    /// Ready for the picker's lesson by the ready queue's rules, with nothing
+    /// to check first.
+    var isReady: Bool { placement == .ready && checkFirstReason == nil }
+    /// Ready, check first for the picker's lesson.
+    var isCheckFirst: Bool { placement == .ready && checkFirstReason != nil }
 }
 
 // MARK: - The Rules
@@ -191,6 +200,12 @@ nonisolated enum StudentPickerModel {
         var pinned: Set<UUID> = []
         /// Who is ready for the picker's lesson.
         var ready: Set<UUID> = []
+        /// Who is Ready, check first for it, with what to check. They join
+        /// the Ready run, captioned, rather than vanishing from it.
+        var checkFirst: [UUID: String] = [:]
+        /// What each child is still practicing from earlier in the lesson's
+        /// sequence, shown on her row in any arrangement.
+        var practicing: [UUID: String] = [:]
     }
 
     /// The rows a picker shows: searched, scoped to a level, sorted, and
@@ -211,17 +226,23 @@ nonisolated enum StudentPickerModel {
                 StudentPickerRow(
                     candidate: candidate,
                     record: records[candidate.id],
-                    block: candidate.enrollmentBlock
+                    block: candidate.enrollmentBlock,
+                    practicing: candidate.enrollmentBlock == nil ? query.practicing[candidate.id] : nil
                 )
             }
         case .selectedThenReady:
             return kept
                 .map { candidate in
-                    StudentPickerRow(
+                    let placement = placement(of: candidate, query: query)
+                    let enrolled = candidate.enrollmentBlock == nil
+                    return StudentPickerRow(
                         candidate: candidate,
                         record: records[candidate.id],
                         block: candidate.enrollmentBlock,
-                        placement: placement(of: candidate, query: query)
+                        placement: placement,
+                        checkFirstReason: placement == .ready && !query.ready.contains(candidate.id)
+                            ? query.checkFirst[candidate.id] : nil,
+                        practicing: enrolled ? query.practicing[candidate.id] : nil
                     )
                 }
                 .sorted { lhs, rhs in
@@ -320,10 +341,12 @@ nonisolated enum StudentPickerModel {
     }
 
     /// Selected wins over Ready: a child already on the lesson is not waiting
-    /// for it. A child who has left is never Ready.
+    /// for it. A child who has left is never Ready. Ready, check first is in
+    /// the Ready run too, captioned with what to check.
     private static func placement(of candidate: StudentPickerCandidate, query: Query) -> Placement {
         if query.pinned.contains(candidate.id) { return .selected }
-        if candidate.enrollmentBlock == nil, query.ready.contains(candidate.id) { return .ready }
+        if candidate.enrollmentBlock == nil,
+           query.ready.contains(candidate.id) || query.checkFirst[candidate.id] != nil { return .ready }
         return .everyoneElse
     }
 

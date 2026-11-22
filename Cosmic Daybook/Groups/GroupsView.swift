@@ -48,6 +48,7 @@ private struct GroupsPage: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
     @Environment(SaveCoordinator.self) private var saveCoordinator
+    @Environment(\.appRouter) private var appRouter
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
@@ -58,6 +59,8 @@ private struct GroupsPage: View {
     @State private var selectedArea: String?
     @State private var singlesExpanded = false
     @State private var lessonToPlan: ReadyLessonPlan?
+    /// A ladder another screen asked for (`AppRouter.navigateToGroups`).
+    @State private var requestedLadder: SequenceLadderRoute?
     /// The cards, rebuilt when the loader publishes or the level changes.
     @State private var built: ReadyGroups?
 
@@ -77,6 +80,12 @@ private struct GroupsPage: View {
             .toolbar { levelPicker }
             .navigationDestination(for: SequenceLadderRoute.self) { route in
                 ladder(for: route)
+            }
+            .navigationDestination(item: $requestedLadder) { route in
+                ladder(for: route)
+            }
+            .onChange(of: appRouter.pendingSequenceLadder, initial: true) {
+                if let route = appRouter.consumePendingSequenceLadder() { requestedLadder = route }
             }
             .sheet(item: $lessonToPlan) { plan in
                 ReadyLessonPlanSheet(plan: plan) { lessonToPlan = nil }

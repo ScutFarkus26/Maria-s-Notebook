@@ -112,6 +112,10 @@ final class TodayViewModel {
     /// Lessons on the day that have a plan to open, decided once per reload.
     var lessonIDsWithPlan: Set<UUID> = []
 
+    /// "Still practicing: …" for each lesson not yet given, by presentation
+    /// id, decided once per reload (`TodayViewModel+StillPracticing.swift`).
+    var stillPracticingLines: [UUID: String] = [:]
+
     // New Outputs for recent notes and their students
     var recentNotes: [CDNote] = []
     var recentNoteStudentsByID: [UUID: CDStudent] = [:]
@@ -355,6 +359,11 @@ final class TodayViewModel {
         hereStudentIDs = TodayAttendanceLoader.hereStudentIDs(in: attendanceResult.records)
         attendanceTaken = TodayAttendanceLoader.isTaken(in: attendanceResult.records)
         lessonIDsWithPlan = TodayLessonsLoader.lessonIDsWithPlan(for: filteredLessons, lessonsByID: lessonsByID)
+        let practicing = Self.stillPracticingLines(
+            for: filteredLessons, lessons: lessonCatalog?.all, names: { [studentsByID] in studentsByID[$0]?.shortName },
+            in: context
+        )
+        if practicing != stillPracticingLines { stillPracticingLines = practicing }
         recentNotes = TodayHiddenStudents.notes(notesResult.notes, hiding: hiddenIDs)
         recentNoteStudentsByID = updatedRecentNoteStudents
         followUpCheckIns = followUps

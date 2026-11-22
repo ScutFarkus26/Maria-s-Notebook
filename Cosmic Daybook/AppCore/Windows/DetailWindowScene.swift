@@ -119,7 +119,7 @@ struct DetailWindowScene<Value: Codable & Hashable, Host: View>: Scene {
 /// classroom's records, where its record isn't (bug hunt 2026-10-17 #31). A
 /// window that holds typing counts itself in `OpenDetailWindows` while its
 /// host is on screen, so a switch asks first (`DetailWindowClassroom`).
-private struct DetailWindowGate<Host: View>: View {
+struct DetailWindowGate<Host: View>: View {
     let dependencies: DetailWindowDependencies
     let minimumSize: CGSize
     let loadingStyle: DetailWindowLoadingStyle

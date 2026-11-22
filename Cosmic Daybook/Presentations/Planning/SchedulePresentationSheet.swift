@@ -11,6 +11,10 @@
 //  review. The answer travels back through `onPlan` and is written on the new
 //  draft by `PresentationPlanner`, exactly as the MCP tools write it.
 //
+//  A child still practicing an earlier lesson in the sequence carries a
+//  badge saying which ("Practicing The Distributive Law"), as chat's
+//  schedule_presentation prints a line: a word to the guide, never a block.
+//
 
 import SwiftUI
 import CoreData
@@ -51,6 +55,9 @@ struct SchedulePresentationSheet: View {
     /// How many of the selected children are already on record, while the
     /// second-pass/review question is up.
     @State private var repeatCount: Int?
+    /// What each child is still practicing from earlier in this lesson's
+    /// sequence (`WorkToShowFirst`), read once per lesson.
+    @State private var practicing: [UUID: String] = [:]
 
     /// The rows the search leaves on screen.
     private var filteredRows: [StudentPickerRow] { rows(matching: studentSearchText) }
@@ -63,7 +70,7 @@ struct SchedulePresentationSheet: View {
     private func rows(matching search: String) -> [StudentPickerRow] {
         StudentPickerModel.rows(
             candidates: StudentPickerModel.candidates(allStudents),
-            query: StudentPickerModel.Query(search: search, formerStudents: .shownBlocked),
+            query: StudentPickerModel.Query(search: search, formerStudents: .shownBlocked, practicing: practicing),
             records: records
         )
     }
@@ -204,6 +211,9 @@ struct SchedulePresentationSheet: View {
                     .foregroundStyle(.accent)
             }
         }
+        // "Practicing The Distributive Law": a word before the lesson goes on,
+        // never a refusal.
+        .badge(row.practicing.map { Text($0) })
         .contentShape(Rectangle())
         .onTapGesture {
             selectedStudentIDs = StudentPickerModel.toggling(
@@ -241,6 +251,12 @@ struct SchedulePresentationSheet: View {
         let index = PresentationRecordIndex(lessonIDs: [lessonID.uuidString], in: viewContext)
         recordIndex = index
         records = StudentPickerModel.records(from: index, lesson: lessonID)
+        practicing = StudentPickerModel.practicing(
+            for: lessonID,
+            among: Set(allStudents.filter { $0.enrollmentStatus == .enrolled }.compactMap(\.id)),
+            lessons: dependencies.lessonCatalog.all,
+            in: viewContext
+        )
     }
 
     // MARK: - Planning

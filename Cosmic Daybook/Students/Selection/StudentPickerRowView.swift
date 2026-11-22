@@ -68,10 +68,24 @@ struct StudentPickerRowView: View {
                         .foregroundStyle(.primary)
                     if row.isReady {
                         readyTag
+                    } else if row.isCheckFirst {
+                        checkFirstTag
                     }
                 }
                 if let given = row.record {
                     StudentRecordCaption(given: given)
+                }
+                if let reason = row.checkFirstReason, !reason.isEmpty {
+                    Text("Check first: \(reason)")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let practicing = row.practicing {
+                    Label(practicing, systemImage: WorkToShowFirst.glyph)
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
 
@@ -100,6 +114,18 @@ struct StudentPickerRowView: View {
             .padding(.vertical, 1)
             .background(Capsule().fill(AppColors.success.opacity(0.15)))
             .accessibilityLabel("Ready for this lesson")
+    }
+
+    /// "Check first" in the Groups page's orange: ready by the record, with
+    /// something to look at before the lesson (the caption says what).
+    private var checkFirstTag: some View {
+        Text("Check first")
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.orange)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 1)
+            .background(Capsule().fill(Color.orange.opacity(0.15)))
+            .accessibilityLabel("Ready, check first")
     }
 
     /// The tick keeps its slot when a row is unselected, so the ages stay in a column.

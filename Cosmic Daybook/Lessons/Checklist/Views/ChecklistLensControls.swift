@@ -67,3 +67,43 @@ struct ChecklistCompactPlanButton: View {
         .accessibilityLabel("Plan for \(readyCount) ready")
     }
 }
+
+/// "Groups" beside the lens: the Groups page's ladder for a sequence on
+/// screen, where the children ready for its next steps are gathered into
+/// groups. One sequence on screen opens it straight away; several offer a menu.
+struct ChecklistGroupsButton: View {
+    let area: String
+    let sequences: [String]
+
+    @Environment(\.appRouter) private var appRouter
+
+    /// The sequences a ladder can be drawn for: filed ones (a lesson with no
+    /// sequence sits in no sub-area), as the ladder spells them.
+    private var ladders: [String] {
+        sequences.map { $0.trimmed() }.filter { !$0.isEmpty }
+    }
+
+    var body: some View {
+        let ladders = ladders
+        let area = area.trimmed()
+        if !area.isEmpty, let only = ladders.first {
+            if ladders.count == 1 {
+                Button {
+                    appRouter.navigateToGroups(area: area, sequence: only)
+                } label: {
+                    Label("Groups", systemImage: "person.3")
+                }
+                .help("Open \(only) in Groups, with the children ready for each step")
+            } else {
+                Menu {
+                    ForEach(ladders, id: \.self) { sequence in
+                        Button(sequence) { appRouter.navigateToGroups(area: area, sequence: sequence) }
+                    }
+                } label: {
+                    Label("Groups", systemImage: "person.3")
+                }
+                .help("Open a sequence in Groups, with the children ready for each step")
+            }
+        }
+    }
+}

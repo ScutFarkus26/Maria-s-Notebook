@@ -81,6 +81,12 @@ struct LessonListRow: View {
     /// The Next card's Present button; nil on every other row.
     var onPresent: (() -> Void)?
     var presentShortcut: KeyboardShortcut?
+    /// The Next card's "Given — Quick Note": marks it given and opens the
+    /// quick note. Nil on every other row (they offer it in the context menu).
+    var onGivenQuickNote: (() -> Void)?
+    /// "Still practicing: Ora L (The Distributive Law)": children with
+    /// practice open on an earlier lesson in the sequence (`WorkToShowFirst`).
+    var stillPracticing: String?
 
     private var accessibilityLabelText: String {
         var label = "Lesson: \(lessonName)"
@@ -99,6 +105,9 @@ struct LessonListRow: View {
             label += ", presented"
         } else if let hereText {
             label += ", \(hereText)"
+        }
+        if let stillPracticing {
+            label += ". \(stillPracticing)"
         }
         return label
     }
@@ -122,6 +131,12 @@ struct LessonListRow: View {
                     if !children.isEmpty {
                         TodayStudentChips(chips: children)
                     }
+                    if let stillPracticing {
+                        Label(stillPracticing, systemImage: WorkToShowFirst.glyph)
+                            .font(AppTheme.ScaledFont.caption)
+                            .foregroundStyle(.orange)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(accessibilityLabelText)
@@ -130,7 +145,7 @@ struct LessonListRow: View {
                 trailingStatus
                 planButton
             }
-            if onMoveAbsent != nil || onPresent != nil {
+            if onMoveAbsent != nil || onPresent != nil || onGivenQuickNote != nil {
                 actionLine
             }
         }
@@ -179,6 +194,12 @@ struct LessonListRow: View {
                     .help("Moves the children who are absent onto this lesson on the next school day; the others stay")
             }
             Spacer(minLength: 0)
+            if let onGivenQuickNote {
+                Button(LessonQuickNote.givenTitle, action: onGivenQuickNote)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .help("Marks the lesson given for the children who are here, then opens a quick note")
+            }
             if let onPresent {
                 TodayNextButton(title: "Present", shortcut: presentShortcut, action: onPresent)
             }

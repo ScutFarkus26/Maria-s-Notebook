@@ -1,6 +1,6 @@
 // ClassGridChecklistView+Toolbar.swift
-// The Mac and regular-width iPad Checklist: the lens (All marks / Ready) and Jump to
-// sequence in the toolbar, beside the Class Grid's own area menu, search and children
+// The Mac and regular-width iPad Checklist: the lens (All marks / Ready), Groups and
+// Jump to sequence in the toolbar, beside the Class Grid's own area menu, search and children
 // filter (ClassGridView.swift).
 // No Select button: cells are selected with ⌘- and Shift-click, a drag, or Select ready.
 // The iPhone has Select and the lens menu in its navigation bar (ClassGridChecklistView.swift).
@@ -37,6 +37,9 @@ extension ClassGridChecklistView {
         }
         ToolbarItem(placement: .primaryAction) {
             ChecklistLensPicker(lens: $viewModel.lens, readyCount: viewModel.readyTotal)
+        }
+        ToolbarItem(placement: .primaryAction) {
+            ChecklistGroupsButton(area: viewModel.selectedArea, sequences: viewModel.visibleSequences)
         }
     }
 

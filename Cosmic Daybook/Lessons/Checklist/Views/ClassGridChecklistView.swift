@@ -221,6 +221,7 @@ struct ClassGridChecklistView: View {
                     }
                 }
                 ChecklistLensMenu(lens: $viewModel.lens, readyCount: viewModel.readyTotal)
+                ChecklistGroupsButton(area: viewModel.selectedArea, sequences: viewModel.visibleSequences)
             }
         }
     }

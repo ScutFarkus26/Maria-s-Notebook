@@ -118,6 +118,7 @@ struct CosmicDaybookApp: App {
             NotebookCommands(appRouter: appRouter, notebookOpener: notebookOpener)
             #if os(macOS)
             MainWindowOpenerCommands()
+            LessonQuickNoteCommands(notebookOpener: notebookOpener)
             #endif
         }
 
@@ -216,6 +217,9 @@ struct CosmicDaybookApp: App {
             placeholder: .unavailable("No Meeting Selected", systemImage: "person.2", framed: false),
             countsAsEditor: true
         ) { MeetingSessionWindowHost(payload: $0) }
+
+        // The quick note at the lesson (Today's "Given — Quick Note", ⌃⌘J).
+        LessonQuickNoteWindowScene(dependencies: detailWindowDependencies)
         #endif
     }
 }
