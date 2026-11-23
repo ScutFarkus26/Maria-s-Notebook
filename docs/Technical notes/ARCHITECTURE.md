@@ -52,6 +52,8 @@ enum NavigationItem: String, Hashable, Identifiable, CaseIterable {
 }
 ```
 
+**Links to one item (2026-11-22):** `cosmicdaybook://student/<id>`, `lesson/<id>` and `follow-up/<id>` (ids as Claude's tools return them; registered under `CFBundleURLTypes` in both Info.plists) open that item in the main window, so a Tide to-do's link can point at it (`AppCore/NotebookLink.swift`). A link only opens, never changes data. Parsing is strict (this scheme, a known kind, one UUID path part, no user, port, query or fragment); an id not in this notebook opens nothing and is logged. The main window takes it beside Handoff (`onOpenURL` in the Handoff modifier); one that arrives before the screen is up waits in `WindowHandoff`. A follow-up opens where it shows: a goal, or a flagged note about one child, on that child's page; a todo or a wider note on Today. The Keyboard Shortcuts, detail and Quick Note scenes don't claim links. A Mac Debug build registers the scheme with LaunchServices, so unregister it after building (`lsregister -u <app>`), or a link would open the Debug copy on the live notebook.
+
 Navigation via `AppRouter`:
 ```swift
 @Environment(\.appRouter) private var appRouter

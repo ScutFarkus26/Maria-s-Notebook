@@ -181,7 +181,9 @@ extension MCPNotebookTools {
                 entries, assignment: assignment, lesson: filing.lesson, persistence: persistence, reviewAt: day
             )
         }
-        PracticeCheckInTiming.scheduleCheckIns(forWorkFrom: presentationID, on: days, in: modelContext)
+        // New work takes her timed day: the kept day belongs to work that
+        // already has a check-in, which this leaves alone anyway.
+        PracticeCheckInTiming.scheduleCheckIns(forWorkFrom: presentationID, on: timed, in: modelContext)
         return workCount
     }
 }

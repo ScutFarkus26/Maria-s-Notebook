@@ -249,6 +249,7 @@ final class PresentationSession {
             allDecisions: decisions(for: studentIDs),
             checkIn: checkIn,
             timedCheckIns: checkInDaysForDone,
+            checkInMoved: checkInPicked || checkInChanged,
             lessons: lessons,
             followUpDetail: followUpDetail,
             alsoReady: newlyAlsoReady(for: studentIDs),
@@ -268,7 +269,9 @@ final class PresentationSession {
     ///   - timedCheckIns: each child's check-in day from
     ///     `PracticeCheckInTiming.checkInDays`. The sheet starts from them
     ///     when the record has no check-in day and no work yet; a Later draft
-    ///     or a record already decided keeps its own day.
+    ///     keeps the days it was left with, and a record already decided
+    ///     keeps its own (Done moves an unchanged child's day only when the
+    ///     guide moves the sheet's).
     func loadDecisions(
         studentIDs: [UUID],
         defaultDecision: CaptureFollowUp,
@@ -291,6 +294,12 @@ final class PresentationSession {
                 return (id, choice)
             }, uniquingKeysWith: { first, _ in first })
             checkIn = PresentationCheckIn(day: draft.checkInDay)
+            // Each child's own timed day, when Later kept them (none when
+            // the guide had picked a day, which is then everyone's).
+            for (key, day) in draft.timedCheckIns ?? [:] {
+                guard let id = UUID(uuidString: key), studentIDs.contains(id) else { continue }
+                timedCheckIns[id] = AppCalendar.startOfDay(day)
+            }
             followUpDetail = draft.followUpDetail ?? ""
             // A day that has passed since Later is no longer a choice.
             if let day = draft.nextLessonPlace?.day, day < AppCalendar.startOfDay(Date()) {
@@ -337,7 +346,10 @@ final class PresentationSession {
             checkInDay: checkIn.day,
             followUpDetail: followUpDetail.trimmed().isEmpty ? nil : followUpDetail,
             nextLessonPlace: nextLessonPlace,
-            savedAt: Date()
+            savedAt: Date(),
+            timedCheckIns: checkInDaysForDone.isEmpty
+                ? nil
+                : Dictionary(uniqueKeysWithValues: checkInDaysForDone.map { ($0.key.uuidString, $0.value) })
         )
     }
 

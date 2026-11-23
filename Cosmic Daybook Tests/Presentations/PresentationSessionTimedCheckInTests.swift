@@ -46,10 +46,15 @@ struct PresentationSessionTimedCheckInTests {
         AppCalendar.startOfDay(AppCalendar.addingDays(now, to: Date()))
     }
 
-    private func session(_ fixture: Fixture, timed: [UUID: Date]) throws -> PresentationSession {
+    private func freshDefaults() throws -> UserDefaults {
+        try #require(UserDefaults(suiteName: "PresentationSessionTimedCheckInTests.\(UUID().uuidString)"))
+    }
+
+    private func session(
+        _ fixture: Fixture, timed: [UUID: Date], defaults given: UserDefaults? = nil
+    ) throws -> PresentationSession {
         let session = PresentationSession(presentationID: try #require(fixture.assignment.id))
-        let suite = "PresentationSessionTimedCheckInTests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
+        let defaults = try given ?? freshDefaults()
         session.loadDecisions(
             studentIDs: [fixture.ada, fixture.ben], defaultDecision: .practice,
             timedCheckIns: timed, context: fixture.context, defaults: defaults
@@ -132,5 +137,115 @@ struct PresentationSessionTimedCheckInTests {
         #expect(reopened.checkIn == .on(chosen))
         #expect(!reopened.checkInChanged)
         #expect(reopened.checkInDaysForDone.isEmpty)
+    }
+
+    // MARK: - Review fixes (Phase 7)
+
+    @Test("Reopened after Done with a note added, each child keeps her own day")
+    func reopenedKeepsEachChildsDay() throws {
+        let fixture = try makeFixture()
+        let adaDay = days(from: 3)
+        let benDay = days(from: 6)
+        try done(try session(fixture, timed: [fixture.ada: adaDay, fixture.ben: benDay]), fixture)
+
+        let reopened = try session(fixture, timed: [fixture.ada: adaDay, fixture.ben: benDay])
+        reopened.groupNote = "Both kept going after the presentation."
+        try done(reopened, fixture)
+
+        let checks = try checkDays(fixture)
+        #expect(checks[fixture.ada.uuidString] == [adaDay])
+        #expect(checks[fixture.ben.uuidString] == [benDay])
+        let rows = try reviewDays(fixture)
+        #expect(rows[fixture.ada.uuidString] == adaDay)
+        #expect(rows[fixture.ben.uuidString] == benDay)
+    }
+
+    @Test("Reopened after Done, a check-in moved by hand stays where it was moved")
+    func reopenedKeepsHandMovedCheckIn() throws {
+        let fixture = try makeFixture()
+        let adaDay = days(from: 3)
+        let benDay = days(from: 6)
+        try done(try session(fixture, timed: [fixture.ada: adaDay, fixture.ben: benDay]), fixture)
+
+        let id = try #require(fixture.assignment.id)
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(
+            format: "presentationID == %@ AND studentID == %@", id.uuidString, fixture.ben.uuidString
+        )
+        let benWork = try #require(fixture.context.safeFetch(request).first)
+        let benCheck = try #require(WorkLogService.scheduledCheckIns(of: benWork, in: fixture.context).first)
+        let moved = days(from: 12)
+        try WorkCheckInService(context: fixture.context).reschedule(benCheck, to: moved)
+
+        let reopened = try session(fixture, timed: [fixture.ada: adaDay, fixture.ben: benDay])
+        reopened.groupNote = "A note after the move."
+        try done(reopened, fixture)
+
+        let checks = try checkDays(fixture)
+        #expect(checks[fixture.ada.uuidString] == [adaDay])
+        #expect(checks[fixture.ben.uuidString] == [moved])
+    }
+
+    @Test("Reopened after Done, a day the guide picks still goes to every child")
+    func reopenedPickedDayGoesToEveryone() throws {
+        let fixture = try makeFixture()
+        try done(try session(fixture, timed: [fixture.ada: days(from: 3), fixture.ben: days(from: 6)]), fixture)
+
+        let picked = days(from: 9)
+        let reopened = try session(fixture, timed: [:])
+        reopened.pickCheckIn(.on(picked))
+        try done(reopened, fixture)
+
+        let checks = try checkDays(fixture)
+        #expect(checks[fixture.ada.uuidString] == [picked])
+        #expect(checks[fixture.ben.uuidString] == [picked])
+        let rows = try reviewDays(fixture)
+        #expect(rows[fixture.ada.uuidString] == picked)
+        #expect(rows[fixture.ben.uuidString] == picked)
+    }
+
+    @Test("Later, then Done, gives each child her own timed day, as Done straight away does")
+    func laterKeepsTimedDays() throws {
+        let fixture = try makeFixture()
+        let adaDay = days(from: 3)
+        let benDay = days(from: 6)
+        let defaults = try freshDefaults()
+        let id = try #require(fixture.assignment.id)
+        let first = try session(fixture, timed: [fixture.ada: adaDay, fixture.ben: benDay], defaults: defaults)
+        PresentationSessionDraftStore.save(first.draft, presentationID: id, defaults: defaults)
+
+        let reopened = try session(fixture, timed: [fixture.ada: adaDay, fixture.ben: benDay], defaults: defaults)
+        #expect(reopened.checkIn == .on(adaDay))
+        try done(reopened, fixture)
+
+        let checks = try checkDays(fixture)
+        #expect(checks[fixture.ada.uuidString] == [adaDay])
+        #expect(checks[fixture.ben.uuidString] == [benDay])
+    }
+
+    @Test("Later keeps a picked day for every child")
+    func laterKeepsPickedDay() throws {
+        let fixture = try makeFixture()
+        let picked = days(from: 10)
+        let defaults = try freshDefaults()
+        let id = try #require(fixture.assignment.id)
+        let first = try session(fixture, timed: [fixture.ada: days(from: 3), fixture.ben: days(from: 6)], defaults: defaults)
+        first.pickCheckIn(.on(picked))
+        PresentationSessionDraftStore.save(first.draft, presentationID: id, defaults: defaults)
+
+        let reopened = try session(fixture, timed: [fixture.ada: days(from: 3), fixture.ben: days(from: 6)], defaults: defaults)
+        #expect(reopened.checkInDaysForDone.isEmpty)
+        try done(reopened, fixture)
+
+        let checks = try checkDays(fixture)
+        #expect(checks[fixture.ada.uuidString] == [picked])
+        #expect(checks[fixture.ben.uuidString] == [picked])
+    }
+
+    @Test("A draft saved before per-child days still reads, with its day for everyone")
+    func oldDraftStillReads() throws {
+        let json = #"{"everyone":"practice","overrides":{},"checkInDay":0,"savedAt":0}"#
+        let draft = try JSONDecoder().decode(PresentationSessionDraftStore.Draft.self, from: Data(json.utf8))
+        #expect(draft.timedCheckIns == nil)
     }
 }

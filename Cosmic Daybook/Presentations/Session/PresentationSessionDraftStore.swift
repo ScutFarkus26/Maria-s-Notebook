@@ -17,6 +17,10 @@ nonisolated enum PresentationSessionDraftStore {
         /// same reason.
         var nextLessonPlace: PresentationNextLessonPlace?
         var savedAt: Date
+        /// Each child's timed check-in day by student id, when the guide
+        /// hadn't picked one. Optional so an older draft still reads (its
+        /// one day then goes to everyone, as before).
+        var timedCheckIns: [String: Date]?
     }
 
     static func key(for presentationID: UUID) -> String {

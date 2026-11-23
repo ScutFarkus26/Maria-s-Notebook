@@ -130,6 +130,39 @@ struct MCPLessonLoopGapTests {
         #expect(WorkLogService.checkIns(of: work, in: context).count == 1)
     }
 
+    @Test("Filing again with another kind of work times the new work, not by the old row's day")
+    func filingAgainWithOtherWorkTimesTheNewWork() async throws {
+        let (tools, context) = try makeTools()
+        let golden = lesson("Golden Beads", step: 1, in: context)
+        _ = student("Ora", "Levi", in: context)
+        _ = try await call("record_presentation", [
+            "lesson": .string("Golden Beads"), "student_names": .array([.string("Ora")]),
+            "student_observations": practiceForOra
+        ], in: tools)
+        let practice = try oraWork(on: golden, in: context)
+        let first = try #require(WorkLogService.scheduledCheckIns(of: practice, in: context).first)
+        first.status = .completed
+        let presentationID = try #require(practice.presentationID.flatMap(UUID.init(uuidString:)))
+        let row = try #require(PresentationFollowUpService.rows(for: presentationID, in: context).first)
+        let past = AppCalendar.startOfDay(AppCalendar.addingDays(-10, to: Date()))
+        row.followUpReviewAt = past
+        CoreDataTestHelpers.save(context)
+
+        _ = try await call("record_presentation", [
+            "lesson": .string("Golden Beads"), "student_names": .array([.string("Ora")]),
+            "student_observations": .array([.object([
+                "student": .string("Ora"), "observation": .string("Ready for a booklet."),
+                "follow_up": .string("follow_up_work")
+            ])])
+        ], in: tools)
+        let followUp = try #require(context.safeFetch(CDFetchRequest(CDWorkModel.self)).first {
+            $0.lessonID == golden.id?.uuidString && $0.kind == .followUpAssignment
+        })
+        let day = try #require(WorkLogService.scheduledCheckIns(of: followUp, in: context).first?.date)
+        #expect(AppCalendar.startOfDay(day) > past, "the new work's check-in is timed, not on the old row's day")
+        #expect(AppCalendar.startOfDay(day) >= AppCalendar.startOfDay(Date()))
+    }
+
     // MARK: - 3. A group quick note on a plan given to fewer children
 
     @Test("A group quick note goes with the presentation recorded for fewer children")

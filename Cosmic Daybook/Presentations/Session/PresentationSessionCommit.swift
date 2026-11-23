@@ -29,6 +29,12 @@ enum PresentationSessionCommit {
         /// when the guide didn't pick one; `checkIn` is the day for anyone
         /// not in it.
         var timedCheckIns: [UUID: Date] = [:]
+        /// Whether the check-in day moved on the sheet (picked, or changed
+        /// from the one on the record). When it didn't, a child whose
+        /// decision is unchanged keeps her follow-up row's day and her
+        /// check-in as they are, so reopening How It Went to add a note moves
+        /// nobody's day (Phase 7 review of "Tide list clean-up 2026-11").
+        var checkInMoved = true
         /// The catalog, for the next lesson in the sequence.
         let lessons: [CDLesson]
         /// The new follow-up work's title; blank gives "Follow up: <lesson>".
@@ -218,7 +224,7 @@ enum PresentationSessionCommit {
             guard let studentID = UUID(uuidString: row.studentID),
                   let decision = input.allDecisions[studentID] else { continue }
             let changed = input.decisions[studentID] != nil
-            let redate = !changed && decision.createsWork && row.hasOpenFollowUp
+            let redate = !changed && decision.createsWork && row.hasOpenFollowUp && input.checkInMoved
             guard redate || (changed && decision == .none) else { continue }
             CaptureFollowUpPersistence.writeFollowUpRow(
                 decision, to: row, reviewAt: input.checkInDay(for: studentID), now: now
@@ -235,7 +241,9 @@ enum PresentationSessionCommit {
         skipping leftBehind: Set<NSManagedObjectID>,
         context: NSManagedObjectContext
     ) throws -> Int {
-        let studentIDs = Set(input.studentIDs.filter { input.allDecisions[$0]?.createsWork == true }.map(\.uuidString))
+        let studentIDs = Set(input.studentIDs.filter { id in
+            input.allDecisions[id]?.createsWork == true && (input.checkInMoved || input.decisions[id] != nil)
+        }.map(\.uuidString))
         guard !studentIDs.isEmpty else { return 0 }
 
         let request = CDFetchRequest(CDWorkModel.self)

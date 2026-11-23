@@ -53,6 +53,8 @@ Some screens you may remember now live inside others, and old links and saved wi
 
 The in-app Ask AI chat has been removed.
 
+**Links to one item.** A link that starts `cosmicdaybook://` (for example on a to-do in Tide that Claude made) opens one child's page, one lesson, or a follow-up where it shows: a goal or a note about one child on that child's page, a to-do or a wider note on **Today**. A link only opens; it never changes anything. A link to something that isn't in this notebook opens nothing.
+
 ### Features taken out
 
 On 2026-11-21 and 2026-11-22 these features lost their screens and their Claude tools: **Parent Reports** (the monthly letters) and the per-child report, **recall checks** (spaced re-checks of lessons), **Projects**, **Book Club**, **Community** topics, **Issues**, **Resources** (the library of files, Stories and packets), **Procedures**, **Going Out**, **Today's Pad** card, custom **meeting templates**, and the **Todos** screen. Nothing you wrote in them was deleted: every record stays in your notebook and in your backups. Old recall checks still show as rings in the Class Grid and the curriculum map, and still count toward readiness. Old links and saved windows open the nearest screen that stayed: Parent Reports opens Students; Projects, Book Club, Community, Going Out and Todos open Today; Resources, Stories and Procedures open Lessons. **Restock** and the guardians on a child's Overview stay.
@@ -781,6 +783,8 @@ The backup file is a JSON document containing all your students, lessons, presen
 ## iCloud Sync
 
 If you enable CloudKit in Settings, your data automatically syncs across your devices via iCloud. This is separate from manual backups — it happens continuously in the background.
+
+If the app ever opens to its database-error screen and you restore a backup from there, it restores with iCloud sync off. Turning sync on afterwards asks first (**Turn on iCloud sync?**): the restored notebook uploads beside the copy already in iCloud, so some things may show up twice. Choose **Turn On Anyway** to go ahead or **Cancel** to leave sync off.
 
 ---
 
