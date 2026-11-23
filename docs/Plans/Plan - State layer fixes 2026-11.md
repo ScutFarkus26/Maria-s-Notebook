@@ -1,6 +1,6 @@
 # State layer fixes 2026-11
 
-> **Not started.** Written 2026-11-22 from the [State layer review](<../Reviews/State layer review 2026-11-22.md>) (found at main 0bd5c3225; this plan was written on main 0094ac486).
+> **Working on it.** Started 2026-11-22. Written 2026-11-22 from the [State layer review](<../Reviews/State layer review 2026-11-22.md>) (found at main 0bd5c3225; this plan was written on main 0094ac486).
 > In short: fix the review's seven bugs and four "also found" problems in the view models and screen models, make its ten safe improvements, then push main and upload Cosmic Daybook to TestFlight.
 
 ## Goal
@@ -19,7 +19,7 @@ Marks: `plan/state-layer` (each phase tags the primary checkout `plan/state-laye
 - **What's left:** the weekly counter is at 81%, so 19% is left until Fri Nov 27, 11 am. Fits.
 - **Fable's own weekly window** is at 54%; this run adds about 13–22 points (1% of it is about $6.50). Fits.
 - **The estimates:** small fixes with file and line in the plan cost $7–15 a phase on Opus in the last three runs (the cost log's "Tide list clean-up" and "Phase 235/236" rows). Fable costs about 1.7× Opus for the same work (the agent table's $7.70 against $4.50), so each fix phase is put at about $15–30. The final check with a cold Fable review was $12–19 on Opus.
-- **The brake:** the run pauses itself if a phase costs more than twice the top of its estimate, or if the weekly counter reaches 90%. The counter is the whole account's, so other sessions running this week can trip it; it has 9 points of room and this run needs 4–7.
+- **The brake:** the run pauses itself if a phase costs more than twice the top of its estimate, or if the weekly counter reaches **98%** (Danny at the go-ahead, 2026-11-22: "Run it on its own until 98% of my usage is done"; the usual line is 90%). The counter is the whole account's, so other sessions running this week count too; it was at 83% at the go-ahead, which leaves 15 points of room, and this run needs 4–7.
 
 ## Before you go
 - **Nothing to sign in to.** The TestFlight upload key works (checked 2026-11-22 with `roll_out.sh upload-key`), so Xcode's own sign-in isn't needed.
@@ -27,7 +27,7 @@ Marks: `plan/state-layer` (each phase tags the primary checkout `plan/state-laye
 - **Keep the lid open and the Mac plugged in.** Keep-awake is on, including on battery.
 - **Keep Tide open.** Phases 3, 4 and 5 add rows to it.
 - **The go-ahead covers:** each phase merging itself into local main; Phase 5 pushing main to GitHub and uploading Cosmic Daybook (iPhone, iPad, Mac) to TestFlight with no tester group. The Daybook Assistant is not uploaded: no file it compiles is touched.
-- **The weekly limit is at 81%.** If other sessions use 5 points or more while this runs, the brake at 90% pauses it and a notification says so.
+- **The weekly limit was at 83% at the go-ahead.** The run pauses at 98% (Danny's line, D15) and a notification says so.
 - **Five phases**, under the eight the app reliably wakes a conductor for.
 
 ## Decisions
@@ -47,6 +47,7 @@ Marks: `plan/state-layer` (each phase tags the primary checkout `plan/state-laye
 - **D10. A "safe" item that turns out not to be safe is backed out.** If a build or a test shows something depends on what an item removes, ignores or narrows, undo that one item, merge the rest, and list it under "Decided". Two tries at most.
 - **D11. Don't grow Danny's list.** Each phase adds at most one Check on a device row and one Review choices row in Tide (`Areas/App Development/Cosmic Daybook/To do.md`), each listing its items in the note. Rows are never reworded.
 - **D12. If a fix phase stops,** Phase 4 still checks what merged (see its section) and says what's missing, so main is left sound. But nothing is pushed or uploaded unless Phases 1–4 all merged: Danny's answer was "when the run finishes and every check passes". Phase 5 stops if any of them stopped.
+- **D15. The run pauses at 98% of the weekly limit, not 90%** (Danny at the go-ahead, 2026-11-22). The conductor checks the counter each time a phase ends; a phase already working finishes.
 - **D13. Project rules that bind every phase** (`Cosmic Daybook/CLAUDE.md`): main-actor default isolation; no `nonisolated(unsafe)` and no `assumeIsolated` as a fix; `NSFetchRequest`, not `@Query`; SwiftLint must pass; extensions live in their own files. Anything Danny reads on screen is plain English.
 - **D14. `PresentationsViewModel`'s outputs keep their access** (tests write `readyLessons`, `blockedLessons` and the rest). `TodayViewModel`'s `agendaItems`, `scheduledMeetings` and `needsLessonCount` keep theirs (extensions in other files write them).
 
