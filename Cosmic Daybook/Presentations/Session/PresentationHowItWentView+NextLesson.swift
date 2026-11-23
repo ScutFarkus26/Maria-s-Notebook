@@ -47,7 +47,7 @@ extension PresentationHowItWentView {
 /// The lesson's name, the chips that say where it goes, and a line saying who
 /// it is for. The choice lives on the session; nothing is written until Done.
 struct PresentationNextLessonRow: View {
-    @Bindable var session: PresentationSession
+    let session: PresentationSession
     let lessonName: String
     /// The children the plan is for, in display order.
     let recipientNames: [String]

@@ -41,7 +41,7 @@ final class PresentationDetailViewModel {
     /// the group holds. A save writes the control back to the group only
     /// when the guide moved it away from this, so one child's mastery isn't
     /// copied onto classmates by an unrelated save.
-    var loadedProficiencyState: LessonPresentationState = .presented
+    @ObservationIgnored var loadedProficiencyState: LessonPresentationState = .presented
     /// One child's state set from a row of the sequence recap, by lesson and
     /// child (UUID spellings). Written to her rows at once; kept so the rows a
     /// later Save or Record makes for her carry it too (bug hunt 2026-11-03 #18).
@@ -92,10 +92,16 @@ final class PresentationDetailViewModel {
     @ObservationIgnored var splitBannerTask: Task<Void, Never>?
 
     // MARK: - Autosave State
-    var notesDirty: Bool = false
-    var originalNotes: String
+    // Bookkeeping no view reads, so kept out of observation.
+    @ObservationIgnored var notesDirty: Bool = false
+    @ObservationIgnored var originalNotes: String
     // Internal (not private) so +NotesAutosave extension can manage this task.
-    var notesAutosaveTask: Task<Void, Never>?
+    @ObservationIgnored var notesAutosaveTask: Task<Void, Never>?
+
+    // MARK: - "Before you start" refresh
+    /// The pending refresh of the sheet's "Before you start" list (see
+    /// `requestWorkToShowFirstRefresh`).
+    @ObservationIgnored private(set) var showFirstRefreshTask: Task<Void, Never>?
 
     // MARK: - Initialization
 
@@ -135,6 +141,28 @@ final class PresentationDetailViewModel {
     /// Resolves the currently selected CDLesson object from the provided list
     func lessonObject(from lessons: [CDLesson]) -> CDLesson? {
         lessons.first(where: { $0.id == editingLessonID })
+    }
+
+    // MARK: - "Before you start" refresh
+
+    /// Runs `refresh` 300 ms after the last request, so a burst of saves
+    /// refreshes the sheet's "Before you start" list once. The wait is here,
+    /// not on the view's publisher: the view makes that again on every
+    /// update, which would drop a value still waiting. The list is the
+    /// view's own state, so the refresh is the closure it passes.
+    func requestWorkToShowFirstRefresh(_ refresh: @escaping @MainActor () -> Void) {
+        showFirstRefreshTask?.cancel()
+        showFirstRefreshTask = Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            refresh()
+        }
+    }
+
+    /// Drops a refresh still waiting, when the list leaves the screen.
+    func cancelWorkToShowFirstRefresh() {
+        showFirstRefreshTask?.cancel()
+        showFirstRefreshTask = nil
     }
 
     // MARK: - Group Recap

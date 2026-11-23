@@ -30,7 +30,7 @@ final class PresentationSession {
     /// Children the day's attendance marks absent.
     private(set) var absentIDs: Set<UUID> = []
     /// Ticks the guide changed by hand; a new day's attendance leaves them alone.
-    private var touchedIDs: Set<UUID> = []
+    @ObservationIgnored private var touchedIDs: Set<UUID> = []
 
     /// The receipt for undoing the recording; held for the whole session.
     var undoToken: ImmediatePresentationRecordingService.UndoToken?

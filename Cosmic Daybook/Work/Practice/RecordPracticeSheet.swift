@@ -21,7 +21,7 @@ struct RecordPracticeSheet: View {
     @FetchRequest(sortDescriptors: []) private var allWork: FetchedResults<CDWorkModel>
 
     // CDLesson selection
-    @State var lessonPickerVM = LessonPickerViewModel()
+    @State var lessonPickerVM: LessonPickerViewModel
     @State private var lessonSearchFocused = true
 
     // CDStudent selection
@@ -194,7 +194,7 @@ struct RecordPracticeSheet: View {
                 }
             }
             .onAppear {
-                lessonPickerVM.configure(lessons: allLessons, students: allStudents)
+                lessonPickerVM.configure(lessons: allLessons)
                 // Named children who aren't on the chips' roster can't be
                 // seen or taken off, so they don't stay selected.
                 selectedStudentIDs = WorkSheetRoster.keptPrefill(selectedStudentIDs, roster: allStudents)

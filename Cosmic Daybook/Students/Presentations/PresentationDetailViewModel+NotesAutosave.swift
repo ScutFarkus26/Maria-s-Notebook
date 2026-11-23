@@ -22,10 +22,7 @@ extension PresentationDetailViewModel {
             guard !Task.isCancelled else { return }
 
             lessonAssignment.notes = notes
-            saveCoordinator.save(viewContext, reason: "Auto-saving notes")
-
-            originalNotes = notes
-            notesDirty = false
+            markNotesSaved(ifSaved: saveCoordinator.save(viewContext, reason: "Auto-saving notes"))
             PresentationDetailUtilities.notifyInboxRefresh()
         }
     }
@@ -35,10 +32,16 @@ extension PresentationDetailViewModel {
         guard notesDirty else { return }
 
         lessonAssignment.notes = notes
-        saveCoordinator.save(viewContext, reason: "Saving notes")
+        markNotesSaved(ifSaved: saveCoordinator.save(viewContext, reason: "Saving notes"))
+        PresentationDetailUtilities.notifyInboxRefresh()
+    }
 
+    /// Forgets the notes were unsaved only when the save went through. After a
+    /// failed one they stay marked, so closing the sheet (which flushes) tries
+    /// again instead of leaving them behind.
+    private func markNotesSaved(ifSaved saved: Bool) {
+        guard saved else { return }
         originalNotes = notes
         notesDirty = false
-        PresentationDetailUtilities.notifyInboxRefresh()
     }
 }

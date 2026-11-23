@@ -79,8 +79,7 @@ final class WorkDetailViewModel {
 
     // MARK: - Dependencies
     private let workID: UUID
-    private var modelContext: NSManagedObjectContext?
-    private var saveCoordinator: SaveCoordinator?
+    @ObservationIgnored private var modelContext: NSManagedObjectContext?
     
     // MARK: - Initialization
     init(workID: UUID) {
@@ -107,9 +106,10 @@ final class WorkDetailViewModel {
     }
     
     // MARK: - Data Loading
-    func loadWork(modelContext: NSManagedObjectContext, saveCoordinator: SaveCoordinator) {
+    /// `saveCoordinator` is not kept: every save this model makes is handed
+    /// one by its caller.
+    func loadWork(modelContext: NSManagedObjectContext, saveCoordinator _: SaveCoordinator) {
         self.modelContext = modelContext
-        self.saveCoordinator = saveCoordinator
         
         guard let fetchedWork = modelContext.object(CDWorkModel.self, id: workID) else {
             return

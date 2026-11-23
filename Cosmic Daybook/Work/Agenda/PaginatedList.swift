@@ -16,8 +16,8 @@ final class PaginationState {
     /// Number of items to load per page
     let pageSize: Int
 
-    /// Total count of items (set externally when data changes)
-    var totalCount: Int = 0
+    /// Total count of items (set through `updateTotal` when data changes)
+    private(set) var totalCount: Int = 0
 
     /// Whether there are more items to load
     var hasMore: Bool {

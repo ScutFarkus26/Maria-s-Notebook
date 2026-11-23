@@ -36,7 +36,7 @@ struct PresentationDetailView: View {
 
     // Child ViewModel (LessonPicker)
     // We initialize it with a dummy state; it will be configured in onAppear
-    @State private var lessonPickerVM = LessonPickerViewModel(selectedStudentIDs: [], selectedLessonID: UUID())
+    @State private var lessonPickerVM = LessonPickerViewModel(selectedLessonID: UUID())
 
     init(lessonAssignment: CDLessonAssignment, onDone: (() -> Void)? = nil, autoFocusLessonPicker: Bool = false) {
         self.lessonAssignment = lessonAssignment
@@ -73,12 +73,12 @@ struct PresentationDetailView: View {
                 self.session = PresentationSession(presentationID: lessonAssignment.id ?? UUID())
 
                 // Configure Picker VM
-                lessonPickerVM.configure(lessons: lessons, students: studentsAll)
+                lessonPickerVM.configure(lessons: lessons)
                 lessonPickerVM.selectLesson(newVM.editingLessonID)
             }
         }
         .onChange(of: lessonIDs) { _, _ in
-            lessonPickerVM.configure(lessons: lessons, students: studentsAll)
+            lessonPickerVM.configure(lessons: lessons)
         }
         .onChange(of: lessonPickerVM.selectedLessonID) { _, newValue in
             // Sync Picker -> Main VM
@@ -97,8 +97,8 @@ struct PresentationDetailView: View {
 /// the same sheet then turns into How It Went (`PresentationHowItWentView`).
 struct PresentationDetailContentView: View {
     @Bindable var vm: PresentationDetailViewModel
-    @Bindable var session: PresentationSession
-    @Bindable var lessonPickerVM: LessonPickerViewModel
+    let session: PresentationSession
+    let lessonPickerVM: LessonPickerViewModel
 
     let lessons: [CDLesson]
     let studentsAll: [CDStudent]
@@ -246,15 +246,18 @@ struct PresentationDetailContentView: View {
         })
         // A row logged anywhere else (the strip, Today, another device, MCP)
         // leaves "Before you start" too.
+        // Not held back here: this publisher is made again on every update,
+        // which would drop a value still waiting, so the 300 ms wait lives on
+        // the model, which outlives updates (as `MeetingQueueModel` does).
         .onReceive(
             NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)
                 // @Sendable: runs on the saving context's queue.
                 .filter { @Sendable note in
                     ManagedObjectChangeScope.saveTouches(Self.showFirstEntityNames, in: note.userInfo)
                 }
-                .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
+                .receive(on: RunLoop.main)
         ) { _ in
-            refreshWorkToShowFirst()
+            vm.requestWorkToShowFirstRefresh { refreshWorkToShowFirst() }
         }
         .onChange(of: vm.showingStudentPickerPopover) { _, isShowing in
             if !isShowing && lessonPickerFocused {
@@ -286,6 +289,9 @@ struct PresentationDetailContentView: View {
         }
         .onDisappear {
             vm.flushNotesAutosaveIfNeeded()
+            // As when the wait was on this view's own subscription: nothing
+            // refreshes a list that has left the screen.
+            vm.cancelWorkToShowFirstRefresh()
         }
     }
 

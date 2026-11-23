@@ -28,7 +28,7 @@ final class LessonsFilterState {
     // Debounced search text for filtering (updates ~200ms after user stops typing)
     private(set) var debouncedSearchText: String = ""
     
-    private var debounceTask: Task<Void, Never>?
+    @ObservationIgnored private var debounceTask: Task<Void, Never>?
     private let debounceInterval: Duration = .milliseconds(200)
     
     init() {

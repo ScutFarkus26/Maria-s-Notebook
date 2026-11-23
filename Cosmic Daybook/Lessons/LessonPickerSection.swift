@@ -17,7 +17,7 @@ import CoreData
 ///   - resolvedLesson: An optional resolved `CDLesson` to display when the selection matches.
 ///   - isFocused: Binding used by the underlying picker to control first-responder focus.
 struct LessonPickerSection: View {
-    @Bindable var viewModel: LessonPickerViewModel
+    let viewModel: LessonPickerViewModel
     let resolvedLesson: CDLesson?
     @Binding var isFocused: Bool
 

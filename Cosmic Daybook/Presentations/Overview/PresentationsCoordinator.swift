@@ -18,7 +18,7 @@ final class PresentationsCoordinator {
     // MARK: - Sheet Destinations
 
     /// Enum representing all possible sheet destinations in Presentations
-    /// CDNote: Cannot conform to Sendable because SwiftData models are not Sendable
+    /// Not Sendable: it carries Core Data objects, which belong to their context's queue.
     enum Sheet: Identifiable {
         case lessonAssignmentDetail(CDLessonAssignment)
         case schedulePresentationFor(CDLesson)

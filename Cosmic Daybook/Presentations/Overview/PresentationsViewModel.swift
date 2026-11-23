@@ -38,29 +38,28 @@ final class PresentationsViewModel {
     var calendar: Calendar = .current
 
     // MARK: - Cache State
-    private var lastUpdateDate: Date?
+    @ObservationIgnored private var lastUpdateDate: Date?
     private var cachedLessons: [CDLesson] = []
-    private var cachedWorkModels: [CDWorkModel] = []
     /// All non-given lesson assignments cached during update — used by chip-filter
     /// slices like `overdueReady` and `recentlyMissed`.
     var cachedLessonAssignments: [CDLessonAssignment] = []
     private var cachedStudentsStorage: [CDStudent] = []
 
     // PERFORMANCE: the pending update, kept so a newer one can cancel it
-    private(set) var pendingUpdateTask: Task<Void, Never>?
+    @ObservationIgnored private(set) var pendingUpdateTask: Task<Void, Never>?
     /// How many times `update` refetched the assignment table (tests pin the gate).
     @ObservationIgnored private(set) var assignmentFetchCount = 0
 
     // PERFORMANCE: Use hash-based change detection
-    private var lastLessonAssignmentChangeHash: Int?
-    private var lastLessonsHash: Int?
-    private var lastWorkModelHash: Int?
-    private var lastStudentsHash: Int?
+    @ObservationIgnored private var lastLessonAssignmentChangeHash: Int?
+    @ObservationIgnored private var lastLessonsHash: Int?
+    @ObservationIgnored private var lastWorkModelHash: Int?
+    @ObservationIgnored private var lastStudentsHash: Int?
     /// Order and test students (`settingsHash`).
-    private var lastSettingsHash: Int?
+    @ObservationIgnored private var lastSettingsHash: Int?
     /// Sub-area default rules and the preceding lessons' mastery marks
     /// (`readinessInputsHash`).
-    private var lastReadinessInputsHash: Int?
+    @ObservationIgnored private var lastReadinessInputsHash: Int?
 
     /// Bumped on every `LessonAssignment` change the view context could see;
     /// the cached table and its hash stand in for a refetch only while stored
@@ -83,13 +82,12 @@ final class PresentationsViewModel {
     /// Releases every cached object graph this view model pins.
     ///
     /// The caches are lifetime-scoped — once `update` runs they hold lessons,
-    /// students, work models, and assignments for as long as the view model
+    /// students, and assignments for as long as the view model
     /// lives. Under memory pressure that's worth giving back; the change-detection
     /// hashes and `lastUpdateDate` are cleared alongside them so the next `update`
     /// sees "changed" and refetches instead of short-circuiting on stale state.
     func clearCaches() {
         cachedLessons = []
-        cachedWorkModels = []
         cachedLessonAssignments = []
         cachedStudentsStorage = []
         lessonsByIDCache = [:]
@@ -114,7 +112,8 @@ final class PresentationsViewModel {
     // MARK: - Public API
 
     // Fetch data and update the view model.
-    // PERFORMANCE: Runs asynchronously in background to avoid blocking the main thread
+    // PERFORMANCE: Runs in a task on the main actor that pauses between its
+    // steps, so a newer update can cancel it and the screen stays responsive.
     // swiftlint:disable:next function_parameter_count
     func update(
         viewContext: NSManagedObjectContext,
@@ -128,7 +127,7 @@ final class PresentationsViewModel {
         // Cancel any pending update task
         pendingUpdateTask?.cancel()
 
-        // Launch async update in background
+        // Launch the update in its own main-actor task
         pendingUpdateTask = Task { @MainActor in
             await updateAsync(
                 viewContext: viewContext,
@@ -204,13 +203,6 @@ final class PresentationsViewModel {
             return
         }
 
-        lastLessonAssignmentChangeHash = laHash
-        lastLessonsHash = lHash
-        lastWorkModelHash = wHash
-        lastStudentsHash = sHash
-        lastSettingsHash = settingsHash
-        lastReadinessInputsHash = readinessHash
-
         #if DEBUG
         PerformanceLogger.logScreenLoad(
             screenName: "PresentationsViewModel",
@@ -224,10 +216,6 @@ final class PresentationsViewModel {
         #endif
 
         cachedLessons = lessons
-        cachedWorkModels = workModels
-        cachedLessonAssignments = lessonAssignments
-        cachedAssignmentsGeneration = generation
-        lastUpdateDate = Date()
 
         let visibleStudents = TestStudentsFilter.filterVisible(
             students.filterEnrolled(), show: showTestStudents, namesRaw: testStudentNamesRaw
@@ -273,6 +261,23 @@ final class PresentationsViewModel {
         self.readyLessons = partition.ready
         self.blockedLessons = partition.blocked
         self.blockingResults = partition.blockingResultsMap
+
+        // "What I last saw", recorded only now that the lists show it, with no
+        // pause in between. An update cancelled at a pause above leaves all of
+        // it untouched, so the update that cancelled it finds the change still
+        // to do. Written before the last pause, these made that next update
+        // take the cached table with the new hash, see nothing changed and
+        // return, and the lists kept their old rows (state layer review
+        // 2026-11-22, B2).
+        cachedLessonAssignments = lessonAssignments
+        cachedAssignmentsGeneration = generation
+        lastLessonAssignmentChangeHash = laHash
+        lastLessonsHash = lHash
+        lastWorkModelHash = wHash
+        lastStudentsHash = sHash
+        lastSettingsHash = settingsHash
+        lastReadinessInputsHash = readinessHash
+        lastUpdateDate = Date()
     }
 
     private func fetchLessonAssignmentsData(from viewContext: NSManagedObjectContext) -> [CDLessonAssignment] {

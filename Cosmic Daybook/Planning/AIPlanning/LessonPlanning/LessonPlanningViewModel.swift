@@ -21,9 +21,9 @@ final class LessonPlanningViewModel {
     let mode: PlanningMode
 
     private(set) var currentSession: PlanningSession?
-    private var planningService: LessonPlanningService?
-    private var managedObjectContext: NSManagedObjectContext?
-    private var saveCoordinator: SaveCoordinator?
+    @ObservationIgnored private var planningService: LessonPlanningService?
+    @ObservationIgnored private var managedObjectContext: NSManagedObjectContext?
+    @ObservationIgnored private var saveCoordinator: SaveCoordinator?
     /// Recommendations already put into the plan, so Apply can't add them twice.
     private(set) var appliedRecommendationIDs: Set<UUID> = []
 
@@ -98,9 +98,13 @@ final class LessonPlanningViewModel {
         }
     }
     
-    /// Sends a follow-up message in the conversation.
+    /// Sends a follow-up message in the conversation. Ignored while a reply
+    /// is on its way (a "Why?" tap stays enabled then, though the text field
+    /// doesn't): each call copies the session, so two at once left whichever
+    /// reply came last to write over the other's question and answer.
     func sendMessage(_ text: String) {
-        guard !text.trimmed().isEmpty,
+        guard !isLoading,
+              !text.trimmed().isEmpty,
               var session = currentSession,
               let service = planningService else { return }
         

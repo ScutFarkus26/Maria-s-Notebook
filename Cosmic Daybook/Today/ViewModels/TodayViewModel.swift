@@ -28,7 +28,7 @@ final class TodayViewModel {
     // MARK: - Dependencies
 
     let context: NSManagedObjectContext
-    private var calendar: Calendar
+    @ObservationIgnored private var calendar: Calendar
     private let cacheManager = TodayCacheManager()
 
     /// The ready queue, rebuilt only when one of its inputs changes — not on
@@ -63,78 +63,80 @@ final class TodayViewModel {
     var levelFilter: LevelFilter = .all { didSet { scheduleReload() } }
 
     // MARK: - Outputs
+    // `private(set)` where only this file writes; `agendaItems`, `scheduledMeetings`
+    // and `needsLessonCount` are written by extensions in other files.
 
-    var todaysLessons: [CDLessonAssignment] = []
+    private(set) var todaysLessons: [CDLessonAssignment] = []
 
     // CDWorkModel-based lists
-    var staleFollowUps: [FollowUpWorkItem] = []
+    private(set) var staleFollowUps: [FollowUpWorkItem] = []
     /// Every stale work item; `staleFollowUps` keeps only the top
     /// `TodayScheduleBuilder.staleRowLimit`.
-    var staleTotalCount = 0
+    private(set) var staleTotalCount = 0
     /// Gone quiet's rows: `staleFollowUps`, a group or flexible lesson's
     /// children sharing one row, most quiet first.
-    var goneQuietItems: [AgendaItem] = []
+    private(set) var goneQuietItems: [AgendaItem] = []
     /// Open todos linked to work with a row on Today (Gone quiet, and the
     /// due check-ins in the Todos list), folded onto those rows.
-    var linkedTodos: TodayLinkedTodos = .empty
+    private(set) var linkedTodos: TodayLinkedTodos = .empty
 
     // Unified agenda (lessons + work items, user-orderable)
     var agendaItems: [AgendaItem] = []
 
     // Completed work items
-    var completedWork: [CDWorkModel] = []
+    private(set) var completedWork: [CDWorkModel] = []
 
     // Calendar events for today
-    var todaysCalendarEvents: [CDCalendarEvent] = []
+    private(set) var todaysCalendarEvents: [CDCalendarEvent] = []
 
     // Scheduled meetings for today
     var scheduledMeetings: [CDScheduledMeeting] = []
 
     // Completed meetings for today
-    var completedMeetings: [CDStudentMeeting] = []
+    private(set) var completedMeetings: [CDStudentMeeting] = []
 
     /// The day's blocks on the Schedules timetable, in time order (`TodayScheduleRows`).
-    var scheduleRows: [TodayScheduleRows.Row] = []
+    private(set) var scheduleRows: [TodayScheduleRows.Row] = []
 
-    var attendanceSummary: AttendanceSummary = AttendanceSummary()
-    var absentToday: [UUID] = []
-    var leftEarlyToday: [UUID] = []
+    private(set) var attendanceSummary: AttendanceSummary = AttendanceSummary()
+    private(set) var absentToday: [UUID] = []
+    private(set) var leftEarlyToday: [UUID] = []
     /// Every child marked absent on the selected day, whatever the level
     /// filter (`absentToday` is filtered) — for the lesson rows.
-    var absentStudentIDs: Set<UUID> = []
+    private(set) var absentStudentIDs: Set<UUID> = []
     /// Every child marked present or late on the selected day — who lesson
     /// rows count as here.
-    var hereStudentIDs: Set<UUID> = []
+    private(set) var hereStudentIDs: Set<UUID> = []
     /// Whether any child has an attendance mark today; lesson rows say
     /// "6 of 7 here" only once it is.
-    var attendanceTaken = false
+    private(set) var attendanceTaken = false
 
     /// Lessons on the day that have a plan to open, decided once per reload.
-    var lessonIDsWithPlan: Set<UUID> = []
+    private(set) var lessonIDsWithPlan: Set<UUID> = []
 
     /// "Still practicing: …" for each lesson not yet given, by presentation
     /// id, decided once per reload (`TodayViewModel+StillPracticing.swift`).
-    var stillPracticingLines: [UUID: String] = [:]
+    private(set) var stillPracticingLines: [UUID: String] = [:]
 
     // New Outputs for recent notes and their students
-    var recentNotes: [CDNote] = []
-    var recentNoteStudentsByID: [UUID: CDStudent] = [:]
+    private(set) var recentNotes: [CDNote] = []
+    private(set) var recentNoteStudentsByID: [UUID: CDStudent] = [:]
 
     /// Enrolled children overdue for a lesson, for the "Needs Lesson" day card.
     var needsLessonCount = 0
 
     /// What Restock needs, for the Restock day card (shown only when
     /// something is needed). Read in every reload: a few open needs.
-    var restockDigest = RestockDigest.empty
+    private(set) var restockDigest = RestockDigest.empty
 
     /// Due and overdue work check-ins, one per work, for the todo list.
     /// Departed children's rows are kept and marked (see TodayFollowUpLoader).
-    var followUpCheckIns: [WorkCheckInFollowUp] = []
+    private(set) var followUpCheckIns: [WorkCheckInFollowUp] = []
     /// Former students named on those rows — the enrolled cache never holds them.
-    var departedStudentsByID: [UUID: CDStudent] = [:]
+    private(set) var departedStudentsByID: [UUID: CDStudent] = [:]
     /// Every child the day's meetings name who is still in the notebook,
     /// enrolled or not, for the meeting rows' names.
-    var meetingStudentsByID: [UUID: CDStudent] = [:]
+    private(set) var meetingStudentsByID: [UUID: CDStudent] = [:]
 
     // MARK: - Cache Accessors (delegate to cacheManager)
 
@@ -153,7 +155,7 @@ final class TodayViewModel {
     // MARK: - Error Reporting
 
     /// Throttle: last time a fetch error toast was shown (30s cooldown)
-    private var lastErrorToastTime: Date?
+    @ObservationIgnored private var lastErrorToastTime: Date?
 
     private func showFetchErrorToast(_ collector: FetchErrorCollector) {
         let now = Date()
@@ -235,7 +237,7 @@ final class TodayViewModel {
         let (day, nextDay) = AppCalendar.dayRange(for: date)
         let errorCollector = FetchErrorCollector()
 
-        // PERFORMANCE: Fetch all data first, then batch update @Published properties
+        // PERFORMANCE: Fetch all data first, then batch update the observed properties
         // This reduces view re-renders from 7+ to 1 by coalescing all changes
 
         // 1. Fetch lessons data
@@ -331,7 +333,7 @@ final class TodayViewModel {
         // 7c. Restock's open needs, for its day card
         let restock = TodayRestockLoader.digest(in: context)
 
-        // BATCH UPDATE: Apply all @Published changes together to minimize view re-renders
+        // BATCH UPDATE: Apply all observed changes together to minimize view re-renders
         todaysLessons = filteredLessons
         staleFollowUps = workResult.staleFollowUps
         staleTotalCount = workResult.staleTotalCount

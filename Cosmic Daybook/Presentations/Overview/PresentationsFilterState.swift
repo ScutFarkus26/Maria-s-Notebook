@@ -7,8 +7,8 @@ import SwiftUI
 
 @Observable
 final class PresentationsFilterState {
-    /// Live text in the search field.
-    var searchText: String = ""
+    /// Live text in the search field; set through `updateSearchText`.
+    private(set) var searchText: String = ""
 
     /// Debounced search text — what the grid actually filters against.
     var debouncedSearchText: String = ""
@@ -17,7 +17,7 @@ final class PresentationsFilterState {
     /// Ready. `.ready` is the default, and where turning a flag off lands.
     var selectedChip: PresentationsFilterChip = .ready
 
-    private var debounceTask: Task<Void, Never>?
+    @ObservationIgnored private var debounceTask: Task<Void, Never>?
 
     func updateSearchText(_ new: String) {
         searchText = new

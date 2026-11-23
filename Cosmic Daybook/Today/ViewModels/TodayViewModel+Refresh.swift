@@ -77,17 +77,18 @@ extension TodayViewModel {
         // Cancel any pending reload
         reloadTask?.cancel()
 
-        // Schedule a debounced reload (400ms delay balances responsiveness with energy efficiency)
+        // Schedule a debounced reload (400ms delay balances responsiveness with energy efficiency).
+        // The model is taken hold of only after the wait: held across it, a
+        // closed Today stayed alive for the 400 ms and then ran a full reload.
         reloadTask = Task { [weak self] in
-            guard let self else { return }
             do {
                 try await Task.sleep(for: .milliseconds(400)) // 400ms debounce
-                guard !Task.isCancelled else { return }
-                if reloadIsRequired || reloadInputs.consume(pendingIn: context) {
-                    reload()
-                }
             } catch {
-                // Task was cancelled, ignore
+                return // Cancelled by a newer request.
+            }
+            guard !Task.isCancelled, let self else { return }
+            if reloadIsRequired || reloadInputs.consume(pendingIn: context) {
+                reload()
             }
         }
     }
