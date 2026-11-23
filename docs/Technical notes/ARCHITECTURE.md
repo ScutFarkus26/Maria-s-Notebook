@@ -191,6 +191,10 @@ private func scheduleSearch() {
 
 **Batch property updates** — Set all `@Observable` properties together to trigger one SwiftUI re-render.
 
+**Two rules about what tells a view (2026-11-23, from the [State layer review](<../Reviews/State layer review 2026-11-22.md>)):**
+- *Equal values don't notify.* The `@Observable` setter stores a value equal to the old one and tells no one (`!=` for Equatable values, `!==` for class references, element by element for arrays). Apple documents none of this; it was read in the Xcode 27.2 SDK and is pinned by tests. An array of Core Data objects compares by identity, so re-assigning the same students after one was renamed sends nothing. A store that must redraw its readers after an edit writes its backing value inside `withMutation(keyPath:)`, which always notifies (`RosterStore.refresh()`, pinned by `RosterStoreEditNotifiesTests`). The other side of the rule: a cache a view fills while it draws must be `@ObservationIgnored`, with a tracked counter beside it if a reset has to redraw (`ClassSubjectChecklistViewModel`'s lessons-per-sequence cache).
+- *A value kept in UserDefaults gets one shared stamp.* Observation can't see UserDefaults, and a computed property on a model tells only that one instance's readers. A default that several screens show goes through one shared `@Observable` object that keeps no copy, registers each read with `access(keyPath:)` and wraps each write in `withMutation(keyPath:)` (`Backup/LastBackupStamp.swift`). Anything that writes the default behind its back has to tell it afterwards, as a restore does with `keep(atLeast:)`. The settings import (`SettingsExportService.importSettings`) still writes its keys straight to UserDefaults and tells no one, so a screen open during an import shows the new value on its next redraw.
+
 **Service delegation** — Extract complex logic (200+ lines) into service classes (e.g., `TodayDataFetcher`, `TodayCacheManager`).
 
 **Equatable** — Implement on ViewModels driving expensive views for shallow change detection.
