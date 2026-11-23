@@ -72,7 +72,7 @@ struct StudentsSmallFixesFix1010ITests {
         CoreDataTestHelpers.seedLesson(in: context, name: "Not hers")
         #expect(CoreDataTestHelpers.save(context))
 
-        let vm = StudentDetailViewModel(student: ada, dependencies: dependencies)
+        let vm = StudentDetailViewModel(student: ada)
         vm.loadData(viewContext: context)
         #expect(vm.lessons.count == 1_010)
         #expect(!vm.lessons.contains { $0.name == "Not hers" })

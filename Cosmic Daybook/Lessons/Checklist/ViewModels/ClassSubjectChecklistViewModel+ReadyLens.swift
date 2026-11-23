@@ -1,4 +1,4 @@
-// ClassAreaChecklistViewModel+ReadyLens.swift
+// ClassSubjectChecklistViewModel+ReadyLens.swift
 // The Ready to Present lens: how many cells on screen are Ready (the toolbar's count),
 // how many in one row (the Class column's "5 ready"), and the row's Plan, a draft for
 // exactly those children made the way the card's Present makes one (+Presenting).

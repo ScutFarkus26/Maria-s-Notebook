@@ -24,24 +24,26 @@ final class StudentsViewModel {
     /// True on a school day before anyone has a mark.
     var showsAttendanceNotTaken: Bool { isSchoolDayToday && !attendanceTaken }
     /// School days since the last presented lesson; -1 when there is none in a year.
-    var cachedDaysSinceLastLesson: [UUID: Int] = [:]
-    var cachedNextLessonNames: [UUID: String] = [:]
-    var cachedLastObservationDates: [UUID: Date] = [:]
+    private(set) var cachedDaysSinceLastLesson: [UUID: Int] = [:]
+    private(set) var cachedNextLessonNames: [UUID: String] = [:]
+    private(set) var cachedLastObservationDates: [UUID: Date] = [:]
 
     // MARK: - Change Detection (see StudentsViewModel+Caches.swift)
 
     /// Flips when an attendance row changes.
     @ObservationIgnored var attendanceInputs: ManagedObjectChangeFlag?
     /// The day today's attendance was last loaded for.
-    @ObservationIgnored var attendanceLoadedFor: Date?
+    @ObservationIgnored private(set) var attendanceLoadedFor: Date?
     /// Attendance loads actually run (for tests pinning the gate).
-    @ObservationIgnored var attendanceLoadCount = 0
+    @ObservationIgnored private(set) var attendanceLoadCount = 0
     /// Flips when anything the table caches read changes (see `tableCacheInputEntities`).
     @ObservationIgnored var tableCacheInputs: ManagedObjectChangeFlag?
     /// The day and counter epoch the table caches were last built under.
-    @ObservationIgnored var tableCachesBuiltFor: TableCacheStamp?
+    @ObservationIgnored private(set) var tableCachesBuiltFor: TableCacheStamp?
     /// Full table-cache builds actually run (for tests pinning the gate).
-    @ObservationIgnored var tableCacheBuildCount = 0
+    @ObservationIgnored private(set) var tableCacheBuildCount = 0
+    /// The refresh waiting out a burst of saves (`requestRefresh`).
+    @ObservationIgnored private var pendingRefresh: Task<Void, Never>?
 
     // MARK: - Signals
 
@@ -233,6 +235,22 @@ final class StudentsViewModel {
         buildTableCaches(viewContext: viewContext, calendar: calendar, students: students)
     }
 
+    /// Refreshes 300 ms after the last request, so a burst of saves reloads
+    /// once. `students` is read when the wait ends, so the refresh sees the
+    /// roster as it is then.
+    func requestRefresh(
+        viewContext: NSManagedObjectContext,
+        calendar: Calendar,
+        students: @escaping @MainActor () -> [CDStudent]
+    ) {
+        pendingRefresh?.cancel()
+        pendingRefresh = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled, let self else { return }
+            self.refreshIfNeeded(viewContext: viewContext, calendar: calendar, students: students())
+        }
+    }
+
     /// Reloads only what moved since the last call: today's attendance when an
     /// attendance row changed or the day turned over; the lesson and
     /// observation caches when one of their inputs changed, or the day (or
@@ -299,7 +317,7 @@ final class StudentsViewModel {
         _ = tableCacheFlag(for: viewContext).consume(pendingIn: viewContext)
         tableCachesBuiltFor = TableCacheStamp(calendar: calendar)
         tableCacheBuildCount += 1
-        let days = computeDaysSinceLastLessonCache(for: students, using: viewContext, calendar: calendar)
+        let days = Self.computeDaysSinceLastLessonCache(for: students, using: viewContext, calendar: calendar)
         if days != cachedDaysSinceLastLesson { cachedDaysSinceLastLesson = days }
 
         let nextNames = Self.nextLessonNames(for: Set(students.compactMap(\.id)), in: viewContext)

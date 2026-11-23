@@ -1,4 +1,4 @@
-// ClassAreaChecklistViewModel+Clearing.swift
+// ClassSubjectChecklistViewModel+Clearing.swift
 // Clear from a cell (menu, card, Delete key) or the selection bar: straight away when the
 // cells hold only plans and open work, otherwise held in `pendingClear` until the guide
 // says yes (`ChecklistClearSummary`).

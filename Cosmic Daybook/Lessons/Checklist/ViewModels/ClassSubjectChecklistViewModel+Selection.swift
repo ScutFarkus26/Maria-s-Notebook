@@ -1,4 +1,4 @@
-// ClassAreaChecklistViewModel+Selection.swift
+// ClassSubjectChecklistViewModel+Selection.swift
 // A click, the keyboard cursor, the cell card and selecting without a mode.
 // A plain click opens the cell's card; ⌘-click toggles a cell in the selection;
 // Shift-click and a drag reach along a row or down a column (ChecklistSelection);

@@ -97,7 +97,7 @@ struct StudentYearPlanTab: View {
                         onReschedule: { entry, newDate in
                             guard let studentID = student.id else { return }
                             Task {
-                                await viewModel.rescheduleWithCascade(
+                                viewModel.rescheduleWithCascade(
                                     entry, to: newDate, studentID: studentID, context: viewContext
                                 )
                             }
@@ -132,7 +132,7 @@ struct StudentYearPlanTab: View {
             Button(plan.actionTitle) {
                 pendingReadjust = nil
                 guard let id = student.id else { return }
-                Task { await viewModel.readjust(plan, studentID: id, context: viewContext) }
+                Task { viewModel.readjust(plan, studentID: id, context: viewContext) }
             }
             Button("Cancel", role: .cancel) { pendingReadjust = nil }
         }
@@ -169,7 +169,7 @@ struct StudentYearPlanTab: View {
         guard let targetDate = AppCalendar.shared.date(from: comps) else { return }
 
         Task {
-            await viewModel.rescheduleWithCascade(
+            viewModel.rescheduleWithCascade(
                 entry, to: targetDate, studentID: studentID, context: viewContext
             )
         }

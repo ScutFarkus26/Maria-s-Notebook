@@ -1,4 +1,4 @@
-// ClassAreaChecklistViewModel+DeepLinks.swift
+// ClassSubjectChecklistViewModel+DeepLinks.swift
 // Requests from elsewhere to open the grid somewhere particular: one lesson's
 // row ("Show in Checklist" on a presentation card), or an area and one of its
 // sequence bands ("View Class Progress" on a child's track card).

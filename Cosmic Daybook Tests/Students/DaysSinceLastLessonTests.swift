@@ -51,7 +51,7 @@ struct DaysSinceLastLessonTests {
         for students: [CDStudent],
         in context: NSManagedObjectContext
     ) -> [UUID: Int] {
-        StudentsViewModel().computeDaysSinceLastLessonCache(
+        StudentsViewModel.computeDaysSinceLastLessonCache(
             for: students, using: context, calendar: AppCalendar.shared
         )
     }

@@ -41,14 +41,17 @@ struct ClassGridChildrenView: View {
     }
 
     var body: some View {
+        // Filtered and grouped once per draw; every list below reads this.
+        let groups = self.groups
         VStack(spacing: 0) {
-            content
+            content(groups)
             if isRegular {
                 Divider()
                 footer
             }
         }
         .onAppear { load() }
+        .onDisappear { reloadDebounceTask?.cancel() }
         .onPresentationDataChangeWhenVisible(of: Self.reloadEntityNames, in: viewContext, catchUpOnAppear: false) {
             // A CloudKit import or a bulk edit lands as several saves back to back;
             // one reload 250 ms after the last.
@@ -79,11 +82,8 @@ struct ClassGridChildrenView: View {
     // MARK: - Content
 
     @ViewBuilder
-    private var content: some View {
-        if model.isLoading && model.studentCards.isEmpty {
-            ProgressView()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if model.studentCards.isEmpty {
+    private func content(_ groups: [ClassGridChildrenModel.LevelGroup]) -> some View {
+        if model.studentCards.isEmpty {
             ContentUnavailableView {
                 Label("Nothing started yet", systemImage: "person.text.rectangle")
             } description: {
@@ -100,15 +100,15 @@ struct ClassGridChildrenView: View {
                 ContentUnavailableView.search(text: scope.searchText)
             }
         } else if isRegular {
-            regularList
+            regularList(groups)
         } else {
-            compactList
+            compactList(groups)
         }
     }
 
     /// The Mac and iPad: a band per level, then one row per child, her strips
     /// wrapping beside her name.
-    private var regularList: some View {
+    private func regularList(_ groups: [ClassGridChildrenModel.LevelGroup]) -> some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
                 ForEach(groups) { group in
@@ -147,7 +147,7 @@ struct ClassGridChildrenView: View {
 
     /// The iPhone: a card per child, her areas and strips inside, folded to its
     /// header until opened.
-    private var compactList: some View {
+    private func compactList(_ groups: [ClassGridChildrenModel.LevelGroup]) -> some View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 ForEach(groups) { group in

@@ -64,7 +64,7 @@ struct ReviewFixes1011CTests {
         let viewModel = AddSequenceViewModel()
         viewModel.selectedLesson = lesson
         viewModel.startDate = cal.date(from: DateComponents(year: 2026, month: 11, day: 2)) ?? Date()
-        await viewModel.computePreview(student: student, context: context)
+        viewModel.computePreview(student: student, context: context)
         let before = Date()
         viewModel.scheduleAll(student: student, context: context)
 

@@ -1,4 +1,4 @@
-// ClassAreaChecklistViewModel+Presenting.swift
+// ClassSubjectChecklistViewModel+Presenting.swift
 // The card's "Present with N others ready…" and the selection bar's "Present as a
 // group…": a draft presentation for exactly those children, made the way the
 // Three-Year View makes one, for the present-a-lesson sheet to record. Recording

@@ -18,23 +18,11 @@ final class StudentDetailViewModel {
     private(set) var lessons: [CDLesson] = []
     private(set) var lessonAssignments: [CDLessonAssignment] = []
     private(set) var lessonsByID: [UUID: CDLesson] = [:]
-    private(set) var lessonAssignmentsByID: [UUID: CDLessonAssignment] = [:]
     private(set) var nextLessonsForStudent: [LessonAssignmentSnapshot] = []
-    /// Lessons that have been presented to this student
-    private(set) var presentedLessonIDs: Set<UUID> = []
-    /// Lessons that this student has mastered (based on CDLessonPresentation.state == .proficient)
-    private(set) var proficientLessonIDs: Set<UUID> = []
-    private(set) var plannedLessonIDs: Set<UUID> = []
 
-    // MARK: - UI State
-    var toastMessage: String?
-
-    private let dependencies: AppDependencies
-    
     // MARK: - Initialization
-    init(student: CDStudent, dependencies: AppDependencies) {
+    init(student: CDStudent) {
         self.student = student
-        self.dependencies = dependencies
     }
 
     // MARK: - Data Loading
@@ -65,26 +53,6 @@ final class StudentDetailViewModel {
         self.lessonAssignments = filteredLAs
 
         updateData(lessons: fetchedLessons, lessonAssignments: filteredLAs)
-        loadProficientLessonIDs(viewContext: viewContext)
-    }
-
-    /// Loads lesson IDs that have been mastered by this student from CDLessonPresentation records.
-    private func loadProficientLessonIDs(viewContext: NSManagedObjectContext) {
-        let studentIDString = student.id?.uuidString ?? ""
-        // PERFORMANCE: Use predicate to filter at database level instead of loading all records
-        // CDNote: Must use stateRaw (stored property) not state (computed property) in predicates
-        let proficientStateRaw = LessonPresentationState.proficient.rawValue
-        let descriptor = CDFetchRequest(CDLessonPresentation.self)
-        descriptor.predicate = NSPredicate(
-            format: "studentID == %@ AND stateRaw == %@",
-            studentIDString,
-            proficientStateRaw
-        )
-        let proficientPresentations = viewContext.safeFetch(descriptor)
-
-        proficientLessonIDs = Set(
-            proficientPresentations.compactMap { UUID(uuidString: $0.lessonID) }
-        )
     }
 
     // MARK: - Public API
@@ -92,10 +60,6 @@ final class StudentDetailViewModel {
         // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
         lessonsByID = Dictionary(
             lessons.uniqueByID.compactMap { l in l.id.map { ($0, l) } },
-            uniquingKeysWith: { first, _ in first }
-        )
-        lessonAssignmentsByID = Dictionary(
-            lessonAssignments.uniqueByID.compactMap { la in la.id.map { ($0, la) } },
             uniquingKeysWith: { first, _ in first }
         )
 
@@ -115,13 +79,6 @@ final class StudentDetailViewModel {
             }
         }
         nextLessonsForStudent = sorted.map { $0.snapshot() }
-
-        presentedLessonIDs = Set(
-            lessonAssignments
-                .filter { $0.isPresented && $0.resolvedStudentIDs.contains(studentID) }
-                .map(\.resolvedLessonID)
-        )
-        plannedLessonIDs = Set(nextLessonsForStudent.map(\.lessonID))
     }
 
     // MARK: - Business Logic (moved from View)

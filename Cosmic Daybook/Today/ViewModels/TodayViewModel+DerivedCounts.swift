@@ -82,7 +82,7 @@ extension TodayViewModel {
         request.predicate = CDStudent.enrolledPredicate
         let students = TestStudentsFilter.filterVisible(context.safeFetch(request)).uniqueByID
         guard !students.isEmpty else { return 0 }
-        let daysMap = StudentsViewModel().computeDaysSinceLastLessonCache(
+        let daysMap = StudentsViewModel.computeDaysSinceLastLessonCache(
             for: students,
             using: context,
             calendar: calendar

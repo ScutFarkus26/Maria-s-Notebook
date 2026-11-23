@@ -1,4 +1,4 @@
-// ClassAreaChecklistViewModel+Collapsing.swift
+// ClassSubjectChecklistViewModel+Collapsing.swift
 // Sequence bands the guide folds away. Remembered per area; a lesson search shows
 // every band open, so a match is never hidden behind a fold.
 

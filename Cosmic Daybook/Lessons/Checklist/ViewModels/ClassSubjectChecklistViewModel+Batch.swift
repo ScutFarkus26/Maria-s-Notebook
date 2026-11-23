@@ -1,4 +1,4 @@
-// ClassAreaChecklistViewModel+Batch.swift
+// ClassSubjectChecklistViewModel+Batch.swift
 // The selection bar's marks (`ChecklistBatchActionExecutor`), each saved once for the
 // whole selection and taken back if the save fails (+Saving).
 

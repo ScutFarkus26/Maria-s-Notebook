@@ -239,9 +239,6 @@ struct StudentDetailView: View {
             }
         }
         #endif
-        .overlay(alignment: .top) {
-            StudentDetailToastOverlay(message: vm.toastMessage)
-        }
         // Handoff: the same student on the guide's other devices. Not a
         // Sample Class child, who isn't on them and opened "not found" there
         // (bug hunt 2026-10-17, #38).
@@ -363,9 +360,7 @@ struct StudentDetailView: View {
         self.student = student
         self.isInline = isInline
         self.onDone = onDone
-        vm = StudentDetailViewModel(
-            student: student, dependencies: AppDependenciesKey.defaultValue
-        )
+        vm = StudentDetailViewModel(student: student)
     }
 }
 

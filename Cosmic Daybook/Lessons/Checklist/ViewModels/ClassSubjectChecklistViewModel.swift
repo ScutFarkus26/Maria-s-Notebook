@@ -1,20 +1,25 @@
-// ClassAreaChecklistViewModel.swift
+// ClassSubjectChecklistViewModel.swift
 // Cosmic Daybook
 //
 // Extracted from ClassGridChecklistView.swift for better separation of concerns.
 //
+// The type is ClassAreaChecklistViewModel; its files kept the older "Subject" name.
+//
 // Extensions:
-// - ClassAreaChecklistViewModel+CellActions.swift         (toggle/mark/clear individual cells)
-// - ClassAreaChecklistViewModel+PresentationHelpers.swift (upsert history; Mastered/Clear: ChecklistCellRecords)
-// - ClassAreaChecklistViewModel+Collapsing.swift          (sequence bands folded away, per area)
-// - ClassAreaChecklistViewModel+Selection.swift           (clicks, cursor, card, selecting without a mode)
-// - ClassAreaChecklistViewModel+LadderSteps.swift         (the card's steps: presented, practicing, reviewing)
-// - ClassAreaChecklistViewModel+Presenting.swift          (drafts for the present-a-lesson sheet)
-// - ClassAreaChecklistViewModel+ReadyLens.swift           (Ready to Present: counts and the row's Plan)
-// - ClassAreaChecklistViewModel+Batch.swift               (the selection bar's marks)
-// - ClassAreaChecklistViewModel+Clearing.swift            (Clear, asking first when it takes history)
-// - ClassAreaChecklistViewModel+Removing.swift            (Unmark Presented and Remove Plan, asking first)
-// - ClassAreaChecklistViewModel+Saving.swift              (saves through SaveCoordinator; a failure is taken back)
+// - ClassSubjectChecklistViewModel+CellActions.swift         (toggle/mark/clear individual cells)
+// - ClassSubjectChecklistViewModel+PresentationHelpers.swift (upsert history; Mastered/Clear: ChecklistCellRecords)
+// - ClassSubjectChecklistViewModel+Collapsing.swift          (sequence bands folded away, per area)
+// - ClassSubjectChecklistViewModel+Selection.swift           (clicks, cursor, card, selecting without a mode)
+// - ClassSubjectChecklistViewModel+LadderSteps.swift         (the card's steps: presented, practicing, reviewing)
+// - ClassSubjectChecklistViewModel+Presenting.swift          (drafts for the present-a-lesson sheet)
+// - ClassSubjectChecklistViewModel+ReadyLens.swift           (Ready to Present: counts and the row's Plan)
+// - ClassSubjectChecklistViewModel+Batch.swift               (the selection bar's marks)
+// - ClassSubjectChecklistViewModel+Clearing.swift            (Clear, asking first when it takes history)
+// - ClassSubjectChecklistViewModel+Removing.swift            (Unmark Presented and Remove Plan, asking first)
+// - ClassSubjectChecklistViewModel+Saving.swift              (saves through SaveCoordinator; a failure is taken back)
+// - ClassSubjectChecklistViewModel+Filtering.swift           (the lesson and student filters; applyFilters)
+// - ClassSubjectChecklistViewModel+DeepLinks.swift           (a link to an area, a sequence or one lesson's row)
+// - ClassSubjectChecklistViewModel+SubAreaOrder.swift        (Move Up / Move Down on a sub-area band)
 
 import SwiftUI
 import CoreData
@@ -25,32 +30,32 @@ import OSLog
 // Delegates to:
 // - ClassGridEngine: Matrix state computation
 // - ChecklistBatchActionExecutor: Batch operations
-// - ChecklistDragSelectionManager: Drag selection (used in view)
 @Observable
-class ClassAreaChecklistViewModel {
+final class ClassAreaChecklistViewModel {
     static let logger = Logger.lessons
 
-    // The derived collections below are written by +Filtering.applyFilters(), which lives in
-    // another file — hence internal rather than private(set). Views read them only.
+    // `students`, `columns`, `visibleLessons` and `visibleSequences` are written by
+    // +Filtering.applyFilters(), which lives in another file — hence internal rather than
+    // private(set). Views read them only.
 
     /// The columns actually drawn: `rosterStudents` narrowed by `studentFilterIDs`.
     var students: [CDStudent] = []
     /// `students` in level blocks, for the Mac and iPad columns (the iPhone keeps roster order).
     var columns = ChecklistStudentColumns()
-    private var allStudents: [CDStudent] = []
+    @ObservationIgnored private var allStudents: [CDStudent] = []
     /// Every student the guide can filter to — the enrolled roster minus hidden test students.
     /// Column labels and the matrix key off this rather than `students`, so neither churns
     /// as the filter opens and closes.
-    var rosterStudents: [CDStudent] = []
+    private(set) var rosterStudents: [CDStudent] = []
     /// Every lesson in the selected area.
-    var lessons: [CDLesson] = []
+    private(set) var lessons: [CDLesson] = []
     /// The rows actually drawn: `lessons` narrowed by `appliedLessonQuery`.
     var visibleLessons: [CDLesson] = []
     /// Every sequence in the selected area.
     var orderedSequences: [String] = []
     /// Sequences that still hold at least one visible lesson.
     var visibleSequences: [String] = []
-    var availableAreas: [String] = []
+    private(set) var availableAreas: [String] = []
     var selectedArea: String = ""
 
     // MARK: - Filter State
@@ -68,13 +73,13 @@ class ClassAreaChecklistViewModel {
     /// Populated only while the selected area has none, to keep the grid from dead-ending.
     var otherAreaMatches: [ChecklistAreaMatchCount] = []
 
-    var matrixStates: [UUID: [UUID: StudentChecklistRowState]] = [:]
+    private(set) var matrixStates: [UUID: [UUID: StudentChecklistRowState]] = [:]
     /// The status bar's legend counts over the visible rows × visible students. Recomputed by
     /// `recomputeStatusCounts()` whenever the matrix or a filter changes.
-    var statusCounts = ChecklistStatusCounts()
+    private(set) var statusCounts = ChecklistStatusCounts()
     /// The Class column's tallies per visible lesson, over the visible students. Recomputed
     /// alongside `statusCounts`.
-    var rowSummaries: [UUID: ChecklistRowSummary] = [:]
+    private(set) var rowSummaries: [UUID: ChecklistRowSummary] = [:]
     /// The selected area's folded-away sequence bands, in `ChecklistCollapsedSequences.key`
     /// form. Loaded with the area, saved by +Collapsing.
     var collapsedSequences: Set<String> = []
@@ -85,7 +90,7 @@ class ClassAreaChecklistViewModel {
     /// Each lesson's predecessor's name, for the cell's "Not yet: … not presented" text.
     private(set) var precedingLessonNames: [UUID: String] = [:]
     /// Each lesson's predecessor, for the card's Previous lesson box.
-    private(set) var precedingLessonIDs: [UUID: UUID] = [:]
+    @ObservationIgnored private(set) var precedingLessonIDs: [UUID: UUID] = [:]
 
     // MARK: - Row Focus
     /// The lesson whose row a deep link asked to reveal. The grid scrolls to it
@@ -110,7 +115,7 @@ class ClassAreaChecklistViewModel {
     var isEditModeActive: Bool = false
     var isSelectionMode: Bool { isEditModeActive || !selectedCells.isEmpty }
     /// Where Shift-click and a drag reach from: the last cell clicked or ⌘-clicked.
-    var selectionAnchor: CellIdentifier?
+    @ObservationIgnored var selectionAnchor: CellIdentifier?
 
     // MARK: - Cursor and Card
     /// The keyboard cursor: the cell the arrows move from and the keys act on. A click
@@ -130,8 +135,12 @@ class ClassAreaChecklistViewModel {
     @ObservationIgnored private var testStudentNames = ""
 
     // OPTIMIZATION: Cache lessons-per-sequence to avoid filtering + sorting on every body evaluation.
-    // Internal (not private) so the +Filtering extension can invalidate it when a filter changes.
-    var cachedLessonsBySequence: [String: LessonsBySection] = [:]
+    // The grid fills it while it draws (`lessonsSequenced`), so it is kept out of observation:
+    // as a tracked property each fill invalidated the bands already drawn. What a band observes
+    // is `lessonsCacheGeneration`, which every lookup reads and every reset bumps, so a filter
+    // or a remote change still redraws a band that only ever read the cache.
+    @ObservationIgnored private var cachedLessonsBySequence: [String: LessonsBySection] = [:]
+    private var lessonsCacheGeneration = 0
 
     /// Lessons inside a single sequence, in their section bands, top to bottom.
     /// Each band's lessons are in curriculum order, and a band with an empty name is a
@@ -250,6 +259,8 @@ class ClassAreaChecklistViewModel {
     }
 
     func lessonsSequenced(sequence: String) -> LessonsBySection {
+        // Read before the cache, so a hit is observed too.
+        _ = lessonsCacheGeneration
         if let cached = cachedLessonsBySequence[sequence] {
             return cached
         }
@@ -267,6 +278,7 @@ class ClassAreaChecklistViewModel {
 
     func invalidateLessonsCache() {
         cachedLessonsBySequence.removeAll()
+        lessonsCacheGeneration &+= 1
     }
 
     /// Reveals one lesson's row: switches the grid to that lesson's own area and

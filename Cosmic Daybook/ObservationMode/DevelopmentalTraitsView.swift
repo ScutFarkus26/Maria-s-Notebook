@@ -21,10 +21,7 @@ struct DevelopmentalTraitsView: View {
 
     @ViewBuilder
     private var content: some View {
-        if viewModel.isLoading {
-            ProgressView()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if viewModel.totalTraitObservations == 0 {
+        if viewModel.totalTraitObservations == 0 {
             emptyState
         } else {
             scrollContent

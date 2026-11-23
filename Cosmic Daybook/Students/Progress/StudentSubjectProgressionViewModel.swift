@@ -11,19 +11,15 @@ final class StudentAreaProgressionViewModel {
     private(set) var nodes: [LessonProgressionNode] = []
     private(set) var completedCount = 0
     private(set) var totalCount = 0
-    private(set) var isLoading = false
 
     private var student: CDStudent?
-    private var allLessons: [CDLesson] = []
-    private var allPresentations: [CDLessonAssignment] = []
+    @ObservationIgnored private var allLessons: [CDLesson] = []
+    @ObservationIgnored private var allPresentations: [CDLessonAssignment] = []
 
     // MARK: - Configuration
 
     // swiftlint:disable:next function_body_length
     func configure(for student: CDStudent, area: String, sequence: String, context: NSManagedObjectContext) {
-        isLoading = true
-        defer { isLoading = false }
-
         // Lessons that could be in this area/sequence — a store-side superset
         // of the trimmed match below, which is also what the next-lesson
         // planner searches — and the presentations of any of them.

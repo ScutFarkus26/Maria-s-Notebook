@@ -18,7 +18,6 @@ final class DevelopmentalTraitsViewModel {
     private(set) var traitCards: [DevelopmentalTraitCardData] = []
     private(set) var recentObservations: [TraitObservation] = []
     private(set) var totalTraitObservations: Int = 0
-    private(set) var isLoading = false
 
     // MARK: - Load Data
 
@@ -28,9 +27,6 @@ final class DevelopmentalTraitsViewModel {
             recentObservations = []
             return
         }
-
-        isLoading = true
-        defer { isLoading = false }
 
         let descriptor = {
             let r = CDFetchRequest(CDNote.self)

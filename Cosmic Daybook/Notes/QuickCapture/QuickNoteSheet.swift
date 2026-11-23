@@ -76,10 +76,6 @@ struct QuickNoteSheet: View {
     var body: some View {
         actualView
             .task {
-                // Update view model with students once available
-                // CDNote: ViewModel holds students for display name logic
-                viewModel.setupInitialState()
-                
                 // Brief delay for sheet animation to complete
                 do {
                     try await Task.sleep(for: .milliseconds(100))

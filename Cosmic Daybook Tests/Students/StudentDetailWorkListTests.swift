@@ -47,7 +47,7 @@ struct StudentDetailWorkListTests {
         let second = assign([maya, eli], lessonID: lessonID, in: context)
         CoreDataTestHelpers.save(context)
 
-        let model = StudentDetailViewModel(student: maya, dependencies: AppDependencies(coreDataStack: stack))
+        let model = StudentDetailViewModel(student: maya)
         let listed = model.fetchWorkModelsForStudent(viewContext: context)
         let mayas = (first + second).filter { $0.studentID == maya.id!.uuidString }
         #expect(Set(listed.map(\.objectID)) == Set(mayas.map(\.objectID)))

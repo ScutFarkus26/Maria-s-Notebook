@@ -186,7 +186,7 @@ extension StudentsViewModel {
 
     /// School days since each student's last given lesson, or -1 for a child
     /// with none in the last year.
-    func computeDaysSinceLastLessonCache(
+    static func computeDaysSinceLastLessonCache(
         for students: [CDStudent],
         using viewContext: NSManagedObjectContext,
         calendar: Calendar

@@ -1,4 +1,4 @@
-// ClassAreaChecklistViewModel+PresentationHelpers.swift
+// ClassSubjectChecklistViewModel+PresentationHelpers.swift
 // CDLessonPresentation upsert helper for ClassAreaChecklistViewModel. A cell's work for
 // Mastered and its Clear live in `ChecklistCellRecords`, shared with the selection bar.
 

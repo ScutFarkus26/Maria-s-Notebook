@@ -65,7 +65,7 @@ final class StudentCurriculumMapModel {
     private(set) var untouchedAreaCount = 0
     var expandedAreas: Set<String> = []
 
-    private var allRows: [CurriculumRow] = []
+    @ObservationIgnored private var allRows: [CurriculumRow] = []
 
     // MARK: - Build
 

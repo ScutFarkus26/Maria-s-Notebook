@@ -69,7 +69,7 @@ struct YearPlanDomainFixesTests {
         let (ada, onScreen) = try plan(screenContext)
         let vm = StudentYearPlanViewModel()
         vm.load(studentID: ada.id, context: screenContext)
-        await vm.rescheduleWithCascade(
+        vm.rescheduleWithCascade(
             onScreen[0], to: try day("2027-02-01"), studentID: try #require(ada.id), context: screenContext
         )
 

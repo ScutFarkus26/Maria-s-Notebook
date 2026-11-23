@@ -1,4 +1,4 @@
-// ClassAreaChecklistViewModel+Removing.swift
+// ClassSubjectChecklistViewModel+Removing.swift
 // Unmark Presented and Remove Plan from a cell (menu, card): straight away, unless taking
 // her off deletes a record that was given or carries notes (she was the only child on it).
 // Then the change waits in `pendingRemoval` until the guide says yes, as Clear does

@@ -213,7 +213,7 @@ final class StudentYearPlanViewModel {
         to newDate: Date,
         studentID: UUID,
         context: NSManagedObjectContext
-    ) async {
+    ) {
         YearPlanPacing.reschedule(entry, to: newDate, in: context)
         context.safeSave()
         load(studentID: studentID, context: context)

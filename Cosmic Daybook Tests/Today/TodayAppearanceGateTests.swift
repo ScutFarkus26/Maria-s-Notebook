@@ -64,8 +64,7 @@ struct TodayAppearanceGateTests {
         request.predicate = CDStudent.enrolledPredicate
         let students = TestStudentsFilter.filterVisible(context.safeFetch(request)).uniqueByID
         guard !students.isEmpty else { return 0 }
-        let viewModel = StudentsViewModel()
-        let daysMap = viewModel.computeDaysSinceLastLessonCache(
+        let daysMap = StudentsViewModel.computeDaysSinceLastLessonCache(
             for: students, using: context, calendar: AppCalendar.shared
         )
         return daysMap.values.filter { $0 == -1 || $0 >= 7 }.count

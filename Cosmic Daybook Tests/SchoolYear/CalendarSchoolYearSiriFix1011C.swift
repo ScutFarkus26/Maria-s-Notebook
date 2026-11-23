@@ -128,7 +128,7 @@ struct CalendarSchoolYearSiriFix1011C {
         let viewModel = AddSequenceViewModel()
         viewModel.selectedLesson = lessons[0]
         viewModel.startDate = day(2026, 11, 2)
-        await viewModel.computePreview(student: student, context: context)
+        viewModel.computePreview(student: student, context: context)
 
         #expect(viewModel.previewItems.map(\.alreadyExists) == [false, false, true])
 

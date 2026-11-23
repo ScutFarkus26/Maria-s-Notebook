@@ -55,7 +55,7 @@ struct DaysSinceLastLessonRuleTests {
         // Roster and record.
         #expect(DaysSinceLastLesson.lastLessons(in: context)[mayaID]?.date == mathDay)
         #expect(DaysSinceLastLessonView.lastLessonDate(studentID: mayaID, in: context) == mathDay)
-        let roster = StudentsViewModel().computeDaysSinceLastLessonCache(
+        let roster = StudentsViewModel.computeDaysSinceLastLessonCache(
             for: [maya], using: context, calendar: AppCalendar.shared
         )
         #expect(roster[mayaID] == expected)

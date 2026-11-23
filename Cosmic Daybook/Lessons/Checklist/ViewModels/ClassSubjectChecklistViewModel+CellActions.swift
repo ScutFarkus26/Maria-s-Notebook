@@ -1,4 +1,4 @@
-// ClassAreaChecklistViewModel+CellActions.swift
+// ClassSubjectChecklistViewModel+CellActions.swift
 // Individual cell toggle/mark/clear operations for ClassAreaChecklistViewModel.
 
 import Foundation

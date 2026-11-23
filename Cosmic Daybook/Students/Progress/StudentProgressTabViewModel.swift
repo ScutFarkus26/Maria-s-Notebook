@@ -24,14 +24,17 @@ final class StudentProgressTabViewModel {
     private(set) var nextLessonByStanding: [String: CDLesson] = [:]
 
     // MARK: - Private State
-    private var studentID: UUID?
-    private var context: NSManagedObjectContext?
+    // Kept out of observation: no view reads these, and `lessonsByID` is
+    // filled while the tab draws (`reportTitle(for:)`), which as a tracked
+    // property invalidated the view in the middle of drawing it.
+    @ObservationIgnored private var studentID: UUID?
+    @ObservationIgnored private var context: NSManagedObjectContext?
     /// Lessons looked up by id on demand (`nil` remembers a miss). The tab
     /// only ever needs the lesson behind an untitled report, so the lesson
     /// table is never loaded whole.
-    private var lessonsByID: [UUID: CDLesson?] = [:]
+    @ObservationIgnored private var lessonsByID: [UUID: CDLesson?] = [:]
     /// This student's work rows.
-    private var allWorkModels: [CDWorkModel] = []
+    @ObservationIgnored private var allWorkModels: [CDWorkModel] = []
 
     // MARK: - Initialization
 

@@ -22,7 +22,6 @@ final class ClassGridChildrenModel {
     // MARK: - Outputs
 
     private(set) var studentCards: [StudentProgressionCard] = []
-    private(set) var isLoading = false
 
     // MARK: - Filters
 
@@ -58,9 +57,6 @@ final class ClassGridChildrenModel {
 
     // swiftlint:disable:next function_body_length cyclomatic_complexity
     func loadData(context: NSManagedObjectContext) {
-        isLoading = true
-        defer { isLoading = false }
-
         let queries = DataQueryService(context: context)
         let visibleStudents = queries.fetchAllStudents(
             excludeTest: true, excludeWithdrawn: true, sortBy: CDStudent.sortByName

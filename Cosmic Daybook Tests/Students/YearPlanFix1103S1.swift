@@ -137,7 +137,7 @@ struct YearPlanFix1103S1 {
         // first lesson she hasn't had takes the start date.
         vm.selectedLesson = lessons[0]
         vm.startDate = Fixture.daysFromToday(7)
-        await vm.computePreview(student: ada, context: context)
+        vm.computePreview(student: ada, context: context)
         #expect(vm.previewItems.map(\.id) == [lessons[1].id, lessons[2].id].compactMap { $0 })
         let start = YearPlanPacing.schoolDay(onOrAfter: Fixture.daysFromToday(7), in: context)
         #expect(vm.previewItems.first?.date == start)
@@ -155,7 +155,7 @@ struct YearPlanFix1103S1 {
         let vm = AddSequenceViewModel()
         vm.selectedLesson = lessons[1]
         vm.startDate = Fixture.daysFromToday(7)
-        await vm.computePreview(student: ada, context: context)
+        vm.computePreview(student: ada, context: context)
         vm.scheduleAll(student: ada, context: context)
 
         let byLesson = Dictionary(
@@ -193,7 +193,7 @@ struct YearPlanFix1103S1 {
 
         // Dragging lesson 1 later moves every lesson after it, lesson 3 included.
         let landing = Fixture.daysFromToday(100)
-        await vm.rescheduleWithCascade(
+        vm.rescheduleWithCascade(
             planned[0], to: landing, studentID: try #require(ada.id), context: context
         )
         let dates = planned.compactMap(\.plannedDate)
@@ -218,7 +218,7 @@ struct YearPlanFix1103S1 {
         let vm = AddSequenceViewModel()
         vm.selectedLesson = lessons[0]
         vm.startDate = Fixture.daysFromToday(7)
-        await vm.computePreview(student: ada, context: context)
+        vm.computePreview(student: ada, context: context)
         vm.scheduleAll(student: ada, context: context)
 
         #expect(Fixture.entries(for: ada, in: context).isEmpty)

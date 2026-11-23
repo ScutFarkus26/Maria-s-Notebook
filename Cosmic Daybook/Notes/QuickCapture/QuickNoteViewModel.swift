@@ -15,7 +15,7 @@ import UIKit
 #endif
 
 @Observable
-class QuickNoteViewModel {
+final class QuickNoteViewModel {
     private static let logger = Logger.notes
 
     // MARK: - Properties
@@ -69,17 +69,15 @@ class QuickNoteViewModel {
     
     // MARK: - Dependencies
     private let tagger = StudentTagger()
-    let initialStudentID: UUID?
 
     // MARK: - Debouncing
-    private var analysisTask: Task<Void, Never>?
-    private var isApplyingReplacements: Bool = false
-    private var lastReplacementText: String?
+    @ObservationIgnored private var analysisTask: Task<Void, Never>?
+    @ObservationIgnored private var isApplyingReplacements: Bool = false
+    @ObservationIgnored private var lastReplacementText: String?
 
     // MARK: - Initialization
 
     init(initialStudentIDs: Set<UUID> = [], initialBodyText: String = "", initialTags: [String] = []) {
-        self.initialStudentID = initialStudentIDs.first
         self.selectedStudentIDs = initialStudentIDs
 
         if !initialBodyText.isEmpty {
@@ -91,12 +89,6 @@ class QuickNoteViewModel {
     }
     
     // MARK: - Public Methods
-    
-    func setupInitialState() {
-        if let initialID = initialStudentID {
-            selectedStudentIDs.insert(initialID)
-        }
-    }
     
     func analyzeText(_ text: String, students: [CDStudent]) {
         // Don't analyze if we're currently applying replacements to avoid infinite loops

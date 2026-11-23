@@ -32,7 +32,7 @@ struct DaysSinceLastLessonFix1017StTests {
         let mayaID = try #require(maya.id)
 
         #expect(DaysSinceLastLessonView.lastLessonDate(studentID: mayaID, in: context) == mathDay)
-        let roster = StudentsViewModel().computeDaysSinceLastLessonCache(
+        let roster = StudentsViewModel.computeDaysSinceLastLessonCache(
             for: [maya], using: context, calendar: AppCalendar.shared
         )
         let record = LessonAgeHelper.schoolDaysSinceCreation(createdAt: mathDay, asOf: Date(), using: context)

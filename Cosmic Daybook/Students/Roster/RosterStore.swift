@@ -7,8 +7,10 @@ import Foundation
 /// `CDStudent`, so every CloudKit import tick re-evaluated every one of them.
 /// This store holds the one `NSFetchedResultsController` instead; views read
 /// `dependencies.roster.all` / `.enrolled` / `.byID` and are invalidated
-/// through observation when the controller reports a change. The rows are the
-/// managed objects themselves, so a row stays bindable with `@ObservedObject`.
+/// through observation when the controller reports a change, including an
+/// edit that leaves the same students in the same order (see `refresh()`).
+/// The rows are the managed objects themselves, so a row stays bindable with
+/// `@ObservedObject`.
 ///
 /// `all` is every student once, in the roster screen's alphabetical order
 /// (first name, last name, manual order); CloudKit duplicate-ID artifacts are
@@ -52,14 +54,24 @@ final class RosterStore {
     }
 
     /// Rebuilds the cached arrays from the controller — once per change, never per read.
+    ///
+    /// `all`, `enrolled` and `byID` hold the managed objects, which compare by
+    /// identity: after a rename or a level change they equal what they held
+    /// before, and `@Observable` tells no one when a property is set to an
+    /// equal value. `withMutation` has no such check, so a view grouping
+    /// `all` by level or listing names from it redraws after every change the
+    /// controller reports. The stored values are written directly so each
+    /// change notifies once, not once here and again in the setter.
     private func refresh() {
         let rows = table.objects.uniqueByID
-        all = rows
-        enrolled = rows.filterEnrolled()
-        byID = Dictionary(
-            rows.compactMap { student in student.id.map { ($0, student) } },
-            uniquingKeysWith: { first, _ in first }
-        )
+        withMutation(keyPath: \.all) { _all = rows }
+        withMutation(keyPath: \.enrolled) { _enrolled = rows.filterEnrolled() }
+        withMutation(keyPath: \.byID) {
+            _byID = Dictionary(
+                rows.compactMap { student in student.id.map { ($0, student) } },
+                uniquingKeysWith: { first, _ in first }
+            )
+        }
         shortNamesByFullName = Dictionary(
             rows.map { (TagHelper.studentNameKey($0.fullName), $0.shortName) },
             uniquingKeysWith: { first, _ in first }

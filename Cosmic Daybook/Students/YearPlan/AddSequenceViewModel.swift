@@ -91,7 +91,7 @@ final class AddSequenceViewModel {
         return satisfaction.isSatisfied(studentID: studentID.uuidString, lessonID: lessonID)
     }
 
-    func computePreview(student: CDStudent, context: NSManagedObjectContext) async {
+    func computePreview(student: CDStudent, context: NSManagedObjectContext) {
         guard let lesson = selectedLesson,
               lesson.id != nil,
               let studentID = student.id else {

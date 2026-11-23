@@ -1,4 +1,4 @@
-// ClassAreaChecklistViewModel+Filtering.swift
+// ClassSubjectChecklistViewModel+Filtering.swift
 // Narrows the checklist grid to the rows and columns the guide is working on.
 //
 // Both filters are display-only. The matrix and the column labels stay computed

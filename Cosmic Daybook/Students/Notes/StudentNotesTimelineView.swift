@@ -9,17 +9,6 @@
 import SwiftUI
 import CoreData
 
-extension StudentNotesViewModel {
-    // Hooks that the real view model can set; safe no-ops by default
-    var reloadItems: (() -> Void)? {
-        get { objc_getAssociatedObject(self, &AssociatedKeys.reload) as? () -> Void }
-        set { objc_setAssociatedObject(self, &AssociatedKeys.reload, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
-    }
-    private struct AssociatedKeys {
-        nonisolated(unsafe) static var reload: UInt8 = 0
-    }
-}
-
 struct StudentNotesTimelineView: View {
     let student: CDStudent
     @Environment(\.managedObjectContext) private var viewContext
@@ -36,16 +25,11 @@ struct StudentNotesTimelineView: View {
         }
         .onAppear {
             if viewModel == nil {
-                let newViewModel = StudentNotesViewModel(
+                viewModel = StudentNotesViewModel(
                     student: student,
                     viewContext: viewContext,
                     saveCoordinator: saveCoordinator
                 )
-                // Set up the reload function
-                newViewModel.reloadItems = {
-                    newViewModel.fetchAllNotes()
-                }
-                viewModel = newViewModel
             }
         }
     }
@@ -54,7 +38,7 @@ struct StudentNotesTimelineView: View {
 // MARK: - Internal List View
 // swiftlint:disable:next type_body_length
 struct StudentNotesTimelineList: View {
-    @Bindable var viewModel: StudentNotesViewModel
+    let viewModel: StudentNotesViewModel
     @Environment(\.calendar) var calendar
     @Environment(\.dependencies) var dependencies
     #if os(macOS)
@@ -103,7 +87,7 @@ struct StudentNotesTimelineList: View {
         .sheet(item: $noteBeingEdited) { note in
             NoteEditSheet(note: note) {
                 // Reload the view model after edits to reflect changes
-                viewModel.reload()
+                viewModel.fetchAllNotes()
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
@@ -119,7 +103,7 @@ struct StudentNotesTimelineList: View {
         // the others, and nothing here reloads on appear, so a save missed
         // while hidden is caught up once on return.
         .onReceiveWhenVisible(NotificationCenter.default.publisher(for: .noteDidSave)) {
-            viewModel.reload()
+            viewModel.fetchAllNotes()
         }
         .toolbar {
             // Selection mode toggle
@@ -496,8 +480,4 @@ struct StudentNotesTimelineList: View {
         }
     }
 
-}
-
-extension StudentNotesViewModel {
-    func reload() { self.reloadItems?() }
 }

@@ -72,7 +72,7 @@ extension StudentYearPlanViewModel {
 
     /// Makes the moves the guide agreed to, saves, and reloads. An entry
     /// deleted since the question was asked is left out.
-    func readjust(_ plan: YearPlanReadjustPlan, studentID: UUID, context: NSManagedObjectContext) async {
+    func readjust(_ plan: YearPlanReadjustPlan, studentID: UUID, context: NSManagedObjectContext) {
         YearPlanPacing.apply(plan.moves)
         context.safeSave()
         load(studentID: studentID, context: context)

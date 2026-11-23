@@ -42,7 +42,7 @@ struct YearPlanAsksFix1103S1 {
         #expect(entries.map(\.plannedDate) == before)
         #expect(!context.hasChanges)
 
-        await viewModel.readjust(plan, studentID: try #require(ada.id), context: context)
+        viewModel.readjust(plan, studentID: try #require(ada.id), context: context)
         let tomorrow = Fixture.daysFromToday(1)
         #expect(entries.allSatisfy { ($0.plannedDate ?? .distantPast) >= tomorrow })
         #expect(!context.hasChanges)
@@ -75,7 +75,7 @@ struct YearPlanAsksFix1103S1 {
 
         let viewModel = AddSequenceViewModel()
         viewModel.selectedLesson = lessons[0]
-        await viewModel.computePreview(student: ada, context: context)
+        viewModel.computePreview(student: ada, context: context)
         #expect(!viewModel.scheduleAll(student: ada, context: context))
         #expect(viewModel.refusalMessage == "Ada L has left the class, so they can't get new plans.")
     }

@@ -1,4 +1,4 @@
-// ClassAreaChecklistViewModel+Saving.swift
+// ClassSubjectChecklistViewModel+Saving.swift
 // Every change the Checklist makes is saved through the app's `SaveCoordinator`. A
 // save that fails used to go only to the log: the change stayed in the view context,
 // the cell showed a mark that wasn't stored, and the next save anywhere could carry

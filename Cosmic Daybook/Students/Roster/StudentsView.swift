@@ -147,14 +147,15 @@ struct StudentsView: View {
             handleNavigationDestinationChange(appRouter.navigationDestination)
             handleWindowCreateRequest()
         }
-        // Debounce: saves arrive in bursts (bulk edits, CloudKit merge
-        // batches). Saves touching nothing a signal is read from (work,
-        // todos, sync bookkeeping) are dropped first. The view model then
-        // reloads only what moved: an attendance tap reloads attendance alone.
+        // Saves arrive in bursts (bulk edits, CloudKit merge batches), so the
+        // view model waits 300 ms after the last one. Saves touching nothing
+        // a signal is read from (work, todos, sync bookkeeping) are dropped
+        // first. The view model then reloads only what moved: an attendance
+        // tap reloads attendance alone.
         // Only while on screen: a TabView keeps this tab alive behind the
         // others, and `onAppear` catches up on return.
         .onReceiveWhenVisible(Self.signalChanges(), catchUpOnAppear: false) {
-            refreshSignals()
+            requestSignalsRefresh()
         }
         // Left open overnight (a Mac), today's marks, birthdays and counts
         // move to the new day; the view model's day stamp makes this a rebuild.
@@ -237,7 +238,11 @@ struct StudentsView: View {
 
     // MARK: - Signals
 
-    /// Saves and imports that can move a roster signal.
+    /// Saves and imports that can move a roster signal, delivered on the main
+    /// run loop. Not debounced here: the view re-creates this publisher on
+    /// every update, which would drop a pending debounced value, so the
+    /// debounce lives in `StudentsViewModel.requestRefresh`, on the model
+    /// that outlives updates.
     private static func signalChanges() -> some Publisher<Void, Never> {
         let center = NotificationCenter.default
         let saves = center.publisher(for: .NSManagedObjectContextDidSave)
@@ -252,11 +257,18 @@ struct StudentsView: View {
             }
             .map { @Sendable _ in () }
         return saves.merge(with: imports)
-            .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
+            .receive(on: RunLoop.main)
     }
 
     func refreshSignals() {
         viewModel.refreshIfNeeded(viewContext: viewContext, calendar: calendar, students: uniqueStudents)
+    }
+
+    /// `refreshSignals()` once a burst of saves has settled, with the roster
+    /// as it is by then.
+    private func requestSignalsRefresh() {
+        let roster = dependencies.roster
+        viewModel.requestRefresh(viewContext: viewContext, calendar: calendar) { roster.all }
     }
 
     // MARK: - Row Actions

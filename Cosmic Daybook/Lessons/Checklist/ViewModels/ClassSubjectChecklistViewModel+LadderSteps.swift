@@ -1,4 +1,4 @@
-// ClassAreaChecklistViewModel+LadderSteps.swift
+// ClassSubjectChecklistViewModel+LadderSteps.swift
 // The cell card's ladder steps and the P key: each moves a child up to its rung and
 // never down. Presented gives her the lesson today unless she already has it;
 // Practicing and Reviewing open (or move) her practice work, first putting her on
