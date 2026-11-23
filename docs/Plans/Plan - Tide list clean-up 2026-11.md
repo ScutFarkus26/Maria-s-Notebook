@@ -20,9 +20,23 @@ Marks: `plan/todo-cleanup` (each phase tags the primary checkout `plan/todo-clea
 Phases 5 and 6 share no files with the phases they wait for; the "needs" only keeps the Mac to three building sessions at once.
 
 ## Cost
-Actual: $126.28 (5.6% of the week) against the $150–265 estimated: phases $83.81 against $113–210, the conductor $42.47 against $35–55 (Fable was $43.39 of the whole, 7.3% of its own window). Tide's list went from 309 open rows to 284.
+Actual: $126.28 (5.6% of the week) against the $150–265 estimated: phases $83.81 against $113–210, the conductor $42.47 against $35–55 (Fable was $43.39 of the whole, 7.3% of its own window). Tide's list went from 309 open rows to 284 at the final check, and stands at 289 with the rows the run added for Danny.
 
 About $150–265 at list prices, which is 6–11% of the weekly limit at this week's rate ($23 for 1%, measured 2026-11-22). 62% of the week is used and 38% is left until Friday Nov 27, so it fits. The conductor runs on Fable (Danny's choice): its wakes and the Phase 7 cold review come to about $45–65, 8–11% of Fable's own window, which has 61% left. Phases are the $113–210 of it; the conductor (planning so far $9, the plan review, about ten wakes) is $35–55.
+
+## Waiting for Danny
+Each of these is a row in Tide; the link opens it.
+- Install the new builds from TestFlight on every device; the 3:45 chat gets its new tools once the Mac has 048. [In Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Install%20Cosmic%20Daybook%20300000000048%20on%20the%20Mac%2C%20iPhone%20and%20iPad%2C%20and%20Daybook%20Assistant%20037%20on%20the%20assistants%27%20phones%2C%20from%20TestFlight)
+- Go through the 52 doubtful rows from the list check. [In Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Go%20through%20the%20doubtful%20rows%20from%20the%202026-11-22%20list%20check)
+- Check the iPad's Today class control, the sync question after a restore and Settings rows at the largest text on a device. [In Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Tide%20list%20clean-up%20Phase%204%3A%20on%20the%20iPad%20and%20in%20Settings%2C%20check%20the%20class%20control%20on%20Today%2C%20the%20sync%20question%20after%20a%20restore%2C%20and%20Settings%20rows%20at%20the%20largest%20text)
+- Check that a link in a Tide to-do opens the right child, lesson or follow-up. [In Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Tide%20list%20clean-up%20Phase%205%3A%20check%20that%20a%20Cosmic%20Daybook%20link%20in%20a%20Tide%20to-do%20opens%20the%20right%20child%2C%20lesson%20or%20follow-up)
+- Check the arrival-closed note crosses between an assistant's phone and the Mac. [In Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Tide%20list%20clean-up%20Phase%206%3A%20with%20an%20assistant%27s%20phone%20and%20the%20Mac%2C%20check%20the%20arrival-closed%20note%20crosses%20both%20ways)
+- Review the lesson-loop choices. [In Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Tide%20list%20clean-up%20Phase%202%3A%20review%20the%20choices%20made%20closing%20the%20lesson%20loop%27s%20gaps%20%28refiling%2C%20quick%20notes%2C%20the%20sheet%27s%20check-in%20day%29.%20Confirm)
+- Review the choices for Today's class control and Settings rows. [In Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Tide%20list%20clean-up%20Phase%204%3A%20review%20the%20choices%20made%20for%20Today%27s%20class%20control%20on%20the%20iPad%20and%20Settings%20rows%20at%20large%20text.%20Confirm)
+- Review the choices for Cosmic Daybook's links. [In Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Tide%20list%20clean-up%20Phase%205%3A%20review%20the%20choices%20made%20for%20Cosmic%20Daybook%27s%20links.%20Confirm)
+- Review the choices for the arrival-closed note and share setup. [In Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Tide%20list%20clean-up%20Phase%206%3A%20review%20the%20choices%20made%20for%20the%20arrival-closed%20note%20and%20share%20setup.%20Confirm)
+- Keep the ‹ Today › date control whole on the 11-inch iPad (seen, not fixed). [In Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Ask%20Claude%20to%20keep%20the%20%E2%80%B9%20Today%20%E2%80%BA%20date%20control%20whole%20on%20the%2011-inch%20iPad%27s%20Today%20page)
+- Stop Settings card titles breaking mid-word at the largest text size (seen, not fixed). [In Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Ask%20Claude%20to%20stop%20Settings%20card%20titles%20breaking%20mid-word%20at%20the%20largest%20text%20size%20in%20a%20narrow%20column)
 
 ## Before you go
 - **Nothing to sign in to.** The TestFlight upload key works (checked 2026-11-22 with `roll_out.sh upload-key`), so Xcode's sign-in isn't needed.
