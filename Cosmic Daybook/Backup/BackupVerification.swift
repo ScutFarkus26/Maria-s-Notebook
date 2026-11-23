@@ -41,11 +41,9 @@ public struct BackupVerification {
         }
     }
     
-    /// Gets backup status information including last backup date from UserDefaults
+    /// Gets backup status information, including the last backup date (`LastBackupStamp`)
     public static func getBackupStatus() -> BackupStatus {
-        let lastBackupKey = "LastBackupTimeInterval"
-        let timestamp = UserDefaults.standard.double(forKey: lastBackupKey)
-        let lastBackupDate = timestamp > 0 ? Date(timeIntervalSinceReferenceDate: timestamp) : nil
+        let lastBackupDate = LastBackupStamp.shared.date
 
         let directories = autoBackupDirectories()
         let autoBackupDirectoryExists = directories.contains {

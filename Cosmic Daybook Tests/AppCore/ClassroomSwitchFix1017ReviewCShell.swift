@@ -70,6 +70,43 @@ struct ClassroomSwitchStoreFix1017ReviewCShellTests {
         #expect(store.selection == .sampleClass)
     }
 
+    // State layer fixes 2026-11, A1: the Sample Class's graph made a school-year
+    // store of its own over the same saved settings, so a viewing year chosen
+    // there was saved for My Class too, while My Class on this device went on
+    // showing the old one until a relaunch.
+    @Test("The Sample Class and My Class share one school-year store, so a viewing year chosen in one shows in both")
+    func sampleClassSharesTheYearStore() async throws {
+        // The store saves the viewing year (and, the first time one is made,
+        // its counter settings) in the shared defaults: put them back after.
+        let defaults = UserDefaults.standard
+        let keys = [
+            UserDefaultsKeys.schoolYearSelection, UserDefaultsKeys.schoolYearCounterEpoch,
+            UserDefaultsKeys.schoolYearCountersResetAtYearStart,
+            UserDefaultsKeys.schoolYearCounterPromptAnsweredYear
+        ]
+        let saved = keys.map { defaults.object(forKey: $0) }
+        defer { for (key, value) in zip(keys, saved) { defaults.set(value, forKey: key) } }
+
+        let directory = try makeDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try makeStore(in: directory) { false }
+        let myClassYears = store.primaryDependencies.schoolYearStore
+
+        await store.requestSwitch(to: .sampleClass, ask: Question().ask)
+        try #require(store.selection == .sampleClass)
+        let sampleYears = store.activeDependencies.schoolYearStore
+        #expect(sampleYears === myClassYears)
+
+        // A viewing year My Class isn't on, chosen in the Sample Class.
+        let wasAllTime = myClassYears.isAllTimeSelected
+        if wasAllTime {
+            sampleYears.selectCurrentYear()
+        } else {
+            sampleYears.selectAllTime()
+        }
+        #expect(myClassYears.isAllTimeSelected == !wasAllTime, "My Class would show the old year until a relaunch")
+    }
+
     @Test("With nothing open, a switch happens at once without asking")
     func switchesWhenNothingOpen() async throws {
         let directory = try makeDirectory()

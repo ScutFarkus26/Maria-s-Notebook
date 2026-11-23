@@ -8,7 +8,7 @@ import CoreData
 struct ReportDecisionCard: View {
     @ObservedObject var report: CDWorkModel
     let title: String
-    @Bindable var draft: MeetingDraftModel
+    let draft: MeetingDraftModel
     var onDetails: (() -> Void)?
 
     @Environment(\.managedObjectContext) private var viewContext

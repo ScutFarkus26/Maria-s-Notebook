@@ -7,7 +7,7 @@ import CoreData
 import SwiftUI
 
 struct ForMeToDoSection: View {
-    @Bindable var draft: MeetingDraftModel
+    let draft: MeetingDraftModel
 
     /// Every open to-do. Children are a stored list (Transformable) a fetch
     /// can't match on, so hers are picked out of the open ones (`openTodos`).

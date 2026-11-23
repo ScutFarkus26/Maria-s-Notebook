@@ -76,6 +76,9 @@ final class SchedulesPageModel {
     var studentNames: [String: String] = [:]
 
     private(set) var lanes: [TimetableLaneSnapshot] = []
+    /// `lanes` by ID, built once at each reload: the page's rows and columns
+    /// look lanes up on every draw.
+    private(set) var lanesByID: [UUID: TimetableLaneSnapshot] = [:]
     private(set) var resolved: ScheduleDay
     /// The Week view's school days; empty in the Day view.
     private(set) var week: [WeekColumn] = []
@@ -107,10 +110,6 @@ final class SchedulesPageModel {
     /// Minutes after midnight now, for the now line.
     func nowMinute(at date: Date) -> Int { TimetableDay.minute(of: date, calendar: calendar) }
 
-    var lanesByID: [UUID: TimetableLaneSnapshot] {
-        Dictionary(lanes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-    }
-
     /// Lanes whose blocks are typed here: every lane but the guide's, which
     /// reads his planned lessons instead.
     var editableLanes: [TimetableLaneSnapshot] {
@@ -137,6 +136,7 @@ final class SchedulesPageModel {
         let last = weekDays.last ?? day
         let timetable = TimetableService.timetable(from: first, through: last, in: context, calendar: calendar)
         lanes = timetable.lanes
+        lanesByID = Dictionary(lanes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let nonSchool = SchoolDayChecker.nonSchoolDaySet(
             in: first..<TimetableService.dayAfter(last, calendar: calendar), using: context, calendar: calendar
         )

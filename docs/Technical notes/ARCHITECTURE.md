@@ -175,20 +175,18 @@ final class MyViewModel {
 private(set) var itemsByID: [UUID: Item] = [:]
 ```
 
-**Debouncing** — 400ms delay for expensive operations:
+**Debouncing** — 400ms delay for expensive operations. The task is a plain stored property the views don't track, and the closure holds the model weakly, so no `deinit` (and no `nonisolated(unsafe)`) is needed: once the model is gone the task wakes, finds nothing, and ends. Sleep first, then check for cancellation and take `self`, so a closed screen isn't kept alive for the wait:
 ```swift
-nonisolated(unsafe) private var searchTask: Task<Void, Never>?
+@ObservationIgnored private var searchTask: Task<Void, Never>?
 
 private func scheduleSearch() {
     searchTask?.cancel()
-    searchTask = Task { @MainActor [weak self] in
+    searchTask = Task { [weak self] in
         try? await Task.sleep(for: .milliseconds(400))
-        guard !Task.isCancelled else { return }
-        self?.performSearch()
+        guard !Task.isCancelled, let self else { return }
+        self.performSearch()
     }
 }
-
-deinit { searchTask?.cancel() }
 ```
 
 **Batch property updates** — Set all `@Observable` properties together to trigger one SwiftUI re-render.

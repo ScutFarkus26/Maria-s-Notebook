@@ -152,8 +152,8 @@ final class ClassroomReleaseModel {
             stack: stack,
             storeID: storeID,
             environment: .live(container: stack.container)
-        ) { [weak self] done, total in
-            await MainActor.run { self?.stage = .running(done: done, total: total) }
+        ) { @MainActor [weak self] done, total in
+            self?.stage = .running(done: done, total: total)
         }
         if report.stoppedBecause == nil {
             UserDefaults.standard.removeObject(forKey: ClassroomShareRelease.inProgressKey)

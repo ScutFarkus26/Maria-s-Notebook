@@ -8,8 +8,8 @@ import UIKit
 /// Full-screen error view shown when database initialization fails.
 /// Provides recovery actions: Re-download, Restore, Export Diagnostics.
 struct DatabaseErrorView: View {
-    @Bindable var errorCoordinator: DatabaseErrorCoordinator
-    @Bindable var appRouter: AppRouter
+    let errorCoordinator: DatabaseErrorCoordinator
+    let appRouter: AppRouter
 
     @State private var resetError: String?
     @State private var showingExportSheet = false

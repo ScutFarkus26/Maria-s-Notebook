@@ -145,7 +145,15 @@ final class ClassroomWorkspaceStore {
                     managedObjectModel: primaryStack.container.managedObjectModel
                 )
                 sampleStack = newStack
-                sampleDependencies = AppDependencies(coreDataStack: newStack, isSampleClassroom: true)
+                let sample = AppDependencies(coreDataStack: newStack, isSampleClassroom: true)
+                // The viewing year and the school year's start are the
+                // guide's settings, not a classroom's records: both classes
+                // read and change the one store. A second store here saved
+                // over the same settings, so a year chosen in the Sample Class
+                // changed My Class's too, which went on showing the old one
+                // until a relaunch.
+                sample.schoolYearStore = primaryDependencies.schoolYearStore
+                sampleDependencies = sample
                 destinationStack = newStack
             }
 

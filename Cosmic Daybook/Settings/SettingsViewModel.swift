@@ -47,10 +47,10 @@ final class SettingsViewModel {
     /// (`DataManagementGrid` makes this view model with it).
     let dependencies: AppDependencies
     var coordinator: BackupCoordinator { dependencies.backupCoordinator }
-    private var pendingImportURL: URL?
+    @ObservationIgnored private var pendingImportURL: URL?
     /// Restore Now was pressed on the preview: the restore starts once the
     /// sheet has gone (`restorePreviewDismissed`).
-    private var restoreConfirmed = false
+    @ObservationIgnored private var restoreConfirmed = false
     
     // MARK: - Initialization
     
@@ -59,23 +59,11 @@ final class SettingsViewModel {
     }
 
     // MARK: - Last Backup Date
-    private static let lastBackupKey = "LastBackupTimeInterval"
-    var lastBackupDate: Date? {
-        let t = UserDefaults.standard.double(forKey: Self.lastBackupKey)
-        return t > 0 ? Date(timeIntervalSinceReferenceDate: t) : nil
-    }
-    func setLastBackupNow() {
-        UserDefaults.standard.set(Date().timeIntervalSinceReferenceDate, forKey: Self.lastBackupKey)
-    }
 
-    /// After a restore: the later of this device's last backup and the one
-    /// the restored settings carried. A restore isn't a backup, so it never
-    /// says "Last backup just now" (that hid the "backup is N days old"
-    /// warning), and an older backup's settings don't turn the clock back.
-    private func keepLastBackupDate(atLeast earlier: Date?) {
-        guard let earlier, (lastBackupDate ?? .distantPast) < earlier else { return }
-        UserDefaults.standard.set(earlier.timeIntervalSinceReferenceDate, forKey: Self.lastBackupKey)
-    }
+    /// The time is the shared `LastBackupStamp`'s, so a view reading it here
+    /// is told when any screen stamps a backup, not only this model.
+    var lastBackupDate: Date? { LastBackupStamp.shared.date }
+    func setLastBackupNow() { LastBackupStamp.shared.setNow() }
 
     // MARK: - Helpers
     func defaultBackupFilename() -> String {
@@ -221,7 +209,7 @@ final class SettingsViewModel {
             restorePreviewData = nil
             pendingImportURL = nil
             importError = nil
-            keepLastBackupDate(atLeast: lastBackupBeforeRestore)
+            LastBackupStamp.shared.keep(atLeast: lastBackupBeforeRestore)
             resultSummary = BackupResultNote(text: "Restore complete.", tone: .success)
             operationSummary = BackupOperationSummary(
                 kind: .import,

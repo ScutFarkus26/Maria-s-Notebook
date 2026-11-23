@@ -325,7 +325,10 @@ private extension SchoolYearRolloverView {
 private extension SchoolYearRolloverView {
     @ViewBuilder
     var departureEffects: some View {
-        let futurePlans = viewModel.futurePlansForDeparting(context: viewContext)
+        // One count for the whole step: it reads the store for every
+        // departing and continuing child, and used to run three times a draw.
+        let counts = viewModel.carryOverCounts(context: viewContext, store: store)
+        let futurePlans = counts.futurePlansForDeparting
         if futurePlans > 0 {
             footnoteLabel(
                 "Departing children come off \(futurePlans) planned "
@@ -333,7 +336,7 @@ private extension SchoolYearRolloverView {
                 icon: "calendar.badge.minus"
             )
         }
-        let entries = viewModel.yearPlanEntriesForDeparting(context: viewContext)
+        let entries = counts.yearPlanEntriesForDeparting
         if entries > 0 {
             footnoteLabel(
                 "\(entries) year-plan " + (entries == 1 ? "entry" : "entries")
@@ -341,14 +344,13 @@ private extension SchoolYearRolloverView {
                 icon: "calendar.badge.checkmark"
             )
         }
-        carryOverEffects
+        carryOverEffects(counts)
     }
 
     /// The carried-over choice, counted before it is committed: the guide sees
     /// exactly how many of last year's intentions move and how many retire.
     @ViewBuilder
-    var carryOverEffects: some View {
-        let counts = viewModel.carryOverCounts(context: viewContext, store: store)
+    func carryOverEffects(_ counts: RolloverSummary) -> some View {
         if counts.carriedOverToRedate > 0 {
             let landing = viewModel.carryOverLandingDate(store: store, context: viewContext)
             footnoteLabel(

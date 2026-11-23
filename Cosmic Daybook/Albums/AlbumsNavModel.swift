@@ -10,7 +10,11 @@ final class AlbumsNavModel {
     var pageTarget: AlbumPageTarget?
     /// True in a stand-alone album window, where sidebar navigation
     /// doesn't exist and cross-album jumps must open a new window.
-    var isAlbumWindow = false
+    let isAlbumWindow: Bool
+
+    init(isAlbumWindow: Bool = false) {
+        self.isAlbumWindow = isAlbumWindow
+    }
 
     func jump(albumID: String, pageIndex: Int, highlight: String? = nil) {
         pageTarget = AlbumPageTarget(id: UUID(), albumID: albumID,

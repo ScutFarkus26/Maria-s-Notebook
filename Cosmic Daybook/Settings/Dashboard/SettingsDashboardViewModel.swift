@@ -40,12 +40,9 @@ final class SettingsDashboardViewModel {
     private static let shareCheckInterval: TimeInterval = 5 * 60
 
     private let dependencies: AppDependencies
-    /// Reads and stamps the last-backup date the Backups card shows too.
-    private let backupSettings: SettingsViewModel
 
     init(dependencies: AppDependencies) {
         self.dependencies = dependencies
-        self.backupSettings = SettingsViewModel(dependencies: dependencies)
     }
 
     /// The rows to show for iCloud's current health.
@@ -75,7 +72,7 @@ final class SettingsDashboardViewModel {
             .mostRecentAutoBackupURL.flatMap {
                 try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
             }
-        lastBackup = [backupSettings.lastBackupDate, ownFolder].compactMap { $0 }.max()
+        lastBackup = [LastBackupStamp.shared.date, ownFolder].compactMap { $0 }.max()
         automaticBackupFailingSince = manager.automaticBackupsOn ? manager.automaticBackupFailingSince : nil
     }
 
@@ -131,7 +128,8 @@ final class SettingsDashboardViewModel {
         let result = await dependencies.autoBackupManager.performManualBackup(viewContext: viewContext)
         switch result {
         case .success(let date, let url):
-            backupSettings.setLastBackupNow()
+            // The time the Backups card shows too.
+            LastBackupStamp.shared.setNow()
             lastBackup = date
             // The write worked, so the backups do (`AutoBackupManager`).
             automaticBackupFailingSince = nil

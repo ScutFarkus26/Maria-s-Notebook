@@ -88,7 +88,7 @@ struct MeetingSessionFooter: View {
 /// On a phone, one stuck work item at a time, with Next to move along.
 struct CompactDecisionPager: View {
     let stuck: [CDWorkModel]
-    @Bindable var draft: MeetingDraftModel
+    let draft: MeetingDraftModel
     let workTitle: (CDWorkModel) -> String
 
     @State private var index = 0

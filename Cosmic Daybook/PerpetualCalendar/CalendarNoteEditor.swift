@@ -32,7 +32,7 @@ final class CalendarNoteEditor {
     /// The day's pad text when the field opened: what a save is measured
     /// against, so a change made meanwhile on another device or on Today is
     /// kept rather than written over (`TodayDataFetcher.savePadText`).
-    private var openingPadText = ""
+    @ObservationIgnored private var openingPadText = ""
 
     /// Whether the open field holds more than one line: the pad written on
     /// Today can, and its field then wraps rather than flattening the lines.

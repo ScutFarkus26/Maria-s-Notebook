@@ -12,7 +12,7 @@ struct MeetingContextPane: View {
     let lessonsSince: [CDLessonAssignment]
     let meetings: [CDStudentMeeting]
     let lastMeetingDate: Date?
-    @Bindable var draft: MeetingDraftModel
+    let draft: MeetingDraftModel
     let workTitle: (CDWorkModel) -> String
     let lessonName: (CDLessonAssignment) -> String
     let lessonArea: (CDLessonAssignment) -> String?

@@ -10,7 +10,7 @@ import SwiftUI
 import CoreData
 
 struct RolloverCarryOverSection: View {
-    @Bindable var viewModel: SchoolYearRolloverViewModel
+    let viewModel: SchoolYearRolloverViewModel
     let store: SchoolYearStore
 
     @Environment(\.managedObjectContext) private var viewContext

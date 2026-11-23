@@ -216,7 +216,7 @@ final class ToastService {
 
 /// A view that displays the current toast message
 struct ToastOverlay: View {
-    @Bindable var toastService: ToastService
+    let toastService: ToastService
 
     var body: some View {
         Group {

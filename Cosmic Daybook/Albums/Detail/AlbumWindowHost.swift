@@ -11,11 +11,7 @@ struct AlbumWindowHost: View {
 
     @Environment(AlbumLibrary.self) private var library
     @Environment(\.managedObjectContext) private var context
-    @State private var nav: AlbumsNavModel = {
-        let model = AlbumsNavModel()
-        model.isAlbumWindow = true
-        return model
-    }()
+    @State private var nav = AlbumsNavModel(isAlbumWindow: true)
     @State private var intelligence = AlbumIntelligence()
 
     private var parsed: (id: String, page: Int?)? {

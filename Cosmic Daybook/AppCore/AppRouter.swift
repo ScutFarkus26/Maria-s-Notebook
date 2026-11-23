@@ -362,11 +362,8 @@ final class AppRouter {
         appDataWillBeReplaced = true
         // Reset after a brief moment to allow observers to react
         Task {
-            do {
-                try await Task.sleep(for: .seconds(UIConstants.navigationResetDelay))
-            } catch {
-                Self.logger.warning("Failed to sleep for navigation reset: \(error)")
-            }
+            // Nothing cancels this task, so the sleep can't fail.
+            try? await Task.sleep(for: .seconds(UIConstants.navigationResetDelay))
             self.appDataWillBeReplaced = false
         }
     }
@@ -376,11 +373,8 @@ final class AppRouter {
         appDataDidRestore = true
         // Reset after a brief moment to allow observers to react
         Task {
-            do {
-                try await Task.sleep(for: .seconds(UIConstants.navigationResetDelay))
-            } catch {
-                Self.logger.warning("Failed to sleep for navigation reset: \(error)")
-            }
+            // Nothing cancels this task, so the sleep can't fail.
+            try? await Task.sleep(for: .seconds(UIConstants.navigationResetDelay))
             self.appDataDidRestore = false
         }
     }

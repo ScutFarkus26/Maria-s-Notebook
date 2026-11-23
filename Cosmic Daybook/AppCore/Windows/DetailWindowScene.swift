@@ -172,6 +172,10 @@ struct DetailWindowGate<Host: View>: View {
                     .environment(\.appRouter, dependencies.appRouter)
                     .environment(notebook.saveCoordinator)
                     .environment(dependencies.restoreCoordinator)
+                    // The album library is the app's one shelf, not the
+                    // classroom's: a lesson in its own window reads it for
+                    // its album link, and without it the window crashed.
+                    .environment(AlbumLibrary.shared)
                     .onAppear { classroom.hostAppeared(showing: workspace.selection) }
                     .onDisappear { classroom.hostDisappeared() }
             }

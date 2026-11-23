@@ -1,5 +1,7 @@
 import CoreData
 import Foundation
+import Observation
+import Synchronization
 import Testing
 @testable import CosmicDaybook
 
@@ -194,5 +196,111 @@ struct SettingsViewModelFix1010J2aTests {
 
         #expect(Self.students(in: harness.context) == 0)
         #expect(harness.model.operationSummary == nil)
+    }
+}
+
+// MARK: - The last backup time, told to every reader
+
+/// Set once a tracked read is told its value is about to change.
+nonisolated private final class ReaderTold: Sendable {
+    private let flag = Mutex(false)
+    var value: Bool { flag.withLock { $0 } }
+    func set() { flag.withLock { $0 = true } }
+}
+
+// State layer fixes 2026-11, B6: the Backups card's date was read straight
+// from UserDefaults, which Observation can't see, so a backup stamped by
+// another Backups card, by the Overview's Back Up Now, or carried in by a
+// restore told no reader. One shared `LastBackupStamp` now tells them all.
+extension SettingsViewModelFix1010J2aTests {
+
+    /// Whether a view reading `model.lastBackupDate` is told during `change`.
+    private static func readerIsTold(
+        of model: SettingsViewModel, during change: () async throws -> Void
+    ) async rethrows -> Bool {
+        let told = ReaderTold()
+        _ = withObservationTracking { model.lastBackupDate } onChange: { told.set() }
+        try await change()
+        return told.value
+    }
+
+    @Test("A backup stamped on one Backups card tells a reader of another, and the status reads the same time")
+    func stampOnAnotherCardTellsTheReader() async throws {
+        try await Self.withLastBackup(Date().addingTimeInterval(-3 * 86_400)) {
+            let reader = try Self.harness()
+            let writer = try Self.harness()
+            defer {
+                try? FileManager.default.removeItem(at: reader.directory)
+                try? FileManager.default.removeItem(at: writer.directory)
+            }
+            let before = Date()
+
+            let told = await Self.readerIsTold(of: reader.model) { writer.model.setLastBackupNow() }
+
+            #expect(told, "the card would keep showing the old time until something else redrew it")
+            let shown = try #require(reader.model.lastBackupDate)
+            #expect(shown.timeIntervalSinceReferenceDate >= before.timeIntervalSinceReferenceDate)
+            #expect(BackupVerification.getBackupStatus().lastBackupDate == shown)
+        }
+    }
+
+    @Test("The Overview's Back Up Now tells a reader of the Backups card")
+    func overviewBackUpNowTellsTheCard() async throws {
+        try await Self.withLastBackup(nil) {
+            let harness = try Self.harness()
+            defer { try? FileManager.default.removeItem(at: harness.directory) }
+            CoreDataTestHelpers.seedStudent(in: harness.context, firstName: "Ada", lastName: "Lovelace")
+            #expect(CoreDataTestHelpers.save(harness.context))
+            // A backup manager that writes into the scratch folder, with this
+            // test's own device settings and folder mark.
+            let suite = "SettingsFix1010J2a-\(UUID().uuidString)"
+            let defaults = try #require(UserDefaults(suiteName: suite))
+            defer { defaults.removePersistentDomain(forName: suite) }
+            let dependencies = harness.model.dependencies
+            dependencies._autoBackupManager = AutoBackupManager(
+                coordinator: dependencies.backupCoordinator,
+                deviceDefaults: defaults,
+                deviceMark: AutoBackupFolders.DeviceMark(
+                    read: { UserDefaults(suiteName: suite)?.string(forKey: "mark") },
+                    write: { UserDefaults(suiteName: suite)?.set($0, forKey: "mark") }
+                ),
+                autoFolder: harness.directory.appendingPathComponent("Auto", isDirectory: true),
+                changeTracker: BackupChangeTracker(defaults: defaults),
+                firstDownloadPending: { false }
+            )
+            let overview = SettingsDashboardViewModel(dependencies: dependencies)
+            let keys = Fix1102KeyBox([Fix1102KeyBox.legacyKey()])
+
+            let told = await BackupEncryptionKeyStore.$items.withValue(keys.items) {
+                await Self.readerIsTold(of: harness.model) {
+                    await overview.backUpNow(viewContext: harness.context)
+                }
+            }
+
+            #expect(overview.backupRun == .succeeded(partial: false))
+            #expect(told, "the Backups card would keep showing the old time")
+            #expect(harness.model.lastBackupDate != nil)
+        }
+    }
+
+    @Test("A restore that brings its own last backup time tells the card's reader")
+    func restoreTellsTheCard() async throws {
+        let tenDaysAgo = Date().addingTimeInterval(-10 * 86_400)
+        let carried = [Self.lastBackupKey: PreferenceValueDTO.double(tenDaysAgo.timeIntervalSinceReferenceDate)]
+        try await Self.withLastBackup(nil) {
+            let harness = try Self.harness()
+            defer { try? FileManager.default.removeItem(at: harness.directory) }
+            try await Self.preview(try await Self.backup(in: harness.directory, preferences: carried), with: harness)
+            harness.model.confirmRestore()
+
+            let told = await Self.readerIsTold(of: harness.model) {
+                await harness.model.restorePreviewDismissed(viewContext: harness.context)
+            }
+
+            #expect(harness.model.importError == nil)
+            #expect(told, "the restore's settings set the time straight into the defaults")
+            #expect(harness.model.lastBackupDate?.timeIntervalSinceReferenceDate
+                == tenDaysAgo.timeIntervalSinceReferenceDate)
+        }
     }
 }

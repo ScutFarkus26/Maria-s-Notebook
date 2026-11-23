@@ -19,11 +19,13 @@ struct CosmicDaybookApp: App {
 
     @AppStorage(UserDefaultsKeys.hasCompletedOnboarding) var hasCompletedOnboarding = false
     @Environment(\.scenePhase) private var scenePhase
-    @State var bootstrapper = AppBootstrapper.shared
-    @State var appRouter = AppRouter.shared
-    @State var databaseErrorCoordinator = DatabaseErrorCoordinator.shared
+    // App-lifetime singletons: plain references. The scenes still follow
+    // what they read from them, which Observation tracks without `@State`.
+    let bootstrapper = AppBootstrapper.shared
+    let appRouter = AppRouter.shared
+    let databaseErrorCoordinator = DatabaseErrorCoordinator.shared
     /// The notebook's stack and what is built on it, once its stores are open.
-    @State var notebookOpener = NotebookOpener.shared
+    let notebookOpener = NotebookOpener.shared
     @State var restoreCoordinator: RestoreCoordinator
 
     #if os(macOS)

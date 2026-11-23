@@ -10,7 +10,7 @@ import CoreData
 struct WorkDecisionCard: View {
     @ObservedObject var work: CDWorkModel
     let title: String
-    @Bindable var draft: MeetingDraftModel
+    let draft: MeetingDraftModel
     var onDetails: (() -> Void)?
 
     @Environment(\.managedObjectContext) private var viewContext

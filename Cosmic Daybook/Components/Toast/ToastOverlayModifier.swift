@@ -4,7 +4,7 @@ import SwiftUI
 
 /// View modifier to add toast overlay to a view
 struct ToastOverlayModifier: ViewModifier {
-    @Bindable var toastService: ToastService
+    let toastService: ToastService
 
     func body(content: Content) -> some View {
         content
