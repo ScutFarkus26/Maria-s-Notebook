@@ -1,6 +1,6 @@
 # Tide list clean-up: do the open code rows and clear the stale ones
 
-> **Working on it.** Written 2026-11-22; started 2026-11-22 (conductor and eight phase sessions). Danny asked what Claude could do from Cosmic Daybook's open rows in Tide (309 of them), then asked for a plan that also confirms each row still applies.
+> **Done 2026-11-22** (efc35f113). Written 2026-11-22. Danny asked what Claude could do from Cosmic Daybook's open rows in Tide (309 of them), then asked for a plan that also confirms each row still applies. Uploaded to TestFlight as Cosmic Daybook 1.1 (300000000048) and Daybook Assistant 1.1 (037), no tester group; the Mac takes 048 from TestFlight.
 > In short: Build the eleven code rows that still apply, check all 309 rows against today's code, close the ones that are done or obsolete, and send the result to TestFlight.
 
 ## Goal
@@ -14,12 +14,14 @@ Marks: `plan/todo-cleanup` (each phase tags the primary checkout `plan/todo-clea
 - [x] Phase 4: Screens and settings · done 2026-11-22 (0d5d222e6) · session 426d33d2-b45b-46cf-819c-e9a489a8f710 · actual $14.69 (~0.6%) · iOS, Mac and Assistant build; 81 tests in 13 suites pass; pictures in docs/Pictures. Stalled mid-turn 12:23–2:50 pm.
 - [x] Phase 5: A link that opens one item · done 2026-11-22 (b80804509) · session 9478060a-5533-4ec8-b6c5-fc7584449763 · actual $9.49 (~0.4%) · iOS and Mac build (the Mac with signing off); 24 tests pass. The link opening its page on a device is not checked (iOS asks "Open in Cosmic Daybook?", which needs a tap): one device row in Tide. Missed its wake-up when Phase 3 merged and was started by message.
 - [x] Phase 6: Arrival-closed note, share setup, name-list tests · done 2026-11-22 (2cc47748d) · session 686136c2-d17f-4f29-935e-071b0d441ef5 · actual $27.61 (~1.2%) · 746 notebook and 543 Assistant tests pass; all six name-list tests fail without their guards; the ParentLocker suite passed twice running; no data-model change. Missed its wake-up when Phase 2 merged and was started by message at 2:50 pm.
-- [ ] Phase 7: Final check · runs as: session · needs: 1, 2, 3, 4, 5, 6 · est. $15–30 (~1%)
-- [ ] Phase 8: Roll out to TestFlight · runs as: session · needs: 7 · est. $5–12 (~0.5%)
+- [x] Phase 7: Final check · done 2026-11-22 (efc35f113) · session 91147e7b-d59b-4ba1-855d-c6427e785311 · actual $11.87 (~0.5%) · iOS, Assistant and Mac (Debug and Release, signing off) build; whole iOS suite 5,060 tests in 819 suites and whole Assistant suite 663 in 93 pass; the Fable review found three real bugs in Phase 2's check-in days, each fixed with a test
+- [x] Phase 8: Roll out to TestFlight · done 2026-11-22 (main efc35f113 pushed) · session 00397b3a-427d-4389-b6de-be5907392e87 · actual $1.57 (~0.1%) · Cosmic Daybook 1.1 (300000000048) for iPhone/iPad and Mac, Daybook Assistant 1.1 (037); no schema change, no tester group
 
 Phases 5 and 6 share no files with the phases they wait for; the "needs" only keeps the Mac to three building sessions at once.
 
 ## Cost
+Actual: $126.28 (5.6% of the week) against the $150–265 estimated: phases $83.81 against $113–210, the conductor $42.47 against $35–55 (Fable was $43.39 of the whole, 7.3% of its own window). Tide's list went from 309 open rows to 284.
+
 About $150–265 at list prices, which is 6–11% of the weekly limit at this week's rate ($23 for 1%, measured 2026-11-22). 62% of the week is used and 38% is left until Friday Nov 27, so it fits. The conductor runs on Fable (Danny's choice): its wakes and the Phase 7 cold review come to about $45–65, 8–11% of Fable's own window, which has 61% left. Phases are the $113–210 of it; the conductor (planning so far $9, the plan review, about ten wakes) is $35–55.
 
 ## Before you go
@@ -80,6 +82,8 @@ About $150–265 at list prices, which is 6–11% of the weekly limit at this we
   - A link that arrives while the app is still opening waits until the notebook is up; a second one before then replaces the first.
   - A signed Mac Debug build fails on this Mac: the provisioning profile doesn't include the signing certificate (Xcode isn't signed in). The Mac compile was checked with signing off.
   - A Mac Debug build registers itself as the handler for `cosmicdaybook://`, and a Debug copy opens the live notebook. Phase 5 unregistered it; any later Mac Debug build should do the same.
+- **D17. What Phase 7 found** (2026-11-22): the cold review found three bugs in Phase 2's sheet and re-filing rules, all fixed with tests: reopening How It Went moved every child's check-in to one day; Later kept one day for everyone; filing a lesson again with another kind of work reused an old, possibly past, day. `docs/Decisions.md` and the How Cosmic Daybook works pages don't exist in this repo, so the doc updates went into Technical notes. Mac builds on this Mac need `CODE_SIGNING_ALLOWED=NO` (Xcode isn't signed in); the TestFlight archives signed and uploaded normally.
+- **D18. Lost wake-ups.** About 12:10–12:25 pm the app stopped mid-run. Phases 3 and 4 sat idle for two and a half hours, and every `plan-wait` started before then finished without waking its session (Phases 5 and 6). The conductor restarted each by message once Danny wrote. A wait or build started in the background before an app restart never wakes its session.
 - **D12. A stopped phase doesn't cancel the rest.** `plan-wait` reports "stopped" as soon as one needed phase stops. Phases 5 and 6 need 3 and 2 only to keep three builders at once, not for their work, so they start anyway. Phase 7 then waits for the phases still running, checks main as it stands and names what's missing; Phase 8 rolls out whatever passed Phase 7.
 
 ## Apple guidance
