@@ -1,6 +1,6 @@
 # State layer fixes 2026-11
 
-> **Working on it.** Started 2026-11-22. Written 2026-11-22 from the [State layer review](<../Reviews/State layer review 2026-11-22.md>) (found at main 0bd5c3225; this plan was written on main 0094ac486).
+> **Done 2026-11-23** (5332596cb). Written 2026-11-22 from the [State layer review](<../Reviews/State layer review 2026-11-22.md>) (found at main 0bd5c3225; this plan was written on main 0094ac486).
 > In short: fix the review's seven bugs and four "also found" problems in the view models and screen models, make its ten safe improvements, then push main and upload Cosmic Daybook to TestFlight.
 
 ## Goal
@@ -8,11 +8,11 @@ The screens stop showing stale or lost state in the places the review found: Rea
 
 ## Progress
 Marks: `plan/state-layer` (each phase tags the primary checkout `plan/state-layer/phase-<N>` when it merges; see `~/.claude/bin/plan-wait`)
-- [ ] Phase 1: Presentations, Today, Work and the planning assistant · runs as: session · needs: — · est. $14–26 (~1%)
-- [ ] Phase 2: Students, Notes, the roster and the Class Grid · runs as: session · needs: — · est. $18–32 (~1%) ← 1, 2 and 3 run at the same time
-- [ ] Phase 3: App shell, Settings and the rest · runs as: session · needs: — · est. $14–26 (~1%)
-- [ ] Phase 4: Final check · runs as: session · needs: 1, 2, 3 · est. $16–30 (~1%)
-- [ ] Phase 5: Push and TestFlight · runs as: session · needs: 4 · est. $2–6 (<1%)
+- [x] Phase 1: Presentations, Today, Work and the planning assistant · done 2026-11-23 (38de6a77f) · session eaae55ec-3983-4bb2-8bd6-ed046fd25ea0 · actual $13.40 (0.6%) against $14–26
+- [x] Phase 2: Students, Notes, the roster and the Class Grid · done 2026-11-23 (f02251add) · session 50360bfd-a5ac-419a-9e9b-3034f7b867f5 · actual $16.08 (0.7%) against $18–32
+- [x] Phase 3: App shell, Settings and the rest · done 2026-11-23 (41365ce41) · session d4de62d0-71be-4aa9-91a7-676021fa0a7d · actual $14.41 (0.6%) against $14–26
+- [x] Phase 4: Final check · done 2026-11-23 (5332596cb) · session 78a35d4a-10b5-47c4-b51f-292c6b709ff6 · actual $18.53 (0.8%) against $16–30
+- [x] Phase 5: Push and TestFlight · done 2026-11-23 (main 5332596cb pushed; Cosmic Daybook 1.1 build 300000000049 uploaded for iPhone/iPad and the Mac, no tester group) · session eb324658-4102-4444-93d7-be59f4bd8a7d · actual $1.35 (0.1%) against $2–6
 
 ## Cost
 - **Total: about $85–150, which is 4–7% of the weekly limit** (1% is about $23 this week, measured 2026-11-22 with `plan-cost calibrate`). The phases are $64–120; the conductor is about $20–30 (planning so far, a Fable plan review, five wakes on Fable).
@@ -20,6 +20,8 @@ Marks: `plan/state-layer` (each phase tags the primary checkout `plan/state-laye
 - **Fable's own weekly window** is at 54%; this run adds about 13–22 points (1% of it is about $6.50). Fits.
 - **The estimates:** small fixes with file and line in the plan cost $7–15 a phase on Opus in the last three runs (the cost log's "Tide list clean-up" and "Phase 235/236" rows). Fable costs about 1.7× Opus for the same work (the agent table's $7.70 against $4.50), so each fix phase is put at about $15–30. The final check with a cold Fable review was $12–19 on Opus.
 - **The brake:** the run pauses itself if a phase costs more than twice the top of its estimate, or if the weekly counter reaches **98%** (Danny at the go-ahead, 2026-11-22: "Run it on its own until 98% of my usage is done"; the usual line is 90%). The counter is the whole account's, so other sessions running this week count too; it was at 83% at the go-ahead, which leaves 15 points of room, and this run needs 4–7.
+
+- **Actual (2026-11-23): about $86 (3.8% of the week) against $85–150.** The five phases were $63.77 against $64–120; the conductor (session d430e1ca-2bf5-4748-b4fc-160d17f5a9df: planning, a Fable plan review, the wakes and the catch-up) was about $22 against $20–30. The week went from 83% at the go-ahead to 91% with other sessions running; the 98% line was never reached and no phase came near twice its estimate. The app stopped waking the conductor after Phases 1 and 3, so the Progress lines were written the next morning from the marks and the phases' reports.
 
 ## Before you go
 - **Nothing to sign in to.** The TestFlight upload key works (checked 2026-11-22 with `roll_out.sh upload-key`), so Xcode's own sign-in isn't needed.
@@ -48,6 +50,22 @@ Marks: `plan/state-layer` (each phase tags the primary checkout `plan/state-laye
 - **D11. Don't grow Danny's list.** Each phase adds at most one Check on a device row and one Review choices row in Tide (`Areas/App Development/Cosmic Daybook/To do.md`), each listing its items in the note. Rows are never reworded.
 - **D12. If a fix phase stops,** Phase 4 still checks what merged (see its section) and says what's missing, so main is left sound. But nothing is pushed or uploaded unless Phases 1–4 all merged: Danny's answer was "when the run finishes and every check passes". Phase 5 stops if any of them stopped.
 - **D15. The run pauses at 98% of the weekly limit, not 90%** (Danny at the go-ahead, 2026-11-22). The conductor checks the counter each time a phase ends; a phase already working finishes.
+- **D16. What Phase 1 decided** (one Review choices row in Tide):
+  - A presentation-sheet refresh still waiting when the planning view leaves the screen is cancelled, as the old debounce died with the view.
+  - `WorkDetailViewModel.loadWork` keeps its now-unused `saveCoordinator:` parameter, so its six callers weren't touched.
+  - After a failed notes save the inbox-refresh notice is still posted; only the unsaved mark changed.
+  - Two corners left open: lookups written before B2's last pause can hold a cancelled update's inputs if those inputs change back before the next update; and after a failed notes save, typing the notes back to exactly the last saved text clears the unsaved mark.
+- **D17. What Phase 2 decided** (one Review choices row in Tide):
+  - `RosterStore.refresh()` writes the stored values inside `withMutation(keyPath:)`, so each change notifies once, not twice.
+  - The Students refresh checks "only while on screen" when the save arrives, so a refresh still waiting when the tab is hidden runs once anyway (as `MeetingQueueModel` does).
+  - The Checklist took the generation-counter option for its lessons cache.
+  - Also removed, beyond the plan's list: `StudentDetailViewModel.proficientLessonIDs`, `QuickNoteViewModel.initialStudentID`, and `StudentDetailToastOverlay.swift`.
+- **D18. What Phase 3 decided** (one Review choices row in Tide):
+  - After an automatic backup the Backups card's "Last backup" line still doesn't move: no automatic-backup code writes that date, and that was left alone (D10). It updates after Back Up Now and after a restore.
+  - After any restore the stamp tells its readers whether or not it wrote, because a restore's settings put the time straight into UserDefaults.
+  - The rollover's Review… button still recounts on every draw (it has to follow each pick); only the Review step counts once.
+  - `SchoolYearRolloverViewModel.swift` lost two functions that had no caller left after Safe 7.
+- **D19. What the final check found** (Phase 4): four builds and 5,078 tests in 828 suites passed (5,060 before, 18 new); the cold review found nothing real; nothing was backed out or left over in any phase; the Assistant suite wasn't run because no file it compiles changed. Left alone, as it was before the run: the settings import writes the last-backup time straight to UserDefaults without telling `LastBackupStamp`. The device checks are two rows in Tide, linked from the review file's final-check section, plus one Release row for build 049.
 - **D13. Project rules that bind every phase** (`Cosmic Daybook/CLAUDE.md`): main-actor default isolation; no `nonisolated(unsafe)` and no `assumeIsolated` as a fix; `NSFetchRequest`, not `@Query`; SwiftLint must pass; extensions live in their own files. Anything Danny reads on screen is plain English.
 - **D14. `PresentationsViewModel`'s outputs keep their access** (tests write `readyLessons`, `blockedLessons` and the rest). `TodayViewModel`'s `agendaItems`, `scheduledMeetings` and `needsLessonCount` keep theirs (extensions in other files write them).
 
